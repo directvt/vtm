@@ -1289,7 +1289,7 @@ namespace netxs::directvt
                         right_half(right);
                     }
                 };
-                if (image.hash() != cache.hash()) // The cache has been resized.
+                if (true || image.hash() != cache.hash()) // The cache has been resized.
                 {
                     block.basevt::scroll_wipe();
                     auto src = cache.begin();
@@ -1302,167 +1302,74 @@ namespace netxs::directvt
                             break;
                         }
                         block.basevt::locate(coord);
-                        auto beg = src + 1;
                         auto end = src + field.x;
-                        auto unsync = faux;
-                        auto is_integral = faux;
-                        auto prev_cluster = view{};
-                        auto cell_count = 0;
                         while (src != end)
                         {
-                            // if (y!=1 || x!=1 || len==0 || (len==1 && c<32)) // 2D fragment or empty or C0
-                            // {
-                            //      Print white space
-                            //      coor.x++;
-                            // }
-                            // else if ((w==1 && h==1) // slim and
-                            //      && ((c>=32 && c<128) // ansi plain text
-                            //       || (len<4 || (c[len-4]!=vs[0] && c[len-3]!=vs[1])) // or not modified
-                            // {
-                            //      // Print c
-                            //      coor.x++;
-                            // }
-                            // else if (x==1 && w!=1) // wide
-                            // {
-                            //      auto gc = c.txt<svga::vt_2D>();
-                            //      print w spaces: while (w==x && c.txt<svga::vt_2D>() == gc)
-                            //                      {
-                            //                          if (c.txt<svga::vt_2D>() != gc)
-                            //                          {
-                            //                              drop cluster as is and continue diff
-                            //                          }
-                            //                          print space
-                            //                          coor.x++;
-                            //                      }
-                            //          set_coor(coor.x - w)
-                            //          // Print c.
-                            //          set_coor(coor.x + w)
-                            //      }
-                            // }
-                            // not modified:    len<4 || (c[len-4]!=q[0] && c[len-3]!=q[1])
-                            // modified:        len>=4 && c[len-4]==q[0] && c[len-3]==q[1]
-                            auto c = *src++;
-                            //codepoint count
-                            //  if one: is simple (ranges)?
-                            //geometry modifier present
-                            //current char width
-                            // seek to end (printing spaces) until x==w then go back (set coor) and print char and set coor to end
+                            auto& c = *src++;
+                            auto utf8 = c.txt<svga::vt_2D>();
+                            auto iter = utf::cpit{ utf8 };
+                            auto code = iter.take();
+                            auto len = utf8.empty() ? 0
+                                                    : (code.correct && iter.balance == iter.utf8len) ? 1 : 20;
                             auto [w, h, x, y] = c.whxy();
-                            if (y == 1)
-                            {
-                                //if (w == x && is_integral)
-                                //{
-                                //    put3(c, cluster);
-                                //}
-                                //else
-                                if (w != 1 && x == 1)
-                                {
-                                    is_integral = true;
-                                    prev_cluster = c.gc.get<svga::vt_2D>();
-                                    cell_count++;
-                                }
-                                else
-                                {
-                                    if (is_integral)
-                                    {
-                                        auto cluster = c.gc.get<svga::vt_2D>();
-                                        if (prev_cluster == cluster && x == cell_count + 1)
-                                        {
-                                            cell_count++;
-                                        }
-                                        else
-                                        {
-                                            is_integral = faux;
-                                        }
-                                    }
-                                }
-                            }
-                            if (w != x || y != 1 || (w != 1 && !is_integral))
+                            if (w == 0 || h == 0 || y != 1 || x != 1 || len == 0 || (len == 1 && code.cdpoint < 32)) // 2D fragment is either non-standard or empty or C0.
                             {
                                 put2(c, " ");
-                                //todo track character integrity
+                                coord.x++;
                             }
-                            else
+                            else if (w == 1 && h == 1 && len == 1 && code.ucwidth == unidata::widths::slim) // Slim and (ansi plain text
                             {
-                                auto cluster = c.gc.get<svga::vt_2D>();
-                                auto s = cluster.size();
-                                if (s == 1)
-                                {
-                                    if (cluster.front() >= ' ')
-                                    {
-                                        put2(c, cluster);
-                                    }
-                                    else
-                                    {
-                                        put2(c, " ");
-                                    }
-                                }
-                                else if (s == 0)
-                                {
-                                    put2(c, " ");
-                                }
-                                else
-                                {
-                                    auto count = utf::codepoint_count(cluster);
-                                    if (count == 1 && (cluster.front() & 0x80) == 0)
-                                    {
-                                        put2(c, cluster);
-                                    }
-                                    else
-                                    {
-
-                                    }
-                                }
+                                put2(c, utf8);
+                                coord.x++;
                             }
-
-                            if (x == 1 && y == 1)
+                            else if (!code.correct) // Bad cell's cluster.
                             {
-                                if (unsync)
-                                {
-                                    unsync = faux;
-                                    mov(src - beg);
-                                }
-                                put(c);
-                                if (w > 1)
-                                {
-                                    if (unsync)
-                                    {
-                                        unsync = faux;
-                                        mov(src - beg);
-                                    }
-                                    put(c.txt(' '));
-                                    if (w == 2 || w == x) unsync = true;
-                                }
+                                put2(c, utf::replacement);
+                                coord.x++;
                             }
-                            else
+                            else // if (x == 1) // Start of a complex char: Save coord1. Print w spaces. Save coord2. Restore coord1. Print cluster. Restore coord2.
                             {
-                                if (x != 2 || y != 1)
+                                auto coord1 = coord.x;
+                                put2(c, " ");
+                                coord.x++;
+                                while (src != end)
                                 {
-                                    if (unsync)
+                                    auto cc = *src;
+                                    x++;
+                                    auto [w1, h1, x1, y1] = cc.whxy();
+                                    if (x1 != x || w1 != w || h1 != h || y1 != y || cc.txt<svga::vt_2D>() != utf8) // Incomplete 2D character.
                                     {
-                                        unsync = faux;
-                                        mov(src - beg);
+                                        break; // Leave spaces.
                                     }
-                                    put(c.txt(' '));
+                                    put2(cc, " ");
+                                    ++coord.x;
+                                    ++src;
+                                    if (w == x)
+                                    {
+                                        auto l = utf8.length();
+                                        if (l > 1 && utf8.front() == 2) // Has a custom cluster.
+                                        {
+                                            utf8.remove_prefix(1);
+                                            l -= 1;
+                                        }
+                                        if (l > 4 && utf8[l - 4] == utf::matrix::utf8_prefix[0] && utf8[l - 3] == utf::matrix::utf8_prefix[1]) // Has a modified geometry.
+                                        {
+                                            utf8.remove_suffix(4); // Cut geometry modifier.
+                                            l -= 4;
+                                        }
+                                        while (l > 3 && utf8[l - 3] == '\xEF' && utf8[l - 2] == '\xB8'    // Possibli has rotation modifier.
+                                               && (byte)utf8.back() >= 0x83 && (byte)utf8.back() <= 0x8D) // vs<4>  u{FE03}  utf-8: 0xEF 0xB8 0x83
+                                        {                                                                 // vs<14> u{FE0D}  utf-8: 0xEF 0xB8 0x8D
+                                            utf8.remove_suffix(3); // Cut rotation modifier.
+                                            l -= 3;
+                                        }
+                                        auto coord2 = coord.x;
+                                        mov(coord1);
+                                        put2(c, utf8);
+                                        mov(coord2);
+                                        break;
+                                    }
                                 }
-                                //unsync = true;
-                                //mov(src - beg);
-                                //if (w == 2 && x == 1)
-                                //{
-                                //    if (src != end)
-                                //    {
-                                //        auto& right = *src;
-                                //        auto [rw, rh, rx, ry] = right.whxy();
-                                //        if (rx == 1) left_half(c);
-                                //        else
-                                //        {
-                                //            if (dif(c, right)) left_half(c);
-                                //            else               ++src;
-                                //        }
-                                //    }
-                                //    else left_half(c);
-                                //}
-                                //else mov(src - beg);//else right_half(c);
                             }
                         }
                         ++coord.y;
