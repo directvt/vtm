@@ -1237,22 +1237,7 @@ namespace netxs::directvt
                 auto coord = dot_00;
                 auto saved = state;
                 auto field = cache.size();
-                auto mov = [&](auto x)
-                {
-                    coord.x = static_cast<decltype(coord.x)>(x);
-                    block.basevt::locate(coord);
-                };
-                auto put = [&](cell const& cache)
-                {
-                    if (cache.cur())
-                    {
-                        auto c = cache;
-                        c.draw_cursor();
-                        c.scan<Mode>(state, block);
-                    }
-                    else cache.scan<Mode>(state, block);
-                };
-                auto put2 = [&](cell const& cache, view cluster)
+                auto print = [&](cell const& cache, view cluster)
                 {
                     if (cache.cur())
                     {
@@ -1263,34 +1248,8 @@ namespace netxs::directvt
                     else cache.scan_attr<Mode>(state, block);
                     block += cluster;
                 };
-                auto dif = [&](cell const& cache, cell const& front)
-                {
-                    auto same = cache.check_pair(front);
-                    if (same) put(cache);
-                    return !same;
-                };
-                auto left_half = [&](cell const& cache)
-                {
-                    auto temp = cache;
-                    temp.txt(cache.get_c0_left());
-                    put(temp);
-                };
-                auto right_half = [&](cell const& cache)
-                {
-                    auto temp = cache;
-                    temp.txt(cache.get_c0_right());
-                    put(temp);
-                };
-                auto tie = [&](cell const& left, cell const& right)
-                {
-                    if (dif(left, right))
-                    {
-                        left_half(left);
-                        right_half(right);
-                    }
-                };
                 auto src = cache.begin();
-                if (true || image.hash() != cache.hash()) // The cache has been resized.
+                if (image.hash() != cache.hash()) // The cache has been resized.
                 {
                     block.basevt::scroll_wipe();
                     while (coord.y < field.y)
@@ -1301,7 +1260,7 @@ namespace netxs::directvt
                             state = saved;
                             break;
                         }
-                        mov(0);
+                        block.basevt::locate(coord);
                         auto beg = src + 1;
                         auto end = src + field.x;
                         while (src != end)
@@ -1315,20 +1274,20 @@ namespace netxs::directvt
                             auto [w, h, x, y] = c.whxy();
                             if (w == 0 || h == 0 || y != 1 || x != 1 || len == 0 || (len == 1 && code.cdpoint < 32)) // 2D fragment is either non-standard or empty or C0.
                             {
-                                put2(c, " ");
+                                print(c, " ");
                             }
-                            else if (w == 1 && h == 1 && len == 1 && code.ucwidth == unidata::widths::slim) // Slim and (ansi plain text
+                            else if (w == 1 && h == 1 && len == 1 && code.ucwidth == unidata::widths::slim) // Slim and ansi plain text.
                             {
-                                put2(c, utf8);
+                                print(c, utf8);
                             }
                             else if (!code.correct) // Bad cell's cluster.
                             {
-                                put2(c, utf::replacement);
+                                print(c, utf::replacement);
                             }
                             else // if (x == 1) // Start of a complex char: Save coord1. Print w spaces. Save coord2. Restore coord1. Print cluster. Restore coord2.
                             {
                                 auto coord1 = src - beg;
-                                put2(c, " ");
+                                print(c, " ");
                                 while (src != end)
                                 {
                                     auto cc = *src;
@@ -1338,7 +1297,7 @@ namespace netxs::directvt
                                     {
                                         break; // Leave spaces.
                                     }
-                                    put2(cc, " ");
+                                    print(cc, " ");
                                     ++src;
                                     if (w == x)
                                     {
@@ -1361,26 +1320,41 @@ namespace netxs::directvt
                                         }
                                         if (coord1 != 0)
                                         {
-                                            mov(coord1);
+                                            coord.x = (si32)coord1;
+                                            block.basevt::locate(coord);
                                         }
-                                        put2(c, utf8);
+                                        print(c, utf8);
                                         if (src != end)
                                         {
-                                            auto coord2 = src - beg;
-                                            mov(coord2 + 1/*next cell*/);
+                                            auto coord2 = (src - beg) + 1/*next cell*/;
+                                            coord.x = (si32)coord2;
+                                            block.basevt::locate(coord);
                                         }
                                         break;
                                     }
                                 }
                             }
                         }
+                        coord.x = 0;
                         ++coord.y;
                     }
                 }
                 else
                 {
+                    auto setxy = [&](si32 x, si32 y)
+                    {
+                        if (coord.x != x || coord.y != y)
+                        {
+                            coord.x = x;
+                            coord.y = y;
+                            block.basevt::locate(coord);
+                        }
+                    };
                     auto dst = image.begin();
-                    while (coord.y < field.y)
+                    auto bad_cells = 0; // Possibly corrupted cell count.
+                    coord = dot_mx;
+                    auto coord_y = 0;
+                    while (coord_y < field.y)
                     {
                         if (abort) // The cache size has suddenly changed.
                         {
@@ -1392,100 +1366,103 @@ namespace netxs::directvt
                         auto end = src + field.x;
                         while (src != end)
                         {
-                            auto& fore = *src++;
-                            auto& back = *dst++;
-                            auto [w, h, x, y] = fore.whxy();
-                            if (w < 2)
+                            auto& c = *src++; // Current frame.
+                            auto& p = *dst++; // Previous shot.
+                            if (bad_cells || c != p)
                             {
-                                if (back != fore)
+                                auto utf8 = c.txt<svga::vt_2D>();
+                                auto iter = utf::cpit{ utf8 };
+                                auto code = iter.take();
+                                auto len = utf8.empty() ? 0
+                                                        : (code.correct && iter.balance == iter.utf8len) ? 1 : 20;
+                                auto [w, h, x, y] = c.whxy();
+                                if (bad_cells)
                                 {
-                                    mov(src - beg);
-                                    put(fore);
+                                    bad_cells--;
+                                }
+                                else if (w > 1 && x > 1 && y == 1) // Try to redraw the entire character matrix.
+                                {
+                                    auto cur_pos = (si32)(src - beg);
+                                    if (cur_pos >= x - 1)
+                                    {
+                                        src -= x;
+                                        dst -= x;
+                                        bad_cells = w;
+                                        continue;
+                                    }
+                                }
+                                auto cur_pos = (si32)(src - beg);
+                                setxy(cur_pos, coord_y);
+                                if (w == 0 || h == 0 || y != 1 || x != 1 || len == 0 || (len == 1 && code.cdpoint < 32)) // 2D fragment is either non-standard or empty or C0.
+                                {
+                                    print(c, " ");
+                                    coord.x++;
+                                }
+                                else if (w == 1 && h == 1 && len == 1 && code.ucwidth == unidata::widths::slim) // Slim and (ansi plain text
+                                {
+                                    print(c, utf8);
+                                    coord.x++;
+                                }
+                                else if (!code.correct) // Bad cell's cluster.
+                                {
+                                    print(c, utf::replacement);
+                                    coord.x++;
+                                }
+                                else // if (x == 1) // Start of a complex char: Save coord1. Print w spaces. Save coord2. Restore coord1. Print cluster. Restore coord2.
+                                {
+                                    auto coord1 = coord.x;
+                                    print(c, " ");
+                                    coord.x++;
                                     while (src != end)
                                     {
-                                        auto& f = *src++;
-                                        auto& b = *dst++;
-                                        auto [fw, fh, fx, fy] = f.whxy();
-                                        if (fw < 2)
+                                        auto cc = *src;
+                                        x++;
+                                        auto [w1, h1, x1, y1] = cc.whxy();
+                                        if (x1 != x || w1 != w || h1 != h || y1 != y || cc.txt<svga::vt_2D>() != utf8) // Incomplete 2D character.
                                         {
-                                            if (b == f) break;
-                                            else        put(f);
+                                            break; // Leave spaces.
                                         }
-                                        else if (fw == 2 && fx == 1) // Check left part.
+                                        print(cc, " ");
+                                        coord.x++;
+                                        ++src;
+                                        ++dst;
+                                        if (bad_cells)
                                         {
-                                            if (src != end)
+                                            bad_cells--;
+                                        }
+                                        if (w == x)
+                                        {
+                                            auto l = utf8.length();
+                                            if (l > 1 && utf8.front() == 2) // Has a custom cluster.
                                             {
-                                                auto& right = *src;
-                                                if (b == f && right == *dst)
-                                                {
-                                                    ++src;
-                                                    ++dst;
-                                                    break;
-                                                }
-                                                else
-                                                {
-                                                    auto [rw, rh, rx, ry] = right.whxy();
-                                                    if (rx == 1) left_half(f);
-                                                    else // right.wdt() == 3
-                                                    {
-                                                        tie(f, right);
-                                                        ++src;
-                                                        ++dst;
-                                                    }
-                                                }
+                                                utf8.remove_prefix(1);
+                                                l -= 1;
                                             }
-                                            else left_half(f);
+                                            if (l > 4 && utf8[l - 4] == utf::matrix::utf8_prefix[0] && utf8[l - 3] == utf::matrix::utf8_prefix[1]) // Has a modified geometry.
+                                            {
+                                                utf8.remove_suffix(4); // Cut geometry modifier.
+                                                l -= 4;
+                                            }
+                                            while (l > 3 && utf8[l - 3] == '\xEF' && utf8[l - 2] == '\xB8'    // Possibli has rotation modifier.
+                                                   && (byte)utf8.back() >= 0x83 && (byte)utf8.back() <= 0x8D) // vs<4>  u{FE03}  utf-8: 0xEF 0xB8 0x83
+                                            {                                                                 // vs<14> u{FE0D}  utf-8: 0xEF 0xB8 0x8D
+                                                utf8.remove_suffix(3); // Cut rotation modifier.
+                                                l -= 3;
+                                            }
+                                            setxy(coord1, coord_y);
+                                            print(c, utf8);
+                                            if (!bad_cells)
+                                            {
+                                                auto coord2 = (si32)(src - beg);
+                                                bad_cells = std::max(0, utf::codepoint_count(utf8) - (coord2 - coord1) + 1);
+                                            }
+                                            break;
                                         }
-                                        else mov(src - beg + 1);//else right_half(f); // fw == 3
                                     }
                                 }
-                            }
-                            else
-                            {
-                                if (w == 2) // Left part has changed.
-                                {
-                                    if (back != fore)
-                                    {
-                                        mov(src - beg);
-                                        if (src != end)
-                                        {
-                                            auto& right = *src;
-                                            auto [rw, rh, rx, ry] = right.whxy();
-                                            if (rx == 1) left_half(fore);
-                                            else // right.wdt() == 3
-                                            {
-                                                tie(fore, right);
-                                                ++src;
-                                                ++dst;
-                                            }
-                                        }
-                                        else left_half(fore);
-                                    }
-                                    else // Check right part.
-                                    {
-                                        if (src != end)
-                                        {
-                                            auto& right = *src;
-                                            auto [rw, rh, rx, ry] = right.whxy();
-                                            if (rx == 1) mov(src - beg), left_half(fore);
-                                            else // right.wdt() == 3
-                                            {
-                                                if (right != *dst)
-                                                {
-                                                    mov(src - beg);
-                                                    tie(fore, right);
-                                                }
-                                                ++src;
-                                                ++dst;
-                                            }
-                                        }
-                                        else mov(src - beg), left_half(fore);
-                                    }
-                                }
-                                else mov(src - beg + 1);//, right_half(fore); // w == 3
                             }
                         }
-                        ++coord.y;
+                        ++coord_y;
                     }
                 }
                 std::swap(image, cache);

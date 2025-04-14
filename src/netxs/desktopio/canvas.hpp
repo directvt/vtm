@@ -1751,34 +1751,6 @@ namespace netxs
                 else dest += shadow;
             }
         }
-        // cell: Take the left half of the C0 cluster or the replacement if it is not C0.
-        auto get_c0_left() const
-        {
-            auto [w, h, x, y] = whxy();
-            if (w != 0 && h == 1 && x == 1)
-            {
-                auto shadow = gc.get();
-                if (shadow.size() == 2 && shadow.front() == '^')
-                {
-                    return view{ "^" };
-                }
-            }
-            return utf::replacement;
-        }
-        // cell: Take the right half of the C0 cluster or the replacement if it is not C0.
-        auto get_c0_right() const
-        {
-            auto [w, h, x, y] = whxy();
-            if (w != 0 && h == 1 && x == 2)
-            {
-                auto shadow = gc.get();
-                if (shadow.size() == 2 && shadow.front() == '^')
-                {
-                    return shadow.substr(1, 1);
-                }
-            }
-            return utf::replacement;
-        }
         // cell: Convert non-printable chars to escaped.
         template<class C>
         auto& c0_to_txt(C chr)
