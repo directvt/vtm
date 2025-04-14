@@ -1293,7 +1293,7 @@ namespace netxs::directvt
                                     auto cc = *src;
                                     x++;
                                     auto [w1, h1, x1, y1] = cc.whxy();
-                                    if (x1 != x || w1 != w || h1 != h || y1 != y || cc.txt<svga::vt_2D>() != utf8) // Incomplete 2D character.
+                                    if (x1 != x || y1 != y || cc.gc != c.gc) // Incomplete matrix.
                                     {
                                         break; // Leave spaces.
                                     }
@@ -1385,10 +1385,15 @@ namespace netxs::directvt
                                     auto cur_pos = (si32)(src - beg);
                                     if (cur_pos >= x - 1)
                                     {
-                                        src -= x;
-                                        dst -= x;
-                                        bad_cells = w;
-                                        continue;
+                                        auto& cc = *(src - x);
+                                        auto [w1, h1, x1, y1] = cc.whxy();
+                                        if (x1 == 1 && y1 == y && cc.gc == c.gc) // Verify the fragment belongs to the same matrix.
+                                        {
+                                            src -= x;
+                                            dst -= x;
+                                            bad_cells = w;
+                                            continue;
+                                        }
                                     }
                                 }
                                 auto cur_pos = (si32)(src - beg);
@@ -1418,7 +1423,7 @@ namespace netxs::directvt
                                         auto cc = *src;
                                         x++;
                                         auto [w1, h1, x1, y1] = cc.whxy();
-                                        if (x1 != x || w1 != w || h1 != h || y1 != y || cc.txt<svga::vt_2D>() != utf8) // Incomplete 2D character.
+                                        if (x1 != x || y1 != y || cc.gc != c.gc) // Incomplete matrix.
                                         {
                                             break; // Leave spaces.
                                         }
