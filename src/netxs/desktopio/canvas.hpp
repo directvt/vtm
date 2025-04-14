@@ -1651,6 +1651,25 @@ namespace netxs
             st.meta(c.st);
             px = c.px;
         }
+        void skipnulls(cell const& c)
+        {
+            if (c.gc.is_null()) // Keep gc intact.
+            {
+                meta(c);
+            }
+            else
+            {
+                if (c.uv.bg.token == argb::default_color) // Update gc while keeping SGR attributes (if bgc==0x00'FF'FF'FF).
+                {
+                    gc = c.gc;
+                    st.xy(c.st.xy());
+                }
+                else // Copy all.
+                {
+                    *this = c;
+                }
+            }
+        }
         // cell: Get differences of the visual attributes only (ANSI CSI/SGR format).
         template<svga Mode = svga::vtrgb, bool UseSGR = true, class T>
         void scan_attr(cell& base, T& dest) const
@@ -2114,7 +2133,7 @@ namespace netxs
             struct skipnulls_t : public brush_t<skipnulls_t>
             {
                 template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
-                template<class D, class S>  inline void operator () (D& dst, S& src) const { if (src.isnul()) dst.meta(src); else dst = src; }
+                template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.skipnulls(src); }
             };
             struct fuse_t : public brush_t<fuse_t>
             {
