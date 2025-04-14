@@ -138,14 +138,14 @@ namespace netxs::ui
                     }
                     if (n > 0) // Cut by whitespace.
                     {
-                        printout.size.x = n + 1;
+                        printout.size.x = n + (RtoL ? 0 : 1);
                     }
                     else // Cut on a widechar boundary (CJK/Emoji).
                     {
                         auto q = curpoint + printout.size.x - 1;
                         auto& c = block.at(q);
                         auto [w, h, x, y] = c.whxy();
-                        if (w == 2 && h == 1 && x == 1 && y == 1)
+                        if (w != 1 && h == 1 && x == 1 && y == 1)
                         {
                             --printout.size.x;
                         }
