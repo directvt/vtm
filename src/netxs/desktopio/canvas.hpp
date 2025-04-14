@@ -2114,7 +2114,7 @@ namespace netxs
             struct skipnulls_t : public brush_t<skipnulls_t>
             {
                 template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
-                template<class D, class S>  inline void operator () (D& dst, S& src) const { if (!src.isnul()) dst = src; }
+                template<class D, class S>  inline void operator () (D& dst, S& src) const { if (src.isnul()) dst.meta(src); else dst = src; }
             };
             struct fuse_t : public brush_t<fuse_t>
             {
