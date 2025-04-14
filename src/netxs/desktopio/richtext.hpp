@@ -140,7 +140,7 @@ namespace netxs::ui
                     {
                         printout.size.x = n + (RtoL ? 0 : 1);
                     }
-                    else // Cut on a widechar boundary (CJK/Emoji).
+                    else // Try to cut on a matrix boundary (CJK/Emoji).
                     {
                         auto q = curpoint + printout.size.x - 1;
                         auto& c = block.at(q);
@@ -194,16 +194,27 @@ namespace netxs::ui
         auto middle() { return (cliprect.size.x >> 1) - (textline.size.x >> 1); }
         void autocr() { if (caretpos.x >= caret_mx) flow::nl(highness); }
 
+        void cut_leading_spaces(auto const& block)
+        {
+            while (textline.size.x > 0 && block.at(curpoint).isspc())
+            {
+                textline.size.x--;
+                curpoint++;
+            }
+        }
         template<bool Split, bool RtoL, bool ReLF, class T, class P>
         void centred(T const& block, P print)
         {
             while (textline.size.x > 0)
             {
                 autocr();
-                auto axis = textline.size.x >= caret_mx ? 0
-                                                        : middle();
+                auto axis = textline.size.x >= caret_mx ? 0 : middle();
                 flow::ax(axis);
                 output<Split, true, RtoL, ReLF>(block, print);
+                if constexpr (!Split) // Cut all leading spaces on wrapping.
+                {
+                    cut_leading_spaces(block);
+                }
             }
         }
         template<bool Split, bool RtoL, bool ReLF, class T, class P>
@@ -213,6 +224,10 @@ namespace netxs::ui
             {
                 autocr();
                 output<Split, true, RtoL, ReLF>(block, print);
+                if constexpr (!Split) // Cut all leading spaces on wrapping.
+                {
+                    cut_leading_spaces(block);
+                }
             }
         }
         template<bool Split, bool RtoL, bool ReLF, class T, class P>
