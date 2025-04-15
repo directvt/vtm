@@ -1318,11 +1318,6 @@ namespace netxs::directvt
                                             utf8.remove_prefix(1);
                                             l -= 1;
                                         }
-                                        if (l > 4 && utf8[l - 4] == utf::matrix::utf8_prefix[0] && utf8[l - 3] == utf::matrix::utf8_prefix[1]) // Has a modified geometry.
-                                        {
-                                            utf8.remove_suffix(4); // Cut geometry modifier.
-                                            l -= 4;
-                                        }
                                         while (l > 3 && utf8[l - 3] == '\xEF' && utf8[l - 2] == '\xB8'    // Possibli has rotation modifier.
                                                && (byte)utf8.back() >= 0x83 && (byte)utf8.back() <= 0x8D) // vs<4>  u{FE03}  utf-8: 0xEF 0xB8 0x83
                                         {                                                                 // vs<14> u{FE0D}  utf-8: 0xEF 0xB8 0x8D
@@ -1454,11 +1449,6 @@ namespace netxs::directvt
                                             {
                                                 utf8.remove_prefix(1);
                                                 l -= 1;
-                                            }
-                                            if (l > 4 && utf8[l - 4] == utf::matrix::utf8_prefix[0] && utf8[l - 3] == utf::matrix::utf8_prefix[1]) // Has a modified geometry.
-                                            {
-                                                utf8.remove_suffix(4); // Cut geometry modifier.
-                                                l -= 4;
                                             }
                                             while (l > 3 && utf8[l - 3] == '\xEF' && utf8[l - 2] == '\xB8'    // Possibli has rotation modifier.
                                                    && (byte)utf8.back() >= 0x83 && (byte)utf8.back() <= 0x8D) // vs<4>  u{FE03}  utf-8: 0xEF 0xB8 0x83

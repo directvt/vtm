@@ -105,7 +105,6 @@ namespace netxs::utf
         static constexpr auto vss = utf8view<code>;
         static constexpr auto min_vs_code = vs_code<00, 00>;
         static constexpr auto max_vs_code = vs_code<164, 164>;
-        static constexpr auto utf8_prefix = utf8view<vs_block>;
 
         auto vs_runtime(si32 w, si32 h, si32 x = {}, si32 y = {})
         {
@@ -179,6 +178,7 @@ namespace netxs::utf
                 if (next.cdpoint >= matrix::min_vs_code && next.cdpoint <= matrix::max_vs_code) // Set matrix size.
                 {
                     cmatrix = (si32)(next.cdpoint - matrix::vs_block);
+                    return 0_sz;
                 }
                 else if (next.ucwidth > unidata::ucwidth)
                 {
@@ -362,16 +362,12 @@ namespace netxs::utf
                             code.step();
                             next = code.take();
                             auto left = next; // Base char in cluster.
-                            if (!next.correct) return frag{ replacement, left }; // Unexpected cluster end.
-                            utf8len += next.utf8len;
-                            cpcount += 1;
-                            while (next.cdpoint < matrix::min_vs_code || next.cdpoint > matrix::max_vs_code) // Eat all until VS.
+                            while (next.correct && (next.cdpoint < matrix::min_vs_code || next.cdpoint > matrix::max_vs_code)) // Eat all until VS.
                             {
-                                code.step();
-                                next = code.take();
-                                if (!next.correct) break; // Unexpected cluster end.
                                 utf8len += next.utf8len;
                                 cpcount += 1;
+                                code.step();
+                                next = code.take();
                             }
                             if (next.correct)
                             {
@@ -455,33 +451,28 @@ namespace netxs::utf
                         code.step();
                         next = code.take();
                         auto left = next; // Base char in cluster.
-                        if (next.correct)
+                        while (next.correct && (next.cdpoint < matrix::min_vs_code || next.cdpoint > matrix::max_vs_code)) // Eat all until VS.
                         {
                             utf8len += next.utf8len;
                             cpcount += 1;
-                            while (next.cdpoint < matrix::min_vs_code || next.cdpoint > matrix::max_vs_code) // Eat all until VS.
-                            {
-                                code.step();
-                                next = code.take();
-                                if (!next.correct) break; // Unexpected cluster end.
-                                utf8len += next.utf8len;
-                                cpcount += 1;
-                            }
-                            if (next.correct)
-                            {
-                                left.utf8len = utf8len;
-                                left.cpcount = cpcount;
-                                left.cmatrix = next.cdpoint - matrix::vs_block;
-                                auto crop = frag{ rest.substr(0, left.utf8len), left };
-                                yield(crop);
-                                code.step();
-                                next = code.take();
-                                continue;
-                            }
+                            code.step();
+                            next = code.take();
                         }
-                        // Broken cluster. Silently ignore STX.
-                        code.redo(rest.substr(1));
-                        next = left;
+                        if (next.correct)
+                        {
+                            left.utf8len = utf8len;
+                            left.cpcount = cpcount;
+                            left.cmatrix = next.cdpoint - matrix::vs_block;
+                            auto crop = frag{ rest.substr(0, left.utf8len), left };
+                            yield(crop);
+                            code.step();
+                            next = code.take();
+                        }
+                        else // Broken cluster. Silently ignore STX.
+                        {
+                            code.redo(rest.substr(1));
+                            next = left;
+                        }
                     }
                     else // Proceed general control.
                     {

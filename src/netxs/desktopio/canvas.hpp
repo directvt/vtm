@@ -1129,33 +1129,16 @@ namespace netxs
             view get() const
             {
                 if constexpr (Mode == svga::dtvt) return {};
-                else if constexpr (Mode != svga::vt_2D)
+                auto crop = is_jumbo() ? jumbos().get(jgc_token())
+                                       : view(bytes() + 1, str_len());
+                if constexpr (Mode != svga::vt_2D)
                 {
-                    auto crop = is_jumbo() ? jumbos().get(jgc_token())
-                                           : view(bytes() + 1, str_len());
-                    if (auto s = crop.size())
+                    if (crop.size() && crop.front() == utf::matrix::stx)
                     {
-                        if (s >= 4)
-                        {
-                            auto front = crop.front();
-                            if (crop[s - 4] == utf::matrix::utf8_prefix[0]
-                             && crop[s - 3] == utf::matrix::utf8_prefix[1])
-                            {
-                                crop.remove_suffix(4); // Drop geometry modifier.
-                            }
-                            if (front == utf::matrix::stx)
-                            {
-                                crop.remove_prefix(1); // Drop cluster initializer.
-                            }
-                        }
+                        crop.remove_prefix(1); // Drop cluster initializer.
                     }
-                    return crop;
                 }
-                else
-                {
-                    if (is_jumbo()) return jumbos().get(jgc_token());
-                    else            return view(bytes() + 1, str_len());
-                }
+                return crop;
             }
             bool is_space() const //todo VS2019 complains on auto
             {
