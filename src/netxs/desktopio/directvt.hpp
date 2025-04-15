@@ -1248,6 +1248,17 @@ namespace netxs::directvt
                     else cache.scan_attr<Mode>(state, block);
                     block += cluster;
                 };
+                auto print_rtl = [&](cell const& cache, view cluster)
+                {
+                    if (cache.cur())
+                    {
+                        auto c = cache;
+                        c.draw_cursor();
+                        c.scan_attr<Mode>(state, block);
+                    }
+                    else cache.scan_attr<Mode>(state, block);
+                    utf::reverse_codepoints(cluster, block);
+                };
                 auto src = cache.begin();
                 if (image.hash() != cache.hash()) // The cache has been resized.
                 {
@@ -1323,7 +1334,8 @@ namespace netxs::directvt
                                             coord.x = (si32)coord1;
                                             block.basevt::locate(coord);
                                         }
-                                        print(c, utf8);
+                                        if (c.rtl()) print_rtl(c, utf8);
+                                        else         print(c, utf8);
                                         if (src != end)
                                         {
                                             auto coord2 = (src - beg) + 1/*next cell*/;
@@ -1455,7 +1467,8 @@ namespace netxs::directvt
                                                 l -= 3;
                                             }
                                             setxy(coord1, coord_y);
-                                            print(c, utf8);
+                                            if (c.rtl()) print_rtl(c, utf8);
+                                            else         print(c, utf8);
                                             if (!bad_cells)
                                             {
                                                 auto coord2 = (si32)(src - beg);

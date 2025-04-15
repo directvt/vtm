@@ -597,6 +597,57 @@ namespace netxs::utf
         }
         return count;
     }
+    void reverse_codepoints(view cluster, auto& block)
+    {
+        block.resize(block.size() + cluster.size());
+        auto dest = block.rbegin();
+        auto head = cluster.begin();
+        auto tail = cluster.end();
+        while (head != tail)
+        {
+            auto a = (byte)(*head++);
+            //if (a < 0x80) // len = 1
+            //{
+            //    *dest++ = a;
+            //}
+            //else
+            if (a < 0xC2) // len = 0
+            {
+                *dest++ = a;
+            }
+            else if (a < 0xE0) // len = 2
+            {
+                if (tail - head < 1) break;
+                auto b = *head++;
+                *dest++ = b;
+                *dest++ = a;
+            }
+            else if (a < 0xF0) // len = 3
+            {
+                if (tail - head < 2) break;
+                auto b = *head++;
+                auto c = *head++;
+                *dest++ = c;
+                *dest++ = b;
+                *dest++ = a;
+            }
+            else if (a < 0xF5) // len = 4
+            {
+                if (tail - head < 3) break;
+                auto b = *head++;
+                auto c = *head++;
+                auto d = *head++;
+                *dest++ = d;
+                *dest++ = c;
+                *dest++ = b;
+                *dest++ = a;
+            }
+            else //if (cp <= 0xFF) // len = 0
+            {
+                *dest++ = a;
+            }
+        }
+    }
 
     struct qiew : public view
     {
