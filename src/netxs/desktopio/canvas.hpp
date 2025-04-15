@@ -1655,7 +1655,10 @@ namespace netxs
         {
             if (c.gc.is_null()) // Keep gc intact.
             {
-                meta(c);
+                if (c.uv.bg.token != argb::default_color) // Completely ignore transparent nulls (do nothing, move cursor forward).
+                {
+                    meta(c);
+                }
             }
             else
             {
