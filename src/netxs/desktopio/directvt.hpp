@@ -1488,10 +1488,270 @@ namespace netxs::directvt
             }
             void get(view& /*data*/) { }
         };
+        template<svga Mode, type Kind>
+        struct bitmap_2
+            : public stream
+        {
+            static constexpr auto kind = Kind;
+
+            cell state; // bitmap_2: .
+            core image; // bitmap_2: .
+
+            bitmap_2()
+                : stream{ Kind }
+            { }
+
+            void set(id_t /*winid*/, twod /*winxy*/, core& cache, flag& abort, sz_t& delta)
+            {
+                auto coord = dot_00;
+                auto saved = state;
+                auto field = cache.size();
+                auto print = [&](cell const& cache, view cluster)
+                {
+                    if (cache.cur())
+                    {
+                        auto c = cache;
+                        c.draw_cursor();
+                        c.scan_attr<Mode>(state, block);
+                    }
+                    else cache.scan_attr<Mode>(state, block);
+                    block += cluster;
+                };
+                auto src = cache.begin();
+                if (true || image.hash() != cache.hash()) // The cache has been resized.
+                {
+                    block.basevt::scroll_wipe();
+                    while (coord.y < field.y)
+                    {
+                        if (abort) // The cache is resized again.
+                        {
+                            delta = reset();
+                            state = saved;
+                            break;
+                        }
+                        block.basevt::locate(coord);
+                        auto beg = src + 1;
+                        auto end = src + field.x;
+                        while (src != end)
+                        {
+                            auto& c = *src++;
+                            auto utf8 = c.txt<svga::vt_2D>(); // svga::vt_2D: To include STX if it is.
+                            auto iter = utf::cpit{ utf8 };
+                            auto code = iter.take();
+                            auto len = utf8.empty() ? 0
+                                                    : (code.correct && iter.balance == iter.utf8len) ? 1 : 20;
+                            auto [w, h, x, y] = c.whxy();
+                            if (w == 0 || h == 0 || x == 0 || y == 0 || len == 0 || (len == 1 && code.cdpoint < 32)) // Empty or C0.
+                            {
+                                print(c, " ");
+                            }
+                            else if (w == 1 && h == 1 && len == 1 && code.ucwidth == unidata::widths::slim) // Slim character.
+                            {
+                                print(c, utf8);
+                            }
+                            else if (!code.correct) // Bad cell's cluster.
+                            {
+                                print(c, utf::replacement);
+                            }
+                            else // Complex char.
+                            {
+                                auto has_2D_modifier = h != 1 || w > 2 || w != (si32)code.ucwidth || (utf8.size() > 1 && utf8.front() == 2); // Add 2d modifier at the end if so.
+                                if (x == 1)
+                                {
+                                    if (w != 1)
+                                    {
+                                        // test whole cluster (find cluster end: +detect sgr changes)
+                                        //if (whole_cluster)
+                                        //{
+                                        //    if (plain_srg)
+                                        //    {
+                                        //        print(c, utf8); // Print cluster.
+                                        //    }
+                                        //    else
+                                        //    {
+                                        //        auto coor1 = coord.x;
+                                        //        //print nulls with required sgr
+                                        //        //    while (head != tail)
+                                        //        //    {
+                                        //        //      //
+                                        //        //    }
+                                        //        mov(coor1);
+                                        //        //set transparent color
+                                        //        block += utf8; // Output cluster.
+                                        //    }
+                                        //    if (has_2D_modifier)
+                                        //    {
+                                        //        utf::to_utf_from_code(utf::matrix::vs_runtime(w, h, 0, y), stream::block);
+                                        //    }
+                                        //    src += w - 1;
+                                        //}
+                                        //else
+                                        {
+                                            print(c, utf8); // Print fragment.
+                                            utf::to_utf_from_code(utf::matrix::vs_runtime(w, h, x, y), stream::block);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        print(c, utf8); // Print cluster.
+                                        if (has_2D_modifier)
+                                        {
+                                            utf::to_utf_from_code(utf::matrix::vs_runtime(w, h, 1, 1), stream::block);
+                                        }
+                                    }
+                                }
+                                else
+                                {
+                                    print(c, utf8); // Print fragment.
+                                    utf::to_utf_from_code(utf::matrix::vs_runtime(w, h, x, y), stream::block);
+                                }
+                            }
+                        }
+                        coord.x = 0;
+                        ++coord.y;
+                    }
+                }
+                else
+                {
+                    //todo reimplement for VT2D
+                    auto setxy = [&](si32 x, si32 y)
+                    {
+                        if (coord.x != x || coord.y != y)
+                        {
+                            coord.x = x;
+                            coord.y = y;
+                            block.basevt::locate(coord);
+                        }
+                    };
+                    auto dst = image.begin();
+                    auto bad_cells = 0; // Possibly corrupted cell count.
+                    coord = dot_mx;
+                    auto coord_y = 0;
+                    while (coord_y < field.y)
+                    {
+                        if (abort) // The cache size has suddenly changed.
+                        {
+                            delta = reset();
+                            state = saved;
+                            break;
+                        }
+                        auto beg = src + 1;
+                        auto end = src + field.x;
+                        while (src != end)
+                        {
+                            auto& c = *src++; // Current frame.
+                            auto& p = *dst++; // Previous shot.
+                            if (bad_cells || c != p)
+                            {
+                                auto utf8 = c.txt<svga::vt_2D>(); // svga::vt_2D: To include STX if it is.
+                                auto iter = utf::cpit{ utf8 };
+                                auto code = iter.take();
+                                auto len = utf8.empty() ? 0
+                                                        : (code.correct && iter.balance == iter.utf8len) ? 1 : 20;
+                                auto [w, h, x, y] = c.whxy();
+                                if (bad_cells)
+                                {
+                                    bad_cells--;
+                                }
+                                else if (w > 1 && x > 1 && y == 1) // Try to redraw the entire character matrix.
+                                {
+                                    auto cur_pos = (si32)(src - beg);
+                                    if (cur_pos >= x - 1)
+                                    {
+                                        auto& cc = *(src - x);
+                                        auto [w1, h1, x1, y1] = cc.whxy();
+                                        if (x1 == 1 && y1 == y && cc.gc == c.gc) // Verify the fragment belongs to the same matrix.
+                                        {
+                                            src -= x;
+                                            dst -= x;
+                                            bad_cells = w;
+                                            continue;
+                                        }
+                                    }
+                                }
+                                auto cur_pos = (si32)(src - beg);
+                                setxy(cur_pos, coord_y);
+                                if (w == 0 || h == 0 || y != 1 || x != 1 || len == 0 || (len == 1 && code.cdpoint < 32)) // 2D fragment is either non-standard or empty or C0.
+                                {
+                                    print(c, " ");
+                                    coord.x++;
+                                }
+                                else if (w == 1 && h == 1 && len == 1 && code.ucwidth == unidata::widths::slim) // Slim and (ansi plain text
+                                {
+                                    print(c, utf8);
+                                    coord.x++;
+                                }
+                                else if (!code.correct) // Bad cell's cluster.
+                                {
+                                    print(c, utf::replacement);
+                                    coord.x++;
+                                }
+                                else // if (x == 1) // Start of a complex char: Save coord1. Print w spaces. Save coord2. Restore coord1. Print cluster. Restore coord2.
+                                {
+                                    auto coord1 = coord.x;
+                                    print(c, " ");
+                                    coord.x++;
+                                    while (true)
+                                    {
+                                        if (w == x)
+                                        {
+                                            auto l = utf8.length();
+                                            auto has_custom_cluster = l > 1 && utf8.front() == 2;
+                                            if (has_custom_cluster)
+                                            {
+                                                utf8.remove_prefix(1);
+                                                l -= 1;
+                                            }
+                                            while (l > 3 && utf8[l - 3] == '\xEF' && utf8[l - 2] == '\xB8'    // Possibly has a rotation modifier.
+                                                   && (byte)utf8.back() >= 0x83 && (byte)utf8.back() <= 0x8D) // vs<4>  u{FE03}  utf-8: 0xEF 0xB8 0x83
+                                            {                                                                 // vs<14> u{FE0D}  utf-8: 0xEF 0xB8 0x8D
+                                                utf8.remove_suffix(3); // Cut rotation modifier.
+                                                l -= 3;
+                                            }
+                                            setxy(coord1, coord_y);
+                                            print(c, utf8);
+                                            //if (!bad_cells) //todo revise
+                                            {
+                                                auto coord2 = (si32)(src - beg);
+                                                bad_cells = std::max(bad_cells, utf::codepoint_count(utf8) - (coord2 - coord1) + 1);
+                                            }
+                                            break;
+                                        }
+                                        auto cc = *src;
+                                        x++;
+                                        auto [w1, h1, x1, y1] = cc.whxy();
+                                        if (x1 != x || y1 != y || cc.gc != c.gc) // Incomplete matrix.
+                                        {
+                                            break; // Leave spaces.
+                                        }
+                                        print(cc, " ");
+                                        coord.x++;
+                                        if (bad_cells)
+                                        {
+                                            bad_cells--;
+                                        }
+                                        if (src != end)
+                                        {
+                                            ++src;
+                                            ++dst;
+                                        }
+                                        else break;
+                                    }
+                                }
+                            }
+                        }
+                        ++coord_y;
+                    }
+                }
+                std::swap(image, cache);
+                delta = commit(true);
+            }
+            void get(view& /*data*/) { }
+        };
         struct bitmap_vtrgb_t : bitmap_a<svga::vtrgb, __COUNTER__ - _counter_base> { };
         struct bitmap_vt256_t : bitmap_a<svga::vt256, __COUNTER__ - _counter_base> { };
         struct bitmap_vt16_t  : bitmap_a<svga::vt16,  __COUNTER__ - _counter_base> { };
-        struct bitmap_vt_2D_t : bitmap_a<svga::vt_2D, __COUNTER__ - _counter_base> { };
+        struct bitmap_vt_2D_t : bitmap_2<svga::vt_2D, __COUNTER__ - _counter_base> { };
 
         using bitmap_dtvt  = wrapper<bitmap_dtvt_t>;
         using bitmap_vtrgb = wrapper<bitmap_vtrgb_t>;
