@@ -1299,7 +1299,7 @@ namespace netxs::directvt
                             {
                                 auto coord1 = src - beg;
                                 print(c, " ");
-                                while (src != end)
+                                while (true)
                                 {
                                     if (w == x)
                                     {
@@ -1339,7 +1339,11 @@ namespace netxs::directvt
                                         break; // Leave spaces.
                                     }
                                     print(cc, " ");
-                                    ++src;
+                                    if (src != end)
+                                    {
+                                        ++src;
+                                    }
+                                    else break;
                                 }
                             }
                         }
@@ -1426,7 +1430,7 @@ namespace netxs::directvt
                                     auto coord1 = coord.x;
                                     print(c, " ");
                                     coord.x++;
-                                    while (src != end)
+                                    while (true)
                                     {
                                         if (w == x)
                                         {
@@ -1462,12 +1466,16 @@ namespace netxs::directvt
                                         }
                                         print(cc, " ");
                                         coord.x++;
-                                        ++src;
-                                        ++dst;
                                         if (bad_cells)
                                         {
                                             bad_cells--;
                                         }
+                                        if (src != end)
+                                        {
+                                            ++src;
+                                            ++dst;
+                                        }
+                                        else break;
                                     }
                                 }
                             }
