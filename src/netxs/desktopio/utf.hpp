@@ -420,16 +420,67 @@ namespace netxs::utf
     {
         return frag::take_cluster<AllowControls>(utf8);
     }
-
-    // utf: Break the text into the enriched grapheme clusters.
-    //      Forward the result to the dest using the "serve" and "yield" lambdas.
-    //      serve: Handle escaped control sequences.
+    // utf: Break the text into the grapheme clusters.
+    void decode_clusters(view utf8, auto yield)
+    {
+        if (auto code = cpit{ utf8 })
+        {
+            auto next = code.take();
+            do
+            {
+                if (next.is_cmd())
+                {
+                    auto head = code.textptr;
+                    //auto crop = frag{ view(head, next.utf8len), next };
+                    auto crop = view(head, next.utf8len);
+                    if (!yield(crop)) return;
+                    code.step();
+                    next = code.take();
+                }
+                else
+                {
+                    auto head = code.textptr;
+                    auto left = next;
+                    do
+                    {
+                        code.step();
+                        if (next.correct)
+                        {
+                            if (!code || (next = code.take(), left.combine(next)))
+                            {
+                                //auto crop = frag{ view(head, left.utf8len), left };
+                                auto crop = view(head, left.utf8len);
+                                if (!yield(crop)) return;
+                                break;
+                            }
+                        }
+                        else
+                        {
+                            //next.utf8len = left.utf8len;
+                            //auto crop = frag{ replacement, next };
+                            auto crop = replacement;
+                            if (!yield(crop)) return;
+                            next = code.take();
+                            break;
+                        }
+                    }
+                    while (true);
+                }
+            }
+            while (code);
+        }
+    }
+    // utf: Break the text into the grapheme clusters.
+    //      Forward the result using the callable "serve" and "yield".
+    //      serve: Processes controls and returns the rest of the utf8.
     //             auto s = [&](utf::prop const& traits, view utf8) -> view;
-    //      yield: Handle grapheme clusters.
+    //      yield: Processes clusters.
     //             auto y = [&](frag const& cluster){};
-    //      Clusterize: parse by grapheme clusters (true) or codepoints (faux)
-    template<bool Clusterize = true, class S, class Y, class A>
-    void decode(S serve, Y yield, A ascii, view utf8, si32& decsg)
+    //      ascii: Processes ASCII chars (fast forward).
+    //             auto a = [&](frag const& cluster){};
+    //      Clusterize: Decode cluster-by-cluster (if true) or codepoint-by-codepoint (if faux).
+    template<bool Clusterize = true>
+    void decode(auto serve, auto yield, auto ascii, view utf8, si32& decsg)
     {
         static const auto dec_sgm_lookup = std::vector<frag> // DEC Special Graphics mode lookup table.
         {//  _      `      a      b       c       d       e      f      g      h       i       j      k      l      m      n     o       p      q      r      s      t      u      v      w      x      y      z      {      |      }      ~                                 };
@@ -588,56 +639,19 @@ namespace netxs::utf
         }
         return count;
     }
-    void reverse_codepoints(view cluster, auto& block)
+    void reverse_clusters(view utf8, auto& dest)
     {
-        block.resize(block.size() + cluster.size());
-        auto dest = block.rbegin();
-        auto head = cluster.begin();
-        auto tail = cluster.end();
-        while (head != tail)
+        auto rest = (si32)utf8.size();
+        dest.resize(dest.size() + rest);
+        auto a = dest.end();
+        utf::decode_clusters(utf8, [&](auto cluster)
         {
-            auto a = (byte)(*head++);
-            //if (a < 0x80) // len = 1
-            //{
-            //    *dest++ = a;
-            //}
-            //else
-            if (a < 0xC2) // len = 0
-            {
-                *dest++ = a;
-            }
-            else if (a < 0xE0) // len = 2
-            {
-                if (tail - head < 1) break;
-                auto b = *head++;
-                *dest++ = b;
-                *dest++ = a;
-            }
-            else if (a < 0xF0) // len = 3
-            {
-                if (tail - head < 2) break;
-                auto b = *head++;
-                auto c = *head++;
-                *dest++ = c;
-                *dest++ = b;
-                *dest++ = a;
-            }
-            else if (a < 0xF5) // len = 4
-            {
-                if (tail - head < 3) break;
-                auto b = *head++;
-                auto c = *head++;
-                auto d = *head++;
-                *dest++ = d;
-                *dest++ = c;
-                *dest++ = b;
-                *dest++ = a;
-            }
-            else //if (cp <= 0xFF) // len = 0
-            {
-                *dest++ = a;
-            }
-        }
+            rest -= cluster.size();
+            if (rest < 0) return faux;
+            auto b = std::exchange(a, a - cluster.size());
+            dest.replace(a, b, cluster);
+            return true;
+        });
     }
 
     struct qiew : public view

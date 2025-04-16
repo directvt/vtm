@@ -1257,7 +1257,7 @@ namespace netxs::directvt
                         c.scan_attr<Mode>(state, block);
                     }
                     else cache.scan_attr<Mode>(state, block);
-                    utf::reverse_codepoints(cluster, block);
+                    utf::reverse_clusters(cluster, block);
                 };
                 auto src = cache.begin();
                 if (image.hash() != cache.hash()) // The cache has been resized.
@@ -1287,7 +1287,7 @@ namespace netxs::directvt
                             {
                                 print(c, " ");
                             }
-                            else if (w == 1 && h == 1 && len == 1 && code.ucwidth == unidata::widths::slim) // Slim and ansi plain text.
+                            else if (w == 1 && h == 1 && len == 1 && code.ucwidth == unidata::widths::slim) // Slim character.
                             {
                                 print(c, utf8);
                             }
@@ -1301,24 +1301,16 @@ namespace netxs::directvt
                                 print(c, " ");
                                 while (src != end)
                                 {
-                                    auto cc = *src;
-                                    x++;
-                                    auto [w1, h1, x1, y1] = cc.whxy();
-                                    if (x1 != x || y1 != y || cc.gc != c.gc) // Incomplete matrix.
-                                    {
-                                        break; // Leave spaces.
-                                    }
-                                    print(cc, " ");
-                                    ++src;
                                     if (w == x)
                                     {
                                         auto l = utf8.length();
-                                        if (l > 1 && utf8.front() == 2) // Has a custom cluster.
+                                        auto has_custom_cluster = l > 1 && utf8.front() == 2;
+                                        if (has_custom_cluster)
                                         {
                                             utf8.remove_prefix(1);
                                             l -= 1;
                                         }
-                                        while (l > 3 && utf8[l - 3] == '\xEF' && utf8[l - 2] == '\xB8'    // Possibli has rotation modifier.
+                                        while (l > 3 && utf8[l - 3] == '\xEF' && utf8[l - 2] == '\xB8'    // Possibly has a rotation modifier.
                                                && (byte)utf8.back() >= 0x83 && (byte)utf8.back() <= 0x8D) // vs<4>  u{FE03}  utf-8: 0xEF 0xB8 0x83
                                         {                                                                 // vs<14> u{FE0D}  utf-8: 0xEF 0xB8 0x8D
                                             utf8.remove_suffix(3); // Cut rotation modifier.
@@ -1329,8 +1321,8 @@ namespace netxs::directvt
                                             coord.x = (si32)coord1;
                                             block.basevt::locate(coord);
                                         }
-                                        if (c.rtl()) print_rtl(c, utf8);
-                                        else         print(c, utf8);
+                                        if (has_custom_cluster && c.rtl()) print_rtl(c, utf8);
+                                        else                               print(c, utf8);
                                         if (src != end)
                                         {
                                             auto coord2 = (src - beg) + 1/*next cell*/;
@@ -1339,6 +1331,15 @@ namespace netxs::directvt
                                         }
                                         break;
                                     }
+                                    auto cc = *src;
+                                    x++;
+                                    auto [w1, h1, x1, y1] = cc.whxy();
+                                    if (x1 != x || y1 != y || cc.gc != c.gc) // Incomplete matrix.
+                                    {
+                                        break; // Leave spaces.
+                                    }
+                                    print(cc, " ");
+                                    ++src;
                                 }
                             }
                         }
@@ -1427,6 +1428,31 @@ namespace netxs::directvt
                                     coord.x++;
                                     while (src != end)
                                     {
+                                        if (w == x)
+                                        {
+                                            auto l = utf8.length();
+                                            auto has_custom_cluster = l > 1 && utf8.front() == 2;
+                                            if (has_custom_cluster)
+                                            {
+                                                utf8.remove_prefix(1);
+                                                l -= 1;
+                                            }
+                                            while (l > 3 && utf8[l - 3] == '\xEF' && utf8[l - 2] == '\xB8'    // Possibly has a rotation modifier.
+                                                   && (byte)utf8.back() >= 0x83 && (byte)utf8.back() <= 0x8D) // vs<4>  u{FE03}  utf-8: 0xEF 0xB8 0x83
+                                            {                                                                 // vs<14> u{FE0D}  utf-8: 0xEF 0xB8 0x8D
+                                                utf8.remove_suffix(3); // Cut rotation modifier.
+                                                l -= 3;
+                                            }
+                                            setxy(coord1, coord_y);
+                                            if (has_custom_cluster && c.rtl()) print_rtl(c, utf8);
+                                            else                               print(c, utf8);
+                                            if (!bad_cells)
+                                            {
+                                                auto coord2 = (si32)(src - beg);
+                                                bad_cells = std::max(0, utf::codepoint_count(utf8) - (coord2 - coord1) + 1);
+                                            }
+                                            break;
+                                        }
                                         auto cc = *src;
                                         x++;
                                         auto [w1, h1, x1, y1] = cc.whxy();
@@ -1441,30 +1467,6 @@ namespace netxs::directvt
                                         if (bad_cells)
                                         {
                                             bad_cells--;
-                                        }
-                                        if (w == x)
-                                        {
-                                            auto l = utf8.length();
-                                            if (l > 1 && utf8.front() == 2) // Has a custom cluster.
-                                            {
-                                                utf8.remove_prefix(1);
-                                                l -= 1;
-                                            }
-                                            while (l > 3 && utf8[l - 3] == '\xEF' && utf8[l - 2] == '\xB8'    // Possibli has rotation modifier.
-                                                   && (byte)utf8.back() >= 0x83 && (byte)utf8.back() <= 0x8D) // vs<4>  u{FE03}  utf-8: 0xEF 0xB8 0x83
-                                            {                                                                 // vs<14> u{FE0D}  utf-8: 0xEF 0xB8 0x8D
-                                                utf8.remove_suffix(3); // Cut rotation modifier.
-                                                l -= 3;
-                                            }
-                                            setxy(coord1, coord_y);
-                                            if (c.rtl()) print_rtl(c, utf8);
-                                            else         print(c, utf8);
-                                            if (!bad_cells)
-                                            {
-                                                auto coord2 = (si32)(src - beg);
-                                                bad_cells = std::max(0, utf::codepoint_count(utf8) - (coord2 - coord1) + 1);
-                                            }
-                                            break;
                                         }
                                     }
                                 }
