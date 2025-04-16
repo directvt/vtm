@@ -1364,9 +1364,9 @@ namespace netxs::gui
                 netxs::onrect(target, block, cell::shaders::full(fgc));
             }
             if (c.xy() == 0) return;
-            auto token = c.tkn() & ~3; // Clear first two bits for font style.
-            if (c.itc()) token |= fonts::style::italic;
-            if (c.bld()) token |= fonts::style::bold;
+            auto token = c.tkn();
+            if (c.itc()) token ^= 0xAAAA'AAAA'AAAA'AA00; // Randomize token to differentiate italics (0xb101010...0000'0000 excluding matrix metadata).
+            if (c.bld()) token ^= 0x5555'5555'5555'5500; // Randomize token to differentiate bolds (0xb010101...0000'0000 excluding matrix metadata).
             auto iter = glyphs.find(token);
             if (iter == glyphs.end())
             {

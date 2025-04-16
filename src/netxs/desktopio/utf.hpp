@@ -646,7 +646,7 @@ namespace netxs::utf
         auto a = dest.end();
         utf::decode_clusters(utf8, [&](auto cluster)
         {
-            rest -= cluster.size();
+            rest -= (si32)cluster.size();
             if (rest < 0) return faux;
             auto b = std::exchange(a, a - cluster.size());
             dest.replace(a, b, cluster);

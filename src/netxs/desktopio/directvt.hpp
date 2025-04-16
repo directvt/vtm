@@ -1277,7 +1277,7 @@ namespace netxs::directvt
                         while (src != end)
                         {
                             auto& c = *src++;
-                            auto utf8 = c.txt<svga::vt_2D>();
+                            auto utf8 = c.txt<svga::vt_2D>(); // svga::vt_2D: To include STX if it is.
                             auto iter = utf::cpit{ utf8 };
                             auto code = iter.take();
                             auto len = utf8.empty() ? 0
@@ -1378,7 +1378,7 @@ namespace netxs::directvt
                             auto& p = *dst++; // Previous shot.
                             if (bad_cells || c != p)
                             {
-                                auto utf8 = c.txt<svga::vt_2D>();
+                                auto utf8 = c.txt<svga::vt_2D>(); // svga::vt_2D: To include STX if it is.
                                 auto iter = utf::cpit{ utf8 };
                                 auto code = iter.take();
                                 auto len = utf8.empty() ? 0
