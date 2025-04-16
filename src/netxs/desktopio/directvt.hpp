@@ -1450,10 +1450,10 @@ namespace netxs::directvt
                                             setxy(coord1, coord_y);
                                             if (has_custom_cluster && c.rtl()) print_rtl(c, utf8);
                                             else                               print(c, utf8);
-                                            if (!bad_cells)
+                                            //if (!bad_cells) //todo revise
                                             {
                                                 auto coord2 = (si32)(src - beg);
-                                                bad_cells = std::max(0, utf::codepoint_count(utf8) - (coord2 - coord1) + 1);
+                                                bad_cells = std::max(bad_cells, utf::codepoint_count(utf8) - (coord2 - coord1) + 1);
                                             }
                                             break;
                                         }
