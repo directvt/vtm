@@ -348,7 +348,25 @@ namespace netxs::ui
                 {
                     data.clear();
                     if (hash) data.scp();
-                    data.jet(bias::right).add(size, "/", std::max(mxsz, peak));
+                    data.jet(bias::right);
+                    auto total = std::max(mxsz, peak);
+                    //todo optimize?
+                    if (total % 1000)
+                    {
+                        data.add(size, "/"sv, total);
+                    }
+                    else // Apply decimal prefixes to terminal scrollback size.
+                    {
+                        if (size % 1000) data.add(size);
+                        else
+                        {
+                            if (!(size % 1000000)) data.add(size / 1000000, 'M');
+                            else                   data.add(size / 1000, 'K');
+                        }
+                        data.add("/"sv);
+                        if (!(total % 1000000)) data.add(total / 1000000, 'M');
+                        else                    data.add(total / 1000, 'K');
+                    }
                     //if (mxsz && step && size != mxsz) data.add("+", step);
                     data.add(" ", area.x, ":", area.y);
                     if (hash)
