@@ -1627,7 +1627,7 @@ namespace netxs::directvt
                         }
                         ++coord.y;
                     }
-                    if (defer.length() != start)
+                    if ((si32)defer.length() != start)
                     {
                         stream::block += defer;
                         defer.resize(start);
@@ -1744,7 +1744,7 @@ namespace netxs::directvt
                         }
                         ++coord_y;
                     }
-                    if (defer.length() != start)
+                    if ((si32)defer.length() != start)
                     {
                         stream::block += defer;
                         defer.resize(start);
