@@ -459,70 +459,24 @@ namespace netxs::ansi
         template<bool UseSGR = true, bool Initial = true, bool Finalize = true>
         auto& s11n(core const& canvas, rect region, cell& state)
         {
-            auto badfx = [&]
-            {
-                add(utf::replacement);
-                state.set_gc();
-                state.wdt(1, 1, 1, 1);
-            };
-            auto side_badfx = [&] // Restoring the halves on the side
-            {
-                add(state.txt());
-                state.set_gc();
-                state.wdt(1, 1, 1, 1);
-            };
             auto allfx = [&](cell const& c)
             {
-                auto [cw, ch, cx, cy] = c.whxy();
-                if (cw < 2) // Narrow character
+                auto utf8 = c.txt<svga::vtrgb>();
+                auto [w, h, x, y] = c.whxy();
+                c.scan_attr<svga::vtrgb, UseSGR>(state, block);
+                if (w == 0 || h == 0 || y != 1 || x != 1 || len == 0 || (utf8.size() && (byte)utf8.front() < 32)) // 2D fragment is either non-standard or empty or C0.
                 {
-                    auto [w, h, x, y] = state.whxy();
-                    if (w != 1 && x == 1) badfx(); // Left part alone
-                    c.scan<svga::vt_2D, UseSGR>(state, block);
+                    add(" "sv);
                 }
                 else
                 {
-                    if (cw == 2 && cx == 1) // Left part
-                    {
-                        auto [w, h, x, y] = state.whxy();
-                        if (w != 1 && x == 1) badfx(); // Left part alone
-                        c.scan_attr<svga::vt_2D, UseSGR>(state, block);
-                        state.set_gc(c); // Save char from c for the next iteration
-                    }
-                    else if (cw == 2 && cx == 2) // Right part
-                    {
-                        auto [w, h, x, y] = state.whxy();
-                        if (w == 2 && x == 1)
-                        {
-                            if (state.check_pair(c))
-                            {
-                                state.scan<svga::vt_2D, UseSGR>(state, block);
-                                state.set_gc(); // Cleanup used t
-                            }
-                            else
-                            {
-                                badfx(); // Left part alone
-                                c.scan_attr<svga::vt_2D, UseSGR>(state, block);
-                                badfx(); // Right part alone
-                            }
-                        }
-                        else
-                        {
-                            c.scan_attr<svga::vt_2D, UseSGR>(state, block);
-                            if (state.xy() == 0) side_badfx(); // Right part alone at the left side
-                            else                 badfx(); // Right part alone
-                        }
-                    }
+                    add(utf8);
                 }
             };
             auto eolfx = [&]
             {
-                auto [w, h, x, y] = state.whxy();
-                if (w != 1 && x == 1) side_badfx();  // Left part alone at the right side
-                state.set_gc();
                 basevt::eol();
             };
-
             if (region)
             {
                 if constexpr (UseSGR && Initial) basevt::nil();
