@@ -464,7 +464,7 @@ namespace netxs::ansi
                 auto utf8 = c.txt<svga::vtrgb>();
                 auto [w, h, x, y] = c.whxy();
                 c.scan_attr<svga::vtrgb, UseSGR>(state, block);
-                if (w == 0 || h == 0 || y != 1 || x != 1 || len == 0 || (utf8.size() && (byte)utf8.front() < 32)) // 2D fragment is either non-standard or empty or C0.
+                if (w == 0 || h == 0 || y != 1 || x != 1 || utf8.empty() || (byte)utf8.front() < 32) // 2D fragment is either non-standard or empty or C0.
                 {
                     add(" "sv);
                 }
