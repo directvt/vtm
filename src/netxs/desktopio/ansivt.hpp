@@ -248,7 +248,8 @@ namespace netxs::ansi
     static const auto ccc_pad    = 30 ; // CSI 30: n       p  - Set left/right padding for the built-in terminal.
     static const auto ccc_lnk    = 31 ; // CSI 31: n       p  - Set object id to the cell owner.
     static const auto ccc_lsr    = 32 ; // CSI 32: n       p  - Enable line style reporting.
-    static const auto ccc_stl    = 33 ; // CSI 32: n       p  - Line style report.
+    static const auto ccc_stl    = 33 ; // CSI 33: n       p  - Line style report.
+    static const auto ccc_cur    = 34 ; // CSI 34: n       p  - Set cursor inside the cell. 0: None, 1: Underline, 2: Block, 3: I-bar. cell::px stores cursor fg/bg if cursor is set.
 
     //static const auto ctrl_break = si32{ 0xE046 }; // Pressed Ctrl+Break scancode.
     static const auto ctrl_break = si32{ 0x46 }; // Pressed Ctrl+Break scancode.
@@ -834,6 +835,10 @@ namespace netxs::ansi
         auto& link(si32 i)       { return add("\033[31:", i  , csi_ccc); } // escx: Set object id link.
         auto& styled(si32 b)     { return add("\033[32:", b  , csi_ccc); } // escx: Enable line style reporting (0/1).
         auto& style(si32 i)      { return add("\033[33:", i  , csi_ccc); } // escx: Line style response (deco::format: alignment, wrapping, RTL, etc).
+        auto& cursor0(si32 i)    { return add("\033[34:", i  , csi_ccc); } // escx: Set cursor  0: None, 1: Underline, 2: Block, 3: I-bar. cell::px stores cursor fg/bg if cursor is set.
+        //auto& hplink0(si32 i)    { return add("\033[35:", i  , csi_ccc); } // escx: Set hyperlink cell.
+        //auto& bitmap0(si32 i)    { return add("\033[36:", i  , csi_ccc); } // escx: Set bitmap inside the cell.
+        //auto& fusion0(si32 i)    { return add("\033[37:", i  , csi_ccc); } // escx: Object outline boundary.
         auto& cap(qiew utf8, si32 w = 2, si32 h = 2, bool underline = true)
         {
             for (auto y = 1; y <= h; y++)
@@ -957,6 +962,7 @@ namespace netxs::ansi
     auto styled(si32 b)        { return escx{}.styled(b);     } // ansi: Enable line style reporting.
     auto style(si32 i)         { return escx{}.style(i);      } // ansi: Line style report.
     auto link(si32 i)          { return escx{}.link(i);       } // ansi: Set object id link.
+    auto cursor0(si32 i)       { return escx{}.cursor0(i);    } // ansi: Set cursor inside the cell.
     auto ref(si32 i)           { return escx{}.ref(i);        } // ansi: Create the reference to the existing paragraph. Create new id if it is not existing.
     auto idx(si32 i)           { return escx{}.idx(i);        } // ansi: Split the text run and associate the fragment with an id.
                                                                        //       All following text is under the IDX until the next command is issued.
@@ -1235,6 +1241,7 @@ namespace netxs::ansi
             * - void rlf(bool b);                    // Set reverse line feed.
             * - void rtl(bool b);                    // Set right to left text.
             * - void link(id_t i);                   // Set object id link.
+            * - void cursor0(si32 i);                // Set cursor inside the cell.
             */
 
             table_quest   .resize(0x100);
@@ -1312,6 +1319,7 @@ namespace netxs::ansi
                     ccc[ccc_rlf_or] = V{ p->style.rlf_or((feed)q.subarg(0)); }; // fx_ccc_or_rlf
 
                     ccc[ccc_lnk   ] = V{ p->brush.link((id_t)q.subarg(0)); }; // fx_ccc_lnk
+                    ccc[ccc_cur   ] = V{ p->brush.cursor0(q.subarg(0)); }; // fx_ccc_cur
 
                     ccc[ccc_nop] = nullptr;
                     ccc[ccc_idx] = nullptr;

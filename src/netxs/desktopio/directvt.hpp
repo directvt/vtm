@@ -1285,7 +1285,7 @@ namespace netxs::directvt
                             auto [w, h, x, y] = c.whxy();
                             if (w == 0 || h == 0 || y != 1 || x != 1 || len == 0 || (len == 1 && code.cdpoint < 32)) // 2D fragment is either non-standard or empty or C0.
                             {
-                                print(c, " ");
+                                print(c, " "sv);
                             }
                             else if (w == 1 && h == 1 && len == 1 && code.ucwidth == unidata::widths::slim) // Slim character.
                             {
@@ -1298,7 +1298,7 @@ namespace netxs::directvt
                             else // if (x == 1) // Start of a complex char: Save coord1. Print w spaces. Save coord2. Restore coord1. Print cluster. Restore coord2.
                             {
                                 auto coord1 = src - beg;
-                                print(c, " ");
+                                print(c, " "sv);
                                 while (true)
                                 {
                                     if (w == x)
@@ -1338,7 +1338,7 @@ namespace netxs::directvt
                                     {
                                         break; // Leave spaces.
                                     }
-                                    print(cc, " ");
+                                    print(cc, " "sv);
                                     if (src != end)
                                     {
                                         ++src;
@@ -1412,7 +1412,7 @@ namespace netxs::directvt
                                 setxy(cur_pos, coord_y);
                                 if (w == 0 || h == 0 || y != 1 || x != 1 || len == 0 || (len == 1 && code.cdpoint < 32)) // 2D fragment is either non-standard or empty or C0.
                                 {
-                                    print(c, " ");
+                                    print(c, " "sv);
                                     coord.x++;
                                 }
                                 else if (w == 1 && h == 1 && len == 1 && code.ucwidth == unidata::widths::slim) // Slim and (ansi plain text
@@ -1428,7 +1428,7 @@ namespace netxs::directvt
                                 else // if (x == 1) // Start of a complex char: Save coord1. Print w spaces. Save coord2. Restore coord1. Print cluster. Restore coord2.
                                 {
                                     auto coord1 = coord.x;
-                                    print(c, " ");
+                                    print(c, " "sv);
                                     coord.x++;
                                     while (true)
                                     {
@@ -1464,7 +1464,7 @@ namespace netxs::directvt
                                         {
                                             break; // Leave spaces.
                                         }
-                                        print(cc, " ");
+                                        print(cc, " "sv);
                                         coord.x++;
                                         if (bad_cells)
                                         {
@@ -1511,15 +1511,9 @@ namespace netxs::directvt
                 auto coord = dot_00;
                 auto saved = state;
                 auto field = cache.size();
-                auto print = [&](cell const& cache, view cluster)
+                auto print = [&](cell const& c, view cluster)
                 {
-                    if (cache.cur())
-                    {
-                        auto c = cache;
-                        c.draw_cursor();
-                        c.scan_attr<Mode>(state, stream::block);
-                    }
-                    else cache.scan_attr<Mode>(state, stream::block);
+                    c.scan_attr<Mode>(state, stream::block);
                     stream::block += cluster;
                 };
                 auto src = cache.begin();
@@ -1547,7 +1541,7 @@ namespace netxs::directvt
                             auto [w, h, x, y] = c.whxy();
                             if (w == 0 || h == 0 || x == 0 || y == 0 || len == 0 || (len == 1 && code.cdpoint < 32)) // Empty or C0.
                             {
-                                print(c, " ");
+                                print(c, " "sv);
                             }
                             else if (w == 1 && h == 1 && len == 1 && code.ucwidth == unidata::widths::slim) // Slim character.
                             {

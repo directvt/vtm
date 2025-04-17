@@ -2245,6 +2245,7 @@ namespace netxs::ui
             auto stk(bool ) { }
             auto ovr(bool ) { }
             auto blk(bool ) { }
+            auto cursor0(si32 ) { }
         };
 
         auto to_html(text font = {}) const
@@ -2325,6 +2326,7 @@ namespace netxs::ui
             auto stk(bool ) { }
             auto ovr(bool ) { }
             auto blk(bool ) { }
+            auto cursor0(si32 ) { }
         };
 
         template<bool UseSGR = true>

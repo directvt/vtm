@@ -1254,6 +1254,14 @@ namespace netxs
                 {
                     if constexpr (UseSGR) // It is not available in the Linux and Win8 consoles.
                     {
+                        if constexpr (Mode == svga::vt_2D)
+                        {
+                            if (auto cursor = token & cursor_mask; cursor != (base.token & cursor_mask)) dest.cursor0((si32)(cursor >> netxs::field_offset<cursor_mask>()));
+                            //if (auto hplink = token & hplink_mask; hplink != (base.token & hplink_mask)) dest.hplink0((si32)(hplink >> netxs::field_offset<hplink_mask>()));
+                            //if (auto fusion = token & fusion_mask; fusion != (base.token & fusion_mask)) dest.fusion0((si32)(fusion >> netxs::field_offset<fusion_mask>()));
+                            //todo sync px
+                            //if (auto bitmap = token & bitmap_mask; bitmap != (base.token & bitmap_mask)) dest.bitmap0(!!bitmap);
+                        }
                         if constexpr (Mode != svga::vt16) // It is not available in the Linux and Win8 consoles.
                         {
                             if (auto bolded = token & bolded_mask; bolded != (base.token & bolded_mask)) dest.bld(!!bolded);
@@ -1282,32 +1290,38 @@ namespace netxs
                 token ^= invert_mask;
             }
 
-            void bld(bool b)    { token &= ~bolded_mask; token |= ((ui32)b << netxs::field_offset<bolded_mask>()); }
-            void itc(bool b)    { token &= ~italic_mask; token |= ((ui32)b << netxs::field_offset<italic_mask>()); }
-            void inv(bool b)    { token &= ~invert_mask; token |= ((ui32)b << netxs::field_offset<invert_mask>()); }
-            void ovr(bool b)    { token &= ~overln_mask; token |= ((ui32)b << netxs::field_offset<overln_mask>()); }
-            void stk(bool b)    { token &= ~strike_mask; token |= ((ui32)b << netxs::field_offset<strike_mask>()); }
-            void blk(bool b)    { token &= ~blinks_mask; token |= ((ui32)b << netxs::field_offset<blinks_mask>()); }
-            void und(si32 n)    { token &= ~unline_mask; token |= ((ui32)n << netxs::field_offset<unline_mask>()); }
-            void unc(si32 c)    { token &= ~ucolor_mask; token |= ((ui32)c << netxs::field_offset<ucolor_mask>()); }
-            void cur(si32 s)    { token &= ~cursor_mask; token |= ((ui32)s << netxs::field_offset<cursor_mask>()); }
-            void mosaic(si32 m) { token &= ~mosaic_mask; token |= (ui32)(m << netxs::field_offset<mosaic_mask>()); }
-            void bitmap(si32 r) { token &= ~bitmap_mask; token |= (ui32)(r << netxs::field_offset<bitmap_mask>()); }
-            void  xy(ui32 m)    { token &= ~mosaic_mask; token |= m; }
-            void raw(ui32 r)    { token &= ~bitmap_mask; token |= r; }
+            void bld(bool b)         { token &= ~bolded_mask; token |= ((ui32)b << netxs::field_offset<bolded_mask>()); }
+            void itc(bool b)         { token &= ~italic_mask; token |= ((ui32)b << netxs::field_offset<italic_mask>()); }
+            void inv(bool b)         { token &= ~invert_mask; token |= ((ui32)b << netxs::field_offset<invert_mask>()); }
+            void ovr(bool b)         { token &= ~overln_mask; token |= ((ui32)b << netxs::field_offset<overln_mask>()); }
+            void stk(bool b)         { token &= ~strike_mask; token |= ((ui32)b << netxs::field_offset<strike_mask>()); }
+            void blk(bool b)         { token &= ~blinks_mask; token |= ((ui32)b << netxs::field_offset<blinks_mask>()); }
+            void und(si32 n)         { token &= ~unline_mask; token |= ((ui32)n << netxs::field_offset<unline_mask>()); }
+            void unc(si32 c)         { token &= ~ucolor_mask; token |= ((ui32)c << netxs::field_offset<ucolor_mask>()); }
+            void cur(si32 s)         { token &= ~cursor_mask; token |= ((ui32)s << netxs::field_offset<cursor_mask>()); }
+            void mosaic(si32 m)      { token &= ~mosaic_mask; token |= (ui32)(m << netxs::field_offset<mosaic_mask>()); }
+            void bitmap(si32 r)      { token &= ~bitmap_mask; token |= (ui32)(r << netxs::field_offset<bitmap_mask>()); }
+            void  xy(ui32 m)         { token &= ~mosaic_mask; token |= m; }
+            void raw(ui32 r)         { token &= ~bitmap_mask; token |= r; }
             void  xy(si32 x, si32 y) { mosaic(x + (y << y_bits)); }
+            void cursor0(ui32 c)     { token &= ~cursor_mask; token |= (ui32)(c << netxs::field_offset<cursor_mask>()); }
+            //void hplink0(ui32 c) { token &= ~hplink_mask; token |= (ui32)(c << netxs::field_offset<hplink_mask>()); }
+            //void fusion0(ui32 c) { token &= ~fusion_mask; token |= (ui32)(c << netxs::field_offset<fusion_mask>()); }
 
-            bool bld() const { return !!(token & bolded_mask); }
-            bool itc() const { return !!(token & italic_mask); }
-            bool inv() const { return !!(token & invert_mask); }
-            bool ovr() const { return !!(token & overln_mask); }
-            bool stk() const { return !!(token & strike_mask); }
-            bool blk() const { return !!(token & blinks_mask); }
-            si32 und() const { return (si32)((token & unline_mask) >> netxs::field_offset<unline_mask>()); }
-            si32 unc() const { return (si32)((token & ucolor_mask) >> netxs::field_offset<ucolor_mask>()); }
-            si32 cur() const { return (si32)((token & cursor_mask) >> netxs::field_offset<cursor_mask>()); }
-            ui32  xy() const { return (token & mosaic_mask); }
-            ui32 raw() const { return (token & bitmap_mask); }
+            bool bld()    const { return !!(token & bolded_mask); }
+            bool itc()    const { return !!(token & italic_mask); }
+            bool inv()    const { return !!(token & invert_mask); }
+            bool ovr()    const { return !!(token & overln_mask); }
+            bool stk()    const { return !!(token & strike_mask); }
+            bool blk()    const { return !!(token & blinks_mask); }
+            si32 und()    const { return (si32)((token & unline_mask) >> netxs::field_offset<unline_mask>()); }
+            si32 unc()    const { return (si32)((token & ucolor_mask) >> netxs::field_offset<ucolor_mask>()); }
+            si32 cur()    const { return (si32)((token & cursor_mask) >> netxs::field_offset<cursor_mask>()); }
+            //si32 cursor0() const { return (token & cursor_mask); }
+            //si32 hplink0() const { return (token & hplink_mask); }
+            //si32 fusion0() const { return (token & fusion_mask); }
+            ui32  xy()    const { return (token & mosaic_mask); }
+            ui32 raw()    const { return (token & bitmap_mask); }
             si32 mosaic() const { return (si32)((token & mosaic_mask) >> netxs::field_offset<mosaic_mask>()); }
             si32 bitmap() const { return (si32)((token & bitmap_mask) >> netxs::field_offset<bitmap_mask>()); }
         };
@@ -1861,6 +1875,7 @@ namespace netxs
         auto& mtx(twod p)        { gc.mtx(p.x, p.y);       return *this; } // cell: Set glyph matrix.
         auto& xy(si32 x, si32 y) { st.xy(x, y);            return *this; } // cell: Set glyph fragment.
         auto& link(id_t oid)     { id = oid;               return *this; } // cell: Set object ID.
+        auto& cursor0(si32 i)    { st.cursor0(i);          return *this; } // cell: Set cursor inside the cell.
         auto& link(cell const& c){ id = c.id;              return *this; } // cell: Set object ID.
         // cell: Set cluster unidata width.
         auto& wdt(si32 vs)

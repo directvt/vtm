@@ -794,7 +794,7 @@ namespace netxs::app::shared
                         }
                         button_state.popsgr();
                         auto wheeldt = gear.hzwhl ? fp2d{ gear.whlfp, 0 } : fp2d{ 0, gear.whlfp };
-                        log("Mouse: %% buttons=%% wheel=%% coord=%%", datetime::now(), button_state, wheeldt, coord);
+                        if constexpr (debugmode) log("Mouse: %% buttons=%% wheel=%% coord=%%", datetime::now(), button_state, wheeldt, coord);
                         update(boss, gear, faux);
                     }
                 };
