@@ -237,7 +237,7 @@ namespace netxs::ansi
     static const auto ccc_rtl_or = 17 ; // CSI 17: n       p  - set text right-to-left none/on/off if it is not set.
     static const auto ccc_rlf_or = 18 ; // CSI 18: n       p  - set reverse line feed none/on/off if it is not set.
     static const auto ccc_idx    = 19 ; // CSI 19: id      p  - Split the text run and associate the fragment with an id.
-    static const auto ccc_cup    = 20 ; // CSI 20: x [: y] p  - cursor absolute position 0-based.
+    static const auto ccc_cup    = 20 ; // CSI 20: x  : y  p  - cursor absolute position 0-based.
     static const auto ccc_chx    = 21 ; // CSI 21: x       p  - cursor H absolute position 0-based.
     static const auto ccc_chy    = 22 ; // CSI 22: y       p  - cursor V absolute position 0-based.
     static const auto ccc_ref    = 23 ; // CSI 23: id      p  - create the reference to the existing paragraph.
@@ -424,12 +424,12 @@ namespace netxs::ansi
             return add("\033[", b + 40, 'm');
         }
         template<svga Mode = svga::vtrgb>
-        auto& fgc(argb c) // basevt: SGR Foreground color. RGB: red, green, blue.
+        auto& fgc(argb c) // basevt: SGR Foreground color. RGB: red, green, blue (+alpha for VT2D).
         {
                  if constexpr (Mode == svga::vt16 ) return fgc_16(c.to_vtm16(true));
             else if constexpr (Mode == svga::vt256) return fgc256(c.to_256cube());
-            else if constexpr (Mode == svga::vtrgb ||
-                               Mode == svga::vt_2D) return c.chan.a == 0 ? add("\033[39m")
+            else if constexpr (Mode == svga::vt_2D) return fgx(c);
+            else if constexpr (Mode == svga::vtrgb) return c.chan.a == 0 ? add("\033[39m")
                                                                          : add("\033[38;2;", c.chan.r, ';',
                                                                                              c.chan.g, ';',
                                                                                              c.chan.b, 'm');
@@ -440,8 +440,8 @@ namespace netxs::ansi
         {
                  if constexpr (Mode == svga::vt16 ) return bgc_8(c.to_vtm8());
             else if constexpr (Mode == svga::vt256) return bgc256(c.to_256cube());
-            else if constexpr (Mode == svga::vtrgb ||
-                               Mode == svga::vt_2D) return c.chan.a == 0 ? add("\033[49m")
+            else if constexpr (Mode == svga::vt_2D) return bgx(c);
+            else if constexpr (Mode == svga::vtrgb) return c.chan.a == 0 ? add("\033[49m")
                                                                          : add("\033[48;2;", c.chan.r, ';',
                                                                                              c.chan.g, ';',
                                                                                              c.chan.b, 'm');
@@ -808,14 +808,14 @@ namespace netxs::ansi
         auto& chy(si32 n)        { return add("\033[22:", n  , csi_ccc); } // escx: Cursor 0-based vertical absolute.
         auto& cpx(si32 n)        { return add("\033[3:" , n  , csi_ccc); } // escx: Cursor horizontal percent position.
         auto& cpy(si32 n)        { return add("\033[4:" , n  , csi_ccc); } // escx: Cursor vertical percent position.
-        auto& cup(twod p) { return add("\033[20:", p.y, ':',        // escx: 0-Based cursor position.
-                                                   p.x, csi_ccc); }
-        auto& cpp(twod p) { return add("\033[2:" , p.x, ':',        // escx: Cursor percent position.
-                                                   p.y, csi_ccc); }
-        auto& mgn(dent n) { return add("\033[6:" , n.l, ':',        // escx: Margin (left, right, top, bottom).
-                                                   n.r, ':',
-                                                   n.t, ':',
-                                                   n.b, csi_ccc); }
+        auto& cup(twod p)        { return add("\033[20:", p.x, ':',        // escx: 0-Based cursor position.
+                                                          p.y, csi_ccc); }
+        auto& cpp(twod p)        { return add("\033[2:" , p.x, ':',        // escx: Cursor percent position.
+                                                          p.y, csi_ccc); }
+        auto& mgn(dent n)        { return add("\033[6:" , n.l, ':',        // escx: Margin (left, right, top, bottom).
+                                                          n.r, ':',
+                                                          n.t, ':',
+                                                          n.b, csi_ccc); }
         auto& mgl(si32 n)        { return add("\033[7:" , n  , csi_ccc); } // escx: Left margin. Positive - native binding. Negative - opposite binding.
         auto& mgr(si32 n)        { return add("\033[8:" , n  , csi_ccc); } // escx: Right margin. Positive - native binding. Negative - opposite binding.
         auto& mgt(si32 n)        { return add("\033[9:" , n  , csi_ccc); } // escx: Top margin. Positive - native binding. Negative - opposite binding.
@@ -1286,8 +1286,8 @@ namespace netxs::ansi
 
                 auto& ccc = table[csi_ccc].resize(0x100);
                     ccc.template enable_multi_arg<NoMultiArg>();
-                    ccc[ccc_cup] = V{ F(ay, q.subarg(0)); F(ax, q.subarg(0)); }; // fx_ccc_cup
-                    ccc[ccc_cpp] = V{ F(py, q.subarg(0)); F(px, q.subarg(0)); }; // fx_ccc_cpp
+                    ccc[ccc_cup] = V{ F(ax, q.subarg(0)); F(ay, q.subarg(0)); }; // fx_ccc_cup
+                    ccc[ccc_cpp] = V{ F(px, q.subarg(0)); F(py, q.subarg(0)); }; // fx_ccc_cpp
                     ccc[ccc_chx] = V{ F(ax, q.subarg(0)); }; // fx_ccc_chx
                     ccc[ccc_chy] = V{ F(ay, q.subarg(0)); }; // fx_ccc_chy
                     ccc[ccc_cpx] = V{ F(px, q.subarg(0)); }; // fx_ccc_cpx
@@ -1906,8 +1906,8 @@ namespace netxs::ansi
                                 push({ fn::py, p.y }); return *this; }
         writ& cpx(si32 x)     { push({ fn::px, x   }); return *this; } // Cursor horizontal percent position.
         writ& cpy(si32 y)     { push({ fn::py, y   }); return *this; } // Cursor vertical percent position.
-        writ& cup(twod p)     { push({ fn::ay, p.y });                 // 0-Based cursor position.
-                                push({ fn::ax, p.x }); return *this; }
+        writ& cup(twod p)     { push({ fn::ax, p.x });                 // 0-Based cursor position.
+                                push({ fn::ay, p.y }); return *this; }
         writ& cuu(si32 n = 1) { push({ fn::dy,-n   }); return *this; } // Cursor up.
         writ& cud(si32 n = 1) { push({ fn::dy, n   }); return *this; } // Cursor down.
         writ& cuf(si32 n = 1) { push({ fn::dx, n   }); return *this; } // Cursor forward.

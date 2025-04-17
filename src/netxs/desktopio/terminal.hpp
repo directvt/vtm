@@ -963,6 +963,10 @@ namespace netxs::ui
                 vt.csier.table[csi_dsr] = V{ p->owner.wtrack.report(q(6)); }; // CSI n n  Device status report (DSR).
                 vt.csier.table[csi_pda] = V{ p->owner.wtrack.device(q(0)); }; // CSI n c  Send device attributes (Primary DA).
 
+                // Do not use non-standard vt.
+                //vt.csier.table[csi_ccc][ccc_cup] = V{ p->cup0(q); }; // CCC_CUP
+                //vt.csier.table[csi_ccc][ccc_chx] = V{ p->chx0(q.subarg(0)); }; // CCC_СHX
+                //vt.csier.table[csi_ccc][ccc_chy] = V{ p->chy0(q.subarg(0)); }; // CCC_СHY
                 vt.csier.table[csi_ccc][ccc_sbs] = V{ p->owner.sbsize(q); }; // CCC_SBS: Set scrollback size.
                 vt.csier.table[csi_ccc][ccc_rst] = V{ p->owner.setdef();  }; // CCC_RST: Reset to defaults.
                 vt.csier.table[csi_ccc][ccc_sgr] = V{ p->owner.setsgr(q); }; // CCC_SGR: Set default SGR.
@@ -1358,10 +1362,10 @@ namespace netxs::ui
             }
             // bufferbase: Base-CSI contract (see ansi::csi_t).
             //             task(...), meta(...), data(...)
-            void task(ansi::rule /*property*/)
+            void task(ansi::rule property)
             {
                 parser::flush();
-                log(prompt::term, "DirectVT extensions are not supported");
+                log("%%DirectVT extensions are not supported: arg=%%, cmd=%%", prompt::term, property.arg, property.cmd);
                 //auto& cur_line = batch.current();
                 //if (cur_line.busy())
                 //{
@@ -1991,11 +1995,24 @@ namespace netxs::ui
                     coord.x -= n;
                 }
             }
+            // bufferbase: Absolute horizontal cursor position (0-based).
+    virtual void chx0(si32 n)
+            {
+                parser::flush();
+                coord.x = n;
+            }
             // bufferbase: CSI n G  Absolute horizontal cursor position (1-based).
     virtual void chx(si32 n)
             {
                 parser::flush();
                 coord.x = n - 1;
+            }
+            // bufferbase: Absolute vertical cursor position (0-based).
+    virtual void chy0(si32 n)
+            {
+                parser::flush_data();
+                if (decom) coord.y = std::clamp(n + y_top, y_top, y_end);
+                else       coord.y = std::clamp(n, 0, panel.y - 1);
             }
             // bufferbase: CSI n d  Absolute vertical cursor position (1-based).
     virtual void chy(si32 n)
@@ -4006,8 +4023,10 @@ namespace netxs::ui
             void  cub(si32  n) override { bufferbase:: cub(n); sync_coord<faux>(); }
             void _cub(si32  n) override { bufferbase::_cub(n); batch.caret -= n;   }
             void  chx(si32  n) override { bufferbase:: chx(n); sync_coord<faux>(); }
+            void chx0(si32  n) override { bufferbase::chx0(n); sync_coord<faux>(); }
             void  tab(si32  n) override { bufferbase:: tab(n); sync_coord<faux>(); }
             void  chy(si32  n) override { bufferbase:: chy(n); sync_coord(); }
+            void chy0(si32  n) override { bufferbase::chy0(n); sync_coord(); }
             void  scl(si32  n) override { bufferbase:: scl(n); sync_coord(); }
             void   il(si32  n) override { bufferbase::  il(n); sync_coord(); }
             void   dl(si32  n) override { bufferbase::  dl(n); sync_coord(); }

@@ -1243,10 +1243,10 @@ namespace netxs::directvt
                     {
                         auto c = cache;
                         c.draw_cursor();
-                        c.scan_attr<Mode>(state, block);
+                        c.scan_attr<Mode>(state, stream::block);
                     }
-                    else cache.scan_attr<Mode>(state, block);
-                    block += cluster;
+                    else cache.scan_attr<Mode>(state, stream::block);
+                    stream::block += cluster;
                 };
                 auto print_rtl = [&](cell const& cache, view cluster)
                 {
@@ -1254,15 +1254,15 @@ namespace netxs::directvt
                     {
                         auto c = cache;
                         c.draw_cursor();
-                        c.scan_attr<Mode>(state, block);
+                        c.scan_attr<Mode>(state, stream::block);
                     }
-                    else cache.scan_attr<Mode>(state, block);
-                    utf::reverse_clusters(cluster, block);
+                    else cache.scan_attr<Mode>(state, stream::block);
+                    utf::reverse_clusters(cluster, stream::block);
                 };
                 auto src = cache.begin();
                 if (image.hash() != cache.hash()) // The cache has been resized.
                 {
-                    block.basevt::scroll_wipe();
+                    stream::block.basevt::scroll_wipe();
                     while (coord.y < field.y)
                     {
                         if (abort) // The cache is resized again.
@@ -1271,7 +1271,7 @@ namespace netxs::directvt
                             state = saved;
                             break;
                         }
-                        block.basevt::locate(coord);
+                        stream::block.basevt::locate(coord);
                         auto beg = src + 1;
                         auto end = src + field.x;
                         while (src != end)
@@ -1319,7 +1319,7 @@ namespace netxs::directvt
                                         if (coord1 != 0)
                                         {
                                             coord.x = (si32)coord1;
-                                            block.basevt::locate(coord);
+                                            stream::block.basevt::locate(coord);
                                         }
                                         if (has_custom_cluster && c.rtl()) print_rtl(c, utf8);
                                         else                               print(c, utf8);
@@ -1327,7 +1327,7 @@ namespace netxs::directvt
                                         {
                                             auto coord2 = (src - beg) + 1/*next cell*/;
                                             coord.x = (si32)coord2;
-                                            block.basevt::locate(coord);
+                                            stream::block.basevt::locate(coord);
                                         }
                                         break;
                                     }
@@ -1359,7 +1359,7 @@ namespace netxs::directvt
                         {
                             coord.x = x;
                             coord.y = y;
-                            block.basevt::locate(coord);
+                            stream::block.basevt::locate(coord);
                         }
                     };
                     auto dst = image.begin();
@@ -1496,10 +1496,15 @@ namespace netxs::directvt
 
             cell state; // bitmap_2: .
             core image; // bitmap_2: .
+            escx defer; // bitmap_2: Complex cluster buffer (printed at the end over a filled canvas).
+            si32 start; // bitmap_2: Beginning of the dynamic part of the complex cluster buffer.
 
             bitmap_2()
                 : stream{ Kind }
-            { }
+            {
+                defer.bgx(argb::default_color);
+                start = (si32)defer.length();
+            }
 
             void set(id_t /*winid*/, twod /*winxy*/, core& cache, flag& abort, sz_t& delta)
             {
@@ -1512,15 +1517,15 @@ namespace netxs::directvt
                     {
                         auto c = cache;
                         c.draw_cursor();
-                        c.scan_attr<Mode>(state, block);
+                        c.scan_attr<Mode>(state, stream::block);
                     }
-                    else cache.scan_attr<Mode>(state, block);
-                    block += cluster;
+                    else cache.scan_attr<Mode>(state, stream::block);
+                    stream::block += cluster;
                 };
                 auto src = cache.begin();
                 if (true || image.hash() != cache.hash()) // The cache has been resized.
                 {
-                    block.basevt::scroll_wipe();
+                    stream::block.locate(coord);
                     while (coord.y < field.y)
                     {
                         if (abort) // The cache is resized again.
@@ -1529,7 +1534,6 @@ namespace netxs::directvt
                             state = saved;
                             break;
                         }
-                        block.basevt::locate(coord);
                         auto beg = src + 1;
                         auto end = src + field.x;
                         while (src != end)
@@ -1560,55 +1564,76 @@ namespace netxs::directvt
                                 {
                                     if (w != 1)
                                     {
-                                        // test whole cluster (find cluster end: +detect sgr changes)
-                                        //if (whole_cluster)
-                                        //{
-                                        //    if (plain_srg)
-                                        //    {
-                                        //        print(c, utf8); // Print cluster.
-                                        //    }
-                                        //    else
-                                        //    {
-                                        //        auto coor1 = coord.x;
-                                        //        //print nulls with required sgr
-                                        //        //    while (head != tail)
-                                        //        //    {
-                                        //        //      //
-                                        //        //    }
-                                        //        mov(coor1);
-                                        //        //set transparent color
-                                        //        block += utf8; // Output cluster.
-                                        //    }
-                                        //    if (has_2D_modifier)
-                                        //    {
-                                        //        utf::to_utf_from_code(utf::matrix::vs_runtime(w, h, 0, y), stream::block);
-                                        //    }
-                                        //    src += w - 1;
-                                        //}
-                                        //else
+                                        auto whole_cluster = w - 1 <= (si32)(end - src)/*left_chars*/;
+                                        auto uniform_sgr = true;
+                                        if (whole_cluster) // Check cluster integrity (find cluster end: +detect sgr changes).
                                         {
-                                            print(c, utf8); // Print fragment.
-                                            utf::to_utf_from_code(utf::matrix::vs_runtime(w, h, x, y), stream::block);
-                                        }
-                                    }
-                                    else
-                                    {
-                                        print(c, utf8); // Print cluster.
-                                        if (has_2D_modifier)
-                                        {
-                                            utf::to_utf_from_code(utf::matrix::vs_runtime(w, h, 1, 1), stream::block);
+                                            auto head = src;
+                                            auto tail = src + (w - 1);
+                                            while (head != tail)
+                                            {
+                                                auto& cc = *head++;
+                                                if (uniform_sgr && !cc.like(c))
+                                                {
+                                                    uniform_sgr = faux;
+                                                }
+                                                if (cc.gc != c.gc)
+                                                {
+                                                    whole_cluster = faux;
+                                                    break;
+                                                }
+                                            }
+                                            if (whole_cluster)
+                                            {
+                                                //log("whole_cluster: ", utf8);
+                                                if (uniform_sgr)
+                                                {
+                                                    //log("   uniform SGR");
+                                                    print(c, utf8); // Print cluster.
+                                                    if (has_2D_modifier)
+                                                    {
+                                                        utf::to_utf_from_code(utf::matrix::vs_runtime(w, h, 0, y), stream::block);
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    //log("   non-uniform SGR");
+                                                    print(c, "\0"sv);
+                                                    head = src;
+                                                    while (head != tail) // Print w-1 nulls to block (fill colors).
+                                                    {
+                                                        auto& cc = *head++;
+                                                        print(cc, "\0"sv);
+                                                    }
+                                                    coord.x = (si32)(src - beg); // Print mov(coord) + utf8 + modifier to defer.
+                                                    defer.locate(coord);
+                                                    defer += utf8; // Print cluster to defer.
+                                                    if (has_2D_modifier)
+                                                    {
+                                                        utf::to_utf_from_code(utf::matrix::vs_runtime(w, h, 0, y), defer);
+                                                    }
+                                                }
+                                                src += w - 1;
+                                                continue;
+                                            }
                                         }
                                     }
                                 }
-                                else
+                                //log("fragment: %% w=%% h=%% x=%% y=%%", utf8, w, h, x, y);
+                                print(c, utf8); // Print fragment.
+                                if (x != 1 || w != 1 || has_2D_modifier)
                                 {
-                                    print(c, utf8); // Print fragment.
                                     utf::to_utf_from_code(utf::matrix::vs_runtime(w, h, x, y), stream::block);
                                 }
                             }
                         }
-                        coord.x = 0;
                         ++coord.y;
+                    }
+                    if (defer.length() != start)
+                    {
+                        //log("defer size=%%\n\tdata:\n%%", defer.length(), ansi::hi(utf::debase437(defer)));
+                        stream::block += defer;
+                        defer.resize(start);
                     }
                 }
                 else
@@ -1620,7 +1645,7 @@ namespace netxs::directvt
                         {
                             coord.x = x;
                             coord.y = y;
-                            block.basevt::locate(coord);
+                            stream::block.basevt::locate(coord);
                         }
                     };
                     auto dst = image.begin();
