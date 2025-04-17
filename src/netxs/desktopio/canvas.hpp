@@ -1192,8 +1192,8 @@ namespace netxs
             // Unique attributes. From 24th bit.
             static constexpr auto mosaic_mask = (ui32)0b11111111'00000000'00000000'00000000; // ui32 mosaic : 8; // High 3 bits -> y-fragment (0-4 utf::matrix::ky), low 5 bits -> x-fragment (0-16 utf::matrix::kx). // Ref:  https://gitlab.freedesktop.org/terminal-wg/specifications/-/issues/23
 
-            static constexpr auto x_bits = (byte)0b0001'1111; // Character geometry x fragment selector bits (for mosaic_mask).
-            static constexpr auto y_bits = 5; // Character geometry y fragment selector bits offset (for mosaic_mask).
+            static constexpr auto x_bits = utf::matrix::x_bits; // Character geometry x fragment selector bits (for mosaic_mask).
+            static constexpr auto y_bits = utf::matrix::y_bits; // Character geometry y fragment selector bits offset (for mosaic_mask).
             static constexpr auto shared_bits = (ui32)((1 << netxs::field_offset<mosaic_mask>()) - 1);
 
             // Fusion: Background interpolation current c0 with neighbor c1 and c2 cells:

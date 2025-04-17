@@ -330,7 +330,7 @@ namespace netxs::ui
                 if (cmd == ansi::fn::el && arg == 0)
                 {
                     auto coor = flow::cp();
-                    auto mark = block.brush();
+                    auto mark = cell{ block.brush() }.txt(' ');
                     auto line = arighted ? rect{{ textpads.l, coor.y }, { coor.x, 1 }}
                                          : rect{ coor, { caret_mx - coor.x + 1, 1 }};
                     line.coor.x += pagerect.coor.x;

@@ -79,8 +79,10 @@ namespace netxs::utf
     // utf: Unicode Character Size Modifiers
     namespace matrix
     {
+        static constexpr auto x_bits = (byte)0b0001'1111; // Character geometry x fragment selector bits (for mosaic_mask).
+        static constexpr auto y_bits = 5; // y-fragment selector bits offset.
         template<si32 xxy>
-        static auto mosaic = []{ return xxy / 10 + ((xxy % 10) << 5); }();
+        static auto mosaic = []{ return xxy / 10 + ((xxy % 10) << y_bits); }();
         static auto p = [](auto x){ return x * (x + 1) / 2; }; // ref: https://github.com/directvt/vtm/assets/11535558/88bf5648-533e-4786-87de-b3dc4103273c
         static constexpr auto stx = utfx{ 0x02 }; // Custom cluster initiator (STX).
         static constexpr auto kx = 16;
