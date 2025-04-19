@@ -507,7 +507,7 @@ struct impl : consrv
         using work = std::thread;
         using cast = std::unordered_map<text, std::unordered_map<text, text>>;
         using hist = std::unordered_map<text, memo>;
-        using mbtn = netxs::input::mouse::hist;
+        using mbtn = std::array<netxs::input::mouse::hist_t, 5>;
 
         impl& server; // evnt: Console server reference.
         vect  stream; // evnt: Input event list.

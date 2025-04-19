@@ -796,13 +796,13 @@ namespace netxs::input
             };
         };
 
-        struct knob_t
-        {
-            bool pressed; // knod: Button pressed state.
-            bool dragged; // knod: The button is in a dragging state.
-            bool blocked; // knod: The button is blocked (leftright disables left and right).
-            fp2d pressxy; // knob: Press coordinates.
-        };
+        //struct knob_t
+        //{
+        //    bool pressed; // knod: Button pressed state.
+        //    bool dragged; // knod: The button is in a dragging state.
+        //    bool blocked; // knod: The button is blocked (leftright disables left and right).
+        //    fp2d pressxy; // knob: Press coordinates.
+        //};
         struct hist_t // Timer for successive double-clicks, e.g. triple-clicks.
         {
             time fired; // hist: .
@@ -810,8 +810,8 @@ namespace netxs::input
             si32 count; // hist: .
         };
 
-        using hist = std::array<hist_t, numofbuttons>;
-        using knob = std::array<knob_t, numofbuttons>;
+        using hist = std::unordered_map<si32, hist_t>;
+        //using knob = std::array<knob_t, numofbuttons>;
         using tail = netxs::datetime::tail<fp2d>;
 
         static constexpr auto dragstrt = input::events::mouse::button::drag::start:: any.group<numofbuttons>();
@@ -838,74 +838,75 @@ namespace netxs::input
         bool hzwhl{}; // mouse: If true: Horizontal scrolling. If faux: Vertical scrolling.
         fp32 whlfp{}; // mouse: Scroll delta in float units (lines).
         si32 whlsi{}; // mouse: Scroll delta in integer units (lines).
-        si32 locks{}; // mouse: State of the captured buttons (bit field).
-        si32 index{}; // mouse: Index of the active button. -1 if the buttons are not involed.
+        //si32 locks{}; // mouse: State of the captured buttons (bit field).
+        //si32 index{}; // mouse: Index of the active button. -1 if the buttons are not involed.
+
         id_t swift{}; // mouse: Delegate's ID of the current mouse owner.
         id_t hover{}; // mouse: Hover control ID.
         id_t start{}; // mouse: Initiator control ID.
         hint cause{}; // mouse: Current event id.
         hist stamp{}; // mouse: Recorded intervals between successive button presses to track double-clicks.
         span delay{}; // mouse: Double-click threshold.
-        knob bttns{}; // mouse: Extended state of mouse buttons.
+        //knob bttns{}; // mouse: Extended state of mouse buttons.
         sysmouse m_sys{}; // mouse: Device state.
         sysmouse m_sav{}; // mouse: Previous device state.
 
         si32 pressed_count{}; // mouse: The number of pressed physical buttons.
 
         // mouse: Forward the extended mouse event.
-        virtual void fire(hint cause, si32 index = mouse::noactive) = 0;
+        virtual void fire(hint cause) = 0; //, si32 index = mouse::noactive) = 0;
         // mouse: Try to forward the mouse event intact.
         virtual bool fire_fast() = 0;
 
         // mouse: Forward the specified button event.
-        template<class T>
-        void fire(T const& event_subset, si32 index)
-        {
-            fire(event_subset[index], index);
-        }
+        //template<class T>
+        //void fire(T const& event_subset, si32 index)
+        //{
+        //    fire(event_subset[index], index);
+        //}
         // mouse: Pack the button state into a bitset.
-        auto take_button_state()
-        {
-            auto bitstat = si32{};
-            auto pressed = 1 << 0;
-            auto dragged = 1 << 1;
-            auto blocked = 1 << 2;
-            for (auto& b : bttns)
-            {
-                if (b.pressed) bitstat |= pressed;
-                if (b.dragged) bitstat |= dragged;
-                if (b.blocked) bitstat |= blocked;
-                pressed <<= 3;
-                dragged <<= 3;
-                blocked <<= 3;
-            }
-            return bitstat;
-        }
+        //auto take_button_state()
+        //{
+        //    auto bitstat = si32{};
+        //    auto pressed = 1 << 0;
+        //    auto dragged = 1 << 1;
+        //    auto blocked = 1 << 2;
+        //    for (auto& b : bttns)
+        //    {
+        //        if (b.pressed) bitstat |= pressed;
+        //        if (b.dragged) bitstat |= dragged;
+        //        if (b.blocked) bitstat |= blocked;
+        //        pressed <<= 3;
+        //        dragged <<= 3;
+        //        blocked <<= 3;
+        //    }
+        //    return bitstat;
+        //}
         // mouse: Load the button state from a bitset.
-        auto load_button_state(si32 bitstat)
-        {
-            auto pressed = 1 << 0;
-            auto dragged = 1 << 1;
-            auto blocked = 1 << 2;
-            for (auto& b : bttns)
-            {
-                b.pressed = bitstat & pressed;
-                b.dragged = bitstat & dragged;
-                b.blocked = bitstat & blocked;
-                pressed <<= 3;
-                dragged <<= 3;
-                blocked <<= 3;
-            }
-        }
+        //auto load_button_state(si32 bitstat)
+        //{
+        //    auto pressed = 1 << 0;
+        //    auto dragged = 1 << 1;
+        //    auto blocked = 1 << 2;
+        //    for (auto& b : bttns)
+        //    {
+        //        b.pressed = bitstat & pressed;
+        //        b.dragged = bitstat & dragged;
+        //        b.blocked = bitstat & blocked;
+        //        pressed <<= 3;
+        //        dragged <<= 3;
+        //        blocked <<= 3;
+        //    }
+        //}
         // mouse: Sync the button state with a bitset.
-        auto sync_button_state(si32 bitstat)
-        {
-            for (auto& b : bttns)
-            {
-                b.pressed = bitstat & 0x1;
-                bitstat >>= 1;
-            }
-        }
+        //auto sync_button_state(si32 bitstat)
+        //{
+        //    for (auto& b : bttns)
+        //    {
+        //        b.pressed = bitstat & 0x1;
+        //        bitstat >>= 1;
+        //    }
+        //}
         // mouse: Return a kinetic animator.
         template<class Law>
         auto fader(span spell)
@@ -914,73 +915,100 @@ namespace netxs::input
             return delta.fader<Law>(spell);
         }
 
-        si32 pressed = {}; // hids: Physical button state.
-        si32 bttn_id = {}; // hids: Logical button id.
-        bool dragged = {};
-        fp2d pressxy; // knob: Press coordinates.
+        si32 pressed = {}; // mouse: Physical button state.
+        si32 bttn_id = {}; // mouse: Logical button id.
+        bool dragged = {}; // mouse: The button is dragged.
+        fp2d pressxy; // mouse: Press coordinates.
+        void m2_sglclick()
+        {
+            //...
+        }
+        void m2_dblclick()
+        {
+            //...
+        }
+        void m2_tplclick()
+        {
+            //...
+        }
+        void m2_move()
+        {
+            //...
+        }
+        void m2_push(si32 button_id)
+        {
+            button_id;
+            //...
+        }
+        void m2_up(si32 button_id)
+        {
+            button_id;
+            //...
+        }
+        void m2_drag_start()
+        {
+            //...
+        }
+        void m2_drag_pull()
+        {
+            //...
+        }
+        void m2_drag_cancel()
+        {
+            //...
+        }
+        void m2_drag_stop()
+        {
+            //...
+        }
+        void m2_wheel()
+        {
+            //...
+        }
+        void m2_click()
+        {
+            m2_sglclick();
+            if (!nodbl)
+            {
+                // Fire a double/triple-click if delay is not expired
+                // and the mouse is at the same position.
+                auto& s = stamp[bttn_id];
+                auto fired = m_sys.timecod;
+                if (fired - s.fired < delay && s.coord == coord)
+                {
+                    if (s.count == 1)
+                    {
+                        m2_dblclick();
+                        s.fired = fired;
+                        s.count++;
+                    }
+                    else if (s.count >= 2)
+                    {
+                        m2_tplclick();
+                        if (s.count == 4) // Limit to quintuple click.
+                        {
+                            s.fired = {};
+                            s.count = {};
+                        }
+                        else
+                        {
+                            s.fired = fired;
+                            s.count++;
+                        }
+                    }
+                }
+                else
+                {
+                    s.fired = fired;
+                    s.coord = coord;
+                    s.count = 1;
+                }
+            }
+            //fire(released, button_id);
+        }
         // mouse: Generate mouse event.
         void update(sysmouse& m, core const& idmap)
         {
-            {
-                auto next_state = m.buttons;
-                auto prev_state = pressed;
-                if (bttn_id & next_state)
-                {
-                    if (prev_state < next_state) // Additional button pressed. E.g., 100 -> 101. //todo possible bug in Apple's Terminal - it doesn't return the second release in case when two buttons are pressed.
-                    {
-                        if (dragged)
-                        {
-                            // drag_cancel(bttn_id); // drag_cancel(100);
-                        }
-                        // up(bttn_id); // up(100);
-                        // bttn_id |= state;
-                        // //auto pushed_bit =...
-                        // //push(pushed_bit);
-                        // push(bttn_id); // push(101);
-                    }
-                    //else if (prev_state > next_state) // Some button released. E.g., 101 -> 001.
-                    //{
-                    //    do nothing
-                    //    // //if (pressed_count > 1)
-                    //    // //{
-                    //    // //    auto released_bit =...
-                    //    // //    up(released_bit);
-                    //    // //}
-                    //}
-                }
-                else if (!prev_state && next_state) // First button(s) pressed. E.g., 000 -> 100.
-                {
-                    // assert(bttn_id == 0);
-                    // bttn_id = next_state;
-                    // //auto pushed_bit(s) =...
-                    // //push(pushed_bit(s));
-                    // push(bttn_id); // push(100);
-                }
-                else if (prev_state && !next_state) // The last button(s) pressed. E.g., 100 -> 000 (bttn_id=101).
-                {
-                    // assert(bttn_id != 0);
-                    if (dragged)
-                    {
-                        // drag_stop(bttn_id); // drag_stop(101);
-                    }
-                    // up(bttn_id); // up(101);
-                    // bttn_id = next_state;
-                }
-                pressed = next_state;
-                pressed_count = 0;
-                while (next_state)
-                {
-                    auto is_pressed = next_state & 0x1;
-                    pressed_count += is_pressed;
-                    next_state >>= 1;
-                }
-            }
-            auto m_buttons = std::bitset<8>(m.buttons);
-            // Interpret button combinations.
-            //todo drop
-            m_buttons[leftright] = (bttns[leftright].pressed && (m_buttons[left] || m_buttons[right]))
-                                                             || (m_buttons[left] && m_buttons[right]);
-            m.buttons = (si32)m_buttons.to_ulong();
             auto modschanged = m_sys.ctlstat != m.ctlstat;
             m_sys.set(m);
             auto busy = captured();
@@ -989,87 +1017,130 @@ namespace netxs::input
                 delta.set(m_sys.coordxy - prime);
                 coord = m_sys.coordxy;
                 prime = m_sys.coordxy;
-                fire(movement); // Update mouse enter/leave state. Don't care about buttons.
+                m2_move(); // Update mouse enter/leave state. Don't care about buttons.
                 pressed = m_sys.buttons;
                 bttn_id = m_sys.buttons;
                 dragged = {};
                 //todo drop
-                sync_button_state(m_sys.buttons);
+                //sync_button_state(m_sys.buttons);
                 return;
             }
-            //todo drop
-            if (m_buttons[leftright]) // Cancel left and right drag if it is.
-            {
-                if (bttns[left].dragged)
-                {
-                    bttns[left].dragged = faux;
-                    fire(dragcncl, left);
-                }
-                if (bttns[right].dragged)
-                {
-                    bttns[right].dragged = faux;
-                    fire(dragcncl, right);
-                }
-                m_buttons[left ] = faux;
-                m_buttons[right] = faux;
-                m_sys.buttons = (si32)m_buttons.to_ulong();
-            }
 
-            // Suppress left and right to avoid single button tracking (click, pull, etc)
-            //todo drop
-            bttns[left ].blocked = m_buttons[leftright] || bttns[leftright].pressed;
-            bttns[right].blocked = bttns[left].blocked;
+            if (m.buttons != pressed)
+            {
+                auto next_state = m.buttons;
+                auto prev_state = pressed;
+                auto proceed_buttons = [&] // Counting pressed buttons and signaling changes in physical buttons.
+                {
+                    pressed_count = 0;
+                    auto bits = next_state | prev_state;
+                    auto bttn = 0x1;
+                    while (bits)
+                    {
+                        auto pressed_next = next_state & bttn;
+                        auto pressed_prev = prev_state & bttn;
+                        if (pressed_next) pressed_count++;
+                        if (pressed_next != pressed_prev)
+                        {
+                            if (pressed_next) m2_push(bttn);
+                            else              m2_up(bttn);
+                        }
+                        bits >>= 1;
+                        bttn <<= 1;
+                    }
+                };
+                if (bttn_id & next_state)
+                {
+                    if (bttn_id != (bttn_id | next_state)) // Additional button pressed. E.g., 100 -> 101. //todo possible bug in Apple's Terminal - it doesn't return the second release in case when two buttons are pressed.
+                    {
+                        if (dragged)
+                        {
+                            m2_drag_cancel(); // drag_cancel(100);
+                            dragged = faux;
+                        }
+                        m2_up(bttn_id); // up(100);
+                        bttn_id |= next_state;
+                        proceed_buttons();
+                        m2_push(bttn_id); // push(101);
+                    }
+                    else // Some button released. E.g., 101 -> 001.
+                    {
+                        proceed_buttons();
+                    }
+                }
+                else if (!prev_state && next_state) // Initial button(s) pressed. E.g., 000 -> 100.
+                {
+                    assert(bttn_id == 0);
+                    bttn_id = next_state;
+                    proceed_buttons();
+                    if (pressed_count > 1) m2_push(bttn_id); // push(101) - Two buttons were pressed simultaneously.
+                }
+                else if (prev_state && !next_state) // The last button(s) released. E.g., 100 -> 000 (bttn_id=101).
+                {
+                    assert(bttn_id != 0);
+                    if (dragged)
+                    {
+                        m2_drag_stop(); // drag_stop(101);
+                        dragged = faux;
+                    }
+                    auto prev_count = pressed_count;
+                    proceed_buttons();
+                    if (prev_count > 1) m2_up(bttn_id); // up(101);
+                    m2_click();
+                    bttn_id = {};
+                }
+                pressed = next_state;
+            }
 
             if (m_sys.coordxy != prime || modschanged)
             {
                 auto step = m_sys.coordxy - prime;
-                if (m.buttons) accum += std::abs(step.x) + std::abs(step.y);
-                else           accum = {};
+                if (pressed) accum += std::abs(step.x) + std::abs(step.y);
+                else         accum = {};
                 auto new_target = idmap.link(m_sys.coordxy) != idmap.link(prime);
                 auto allow_drag = accum > drag_threshold || new_target;
                 delta.set(step);
-                auto active = si32{}; //todo drop
-                auto genptr = std::begin(bttns); //todo drop
+                //auto active = si32{}; //todo drop
+                //auto genptr = std::begin(bttns); //todo drop
                 //todo process a single (current) bttn_id only
-                // if (pressed && allow_drag && !dragged)
-                // {
-                //     click = pressxy;
-                //     dragstrt(bttn_id);
-                //     dragged = true;
-                // }
-                //todo drop
-                for (auto i = 0; i < numofbuttons; i++)
+                if (pressed && allow_drag && !dragged)
                 {
-                    auto& genbtn = *genptr++;
-                    if (genbtn.pressed && !genbtn.blocked)
-                    {
-                        if (allow_drag && !genbtn.dragged)
-                        {
-                            click = genbtn.pressxy;
-                            fire(dragstrt, i);
-                            genbtn.dragged = true;
-                        }
-                        active |= 1 << i;
-                    }
+                    click = pressxy;
+                    m2_drag_start();
+                    dragged = true;
                 }
+                //todo drop
+                //for (auto i = 0; i < numofbuttons; i++)
+                //{
+                //    auto& genbtn = *genptr++;
+                //    if (genbtn.pressed && !genbtn.blocked)
+                //    {
+                //        if (allow_drag && !genbtn.dragged)
+                //        {
+                //            click = genbtn.pressxy;
+                //            fire(dragstrt, i);
+                //            genbtn.dragged = true;
+                //        }
+                //        active |= 1 << i;
+                //    }
+                //}
                 coord = m_sys.coordxy;
                 prime = m_sys.coordxy;
                 //todo process a single (current) bttn_id only
-                // if (allow_drag && dragged)
-                // {
-                //     dragpull(bttn_id);
-                // }
-                //todo drop
-                if (allow_drag) for (auto i = 0; active; ++i)
+                if (allow_drag && dragged)
                 {
-                    if (active & 0x1)
-                    {
-                        fire(dragpull, i);
-                    }
-                    active >>= 1;
+                    m2_drag_pull();
                 }
-
-                fire(movement);
+                //todo drop
+                //if (allow_drag) for (auto i = 0; active; ++i)
+                //{
+                //    if (active & 0x1)
+                //    {
+                //        fire(dragpull, i);
+                //    }
+                //    active >>= 1;
+                //}
+                m2_move();
             }
 
             if (!busy && fire_fast())
@@ -1078,81 +1149,81 @@ namespace netxs::input
                 bttn_id = m_sys.buttons;
                 dragged = {};
                 //todo drop
-                sync_button_state(m_sys.buttons);
+                //sync_button_state(m_sys.buttons);
                 return;
             }
 
-            auto genptr = std::begin(bttns);
-            //todo process a single (current) bttn_id only
-            for (auto i = 0; i < numofbuttons; i++)
-            {
-                auto& genbtn = *genptr++;
-                auto  sysbtn = m_buttons[i];
-                if (genbtn.pressed != sysbtn)
-                {
-                    genbtn.pressed = sysbtn;
-                    if (genbtn.pressed)
-                    {
-                        genbtn.pressxy = prime;
-                        fire(pushdown, i);
-                    }
-                    else
-                    {
-                        if (genbtn.dragged)
-                        {
-                            genbtn.dragged = faux;
-                            fire(dragstop, i);
-                        }
-                        else
-                        {
-                            if (!genbtn.blocked)
-                            {
-                                fire(sglclick, i);
-                            }
-                            if (!nodbl)
-                            {
-                                // Fire a double/triple-click if delay is not expired
-                                // and the mouse is at the same position.
-                                auto& s = stamp[i];
-                                auto fired = m_sys.timecod;
-                                if (fired - s.fired < delay && s.coord == coord)
-                                {
-                                    if (!genbtn.blocked)
-                                    {
-                                        if (s.count == 1)
-                                        {
-                                            fire(dblclick, i);
-                                            s.fired = fired;
-                                            s.count++;
-                                        }
-                                        else if (s.count >= 2)
-                                        {
-                                            fire(tplclick, i);
-                                            if (s.count == 4) // Limit to quintuple click.
-                                            {
-                                                s.fired = {};
-                                                s.count = {};
-                                            }
-                                            else
-                                            {
-                                                s.fired = fired;
-                                                s.count++;
-                                            }
-                                        }
-                                    }
-                                }
-                                else
-                                {
-                                    s.fired = fired;
-                                    s.coord = coord;
-                                    s.count = 1;
-                                }
-                            }
-                        }
-                        fire(released, i);
-                    }
-                }
-            }
+            //auto genptr = std::begin(bttns);
+            ////todo process a single (current) bttn_id only
+            //for (auto i = 0; i < numofbuttons; i++)
+            //{
+            //    auto& genbtn = *genptr++;
+            //    auto  sysbtn = m_buttons[i];
+            //    if (genbtn.pressed != sysbtn)
+            //    {
+            //        genbtn.pressed = sysbtn;
+            //        if (genbtn.pressed)
+            //        {
+            //            genbtn.pressxy = prime;
+            //            fire(pushdown, i);
+            //        }
+            //        else
+            //        {
+            //            if (genbtn.dragged)
+            //            {
+            //                genbtn.dragged = faux;
+            //                fire(dragstop, i);
+            //            }
+            //            else
+            //            {
+            //                if (!genbtn.blocked)
+            //                {
+            //                    fire(sglclick, i);
+            //                }
+            //                if (!nodbl)
+            //                {
+            //                    // Fire a double/triple-click if delay is not expired
+            //                    // and the mouse is at the same position.
+            //                    auto& s = stamp[i];
+            //                    auto fired = m_sys.timecod;
+            //                    if (fired - s.fired < delay && s.coord == coord)
+            //                    {
+            //                        if (!genbtn.blocked)
+            //                        {
+            //                            if (s.count == 1)
+            //                            {
+            //                                fire(dblclick, i);
+            //                                s.fired = fired;
+            //                                s.count++;
+            //                            }
+            //                            else if (s.count >= 2)
+            //                            {
+            //                                fire(tplclick, i);
+            //                                if (s.count == 4) // Limit to quintuple click.
+            //                                {
+            //                                    s.fired = {};
+            //                                    s.count = {};
+            //                                }
+            //                                else
+            //                                {
+            //                                    s.fired = fired;
+            //                                    s.count++;
+            //                                }
+            //                            }
+            //                        }
+            //                    }
+            //                    else
+            //                    {
+            //                        s.fired = fired;
+            //                        s.coord = coord;
+            //                        s.count = 1;
+            //                    }
+            //                }
+            //            }
+            //            fire(released, i);
+            //        }
+            //    }
+            //}
 
             coord = m_sys.coordxy;
             if (m_sys.wheelfp)
@@ -1160,7 +1231,7 @@ namespace netxs::input
                 hzwhl = m_sys.hzwheel;
                 whlfp = m_sys.wheelfp;
                 whlsi = m_sys.wheelsi;
-                fire(wheeling);
+                m2_wheel();
                 m_sys.hzwheel = {}; // Clear one-shot events.
                 m_sys.wheelfp = {};
                 m_sys.wheelsi = {};
@@ -1208,24 +1279,25 @@ namespace netxs::input
         {
             return swift;
         }
-        // mouse: Seize specified mouse control.
+        // mouse: Seize mouse control.
         bool capture(id_t asker)
         {
             if (!swift || swift == asker)
             {
                 swift = asker;
-                if (index != mouse::noactive) locks |= 1 << index;
+                //if (index != mouse::noactive) locks |= 1 << index;
                 return true;
             }
             return faux;
         }
-        // mouse: Release specified mouse control.
-        void setfree(bool forced = true)
+        // mouse: Release mouse control.
+        void setfree()
         {
-            forced |= index == mouse::noactive;
-            locks = forced ? 0
-                           : locks & ~(1 << index);
-            if (!locks) swift = {};
+            //forced |= index == mouse::noactive;
+            //locks = forced ? 0
+            //               : locks & ~(1 << index);
+            //if (!locks) 
+            swift = {};
         }
     };
 
@@ -1731,9 +1803,11 @@ namespace netxs::input
             return faux;
         }
 
-        void replay(sptr object_ptr, hint new_cause, fp2d new_coord, fp2d new_click, fp2d new_delta, si32 new_button_state, si32 new_ctlstate, fp32 new_whlfp, si32 new_whlsi, bool new_hzwhl)
+        void replay(sptr object_ptr, hint new_cause, fp2d new_coord, fp2d new_click, fp2d new_delta, si32 new_button_state, si32 new_bttn_id, bool new_dragged, si32 new_ctlstate, fp32 new_whlfp, si32 new_whlsi, bool new_hzwhl)
         {
+            //todo drop
             static constexpr auto mask = netxs::events::level_mask(input::events::mouse::button::any.id);
+            //todo drop
             static constexpr auto base = mask & input::events::mouse::button::any.id;
             alive = true;
             keybd::ctlstat = new_ctlstate;
@@ -1742,9 +1816,16 @@ namespace netxs::input
             mouse::whlfp = new_whlfp;
             mouse::whlsi = new_whlsi;
             mouse::hzwhl = new_hzwhl;
+            //todo revise
             mouse::cause = (new_cause & ~mask) | base; // Remove the dependency on the event tree root.
+
             mouse::delta.set(new_delta);
-            mouse::load_button_state(new_button_state);
+
+            mouse::pressed = new_button_state;
+            mouse::bttn_id = new_bttn_id;
+            mouse::dragged = new_dragged;
+            mouse::pressxy = new_click;
+            //mouse::load_button_state(new_button_state);
             pass(tier::release, object_ptr, owner.base::coor(), true);
         }
 
@@ -1883,7 +1964,10 @@ namespace netxs::input
         }
         void deactivate()
         {
-            mouse::load_button_state(0);
+            mouse::pressed = {};
+            mouse::bttn_id = {};
+            mouse::dragged = {};
+            //mouse::load_button_state(0);
             mouse::m_sys.buttons = {};
             redirect_mouse_focus(owner);
             release_if_captured();
@@ -1899,12 +1983,12 @@ namespace netxs::input
                 boss.base::signal(tier::release, mouse::cause, *this);
             }
         }
-        void fire(hint new_cause, si32 new_index = mouse::noactive)
+        void fire(hint new_cause)//, si32 new_index = mouse::noactive)
         {
             if (mouse_disabled) return;
 
             alive = true;
-            mouse::index = new_index;
+            //mouse::index = new_index;
             mouse::cause = new_cause;
             mouse::coord = mouse::prime;
             mouse::nodbl = faux;

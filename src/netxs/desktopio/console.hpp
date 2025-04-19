@@ -1109,7 +1109,7 @@ namespace netxs::ui
                 LISTEN(tier::release, input::events::mouse::scroll::any, gear)
                 {
                     auto [ext_gear_id, gear_ptr] = get_ext_gear_id(gear.id);
-                    if (gear_ptr) conio.mouse_event.send(canal, ext_gear_id, gear.ctlstat, gear.mouse::cause, gear.coord, gear.delta.get(), gear.take_button_state(), gear.whlfp, gear.whlsi, gear.hzwhl, gear.click);
+                    if (gear_ptr) conio.mouse_event.send(canal, ext_gear_id, gear.ctlstat, gear.mouse::cause, gear.coord, gear.delta.get(), gear.pressed, gear.bttn_id, gear.dragged, gear.whlfp, gear.whlsi, gear.hzwhl, gear.click);
                     gear.dismiss();
                 };
                 LISTEN(tier::release, input::events::mouse::button::any, gear, -, (isvtm))
@@ -1117,12 +1117,13 @@ namespace netxs::ui
                     namespace button = input::events::mouse::button;
                     auto forward = faux;
                     auto cause = gear.mouse::cause;
-                    if (isvtm && (gear.index == hids::leftright || // Reserved for dragging nested vtm.
-                                  gear.index == hids::right)       // Reserved for creation inside nested vtm.
-                              && netxs::events::subevent(cause, button::drag::any.id))
-                    {
-                        return; // Pass event to the hall.
-                    }
+                    //todo revise
+                    //if (isvtm && (gear.index == hids::leftright || // Reserved for dragging nested vtm.
+                    //              gear.index == hids::right)       // Reserved for creation inside nested vtm.
+                    //          && netxs::events::subevent(cause, button::drag::any.id))
+                    //{
+                    //    return; // Pass event to the hall.
+                    //}
                     if (fullscreen && netxs::events::subevent(cause, button::drag::any.id)) // Enable left drag in GUI fullscreen mode.
                     {
                         return; // Pass event to the hall.
@@ -1148,7 +1149,7 @@ namespace netxs::ui
                     if (forward)
                     {
                         auto [ext_gear_id, gear_ptr] = get_ext_gear_id(gear.id);
-                        if (gear_ptr) conio.mouse_event.send(canal, ext_gear_id, gear.ctlstat, cause, gear.coord, gear.delta.get(), gear.take_button_state(), gear.whlfp, gear.whlsi, gear.hzwhl, gear.click);
+                        if (gear_ptr) conio.mouse_event.send(canal, ext_gear_id, gear.ctlstat, cause, gear.coord, gear.delta.get(), gear.pressed, gear.bttn_id, gear.dragged, gear.whlfp, gear.whlsi, gear.hzwhl, gear.click);
                         gear.dismiss();
                     }
                 };

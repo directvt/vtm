@@ -914,6 +914,8 @@ namespace netxs::directvt
                                         (fp2d, coord)
                                         (fp2d, delta)
                                         (si32, buttons)
+                                        (si32, bttn_id)  // Active virtual button id.
+                                        (bool, dragged)  // Button drag state.
                                         (fp32, whlfp)
                                         (si32, whlsi)
                                         (bool, hzwhl)
@@ -956,6 +958,8 @@ namespace netxs::directvt
                                         (time, timecod)  // sysmouse: Event time code.
                                         (si32, enabled)  // sysmouse: Mouse device health status.
                                         (si32, buttons)  // sysmouse: Buttons bit state.
+                                        (si32, bttn_id)  // sysmouse: Active virtual button id.
+                                        (bool, dragged)  // sysmouse: Button drag state.
                                         (bool, hzwheel)  // sysmouse: If true: Horizontal scroll wheel. If faux: Vertical scroll wheel.
                                         (fp32, wheelfp)  // sysmouse: Scroll delta in floating units.
                                         (si32, wheelsi)  // sysmouse: Scroll delta in integer units.

@@ -449,7 +449,7 @@ namespace netxs::ui
                         {
                             if (gear.captured(owner.id))
                             {
-                                if (!gear.m_sys.buttons) gear.setfree(true);
+                                if (!gear.m_sys.buttons) gear.setfree();
                             }
                             else if (gear.m_sys.buttons) gear.capture(owner.id);
                             auto& console = *owner.target;
@@ -8745,7 +8745,7 @@ namespace netxs::ui
                     {
                         auto& gear = *gear_ptr;
                         gear.set_multihome();
-                        if (gear.captured(owner.id)) gear.setfree(true);
+                        if (gear.captured(owner.id)) gear.setfree();
                         parent_ptr->base::riseup(tier::preview, e2::form::size::enlarge::fullscreen, gear);
                     }
                 }
@@ -8762,7 +8762,7 @@ namespace netxs::ui
                     {
                         auto& gear = *gear_ptr;
                         gear.set_multihome();
-                        if (gear.captured(owner.id)) gear.setfree(true);
+                        if (gear.captured(owner.id)) gear.setfree();
                         parent_ptr->base::riseup(tier::preview, e2::form::size::enlarge::maximize, gear);
                     }
                 }
@@ -8813,10 +8813,10 @@ namespace netxs::ui
                     {
                         auto& gear = *gear_ptr;
                         gear.set_multihome();
-                        if (gear.captured(owner.id)) gear.setfree(true);
+                        if (gear.captured(owner.id)) gear.setfree();
                         auto basis = gear.owner.base::coor();
                         owner.global(basis);
-                        gear.replay(parent_ptr, m.cause, m.coord - basis, m.click - basis, m.delta, m.buttons, m.ctlstat, m.whlfp, m.whlsi, m.hzwhl);
+                        gear.replay(parent_ptr, m.cause, m.coord - basis, m.click - basis, m.delta, m.buttons, m.bttn_id, m.dragged, m.ctlstat, m.whlfp, m.whlsi, m.hzwhl);
                     }
                 }
             }
@@ -9116,7 +9116,7 @@ namespace netxs::ui
             {
                 if (gear.captured(base::id))
                 {
-                    if (!gear.m_sys.buttons) gear.setfree(true);
+                    if (!gear.m_sys.buttons) gear.setfree();
                 }
                 else if (gear.m_sys.buttons) gear.capture(base::id);
                 gear.m_sys.gear_id = gear.id;
@@ -9125,7 +9125,7 @@ namespace netxs::ui
             };
             LISTEN(tier::general, input::events::die, gear)
             {
-                gear.setfree(true);
+                gear.setfree();
                 gear.m_sys.gear_id = gear.id;
                 gear.m_sys.enabled = hids::stat::die;
                 stream.sysmouse.send(*this, gear.m_sys);

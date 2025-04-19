@@ -782,16 +782,11 @@ namespace netxs::app::shared
                     {
                         coord = gear.coord;
                         auto button_state = ansi::escx{}.pushsgr().bgc(blacklt).fgc(whitelt);
-                        for (auto& b : gear.bttns)
-                        {
-                            auto pressed = b.pressed;
-                            auto dragged = b.dragged;
-                            auto blocked = b.blocked;
-                                 if (dragged) button_state.pushsgr().bgc(reddk).add(1).popsgr();
-                            else if (pressed) button_state.pushsgr().bgc(greenlt).add(1).popsgr();
-                            else if (blocked) button_state.pushsgr().fgc(whitedk).add(1).popsgr();
-                            else button_state.add(0);
-                        }
+                        auto pressed = gear.pressed;
+                        auto dragged = gear.dragged;
+                             if (dragged) button_state.pushsgr().bgc(reddk).add(utf::to_bin(pressed)).popsgr();
+                        else if (pressed) button_state.pushsgr().bgc(greenlt).add(utf::to_bin(pressed)).popsgr();
+                        else              button_state.add(utf::to_bin(pressed));
                         button_state.popsgr();
                         auto wheeldt = gear.hzwhl ? fp2d{ gear.whlfp, 0 } : fp2d{ 0, gear.whlfp };
                         if constexpr (debugmode) log("Mouse: %% buttons=%% wheel=%% coord=%%", datetime::now(), button_state, wheeldt, coord);
