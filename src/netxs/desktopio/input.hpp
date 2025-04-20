@@ -1061,46 +1061,18 @@ namespace netxs::input
                 auto new_target = idmap.link(m_sys.coordxy) != idmap.link(prime);
                 auto allow_drag = accum > drag_threshold || new_target;
                 delta.set(step);
-                //auto active = si32{}; //todo drop
-                //auto genptr = std::begin(bttns); //todo drop
-                //todo process a single (current) bttn_id only
                 if (pressed && allow_drag && !dragged)
                 {
                     click = pressxy;
                     m2_drag_start();
                     dragged = true;
                 }
-                //todo drop
-                //for (auto i = 0; i < numofbuttons; i++)
-                //{
-                //    auto& genbtn = *genptr++;
-                //    if (genbtn.pressed && !genbtn.blocked)
-                //    {
-                //        if (allow_drag && !genbtn.dragged)
-                //        {
-                //            click = genbtn.pressxy;
-                //            fire(dragstrt, i);
-                //            genbtn.dragged = true;
-                //        }
-                //        active |= 1 << i;
-                //    }
-                //}
                 coord = m_sys.coordxy;
                 prime = m_sys.coordxy;
-                //todo process a single (current) bttn_id only
                 if (allow_drag && dragged)
                 {
                     m2_drag_pull();
                 }
-                //todo drop
-                //if (allow_drag) for (auto i = 0; active; ++i)
-                //{
-                //    if (active & 0x1)
-                //    {
-                //        fire(dragpull, i);
-                //    }
-                //    active >>= 1;
-                //}
                 m2_move();
             }
 
@@ -1109,82 +1081,8 @@ namespace netxs::input
                 pressed = m_sys.buttons;
                 bttn_id = m_sys.buttons;
                 dragged = {};
-                //todo drop
-                //sync_button_state(m_sys.buttons);
                 return;
             }
-
-            //auto genptr = std::begin(bttns);
-            ////todo process a single (current) bttn_id only
-            //for (auto i = 0; i < numofbuttons; i++)
-            //{
-            //    auto& genbtn = *genptr++;
-            //    auto  sysbtn = m_buttons[i];
-            //    if (genbtn.pressed != sysbtn)
-            //    {
-            //        genbtn.pressed = sysbtn;
-            //        if (genbtn.pressed)
-            //        {
-            //            genbtn.pressxy = prime;
-            //            fire(pushdown, i);
-            //        }
-            //        else
-            //        {
-            //            if (genbtn.dragged)
-            //            {
-            //                genbtn.dragged = faux;
-            //                fire(dragstop, i);
-            //            }
-            //            else
-            //            {
-            //                if (!genbtn.blocked)
-            //                {
-            //                    fire(sglclick, i);
-            //                }
-            //                if (!nodbl)
-            //                {
-            //                    // Fire a double/triple-click if delay is not expired
-            //                    // and the mouse is at the same position.
-            //                    auto& s = stamp[i];
-            //                    auto fired = m_sys.timecod;
-            //                    if (fired - s.fired < delay && s.coord == coord)
-            //                    {
-            //                        if (!genbtn.blocked)
-            //                        {
-            //                            if (s.count == 1)
-            //                            {
-            //                                fire(dblclick, i);
-            //                                s.fired = fired;
-            //                                s.count++;
-            //                            }
-            //                            else if (s.count >= 2)
-            //                            {
-            //                                fire(tplclick, i);
-            //                                if (s.count == 4) // Limit to quintuple click.
-            //                                {
-            //                                    s.fired = {};
-            //                                    s.count = {};
-            //                                }
-            //                                else
-            //                                {
-            //                                    s.fired = fired;
-            //                                    s.count++;
-            //                                }
-            //                            }
-            //                        }
-            //                    }
-            //                    else
-            //                    {
-            //                        s.fired = fired;
-            //                        s.coord = coord;
-            //                        s.count = 1;
-            //                    }
-            //                }
-            //            }
-            //            fire(released, i);
-            //        }
-            //    }
-            //}
 
             coord = m_sys.coordxy;
             if (m_sys.wheelfp)
@@ -1231,17 +1129,17 @@ namespace netxs::input
                 return faux;
             }
         }
-        // mouse: Is the mouse seized/captured by asker?
+        // mouse: Is the mouse captured by asker?
         bool captured(id_t asker) const
         {
             return swift == asker;
         }
-        // mouse: Is the mouse seized/captured?
+        // mouse: Is the mouse captured?
         bool captured() const
         {
             return swift;
         }
-        // mouse: Seize mouse control.
+        // mouse: Capture mouse.
         bool capture(id_t asker)
         {
             if (!swift || swift == asker)
@@ -1252,7 +1150,7 @@ namespace netxs::input
             }
             return faux;
         }
-        // mouse: Release mouse control.
+        // mouse: Release mouse.
         void setfree()
         {
             //forced |= index == mouse::noactive;
@@ -1596,6 +1494,7 @@ namespace netxs::input
         base&       owner;
         core const& idmap; // hids: Area of the main form. Primary or relative region of the mouse coverage.
         bool        alive; // hids: Whether event processing is complete.
+        ui::pro::timer& timer; // hids: .
 
         //todo unify
         span tooltip_timeout; // hids: .
@@ -1637,6 +1536,7 @@ namespace netxs::input
               owner{ owner },
               idmap{ idmap },
               alive{ faux },
+              timer{ base::plugin<ui::pro::timer>() },
               other_key{ build_other_key(key::KeySlash, key::KeySlash | (hids::anyShift << 8)) }, // Defaults for US layout.
               multihome{ owner.base::property<multihome_t>("multihome") }
         {
@@ -1670,6 +1570,7 @@ namespace netxs::input
                 world_ptr->base::father = parent_wptr;
             }
         }
+
         auto tooltip_enabled(time const& now)
         {
             return !mouse::m_sys.buttons
@@ -1808,6 +1709,26 @@ namespace netxs::input
             keybd::handled = true;
         }
 
+        si32 repeat_bttn_id = {}; // hids: .
+        void capture_and_repeat(id_t asker_id)
+        {
+            if (timer || !asker_id || !mouse::bttn_id) return;
+            repeat_bttn_id = mouse::bttn_id;
+            mouse::capture(asker_id);
+            timer.actify(0, ui::skin::globals().repeat_delay, [&, asker_id](auto)
+            {
+                if (!mouse::captured(asker_id)) return faux;
+                mouse::m2_push();
+                timer.actify(0, ui::skin::globals().repeat_rate, [&, asker_id](auto)
+                {
+                    if (!mouse::captured(asker_id)) return faux;
+                    mouse::m2_push();
+                    return true; // Repeat forever.
+                });
+                return true; // One shot call: timer is reinitialized.
+            });
+        }
+
         void take(sysfocus& f)
         {
             if (f.state) keybd_disabled = faux;
@@ -1832,6 +1753,15 @@ namespace netxs::input
             keybd_disabled = faux;
             keybd::ctlstat = m.ctlstat;
             mouse::update(m, idmap);
+            if (repeat_bttn_id && repeat_bttn_id != mouse::bttn_id)
+            {
+                if (timer)
+                {
+                    mouse::setfree();
+                    timer.pacify();
+                }
+                repeat_bttn_id = {};
+            }
         }
         void take(syskeybd& k)
         {

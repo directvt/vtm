@@ -1197,4 +1197,137 @@ namespace netxs::ui
             }
         }
     };
+
+    // controls: UI extensions.
+    namespace pro
+    {
+        // pro: Runtime animation support (time-based).
+        class robot
+        {
+            using subs = std::unordered_map<id_t, hook>;
+
+            base& boss;
+            subs  memo;
+
+        public:
+            robot(base&&) = delete;
+            robot(base& boss) : boss{ boss } { }
+
+            // pro::robot: Every timer tick, yield the
+            //             delta from the flow and, if delta,
+            //             Call the proc (millisecond precision).
+            template<class P, class S>
+            void actify(id_t ID, S flow, P proc)
+            {
+                auto init = datetime::now();
+                boss.LISTEN(tier::general, e2::timer::any, p, memo[ID], (ID, proc, flow, init))
+                {
+                    auto now = datetime::round<si32>(p - init);
+                    if (auto data = flow(now))
+                    {
+                        static constexpr auto zero = std::decay_t<decltype(data.value())>{};
+                        auto& v = data.value();
+                        if (v != zero) proc(v);
+                    }
+                    else
+                    {
+                        pacify(ID);
+                    }
+                };
+                boss.base::signal(tier::release, e2::form::animate::start, ID);
+            }
+            // pro::robot: Optional proceed every timer tick,
+            //             yield the delta from the flow and,
+            //             if delta, Call the proc (millisecond precision).
+            template<class P, class S>
+            void actify(id_t ID, std::optional<S> flow, P proc)
+            {
+                if (flow)
+                {
+                    actify(ID, flow.value(), proc);
+                }
+            }
+            template<class P, class S>
+            void actify(S flow, P proc)
+            {
+                actify(bell::noid, flow, proc);
+            }
+            template<class P, class S>
+            void actify(std::optional<S> flow, P proc)
+            {
+                if (flow)
+                {
+                    actify(bell::noid, flow.value(), proc);
+                }
+            }
+            // pro::robot: Cancel tick activity.
+            void pacify(id_t id = bell::noid)
+            {
+                if (id == bell::noid) memo.clear(); // Stop all animations.
+                else                  memo.erase(id);
+                boss.base::signal(tier::release, e2::form::animate::stop, id);
+            }
+            // pro::robot: Check activity by id.
+            bool active(id_t id)
+            {
+                return memo.contains(id);
+            }
+            // pro::robot: Check any activity.
+            operator bool ()
+            {
+                return !memo.empty();
+            }
+        };
+
+        // pro: Scheduler (timeout based).
+        class timer
+        {
+            using subs = std::unordered_map<id_t, hook>;
+
+            base& boss;
+            subs  memo;
+
+        public:
+            timer(base&&) = delete;
+            timer(base& boss) : boss{ boss } { }
+
+            // pro::timer: Start countdown for specified ID.
+            template<class P>
+            void actify(id_t ID, span timeout, P lambda)
+            {
+                auto alarm = datetime::now() + timeout;
+                boss.LISTEN(tier::general, e2::timer::any, now, memo[ID], (ID, timeout, lambda, alarm))
+                {
+                    if (now > alarm)
+                    {
+                        alarm = now + timeout;
+                        if (!lambda(ID)) pacify(ID);
+                    }
+                };
+            }
+            // pro::timer: Start countdown.
+            template<class P>
+            void actify(span timeout, P lambda)
+            {
+                actify(bell::noid, timeout, lambda);
+            }
+            // pro::timer: Cancel timer ('id=noid' for all).
+            void pacify(id_t id = bell::noid)
+            {
+                if (id == bell::noid) memo.clear(); // Stop all timers.
+                else                  memo.erase(id);
+                //boss.base::signal(tier::release, e2::form::animate::stop, id);
+            }
+            // pro::timer: Check activity by id.
+            bool active(id_t id)
+            {
+                return memo.contains(id);
+            }
+            // pro::timer: Check any activity.
+            operator bool ()
+            {
+                return !memo.empty();
+            }
+        };
+    }
 }

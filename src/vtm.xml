@@ -171,8 +171,8 @@ R"==(
 
         <Disconnect            ="vtm.gate.Disconnect()"/>             <!-- Disconnect from the desktop. -->
         <ToggleDebugOverlay    ="vtm.gate.DebugOverlay()"/>           <!-- Toggle debug overlay. -->
-        <IncreaseCellHeight    ="vtm.gate.IncreasecCellHeight( 1)"/>  <!-- Increase the text cell height by one pixel. -->
-        <DecreaseCellHeight    ="vtm.gate.IncreasecCellHeight(-1)"/>  <!-- Decrease the text cell height by one pixel. -->
+        <IncreaseCellHeight    ="vtm.gate.IncreaseCellHeight( 1)"/>   <!-- Increase the text cell height by one pixel. -->
+        <DecreaseCellHeight    ="vtm.gate.IncreaseCellHeight(-1)"/>   <!-- Decrease the text cell height by one pixel. -->
         <ResetWheelAccumulator ="vtm.gate.WheelAccumReset()"/>        <!-- Reset wheel accumulator. -->
         <ResetCellHeight       ="if (not vtm.gear.IsKeyRepeated()) then vtm.gate.CellHeightReset() end"/>   <!-- Reset text cell height. -->
         <ToggleAntialiasingMode="if (not vtm.gear.IsKeyRepeated()) then vtm.gate.AntialiasingMode() end"/>  <!-- Toggle text antialiasing mode. -->

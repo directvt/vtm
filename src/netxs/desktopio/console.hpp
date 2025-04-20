@@ -511,6 +511,18 @@ namespace netxs::ui
                                             gear.interrupt_key_proc = true;
                                             luafx.set_return();
                                         }},
+                    { "CaptureAndRepeat", [&]
+                                        {
+                                            auto gear_ptr = luafx.template get_object<hids>("gear");
+                                            auto ok = !!gear_ptr;
+                                            if (ok)
+                                            {
+                                                auto target_id = luafx.get_args_or(1, id_t{});
+                                                auto& gear = *gear_ptr;
+                                                gear.capture_and_repeat(target_id);
+                                            }
+                                            luafx.set_return();
+                                        }},
                 });
             }
             auto& [ext_gear_id, gear_ptr] = *gear_it;
@@ -781,7 +793,7 @@ namespace netxs::ui
                                                 base::deface();
                                                 luafx.set_return();
                                             }},
-                { "IncreasecCellHeight",    [&]
+                { "IncreaseCellHeight",     [&]
                                             {
                                                 auto gui_cmd = e2::command::gui.param();
                                                 auto gear_ptr = luafx.template get_object<hids>("gear");
