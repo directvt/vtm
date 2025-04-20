@@ -1145,7 +1145,6 @@ namespace netxs::input
             if (!swift || swift == asker)
             {
                 swift = asker;
-                //if (index != mouse::noactive) locks |= 1 << index;
                 return true;
             }
             return faux;
@@ -1153,10 +1152,6 @@ namespace netxs::input
         // mouse: Release mouse.
         void setfree()
         {
-            //forced |= index == mouse::noactive;
-            //locks = forced ? 0
-            //               : locks & ~(1 << index);
-            //if (!locks) 
             swift = {};
         }
     };
