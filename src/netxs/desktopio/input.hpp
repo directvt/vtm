@@ -918,53 +918,18 @@ namespace netxs::input
         si32 pressed = {}; // mouse: Physical button state.
         si32 bttn_id = {}; // mouse: Logical button id.
         bool dragged = {}; // mouse: The button is dragged.
-        fp2d pressxy; // mouse: Press coordinates.
-        void m2_sglclick()
-        {
-            //...
-        }
-        void m2_dblclick()
-        {
-            //...
-        }
-        void m2_tplclick()
-        {
-            //...
-        }
-        void m2_move()
-        {
-            //...
-        }
-        void m2_push(si32 button_id)
-        {
-            button_id;
-            //...
-        }
-        void m2_up(si32 button_id)
-        {
-            button_id;
-            //...
-        }
-        void m2_drag_start()
-        {
-            //...
-        }
-        void m2_drag_pull()
-        {
-            //...
-        }
-        void m2_drag_cancel()
-        {
-            //...
-        }
-        void m2_drag_stop()
-        {
-            //...
-        }
-        void m2_wheel()
-        {
-            //...
-        }
+        fp2d pressxy = {}; // mouse: Press coordinates.
+        void m2_sglclick()    { log("sgl click   bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin<si16>(bttn_id), coord, pressxy); }
+        void m2_dblclick()    { log("dbl click   bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin<si16>(bttn_id), coord, pressxy); }
+        void m2_multiclick()  { log("tpl click   bttn=%% \tcoor=%% \tpressxy=%% \tclicks=%%", utf::to_bin<si16>(bttn_id),   coord, pressxy, stamp[bttn_id].count + 1); }
+        void m2_move()        { log("move        bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin<si16>(bttn_id), coord, pressxy); }
+        void m2_push()        { log("push        bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin<si16>(bttn_id), coord, pressxy); }
+        void m2_up()          { log("up          bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin<si16>(bttn_id), coord, pressxy); }
+        void m2_drag_start()  { log("drag_start  bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin<si16>(bttn_id), coord, pressxy); }
+        void m2_drag_pull()   { log("drag_pull   bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin<si16>(bttn_id), coord, pressxy); }
+        void m2_drag_cancel() { log("drag_cancel bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin<si16>(bttn_id), coord, pressxy); }
+        void m2_drag_stop()   { log("drag_stop   bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin<si16>(bttn_id), coord, pressxy); }
+        void m2_wheel()       { log("wheel       bttn=%% \tcoor=%% \thzwhl=%% whlfp=%% whlsi=%%", utf::to_bin<si16>(bttn_id), coord, hzwhl, whlfp, whlsi); }
         void m2_click()
         {
             m2_sglclick();
@@ -982,10 +947,10 @@ namespace netxs::input
                         s.fired = fired;
                         s.count++;
                     }
-                    else if (s.count >= 2)
+                    else if (s.count > 1)
                     {
-                        m2_tplclick();
-                        if (s.count == 4) // Limit to quintuple click.
+                        m2_multiclick();
+                        if (s.count == 5 - 1) // Limit to quintuple click. 0-based.
                         {
                             s.fired = {};
                             s.count = {};
@@ -1004,7 +969,6 @@ namespace netxs::input
                     s.count = 1;
                 }
             }
-            //fire(released, button_id);
         }
         // mouse: Generate mouse event.
         void update(sysmouse& m, core const& idmap)
@@ -1021,8 +985,6 @@ namespace netxs::input
                 pressed = m_sys.buttons;
                 bttn_id = m_sys.buttons;
                 dragged = {};
-                //todo drop
-                //sync_button_state(m_sys.buttons);
                 return;
             }
 
@@ -1030,50 +992,45 @@ namespace netxs::input
             {
                 auto next_state = m.buttons;
                 auto prev_state = pressed;
-                auto proceed_buttons = [&] // Counting pressed buttons and signaling changes in physical buttons.
+                pressed_count = 0;
+                auto bits = next_state | prev_state;
+                auto bttn = 0x1;
+                while (bits) // Counting pressed buttons.
                 {
-                    pressed_count = 0;
-                    auto bits = next_state | prev_state;
-                    auto bttn = 0x1;
-                    while (bits)
-                    {
-                        auto pressed_next = next_state & bttn;
-                        auto pressed_prev = prev_state & bttn;
-                        if (pressed_next) pressed_count++;
-                        if (pressed_next != pressed_prev)
-                        {
-                            if (pressed_next) m2_push(bttn);
-                            else              m2_up(bttn);
-                        }
-                        bits >>= 1;
-                        bttn <<= 1;
-                    }
-                };
+                    auto pressed_next = next_state & bttn;
+                    if (pressed_next) pressed_count++;
+                    bits >>= 1;
+                    bttn <<= 1;
+                }
                 if (bttn_id & next_state)
                 {
-                    if (bttn_id != (bttn_id | next_state)) // Additional button pressed. E.g., 100 -> 101. //todo possible bug in Apple's Terminal - it doesn't return the second release in case when two buttons are pressed.
+                    auto next_bttn_id = bttn_id | next_state;
+                    auto prev_bttn_id = bttn_id;
+                    if (prev_bttn_id != next_bttn_id) // Additional button pressed. E.g., 100 -> 101. //todo possible bug in Apple's Terminal - it doesn't return the second release in case when two buttons are pressed.
                     {
                         if (dragged)
                         {
+                            bttn_id = prev_bttn_id;
                             m2_drag_cancel(); // drag_cancel(100);
                             dragged = faux;
                         }
-                        m2_up(bttn_id); // up(100);
-                        bttn_id |= next_state;
-                        proceed_buttons();
-                        m2_push(bttn_id); // push(101);
+                        // Press new and then release old to keep the mouse capture continuous.
+                        bttn_id = next_bttn_id;
+                        m2_push(); // push(101);
+                        bttn_id = prev_bttn_id;
+                        m2_up(); // up(100);
+                        bttn_id = next_bttn_id;
                     }
                     else // Some button released. E.g., 101 -> 001.
                     {
-                        proceed_buttons();
+                        // Do nothing.
                     }
                 }
                 else if (!prev_state && next_state) // Initial button(s) pressed. E.g., 000 -> 100.
                 {
                     assert(bttn_id == 0);
                     bttn_id = next_state;
-                    proceed_buttons();
-                    if (pressed_count > 1) m2_push(bttn_id); // push(101) - Two buttons were pressed simultaneously.
+                    m2_push(); // push(100);
                 }
                 else if (prev_state && !next_state) // The last button(s) released. E.g., 100 -> 000 (bttn_id=101).
                 {
@@ -1081,12 +1038,16 @@ namespace netxs::input
                     if (dragged)
                     {
                         m2_drag_stop(); // drag_stop(101);
+                    }
+                    if (dragged)
+                    {
                         dragged = faux;
                     }
-                    auto prev_count = pressed_count;
-                    proceed_buttons();
-                    if (prev_count > 1) m2_up(bttn_id); // up(101);
-                    m2_click();
+                    else
+                    {
+                        m2_click();
+                    }
+                    m2_up(); // up(101);
                     bttn_id = {};
                 }
                 pressed = next_state;
@@ -1243,6 +1204,7 @@ namespace netxs::input
         // mouse: Return the number of clicks for the specified button.
         auto clicks(si32 button)
         {
+            //todo use bttn_id
             button = std::clamp(button, 0, buttons::numofbuttons - 1);
             return stamp[button].count + 1;
         }
