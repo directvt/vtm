@@ -456,28 +456,28 @@ R"==(
                 event="focus:got"
                 event="focus:lost"
                 -->
-                <script=AlwaysOnTopApplet event="mouse:Click1" event="key:-Enter" event="key:-Space"/> <!-- The default event source is the parent object, i.e. source="item". -->
+                <script=AlwaysOnTopApplet event="mouse:Click1" event="key:-Enter" event="key:-Space"/> <!-- The default event source is the parent object, i.e. source="item" (aka vtm.item). -->
                 <script>
                     <event="release:ZOrder" source="terminal"/>
                     <!-- <event="preview:ZOrder" source="terminal"/> -->
                     local is_topmost=vtm.terminal.ZOrder()==1
-                    item.label=is_topmost and "\\x1b[38:2:0:255:0m^\\x1b[m" or "^"
-                    item.tooltip=is_topmost and " AlwaysOnTop on " or " AlwaysOnTop off "
-                    item.Deface()
+                    vtm.item.Label(is_topmost and "\\x1b[38:2:0:255:0m^\\x1b[m" or "^")
+                    vtm.item.Tooltip(is_topmost and " AlwaysOnTop on " or " AlwaysOnTop off ")
+                    vtm.item.Deface()
                 </script>
             </item>
             <item label="Repeatable button" tooltip=" test ">
                 <script event="mouse:AnyDown" event="key:Enter" event="key:Space">  <!-- Script to colorize pressed label. -->
                     if (not vtm.gear.IsKeyRepeated()) then    -- First run - colorize label and activate the mouse button to repeat.
-                        item.label="\e[37mRepeatable button\e[m"
-                        item.Deface()
-                        vtm.gear.RepeatWhilePressed(item.id)    -- Capture the mouse and trigger the mouse button event to repeat while pressed.
+                        vtm.item.Label("\e[37mRepeatable button\e[m")
+                        vtm.item.Deface()
+                        vtm.gear.RepeatWhilePressed(vtm.item.Id())    -- Capture the mouse and trigger the mouse button event to repeat while pressed.
                     end
                     vtm.terminal.Print('Test\\n')
                 </script>
                 <script event="mouse:AnyUp" event="key:-Enter" event="key:-Space">  <!-- Script to restore default label state. -->
-                    item.label="Repeatable button"    -- Restore default colors.
-                    item.Deface()
+                    vtm.item.Label("Repeatable button")    -- Restore default colors.
+                    vtm.item.Deface()
                 </script>
             </item>
             <item script=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->

@@ -2762,7 +2762,7 @@ namespace netxs::ui
                 {
                     if (context_keeper_ptr)
                     {
-                        for (auto& name : registered_names)
+                        for (auto& name : registered_names) // Pass all boss's registered_names to context keeper.
                         {
                             context_keeper_ptr->base::signal(tier::release, e2::config::plugins::luafx, { name, boss.This() });
                         }
