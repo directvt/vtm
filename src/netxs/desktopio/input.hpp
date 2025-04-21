@@ -1761,6 +1761,10 @@ namespace netxs::input
                 }
                 repeat_bttn_id = {};
             }
+            //if (bttn_id)
+            //{
+            //    repeat_while_pressed(id);
+            //}
         }
         void take(syskeybd& k)
         {
