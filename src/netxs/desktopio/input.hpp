@@ -1705,7 +1705,7 @@ namespace netxs::input
         }
 
         si32 repeat_bttn_id = {}; // hids: .
-        void capture_and_repeat(id_t asker_id)
+        void repeat_while_pressed(id_t asker_id)
         {
             if (timer || !asker_id || !mouse::bttn_id) return;
             repeat_bttn_id = mouse::bttn_id;
@@ -1713,11 +1713,15 @@ namespace netxs::input
             timer.actify(0, ui::skin::globals().repeat_delay, [&, asker_id](auto)
             {
                 if (!mouse::captured(asker_id)) return faux;
+                auto temp = std::exchange(keybd::keystat, input::key::repeated);
                 mouse::m2_push();
+                keybd::keystat = temp;
                 timer.actify(0, ui::skin::globals().repeat_rate, [&, asker_id](auto)
                 {
                     if (!mouse::captured(asker_id)) return faux;
+                    auto temp = std::exchange(keybd::keystat, input::key::repeated);
                     mouse::m2_push();
+                    keybd::keystat = temp;
                     return true; // Repeat forever.
                 });
                 return true; // One shot call: timer is reinitialized.

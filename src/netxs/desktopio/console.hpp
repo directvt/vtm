@@ -511,7 +511,7 @@ namespace netxs::ui
                                             gear.interrupt_key_proc = true;
                                             luafx.set_return();
                                         }},
-                    { "CaptureAndRepeat", [&]
+                    { "RepeatWhilePressed", [&]
                                         {
                                             auto gear_ptr = luafx.template get_object<hids>("gear");
                                             auto ok = !!gear_ptr;
@@ -519,7 +519,7 @@ namespace netxs::ui
                                             {
                                                 auto target_id = luafx.get_args_or(1, id_t{});
                                                 auto& gear = *gear_ptr;
-                                                gear.capture_and_repeat(target_id);
+                                                gear.repeat_while_pressed(target_id);
                                             }
                                             luafx.set_return();
                                         }},
