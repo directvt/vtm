@@ -317,6 +317,7 @@ R"==(
                 </config>
             </item>
             <autorun run*>  <!-- Autorun specified menu items:     -->
+                <!-- //todo use scripting. init_script()? event="anycast:Start"?-->
                 <!--  <run* id="Term" winsize=80,25 />             -->
                 <!--  <run wincoor=92,31 winform=minimized />      -->  <!-- Autorun supports minimized winform only. -->
                 <!--  <run wincoor=8,31 />                         -->
@@ -589,126 +590,129 @@ R"==(
             <slim=menu/slim/>
         </menu>
     </defapp>
-    <events>  <!-- The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop. The 'key*' statement here is to clear all previous bindings and start a new list. -->
-        <gate key*>  <!-- `User gate`/`standalone app` key bindings. -->
-            <key="CapsLock+UpArrow"                                     script=IncreaseCellHeight/>
-            <key="CapsLock+DownArrow"                                   script=DecreaseCellHeight/>
-            <key="Esc+0"                                                script=ResetCellHeight/>
-            <key="Ctrl+CapsLock"                                        script=ToggleAntialiasingMode/>
-            <key="Ctrl+Shift+F11"                                       script=RollFontsBackward/>
-            <key="Ctrl+Shift+F12"                                       script=RollFontsForward/>
-            <key="-Ctrl" preview                                        script=ResetWheelAccumulator/>
-            <key="Space-Backspace | Backspace-Space"                    script=ToggleDebugOverlay/>
+    <events>  <!-- The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop. The 'script*' statement here is to clear all previous bindings and start a new list. -->
+        <gate script*>  <!-- `User gate`/`standalone app` key bindings. -->
+            <script=IncreaseCellHeight     event="key:CapsLock+UpArrow"                 />
+            <script=DecreaseCellHeight     event="key:CapsLock+DownArrow"               />
+            <script=ResetCellHeight        event="key:Esc+0"                            />
+            <script=ToggleAntialiasingMode event="key:Ctrl+CapsLock"                    />
+            <script=RollFontsBackward      event="key:Ctrl+Shift+F11"                   />
+            <script=RollFontsForward       event="key:Ctrl+Shift+F12"                   />
+            <script=ResetWheelAccumulator  event="keypreview:-Ctrl"                     />
+            <script=ToggleDebugOverlay     event="key:Space-Backspace | Backspace-Space"/>
         </gate>
-        <desktop key*>  <!-- Desktop key bindings. -->
-            <key="Ctrl+PageUp"                                          script=FocusPrevWindow/>
-            <key="Ctrl+PageDown"                                        script=FocusNextWindow/>
-            <key="Shift+F7"                                             script=Disconnect/>
-            <key="F10" preview                                          script=TryToQuit/>
-            <key="Alt+Shift+N"                                          script=RunApplication/>
-            <key="Esc+F1"                                               script=RunInfoPage/>
+        <desktop script*>  <!-- Desktop key bindings. -->
+            <script=FocusPrevWindow event="key:Ctrl+PageUp"  />
+            <script=FocusNextWindow event="key:Ctrl+PageDown"/>
+            <script=Disconnect      event="key:Shift+F7"     />
+            <script=TryToQuit       event="keypreview:F10"   />
+            <script=RunApplication  event="key:Alt+Shift+N"  />
+            <script=RunInfoPage     event="key:Esc+F1"       />
         </desktop>
-        <applet key*>  <!-- Applet key bindings. -->
-            <key="Esc+T"                                                script=AlwaysOnTopApplet/>
-            <key="Esc+W"                                                script=CloseApplet/>
-            <key="Esc+M"                                                script=MinimizeApplet/>
-            <key="Esc+F10"                                              script=RestoreApplet/>
-            <key="Esc+F11"                                              script=MaximizeApplet/>
-            <key="Esc+F12"                                              script=FullscreenApplet/>
-            <key="Esc+LeftArrow"                                        script=MoveAppletLeft/>
-            <key="Esc+RightArrow"                                       script=MoveAppletRight/>
-            <key="Esc+UpArrow"                                          script=MoveAppletUp/>
-            <key="Esc+DownArrow"                                        script=MoveAppletDown/>
-            <key="Esc+LeftArrow+UpArrow    | Esc+UpArrow+LeftArrow"     script=MoveAppletTopLeft/>
-            <key="Esc+LeftArrow+DownArrow  | Esc+DownArrow+LeftArrow"   script=MoveAppletBottomLeft/>
-            <key="Esc+RightArrow+UpArrow   | Esc+UpArrow+RightArrow"    script=MoveAppletTopRight/>
-            <key="Esc+RightArrow+DownArrow | Esc+DownArrow+RightArrow"  script=MoveAppletBottomRight/>
-            <key="Esc+LeftArrow+RightArrow"                             script=IncreaseAppletWidth/>
-            <key="Esc+RightArrow+LeftArrow"                             script=DecreaseAppletWidth/>
-            <key="Esc+UpArrow+DownArrow"                                script=IncreaseAppletHeight/>
-            <key="Esc+DownArrow+UpArrow"                                script=DecreaseAppletHeight/>
+        <applet script*>  <!-- Applet key bindings. -->
+            <script=AlwaysOnTopApplet     event="key:Esc+T"                                              />
+            <script=CloseApplet           event="key:Esc+W"                                              />
+            <script=MinimizeApplet        event="key:Esc+M"                                              />
+            <script=RestoreApplet         event="key:Esc+F10"                                            />
+            <script=MaximizeApplet        event="key:Esc+F11"                                            />
+            <script=FullscreenApplet      event="key:Esc+F12"                                            />
+            <script=MoveAppletLeft        event="key:Esc+LeftArrow"                                      />
+            <script=MoveAppletRight       event="key:Esc+RightArrow"                                     />
+            <script=MoveAppletUp          event="key:Esc+UpArrow"                                        />
+            <script=MoveAppletDown        event="key:Esc+DownArrow"                                      />
+            <script=MoveAppletTopLeft     event="key:Esc+LeftArrow+UpArrow    | Esc+UpArrow+LeftArrow"   />
+            <script=MoveAppletBottomLeft  event="key:Esc+LeftArrow+DownArrow  | Esc+DownArrow+LeftArrow" />
+            <script=MoveAppletTopRight    event="key:Esc+RightArrow+UpArrow   | Esc+UpArrow+RightArrow"  />
+            <script=MoveAppletBottomRight event="key:Esc+RightArrow+DownArrow | Esc+DownArrow+RightArrow"/>
+            <script=IncreaseAppletWidth   event="key:Esc+LeftArrow+RightArrow"                           />
+            <script=DecreaseAppletWidth   event="key:Esc+RightArrow+LeftArrow"                           />
+            <script=IncreaseAppletHeight  event="key:Esc+UpArrow+DownArrow"                              />
+            <script=DecreaseAppletHeight  event="key:Esc+DownArrow+UpArrow"                              />
         </applet>
-        <tile key*>
-            <key="Ctrl+PageUp"     script=TileFocusPrev/>
-            <key="Ctrl+PageDown"   script=TileFocusNext/>
-            <key=""                script=TileFocusPrevPane/>
-            <key=""                script=TileFocusNextPane/>
-            <key="Alt+Shift+N"     script=TileRunApplication/>
-            <key="Alt+Shift+A"     script=TileSelectAllPanes/>
-            <key="Alt+Shift+'|'"   script=TileSplitHorizontally/>
-            <key="Alt+Shift+Minus" script=TileSplitVertically/>
-            <key="Alt+Shift+R"     script=TileSplitOrientation/>
-            <key="Alt+Shift+S"     script=TileSwapPanes/>
-            <key="Alt+Shift+E"     script=TileEqualizeSplitRatio/>
-            <key="Alt+Shift+F2"    script=TileSetManagerTitle/>
-            <key="Alt+Shift+W"     script=TileClosePane/>
-            <grip key*>
-                <key="LeftArrow"                          script=TileMoveGripLeft/>
-                <key="RightArrow"                         script=TileMoveGripRight/>
-                <key="UpArrow"                            script=TileMoveGripUp/>
-                <key="DownArrow"                          script=TileMoveGripDown/>
-                <key="'-'"                                script=TileDecreaseGripWidth/>
-                <key="Shift+'+' | '+' | '=' | NumpadPlus" script=TileIncreaseGripWidth/>
-                <key="Shift+Tab"                          script=TileFocusPrevGrip/>
-                <key="Tab"                                script=TileFocusNextGrip/>
+        <tile script*>
+            <script=TileFocusPrev          event="key:Ctrl+PageUp"    />
+            <script=TileFocusNext          event="key:Ctrl+PageDown"  />
+            <script=TileFocusPrevPane      event="key:"               />
+            <script=TileFocusNextPane      event="key:"               />
+            <script=TileRunApplication     event="key:Alt+Shift+N"    />
+            <script=TileSelectAllPanes     event="key:Alt+Shift+A"    />
+            <script=TileSplitHorizontally  event="key:Alt+Shift+'|'"  />
+            <script=TileSplitVertically    event="key:Alt+Shift+Minus"/>
+            <script=TileSplitOrientation   event="key:Alt+Shift+R"    />
+            <script=TileSwapPanes          event="key:Alt+Shift+S"    />
+            <script=TileEqualizeSplitRatio event="key:Alt+Shift+E"    />
+            <script=TileSetManagerTitle    event="key:Alt+Shift+F2"   />
+            <script=TileClosePane          event="key:Alt+Shift+W"    />
+            <grip script*>
+                <script=TileMoveGripLeft      event="key:LeftArrow"                         />
+                <script=TileMoveGripRight     event="key:RightArrow"                        />
+                <script=TileMoveGripUp        event="key:UpArrow"                           />
+                <script=TileMoveGripDown      event="key:DownArrow"                         />
+                <script=TileDecreaseGripWidth event="key:'-'"                               />
+                <script=TileIncreaseGripWidth event="key:Shift+'+' | '+' | '=' | NumpadPlus"/>
+                <script=TileFocusPrevGrip     event="key:Shift+Tab"                         />
+                <script=TileFocusNextGrip     event="key:Tab"                               />
             </grip>
         </tile>
-        <terminal key*>  <!-- Terminal key bindings. -->
+        <terminal script*>  <!-- Terminal key bindings. -->
 )=="
 #if defined (WIN32)
 R"==(
-            <key="Ctrl-Alt | Alt-Ctrl" preview script=ExclusiveKeyboardMode/>
+            <script=ExclusiveKeyboardMode event="keypreview:Ctrl-Alt | Alt-Ctrl"/>
 )=="
 #else
 R"==(
-            <key="Alt+Shift+B" preview   script=ExclusiveKeyboardMode/>
+            <script=ExclusiveKeyboardMode event="keypreview:Alt+Shift+B"/>
 )=="
 #endif
 R"==(
-            <key="Esc"                   script="vtm.gear.SetHandled()"/> <!-- Do nothing. We use the Esc key as a modifier. Its press+release events will only be sent after the key is physically released, and only if no other keys were pressed along with Esc. -->
-            <key="-Esc"                  script="vtm.terminal.ClearSelection(); vtm.terminal.KeyEvent({ virtcod=0x1b, scancod=1, keystat=1, cluster='\\u{1b}' }, { virtcod=0x1b, scancod=1, keystat=0 })"/> <!-- Clear selection if it is and send Esc press and release events. -->
-            <key="Alt+RightArrow"        script=TerminalFindNext/>
-            <key="Alt+LeftArrow"         script=TerminalFindPrev/>
-            <key="Shift+Ctrl+PageUp"     script=TerminalScrollViewportOnePageUp/>
-            <key="Shift+Ctrl+PageDown"   script=TerminalScrollViewportOnePageDown/>
-            <key="Shift+Alt+LeftArrow"   script=TerminalScrollViewportOnePageLeft/>
-            <key="Shift+Alt+RightArrow"  script=TerminalScrollViewportOnePageRight/>
-            <key="Shift+Ctrl+UpArrow"    script=TerminalScrollViewportOneLineUp/>
-            <key="Shift+Ctrl+DownArrow"  script=TerminalScrollViewportOneLineDown/>
-            <key="Shift+Ctrl+LeftArrow"  script=TerminalScrollViewportOneCellLeft/>
-            <key="Shift+Ctrl+RightArrow" script=TerminalScrollViewportOneCellRight/>
-            <key="Shift+Ctrl+Home"       script=TerminalScrollViewportToTop/>
-            <key="Shift+Ctrl+End"        script=TerminalScrollViewportToEnd/>
-            <key=""                      script=TerminalSendKey/>
-            <key=""                      script=TerminalReset/>
-            <key=""                      script=TerminalClearScrollback/>
-            <key=""                      script=TerminalCopyViewport/>
-            <key="Ctrl+Insert"  preview  script=TerminalCopySelection/>
-            <key="Shift+Insert" preview  script=TerminalClipboardPaste/>
-            <key=""                      script=TerminalClipboardWipe/>
-            <key=""                      script=TerminalClipboardFormat/>
-            <key=""                      script=TerminalSelectionRect/>
-            <key=""                      script=TerminalSelectionOneShot/>
-            <key=""                      script=TerminalUndo/>
-            <key=""                      script=TerminalRedo/>
-            <key=""                      script=TerminalCwdSync/>
-            <key=""                      script=TerminalWrapMode/>
-            <key=""                      script=TerminalAlignMode/>
-            <key=""                      script=TerminalStdioLog/>
-            <key=""                      script=TerminalRestart/>
+            <script="vtm.gear.SetHandled()" event="key:Esc"/> <!-- Do nothing. We use the Esc key as a modifier. Its press+release events will only be sent after the key is physically released, and only if no other keys were pressed along with Esc. -->
+            <script                         event="key:-Esc">  --  Clear selection if it is and send Esc press and release events.
+                vtm.terminal.ClearSelection()
+                vtm.terminal.KeyEvent({ virtcod=0x1b, scancod=1, keystat=1, cluster='\\u{1b}' }, { virtcod=0x1b, scancod=1, keystat=0 })
+            </script>
+            <script=TerminalFindNext                   event="key:Alt+RightArrow"       />
+            <script=TerminalFindPrev                   event="key:Alt+LeftArrow"        />
+            <script=TerminalScrollViewportOnePageUp    event="key:Shift+Ctrl+PageUp"    />
+            <script=TerminalScrollViewportOnePageDown  event="key:Shift+Ctrl+PageDown"  />
+            <script=TerminalScrollViewportOnePageLeft  event="key:Shift+Alt+LeftArrow"  />
+            <script=TerminalScrollViewportOnePageRight event="key:Shift+Alt+RightArrow" />
+            <script=TerminalScrollViewportOneLineUp    event="key:Shift+Ctrl+UpArrow"   />
+            <script=TerminalScrollViewportOneLineDown  event="key:Shift+Ctrl+DownArrow" />
+            <script=TerminalScrollViewportOneCellLeft  event="key:Shift+Ctrl+LeftArrow" />
+            <script=TerminalScrollViewportOneCellRight event="key:Shift+Ctrl+RightArrow"/>
+            <script=TerminalScrollViewportToTop        event="key:Shift+Ctrl+Home"      />
+            <script=TerminalScrollViewportToEnd        event="key:Shift+Ctrl+End"       />
+            <script=TerminalSendKey                    event="key:"                     />
+            <script=TerminalReset                      event="key:"                     />
+            <script=TerminalClearScrollback            event="key:"                     />
+            <script=TerminalCopyViewport               event="key:"                     />
+            <script=TerminalCopySelection              event="keypreview:Ctrl+Insert"   />
+            <script=TerminalClipboardPaste             event="keypreview:Shift+Insert"  />
+            <script=TerminalClipboardWipe              event="key:"                     />
+            <script=TerminalClipboardFormat            event="key:"                     />
+            <script=TerminalSelectionRect              event="key:"                     />
+            <script=TerminalSelectionOneShot           event="key:"                     />
+            <script=TerminalUndo                       event="key:"                     />
+            <script=TerminalRedo                       event="key:"                     />
+            <script=TerminalCwdSync                    event="key:"                     />
+            <script=TerminalWrapMode                   event="key:"                     />
+            <script=TerminalAlignMode                  event="key:"                     />
+            <script=TerminalStdioLog                   event="key:"                     />
+            <script=TerminalRestart                    event="key:"                     />
         </terminal>
-        <defapp key*>  <!-- Default application bindings (e.g., Info-Page). -->
-            <key="Esc"  preview script="vtm.defapp.ShowClosingPreview(not vtm.gear.IsKeyRepeated())"/> <!-- Pred window close action. -->
-            <key="-Esc" preview script="if (vtm.defapp.ShowClosingPreview()) then vtm.defapp.Close() end"/> <!-- Close the window on Esc release. -->
-            <key="Any"  preview script="vtm.defapp.ShowClosingPreview(false)"/> <!-- Preview for "Any" is always triggered after all other previews. Non-preview "Any" is triggered before all other keys. -->
-            <key="PageUp"       script="vtm.defapp.ScrollViewportByPage( 0, 1)"/>
-            <key="PageDown"     script="vtm.defapp.ScrollViewportByPage( 0,-1)"/>
-            <key="UpArrow"      script="vtm.defapp.ScrollViewportByStep( 0, 3)"/>
-            <key="DownArrow"    script="vtm.defapp.ScrollViewportByStep( 0,-3)"/>
-            <key="LeftArrow"    script="vtm.defapp.ScrollViewportByStep( 3, 0)"/>
-            <key="RightArrow"   script="vtm.defapp.ScrollViewportByStep(-3, 0)"/>
-            <key="Home"         script="if (not vtm.gear.IsKeyRepeated()) then vtm.defapp.ScrollViewportToTop() end"/>
-            <key="End"          script="if (not vtm.gear.IsKeyRepeated()) then vtm.defapp.ScrollViewportToEnd() end"/>
+        <defapp script*>  <!-- Default application bindings (e.g., Info-Page). -->
+            <script="vtm.defapp.ShowClosingPreview(not vtm.gear.IsKeyRepeated())"                 event="keypreview:Esc" /> <!-- Pred window close action. -->
+            <script="if (vtm.defapp.ShowClosingPreview()) then vtm.defapp.Close() end"            event="keypreview:-Esc"/> <!-- Close the window on Esc release. -->
+            <script="vtm.defapp.ShowClosingPreview(false)"                                        event="keypreview:Any" /> <!-- Preview for "Any" is always triggered after all other previews. Non-preview "Any" is triggered before all other keys. -->
+            <script="vtm.defapp.ScrollViewportByPage( 0, 1)"                                      event="key:PageUp"     />
+            <script="vtm.defapp.ScrollViewportByPage( 0,-1)"                                      event="key:PageDown"   />
+            <script="vtm.defapp.ScrollViewportByStep( 0, 3)"                                      event="key:UpArrow"    />
+            <script="vtm.defapp.ScrollViewportByStep( 0,-3)"                                      event="key:DownArrow"  />
+            <script="vtm.defapp.ScrollViewportByStep( 3, 0)"                                      event="key:LeftArrow"  />
+            <script="vtm.defapp.ScrollViewportByStep(-3, 0)"                                      event="key:RightArrow" />
+            <script="if (not vtm.gear.IsKeyRepeated()) then vtm.defapp.ScrollViewportToTop() end" event="key:Home"       />
+            <script="if (not vtm.gear.IsKeyRepeated()) then vtm.defapp.ScrollViewportToEnd() end" event="key:End"        />
         </defapp>
     </events>
 </config>)=="
