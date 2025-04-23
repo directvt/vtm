@@ -459,7 +459,7 @@ R"==(
                 -->
                 <script=AlwaysOnTopApplet on="mouse:Click1" on="key:-Enter" on="key:-Space"/> <!-- The default event source is the parent object, i.e. source="item" (aka vtm.item). -->
                 <script>
-                    <on="release:ZOrder" source="terminal"/>
+                    <on="event:ZOrder" source="terminal"/>
                     <!-- <on="preview:ZOrder" source="terminal"/> -->
                     local is_topmost=vtm.terminal.ZOrder()==1
                     vtm.ontop_button.Label(is_topmost and "\\x1b[38:2:0:255:0m^\\x1b[m" or "^")
@@ -591,7 +591,7 @@ R"==(
         </menu>
     </defapp>
     <events>  <!-- The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop. The 'script*' statement here is to clear all previous bindings and start a new list. -->
-        <gate script*>  <!-- `User gate`/`standalone app` key bindings. -->
+        <gate script*>  <!-- `User gate`/`standalone app` bindings. -->
             <script=IncreaseCellHeight     on="key:CapsLock+UpArrow"                 />
             <script=DecreaseCellHeight     on="key:CapsLock+DownArrow"               />
             <script=ResetCellHeight        on="key:Esc+0"                            />
@@ -601,7 +601,7 @@ R"==(
             <script=ResetWheelAccumulator  on="keypreview:-Ctrl"                     />
             <script=ToggleDebugOverlay     on="key:Space-Backspace | Backspace-Space"/>
         </gate>
-        <desktop script*>  <!-- Desktop key bindings. -->
+        <desktop script*>  <!-- Desktop bindings. -->
             <script=FocusPrevWindow on="key:Ctrl+PageUp"  />
             <script=FocusNextWindow on="key:Ctrl+PageDown"/>
             <script=Disconnect      on="key:Shift+F7"     />
@@ -609,7 +609,7 @@ R"==(
             <script=RunApplication  on="key:Alt+Shift+N"  />
             <script=RunInfoPage     on="key:Esc+F1"       />
         </desktop>
-        <applet script*>  <!-- Applet key bindings. -->
+        <applet script*>  <!-- Applet bindings. -->
             <script=AlwaysOnTopApplet     on="key:Esc+T"                                              />
             <script=CloseApplet           on="key:Esc+W"                                              />
             <script=MinimizeApplet        on="key:Esc+M"                                              />
@@ -654,7 +654,7 @@ R"==(
                 <script=TileFocusNextGrip     on="key:Tab"                               />
             </grip>
         </tile>
-        <terminal script*>  <!-- Terminal key bindings. -->
+        <terminal script*>  <!-- Terminal bindings. -->
 )=="
 #if defined (WIN32)
 R"==(
