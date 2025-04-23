@@ -513,13 +513,9 @@ namespace netxs::ui
                                         }},
                     { "RepeatWhilePressed", [&]
                                         {
-                                            auto gear_ptr = luafx.template get_object<hids>("gear");
-                                            auto ok = !!gear_ptr;
-                                            if (ok)
+                                            if (auto object_ptr = luafx.get_args_or<sptr>(1))
                                             {
-                                                auto target_id = luafx.get_args_or(1, id_t{});
-                                                auto& gear = *gear_ptr;
-                                                gear.repeat_while_pressed(target_id);
+                                                gear.repeat_while_pressed(object_ptr->id);
                                             }
                                             luafx.set_return();
                                         }},

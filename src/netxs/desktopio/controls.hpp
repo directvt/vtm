@@ -2817,6 +2817,15 @@ namespace netxs::ui
                     else if constexpr (std::is_integral_v<T>)                 return (T)::lua_tointeger(lua, idx);
                     else if constexpr (std::is_floating_point_v<T>)           return (T)::lua_tonumber(lua, idx);
                     else if constexpr (std::is_same_v<std::decay_t<T>, twod>) return twod{ ::lua_tointeger(lua, idx), ::lua_tointeger(lua, idx + 1) };
+                    else if constexpr (std::is_same_v<std::decay_t<T>, sptr>)
+                    {
+                        if (auto ptr = (sptr::element_type*)::lua_touserdata(lua, idx)) // Get ui::base*.
+                        {
+                            auto object_ptr = ptr->This();
+                            return object_ptr;
+                        }
+                        return sptr{};
+                    }
                 }
                 if constexpr (is_string_v || is_cstring_v) return text{ fallback };
                 else                                       return fallback;
