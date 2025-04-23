@@ -1743,17 +1743,10 @@ namespace netxs::ui
         class mouse
             : public skill
         {
-            struct sock
-            {
-                operator bool () { return true; }
-            };
-
-            using list = socks<sock>;
             using skill::boss,
                   skill::memo;
 
             sptr soul; // mouse: Boss cannot be removed while it has active gears.
-            list mice; // mouse: List of active mice.
             bool omni; // mouse: Ability to accept all hover events (true) or only directly over the object (faux).
             si32 rent; // mouse: Active gears count.
             si32 full; // mouse: All gears count. Counting to keep the entire chain of links in the visual tree.
@@ -1767,27 +1760,11 @@ namespace netxs::ui
             mouse(base&&) = delete;
             mouse(base& boss, bool take_all_events = true)
                 : skill{ boss            },
-                   mice{ boss            },
                    omni{ take_all_events },
                    rent{ 0               },
                    full{ 0               },
                    drag{ 0               }
             {
-                // pro::mouse: Refocus all active mice on detach (to keep the mouse event tree consistent).
-                boss.LISTEN(tier::release, e2::form::upon::vtree::detached, parent_ptr, memo)
-                {
-                    if (parent_ptr)
-                    {
-                        auto& parent = *parent_ptr;
-                        mice.foreach([&](auto& gear)
-                        {
-                            if (auto gear_ptr = boss.bell::getref<hids>(gear.id))
-                            {
-                                gear_ptr->redirect_mouse_focus(parent);
-                            }
-                        });
-                    }
-                };
                 // pro::mouse: Forward preview to all parents.
                 boss.LISTEN(tier::preview, input::events::mouse::any, gear, memo)
                 {
