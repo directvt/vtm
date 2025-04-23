@@ -2103,7 +2103,7 @@ namespace netxs::ui
                 };
             }
 
-            auto bind(qiew chord_str, auto&& scripts, bool preview = faux)
+            auto bind(qiew chord_str, auto&& script_ref, bool preview = faux)
             {
                 if (!chord_str) return;
                 if (auto chord_list = _get_chords(chord_str))
@@ -2128,17 +2128,14 @@ namespace netxs::ui
                             }
                         }
                     };
-                    if constexpr (std::is_same_v<char, std::decay_t<decltype(scripts[0])>>) // The case it is a plain string.
+                    if constexpr (std::is_same_v<netxs::sptr<text>, std::decay_t<decltype(script_ref)>>)
                     {
-                        auto script_ptr = ptr::shared(text{ scripts });
-                        set(script_ptr);
+                        set(script_ref);
                     }
-                    else
+                    else // The case it is a plain C-string.
                     {
-                        for (auto& script_ptr : scripts)
-                        {
-                            set(script_ptr);
-                        }
+                        auto script_ptr = ptr::shared(text{ script_ref });
+                        set(script_ptr);
                     }
                 }
             }
@@ -2146,7 +2143,7 @@ namespace netxs::ui
             {
                 for (auto& r : bindings)
                 {
-                    bind(r.chord, r.scripts, r.preview);
+                    bind(r.chord, r.script_ptr, r.preview);
                 }
             }
             static auto load(xmls& config, qiew section)
@@ -2155,8 +2152,8 @@ namespace netxs::ui
                 if (section)
                 {
                     auto path = "/config/events/" + section.str() + "/script";
-                    auto scripts = config.list(path);
-                    for (auto script_ptr : scripts)
+                    auto script_list = config.list(path);
+                    for (auto script_ptr : script_list)
                     {
                         auto script_body_ptr = ptr::shared(config.expand(script_ptr));
                         //if constexpr (debugmode) log("script=", ansi::hi(*script_body_ptr));
@@ -2171,16 +2168,14 @@ namespace netxs::ui
                                 shadow.remove_prefix(1); // Pop ":".
                                 if (type == "key") // "key:..."
                                 {
-                                    bindings.push_back({ .chord = shadow, .preview = faux });
-                                    auto& rec = bindings.back();
-                                    rec.scripts.push_back(script_body_ptr);
+                                    bindings.push_back({ .chord = shadow, .preview = faux, .script_ptr = script_body_ptr });
+                                    //auto& rec = bindings.back();
                                     //if constexpr (debugmode) log("  chord=%% preview=%%", rec.chord, (si32)rec.preview);
                                 }
                                 else if (type == "keypreview") // "keypreview:..."
                                 {
-                                    bindings.push_back({ .chord = shadow, .preview = true });
-                                    auto& rec = bindings.back();
-                                    rec.scripts.push_back(script_body_ptr);
+                                    bindings.push_back({ .chord = shadow, .preview = true, .script_ptr = script_body_ptr });
+                                    //auto& rec = bindings.back();
                                     //if constexpr (debugmode) log("  chord=%% preview=%%", rec.chord, (si32)rec.preview);
                                 }
                                 else if (type == "mouse") // "mouse:..."

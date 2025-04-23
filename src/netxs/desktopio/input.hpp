@@ -715,7 +715,7 @@ namespace netxs::input
         {
             text chord;
             bool preview{};
-            std::vector<netxs::sptr<text>> scripts;
+            netxs::sptr<text> script_ptr;
         };
         using keybind_list_t = std::vector<keybind_t>;
 
