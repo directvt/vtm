@@ -2141,56 +2141,10 @@ namespace netxs::ui
             }
             auto bind(auto& bindings)
             {
-                for (auto& r : bindings)
+                for (auto& r : bindings) if (r.type == binds::keybd)
                 {
                     bind(r.chord, r.script_ptr, r.preview);
                 }
-            }
-            static auto load(xmls& config, qiew section)
-            {
-                auto bindings = input::key::keybind_list_t{};
-                if (section)
-                {
-                    auto path = "/config/events/" + section.str() + "/script";
-                    auto script_list = config.list(path);
-                    for (auto script_ptr : script_list)
-                    {
-                        auto script_body_ptr = ptr::shared(config.expand(script_ptr));
-                        //if constexpr (debugmode) log("script=", ansi::hi(*script_body_ptr));
-                        auto on_ptr_list = script_ptr->list("on");
-                        for (auto on_ptr : on_ptr_list)
-                        {
-                            auto on_rec = config.expand(on_ptr);
-                            auto shadow = qiew{ on_rec };
-                            auto type = utf::take_front(shadow, ":"); // on="mousepreview:Down01".
-                            if (type)
-                            {
-                                shadow.remove_prefix(1); // Pop ":".
-                                if (type == "key") // "key:..."
-                                {
-                                    bindings.push_back({ .chord = shadow, .preview = faux, .script_ptr = script_body_ptr });
-                                    //auto& rec = bindings.back();
-                                    //if constexpr (debugmode) log("  chord=%% preview=%%", rec.chord, (si32)rec.preview);
-                                }
-                                else if (type == "keypreview") // "keypreview:..."
-                                {
-                                    bindings.push_back({ .chord = shadow, .preview = true, .script_ptr = script_body_ptr });
-                                    //auto& rec = bindings.back();
-                                    //if constexpr (debugmode) log("  chord=%% preview=%%", rec.chord, (si32)rec.preview);
-                                }
-                                else if (type == "mouse") // "mouse:..."
-                                {
-                                    //todo implement
-                                }
-                                else if (type == "mousepreview") // "mousepreview:..."
-                                {
-                                    //todo implement
-                                }
-                            }
-                        }
-                    }
-                }
-                return bindings;
             }
         };
 
@@ -3019,6 +2973,35 @@ namespace netxs::ui
                 if (result.empty()) result = "ok";
                 log(ansi::clr(yellowlt, shadow), "\n", prompt::lua, result);
                 script.cmd = utf::concat(shadow, "\n", prompt::lua, result);
+            }
+            static auto load(xmls& config, qiew section)
+            {
+                auto bindings = input::bindings::vector{};
+                if (section)
+                {
+                    auto path = "/config/events/" + section.str() + "/script";
+                    auto script_list = config.list(path);
+                    for (auto script_ptr : script_list)
+                    {
+                        auto script_body_ptr = ptr::shared(config.expand(script_ptr));
+                        auto on_ptr_list = script_ptr->list("on");
+                        for (auto on_ptr : on_ptr_list)
+                        {
+                            auto on_rec = config.expand(on_ptr);
+                            auto shadow = qiew{ on_rec };
+                            auto utf8 = utf::take_front(shadow, ":"); // ... on="mousepreview:Down01".
+                            static auto undef_binding = std::pair{ netxs::binds::undef, faux };
+                            auto [type, preview] = netxs::get_or(xml::options::binds, utf8, undef_binding);
+                            if (type != netxs::binds::undef)
+                            {
+                                shadow.remove_prefix(1); // Pop ":".
+                                bindings.push_back({ .type = type, .chord = shadow, .preview = preview, .script_ptr = script_body_ptr });
+                                //if constexpr (debugmode) log("type=%% chord=%% \tpreview=%% script=%%", type, shadow, (si32)preview, ansi::hi(*script_body_ptr));
+                            }
+                        }
+                    }
+                }
+                return bindings;
             }
         };
     }

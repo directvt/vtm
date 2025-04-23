@@ -198,6 +198,18 @@ namespace netxs::input
 
     namespace events = netxs::events::userland::hids;
 
+    namespace bindings
+    {
+        struct binding_t
+        {
+            si32 type{}; // netxs::binds::keybd|mouse|event|...
+            text chord;
+            bool preview{};
+            netxs::sptr<text> script_ptr;
+        };
+        using vector = std::vector<binding_t>;
+    }
+
     namespace key
     {
         static constexpr auto ExtendedKey = 0x0100;
@@ -710,14 +722,6 @@ namespace netxs::input
                 return crop;
             }
         };
-
-        struct keybind_t
-        {
-            text chord;
-            bool preview{};
-            netxs::sptr<text> script_ptr;
-        };
-        using keybind_list_t = std::vector<keybind_t>;
 
         template<class ...Args>
         auto xlat(Args&&... args)

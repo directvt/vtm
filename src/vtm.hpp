@@ -660,8 +660,8 @@ namespace netxs::app::vtm
                 base::kind(base::reflow_root);
                 base::root(true);
 
-                auto& bindings = world.base::property<input::key::keybind_list_t>("window.bindings"); // Shared key bindings across the hall.
-                if (bindings.empty()) bindings = pro::keybd::load(world.config, "window");
+                auto& bindings = world.base::property<input::bindings::vector>("window.bindings"); // Shared key bindings across the hall.
+                if (bindings.empty()) bindings = pro::luafx::load(world.config, "window");
                 keybd.bind(bindings);
                 luafx.activate("window",
                 {
@@ -1250,7 +1250,7 @@ namespace netxs::app::vtm
             base::plugin<pro::focus>(pro::focus::mode::focusable);
             auto& keybd = base::plugin<pro::keybd>();
             auto& luafx = base::plugin<pro::luafx>();
-            auto bindings = pro::keybd::load(config, "desktop");
+            auto bindings = pro::luafx::load(config, "desktop");
             keybd.bind(bindings);
             luafx.activate("desktop",
             {

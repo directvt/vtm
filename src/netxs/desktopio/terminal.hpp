@@ -8211,7 +8211,7 @@ namespace netxs::ui
 
             auto& keybd = base::plugin<pro::keybd>();
             auto& luafx = base::plugin<pro::luafx>();
-            auto bindings = pro::keybd::load(xml_config, "terminal");
+            auto bindings = pro::luafx::load(xml_config, "terminal");
             keybd.bind(bindings);
             luafx.activate("terminal",
             {
