@@ -2154,20 +2154,44 @@ namespace netxs::ui
                 auto bindings = input::key::keybind_list_t{};
                 if (section)
                 {
-                    auto path = "/config/events/" + section.str() + "/key";
-                    auto keybinds = config.list(path);
-                    for (auto keybind_ptr : keybinds)
+                    auto path = "/config/events/" + section.str() + "/script";
+                    auto scripts = config.list(path);
+                    for (auto script_ptr : scripts)
                     {
-                        auto chord = config.expand(keybind_ptr);
-                        auto preview = keybind_ptr->take("preview", faux);
-                        auto script_ptr_list = keybind_ptr->list("script");
-                        bindings.push_back({ .chord = chord, .preview = preview });
-                        auto& rec = bindings.back();
-                        //if constexpr (debugmode) log("chord=%% preview=%%", chord, (si32)preview);
-                        for (auto script_ptr : script_ptr_list)
+                        auto script_body_ptr = ptr::shared(config.expand(script_ptr));
+                        //if constexpr (debugmode) log("script=", ansi::hi(*script_body_ptr));
+                        auto on_ptr_list = script_ptr->list("on");
+                        for (auto on_ptr : on_ptr_list)
                         {
-                            rec.scripts.push_back(ptr::shared(config.expand(script_ptr)));
-                            //if constexpr (debugmode) log("  script=", *rec.scripts.back());
+                            auto on_rec = config.expand(on_ptr);
+                            auto shadow = qiew{ on_rec };
+                            auto type = utf::take_front(shadow, ":"); // on="mousepreview:Down01".
+                            if (type)
+                            {
+                                shadow.remove_prefix(1); // Pop ":".
+                                if (type == "key") // "key:..."
+                                {
+                                    bindings.push_back({ .chord = shadow, .preview = faux });
+                                    auto& rec = bindings.back();
+                                    rec.scripts.push_back(script_body_ptr);
+                                    //if constexpr (debugmode) log("  chord=%% preview=%%", rec.chord, (si32)rec.preview);
+                                }
+                                else if (type == "keypreview") // "keypreview:..."
+                                {
+                                    bindings.push_back({ .chord = shadow, .preview = true });
+                                    auto& rec = bindings.back();
+                                    rec.scripts.push_back(script_body_ptr);
+                                    //if constexpr (debugmode) log("  chord=%% preview=%%", rec.chord, (si32)rec.preview);
+                                }
+                                else if (type == "mouse") // "mouse:..."
+                                {
+                                    //todo implement
+                                }
+                                else if (type == "mousepreview") // "mousepreview:..."
+                                {
+                                    //todo implement
+                                }
+                            }
                         }
                     }
                 }
