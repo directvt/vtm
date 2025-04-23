@@ -316,11 +316,11 @@ R"==(
                     </terminal>
                 </config>
             </item>
-            <autorun item*>  <!-- Autorun specified menu items:     -->
-                <!--  <item* id=Term winsize=80,25 />               -->
-                <!--  <item wincoor=92,31 winform=minimized />      -->  <!-- Autorun supports minimized winform only. -->
-                <!--  <item wincoor=8,31 />                         -->
-                <!--  <item wincoor=8,4 winsize=164,25 focused />   -->
+            <autorun run*>  <!-- Autorun specified menu items:     -->
+                <!--  <run* id="Term" winsize=80,25 />             -->
+                <!--  <run wincoor=92,31 winform=minimized />      -->  <!-- Autorun supports minimized winform only. -->
+                <!--  <run wincoor=8,31 />                         -->
+                <!--  <run wincoor=8,4 winsize=164,25 focused />   -->
             </autorun>
             <width>  <!-- Taskbar menu width. -->
                 <folded=18/>

@@ -42,7 +42,7 @@ namespace netxs::app::vtm
     namespace path
     {
         static constexpr auto item     = "/config/desktop/taskbar/item";
-        static constexpr auto autorun  = "/config/desktop/taskbar/autorun/item";
+        static constexpr auto autorun  = "/config/desktop/taskbar/autorun/run";
         static constexpr auto selected = "/config/desktop/taskbar/selected";
         static constexpr auto viewport = "/config/desktop/viewport/coor";
     }
