@@ -653,8 +653,8 @@ namespace netxs::app::vtm
                 base::plugin<pro::frame>();
                 base::plugin<pro::light>();
                 base::plugin<pro::focus>();
-                auto& mouse = base::plugin<pro::mouse>();
                 auto& keybd = base::plugin<pro::keybd>();
+                auto& mouse = base::plugin<pro::mouse>();
                 auto& luafx = base::plugin<pro::luafx>();
                 base::limits(dot_11);
                 base::kind(base::reflow_root);
@@ -663,6 +663,7 @@ namespace netxs::app::vtm
                 auto& bindings = world.base::property<input::bindings::vector>("window.bindings"); // Shared key bindings across the hall.
                 if (bindings.empty()) bindings = pro::luafx::load(world.config, "window");
                 keybd.bind(bindings);
+                mouse.bind(bindings);
                 luafx.activate("window",
                 {
                     { "Warp",               [&]
@@ -1049,8 +1050,8 @@ namespace netxs::app::vtm
         std::list<std::pair<sptr, para>> users; // hall: Desktop users.
         netxs::generics::pool async; // hall: Thread pool for parallel task execution.
         xmls config; // hall: Resultant settings.
-        pro::maker maker{*this }; // hall: Window creator using drag and drop (right drag).
-        pro::robot robot{*this }; // hall: Animation controller.
+        pro::maker& maker; // hall: Window creator using drag and drop (right drag).
+        pro::robot& robot; // hall: Animation controller.
 
         netxs::sptr<desk::apps> apps_list_ptr = ptr::shared<desk::apps>();
         netxs::sptr<desk::usrs> usrs_list_ptr = ptr::shared<desk::usrs>();
@@ -1241,7 +1242,9 @@ namespace netxs::app::vtm
 
     public:
         hall(xipc server, xmls def_config)
-            : config{ def_config }
+            : config{ def_config },
+              maker{ base::plugin<pro::maker>() },
+              robot{ base::plugin<pro::robot>() }
         {
             auto& canal = *server;
 
@@ -1249,9 +1252,11 @@ namespace netxs::app::vtm
 
             base::plugin<pro::focus>(pro::focus::mode::focusable);
             auto& keybd = base::plugin<pro::keybd>();
+            auto& mouse = base::plugin<pro::mouse>();
             auto& luafx = base::plugin<pro::luafx>();
             auto bindings = pro::luafx::load(config, "desktop");
             keybd.bind(bindings);
+            mouse.bind(bindings);
             luafx.activate("desktop",
             {
                 { "Shutdown",           [&]

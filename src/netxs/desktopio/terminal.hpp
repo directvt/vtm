@@ -8210,9 +8210,11 @@ namespace netxs::ui
             selection_selmod(config.def_selmod);
 
             auto& keybd = base::plugin<pro::keybd>();
+            auto& mouse = base::plugin<pro::mouse>();
             auto& luafx = base::plugin<pro::luafx>();
             auto bindings = pro::luafx::load(xml_config, "terminal");
             keybd.bind(bindings);
+            mouse.bind(bindings);
             luafx.activate("terminal",
             {
                 { "KeyEvent",                   [&]

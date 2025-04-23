@@ -349,9 +349,11 @@ namespace netxs::app::tile
                             gear.dismiss();
                         };
                         auto& keybd = boss.base::template plugin<pro::keybd>(); //todo Apple clang reqires template
+                        auto& mouse = boss.base::template plugin<pro::mouse>();
                         auto& luafx = boss.base::template plugin<pro::luafx>();
                         auto& bindings = *grip_bindings_ptr;
                         keybd.bind(bindings);
+                        mouse.bind(bindings);
                         luafx.activate("grip",
                         {
                             { action::MoveGrip,         [&]
@@ -1056,9 +1058,11 @@ namespace netxs::app::tile
                         boss.base::riseup(tier::release, e2::form::proceed::quit::one, true);
                     };
                     auto& keybd = boss.base::template plugin<pro::keybd>(); //todo Apple clang reqires template
+                    auto& mouse = boss.base::template plugin<pro::mouse>(); //todo Apple clang reqires template
                     auto& luafx = boss.base::template plugin<pro::luafx>();
                     auto bindings = pro::luafx::load(config, "tile");
                     keybd.bind(bindings);
+                    mouse.bind(bindings);
                     luafx.activate("tile",
                     {
                         { action::FocusNextPaneOrGrip,  [&]

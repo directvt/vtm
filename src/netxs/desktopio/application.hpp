@@ -112,9 +112,11 @@ namespace netxs::app::shared
     {
         auto& scroll_inst = *scroll_ptr;
         auto& keybd = boss.base::plugin<pro::keybd>();
+        auto& mouse = boss.base::plugin<pro::mouse>();
         auto& luafx = boss.base::plugin<pro::luafx>();
         auto bindings = pro::luafx::load(config, "defapp");
         keybd.bind(bindings);
+        mouse.bind(bindings);
         luafx.activate("defapp",
         {
             { "ScrollViewportByPage",   [&]
@@ -171,10 +173,12 @@ namespace netxs::app::shared
         auto& applet = *applet_ptr;
         applet.base::plugin<pro::focus>();
         auto& keybd = applet.base::plugin<pro::keybd>();
+        auto& mouse = applet.base::plugin<pro::mouse>();
         auto& luafx = applet.base::plugin<pro::luafx>();
         auto& bindings = applet.base::property<input::bindings::vector>("applet.bindings");
         bindings = pro::luafx::load(config, "applet");
         keybd.bind(bindings);
+        mouse.bind(bindings);
         luafx.activate("applet",
         {
             //{ "FocusNext",          [&]

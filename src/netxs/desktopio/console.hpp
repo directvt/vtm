@@ -763,6 +763,7 @@ namespace netxs::ui
             auto& luafx = base::plugin<pro::luafx>();
             auto bindings = pro::luafx::load(config, "gate");
             keybd.bind(bindings);
+            mouse.bind(bindings);
             luafx.activate("gate",
             {
                 { "Disconnect",             [&]
