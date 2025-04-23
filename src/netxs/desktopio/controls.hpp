@@ -1760,6 +1760,9 @@ namespace netxs::ui
             si32 drag; // mouse: Bitfield of buttons subscribed to mouse drag.
             std::map<si32, subs> dragmemo; // mouse: Draggable subs.
 
+            netxs::sptr<std::unordered_map<text, wptr>> scripting_context_ptr; // mouse: Script execution context: sptr<map<$object_name_str, $object_wptr>>.
+            std::unordered_map<text, std::pair<std::list<netxs::sptr<text>>, bool>, qiew::hash, qiew::equal> handlers; // mouse: Map<chord, pair<list<shared_ptr<script>>, preview>>.
+
         public:
             mouse(base&&) = delete;
             mouse(base& boss, bool take_all_events = true)
@@ -1870,6 +1873,18 @@ namespace netxs::ui
                     }
                 };
             }
+
+            auto bind(qiew chord_str, auto&& script_ref, bool preview = faux)
+            {
+                input::bindings::bind(handlers, chord_str, script_ref, preview);
+            }
+            auto bind(auto& bindings)
+            {
+                for (auto& r : bindings) if (r.type == binds::mouse)
+                {
+                    bind(r.chord, r.script_ptr, r.preview);
+                }
+            }
             void reset()
             {
                 auto lock = boss.bell::sync();
@@ -1949,82 +1964,12 @@ namespace netxs::ui
             using skill::boss,
                   skill::memo;
 
-            netxs::sptr<std::unordered_map<text, wptr>> scripting_context_ptr; // hids: Script execution context: sptr<map<$object_name_str, $object_wptr>>.
-            std::unordered_map<text, std::pair<std::list<netxs::sptr<text>>, bool>, qiew::hash, qiew::equal> handlers; // Map<chord, pair<list<shared_ptr<script>>, preview>>.
-            std::unordered_map<id_t, time> last_key;
-            si64 instance_id;
-            std::list<std::pair<text, wptr>> context_names;
+            netxs::sptr<std::unordered_map<text, wptr>> scripting_context_ptr; // keybd: Script execution context: sptr<map<$object_name_str, $object_wptr>>.
+            std::unordered_map<text, std::pair<std::list<netxs::sptr<text>>, bool>, qiew::hash, qiew::equal> handlers; // keybd: Map<chord, pair<list<shared_ptr<script>>, preview>>.
+            std::list<std::pair<text, wptr>> context_names; // keybd: .
 
-            auto _get_chord_list(qiew chord_str = {}) -> std::optional<std::invoke_result_t<decltype(input::key::kmap::chord_list), qiew>>
-            {
-                auto chords = input::key::kmap::chord_list(chord_str);
-                if (chords.size())
-                {
-                    return std::optional{ chords };
-                }
-                else
-                {
-                    if (chord_str) log("%%Unknown key chord: '%chord%'", prompt::user, chord_str);
-                    return std::optional<decltype(chords)>{};
-                }
-            }
-            auto _get_chords(qiew chord_list_str)
-            {
-                auto chord_qiew_list = utf::split<true>(chord_list_str, " | ");
-                if (chord_qiew_list.size())
-                {
-                    auto head = chord_qiew_list.begin();
-                    auto tail = chord_qiew_list.end();
-                    if (auto first_chord_list = _get_chord_list(utf::trim(*head++)))
-                    {
-                        auto chords = first_chord_list.value();
-                        while (head != tail)
-                        {
-                            auto chord_qiew = *head++;
-                            if (auto next_chord_list = _get_chord_list(chord_qiew))
-                            {
-                                auto& c = next_chord_list.value();
-                                chords.insert(chords.end(), c.begin(), c.end());
-                            }
-                        }
-                        return std::optional{ chords };
-                    }
-                }
-                return _get_chord_list();
-            }
-            void _dispatch(hids& gear, bool preview_mode, qiew chord)
-            {
-                auto iter = handlers.find(chord);
-                if (iter != handlers.end())
-                {
-                    auto& [scripts, run_preview] = iter->second;
-                    if (!preview_mode || run_preview)
-                    {
-                        if (!scripting_context_ptr) // Restore scripting context.
-                        {
-                            scripting_context_ptr = ptr::shared<decltype(scripting_context_ptr)::element_type>();
-                            std::swap(gear.scripting_context_ptr, scripting_context_ptr);
-                            boss.base::riseup(tier::request, e2::runscript, gear, true);
-                            std::swap(gear.scripting_context_ptr, scripting_context_ptr);
-                        }
-                        for (auto& script_ptr : scripts)
-                        {
-                            if (!gear.interrupt_key_proc)
-                            {
-                                auto temp_script_ptr = std::exchange(gear.script_ptr, script_ptr);
-                                auto temp_scripting_context_ptr = std::exchange(gear.scripting_context_ptr, scripting_context_ptr);
-                                boss.base::riseup(tier::preview, e2::runscript, gear);
-                                gear.script_ptr = temp_script_ptr;
-                                gear.scripting_context_ptr = temp_scripting_context_ptr;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        gear.touched = instance_id;
-                    }
-                }
-            }
+            std::unordered_map<id_t, time> last_key; // keybd: .
+            si64 instance_id; // keybd: .
 
         public:
             keybd(base&&) = delete;
@@ -2079,10 +2024,10 @@ namespace netxs::ui
                         if (gear.payload == input::keybd::type::keypress)
                         {
                             gear.interrupt_key_proc = faux;
-                            if (!gear.handled) _dispatch(gear, faux, input::key::kmap::any_key);
-                            if (!gear.handled) _dispatch(gear, faux, gear.vkchord);
-                            if (!gear.handled) _dispatch(gear, faux, gear.chchord);
-                            if (!gear.handled) _dispatch(gear, faux, gear.scchord);
+                            if (!gear.handled) input::bindings::dispatch(boss, instance_id, scripting_context_ptr, handlers, gear, faux, input::key::kmap::any_key);
+                            if (!gear.handled) input::bindings::dispatch(boss, instance_id, scripting_context_ptr, handlers, gear, faux, gear.vkchord);
+                            if (!gear.handled) input::bindings::dispatch(boss, instance_id, scripting_context_ptr, handlers, gear, faux, gear.chchord);
+                            if (!gear.handled) input::bindings::dispatch(boss, instance_id, scripting_context_ptr, handlers, gear, faux, gear.scchord);
                         }
                     }
                     else
@@ -2095,49 +2040,17 @@ namespace netxs::ui
                     gear.shared_event = gear.touched && gear.touched != instance_id;
                     if (gear.payload == input::keybd::type::keypress)
                     {
-                        if (!gear.touched && !gear.handled) _dispatch(gear, true, gear.vkchord);
-                        if (!gear.touched && !gear.handled) _dispatch(gear, true, gear.chchord);
-                        if (!gear.touched && !gear.handled) _dispatch(gear, true, gear.scchord);
-                        if (!gear.touched && !gear.handled) _dispatch(gear, true, input::key::kmap::any_key);
+                        if (!gear.touched && !gear.handled) input::bindings::dispatch(boss, instance_id, scripting_context_ptr, handlers, gear, true, gear.vkchord);
+                        if (!gear.touched && !gear.handled) input::bindings::dispatch(boss, instance_id, scripting_context_ptr, handlers, gear, true, gear.chchord);
+                        if (!gear.touched && !gear.handled) input::bindings::dispatch(boss, instance_id, scripting_context_ptr, handlers, gear, true, gear.scchord);
+                        if (!gear.touched && !gear.handled) input::bindings::dispatch(boss, instance_id, scripting_context_ptr, handlers, gear, true, input::key::kmap::any_key);
                     }
                 };
             }
 
             auto bind(qiew chord_str, auto&& script_ref, bool preview = faux)
             {
-                if (!chord_str) return;
-                if (auto chord_list = _get_chords(chord_str))
-                {
-                    auto& chords = chord_list.value();
-                    auto set = [&](netxs::sptr<text> script_ptr)
-                    {
-                        if (script_ptr && script_ptr->size())
-                        {
-                            for (auto& chord : chords)
-                            {
-                                auto& r = handlers[chord];
-                                r.first.emplace_back(script_ptr);
-                                r.second = preview;
-                            }
-                        }
-                        else // Reset all bindings for chords.
-                        {
-                            for (auto& chord : chords)
-                            {
-                                handlers.erase(chord);
-                            }
-                        }
-                    };
-                    if constexpr (std::is_same_v<netxs::sptr<text>, std::decay_t<decltype(script_ref)>>)
-                    {
-                        set(script_ref);
-                    }
-                    else // The case it is a plain C-string.
-                    {
-                        auto script_ptr = ptr::shared(text{ script_ref });
-                        set(script_ptr);
-                    }
-                }
+                input::bindings::bind(handlers, chord_str, script_ref, preview);
             }
             auto bind(auto& bindings)
             {

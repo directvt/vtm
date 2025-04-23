@@ -198,18 +198,6 @@ namespace netxs::input
 
     namespace events = netxs::events::userland::hids;
 
-    namespace bindings
-    {
-        struct binding_t
-        {
-            si32 type{}; // netxs::binds::keybd|mouse|event|...
-            text chord;
-            bool preview{};
-            netxs::sptr<text> script_ptr;
-        };
-        using vector = std::vector<binding_t>;
-    }
-
     namespace key
     {
         static constexpr auto ExtendedKey = 0x0100;
@@ -741,6 +729,126 @@ namespace netxs::input
                 }
             }
             return k;
+        }
+    }
+
+    namespace bindings
+    {
+        struct binding_t
+        {
+            si32 type{}; // netxs::binds::keybd|mouse|event|...
+            text chord;
+            bool preview{};
+            netxs::sptr<text> script_ptr;
+        };
+        using vector = std::vector<binding_t>;
+
+        auto _get_chord_list(qiew chord_str = {}) -> std::optional<std::invoke_result_t<decltype(input::key::kmap::chord_list), qiew>>
+        {
+            auto chords = input::key::kmap::chord_list(chord_str);
+            if (chords.size())
+            {
+                return std::optional{ chords };
+            }
+            else
+            {
+                if (chord_str) log("%%Unknown key chord: '%chord%'", prompt::user, chord_str);
+                return std::optional<decltype(chords)>{};
+            }
+        }
+        auto get_chords(qiew chord_list_str)
+        {
+            auto chord_qiew_list = utf::split<true>(chord_list_str, " | ");
+            if (chord_qiew_list.size())
+            {
+                auto head = chord_qiew_list.begin();
+                auto tail = chord_qiew_list.end();
+                if (auto first_chord_list = _get_chord_list(utf::trim(*head++)))
+                {
+                    auto chords = first_chord_list.value();
+                    while (head != tail)
+                    {
+                        auto chord_qiew = *head++;
+                        if (auto next_chord_list = _get_chord_list(chord_qiew))
+                        {
+                            auto& c = next_chord_list.value();
+                            chords.insert(chords.end(), c.begin(), c.end());
+                        }
+                    }
+                    return std::optional{ chords };
+                }
+            }
+            return _get_chord_list();
+        }
+        auto bind(auto& handlers, qiew chord_str, auto&& script_ref, bool preview)
+        {
+            if (!chord_str) return;
+            if (auto chord_list = input::bindings::get_chords(chord_str))
+            {
+                auto& chords = chord_list.value();
+                auto set = [&](netxs::sptr<text> script_ptr)
+                {
+                    if (script_ptr && script_ptr->size())
+                    {
+                        for (auto& chord : chords)
+                        {
+                            auto& r = handlers[chord];
+                            r.first.emplace_back(script_ptr);
+                            r.second = preview;
+                        }
+                    }
+                    else // Reset all bindings for chords.
+                    {
+                        for (auto& chord : chords)
+                        {
+                            handlers.erase(chord);
+                        }
+                    }
+                };
+                if constexpr (std::is_same_v<netxs::sptr<text>, std::decay_t<decltype(script_ref)>>)
+                {
+                    set(script_ref);
+                }
+                else // The case it is a plain C-string.
+                {
+                    auto script_ptr = ptr::shared(text{ script_ref });
+                    set(script_ptr);
+                }
+            }
+        }
+        template<class T>
+        void dispatch(auto& boss, auto& instance_id, T& scripting_context_ptr, auto& handlers, auto& gear, bool preview_mode, qiew chord)
+        {
+            auto iter = handlers.find(chord);
+            if (iter != handlers.end())
+            {
+                auto& [scripts, run_preview] = iter->second;
+                if (!preview_mode || run_preview)
+                {
+                    if (!scripting_context_ptr) // Restore scripting context.
+                    {
+                        scripting_context_ptr = ptr::shared<typename T::element_type>();
+                        std::swap(gear.scripting_context_ptr, scripting_context_ptr);
+                        boss.base::riseup(tier::request, ui::e2::runscript, gear, true);
+                        std::swap(gear.scripting_context_ptr, scripting_context_ptr);
+                    }
+                    for (auto& script_ptr : scripts)
+                    {
+                        if (!gear.interrupt_key_proc)
+                        {
+                            auto temp_script_ptr = std::exchange(gear.script_ptr, script_ptr);
+                            auto temp_scripting_context_ptr = std::exchange(gear.scripting_context_ptr, scripting_context_ptr);
+                            boss.base::riseup(tier::preview, ui::e2::runscript, gear);
+                            gear.script_ptr = temp_script_ptr;
+                            gear.scripting_context_ptr = temp_scripting_context_ptr;
+                        }
+                    }
+                }
+                else
+                {
+                    gear.touched = instance_id;
+                }
+            }
         }
     }
 
