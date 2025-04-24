@@ -114,7 +114,7 @@ namespace netxs::app::shared
         auto& keybd = boss.base::plugin<pro::keybd>();
         auto& mouse = boss.base::plugin<pro::mouse>();
         auto& luafx = boss.base::plugin<pro::luafx>();
-        auto bindings = pro::luafx::load(config, "defapp");
+        auto bindings = input::bindings::load(config, "defapp");
         keybd.bind(bindings);
         mouse.bind(bindings);
         luafx.activate("defapp",
@@ -176,7 +176,7 @@ namespace netxs::app::shared
         auto& mouse = applet.base::plugin<pro::mouse>();
         auto& luafx = applet.base::plugin<pro::luafx>();
         auto& bindings = applet.base::property<input::bindings::vector>("applet.bindings");
-        bindings = pro::luafx::load(config, "applet");
+        bindings = input::bindings::load(config, "applet");
         keybd.bind(bindings);
         mouse.bind(bindings);
         luafx.activate("applet",

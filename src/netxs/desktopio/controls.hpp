@@ -1783,6 +1783,7 @@ namespace netxs::ui
                         gear.pass(tier::release, boss.base::parent(), offset);
                     }
                 };
+
                 // pro::mouse: Amplify mouse hover on any button press.
                 boss.LISTEN(tier::release, input::events::mouse::button::any, gear, memo)
                 {
@@ -1835,6 +1836,7 @@ namespace netxs::ui
                 {
                     state = rent;
                 };
+
                 boss.LISTEN(tier::release, e2::form::draggable::any, enabled, memo)
                 {
                     auto deed = boss.bell::protos(tier::release);
@@ -2863,35 +2865,6 @@ namespace netxs::ui
                 if (result.empty()) result = "ok";
                 log(ansi::clr(yellowlt, shadow), "\n", prompt::lua, result);
                 script.cmd = utf::concat(shadow, "\n", prompt::lua, result);
-            }
-            static auto load(xmls& config, qiew section)
-            {
-                auto bindings = input::bindings::vector{};
-                if (section)
-                {
-                    auto path = "/config/events/" + section.str() + "/script";
-                    auto script_list = config.list(path);
-                    for (auto script_ptr : script_list)
-                    {
-                        auto script_body_ptr = ptr::shared(config.expand(script_ptr));
-                        auto on_ptr_list = script_ptr->list("on");
-                        for (auto on_ptr : on_ptr_list)
-                        {
-                            auto on_rec = config.expand(on_ptr);
-                            auto shadow = qiew{ on_rec };
-                            auto utf8 = utf::take_front(shadow, ":"); // ... on="mousepreview:Down01".
-                            static auto undef_binding = std::pair{ netxs::binds::undef, faux };
-                            auto [type, preview] = netxs::get_or(xml::options::binds, utf8, undef_binding);
-                            if (type != netxs::binds::undef)
-                            {
-                                shadow.remove_prefix(1); // Pop ":".
-                                bindings.push_back({ .type = type, .chord = shadow, .preview = preview, .script_ptr = script_body_ptr });
-                                //if constexpr (debugmode) log("type=%% chord=%% \tpreview=%% script=%%", type, shadow, (si32)preview, ansi::hi(*script_body_ptr));
-                            }
-                        }
-                    }
-                }
-                return bindings;
             }
         };
     }

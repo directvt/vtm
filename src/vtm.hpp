@@ -661,7 +661,7 @@ namespace netxs::app::vtm
                 base::root(true);
 
                 auto& bindings = world.base::property<input::bindings::vector>("window.bindings"); // Shared key bindings across the hall.
-                if (bindings.empty()) bindings = pro::luafx::load(world.config, "window");
+                if (bindings.empty()) bindings = input::bindings::load(world.config, "window");
                 keybd.bind(bindings);
                 mouse.bind(bindings);
                 luafx.activate("window",
@@ -1254,7 +1254,7 @@ namespace netxs::app::vtm
             auto& keybd = base::plugin<pro::keybd>();
             auto& mouse = base::plugin<pro::mouse>();
             auto& luafx = base::plugin<pro::luafx>();
-            auto bindings = pro::luafx::load(config, "desktop");
+            auto bindings = input::bindings::load(config, "desktop");
             keybd.bind(bindings);
             mouse.bind(bindings);
             luafx.activate("desktop",

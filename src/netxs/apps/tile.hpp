@@ -958,7 +958,7 @@ namespace netxs::app::tile
                 { "TileClosePane"         , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::close          ); }},
             };
             config.cd("/config/tile", "/config/defapp");
-            auto grip_bindings_ptr = ptr::shared(pro::luafx::load(config, "tile/grip"));
+            auto grip_bindings_ptr = ptr::shared(input::bindings::load(config, "tile/grip"));
             auto [menu_block, cover, menu_data] = menu::load(config, proc_map);
             object->attach(slot::_1, menu_block)
                 ->invoke([](auto& boss)
@@ -1060,7 +1060,7 @@ namespace netxs::app::tile
                     auto& keybd = boss.base::template plugin<pro::keybd>(); //todo Apple clang reqires template
                     auto& mouse = boss.base::template plugin<pro::mouse>(); //todo Apple clang reqires template
                     auto& luafx = boss.base::template plugin<pro::luafx>();
-                    auto bindings = pro::luafx::load(config, "tile");
+                    auto bindings = input::bindings::load(config, "tile");
                     keybd.bind(bindings);
                     mouse.bind(bindings);
                     luafx.activate("tile",

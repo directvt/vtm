@@ -8212,7 +8212,7 @@ namespace netxs::ui
             auto& keybd = base::plugin<pro::keybd>();
             auto& mouse = base::plugin<pro::mouse>();
             auto& luafx = base::plugin<pro::luafx>();
-            auto bindings = pro::luafx::load(xml_config, "terminal");
+            auto bindings = input::bindings::load(xml_config, "terminal");
             keybd.bind(bindings);
             mouse.bind(bindings);
             luafx.activate("terminal",
