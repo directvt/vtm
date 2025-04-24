@@ -425,13 +425,19 @@ R"==(
                             MouseWheel          ->                      -> 0x1E'00
                         Generic: <Mouse><Down | Up | [Double | Triple | Quintuple]Click | Drag{Start | Pull | Stop | Cancel}><bbb...>
                             <bbb...>:
-                                000: Any button
-                                100: Left
-                                010: Middle
-                                001: Right
-                                0001: Button4
-                                00001: Button5
-                                10100: LeftRight
+                                0: 0: Any button
+                                1: 1: Left
+                                2: 01: Middle
+                                3: 001: Right
+                                4: 0001: Button4
+                                5: 00001: Button5
+                                6: 000001: Button6
+                                7: 0000001: Button7
+                                8: 00000001: Button8
+                                101: Left+Right
+                                111: Left+Middle+Right
+                                011: Middle+Right
+                                10000001: Left+Button8
                                 etc... The trailing zeros can be omitted.
                     Action:
                         MouseDown<bbb...>            Button<bbb...> push down / pressed.
@@ -461,6 +467,7 @@ R"==(
                 onpreview="MouseDown01"          Right button push down (preview phase).
                 on="MouseClick"                  Any button click.
                 on="MouseClick1"                 Left button click.
+                on="LeftClick"                   Left button click.
                 on="MouseClick001"               Right button click.
                 on="MouseClick101"               Left+Right button click.
                 ?? on="Ctrl+Shift+MouseClick1"      Left button click with Ctrl+Shift modifiers pressed.
@@ -482,7 +489,7 @@ R"==(
                 on="-Ctrl"
                 on="-Ctrl"
                 -->
-                <script=AlwaysOnTopApplet on="MouseClick1" on="-Enter" on="-Space"/> <!-- The default event source is the parent object, i.e. source="item" (aka vtm.item). -->
+                <script=AlwaysOnTopApplet on="RightClick" on="LeftClick" on="-Enter" on="-Space"/> <!-- The default event source is the parent object, i.e. source="item" (aka vtm.item). -->
                 <script>
                     <on="event:ZOrder" source="terminal"/>
                     <!-- <onpreview="event:ZOrder" source="terminal"/> -->
@@ -724,7 +731,7 @@ R"==(
             <script=TerminalWrapMode                   on=""                     />
             <script=TerminalAlignMode                  on=""                     />
             <script=TerminalStdioLog                   on=""                     />
-            <script=TerminalRestart                    on=""                     />
+            <script=TerminalRestart                    on=""   on="RightClick" on="LeftClick" on="MouseClick" on="MouseClick1" on="MouseClick3" on="LeftRightClick" on="MouseMove" on="MouseDragPull101"                 />
         </terminal>
         <defapp script*>  <!-- Default application bindings (e.g., Info-Page). -->
             <script="vtm.defapp.ShowClosingPreview(not vtm.gear.IsKeyRepeated())"                 onpreview="Esc" /> <!-- Pred window close action. -->

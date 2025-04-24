@@ -441,6 +441,29 @@ namespace netxs::input
                 key_list
             #undef X
         };
+        #define mouse_list \
+            X(MouseAny           , 0x0, 0)\
+            X(MouseDown          , 0x1, 0)X(LeftDown          , 0x1, 0b001)X(RightDown          , 0x1, 0b100)X(LeftRightDown          , 0x1, 0b101)X(MiddleDown          , 0x1, 0b010)\
+            X(MouseUp            , 0x2, 0)X(LeftUp            , 0x2, 0b001)X(RightUp            , 0x2, 0b100)X(LeftRightUp            , 0x2, 0b101)X(MiddleUp            , 0x2, 0b010)\
+            X(MouseClick         , 0x3, 0)X(LeftClick         , 0x3, 0b001)X(RightClick         , 0x3, 0b100)X(LeftRightClick         , 0x3, 0b101)X(MiddleClick         , 0x3, 0b010)\
+            X(MouseDoubleClick   , 0x4, 0)X(LeftDoubleClick   , 0x4, 0b001)X(RightDoubleClick   , 0x4, 0b100)X(LeftRightDoubleClick   , 0x4, 0b101)X(MiddleDoubleClick   , 0x4, 0b010)\
+            X(MouseTripleClick   , 0x5, 0)X(LeftTripleClick   , 0x5, 0b001)X(RightTripleClick   , 0x5, 0b100)X(LeftRightTripleClick   , 0x5, 0b101)X(MiddleTripleClick   , 0x5, 0b010)\
+            X(MouseQuintupleClick, 0x6, 0)X(LeftQuintupleClick, 0x6, 0b001)X(RightQuintupleClick, 0x6, 0b100)X(LeftRightQuintupleClick, 0x6, 0b101)X(MiddleQuintupleClick, 0x6, 0b010)\
+            X(MouseDragStart     , 0x7, 0)X(LeftDragStart     , 0x7, 0b001)X(RightDragStart     , 0x7, 0b100)X(LeftRightDragStart     , 0x7, 0b101)X(MiddleDragStart     , 0x7, 0b010)\
+            X(MouseDragPull      , 0x8, 0)X(LeftDragPull      , 0x8, 0b001)X(RightDragPull      , 0x8, 0b100)X(LeftRightDragPull      , 0x8, 0b101)X(MiddleDragPull      , 0x8, 0b010)\
+            X(MouseDragStop      , 0x9, 0)X(LeftDragStop      , 0x9, 0b001)X(RightDragStop      , 0x9, 0b100)X(LeftRightDragStop      , 0x9, 0b101)X(MiddleDragStop      , 0x9, 0b010)\
+            X(MouseDragCancel    , 0xA, 0)X(LeftDragCancel    , 0xA, 0b001)X(RightDragCancel    , 0xA, 0b100)X(LeftRightDragCancel    , 0xA, 0b101)X(MiddleDragCancel    , 0xA, 0b010)\
+            X(MouseLeave         , 0xB, 0)\
+            X(MouseEnter         , 0xC, 0)\
+            X(MouseMove          , 0xD, 0)\
+            X(MouseWheel         , 0xE, 0)
+        static const auto mouse_names = std::unordered_map<text, std::pair<si32, si32>, qiew::hash, qiew::equal>
+        {
+            #define X(name, action_index, button_index) \
+                { utf::to_lower(#name), { action_index, button_index }},
+                mouse_list
+            #undef X
+        };
 
         #undef key_list
 
@@ -493,6 +516,11 @@ namespace netxs::input
                 chchord += (is_pressed ? '\x00' : '\x40') | '\x20';
                 chchord += '\xFF';
                 chchord += cluster;
+            }
+            static void push_mouse(si32 sign, si32 button_id, text& m_chord)
+            {
+                m_chord += (byte)sign;
+                m_chord += (byte)button_id;
             }
             template<class P = noop>
             void build(auto& k, P test_key_released = {})
@@ -579,7 +607,6 @@ namespace netxs::input
             static constexpr auto any_key = qiew{ "\0"sv };
             static auto chord_list(qiew chord)
             {
-                //todo detect is it mouse or keybd chord
                 struct key_t
                 {
                     byte sign;
@@ -644,8 +671,33 @@ namespace netxs::input
                     else if (auto key_name = qiew{ utf::get_word(chord, "+- ") })
                     {
                         auto name = utf::to_lower(key_name);
-                        auto iter = input::key::generic_names.find(name);
-                        if (iter == input::key::generic_names.end()) // Is specific.
+                        auto name_shadow = qiew{ name };
+                        auto digits = utf::trim_back(name_shadow, netxs::onlydigits);
+                        if (auto iter = input::key::mouse_names.find(name_shadow); iter != input::key::mouse_names.end()) // Mouse events.
+                        {
+                            auto [action_index, button_index] = iter->second;
+                            if (digits.size())
+                            {
+                                auto d = digits.front();
+                                if (d == '0' || d == '1') // MouseClick001  binary format.
+                                {
+                                    auto str = text{ digits };
+                                    std::reverse(str.begin(), str.end());
+                                    if (auto v = utf::to_int<si32, 2>(str))
+                                    {
+                                        button_index = v.value();
+                                    }
+                                }
+                                else // MouseClick3  decimal format. B1 to B8 mouse buttons.
+                                {
+                                    button_index = 1 << std::min(7, d - '0' - 1);
+                                }
+                            }
+                            k.sign |= 0x10 | action_index;
+                            k.code1 = button_index;
+                            log("mouse event=%%", ansi::hi(utf::to_hex_0x((k.sign<<8)|k.code1)));
+                        }
+                        else if (auto iter = input::key::generic_names.find(name); iter == input::key::generic_names.end()) // Is specific.
                         {
                             auto iter2 = input::key::specific_names.find(name);
                             if (iter2 != input::key::specific_names.end())
@@ -669,12 +721,18 @@ namespace netxs::input
                 while (chord)
                 {
                     auto k = take(chord); // Unfold.
-                    if (!k.code1) return crop; // Unknown key.
+                    if (!(k.sign & 0x10) && !k.code1) return crop; // Unknown key.
                     keys.push_back(k);
                 }
                 if (keys.empty() || keys.size() > 8)
                 {
                     if (keys.size()) log("%%A maximum of eight keys are allowed per chord", prompt::hids);
+                    return crop;
+                }
+                if (auto& k = keys.front(); k.is_mouse()) // It is mouse event.
+                {
+                    auto& m_chord = crop.emplace_back();
+                    push_mouse(k.sign, k.code1, m_chord);
                     return crop;
                 }
                 // Sort all but last.
