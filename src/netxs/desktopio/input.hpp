@@ -476,7 +476,8 @@ namespace netxs::input
             //  15 bit: 0 - virt code, 1 - scan code ('\x80').
             //  14 bit: 0 - pressed, 1 - released ('\x40').
             //  13 bit: 1 - all subsequent bytes form a grapheme cluster ('\x20').
-            //  0-12 bits: virt or scan code. For clusters it is set to '\x0FFF'.
+            //  12 bit: 1 - mouse code ('\x10').
+            //  0-11 bits: virt, scan or mouse code. For clusters it is set to '\x20FF'('\x60FF').
             static void push_keyid(bool is_pressed, text& vkchord, si32 keyid)
             {
                 vkchord.push_back(is_pressed ? '\x00' : '\x40');
@@ -581,8 +582,8 @@ namespace netxs::input
                 struct key_t
                 {
                     byte sign;
-                    si32 code1;
-                    si32 code2;
+                    si32 code1; // Left (or specific) key code.
+                    si32 code2; // Right (if chord is generic) key code
                     text utf8;
                     auto is_scancode() const { return sign & 0x80; }
                     auto is_pressed() const { return !(sign & 0x40); }
@@ -669,7 +670,11 @@ namespace netxs::input
                     if (!k.code1) return crop; // Unknown key.
                     keys.push_back(k);
                 }
-                if (keys.empty() || keys.size() > 8) return crop; // A maximum of eight keys are allowed per chord.
+                if (keys.empty() || keys.size() > 8)
+                {
+                    if (keys.size()) log("%%A maximum of eight keys are allowed per chord", prompt::hids);
+                    return crop;
+                }
                 // Sort all but last.
                 std::sort(keys.begin(), std::prev(keys.end()), [](auto& l, auto& r){ return l.code1 < r.code1; });
                 // Generate.
@@ -745,15 +750,15 @@ namespace netxs::input
 
         auto _get_chord_list(qiew chord_str = {}) -> std::optional<std::invoke_result_t<decltype(input::key::kmap::chord_list), qiew>>
         {
-            auto chords = input::key::kmap::chord_list(chord_str);
-            if (chords.size())
+            auto binary_chord_list = input::key::kmap::chord_list(chord_str);
+            if (binary_chord_list.size())
             {
-                return std::optional{ chords };
+                return std::optional{ binary_chord_list };
             }
             else
             {
-                if (chord_str) log("%%Unknown key chord: '%chord%'", prompt::user, chord_str);
-                return std::optional<decltype(chords)>{};
+                if (chord_str) log("%%Unknown key chord: '%chord%'", prompt::hids, chord_str);
+                return std::optional<decltype(binary_chord_list)>{};
             }
         }
         auto get_chords(qiew chord_list_str)
@@ -765,36 +770,36 @@ namespace netxs::input
                 auto tail = chord_qiew_list.end();
                 if (auto first_chord_list = _get_chord_list(utf::trim(*head++)))
                 {
-                    auto chords = first_chord_list.value();
+                    auto binary_chord_list = first_chord_list.value();
                     while (head != tail)
                     {
                         auto chord_qiew = *head++;
                         if (auto next_chord_list = _get_chord_list(chord_qiew))
                         {
                             auto& c = next_chord_list.value();
-                            chords.insert(chords.end(), c.begin(), c.end());
+                            binary_chord_list.insert(binary_chord_list.end(), c.begin(), c.end());
                         }
                     }
-                    return std::optional{ chords };
+                    return std::optional{ binary_chord_list };
                 }
             }
             return _get_chord_list();
         }
-        auto bind(auto& handlers, qiew chord_str, auto&& script_ref, bool preview)
+        auto bind(auto& handlers, qiew chord_str, auto&& script_ref, bool is_preview)
         {
             if (!chord_str) return;
-            if (auto chord_list = input::bindings::get_chords(chord_str))
+            if (auto binary_chord_list = input::bindings::get_chords(chord_str))
             {
-                auto& chords = chord_list.value();
+                auto& chords = binary_chord_list.value();
                 auto set = [&](netxs::sptr<text> script_ptr)
                 {
                     if (script_ptr && script_ptr->size())
                     {
-                        for (auto& chord : chords)
+                        for (auto& binary_chord : chords)
                         {
-                            auto& r = handlers[chord];
-                            r.first.emplace_back(script_ptr);
-                            r.second = preview;
+                            auto& [script_ptr_list, preview] = handlers[binary_chord];
+                            script_ptr_list.emplace_back(script_ptr);
+                            preview = is_preview;
                         }
                     }
                     else // Reset all bindings for chords.

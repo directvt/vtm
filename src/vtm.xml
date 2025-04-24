@@ -406,45 +406,71 @@ R"==(
                 <!--
                     //todo Mouse test page
                     Format:
-                        Named:   <Any | Left | Right | LeftRight | Middle><Down | Up | [Double | Triple | Quintuple]Click | Drag<Start | Pull | Stop | Cancel>>:
-                        Generic: <Down | Up | [Double | Triple | Quintuple]Click | Drag{Start | Pull | Stop | Cancel}><bbb...>:
-                            <bbb...>: 0: Any button; 100: Left; 010: Middle; 001: Right; 0001: Button4; 00001: Button5; 101: LeftRight; etc...
+                        Named:   <Mouse | Left | Right | LeftRight | Middle><Down | Up | [Double | Triple | Quintuple]Click | Drag<Start | Pull | Stop | Cancel>>
+                            last 8 bits for 8 mouse buttons
+                            MouseAny            ->                      -> 0x10'00   Any mouse event
+                            MouseDown           -> MouseDown0           -> 0x11'00
+                            MouseUp             -> MouseUp0             -> 0x12'00
+                            MouseClick          -> MouseClick0          -> 0x13'00
+                            MouseDoubleClick    -> MouseDoubleClick0    -> 0x14'00
+                            MouseTripleClick    -> MouseTripleClick0    -> 0x15'00
+                            MouseQuintupleClick -> MouseQuintupleClick0 -> 0x16'00
+                            MouseDragStart      -> MouseDragStart0      -> 0x17'00
+                            MouseDragPull       -> MouseDragPull0       -> 0x18'00
+                            MouseDragStop       -> MouseDragStop0       -> 0x19'00
+                            MouseDragCancel     -> MouseDragCancel0     -> 0x1A'00
+                            MouseLeave          ->                      -> 0x1B'00
+                            MouseEnter          ->                      -> 0x1C'00
+                            MouseMove           ->                      -> 0x1D'00
+                            MouseWheel          ->                      -> 0x1E'00
+                        Generic: <Mouse><Down | Up | [Double | Triple | Quintuple]Click | Drag{Start | Pull | Stop | Cancel}><bbb...>
+                            <bbb...>:
+                                000: Any button
+                                100: Left
+                                010: Middle
+                                001: Right
+                                0001: Button4
+                                00001: Button5
+                                10100: LeftRight
+                                etc... The trailing zeros can be omitted.
                     Action:
-                        Down<bbb...>            Button<bbb...> push down / press.
-                        Up<bbb...>              Button<bbb...> release.
-                        Click<bbb...>           Press and release button<bbb...> w/o movement.
-                            DoubleClick<bbb...>     Double click by button<bbb...>.
-                            TripleClick<bbb...>     Triple click by button<bbb...>.
-                            QuintupleClick<bbb...>  Quintuple click by button<bbb...>.
-                        DragStart<bbb...>       Drag start with button<bbb...> pressed.
-                        DragPull<bbb...>        Drag pull with button<bbb...> pressed.
-                        DragStop<bbb...>        Drag stop with button<bbb...> pressed.
-                        DragCancel<bbb...>      Drag cancel with button<bbb...> pressed.
-                        Enter                   Mouse enter.
-                        Leave                   Mouse leave.
-                        Move                    Mouse move by fp2d delta.
-                        Wheel                   Wheel by fp32 delta.
+                        MouseDown<bbb...>            Button<bbb...> push down / pressed.
+                        MouseUp<bbb...>              Button<bbb...> release.
+                        MouseClick<bbb...>           Press and release button<bbb...> w/o movement.
+                            MouseDoubleClick<bbb...>     Double click by button<bbb...>.
+                            MouseTripleClick<bbb...>     Triple click by button<bbb...>.
+                            MouseQuintupleClick<bbb...>  Quintuple click by button<bbb...>.
+                        MouseDragStart<bbb...>       Drag start with button<bbb...> pressed.
+                        MouseDragPull<bbb...>        Drag pull with button<bbb...> pressed.
+                        MouseDragStop<bbb...>        Drag stop with button<bbb...> pressed.
+                        MouseDragCancel<bbb...>      Drag cancel with button<bbb...> pressed.
+                        MouseEnter              Mouse enter.
+                        MouseLeave              Mouse leave.
+                        MouseMove               Mouse move by fp2d delta.
+                        MouseWheel              Wheel by fp2d delta.
+                        MouseAny                Any mouse event.
 
-                on="mouse:Enter"               Mouse enter.
-                on="mouse:-Enter"              Same as Mouse enter.
-                on="mouse:Ctrl+Enter"          Mouse enter with Ctrl modifier pressed.
-                on="mouse:Leave"
-                on="mouse:Move"
-                on="mouse:Wheel" fp2d: hz/vt
+                on="mouse:MouseEnter"          Mouse enter.
+                on="mouse:-MouseEnter"         Same as Mouse enter.
+                ??? on="mouse:Ctrl+MouseEnter"     Mouse enter with Ctrl modifier pressed.
+                on="mouse:MouseLeave"
+                on="mouse:MouseMove"
+                on="mouse:MouseWheel" fp2d: hz/vt
                 on="mouse:Down1"               Left button push down.
                 on="mouse:Up1"                 Left button release.
                 on="mousepreview:Down01"       Right button push down (preview phase).
                 on="mouse:Click"               Any button click.
                 on="mouse:Click1"              Left button click.
                 on="mouse:Click001"            Right button click.
-                on="mouse:Ctrl+Shift+Click1"   Left button click with Ctrl+Shift modifiers pressed.
-                on="mouse:Ctrl+Shift-Click1"   Same as Ctrl+Shift+Click1.
-                on="mouse:Ctrl+Shift+Down1"    Left button push down with Ctrl+Shift modifiers pressed.
-                on="mouse:Ctrl+ShiftUp1"       Left button release with Ctrl+Shift modifiers pressed.
+                on="mouse:Click101"            Left+Right button click.
+                ?? on="mouse:Ctrl+Shift+Click1"   Left button click with Ctrl+Shift modifiers pressed.
+                ?? on="mouse:Ctrl+Shift-Click1"   Same as Ctrl+Shift+Click1.
+                ?? on="mouse:Ctrl+Shift+Down1"    Left button push down with Ctrl+Shift modifiers pressed.
+                ?? on="mouse:Ctrl+Shift+Up1"      Left button release with Ctrl+Shift modifiers pressed.
                 on="mouse:DoubleClick1"        Double click (and stay pressed) by left button.
                 on="mouse:-DoubleClick1"       Double click (and release) by left button
-                on="mouse:Ctrl+DoubleClick1"   Double click (and stay pressed) by left button with Ctrl modifier pressed.
-                on="mouse:Ctrl-DoubleClick1"   Double click (and release) by left button with Ctrl modifier pressed.
+                ?? on="mouse:Ctrl+DoubleClick1"   Double click (and stay pressed) by left button with Ctrl modifier pressed.
+                ?? on="mouse:Ctrl-DoubleClick1"   Double click (and release) by left button with Ctrl modifier pressed.
                 on="mouse:DragStart101"        Drag start with Left and Right mouse buttons pressed.
                 on="mouse:DragPull101"
                 on="mouse:DragStop101"
@@ -454,8 +480,6 @@ R"==(
                 on="key:Ctrl+B"
                 on="key:-Ctrl"
                 on="key:-Ctrl"
-                on="focus:got"
-                on="focus:lost"
                 -->
                 <script=AlwaysOnTopApplet on="mouse:Click1" on="key:-Enter" on="key:-Space"/> <!-- The default event source is the parent object, i.e. source="item" (aka vtm.item). -->
                 <script>
