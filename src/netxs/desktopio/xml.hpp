@@ -1552,12 +1552,6 @@ namespace netxs::xml
            {{ "left",   bias::left   },
             { "right",  bias::right  },
             { "center", bias::center }};
-
-        static auto binds = std::unordered_map<text, std::pair<si32, bool>>
-           {{ "key",          { netxs::binds::keybd, faux }},
-            { "keypreview",   { netxs::binds::keybd, true }},
-            { "mouse",        { netxs::binds::mouse, faux }},
-            { "mousepreview", { netxs::binds::mouse, true }}};
     }
 }
 namespace netxs

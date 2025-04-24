@@ -579,6 +579,7 @@ namespace netxs::input
             static constexpr auto any_key = qiew{ "\0"sv };
             static auto chord_list(qiew chord)
             {
+                //todo detect is it mouse or keybd chord
                 struct key_t
                 {
                     byte sign;
@@ -588,6 +589,7 @@ namespace netxs::input
                     auto is_scancode() const { return sign & 0x80; }
                     auto is_pressed() const { return !(sign & 0x40); }
                     auto is_cluster() const { return sign & 0x20; }
+                    auto is_mouse() const { return sign & 0x10; }
                 };
                 auto keys = std::vector<key_t>{};
                 auto crop = std::vector<text>{};
@@ -741,25 +743,20 @@ namespace netxs::input
     {
         struct binding_t
         {
-            si32 type{}; // netxs::binds::keybd|mouse|event|...
             text chord;
             bool preview{};
             netxs::sptr<text> script_ptr;
         };
         using vector = std::vector<binding_t>;
 
-        auto _get_chord_list(qiew chord_str = {}) -> std::optional<std::invoke_result_t<decltype(input::key::kmap::chord_list), qiew>>
+        auto _get_chord_list(qiew chord_str = {})
         {
             auto binary_chord_list = input::key::kmap::chord_list(chord_str);
-            if (binary_chord_list.size())
-            {
-                return std::optional{ binary_chord_list };
-            }
-            else
+            if (binary_chord_list.empty())
             {
                 if (chord_str) log("%%Unknown key chord: '%chord%'", prompt::hids, chord_str);
-                return std::optional<decltype(binary_chord_list)>{};
             }
+            return binary_chord_list;
         }
         auto get_chords(qiew chord_list_str)
         {
@@ -768,45 +765,44 @@ namespace netxs::input
             {
                 auto head = chord_qiew_list.begin();
                 auto tail = chord_qiew_list.end();
-                if (auto first_chord_list = _get_chord_list(utf::trim(*head++)))
+                auto binary_chord_list = _get_chord_list(utf::trim(*head++));
+                if (binary_chord_list.size())
                 {
-                    auto binary_chord_list = first_chord_list.value();
                     while (head != tail)
                     {
                         auto chord_qiew = *head++;
-                        if (auto next_chord_list = _get_chord_list(chord_qiew))
-                        {
-                            auto& c = next_chord_list.value();
-                            binary_chord_list.insert(binary_chord_list.end(), c.begin(), c.end());
-                        }
+                        auto next_chord_list = _get_chord_list(chord_qiew);
+                        auto& c = next_chord_list;
+                        binary_chord_list.insert(binary_chord_list.end(), c.begin(), c.end());
                     }
-                    return std::optional{ binary_chord_list };
+                    return binary_chord_list;
                 }
             }
             return _get_chord_list();
         }
-        auto bind(auto& handlers, qiew chord_str, auto&& script_ref, bool is_preview)
+        auto keybind(auto& keybd, auto& mouse, qiew chord_str, auto&& script_ref, bool is_preview = faux)
         {
             if (!chord_str) return;
-            if (auto binary_chord_list = input::bindings::get_chords(chord_str))
+            auto chords = input::bindings::get_chords(chord_str);
+            if (chords.size())
             {
-                auto& chords = binary_chord_list.value();
                 auto set = [&](netxs::sptr<text> script_ptr)
                 {
-                    if (script_ptr && script_ptr->size())
+                    auto set_handler = script_ptr && script_ptr->size();
+                    for (auto& binary_chord : chords) if (binary_chord.size())
                     {
-                        for (auto& binary_chord : chords)
+                        auto is_mouse = binary_chord.front() & 0x10;
+                        auto& handlers = is_mouse ? mouse.handlers
+                                                  : keybd.handlers;
+                        if (set_handler)
                         {
                             auto& [script_ptr_list, preview] = handlers[binary_chord];
                             script_ptr_list.emplace_back(script_ptr);
                             preview = is_preview;
                         }
-                    }
-                    else // Reset all bindings for chords.
-                    {
-                        for (auto& chord : chords)
+                        else // Reset all bindings for chord.
                         {
-                            handlers.erase(chord);
+                            handlers.erase(binary_chord);
                         }
                     }
                 };
@@ -819,6 +815,13 @@ namespace netxs::input
                     auto script_ptr = ptr::shared(text{ script_ref });
                     set(script_ptr);
                 }
+            }
+        }
+        auto keybind(auto& bindings, auto& keybd, auto& mouse)
+        {
+            for (auto& r : bindings)
+            {
+                keybind(keybd, mouse, r.chord, r.script_ptr, r.preview);
             }
         }
         template<class T>
@@ -866,19 +869,23 @@ namespace netxs::input
                 {
                     auto script_body_ptr = ptr::shared(config.expand(script_ptr));
                     auto on_ptr_list = script_ptr->list("on");
+                    auto onpreview_ptr_list = script_ptr->list("onpreview");
+                    auto preview = faux;
+                    auto set = [&](auto event_ptr)
+                    {
+                        auto on_rec = config.expand(event_ptr);
+                        auto shadow = qiew{ on_rec }; // ... on="MouseDown01" ... onpreview="Enter"... .
+                        bindings.push_back({ .chord = shadow, .preview = preview, .script_ptr = script_body_ptr });
+                        //if constexpr (debugmode) log("chord=%% \tpreview=%% script=%%", shadow, (si32)preview, ansi::hi(*script_body_ptr));
+                    };
                     for (auto on_ptr : on_ptr_list)
                     {
-                        auto on_rec = config.expand(on_ptr);
-                        auto shadow = qiew{ on_rec };
-                        auto utf8 = utf::take_front(shadow, ":"); // ... on="mousepreview:Down01".
-                        static auto undef_binding = std::pair{ netxs::binds::undef, faux };
-                        auto [type, preview] = netxs::get_or(xml::options::binds, utf8, undef_binding);
-                        if (type != netxs::binds::undef)
-                        {
-                            shadow.remove_prefix(1); // Pop ":".
-                            bindings.push_back({ .type = type, .chord = shadow, .preview = preview, .script_ptr = script_body_ptr });
-                            //if constexpr (debugmode) log("type=%% chord=%% \tpreview=%% script=%%", type, shadow, (si32)preview, ansi::hi(*script_body_ptr));
-                        }
+                        set(on_ptr);
+                    }
+                    preview = true;
+                    for (auto onpreview_ptr : onpreview_ptr_list)
+                    {
+                        set(onpreview_ptr);
                     }
                 }
             }

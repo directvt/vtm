@@ -1754,9 +1754,10 @@ namespace netxs::ui
             std::map<si32, subs> dragmemo; // mouse: Draggable subs.
 
             netxs::sptr<std::unordered_map<text, wptr>> scripting_context_ptr; // mouse: Script execution context: sptr<map<$object_name_str, $object_wptr>>.
-            std::unordered_map<text, std::pair<std::list<netxs::sptr<text>>, bool>, qiew::hash, qiew::equal> handlers; // mouse: Map<chord, pair<list<shared_ptr<script>>, preview>>.
 
         public:
+            std::unordered_map<text, std::pair<std::list<netxs::sptr<text>>, bool>, qiew::hash, qiew::equal> handlers; // mouse: Map<chord, pair<list<shared_ptr<script>>, preview>>.
+
             mouse(base&&) = delete;
             mouse(base& boss, bool take_all_events = true)
                 : skill{ boss            },
@@ -1853,17 +1854,6 @@ namespace netxs::ui
                 };
             }
 
-            auto bind(qiew chord_str, auto&& script_ref, bool preview = faux)
-            {
-                input::bindings::bind(handlers, chord_str, script_ref, preview);
-            }
-            auto bind(auto& bindings)
-            {
-                for (auto& r : bindings) if (r.type == binds::mouse)
-                {
-                    bind(r.chord, r.script_ptr, r.preview);
-                }
-            }
             void reset()
             {
                 auto lock = boss.bell::sync();
@@ -1944,13 +1934,14 @@ namespace netxs::ui
                   skill::memo;
 
             netxs::sptr<std::unordered_map<text, wptr>> scripting_context_ptr; // keybd: Script execution context: sptr<map<$object_name_str, $object_wptr>>.
-            std::unordered_map<text, std::pair<std::list<netxs::sptr<text>>, bool>, qiew::hash, qiew::equal> handlers; // keybd: Map<chord, pair<list<shared_ptr<script>>, preview>>.
             std::list<std::pair<text, wptr>> context_names; // keybd: .
 
             std::unordered_map<id_t, time> last_key; // keybd: .
             si64 instance_id; // keybd: .
 
         public:
+            std::unordered_map<text, std::pair<std::list<netxs::sptr<text>>, bool>, qiew::hash, qiew::equal> handlers; // keybd: Map<chord, pair<list<shared_ptr<script>>, preview>>.
+
             keybd(base&&) = delete;
             keybd(base& boss)
                 : skill{ boss },
@@ -2025,18 +2016,6 @@ namespace netxs::ui
                         if (!gear.touched && !gear.handled) input::bindings::dispatch(boss, instance_id, scripting_context_ptr, handlers, gear, true, input::key::kmap::any_key);
                     }
                 };
-            }
-
-            auto bind(qiew chord_str, auto&& script_ref, bool preview = faux)
-            {
-                input::bindings::bind(handlers, chord_str, script_ref, preview);
-            }
-            auto bind(auto& bindings)
-            {
-                for (auto& r : bindings) if (r.type == binds::keybd)
-                {
-                    bind(r.chord, r.script_ptr, r.preview);
-                }
             }
         };
 

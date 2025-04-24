@@ -352,8 +352,7 @@ namespace netxs::app::tile
                         auto& mouse = boss.base::template plugin<pro::mouse>();
                         auto& luafx = boss.base::template plugin<pro::luafx>();
                         auto& bindings = *grip_bindings_ptr;
-                        keybd.bind(bindings);
-                        mouse.bind(bindings);
+                        input::bindings::keybind(bindings, keybd, mouse);
                         luafx.activate("grip",
                         {
                             { action::MoveGrip,         [&]
@@ -1061,8 +1060,7 @@ namespace netxs::app::tile
                     auto& mouse = boss.base::template plugin<pro::mouse>(); //todo Apple clang reqires template
                     auto& luafx = boss.base::template plugin<pro::luafx>();
                     auto bindings = input::bindings::load(config, "tile");
-                    keybd.bind(bindings);
-                    mouse.bind(bindings);
+                    input::bindings::keybind(bindings, keybd, mouse);
                     luafx.activate("tile",
                     {
                         { action::FocusNextPaneOrGrip,  [&]

@@ -131,15 +131,6 @@ namespace netxs
         snap y = snap::both;
     };
 
-    namespace binds
-    {
-        static constexpr auto _counter = __COUNTER__ + 1;
-        static constexpr auto undef = __COUNTER__ - _counter;
-        static constexpr auto event = __COUNTER__ - _counter;
-        static constexpr auto keybd = __COUNTER__ - _counter;
-        static constexpr auto mouse = __COUNTER__ - _counter;
-    }
-
     enum axis { X, Y };
 
     enum class axes

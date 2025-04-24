@@ -798,11 +798,12 @@ namespace netxs::app::shared
             {
                 auto& items_inst = *items;
                 auto& state_inst = *state_state;
-                auto& luafx = boss.base::template plugin<pro::luafx>(); //todo Apple clang requires template
                 auto& keybd = boss.base::template plugin<pro::keybd>();
+                auto& mouse = boss.base::template plugin<pro::mouse>();
+                auto& luafx = boss.base::template plugin<pro::luafx>(); //todo Apple clang requires template
                 app::shared::base_kb_navigation(config, scroll, boss);
-                keybd.bind("Any", "vtm.infopage.UpdateChordPreview()");
-                keybd.bind(
+                input::bindings::keybind(keybd, mouse, "Any", "vtm.infopage.UpdateChordPreview()");
+                input::bindings::keybind(keybd, mouse,
                     #if defined(WIN32)
                     "Ctrl-Alt | Alt-Ctrl"
                     #else
