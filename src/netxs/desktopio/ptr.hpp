@@ -55,7 +55,7 @@ namespace netxs
             };
         }
         template<class F>
-        auto function(F lambda) // Don't use lambdas/functions with auto args here.
+        auto sharedfx(F lambda) // Don't use lambdas/functions with auto args here.
         {
             return ptr::shared(typename _function<F>::type{ lambda });
         }

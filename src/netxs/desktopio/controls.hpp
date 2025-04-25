@@ -1758,13 +1758,14 @@ namespace netxs::ui
             {
                 //log("mouse: handlers.size=", handlers.size());
                 auto iter = handlers.find(gear.cause);
-                if (iter != handlers.end())
+                auto exec = [&]
                 {
                     auto& handler_list = iter->second;
-                    for (auto& [fx, script_ptr] : handler_list)
+                    for (auto& [fx_ptr, script_ptr] : handler_list)
                     {
-                        if (fx)
+                        if (fx_ptr)
                         {
+                            auto& fx = *fx_ptr;
                             fx(gear);
                         }
                         else if (script_ptr)
@@ -1772,12 +1773,25 @@ namespace netxs::ui
                             //log("  run script: ", ansi::hi(*script_ptr));
                         }
                     }
+                };
+                if (iter != handlers.end())
+                {
+                    exec();
+                }
+                if (gear.cause & 0xFF/*check bttn_id*/)
+                {
+                    auto any_bttn_event = gear.cause & 0xFF00; // Set bttn_id = 0.
+                    iter = handlers.find(any_bttn_event);
+                    if (iter != handlers.end())
+                    {
+                        exec();
+                    }
                 }
             }
 
         public:
-            std::unordered_map<si32, std::list<std::pair<std::function<void(hids&)>, netxs::sptr<text>>>> release_handlers; // mouse: Map<mouse_event_id, list<pair<std::function<void(hids&)>, sptr<script>>>>.
-            std::unordered_map<si32, std::list<std::pair<std::function<void(hids&)>, netxs::sptr<text>>>> preview_handlers; // mouse: Map<mouse_event_id, list<pair<std::function<void(hids&)>, sptr<script>>>>.
+            std::unordered_map<si32, std::list<std::pair<netxs::sptr<std::function<void(hids&)>>, netxs::sptr<text>>>> release_handlers; // mouse: Map<mouse_event_id, list<pair<std::function<void(hids&)>, sptr<script>>>>.
+            std::unordered_map<si32, std::list<std::pair<netxs::sptr<std::function<void(hids&)>>, netxs::sptr<text>>>> preview_handlers; // mouse: Map<mouse_event_id, list<pair<std::function<void(hids&)>, sptr<script>>>>.
 
             mouse(base&&) = delete;
             mouse(base& boss, bool take_all_events = true)
@@ -1812,17 +1826,15 @@ namespace netxs::ui
                 };
 
                 // pro::mouse: Amplify mouse hover on any button press.
-                boss.LISTEN(tier::release, input::events::mouse::button::any, gear, memo)
+                auto amplify_mouse_hover = ptr::sharedfx([&](hids& gear)
                 {
-                    if (netxs::events::subevent(gear.cause, input::events::mouse::button::down::any.id)
-                     || netxs::events::subevent(gear.cause, input::events::mouse::button::up::any.id))
-                    {
-                        boss.base::signal(tier::release, e2::form::state::hover, rent + gear.mouse::pressed_count);
-                    }
-                };
+                    boss.base::signal(tier::release, e2::form::state::hover, rent + gear.mouse::pressed_count);
+                });
+                release_handlers[input::key::MouseDown].emplace_back().first = amplify_mouse_hover;
+                release_handlers[input::key::MouseUp  ].emplace_back().first = amplify_mouse_hover;
                 // pro::mouse: Notify about change in number of mouse hovering clients.
                 //boss.on(input::key::MouseEnter, [&](hids& gear) // Notify when the number of clients is positive.
-                release_handlers[input::key::MouseEnter].emplace_back().first = [&](hids& gear) // Notify when the number of clients is positive.
+                release_handlers[input::key::MouseEnter].emplace_back().first = ptr::sharedfx([&](hids& gear) // Notify when the number of clients is positive.
                 {
                     if (!full++)
                     {
@@ -1836,9 +1848,9 @@ namespace netxs::ui
                         }
                         boss.base::signal(tier::release, e2::form::state::hover, rent);
                     }
-                };
+                });
                 //boss.on(input::key::MouseLeave, [&](hids& gear) // Notify when the number of clients is zero.
-                release_handlers[input::key::MouseLeave].emplace_back().first = [&](hids& gear) // Notify when the number of clients is zero.
+                release_handlers[input::key::MouseLeave].emplace_back().first = ptr::sharedfx([&](hids& gear) // Notify when the number of clients is zero.
                 {
                     if (gear.direct<faux>(boss.bell::id) || omni)
                     {
@@ -1853,7 +1865,7 @@ namespace netxs::ui
                         soul->base::strike();
                         soul.reset();
                     }
-                };
+                });
                 boss.LISTEN(tier::request, e2::form::state::mouse, state, memo)
                 {
                     state = rent;
@@ -3204,11 +3216,11 @@ namespace netxs::ui
         }
         void on(si32 mouse_event_id, auto handler)
         {
-            mouse.release_handlers[mouse_event_id].emplace_back().first = handler;
+            mouse.release_handlers[mouse_event_id].emplace_back().first = ptr::sharedfx(handler);
         }
         void onpreview(si32 mouse_event_id, auto handler)
         {
-            mouse.preview_handlers[mouse_event_id].emplace_back().first = handler;
+            mouse.preview_handlers[mouse_event_id].emplace_back().first = ptr::sharedfx(handler);
         }
         //void on(qiew keybd_chord, qiew script)
         //{
