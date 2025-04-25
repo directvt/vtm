@@ -106,21 +106,25 @@ namespace netxs::events
     {
         virtual ~handler() = default;
     };
+
     struct hook : sptr<handler>
     {
         using sptr<handler>::sptr;
         auto& operator - (si32) { return *this; }
     };
+
     template<class Arg>
-    using hndl = std::function<void(Arg&)>;
+    using fx = std::function<void(Arg&)>;
+
     template<class Arg>
     struct fxwrapper : handler
     {
-        hndl<Arg> proc;
-        fxwrapper(hndl<Arg>&& proc)
+        fx<Arg> proc;
+        fxwrapper(fx<Arg>&& proc)
             : proc{ std::move(proc) }
         { }
     };
+
     struct reactor
     {
         using list = std::list<wptr<handler>>;
@@ -158,7 +162,7 @@ namespace netxs::events
             del_count += ldel;
         }
         template<class Arg>
-        hook subscribe(hint event, hndl<Arg>&& proc)
+        hook subscribe(hint event, fx<Arg>&& proc)
         {
             auto proc_ptr = std::make_shared<fxwrapper<Arg>>(std::move(proc));
             stock[event].push_back(proc_ptr);
@@ -259,7 +263,7 @@ namespace netxs::events
         {
             if (e2_config_fps_id)
             {
-                memo = general.subscribe(e2_config_fps_id, hndl<si32>{ [&](si32& new_fps)
+                memo = general.subscribe(e2_config_fps_id, fx<si32>{ [&](si32& new_fps)
                 {
                     if (new_fps > 0)
                     {
@@ -343,7 +347,7 @@ namespace netxs::events
         }
         // auth: .
         template<bool Sync = true>
-        void enqueue(wptr<ui::base> object_wptr, std::function<void(ui::base&)> proc)
+        void enqueue(wptr<ui::base> object_wptr, fx<ui::base> proc)
         {
             agent.add(object_wptr, [&, proc](auto& object_wptr) mutable
             {
@@ -462,7 +466,7 @@ namespace netxs::events
         reactor anycast{ faux };
         reactor* reactors[5] = { &general, &release, &preview, &request, &anycast };
 
-        template<class Event>
+        template<class Event, class Arg = Event::type>
         struct submit_helper
         {
             bell& owner;
@@ -471,12 +475,12 @@ namespace netxs::events
                 : owner{ owner },
                   level{ level }
             { }
-            void operator = (std::function<void(typename Event::type&)> handler)
+            void operator = (fx<Arg> handler)
             {
                 owner.submit(level, Event{}, std::move(handler));
             }
         };
-        template<class Event>
+        template<class Event, class Arg = Event::type>
         struct submit_helper_token
         {
             bell& owner;
@@ -487,7 +491,7 @@ namespace netxs::events
                   token{ token },
                   level{ level }
             { }
-            void operator = (std::function<void(typename Event::type&)> handler)
+            void operator = (fx<Arg> handler)
             {
                 owner.submit(level, Event{}, token, std::move(handler));
             }
@@ -498,14 +502,14 @@ namespace netxs::events
         template<class Event> auto submit(si32 Tier, Event, si32)         { return submit_helper      <Event>(Tier, *this);                        }
         template<class Event> auto submit(si32 Tier, Event, hook& token)  { return submit_helper_token<Event>(Tier, *this, token);                 }
         template<class Event> auto submit(si32 Tier, Event, subs& tokens) { return submit_helper_token<Event>(Tier, *this, tokens.emplace_back()); }
-        template<class Event>
-        void submit(si32 Tier, Event, std::function<void(typename Event::type&)>&& handler)
+        template<class Event, class Arg = Event::type>
+        void submit(si32 Tier, Event, fx<Arg>&& handler)
         {
             auto lock = indexer.sync();
             sensors.push_back(reactors[Tier]->subscribe(Event::id, std::move(handler)));
         }
-        template<class Event>
-        void submit(si32 Tier, Event, hook& token, std::function<void(typename Event::type&)>&& handler)
+        template<class Event, class Arg = Event::type>
+        void submit(si32 Tier, Event, hook& token, fx<Arg>&& handler)
         {
             auto lock = indexer.sync();
             token = reactors[Tier]->subscribe(Event::id, std::move(handler));
