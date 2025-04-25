@@ -8210,7 +8210,7 @@ namespace netxs::ui
             selection_selmod(config.def_selmod);
 
             auto& keybd = base::plugin<pro::keybd>();
-            auto& mouse = base::plugin<pro::mouse>();
+            //auto& mouse = base::plugin<pro::mouse>();
             auto& luafx = base::plugin<pro::luafx>();
             auto bindings = input::bindings::load(xml_config, "terminal");
             input::bindings::keybind(bindings, keybd, mouse);

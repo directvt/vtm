@@ -1741,10 +1741,9 @@ namespace netxs::ui
 
         // pro: Mouse events.
         class mouse
-            : public skill
         {
-            using skill::boss,
-                  skill::memo;
+            base& boss;
+            subs  memo;
 
             sptr soul; // mouse: Boss cannot be removed while it has active gears.
             bool omni; // mouse: Ability to accept all hover events (true) or only directly over the object (faux).
@@ -1755,20 +1754,45 @@ namespace netxs::ui
 
             netxs::sptr<std::unordered_map<text, wptr>> scripting_context_ptr; // mouse: Script execution context: sptr<map<$object_name_str, $object_wptr>>.
 
+            void dispatch(hids& gear, auto& handlers)
+            {
+                //log("mouse: handlers.size=", handlers.size());
+                auto iter = handlers.find(gear.cause);
+                if (iter != handlers.end())
+                {
+                    auto& handler_list = iter->second;
+                    for (auto& [fx, script_ptr] : handler_list)
+                    {
+                        if (fx)
+                        {
+                            fx(gear);
+                        }
+                        else if (script_ptr)
+                        {
+                            //log("  run script: ", ansi::hi(*script_ptr));
+                        }
+                    }
+                }
+            }
+
         public:
-            std::unordered_map<text, std::pair<std::list<netxs::sptr<text>>, bool>, qiew::hash, qiew::equal> handlers; // mouse: Map<chord, pair<list<shared_ptr<script>>, preview>>.
+            std::unordered_map<si32, std::list<std::pair<std::function<void(hids&)>, netxs::sptr<text>>>> release_handlers; // mouse: Map<mouse_event_id, list<pair<std::function<void(hids&)>, sptr<script>>>>.
+            std::unordered_map<si32, std::list<std::pair<std::function<void(hids&)>, netxs::sptr<text>>>> preview_handlers; // mouse: Map<mouse_event_id, list<pair<std::function<void(hids&)>, sptr<script>>>>.
 
             mouse(base&&) = delete;
             mouse(base& boss, bool take_all_events = true)
-                : skill{ boss            },
-                   omni{ take_all_events },
-                   rent{ 0               },
-                   full{ 0               },
-                   drag{ 0               }
+                : boss{ boss            },
+                  omni{ take_all_events },
+                  rent{ 0               },
+                  full{ 0               },
+                  drag{ 0               }
             {
                 // pro::mouse: Forward preview to all parents.
                 boss.LISTEN(tier::preview, input::events::mouse::any, gear, memo)
                 {
+                    //log("mouse cause=%% boss.id=%%", utf::to_hex_0x(gear.cause), boss.id);
+                    dispatch(gear, preview_handlers);
+
                     auto offset = boss.base::coor() + boss.base::intpad.corner();
                     gear.pass(tier::preview, boss.base::parent(), offset);
 
@@ -1776,9 +1800,11 @@ namespace netxs::ui
                     else      boss.bell::expire(tier::preview);
                 };
                 // pro::mouse: Forward all not expired mouse events to all parents.
-                boss.LISTEN(tier::release, input::events::mouse::any, gear, memo)
+                boss.LISTEN(tier::release, input::events::mouse::post, gear, memo)
                 {
-                    if ((gear && !gear.captured()) || gear.cause == input::events::mouse::hover::enter.id || gear.cause == input::events::mouse::hover::leave.id)
+                    dispatch(gear, release_handlers);
+
+                    if ((gear && !gear.captured()) || gear.cause == input::key::MouseEnter || gear.cause == input::key::MouseLeave)
                     {
                         auto offset = boss.base::coor() + boss.base::intpad.corner();
                         gear.pass(tier::release, boss.base::parent(), offset);
@@ -1795,38 +1821,37 @@ namespace netxs::ui
                     }
                 };
                 // pro::mouse: Notify about change in number of mouse hovering clients.
-                boss.LISTEN(tier::release, input::events::mouse::hover::any, gear, memo)
+                //boss.on(input::key::MouseEnter, [&](hids& gear) // Notify when the number of clients is positive.
+                release_handlers[input::key::MouseEnter].emplace_back().first = [&](hids& gear) // Notify when the number of clients is positive.
                 {
-                    if (gear.cause == input::events::mouse::hover::enter.id) // Notify when the number of clients is positive.
+                    if (!full++)
                     {
-                        if (!full++)
-                        {
-                            soul = boss.This();
-                        }
-                        if (gear.direct<true>(boss.bell::id) || omni)
-                        {
-                            if (!rent++)
-                            {
-                                boss.base::signal(tier::release, e2::form::state::mouse, rent);
-                            }
-                            boss.base::signal(tier::release, e2::form::state::hover, rent);
-                        }
+                        soul = boss.This();
                     }
-                    else if (gear.cause == input::events::mouse::hover::leave.id) // Notify when the number of clients is zero.
+                    if (gear.direct<true>(boss.bell::id) || omni)
                     {
-                        if (gear.direct<faux>(boss.bell::id) || omni)
+                        if (!rent++)
                         {
-                            if (!--rent)
-                            {
-                                boss.base::signal(tier::release, e2::form::state::mouse, rent);
-                            }
-                            boss.base::signal(tier::release, e2::form::state::hover, rent);
+                            boss.base::signal(tier::release, e2::form::state::mouse, rent);
                         }
-                        if (!--full)
+                        boss.base::signal(tier::release, e2::form::state::hover, rent);
+                    }
+                };
+                //boss.on(input::key::MouseLeave, [&](hids& gear) // Notify when the number of clients is zero.
+                release_handlers[input::key::MouseLeave].emplace_back().first = [&](hids& gear) // Notify when the number of clients is zero.
+                {
+                    if (gear.direct<faux>(boss.bell::id) || omni)
+                    {
+                        if (!--rent)
                         {
-                            soul->base::strike();
-                            soul.reset();
+                            boss.base::signal(tier::release, e2::form::state::mouse, rent);
                         }
+                        boss.base::signal(tier::release, e2::form::state::hover, rent);
+                    }
+                    if (!--full)
+                    {
+                        soul->base::strike();
+                        soul.reset();
                     }
                 };
                 boss.LISTEN(tier::request, e2::form::state::mouse, state, memo)
@@ -1940,6 +1965,7 @@ namespace netxs::ui
             si64 instance_id; // keybd: .
 
         public:
+            //todo make scripts precompiled
             std::unordered_map<text, std::pair<std::list<netxs::sptr<text>>, bool>, qiew::hash, qiew::equal> handlers; // keybd: Map<chord, pair<list<shared_ptr<script>>, preview>>.
 
             keybd(base&&) = delete;
@@ -2943,6 +2969,8 @@ namespace netxs::ui
         std::map<id_t, subs> memomap; // form: Token set for dependent subscriptions.
 
     public:
+        pro::mouse& mouse; // form: .
+
         auto This() { return base::This<T>(); }
         template<class TT = T, class ...Args>
         static auto ctor(Args&&... args)
@@ -3174,12 +3202,27 @@ namespace netxs::ui
             auto context = parent_canvas.change_basis(basis, true);
             return context;
         }
+        void on(si32 mouse_event_id, auto handler)
+        {
+            mouse.release_handlers[mouse_event_id].emplace_back().first = handler;
+        }
+        void onpreview(si32 mouse_event_id, auto handler)
+        {
+            mouse.preview_handlers[mouse_event_id].emplace_back().first = handler;
+        }
+        //void on(qiew keybd_chord, qiew script)
+        //{
+        //    keybd.handlers[keybd_chord].emplace_back(std::pair{ script_ptr, faux });
+        //}
+        //void onpreview(qiew keybd_chord, qiew script)
+        //{
+        //    keybd.handlers[keybd_chord].emplace_back(std::pair{ script_ptr, true });
+        //}
 
         form()
-            : base{ ui::tui_domain() }
-        {
-            base::plugin<pro::mouse>();
-        }
+            : base{ ui::tui_domain() },
+              mouse{ base::plugin<pro::mouse>() }
+        { }
     };
 
     // controls: Splitter.

@@ -30,6 +30,7 @@ namespace netxs::events::userland
             };
             SUBSET_XS( mouse )
             {
+                EVENT_XS( post  , input::hids ),
                 EVENT_XS( move  , input::hids ),
                 GROUP_XS( hover , input::hids ),
                 GROUP_XS( scroll, input::hids ),
@@ -861,17 +862,34 @@ namespace netxs::input
                     for (auto& binary_chord : chords) if (binary_chord.size())
                     {
                         auto is_mouse = binary_chord.front() & input::key::mouse_sign;
-                        auto& handlers = is_mouse ? mouse.handlers
-                                                  : keybd.handlers;
-                        if (set_handler)
+                        if (is_mouse)
                         {
-                            auto& [script_ptr_list, preview] = handlers[binary_chord];
-                            script_ptr_list.emplace_back(script_ptr);
-                            preview = is_preview;
+                            auto& handlers = is_preview ? mouse.preview_handlers
+                                                        : mouse.release_handlers;
+                            auto mouse_event_id = (binary_chord[0] << 8) | binary_chord[1];
+                            if (set_handler)
+                            {
+                                auto& handler_list = handlers[mouse_event_id];
+                                handler_list.emplace_back().second = script_ptr;
+                            }
+                            else // Reset all bindings for mouse_event_id.
+                            {
+                                //todo revise  erasing non-interactive (non-script) handlers
+                                handlers.erase(mouse_event_id);
+                            }
                         }
-                        else // Reset all bindings for chord.
+                        else
                         {
-                            handlers.erase(binary_chord);
+                            if (set_handler)
+                            {
+                                auto& [script_ptr_list, preview] = keybd.handlers[binary_chord];
+                                script_ptr_list.emplace_back(script_ptr);
+                                preview = is_preview;
+                            }
+                            else // Reset all bindings for chord.
+                            {
+                                keybd.handlers.erase(binary_chord);
+                            }
                         }
                     }
                 };
@@ -1141,17 +1159,17 @@ namespace netxs::input
         si32 bttn_id = {}; // mouse: Logical button id.
         bool dragged = {}; // mouse: The button is dragged.
         fp2d pressxy = {}; // mouse: Press coordinates.
-        void m2_sglclick()    { log("sgl click   bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin<si16>(bttn_id), coord, pressxy); }
-        void m2_dblclick()    { log("dbl click   bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin<si16>(bttn_id), coord, pressxy); }
-        void m2_multiclick()  { log("tpl click   bttn=%% \tcoor=%% \tpressxy=%% \tclicks=%%", utf::to_bin<si16>(bttn_id),   coord, pressxy, stamp[bttn_id].count + 1); }
-        void m2_move()        { log("move        bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin<si16>(bttn_id), coord, pressxy); }
-        void m2_push()        { log("push        bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin<si16>(bttn_id), coord, pressxy); }
-        void m2_up()          { log("up          bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin<si16>(bttn_id), coord, pressxy); }
-        void m2_drag_start()  { log("drag_start  bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin<si16>(bttn_id), coord, pressxy); }
-        void m2_drag_pull()   { log("drag_pull   bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin<si16>(bttn_id), coord, pressxy); }
-        void m2_drag_cancel() { log("drag_cancel bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin<si16>(bttn_id), coord, pressxy); }
-        void m2_drag_stop()   { log("drag_stop   bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin<si16>(bttn_id), coord, pressxy); }
-        void m2_wheel()       { log("wheel       bttn=%% \tcoor=%% \thzwhl=%% whlfp=%% whlsi=%%", utf::to_bin<si16>(bttn_id), coord, hzwhl, whlfp, whlsi); }
+        void m2_multiclick(si32 n) { fire(input::key::MouseDoubleClick | bttn_id | (n << 8)); log("tpl click   bttn=%% \tcoor=%% \tpressxy=%% \tclicks=%%", utf::to_bin((si16)bttn_id),   coord, pressxy, stamp[bttn_id].count + 1); }
+        void m2_sglclick()         { fire(input::key::MouseClick       | bttn_id); log("sgl click   bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin((si16)bttn_id), coord, pressxy); }
+        void m2_dblclick()         { fire(input::key::MouseDoubleClick | bttn_id); log("dbl click   bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin((si16)bttn_id), coord, pressxy); }
+        void m2_move()             { fire(input::key::MouseMove                 ); log("move        bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin((si16)bttn_id), coord, pressxy); }
+        void m2_push()             { fire(input::key::MouseDown        | bttn_id); log("push        bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin((si16)bttn_id), coord, pressxy); }
+        void m2_up()               { fire(input::key::MouseUp          | bttn_id); log("up          bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin((si16)bttn_id), coord, pressxy); }
+        void m2_drag_start()       { fire(input::key::MouseDragStart   | bttn_id); log("drag_start  bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin((si16)bttn_id), coord, pressxy); }
+        void m2_drag_pull()        { fire(input::key::MouseDragPull    | bttn_id); log("drag_pull   bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin((si16)bttn_id), coord, pressxy); }
+        void m2_drag_cancel()      { fire(input::key::MouseDragCancel  | bttn_id); log("drag_cancel bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin((si16)bttn_id), coord, pressxy); }
+        void m2_drag_stop()        { fire(input::key::MouseDragStop    | bttn_id); log("drag_stop   bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin((si16)bttn_id), coord, pressxy); }
+        void m2_wheel()            { fire(input::key::MouseWheel                ); log("wheel       bttn=%% \tcoor=%% \thzwhl=%% whlfp=%% whlsi=%%", utf::to_bin((si16)bttn_id), coord, hzwhl, whlfp, whlsi); }
         void m2_click()
         {
             m2_sglclick();
@@ -1171,7 +1189,7 @@ namespace netxs::input
                     }
                     else if (s.count > 1)
                     {
-                        m2_multiclick();
+                        m2_multiclick(s.count);
                         if (s.count == 5 - 1) // Limit to quintuple click. 0-based.
                         {
                             s.fired = {};
@@ -2016,18 +2034,20 @@ namespace netxs::input
         {
             if (object_ptr)
             {
-                auto temp_coord = mouse::coord;
-                auto temp_click = mouse::click;
+                auto saved_coord = mouse::coord;
+                auto saved_click = mouse::click;
+                auto saved_cause = mouse::cause;
                 if (relative)
                 {
                     object_ptr->global(coord);
-                    click += coord - temp_coord;
+                    click += coord - saved_coord;
                 }
                 mouse::coord += offset;
                 mouse::click += offset;
-                object_ptr->base::signal(Tier, mouse::cause, *this);
-                mouse::coord = temp_coord;
-                mouse::click = temp_click;
+                object_ptr->base::signal(Tier, input::events::mouse::post, *this);
+                mouse::coord = saved_coord;
+                mouse::click = saved_click;
+                mouse::cause = saved_cause;
             }
         }
         void mouse_leave(id_t last_id, id_t start_id)
@@ -2037,8 +2057,8 @@ namespace netxs::input
                 if (auto last = bell::getref<base>(last_id))
                 {
                     auto saved_start = std::exchange(mouse::start, start_id);
-                    auto saved_cause = std::exchange(mouse::cause, input::events::mouse::hover::leave.id);
-                    last->base::signal(tier::release, mouse::cause, *this);
+                    auto saved_cause = std::exchange(mouse::cause, input::key::MouseLeave);
+                    last->base::signal(tier::release, input::events::mouse::post, *this);
                     mouse::start = saved_start;
                     mouse::cause = saved_cause;
                 }
@@ -2064,8 +2084,8 @@ namespace netxs::input
                 // to avoid flickering the parent object state when focus
                 // acquired by children.
                 auto start_leave = std::exchange(mouse::start, 0); // The first one to track the mouse will assign itself by calling gear.direct<true>(id).
-                auto saved_cause = std::exchange(mouse::cause, input::events::mouse::hover::enter.id);
-                boss.base::signal(tier::release, mouse::cause, *this);
+                auto saved_cause = std::exchange(mouse::cause, input::key::MouseEnter);
+                boss.base::signal(tier::release, input::events::mouse::post, *this);
                 mouse_leave(mouse::hover, start_leave);
                 mouse::hover = boss.id;
                 mouse::cause = saved_cause;
@@ -2097,7 +2117,9 @@ namespace netxs::input
             if (boss.id == relay)
             {
                 redirect_mouse_focus(boss);
-                boss.base::signal(tier::release, mouse::cause, *this);
+                auto saved_cause = mouse::cause;
+                boss.base::signal(tier::release, input::events::mouse::post, *this);
+                mouse::cause = saved_cause;
             }
         }
         void fire(hint new_cause)//, si32 new_index = mouse::noactive)
@@ -2121,7 +2143,7 @@ namespace netxs::input
 
                     if (alive && !captured()) // Pass unhandled event to the gate.
                     {
-                        owner.base::signal(tier::release, new_cause, *this);
+                        owner.base::signal(tier::release, input::events::mouse::post, *this);
                     }
                 }
                 else mouse::setfree();
@@ -2129,7 +2151,7 @@ namespace netxs::input
             else
             {
                 if (!tooltip_stop) tooltip_recalc(new_cause);
-                owner.base::signal(tier::preview, new_cause, *this);
+                owner.base::signal(tier::preview, input::events::mouse::post, *this);
 
                 if (!alive) return;
 
@@ -2143,7 +2165,7 @@ namespace netxs::input
                     if (!alive) return;
                 }
 
-                owner.base::signal(tier::release, new_cause, *this); // Pass unhandled event to the gate.
+                owner.base::signal(tier::release, input::events::mouse::post, *this); // Pass unhandled event to the gate.
             }
         }
         bool fire_fast()

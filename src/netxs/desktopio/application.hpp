@@ -455,31 +455,31 @@ namespace netxs::app::shared
                     { menu::item{ menu::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "—", .tooltip = " Minimize " }}},//, .hover = c2 }}}, //toto too funky
                     [](auto& boss, auto& /*item*/)
                     {
-                        boss.LISTEN(tier::release, input::events::mouse::button::click::left, gear)
+                        boss.on(input::key::LeftClick, [&](hids& gear)
                         {
                             boss.base::riseup(tier::preview, e2::form::size::minimize, gear);
                             gear.dismiss();
-                        };
+                        });
                     }},
                     { menu::item{ menu::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "□", .tooltip = " Maximize " }}},//, .hover = c6 }}},
                     [](auto& boss, auto& /*item*/)
                     {
-                        boss.LISTEN(tier::release, input::events::mouse::button::click::left, gear)
+                        boss.on(input::key::LeftClick, [&](hids& gear)
                         {
                             boss.base::riseup(tier::preview, e2::form::size::enlarge::maximize, gear);
                             gear.dismiss();
-                        };
+                        });
                     }},
                     { menu::item{ menu::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "×", .tooltip = " Close ", .hover = c1 }}},
                     [c1](auto& boss, auto& /*item*/)
                     {
                         boss.template shader<tier::anycast>(cell::shaders::color(c1), e2::form::state::keybd::command::close);
-                        boss.LISTEN(tier::release, input::events::mouse::button::click::left, gear)
+                        boss.on(input::key::LeftClick, [&](hids& gear)
                         {
-                            auto backup = boss.This();
+                            auto backup = boss.This(); //todo revise backup
                             boss.base::signal(tier::anycast, e2::form::proceed::quit::one, faux); // fast=faux: Show closing process.
                             gear.dismiss();
-                        };
+                        });
                     }},
                 };
                 if (macstyle)

@@ -654,7 +654,7 @@ namespace netxs::app::vtm
                 base::plugin<pro::light>();
                 base::plugin<pro::focus>();
                 auto& keybd = base::plugin<pro::keybd>();
-                auto& mouse = base::plugin<pro::mouse>();
+                //auto& mouse = base::plugin<pro::mouse>();
                 auto& luafx = base::plugin<pro::luafx>();
                 base::limits(dot_11);
                 base::kind(base::reflow_root);
@@ -1251,7 +1251,7 @@ namespace netxs::app::vtm
 
             base::plugin<pro::focus>(pro::focus::mode::focusable);
             auto& keybd = base::plugin<pro::keybd>();
-            auto& mouse = base::plugin<pro::mouse>();
+            //auto& mouse = base::plugin<pro::mouse>();
             auto& luafx = base::plugin<pro::luafx>();
             auto bindings = input::bindings::load(config, "desktop");
             input::bindings::keybind(bindings, keybd, mouse);

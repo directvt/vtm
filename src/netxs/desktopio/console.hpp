@@ -731,7 +731,7 @@ namespace netxs::ui
             //       but any form can move under the cursor, so for the form itself,
             //       the mouse cursor moves inside the form.
             base::ruined(faux);
-            fire(input::events::mouse::move.id);
+            fire(input::key::MouseMove);
         }
         // gate: Rx loop.
         void launch()
@@ -759,7 +759,7 @@ namespace netxs::ui
         {
             base::plugin<pro::focus>();
             auto& keybd = base::plugin<pro::keybd>();
-            auto& mouse = base::plugin<pro::mouse>();
+            //auto& mouse = base::plugin<pro::mouse>();
             auto& luafx = base::plugin<pro::luafx>();
             auto bindings = input::bindings::load(config, "gate");
             input::bindings::keybind(bindings, keybd, mouse);
