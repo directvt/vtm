@@ -5,6 +5,7 @@
 
 #include "utf.hpp"
 #include "generics.hpp"
+#include "ptr.hpp"
 
 namespace netxs
 {

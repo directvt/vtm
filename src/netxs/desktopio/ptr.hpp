@@ -33,6 +33,7 @@ namespace netxs
             if constexpr (std::is_same_v<T, void>) return std::make_shared<std::decay_t<Args>...>(std::forward<Args>(args)...);
             else                                   return std::make_shared<T>(std::forward<Args>(args)...);
         }
+
         namespace
         {
             template<class T>
@@ -42,23 +43,31 @@ namespace netxs
             struct _function<R(*)(Args...)> // Static pointers.
             {
                 using type = std::function<R(Args...)>;
+                using arg0 = std::tuple_element_t<0, std::tuple<Args...>>;
             };
             template<class R, class A, class ...Args>
             struct _function<R(A::*)(Args...)> // Member functions.
             {
                 using type = std::function<R(Args...)>;
+                using arg0 = std::tuple_element_t<0, std::tuple<Args...>>;
             };
             template<class R, class A, class ...Args>
             struct _function<R(A::*)(Args...) const> // Const member functions.
             {
                 using type = std::function<R(Args...)>;
+                using arg0 = std::tuple_element_t<0, std::tuple<Args...>>;
             };
         }
+
         template<class F>
+        using arg0 = typename _function<F>::arg0;
+
+        template<class F, class FxType = _function<F>::type>
         auto sharedfx(F lambda) // Don't use lambdas/functions with auto args here.
         {
-            return ptr::shared(typename _function<F>::type{ lambda });
+            return ptr::shared(FxType{ std::move(lambda) });
         }
+
         template<class T>
         auto singleton()
         {

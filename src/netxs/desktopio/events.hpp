@@ -102,22 +102,16 @@ namespace netxs::events
     }
     template<hint Group, auto Count> constexpr auto subset = _instantiate<Group>(std::make_index_sequence<Count>{});
 
-    struct handler
-    {
-        virtual ~handler() = default;
-    };
-
-    struct hook : sptr<handler>
-    {
-        using sptr<handler>::sptr;
-        auto& operator - (si32) { return *this; }
-    };
-
     template<class Arg>
     using fx = std::function<void(Arg&)>;
 
+    struct fxbase
+    {
+        virtual ~fxbase() = default;
+    };
+
     template<class Arg>
-    struct fxwrapper : handler
+    struct fxwrapper : fxbase
     {
         fx<Arg> proc;
         fxwrapper(fx<Arg>&& proc)
@@ -125,10 +119,25 @@ namespace netxs::events
         { }
     };
 
+    struct hook : sptr<fxbase>
+    {
+        using sptr<fxbase>::sptr;
+        auto& operator - (si32) { return *this; }
+
+        template<class ...F>
+        hook(std::shared_ptr<F...> proc_ptr)
+            : sptr{ proc_ptr }
+        { }
+        template<class F>//, class Arg = ptr::arg0<F>>
+        hook(F proc)
+            : sptr{ std::make_shared<fxwrapper<ptr::arg0<F>>>(std::move(proc)) }
+        { }
+    };
+
     struct reactor
     {
-        using list = std::list<wptr<handler>>;
-        using vect = std::vector<wptr<handler>>;
+        using list = std::list<wptr<fxbase>>;
+        using vect = std::vector<wptr<fxbase>>;
 
         enum class branch
         {

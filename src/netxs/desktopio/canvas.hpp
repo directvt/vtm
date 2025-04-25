@@ -4,7 +4,6 @@
 #pragma once
 
 #include "geometry.hpp"
-#include "ptr.hpp"
 #include "logger.hpp"
 
 namespace netxs
