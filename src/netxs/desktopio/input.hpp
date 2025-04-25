@@ -208,6 +208,11 @@ namespace netxs::input
         static constexpr auto pressed  = __COUNTER__ - _counter;
         static constexpr auto repeated = __COUNTER__ - _counter;
 
+        static constexpr auto scancode_sign  = 0x80;
+        static constexpr auto unpressed_sign = 0x40; // Pressed: 0x00   Released: 0x40
+        static constexpr auto cluster_sign   = 0x20;
+        static constexpr auto mouse_sign     = 0x10;
+
         struct map
         {
             sz_t hash; // map: Key hash.
@@ -465,6 +470,12 @@ namespace netxs::input
             #undef X
         };
 
+        #define X(name, action_index, button_index) \
+            static constexpr auto name = ((input::key::mouse_sign | action_index) << 8) | button_index;
+            mouse_list
+        #undef X
+
+        #undef mouse_list
         #undef key_list
 
         struct kmap
@@ -503,17 +514,17 @@ namespace netxs::input
             //  0-11 bits: virt, scan or mouse code. For clusters it is set to '\x20FF'('\x60FF').
             static void push_keyid(bool is_pressed, text& vkchord, si32 keyid)
             {
-                vkchord.push_back(is_pressed ? '\x00' : '\x40');
+                vkchord.push_back((byte)(is_pressed ? 0x00 : input::key::unpressed_sign));
                 vkchord.push_back((byte)keyid);
             }
             static void push_scode(bool is_pressed, text& scchord, si32 scode)
             {
-                scchord.push_back((byte)((is_pressed ? 0x00 : 0x40) | 0x80 | ((scode >> 8) & 0x01)));
+                scchord.push_back((byte)((is_pressed ? 0x00 : input::key::unpressed_sign) | input::key::scancode_sign | ((scode >> 8) & 0x01)));
                 scchord.push_back((byte)(scode & 0xFF));
             }
             static void push_cluster(bool is_pressed, text& chchord, view cluster)
             {
-                chchord += (is_pressed ? '\x00' : '\x40') | '\x20';
+                chchord += (byte)((is_pressed ? 0x00 : input::key::unpressed_sign) | input::key::cluster_sign);
                 chchord += '\xFF';
                 chchord += cluster;
             }
@@ -583,14 +594,14 @@ namespace netxs::input
                 {
                     auto s = (byte)chord.pop_front();
                     auto v = (byte)chord.pop_front();
-                    if (crop.size() || s & 0x40) crop += s & 0x40 ? '-' : '+';
-                    if (s & 0x80) // Scancodes.
+                    if (crop.size() || s & input::key::unpressed_sign) crop += s & input::key::unpressed_sign ? '-' : '+';
+                    if (s & input::key::scancode_sign) // Scancodes.
                     {
                         auto value = v | (s & 0x01 ? 0x100 : 0);
                         auto length = value & 0xF00 ? 3 : 2;
                         crop += "0x" + utf::to_hex<true>(value, length);
                     }
-                    else if (s & 0x20) // Cluster.
+                    else if (s & input::key::cluster_sign) // Cluster.
                     {
                         auto plain = utf::debase<faux, faux>(chord);
                         utf::replace_all(plain, "'", "\\'");
@@ -613,10 +624,10 @@ namespace netxs::input
                     si32 code1; // Left (or specific) key code.
                     si32 code2; // Right (if chord is generic) key code
                     text utf8;
-                    auto is_scancode() const { return sign & 0x80; }
-                    auto is_pressed() const { return !(sign & 0x40); }
-                    auto is_cluster() const { return sign & 0x20; }
-                    auto is_mouse() const { return sign & 0x10; }
+                    auto is_scancode() const { return   sign & input::key::scancode_sign; }
+                    auto is_pressed()  const { return !(sign & input::key::unpressed_sign); }
+                    auto is_cluster()  const { return   sign & input::key::cluster_sign; }
+                    auto is_mouse()    const { return   sign & input::key::mouse_sign; }
                 };
                 auto keys = std::vector<key_t>{};
                 auto crop = std::vector<text>{};
@@ -643,7 +654,7 @@ namespace netxs::input
                     }
                     else if (chord.size() > 1)
                     {
-                        k.sign |= 0x40;
+                        k.sign |= input::key::unpressed_sign;
                         chord.pop_front(); // Pop '-'.
                         utf::trim(chord);
                         if (chord.empty()) return k;
@@ -657,13 +668,13 @@ namespace netxs::input
                         chord.remove_prefix(2);
                         if (auto v = utf::to_int<si32, 16>(chord))
                         {
-                            k.sign |= 0x80;
+                            k.sign |= input::key::scancode_sign;
                             k.code1 = v.value();
                         }
                     }
                     else if (chord.size() > 2 && chord.front() == chord.back() && (chord.front() == '\'' || chord.front() == '\"')) // The literal key must be the last key in a sequence.
                     {
-                        k.sign |= 0x20;
+                        k.sign |= input::key::cluster_sign;
                         k.utf8 = utf::unescape(chord.substr(1, chord.size() - 2));
                         k.code1 = 0xFF;
                         chord.clear();
@@ -673,9 +684,9 @@ namespace netxs::input
                         auto name = utf::to_lower(key_name);
                         auto name_shadow = qiew{ name };
                         auto digits = utf::trim_back(name_shadow, netxs::onlydigits);
-                        if (auto iter = input::key::mouse_names.find(name_shadow); iter != input::key::mouse_names.end()) // Mouse events.
+                        if (auto iter_m = input::key::mouse_names.find(name_shadow); iter_m != input::key::mouse_names.end()) // Mouse events.
                         {
-                            auto [action_index, button_index] = iter->second;
+                            auto [action_index, button_index] = iter_m->second;
                             if (digits.size())
                             {
                                 auto d = digits.front();
@@ -693,7 +704,7 @@ namespace netxs::input
                                     button_index = 1 << std::min(7, d - '0' - 1);
                                 }
                             }
-                            k.sign |= 0x10 | action_index;
+                            k.sign |= input::key::mouse_sign | action_index;
                             k.code1 = button_index;
                             log("mouse event=%%", ansi::hi(utf::to_hex_0x((k.sign<<8)|k.code1)));
                         }
@@ -721,7 +732,7 @@ namespace netxs::input
                 while (chord)
                 {
                     auto k = take(chord); // Unfold.
-                    if (!(k.sign & 0x10) && !k.code1) return crop; // Unknown key.
+                    if (!k.is_mouse() && !k.code1) return crop; // Unknown key.
                     keys.push_back(k);
                 }
                 if (keys.empty() || keys.size() > 8)
@@ -849,7 +860,7 @@ namespace netxs::input
                     auto set_handler = script_ptr && script_ptr->size();
                     for (auto& binary_chord : chords) if (binary_chord.size())
                     {
-                        auto is_mouse = binary_chord.front() & 0x10;
+                        auto is_mouse = binary_chord.front() & input::key::mouse_sign;
                         auto& handlers = is_mouse ? mouse.handlers
                                                   : keybd.handlers;
                         if (set_handler)
