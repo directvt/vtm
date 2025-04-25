@@ -1757,38 +1757,36 @@ namespace netxs::ui
             void dispatch(hids& gear, auto& handlers)
             {
                 //log("mouse: handlers.size=", handlers.size());
-                auto iter = handlers.find(gear.cause);
-                auto exec = [&]
+                auto fire = [&](auto cause)
                 {
-                    auto& handler_list = iter->second;
-                    for (auto& [fx_wptr, script_ptr] : handler_list)
+                    auto iter = handlers.find(cause);
+                    if (iter != handlers.end())
                     {
-                        if (script_ptr)
+                        auto& handler_list = iter->second;
+                        std::erase_if(handler_list, [&](auto& rec)
                         {
-                            log("  run script: ", ansi::hi(*script_ptr));
-                        }
-                        else if (auto fx_ptr = fx_wptr.lock())
-                        {
-                            fx_ptr->call(gear);
-                        }
-                        else
-                        {
-                            //todo delete fx_wptr
-                        }
+                            auto& [fx_wptr, script_ptr] = rec;
+                            if (script_ptr)
+                            {
+                                log("  run script: ", ansi::hi(*script_ptr));
+                            }
+                            else if (auto fx_ptr = fx_wptr.lock())
+                            {
+                                fx_ptr->call(gear);
+                            }
+                            else
+                            {
+                                return true; // Delete rec.
+                            }
+                            return faux;
+                        });
                     }
                 };
-                if (iter != handlers.end())
-                {
-                    exec();
-                }
+                fire(gear.cause);
                 if (gear.cause & 0xFF/*check bttn_id*/)
                 {
                     auto any_bttn_event = gear.cause & 0xFF00; // Set bttn_id = 0.
-                    iter = handlers.find(any_bttn_event);
-                    if (iter != handlers.end())
-                    {
-                        exec();
-                    }
+                    fire(any_bttn_event);
                 }
             }
 
@@ -1836,7 +1834,7 @@ namespace netxs::ui
                 release_handlers[input::key::MouseDown].emplace_back().first = memo.back();
                 release_handlers[input::key::MouseUp  ].emplace_back().first = memo.back();
                 // pro::mouse: Notify about change in number of mouse hovering clients.
-                //boss.on(input::key::MouseEnter, [&](hids& gear) // Notify when the number of clients is positive.
+                //todo boss.on(input::key::MouseEnter, [&](hids& gear) // Notify when the number of clients is positive.
                 release_handlers[input::key::MouseEnter].emplace_back().first = memo.emplace_back([&](hids& gear) // Notify when the number of clients is positive.
                 {
                     if (!full++)
@@ -1852,7 +1850,7 @@ namespace netxs::ui
                         boss.base::signal(tier::release, e2::form::state::hover, rent);
                     }
                 });
-                //boss.on(input::key::MouseLeave, [&](hids& gear) // Notify when the number of clients is zero.
+                //todo boss.on(input::key::MouseLeave, [&](hids& gear) // Notify when the number of clients is zero.
                 release_handlers[input::key::MouseLeave].emplace_back().first = memo.emplace_back([&](hids& gear) // Notify when the number of clients is zero.
                 {
                     if (gear.direct<faux>(boss.bell::id) || omni)
