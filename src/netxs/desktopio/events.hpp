@@ -129,7 +129,7 @@ namespace netxs::events
         enum class branch
         {
             fullstop,
-            nothandled,
+            not_handled,
             proceed,
         };
 
@@ -164,25 +164,23 @@ namespace netxs::events
             stock[event].push_back(proc_ptr);
             return proc_ptr;
         }
-        inline void _refreshandcopy(list& target)
+        void _refresh_and_copy(list& target)
         {
-            target.remove_if([&](auto&& a){ return a.expired() ? true : (qcopy.emplace_back(a), faux); });
+            target.remove_if([&](auto& a){ return a.expired() ? true : (qcopy.emplace_back(a), faux); });
         }
-        // reactor: Calling delegates. Returns the number of active ones.
-        template<class Arg>
-        void notify(hint event, Arg& param)
+        auto _select(hint event)
         {
             auto head = qcopy.size();
             if (order)
             {
                 auto itermask = events::level_mask(event);
                 auto subgroup = event;
-                _refreshandcopy(stock[subgroup]);
-                while (itermask > 1 << events::block) // Skip root event block.
+                _refresh_and_copy(stock[subgroup]);
+                while (itermask > (1 << events::block)) // Skip root event block.
                 {
                     subgroup = event & itermask;
                     itermask >>= events::block;
-                    _refreshandcopy(stock[subgroup]);
+                    _refresh_and_copy(stock[subgroup]);
                 }
             }
             else
@@ -192,15 +190,22 @@ namespace netxs::events
                 auto subgroup = hint{};
                 do
                 {
-                    itermask = itermask << events::block | mask;
+                    itermask = (itermask << events::block) | mask;
                     subgroup = event & itermask;
-                    _refreshandcopy(stock[subgroup]);
+                    _refresh_and_copy(stock[subgroup]);
                 }
                 while (subgroup != event);
             }
             auto tail = qcopy.size();
-            auto size = tail - head;
-            if (size)
+            return std::pair{ head, tail };
+        }
+        // reactor: Calling delegates. Returns the number of active ones.
+        template<class Arg>
+        void notify(hint event, Arg& param)
+        {
+            auto [head, tail] = _select(event);
+            handled = head != tail;
+            if (handled)
             {
                 queue.push_back(event);
                 auto iter = head;
@@ -218,8 +223,8 @@ namespace netxs::events
                 while (alive != branch::fullstop && ++iter != tail);
                 qcopy.resize(head);
                 queue.pop_back();
+                handled = alive != branch::not_handled;
             }
-            handled = alive != branch::nothandled && size;
         }
         // reactor: Interrupt current invocation branch.
         void stop()
@@ -229,7 +234,7 @@ namespace netxs::events
         // reactor: Skip current invocation branch.
         void skip()
         {
-            alive = branch::nothandled;
+            alive = branch::not_handled;
         }
     };
 
