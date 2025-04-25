@@ -111,21 +111,20 @@ namespace netxs::events
         using sptr<handler>::sptr;
         auto& operator - (si32) { return *this; }
     };
+    template<class Arg>
+    using hndl = std::function<void(Arg&)>;
+    template<class Arg>
+    struct fxwrapper : handler
+    {
+        hndl<Arg> proc;
+        fxwrapper(hndl<Arg>&& proc)
+            : proc{ std::move(proc) }
+        { }
+    };
     struct reactor
     {
-        template<class F>
-        using hndl = std::function<void(F&)>;
         using list = std::list<wptr<handler>>;
         using vect = std::vector<wptr<handler>>;
-
-        template<class F>
-        struct wrapper : handler
-        {
-            hndl<F> proc;
-            wrapper(hndl<F>&& proc)
-                : proc{ std::move(proc) }
-            { }
-        };
 
         enum class branch
         {
@@ -158,10 +157,10 @@ namespace netxs::events
             ref_count += lref;
             del_count += ldel;
         }
-        template<class F>
-        hook subscribe(hint event, hndl<F>&& proc)
+        template<class Arg>
+        hook subscribe(hint event, hndl<Arg>&& proc)
         {
-            auto proc_ptr = std::make_shared<wrapper<F>>(std::move(proc));
+            auto proc_ptr = std::make_shared<fxwrapper<Arg>>(std::move(proc));
             stock[event].push_back(proc_ptr);
             return proc_ptr;
         }
@@ -170,10 +169,9 @@ namespace netxs::events
             target.remove_if([&](auto&& a){ return a.expired() ? true : (qcopy.emplace_back(a), faux); });
         }
         // reactor: Calling delegates. Returns the number of active ones.
-        template<class F>
-        void notify(hint event, F& param)
+        template<class Arg>
+        void notify(hint event, Arg& param)
         {
-            queue.push_back(event);
             auto head = qcopy.size();
             if (order)
             {
@@ -204,12 +202,13 @@ namespace netxs::events
             auto size = tail - head;
             if (size)
             {
+                queue.push_back(event);
                 auto iter = head;
                 do
                 {
                     if (auto proc_ptr = qcopy[iter].lock()) // qcopy can be reallocated.
                     {
-                        if (auto compatible = static_cast<wrapper<F>*>(proc_ptr.get()))
+                        if (auto compatible = static_cast<fxwrapper<Arg>*>(proc_ptr.get()))
                         {
                             alive = branch::proceed;
                             compatible->proc(param);
@@ -218,8 +217,8 @@ namespace netxs::events
                 }
                 while (alive != branch::fullstop && ++iter != tail);
                 qcopy.resize(head);
+                queue.pop_back();
             }
-            queue.pop_back();
             handled = alive != branch::nothandled && size;
         }
         // reactor: Interrupt current invocation branch.
@@ -244,7 +243,7 @@ namespace netxs::events
         reactor                                  general{ true };
         lua_State*                               lua;
         si32                                     fps{};
-        hook                                     memo{};
+        hook                                     memo;
         datetime::quartz<auth>                   quartz;
         hint                                     e2_timer_tick_id;
 
@@ -255,7 +254,7 @@ namespace netxs::events
         {
             if (e2_config_fps_id)
             {
-                memo = general.subscribe(e2_config_fps_id, reactor::hndl<si32>{ [&](si32& new_fps)
+                memo = general.subscribe(e2_config_fps_id, hndl<si32>{ [&](si32& new_fps)
                 {
                     if (new_fps > 0)
                     {

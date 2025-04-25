@@ -3216,11 +3216,11 @@ namespace netxs::ui
         }
         void on(si32 mouse_event_id, auto handler)
         {
-            mouse.release_handlers[mouse_event_id].emplace_back().first = ptr::sharedfx(handler);
+            mouse.release_handlers[mouse_event_id].emplace_back().first = ptr::sharedfx(std::move(handler));
         }
         void onpreview(si32 mouse_event_id, auto handler)
         {
-            mouse.preview_handlers[mouse_event_id].emplace_back().first = ptr::sharedfx(handler);
+            mouse.preview_handlers[mouse_event_id].emplace_back().first = ptr::sharedfx(std::move(handler));
         }
         //void on(qiew keybd_chord, qiew script)
         //{
