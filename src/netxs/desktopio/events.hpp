@@ -105,18 +105,25 @@ namespace netxs::events
     template<class Arg>
     using fx = std::function<void(Arg&)>;
 
-    struct fxbase
-    {
-        virtual ~fxbase() = default;
-    };
-
-    template<class Arg>
-    struct fxwrapper : fxbase
+    template<class Arg, class FxBase>
+    struct fxwrapper : FxBase
     {
         fx<Arg> proc;
         fxwrapper(fx<Arg>&& proc)
             : proc{ std::move(proc) }
         { }
+    };
+
+    struct fxbase
+    {
+        virtual ~fxbase() = default;
+
+        template<class Arg>
+        void call(Arg& param)
+        {
+            auto fx_ptr = static_cast<fxwrapper<Arg, fxbase>*>(this);
+            fx_ptr->proc(param);
+        }
     };
 
     struct hook : sptr<fxbase>
@@ -126,13 +133,15 @@ namespace netxs::events
 
         template<class ...F>
         hook(std::shared_ptr<F...> proc_ptr)
-            : sptr{ proc_ptr }
+            : sptr<fxbase>{ proc_ptr }
         { }
         template<class F>//, class Arg = ptr::arg0<F>>
         hook(F proc)
-            : sptr{ std::make_shared<fxwrapper<ptr::arg0<F>>>(std::move(proc)) }
+            : sptr<fxbase>{ std::make_shared<fxwrapper<ptr::arg0<F>, fxbase>>(std::move(proc)) }
         { }
     };
+
+    using wook = wptr<fxbase>;
 
     struct reactor
     {
@@ -173,7 +182,7 @@ namespace netxs::events
         template<class Arg>
         hook subscribe(hint event, fx<Arg>&& proc)
         {
-            auto proc_ptr = std::make_shared<fxwrapper<Arg>>(std::move(proc));
+            auto proc_ptr = std::make_shared<fxwrapper<Arg, fxbase>>(std::move(proc));
             stock[event].push_back(proc_ptr);
             return proc_ptr;
         }
@@ -224,13 +233,10 @@ namespace netxs::events
                 auto iter = head;
                 do
                 {
-                    if (auto proc_ptr = qcopy[iter].lock()) // qcopy can be reallocated.
+                    if (auto fx_ptr = qcopy[iter].lock()) // qcopy can be reallocated.
                     {
-                        if (auto compatible = static_cast<fxwrapper<Arg>*>(proc_ptr.get()))
-                        {
-                            alive = branch::proceed;
-                            compatible->proc(param);
-                        }
+                        alive = branch::proceed;
+                        fx_ptr->call(param);
                     }
                 }
                 while (alive != branch::fullstop && ++iter != tail);
@@ -599,4 +605,5 @@ namespace netxs
     using netxs::events::subs;
     using netxs::events::tier;
     using netxs::events::hook;
+    using netxs::events::wook;
 }
