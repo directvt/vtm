@@ -106,11 +106,10 @@ namespace netxs::events
     using fx = std::function<void(Arg&)>;
 
     template<class Arg, class FxBase>
-    struct fxwrapper : FxBase
+    struct fxwrapper : FxBase, fx<Arg>
     {
-        fx<Arg> proc;
         fxwrapper(fx<Arg>&& proc)
-            : proc{ std::move(proc) }
+            : fx<Arg>{ std::move(proc) }
         { }
     };
 
@@ -121,8 +120,8 @@ namespace netxs::events
         template<class Arg>
         void call(Arg& param)
         {
-            auto fx_ptr = static_cast<fxwrapper<Arg, fxbase>*>(this);
-            fx_ptr->proc(param);
+            auto& proc = *static_cast<fxwrapper<Arg, fxbase>*>(this);
+            proc(param);
         }
     };
 
