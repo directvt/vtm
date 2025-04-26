@@ -1288,6 +1288,7 @@ namespace netxs::input
                         }
                         // Press new and then release old to keep the mouse capture continuous.
                         bttn_id = next_bttn_id;
+                        pressxy = m_sys.coordxy;
                         m2_push(); // push(101);
                         bttn_id = prev_bttn_id;
                         m2_up(); // up(100);
@@ -1302,6 +1303,7 @@ namespace netxs::input
                 {
                     assert(bttn_id == 0);
                     bttn_id = next_state;
+                    pressxy = m_sys.coordxy;
                     m2_push(); // push(100);
                 }
                 else if (prev_state && !next_state) // The last button(s) released. E.g., 100 -> 000 (bttn_id=101).
