@@ -128,7 +128,7 @@ namespace netxs::app::terminal
             if (item.type == menu::type::Repeat)
             {
                 auto& tick = boss.base::plugin<pro::timer>();
-                boss.LISTEN(tier::release, input::events::mouse::button::down::left, gear, -, (proc))
+                boss.on(input::key::LeftDown, [&, proc](hids& gear)
                 {
                     if (item.views.size())
                     {
@@ -153,8 +153,8 @@ namespace netxs::app::terminal
                     {
                         _update_gear(boss, item, gear);
                     }
-                };
-                boss.LISTEN(tier::release, input::events::mouse::button::up::left, gear)
+                });
+                boss.on(input::key::LeftUp, [&, proc](hids& gear)
                 {
                     tick.pacify();
                     gear.setfree();
@@ -164,7 +164,7 @@ namespace netxs::app::terminal
                         item.taken = 0;
                         _update_gear(boss, item, gear);
                     }
-                };
+                });
                 boss.LISTEN(tier::release, e2::form::state::mouse, active)
                 {
                     if (!active && tick)
@@ -180,7 +180,7 @@ namespace netxs::app::terminal
             }
             else
             {
-                boss.LISTEN(tier::release, input::events::mouse::button::click::left, gear, -, (proc))
+                boss.on(input::key::LeftClick, [&, proc](hids& gear)
                 {
                     proc(boss, item, gear);
                     if constexpr (AutoUpdate)
@@ -188,7 +188,7 @@ namespace netxs::app::terminal
                         if (item.type == menu::type::Option) _update_gear(boss, item, gear);
                     }
                     gear.nodbl = true;
-                };
+                });
             }
         };
         auto construct_menu(xmls& config)
