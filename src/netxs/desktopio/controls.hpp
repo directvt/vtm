@@ -1767,7 +1767,7 @@ namespace netxs::ui
                             auto& [fx_wptr, script_ptr] = rec;
                             if (script_ptr)
                             {
-                                log("  run script: ", ansi::hi(*script_ptr));
+                                //log("  run script: ", ansi::hi(*script_ptr));
                             }
                             else if (auto fx_ptr = fx_wptr.lock())
                             {

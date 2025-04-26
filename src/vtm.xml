@@ -406,24 +406,25 @@ R"==(
                 <!--
                     //todo Mouse test page
                     Format:
-                        Named:   <Mouse | Left | Right | LeftRight | Middle><Down | Up | [Double | Triple | Quintuple]Click | Drag<Start | Pull | Stop | Cancel>>
+                        Named:   <Mouse | Left | Right | LeftRight | Middle><Down | Up | [Double | Multi]Click | <Double | Multi>Press | Drag<Start | Pull | Stop | Cancel>>
                             last 8 bits for 8 mouse buttons
                             MouseAny            ->                      -> 0x10'00   Any mouse event
                             MouseDown           -> MouseDown0           -> 0x11'00
                             MouseUp             -> MouseUp0             -> 0x12'00
-                            MouseClick          -> MouseClick0          -> 0x13'00
+                            MouseClick          -> MouseClick0          -> 0x13'00   Any click
                             MouseDoubleClick    -> MouseDoubleClick0    -> 0x14'00
-                            MouseTripleClick    -> MouseTripleClick0    -> 0x15'00
-                            MouseQuintupleClick -> MouseQuintupleClick0 -> 0x16'00
-                            MouseDragStart      -> MouseDragStart0      -> 0x17'00
-                            MouseDragPull       -> MouseDragPull0       -> 0x18'00
-                            MouseDragStop       -> MouseDragStop0       -> 0x19'00
-                            MouseDragCancel     -> MouseDragCancel0     -> 0x1A'00
-                            MouseLeave          ->                      -> 0x1B'00
-                            MouseEnter          ->                      -> 0x1C'00
-                            MouseMove           ->                      -> 0x1D'00
-                            MouseWheel          ->                      -> 0x1E'00
-                        Generic: <Mouse><Down | Up | [Double | Triple | Quintuple]Click | Drag{Start | Pull | Stop | Cancel}><bbb...>
+                            MouseDoublePress    -> MouseDoublePress0    -> 0x15'00
+                            MouseMultiClick     -> MouseMultiClick0     -> 0x16'00
+                            MouseMultiPress     -> MouseMultiPress0     -> 0x17'00
+                            MouseDragStart      -> MouseDragStart0      -> 0x18'00
+                            MouseDragPull       -> MouseDragPull0       -> 0x19'00
+                            MouseDragStop       -> MouseDragStop0       -> 0x1A'00
+                            MouseDragCancel     -> MouseDragCancel0     -> 0x1B'00
+                            MouseLeave          ->                      -> 0x1C'00
+                            MouseEnter          ->                      -> 0x1D'00
+                            MouseMove           ->                      -> 0x1E'00
+                            MouseWheel          ->                      -> 0x1F'00
+                        Generic: <Mouse><Down | Up | [Double | Multi]Click | <Double | Multi>Press | Drag<Start | Pull | Stop | Cancel>><bbb...>
                             <bbb...>:
                                 0: 0: Any button
                                 1: 1: Left
@@ -443,9 +444,10 @@ R"==(
                         MouseDown<bbb...>            Button<bbb...> push down / pressed.
                         MouseUp<bbb...>              Button<bbb...> release.
                         MouseClick<bbb...>           Press and release button<bbb...> w/o movement.
-                            MouseDoubleClick<bbb...>     Double click by button<bbb...>.
-                            MouseTripleClick<bbb...>     Triple click by button<bbb...>.
-                            MouseQuintupleClick<bbb...>  Quintuple click by button<bbb...>.
+                            MouseDoublePress<bbb...>     Double press by button<bbb...>.
+                            MouseMultiPress<bbb...>      Multi press by button<bbb...>.
+                                MouseDoubleClick<bbb...>     Double click by button<bbb...>.
+                                MouseMultiClick<bbb...>      Multi click by button<bbb...>.
                         MouseDragStart<bbb...>       Drag start with button<bbb...> pressed.
                         MouseDragPull<bbb...>        Drag pull with button<bbb...> pressed.
                         MouseDragStop<bbb...>        Drag stop with button<bbb...> pressed.
@@ -468,6 +470,8 @@ R"==(
                 on="MouseClick1"                 Left button click.
                 on="LeftClick"                   Left button click.
                 on="MouseClick001"               Right button click.
+                on="MouseClick3"                 Right button click.
+                on="MouseClick2"                 Middle button click.
                 on="MouseClick101"               Left+Right button click.
                 ?? on="Ctrl+Shift+MouseClick1"      Left button click with Ctrl+Shift modifiers pressed.
                 ?? on="Ctrl+Shift+MouseDown1"       Left button push down with Ctrl+Shift modifiers pressed.
