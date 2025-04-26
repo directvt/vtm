@@ -375,7 +375,8 @@ namespace netxs::app::shared
                     boss.base::riseup(tier::release, e2::config::plugins::sizer::outer, dent{  2, 2, 1, 1 });
                     boss.base::riseup(tier::release, e2::config::plugins::sizer::inner, dent{ -4,-4,-2,-2 });
                     boss.base::riseup(tier::release, e2::config::plugins::align, faux);
-                    parent.LISTEN(tier::release, input::events::mouse::button::click::right, gear)
+                    auto& parent_mouse = parent.base::plugin<pro::mouse>();
+                    parent_mouse.on(input::key::RightClick, parent.sensors, [&](hids& gear)
                     {
                         auto area = boss.base::area() + dent{ 2, 2, 1, 1 };
                         if (area.hittest(gear.coord))
@@ -383,7 +384,7 @@ namespace netxs::app::shared
                             app::shared::set_title(boss, gear, bias::center);
                             gear.dismiss(true);
                         }
-                    };
+                    });
                     parent.LISTEN(tier::release, e2::form::state::focus::on, gear_id, boss.relyon)
                     {
                         if (auto gear_ptr = parent.bell::getref<hids>(gear_id))
@@ -775,10 +776,10 @@ namespace netxs::app::shared
             {
                 auto& coord = boss.base::field(fp2d{});
                 auto& window = *window_ptr;
-                window.LISTEN(tier::preview, input::events::mouse::any, gear)
+                auto& window_mouse = window.base::plugin<pro::mouse>();
+                window_mouse.onpreview(input::key::MouseAny, window.sensors, [&](hids& gear)
                 {
-                    auto deed = window.bell::protos(tier::preview);
-                    if (deed != input::events::mouse::move.id || coord != gear.coord)
+                    if (gear.cause != input::key::MouseMove || coord != gear.coord)
                     {
                         coord = gear.coord;
                         auto button_state = ansi::escx{}.pushsgr().bgc(blacklt).fgc(whitelt);
@@ -792,7 +793,7 @@ namespace netxs::app::shared
                         if constexpr (debugmode) log("Mouse: %% buttons=%% wheel=%% coord=%%", datetime::now(), button_state, wheeldt, coord);
                         update(boss, gear, faux);
                     }
-                };
+                });
             });
             window_ptr->invoke([&](auto& boss)
             {
