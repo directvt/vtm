@@ -36,18 +36,19 @@ namespace netxs::app::shared
     };
     const auto closing_by_gesture = [](auto& boss)
     {
-        boss.LISTEN(tier::release, input::events::mouse::button::click::leftright, gear)
+        auto& mouse = boss.base::plugin<pro::mouse>();
+        mouse.on(input::key::LeftRightClick, boss.sensors, [&](hids& gear)
         {
             auto backup = boss.This();
             boss.base::riseup(tier::release, e2::form::proceed::quit::one, true);
             gear.dismiss();
-        };
-        boss.LISTEN(tier::release, input::events::mouse::button::click::middle, gear)
+        });
+        mouse.on(input::key::MiddleClick, boss.sensors, [&](hids& gear)
         {
             auto backup = boss.This();
             boss.base::riseup(tier::release, e2::form::proceed::quit::one, true);
             gear.dismiss();
-        };
+        });
     };
     const auto scroll_bars = [](auto master)
     {
@@ -609,7 +610,7 @@ namespace netxs::app::shared
                 auto setup = [script_ptr](ui::item& boss, menu::item& item)
                 {
                     auto& scripting_context_ptr = boss.base::field(ptr::shared<std::unordered_map<text, ui::wptr>>());
-                    boss.LISTEN(tier::release, input::events::mouse::button::click::left, gear, -, (script_ptr))
+                    boss.on(input::key::LeftClick, [&, script_ptr](hids& gear)
                     {
                         item.taken = (item.taken + 1) % item.views.size();
                         //todo unify: controls.hpp:2132
@@ -624,14 +625,14 @@ namespace netxs::app::shared
                         gear.script_ptr = temp_script_ptr;
                         gear.scripting_context_ptr = temp_scripting_context_ptr;
                         gear.dismiss_dblclick();
-                    };
+                    });
 
                     //if (item.type == menu::type::Option)
                     //{
-                    //    boss.LISTEN(tier::release, input::events::mouse::button::click::left, gear)
+                    //    boss.on(input::key::LeftClick, [&](hids& gear)
                     //    {
                     //        item.taken = (item.taken + 1) % item.views.size();
-                    //    };
+                    //    });
                     //}
                     //auto iter = proc_map.find(action);
                     //if (iter != proc_map.end())
