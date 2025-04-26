@@ -457,7 +457,6 @@ R"==(
                         MouseAny                Any mouse event.
 
                 on="MouseEnter"          Mouse enter.
-                on="-MouseEnter"         Same as Mouse enter.
                 ??? on="Ctrl+MouseEnter"     Mouse enter with Ctrl modifier pressed.
                 on="MouseLeave"
                 on="MouseMove"
@@ -471,13 +470,12 @@ R"==(
                 on="MouseClick001"               Right button click.
                 on="MouseClick101"               Left+Right button click.
                 ?? on="Ctrl+Shift+MouseClick1"      Left button click with Ctrl+Shift modifiers pressed.
-                ?? on="Ctrl+Shift-MouseClick1"      Same as Ctrl+Shift+Click1.
                 ?? on="Ctrl+Shift+MouseDown1"       Left button push down with Ctrl+Shift modifiers pressed.
                 ?? on="Ctrl+Shift+MouseUp1"         Left button release with Ctrl+Shift modifiers pressed.
-                on="MouseDoubleClick1"           Double click (and stay pressed) by left button.
-                on="-MouseDoubleClick1"          Double click (and release) by left button
-                ?? on="Ctrl+MouseDoubleClick1"      Double click (and stay pressed) by left button with Ctrl modifier pressed.
-                ?? on="Ctrl-MouseDoubleClick1"      Double click (and release) by left button with Ctrl modifier pressed.
+                on="MouseDoublePress1"           Double click (and stay pressed) by left button.
+                on="MouseDoubleClick1"           Double click (and release) by left button
+                ?? on="Ctrl+MouseMultiPress1"       Multi click (and stay pressed) by left button with Ctrl modifier pressed.
+                ?? on="Ctrl+MouseDoubleClick1"      Double click (and release) by left button with Ctrl modifier pressed.
                 on="MouseDragStart101"           Drag start with Left and Right mouse buttons pressed.
                 on="MouseDragPull101"
                 on="MouseDragStop101"

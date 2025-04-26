@@ -461,8 +461,7 @@ namespace netxs::input
             X(MouseLeave         , 0xA, 0)\
             X(MouseEnter         , 0xB, 0)\
             X(MouseMove          , 0xC, 0)\
-            X(MouseWheel         , 0xD, 0)\
-            X(MousePressedCount  , 0xE, 0)
+            X(MouseWheel         , 0xD, 0)
         static const auto mouse_names = std::unordered_map<text, std::pair<si32, si32>, qiew::hash, qiew::equal>
         {
             #define X(name, action_index, button_bits) \
@@ -1169,13 +1168,12 @@ namespace netxs::input
         void m2_sglclick()         { fire(input::key::MouseClick       | bttn_id); log("sgl click   bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin((si16)bttn_id), coord, pressxy); }
         void m2_dblclick()         { fire(input::key::MouseDoubleClick | bttn_id); log("dbl click   bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin((si16)bttn_id), coord, pressxy); }
         void m2_move()             { fire(input::key::MouseMove                 ); log("move        bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin((si16)bttn_id), coord, pressxy); }
-        void m2_push()             { fire(input::key::MouseDown        | bttn_id); log("push        bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin((si16)bttn_id), coord, pressxy); }
-        void m2_up()               { fire(input::key::MouseUp          | bttn_id); log("up          bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin((si16)bttn_id), coord, pressxy); }
+        void m2_push()             { fire(input::key::MouseDown        | bttn_id); log("push        bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin((si16)bttn_id), coord, pressxy, " pressed count: ", pressed_count); }
+        void m2_up()               { fire(input::key::MouseUp          | bttn_id); log("up          bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin((si16)bttn_id), coord, pressxy, " pressed count: ", pressed_count); }
         void m2_drag_start()       { fire(input::key::MouseDragStart   | bttn_id); log("drag_start  bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin((si16)bttn_id), coord, pressxy); }
         void m2_drag_pull()        { fire(input::key::MouseDragPull    | bttn_id); log("drag_pull   bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin((si16)bttn_id), coord, pressxy); }
         void m2_drag_cancel()      { fire(input::key::MouseDragCancel  | bttn_id); log("drag_cancel bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin((si16)bttn_id), coord, pressxy); }
         void m2_drag_stop()        { fire(input::key::MouseDragStop    | bttn_id); log("drag_stop   bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin((si16)bttn_id), coord, pressxy); }
-        void m2_pressed()          { fire(input::key::MousePressedCount         ); log("press_count bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin((si16)bttn_id), coord, pressxy, " pressed count: ", pressed_count); }
         void m2_wheel()            { fire(input::key::MouseWheel                ); log("wheel       bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin((si16)bttn_id), coord, pressxy, " \thzwhl=", hzwhl, " whlfp=", whlfp, " whlsi=", whlsi); }
         void m2_click()
         {
@@ -1253,7 +1251,10 @@ namespace netxs::input
                 }
                 if (prev_pressed_count != pressed_count)
                 {
-                    m2_pressed();
+                    auto saved_bttn_id = std::exchange(bttn_id, 0);
+                    if (next_state) m2_push(); // Signal down/up with bttn_id=0 in order to update pressed count.
+                    else            m2_up();
+                    bttn_id = saved_bttn_id;
                 }
                 if (bttn_id & next_state)
                 {
