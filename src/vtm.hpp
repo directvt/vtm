@@ -86,20 +86,20 @@ namespace netxs::app::vtm
             fp2d  drag_origin;
 
         public:
-            frame(base&&) = delete;
-            frame(base& boss) : skill{ boss },
+            frame(auto&&) = delete;
+            frame(auto& boss) : skill{ boss },
                 robo{ boss }
             {
-                boss.LISTEN(tier::preview, input::events::mouse::button::click::left, gear, memo)
+                boss.onpreview(input::key::LeftClick, memo, [&](hids& /*gear*/)
                 {
                     //todo window.events(onclick)
                     boss.base::riseup(tier::preview, e2::form::layout::expose);
-                };
-                boss.LISTEN(tier::preview, input::events::mouse::button::click::right, gear, memo)
+                });
+                boss.onpreview(input::key::RightClick, memo, [&](hids& /*gear*/)
                 {
                     //todo window.events(onclick)
                     boss.base::riseup(tier::preview, e2::form::layout::expose);
-                };
+                });
                 boss.LISTEN(tier::preview, e2::form::layout::appear, newpos, memo)
                 {
                     appear(newpos);
@@ -108,10 +108,10 @@ namespace netxs::app::vtm
                 {
                     boss.base::riseup(tier::preview, e2::form::layout::bubble);
                 };
-                boss.LISTEN(tier::preview, input::events::mouse::button::down::any, gear, memo)
+                boss.onpreview(input::key::MouseDown, memo, [&](hids& /*gear*/)
                 {
                     robo.pacify();
-                };
+                });
                 boss.LISTEN(tier::release, e2::form::drag::start::any, gear, memo)
                 {
                     drag_origin = gear.coord;
@@ -165,7 +165,7 @@ namespace netxs::app::vtm
                         });
                     }
                 };
-                boss.LISTEN(tier::release, input::events::mouse::button::click::right, gear, memo)
+                boss.on(input::key::RightClick, memo, [&](hids& gear)
                 {
                     auto& area = boss.base::area();
                     auto coord = gear.coord + area.coor;
@@ -175,7 +175,7 @@ namespace netxs::app::vtm
                         appear(coord);
                     }
                     gear.dismiss();
-                };
+                });
             };
 
             // pro::frame: Fly to the specified position.
@@ -644,18 +644,20 @@ namespace netxs::app::vtm
             window_t(hall& owner, applink& what)
                 : world{ owner },
                   zorder{ what.applet->base::property("applet.zorder", zpos::plain) }
+            { }
+            void activate(applink& what)
             {
-                base::plugin<pro::d_n_d>();
-                base::plugin<pro::ghost>();
-                auto& title = base::plugin<pro::title>(what.applet->base::property("window.header"), what.applet->base::property("window.footer"));
-                base::plugin<pro::notes>(what.applet->base::property("window.footer"), dent{ 2,2,1,1 });
-                base::plugin<pro::sizer>();
-                base::plugin<pro::frame>();
-                base::plugin<pro::light>();
-                base::plugin<pro::focus>();
-                auto& keybd = base::plugin<pro::keybd>();
-                //auto& mouse = base::plugin<pro::mouse>();
-                auto& luafx = base::plugin<pro::luafx>();
+                plugin<pro::d_n_d>();
+                plugin<pro::ghost>();
+                auto& title = base::_plugin<pro::title>(*this, what.applet->base::property("window.header"), what.applet->base::property("window.footer"));
+                plugin<pro::notes>(what.applet->base::property("window.footer"), dent{ 2,2,1,1 });
+                plugin<pro::sizer>();
+                plugin<pro::frame>();
+                plugin<pro::light>();
+                plugin<pro::focus>();
+                auto& keybd = base::_plugin<pro::keybd>(*this);
+                //auto& mouse = form::plugin<pro::mouse>();
+                auto& luafx = base::_plugin<pro::luafx>(*this);
                 base::limits(dot_11);
                 base::kind(base::reflow_root);
                 base::root(true);
@@ -1066,6 +1068,7 @@ namespace netxs::app::vtm
                 base::signal(tier::request, vtm::events::newapp, what);
             }
             auto window_ptr = window_t::ctor(*this, what);
+            window_ptr->activate(what);
             attach(window_ptr);
 
             auto& menuid = what.applet->base::property("window.menuid");
