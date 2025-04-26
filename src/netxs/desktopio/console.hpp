@@ -1126,8 +1126,8 @@ namespace netxs::ui
                     auto forward = faux;
                     auto cause = gear.mouse::cause;
                     //todo revise
-                    //if (isvtm && (gear.index == hids::leftright || // Reserved for dragging nested vtm.
-                    //              gear.index == hids::right)       // Reserved for creation inside nested vtm.
+                    //if (isvtm && (gear.bttn_id == hids::buttons::bttn_id[hids::button_idx::leftright] || // Reserved for dragging nested vtm.
+                    //              gear.bttn_id == hids::buttons::bttn_id[hids::button_idx::right])       // Reserved for creation inside nested vtm.
                     //          && netxs::events::subevent(cause, button::drag::any.id))
                     //{
                     //    return; // Pass event to the hall.

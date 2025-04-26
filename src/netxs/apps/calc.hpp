@@ -197,7 +197,7 @@ namespace netxs::ui
                 boss.base::signal(tier::release, e2::data::utf8, data);
             }
             // pro::cell_highlight: Configuring the mouse button to operate.
-            template<hids::buttons Button>
+            template<si32 Button>
             void engage()
             {
                 boss.base::signal(tier::release, e2::form::draggable::_<Button>, true);

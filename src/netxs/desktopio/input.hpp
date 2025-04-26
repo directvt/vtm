@@ -465,14 +465,14 @@ namespace netxs::input
             X(MouseWheel         , 0xE, 0)
         static const auto mouse_names = std::unordered_map<text, std::pair<si32, si32>, qiew::hash, qiew::equal>
         {
-            #define X(name, action_index, button_index) \
-                { utf::to_lower(#name), { action_index, button_index }},
+            #define X(name, action_index, button_bits) \
+                { utf::to_lower(#name), { action_index, button_bits }},
                 mouse_list
             #undef X
         };
 
-        #define X(name, action_index, button_index) \
-            static constexpr auto name = ((input::key::mouse_sign | action_index) << 8) | button_index;
+        #define X(name, action_index, button_bits) \
+            static constexpr auto name = ((input::key::mouse_sign | action_index) << 8) | button_bits;
             mouse_list
         #undef X
 
@@ -1015,15 +1015,32 @@ namespace netxs::input
             sgr,
             w32,
         };
-        enum buttons
+        struct buttons
         {
-            left      = input::events::mouse::button::click::left     .index(),
-            right     = input::events::mouse::button::click::right    .index(),
-            middle    = input::events::mouse::button::click::middle   .index(),
-            xbutton1  = input::events::mouse::button::click::xbutton1 .index(),
-            xbutton2  = input::events::mouse::button::click::xbutton2 .index(),
-            leftright = input::events::mouse::button::click::leftright.index(),
-            numofbuttons,
+            static constexpr auto _counter  = __COUNTER__ + 1;
+            static constexpr auto left      = __COUNTER__ - _counter;
+            static constexpr auto right     = __COUNTER__ - _counter;
+            static constexpr auto middle    = __COUNTER__ - _counter;
+            static constexpr auto xbutton1  = __COUNTER__ - _counter;
+            static constexpr auto xbutton2  = __COUNTER__ - _counter;
+            static constexpr auto leftright = __COUNTER__ - _counter;
+            static constexpr auto count     = __COUNTER__ - _counter;
+            static constexpr auto bttn_id = std::to_array({
+                0b00001, // left
+                0b00100, // right
+                0b00010, // middle
+                0b01000, // xbutton1
+                0b10000, // xbutton2
+                0b00101, // leftright
+            });
+        };
+        struct button_idx
+        {
+            static constexpr auto left     = 1;
+            static constexpr auto right    = 3;
+            static constexpr auto middle   = 2;
+            static constexpr auto xbutton1 = 4;
+            static constexpr auto xbutton2 = 5;
         };
 
         struct stat
@@ -1051,21 +1068,9 @@ namespace netxs::input
         };
 
         using hist = std::unordered_map<si32, hist_t>;
-        //using knob = std::array<knob_t, numofbuttons>;
+        //using knob = std::array<knob_t, buttons::count>;
         using tail = netxs::datetime::tail<fp2d>;
 
-        static constexpr auto dragstrt = input::events::mouse::button::drag::start:: any.group<numofbuttons>();
-        static constexpr auto dragpull = input::events::mouse::button::drag::pull::  any.group<numofbuttons>();
-        static constexpr auto dragcncl = input::events::mouse::button::drag::cancel::any.group<numofbuttons>();
-        static constexpr auto dragstop = input::events::mouse::button::drag::stop::  any.group<numofbuttons>();
-        static constexpr auto released = input::events::mouse::button::up::          any.group<numofbuttons>();
-        static constexpr auto pushdown = input::events::mouse::button::down::        any.group<numofbuttons>();
-        static constexpr auto sglclick = input::events::mouse::button::click::       any.group<numofbuttons>();
-        static constexpr auto dblclick = input::events::mouse::button::dblclick::    any.group<numofbuttons>();
-        static constexpr auto tplclick = input::events::mouse::button::tplclick::    any.group<numofbuttons>();
-        static constexpr auto wheeling = input::events::mouse::scroll::act.id;
-        static constexpr auto movement = input::events::mouse::move.id;
-        static constexpr auto noactive = si32{ -1 };
         static constexpr auto drag_threshold = 0.3f; // mouse: Mouse drag threshold (to support jittery clicks).
 
         fp2d prime{}; // mouse: System mouse cursor coordinates.
@@ -1342,9 +1347,9 @@ namespace netxs::input
         // mouse: Return the number of clicks for the specified button.
         auto clicks(si32 button)
         {
-            //todo use bttn_id
-            button = std::clamp(button, 0, buttons::numofbuttons - 1);
-            return stamp[button].count + 1;
+            assert(button >= 0 && button < buttons::count);
+            auto bttn_bits = buttons::bttn_id[button];
+            return stamp[bttn_bits].count + 1;
         }
         // mouse: Initiator of visual tree informing about mouse enters/leaves.
         template<bool Entered>

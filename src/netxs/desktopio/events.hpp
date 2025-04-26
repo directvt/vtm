@@ -185,6 +185,10 @@ namespace netxs::events
             stock[event].push_back(proc_ptr);
             return proc_ptr;
         }
+        void subscribe_copy(hint event, hook& proc_ptr)
+        {
+            stock[event].push_back(proc_ptr);
+        }
         void _refresh_and_copy(list& target)
         {
             target.remove_if([&](auto& a){ return a.expired() ? true : (qcopy.emplace_back(a), faux); });
@@ -527,6 +531,12 @@ namespace netxs::events
         {
             auto lock = indexer.sync();
             token = reactors[Tier]->subscribe(Event::id, std::move(handler));
+        }
+        template<class Event>
+        void copy_handler(si32 Tier, Event, hook& token)
+        {
+            auto lock = indexer.sync();
+            reactors[Tier]->subscribe_copy(Event::id, token);
         }
         auto accomplished(si32 Tier)
         {

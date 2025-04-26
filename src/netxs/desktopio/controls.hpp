@@ -259,7 +259,7 @@ namespace netxs::ui
                 engage<hids::buttons::leftright>();
             }
             // pro::sizer: Configuring the mouse button to operate.
-            template<hids::buttons Button>
+            template<si32 Button>
             void engage()
             {
                 boss.base::signal(tier::release, e2::form::draggable::_<Button>, true);
@@ -352,7 +352,7 @@ namespace netxs::ui
                 : mover{ boss, boss.This() }
             { }
             // pro::mover: Configuring the mouse button to operate.
-            template<hids::buttons Button>
+            template<si32 Button>
             void engage()
             {
                 boss.base::signal(tier::release, e2::form::draggable::_<Button>, true);
@@ -1749,8 +1749,7 @@ namespace netxs::ui
             bool omni; // mouse: Ability to accept all hover events (true) or only directly over the object (faux).
             si32 rent; // mouse: Active gears count.
             si32 full; // mouse: All gears count. Counting to keep the entire chain of links in the visual tree.
-            si32 drag; // mouse: Bitfield of buttons subscribed to mouse drag.
-            std::map<si32, subs> dragmemo; // mouse: Draggable subs.
+            std::map<si32, subs> dragmemo; // mouse: Drag subs.
 
             netxs::sptr<std::unordered_map<text, wptr>> scripting_context_ptr; // mouse: Script execution context: sptr<map<$object_name_str, $object_wptr>>.
 
@@ -1783,9 +1782,9 @@ namespace netxs::ui
                     }
                 };
                 fire(gear.cause);
-                if (gear.cause & 0xFF/*check bttn_id*/)
+                if (gear.cause & 0xFF/*check button_bits*/)
                 {
-                    auto any_bttn_event = gear.cause & 0xFF00; // Set bttn_id = 0.
+                    auto any_bttn_event = gear.cause & 0xFF00; // Set button_bits = 0.
                     fire(any_bttn_event);
                 }
             }
@@ -1794,13 +1793,21 @@ namespace netxs::ui
             std::unordered_map<si32, std::list<std::pair<wook, netxs::sptr<text>>>> release_handlers; // mouse: Map<mouse_event_id, list<pair<std::function<void(hids&)>, sptr<script>>>>.
             std::unordered_map<si32, std::list<std::pair<wook, netxs::sptr<text>>>> preview_handlers; // mouse: Map<mouse_event_id, list<pair<std::function<void(hids&)>, sptr<script>>>>.
 
+            void on(si32 mouse_event_id, subs& sensors, auto handler)
+            {
+                release_handlers[mouse_event_id].emplace_back().first = sensors.emplace_back(std::move(handler));
+            }
+            void onpreview(si32 mouse_event_id, subs& sensors, auto handler)
+            {
+                preview_handlers[mouse_event_id].emplace_back().first = sensors.emplace_back(std::move(handler));
+            }
+
             mouse(base&&) = delete;
             mouse(base& boss, bool take_all_events = true)
                 : boss{ boss            },
                   omni{ take_all_events },
                   rent{ 0               },
-                  full{ 0               },
-                  drag{ 0               }
+                  full{ 0               }
             {
                 // pro::mouse: Forward preview to all parents.
                 boss.LISTEN(tier::preview, input::events::mouse::any, gear, memo)
@@ -1834,8 +1841,7 @@ namespace netxs::ui
                 release_handlers[input::key::MouseDown].emplace_back().first = memo.back();
                 release_handlers[input::key::MouseUp  ].emplace_back().first = memo.back();
                 // pro::mouse: Notify about change in number of mouse hovering clients.
-                //todo boss.on(input::key::MouseEnter, [&](hids& gear) // Notify when the number of clients is positive.
-                release_handlers[input::key::MouseEnter].emplace_back().first = memo.emplace_back([&](hids& gear) // Notify when the number of clients is positive.
+                on(input::key::MouseEnter, memo, [&](hids& gear) // Notify when the number of clients is positive.
                 {
                     if (!full++)
                     {
@@ -1850,8 +1856,7 @@ namespace netxs::ui
                         boss.base::signal(tier::release, e2::form::state::hover, rent);
                     }
                 });
-                //todo boss.on(input::key::MouseLeave, [&](hids& gear) // Notify when the number of clients is zero.
-                release_handlers[input::key::MouseLeave].emplace_back().first = memo.emplace_back([&](hids& gear) // Notify when the number of clients is zero.
+                on(input::key::MouseLeave, memo, [&](hids& gear) // Notify when the number of clients is zero.
                 {
                     if (gear.direct<faux>(boss.bell::id) || omni)
                     {
@@ -1905,53 +1910,35 @@ namespace netxs::ui
             {
                 omni = b;
             }
-            template<hids::buttons Button>
+            template<si32 Button>
             void draggable(bool enabled)
             {
+                assert(Button >= 0 && Button < hids::buttons::count);
+                auto button_bits = hids::buttons::bttn_id[Button];
+                auto& dragmemo_button = dragmemo[button_bits];
                 if (!enabled)
                 {
-                    dragmemo[Button].clear();
-                    drag &= ~(1 << Button);
+                    dragmemo_button.clear();
                 }
-                else if (!(drag & 1 << Button))
+                else if (dragmemo_button.empty())
                 {
-                    drag |= 1 << Button;
-                    //namespace bttn = input::events::mouse::button; //MSVC 16.9.4 don't get it
-                    boss.LISTEN(tier::release, input::events::mouse::button::drag::start::_<Button>, gear, dragmemo[Button])
+                    on(input::key::MouseDragStart | button_bits, dragmemo_button, [&](hids& gear)
                     {
                         if (gear.capture(boss.bell::id))
                         {
                             boss.base::signal(tier::release, e2::form::drag::start::_<Button>, gear);
                             gear.dismiss();
                         }
-                    };
-                    boss.LISTEN(tier::release, input::events::mouse::button::drag::pull::_<Button>, gear, dragmemo[Button])
+                    });
+                    on(input::key::MouseDragPull | button_bits, dragmemo_button, [&](hids& gear)
                     {
                         if (gear.captured(boss.bell::id))
                         {
                             boss.base::signal(tier::release, e2::form::drag::pull::_<Button>, gear);
                             gear.dismiss();
                         }
-                    };
-                    boss.LISTEN(tier::release, input::events::mouse::button::drag::cancel::_<Button>, gear, dragmemo[Button])
-                    {
-                        if (gear.captured(boss.bell::id))
-                        {
-                            boss.base::signal(tier::release, e2::form::drag::cancel::_<Button>, gear);
-                            gear.setfree();
-                            gear.dismiss();
-                        }
-                    };
-                    boss.LISTEN(tier::general, input::events::halt, gear, dragmemo[Button])
-                    {
-                        if (gear.captured(boss.bell::id))
-                        {
-                            boss.base::signal(tier::release, e2::form::drag::cancel::_<Button>, gear);
-                            gear.setfree();
-                            gear.dismiss();
-                        }
-                    };
-                    boss.LISTEN(tier::release, input::events::mouse::button::drag::stop::_<Button>, gear, dragmemo[Button])
+                    });
+                    on(input::key::MouseDragStop | button_bits, dragmemo_button, [&](hids& gear)
                     {
                         if (gear.captured(boss.bell::id))
                         {
@@ -1959,7 +1946,17 @@ namespace netxs::ui
                             gear.setfree();
                             gear.dismiss();
                         }
-                    };
+                    });
+                    on(input::key::MouseDragCancel | button_bits, dragmemo_button, [&](hids& gear)
+                    {
+                        if (gear.captured(boss.bell::id))
+                        {
+                            boss.base::signal(tier::release, e2::form::drag::cancel::_<Button>, gear);
+                            gear.setfree();
+                            gear.dismiss();
+                        }
+                    });
+                    boss.copy_handler(tier::general, input::events::halt, dragmemo_button.back());
                 }
             }
         };
@@ -2553,7 +2550,7 @@ namespace netxs::ui
                                                (m.coordxy.y < 10000 ? std::to_string(m.coordxy.y) : "-") ;
 
                     auto m_buttons = std::bitset<8>(m.buttons);
-                    for (auto i = 0; i < hids::numofbuttons; i++)
+                    for (auto i = 0; i < hids::buttons::count; i++)
                     {
                         auto& state = status[prop::mouse_btn_1 + i];
                         state = m_buttons[i] ? "pressed" : "idle   ";
@@ -3217,11 +3214,11 @@ namespace netxs::ui
         }
         void on(si32 mouse_event_id, auto handler)
         {
-            mouse.release_handlers[mouse_event_id].emplace_back().first = sensors.emplace_back(std::move(handler));
+            mouse.on(mouse_event_id, sensors, std::move(handler));
         }
         void onpreview(si32 mouse_event_id, auto handler)
         {
-            mouse.preview_handlers[mouse_event_id].emplace_back().first = sensors.emplace_back(std::move(handler));
+            mouse.onpreview(mouse_event_id, sensors, std::move(handler));
         }
         //void on(qiew keybd_chord, qiew script)
         //{
