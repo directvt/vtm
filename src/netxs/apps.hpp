@@ -272,11 +272,11 @@ namespace netxs::app::shared
                 ->shader(cell::shaders::xlight, e2::form::state::hover)
                 ->invoke([](auto& boss)
                 {
-                    boss.LISTEN(tier::release, input::events::mouse::button::click::left, gear)
+                    boss.on(input::key::LeftClick, [&](hids& gear)
                     {
                         boss.base::riseup(tier::anycast, e2::form::proceed::quit::one, true);
                         gear.dismiss();
-                    };
+                    });
                 });
             auto body = basis->attach(slot::_2, ui::fork::ctor(axis::X, 1))
                                 ->colors(whitelt, bluedk);
@@ -305,11 +305,11 @@ namespace netxs::app::shared
                 ->shader(cell{}.bgc(whitelt).fgc(bluedk).und(unln::line), e2::form::state::hover)
                 ->invoke([](auto& boss)
                 {
-                    boss.LISTEN(tier::release, input::events::mouse::button::click::left, gear)
+                    boss.on(input::key::LeftClick, [&](hids& gear)
                     {
                         boss.base::riseup(tier::anycast, e2::form::proceed::quit::one, true);
                         gear.dismiss();
-                    };
+                    });
                 });
             return window_ptr;
         };
@@ -333,7 +333,7 @@ namespace netxs::app::shared
             window_ptr->invoke([&](auto& boss)
             {
                 //todo reimplement (tiling/window)
-                //boss.LISTEN(tier::release, input::events::mouse::button::dblclick::left, gear)
+                //boss.on(input::key::LeftDoubleClick, [&](hids& gear)
                 //{
                 //    auto outer = e2::config::plugins::sizer::outer.param();
                 //    boss.base::riseup(tier::request, e2::config::plugins::sizer::outer, outer);
@@ -345,7 +345,7 @@ namespace netxs::app::shared
                 //        boss.base::extend(viewport);
                 //        gear.dismiss();
                 //    }
-                //};
+                //});
                 closing_on_quit(boss);
                 boss.base::property("applet.zorder", zpos::backmost);
                 boss.LISTEN(tier::release, e2::render::background::prerender, parent_canvas)
@@ -584,12 +584,12 @@ namespace netxs::app::shared
                 [c1](auto& boss, auto& /*item*/)
                 {
                     boss.template shader<tier::anycast>(cell::shaders::color(c1), e2::form::state::keybd::command::close, boss.This());
-                    boss.LISTEN(tier::release, input::events::mouse::button::click::left, gear)
+                    boss.on(input::key::LeftClick, [&](hids& gear)
                     {
                         auto backup = boss.This();
                         boss.base::riseup(tier::release, e2::form::proceed::quit::one, true);
                         gear.dismiss(true);
-                    };
+                    });
                 }},
             });
             auto menu_object = object->attach(slot::_1, menu_block);
@@ -665,11 +665,11 @@ namespace netxs::app::shared
                                         : ansi::bgc(reddk).fgx(0)        .add("█off "));
                         boss.base::reflow();
                     };
-                    boss.LISTEN(tier::release, input::events::mouse::button::click::left, gear)
+                    boss.on(input::key::LeftClick, [&](hids& gear)
                     {
                         boss.base::signal(tier::release, ui::tty::events::rawkbd);
                         gear.dismiss_dblclick();
-                    };
+                    });
                 });
             auto field = []
             {
@@ -681,9 +681,9 @@ namespace netxs::app::shared
                     {
                         boss.base::hidden = true;
                         auto& backup = boss.base::template field<text>();
-                        boss.LISTEN(tier::release, input::events::mouse::any, gear)
+                        boss.on(input::key::MouseAny, [&](hids& gear)
                         {
-                            if (netxs::events::subevent(gear.cause, input::events::mouse::button::down::any.id))
+                            if (gear.cause == input::key::MouseDown)
                             {
                                 if (backup.empty())
                                 {
@@ -699,7 +699,7 @@ namespace netxs::app::shared
                                 boss.set(backup);
                                 backup.clear();
                             }
-                        };
+                        });
                     });
                 return f;
             };

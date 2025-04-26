@@ -1782,10 +1782,14 @@ namespace netxs::ui
                     }
                 };
                 fire(gear.cause);
-                if (gear.cause & 0xFF/*check button_bits*/)
+                auto any_bttn_event = gear.cause & 0xFF00; // Set button_bits = 0.
+                if (gear.cause != any_bttn_event)
                 {
-                    auto any_bttn_event = gear.cause & 0xFF00; // Set button_bits = 0.
-                    fire(any_bttn_event);
+                    if (gear) fire(any_bttn_event);
+                }
+                if (gear.cause != input::key::MouseAny)
+                {
+                    if (gear) fire(input::key::MouseAny);
                 }
             }
 
