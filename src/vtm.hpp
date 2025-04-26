@@ -356,60 +356,36 @@ namespace netxs::app::vtm
             }
 
         public:
-            maker(base&&) = delete;
-            maker(base& boss)
+            maker(auto&&) = delete;
+            maker(auto& boss)
                 : skill{ boss }
             {
-                namespace drag = input::events::mouse::button::drag;
-
                 boss.LISTEN(tier::preview, input::events::keybd::key::post, gear, memo)
                 {
                     if (gear.captured(boss.bell::id)) check_modifiers(gear);
                 };
 
-                //todo unify - args... + template?
-                //middle button
-                //todo revise boss.LISTEN(tier::preview, drag::start::middle, gear, memo)
-                boss.LISTEN(tier::release, drag::start::middle, gear, memo)
+                boss.on(input::key::MiddleDragStart, memo, [&](hids& gear)
                 {
                     handle_init(gear);
-                };
-                boss.LISTEN(tier::release, drag::pull::middle, gear, memo)
+                });
+                boss.on(input::key::RightDragStart, memo.back());
+                boss.on(input::key::MiddleDragPull, memo, [&](hids& gear)
                 {
                     handle_pull(gear);
-                };
-                boss.LISTEN(tier::release, drag::cancel::middle, gear, memo)
-                {
-                    handle_drop(gear);
-                };
-                boss.LISTEN(tier::release, drag::stop::middle, gear, memo)
+                });
+                boss.on(input::key::RightDragPull, memo.back());
+                boss.on(input::key::MiddleDragStop, memo, [&](hids& gear)
                 {
                     handle_stop(gear);
-                };
-
-                //todo unify
-                //right button
-                boss.LISTEN(tier::release, drag::start::right, gear, memo)
-                {
-                    handle_init(gear);
-                };
-                boss.LISTEN(tier::release, drag::pull::right, gear, memo)
-                {
-                    handle_pull(gear);
-                };
-                boss.LISTEN(tier::release, drag::cancel::right, gear, memo)
+                });
+                boss.on(input::key::RightDragStop, memo.back());
+                boss.on(input::key::MiddleDragCancel, memo, [&](hids& gear)
                 {
                     handle_drop(gear);
-                };
-                boss.LISTEN(tier::release, drag::stop::right, gear, memo)
-                {
-                    handle_stop(gear);
-                };
-
-                boss.LISTEN(tier::general, input::events::halt, gear, memo)
-                {
-                    handle_drop(gear);
-                };
+                });
+                boss.on(input::key::RightDragCancel, memo.back());
+                boss.copy_handler(tier::general, input::events::halt, memo.back());
 
                 boss.LISTEN(tier::release, e2::postrender, canvas, memo)
                 {
@@ -1245,7 +1221,7 @@ namespace netxs::app::vtm
     public:
         hall(xipc server, xmls def_config)
             : config{ def_config },
-              maker{ base::plugin<pro::maker>() },
+              maker{ base::_plugin<pro::maker>(*this) },
               robot{ base::plugin<pro::robot>() }
         {
             auto& canal = *server;

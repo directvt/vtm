@@ -1805,6 +1805,14 @@ namespace netxs::ui
             {
                 preview_handlers[mouse_event_id].emplace_back().first = sensors.emplace_back(std::move(handler));
             }
+            void on(si32 mouse_event_id, hook token)
+            {
+                release_handlers[mouse_event_id].emplace_back().first = token;
+            }
+            void onpreview(si32 mouse_event_id, hook token)
+            {
+                preview_handlers[mouse_event_id].emplace_back().first = token;
+            }
 
             mouse(base&&) = delete;
             mouse(base& boss, bool take_all_events = true)
@@ -3233,6 +3241,14 @@ namespace netxs::ui
         void onpreview(si32 mouse_event_id, auto handler)
         {
             onpreview(mouse_event_id, bell::sensors, std::move(handler));
+        }
+        void on(si32 mouse_event_id, hook token)
+        {
+            mouse.on(mouse_event_id, token);
+        }
+        void onpreview(si32 mouse_event_id, hook token)
+        {
+            mouse.onpreview(mouse_event_id, token);
         }
         //void on(qiew keybd_chord, qiew script)
         //{
