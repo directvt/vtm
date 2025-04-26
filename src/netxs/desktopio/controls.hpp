@@ -1834,12 +1834,10 @@ namespace netxs::ui
                 };
 
                 // pro::mouse: Amplify mouse hover on any button press.
-                memo.emplace_back([&](hids& gear)
+                on(input::key::MousePressedCount, memo, [&](hids& gear)
                 {
                     boss.base::signal(tier::release, e2::form::state::hover, rent + gear.mouse::pressed_count);
                 });
-                release_handlers[input::key::MouseDown].emplace_back().first = memo.back();
-                release_handlers[input::key::MouseUp  ].emplace_back().first = memo.back();
                 // pro::mouse: Notify about change in number of mouse hovering clients.
                 on(input::key::MouseEnter, memo, [&](hids& gear) // Notify when the number of clients is positive.
                 {

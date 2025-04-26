@@ -462,7 +462,8 @@ namespace netxs::input
             X(MouseLeave         , 0xB, 0)\
             X(MouseEnter         , 0xC, 0)\
             X(MouseMove          , 0xD, 0)\
-            X(MouseWheel         , 0xE, 0)
+            X(MouseWheel         , 0xE, 0)\
+            X(MousePressedCount  , 0xF, 0)
         static const auto mouse_names = std::unordered_map<text, std::pair<si32, si32>, qiew::hash, qiew::equal>
         {
             #define X(name, action_index, button_bits) \
@@ -1174,6 +1175,7 @@ namespace netxs::input
         void m2_drag_pull()        { fire(input::key::MouseDragPull    | bttn_id); log("drag_pull   bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin((si16)bttn_id), coord, pressxy); }
         void m2_drag_cancel()      { fire(input::key::MouseDragCancel  | bttn_id); log("drag_cancel bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin((si16)bttn_id), coord, pressxy); }
         void m2_drag_stop()        { fire(input::key::MouseDragStop    | bttn_id); log("drag_stop   bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin((si16)bttn_id), coord, pressxy); }
+        void m2_pressed()          { fire(input::key::MousePressedCount         ); log("pressed     bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin((si16)bttn_id), coord, pressxy); }
         void m2_wheel()            { fire(input::key::MouseWheel                ); log("wheel       bttn=%% \tcoor=%% \thzwhl=%% whlfp=%% whlsi=%%", utf::to_bin((si16)bttn_id), coord, hzwhl, whlfp, whlsi); }
         void m2_click()
         {
@@ -1237,7 +1239,7 @@ namespace netxs::input
             {
                 auto next_state = m.buttons;
                 auto prev_state = pressed;
-                pressed_count = 0;
+                auto prev_pressed_count = std::exchange(pressed_count, 0);
                 auto bits = next_state | prev_state;
                 auto bttn = 0x1;
                 while (bits) // Counting pressed buttons.
@@ -1246,6 +1248,10 @@ namespace netxs::input
                     if (pressed_next) pressed_count++;
                     bits >>= 1;
                     bttn <<= 1;
+                }
+                if (prev_pressed_count != pressed_count)
+                {
+                    m2_pressed();
                 }
                 if (bttn_id & next_state)
                 {
