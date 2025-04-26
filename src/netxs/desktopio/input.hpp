@@ -453,17 +453,16 @@ namespace netxs::input
             X(MouseUp            , 0x2, 0)X(LeftUp            , 0x2, 0b001)X(RightUp            , 0x2, 0b100)X(LeftRightUp            , 0x2, 0b101)X(MiddleUp            , 0x2, 0b010)\
             X(MouseClick         , 0x3, 0)X(LeftClick         , 0x3, 0b001)X(RightClick         , 0x3, 0b100)X(LeftRightClick         , 0x3, 0b101)X(MiddleClick         , 0x3, 0b010)\
             X(MouseDoubleClick   , 0x4, 0)X(LeftDoubleClick   , 0x4, 0b001)X(RightDoubleClick   , 0x4, 0b100)X(LeftRightDoubleClick   , 0x4, 0b101)X(MiddleDoubleClick   , 0x4, 0b010)\
-            X(MouseTripleClick   , 0x5, 0)X(LeftTripleClick   , 0x5, 0b001)X(RightTripleClick   , 0x5, 0b100)X(LeftRightTripleClick   , 0x5, 0b101)X(MiddleTripleClick   , 0x5, 0b010)\
-            X(MouseQuintupleClick, 0x6, 0)X(LeftQuintupleClick, 0x6, 0b001)X(RightQuintupleClick, 0x6, 0b100)X(LeftRightQuintupleClick, 0x6, 0b101)X(MiddleQuintupleClick, 0x6, 0b010)\
-            X(MouseDragStart     , 0x7, 0)X(LeftDragStart     , 0x7, 0b001)X(RightDragStart     , 0x7, 0b100)X(LeftRightDragStart     , 0x7, 0b101)X(MiddleDragStart     , 0x7, 0b010)\
-            X(MouseDragPull      , 0x8, 0)X(LeftDragPull      , 0x8, 0b001)X(RightDragPull      , 0x8, 0b100)X(LeftRightDragPull      , 0x8, 0b101)X(MiddleDragPull      , 0x8, 0b010)\
-            X(MouseDragStop      , 0x9, 0)X(LeftDragStop      , 0x9, 0b001)X(RightDragStop      , 0x9, 0b100)X(LeftRightDragStop      , 0x9, 0b101)X(MiddleDragStop      , 0x9, 0b010)\
-            X(MouseDragCancel    , 0xA, 0)X(LeftDragCancel    , 0xA, 0b001)X(RightDragCancel    , 0xA, 0b100)X(LeftRightDragCancel    , 0xA, 0b101)X(MiddleDragCancel    , 0xA, 0b010)\
-            X(MouseLeave         , 0xB, 0)\
-            X(MouseEnter         , 0xC, 0)\
-            X(MouseMove          , 0xD, 0)\
-            X(MouseWheel         , 0xE, 0)\
-            X(MousePressedCount  , 0xF, 0)
+            X(MouseMultiClick    , 0x5, 0)X(LeftTripleClick   , 0x5, 0b001)X(RightTripleClick   , 0x5, 0b100)X(LeftRightTripleClick   , 0x5, 0b101)X(MiddleTripleClick   , 0x5, 0b010)\
+            X(MouseDragStart     , 0x6, 0)X(LeftDragStart     , 0x6, 0b001)X(RightDragStart     , 0x6, 0b100)X(LeftRightDragStart     , 0x6, 0b101)X(MiddleDragStart     , 0x6, 0b010)\
+            X(MouseDragPull      , 0x7, 0)X(LeftDragPull      , 0x7, 0b001)X(RightDragPull      , 0x7, 0b100)X(LeftRightDragPull      , 0x7, 0b101)X(MiddleDragPull      , 0x7, 0b010)\
+            X(MouseDragStop      , 0x8, 0)X(LeftDragStop      , 0x8, 0b001)X(RightDragStop      , 0x8, 0b100)X(LeftRightDragStop      , 0x8, 0b101)X(MiddleDragStop      , 0x8, 0b010)\
+            X(MouseDragCancel    , 0x9, 0)X(LeftDragCancel    , 0x9, 0b001)X(RightDragCancel    , 0x9, 0b100)X(LeftRightDragCancel    , 0x9, 0b101)X(MiddleDragCancel    , 0x9, 0b010)\
+            X(MouseLeave         , 0xA, 0)\
+            X(MouseEnter         , 0xB, 0)\
+            X(MouseMove          , 0xC, 0)\
+            X(MouseWheel         , 0xD, 0)\
+            X(MousePressedCount  , 0xE, 0)
         static const auto mouse_names = std::unordered_map<text, std::pair<si32, si32>, qiew::hash, qiew::equal>
         {
             #define X(name, action_index, button_bits) \
@@ -1163,9 +1162,10 @@ namespace netxs::input
 
         si32 pressed = {}; // mouse: Physical button state.
         si32 bttn_id = {}; // mouse: Logical button id.
+        si32 clicked = {}; // mouse: Multiclick count.
         bool dragged = {}; // mouse: The button is dragged.
         fp2d pressxy = {}; // mouse: Press coordinates.
-        void m2_multiclick(si32 n) { fire(input::key::MouseDoubleClick | bttn_id | (n << 8)); log("tpl click   bttn=%% \tcoor=%% \tpressxy=%% \tclicks=%%", utf::to_bin((si16)bttn_id),   coord, pressxy, stamp[bttn_id].count + 1); }
+        void m2_multiclick()       { fire(input::key::MouseMultiClick  | bttn_id); log("multiclick  bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin((si16)bttn_id), coord, pressxy, " \tclicks: ", clicked); }
         void m2_sglclick()         { fire(input::key::MouseClick       | bttn_id); log("sgl click   bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin((si16)bttn_id), coord, pressxy); }
         void m2_dblclick()         { fire(input::key::MouseDoubleClick | bttn_id); log("dbl click   bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin((si16)bttn_id), coord, pressxy); }
         void m2_move()             { fire(input::key::MouseMove                 ); log("move        bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin((si16)bttn_id), coord, pressxy); }
@@ -1175,10 +1175,11 @@ namespace netxs::input
         void m2_drag_pull()        { fire(input::key::MouseDragPull    | bttn_id); log("drag_pull   bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin((si16)bttn_id), coord, pressxy); }
         void m2_drag_cancel()      { fire(input::key::MouseDragCancel  | bttn_id); log("drag_cancel bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin((si16)bttn_id), coord, pressxy); }
         void m2_drag_stop()        { fire(input::key::MouseDragStop    | bttn_id); log("drag_stop   bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin((si16)bttn_id), coord, pressxy); }
-        void m2_pressed()          { fire(input::key::MousePressedCount         ); log("pressed     bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin((si16)bttn_id), coord, pressxy); }
-        void m2_wheel()            { fire(input::key::MouseWheel                ); log("wheel       bttn=%% \tcoor=%% \thzwhl=%% whlfp=%% whlsi=%%", utf::to_bin((si16)bttn_id), coord, hzwhl, whlfp, whlsi); }
+        void m2_pressed()          { fire(input::key::MousePressedCount         ); log("press_count bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin((si16)bttn_id), coord, pressxy, " pressed count: ", pressed_count); }
+        void m2_wheel()            { fire(input::key::MouseWheel                ); log("wheel       bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin((si16)bttn_id), coord, pressxy, " \thzwhl=", hzwhl, " whlfp=", whlfp, " whlsi=", whlsi); }
         void m2_click()
         {
+            clicked = 1;
             m2_sglclick();
             if (!nodbl)
             {
@@ -1188,6 +1189,7 @@ namespace netxs::input
                 auto fired = m_sys.timecod;
                 if (fired - s.fired < delay && s.coord == coord)
                 {
+                    clicked = s.count + 1;
                     if (s.count == 1)
                     {
                         m2_dblclick();
@@ -1196,7 +1198,7 @@ namespace netxs::input
                     }
                     else if (s.count > 1)
                     {
-                        m2_multiclick(s.count);
+                        m2_multiclick();
                         if (s.count == 5 - 1) // Limit to quintuple click. 0-based.
                         {
                             s.fired = {};
