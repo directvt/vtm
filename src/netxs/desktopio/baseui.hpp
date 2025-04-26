@@ -968,14 +968,20 @@ namespace netxs::ui
         }
         // base: Return a reference to a plugin of the specified type. Create an instance of the specified plugin using the specified arguments if it does not exist.
         template<class T, class ...Args>
-        auto& plugin(Args&&... args)
+        auto& _plugin(auto& boss, Args&&... args)
         {
             auto iter = fields.find(plugin_name<T>());
             if (iter == fields.end())
             {
-                iter = fields.emplace(plugin_name<T>(), ptr::shared(std::make_any<T>(*this, std::forward<Args>(args)...))).first;
+                iter = fields.emplace(plugin_name<T>(), ptr::shared(std::make_any<T>(boss, std::forward<Args>(args)...))).first;
             }
             return *(std::any_cast<T>(iter->second.get()));
+        }
+        // base: Return a reference to a plugin of the specified type. Create an instance of the specified plugin using the specified arguments if it does not exist.
+        template<class T, class ...Args>
+        auto& plugin(Args&&... args)
+        {
+            return _plugin<T>(*this, std::forward<Args>(args)...);
         }
         // base: Allocate an anonymous property.
         template<class T = text>

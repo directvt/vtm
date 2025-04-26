@@ -87,8 +87,8 @@ namespace netxs::ui
             list items;
 
         public:
-            cell_highlight(base&&) = delete;
-            cell_highlight(base& boss)
+            cell_highlight(auto&&) = delete;
+            cell_highlight(auto& boss)
                 : skill{ boss },
                   items{ boss }
             {
@@ -119,7 +119,7 @@ namespace netxs::ui
                         }
                     });
                 };
-                boss.LISTEN(tier::release, input::events::mouse::button::click::left, gear, memo)
+                boss.on(input::key::LeftClick, memo, [&](hids& gear)
                 {
                     auto& item = items.take(gear);
                     if (item.region.size)
@@ -128,8 +128,8 @@ namespace netxs::ui
                         else                          item.region.size = dot_00;
                     }
                     recalc();
-                };
-                boss.LISTEN(tier::release, input::events::mouse::button::dblclick::left, gear, memo)
+                });
+                boss.on(input::key::LeftDoubleClick, memo, [&](hids& gear)
                 {
                     auto& item = items.take(gear);
                     auto area = boss.base::size();
@@ -138,29 +138,26 @@ namespace netxs::ui
                     item.region.size = area;
                     recalc();
                     gear.dismiss();
-                };
+                });
                 boss.LISTEN(tier::general, input::events::die, gear, memo)
                 {
                     recalc();
                     boss.base::deface();
                 };
-                boss.LISTEN(tier::release, input::events::mouse::hover::any, gear, memo)
+                boss.on(input::key::MouseEnter, memo, [&](hids& gear)
                 {
-                    if (gear.cause == input::events::mouse::hover::enter.id)
+                    items.add(gear);
+                });
+                boss.on(input::key::MouseLeave, memo, [&](hids& gear)
+                {
+                    auto& item = items.take(gear);
+                    if (item.region.size)
                     {
-                        items.add(gear);
+                        item.inside = faux;
                     }
-                    else if (gear.cause == input::events::mouse::hover::leave.id)
-                    {
-                        auto& item = items.take(gear);
-                        if (item.region.size)
-                        {
-                            item.inside = faux;
-                        }
-                        else items.del(gear);
-                        recalc();
-                    }
-                };
+                    else items.del(gear);
+                    recalc();
+                });
                 engage<hids::buttons::left>();
             }
             void recalc()
@@ -201,11 +198,12 @@ namespace netxs::ui
             void engage()
             {
                 boss.base::signal(tier::release, e2::form::draggable::_<Button>, true);
-                boss.LISTEN(tier::release, input::events::mouse::move, gear, memo)
+                auto& boss_mouse = boss.base::plugin<pro::mouse>();
+                boss_mouse.on(input::key::MouseMove, memo, [&](hids& gear)
                 {
                     items.take(gear).calc(boss, gear.coord);
                     boss.base::deface();
-                };
+                });
                 boss.LISTEN(tier::release, e2::form::drag::start::_<Button>, gear, memo)
                 {
                     auto& g = items.take(gear);

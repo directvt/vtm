@@ -3003,8 +3003,10 @@ namespace netxs::ui
         template<class S, class ...Args>
         auto plugin(Args&&... args)
         {
-            base::plugin<S>(std::forward<Args>(args)...);
-            return This();
+            auto boss_ptr = This();
+            auto& boss = *boss_ptr;
+            base::_plugin<S>(boss, std::forward<Args>(args)...);
+            return boss_ptr;
         }
         // form: Detach the specified plugin and return self.
         template<class S>
@@ -3216,13 +3218,21 @@ namespace netxs::ui
             auto context = parent_canvas.change_basis(basis, true);
             return context;
         }
+        void on(si32 mouse_event_id, auto& tokens, auto handler)
+        {
+            mouse.on(mouse_event_id, tokens, std::move(handler));
+        }
+        void onpreview(si32 mouse_event_id, auto& tokens, auto handler)
+        {
+            mouse.onpreview(mouse_event_id, tokens, std::move(handler));
+        }
         void on(si32 mouse_event_id, auto handler)
         {
-            mouse.on(mouse_event_id, sensors, std::move(handler));
+            on(mouse_event_id, bell::sensors, std::move(handler));
         }
         void onpreview(si32 mouse_event_id, auto handler)
         {
-            mouse.onpreview(mouse_event_id, sensors, std::move(handler));
+            onpreview(mouse_event_id, bell::sensors, std::move(handler));
         }
         //void on(qiew keybd_chord, qiew script)
         //{
