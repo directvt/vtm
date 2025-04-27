@@ -163,11 +163,11 @@ namespace netxs::ui
             //todo use s11n::xs::screenmode:  normal/fullscreen/maximized/minimized
             void handle(s11n::xs::fullscrn  /*lock*/)
             {
-                owner.fullscreen = true;
+                owner.set_fullscreen(true);
             }
             void handle(s11n::xs::restored  /*lock*/)
             {
-                owner.fullscreen = faux;
+                owner.set_fullscreen(faux);
             }
             void handle(s11n::xs::sysboard    lock)
             {
@@ -485,6 +485,11 @@ namespace netxs::ui
         pro::debug& debug;
         input::multihome_t& multihome;
 
+        void set_fullscreen(bool state)
+        {
+            fullscreen = state;
+            mouse.draggable<hids::buttons::left>(state);
+        }
         void forward(auto& device)
         {
             auto gear_it = gears.find(device.gear_id);
@@ -1133,7 +1138,7 @@ namespace netxs::ui
                     {
                         return; // Pass event to the hall.
                     }
-                    else if (fullscreen && gear.dragged) // Enable left drag in GUI fullscreen mode.
+                    else if (fullscreen && gear.dragged) // Allow left drag in GUI fullscreen mode.
                     {
                         return; // Pass event to the hall.
                     }
