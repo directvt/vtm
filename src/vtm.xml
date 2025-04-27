@@ -428,17 +428,22 @@ R"==(
                             <bbb...>:
                                 0: 0: Any button
                                 1: 1: Left
-                                2: 01: Middle
-                                3: 001: Right
+                                2: 01: Right
+                                3: 001: Middle
                                 4: 0001: Button4
                                 5: 00001: Button5
                                 6: 000001: Button6
                                 7: 0000001: Button7
                                 8: 00000001: Button8
-                                101: Left+Right
+                                11: Left+Right
                                 111: Left+Middle+Right
                                 011: Middle+Right
+                                ││└── middle
+                                │└─── right
+                                └──── left
                                 10000001: Left+Button8
+                                │      └─── button8
+                                └────────── left
                                 etc... The trailing zeros can be omitted.
                     Action:
                         MouseDown<bbb...>            Button<bbb...> push down / pressed.
@@ -469,10 +474,10 @@ R"==(
                 on="MouseClick"                  Any button click.
                 on="MouseClick1"                 Left button click.
                 on="LeftClick"                   Left button click.
-                on="MouseClick001"               Right button click.
-                on="MouseClick3"                 Right button click.
-                on="MouseClick2"                 Middle button click.
-                on="MouseClick101"               Left+Right button click.
+                on="MouseClick01"                Right button click.
+                on="MouseClick2"                 Right button click.
+                on="MouseClick3"                 Middle button click.
+                on="MouseClick11"                Left+Right button click.
                 ?? on="Ctrl+Shift+MouseClick1"      Left button click with Ctrl+Shift modifiers pressed.
                 ?? on="Ctrl+Shift+MouseDown1"       Left button push down with Ctrl+Shift modifiers pressed.
                 ?? on="Ctrl+Shift+MouseUp1"         Left button release with Ctrl+Shift modifiers pressed.
@@ -480,10 +485,10 @@ R"==(
                 on="MouseDoubleClick1"           Double click (and release) by left button
                 ?? on="Ctrl+MouseMultiPress1"       Multi click (and stay pressed) by left button with Ctrl modifier pressed.
                 ?? on="Ctrl+MouseDoubleClick1"      Double click (and release) by left button with Ctrl modifier pressed.
-                on="MouseDragStart101"           Drag start with Left and Right mouse buttons pressed.
-                on="MouseDragPull101"
-                on="MouseDragStop101"
-                on="MouseDragCancel101"
+                on="MouseDragStart11"            Drag start with Left and Right mouse buttons pressed.
+                on="MouseDragPull11"
+                on="MouseDragStop11"
+                on="MouseDragCancel11"
             Keybd:
                 on="Enter"
                 onpreview="Enter"

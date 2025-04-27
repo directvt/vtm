@@ -5436,9 +5436,9 @@ namespace netxs::os
                                 m.wheelsi = {};
                                 m.ctlstat = {};
                                 // 000 000 00
-                                //   | ||| ||
-                                //   | ||| └----- button number
-                                //   | └--------- ctl state
+                                //   │ │││ ││
+                                //   │ |││ └----- button number
+                                //   │ └--------- ctl state
                                 if (ctl & 0x04) m.ctlstat |= input::hids::LShift;
                                 if (ctl & 0x08) m.ctlstat |= input::hids::LAlt;
                                 if (ctl & 0x10) m.ctlstat |= input::hids::LCtrl;

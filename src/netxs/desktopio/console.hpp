@@ -997,14 +997,14 @@ namespace netxs::ui
                 dest_region.coor += base::coor();
                 this->base::riseup(tier::release, e2::form::proceed::create, dest_region);
             };
-            LISTEN(tier::preview, input::events::mouse::button::click::leftright, gear)
+            onpreview(input::key::LeftRightClick, [&](hids& gear)
             {
                 if (gear.clear_clipboard())
                 {
                     this->bell::expire(tier::release);
                     gear.dismiss();
                 }
-            };
+            });
             LISTEN(tier::release, e2::conio::pointer, pointer)
             {
                 props.legacy_mode |= pointer ? ui::console::mouse : 0;
@@ -1085,28 +1085,31 @@ namespace netxs::ui
                     }
                 }
             };
-            LISTEN(tier::preview, input::events::mouse::button::tplclick::leftright, gear)
+            onpreview(input::key::LeftRightMultiClick, [&](hids& gear)
             {
-                if (props.debug_overlay)
+                if (gear.clicked == 3)
                 {
-                    props.show_regions = true;
-                    props.debug_overlay = faux;
-                    debug.stop();
-                }
-                else
-                {
-                    if (props.show_regions)
+                    if (props.debug_overlay)
                     {
-                        props.show_regions = faux;
+                        props.show_regions = true;
+                        props.debug_overlay = faux;
+                        debug.stop();
                     }
                     else
                     {
-                        props.debug_overlay = true;
-                        debug.start();
+                        if (props.show_regions)
+                        {
+                            props.show_regions = faux;
+                        }
+                        else
+                        {
+                            props.debug_overlay = true;
+                            debug.start();
+                        }
                     }
+                    gear.dismiss();
                 }
-                gear.dismiss();
-            };
+            });
             if (direct) // Forward unhandled events outside.
             {
                 LISTEN(tier::preview, e2::form::size::minimize, gear)

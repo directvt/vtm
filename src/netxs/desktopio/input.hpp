@@ -449,17 +449,17 @@ namespace netxs::input
         };
         #define mouse_list \
             X(MouseAny           , 0x0, 0)\
-            X(MouseDown          , 0x1, 0)X(LeftDown          , 0x1, 0b001)X(RightDown          , 0x1, 0b100)X(LeftRightDown          , 0x1, 0b101)X(MiddleDown          , 0x1, 0b010)\
-            X(MouseUp            , 0x2, 0)X(LeftUp            , 0x2, 0b001)X(RightUp            , 0x2, 0b100)X(LeftRightUp            , 0x2, 0b101)X(MiddleUp            , 0x2, 0b010)\
-            X(MouseClick         , 0x3, 0)X(LeftClick         , 0x3, 0b001)X(RightClick         , 0x3, 0b100)X(LeftRightClick         , 0x3, 0b101)X(MiddleClick         , 0x3, 0b010)\
-            X(MouseDoubleClick   , 0x4, 0)X(LeftDoubleClick   , 0x4, 0b001)X(RightDoubleClick   , 0x4, 0b100)X(LeftRightDoubleClick   , 0x4, 0b101)X(MiddleDoubleClick   , 0x4, 0b010)\
-            X(MouseDoublePress   , 0x5, 0)X(LeftDoublePress   , 0x5, 0b001)X(RightDoublePress   , 0x5, 0b100)X(LeftRightDoublePress   , 0x5, 0b101)X(MiddleDoublePress   , 0x5, 0b010)\
-            X(MouseMultiClick    , 0x6, 0)X(LeftMultiClick    , 0x6, 0b001)X(RightMultiClick    , 0x6, 0b100)X(LeftRightMultiClick    , 0x6, 0b101)X(MiddleMultiClick    , 0x6, 0b010)\
-            X(MouseMultiPress    , 0x7, 0)X(LeftMultiPress    , 0x7, 0b001)X(RightMultiPress    , 0x7, 0b100)X(LeftRightMultiPress    , 0x7, 0b101)X(MiddleMultiPress    , 0x7, 0b010)\
-            X(MouseDragStart     , 0x8, 0)X(LeftDragStart     , 0x8, 0b001)X(RightDragStart     , 0x8, 0b100)X(LeftRightDragStart     , 0x8, 0b101)X(MiddleDragStart     , 0x8, 0b010)\
-            X(MouseDragPull      , 0x9, 0)X(LeftDragPull      , 0x9, 0b001)X(RightDragPull      , 0x9, 0b100)X(LeftRightDragPull      , 0x9, 0b101)X(MiddleDragPull      , 0x9, 0b010)\
-            X(MouseDragStop      , 0xA, 0)X(LeftDragStop      , 0xA, 0b001)X(RightDragStop      , 0xA, 0b100)X(LeftRightDragStop      , 0xA, 0b101)X(MiddleDragStop      , 0xA, 0b010)\
-            X(MouseDragCancel    , 0xB, 0)X(LeftDragCancel    , 0xB, 0b001)X(RightDragCancel    , 0xB, 0b100)X(LeftRightDragCancel    , 0xB, 0b101)X(MiddleDragCancel    , 0xB, 0b010)\
+            X(MouseDown          , 0x1, 0)X(LeftDown          , 0x1, 0b001)X(RightDown          , 0x1, 0b010)X(LeftRightDown          , 0x1, 0b011)X(MiddleDown          , 0x1, 0b100)\
+            X(MouseUp            , 0x2, 0)X(LeftUp            , 0x2, 0b001)X(RightUp            , 0x2, 0b010)X(LeftRightUp            , 0x2, 0b011)X(MiddleUp            , 0x2, 0b100)\
+            X(MouseClick         , 0x3, 0)X(LeftClick         , 0x3, 0b001)X(RightClick         , 0x3, 0b010)X(LeftRightClick         , 0x3, 0b011)X(MiddleClick         , 0x3, 0b100)\
+            X(MouseDoubleClick   , 0x4, 0)X(LeftDoubleClick   , 0x4, 0b001)X(RightDoubleClick   , 0x4, 0b010)X(LeftRightDoubleClick   , 0x4, 0b011)X(MiddleDoubleClick   , 0x4, 0b100)\
+            X(MouseDoublePress   , 0x5, 0)X(LeftDoublePress   , 0x5, 0b001)X(RightDoublePress   , 0x5, 0b010)X(LeftRightDoublePress   , 0x5, 0b011)X(MiddleDoublePress   , 0x5, 0b100)\
+            X(MouseMultiClick    , 0x6, 0)X(LeftMultiClick    , 0x6, 0b001)X(RightMultiClick    , 0x6, 0b010)X(LeftRightMultiClick    , 0x6, 0b011)X(MiddleMultiClick    , 0x6, 0b100)\
+            X(MouseMultiPress    , 0x7, 0)X(LeftMultiPress    , 0x7, 0b001)X(RightMultiPress    , 0x7, 0b010)X(LeftRightMultiPress    , 0x7, 0b011)X(MiddleMultiPress    , 0x7, 0b100)\
+            X(MouseDragStart     , 0x8, 0)X(LeftDragStart     , 0x8, 0b001)X(RightDragStart     , 0x8, 0b010)X(LeftRightDragStart     , 0x8, 0b011)X(MiddleDragStart     , 0x8, 0b100)\
+            X(MouseDragPull      , 0x9, 0)X(LeftDragPull      , 0x9, 0b001)X(RightDragPull      , 0x9, 0b010)X(LeftRightDragPull      , 0x9, 0b011)X(MiddleDragPull      , 0x9, 0b100)\
+            X(MouseDragStop      , 0xA, 0)X(LeftDragStop      , 0xA, 0b001)X(RightDragStop      , 0xA, 0b010)X(LeftRightDragStop      , 0xA, 0b011)X(MiddleDragStop      , 0xA, 0b100)\
+            X(MouseDragCancel    , 0xB, 0)X(LeftDragCancel    , 0xB, 0b001)X(RightDragCancel    , 0xB, 0b010)X(LeftRightDragCancel    , 0xB, 0b011)X(MiddleDragCancel    , 0xB, 0b100)\
             X(MouseLeave         , 0xC, 0)\
             X(MouseEnter         , 0xD, 0)\
             X(MouseMove          , 0xE, 0)\
