@@ -7756,40 +7756,39 @@ namespace netxs::ui
         }
         void selection_submit()
         {
-            base::signal(tier::release, e2::form::draggable::left, selection_passed());
-            LISTEN(tier::release, input::events::mouse::scroll::act, gear)
+            base::signal(tier::release, e2::form::draggable::left, true);
+            LISTEN(tier::release, e2::form::drag::start ::left, gear){ if (selection_passed()) selection_create(gear); };
+            LISTEN(tier::release, e2::form::drag::pull  ::left, gear){ if (selection_passed()) selection_extend(gear); };
+            LISTEN(tier::release, e2::form::drag::stop  ::left, gear){                         selection_finish(gear); };
+            LISTEN(tier::release, e2::form::drag::cancel::left, gear){                         selection_cancel();     };
+            on(input::key::RightClick,                [&](hids& gear){                         selection_pickup(gear); });
+            on(input::key::LeftClick,                 [&](hids& gear){                         selection_lclick(gear); });
+            on(input::key::MiddleClick,               [&](hids& gear){                         selection_mclick(gear); });
+            on(input::key::LeftDoubleClick,           [&](hids& gear){ if (selection_passed()) selection_dblclk(gear); });
+            on(input::key::LeftMultiClick,            [&](hids& gear){ if (selection_passed()) selection_tplclk(gear); });
+            on(input::key::MouseWheel, [&](hids& gear)
             {
                 if (gear.captured()) // Forward mouse wheel events to all parents. Wheeling while button pressed.
                 {
                     auto& offset = this->base::coor();
                     gear.pass(tier::release, this->base::parent(), offset);
                 }
-            };
-            //todo make it configurable
-            LISTEN(tier::release, e2::form::drag::start                 ::left,  gear) { if (selection_passed()) selection_create(gear); };
-            LISTEN(tier::release, e2::form::drag::pull                  ::left,  gear) { if (selection_passed()) selection_extend(gear); };
-            LISTEN(tier::release, e2::form::drag::stop                  ::left,  gear) {                         selection_finish(gear); };
-            LISTEN(tier::release, e2::form::drag::cancel                ::left,  gear) {                         selection_cancel();     };
-            LISTEN(tier::release, input::events::mouse::button::click   ::right, gear) {                         selection_pickup(gear); };
-            LISTEN(tier::release, input::events::mouse::button::click   ::left,  gear) {                         selection_lclick(gear); };
-            LISTEN(tier::release, input::events::mouse::button::click   ::middle,gear) {                         selection_mclick(gear); };
-            LISTEN(tier::release, input::events::mouse::button::dblclick::left,  gear) { if (selection_passed()) selection_dblclk(gear); };
-            LISTEN(tier::release, input::events::mouse::button::tplclick::left,  gear) { if (selection_passed()) selection_tplclk(gear); };
-            LISTEN(tier::release, input::events::mouse::scroll::act, gear)
-            {
-                if (gear.meta(hids::anyCtrl)) return; // Ctrl+Wheel is reserved for zooming.
-                if (altscr && target == &altbuf)
+                else
                 {
-                    if (gear.whlsi)
+                    if (gear.meta(hids::anyCtrl)) return; // Ctrl+Wheel is reserved for zooming.
+                    if (altscr && target == &altbuf)
                     {
-                        auto count = std::abs(gear.whlsi);
-                        auto arrow = decckm ? gear.whlsi > 0 ? "\033OA"sv : "\033OB"sv
-                                            : gear.whlsi > 0 ? "\033[A"sv : "\033[B"sv;
-                        data_out(utf::repeat(arrow, count));
+                        if (gear.whlsi)
+                        {
+                            auto count = std::abs(gear.whlsi);
+                            auto arrow = decckm ? gear.whlsi > 0 ? "\033OA"sv : "\033OB"sv
+                                                : gear.whlsi > 0 ? "\033[A"sv : "\033[B"sv;
+                            data_out(utf::repeat(arrow, count));
+                        }
+                        gear.dismiss();
                     }
-                    gear.dismiss();
                 }
-            };
+            });
         }
         void selection_search(hids& gear, feed dir)
         {
