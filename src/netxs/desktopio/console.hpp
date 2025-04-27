@@ -997,14 +997,6 @@ namespace netxs::ui
                 dest_region.coor += base::coor();
                 this->base::riseup(tier::release, e2::form::proceed::create, dest_region);
             };
-            onpreview(input::key::LeftRightClick, [&](hids& gear)
-            {
-                if (gear.clear_clipboard())
-                {
-                    this->bell::expire(tier::release);
-                    gear.dismiss();
-                }
-            });
             LISTEN(tier::release, e2::conio::pointer, pointer)
             {
                 props.legacy_mode |= pointer ? ui::console::mouse : 0;
@@ -1085,6 +1077,14 @@ namespace netxs::ui
                     }
                 }
             };
+            onpreview(input::key::LeftRightClick, [&](hids& gear)
+            {
+                if (gear.clear_clipboard())
+                {
+                    this->bell::expire(tier::release);
+                    gear.dismiss();
+                }
+            });
             onpreview(input::key::LeftRightMultiClick, [&](hids& gear)
             {
                 if (gear.clicked == 3)
@@ -1128,8 +1128,8 @@ namespace netxs::ui
                     {
                         forward = true;
                     }
-                    if (isvtm && gear.dragged && (gear.bttn_id == hids::buttons::bttn_id[hids::button_idx::leftright] || // Reserved for dragging nested vtm.
-                                                  gear.bttn_id == hids::buttons::bttn_id[hids::button_idx::right]))      // Reserved for creation inside nested vtm.
+                    if (isvtm && gear.dragged && (gear.bttn_id == hids::buttons::bttn_id[hids::buttons::leftright] || // Reserved for dragging nested vtm.
+                                                  gear.bttn_id == hids::buttons::bttn_id[hids::buttons::right]))      // Reserved for creation inside nested vtm.
                     {
                         return; // Pass event to the hall.
                     }

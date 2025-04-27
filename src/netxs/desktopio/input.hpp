@@ -1031,21 +1031,12 @@ namespace netxs::input
             static constexpr auto count     = __COUNTER__ - _counter;
             static constexpr auto bttn_id = std::to_array({
                 0b00001, // left
-                0b00100, // right
-                0b00010, // middle
+                0b00010, // right
+                0b00100, // middle
                 0b01000, // xbutton1
                 0b10000, // xbutton2
-                0b00101, // leftright
+                0b00011, // leftright
             });
-        };
-        struct button_idx
-        {
-            static constexpr auto left      = 0;
-            static constexpr auto right     = 1;
-            static constexpr auto middle    = 2;
-            static constexpr auto xbutton1  = 3;
-            static constexpr auto xbutton2  = 4;
-            static constexpr auto leftright = 5;
         };
 
         struct stat

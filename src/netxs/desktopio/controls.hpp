@@ -1321,8 +1321,8 @@ namespace netxs::ui
                 return result;
             }
 
-            focus(base&&) = delete;
-            focus(base& boss, si32 focus_mode = mode::hub, bool set_default_focus = true)
+            focus(auto&&) = delete;
+            focus(auto& boss, si32 focus_mode = mode::hub, bool set_default_focus = true)
                 : skill{ boss },
                   node_type{ focus_mode }
             {
@@ -1382,7 +1382,7 @@ namespace netxs::ui
                     gear.handled = new_handled;
                     if (!sent && node_type != mode::relay) // Send key::post event back. The relays themselves will later send it back.
                     {
-                        auto parent_ptr = boss.This();
+                        auto parent_ptr = boss.base::This();
                         while ((!gear.handled || gear.keystat == input::key::released) && parent_ptr) // Always pass released key events.
                         {
                             parent_ptr->base::signal(tier::release, input::events::keybd::key::post, gear);
@@ -3261,6 +3261,10 @@ namespace netxs::ui
 
         form()
             : base{ ui::tui_domain() },
+              mouse{ base::plugin<pro::mouse>() }
+        { }
+        form(auth& indexer)
+            : base{ indexer },
               mouse{ base::plugin<pro::mouse>() }
         { }
     };

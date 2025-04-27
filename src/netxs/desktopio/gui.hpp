@@ -1413,7 +1413,7 @@ namespace netxs::gui
 
     namespace e2 = netxs::events::userland::e2;
 
-    struct winbase : base
+    struct winbase : form<winbase>
     {
         using byts = std::vector<byte>;
         using gray = netxs::raster<byts, rect>;
@@ -1423,7 +1423,7 @@ namespace netxs::gui
         using b256 = std::array<byte, 256>;
         using title = ui::pro::title;
         using focus = ui::pro::focus;
-        using keybd = ui::pro::keybd;
+        using mouse = ui::pro::mouse;
         using kmap = input::key::kmap;
 
         static constexpr auto shadow_dent = dent{ 1,1,1,1 } * 3;
@@ -1883,6 +1883,7 @@ namespace netxs::gui
 
         title titles; // winbase: UI header/footer.
         focus wfocus; // winbase: UI focus.
+        mouse wmouse; // winbase: UI mouse.
         layer master; // winbase: Layer for Client.
         layer blinky; // winbase: Layer for blinking characters.
         layer header; // winbase: Layer for Header.
@@ -1928,9 +1929,10 @@ namespace netxs::gui
         kmap  chords; // winbase: Pressed key table (key chord).
 
         winbase(auth& indexer, std::list<text>& font_names, si32 cell_height, bool antialiasing, span blink_rate, twod grip_cell)
-            : base{ indexer },
+            : form{ indexer },
               titles{ *this, "", "", faux },
               wfocus{ *this, ui::pro::focus::mode::relay },
+              wmouse{ *this },
               fcache{ font_names, cell_height, [&]{ netxs::set_flag<task::all>(reload); window_post_command(ipc::no_command); } },
               gcache{ fcache, antialiasing },
               blinks{ .init = blink_rate },
@@ -3246,7 +3248,7 @@ namespace netxs::gui
                 update_gui();
                 window_initilize();
 
-                LISTEN(tier::release, input::events::mouse::button::drag::start::any, gear)//, -, (accum_ptr))
+                on(input::key::MouseDragStart, [&](hids& gear)
                 {
                     if (fsmode != winstate::normal) return;
                     moving = true;
@@ -3254,16 +3256,16 @@ namespace netxs::gui
                     auto dxdy = twod{ std::round(gear.delta.get() * cellsz) };
                     move_window(dxdy);
                     sync_pixel_layout(); // Align grips and shadow.
-                };
-                LISTEN(tier::release, input::events::mouse::button::dblclick::left, gear)
+                });
+                on(input::key::LeftDoubleClick, [&](hids& /*gear*/)
                 {
                          if (fsmode == winstate::maximized) set_state(winstate::normal);
                     else if (fsmode == winstate::normal)    set_state(winstate::maximized);
-                };
-                LISTEN(tier::release, input::events::mouse::scroll::any, gear)
+                });
+                on(input::key::MouseWheel, [&](hids& gear)
                 {
                     zoom_by_wheel(gear.whlfp, faux);
-                };
+                });
                 LISTEN(tier::release, input::events::focus::set::any, seed, -, (treeid = datetime::uniqueid(), digest = ui64{}))
                 {
                     auto deed = this->bell::protos(tier::release);

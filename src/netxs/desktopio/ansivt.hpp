@@ -624,12 +624,12 @@ namespace netxs::ansi
 
             auto m_bttn = std::bitset<8>{ (ui32)gear.m_sys.buttons };
             auto s_bttn = std::bitset<8>{ (ui32)gear.m_sav.buttons };
-            auto m_left = m_bttn[hids::button_idx::left  ];
-            auto m_rght = m_bttn[hids::button_idx::right ];
-            auto m_mddl = m_bttn[hids::button_idx::middle];
-            auto s_left = s_bttn[hids::button_idx::left  ];
-            auto s_rght = s_bttn[hids::button_idx::right ];
-            auto s_mddl = s_bttn[hids::button_idx::middle];
+            auto m_left = m_bttn[hids::buttons::left  ];
+            auto m_rght = m_bttn[hids::buttons::right ];
+            auto m_mddl = m_bttn[hids::buttons::middle];
+            auto s_left = s_bttn[hids::buttons::left  ];
+            auto s_rght = s_bttn[hids::buttons::right ];
+            auto s_mddl = s_bttn[hids::buttons::middle];
             auto pressed = true;
 
             if (m_left != s_left)
@@ -698,12 +698,12 @@ namespace netxs::ansi
 
             auto m_bttn = std::bitset<8>{ (ui32)gear.m_sys.buttons };
             auto s_bttn = std::bitset<8>{ (ui32)gear.m_sav.buttons };
-            auto m_left = m_bttn[hids::button_idx::left  ];
-            auto m_rght = m_bttn[hids::button_idx::right ];
-            auto m_mddl = m_bttn[hids::button_idx::middle];
-            auto s_left = s_bttn[hids::button_idx::left  ];
-            auto s_rght = s_bttn[hids::button_idx::right ];
-            auto s_mddl = s_bttn[hids::button_idx::middle];
+            auto m_left = m_bttn[hids::buttons::left  ];
+            auto m_rght = m_bttn[hids::buttons::right ];
+            auto m_mddl = m_bttn[hids::buttons::middle];
+            auto s_left = s_bttn[hids::buttons::left  ];
+            auto s_rght = s_bttn[hids::buttons::right ];
+            auto s_mddl = s_bttn[hids::buttons::middle];
 
             //todo impl ext mouse buttons 128-131
                  if (m_left != s_left) ctrl |= m_left ? left : btup;

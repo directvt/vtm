@@ -5455,9 +5455,9 @@ namespace netxs::os
                                 m.coordxy = twod{ x, y };
                                 switch (ctl)
                                 {
-                                    case 0: netxs::set_bit<input::hids::button_idx::left  >(m.buttons, ispressed); break;
-                                    case 1: netxs::set_bit<input::hids::button_idx::middle>(m.buttons, ispressed); break;
-                                    case 2: netxs::set_bit<input::hids::button_idx::right >(m.buttons, ispressed); break;
+                                    case 0: netxs::set_bit<input::hids::buttons::left  >(m.buttons, ispressed); break;
+                                    case 1: netxs::set_bit<input::hids::buttons::middle>(m.buttons, ispressed); break;
+                                    case 2: netxs::set_bit<input::hids::buttons::right >(m.buttons, ispressed); break;
                                     case 64:
                                         m.wheelfp = 1;
                                         m.wheelsi = 1;
