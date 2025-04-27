@@ -477,7 +477,6 @@ namespace netxs::events
         const id_t   id;      // bell: Object id.
         subs         sensors; // bell: Event subscriptions.
 
-    //private:
         reactor release{ true };
         reactor preview{ faux };
         reactor request{ true };

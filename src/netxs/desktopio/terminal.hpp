@@ -9131,18 +9131,13 @@ namespace netxs::ui
                 gear.m_sys.enabled = hids::stat::die;
                 stream.sysmouse.send(*this, gear.m_sys);
             };
-            LISTEN(tier::general, input::events::halt, gear)
+            on(input::key::MouseLeave, [&](hids& gear)
             {
                 gear.m_sys.gear_id = gear.id;
                 gear.m_sys.enabled = hids::stat::halt;
                 stream.sysmouse.send(*this, gear.m_sys);
-            };
-            LISTEN(tier::release, input::events::mouse::hover::leave, gear)
-            {
-                gear.m_sys.gear_id = gear.id;
-                gear.m_sys.enabled = hids::stat::halt;
-                stream.sysmouse.send(*this, gear.m_sys);
-            };
+            });
+            bell::copy_handler(tier::general, input::events::halt, bell::sensors.back());
             LISTEN(tier::release, input::events::focus::set::any, seed)
             {
                 auto deed = this->bell::protos(tier::release);
