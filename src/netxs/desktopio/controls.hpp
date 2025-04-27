@@ -1346,7 +1346,7 @@ namespace netxs::ui
                     owner_ptr = boss.This();
                 };
                 // pro::focus: Set unique focus on left click. Set group focus on Ctrl+LeftClick.
-                boss.LISTEN(tier::release, input::events::mouse::button::click::left, gear, memo)
+                boss.on(input::LeftClick, memo, [&](hids& gear)
                 {
                     if (gear.meta(hids::anyCtrl))
                     {
@@ -1364,7 +1364,7 @@ namespace netxs::ui
                         pro::focus::set(boss.This(), gear.id, solo::on);
                     }
                     gear.dismiss();
-                };
+                });
                 // pro::focus: Subscribe on keybd events.
                 boss.LISTEN(tier::preview, input::events::keybd::key::post, gear, memo) // preview: Run after any.
                 {
