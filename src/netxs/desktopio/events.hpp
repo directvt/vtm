@@ -154,9 +154,8 @@ namespace netxs::events
             proceed,
         };
 
-        // Forward execution order: Execute concrete event  first. Forward means from particular to general: 1. event::group::item, 2. event::any
-        // Reverse execution order: Execute global   events first. Reverse means from general to particular: 1. event::any,         2. event::group::item
-        // Note: event::group::item and event::group::any belong to the same subgroup, so they will be executed in the order of subscription.
+        // Forward execution order: Execute concrete event  first. Forward means from particular to general: 1. event::group::item, 2. event::group::any
+        // Reverse execution order: Execute global   events first. Reverse means from general to particular: 1. event::group::any,  2. event::group::item
         bool                 order; // reactor: Execution order. True means Forward.
         std::map<hint, list> stock; // reactor: Handlers repository.
         std::vector<hint>    queue; // reactor: Event queue.
