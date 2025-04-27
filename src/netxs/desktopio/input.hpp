@@ -1040,11 +1040,12 @@ namespace netxs::input
         };
         struct button_idx
         {
-            static constexpr auto left     = 1;
-            static constexpr auto right    = 3;
-            static constexpr auto middle   = 2;
-            static constexpr auto xbutton1 = 4;
-            static constexpr auto xbutton2 = 5;
+            static constexpr auto left      = 0;
+            static constexpr auto right     = 1;
+            static constexpr auto middle    = 2;
+            static constexpr auto xbutton1  = 3;
+            static constexpr auto xbutton2  = 4;
+            static constexpr auto leftright = 5;
         };
 
         struct stat
@@ -1312,9 +1313,6 @@ namespace netxs::input
                     if (dragged)
                     {
                         m2_drag_stop(); // drag_stop(101);
-                    }
-                    if (dragged)
-                    {
                         dragged = faux;
                     }
                     else
@@ -1338,8 +1336,8 @@ namespace netxs::input
                 if (pressed && allow_drag && !dragged)
                 {
                     click = pressxy;
-                    m2_drag_start();
                     dragged = true;
+                    m2_drag_start();
                 }
                 coord = m_sys.coordxy;
                 prime = m_sys.coordxy;
@@ -1937,10 +1935,6 @@ namespace netxs::input
 
         void replay(sptr object_ptr, hint new_cause, fp2d new_coord, fp2d new_click, fp2d new_delta, si32 new_button_state, si32 new_bttn_id, bool new_dragged, si32 new_ctlstate, fp32 new_whlfp, si32 new_whlsi, bool new_hzwhl)
         {
-            //todo drop
-            static constexpr auto mask = netxs::events::level_mask(input::events::mouse::button::any.id);
-            //todo drop
-            static constexpr auto base = mask & input::events::mouse::button::any.id;
             alive = true;
             keybd::ctlstat = new_ctlstate;
             mouse::coord = new_coord;
@@ -1948,16 +1942,12 @@ namespace netxs::input
             mouse::whlfp = new_whlfp;
             mouse::whlsi = new_whlsi;
             mouse::hzwhl = new_hzwhl;
-            //todo revise
-            mouse::cause = (new_cause & ~mask) | base; // Remove the dependency on the event tree root.
-
+            mouse::cause = new_cause;
             mouse::delta.set(new_delta);
-
             mouse::pressed = new_button_state;
             mouse::bttn_id = new_bttn_id;
             mouse::dragged = new_dragged;
             mouse::pressxy = new_click;
-            //mouse::load_button_state(new_button_state);
             pass(tier::release, object_ptr, owner.base::coor(), true);
         }
 

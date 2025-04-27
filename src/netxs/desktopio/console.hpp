@@ -1117,53 +1117,55 @@ namespace netxs::ui
                     auto [ext_gear_id, gear_ptr] = get_ext_gear_id(gear.id);
                     if (gear_ptr) conio.minimize.send(canal, ext_gear_id);
                 };
-                LISTEN(tier::release, input::events::mouse::scroll::any, gear)
+                on(input::key::MouseAny, [&, isvtm](hids& gear)
                 {
-                    auto [ext_gear_id, gear_ptr] = get_ext_gear_id(gear.id);
-                    if (gear_ptr) conio.mouse_event.send(canal, ext_gear_id, gear.ctlstat, gear.mouse::cause, gear.coord, gear.delta.get(), gear.pressed, gear.bttn_id, gear.dragged, gear.whlfp, gear.whlsi, gear.hzwhl, gear.click);
-                    gear.dismiss();
-                };
-                LISTEN(tier::release, input::events::mouse::button::any, gear, -, (isvtm))
-                {
-                    namespace button = input::events::mouse::button;
                     auto forward = faux;
-                    auto cause = gear.mouse::cause;
-                    //todo revise
-                    //if (isvtm && (gear.bttn_id == hids::buttons::bttn_id[hids::button_idx::leftright] || // Reserved for dragging nested vtm.
-                    //              gear.bttn_id == hids::buttons::bttn_id[hids::button_idx::right])       // Reserved for creation inside nested vtm.
-                    //          && netxs::events::subevent(cause, button::drag::any.id))
-                    //{
-                    //    return; // Pass event to the hall.
-                    //}
-                    if (fullscreen && netxs::events::subevent(cause, button::drag::any.id)) // Enable left drag in GUI fullscreen mode.
+                    if (gear.cause == input::key::MouseMove)
+                    {
+                        return;
+                    }
+                    else if (gear.cause == input::key::MouseWheel)
+                    {
+                        forward = true;
+                    }
+                    if (isvtm && gear.dragged && (gear.bttn_id == hids::buttons::bttn_id[hids::button_idx::leftright] || // Reserved for dragging nested vtm.
+                                                  gear.bttn_id == hids::buttons::bttn_id[hids::button_idx::right]))      // Reserved for creation inside nested vtm.
                     {
                         return; // Pass event to the hall.
                     }
-                    if (netxs::events::subevent(cause, button::click     ::any.id)
-                     || netxs::events::subevent(cause, button::dblclick  ::any.id)
-                     || netxs::events::subevent(cause, button::tplclick  ::any.id)
-                     || netxs::events::subevent(cause, button::drag::pull::any.id))
+                    else if (fullscreen && gear.dragged) // Enable left drag in GUI fullscreen mode.
                     {
-                        gear.setfree();
-                        forward = true;
+                        return; // Pass event to the hall.
                     }
-                    else if (netxs::events::subevent(cause, button::drag::start::any.id))
+                    else
                     {
-                        gear.capture(bell::id); // To avoid unhandled mouse pull processing.
-                        forward = true;
-                    }
-                    else if (netxs::events::subevent(cause, button::drag::cancel::any.id)
-                          || netxs::events::subevent(cause, button::drag::stop  ::any.id))
-                    {
-                        gear.setfree();
+                        auto action = gear.cause & 0xFF00;
+                        if (action == input::key::MouseClick
+                         || action == input::key::MouseDoubleClick
+                         || action == input::key::MouseMultiClick
+                         || action == input::key::MouseDragPull)
+                        {
+                            gear.setfree();
+                            forward = true;
+                        }
+                        else if (action == input::key::MouseDragStart)
+                        {
+                            gear.capture(bell::id); // To avoid unhandled mouse pull processing.
+                            forward = true;
+                        }
+                        else if (action == input::key::MouseDragCancel
+                              || action == input::key::MouseDragStop)
+                        {
+                            gear.setfree();
+                        }
                     }
                     if (forward)
                     {
                         auto [ext_gear_id, gear_ptr] = get_ext_gear_id(gear.id);
-                        if (gear_ptr) conio.mouse_event.send(canal, ext_gear_id, gear.ctlstat, cause, gear.coord, gear.delta.get(), gear.pressed, gear.bttn_id, gear.dragged, gear.whlfp, gear.whlsi, gear.hzwhl, gear.click);
+                        if (gear_ptr) conio.mouse_event.send(canal, ext_gear_id, gear.ctlstat, gear.cause, gear.coord, gear.delta.get(), gear.pressed, gear.bttn_id, gear.dragged, gear.whlfp, gear.whlsi, gear.hzwhl, gear.click);
                         gear.dismiss();
                     }
-                };
+                });
                 LISTEN(tier::release, e2::config::fps, fps)
                 {
                     if (fps > 0) this->base::signal(tier::general, e2::config::fps, fps);
@@ -1172,10 +1174,10 @@ namespace netxs::ui
                 {
                     conio.cwd.send(canal, path);
                 };
-                LISTEN(tier::preview, input::events::mouse::button::click::any, gear)
+                onpreview(input::key::MouseClick, [&](hids& /*gear*/)
                 {
                     conio.expose.send(canal);
-                };
+                });
                 LISTEN(tier::preview, e2::form::layout::expose, item)
                 {
                     conio.expose.send(canal);
