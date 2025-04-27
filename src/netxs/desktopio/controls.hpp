@@ -70,17 +70,20 @@ namespace netxs::ui
                 std::vector<sock> items; // sock: Registered hids.
                 subs              token; // sock: Hids subscriptions.
 
-                socks(base& boss)
+                socks(auto& boss)
                 {
                     boss.LISTEN(tier::general, input::events::die, gear, token)
                     {
                         del(gear);
                     };
-                    boss.LISTEN(tier::release, input::events::mouse::hover::any, gear, token)
+                    boss.on(input::key::MouseEnter, token, [&](hids& gear)
                     {
-                             if (gear.cause == input::events::mouse::hover::enter.id) add(gear);
-                        else if (gear.cause == input::events::mouse::hover::leave.id) dec(gear);
-                    };
+                        add(gear);
+                    });
+                    boss.on(input::key::MouseLeave, token, [&](hids& gear)
+                    {
+                        dec(gear);
+                    });
                 }
                 template<bool ConstWarn = true>
                 auto& take(hids& gear)
@@ -158,8 +161,8 @@ namespace netxs::ui
                 return std::pair{ outer, inner };
             }
 
-            sizer(base&&) = delete;
-            sizer(base& boss, dent outer_rect = { 2, 2, 1, 1 }, dent inner_rect = {})
+            sizer(auto&&) = delete;
+            sizer(auto& boss, dent outer_rect = { 2, 2, 1, 1 }, dent inner_rect = {})
                 : skill{ boss          },
                   items{ boss          },
                   outer{ outer_rect    },
@@ -167,7 +170,7 @@ namespace netxs::ui
                   alive{ true          }
             {
                 // Drop it in favor of changing the cell size in GUI mode.
-                //boss.LISTEN(tier::release, input::events::mouse::scroll::act, gear, memo)
+                //boss.on(input::key::MouseWheel, memo, [&](hids& gear)
                 //{
                 //    if (gear.meta(hids::anyCtrl) && !gear.meta(hids::ScrlLock) && gear.whlsi)
                 //    {
@@ -197,7 +200,7 @@ namespace netxs::ui
                 //            boss.base::moveto(coor);
                 //        }
                 //    }
-                //};
+                //});
                 boss.LISTEN(tier::release, e2::config::plugins::sizer::alive, state, memo)
                 {
                     alive = state;
@@ -240,7 +243,7 @@ namespace netxs::ui
                 {
                     outer_rect = outer;
                 };
-                boss.LISTEN(tier::release, input::events::mouse::move, gear, memo)
+                boss.on(input::key::MouseMove, memo, [&](hids& gear)
                 {
                     auto& g = items.take(gear);
                     if (g.zoomon && !gear.meta(hids::anyCtrl))
@@ -254,7 +257,7 @@ namespace netxs::ui
                     {
                         boss.base::deface(); // Deface only if mouse moved.
                     }
-                };
+                });
                 engage<hids::buttons::left>();
                 engage<hids::buttons::leftright>();
             }
@@ -340,15 +343,15 @@ namespace netxs::ui
             sptr dest_object;
 
         public:
-            mover(base&&) = delete;
-            mover(base& boss, sptr subject)
+            mover(auto&&) = delete;
+            mover(auto& boss, sptr subject)
                 : skill{ boss },
                   items{ boss },
                   dest_shadow{ subject }
             {
                 engage<hids::buttons::left>();
             }
-            mover(base& boss)
+            mover(auto& boss)
                 : mover{ boss, boss.This() }
             { }
             // pro::mover: Configuring the mouse button to operate.
@@ -482,8 +485,8 @@ namespace netxs::ui
             }
 
         public:
-            track(base&&) = delete;
-            track(base& boss)
+            track(auto&&) = delete;
+            track(auto& boss)
                 : skill{ boss },
                   items{ boss },
                   alive{ true }
