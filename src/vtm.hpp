@@ -475,13 +475,13 @@ namespace netxs::app::vtm
             }
 
         public:
-            d_n_d(base&&) = delete;
-            d_n_d(base& boss)
+            d_n_d(auto&&) = delete;
+            d_n_d(auto& boss)
                 : skill{ boss },
                   drags{ faux },
                   under{      }
             {
-                boss.LISTEN(tier::release, input::events::mouse::button::drag::start::any, gear, memo)
+                boss.on(input::key::MouseDragStart, memo, [&](hids& gear)
                 {
                     if (boss.size().inside(gear.coord) && !gear.meta(hids::anyMod))
                     if (drags || !gear.capture(boss.id)) return;
@@ -490,27 +490,28 @@ namespace netxs::app::vtm
                         coord = gear.coord;
                         under = {};
                     }
-                };
-                boss.LISTEN(tier::release, input::events::mouse::button::drag::pull::any, gear, memo)
+                });
+                boss.on(input::key::MouseDragPull, memo, [&](hids& gear)
                 {
                     if (!drags) return;
                     if (gear.meta(hids::anyMod)) proceed(faux, gear);
                     else                         coord = gear.coord - gear.delta.get();
-                };
-                boss.LISTEN(tier::release, input::events::mouse::button::drag::stop::any, gear, memo)
+                });
+                boss.on(input::key::MouseDragStop, memo, [&](hids& gear)
                 {
                     if (!drags) return;
                     if (gear.meta(hids::anyMod)) proceed(faux, gear);
                     else                         proceed(true, gear);
                     gear.setfree();
-                };
-                boss.LISTEN(tier::release, input::events::mouse::button::drag::cancel::any, gear, memo)
+                });
+                boss.on(input::key::MouseDragCancel, memo, [&](hids& gear)
                 {
                     if (!drags) return;
                     if (gear.meta(hids::anyMod)) proceed(faux, gear);
                     else                         proceed(true, gear);
                     gear.setfree();
-                };
+                });
+                boss.copy_handler(tier::general, input::events::halt, memo.back());
                 boss.LISTEN(tier::release, e2::render::background::prerender, parent_canvas, memo)
                 {
                     if (!drags) return;
