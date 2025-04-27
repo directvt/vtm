@@ -807,11 +807,6 @@ namespace netxs::app::vtm
                     auto tooltip_body = " " + new_title + " ";
                     base::signal(tier::preview, e2::form::prop::ui::tooltip, tooltip_body);
                 };
-                LISTEN(tier::release, input::events::mouse::button::dblclick::left, gear)
-                {
-                    base::riseup(tier::preview, e2::form::size::enlarge::maximize, gear);
-                    gear.dismiss();
-                };
                 LISTEN(tier::request, e2::form::prop::window::instance, window_ptr)
                 {
                     window_ptr = This();
@@ -822,22 +817,28 @@ namespace netxs::app::vtm
                     auto b = std::max(1, title.foot_size.y);
                     object_area = base::area() + dent{ 2, 2, t, b };
                 };
-                LISTEN(tier::release, input::events::mouse::button::click::left, gear)
+                on(input::key::LeftDoubleClick, [&](hids& gear)
+                {
+                    base::riseup(tier::preview, e2::form::size::enlarge::maximize, gear);
+                    gear.dismiss();
+                });
+                on(input::key::LeftClick, [&](hids& gear)
                 {
                     auto home = rect{ -dot_21, base::size() + dot_21 * 2 }; // Including resizer grips.
                     if (!home.hittest(gear.coord))
                     {
                         gear.owner.base::signal(tier::release, e2::form::layout::jumpto, *this);
                     }
-                };
-                LISTEN(tier::release, input::events::mouse::button::click::right, gear)
+                });
+                //todo use input::key::MouseClick
+                on(input::key::RightClick, [&](hids& gear)
                 {
                     pro::focus::set(This(), gear.id, solo::on);
-                };
-                LISTEN(tier::release, input::events::mouse::button::click::middle, gear)
+                });
+                on(input::key::MiddleClick, [&](hids& gear)
                 {
                     pro::focus::set(This(), gear.id, solo::on);
-                };
+                });
                 LISTEN(tier::release, e2::form::proceed::quit::any, fast)
                 {
                     mouse.reset();
@@ -1924,12 +1925,12 @@ namespace netxs::app::vtm
                     usergate.base::signal(tier::release, e2::form::layout::shift, center);
                 }
             };
-            usergate.LISTEN(tier::release, input::events::mouse::button::click::left, gear) // Fly to another user's viewport.
+            usergate.on(input::key::LeftClick, [&](hids& gear) // Fly to another user's viewport.
             {
                 if (gear.owner.id == usergate.id) return;
                 auto center = usergate.base::coor() + gear.owner.base::size() / 2;
                 gear.owner.base::signal(tier::release, e2::form::layout::shift, center);
-            };
+            });
             usergate.LISTEN(tier::release, e2::conio::mouse, m) // Trigger to redraw all gates on mouse activity (to redraw foreign mouse cursor).
             {
                 this->base::deface();
