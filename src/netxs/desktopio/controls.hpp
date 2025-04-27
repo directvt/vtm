@@ -1048,16 +1048,16 @@ namespace netxs::ui
             time stop; // watch: Timeout for zombies.
 
         public:
-            watch(base&&) = delete;
-            watch(base& boss) : skill{ boss }
+            watch(auto&&) = delete;
+            watch(auto& boss) : skill{ boss }
             {
                 stop = datetime::now() + limit;
 
                 // No mouse events watchdog.
-                boss.LISTEN(tier::preview, input::events::mouse::any, something, pong)
+                boss.onpreview(input::key::MouseAny, pong, [&](hids& /*gear*/)
                 {
                     stop = datetime::now() + limit;
-                };
+                });
                 boss.LISTEN(tier::general, e2::timer::any, something, ping)
                 {
                     if (datetime::now() > stop)
