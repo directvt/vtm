@@ -1881,7 +1881,7 @@ namespace netxs::input
         }
         void tooltip_recalc(hint deed)
         {
-            if (deed == input::events::mouse::move.id)
+            if (deed == input::key::MouseMove)
             {
                 if (tooltip_coor(mouse::coord) || (tooltip_show && tooltip_digest != digest)) // Do nothing on shuffle.
                 {
@@ -1895,7 +1895,7 @@ namespace netxs::input
                     }
                 }
             }
-            else if (deed == input::events::mouse::scroll::act.id) // Drop tooltip away.
+            else if (deed == input::key::MouseWheel) // Drop tooltip away.
             {
                 tooltip_stop = true;
             }
