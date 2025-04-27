@@ -506,10 +506,10 @@ namespace netxs::ui
                 //};
                 // Mouse focus.
                 //if (!skin::globals().tracking) return;
-                boss.LISTEN(tier::release, input::events::mouse::move, gear, memo)
+                boss.on(input::key::MouseMove, memo, [&](hids& gear)
                 {
                     items.take(gear).calc(boss, gear.coord);
-                };
+                });
                 boss.LISTEN(tier::release, e2::render::background::prerender, parent_canvas, memo)
                 {
                     if (!alive) return;
