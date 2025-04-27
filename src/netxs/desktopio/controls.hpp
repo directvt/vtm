@@ -1346,7 +1346,7 @@ namespace netxs::ui
                     owner_ptr = boss.This();
                 };
                 // pro::focus: Set unique focus on left click. Set group focus on Ctrl+LeftClick.
-                boss.on(input::LeftClick, memo, [&](hids& gear)
+                boss.on(input::key::LeftClick, memo, [&](hids& gear)
                 {
                     if (gear.meta(hids::anyCtrl))
                     {
@@ -1768,6 +1768,7 @@ namespace netxs::ui
                         std::erase_if(handler_list, [&](auto& rec)
                         {
                             auto& [fx_wptr, script_ptr] = rec;
+                            //todo put script_ptr inside the hook
                             if (script_ptr)
                             {
                                 //log("  run script: ", ansi::hi(*script_ptr));
@@ -1827,12 +1828,9 @@ namespace netxs::ui
                 // pro::mouse: Forward preview to all parents.
                 boss.LISTEN(tier::preview, input::events::mouse::any, gear, memo)
                 {
-                    //log("mouse cause=%% boss.id=%%", utf::to_hex_0x(gear.cause), boss.id);
                     dispatch(gear, preview_handlers);
-
                     auto offset = boss.base::coor() + boss.base::intpad.corner();
                     gear.pass(tier::preview, boss.base::parent(), offset);
-
                     if (gear) gear.okay(boss);
                     else      boss.bell::expire(tier::preview);
                 };
@@ -1840,7 +1838,6 @@ namespace netxs::ui
                 boss.LISTEN(tier::release, input::events::mouse::post, gear, memo)
                 {
                     dispatch(gear, release_handlers);
-
                     if ((gear && !gear.captured()) || gear.cause == input::key::MouseEnter || gear.cause == input::key::MouseLeave)
                     {
                         auto offset = boss.base::coor() + boss.base::intpad.corner();
@@ -2363,8 +2360,8 @@ namespace netxs::ui
             }
 
         public:
-            ghost(base&&) = delete;
-            ghost(base& boss)
+            ghost(auto&&) = delete;
+            ghost(auto& boss)
                 : skill{ boss }
             {
                 boss.LISTEN(tier::release, e2::render::background::prerender, parent_canvas, memo)
@@ -2372,10 +2369,10 @@ namespace netxs::ui
                     draw_shadow(parent_canvas);
                 };
                 //test
-                //boss.LISTEN(tier::release, input::events::mouse::scroll::any, gear)
+                //boss.on(input::key::MouseWheel, [&](hids& gear)
                 //{
                 //    boss.base::deface();
-                //};
+                //});
             }
         };
 
@@ -2405,19 +2402,19 @@ namespace netxs::ui
             text note;
 
         public:
-            notes(base&&) = delete;
-            notes(base& boss, view data = {}, dent wrap = { si32max })
+            notes(auto&&) = delete;
+            notes(auto& boss, view data = {}, dent wrap = { si32max })
                 : skill{ boss },
                   note { data }
             {
-                boss.LISTEN(tier::release, input::events::mouse::hover::enter, gear, memo, (wrap, full = wrap.l == si32max))
+                boss.on(input::key::MouseEnter, memo, [&, wrap, full = wrap.l == si32max](hids& gear)
                 {
                     if (gear.tooltip_set) return; // Prevent parents from setting tooltip.
                     if (full || !(boss.area() + wrap).hittest(gear.coord + boss.coor()))
                     {
                         gear.set_tooltip(note);
                     }
-                };
+                });
                 boss.LISTEN(tier::preview, e2::form::prop::ui::tooltip, new_note, memo)
                 {
                     note = new_note;
