@@ -4628,25 +4628,24 @@ namespace netxs::ui
                 calc.update(scinfo);
                 base::deface();
             };
-            LISTEN(tier::release, input::events::mouse::scroll::act, gear)
+            base::on(input::key::MouseWheel, [&](hids& gear)
             {
                 if (gear.meta(hids::anyCtrl)) return; // Ctrl+Wheel is reserved for zooming.
                 if (gear.whlsi) pager(gear.whlsi > 0 ? 1 : -1);
                 gear.dismiss();
-            };
-            LISTEN(tier::release, input::events::mouse::move, gear)
+            });
+            base::on(input::key::MouseMove, [&](hids& gear)
             {
                 calc.cursor_pos = twod{ gear.coord }[Axis];
-            };
-            LISTEN(tier::release, input::events::mouse::button::dblclick::left, gear)
+            });
+            base::on(input::key::LeftDoubleClick, [&](hids& gear)
             {
                 gear.dismiss(); // Do not pass double clicks outside.
-            };
-            LISTEN(tier::release, input::events::mouse::button::down::any, gear)
+            });
+            base::on(input::key::MouseDown, [&](hids& gear)
             {
                 if (!on_pager)
-                if (this->form::protos(tier::release, input::events::mouse::button::down::left)
-                 || this->form::protos(tier::release, input::events::mouse::button::down::right))
+                if (gear.cause == input::key::LeftDown || gear.cause == input::key::RightDown)
                 if (auto dir = calc.inside(twod{ gear.coord }[Axis]))
                 {
                     if (gear.capture(bell::id))
@@ -4667,13 +4666,12 @@ namespace netxs::ui
                         });
                     }
                 }
-            };
-            LISTEN(tier::release, input::events::mouse::button::up::any, gear)
+            });
+            base::on(input::key::MouseUp, [&](hids& gear)
             {
                 if (on_pager && gear.captured(bell::id))
                 {
-                    if (this->form::protos(tier::release, input::events::mouse::button::up::left)
-                     || this->form::protos(tier::release, input::events::mouse::button::up::right))
+                    if (gear.cause == input::key::LeftUp || gear.cause == input::key::RightUp)
                     {
                         gear.setfree();
                         gear.dismiss();
@@ -4682,16 +4680,16 @@ namespace netxs::ui
                         timer.pacify(activity::pager_next);
                     }
                 }
-            };
-            LISTEN(tier::release, input::events::mouse::button::up::right, gear)
+            });
+            base::on(input::key::RightUp, [&](hids& gear)
             {
                 //if (!gear.captured(bell::id)) //todo why?
                 {
                     send<e2::form::upon::scroll::cancel::_<Axis>>();
                     gear.dismiss();
                 }
-            };
-            LISTEN(tier::release, input::events::mouse::button::drag::start::any, gear)
+            });
+            base::on(input::key::MouseDragStart, [&](hids& gear)
             {
                 if (on_pager)
                 {
@@ -4705,8 +4703,8 @@ namespace netxs::ui
                         gear.dismiss();
                     }
                 }
-            };
-            LISTEN(tier::release, input::events::mouse::button::drag::pull::any, gear)
+            });
+            base::on(input::key::MouseDragPull, [&](hids& gear)
             {
                 if (on_pager)
                 {
@@ -4725,16 +4723,13 @@ namespace netxs::ui
                         }
                     }
                 }
-            };
-            LISTEN(tier::release, input::events::mouse::button::drag::cancel::any, gear)
+            });
+            base::on(input::key::MouseDragCancel, [&](hids& gear)
             {
                 giveup(gear);
-            };
-            LISTEN(tier::general, input::events::halt, gear)
-            {
-                giveup(gear);
-            };
-            LISTEN(tier::release, input::events::mouse::button::drag::stop::any, gear)
+            });
+            bell::copy_handler(tier::general, input::events::halt, bell::sensors.back());
+            base::on(input::key::MouseDragStop, [&](hids& gear)
             {
                 if (on_pager)
                 {
@@ -4744,7 +4739,7 @@ namespace netxs::ui
                 {
                     if (gear.captured(bell::id))
                     {
-                        if (this->form::protos(tier::release, input::events::mouse::button::drag::stop::right))
+                        if (gear.cause == input::key::RightDragStop)
                         {
                             send<e2::form::upon::scroll::cancel::_<Axis>>();
                         }
@@ -4753,7 +4748,7 @@ namespace netxs::ui
                         gear.dismiss();
                     }
                 }
-            };
+            });
             LISTEN(tier::release, e2::form::state::mouse, active)
             {
                 auto apply = [&](auto active)
@@ -4775,7 +4770,7 @@ namespace netxs::ui
                     timer.actify(activity::mouse_leave, skin::globals().leave_timeout, apply);
                 }
             };
-            //LISTEN(tier::release, input::events::mouse::move, gear)
+            //on(input::key::MouseMove, [&](hids& gear)
             //{
             //    auto apply = [&](auto active)
             //    {
@@ -4789,7 +4784,7 @@ namespace netxs::ui
             //    timer.pacify(activity::mouse_leave);
             //    apply(activity::mouse_hover);
             //    timer.template actify<activity::mouse_leave>(skin::globals().leave_timeout, apply);
-            //};
+            //});
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
                 auto region = parent_canvas.clip();
