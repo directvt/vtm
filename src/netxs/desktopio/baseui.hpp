@@ -615,6 +615,8 @@ namespace netxs::ui
         bool master; // base: Anycast root.
         si32 family; // base: Object type.
         std::unordered_map<text, netxs::sptr<std::any>, qiew::hash, qiew::equal> fields;
+        std::unordered_map<si32, std::list<std::pair<wook, netxs::sptr<text>>>> mouse_release_handlers; // base: Map<mouse_event_id, list<pair<std::function<void(hids&)>, sptr<script>>>>.
+        std::unordered_map<si32, std::list<std::pair<wook, netxs::sptr<text>>>> mouse_preview_handlers; // base: Map<mouse_event_id, list<pair<std::function<void(hids&)>, sptr<script>>>>.
 
         template<class T = base>
         auto   This()       { return std::static_pointer_cast<std::remove_reference_t<T>>(shared_from_this()); }
@@ -1118,6 +1120,41 @@ namespace netxs::ui
             {
                 pop_back();
             }
+        }
+        // base: Subscribe on/onpreview mouse events.
+        void on(si32 mouse_event_id, subs& sensors, auto handler)
+        {
+            mouse_release_handlers[mouse_event_id].emplace_back().first = sensors.emplace_back(std::move(handler));
+        }
+        void onpreview(si32 mouse_event_id, subs& sensors, auto handler)
+        {
+            mouse_preview_handlers[mouse_event_id].emplace_back().first = sensors.emplace_back(std::move(handler));
+        }
+        void on(si32 mouse_event_id, hook& token, auto handler)
+        {
+            token = std::move(handler);
+            mouse_release_handlers[mouse_event_id].emplace_back().first = token;
+        }
+        void onpreview(si32 mouse_event_id, hook& token, auto handler)
+        {
+            token = std::move(handler);
+            mouse_preview_handlers[mouse_event_id].emplace_back().first = token;
+        }
+        void on(si32 mouse_event_id, auto handler)
+        {
+            on(mouse_event_id, bell::sensors, std::move(handler));
+        }
+        void onpreview(si32 mouse_event_id, auto handler)
+        {
+            onpreview(mouse_event_id, bell::sensors, std::move(handler));
+        }
+        void on(si32 mouse_event_id, hook token)
+        {
+            mouse_release_handlers[mouse_event_id].emplace_back().first = token;
+        }
+        void onpreview(si32 mouse_event_id, hook token)
+        {
+            mouse_preview_handlers[mouse_event_id].emplace_back().first = token;
         }
 
     protected:

@@ -70,7 +70,7 @@ namespace netxs::ui
                 std::vector<sock> items; // sock: Registered hids.
                 subs              token; // sock: Hids subscriptions.
 
-                socks(auto& boss)
+                socks(base& boss)
                 {
                     boss.LISTEN(tier::general, input::events::die, gear, token)
                     {
@@ -161,8 +161,8 @@ namespace netxs::ui
                 return std::pair{ outer, inner };
             }
 
-            sizer(auto&&) = delete;
-            sizer(auto& boss, dent outer_rect = { 2, 2, 1, 1 }, dent inner_rect = {})
+            sizer(base&&) = delete;
+            sizer(base& boss, dent outer_rect = { 2, 2, 1, 1 }, dent inner_rect = {})
                 : skill{ boss          },
                   items{ boss          },
                   outer{ outer_rect    },
@@ -343,15 +343,15 @@ namespace netxs::ui
             sptr dest_object;
 
         public:
-            mover(auto&&) = delete;
-            mover(auto& boss, sptr subject)
+            mover(base&&) = delete;
+            mover(base& boss, sptr subject)
                 : skill{ boss },
                   items{ boss },
                   dest_shadow{ subject }
             {
                 engage<hids::buttons::left>();
             }
-            mover(auto& boss)
+            mover(base& boss)
                 : mover{ boss, boss.This() }
             { }
             // pro::mover: Configuring the mouse button to operate.
@@ -485,8 +485,8 @@ namespace netxs::ui
             }
 
         public:
-            track(auto&&) = delete;
-            track(auto& boss)
+            track(base&&) = delete;
+            track(base& boss)
                 : skill{ boss },
                   items{ boss },
                   alive{ true }
@@ -1048,8 +1048,8 @@ namespace netxs::ui
             time stop; // watch: Timeout for zombies.
 
         public:
-            watch(auto&&) = delete;
-            watch(auto& boss) : skill{ boss }
+            watch(base&&) = delete;
+            watch(base& boss) : skill{ boss }
             {
                 stop = datetime::now() + limit;
 
@@ -1324,8 +1324,8 @@ namespace netxs::ui
                 return result;
             }
 
-            focus(auto&&) = delete;
-            focus(auto& boss, si32 focus_mode = mode::hub, bool set_default_focus = true)
+            focus(base&&) = delete;
+            focus(base& boss, si32 focus_mode = mode::hub, bool set_default_focus = true)
                 : skill{ boss },
                   node_type{ focus_mode }
             {
@@ -1798,26 +1798,6 @@ namespace netxs::ui
             }
 
         public:
-            std::unordered_map<si32, std::list<std::pair<wook, netxs::sptr<text>>>> release_handlers; // mouse: Map<mouse_event_id, list<pair<std::function<void(hids&)>, sptr<script>>>>.
-            std::unordered_map<si32, std::list<std::pair<wook, netxs::sptr<text>>>> preview_handlers; // mouse: Map<mouse_event_id, list<pair<std::function<void(hids&)>, sptr<script>>>>.
-
-            void on(si32 mouse_event_id, subs& sensors, auto handler)
-            {
-                release_handlers[mouse_event_id].emplace_back().first = sensors.emplace_back(std::move(handler));
-            }
-            void onpreview(si32 mouse_event_id, subs& sensors, auto handler)
-            {
-                preview_handlers[mouse_event_id].emplace_back().first = sensors.emplace_back(std::move(handler));
-            }
-            void on(si32 mouse_event_id, hook token)
-            {
-                release_handlers[mouse_event_id].emplace_back().first = token;
-            }
-            void onpreview(si32 mouse_event_id, hook token)
-            {
-                preview_handlers[mouse_event_id].emplace_back().first = token;
-            }
-
             mouse(base&&) = delete;
             mouse(base& boss, bool take_all_events = true)
                 : boss{ boss            },
@@ -1828,7 +1808,7 @@ namespace netxs::ui
                 // pro::mouse: Forward preview to all parents.
                 boss.LISTEN(tier::preview, input::events::mouse::any, gear, memo)
                 {
-                    dispatch(gear, preview_handlers);
+                    dispatch(gear, boss.mouse_preview_handlers);
                     auto offset = boss.base::coor() + boss.base::intpad.corner();
                     gear.pass(tier::preview, boss.base::parent(), offset);
                     if (gear) gear.okay(boss);
@@ -1837,7 +1817,7 @@ namespace netxs::ui
                 // pro::mouse: Forward all not expired mouse events to all parents.
                 boss.LISTEN(tier::release, input::events::mouse::post, gear, memo)
                 {
-                    dispatch(gear, release_handlers);
+                    dispatch(gear, boss.mouse_release_handlers);
                     if ((gear && !gear.captured()) || gear.cause == input::key::MouseEnter || gear.cause == input::key::MouseLeave)
                     {
                         auto offset = boss.base::coor() + boss.base::intpad.corner();
@@ -1850,10 +1830,10 @@ namespace netxs::ui
                 {
                     boss.base::signal(tier::release, e2::form::state::hover, rent + gear.mouse::pressed_count);
                 });
-                release_handlers[input::key::MouseDown].emplace_back().first = memo.back();
-                release_handlers[input::key::MouseUp  ].emplace_back().first = memo.back();
+                boss.on(input::key::MouseDown, memo.back());
+                boss.on(input::key::MouseUp  , memo.back());
                 // pro::mouse: Notify about change in number of mouse hovering clients.
-                on(input::key::MouseEnter, memo, [&](hids& gear) // Notify when the number of clients is positive.
+                boss.on(input::key::MouseEnter, memo, [&](hids& gear) // Notify when the number of clients is positive.
                 {
                     if (!full++)
                     {
@@ -1868,7 +1848,7 @@ namespace netxs::ui
                         boss.base::signal(tier::release, e2::form::state::hover, rent);
                     }
                 });
-                on(input::key::MouseLeave, memo, [&](hids& gear) // Notify when the number of clients is zero.
+                boss.on(input::key::MouseLeave, memo, [&](hids& gear) // Notify when the number of clients is zero.
                 {
                     if (gear.direct<faux>(boss.bell::id) || omni)
                     {
@@ -1934,7 +1914,7 @@ namespace netxs::ui
                 }
                 else if (dragmemo_button.empty())
                 {
-                    on(input::key::MouseDragStart | button_bits, dragmemo_button, [&](hids& gear)
+                    boss.on(input::key::MouseDragStart | button_bits, dragmemo_button, [&](hids& gear)
                     {
                         if (gear.capture(boss.bell::id))
                         {
@@ -1942,7 +1922,7 @@ namespace netxs::ui
                             gear.dismiss();
                         }
                     });
-                    on(input::key::MouseDragPull | button_bits, dragmemo_button, [&](hids& gear)
+                    boss.on(input::key::MouseDragPull | button_bits, dragmemo_button, [&](hids& gear)
                     {
                         if (gear.captured(boss.bell::id))
                         {
@@ -1950,7 +1930,7 @@ namespace netxs::ui
                             gear.dismiss();
                         }
                     });
-                    on(input::key::MouseDragStop | button_bits, dragmemo_button, [&](hids& gear)
+                    boss.on(input::key::MouseDragStop | button_bits, dragmemo_button, [&](hids& gear)
                     {
                         if (gear.captured(boss.bell::id))
                         {
@@ -1959,7 +1939,7 @@ namespace netxs::ui
                             gear.dismiss();
                         }
                     });
-                    on(input::key::MouseDragCancel | button_bits, dragmemo_button, [&](hids& gear)
+                    boss.on(input::key::MouseDragCancel | button_bits, dragmemo_button, [&](hids& gear)
                     {
                         if (gear.captured(boss.bell::id))
                         {
@@ -2360,8 +2340,8 @@ namespace netxs::ui
             }
 
         public:
-            ghost(auto&&) = delete;
-            ghost(auto& boss)
+            ghost(base&&) = delete;
+            ghost(base& boss)
                 : skill{ boss }
             {
                 boss.LISTEN(tier::release, e2::render::background::prerender, parent_canvas, memo)
@@ -2402,8 +2382,8 @@ namespace netxs::ui
             text note;
 
         public:
-            notes(auto&&) = delete;
-            notes(auto& boss, view data = {}, dent wrap = { si32max })
+            notes(base&&) = delete;
+            notes(base& boss, view data = {}, dent wrap = { si32max })
                 : skill{ boss },
                   note { data }
             {
@@ -3226,45 +3206,9 @@ namespace netxs::ui
             auto context = parent_canvas.change_basis(basis, true);
             return context;
         }
-        void on(si32 mouse_event_id, auto& tokens, auto handler)
-        {
-            mouse.on(mouse_event_id, tokens, std::move(handler));
-        }
-        void onpreview(si32 mouse_event_id, auto& tokens, auto handler)
-        {
-            mouse.onpreview(mouse_event_id, tokens, std::move(handler));
-        }
-        void on(si32 mouse_event_id, auto handler)
-        {
-            on(mouse_event_id, bell::sensors, std::move(handler));
-        }
-        void onpreview(si32 mouse_event_id, auto handler)
-        {
-            onpreview(mouse_event_id, bell::sensors, std::move(handler));
-        }
-        void on(si32 mouse_event_id, hook token)
-        {
-            mouse.on(mouse_event_id, token);
-        }
-        void onpreview(si32 mouse_event_id, hook token)
-        {
-            mouse.onpreview(mouse_event_id, token);
-        }
-        //void on(qiew keybd_chord, qiew script)
-        //{
-        //    keybd.handlers[keybd_chord].emplace_back(std::pair{ script_ptr, faux });
-        //}
-        //void onpreview(qiew keybd_chord, qiew script)
-        //{
-        //    keybd.handlers[keybd_chord].emplace_back(std::pair{ script_ptr, true });
-        //}
 
         form()
             : base{ ui::tui_domain() },
-              mouse{ base::plugin<pro::mouse>() }
-        { }
-        form(auth& indexer)
-            : base{ indexer },
               mouse{ base::plugin<pro::mouse>() }
         { }
     };
@@ -4148,7 +4092,7 @@ namespace netxs::ui
             };
 
             namespace button = input::events::mouse::button;
-            LISTEN(tier::release, input::events::mouse::scroll::act, gear)
+            on(input::key::MouseWheel, [&](hids& gear)
             {
                 if (gear.meta(hids::anyCtrl)) return; // Ctrl+Wheel is reserved for zooming.
                 if (gear.whlsi)
@@ -4159,7 +4103,7 @@ namespace netxs::ui
                     else    wheels<Y>(gear.whlsi);
                 }
                 gear.dismiss();
-            };
+            });
             LISTEN(tier::release, button::drag::start::right, gear)
             {
                 auto ds = gear.delta.get();

@@ -624,24 +624,24 @@ namespace netxs::app::vtm
             { }
             void activate(applink& what)
             {
-                plugin<pro::d_n_d>();
-                plugin<pro::ghost>();
-                auto& title = base::_plugin<pro::title>(*this, what.applet->base::property("window.header"), what.applet->base::property("window.footer"));
-                plugin<pro::notes>(what.applet->base::property("window.footer"), dent{ 2,2,1,1 });
-                plugin<pro::sizer>();
-                plugin<pro::frame>();
-                plugin<pro::light>();
-                plugin<pro::focus>();
-                auto& keybd = base::_plugin<pro::keybd>(*this);
-                //auto& mouse = form::plugin<pro::mouse>();
-                auto& luafx = base::_plugin<pro::luafx>(*this);
+                base::plugin<pro::d_n_d>();
+                base::plugin<pro::ghost>();
+                auto& title = base::plugin<pro::title>(what.applet->base::property("window.header"), what.applet->base::property("window.footer"));
+                base::plugin<pro::notes>(what.applet->base::property("window.footer"), dent{ 2,2,1,1 });
+                base::plugin<pro::sizer>();
+                base::plugin<pro::frame>();
+                base::plugin<pro::light>();
+                base::plugin<pro::focus>();
+                auto& keybd = base::plugin<pro::keybd>();
+                //auto& mouse = base::plugin<pro::mouse>();
+                auto& luafx = base::plugin<pro::luafx>();
                 base::limits(dot_11);
                 base::kind(base::reflow_root);
                 base::root(true);
 
                 auto& bindings = world.base::property<input::bindings::vector>("window.bindings"); // Shared key bindings across the hall.
                 if (bindings.empty()) bindings = input::bindings::load(world.config, "window");
-                input::bindings::keybind(bindings, keybd, mouse);
+                input::bindings::keybind(bindings, keybd.handlers, mouse_release_handlers, mouse_preview_handlers);
                 luafx.activate("window",
                 {
                     { "Warp",               [&]
@@ -1223,7 +1223,7 @@ namespace netxs::app::vtm
     public:
         hall(xipc server, xmls def_config)
             : config{ def_config },
-              maker{ base::_plugin<pro::maker>(*this) },
+              maker{ base::plugin<pro::maker>() },
               robot{ base::plugin<pro::robot>() }
         {
             auto& canal = *server;
@@ -1235,7 +1235,7 @@ namespace netxs::app::vtm
             //auto& mouse = base::plugin<pro::mouse>();
             auto& luafx = base::plugin<pro::luafx>();
             auto bindings = input::bindings::load(config, "desktop");
-            input::bindings::keybind(bindings, keybd, mouse);
+            input::bindings::keybind(bindings, keybd.handlers, mouse_release_handlers, mouse_preview_handlers);
             luafx.activate("desktop",
             {
                 { "Shutdown",           [&]

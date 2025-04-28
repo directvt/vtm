@@ -1413,7 +1413,7 @@ namespace netxs::gui
 
     namespace e2 = netxs::events::userland::e2;
 
-    struct winbase : form<winbase>
+    struct winbase : base
     {
         using byts = std::vector<byte>;
         using gray = netxs::raster<byts, rect>;
@@ -1929,7 +1929,7 @@ namespace netxs::gui
         kmap  chords; // winbase: Pressed key table (key chord).
 
         winbase(auth& indexer, std::list<text>& font_names, si32 cell_height, bool antialiasing, span blink_rate, twod grip_cell)
-            : form{ indexer },
+            : base{ indexer },
               titles{ *this, "", "", faux },
               wfocus{ *this, ui::pro::focus::mode::relay },
               wmouse{ *this },

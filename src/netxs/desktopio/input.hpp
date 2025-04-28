@@ -851,7 +851,7 @@ namespace netxs::input
             }
             return _get_chord_list();
         }
-        auto keybind(auto& keybd, auto& mouse, qiew chord_str, auto&& script_ref, bool is_preview = faux)
+        auto keybind(auto& keybd_handlers, auto& mouse_release_handlers, auto& mouse_preview_handlers, qiew chord_str, auto&& script_ref, bool is_preview = faux)
         {
             if (!chord_str) return;
             auto chords = input::bindings::get_chords(chord_str);
@@ -865,8 +865,8 @@ namespace netxs::input
                         auto is_mouse = binary_chord.front() & input::key::mouse_sign;
                         if (is_mouse)
                         {
-                            auto& handlers = is_preview ? mouse.preview_handlers
-                                                        : mouse.release_handlers;
+                            auto& handlers = is_preview ? mouse_preview_handlers
+                                                        : mouse_release_handlers;
                             auto mouse_event_id = (binary_chord[0] << 8) | binary_chord[1];
                             auto& handler_list = handlers[mouse_event_id];
                             if (set_handler)
@@ -886,13 +886,13 @@ namespace netxs::input
                         {
                             if (set_handler)
                             {
-                                auto& [script_ptr_list, preview] = keybd.handlers[binary_chord];
+                                auto& [script_ptr_list, preview] = keybd_handlers[binary_chord];
                                 script_ptr_list.emplace_back(script_ptr);
                                 preview = is_preview;
                             }
                             else // Reset all bindings for chord.
                             {
-                                keybd.handlers.erase(binary_chord);
+                                keybd_handlers.erase(binary_chord);
                             }
                         }
                     }
@@ -908,11 +908,11 @@ namespace netxs::input
                 }
             }
         }
-        auto keybind(auto& bindings, auto& keybd, auto& mouse)
+        auto keybind(auto& bindings, auto& keybd_handlers, auto& mouse_release_handlers, auto& mouse_preview_handlers)
         {
             for (auto& r : bindings)
             {
-                keybind(keybd, mouse, r.chord, r.script_ptr, r.preview);
+                keybind(keybd_handlers, mouse_release_handlers, mouse_preview_handlers, r.chord, r.script_ptr, r.preview);
             }
         }
         template<class T>

@@ -198,8 +198,7 @@ namespace netxs::ui
             void engage()
             {
                 boss.base::signal(tier::release, e2::form::draggable::_<Button>, true);
-                auto& boss_mouse = boss.base::plugin<pro::mouse>();
-                boss_mouse.on(input::key::MouseMove, memo, [&](hids& gear)
+                boss.on(input::key::MouseMove, memo, [&](hids& gear)
                 {
                     items.take(gear).calc(boss, gear.coord);
                     boss.base::deface();

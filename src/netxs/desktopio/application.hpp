@@ -36,14 +36,13 @@ namespace netxs::app::shared
     };
     const auto closing_by_gesture = [](auto& boss)
     {
-        auto& mouse = boss.base::plugin<pro::mouse>();
-        mouse.on(input::key::LeftRightClick, boss.sensors, [&](hids& gear)
+        boss.on(input::key::LeftRightClick, [&](hids& gear)
         {
             auto backup = boss.This();
             boss.base::riseup(tier::release, e2::form::proceed::quit::one, true);
             gear.dismiss();
         });
-        mouse.on(input::key::MiddleClick, boss.sensors, [&](hids& gear)
+        boss.on(input::key::MiddleClick, [&](hids& gear)
         {
             auto backup = boss.This();
             boss.base::riseup(tier::release, e2::form::proceed::quit::one, true);
@@ -113,10 +112,10 @@ namespace netxs::app::shared
     {
         auto& scroll_inst = *scroll_ptr;
         auto& keybd = boss.base::plugin<pro::keybd>();
-        auto& mouse = boss.base::plugin<pro::mouse>();
+        //auto& mouse = boss.base::plugin<pro::mouse>();
         auto& luafx = boss.base::plugin<pro::luafx>();
         auto bindings = input::bindings::load(config, "defapp");
-        input::bindings::keybind(bindings, keybd, mouse);
+        input::bindings::keybind(bindings, keybd.handlers, boss.mouse_release_handlers, boss.mouse_preview_handlers);
         luafx.activate("defapp",
         {
             { "ScrollViewportByPage",   [&]
@@ -173,11 +172,11 @@ namespace netxs::app::shared
         auto& applet = *applet_ptr;
         applet.base::plugin<pro::focus>();
         auto& keybd = applet.base::plugin<pro::keybd>();
-        auto& mouse = applet.base::plugin<pro::mouse>();
+        //auto& mouse = applet.base::plugin<pro::mouse>();
         auto& luafx = applet.base::plugin<pro::luafx>();
         auto& bindings = applet.base::property<input::bindings::vector>("applet.bindings");
         bindings = input::bindings::load(config, "applet");
-        input::bindings::keybind(bindings, keybd, mouse);
+        input::bindings::keybind(bindings, keybd.handlers, applet.mouse_release_handlers, applet.mouse_preview_handlers);
         luafx.activate("applet",
         {
             //{ "FocusNext",          [&]

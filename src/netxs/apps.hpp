@@ -375,8 +375,7 @@ namespace netxs::app::shared
                     boss.base::riseup(tier::release, e2::config::plugins::sizer::outer, dent{  2, 2, 1, 1 });
                     boss.base::riseup(tier::release, e2::config::plugins::sizer::inner, dent{ -4,-4,-2,-2 });
                     boss.base::riseup(tier::release, e2::config::plugins::align, faux);
-                    auto& parent_mouse = parent.base::plugin<pro::mouse>();
-                    parent_mouse.on(input::key::RightClick, parent.sensors, [&](hids& gear)
+                    parent.on(input::key::RightClick, [&](hids& gear)
                     {
                         auto area = boss.base::area() + dent{ 2, 2, 1, 1 };
                         if (area.hittest(gear.coord))
@@ -776,8 +775,7 @@ namespace netxs::app::shared
             {
                 auto& coord = boss.base::field(fp2d{});
                 auto& window = *window_ptr;
-                auto& window_mouse = window.base::plugin<pro::mouse>();
-                window_mouse.onpreview(input::key::MouseAny, window.sensors, [&](hids& gear)
+                window.onpreview(input::key::MouseAny, [&](hids& gear)
                 {
                     if (gear.cause != input::key::MouseMove || coord != gear.coord)
                     {
@@ -800,11 +798,11 @@ namespace netxs::app::shared
                 auto& items_inst = *items;
                 auto& state_inst = *state_state;
                 auto& keybd = boss.base::template plugin<pro::keybd>();
-                auto& mouse = boss.base::template plugin<pro::mouse>();
+                //auto& mouse = boss.base::template plugin<pro::mouse>();
                 auto& luafx = boss.base::template plugin<pro::luafx>(); //todo Apple clang requires template
                 app::shared::base_kb_navigation(config, scroll, boss);
-                input::bindings::keybind(keybd, mouse, "Any", "vtm.infopage.UpdateChordPreview()");
-                input::bindings::keybind(keybd, mouse,
+                input::bindings::keybind(keybd.handlers, boss.mouse_release_handlers, boss.mouse_preview_handlers, "Any", "vtm.infopage.UpdateChordPreview()");
+                input::bindings::keybind(keybd.handlers, boss.mouse_release_handlers, boss.mouse_preview_handlers,
                     #if defined(WIN32)
                     "Ctrl-Alt | Alt-Ctrl"
                     #else
