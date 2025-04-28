@@ -1397,10 +1397,6 @@ namespace netxs::app::vtm
                 menu_list.emplace(std::move(menuid), std::move(conf_rec));
             }
 
-            LISTEN(tier::release, e2::form::upon::vtree::attached, parent_ptr)
-            {
-                parent_ptr->base::riseup(tier::release, e2::form::proceed::multihome, This());
-            };
             LISTEN(tier::release, e2::command::run, script)
             {
                 luafx.set_object(This(), "desktop");

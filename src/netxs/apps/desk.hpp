@@ -469,12 +469,18 @@ namespace netxs::app::desk
             auto& menu_min_size = std::get<1>(size_config);
             auto& active        = std::get<2>(size_config);
 
+            auto world_ptr = window->base::signal(tier::general, e2::config::creator);
+            if (!world_ptr) return window;
+            auto& world = *world_ptr;
             window->invoke([&](auto& boss) mutable
             {
                 boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent_ptr, -, (usrcfg))
                 {
                     if (!parent_ptr) return;
                     auto& parent = *parent_ptr; //todo This is ui::gate.
+
+                    parent.base::riseup(tier::release, e2::form::proceed::multihome, world.This()); // Register multi-parent.
+
                     auto& current_default = parent.base::property<text>("desktop.selected");
                     auto& previous_default = parent.base::property<text>("desktop.prev_selected");
                     previous_default = current_default;
@@ -517,9 +523,6 @@ namespace netxs::app::desk
                     };
                 };
             });
-            auto world_ptr = window->base::signal(tier::general, e2::config::creator);
-            if (!world_ptr) return window;
-            auto& world = *world_ptr;
             auto ground = window->attach(slot::_2, ui::cake::ctor());
             auto ver_label = ground->attach(ui::item::ctor(utf::concat(app::shared::version)))
                 ->active(cell{}.fgc(whitedk).bgc(argb::active_transparent))
