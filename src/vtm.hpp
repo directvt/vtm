@@ -360,7 +360,7 @@ namespace netxs::app::vtm
             maker(base& boss)
                 : skill{ boss }
             {
-                boss.LISTEN(tier::preview, input::events::keybd::key::post, gear, memo)
+                boss.LISTEN(tier::preview, input::events::keybd::post, gear, memo)
                 {
                     if (gear.captured(boss.bell::id)) check_modifiers(gear);
                 };
@@ -1631,7 +1631,7 @@ namespace netxs::app::vtm
                 create_window(what, true);
             };
 
-            LISTEN(tier::preview, input::events::keybd::key::post, gear) // Track last active gear.
+            LISTEN(tier::preview, input::events::keybd::post, gear) // Track last active gear.
             {
                 hall_focus = gear.id;
             };

@@ -7962,7 +7962,7 @@ namespace netxs::ui
                     auto byemsg = error().add("Press Esc to close or press Enter to restart the session.\r\n")
                                          .add("\n");
                     ondata(byemsg);
-                    this->LISTEN(tier::release, input::events::keybd::key::post, gear, onerun) //todo VS2019 requires `this`
+                    this->LISTEN(tier::release, input::events::keybd::post, gear, onerun) //todo VS2019 requires `this`
                     {
                         if (gear.keystat)
                         {
@@ -8587,7 +8587,7 @@ namespace netxs::ui
                     origin = new_area.coor;
                 }
             };
-            LISTEN(tier::release, input::events::keybd::key::post, gear)
+            LISTEN(tier::release, input::events::keybd::post, gear)
             {
                 key_event(gear);
             };
@@ -8796,7 +8796,7 @@ namespace netxs::ui
                         auto& gear = *gear_ptr;
                         gear.set_multihome();
                         k.syncto(gear);
-                        owner.base::riseup(tier::release, input::events::keybd::key::post, gear, true);
+                        owner.base::riseup(tier::release, input::events::keybd::post, gear, true);
                     }
                 }
             };
@@ -9142,7 +9142,7 @@ namespace netxs::ui
                 auto state = deed == input::events::focus::set::on.id;
                 stream.sysfocus.send(*this, seed.gear_id, state, seed.focus_type, seed.treeid, seed.digest);
             };
-            LISTEN(tier::preview, input::events::keybd::key::any, gear)
+            LISTEN(tier::preview, input::events::keybd::any, gear)
             {
                 gear.gear_id = gear.id;
                 stream.syskeybd.send(*this, gear);

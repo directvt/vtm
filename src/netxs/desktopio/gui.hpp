@@ -1813,7 +1813,7 @@ namespace netxs::gui
                 auto guard = owner.sync();
                 auto& gear = *gears;
                 keybd.syncto(gear);
-                owner.base::signal(tier::release, input::events::keybd::key::post, gear);
+                owner.base::signal(tier::release, input::events::keybd::post, gear);
             };
             void handle(s11n::xs::mouse_event      lock)
             {

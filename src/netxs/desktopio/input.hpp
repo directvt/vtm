@@ -14,19 +14,14 @@ namespace netxs::events::userland
             EVENT_XS( die      , input::hids ), // release::global: Notify about the mouse controller is gone. Signal to delete gears inside dtvt-objects.
             EVENT_XS( halt     , input::hids ), // release::global: Notify about the mouse controller is outside.
             EVENT_XS( clipboard, input::hids ), // release/request: Set/get clipboard data.
-            GROUP_XS( keybd    , input::hids ),
-            GROUP_XS( mouse    , input::hids ),
+            GROUP_XS( keybd    , input::hids ), // Keybd related events.
+            GROUP_XS( mouse    , input::hids ), // Mouse related events.
             GROUP_XS( focus    , input::foci ), // Focus related events.
             GROUP_XS( device   , input::hids ), // Primary device event group for fast forwarding.
 
             SUBSET_XS( keybd )
             {
-                GROUP_XS( key, input::hids ),
-
-                SUBSET_XS( key )
-                {
-                    EVENT_XS( post, input::hids ),
-                };
+                EVENT_XS( post, input::hids ),
             };
             SUBSET_XS( mouse )
             {
@@ -2090,7 +2085,7 @@ namespace netxs::input
         }
         void fire_keybd()
         {
-            owner.base::signal(tier::preview, input::events::keybd::key::post, *this);
+            owner.base::signal(tier::preview, input::events::keybd::post, *this);
         }
         void fire_board()
         {

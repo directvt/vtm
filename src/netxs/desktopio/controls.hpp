@@ -1366,7 +1366,7 @@ namespace netxs::ui
                     gear.dismiss();
                 });
                 // pro::focus: Subscribe on keybd events.
-                boss.LISTEN(tier::preview, input::events::keybd::key::post, gear, memo) // preview: Run after any.
+                boss.LISTEN(tier::preview, input::events::keybd::post, gear, memo) // preview: Run after any.
                 {
                     auto sent = faux;
                     auto& chain = get_chain(gear.id);
@@ -1378,7 +1378,7 @@ namespace netxs::ui
                         {
                             sent = true;
                             gear.handled = handled;
-                            nexthop->base::signal(tier::preview, input::events::keybd::key::post, gear);
+                            nexthop->base::signal(tier::preview, input::events::keybd::post, gear);
                             new_handled |= gear.handled;
                         }
                     });
@@ -1388,7 +1388,7 @@ namespace netxs::ui
                         auto parent_ptr = boss.base::This();
                         while ((!gear.handled || gear.keystat == input::key::released) && parent_ptr) // Always pass released key events.
                         {
-                            parent_ptr->base::signal(tier::release, input::events::keybd::key::post, gear);
+                            parent_ptr->base::signal(tier::release, input::events::keybd::post, gear);
                             parent_ptr = parent_ptr->base::parent();
                         }
                     }
@@ -2009,7 +2009,7 @@ namespace netxs::ui
                 {
                     last_key.erase(gear.id);
                 };
-                boss.LISTEN(tier::release, input::events::keybd::key::any, gear, memo)
+                boss.LISTEN(tier::release, input::events::keybd::any, gear, memo)
                 {
                     gear.shared_event = gear.touched && gear.touched != instance_id;
                     auto& timecod = last_key[gear.id];
@@ -2030,7 +2030,7 @@ namespace netxs::ui
                         gear.set_handled();
                     }
                 };
-                boss.LISTEN(tier::preview, input::events::keybd::key::any, gear, memo)
+                boss.LISTEN(tier::preview, input::events::keybd::any, gear, memo)
                 {
                     gear.shared_event = gear.touched && gear.touched != instance_id;
                     if (gear.payload == input::keybd::type::keypress)
