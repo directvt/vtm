@@ -481,36 +481,33 @@ namespace netxs::app::vtm
                   drags{ faux },
                   under{      }
             {
-                boss.on(input::key::MouseDragStart, memo, [&](hids& gear)
+                boss.LISTEN(tier::release, e2::form::drag::start::any, gear, memo)
                 {
-                    if (boss.size().inside(gear.coord) && !gear.meta(hids::anyMod))
-                    if (drags || !gear.capture(boss.id)) return;
+                    if (!drags && boss.size().inside(gear.coord) && !gear.meta(hids::anyMod))
                     {
                         drags = true;
                         coord = gear.coord;
                         under = {};
                     }
-                });
-                boss.on(input::key::MouseDragPull, memo, [&](hids& gear)
+                };
+                boss.LISTEN(tier::release, e2::form::drag::pull::any, gear, memo)
                 {
                     if (!drags) return;
                     if (gear.meta(hids::anyMod)) proceed(faux, gear);
                     else                         coord = gear.coord - gear.delta.get();
-                });
-                boss.on(input::key::MouseDragStop, memo, [&](hids& gear)
+                };
+                boss.LISTEN(tier::release, e2::form::drag::stop::any, gear, memo)
                 {
                     if (!drags) return;
                     if (gear.meta(hids::anyMod)) proceed(faux, gear);
                     else                         proceed(true, gear);
-                    gear.setfree();
-                });
-                boss.on(input::key::MouseDragCancel, memo, [&](hids& gear)
+                };
+                boss.LISTEN(tier::release, e2::form::drag::cancel::any, gear, memo)
                 {
                     if (!drags) return;
                     if (gear.meta(hids::anyMod)) proceed(faux, gear);
                     else                         proceed(true, gear);
-                    gear.setfree();
-                });
+                };
                 boss.copy_handler(tier::general, input::events::halt, memo.back());
                 boss.LISTEN(tier::release, e2::render::background::prerender, parent_canvas, memo)
                 {
