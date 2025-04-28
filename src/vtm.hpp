@@ -86,8 +86,8 @@ namespace netxs::app::vtm
             fp2d  drag_origin;
 
         public:
-            frame(auto&&) = delete;
-            frame(auto& boss) : skill{ boss },
+            frame(base&&) = delete;
+            frame(base& boss) : skill{ boss },
                 robo{ boss }
             {
                 boss.onpreview(input::key::LeftClick, memo, [&](hids& /*gear*/)
@@ -100,6 +100,21 @@ namespace netxs::app::vtm
                     //todo window.events(onclick)
                     boss.base::riseup(tier::preview, e2::form::layout::expose);
                 });
+                boss.onpreview(input::key::MouseDown, memo, [&](hids& /*gear*/)
+                {
+                    robo.pacify();
+                });
+                boss.on(input::key::RightClick, memo, [&](hids& gear)
+                {
+                    auto& area = boss.base::area();
+                    auto coord = gear.coord + area.coor;
+                    if (!area.hittest(coord))
+                    {
+                        pro::focus::set(boss.This(), gear.id, solo::on);
+                        appear(coord);
+                    }
+                    gear.dismiss();
+                });
                 boss.LISTEN(tier::preview, e2::form::layout::appear, newpos, memo)
                 {
                     appear(newpos);
@@ -108,10 +123,6 @@ namespace netxs::app::vtm
                 {
                     boss.base::riseup(tier::preview, e2::form::layout::bubble);
                 };
-                boss.onpreview(input::key::MouseDown, memo, [&](hids& /*gear*/)
-                {
-                    robo.pacify();
-                });
                 boss.LISTEN(tier::release, e2::form::drag::start::any, gear, memo)
                 {
                     drag_origin = gear.coord;
@@ -165,17 +176,6 @@ namespace netxs::app::vtm
                         });
                     }
                 };
-                boss.on(input::key::RightClick, memo, [&](hids& gear)
-                {
-                    auto& area = boss.base::area();
-                    auto coord = gear.coord + area.coor;
-                    if (!area.hittest(coord))
-                    {
-                        pro::focus::set(boss.This(), gear.id, solo::on);
-                        appear(coord);
-                    }
-                    gear.dismiss();
-                });
             };
 
             // pro::frame: Fly to the specified position.
@@ -356,8 +356,8 @@ namespace netxs::app::vtm
             }
 
         public:
-            maker(auto&&) = delete;
-            maker(auto& boss)
+            maker(base&&) = delete;
+            maker(base& boss)
                 : skill{ boss }
             {
                 boss.LISTEN(tier::preview, input::events::keybd::key::post, gear, memo)
@@ -475,8 +475,8 @@ namespace netxs::app::vtm
             }
 
         public:
-            d_n_d(auto&&) = delete;
-            d_n_d(auto& boss)
+            d_n_d(base&&) = delete;
+            d_n_d(base& boss)
                 : skill{ boss },
                   drags{ faux },
                   under{      }
@@ -621,8 +621,6 @@ namespace netxs::app::vtm
             window_t(hall& owner, applink& what)
                 : world{ owner },
                   zorder{ what.applet->base::property("applet.zorder", zpos::plain) }
-            { }
-            void activate(applink& what)
             {
                 base::plugin<pro::d_n_d>();
                 base::plugin<pro::ghost>();
@@ -1045,7 +1043,6 @@ namespace netxs::app::vtm
                 base::signal(tier::request, vtm::events::newapp, what);
             }
             auto window_ptr = window_t::ctor(*this, what);
-            window_ptr->activate(what);
             attach(window_ptr);
 
             auto& menuid = what.applet->base::property("window.menuid");
