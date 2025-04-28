@@ -1158,6 +1158,20 @@ namespace netxs::ui
         {
             mouse_preview_handlers[mouse_event_id].emplace_back().first = token;
         }
+        void on(si32 mouse_event_id)
+        {
+            if (bell::sensors.size())
+            {
+                mouse_release_handlers[mouse_event_id].emplace_back().first = bell::sensors.back();
+            }
+        }
+        void onpreview(si32 mouse_event_id)
+        {
+            if (bell::sensors.size())
+            {
+                mouse_preview_handlers[mouse_event_id].emplace_back().first = bell::sensors.back();
+            }
+        }
 
     protected:
         virtual void deform([[maybe_unused]] rect& new_area) {}

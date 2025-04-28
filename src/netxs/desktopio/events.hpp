@@ -532,10 +532,19 @@ namespace netxs::events
             token = reactors[Tier]->subscribe(Event::id, std::move(handler));
         }
         template<class Event>
-        void copy_handler(si32 Tier, Event, hook& token)
+        void dup_handler(si32 Tier, Event, hook& token)
         {
             auto lock = indexer.sync();
             reactors[Tier]->subscribe_copy(Event::id, token);
+        }
+        template<class Event>
+        void dup_handler(si32 Tier, Event)
+        {
+            auto lock = indexer.sync();
+            if (sensors.size())
+            {
+                reactors[Tier]->subscribe_copy(Event::id, sensors.back());
+            }
         }
         auto accomplished(si32 Tier)
         {

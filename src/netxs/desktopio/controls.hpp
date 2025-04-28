@@ -1948,7 +1948,7 @@ namespace netxs::ui
                             gear.dismiss();
                         }
                     });
-                    boss.copy_handler(tier::general, input::events::halt, dragmemo_button.back());
+                    boss.dup_handler(tier::general, input::events::halt, dragmemo_button.back());
                 }
             }
         };
@@ -4138,7 +4138,7 @@ namespace netxs::ui
                     giveup(gear);
                 }
             });
-            bell::copy_handler(tier::general, input::events::halt, bell::sensors.back());
+            bell::dup_handler(tier::general, input::events::halt);
             on(input::key::RightDragStop, [&](hids& gear)
             {
                 if (gear.captured(bell::id))
@@ -4728,7 +4728,7 @@ namespace netxs::ui
             {
                 giveup(gear);
             });
-            bell::copy_handler(tier::general, input::events::halt, bell::sensors.back());
+            bell::dup_handler(tier::general, input::events::halt);
             base::on(input::key::MouseDragStop, [&](hids& gear)
             {
                 if (on_pager)

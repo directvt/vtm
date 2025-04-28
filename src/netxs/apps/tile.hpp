@@ -245,12 +245,12 @@ namespace netxs::app::tile
                                 }
                             }
                         });
-                        boss.on(input::key::LeftRightDragStart, boss.bell::sensors.back());
+                        boss.on(input::key::LeftRightDragStart);
                         boss.on(input::key::RightClick, [&](hids& gear)
                         {
                             pro::focus::set(boss.This(), gear.id, solo::on);
                         });
-                        boss.on(input::key::MiddleClick, boss.bell::sensors.back());
+                        boss.on(input::key::MiddleClick);
                         boss.LISTEN(tier::anycast, e2::form::upon::started, context_keeper_ptr)
                         {
                             boss.base::riseup(tier::release, tile::events::enlist, boss.This());

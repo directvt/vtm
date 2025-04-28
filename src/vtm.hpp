@@ -385,7 +385,7 @@ namespace netxs::app::vtm
                     handle_drop(gear);
                 });
                 boss.on(input::key::RightDragCancel, memo.back());
-                boss.copy_handler(tier::general, input::events::halt, memo.back());
+                boss.dup_handler(tier::general, input::events::halt, memo.back());
 
                 boss.LISTEN(tier::release, e2::postrender, canvas, memo)
                 {
@@ -508,7 +508,7 @@ namespace netxs::app::vtm
                     if (gear.meta(hids::anyMod)) proceed(faux, gear);
                     else                         proceed(true, gear);
                 };
-                boss.copy_handler(tier::general, input::events::halt, memo.back());
+                boss.dup_handler(tier::general, input::events::halt, memo.back());
                 boss.LISTEN(tier::release, e2::render::background::prerender, parent_canvas, memo)
                 {
                     if (!drags) return;
