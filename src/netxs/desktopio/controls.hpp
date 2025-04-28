@@ -4087,8 +4087,6 @@ namespace netxs::ui
             {
                 req_scinfo = scinfo;
             };
-
-            namespace button = input::events::mouse::button;
             on(input::key::MouseWheel, [&](hids& gear)
             {
                 if (gear.meta(hids::anyCtrl)) return; // Ctrl+Wheel is reserved for zooming.
@@ -4101,7 +4099,7 @@ namespace netxs::ui
                 }
                 gear.dismiss();
             });
-            LISTEN(tier::release, button::drag::start::right, gear)
+            on(input::key::RightDragStart, [&](hids& gear)
             {
                 auto ds = gear.delta.get();
                 auto dx = ds.x;
@@ -4119,8 +4117,8 @@ namespace netxs::ui
                         gear.dismiss();
                     }
                 }
-            };
-            LISTEN(tier::release, button::drag::pull::right, gear)
+            });
+            on(input::key::RightDragPull, [&](hids& gear)
             {
                 if (gear.captured(bell::id))
                 {
@@ -4132,22 +4130,16 @@ namespace netxs::ui
                     }
                     gear.dismiss();
                 }
-            };
-            LISTEN(tier::release, button::drag::cancel::right, gear)
+            });
+            on(input::key::RightDragCancel, [&](hids& gear)
             {
                 if (gear.captured(bell::id))
                 {
                     giveup(gear);
                 }
-            };
-            LISTEN(tier::general, input::events::halt, gear)
-            {
-                if (gear.captured(bell::id))
-                {
-                    giveup(gear);
-                }
-            };
-            LISTEN(tier::release, button::drag::stop::right, gear)
+            });
+            bell::copy_handler(tier::general, input::events::halt, bell::sensors.back());
+            on(input::key::RightDragStop, [&](hids& gear)
             {
                 if (gear.captured(bell::id))
                 {
@@ -4165,19 +4157,19 @@ namespace netxs::ui
                     gear.setfree();
                     gear.dismiss();
                 }
-            };
-            LISTEN(tier::release, button::click::right, gear)
+            });
+            on(input::key::RightClick, [&](hids& gear)
             {
                 if (!gear.captured(bell::id))
                 {
                     if (manual[X]) cancel<X, true>();
                     if (manual[Y]) cancel<Y, true>();
                 }
-            };
-            LISTEN(tier::release, button::down::any, gear)
+            });
+            on(input::key::MouseDown, [&](hids& /*gear*/)
             {
                 cutoff();
-            };
+            });
             LISTEN(tier::release, e2::form::animate::reset, task_id)
             {
                 cutoff();
@@ -4594,7 +4586,7 @@ namespace netxs::ui
             {
                 if (gear.captured(bell::id))
                 {
-                    if (this->form::protos(tier::release, input::events::mouse::button::drag::cancel::right))
+                    if (gear.cause == input::key::RightDragCancel)
                     {
                         send<e2::form::upon::scroll::cancel::_<Axis>>();
                     }
