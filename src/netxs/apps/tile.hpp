@@ -348,11 +348,9 @@ namespace netxs::app::tile
                             boss.base::riseup(tier::preview, e2::form::size::minimize, gear);
                             gear.dismiss();
                         };
-                        auto& keybd = boss.base::template plugin<pro::keybd>(); //todo Apple clang reqires template
-                        //auto& mouse = boss.base::template plugin<pro::mouse>();
                         auto& luafx = boss.base::template plugin<pro::luafx>();
                         auto& bindings = *grip_bindings_ptr;
-                        input::bindings::keybind(bindings, keybd.handlers, boss.mouse_release_handlers, boss.mouse_preview_handlers);
+                        input::bindings::keybind(boss, bindings);
                         luafx.activate("grip",
                         {
                             { action::MoveGrip,         [&]
@@ -1056,11 +1054,9 @@ namespace netxs::app::tile
                     {
                         boss.base::riseup(tier::release, e2::form::proceed::quit::one, true);
                     };
-                    auto& keybd = boss.base::template plugin<pro::keybd>(); //todo Apple clang reqires template
-                    //auto& mouse = boss.base::template plugin<pro::mouse>(); //todo Apple clang reqires template
                     auto& luafx = boss.base::template plugin<pro::luafx>();
                     auto bindings = input::bindings::load(config, "tile");
-                    input::bindings::keybind(bindings, keybd.handlers, boss.mouse_release_handlers, boss.mouse_preview_handlers);
+                    input::bindings::keybind(boss, bindings);
                     luafx.activate("tile",
                     {
                         { action::FocusNextPaneOrGrip,  [&]

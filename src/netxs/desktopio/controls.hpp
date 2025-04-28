@@ -1967,9 +1967,6 @@ namespace netxs::ui
             si64 instance_id; // keybd: .
 
         public:
-            //todo make scripts precompiled
-            std::unordered_map<text, std::pair<std::list<netxs::sptr<text>>, bool>, qiew::hash, qiew::equal> handlers; // keybd: Map<chord, pair<list<shared_ptr<script>>, preview>>.
-
             keybd(base&&) = delete;
             keybd(base& boss)
                 : skill{ boss },
@@ -2022,10 +2019,10 @@ namespace netxs::ui
                         if (gear.payload == input::keybd::type::keypress)
                         {
                             gear.interrupt_key_proc = faux;
-                            if (!gear.handled) input::bindings::dispatch(boss, instance_id, scripting_context_ptr, handlers, gear, faux, input::key::kmap::any_key);
-                            if (!gear.handled) input::bindings::dispatch(boss, instance_id, scripting_context_ptr, handlers, gear, faux, gear.vkchord);
-                            if (!gear.handled) input::bindings::dispatch(boss, instance_id, scripting_context_ptr, handlers, gear, faux, gear.chchord);
-                            if (!gear.handled) input::bindings::dispatch(boss, instance_id, scripting_context_ptr, handlers, gear, faux, gear.scchord);
+                            if (!gear.handled) input::bindings::dispatch(boss, instance_id, scripting_context_ptr, boss.keybd_handlers, gear, faux, input::key::kmap::any_key);
+                            if (!gear.handled) input::bindings::dispatch(boss, instance_id, scripting_context_ptr, boss.keybd_handlers, gear, faux, gear.vkchord);
+                            if (!gear.handled) input::bindings::dispatch(boss, instance_id, scripting_context_ptr, boss.keybd_handlers, gear, faux, gear.chchord);
+                            if (!gear.handled) input::bindings::dispatch(boss, instance_id, scripting_context_ptr, boss.keybd_handlers, gear, faux, gear.scchord);
                         }
                     }
                     else
@@ -2038,10 +2035,10 @@ namespace netxs::ui
                     gear.shared_event = gear.touched && gear.touched != instance_id;
                     if (gear.payload == input::keybd::type::keypress)
                     {
-                        if (!gear.touched && !gear.handled) input::bindings::dispatch(boss, instance_id, scripting_context_ptr, handlers, gear, true, gear.vkchord);
-                        if (!gear.touched && !gear.handled) input::bindings::dispatch(boss, instance_id, scripting_context_ptr, handlers, gear, true, gear.chchord);
-                        if (!gear.touched && !gear.handled) input::bindings::dispatch(boss, instance_id, scripting_context_ptr, handlers, gear, true, gear.scchord);
-                        if (!gear.touched && !gear.handled) input::bindings::dispatch(boss, instance_id, scripting_context_ptr, handlers, gear, true, input::key::kmap::any_key);
+                        if (!gear.touched && !gear.handled) input::bindings::dispatch(boss, instance_id, scripting_context_ptr, boss.keybd_handlers, gear, true, gear.vkchord);
+                        if (!gear.touched && !gear.handled) input::bindings::dispatch(boss, instance_id, scripting_context_ptr, boss.keybd_handlers, gear, true, gear.chchord);
+                        if (!gear.touched && !gear.handled) input::bindings::dispatch(boss, instance_id, scripting_context_ptr, boss.keybd_handlers, gear, true, gear.scchord);
+                        if (!gear.touched && !gear.handled) input::bindings::dispatch(boss, instance_id, scripting_context_ptr, boss.keybd_handlers, gear, true, input::key::kmap::any_key);
                     }
                 };
             }

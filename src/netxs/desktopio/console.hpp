@@ -763,11 +763,10 @@ namespace netxs::ui
               multihome{ base::property<input::multihome_t>("multihome") }
         {
             base::plugin<pro::focus>();
-            auto& keybd = base::plugin<pro::keybd>();
-            //auto& mouse = base::plugin<pro::mouse>();
+            base::plugin<pro::keybd>();
             auto& luafx = base::plugin<pro::luafx>();
             auto bindings = input::bindings::load(config, "gate");
-            input::bindings::keybind(bindings, keybd.handlers, mouse_release_handlers, mouse_preview_handlers);
+            input::bindings::keybind(*this, bindings);
             luafx.activate("gate",
             {
                 { "Disconnect",             [&]

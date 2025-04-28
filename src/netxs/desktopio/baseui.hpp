@@ -617,6 +617,8 @@ namespace netxs::ui
         std::unordered_map<text, netxs::sptr<std::any>, qiew::hash, qiew::equal> fields;
         std::unordered_map<si32, std::list<std::pair<wook, netxs::sptr<text>>>> mouse_release_handlers; // base: Map<mouse_event_id, list<pair<std::function<void(hids&)>, sptr<script>>>>.
         std::unordered_map<si32, std::list<std::pair<wook, netxs::sptr<text>>>> mouse_preview_handlers; // base: Map<mouse_event_id, list<pair<std::function<void(hids&)>, sptr<script>>>>.
+        //todo make scripts precompiled
+        std::unordered_map<text, std::pair<std::list<netxs::sptr<text>>, bool>, qiew::hash, qiew::equal> keybd_handlers; // base: Map<chord, pair<list<shared_ptr<script>>, preview>>.
 
         template<class T = base>
         auto   This()       { return std::static_pointer_cast<std::remove_reference_t<T>>(shared_from_this()); }

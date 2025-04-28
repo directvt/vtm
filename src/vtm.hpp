@@ -632,8 +632,7 @@ namespace netxs::app::vtm
                 base::plugin<pro::frame>();
                 base::plugin<pro::light>();
                 base::plugin<pro::focus>();
-                auto& keybd = base::plugin<pro::keybd>();
-                //auto& mouse = base::plugin<pro::mouse>();
+                base::plugin<pro::keybd>();
                 auto& luafx = base::plugin<pro::luafx>();
                 base::limits(dot_11);
                 base::kind(base::reflow_root);
@@ -641,7 +640,7 @@ namespace netxs::app::vtm
 
                 auto& bindings = world.base::property<input::bindings::vector>("window.bindings"); // Shared key bindings across the hall.
                 if (bindings.empty()) bindings = input::bindings::load(world.config, "window");
-                input::bindings::keybind(bindings, keybd.handlers, mouse_release_handlers, mouse_preview_handlers);
+                input::bindings::keybind(*this, bindings);
                 luafx.activate("window",
                 {
                     { "Warp",               [&]
@@ -1231,11 +1230,10 @@ namespace netxs::app::vtm
             app::shared::get_tui_config(config, ui::skin::globals());
 
             base::plugin<pro::focus>(pro::focus::mode::focusable);
-            auto& keybd = base::plugin<pro::keybd>();
-            //auto& mouse = base::plugin<pro::mouse>();
+            base::plugin<pro::keybd>();
             auto& luafx = base::plugin<pro::luafx>();
             auto bindings = input::bindings::load(config, "desktop");
-            input::bindings::keybind(bindings, keybd.handlers, mouse_release_handlers, mouse_preview_handlers);
+            input::bindings::keybind(*this, bindings);
             luafx.activate("desktop",
             {
                 { "Shutdown",           [&]

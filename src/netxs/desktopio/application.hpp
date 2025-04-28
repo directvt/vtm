@@ -111,11 +111,10 @@ namespace netxs::app::shared
     const auto base_kb_navigation = [](xmls& config, ui::sptr scroll_ptr, base& boss)
     {
         auto& scroll_inst = *scroll_ptr;
-        auto& keybd = boss.base::plugin<pro::keybd>();
-        //auto& mouse = boss.base::plugin<pro::mouse>();
+        boss.base::plugin<pro::keybd>();
         auto& luafx = boss.base::plugin<pro::luafx>();
         auto bindings = input::bindings::load(config, "defapp");
-        input::bindings::keybind(bindings, keybd.handlers, boss.mouse_release_handlers, boss.mouse_preview_handlers);
+        input::bindings::keybind(boss, bindings);
         luafx.activate("defapp",
         {
             { "ScrollViewportByPage",   [&]
@@ -171,12 +170,11 @@ namespace netxs::app::shared
     {
         auto& applet = *applet_ptr;
         applet.base::plugin<pro::focus>();
-        auto& keybd = applet.base::plugin<pro::keybd>();
-        //auto& mouse = applet.base::plugin<pro::mouse>();
+        applet.base::plugin<pro::keybd>();
         auto& luafx = applet.base::plugin<pro::luafx>();
         auto& bindings = applet.base::property<input::bindings::vector>("applet.bindings");
         bindings = input::bindings::load(config, "applet");
-        input::bindings::keybind(bindings, keybd.handlers, applet.mouse_release_handlers, applet.mouse_preview_handlers);
+        input::bindings::keybind(applet, bindings);
         luafx.activate("applet",
         {
             //{ "FocusNext",          [&]
