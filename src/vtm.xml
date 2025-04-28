@@ -498,8 +498,7 @@ R"==(
                 -->
                 <script=AlwaysOnTopApplet on="RightClick" on="LeftClick" on="-Enter" on="-Space"/> <!-- The default event source is the parent object, i.e. source="item" (aka vtm.item). -->
                 <script>
-                    <on="event:ZOrder" source="terminal"/>
-                    <!-- <onpreview="event:ZOrder" source="terminal"/> -->
+                    <on="release:e2::form::prop::zorder" source="terminal"/>
                     local is_topmost=vtm.terminal.ZOrder()==1
                     vtm.ontop_button.Label(is_topmost and "\\x1b[38:2:0:255:0m^\\x1b[m" or "^")
                     vtm.ontop_button.Tooltip(is_topmost and " AlwaysOnTop on " or " AlwaysOnTop off ")
@@ -738,7 +737,7 @@ R"==(
             <script=TerminalWrapMode                   on=""                     />
             <script=TerminalAlignMode                  on=""                     />
             <script=TerminalStdioLog                   on=""                     />
-            <script=TerminalRestart                    on=""   on="RightClick" on="LeftClick" on="MouseClick" on="MouseClick1" on="MouseClick3" on="LeftRightClick" on="MouseMove" on="MouseDragPull101"                 />
+            <script=TerminalRestart                    on=""                     />
         </terminal>
         <defapp script*>  <!-- Default application bindings (e.g., Info-Page). -->
             <script="vtm.defapp.ShowClosingPreview(not vtm.gear.IsKeyRepeated())"                 onpreview="Esc" /> <!-- Pred window close action. -->

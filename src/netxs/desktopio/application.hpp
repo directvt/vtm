@@ -221,6 +221,7 @@ namespace netxs::app::shared
                                             }
                                             gui_cmd.cmd_id = syscmd::zorder;
                                             gui_cmd.args.emplace_back(zorder);
+                                            applet.base::riseup(tier::release, e2::form::prop::zorder, si32{ zorder });
                                             applet.base::riseup(tier::preview, e2::command::gui, gui_cmd);
                                         }
                                         if (gear_ptr) gear_ptr->set_handled();
