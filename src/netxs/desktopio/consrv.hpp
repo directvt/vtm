@@ -3975,15 +3975,17 @@ struct impl : consrv
         auto windowsz = twod{ packet.input.windowsz_x, packet.input.windowsz_y };
         console.cup0(caretpos);
         console.brush.meta(attr_to_brush(packet.input.attributes));
-        if (&console != uiterm.target) // If not active buffer.
+        auto saved_anchoring = std::exchange(uiterm.bottom_anchored, faux);
+        if (&console != uiterm.target) // It is an additional/alternate buffer.
         {
-            check_buffer_size(console, buffsize);
             console.resize_viewport(buffsize);
         }
-        else // If active buffer.
+        else // It is the primary buffer.
         {
+            check_buffer_size(console, buffsize);
             uiterm.window_resize(windowsz);
         }
+        uiterm.bottom_anchored = saved_anchoring;
         log("\tbuffer size: ", buffsize,
           "\n\tcursor coor: ", twod{ packet.input.cursorposx, packet.input.cursorposy },
           "\n\twindow coor: ", twod{ packet.input.windowposx, packet.input.windowposy },
@@ -4027,15 +4029,17 @@ struct impl : consrv
         auto size = twod{ packet.input.buffersz_x, packet.input.buffersz_y };
         log("\tinput.size: ", size);
         auto target_ptr = (hndl*)packet.target;
-        if (target_ptr->link != &uiterm.target) // It is additional/alternate buffer.
+        auto saved_anchoring = std::exchange(uiterm.bottom_anchored, faux);
+        if (target_ptr->link != &uiterm.target) // It is an additional/alternate buffer.
         {
             console.resize_viewport(size);
         }
-        else
+        else // It is the primary buffer.
         {
             check_buffer_size(console, size);
             uiterm.window_resize(size);
         }
+        uiterm.bottom_anchored = saved_anchoring;
         auto viewport = console.panel;
         packet.input.buffersz_x = (si16)(viewport.x);
         packet.input.buffersz_y = (si16)(viewport.y);

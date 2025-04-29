@@ -3075,8 +3075,8 @@ namespace netxs::ui
                     set_width(new_size.x);
                     if (ring::peak <= new_size.y)
                     {
-                        static constexpr auto BOTTOM_ANCHORED = true;
-                        ring::resize<BOTTOM_ANCHORED>(new_size.y);
+                        static constexpr auto BottomAnchored = true;
+                        ring::resize<BottomAnchored>(new_size.y);
                     }
                     return old_value != vsize;
                 }
@@ -3714,12 +3714,19 @@ namespace netxs::ui
                     batch.recalc(curln);
                 }
 
-                if (in_top > 0 || in_end > 0) // The cursor is outside the scrolling region.
+                if (!owner.bottom_anchored || in_top > 0 || in_end > 0) // The cursor is outside the scrolling region.
                 {
-                    if (in_top > 0) coord.y = std::max(0,           y_top - in_top);
-                    else            coord.y = std::min(panel.y - 1, y_end + in_end);
-                    coord.x = std::clamp(coord.x, 0, panel.x - 1);
-                    batch.basis = std::max(0, batch.vsize - arena);
+                         if (in_top > 0) coord.y = std::max(0,           y_top - in_top);
+                    else if (in_end > 0) coord.y = std::min(panel.y - 1, y_end + in_end);
+                    coord = std::clamp(coord, dot_00, panel - dot_11);
+                    if (owner.bottom_anchored)
+                    {
+                        batch.basis = std::max(0, batch.vsize - arena);
+                    }
+                    else // Try to keep batch.basis as is.
+                    {
+                        batch.basis = std::clamp(batch.basis, 0, std::max(0, batch.vsize - 1));
+                    }
                     index_rebuild();
                     if (vsized || !away) recalc_slide(away);
                     return;
@@ -6932,6 +6939,7 @@ namespace netxs::ui
         os::fdrw   fdlink; // term: Optional DirectVT uplink.
         hook       onerun; // term: One-shot token for restart session.
         bool       rawkbd; // term: Exclusive keyboard access.
+        bool       bottom_anchored; // term: Anchor scrollback content when resizing (default is anchor at bottom).
         vtty       ipccon; // term: IPC connector. Should be destroyed first.
 
         // term: Place rectangle block to the scrollback buffer.
@@ -8191,7 +8199,8 @@ namespace netxs::ui
               altscr{ config.def_alt_on },
               kbmode{ prot::vt },
               ime_on{ faux }, 
-              rawkbd{ faux }
+              rawkbd{ faux },
+              bottom_anchored{ true }
         {
             set_fg_color(config.def_fcolor);
             set_bg_color(config.def_bcolor);
