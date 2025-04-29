@@ -1073,9 +1073,11 @@ namespace netxs::xml
             {
                 auto temp = data;
                 utf::trim_front(temp, whitespaces);
+                //auto p = std::vector{ std::tuple{ 0, what, last, temp }};
                 peek(temp, what, last);
                 do
                 {
+                    //p.push_back(std::tuple{ 1, what, last, temp });
                     if (what == type::quoted_text)
                     {
                         diff(temp, data, type::quoted_text);
@@ -1104,7 +1106,7 @@ namespace netxs::xml
                         trim(data);
                         data = temp;
                         auto next = ptr::shared<elem>();
-                        read_node(next, data, deep + 1);
+                        what = read_node(next, data, deep + 1);
                         push(item, next, defs);
                         temp = data;
                         utf::trim_front(temp, whitespaces);
@@ -1133,6 +1135,7 @@ namespace netxs::xml
                         diff(temp, data, type::unknown);
                         data = temp;
                     }
+                    //p.push_back(std::tuple{ 2, what, last, temp });
                     peek(temp, what, last);
                 }
                 while (what != type::close_tag && what != type::eof);
@@ -1190,7 +1193,7 @@ namespace netxs::xml
             }
             while (data.size());
         }
-        void read_node(sptr& item, view& data, si32 deep = {})
+        auto read_node(sptr& item, view& data, si32 deep = {})
         {
             auto defs = std::unordered_map<text, wptr>{};
             auto what = type::na;
@@ -1299,6 +1302,7 @@ namespace netxs::xml
                 seal(item);
                 compacted.pop_back();
             }
+            return what;
         }
         void read(view& data)
         {
