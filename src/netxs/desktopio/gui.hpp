@@ -1830,7 +1830,7 @@ namespace netxs::gui
                 auto warp = lock.thing;
                 lock.unlock();
                 auto guard = owner.sync();
-                owner.warp_window(warp.warpdata);
+                owner.warp_window(warp.warpdata * owner.cellsz);
             }
             void handle(s11n::xs::logs             lock)
             {
