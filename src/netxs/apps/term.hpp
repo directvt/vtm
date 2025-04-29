@@ -818,7 +818,7 @@ namespace netxs::app::terminal
                         auto state = new_zorder == zpos::topmost;
                         boss.base::signal(tier::anycast, terminal::events::release::alwaysontop, state);
                     }
-                    window_inst.bell::expire(tier::preview, true);
+                    window_inst.bell::passover(tier::preview);
                 };
 
                 auto& cwd_commands = boss.base::property("terminal.cwd_commands", config.take(attr::cwdsync, ""s));
@@ -846,7 +846,7 @@ namespace netxs::app::terminal
                 {
                     if (cwd_sync)
                     {
-                        boss.bell::expire(tier::preview, true);
+                        boss.bell::passover(tier::preview);
                         cwd_path = path;
                     }
                 };

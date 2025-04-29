@@ -564,10 +564,13 @@ namespace netxs::events
         {
             return *reactors[Tier];
         }
-        void expire(si32 Tier, bool skip = faux)
+        void expire(si32 Tier)
         {
-            skip ? reactors[Tier]->skip()
-                 : reactors[Tier]->stop();
+            reactors[Tier]->stop();
+        }
+        void passover(si32 Tier)
+        {
+            reactors[Tier]->skip();
         }
         // bell: Create a new object of the specified subtype and return its sptr.
         template<class T, class ...Args>

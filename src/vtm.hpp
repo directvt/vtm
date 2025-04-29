@@ -735,7 +735,7 @@ namespace netxs::app::vtm
                         else hit = faux;
                     }
                     else hit = faux;
-                    if (!hit) bell::expire(tier::preview, true);
+                    if (!hit) bell::passover(tier::preview);
                 };
                 LISTEN(tier::preview, vtm::events::d_n_d::drop, what)
                 {
@@ -940,7 +940,7 @@ namespace netxs::app::vtm
                         {
                             saved_area = {}; // Preserve current window size.
                             base::signal(tier::release, e2::form::size::restore);
-                            bell::expire(tier::preview, true);
+                            bell::passover(tier::preview);
                         };
                         LISTEN(tier::preview, e2::area, new_area, maximize_token)
                         {
@@ -1402,7 +1402,7 @@ namespace netxs::app::vtm
                 luafx.set_object(This(), "desktop");
                 if (script.gear_id)
                 {
-                    bell::expire(tier::release, true); // Continue release riseup.
+                    bell::passover(tier::release); // Continue release riseup.
                 }
                 else
                 {
@@ -1412,7 +1412,7 @@ namespace netxs::app::vtm
             LISTEN(tier::preview, e2::runscript, gear)
             {
                 luafx.set_object(This(), "desktop");
-                bell::expire(tier::preview, true); // Continue preview riseup.
+                bell::passover(tier::preview); // Continue preview riseup.
             };
             LISTEN(tier::preview, e2::command::gui, gui_cmd)
             {
@@ -1425,7 +1425,7 @@ namespace netxs::app::vtm
                     focus_next_window(gear, dir);
                     hit = true;
                 }
-                if (!hit) bell::expire(tier::preview, true);
+                if (!hit) bell::passover(tier::preview);
             };
             LISTEN(tier::general, e2::shutdown, msg)
             {
@@ -1857,7 +1857,7 @@ namespace netxs::app::vtm
                     applet.LISTEN(tier::release, e2::form::proceed::quit::one, fast, memo)
                     {
                         usergate.base::signal(tier::release, e2::form::size::restore);
-                        applet.bell::expire(tier::release, true); // Continue event riseup().
+                        applet.bell::passover(tier::release); // Continue event riseup().
                     };
                     usergate.attach(applet_ptr);
                     pro::focus::set(applet_ptr, gear_id_list, solo::on, true); // Refocus.

@@ -3333,7 +3333,7 @@ namespace netxs::ui
             LISTEN(tier::preview, e2::form::layout::swarp, warp)
             {
                 adaptive = true; // Adjust the grip ratio on coming resize.
-                this->bell::expire(tier::preview, true);
+                this->bell::passover(tier::preview);
             };
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {

@@ -1033,7 +1033,7 @@ namespace netxs::ui
                 {
                     prop = new_value;
                 }
-                boss.bell::expire(Tier, true);
+                boss.bell::passover(Tier);
             };
             return prop;
         }
