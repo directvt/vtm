@@ -1148,6 +1148,13 @@ namespace netxs::os
                                                            nullptr);
                 }
                 auto wenv = utf::to_utf(envars);
+                auto limits = JOBOBJECT_BASIC_LIMIT_INFORMATION{};
+                ::QueryInformationJobObject(nullptr,        // HANDLE hJob
+                                            JOBOBJECTINFOCLASS::JobObjectBasicLimitInformation, // JobObjectInformationClass
+                                            &limits,        // LPVOID  lpJobObjectInformation,
+                                            sizeof(limits), // DWORD   cbJobObjectInformationLength,
+                                            nullptr);       // LPDWORD lpReturnLength
+                auto allowed_job_breakway = limits.LimitFlags & JOB_OBJECT_LIMIT_BREAKAWAY_OK ? CREATE_BREAKAWAY_FROM_JOB : 0;
                 auto result = ::CreateProcessAsUserW(token,
                                                      nullptr,                      // lpApplicationName
                                                      cmdarg.data(),                // lpCommandLine
@@ -1157,7 +1164,7 @@ namespace netxs::os
                                                      DETACHED_PROCESS |            // dwCreationFlags
                                                      EXTENDED_STARTUPINFO_PRESENT |// override startupInfo type
                                                      CREATE_UNICODE_ENVIRONMENT |  // environment block in UTF-16
-                                                     CREATE_BREAKAWAY_FROM_JOB,    // disassociate with the job
+                                                     allowed_job_breakway,         // disassociate with the job if it is and it is allowed by parents
                                                      wenv.size() ? wenv.data()     // lpEnvironment
                                                                  : nullptr,
                                                      nullptr,                      // lpCurrentDirectory
