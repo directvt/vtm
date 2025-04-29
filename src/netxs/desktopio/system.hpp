@@ -95,6 +95,7 @@ namespace netxs::os
     static constexpr auto ttysize = twod{ 2500, 50 };
     static constexpr auto app_wait_timeout = 5000;
     static constexpr auto unexpected = " returns unexpected result"sv;
+    static auto codepage = (std::setlocale(LC_CTYPE, ".UTF8"), 65001); // Set the UTF-8 character classification for STL.
     static auto autosync = true; // Auto sync viewport with cursor position (win7/8 console).
     static auto finalized = flag{ faux }; // Ready flag for clean exit.
     void release()
@@ -2327,7 +2328,6 @@ namespace netxs::os
     {
         static const auto elevated = []
         {
-            std::setlocale(LC_CTYPE, ".UTF8"); // Set the UTF-8 character classification for STL.
             #if defined(_WIN32)
                 //todo Workaround for https://github.com/PowerShell/Win32-OpenSSH/issues/2037
                 os::env::unset("c28fc6f98a2c44abbbd89d6a3037d0d9_POSIX_FD_STATE");
