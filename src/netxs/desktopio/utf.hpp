@@ -34,6 +34,31 @@ namespace netxs::utf
 {
     using ctrl = unidata::cntrls;
 
+    template<size_t N>
+    struct _str2array
+    {
+        std::array<char, N - 1> array;
+
+        template<auto... I>
+        static constexpr auto make_array(auto& arr, std::index_sequence<I...>)
+        {
+            return std::array{ arr[I]... };
+        }
+        constexpr _str2array(char const (&str)[N]) //constexpr _str2array(auto&& str)
+            : array{ make_array(str, std::make_index_sequence<sizeof(str) - 1>{}) }
+        { }
+        constexpr _str2array(std::array<char, N - 1> const& str)
+            : array{ str }
+        { }
+    };
+    template<auto M>
+    _str2array(std::array<char, M>) -> _str2array<M + 1>;
+    // Returns an array of concatenated string literals.
+    constexpr auto cat(auto&&... strs) // (const char (&...strs)[N])
+    {
+        return std::apply([](auto... c){ return std::array{ c... }; }, std::tuple_cat(std::tuple_cat(utf::_str2array{ strs }.array)...));
+    }
+
     static constexpr auto c0_view = { "·"sv, "☺"sv, "☻"sv, "♥"sv, "♦"sv, "♣"sv, "♠"sv, "•"sv, "◘"sv, "○"sv, "◙"sv, "♂"sv, "♀"sv, "♪"sv, "♫"sv, "☼"sv,
                                       "►"sv, "◄"sv, "↕"sv, "‼"sv, "¶"sv, "§"sv, "▬"sv, "↨"sv, "↑"sv, "↓"sv, "→"sv, "←"sv, "∟"sv, "↔"sv, "▲"sv, "▼"sv,
                                       "⌂"sv };
