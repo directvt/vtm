@@ -426,7 +426,7 @@ namespace netxs::events
         using type = Object_t;
         using base = Parent_t;
         static constexpr auto id = Event_id;
-        static constexpr auto storage = netxs::utf::cat(Parent_t{}.storage, "::", name_str);
+        static constexpr auto storage = netxs::utf::cat(Parent_t{}.storage, name_str);
         static constexpr auto name = view{ storage.data(), storage.size() };
         template<class ...Args> constexpr type_clue(Args&&...) { }
         template<class ...Args> static constexpr auto param(Args&&... args) { return type{ std::forward<Args>(args)... }; }
@@ -446,10 +446,10 @@ namespace netxs::events
     #define LISTEN_X(...) ARG_EVAL_XS(GET_END1_XS(__VA_ARGS__, LISTEN_V, LISTEN_T, LISTEN_S))
     #define LISTEN(...) LISTEN_X(__VA_ARGS__)(__VA_ARGS__)
 
-    #define EVENTPACK( name )       static constexpr auto _counter_base = __COUNTER__; \
-                                    static constexpr auto any = netxs::events::type_clue<decltype(name), netxs::utf::cat("any"), decltype(name)::type, decltype(name)::id>
-    #define  EVENT_XS( name, type ) }; static constexpr auto name = netxs::events::type_clue<decltype(any)::base, netxs::utf::cat(#name), type, decltype(any)::id | ((__COUNTER__ - _counter_base) << netxs::events::offset<decltype(any)::id>)>{ 777
-    #define  GROUP_XS( name, type ) EVENT_XS( _##name, type )
+    #define EVENTPACK( name )          static constexpr auto _counter_base = __COUNTER__; \
+                                       static constexpr auto     any = netxs::events::type_clue<decltype(name), netxs::utf::cat("::any"), decltype(name)::type, decltype(name)::id>
+    #define  EVENT_XS( name, type ) }; static constexpr auto    name = netxs::events::type_clue<decltype(any)::base, netxs::utf::cat("::", #name), type, decltype(any)::id | ((__COUNTER__ - _counter_base) << netxs::events::offset<decltype(any)::id>)>{ 777
+    #define  GROUP_XS( name, type ) }; static constexpr auto _##name = netxs::events::type_clue<decltype(any)::base, netxs::utf::cat("::", #name), type, decltype(any)::id | ((__COUNTER__ - _counter_base) << netxs::events::offset<decltype(any)::id>)>{ 777
     #define SUBSET_XS( name )       }; namespace name { EVENTPACK( _##name )
     #define  INDEX_XS(  ... )       }; template<auto N> static constexpr \
                                     auto _ = std::get<N>( std::tuple{ __VA_ARGS__ } ); \
@@ -460,11 +460,11 @@ namespace netxs::events
     {
         namespace root
         {
-            struct _root_parent_t
+            struct _root_t
             {
-                static constexpr auto storage = netxs::utf::cat("root");
+                static constexpr auto storage = netxs::utf::cat("");
             };
-            static constexpr auto root_event = type_clue<_root_parent_t, _root_parent_t::storage, si32, 0>{};
+            static constexpr auto root_event = type_clue<_root_t, netxs::utf::cat("root"), si32, 0>{};
             EVENTPACK( root_event )
             {
                 EVENT_XS( base     , si32 ),
