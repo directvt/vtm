@@ -84,7 +84,7 @@ namespace netxs::events::userland
     namespace e2
     {
         using name_ref = std::pair<text, ui::wptr>;
-        EVENTPACK( netxs::events::userland::root::base )
+        EVENTPACK( netxs::events::userland::root::e2 )
         {
             EVENT_XS( postrender, ui::face       ), // release: UI-tree post-rendering. Draw debug overlay, maker, titles, etc.
             EVENT_XS( shutdown  , const text     ), // general: Server shutdown.
