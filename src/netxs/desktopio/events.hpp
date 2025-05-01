@@ -577,6 +577,14 @@ namespace netxs::events
             auto lock = indexer.sync();
             sensors.push_back(reactors[Tier]->subscribe(Event::id, std::move(handler)));
         }
+        void submit(si32 Tier, si32 event_id, fx<void*>&& handler) // Generic event handler. //todo set script body instead of fx<void*>
+        {
+            auto lock = indexer.sync();
+            if (Tier >= 0 && Tier < tier::unknown)
+            {
+                sensors.push_back(reactors[Tier]->subscribe(event_id, std::move(handler)));
+            }
+        }
         template<class Event, class Arg = Event::type>
         void submit(si32 Tier, Event, hook& token, fx<Arg>&& handler)
         {

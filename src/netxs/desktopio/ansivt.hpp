@@ -449,12 +449,12 @@ namespace netxs::ansi
             else return block;
         }
         template<class ...Args>
-        auto& clr(argb c, Args&&... data) { return fgc(c).add(std::forward<Args>(data)...).nil(); } // basevt: Add colored message.
+        auto& clr(argb c, Args&&... data) { return pushsgr().fgc(c).add(std::forward<Args>(data)...).popsgr(); } // basevt: Add colored message.
         template<class ...Args>
-        auto& hi(Args&&... data) { return inv(true).add(std::forward<Args>(data)...).nil(); } // basevt: Add highlighted message.
+        auto& hi(Args&&... data) { return inv(true).add(std::forward<Args>(data)...).inv(faux); } // basevt: Add highlighted message.
         auto& err() { return fgc(redlt); } // basevt: Add error color.
         template<class ...Args>
-        auto& err(Args&&... data) { return fgc(redlt).add(std::forward<Args>(data)...).nil(); } // basevt: Add error message.
+        auto& err(Args&&... data) { return pushsgr().fgc(redlt).add(std::forward<Args>(data)...).popsgr(); } // basevt: Add error message.
         // basevt: Ansify/textify content of specified region.
         template<bool UseSGR = true, bool Initial = true, bool Finalize = true>
         auto& s11n(core const& canvas, rect region, cell& state)

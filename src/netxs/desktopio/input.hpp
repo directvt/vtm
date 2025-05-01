@@ -81,6 +81,7 @@ namespace netxs::input
         static constexpr auto pressed  = __COUNTER__ - _counter;
         static constexpr auto repeated = __COUNTER__ - _counter;
 
+        static constexpr auto generic_sign   = 0xF0;
         static constexpr auto scancode_sign  = 0x80;
         static constexpr auto unpressed_sign = 0x40; // Pressed: 0x00   Released: 0x40
         static constexpr auto cluster_sign   = 0x20;
@@ -352,6 +353,19 @@ namespace netxs::input
         #undef mouse_list
         #undef key_list
 
+        // The bind record is a set of 16-bit words: 0x000a 0x000b ... 0xffff 0xa 0xfe0e
+        //  15 bit: 0 - virt code, 1 - scan code ('\x80').
+        //  14 bit: 0 - pressed, 1 - released ('\x40').
+        //  13 bit: 1 - all subsequent bytes form a grapheme cluster ('\x20').
+        //  12 bit: 1 - mouse code ('\x10').
+        //  0-11 bits: virt, scan or mouse code. For clusters it is set to '\x20FF'('\x60FF').
+        //  Generic events: (12-15 bits on)  (0xFn ' 00 00 00 00) -- (0xF0 & 4-bit tier ' 32-bit generic event_id).
+        auto is_generic( byte sign) { return  (sign & input::key::generic_sign) == input::key::generic_sign; }
+        auto is_scancode(byte sign) { return   sign & input::key::scancode_sign; }
+        auto is_pressed( byte sign) { return !(sign & input::key::unpressed_sign); }
+        auto is_cluster( byte sign) { return   sign & input::key::cluster_sign; }
+        auto is_mouse(   byte sign) { return  (sign & input::key::generic_sign) == input::key::mouse_sign; }
+
         struct kmap
         {
             struct chord_item_t
@@ -379,26 +393,24 @@ namespace netxs::input
                 auto iter = pushed.find(keyid);
                 return iter != pushed.end();
             }
-            // Build key chords.
-            // key chord is a set of 16-bit words: 0x000a 0x000b ... 0xffff 0xa 0xfe0e
-            //  15 bit: 0 - virt code, 1 - scan code ('\x80').
-            //  14 bit: 0 - pressed, 1 - released ('\x40').
-            //  13 bit: 1 - all subsequent bytes form a grapheme cluster ('\x20').
-            //  12 bit: 1 - mouse code ('\x10').
-            //  0-11 bits: virt, scan or mouse code. For clusters it is set to '\x20FF'('\x60FF').
-            static void push_keyid(bool is_pressed, text& vkchord, si32 keyid)
+            static void push_generic(si32 sign, si32 event_id, text& g_chord)
             {
-                vkchord.push_back((byte)(is_pressed ? 0x00 : input::key::unpressed_sign));
+                g_chord += (byte)sign;
+                g_chord += view{ (char*)&event_id, sizeof(event_id) };
+            }
+            static void push_keyid(bool ispressed, text& vkchord, si32 keyid)
+            {
+                vkchord.push_back((byte)(ispressed ? 0x00 : input::key::unpressed_sign));
                 vkchord.push_back((byte)keyid);
             }
-            static void push_scode(bool is_pressed, text& scchord, si32 scode)
+            static void push_scode(bool ispressed, text& scchord, si32 scode)
             {
-                scchord.push_back((byte)((is_pressed ? 0x00 : input::key::unpressed_sign) | input::key::scancode_sign | ((scode >> 8) & 0x01)));
+                scchord.push_back((byte)((ispressed ? 0x00 : input::key::unpressed_sign) | input::key::scancode_sign | ((scode >> 8) & 0x01)));
                 scchord.push_back((byte)(scode & 0xFF));
             }
-            static void push_cluster(bool is_pressed, text& chchord, view cluster)
+            static void push_cluster(bool ispressed, text& chchord, view cluster)
             {
-                chchord += (byte)((is_pressed ? 0x00 : input::key::unpressed_sign) | input::key::cluster_sign);
+                chchord += (byte)((ispressed ? 0x00 : input::key::unpressed_sign) | input::key::cluster_sign);
                 chchord += '\xFF';
                 chchord += cluster;
             }
@@ -498,10 +510,6 @@ namespace netxs::input
                     si32 code1; // Left (or specific) key code.
                     si32 code2; // Right (if chord is generic) key code
                     text utf8;
-                    auto is_scancode() const { return   sign & input::key::scancode_sign; }
-                    auto is_pressed()  const { return !(sign & input::key::unpressed_sign); }
-                    auto is_cluster()  const { return   sign & input::key::cluster_sign; }
-                    auto is_mouse()    const { return   sign & input::key::mouse_sign; }
                 };
                 auto keys = std::vector<key_t>{};
                 auto crop = std::vector<text>{};
@@ -536,8 +544,8 @@ namespace netxs::input
                     }
                     utf::trim(chord);
                     if (chord.empty()) return k;
-                    auto is_scancode = chord.starts_with("0x") || chord.starts_with("0X");
-                    if (is_scancode)
+                    auto isscancode = chord.starts_with("0x") || chord.starts_with("0X");
+                    if (isscancode)
                     {
                         chord.remove_prefix(2);
                         if (auto v = utf::to_int<si32, 16>(chord))
@@ -553,13 +561,13 @@ namespace netxs::input
                         k.code1 = 0xFF;
                         chord.clear();
                     }
-                    else if (auto event_tier = chord.starts_with(tier::str[tier::preview]) ? tier::preview
+                    else if (auto event_tier = chord.starts_with(tier::str[tier::preview]) ? tier::preview // Environment event.
                                              : chord.starts_with(tier::str[tier::release]) ? tier::release
                                              : chord.starts_with(tier::str[tier::general]) ? tier::general
                                              : chord.starts_with(tier::str[tier::anycast]) ? tier::anycast
                                              : chord.starts_with(tier::str[tier::request]) ? tier::request
                                                                                            : tier::unknown;
-                            event_tier != tier::unknown) // Environment event.
+                            event_tier != tier::unknown)
                     {
                         auto event_str = chord;
                         event_str.remove_prefix(tier::str[event_tier].size());
@@ -569,14 +577,13 @@ namespace netxs::input
                         if (iter != rtti.end())
                         {
                             auto metadata = iter->second;
-                            //todo event sign
-                            //k.sign = (byte)(input::key::mouse_sign | action_index);
+                            k.sign = (byte)(input::key::generic_sign | event_tier);
                             k.code1 = metadata.event_id;
-                            log("metadata: event_str=%% event_id=%% param_typename=%% tier=%%", event_str, metadata.event_id, metadata.param_typename, tier::str[event_tier]);
+                            if constexpr (debugmode) log("generic event: event_str=%% event_id=%% param_typename=%% tier=%%", event_str, metadata.event_id, metadata.param_typename, tier::str[event_tier]);
                         }
                         else
                         {
-                            log("unknown event '%%'", chord);
+                            log("generic event: unknown event '%%'", chord);
                         }
                         chord = {};
                     }
@@ -633,7 +640,7 @@ namespace netxs::input
                 while (chord)
                 {
                     auto k = take(chord); // Unfold.
-                    if (!k.is_mouse() && !k.code1) return crop; // Unknown key.
+                    if (!input::key::is_mouse(k.sign) && !k.code1) return crop; // Unknown key or event.
                     keys.push_back(k);
                 }
                 if (keys.empty() || keys.size() > 8)
@@ -641,7 +648,13 @@ namespace netxs::input
                     if (keys.size()) log("%%A maximum of eight keys are allowed per chord", prompt::hids);
                     return crop;
                 }
-                if (auto& k = keys.front(); k.is_mouse()) // It is mouse event.
+                if (auto& k = keys.front(); input::key::is_generic(k.sign)) // It is generic event.
+                {
+                    auto& g_chord = crop.emplace_back();
+                    push_generic(k.sign, k.code1, g_chord);
+                    return crop;
+                }
+                if (auto& k = keys.front(); input::key::is_mouse(k.sign)) // It is mouse event.
                 {
                     auto& m_chord = crop.emplace_back();
                     push_mouse(k.sign, k.code1, m_chord);
@@ -659,12 +672,12 @@ namespace netxs::input
                     {
                         if (auto code = bits & 1 ? k.code1 : k.code2)
                         {
-                            auto sign = k.is_pressed();
-                            if (k.is_scancode())
+                            auto sign = input::key::is_pressed(k.sign);
+                            if (input::key::is_scancode(k.sign))
                             {
                                 push_scode(sign, temp, code);
                             }
-                            else if (k.is_cluster())
+                            else if (input::key::is_cluster(k.sign))
                             {
                                 push_cluster(sign, temp, k.utf8);
                                 break;
@@ -725,7 +738,7 @@ namespace netxs::input
             auto binary_chord_list = input::key::kmap::chord_list(chord_str);
             if (binary_chord_list.empty())
             {
-                if (chord_str) log("%%Unknown key chord: '%chord%'", prompt::hids, chord_str);
+                if (chord_str) log("%%Unknown key chord or generic event: '%chord%'", prompt::hids, chord_str);
             }
             return binary_chord_list;
         }
@@ -762,8 +775,34 @@ namespace netxs::input
                     auto set_handler = script_ptr && script_ptr->size();
                     for (auto& binary_chord : chords) if (binary_chord.size())
                     {
-                        auto is_mouse = binary_chord.front() & input::key::mouse_sign;
-                        if (is_mouse)
+                        auto k = (byte)binary_chord.front();
+                        if (input::key::is_generic(k))
+                        {
+                            if (binary_chord.size() == sizeof(hint) + 1)
+                            {
+                                auto tier_id = k & 0x0F;
+                                auto event_id = netxs::aligned<hint>(binary_chord.data() + 1);
+                                if (set_handler)
+                                {
+                                    //todo
+                                    log("Set handler for script: ", ansi::hi(*script_ptr));
+                                    boss.bell::submit(tier_id, event_id, [&, script = *script_ptr](void* n)
+                                    {
+                                        log("calling script: n=%% ", utf::to_hex(n), ansi::hi(script));
+                                    });
+                                }
+                                else // Reset all script bindings for event_id.
+                                {
+                                    //todo
+                                    //ala handlers.erase(mouse_event_id); // Erase non-interactive (non-script) handlers.
+                                }
+                            }
+                            else
+                            {
+                                log(ansi::err("Broken generic event: ", ansi::hi(utf::debase437(binary_chord))));
+                            }
+                        }
+                        else if (input::key::is_mouse(k))
                         {
                             auto& handlers = is_preview ? boss.mouse_preview_handlers
                                                         : boss.mouse_release_handlers;
