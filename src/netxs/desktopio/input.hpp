@@ -689,6 +689,7 @@ namespace netxs::input
         {
             text chord;
             bool preview{};
+            txts sources; // Event source list.
             netxs::sptr<text> script_ptr;
         };
         using vector = std::vector<binding_t>;
@@ -837,10 +838,17 @@ namespace netxs::input
                     auto preview = faux;
                     auto set = [&](auto event_ptr)
                     {
-                        auto on_rec = config.expand(event_ptr);
-                        auto shadow = qiew{ on_rec }; // ... on="MouseDown01" ... onpreview="Enter"... .
-                        bindings.push_back({ .chord = shadow, .preview = preview, .script_ptr = script_body_ptr });
-                        //if constexpr (debugmode) log("chord=%% \tpreview=%% script=%%", shadow, (si32)preview, ansi::hi(*script_body_ptr));
+                        auto on_rec = config.expand(event_ptr); // ... on="MouseDown01" ... onpreview="Enter"... .
+                        auto source_list = event_ptr->list("source");
+                        auto sources = txts{};
+                        sources.reserve(source_list.size());
+                        for (auto src_ptr : source_list)
+                        {
+                            auto source = config.expand(src_ptr);
+                            sources.emplace_back(source);
+                            //if constexpr (debugmode) log("chord='%%' \tpreview=%% source='%%' script=%%", on_rec, (si32)preview, source, ansi::hi(*script_body_ptr));
+                        }
+                        bindings.push_back({ .chord = on_rec, .preview = preview, .sources = std::move(sources), .script_ptr = script_body_ptr });
                     };
                     for (auto on_ptr : on_ptr_list)
                     {
