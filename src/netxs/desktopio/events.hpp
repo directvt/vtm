@@ -438,18 +438,18 @@ namespace netxs::events
     template<class Parent, auto Event_str, auto Event_id = hint{}, class Type = si32, auto Type_str = netxs::utf::cat("si32")>
     struct type_clue
     {
-        struct
+        struct metadata_t
         {
-            struct
+            struct bytes_t
             {
-                static constexpr auto event = netxs::utf::cat(Parent::metadata.raw.event, Event_str);
+                static constexpr auto event = netxs::utf::cat(Parent::metadata.bytes.event, Event_str);
                 static constexpr auto param = netxs::utf::cat(Type_str);
-            }
-            static constexpr raw;
-            static constexpr auto event = view{ raw.event.data(), raw.event.size() };
-            static constexpr auto param = view{ raw.param.data(), raw.param.size() };
-        }
-        static constexpr metadata;
+            };
+            static constexpr auto bytes = bytes_t{};
+            static constexpr auto event = view{ bytes.event.data(), bytes.event.size() };
+            static constexpr auto param = view{ bytes.param.data(), bytes.param.size() };
+        };
+        static constexpr auto metadata = metadata_t{};
 
         using type = Type;
         using base = Parent;
@@ -473,7 +473,7 @@ namespace netxs::events
     #define LISTEN(...) LISTEN_X(__VA_ARGS__)(__VA_ARGS__)
 
     #define EVENTPACK( name )          static constexpr auto _counter_base = __COUNTER__; \
-                                       static constexpr auto          any = netxs::events::type_clue<decltype(name), netxs::utf::cat("::any"), decltype(name)::id, decltype(name)::type, decltype(name)::metadata.raw.param>{}; \
+                                       static constexpr auto          any = netxs::events::type_clue<decltype(name), netxs::utf::cat("::any"), decltype(name)::id, decltype(name)::type, decltype(name)::metadata.bytes.param>{}; \
                                        static           auto    _rtti_any = netxs::events::rtti(any.id, any.metadata.event, any.metadata.param); namespace
     #define  EVENT_XS( name, type ) }; static constexpr auto         name = netxs::events::type_clue<decltype(any)::base, netxs::utf::cat("::", #name), decltype(any)::id | ((__COUNTER__ - _counter_base) << netxs::events::offset<decltype(any)::id>), type, netxs::utf::cat(#type)>{}; \
                                        static           auto _rtti_##name = netxs::events::rtti(name.id, name.metadata.event, name.metadata.param) + (si32)!noop{ 777
@@ -489,16 +489,16 @@ namespace netxs::events
         {
             struct parent
             {
-                struct
+                struct metadata_t
                 {
-                    struct
+                    struct bytes_t
                     {
                         static constexpr auto event = netxs::utf::cat("");
                         static constexpr auto param = netxs::utf::cat("");
-                    }
-                    static constexpr raw;
-                }
-                static constexpr metadata;
+                    };
+                    static constexpr auto bytes = bytes_t{};
+                };
+                static constexpr auto metadata = metadata_t{};
             };
             static constexpr auto _root = type_clue<netxs::events::userland::seed::parent, netxs::utf::cat("seed for root")>{};
             EVENTPACK( _root )

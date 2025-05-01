@@ -957,7 +957,7 @@ namespace netxs::ui
         auto plugin_name()
         {
             static auto name = []{ auto name_ptr = std::type_index(typeid(T)).name();
-                                   return qiew{ name_ptr, std::strlen(name_ptr) + 1/*include trailing null*/ }; }();
+                                   return qiew{ name_ptr, std::strlen(name_ptr) + 1/*include the trailing null to make it inaccessible to field users*/ }; }();
             return name;
         }
         // base: Detach the specified plugin.
