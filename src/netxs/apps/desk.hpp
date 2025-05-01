@@ -36,7 +36,8 @@ namespace netxs::app::desk
 
     namespace events
     {
-        EVENTPACK( ui::e2::extra::slot2 )
+        static constexpr auto _root = netxs::events::type_clue<netxs::events::userland::seed::parent, netxs::utf::cat("desk::events"), ui::e2::extra::slot2.id>{};
+        EVENTPACK( _root )
         {
             EVENT_XS( usrs, netxs::sptr<desk::usrs> ), // List of connected users.
             EVENT_XS( apps, netxs::sptr<desk::apps> ), // List of running apps.
