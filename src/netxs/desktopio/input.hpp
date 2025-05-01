@@ -9,7 +9,8 @@ namespace netxs::events::userland
 {
     namespace hids
     {
-        EVENTPACK( netxs::events::userland::root::hids )
+        static constexpr auto _root = netxs::events::type_clue<netxs::events::userland::seed::parent, netxs::utf::cat("input::events"), netxs::events::userland::seed::input.id>{};
+        EVENTPACK( _root )
         {
             EVENT_XS( die      , input::hids ), // release::global: Notify about the mouse controller is gone. Signal to delete gears inside dtvt-objects.
             EVENT_XS( halt     , input::hids ), // release::global: Notify about the mouse controller is outside.

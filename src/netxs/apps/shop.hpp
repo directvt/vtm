@@ -7,7 +7,7 @@ namespace netxs::events::userland
 {
     namespace shop
     {
-        EVENTPACK( netxs::events::userland::root::custom )
+        EVENTPACK( netxs::events::userland::seed::custom )
         {
             GROUP_XS( ui, input::hids ),
 

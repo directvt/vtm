@@ -7,7 +7,7 @@ namespace netxs::events::userland
 {
     namespace textancy
     {
-        EVENTPACK(netxs::events::userland::root::custom )
+        EVENTPACK(netxs::events::userland::seed::custom )
         {
             GROUP_XS( ui, input::hids ),
 

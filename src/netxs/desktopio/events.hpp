@@ -420,7 +420,7 @@ namespace netxs::events
     using subs = std::vector<hook>;
     constexpr auto& operator - (subs& tokens, si32) { return tokens; }
 
-    template<class Parent_t, auto name_str, class Object_t, auto Event_id>
+    template<class Parent_t, auto name_str, auto Event_id = hint{}, class Object_t = si32>
     struct type_clue
     {
         using type = Object_t;
@@ -447,28 +447,27 @@ namespace netxs::events
     #define LISTEN(...) LISTEN_X(__VA_ARGS__)(__VA_ARGS__)
 
     #define EVENTPACK( name )          static constexpr auto _counter_base = __COUNTER__; \
-                                       static constexpr auto     any = netxs::events::type_clue<decltype(name), netxs::utf::cat("::any"), decltype(name)::type, decltype(name)::id>
-    #define  EVENT_XS( name, type ) }; static constexpr auto    name = netxs::events::type_clue<decltype(any)::base, netxs::utf::cat("::", #name), type, decltype(any)::id | ((__COUNTER__ - _counter_base) << netxs::events::offset<decltype(any)::id>)>{ 777
-    #define  GROUP_XS( name, type ) }; static constexpr auto _##name = netxs::events::type_clue<decltype(any)::base, netxs::utf::cat("::", #name), type, decltype(any)::id | ((__COUNTER__ - _counter_base) << netxs::events::offset<decltype(any)::id>)>{ 777
+                                       static constexpr auto     any = netxs::events::type_clue<decltype(name), netxs::utf::cat("::any"), decltype(name)::id, decltype(name)::type>
+    #define  EVENT_XS( name, type ) }; static constexpr auto    name = netxs::events::type_clue<decltype(any)::base, netxs::utf::cat("::", #name), decltype(any)::id | ((__COUNTER__ - _counter_base) << netxs::events::offset<decltype(any)::id>), type>{ 777
+    #define  GROUP_XS( name, type ) }; static constexpr auto _##name = netxs::events::type_clue<decltype(any)::base, netxs::utf::cat("::", #name), decltype(any)::id | ((__COUNTER__ - _counter_base) << netxs::events::offset<decltype(any)::id>), type>{ 777
     #define SUBSET_XS( name )       }; namespace name { EVENTPACK( _##name )
     #define  INDEX_XS(  ... )       }; template<auto N> static constexpr \
                                     auto _ = std::get<N>( std::tuple{ __VA_ARGS__ } ); \
                                     static constexpr auto _dummy = { 777
 
-    //todo unify seeding
     namespace userland
     {
-        namespace root
+        namespace seed
         {
-            struct _root_t
+            struct parent
             {
                 static constexpr auto storage = netxs::utf::cat("");
             };
-            static constexpr auto root_event = type_clue<_root_t, netxs::utf::cat("root"), si32, 0>{};
-            EVENTPACK( root_event )
+            static constexpr auto _root = type_clue<netxs::events::userland::seed::parent, netxs::utf::cat("seed for root")>{};
+            EVENTPACK( _root )
             {
                 EVENT_XS( e2       , si32 ),
-                EVENT_XS( hids     , si32 ),
+                EVENT_XS( input    , si32 ),
                 EVENT_XS( custom   , si32 ),
             };
         }
