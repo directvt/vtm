@@ -554,6 +554,33 @@ namespace netxs::input
                         k.code1 = 0xFF;
                         chord.clear();
                     }
+                    else if (auto event_tier = chord.starts_with(tier::str[tier::preview]) ? tier::preview
+                                             : chord.starts_with(tier::str[tier::release]) ? tier::release
+                                             : chord.starts_with(tier::str[tier::general]) ? tier::general
+                                             : chord.starts_with(tier::str[tier::anycast]) ? tier::anycast
+                                             : chord.starts_with(tier::str[tier::request]) ? tier::request
+                                                                                           : tier::unknown;
+                            event_tier != tier::unknown) // Environment event.
+                    {
+                        auto event_str = chord;
+                        event_str.remove_prefix(tier::str[event_tier].size());
+                        utf::trim_all(event_str, ": ");
+                        auto& rtti = netxs::events::rtti();
+                        auto iter = rtti.find(event_str);
+                        if (iter != rtti.end())
+                        {
+                            auto metadata = iter->second;
+                            //todo event sign
+                            //k.sign = (byte)(input::key::mouse_sign | action_index);
+                            k.code1 = metadata.event_id;
+                            log("metadata: event_str=%% event_id=%% param_typename=%% tier=%%", event_str, metadata.event_id, metadata.param_typename, tier::str[event_tier]);
+                        }
+                        else
+                        {
+                            log("unknown event '%%'", chord);
+                        }
+                        chord = {};
+                    }
                     else if (auto key_name = qiew{ utf::get_word(chord, "+- ") })
                     {
                         auto name = utf::to_lower(key_name);
@@ -581,7 +608,7 @@ namespace netxs::input
                             }
                             k.sign = (byte)(input::key::mouse_sign | action_index);
                             k.code1 = button_index;
-                            log("mouse event=%%", ansi::hi(utf::to_hex_0x((k.sign<<8)|k.code1)));
+                            //log("mouse event=%%", ansi::hi(utf::to_hex_0x((k.sign<<8)|k.code1)));
                         }
                         else if (auto iter = input::key::generic_names.find(name); iter == input::key::generic_names.end()) // Is specific.
                         {
@@ -725,7 +752,7 @@ namespace netxs::input
             }
             return _get_chord_list();
         }
-        auto keybind(base& boss, qiew chord_str, auto&& script_ref, bool is_preview = faux)
+        auto keybind(base& boss, qiew chord_str, auto&& script_ref, bool is_preview = faux, txts const& sources = {})
         {
             if (!chord_str) return;
             auto chords = input::bindings::get_chords(chord_str);
@@ -786,7 +813,7 @@ namespace netxs::input
         {
             for (auto& r : bindings)
             {
-                keybind(boss, r.chord, r.script_ptr, r.preview);
+                keybind(boss, r.chord, r.script_ptr, r.preview, r.sources);
             }
         }
         template<class T>

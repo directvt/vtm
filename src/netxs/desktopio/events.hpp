@@ -20,7 +20,7 @@ namespace netxs::ui
 
 namespace netxs::events
 {
-    struct tier
+    struct tier // Fixed order.
     {
         static constexpr auto counter = __COUNTER__ + 1;
         static constexpr auto general = __COUNTER__ - counter; // events: Run forwrad handlers for all objects. Preserve subscription order.
@@ -28,6 +28,13 @@ namespace netxs::events
         static constexpr auto preview = __COUNTER__ - counter; // events: Run reverse handlers with fixed a param intended to change. Preserve subscription order.
         static constexpr auto request = __COUNTER__ - counter; // events: Run forwrad a handler that provides the current value of the param. To avoid being overridden, the handler should be the only one. Preserve subscription order.
         static constexpr auto anycast = __COUNTER__ - counter; // events: Run reverse handlers along the entire visual tree. Preserve subscription order.
+        static constexpr auto unknown = __COUNTER__ - counter; // events: .
+        static constexpr auto str = std::to_array({ "general"sv,
+                                                    "release"sv,
+                                                    "preview"sv,
+                                                    "request"sv,
+                                                    "anycast"sv,
+                                                    "unknown"sv, });
     };
 
     /*************************************************************************************************

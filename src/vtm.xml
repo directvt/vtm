@@ -751,6 +751,13 @@ R"==(
             <script="vtm.defapp.ScrollViewportByStep(-3, 0)"                                      on="RightArrow" />
             <script="if (not vtm.gear.IsKeyRepeated()) then vtm.defapp.ScrollViewportToTop() end" on="Home"       />
             <script="if (not vtm.gear.IsKeyRepeated()) then vtm.defapp.ScrollViewportToEnd() end" on="End"        />
+
+
+            <script="if (not vtm.gear.IsKeyRepeated()) then vtm.defapp.ScrollViewportToEnd() end">
+                <on="general:e2::timer::any" source="applet" source="applet2"       />
+                <on="general:e2::timer" source="applet" source="applet2"       />
+                <on="request: e2::form::prop::window::fullsize " source="applet" source="applet2"       />
+            </script>
         </defapp>
     </events>
 </config>)=="

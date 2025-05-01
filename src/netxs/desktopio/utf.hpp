@@ -1749,6 +1749,11 @@ namespace netxs::utf
         while (!utf8.empty() && utf8. back() == space) utf8.remove_suffix(1);
         return utf8;
     }
+    auto trim_all(view& utf8, view delims)
+    {
+        trim_front(utf8, delims);
+        trim_back (utf8, delims);
+    }
     auto trim(view utf8, view delims)
     {
         trim_front(utf8, delims);
