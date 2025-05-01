@@ -9,8 +9,7 @@ namespace netxs::events::userland
 {
     namespace hids
     {
-        static constexpr auto _root = netxs::events::type_clue<netxs::events::userland::seed::parent, netxs::utf::cat("input::events"), netxs::events::userland::seed::input.id>{};
-        EVENTPACK( _root )
+        EVENTPACK( input::events, netxs::events::userland::seed::input )
         {
             EVENT_XS( die      , input::hids ), // release::global: Notify about the mouse controller is gone. Signal to delete gears inside dtvt-objects.
             EVENT_XS( halt     , input::hids ), // release::global: Notify about the mouse controller is outside.
@@ -752,7 +751,7 @@ namespace netxs::input
             }
             return _get_chord_list();
         }
-        auto keybind(base& boss, qiew chord_str, auto&& script_ref, bool is_preview = faux, txts const& sources = {})
+        auto keybind(base& boss, qiew chord_str, auto&& script_ref, bool is_preview = faux, txts const& /*sources*/ = {})
         {
             if (!chord_str) return;
             auto chords = input::bindings::get_chords(chord_str);

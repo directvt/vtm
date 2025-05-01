@@ -49,8 +49,7 @@ namespace netxs::app::vtm
 
     namespace events
     {
-        static constexpr auto _root = netxs::events::type_clue<netxs::events::userland::seed::parent, netxs::utf::cat("vtm::events"), ui::e2::extra::slot1.id>{};
-        EVENTPACK( _root )
+        EVENTPACK( vtm::events, ui::e2::extra::slot1 )
         {
             EVENT_XS( newapp  , applink ), // request: Create new object using specified meniid.
             EVENT_XS( apptype , applink ), // request: Ask app type.

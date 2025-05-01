@@ -7,8 +7,7 @@ namespace netxs::events::userland
 {
     namespace textancy
     {
-        static constexpr auto _root = netxs::events::type_clue<netxs::events::userland::seed::parent, netxs::utf::cat("textancy::events"), netxs::events::userland::seed::custom.id>{};
-        EVENTPACK( _root )
+        EVENTPACK( app::textancy::events, netxs::events::userland::seed::custom )
         {
             GROUP_XS( ui, input::hids ),
 

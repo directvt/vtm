@@ -7,8 +7,7 @@ namespace netxs::events::userland
 {
     namespace tile
     {
-        static constexpr auto _root = netxs::events::type_clue<netxs::events::userland::seed::parent, netxs::utf::cat("tile::events"), ui::e2::extra::slot4.id>{};
-        EVENTPACK( _root )
+        EVENTPACK( tile::events, ui::e2::extra::slot4 )
         {
             EVENT_XS( enlist, ui::sptr           ),
             EVENT_XS( delist, bool               ),

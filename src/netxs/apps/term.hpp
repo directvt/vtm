@@ -9,8 +9,7 @@ namespace netxs::events::userland
     {
         using state_pair_t = std::pair<bool, id_t>;
 
-        static constexpr auto _root = netxs::events::type_clue<netxs::events::userland::seed::parent, netxs::utf::cat("terminal::events"), ui::e2::extra::slot3.id>{};
-        EVENTPACK( _root )
+        EVENTPACK( terminal::events, ui::e2::extra::slot3 )
         {
             EVENT_XS( cmd    , si32 ),
             GROUP_XS( preview, si32 ),

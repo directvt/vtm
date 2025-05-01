@@ -9,8 +9,7 @@ namespace netxs::events::userland
 {
     namespace tty
     {
-        static constexpr auto _root = netxs::events::type_clue<netxs::events::userland::seed::parent, netxs::utf::cat("ui::tty::events"), ui::e2::extra::slot5.id>{};
-        EVENTPACK( _root )
+        EVENTPACK( ui::tty::events, ui::e2::extra::slot5 )
         {
             EVENT_XS( io_log, bool ),
             EVENT_XS( selmod, si32 ),

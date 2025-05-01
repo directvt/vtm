@@ -7,8 +7,7 @@ namespace netxs::events::userland
 {
     namespace calc
     {
-        static constexpr auto _root = netxs::events::type_clue<netxs::events::userland::seed::parent, netxs::utf::cat("app::calc::events"), netxs::events::userland::seed::custom.id>{};
-        EVENTPACK( _root )
+        EVENTPACK( app::calc::events, netxs::events::userland::seed::custom )
         {
             GROUP_XS( ui, input::hids ),
 

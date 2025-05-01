@@ -479,13 +479,15 @@ namespace netxs::events
     #define LISTEN_X(...) ARG_EVAL_XS(GET_END1_XS(__VA_ARGS__, LISTEN_V, LISTEN_T, LISTEN_S))
     #define LISTEN(...) LISTEN_X(__VA_ARGS__)(__VA_ARGS__)
 
-    #define EVENTPACK( name )          static constexpr auto _counter_base = __COUNTER__; \
+    #define SUBEVENTS( name )          static constexpr auto _counter_base = __COUNTER__; \
                                        static constexpr auto           any = netxs::events::type_clue<decltype(name), netxs::utf::cat("::any"), decltype(name)::id, decltype(name)::type, decltype(name)::metadata.bytes.param>{}; \
                                        static           auto     _rtti_any = netxs::events::rtti(any.id, any.metadata.event, any.metadata.param); namespace
+    #define EVENTPACK( name, base )    static constexpr auto         _root = netxs::events::type_clue<netxs::events::userland::seed::root, netxs::utf::cat(#name), base.id>{}; \
+                                       SUBEVENTS( _root )
     #define  EVENT_XS( name, type ) }; static constexpr auto          name = netxs::events::type_clue<decltype(any)::base, netxs::utf::cat("::", #name), decltype(any)::id | ((__COUNTER__ - _counter_base) << netxs::events::offset<decltype(any)::id>), type, netxs::utf::cat(#type)>{}; \
                                        static           auto  _rtti_##name = netxs::events::rtti(name.id, name.metadata.event, name.metadata.param) + (si32)!noop{ 777
     #define  GROUP_XS( name, type ) }; static constexpr auto       _##name = netxs::events::type_clue<decltype(any)::base, netxs::utf::cat("::", #name), decltype(any)::id | ((__COUNTER__ - _counter_base) << netxs::events::offset<decltype(any)::id>), type, netxs::utf::cat(#type)>{ 777
-    #define SUBSET_XS( name )       }; namespace name { EVENTPACK( _##name )
+    #define SUBSET_XS( name )       }; namespace name { SUBEVENTS( _##name )
     #define  INDEX_XS(  ... )       }; template<auto N> static constexpr \
                                     auto _ = std::get<N>( std::tuple{ __VA_ARGS__ } ); \
                                     static constexpr auto _dummy = { 777
@@ -494,7 +496,7 @@ namespace netxs::events
     {
         namespace seed
         {
-            struct parent
+            struct root
             {
                 struct metadata_t
                 {
@@ -505,10 +507,10 @@ namespace netxs::events
                     };
                     static constexpr auto bytes = bytes_t{};
                 };
+                static constexpr auto id = hint{};
                 static constexpr auto metadata = metadata_t{};
             };
-            static constexpr auto _root = type_clue<netxs::events::userland::seed::parent, netxs::utf::cat("seed for root")>{};
-            EVENTPACK( _root )
+            EVENTPACK( seed for root, root{} )
             {
                 EVENT_XS( e2       , si32 ),
                 EVENT_XS( input    , si32 ),
