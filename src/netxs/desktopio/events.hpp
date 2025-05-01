@@ -420,14 +420,25 @@ namespace netxs::events
     using subs = std::vector<hook>;
     constexpr auto& operator - (subs& tokens, si32) { return tokens; }
 
-    template<class Parent_t, auto name_str, auto Event_id = hint{}, class Object_t = si32>
+    template<class Parent, auto Event_str, auto Event_id = hint{}, class Type = si32, auto Type_str = netxs::utf::cat("si32")>
     struct type_clue
     {
-        using type = Object_t;
-        using base = Parent_t;
+        struct
+        {
+            struct
+            {
+                static constexpr auto event = netxs::utf::cat(Parent::metadata.raw.event, Event_str);
+                static constexpr auto param = netxs::utf::cat(Type_str);
+            }
+            static constexpr raw;
+            static constexpr auto event = view{ raw.event.data(), raw.event.size() };
+            static constexpr auto param = view{ raw.param.data(), raw.param.size() };
+        }
+        static constexpr metadata;
+
+        using type = Type;
+        using base = Parent;
         static constexpr auto id = Event_id;
-        static constexpr auto storage = netxs::utf::cat(Parent_t{}.storage, name_str);
-        static constexpr auto name = view{ storage.data(), storage.size() };
         template<class ...Args> constexpr type_clue(Args&&...) { }
         template<class ...Args> static constexpr auto param(Args&&... args) { return type{ std::forward<Args>(args)... }; }
                                 static constexpr auto param(type&&    arg ) { return std::move(arg);                      }
@@ -447,9 +458,9 @@ namespace netxs::events
     #define LISTEN(...) LISTEN_X(__VA_ARGS__)(__VA_ARGS__)
 
     #define EVENTPACK( name )          static constexpr auto _counter_base = __COUNTER__; \
-                                       static constexpr auto     any = netxs::events::type_clue<decltype(name), netxs::utf::cat("::any"), decltype(name)::id, decltype(name)::type>
-    #define  EVENT_XS( name, type ) }; static constexpr auto    name = netxs::events::type_clue<decltype(any)::base, netxs::utf::cat("::", #name), decltype(any)::id | ((__COUNTER__ - _counter_base) << netxs::events::offset<decltype(any)::id>), type>{ 777
-    #define  GROUP_XS( name, type ) }; static constexpr auto _##name = netxs::events::type_clue<decltype(any)::base, netxs::utf::cat("::", #name), decltype(any)::id | ((__COUNTER__ - _counter_base) << netxs::events::offset<decltype(any)::id>), type>{ 777
+                                       static constexpr auto     any = netxs::events::type_clue<decltype(name), netxs::utf::cat("::any"), decltype(name)::id, decltype(name)::type, decltype(name)::metadata.raw.param>
+    #define  EVENT_XS( name, type ) }; static constexpr auto    name = netxs::events::type_clue<decltype(any)::base, netxs::utf::cat("::", #name), decltype(any)::id | ((__COUNTER__ - _counter_base) << netxs::events::offset<decltype(any)::id>), type, netxs::utf::cat(#type)>{ 777
+    #define  GROUP_XS( name, type ) }; static constexpr auto _##name = netxs::events::type_clue<decltype(any)::base, netxs::utf::cat("::", #name), decltype(any)::id | ((__COUNTER__ - _counter_base) << netxs::events::offset<decltype(any)::id>), type, netxs::utf::cat(#type)>{ 777
     #define SUBSET_XS( name )       }; namespace name { EVENTPACK( _##name )
     #define  INDEX_XS(  ... )       }; template<auto N> static constexpr \
                                     auto _ = std::get<N>( std::tuple{ __VA_ARGS__ } ); \
@@ -461,7 +472,16 @@ namespace netxs::events
         {
             struct parent
             {
-                static constexpr auto storage = netxs::utf::cat("");
+                struct
+                {
+                    struct
+                    {
+                        static constexpr auto event = netxs::utf::cat("");
+                        static constexpr auto param = netxs::utf::cat("");
+                    }
+                    static constexpr raw;
+                }
+                static constexpr metadata;
             };
             static constexpr auto _root = type_clue<netxs::events::userland::seed::parent, netxs::utf::cat("seed for root")>{};
             EVENTPACK( _root )
