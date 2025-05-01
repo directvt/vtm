@@ -420,6 +420,21 @@ namespace netxs::events
     using subs = std::vector<hook>;
     constexpr auto& operator - (subs& tokens, si32) { return tokens; }
 
+    struct metadata_t
+    {
+        hint eventid{};
+        text param;
+    };
+    auto& metadata()
+    {
+        static auto metadata = std::unordered_map<text, metadata_t, qiew::hash, qiew::equal>{};
+        return metadata;
+    }
+    auto metadata(hint eventid, qiew event, qiew param)
+    {
+        metadata()[event] = metadata_t{ eventid, param };
+        return eventid;
+    }
     template<class Parent, auto Event_str, auto Event_id = hint{}, class Type = si32, auto Type_str = netxs::utf::cat("si32")>
     struct type_clue
     {
@@ -458,9 +473,11 @@ namespace netxs::events
     #define LISTEN(...) LISTEN_X(__VA_ARGS__)(__VA_ARGS__)
 
     #define EVENTPACK( name )          static constexpr auto _counter_base = __COUNTER__; \
-                                       static constexpr auto     any = netxs::events::type_clue<decltype(name), netxs::utf::cat("::any"), decltype(name)::id, decltype(name)::type, decltype(name)::metadata.raw.param>
-    #define  EVENT_XS( name, type ) }; static constexpr auto    name = netxs::events::type_clue<decltype(any)::base, netxs::utf::cat("::", #name), decltype(any)::id | ((__COUNTER__ - _counter_base) << netxs::events::offset<decltype(any)::id>), type, netxs::utf::cat(#type)>{ 777
-    #define  GROUP_XS( name, type ) }; static constexpr auto _##name = netxs::events::type_clue<decltype(any)::base, netxs::utf::cat("::", #name), decltype(any)::id | ((__COUNTER__ - _counter_base) << netxs::events::offset<decltype(any)::id>), type, netxs::utf::cat(#type)>{ 777
+                                       static constexpr auto          any = netxs::events::type_clue<decltype(name), netxs::utf::cat("::any"), decltype(name)::id, decltype(name)::type, decltype(name)::metadata.raw.param>{}; \
+                                       static           auto    _rtti_any = netxs::events::metadata(any.id, any.metadata.event, any.metadata.param); namespace
+    #define  EVENT_XS( name, type ) }; static constexpr auto         name = netxs::events::type_clue<decltype(any)::base, netxs::utf::cat("::", #name), decltype(any)::id | ((__COUNTER__ - _counter_base) << netxs::events::offset<decltype(any)::id>), type, netxs::utf::cat(#type)>{}; \
+                                       static           auto _rtti_##name = netxs::events::metadata(name.id, name.metadata.event, name.metadata.param) + (si32)!noop{ 777
+    #define  GROUP_XS( name, type ) }; static constexpr auto      _##name = netxs::events::type_clue<decltype(any)::base, netxs::utf::cat("::", #name), decltype(any)::id | ((__COUNTER__ - _counter_base) << netxs::events::offset<decltype(any)::id>), type, netxs::utf::cat(#type)>{ 777
     #define SUBSET_XS( name )       }; namespace name { EVENTPACK( _##name )
     #define  INDEX_XS(  ... )       }; template<auto N> static constexpr \
                                     auto _ = std::get<N>( std::tuple{ __VA_ARGS__ } ); \

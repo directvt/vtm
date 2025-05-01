@@ -107,7 +107,8 @@ namespace netxs
             return faux;
             //return *this;
         }
-        //constexpr operator bool() const { return faux; }
+        constexpr operator bool() const { return faux; }
+        constexpr noop(auto&&...) { }
     };
 
     enum class feed : byte { none, rev, fwd };
