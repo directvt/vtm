@@ -1329,8 +1329,7 @@ namespace netxs::ui
                 : skill{ boss },
                   node_type{ focus_mode }
             {
-                if (set_default_focus)
-                if (node_type == mode::focused || node_type == mode::active || node_type == mode::relay) // Pave default focus path at startup.
+                if (set_default_focus && (node_type == mode::focused || node_type == mode::active || node_type == mode::relay)) // Pave default focus path at startup.
                 {
                     boss.LISTEN(tier::anycast, e2::form::upon::started, context_keeper_ptr, memo)
                     {
@@ -1340,14 +1339,10 @@ namespace netxs::ui
                         }
                     };
                 }
-                // pro::focus: Return focus owner ptr.
-                boss.LISTEN(tier::request, e2::config::plugins::focus::owner, owner_ptr, memo)
-                {
-                    owner_ptr = boss.This();
-                };
-                // pro::focus: Set unique focus on left click. Set group focus on Ctrl+LeftClick.
+                //todo unify. pro::focus: Set unique focus on left click. Set group focus on Ctrl+LeftClick.
                 boss.on(input::key::LeftClick, memo, [&](hids& gear)
                 {
+                    if (!gear) return;
                     if (gear.meta(hids::anyCtrl))
                     {
                         if (pro::focus::test(boss, gear))
@@ -1365,6 +1360,11 @@ namespace netxs::ui
                     }
                     gear.dismiss();
                 });
+                // pro::focus: Return focus owner ptr.
+                boss.LISTEN(tier::request, e2::config::plugins::focus::owner, owner_ptr, memo)
+                {
+                    owner_ptr = boss.This();
+                };
                 // pro::focus: Subscribe on keybd events.
                 boss.LISTEN(tier::preview, input::events::keybd::post, gear, memo) // preview: Run after any.
                 {
