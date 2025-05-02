@@ -643,13 +643,13 @@ namespace netxs::ui
                 if (auto item_ptr = item_wptr.lock())
                 {
                     auto& item = *item_ptr;
-                    item.preview.cleanup(ref_count, del_count);
-                    item.request.cleanup(ref_count, del_count);
-                    item.release.cleanup(ref_count, del_count);
-                    item.anycast.cleanup(ref_count, del_count);
+                    bell::indexer._cleanup(item.preview, ref_count, del_count);
+                    bell::indexer._cleanup(item.request, ref_count, del_count);
+                    bell::indexer._cleanup(item.release, ref_count, del_count);
+                    bell::indexer._cleanup(item.anycast, ref_count, del_count);
                 }
             }
-            bell::general.cleanup(ref_count, del_count);
+            bell::indexer._cleanup(general, ref_count, del_count);
             return std::pair{ ref_count, del_count };
         }
         // base: Find the root of the visual tree.
@@ -683,7 +683,7 @@ namespace netxs::ui
                 auto root_ptr = gettop();
                 root_ptr->broadcast(event, param);
             }
-            bell::_signal(Tier, event, param);
+            else bell::_signal(Tier, event, param);
         }
         // base: Fire an event.
         // Usage example:

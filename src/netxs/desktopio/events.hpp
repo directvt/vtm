@@ -20,20 +20,22 @@ namespace netxs::ui
 
 namespace netxs::events
 {
-    struct tier // Keep this enumeration in a fixed order. The last bit of its index indicates the execution order.
+    struct tier // Keep this enumeration in a fixed order. The last bit of its index indicates the execution order 0: Forward, 1: Reverse.
     {
+        // Forward execution order: Execute concrete event  first. Forward means from particular to general: 1. event::group::item, 2. event::group::any
+        // Reverse execution order: Execute global   events first. Reverse means from general to particular: 1. event::group::any,  2. event::group::item
         static constexpr auto counter = __COUNTER__ + 1;
-        static constexpr auto general = __COUNTER__ - counter; // events: Run forwrad handlers for all objects. Preserve subscription order.
         static constexpr auto release = __COUNTER__ - counter; // events: Run forwrad handlers with fixed param. Preserve subscription order.
         static constexpr auto preview = __COUNTER__ - counter; // events: Run reverse handlers with fixed a param intended to change. Preserve subscription order.
         static constexpr auto request = __COUNTER__ - counter; // events: Run forwrad a handler that provides the current value of the param. To avoid being overridden, the handler should be the only one. Preserve subscription order.
         static constexpr auto anycast = __COUNTER__ - counter; // events: Run reverse handlers along the entire visual tree. Preserve subscription order.
+        static constexpr auto general = __COUNTER__ - counter; // events: Run forwrad handlers for all objects. Preserve subscription order.
         static constexpr auto unknown = __COUNTER__ - counter; // events: .
-        static constexpr auto str = std::to_array({ "general"sv,
-                                                    "release"sv,
+        static constexpr auto str = std::to_array({ "release"sv,
                                                     "preview"sv,
                                                     "request"sv,
                                                     "anycast"sv,
+                                                    "general"sv,
                                                     "unknown"sv, });
     };
 
@@ -173,42 +175,7 @@ namespace netxs::events
 
     struct auth
     {
-        struct reactor
-        {
-            using umap = std::unordered_map<hint, std::list<wptr<fxbase>>>;
-
-            // Execution order. True means Forward.
-            // Forward execution order: Execute concrete event  first. Forward means from particular to general: 1. event::group::item, 2. event::group::any
-            // Reverse execution order: Execute global   events first. Reverse means from general to particular: 1. event::group::any,  2. event::group::item
-            umap  stock;     // reactor: Handlers repository.
-
-            void cleanup(ui64& ref_count, ui64& del_count)
-            {
-                auto lref = ui64{};
-                auto ldel = ui64{};
-                for (auto& [event, subs] : stock)
-                {
-                    auto refs = subs.size();
-                    subs.remove_if([](auto&& a){ return a.expired(); });
-                    auto size = subs.size();
-                    lref += size;
-                    ldel += refs - size;
-                }
-                ref_count += lref;
-                del_count += ldel;
-            }
-            template<class Arg>
-            hook subscribe(hint event, fx<Arg>&& proc)
-            {
-                auto proc_ptr = std::make_shared<fxwrapper<Arg, fxbase>>(std::move(proc));
-                stock[event].push_back(proc_ptr);
-                return proc_ptr;
-            }
-            void subscribe_copy(hint event, hook& proc_ptr)
-            {
-                stock[event].push_back(proc_ptr);
-            }
-        };
+        using reactor = std::unordered_map<hint, std::list<wptr<fxbase>>>;
 
         struct callstate
         {
@@ -233,6 +200,33 @@ namespace netxs::events
         std::vector<std::pair<hint, si32>>       queue; // auth: Event queue: { event_id, call state }.
         std::vector<wptr<fxbase>>                qcopy; // auth: Copy of the current pretenders to exec on current event.
 
+        void _cleanup(reactor& stock, ui64& ref_count, ui64& del_count)
+        {
+            auto lref = ui64{};
+            auto ldel = ui64{};
+            for (auto& [event, subs] : stock)
+            {
+                auto refs = subs.size();
+                subs.remove_if([](auto&& a){ return a.expired(); });
+                auto size = subs.size();
+                lref += size;
+                ldel += refs - size;
+            }
+            ref_count += lref;
+            del_count += ldel;
+        }
+        template<class Arg>
+        hook _subscribe(reactor& stock, hint event, fx<Arg>&& proc)
+        {
+            auto proc_ptr = std::make_shared<fxwrapper<Arg, fxbase>>(std::move(proc));
+            stock[event].push_back(proc_ptr);
+            return proc_ptr;
+        }
+        void _subscribe_copy(reactor& stock, hint event, hook& proc_ptr)
+        {
+            stock[event].push_back(proc_ptr);
+        }
+
         auth(lua_State* lua = {}, hint e2_config_fps_id = {}, hint e2_timer_tick_id = {})
             : lua{ lua },
               quartz{ *this },
@@ -240,7 +234,7 @@ namespace netxs::events
         {
             if (e2_config_fps_id)
             {
-                memo = general.subscribe(e2_config_fps_id, fx<si32>{ [&](si32& new_fps)
+                memo = _subscribe(general, e2_config_fps_id, fx<si32>{ [&](si32& new_fps)
                 {
                     if (new_fps > 0)
                     {
@@ -266,10 +260,10 @@ namespace netxs::events
             target.remove_if([&](auto& a){ return a.expired() ? true : (qcopy.emplace_back(a), faux); });
         }
         // auth: .
-        auto _select(auto& stock, hint event, bool order)
+        auto _select(auto& stock, hint event, bool reverse_order)
         {
             auto head = qcopy.size();
-            if (order)
+            if (!reverse_order)
             {
                 auto itermask = events::level_mask(event);
                 auto subgroup = event;
@@ -298,25 +292,26 @@ namespace netxs::events
             return std::pair{ head, tail };
         }
         // auth: Calling delegates. Returns the number of active ones.
-        void notify(auto& stock, bool order, hint event, auto& param)
+        void notify(auto& stock, bool reverse_order, hint event, auto& param)
         {
-            auto [head, tail] = _select(stock, event, order);
+            auto [head, tail] = _select(stock, event, reverse_order);
             if (head != tail)
             {
-                auto& state = queue.emplace_back(event, callstate::not_handled).second;
+                queue.emplace_back(event, callstate::not_handled);
                 auto iter = head;
                 do
                 {
                     if (auto fx_ptr = qcopy[iter].lock()) // qcopy can be reallocated.
                     {
+                        auto& state = queue.back().second; // queue can be reallocated.
                         state = callstate::proceed;
                         fx_ptr->call(param);
                     }
                 }
-                while (state != callstate::fullstop && ++iter != tail);
+                while (queue.back().second/*state*/ != callstate::fullstop && ++iter != tail);
                 qcopy.resize(head);
+                handled = queue.back().second/*state*/ != callstate::not_handled;
                 queue.pop_back();
-                handled = state != callstate::not_handled;
             }
             else
             {
@@ -365,7 +360,7 @@ namespace netxs::events
         void timer(time now)
         {
             auto lock = sync();
-            notify(general.stock, faux, e2_timer_tick_id, now);
+            notify(general, faux, e2_timer_tick_id, now);
         }
         // auth: Return sptr of the object by its id.
         template<class T = ui::base>
@@ -562,17 +557,17 @@ namespace netxs::events
         auth&          indexer;
         auth::reactor& general;
         const id_t     id;      // bell: Object id.
-        subs           sensors; // bell: Event subscriptions.
+        subs           sensors; // bell: Event subscription tokens.
         auth::reactor  release;
         auth::reactor  preview;
         auth::reactor  request;
         auth::reactor  anycast;
-        reactor_set    reactors = { std::ref(general),
-                                    std::ref(release),
+        reactor_set    reactors = { std::ref(release),
                                     std::ref(preview),
                                     std::ref(request),
-                                    std::ref(anycast) };
-
+                                    std::ref(anycast),
+                                    std::ref(general), };
+                                    
         template<class Event, class Arg = Event::type>
         struct submit_helper
         {
@@ -617,7 +612,7 @@ namespace netxs::events
         void submit(si32 Tier, Event, fx<Arg>&& handler)
         {
             auto lock = indexer.sync();
-            sensors.push_back(router(Tier).subscribe(Event::id, std::move(handler)));
+            sensors.push_back(indexer._subscribe(router(Tier), Event::id, std::move(handler)));
         }
         void submit_generic(si32 Tier, si32 event_id, sptr<text> script_ptr) // Generic event handler. //todo set script body instead of fx<char>
         {
@@ -627,19 +622,19 @@ namespace netxs::events
                 auto& t = *reinterpret_cast<time*>(&n);
                 log("calling script: n=%% ", utf::to_hex_0x(t.time_since_epoch().count()), ansi::hi(*script_ptr));
             }};
-            sensors.push_back(router(Tier).subscribe(event_id, std::move(handler)));
+            sensors.push_back(indexer._subscribe(router(Tier), event_id, std::move(handler)));
         }
         template<class Event, class Arg = Event::type>
         void submit(si32 Tier, Event, hook& token, fx<Arg>&& handler)
         {
             auto lock = indexer.sync();
-            token = router(Tier).subscribe(Event::id, std::move(handler));
+            token = indexer._subscribe(router(Tier), Event::id, std::move(handler));
         }
         template<class Event>
         void dup_handler(si32 Tier, Event, hook& token)
         {
             auto lock = indexer.sync();
-            router(Tier).subscribe_copy(Event::id, token);
+            indexer._subscribe_copy(router(Tier), Event::id, token);
         }
         template<class Event>
         void dup_handler(si32 Tier, Event)
@@ -647,13 +642,13 @@ namespace netxs::events
             auto lock = indexer.sync();
             if (sensors.size())
             {
-                router(Tier).subscribe_copy(Event::id, sensors.back());
+                indexer._subscribe_copy(router(Tier), Event::id, sensors.back());
             }
         }
         void _signal(si32 Tier, hint event, auto& param)
         {
             auto& r = router(Tier);
-            indexer.notify(r.stock, Tier & 0x1, event, param);
+            indexer.notify(r, Tier & 0x1, event, param);
         }
         auto accomplished()
         {
