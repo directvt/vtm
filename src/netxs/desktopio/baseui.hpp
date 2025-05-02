@@ -666,7 +666,7 @@ namespace netxs::ui
         void broadcast(hint event, auto& param)
         {
             auto lock = bell::sync();
-            bell::anycast.notify(event, param);
+            bell::_signal(tier::anycast, event, param);
             for (auto item_ptr : base::subset)
             {
                 if (item_ptr && !item_ptr->master)
@@ -683,10 +683,7 @@ namespace netxs::ui
                 auto root_ptr = gettop();
                 root_ptr->broadcast(event, param);
             }
-            else if (Tier >= 0 && Tier < tier::unknown)
-            {
-                bell::reactors[Tier]->notify(event, param);
-            }
+            bell::_signal(Tier, event, param);
         }
         // base: Fire an event.
         // Usage example:

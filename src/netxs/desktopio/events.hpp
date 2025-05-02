@@ -177,14 +177,6 @@ namespace netxs::events
         {
             using umap = std::unordered_map<hint, std::list<wptr<fxbase>>>;
 
-            struct branch
-            {
-                static constexpr auto _counter    = __COUNTER__ + 1;
-                static constexpr auto proceed     = __COUNTER__ - _counter;
-                static constexpr auto fullstop    = __COUNTER__ - _counter;
-                static constexpr auto not_handled = __COUNTER__ - _counter;
-            };
-
             // Forward execution order: Execute concrete event  first. Forward means from particular to general: 1. event::group::item, 2. event::group::any
             // Reverse execution order: Execute global   events first. Reverse means from general to particular: 1. event::group::any,  2. event::group::item
             auth& indexer;   // reactor: .
@@ -217,45 +209,14 @@ namespace netxs::events
             {
                 stock[event].push_back(proc_ptr);
             }
-            // reactor: Calling delegates. Returns the number of active ones.
-            template<class Arg>
-            void notify(hint event, Arg& param)
-            {
-                auto [head, tail] = indexer._select(stock, event, order);
-                if (head != tail)
-                {
-                    auto& state = indexer.queue.emplace_back(event, branch::not_handled).second;
-                    auto iter = head;
-                    do
-                    {
-                        if (auto fx_ptr = indexer.qcopy[iter].lock()) // qcopy can be reallocated.
-                        {
-                            state = branch::proceed;
-                            fx_ptr->call(param);
-                        }
-                    }
-                    while (state != branch::fullstop && ++iter != tail);
-                    indexer.qcopy.resize(head);
-                    indexer.queue.pop_back();
-                    indexer.handled = state != branch::not_handled;
-                }
-                else
-                {
-                    indexer.handled = faux;
-                }
-            }
-            // reactor: Interrupt current invocation branch.
-            void stop()
-            {
-                auto& state = indexer.queue.back().second;
-                state = branch::fullstop;
-            }
-            // reactor: Skip current invocation branch.
-            void skip()
-            {
-                auto& state = indexer.queue.back().second;
-                state = branch::not_handled;
-            }
+        };
+
+        struct callstate
+        {
+            static constexpr auto _counter    = __COUNTER__ + 1;
+            static constexpr auto proceed     = __COUNTER__ - _counter;
+            static constexpr auto fullstop    = __COUNTER__ - _counter;
+            static constexpr auto not_handled = __COUNTER__ - _counter;
         };
 
         id_t                                     newid{};
@@ -300,10 +261,12 @@ namespace netxs::events
             }
         }
 
+        // auth: .
         void _refresh_and_copy(auto& target)
         {
             target.remove_if([&](auto& a){ return a.expired() ? true : (qcopy.emplace_back(a), faux); });
         }
+        // auth: .
         auto _select(auto& stock, hint event, bool order)
         {
             auto head = qcopy.size();
@@ -335,6 +298,50 @@ namespace netxs::events
             auto tail = qcopy.size();
             return std::pair{ head, tail };
         }
+        // auth: Calling delegates. Returns the number of active ones.
+        void notify(auto& stock, bool order, hint event, auto& param)
+        {
+            auto [head, tail] = _select(stock, event, order);
+            if (head != tail)
+            {
+                auto& state = queue.emplace_back(event, callstate::not_handled).second;
+                auto iter = head;
+                do
+                {
+                    if (auto fx_ptr = qcopy[iter].lock()) // qcopy can be reallocated.
+                    {
+                        state = callstate::proceed;
+                        fx_ptr->call(param);
+                    }
+                }
+                while (state != callstate::fullstop && ++iter != tail);
+                qcopy.resize(head);
+                queue.pop_back();
+                handled = state != callstate::not_handled;
+            }
+            else
+            {
+                handled = faux;
+            }
+        }
+        // auth: Interrupt current invocation.
+        void expire()
+        {
+            if (queue.size())
+            {
+                auto& state = queue.back().second;
+                state = callstate::fullstop;
+            }
+        }
+        // auth: Bypass current invocation.
+        void bypass()
+        {
+            if (queue.size())
+            {
+                auto& state = queue.back().second;
+                state = callstate::not_handled;
+            }
+        }
         // auth: .
         auto sync()
         {
@@ -359,7 +366,7 @@ namespace netxs::events
         void timer(time now)
         {
             auto lock = sync();
-            general.notify(e2_timer_tick_id, now);
+            notify(general.stock, general.order, e2_timer_tick_id, now);
         }
         // auth: Return sptr of the object by its id.
         template<class T = ui::base>
@@ -638,6 +645,13 @@ namespace netxs::events
                 reactors[Tier]->subscribe_copy(Event::id, sensors.back());
             }
         }
+        void _signal(si32 Tier, hint event, auto& param)
+        {
+            if (Tier >=0 && Tier < tier::unknown)
+            {
+                indexer.notify(reactors[Tier]->stock, reactors[Tier]->order, event, param);
+            }
+        }
         auto accomplished()
         {
             return indexer.handled;
@@ -658,11 +672,11 @@ namespace netxs::events
         }
         void expire(si32 Tier)
         {
-            reactors[Tier]->stop();
+            indexer.expire();
         }
         void passover(si32 Tier)
         {
-            reactors[Tier]->skip();
+            indexer.bypass();
         }
         // bell: Create a new object of the specified subtype and return its sptr.
         template<class T, class ...Args>
