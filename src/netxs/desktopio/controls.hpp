@@ -1809,15 +1809,26 @@ namespace netxs::ui
                 boss.LISTEN(tier::preview, input::events::mouse::any, gear, memo)
                 {
                     dispatch(gear, boss.mouse_preview_handlers);
-                    auto offset = boss.base::coor() + boss.base::intpad.corner();
-                    gear.pass(tier::preview, boss.base::parent(), offset);
-                    if (gear) gear.okay(boss);
-                    else      boss.bell::expire(tier::preview);
+                    if (gear)
+                    {
+                        auto offset = boss.base::coor() + boss.base::intpad.corner();
+                        gear.pass(tier::preview, boss.base::parent(), offset);
+                        if (gear)
+                        {
+                            gear.okay(boss);
+                            return;
+                        }
+                    }
+                    boss.bell::expire(tier::preview);
                 };
                 // pro::mouse: Forward all not expired mouse events to all parents.
                 boss.LISTEN(tier::release, input::events::mouse::post, gear, memo)
                 {
                     dispatch(gear, boss.mouse_release_handlers);
+                    if (!gear)
+                    {
+                        boss.bell::expire(tier::release);
+                    }
                     if ((gear && !gear.captured()) || gear.cause == input::key::MouseEnter || gear.cause == input::key::MouseLeave)
                     {
                         auto offset = boss.base::coor() + boss.base::intpad.corner();

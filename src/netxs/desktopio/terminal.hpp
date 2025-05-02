@@ -7592,10 +7592,12 @@ namespace netxs::ui
                 _copy(gear, data);
             }
             auto ctrl_pressed = gear.meta(hids::anyCtrl);
-            if (onesht != mime::disabled && !ctrl_pressed) selection_oneshot(mime::disabled);
+            if (onesht != mime::disabled && !ctrl_pressed)
+            {
+                selection_oneshot(mime::disabled);
+            }
             if (ctrl_pressed || selection_cancel()) // Keep selection if Ctrl is pressed.
             {
-                bell::expire(tier::release);
                 return true;
             }
             return faux;
@@ -7670,7 +7672,6 @@ namespace netxs::ui
                 console.selection_follow(gear.coord, go_on);
                 selection_extend(gear);
                 gear.dismiss();
-                bell::expire(tier::release);
             }
             else selection_cancel();
         }
@@ -7678,7 +7679,6 @@ namespace netxs::ui
         {
             target->selection_byword(gear.coord);
             gear.dismiss();
-            bell::expire(tier::release);
             base::deface();
         }
         void selection_tplclk(hids& gear)
@@ -7688,7 +7688,6 @@ namespace netxs::ui
             else if (clicks == 4) target->selection_bymark(gear.coord);
             else if (clicks == 5) target->selection_selall();
             gear.dismiss();
-            bell::expire(tier::release);
             base::deface();
         }
         void selection_create(hids& gear)

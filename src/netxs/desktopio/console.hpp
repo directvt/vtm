@@ -1085,7 +1085,6 @@ namespace netxs::ui
             {
                 if (gear.clear_clipboard())
                 {
-                    this->bell::expire(tier::release);
                     gear.dismiss();
                 }
             });

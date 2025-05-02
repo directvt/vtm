@@ -922,7 +922,6 @@ namespace netxs::app::tile
                 boss.on(input::key::LeftClick, [&](hids& gear)
                 {
                     gear.dismiss(true);
-                    boss.bell::expire(tier::release);
                     boss.base::riseup(tier::preview, event, gear);
                 });
             };
