@@ -20,7 +20,7 @@ namespace netxs::ui
 
 namespace netxs::events
 {
-    struct tier // Fixed order.
+    struct tier // Keep this enumeration in a fixed order. The last bit of its index indicates the execution order.
     {
         static constexpr auto counter = __COUNTER__ + 1;
         static constexpr auto general = __COUNTER__ - counter; // events: Run forwrad handlers for all objects. Preserve subscription order.
@@ -177,10 +177,9 @@ namespace netxs::events
         {
             using umap = std::unordered_map<hint, std::list<wptr<fxbase>>>;
 
+            // Execution order. True means Forward.
             // Forward execution order: Execute concrete event  first. Forward means from particular to general: 1. event::group::item, 2. event::group::any
             // Reverse execution order: Execute global   events first. Reverse means from general to particular: 1. event::group::any,  2. event::group::item
-            auth& indexer;   // reactor: .
-            bool  order;     // reactor: Execution order. True means Forward.
             umap  stock;     // reactor: Handlers repository.
 
             void cleanup(ui64& ref_count, ui64& del_count)
@@ -224,7 +223,7 @@ namespace netxs::events
         std::recursive_mutex                     mutex;
         std::unordered_map<id_t, wptr<ui::base>> store;
         generics::jobs<wptr<ui::base>>           agent;
-        reactor                                  general{ *this, true };
+        reactor                                  general;
         lua_State*                               lua;
         si32                                     fps{};
         hook                                     memo;
@@ -366,7 +365,7 @@ namespace netxs::events
         void timer(time now)
         {
             auto lock = sync();
-            notify(general.stock, general.order, e2_timer_tick_id, now);
+            notify(general.stock, faux, e2_timer_tick_id, now);
         }
         // auth: Return sptr of the object by its id.
         template<class T = ui::base>
@@ -564,10 +563,10 @@ namespace netxs::events
         auth::reactor& general;
         const id_t     id;      // bell: Object id.
         subs           sensors; // bell: Event subscriptions.
-        auth::reactor  release{ indexer, true };
-        auth::reactor  preview{ indexer, faux };
-        auth::reactor  request{ indexer, true };
-        auth::reactor  anycast{ indexer, faux };
+        auth::reactor  release;
+        auth::reactor  preview;
+        auth::reactor  request;
+        auth::reactor  anycast;
         reactor_set    reactors = { std::ref(general),
                                     std::ref(release),
                                     std::ref(preview),
@@ -654,7 +653,7 @@ namespace netxs::events
         void _signal(si32 Tier, hint event, auto& param)
         {
             auto& r = router(Tier);
-            indexer.notify(r.stock, r.order, event, param);
+            indexer.notify(r.stock, Tier & 0x1, event, param);
         }
         auto accomplished()
         {
