@@ -735,7 +735,7 @@ namespace netxs::app::vtm
                         else hit = faux;
                     }
                     else hit = faux;
-                    if (!hit) bell::passover(tier::preview);
+                    if (!hit) bell::passover();
                 };
                 LISTEN(tier::preview, vtm::events::d_n_d::drop, what)
                 {
@@ -940,7 +940,7 @@ namespace netxs::app::vtm
                         {
                             saved_area = {}; // Preserve current window size.
                             base::signal(tier::release, e2::form::size::restore);
-                            bell::passover(tier::preview);
+                            bell::passover();
                         };
                         LISTEN(tier::preview, e2::area, new_area, maximize_token)
                         {
@@ -1402,7 +1402,7 @@ namespace netxs::app::vtm
                 luafx.set_object(This(), "desktop");
                 if (script.gear_id)
                 {
-                    bell::passover(tier::release); // Continue release riseup.
+                    bell::passover(); // Continue release riseup.
                 }
                 else
                 {
@@ -1412,7 +1412,7 @@ namespace netxs::app::vtm
             LISTEN(tier::preview, e2::runscript, gear)
             {
                 luafx.set_object(This(), "desktop");
-                bell::passover(tier::preview); // Continue preview riseup.
+                bell::passover(); // Continue preview riseup.
             };
             LISTEN(tier::preview, e2::command::gui, gui_cmd)
             {
@@ -1425,7 +1425,7 @@ namespace netxs::app::vtm
                     focus_next_window(gear, dir);
                     hit = true;
                 }
-                if (!hit) bell::passover(tier::preview);
+                if (!hit) bell::passover();
             };
             LISTEN(tier::general, e2::shutdown, msg)
             {
@@ -1856,7 +1856,7 @@ namespace netxs::app::vtm
                     applet.LISTEN(tier::release, e2::form::proceed::quit::one, fast, memo)
                     {
                         usergate.base::signal(tier::release, e2::form::size::restore);
-                        applet.bell::passover(tier::release); // Continue event riseup().
+                        applet.bell::passover(); // Continue event riseup().
                     };
                     usergate.attach(applet_ptr);
                     pro::focus::set(applet_ptr, gear_id_list, solo::on, true); // Refocus.
@@ -1873,7 +1873,7 @@ namespace netxs::app::vtm
                     }
                     else // We've seen this event before.
                     {
-                        usergate.bell::expire(tier::release); // Stop event forwarding.
+                        usergate.bell::expire(); // Stop event forwarding.
                     }
                 }
             };

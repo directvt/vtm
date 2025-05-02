@@ -556,18 +556,23 @@ namespace netxs::events
     // events: Event x-mitter.
     struct bell
     {
+        using reactor_set = std::array<std::reference_wrapper<auth::reactor>, 5>;
+
         static constexpr auto noid = std::numeric_limits<id_t>::max();
 
-        auth&        indexer;
-        auth::reactor&     general;
-        const id_t   id;      // bell: Object id.
-        subs         sensors; // bell: Event subscriptions.
-
-        auth::reactor release{ indexer, true };
-        auth::reactor preview{ indexer, faux };
-        auth::reactor request{ indexer, true };
-        auth::reactor anycast{ indexer, faux };
-        auth::reactor* reactors[5] = { &general, &release, &preview, &request, &anycast };
+        auth&          indexer;
+        auth::reactor& general;
+        const id_t     id;      // bell: Object id.
+        subs           sensors; // bell: Event subscriptions.
+        auth::reactor  release{ indexer, true };
+        auth::reactor  preview{ indexer, faux };
+        auth::reactor  request{ indexer, true };
+        auth::reactor  anycast{ indexer, faux };
+        reactor_set    reactors = { std::ref(general),
+                                    std::ref(release),
+                                    std::ref(preview),
+                                    std::ref(request),
+                                    std::ref(anycast) };
 
         template<class Event, class Arg = Event::type>
         struct submit_helper
@@ -601,6 +606,10 @@ namespace netxs::events
         };
 
     public:
+        auto& router(si32 Tier)
+        {
+            return reactors[std::clamp(Tier, 0, tier::unknown - 1)].get();
+        }
         template<class Event> auto submit(si32 Tier, Event)               { return submit_helper      <Event>(Tier, *this);                        }
         template<class Event> auto submit(si32 Tier, Event, si32)         { return submit_helper      <Event>(Tier, *this);                        }
         template<class Event> auto submit(si32 Tier, Event, hook& token)  { return submit_helper_token<Event>(Tier, *this, token);                 }
@@ -609,32 +618,29 @@ namespace netxs::events
         void submit(si32 Tier, Event, fx<Arg>&& handler)
         {
             auto lock = indexer.sync();
-            sensors.push_back(reactors[Tier]->subscribe(Event::id, std::move(handler)));
+            sensors.push_back(router(Tier).subscribe(Event::id, std::move(handler)));
         }
         void submit_generic(si32 Tier, si32 event_id, sptr<text> script_ptr) // Generic event handler. //todo set script body instead of fx<char>
         {
-            if (Tier >= 0 && Tier < tier::unknown)
+            auto lock = indexer.sync();
+            auto handler = fx<char>{ [&, script_ptr](auto& n)
             {
-                auto lock = indexer.sync();
-                auto handler = fx<char>{ [&, script_ptr](auto& n)
-                {
-                    auto& t = *reinterpret_cast<time*>(&n);
-                    log("calling script: n=%% ", utf::to_hex_0x(t.time_since_epoch().count()), ansi::hi(*script_ptr));
-                }};
-                sensors.push_back(reactors[Tier]->subscribe(event_id, std::move(handler)));
-            }
+                auto& t = *reinterpret_cast<time*>(&n);
+                log("calling script: n=%% ", utf::to_hex_0x(t.time_since_epoch().count()), ansi::hi(*script_ptr));
+            }};
+            sensors.push_back(router(Tier).subscribe(event_id, std::move(handler)));
         }
         template<class Event, class Arg = Event::type>
         void submit(si32 Tier, Event, hook& token, fx<Arg>&& handler)
         {
             auto lock = indexer.sync();
-            token = reactors[Tier]->subscribe(Event::id, std::move(handler));
+            token = router(Tier).subscribe(Event::id, std::move(handler));
         }
         template<class Event>
         void dup_handler(si32 Tier, Event, hook& token)
         {
             auto lock = indexer.sync();
-            reactors[Tier]->subscribe_copy(Event::id, token);
+            router(Tier).subscribe_copy(Event::id, token);
         }
         template<class Event>
         void dup_handler(si32 Tier, Event)
@@ -642,15 +648,13 @@ namespace netxs::events
             auto lock = indexer.sync();
             if (sensors.size())
             {
-                reactors[Tier]->subscribe_copy(Event::id, sensors.back());
+                router(Tier).subscribe_copy(Event::id, sensors.back());
             }
         }
         void _signal(si32 Tier, hint event, auto& param)
         {
-            if (Tier >=0 && Tier < tier::unknown)
-            {
-                indexer.notify(reactors[Tier]->stock, reactors[Tier]->order, event, param);
-            }
+            auto& r = router(Tier);
+            indexer.notify(r.stock, r.order, event, param);
         }
         auto accomplished()
         {
@@ -666,15 +670,11 @@ namespace netxs::events
         {
             return bell::protos() == Event::id;
         }
-        auto& router(si32 Tier)
-        {
-            return *reactors[Tier];
-        }
-        void expire(si32 Tier)
+        void expire()
         {
             indexer.expire();
         }
-        void passover(si32 Tier)
+        void passover()
         {
             indexer.bypass();
         }

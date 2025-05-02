@@ -312,7 +312,7 @@ namespace netxs::app::tile
                         {
                             auto [orientation, griparea, ratio] = boss.get_config();
                             auto step = orientation == axis::X ? delta.x : delta.y;
-                            if (step == 0) boss.bell::passover(tier::preview);
+                            if (step == 0) boss.bell::passover();
                             else           boss.move_slider(step);
                         }
                     };
@@ -569,7 +569,7 @@ namespace netxs::app::tile
                                 }
                                 if (auto parent = boss.base::parent())
                                 {
-                                    parent->bell::expire(tier::request);
+                                    parent->bell::expire();
                                 }
                             }
                         };

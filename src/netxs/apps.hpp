@@ -520,7 +520,7 @@ namespace netxs::app::shared
                             boss.back()->base::deface();
                             order = !order;
                         }
-                        boss.bell::passover(tier::release);
+                        boss.bell::passover();
                     };
                     boss.LISTEN(tier::release, e2::form::proceed::quit::any, fast, -, (count = 2))
                     {
