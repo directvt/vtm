@@ -638,7 +638,7 @@ namespace netxs::ui
         {
             auto ref_count = ui64{};
             auto del_count = ui64{};
-            for (auto& [item_id, item_wptr] : indexer.store)
+            for (auto& [item_id, item_wptr] : bell::indexer.store)
             {
                 if (auto item_ptr = item_wptr.lock())
                 {
@@ -649,7 +649,7 @@ namespace netxs::ui
                     item.anycast.cleanup(ref_count, del_count);
                 }
             }
-            general.cleanup(ref_count, del_count);
+            bell::general.cleanup(ref_count, del_count);
             return std::pair{ ref_count, del_count };
         }
         // base: Find the root of the visual tree.
@@ -666,7 +666,7 @@ namespace netxs::ui
         void broadcast(hint event, auto& param)
         {
             auto lock = bell::sync();
-            anycast.notify(event, param);
+            bell::anycast.notify(event, param);
             for (auto item_ptr : base::subset)
             {
                 if (item_ptr && !item_ptr->master)
@@ -683,7 +683,10 @@ namespace netxs::ui
                 auto root_ptr = gettop();
                 root_ptr->broadcast(event, param);
             }
-            else reactors[Tier]->notify(event, param);
+            else if (Tier >= 0 && Tier < tier::unknown)
+            {
+                bell::reactors[Tier]->notify(event, param);
+            }
         }
         // base: Fire an event.
         // Usage example:
@@ -906,13 +909,13 @@ namespace netxs::ui
                     parent_ptr = parent_ptr->base::parent();
                 }
             }
-            else if (!bell::accomplished(Tier))
+            else if (!bell::accomplished())
             {
                 auto parent_ptr = base::parent();
                 while (parent_ptr)
                 {
                     parent_ptr->base::signal(Tier, event_id, param);
-                    if (parent_ptr->bell::accomplished(Tier)) break;
+                    if (parent_ptr->bell::accomplished()) break;
                     parent_ptr = parent_ptr->base::parent();
                 }
             }

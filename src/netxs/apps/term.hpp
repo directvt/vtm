@@ -574,7 +574,7 @@ namespace netxs::app::terminal
         };
         boss.LISTEN(tier::anycast, e2::form::prop::colors::any, clr)
         {
-            auto deed = boss.bell::protos(tier::anycast);
+            auto deed = boss.bell::protos();
                  if (deed == e2::form::prop::colors::bg.id) boss.base::signal(tier::anycast, terminal::events::preview::colors::bg, clr);
             else if (deed == e2::form::prop::colors::fg.id) boss.base::signal(tier::anycast, terminal::events::preview::colors::fg, clr);
         };
@@ -640,7 +640,7 @@ namespace netxs::app::terminal
         boss.LISTEN(tier::anycast, e2::form::upon::scroll::any, i)
         {
             auto info = e2::form::upon::scroll::bypage::y.param();
-            auto deed = boss.bell::protos(tier::anycast);
+            auto deed = boss.bell::protos();
             boss.base::raw_riseup(tier::request, e2::form::upon::scroll::any.id, info);
             info.vector = i.vector;
             boss.base::raw_riseup(tier::preview, deed, info);

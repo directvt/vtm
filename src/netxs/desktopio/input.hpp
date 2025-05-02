@@ -786,10 +786,7 @@ namespace netxs::input
                                 {
                                     //todo
                                     log("Set handler for script: ", ansi::hi(*script_ptr));
-                                    boss.bell::submit(tier_id, event_id, [&, script = *script_ptr](void* n)
-                                    {
-                                        log("calling script: n=%% ", utf::to_hex(n), ansi::hi(script));
-                                    });
+                                    boss.bell::submit_generic(tier_id, event_id, script_ptr);
                                 }
                                 else // Reset all script bindings for event_id.
                                 {

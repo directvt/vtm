@@ -131,7 +131,7 @@ namespace netxs::app::vtm
                 {
                     if (gear)
                     {
-                        auto deed = boss.bell::protos(tier::release);
+                        auto deed = boss.bell::protos();
                         switch (deed)
                         {
                             case e2::form::drag::pull::left.id:
@@ -1640,7 +1640,7 @@ namespace netxs::app::vtm
             LISTEN(tier::request, e2::form::layout::focus::any, gear_id)
             {
                 auto& counter = switch_counter[gear_id];
-                auto deed = this->bell::protos(tier::request);
+                auto deed = this->bell::protos();
                 auto forward = deed == e2::form::layout::focus::next.id;
                 if (forward != (counter > 0)) counter = {}; // Reset if direction has changed.
                 forward ? counter++ : counter--;
@@ -1843,7 +1843,7 @@ namespace netxs::app::vtm
                     };
                     applet.LISTEN(tier::preview, e2::form::size::enlarge::any, gear, memo)
                     {
-                        auto deed = applet.bell::protos(tier::preview);
+                        auto deed = applet.bell::protos();
                         if (deed == e2::form::size::enlarge::maximize.id)
                         {
                             usergate.base::signal(tier::release, e2::form::size::restore);

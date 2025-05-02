@@ -9147,7 +9147,7 @@ namespace netxs::ui
             bell::dup_handler(tier::general, input::events::halt);
             LISTEN(tier::release, input::events::focus::set::any, seed)
             {
-                auto deed = this->bell::protos(tier::release);
+                auto deed = this->bell::protos();
                 auto state = deed == input::events::focus::set::on.id;
                 stream.sysfocus.send(*this, seed.gear_id, state, seed.focus_type, seed.treeid, seed.digest);
             };

@@ -187,7 +187,7 @@ namespace netxs::ui
                 //        //todo respect pivot
                 //        auto prev = g.zoomdt;
                 //        auto coor = boss.base::coor();
-                //        auto deed = boss.bell::protos(tier::release);
+                //        auto deed = boss.bell::protos();
                 //        g.zoomdt += warp * gear.whlsi;
                 //        auto viewport = gear.owner.base::signal(tier::request, e2::form::prop::viewport);
                 //        auto next = g.zoomsz + g.zoomdt;
@@ -1875,7 +1875,7 @@ namespace netxs::ui
 
                 boss.LISTEN(tier::release, e2::form::draggable::any, enabled, memo)
                 {
-                    auto deed = boss.bell::protos(tier::release);
+                    auto deed = boss.bell::protos();
                     switch (deed)
                     {
                         default:
@@ -4059,7 +4059,7 @@ namespace netxs::ui
             LISTEN(tier::preview, e2::form::upon::scroll::any, info) // Receive scroll parameters from external sources.
             {
                 auto delta = dot_00;
-                switch (this->bell::protos(tier::preview))
+                switch (this->bell::protos())
                 {
                     case e2::form::upon::scroll::bycoor::v.id: delta = { scinfo.window.coor - info.window.coor };        break;
                     case e2::form::upon::scroll::bycoor::x.id: delta = { scinfo.window.coor.x - info.window.coor.x, 0 }; break;

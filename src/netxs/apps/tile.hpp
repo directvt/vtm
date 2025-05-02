@@ -645,38 +645,36 @@ namespace netxs::app::tile
                     };
                     boss.LISTEN(tier::release, app::tile::events::ui::split::any, gear, -, (grip_bindings_ptr))
                     {
-                        if (auto deed = boss.bell::protos(tier::release))
+                        auto deed = boss.bell::protos();
+                        auto depth = 0;
+                        auto parent_ptr = boss.base::parent();
+                        while (parent_ptr)
                         {
-                            auto depth = 0;
-                            auto parent_ptr = boss.base::parent();
-                            while (parent_ptr)
-                            {
-                                depth++;
-                                parent_ptr = parent_ptr->base::parent();
-                            }
-                            if constexpr (debugmode) log(prompt::tile, "Depth ", depth);
-                            if (depth > inheritance_limit) return;
+                            depth++;
+                            parent_ptr = parent_ptr->base::parent();
+                        }
+                        if constexpr (debugmode) log(prompt::tile, "Depth ", depth);
+                        if (depth > inheritance_limit) return;
 
-                            auto heading = deed == app::tile::events::ui::split::vt.id;
-                            auto newnode = build_node(heading ? 'v':'h', 1, 1, heading ? 1 : 2, grip_bindings_ptr);
-                            auto empty_1 = node_veer(node_veer, ui::fork::min_ratio, grip_bindings_ptr);
-                            auto empty_2 = node_veer(node_veer, ui::fork::max_ratio, grip_bindings_ptr);
-                            auto gear_id_list = pro::focus::cut(boss.back());
-                            auto curitem = boss.pop_back();
-                            if (boss.empty())
-                            {
-                                boss.attach(empty_slot());
-                                empty_1->pop_back();
-                            }
-                            auto slot_1 = newnode->attach(slot::_1, empty_1->branch(curitem));
-                            auto slot_2 = newnode->attach(slot::_2, empty_2);
-                            boss.attach(newnode);
-                            pro::focus::set(slot_1->back(), gear_id_list, solo::off); // Handover all foci.
-                            pro::focus::set(slot_2->back(), gear_id_list, solo::off);
-                            if (curitem->base::kind() == base::client) // Restore side list item (it was deleted on detach).
-                            {
-                                curitem->base::riseup(tier::release, tile::events::enlist, curitem);
-                            }
+                        auto heading = deed == app::tile::events::ui::split::vt.id;
+                        auto newnode = build_node(heading ? 'v':'h', 1, 1, heading ? 1 : 2, grip_bindings_ptr);
+                        auto empty_1 = node_veer(node_veer, ui::fork::min_ratio, grip_bindings_ptr);
+                        auto empty_2 = node_veer(node_veer, ui::fork::max_ratio, grip_bindings_ptr);
+                        auto gear_id_list = pro::focus::cut(boss.back());
+                        auto curitem = boss.pop_back();
+                        if (boss.empty())
+                        {
+                            boss.attach(empty_slot());
+                            empty_1->pop_back();
+                        }
+                        auto slot_1 = newnode->attach(slot::_1, empty_1->branch(curitem));
+                        auto slot_2 = newnode->attach(slot::_2, empty_2);
+                        boss.attach(newnode);
+                        pro::focus::set(slot_1->back(), gear_id_list, solo::off); // Handover all foci.
+                        pro::focus::set(slot_2->back(), gear_id_list, solo::off);
+                        if (curitem->base::kind() == base::client) // Restore side list item (it was deleted on detach).
+                        {
+                            curitem->base::riseup(tier::release, tile::events::enlist, curitem);
                         }
                     };
                     boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
@@ -1490,7 +1488,7 @@ namespace netxs::app::tile
                     };
                     boss.LISTEN(tier::preview, app::tile::events::ui::split::any, gear)
                     {
-                        auto deed = boss.bell::protos(tier::preview);
+                        auto deed = boss.bell::protos();
                         foreach(gear.id, [&](auto& item_ptr, si32 /*item_type*/, auto node_veer_ptr)
                         {
                             auto room = node_veer_ptr->base::size() / 3;

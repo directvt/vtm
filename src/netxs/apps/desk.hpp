@@ -383,7 +383,7 @@ namespace netxs::app::desk
                         auto& boss = *block;
                         boss.LISTEN(tier::release, desk::events::ui::focus::any, gear, window.sensors)
                         {
-                            auto deed = boss.bell::protos(tier::release);
+                            auto deed = boss.bell::protos();
                                  if (deed == desk::events::ui::focus::set.id) pro::focus::set(window.This(), gear.id, solo::off);
                             else if (deed == desk::events::ui::focus::off.id) pro::focus::off(window.This(), gear.id);
                         };

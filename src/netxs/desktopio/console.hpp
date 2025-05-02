@@ -968,7 +968,7 @@ namespace netxs::ui
                     auto [ext_gear_id, gear_ptr] = get_ext_gear_id(seed.gear_id);
                     if (gear_ptr)
                     {
-                        auto deed = bell::protos(tier::preview);
+                        auto deed = bell::protos();
                         auto state = deed == input::events::focus::set::on.id;
                         conio.sysfocus.send(canal, ext_gear_id, state, seed.focus_type, ui64{}, ui64{});
                     }

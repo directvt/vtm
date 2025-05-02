@@ -118,10 +118,18 @@ namespace netxs::events
         fxwrapper(fx<Arg>&& proc)
             : fx<Arg>{ std::move(proc) }
         { }
+        //fxwrapper(sptr<text> script_ptr)
+        //    : FxBase{ script_ptr }
+        //{ }
     };
 
     struct fxbase
     {
+        //sptr<text> script_ptr;
+        //fxbase() = default;
+        //fxbase(sptr<text> script_ptr)
+        //    : script_ptr{ script_ptr }
+        //{ }
         virtual ~fxbase() = default;
 
         template<class Arg>
@@ -129,6 +137,17 @@ namespace netxs::events
         {
             auto& proc = *static_cast<fxwrapper<Arg, fxbase>*>(this);
             proc(param);
+
+            //if (script_ptr)
+            //{
+            //    log("run script: ", ansi::hi(*script_ptr), " with param: ", &param);
+            //    //move to base::signal: run_script(*script);
+            //}
+            //else
+            //{
+            //    auto& proc = *static_cast<fxwrapper<Arg, fxbase>*>(this);
+            //    proc(param);
+            //}
         }
     };
 
@@ -145,62 +164,146 @@ namespace netxs::events
         hook(F proc)
             : sptr<fxbase>{ std::make_shared<fxwrapper<ptr::arg0<F>, fxbase>>(std::move(proc)) }
         { }
+        //hook(sptr<text> script_ptr)
+        //    : sptr<fxbase>{ std::make_shared<fxwrapper<fx<void*>, fxbase>>(script_ptr) }
+        //{ }
     };
 
     using wook = wptr<fxbase>;
 
-    struct reactor
+    struct auth
     {
-        using list = std::list<wptr<fxbase>>;
-        using vect = std::vector<wptr<fxbase>>;
-
-        enum class branch
+        struct reactor
         {
-            fullstop,
-            not_handled,
-            proceed,
+            using umap = std::unordered_map<hint, std::list<wptr<fxbase>>>;
+
+            struct branch
+            {
+                static constexpr auto _counter    = __COUNTER__ + 1;
+                static constexpr auto proceed     = __COUNTER__ - _counter;
+                static constexpr auto fullstop    = __COUNTER__ - _counter;
+                static constexpr auto not_handled = __COUNTER__ - _counter;
+            };
+
+            // Forward execution order: Execute concrete event  first. Forward means from particular to general: 1. event::group::item, 2. event::group::any
+            // Reverse execution order: Execute global   events first. Reverse means from general to particular: 1. event::group::any,  2. event::group::item
+            auth& indexer;   // reactor: .
+            si32  order;     // reactor: Execution order. True means Forward.
+            si32  state{ branch::proceed }; // reactor: Current exec branch interruptor.
+            umap  stock;     // reactor: Handlers repository.
+
+            void cleanup(ui64& ref_count, ui64& del_count)
+            {
+                auto lref = ui64{};
+                auto ldel = ui64{};
+                for (auto& [event, subs] : stock)
+                {
+                    auto refs = subs.size();
+                    subs.remove_if([](auto&& a){ return a.expired(); });
+                    auto size = subs.size();
+                    lref += size;
+                    ldel += refs - size;
+                }
+                ref_count += lref;
+                del_count += ldel;
+            }
+            template<class Arg>
+            hook subscribe(hint event, fx<Arg>&& proc)
+            {
+                auto proc_ptr = std::make_shared<fxwrapper<Arg, fxbase>>(std::move(proc));
+                stock[event].push_back(proc_ptr);
+                return proc_ptr;
+            }
+            void subscribe_copy(hint event, hook& proc_ptr)
+            {
+                stock[event].push_back(proc_ptr);
+            }
+            // reactor: Calling delegates. Returns the number of active ones.
+            template<class Arg>
+            void notify(hint event, Arg& param)
+            {
+                auto [head, tail] = indexer._select(stock, event, order);
+                if (head != tail)
+                {
+                    indexer.queue.push_back(event);
+                    auto iter = head;
+                    do
+                    {
+                        if (auto fx_ptr = indexer.qcopy[iter].lock()) // qcopy can be reallocated.
+                        {
+                            state = branch::proceed;
+                            fx_ptr->call(param);
+                        }
+                    }
+                    while (state != branch::fullstop && ++iter != tail);
+                    indexer.qcopy.resize(head);
+                    indexer.queue.pop_back();
+                    indexer.handled = state != branch::not_handled;
+                }
+                else
+                {
+                    indexer.handled = faux;
+                }
+            }
+            // reactor: Interrupt current invocation branch.
+            void stop()
+            {
+                state = branch::fullstop;
+            }
+            // reactor: Skip current invocation branch.
+            void skip()
+            {
+                state = branch::not_handled;
+            }
         };
 
-        // Forward execution order: Execute concrete event  first. Forward means from particular to general: 1. event::group::item, 2. event::group::any
-        // Reverse execution order: Execute global   events first. Reverse means from general to particular: 1. event::group::any,  2. event::group::item
-        bool                 order; // reactor: Execution order. True means Forward.
-        std::map<hint, list> stock; // reactor: Handlers repository.
-        std::vector<hint>    queue; // reactor: Event queue.
-        vect                 qcopy; // reactor: Copy of the current pretenders to exec on current event.
-        branch               alive; // reactor: Current exec branch interruptor.
-        bool                 handled{}; // reactor: Last notify operation result.
+        id_t                                     newid{};
+        wptr<ui::base>                           empty;
+        std::recursive_mutex                     mutex;
+        std::unordered_map<id_t, wptr<ui::base>> store;
+        generics::jobs<wptr<ui::base>>           agent;
+        reactor                                  general{ *this, true };
+        lua_State*                               lua;
+        si32                                     fps{};
+        hook                                     memo;
+        datetime::quartz<auth>                   quartz;
+        hint                                     e2_timer_tick_id;
+        si32                                     handled{}; // auth: Last notify operation result.
+        std::vector<hint>                        queue; // auth: Event queue.
+        std::vector<wptr<fxbase>>                qcopy; // auth: Copy of the current pretenders to exec on current event.
 
-        void cleanup(ui64& ref_count, ui64& del_count)
+        auth(lua_State* lua = {}, hint e2_config_fps_id = {}, hint e2_timer_tick_id = {})
+            : lua{ lua },
+              quartz{ *this },
+              e2_timer_tick_id{ e2_timer_tick_id }
         {
-            auto lref = ui64{};
-            auto ldel = ui64{};
-            for (auto& [event, subs] : stock)
+            if (e2_config_fps_id)
             {
-                auto refs = subs.size();
-                subs.remove_if([](auto&& a){ return a.expired(); });
-                auto size = subs.size();
-                lref += size;
-                ldel += refs - size;
+                memo = general.subscribe(e2_config_fps_id, fx<si32>{ [&](si32& new_fps)
+                {
+                    if (new_fps > 0)
+                    {
+                        fps = new_fps;
+                        quartz.ignite(fps);
+                        log(prompt::auth, "Rendering refresh rate: ", fps, " fps");
+                    }
+                    else if (new_fps < 0)
+                    {
+                        new_fps = fps;
+                    }
+                    else
+                    {
+                        quartz.stop();
+                    }
+                }});
             }
-            ref_count += lref;
-            del_count += ldel;
         }
-        template<class Arg>
-        hook subscribe(hint event, fx<Arg>&& proc)
-        {
-            auto proc_ptr = std::make_shared<fxwrapper<Arg, fxbase>>(std::move(proc));
-            stock[event].push_back(proc_ptr);
-            return proc_ptr;
-        }
-        void subscribe_copy(hint event, hook& proc_ptr)
-        {
-            stock[event].push_back(proc_ptr);
-        }
-        void _refresh_and_copy(list& target)
+
+        void _refresh_and_copy(auto& target)
         {
             target.remove_if([&](auto& a){ return a.expired() ? true : (qcopy.emplace_back(a), faux); });
         }
-        auto _select(hint event)
+        auto _select(auto& stock, hint event, bool order)
         {
             auto head = qcopy.size();
             if (order)
@@ -231,83 +334,6 @@ namespace netxs::events
             auto tail = qcopy.size();
             return std::pair{ head, tail };
         }
-        // reactor: Calling delegates. Returns the number of active ones.
-        template<class Arg>
-        void notify(hint event, Arg& param)
-        {
-            auto [head, tail] = _select(event);
-            handled = head != tail;
-            if (handled)
-            {
-                queue.push_back(event);
-                auto iter = head;
-                do
-                {
-                    if (auto fx_ptr = qcopy[iter].lock()) // qcopy can be reallocated.
-                    {
-                        alive = branch::proceed;
-                        fx_ptr->call(param);
-                    }
-                }
-                while (alive != branch::fullstop && ++iter != tail);
-                qcopy.resize(head);
-                queue.pop_back();
-                handled = alive != branch::not_handled;
-            }
-        }
-        // reactor: Interrupt current invocation branch.
-        void stop()
-        {
-            alive = branch::fullstop;
-        }
-        // reactor: Skip current invocation branch.
-        void skip()
-        {
-            alive = branch::not_handled;
-        }
-    };
-
-    struct auth
-    {
-        id_t                                     newid{};
-        wptr<ui::base>                           empty;
-        std::recursive_mutex                     mutex;
-        std::unordered_map<id_t, wptr<ui::base>> store;
-        generics::jobs<wptr<ui::base>>           agent;
-        reactor                                  general{ true };
-        lua_State*                               lua;
-        si32                                     fps{};
-        hook                                     memo;
-        datetime::quartz<auth>                   quartz;
-        hint                                     e2_timer_tick_id;
-
-        auth(lua_State* lua = {}, hint e2_config_fps_id = {}, hint e2_timer_tick_id = {})
-            : lua{ lua },
-              quartz{ *this },
-              e2_timer_tick_id{ e2_timer_tick_id }
-        {
-            if (e2_config_fps_id)
-            {
-                memo = general.subscribe(e2_config_fps_id, fx<si32>{ [&](si32& new_fps)
-                {
-                    if (new_fps > 0)
-                    {
-                        fps = new_fps;
-                        quartz.ignite(fps);
-                        log(prompt::auth, "Rendering refresh rate: ", fps, " fps");
-                    }
-                    else if (new_fps < 0)
-                    {
-                        new_fps = fps;
-                    }
-                    else
-                    {
-                        quartz.stop();
-                    }
-                }});
-            }
-        }
-
         // auth: .
         auto sync()
         {
@@ -525,15 +551,15 @@ namespace netxs::events
         static constexpr auto noid = std::numeric_limits<id_t>::max();
 
         auth&        indexer;
-        reactor&     general;
+        auth::reactor&     general;
         const id_t   id;      // bell: Object id.
         subs         sensors; // bell: Event subscriptions.
 
-        reactor release{ true };
-        reactor preview{ faux };
-        reactor request{ true };
-        reactor anycast{ faux };
-        reactor* reactors[5] = { &general, &release, &preview, &request, &anycast };
+        auth::reactor release{ indexer, true };
+        auth::reactor preview{ indexer, faux };
+        auth::reactor request{ indexer, true };
+        auth::reactor anycast{ indexer, faux };
+        auth::reactor* reactors[5] = { &general, &release, &preview, &request, &anycast };
 
         template<class Event, class Arg = Event::type>
         struct submit_helper
@@ -577,11 +603,16 @@ namespace netxs::events
             auto lock = indexer.sync();
             sensors.push_back(reactors[Tier]->subscribe(Event::id, std::move(handler)));
         }
-        void submit(si32 Tier, si32 event_id, fx<void*>&& handler) // Generic event handler. //todo set script body instead of fx<void*>
+        void submit_generic(si32 Tier, si32 event_id, sptr<text> script_ptr) // Generic event handler. //todo set script body instead of fx<char>
         {
-            auto lock = indexer.sync();
             if (Tier >= 0 && Tier < tier::unknown)
             {
+                auto lock = indexer.sync();
+                auto handler = fx<char>{ [&, script_ptr](auto& n)
+                {
+                    auto& t = *reinterpret_cast<time*>(&n);
+                    log("calling script: n=%% ", utf::to_hex_0x(t.time_since_epoch().count()), ansi::hi(*script_ptr));
+                }};
                 sensors.push_back(reactors[Tier]->subscribe(event_id, std::move(handler)));
             }
         }
@@ -606,19 +637,19 @@ namespace netxs::events
                 reactors[Tier]->subscribe_copy(Event::id, sensors.back());
             }
         }
-        auto accomplished(si32 Tier)
+        auto accomplished()
         {
-            return reactors[Tier]->handled;
+            return indexer.handled;
         }
         // bell: Return initial event of the current event execution branch.
-        auto protos(si32 Tier)
+        auto protos()
         {
-            return reactors[Tier]->queue.empty() ? hint{} : reactors[Tier]->queue.back();
+            return indexer.queue.empty() ? hint{} : indexer.queue.back();
         }
         template<class Event>
-        auto protos(si32 Tier, Event)
+        auto protos(Event)
         {
-            return bell::protos(Tier) == Event::id;
+            return bell::protos() == Event::id;
         }
         auto& router(si32 Tier)
         {
