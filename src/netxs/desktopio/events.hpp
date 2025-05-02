@@ -188,8 +188,7 @@ namespace netxs::events
             // Forward execution order: Execute concrete event  first. Forward means from particular to general: 1. event::group::item, 2. event::group::any
             // Reverse execution order: Execute global   events first. Reverse means from general to particular: 1. event::group::any,  2. event::group::item
             auth& indexer;   // reactor: .
-            si32  order;     // reactor: Execution order. True means Forward.
-            si32  state{ branch::proceed }; // reactor: Current exec branch interruptor.
+            bool  order;     // reactor: Execution order. True means Forward.
             umap  stock;     // reactor: Handlers repository.
 
             void cleanup(ui64& ref_count, ui64& del_count)
@@ -225,7 +224,7 @@ namespace netxs::events
                 auto [head, tail] = indexer._select(stock, event, order);
                 if (head != tail)
                 {
-                    indexer.queue.push_back(event);
+                    auto& state = indexer.queue.emplace_back(event, branch::not_handled).second;
                     auto iter = head;
                     do
                     {
@@ -248,11 +247,13 @@ namespace netxs::events
             // reactor: Interrupt current invocation branch.
             void stop()
             {
+                auto& state = indexer.queue.back().second;
                 state = branch::fullstop;
             }
             // reactor: Skip current invocation branch.
             void skip()
             {
+                auto& state = indexer.queue.back().second;
                 state = branch::not_handled;
             }
         };
@@ -269,7 +270,7 @@ namespace netxs::events
         datetime::quartz<auth>                   quartz;
         hint                                     e2_timer_tick_id;
         si32                                     handled{}; // auth: Last notify operation result.
-        std::vector<hint>                        queue; // auth: Event queue.
+        std::vector<std::pair<hint, si32>>       queue; // auth: Event queue: { event_id, call state }.
         std::vector<wptr<fxbase>>                qcopy; // auth: Copy of the current pretenders to exec on current event.
 
         auth(lua_State* lua = {}, hint e2_config_fps_id = {}, hint e2_timer_tick_id = {})
@@ -644,7 +645,7 @@ namespace netxs::events
         // bell: Return initial event of the current event execution branch.
         auto protos()
         {
-            return indexer.queue.empty() ? hint{} : indexer.queue.back();
+            return indexer.queue.empty() ? hint{} : indexer.queue.back().first;
         }
         template<class Event>
         auto protos(Event)
