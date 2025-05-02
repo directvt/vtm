@@ -1851,7 +1851,6 @@ namespace netxs::app::vtm
                     };
                     applet.LISTEN(tier::preview, e2::form::size::minimize, gear, memo)
                     {
-                        applet.bell::expire(tier::release); // Suppress hide/minimization.
                         usergate.base::signal(tier::release, e2::form::size::restore);
                     };
                     applet.LISTEN(tier::release, e2::form::proceed::quit::one, fast, memo)
