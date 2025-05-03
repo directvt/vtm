@@ -698,8 +698,7 @@ namespace netxs::events
             if (iter != r.end())
             {
                 auto& fx_list = iter->second;
-                // Clear handlers.
-                std::erase_if(fx_list, [&](auto& fx_wptr)
+                std::erase_if(fx_list, [&](auto& fx_wptr) // Clear handlers.
                 {
                     if (auto fx_sptr = fx_wptr.lock())
                     {
@@ -719,8 +718,7 @@ namespace netxs::events
                 {
                     r.erase(iter);
                 }
-                // Wipe sensors.
-                std::erase_if(sensors, [&](auto& fx_sptr)
+                std::erase_if(sensors, [&](auto& fx_sptr) // Wipe sensors.
                 {
                     if (!fx_sptr || (!fx_sptr->script_ptr && !fx_sptr->get_inst<char>()))
                     {
