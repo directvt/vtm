@@ -9143,7 +9143,7 @@ namespace netxs::ui
                 gear.m_sys.enabled = hids::stat::halt;
                 stream.sysmouse.send(*this, gear.m_sys);
             });
-            bell::dup_handler(tier::general, input::events::halt);
+            bell::dup_handler(tier::general, input::events::halt.id);
             LISTEN(tier::release, input::events::focus::set::any, seed)
             {
                 auto deed = this->bell::protos();

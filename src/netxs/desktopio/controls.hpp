@@ -1752,36 +1752,25 @@ namespace netxs::ui
             bool omni; // mouse: Ability to accept all hover events (true) or only directly over the object (faux).
             si32 rent; // mouse: Active gears count.
             si32 full; // mouse: All gears count. Counting to keep the entire chain of links in the visual tree.
-            std::map<si32, subs> dragmemo; // mouse: Drag subs.
+            std::unordered_map<si32, subs> dragmemo; // mouse: Drag subs.
 
-            netxs::sptr<std::unordered_map<text, wptr>> scripting_context_ptr; // mouse: Script execution context: sptr<map<$object_name_str, $object_wptr>>.
-
-            void dispatch(hids& gear, auto& handlers)
+            void dispatch(hids& gear, si32 tier_id)
             {
-                //log("mouse: handlers.size=", handlers.size());
                 auto fire = [&](auto cause)
                 {
-                    auto iter = handlers.find(cause);
-                    if (iter != handlers.end())
+                    auto iter = boss.reactor.find(cause | boss.indexer.tier_mask(tier_id));
+                    if (iter != boss.reactor.end())
                     {
                         auto& handler_list = iter->second;
-                        std::erase_if(handler_list, [&](auto& rec)
+                        //todo make a copy before call or dispatch on the indexer side
+                        std::erase_if(handler_list, [&](auto& fx_wptr)
                         {
-                            auto& [fx_wptr, script_ptr] = rec;
-                            //todo put script_ptr inside the hook
-                            if (script_ptr)
+                            auto fx_ptr = fx_wptr.lock();
+                            if (fx_ptr)
                             {
-                                //log("  run script: ", ansi::hi(*script_ptr));
+                                fx_ptr->call(boss.indexer.lua, gear);
                             }
-                            else if (auto fx_ptr = fx_wptr.lock())
-                            {
-                                fx_ptr->call(gear);
-                            }
-                            else
-                            {
-                                return true; // Delete rec.
-                            }
-                            return faux;
+                            return !fx_ptr; // Delete rec if faux.
                         });
                     }
                 };
@@ -1808,7 +1797,7 @@ namespace netxs::ui
                 // pro::mouse: Forward preview to all parents.
                 boss.LISTEN(tier::preview, input::events::mouse::any, gear, memo)
                 {
-                    dispatch(gear, boss.mouse_preview_handlers);
+                    dispatch(gear, tier::mousepreview);
                     if (gear)
                     {
                         auto offset = boss.base::coor() + boss.base::intpad.corner();
@@ -1824,7 +1813,7 @@ namespace netxs::ui
                 // pro::mouse: Forward all not expired mouse events to all parents.
                 boss.LISTEN(tier::release, input::events::mouse::post, gear, memo)
                 {
-                    dispatch(gear, boss.mouse_release_handlers);
+                    dispatch(gear, tier::mouserelease);
                     if (!gear)
                     {
                         boss.bell::expire();
@@ -1959,7 +1948,7 @@ namespace netxs::ui
                             gear.dismiss();
                         }
                     });
-                    boss.dup_handler(tier::general, input::events::halt, dragmemo_button.back());
+                    boss.dup_handler(tier::general, input::events::halt.id, dragmemo_button.back());
                 }
             }
         };
@@ -2840,6 +2829,7 @@ namespace netxs::ui
                 }
                 log_context();
                 log("%%script:\n%pads%%script%", prompt::lua, prompt::pads, ansi::hi(utf::debase437(script_body)));
+
                 ::lua_settop(lua, 0);
                 auto error = ::luaL_loadbuffer(lua, script_body.data(), script_body.size(), "script body")
                           || ::lua_pcall(lua, 0, 0, 0);
@@ -2855,9 +2845,10 @@ namespace netxs::ui
                     result = ::lua_torawstring(lua, -1);
                     ::lua_settop(lua, 0);
                 }
+
                 //todo optimize
-                ::lua_pushnil(lua);
-                ::lua_setglobal(lua, "vtm"); // Wipe global context.
+                ::lua_pushnil(lua);          // Wipe global context.
+                ::lua_setglobal(lua, "vtm"); //
                 return result;
             }
             auto run_script(auto& script)
@@ -4149,7 +4140,7 @@ namespace netxs::ui
                     giveup(gear);
                 }
             });
-            bell::dup_handler(tier::general, input::events::halt);
+            bell::dup_handler(tier::general, input::events::halt.id);
             on(input::key::RightDragStop, [&](hids& gear)
             {
                 if (gear.captured(bell::id))
@@ -4739,7 +4730,7 @@ namespace netxs::ui
             {
                 giveup(gear);
             });
-            bell::dup_handler(tier::general, input::events::halt);
+            bell::dup_handler(tier::general, input::events::halt.id);
             base::on(input::key::MouseDragStop, [&](hids& gear)
             {
                 if (on_pager)

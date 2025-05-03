@@ -784,8 +784,8 @@ namespace netxs::input
                                 auto event_id = netxs::aligned<hint>(binary_chord.data() + 1);
                                 if (set_handler)
                                 {
-                                    //todo
                                     log("Set handler for script: ", ansi::hi(*script_ptr));
+                                    //todo subscribe on sources but with boss.sensors
                                     boss.bell::submit_generic(tier_id, event_id, script_ptr);
                                 }
                                 else // Reset all script bindings for event_id.
@@ -801,24 +801,30 @@ namespace netxs::input
                         }
                         else if (input::key::is_mouse(k))
                         {
-                            auto& handlers = is_preview ? boss.mouse_preview_handlers
-                                                        : boss.mouse_release_handlers;
                             auto mouse_event_id = (binary_chord[0] << 8) | binary_chord[1];
-                            auto& handler_list = handlers[mouse_event_id];
+                            auto tier_id = is_preview ? tier::mousepreview : tier::mouserelease;
                             if (set_handler)
                             {
-                                handler_list.emplace_back().second = script_ptr;
+                                //todo subscribe on sources but with boss.sensors
+                                boss.bell::submit_generic(tier_id, mouse_event_id, script_ptr);
                             }
                             else // Reset all script bindings for mouse_event_id.
                             {
-                                for (auto& [fx_ptr, script_str_ptr] : handler_list)
+                                auto& handler_list = boss.reactor[mouse_event_id | boss.indexer.tier_mask(tier_id)];
+                                std::erase_if(handler_list, [&](auto& fx_wptr)
                                 {
-                                    script_str_ptr = {};
-                                }
-                                //handlers.erase(mouse_event_id); // Erase non-interactive (non-script) handlers.
+                                    if (auto fx_sptr = fx_wptr.lock())
+                                    {
+                                        return !!fx_sptr->script_ptr; // Erase if exists.
+                                    }
+                                    else
+                                    {
+                                        return true;
+                                    }
+                                });
                             }
                         }
-                        else
+                        else // Keybd events.
                         {
                             if (set_handler)
                             {

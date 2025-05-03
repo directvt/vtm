@@ -615,8 +615,6 @@ namespace netxs::ui
         bool master; // base: Anycast root.
         si32 family; // base: Object type.
         std::unordered_map<text, netxs::sptr<std::any>, qiew::hash, qiew::equal> fields;
-        std::unordered_map<si32, std::list<std::pair<wook, netxs::sptr<text>>>> mouse_release_handlers; // base: Map<mouse_event_id, list<pair<std::function<void(hids&)>, sptr<script>>>>.
-        std::unordered_map<si32, std::list<std::pair<wook, netxs::sptr<text>>>> mouse_preview_handlers; // base: Map<mouse_event_id, list<pair<std::function<void(hids&)>, sptr<script>>>>.
         //todo make scripts precompiled
         std::unordered_map<text, std::pair<std::list<netxs::sptr<text>>, bool>, qiew::hash, qiew::equal> keybd_handlers; // base: Map<chord, pair<list<shared_ptr<script>>, preview>>.
 
@@ -1121,23 +1119,23 @@ namespace netxs::ui
             }
         }
         // base: Subscribe on/onpreview mouse events.
-        void on(si32 mouse_event_id, subs& sensors, auto handler)
+        void on(si32 mouse_event_id, subs& tokens, auto handler)
         {
-            mouse_release_handlers[mouse_event_id].emplace_back().first = sensors.emplace_back(std::move(handler));
+            bell::submit_generic(tier::mouserelease, mouse_event_id, tokens, netxs::events::fx<ptr::arg0<decltype(handler)>>{ std::move(handler) });
         }
-        void onpreview(si32 mouse_event_id, subs& sensors, auto handler)
+        void onpreview(si32 mouse_event_id, subs& tokens, auto handler)
         {
-            mouse_preview_handlers[mouse_event_id].emplace_back().first = sensors.emplace_back(std::move(handler));
+            bell::submit_generic(tier::mousepreview, mouse_event_id, tokens, netxs::events::fx<ptr::arg0<decltype(handler)>>{ std::move(handler) });
         }
         void on(si32 mouse_event_id, hook& token, auto handler)
         {
             token = std::move(handler);
-            mouse_release_handlers[mouse_event_id].emplace_back().first = token;
+            bell::dup_handler(tier::mouserelease, mouse_event_id, token);
         }
         void onpreview(si32 mouse_event_id, hook& token, auto handler)
         {
             token = std::move(handler);
-            mouse_preview_handlers[mouse_event_id].emplace_back().first = token;
+            bell::dup_handler(tier::mousepreview, mouse_event_id, token);
         }
         void on(si32 mouse_event_id, auto handler)
         {
@@ -1149,24 +1147,24 @@ namespace netxs::ui
         }
         void on(si32 mouse_event_id, hook token)
         {
-            mouse_release_handlers[mouse_event_id].emplace_back().first = token;
+            bell::dup_handler(tier::mouserelease, mouse_event_id, token);
         }
         void onpreview(si32 mouse_event_id, hook token)
         {
-            mouse_preview_handlers[mouse_event_id].emplace_back().first = token;
+            bell::dup_handler(tier::mousepreview, mouse_event_id, token);
         }
         void on(si32 mouse_event_id)
         {
             if (bell::sensors.size())
             {
-                mouse_release_handlers[mouse_event_id].emplace_back().first = bell::sensors.back();
+                bell::dup_handler(tier::mouserelease, mouse_event_id, bell::sensors.back());
             }
         }
         void onpreview(si32 mouse_event_id)
         {
             if (bell::sensors.size())
             {
-                mouse_preview_handlers[mouse_event_id].emplace_back().first = bell::sensors.back();
+                bell::dup_handler(tier::mousepreview, mouse_event_id, bell::sensors.back());
             }
         }
 

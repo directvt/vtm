@@ -22,20 +22,24 @@ namespace netxs::events
 {
     struct tier // Keep this enumeration in a fixed order. The last bit of its index indicates the execution order 0: Forward, 1: Reverse.
     {
-        // Forward execution order: Execute concrete event  first. Forward means from particular to general: 1. event::group::item, 2. event::group::any
-        // Reverse execution order: Execute global   events first. Reverse means from general to particular: 1. event::group::any,  2. event::group::item
+        // Forward execution order: Execute concrete event  first. Preserve subscription order. Forward means from particular to general: 1. event::group::item, 2. event::group::any
+        // Reverse execution order: Execute global   events first. Preserve subscription order. Reverse means from general to particular: 1. event::group::any,  2. event::group::item
         static constexpr auto counter = __COUNTER__ + 1;
-        static constexpr auto release = __COUNTER__ - counter; // events: Run forwrad handlers with fixed param. Preserve subscription order.
-        static constexpr auto preview = __COUNTER__ - counter; // events: Run reverse handlers with fixed a param intended to change. Preserve subscription order.
-        static constexpr auto request = __COUNTER__ - counter; // events: Run forwrad a handler that provides the current value of the param. To avoid being overridden, the handler should be the only one. Preserve subscription order.
-        static constexpr auto anycast = __COUNTER__ - counter; // events: Run reverse handlers along the entire visual tree. Preserve subscription order.
-        static constexpr auto general = __COUNTER__ - counter; // events: Run forwrad handlers for all objects. Preserve subscription order.
+        static constexpr auto release = __COUNTER__ - counter; // events: Run forwrad handlers with fixed param.
+        static constexpr auto preview = __COUNTER__ - counter; // events: Run reverse handlers with fixed a param intended to change.
+        static constexpr auto request = __COUNTER__ - counter; // events: Run forwrad a handler that provides the current value of the param. To avoid being overridden, the handler should be the only one.
+        static constexpr auto anycast = __COUNTER__ - counter; // events: Run reverse handlers along the entire visual tree.
+        static constexpr auto general = __COUNTER__ - counter; // events: Run forwrad handlers for all objects.
+        static constexpr auto mousepreview = __COUNTER__ - counter; // events: Run in subscription order for all objects.
+        static constexpr auto mouserelease = __COUNTER__ - counter; // events: Run in subscription order for all objects.
         static constexpr auto unknown = __COUNTER__ - counter; // events: .
         static constexpr auto str = std::to_array({ "release"sv,
                                                     "preview"sv,
                                                     "request"sv,
                                                     "anycast"sv,
                                                     "general"sv,
+                                                    "mousepreview"sv,
+                                                    "mouserelease"sv,
                                                     "unknown"sv, });
     };
 
@@ -120,36 +124,55 @@ namespace netxs::events
         fxwrapper(fx<Arg>&& proc)
             : fx<Arg>{ std::move(proc) }
         { }
-        //fxwrapper(sptr<text> script_ptr)
-        //    : FxBase{ script_ptr }
-        //{ }
+        fxwrapper(sptr<text> script_ptr)
+            : FxBase{ script_ptr }
+        { }
     };
 
     struct fxbase
     {
-        //sptr<text> script_ptr;
-        //fxbase() = default;
-        //fxbase(sptr<text> script_ptr)
-        //    : script_ptr{ script_ptr }
-        //{ }
+        sptr<text> script_ptr;
+
+        fxbase() = default;
+        fxbase(sptr<text> script_ptr)
+            : script_ptr{ script_ptr }
+        { }
         virtual ~fxbase() = default;
 
         template<class Arg>
-        void call(Arg& param)
+        void call(auto lua, Arg& param)
         {
-            auto& proc = *static_cast<fxwrapper<Arg, fxbase>*>(this);
-            proc(param);
+            if (script_ptr)
+            {
+                auto& script_body = *script_ptr;
+                //todo pass param
+                auto param_ptr = (char*)&param;
+                //::lua_pushnil(param_ptr);
+                //::lua_setglobal(lua, "param");
 
-            //if (script_ptr)
-            //{
-            //    log("run script: ", ansi::hi(*script_ptr), " with param: ", &param);
-            //    //move to base::signal: run_script(*script);
-            //}
-            //else
-            //{
-            //    auto& proc = *static_cast<fxwrapper<Arg, fxbase>*>(this);
-            //    proc(param);
-            //}
+                //todo make it static indexer::function(script_ptr, param_ptr)
+                log("run script: ", ansi::hi(*script_ptr), " with param: ", utf::to_hex_0x(param_ptr));
+                ::lua_settop(lua, 0);
+                auto error = ::luaL_loadbuffer(lua, script_body.data(), script_body.size(), "script body")
+                          || ::lua_pcall(lua, 0, 0, 0);
+                if (error)
+                {
+                    auto result = text{};
+                    result = ::lua_tostring(lua, -1);
+                    log("%%%msg%", prompt::lua, ansi::err(result));
+                    ::lua_pop(lua, 1);  // Pop error message from stack.
+                }
+                else if (::lua_gettop(lua))
+                {
+                    //result = ::lua_torawstring(lua, -1);
+                    ::lua_settop(lua, 0);
+                }
+            }
+            else
+            {
+                auto& proc = *static_cast<fxwrapper<Arg, fxbase>*>(this);
+                proc(param);
+            }
         }
     };
 
@@ -162,13 +185,13 @@ namespace netxs::events
         hook(std::shared_ptr<F...> proc_ptr)
             : sptr<fxbase>{ proc_ptr }
         { }
-        template<class F>//, class Arg = ptr::arg0<F>>
+        template<class F>
         hook(F proc)
             : sptr<fxbase>{ std::make_shared<fxwrapper<ptr::arg0<F>, fxbase>>(std::move(proc)) }
         { }
-        //hook(sptr<text> script_ptr)
-        //    : sptr<fxbase>{ std::make_shared<fxwrapper<fx<void*>, fxbase>>(script_ptr) }
-        //{ }
+        hook(sptr<text> script_ptr)
+            : sptr<fxbase>{ std::make_shared<fxwrapper<fx<char>, fxbase>>(script_ptr) }
+        { }
     };
 
     using wook = wptr<fxbase>;
@@ -226,7 +249,13 @@ namespace netxs::events
         template<class Arg>
         auto _subscribe(si32 Tier, fmap& reactor, hint event, fx<Arg>&& proc)
         {
-            auto proc_ptr = hook{ std::make_shared<fxwrapper<Arg, fxbase>>(std::move(proc)) };
+            auto proc_ptr = hook{ ptr::shared<fxwrapper<Arg, fxbase>>(std::move(proc)) };
+            _subscribe_copy(Tier, reactor, event, proc_ptr);
+            return proc_ptr;
+        }
+        auto _subscribe(si32 Tier, fmap& reactor, hint event, sptr<text> script_ptr)
+        {
+            auto proc_ptr = hook{ ptr::shared<fxwrapper<char, fxbase>>(script_ptr) };
             _subscribe_copy(Tier, reactor, event, proc_ptr);
             return proc_ptr;
         }
@@ -312,7 +341,7 @@ namespace netxs::events
                     {
                         auto& state = queue.back().second; // queue can be reallocated.
                         state = callstate::proceed;
-                        fx_ptr->call(param);
+                        fx_ptr->call(lua, param);
                     }
                 }
                 while (queue.back().second/*state*/ != callstate::fullstop && ++iter != tail);
@@ -396,6 +425,7 @@ namespace netxs::events
             // Use new/delete to be able lock before destruction.
             auto inst = std::shared_ptr<T>(new T(std::forward<Args>(args)...), [](T* inst)
                                                                                {
+                                                                                    //todo form Lua context
                                                                                     auto& indexer = inst->indexer;
                                                                                     auto lock = indexer.sync(); // Sync with all dtors.
                                                                                     auto id = inst->id;
@@ -612,35 +642,35 @@ namespace netxs::events
             auto lock = indexer.sync();
             sensors.push_back(indexer._subscribe(Tier, reactor, Event::id, std::move(handler)));
         }
-        void submit_generic(si32 Tier, si32 event_id, sptr<text> script_ptr) // Generic event handler. //todo set script body instead of fx<char>
+        //todo unify
+        void submit_generic(si32 Tier, si32 event_id, auto&& fx_or_script_ptr)
         {
             auto lock = indexer.sync();
-            auto handler = fx<char>{ [&, script_ptr](auto& n)
-            {
-                auto& t = *reinterpret_cast<time*>(&n);
-                log("calling script: n=%% ", utf::to_hex_0x(t.time_since_epoch().count()), ansi::hi(*script_ptr));
-            }};
-            sensors.push_back(indexer._subscribe(Tier, reactor, event_id, std::move(handler)));
+            sensors.emplace_back(indexer._subscribe(Tier, reactor, event_id, std::move(fx_or_script_ptr)));
         }
+        void submit_generic(si32 Tier, si32 event_id, subs& tokens, auto&& fx_or_script_ptr)
+        {
+            auto lock = indexer.sync();
+            tokens.emplace_back(indexer._subscribe(Tier, reactor, event_id, std::move(fx_or_script_ptr)));
+        }
+
         template<class Event, class Arg = Event::type>
         void submit(si32 Tier, Event, hook& token, fx<Arg>&& handler)
         {
             auto lock = indexer.sync();
             token = indexer._subscribe(Tier, reactor, Event::id, std::move(handler));
         }
-        template<class Event>
-        void dup_handler(si32 Tier, Event, hook& token)
+        void dup_handler(si32 Tier, hint event_id, hook& token)
         {
             auto lock = indexer.sync();
-            indexer._subscribe_copy(Tier, reactor, Event::id, token);
+            indexer._subscribe_copy(Tier, reactor, event_id, token);
         }
-        template<class Event>
-        void dup_handler(si32 Tier, Event)
+        void dup_handler(si32 Tier, hint event_id)
         {
             auto lock = indexer.sync();
             if (sensors.size())
             {
-                indexer._subscribe_copy(Tier, reactor, Event::id, sensors.back());
+                indexer._subscribe_copy(Tier, reactor, event_id, sensors.back());
             }
         }
         // bell: .
