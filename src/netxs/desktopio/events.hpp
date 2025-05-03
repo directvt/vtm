@@ -140,6 +140,11 @@ namespace netxs::events
         virtual ~fxbase() = default;
 
         template<class Arg>
+        auto& get_inst()
+        {
+            return *static_cast<fxwrapper<Arg, fxbase>*>(this);
+        }
+        template<class Arg>
         void call(auto lua, Arg& param)
         {
             if (script_ptr)
@@ -170,7 +175,7 @@ namespace netxs::events
             }
             else
             {
-                auto& proc = *static_cast<fxwrapper<Arg, fxbase>*>(this);
+                auto& proc = get_inst<Arg>();
                 proc(param);
             }
         }
@@ -671,6 +676,47 @@ namespace netxs::events
             if (sensors.size())
             {
                 indexer._subscribe_copy(Tier, reactor, event_id, sensors.back());
+            }
+        }
+        // bell: Erase all script handlers for the specified event.
+        void erase_script_handlers(si32 tier_id, hint event_id)
+        {
+            auto event_key = event_id | indexer.tier_mask(tier_id);
+            auto& r = tier_id == tier::general ? indexer.general : reactor;
+            auto iter = r.find(event_key);
+            if (iter != r.end())
+            {
+                auto& fx_list = iter->second;
+                // Clear handlers.
+                std::erase_if(fx_list, [&](auto& fx_wptr)
+                {
+                    if (auto fx_sptr = fx_wptr.lock())
+                    {
+                        if (fx_sptr->script_ptr)
+                        {
+                            fx_sptr->script_ptr.reset();
+                            return true; // Erase if exists.
+                        }
+                        return faux;
+                    }
+                    else
+                    {
+                        return true;
+                    }
+                });
+                if (fx_list.empty())
+                {
+                    r.erase(iter);
+                }
+                // Wipe sensors.
+                std::erase_if(sensors, [&](auto& fx_sptr)
+                {
+                    if (!fx_sptr || (!fx_sptr->script_ptr && !fx_sptr->get_inst<char>()))
+                    {
+                        return true; // Erase token if empty.
+                    }
+                    return faux;
+                });
             }
         }
         // bell: .

@@ -785,13 +785,12 @@ namespace netxs::input
                                 if (set_handler)
                                 {
                                     log("Set handler for script: ", ansi::hi(*script_ptr));
-                                    //todo subscribe on sources but with boss.sensors
+                                    //todo subscribe on sources (with boss.sensors?)
                                     boss.bell::submit_generic(tier_id, event_id, script_ptr);
                                 }
                                 else // Reset all script bindings for event_id.
                                 {
-                                    //todo
-                                    //ala handlers.erase(mouse_event_id); // Erase non-interactive (non-script) handlers.
+                                    boss.bell::erase_script_handlers(tier_id, event_id);
                                 }
                             }
                             else
@@ -801,27 +800,16 @@ namespace netxs::input
                         }
                         else if (input::key::is_mouse(k))
                         {
-                            auto mouse_event_id = (binary_chord[0] << 8) | binary_chord[1];
+                            auto event_id = (binary_chord[0] << 8) | binary_chord[1];
                             auto tier_id = is_preview ? tier::mousepreview : tier::mouserelease;
                             if (set_handler)
                             {
-                                //todo subscribe on sources but with boss.sensors
-                                boss.bell::submit_generic(tier_id, mouse_event_id, script_ptr);
+                                //todo subscribe on sources (with boss.sensors?)
+                                boss.bell::submit_generic(tier_id, event_id, script_ptr);
                             }
-                            else // Reset all script bindings for mouse_event_id.
+                            else // Reset all script bindings for event_id.
                             {
-                                auto& handler_list = boss.reactor[mouse_event_id | boss.indexer.tier_mask(tier_id)];
-                                std::erase_if(handler_list, [&](auto& fx_wptr)
-                                {
-                                    if (auto fx_sptr = fx_wptr.lock())
-                                    {
-                                        return !!fx_sptr->script_ptr; // Erase if exists.
-                                    }
-                                    else
-                                    {
-                                        return true;
-                                    }
-                                });
+                                boss.bell::erase_script_handlers(tier_id, event_id);
                             }
                         }
                         else // Keybd events.
