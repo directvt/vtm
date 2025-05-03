@@ -1756,33 +1756,15 @@ namespace netxs::ui
 
             void dispatch(hids& gear, si32 tier_id)
             {
-                auto fire = [&](auto cause)
-                {
-                    auto iter = boss.reactor.find(cause | boss.indexer.tier_mask(tier_id));
-                    if (iter != boss.reactor.end())
-                    {
-                        auto& handler_list = iter->second;
-                        //todo make a copy before call or dispatch on the indexer side
-                        std::erase_if(handler_list, [&](auto& fx_wptr)
-                        {
-                            auto fx_ptr = fx_wptr.lock();
-                            if (fx_ptr)
-                            {
-                                fx_ptr->call(boss.indexer.lua, gear);
-                            }
-                            return !fx_ptr; // Delete rec if faux.
-                        });
-                    }
-                };
-                fire(gear.cause);
+                boss.base::signal(tier_id, gear.cause, gear);
                 auto any_bttn_event = gear.cause & 0xFF00; // Set button_bits = 0.
-                if (gear.cause != any_bttn_event)
+                if (gear && gear.cause != any_bttn_event)
                 {
-                    if (gear) fire(any_bttn_event);
+                    boss.base::signal(tier_id, any_bttn_event, gear);
                 }
-                if (gear.cause != input::key::MouseAny)
+                if (gear && gear.cause != input::key::MouseAny)
                 {
-                    if (gear) fire(input::key::MouseAny);
+                    boss.base::signal(tier_id, input::key::MouseAny, gear);
                 }
             }
 

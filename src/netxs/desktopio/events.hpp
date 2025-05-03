@@ -41,6 +41,13 @@ namespace netxs::events
                                                     "mousepreview"sv,
                                                     "mouserelease"sv,
                                                     "unknown"sv, });
+        static constexpr auto order = std::to_array({ feed::fwd,
+                                                      feed::rev,
+                                                      feed::fwd,
+                                                      feed::rev,
+                                                      feed::fwd,
+                                                      feed::none,
+                                                      feed::none, });
     };
 
     /*************************************************************************************************
@@ -299,11 +306,11 @@ namespace netxs::events
             fxlist.remove_if([&](auto& f){ return f.expired() ? true : (qcopy.emplace_back(f), faux); });
         }
         // auth: .
-        auto _select(si32 Tier, fmap& reactor, hint event, bool reverse_order)
+        auto _select(si32 Tier, fmap& reactor, hint event, feed order)
         {
             auto tiermask = tier_mask(Tier);
             auto head = qcopy.size();
-            if (!reverse_order)
+            if (order == feed::fwd)
             {
                 auto itermask = events::level_mask(event);
                 auto subgroup = event;
@@ -315,7 +322,7 @@ namespace netxs::events
                     _refresh_and_copy(reactor[subgroup | tiermask]);
                 }
             }
-            else
+            else if (order == feed::rev)
             {
                 static constexpr auto mask = hint{ (1 << events::block) - 1 };
                 auto itermask = mask; // Skip root event block.
@@ -328,14 +335,18 @@ namespace netxs::events
                 }
                 while (subgroup != event);
             }
+            else
+            {
+                _refresh_and_copy(reactor[event | tiermask]);
+            }
             auto tail = qcopy.size();
             return std::pair{ head, tail };
         }
         // auth: Calling delegates. Returns the number of active ones.
         void _notify(si32 Tier, fmap& reactor, hint event, auto& param)
         {
-            auto reverse_order = Tier & 0x01;
-            auto [head, tail] = _select(Tier, reactor, event, reverse_order);
+            auto order = tier::order[Tier];
+            auto [head, tail] = _select(Tier, reactor, event, order);
             if (head != tail)
             {
                 queue.emplace_back(event, callstate::not_handled);
