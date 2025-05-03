@@ -851,7 +851,7 @@ namespace netxs::app::vtm
                         auto stop = datetime::now() - start;
                         log(prompt::hall, "Garbage collection",
                             "\n\ttime ", utf::format(stop.count()), "ns",
-                            "\n\tobjs ", bell::indexer.store.size(),
+                            "\n\tobjs ", bell::indexer.objects.size(),
                             "\n\trefs ", ref_count,
                             "\n\tdels ", del_count);
                     }

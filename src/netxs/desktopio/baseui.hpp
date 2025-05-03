@@ -638,18 +638,15 @@ namespace netxs::ui
         {
             auto ref_count = ui64{};
             auto del_count = ui64{};
-            for (auto& [item_id, item_wptr] : bell::indexer.store)
+            for (auto& [item_id, item_wptr] : bell::indexer.objects)
             {
                 if (auto item_ptr = item_wptr.lock())
                 {
                     auto& item = *item_ptr;
-                    bell::indexer._cleanup(item.preview, ref_count, del_count);
-                    bell::indexer._cleanup(item.request, ref_count, del_count);
-                    bell::indexer._cleanup(item.release, ref_count, del_count);
-                    bell::indexer._cleanup(item.anycast, ref_count, del_count);
+                    bell::indexer._cleanup(item.reactor, ref_count, del_count);
                 }
             }
-            bell::indexer._cleanup(general, ref_count, del_count);
+            bell::indexer._cleanup(bell::indexer.general, ref_count, del_count);
             return std::pair{ ref_count, del_count };
         }
         // base: Find the root of the visual tree.
