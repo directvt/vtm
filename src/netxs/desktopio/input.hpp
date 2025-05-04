@@ -764,47 +764,27 @@ namespace netxs::input
             }
             return _get_chord_list();
         }
-        auto keybind(base& boss, qiew chord_str, auto&& script_ref, bool is_preview = faux, txts const& /*sources*/ = {})
+        auto keybind(base& boss, qiew chord_str, auto&& script_body, bool is_preview = faux, txts const& /*sources*/ = {})
         {
             if (!chord_str) return;
             auto chords = input::bindings::get_chords(chord_str);
             if (chords.size())
             {
-                auto set = [&](netxs::sptr<text> script_ptr)
+                auto script_ptr = ptr::shared<script_ref>(boss.location, script_body);    
+                auto set_handler = script_ptr->script_body_ptr && script_ptr->script_body_ptr->size();
+                for (auto& binary_chord : chords) if (binary_chord.size()) // Scripts always store their sensors at the boss side, since the lifetime of base::location depends on the boss.
                 {
-                    auto set_handler = script_ptr && script_ptr->size();
-                    for (auto& binary_chord : chords) if (binary_chord.size())
+                    auto k = (byte)binary_chord.front();
+                    if (input::key::is_generic(k))
                     {
-                        auto k = (byte)binary_chord.front();
-                        if (input::key::is_generic(k))
+                        if (binary_chord.size() == sizeof(hint) + 1)
                         {
-                            if (binary_chord.size() == sizeof(hint) + 1)
-                            {
-                                auto tier_id = k & 0x0F;
-                                auto event_id = netxs::aligned<hint>(binary_chord.data() + 1);
-                                if (set_handler)
-                                {
-                                    log("Set handler for script: ", ansi::hi(*script_ptr));
-                                    //todo subscribe on sources (with boss.sensors?)
-                                    boss.bell::submit_generic(tier_id, event_id, script_ptr);
-                                }
-                                else // Reset all script bindings for event_id.
-                                {
-                                    boss.bell::erase_script_handlers(tier_id, event_id);
-                                }
-                            }
-                            else
-                            {
-                                log(ansi::err("Broken generic event: ", ansi::hi(utf::debase437(binary_chord))));
-                            }
-                        }
-                        else if (input::key::is_mouse(k))
-                        {
-                            auto event_id = (binary_chord[0] << 8) | binary_chord[1];
-                            auto tier_id = is_preview ? tier::mousepreview : tier::mouserelease;
+                            auto tier_id = k & 0x0F;
+                            auto event_id = netxs::aligned<hint>(binary_chord.data() + 1);
                             if (set_handler)
                             {
-                                //todo subscribe on sources (with boss.sensors?)
+                                log("Set handler for script: ", ansi::hi(*(script_ptr->script_body_ptr)));
+                                //todo subscribe on sources (with boss.sensors!)
                                 boss.bell::submit_generic(tier_id, event_id, script_ptr);
                             }
                             else // Reset all script bindings for event_id.
@@ -812,29 +792,38 @@ namespace netxs::input
                                 boss.bell::erase_script_handlers(tier_id, event_id);
                             }
                         }
-                        else // Keybd events.
+                        else
                         {
-                            if (set_handler)
-                            {
-                                auto& [script_ptr_list, preview] = boss.keybd_handlers[binary_chord];
-                                script_ptr_list.emplace_back(script_ptr);
-                                preview = is_preview;
-                            }
-                            else // Reset all bindings for chord.
-                            {
-                                boss.keybd_handlers.erase(binary_chord);
-                            }
+                            log(ansi::err("Broken generic event: ", ansi::hi(utf::debase437(binary_chord))));
                         }
                     }
-                };
-                if constexpr (std::is_same_v<netxs::sptr<text>, std::decay_t<decltype(script_ref)>>)
-                {
-                    set(script_ref);
-                }
-                else // The case it is a plain C-string.
-                {
-                    auto script_ptr = ptr::shared(text{ script_ref });
-                    set(script_ptr);
+                    else if (input::key::is_mouse(k))
+                    {
+                        auto event_id = (binary_chord[0] << 8) | binary_chord[1];
+                        auto tier_id = is_preview ? tier::mousepreview : tier::mouserelease;
+                        if (set_handler)
+                        {
+                            //todo subscribe on sources (with boss.sensors!)
+                            boss.bell::submit_generic(tier_id, event_id, script_ptr);
+                        }
+                        else // Reset all script bindings for event_id.
+                        {
+                            boss.bell::erase_script_handlers(tier_id, event_id);
+                        }
+                    }
+                    else // Keybd events.
+                    {
+                        if (set_handler)
+                        {
+                            auto& [script_ptr_list, preview] = boss.keybd_handlers[binary_chord];
+                            script_ptr_list.emplace_back(script_ptr);
+                            preview = is_preview;
+                        }
+                        else // Reset all bindings for chord.
+                        {
+                            boss.keybd_handlers.erase(binary_chord);
+                        }
+                    }
                 }
             }
         }
@@ -861,10 +850,12 @@ namespace netxs::input
                         boss.base::riseup(tier::request, ui::e2::runscript, gear, true);
                         std::swap(gear.scripting_context_ptr, scripting_context_ptr);
                     }
-                    for (auto& script_ptr : scripts)
+                    for (auto& script_ref_ptr : scripts)
                     {
                         if (!gear.interrupt_key_proc)
                         {
+                            auto script_ptr = script_ref_ptr->script_body_ptr;
+                            //todo apply base::location (use events::auth calling infrastructure)
                             auto temp_script_ptr = std::exchange(gear.script_ptr, script_ptr);
                             auto temp_scripting_context_ptr = std::exchange(gear.scripting_context_ptr, scripting_context_ptr);
                             boss.base::riseup(tier::preview, ui::e2::runscript, gear);

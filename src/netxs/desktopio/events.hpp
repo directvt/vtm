@@ -122,6 +122,21 @@ namespace netxs::events
     }
     template<hint Group, auto Count> constexpr auto subset = _instantiate<Group>(std::make_index_sequence<Count>{});
 
+    struct script_ref
+    {
+        using location_type = std::vector<id_t>;
+        std::reference_wrapper<location_type> location; // Hierarchical location index of the script owner.
+        sptr<text>                            script_body_ptr; // Script body sptr.
+
+        script_ref(location_type& location, sptr<text> script_body_ptr)
+            : location{ location },
+              script_body_ptr{ script_body_ptr }
+        { }
+        script_ref(location_type& location, auto&& script_body_ptr)
+            : script_ref{ location, ptr::shared<text>(script_body_ptr) }
+        { }
+    };
+
     template<class Arg>
     using fx = std::function<void(Arg&)>;
 
@@ -131,17 +146,17 @@ namespace netxs::events
         fxwrapper(fx<Arg>&& proc)
             : fx<Arg>{ std::move(proc) }
         { }
-        fxwrapper(sptr<text> script_ptr)
+        fxwrapper(sptr<script_ref> script_ptr)
             : FxBase{ script_ptr }
         { }
     };
 
     struct fxbase
     {
-        sptr<text> script_ptr;
+        sptr<script_ref> script_ptr;
 
         fxbase() = default;
-        fxbase(sptr<text> script_ptr)
+        fxbase(sptr<script_ref> script_ptr)
             : script_ptr{ script_ptr }
         { }
         virtual ~fxbase() = default;
@@ -154,18 +169,19 @@ namespace netxs::events
         template<class Arg>
         void call(auto lua, Arg& param)
         {
-            if (script_ptr)
+            if (script_ptr && script_ptr->script_body_ptr)
             {
-                auto& script_body = *script_ptr;
+                auto& [location, script_body_ptr] = *script_ptr;
+                auto& script = *script_body_ptr;
                 //todo pass param
                 auto param_ptr = (char*)&param;
                 //::lua_pushnil(param_ptr);
                 //::lua_setglobal(lua, "param");
 
                 //todo make it static indexer::function(script_ptr, param_ptr)
-                log("run script: ", ansi::hi(*script_ptr), " with param: ", utf::to_hex_0x(param_ptr));
+                log("run script: ", ansi::hi(script), " with param: ", utf::to_hex_0x(param_ptr));
                 ::lua_settop(lua, 0);
-                auto error = ::luaL_loadbuffer(lua, script_body.data(), script_body.size(), "script body")
+                auto error = ::luaL_loadbuffer(lua, script.data(), script.size(), "script body")
                           || ::lua_pcall(lua, 0, 0, 0);
                 if (error)
                 {
@@ -180,9 +196,8 @@ namespace netxs::events
                     ::lua_settop(lua, 0);
                 }
             }
-            else
+            else if (auto& proc = get_inst<Arg>())
             {
-                auto& proc = get_inst<Arg>();
                 proc(param);
             }
         }
@@ -199,10 +214,10 @@ namespace netxs::events
         { }
         template<class F>
         hook(F proc)
-            : sptr<fxbase>{ std::make_shared<fxwrapper<ptr::arg0<F>, fxbase>>(std::move(proc)) }
+            : sptr<fxbase>{ ptr::shared<fxwrapper<ptr::arg0<F>, fxbase>>(std::move(proc)) }
         { }
-        hook(sptr<text> script_ptr)
-            : sptr<fxbase>{ std::make_shared<fxwrapper<fx<char>, fxbase>>(script_ptr) }
+        hook(sptr<script_ref> script_ptr)
+            : sptr<fxbase>{ ptr::shared<fxwrapper<fx<char>, fxbase>>(script_ptr) }
         { }
     };
 
@@ -265,7 +280,7 @@ namespace netxs::events
             _subscribe_copy(Tier, reactor, event, proc_ptr);
             return proc_ptr;
         }
-        auto _subscribe(si32 Tier, fmap& reactor, hint event, sptr<text> script_ptr)
+        auto _subscribe(si32 Tier, fmap& reactor, hint event, sptr<script_ref> script_ptr)
         {
             auto proc_ptr = hook{ ptr::shared<fxwrapper<char, fxbase>>(script_ptr) };
             _subscribe_copy(Tier, reactor, event, proc_ptr);
@@ -808,4 +823,6 @@ namespace netxs
     using netxs::events::tier;
     using netxs::events::hook;
     using netxs::events::wook;
+    //using netxs::events::sref;
+    using netxs::events::script_ref;
 }

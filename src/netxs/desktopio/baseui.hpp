@@ -616,7 +616,8 @@ namespace netxs::ui
         si32 family; // base: Object type.
         std::unordered_map<text, netxs::sptr<std::any>, qiew::hash, qiew::equal> fields;
         //todo make scripts precompiled
-        std::unordered_map<text, std::pair<std::list<netxs::sptr<text>>, bool>, qiew::hash, qiew::equal> keybd_handlers; // base: Map<chord, pair<list<shared_ptr<script>>, preview>>.
+        std::unordered_map<text, std::pair<std::list<netxs::sptr<script_ref>>, bool>, qiew::hash, qiew::equal> keybd_handlers; // base: Map<chord, pair<list<sptr<script>>, preview>>.
+        script_ref::location_type location;
 
         template<class T = base>
         auto   This()       { return std::static_pointer_cast<std::remove_reference_t<T>>(shared_from_this()); }
