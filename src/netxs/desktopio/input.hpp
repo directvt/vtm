@@ -1940,8 +1940,10 @@ namespace netxs::input
                 }
                 else
                 {
-                    //todo revise
-                    log("%%Error condition: Clients count is broken, dangling %last_id%", prompt::hids, last_id);
+                    if constexpr (debugmode)
+                    {
+                        log("%%Possible error condition: Client accounting is broken, dangling id=%last_id%", prompt::hids, last_id);
+                    }
                 }
             }
         }
