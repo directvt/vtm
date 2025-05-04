@@ -1748,10 +1748,8 @@ namespace netxs::ui
             base& boss;
             subs  memo;
 
-            sptr soul; // mouse: Boss cannot be removed while it has active gears.
             bool omni; // mouse: Ability to accept all hover events (true) or only directly over the object (faux).
             si32 rent; // mouse: Active gears count.
-            si32 full; // mouse: All gears count. Counting to keep the entire chain of links in the visual tree.
             std::unordered_map<si32, subs> dragmemo; // mouse: Drag subs.
 
             void dispatch(si32 tier_id, hids& gear)
@@ -1777,8 +1775,7 @@ namespace netxs::ui
             mouse(base& boss, bool take_all_events = true)
                 : boss{ boss            },
                   omni{ take_all_events },
-                  rent{ 0               },
-                  full{ 0               }
+                  rent{ 0               }
             {
                 // pro::mouse: Forward preview to all parents.
                 boss.LISTEN(tier::preview, input::events::mouse, gear, memo)
@@ -1815,10 +1812,6 @@ namespace netxs::ui
                 // pro::mouse: Notify about change in number of mouse hovering clients.
                 boss.on(input::key::MouseEnter, memo, [&](hids& gear) // Notify when the number of clients is positive.
                 {
-                    if (!full++)
-                    {
-                        soul = boss.This();
-                    }
                     if (gear.direct<true>(boss.bell::id) || omni)
                     {
                         if (!rent++)
@@ -1837,11 +1830,6 @@ namespace netxs::ui
                             boss.base::signal(tier::release, e2::form::state::mouse, rent);
                         }
                         boss.base::signal(tier::release, e2::form::state::hover, rent);
-                    }
-                    if (!--full)
-                    {
-                        soul->base::strike();
-                        soul.reset();
                     }
                 });
                 boss.LISTEN(tier::request, e2::form::state::mouse, state, memo)
@@ -1869,15 +1857,6 @@ namespace netxs::ui
                 };
             }
 
-            void reset()
-            {
-                auto lock = boss.bell::sync();
-                if (full)
-                {
-                    full = 0;
-                    soul.reset();
-                }
-            }
             void take_all_events(bool b)
             {
                 omni = b;

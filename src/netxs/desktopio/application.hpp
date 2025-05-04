@@ -979,7 +979,6 @@ namespace netxs::app::shared
         gate.launch();
         gate.bell::dequeue();
         config_lock.lock();
-        gate.base::plugin<pro::mouse>().reset();
         gate_ptr.reset();
         server->shut();
         client->shut();

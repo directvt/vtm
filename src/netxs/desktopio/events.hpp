@@ -492,7 +492,6 @@ namespace netxs::events
         void stop()
         {
             agent.stop();
-            auto lock = sync();
             quartz.stop();
         }
         // auth: .

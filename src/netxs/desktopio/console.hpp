@@ -1010,7 +1010,6 @@ namespace netxs::ui
                 this->base::signal(tier::anycast, e2::form::proceed::quit::one, fast);
                 disconnect();
                 paint.stop();
-                mouse.reset(); // Reset active mouse clients to avoid hanging pointers.
                 bell::sensors.clear();
             };
             LISTEN(tier::preview, e2::conio::quit, deal) // Disconnect.

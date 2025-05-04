@@ -632,8 +632,8 @@ namespace netxs::ui
         auto parent()       { return father.lock();        }
         void ruined(bool s) { wasted = s;                  }
         auto ruined() const { return wasted;               }
-        // base: Cleanup weak references.
-        auto cleanup()
+        // base: Cleanup expired weak references.
+        auto _cleanup()
         {
             auto ref_count = ui64{};
             auto del_count = ui64{};
@@ -647,6 +647,22 @@ namespace netxs::ui
             }
             bell::indexer._cleanup(bell::indexer.general, ref_count, del_count);
             return std::pair{ ref_count, del_count };
+        }
+        // base: Cleanup expired weak references.
+        void cleanup()
+        {
+            if constexpr (debugmode)
+            {
+                auto start = datetime::now();
+                auto [ref_count, del_count] = base::_cleanup();
+                auto stop = datetime::now() - start;
+                log(prompt::base, "Cleanup expired weak references",
+                    "\n\ttime ", utf::format(stop.count()), "ns",
+                    "\n\tobjs ", bell::indexer.objects.size(),
+                    "\n\trefs ", ref_count,
+                    "\n\tdels ", del_count);
+            }
+            else base::_cleanup();
         }
         // base: Find the root of the visual tree.
         auto gettop()

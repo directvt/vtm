@@ -835,7 +835,6 @@ namespace netxs::app::vtm
                 });
                 LISTEN(tier::release, e2::form::proceed::quit::any, fast)
                 {
-                    mouse.reset();
                     base::detach(); // The object kills itself.
                 };
                 LISTEN(tier::general, e2::conio::quit, deal) // Desktop shutdown.
@@ -844,18 +843,7 @@ namespace netxs::app::vtm
                 };
                 LISTEN(tier::release, e2::form::upon::vtree::detached, parent_ptr)
                 {
-                    if constexpr (debugmode)
-                    {
-                        auto start = datetime::now();
-                        auto [ref_count, del_count] = base::cleanup();
-                        auto stop = datetime::now() - start;
-                        log(prompt::hall, "Garbage collection",
-                            "\n\ttime ", utf::format(stop.count()), "ns",
-                            "\n\tobjs ", bell::indexer.objects.size(),
-                            "\n\trefs ", ref_count,
-                            "\n\tdels ", del_count);
-                    }
-                    else base::cleanup();
+                    base::cleanup();
                 };
 
                 auto& maximize_token = base::field<subs>();
@@ -1998,8 +1986,6 @@ namespace netxs::app::vtm
             async.stop(); // Wait until all users and monitors are disconnected.
             if constexpr (debugmode) log(prompt::hall, "Session control stopped");
             bell::dequeue(); // Wait until all cleanups are completed.
-            auto lock = bell::sync();
-            base::plugin<pro::mouse>().reset(); // Release the captured mouse.
         }
     };
 }
