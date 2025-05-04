@@ -985,13 +985,16 @@ namespace netxs::app::vtm
                 {
                     auto area = base::region;
                     auto next = base::holder;
-                    if (++next != world.base::subset.end() && !area.trim((*next)->region))
+                    if (next != world.base::subset.end())
                     {
-                        world.base::subset.erase(base::holder);
-                        while (++next != world.base::subset.end() && !area.trim((*next)->region))
-                        { }
-                        base::holder = world.base::subset.insert(next, this->This());
-                        base::strike();
+                        if (++next != world.base::subset.end() && !area.trim((*next)->region))
+                        {
+                            world.base::subset.erase(base::holder);
+                            while (++next != world.base::subset.end() && !area.trim((*next)->region))
+                            { }
+                            base::holder = world.base::subset.insert(next, this->This());
+                            base::strike();
+                        }
                     }
                 };
                 LISTEN(tier::release, e2::form::state::mouse, state)
