@@ -141,7 +141,7 @@ namespace netxs::app::tile
                                 if ((gear.cause & 0x00FF) && !gear.dragged) // Button events only.
                                 if (auto data_ptr = data_shadow.lock())
                                 {
-                                    data_ptr->base::signal(tier::release, input::events::mouse::post, gear);
+                                    data_ptr->base::signal(tier::release, input::events::mouse, gear);
                                     gear.dismiss();
                                 }
                             });

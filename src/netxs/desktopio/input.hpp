@@ -14,16 +14,12 @@ namespace netxs::events::userland
             EVENT_XS( die      , input::hids ), // release::global: Notify about the mouse controller is gone. Signal to delete gears inside dtvt-objects.
             EVENT_XS( halt     , input::hids ), // release::global: Notify about the mouse controller is outside.
             EVENT_XS( clipboard, input::hids ), // release/request: Set/get clipboard data.
+            EVENT_XS( mouse    , input::hids ), // Mouse related events.
             GROUP_XS( keybd    , input::hids ), // Keybd related events.
-            GROUP_XS( mouse    , input::hids ), // Mouse related events.
             GROUP_XS( focus    , input::foci ), // Focus related events.
             GROUP_XS( device   , input::hids ), // Primary device event group for fast forwarding.
 
             SUBSET_XS( keybd )
-            {
-                EVENT_XS( post, input::hids ),
-            };
-            SUBSET_XS( mouse )
             {
                 EVENT_XS( post, input::hids ),
             };
@@ -1924,7 +1920,7 @@ namespace netxs::input
                 }
                 mouse::coord += offset;
                 mouse::click += offset;
-                object_ptr->base::signal(Tier, input::events::mouse::post, *this);
+                object_ptr->base::signal(Tier, input::events::mouse, *this);
                 mouse::coord = saved_coord;
                 mouse::click = saved_click;
                 mouse::cause = saved_cause;
@@ -1938,7 +1934,7 @@ namespace netxs::input
                 {
                     auto saved_start = std::exchange(mouse::start, start_id);
                     auto saved_cause = std::exchange(mouse::cause, input::key::MouseLeave);
-                    last->base::signal(tier::release, input::events::mouse::post, *this);
+                    last->base::signal(tier::release, input::events::mouse, *this);
                     mouse::start = saved_start;
                     mouse::cause = saved_cause;
                 }
@@ -1965,7 +1961,7 @@ namespace netxs::input
                 // acquired by children.
                 auto start_leave = std::exchange(mouse::start, 0); // The first one to track the mouse will assign itself by calling gear.direct<true>(id).
                 auto saved_cause = std::exchange(mouse::cause, input::key::MouseEnter);
-                boss.base::signal(tier::release, input::events::mouse::post, *this);
+                boss.base::signal(tier::release, input::events::mouse, *this);
                 mouse_leave(mouse::hover, start_leave);
                 mouse::hover = boss.id;
                 mouse::cause = saved_cause;
@@ -1992,16 +1988,6 @@ namespace netxs::input
             mouse_disabled = true;
             keybd_disabled = true;
         }
-        void okay(base& boss)
-        {
-            if (boss.id == relay)
-            {
-                redirect_mouse_focus(boss);
-                auto saved_cause = mouse::cause;
-                boss.base::signal(tier::release, input::events::mouse::post, *this);
-                mouse::cause = saved_cause;
-            }
-        }
         void fire(hint new_cause)//, si32 new_index = mouse::noactive)
         {
             if (mouse_disabled) return;
@@ -2023,7 +2009,7 @@ namespace netxs::input
 
                     if (alive && !captured()) // Pass unhandled event to the gate.
                     {
-                        owner.base::signal(tier::release, input::events::mouse::post, *this);
+                        owner.base::signal(tier::release, input::events::mouse, *this);
                     }
                 }
                 else mouse::setfree();
@@ -2031,7 +2017,7 @@ namespace netxs::input
             else
             {
                 if (!tooltip_stop) tooltip_recalc(new_cause);
-                owner.base::signal(tier::preview, input::events::mouse::post, *this);
+                owner.base::signal(tier::preview, input::events::mouse, *this);
 
                 if (!alive) return;
 
@@ -2045,7 +2031,7 @@ namespace netxs::input
                     if (!alive) return;
                 }
 
-                owner.base::signal(tier::release, input::events::mouse::post, *this); // Pass unhandled event to the gate.
+                owner.base::signal(tier::release, input::events::mouse, *this); // Pass unhandled event to the gate.
             }
         }
         bool fire_fast()

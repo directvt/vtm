@@ -537,7 +537,7 @@ namespace netxs::events
     };
     auto& rtti()
     {
-        static auto rttidata = std::unordered_map<text, metadata_t, qiew::hash, qiew::equal>{};
+        static auto rttidata = std::unordered_map<text, metadata_t, qiew::hash, qiew::equal>{ 512 };
         return rttidata;
     }
     auto rtti(hint event_id, qiew event, qiew param_typename)

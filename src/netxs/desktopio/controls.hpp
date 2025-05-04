@@ -1756,15 +1756,19 @@ namespace netxs::ui
 
             void dispatch(si32 tier_id, hids& gear)
             {
+                auto saved_cause = gear.cause;
                 boss.base::signal(tier_id, gear.cause, gear);
+                gear.cause = saved_cause;
                 auto any_bttn_event = gear.cause & 0xFF00; // Set button_bits = 0.
                 if (gear && gear.cause != any_bttn_event)
                 {
                     boss.base::signal(tier_id, any_bttn_event, gear);
+                    gear.cause = saved_cause;
                 }
                 if (gear && gear.cause != input::key::MouseAny)
                 {
                     boss.base::signal(tier_id, input::key::MouseAny, gear);
+                    gear.cause = saved_cause;
                 }
             }
 
@@ -1777,29 +1781,23 @@ namespace netxs::ui
                   full{ 0               }
             {
                 // pro::mouse: Forward preview to all parents.
-                boss.LISTEN(tier::preview, input::events::mouse::any, gear, memo)
+                boss.LISTEN(tier::preview, input::events::mouse, gear, memo)
                 {
+                    auto offset = boss.base::coor() + boss.base::intpad.corner();
+                    gear.pass(tier::preview, boss.base::parent(), offset);
                     dispatch(tier::mousepreview, gear);
-                    if (gear)
+                    if (gear && boss.id == gear.relay)
                     {
-                        auto offset = boss.base::coor() + boss.base::intpad.corner();
-                        gear.pass(tier::preview, boss.base::parent(), offset);
-                        if (gear)
-                        {
-                            gear.okay(boss);
-                            return;
-                        }
+                        gear.redirect_mouse_focus(boss);
+                        auto saved_cause = gear.cause;
+                        boss.base::signal(tier::release, input::events::mouse, gear);
+                        gear.cause = saved_cause;
                     }
-                    boss.bell::expire();
                 };
                 // pro::mouse: Forward all not expired mouse events to all parents.
-                boss.LISTEN(tier::release, input::events::mouse::post, gear, memo)
+                boss.LISTEN(tier::release, input::events::mouse, gear, memo)
                 {
                     dispatch(tier::mouserelease, gear);
-                    if (!gear)
-                    {
-                        boss.bell::expire();
-                    }
                     if ((gear && !gear.captured()) || gear.cause == input::key::MouseEnter || gear.cause == input::key::MouseLeave)
                     {
                         auto offset = boss.base::coor() + boss.base::intpad.corner();
@@ -3198,15 +3196,15 @@ namespace netxs::ui
                 {
                     base::location = parent_ptr->location;
                     base::location.emplace_back(bell::id);
-                    if constexpr (debugmode)
-                    {
-                        auto iii= ansi::add("location id=0");
-                        for (auto i : location)
-                        {
-                            iii.add("-", i);
-                        }
-                        log(iii);
-                    }
+                    //if constexpr (debugmode)
+                    //{
+                    //    auto iii= ansi::add("location id=0");
+                    //    for (auto i : location)
+                    //    {
+                    //        iii.add("-", i);
+                    //    }
+                    //    log(iii);
+                    //}
                 }
             };
         }
