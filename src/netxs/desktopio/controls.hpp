@@ -3191,7 +3191,25 @@ namespace netxs::ui
         form()
             : base{ ui::tui_domain() },
               mouse{ base::plugin<pro::mouse>() }
-        { }
+        {
+            LISTEN(tier::anycast, e2::form::upon::started, context_keeper_ptr)
+            {
+                if (auto parent_ptr = base::parent()) // Update hierarchy location index on every reattachement.
+                {
+                    base::location = parent_ptr->location;
+                    base::location.emplace_back(bell::id);
+                    if constexpr (debugmode)
+                    {
+                        auto iii= ansi::add("location id=0");
+                        for (auto i : location)
+                        {
+                            iii.add("-", i);
+                        }
+                        log(iii);
+                    }
+                }
+            };
+        }
     };
 
     // controls: Splitter.
