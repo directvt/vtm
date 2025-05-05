@@ -1676,6 +1676,20 @@ namespace netxs::utf
         debase437bytes(utf8, buff);
         return buff;
     }
+    // utf: Replace all bytes with colored blocks.
+    auto bytes2shades(qiew utf8)
+    {
+        auto buff = text{};
+        auto step = text{};
+        buff += "\x1b[#{\x1b[38:2:0:128:0m";
+        for (byte c : utf8)
+        {
+            step = std::to_string(c);
+            buff += "\x1b[48:2:32:" + step + ":32m░";
+        }
+        buff += "\x1b[#}";
+        return buff;
+    }
     // utf: Return a string without control chars (replace all ctrls with "cp437" glyphs).
     auto debase437(qiew utf8)
     {

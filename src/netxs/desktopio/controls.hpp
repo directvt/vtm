@@ -3177,10 +3177,10 @@ namespace netxs::ui
                     base::location.emplace_back(this);
                     if constexpr (debugmode)
                     {
-                        auto iii= ansi::add("location id");
+                        auto iii = ansi::add("location id");
                         for (auto i : location)
                         {
-                            iii.add("-", ansi::hi(utf::debase437bytes(view{ (char*)&i, sizeof(void*) })));
+                            iii.add("-", utf::bytes2shades(view{ (char*)&i, sizeof(void*) }));
                         }
                         log(iii);
                     }
