@@ -59,12 +59,20 @@ namespace netxs::utf
         return std::apply([](auto... c){ return std::array<char, sizeof...(c)>{ c... }; }, std::tuple_cat(std::tuple_cat(utf::_str2array{ strs }.array)...));
     }
 
-    static constexpr auto c0_view = { "·"sv, "☺"sv, "☻"sv, "♥"sv, "♦"sv, "♣"sv, "♠"sv, "•"sv, "◘"sv, "○"sv, "◙"sv, "♂"sv, "♀"sv, "♪"sv, "♫"sv, "☼"sv,
-                                      "►"sv, "◄"sv, "↕"sv, "‼"sv, "¶"sv, "§"sv, "▬"sv, "↨"sv, "↑"sv, "↓"sv, "→"sv, "←"sv, "∟"sv, "↔"sv, "▲"sv, "▼"sv,
-                                      "⌂"sv };
-    static constexpr auto c0_wchr = { L'\0',L'☺', L'☻', L'♥', L'♦', L'♣', L'♠', L'•', L'◘', L'○', L'◙', L'♂', L'♀', L'♪', L'♫', L'☼',
-                                      L'►', L'◄', L'↕', L'‼', L'¶', L'§', L'▬', L'↨', L'↑', L'↓', L'→', L'←', L'∟', L'↔', L'▲', L'▼',
-                                      L'⌂' };
+    static constexpr auto c0_view = std::to_array({ "·"sv, "☺"sv, "☻"sv, "♥"sv, "♦"sv, "♣"sv, "♠"sv, "•"sv, "◘"sv, "○"sv, "◙"sv, "♂"sv, "♀"sv, "♪"sv, "♫"sv, "☼"sv,
+                                                    "►"sv, "◄"sv, "↕"sv, "‼"sv, "¶"sv, "§"sv, "▬"sv, "↨"sv, "↑"sv, "↓"sv, "→"sv, "←"sv, "∟"sv, "↔"sv, "▲"sv, "▼"sv,
+                                                    "⌂"sv });
+    static constexpr auto c0_wchr = std::to_array({ L'\0',L'☺', L'☻', L'♥', L'♦', L'♣', L'♠', L'•', L'◘', L'○', L'◙', L'♂', L'♀', L'♪', L'♫', L'☼',
+                                                    L'►', L'◄', L'↕', L'‼', L'¶', L'§', L'▬', L'↨', L'↑', L'↓', L'→', L'←', L'∟', L'↔', L'▲', L'▼',
+                                                    L'⌂' });
+    static constexpr auto ext_437 = std::to_array({ "Ç"sv, "ü"sv, "é"sv, "â"sv, "ä"sv, "à"sv, "å"sv, "ç"sv, "ê"sv, "ë"sv, "è"sv, "ï"sv, "î"sv, "ì"sv, "Ä"sv, "Å"sv,
+                                                    "É"sv, "æ"sv, "Æ"sv, "ô"sv, "ö"sv, "ò"sv, "û"sv, "ù"sv, "ÿ"sv, "Ö"sv, "Ü"sv, "¢"sv, "£"sv, "¥"sv, "₧"sv, "ƒ"sv,
+                                                    "á"sv, "í"sv, "ó"sv, "ú"sv, "ñ"sv, "Ñ"sv, "ª"sv, "º"sv, "¿"sv, "⌐"sv, "¬"sv, "½"sv, "¼"sv, "¡"sv, "«"sv, "»"sv,
+                                                    "░"sv, "▒"sv, "▓"sv, "│"sv, "┤"sv, "╡"sv, "╢"sv, "╖"sv, "╕"sv, "╣"sv, "║"sv, "╗"sv, "╝"sv, "╜"sv, "╛"sv, "┐"sv,
+                                                    "└"sv, "┴"sv, "┬"sv, "├"sv, "─"sv, "┼"sv, "╞"sv, "╟"sv, "╚"sv, "╔"sv, "╩"sv, "╦"sv, "╠"sv, "═"sv, "╬"sv, "╧"sv,
+                                                    "╨"sv, "╤"sv, "╥"sv, "╙"sv, "╘"sv, "╒"sv, "╓"sv, "╫"sv, "╪"sv, "┘"sv, "┌"sv, "█"sv, "▄"sv, "▌"sv, "▐"sv, "▀"sv,
+                                                    "α"sv, "ß"sv, "Γ"sv, "π"sv, "Σ"sv, "σ"sv, "µ"sv, "τ"sv, "Φ"sv, "Θ"sv, "Ω"sv, "δ"sv, "∞"sv, "φ"sv, "ε"sv, "∩"sv,
+                                                    "≡"sv, "±"sv, "≥"sv, "≤"sv, "⌠"sv, "⌡"sv, "÷"sv, "≈"sv, "°"sv, "∙"sv, "·"sv, "√"sv, "ⁿ"sv, "²"sv, "■"sv, "·"sv, });
     static constexpr auto replacement_code = utfx{ 0x0000'FFFD };
     static constexpr auto vs04_code = utfx{ 0x0000'FE03 };
     static constexpr auto vs05_code = utfx{ 0x0000'FE04 };
@@ -1641,13 +1649,32 @@ namespace netxs::utf
             do
             {
                 auto c = next.cdpoint;
-                if (c < 0x20 || c == 0x7F) buff += *(utf::c0_view.begin() + std::min<size_t>(c, utf::c0_view.size() - 1));
-                else                       buff += view(code.textptr, code.utf8len);
+                     if (c < 0x20)  buff += utf::c0_view[c];
+                else if (c == 0x7F) buff += utf::c0_view[0x20];
+                else                buff += view(code.textptr, code.utf8len);
                 code.step();
                 next = code.take();
             }
             while (code);
         }
+    }
+    // utf: Replace all bytes with "cp437" glyphs.
+    auto debase437bytes(qiew utf8, text& buff)
+    {
+        for (byte c : utf8)
+        {
+                 if (c < 0x20)  buff += utf::c0_view[c];
+            else if (c == 0x7F) buff += utf::c0_view[0x20];
+            else if (c < 0x7F)  buff += c;
+            else                buff += utf::ext_437[c - 0x7F];
+        }
+    }
+    // utf: Replace all bytes with "cp437" glyphs.
+    auto debase437bytes(qiew utf8)
+    {
+        auto buff = text{};
+        debase437bytes(utf8, buff);
+        return buff;
     }
     // utf: Return a string without control chars (replace all ctrls with "cp437" glyphs).
     auto debase437(qiew utf8)

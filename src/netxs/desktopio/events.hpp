@@ -124,7 +124,7 @@ namespace netxs::events
 
     struct script_ref
     {
-        using location_type = std::vector<id_t>;
+        using location_type = std::vector<void*>;
         std::reference_wrapper<location_type> location; // Hierarchical location index of the script owner.
         sptr<text>                            script_body_ptr; // Script body sptr.
 

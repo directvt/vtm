@@ -1943,9 +1943,10 @@ struct impl : consrv
         }
         auto decode_char(utfx code)
         {
-                 if (code < 0x20 || code == 0x7F) code = *(utf::c0_wchr.begin() + std::min<size_t>(code, utf::c0_wchr.size() - 1));
-            else if (code < OEMtoBMP.size())      code = OEMtoBMP[code];
-            else                                  code = defchar();
+                 if (code <  0x20)           code = utf::c0_wchr[code];
+            else if (code == 0x7F)           code = utf::c0_wchr[0x20];
+            else if (code < OEMtoBMP.size()) code = OEMtoBMP[code];
+            else                             code = defchar();
             return (wchr)code;
         }
         auto decode_char(byte lead, byte next)
@@ -1966,10 +1967,8 @@ struct impl : consrv
         }
         auto decode(utfx code, text& toUTF8)
         {
-            if (code < 0x20 || code == 0x7F)
-            {
-                toUTF8 += *(utf::c0_view.begin() + std::min<size_t>(code, utf::c0_view.size() - 1));
-            }
+                 if (code <  0x20) toUTF8 += utf::c0_view[code];
+            else if (code == 0x7F) toUTF8 += utf::c0_view[0x20];
             else
             {
                 if (codepage != CP_UTF8)

@@ -3174,16 +3174,16 @@ namespace netxs::ui
                 if (auto parent_ptr = base::parent()) // Update hierarchy location index on every reattachement.
                 {
                     base::location = parent_ptr->location;
-                    base::location.emplace_back(bell::id);
-                    //if constexpr (debugmode)
-                    //{
-                    //    auto iii= ansi::add("location id=0");
-                    //    for (auto i : location)
-                    //    {
-                    //        iii.add("-", i);
-                    //    }
-                    //    log(iii);
-                    //}
+                    base::location.emplace_back(this);
+                    if constexpr (debugmode)
+                    {
+                        auto iii= ansi::add("location id");
+                        for (auto i : location)
+                        {
+                            iii.add("-", ansi::hi(utf::debase437bytes(view{ (char*)&i, sizeof(void*) })));
+                        }
+                        log(iii);
+                    }
                 }
             };
         }
