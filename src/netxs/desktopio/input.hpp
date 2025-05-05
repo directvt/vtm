@@ -984,18 +984,17 @@ namespace netxs::input
         fp2d prime{}; // mouse: System mouse cursor coordinates.
         fp2d coord{}; // mouse: Relative mouse cursor coordinates.
         fp2d click{}; // mouse: Click position on drag start. Should be used in area selection (not dragging).
-        fp32 accum{}; // mouse: Mouse motion accumulator to delay mouse drag.
-        tail delta{}; // mouse: History of mouse movements for a specified period of time.
-        bool reach{}; // mouse: Has the event tree relay reached the mouse event target.
+        fp32 accum{}; // mouse: Mouse motion accumulator to deffer the mouse drag a bit.
+        tail delta{}; // mouse: Mouse movements history.
         bool nodbl{}; // mouse: Whether single click event processed (to prevent double clicks).
-        bool hzwhl{}; // mouse: If true: Horizontal scrolling. If faux: Vertical scrolling.
+        bool hzwhl{}; // mouse: True: Horizontal scrolling. Faux: Vertical scrolling.
         fp32 whlfp{}; // mouse: Scroll delta in float units (lines).
         si32 whlsi{}; // mouse: Scroll delta in integer units (lines).
-        id_t swift{}; // mouse: Delegate's ID of the current mouse owner.
-        id_t hover{}; // mouse: Hover control ID.
-        id_t start{}; // mouse: Initiator control ID.
-        hint cause{}; // mouse: Current event id.
-        hist stamp{}; // mouse: Recorded intervals between successive button presses to track double-clicks.
+        id_t swift{}; // mouse: Mouse capturer id.
+        id_t hover{}; // mouse: Hovered object id.
+        id_t start{}; // mouse: Mouse event initiator id.
+        hint cause{}; // mouse: Current event.
+        hist stamp{}; // mouse: Recorded intervals between successive button presses to track multi-clicks.
         span delay{}; // mouse: Double-click threshold.
         sysmouse m_sys{}; // mouse: Device state.
         sysmouse m_sav{}; // mouse: Previous device state.
@@ -1227,29 +1226,6 @@ namespace netxs::input
             assert(button >= 0 && button < buttons::count);
             auto bttn_bits = buttons::bttn_id[button];
             return stamp[bttn_bits].count + 1;
-        }
-        // mouse: Initiator of visual tree informing about mouse enters/leaves.
-        template<bool Entered>
-        bool direct(id_t asker)
-        {
-            if constexpr (Entered)
-            {
-                if (!start) // The first one to track the mouse will assign itslef to be a root.
-                {
-                    start = asker;
-                    return true;
-                }
-                return start == asker;
-            }
-            else
-            {
-                if (start == asker)
-                {
-                    start = 0;
-                    return true;
-                }
-                return faux;
-            }
         }
         // mouse: Is the mouse captured by asker?
         bool captured(id_t asker) const
@@ -1607,7 +1583,6 @@ namespace netxs::input
             };
         }
 
-        id_t        relay; // hids: Mouse routing call stack initiator.
         base&       owner;
         core const& idmap; // hids: Area of the main form. Primary or relative region of the mouse coverage.
         bool        alive; // hids: Whether event processing is complete.
@@ -1649,7 +1624,6 @@ namespace netxs::input
 
         hids(auth& indexer, base& owner, core const& idmap)
             : base{ indexer },
-              relay{ 0 },
               owner{ owner },
               idmap{ idmap },
               alive{ faux },
@@ -2016,20 +1990,23 @@ namespace netxs::input
             {
                 if (!tooltip_stop) tooltip_recalc(new_cause);
                 owner.base::signal(tier::preview, input::events::mouse, *this);
-
                 if (!alive) return;
 
                 auto next = idmap.link(mouse::coord);
                 if (next != owner.id)
                 {
-                    relay = next;
-                    pass(tier::preview, bell::getref<base>(next), offset, true);
-                    relay = 0;
-
-                    if (!alive) return;
+                    auto next_ptr = bell::getref<base>(next);
+                    pass(tier::preview, next_ptr, offset, true);
+                    if (alive && next_ptr)
+                    {
+                        redirect_mouse_focus(*next_ptr);
+                        pass(tier::release, next_ptr, offset, true);
+                    }
                 }
-
-                owner.base::signal(tier::release, input::events::mouse, *this); // Pass unhandled event to the gate.
+                if (alive)
+                {
+                    owner.base::signal(tier::release, input::events::mouse, *this); // Pass unhandled event to the gate.
+                }
             }
         }
         bool fire_fast()

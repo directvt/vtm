@@ -1815,13 +1815,6 @@ namespace netxs::ui
                     auto offset = boss.base::coor() + boss.base::intpad.corner();
                     gear.pass(tier::preview, boss.base::parent(), offset);
                     dispatch(tier::mousepreview, gear);
-                    if (gear && boss.id == gear.relay)
-                    {
-                        gear.redirect_mouse_focus(boss);
-                        auto saved_cause = gear.cause;
-                        boss.base::signal(tier::release, input::events::mouse, gear);
-                        gear.cause = saved_cause;
-                    }
                 };
                 // pro::mouse: Forward all not expired mouse events to all parents.
                 boss.LISTEN(tier::release, input::events::mouse, gear, memo)
@@ -1844,8 +1837,10 @@ namespace netxs::ui
                 // pro::mouse: Notify about change in number of mouse hovering clients.
                 boss.on(input::key::MouseEnter, memo, [&](hids& gear) // Notify when the number of clients is positive.
                 {
-                    if (gear.direct<true>(boss.bell::id) || omni)
+                    if (!gear.start) gear.start = boss.bell::id;
+                    if (gear.start == boss.bell::id || omni)
                     {
+                        gear.start = boss.bell::id;
                         if (!rent++)
                         {
                             boss.base::signal(tier::release, e2::form::state::mouse, rent);
@@ -1855,8 +1850,9 @@ namespace netxs::ui
                 });
                 boss.on(input::key::MouseLeave, memo, [&](hids& gear) // Notify when the number of clients is zero.
                 {
-                    if (gear.direct<faux>(boss.bell::id) || omni)
+                    if (gear.start == boss.bell::id || omni)
                     {
+                        gear.start = {};
                         if (!--rent)
                         {
                             boss.base::signal(tier::release, e2::form::state::mouse, rent);
