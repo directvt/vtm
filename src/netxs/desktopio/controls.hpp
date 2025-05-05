@@ -36,6 +36,38 @@ static auto lua_torawstring(auto lua, auto idx, bool extended = faux)
     return crop;
 }
 
+namespace netxs::context
+{
+    #define ctx_list  \
+        X(vtm       ) \
+        X(desktop   ) \
+        X(gate      ) \
+        X(gear      ) \
+        X(gui_window) \
+        X(window    ) \
+        X(applet    ) \
+        X(taskbar   ) \
+        X(tile      ) \
+        X(grip      ) \
+        X(terminal  ) \
+        X(fork      ) \
+        X(list      ) \
+        X(rail      ) \
+        X(grid      ) \
+        X(cake      ) \
+        X(veer      ) \
+        X(postfx    ) \
+        X(mock      ) \
+        X(item      ) \
+        X(edit      ) \
+        X(dtvt      ) \
+
+        #define X(name) static constexpr auto name = #name##sv;
+        ctx_list
+        #undef X
+        #undef ctx_list
+}
+
 namespace netxs::ui
 {
     // controls: UI extensions.
@@ -2933,9 +2965,15 @@ namespace netxs::ui
 
         auto This() { return base::This<T>(); }
         template<class TT = T, class ...Args>
+        static auto ctor(view formname, Args&&... args)
+        {
+            auto item = ui::tui_domain().template create<TT>(formname, std::forward<Args>(args)...);
+            return item;
+        }
+        template<class TT = T, class ...Args>
         static auto ctor(Args&&... args)
         {
-            auto item = ui::tui_domain().template create<TT>(std::forward<Args>(args)...);
+            auto item = ui::tui_domain().template create<TT>(TT::formname, std::forward<Args>(args)...);
             return item;
         }
         // form: Set control as root.
@@ -3303,6 +3341,7 @@ namespace netxs::ui
         }
 
     public:
+        static constexpr auto formname = context::fork;
         fork(axis orientation = axis::X, si32 grip_width = 0, si32 s1 = 1, si32 s2 = 1)
             : rotation{},
               fraction{},
@@ -3517,6 +3556,7 @@ namespace netxs::ui
         }
 
     public:
+        static constexpr auto formname = context::list;
         list(axis orientation = axis::Y, sort attach_order = sort::forward)
             : updown{ orientation == axis::Y },
               lineup{ attach_order }
@@ -3668,6 +3708,7 @@ namespace netxs::ui
         }
 
     public:
+        static constexpr auto formname = context::grid;
         grid()
         {
             LISTEN(tier::release, e2::render::any, parent_canvas)
@@ -3730,7 +3771,7 @@ namespace netxs::ui
     class cake
         : public form<cake>
     {
-    protected: 
+    protected:
         // cake: .
         void deform(rect& new_area) override
         {
@@ -3760,6 +3801,7 @@ namespace netxs::ui
         }
 
     public:
+        static constexpr auto formname = context::cake;
         cake()
         {
             LISTEN(tier::release, e2::render::any, parent_canvas)
@@ -3800,6 +3842,7 @@ namespace netxs::ui
         }
 
     public:
+        static constexpr auto formname = context::veer;
         veer()
         {
             LISTEN(tier::release, e2::render::any, parent_canvas)
@@ -3916,6 +3959,7 @@ namespace netxs::ui
         }
 
     public:
+        static constexpr auto formname = context::postfx;
         page topic; // post: Text content.
 
         postfx(bool scroll_beyond = faux)
@@ -4027,6 +4071,7 @@ namespace netxs::ui
         }
 
     public:
+        static constexpr auto formname = context::rail;
         rail(axes allow_to_scroll = axes::all, axes allow_to_capture = axes::all, axes allow_overscroll = axes::all, bool smooth_scrolling = faux)
             : permit{ xy(allow_to_scroll)  },
               siezed{ xy(allow_to_capture) },
@@ -4598,6 +4643,7 @@ namespace netxs::ui
         }
 
     public:
+        static constexpr auto formname = context::grip;
         grip(sptr boss_ptr, auto& drawfx)
             : boss{ boss_ptr }
         {
@@ -4786,7 +4832,10 @@ namespace netxs::ui
     // controls: Pluggable dummy object.
     class mock
         : public form<mock>
-    { };
+    {
+        public:
+            static constexpr auto formname = context::mock;
+    };
 
     // controls: Text label.
     class item
@@ -4816,6 +4865,7 @@ namespace netxs::ui
         }
 
     public:
+        static constexpr auto formname = context::item;
         // item: .
         template<bool Reflow = true>
         auto set(view new_utf8)
@@ -4897,6 +4947,7 @@ namespace netxs::ui
         page data;
 
     public:
+        static constexpr auto formname = context::edit;
         edit()
         {
         }

@@ -56,6 +56,7 @@ namespace netxs::ui
     struct term
         : public ui::form<term>
     {
+        static constexpr auto formname = context::terminal;
 
         #define proc_list \
             X(Noop                        ) /* */ \
@@ -8703,6 +8704,8 @@ namespace netxs::ui
     struct dtvt
         : public ui::form<dtvt>
     {
+        static constexpr auto formname = context::dtvt;
+
         // dtvt: Event handler.
         struct link : s11n, input_fields_handler
         {

@@ -615,6 +615,7 @@ namespace netxs::app::vtm
             }
 
         public:
+            static constexpr auto formname = context::window;
             window_t(hall& owner, applink& what)
                 : world{ owner },
                   zorder{ what.applet->base::property("applet.zorder", zpos::plain) }
@@ -1205,6 +1206,7 @@ namespace netxs::app::vtm
         }
 
     public:
+        static constexpr auto formname = context::desktop;
         hall(xipc server, xmls def_config)
             : config{ def_config },
               maker{ base::plugin<pro::maker>() },

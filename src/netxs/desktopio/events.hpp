@@ -460,10 +460,11 @@ namespace netxs::events
         }
         // auth: Create a new object of the specified subtype and return its sptr.
         template<class T, class ...Args>
-        auto create(Args&&... args)
+        auto create(view name, Args&&... args)
         {
             auto lock = sync();
             auto inst = sptr<T>(new T(std::forward<Args>(args)...), &object_deleter<T>); // Use new/delete to be able sync on destruction.
+            log("Created: '%%' with id: %%", name, inst->id);
             objects[inst->id] = inst;
             return inst;
         }
@@ -772,9 +773,9 @@ namespace netxs::events
         }
         // bell: Create a new object of the specified subtype and return its sptr.
         template<class T, class ...Args>
-        auto create(Args&&... args) -> sptr<T>
+        auto create(view name, Args&&... args) -> sptr<T>
         {
-            return indexer.create<T>(indexer, std::forward<Args>(args)...);
+            return indexer.create<T>(name, indexer, std::forward<Args>(args)...);
         }
         // bell: .
         void dequeue()

@@ -472,6 +472,8 @@ namespace netxs::ui
         };
 
     public:
+        static constexpr auto formname = context::gate;
+
         pipe&      canal; // gate: Channel to outside.
         props_t    props; // gate: Input gate properties.
         diff       paint; // gate: Renderer.
@@ -495,7 +497,7 @@ namespace netxs::ui
             auto gear_it = gears.find(device.gear_id);
             if (gear_it == gears.end())
             {
-                gear_it = gears.emplace(device.gear_id, bell::create<hids>(*this, canvas)).first;
+                gear_it = gears.emplace(device.gear_id, bell::create<hids>(context::gear, *this, canvas)).first;
                 auto& gear = *(gear_it->second);
                 gear.tooltip_timeout = props.tooltip_timeout;
                 gear.board::ghost = props.clip_preview_glow;
