@@ -2696,7 +2696,7 @@ namespace netxs::ui
                 ::lua_getglobal(lua, "vtm");
                 ::lua_pushstring(lua, object_name);
                 ::lua_gettable(lua, -2);
-                auto object_ptr = dynamic_cast<T*>((base*)::lua_touserdata(lua, -1));
+                auto object_ptr = static_cast<T*>(::lua_touserdata(lua, -1));
                 ::lua_pop(lua, 2); // Pop "vtm" and "object_name".
                 return object_ptr;
             }

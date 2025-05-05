@@ -1679,13 +1679,20 @@ namespace netxs::utf
     // utf: Replace all bytes with colored blocks.
     auto bytes2shades(qiew utf8)
     {
+        assert(utf8.size() % 2 == 0);
         auto buff = text{};
-        auto step = text{};
+        auto bstr = text{};
+        auto gstr = text{};
         buff += "\x1b[#{\x1b[38:2:0:128:0m";
-        for (byte c : utf8)
+        auto head = utf8.begin();
+        auto tail = utf8.end();
+        while (head != tail)
         {
-            step = std::to_string(c);
-            buff += "\x1b[48:2:32:" + step + ":32m░";
+            auto g = *head++;
+            auto b = *head++;
+            gstr = std::to_string(g);
+            bstr = std::to_string(b);
+            buff += "\x1b[48:2:32:" + gstr + ":" + bstr + "m░";
         }
         buff += "\x1b[#}";
         return buff;

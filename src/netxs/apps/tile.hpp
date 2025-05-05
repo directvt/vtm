@@ -592,7 +592,7 @@ namespace netxs::app::tile
                         {
                             boss.back()->base::signal(tier::release, e2::form::size::restore);
                         }
-                        else if (auto node = std::dynamic_pointer_cast<ui::fork>(boss.base::parent()))
+                        else if (auto node = std::static_pointer_cast<ui::fork>(boss.base::parent()))
                         {
                             auto ratio = node->get_ratio();
                             if (ratio == min_ratio)
@@ -821,7 +821,7 @@ namespace netxs::app::tile
         }
         auto _foreach = [](auto _foreach, sptr& root_veer_ptr, id_t gear_id, auto proc) -> void
         {
-            if (auto node_veer_ptr = std::dynamic_pointer_cast<ui::veer>(root_veer_ptr))
+            if (auto node_veer_ptr = std::static_pointer_cast<ui::veer>(root_veer_ptr))
             {
                 if (pro::focus::is_focused(node_veer_ptr, gear_id))
                 {
@@ -839,7 +839,7 @@ namespace netxs::app::tile
                     }
                     else if (item_ptr->root()) // App window (ui::fork).
                     {
-                        if (auto applet_host_ptr = std::dynamic_pointer_cast<ui::fork>(item_ptr))
+                        if (auto applet_host_ptr = std::static_pointer_cast<ui::fork>(item_ptr))
                         if (auto applet_ptr = applet_host_ptr->get(slot::_2))
                         if (pro::focus::is_focused(applet_ptr, gear_id))
                         {
@@ -852,7 +852,7 @@ namespace netxs::app::tile
                     }
                     else // if (!item_ptr->root()) // Node (ui::fork).
                     {
-                        if (auto veer_host_ptr = std::dynamic_pointer_cast<ui::fork>(item_ptr))
+                        if (auto veer_host_ptr = std::static_pointer_cast<ui::fork>(item_ptr))
                         {
                             root_veer_ptr = veer_host_ptr->get(slot::_1);
                             _foreach(_foreach, root_veer_ptr, gear_id, proc);

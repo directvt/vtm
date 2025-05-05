@@ -1684,7 +1684,7 @@ namespace netxs::app::vtm
                 {
                     for (auto& item_ptr : base::subset)
                     {
-                        if (auto window_ptr = std::dynamic_pointer_cast<window_t>(item_ptr))
+                        if (auto window_ptr = std::static_pointer_cast<window_t>(item_ptr))
                         {
                             fasten(window_ptr, window_ptr->highlighted, window_ptr->active, window_ptr->color, parent_canvas);
                             auto zorder = window_ptr->zorder;

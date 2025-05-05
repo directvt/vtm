@@ -442,7 +442,7 @@ namespace netxs::events
             auto iter = objects.find(id);
             if (iter != objects.end())
             if (auto item_ptr = iter->second.lock())
-            if (auto inst_ptr = std::dynamic_pointer_cast<T>(item_ptr))
+            if (auto inst_ptr = std::static_pointer_cast<T>(item_ptr))
             {
                 return inst_ptr;
             }
