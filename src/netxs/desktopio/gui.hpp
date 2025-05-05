@@ -2760,16 +2760,22 @@ namespace netxs::gui
             }
             if (moving) // Don't report mouse clicks while dragging window.
             {
-                if (!mbttns) moving = faux;
+                if (!mbttns) // Update mouse cursor position after stop dragging window.
+                {
+                    moving = faux;
+                    stream.m.changed++;
+                    stream.m.timecod = datetime::now();
+                    stream.m.ctlstat = get_mods_state();
+                    stream.mouse(stream.m);
+                }
                 return;
             }
 
             static auto dblclick = datetime::now() - 1s;
             if (changed && (seized || inside))
             {
-                auto timecode = datetime::now();
                 stream.m.changed++;
-                stream.m.timecod = timecode;
+                stream.m.timecod = datetime::now();
                 stream.m.ctlstat = get_mods_state();
                 stream.mouse(stream.m);
             }
