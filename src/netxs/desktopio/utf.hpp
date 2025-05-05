@@ -1666,7 +1666,7 @@ namespace netxs::utf
                  if (c < 0x20)  buff += utf::c0_view[c];
             else if (c == 0x7F) buff += utf::c0_view[0x20];
             else if (c < 0x7F)  buff += c;
-            else                buff += utf::ext_437[c - 0x7F];
+            else                buff += utf::ext_437[c - 0x80];
         }
     }
     // utf: Replace all bytes with "cp437" glyphs.
