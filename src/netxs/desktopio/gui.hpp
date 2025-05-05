@@ -1654,20 +1654,17 @@ namespace netxs::gui
             void direct(s11n::xs::bitmap_dtvt lock, view& data)
             {
                 auto& bitmap = lock.thing;
-                auto resize = [&](auto new_gridsz)
-                {
-                    //todo use digest instead of winsize
-                    if (owner.waitsz == new_gridsz) owner.waitsz = dot_00;
-                };
                 if (owner.reload == task::all || owner.fsmode == winstate::minimized) // We need full repaint.
                 {
                     if (owner.fsmode == winstate::minimized) owner.redraw = true;
-                    bitmap.get(data, {}, resize);
+                    bitmap.get(data);
+                    if (owner.waitsz == bitmap.image.size()) owner.waitsz = dot_00;
                 }
                 else
                 {
                     auto update = [&](auto head, auto iter, auto tail)
                     {
+                        if (owner.waitsz == bitmap.image.size()) owner.waitsz = dot_00;
                         if (owner.waitsz || owner.gridsz.x == 0 || owner.cellsz.x == 0) return;
                         auto offset = (si32)(iter - head);
                         auto length = (si32)(tail - iter);
@@ -1698,7 +1695,7 @@ namespace netxs::gui
                             }
                         }
                     };
-                    bitmap.get(data, update, resize);
+                    bitmap.get(data, update);
                     netxs::set_flag<task::inner>(owner.reload);
                     owner.check_blinky();
                 }
