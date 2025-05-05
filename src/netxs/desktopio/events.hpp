@@ -448,21 +448,22 @@ namespace netxs::events
             }
             return sptr<T>{};
         }
+        // auth: Delete object instance.
+        template<class T>
+        static void object_deleter(T* inst_ptr)
+        {
+            auto& indexer = inst_ptr->indexer;
+            auto lock = indexer.sync(); // Sync with all dtors.
+            auto id = inst_ptr->id;
+            delete inst_ptr;
+            indexer.objects.erase(id);
+        }
         // auth: Create a new object of the specified subtype and return its sptr.
         template<class T, class ...Args>
-        auto create(Args&&... args) -> sptr<T>
+        auto create(Args&&... args)
         {
             auto lock = sync();
-            // Use new/delete to be able lock before destruction.
-            auto inst = std::shared_ptr<T>(new T(std::forward<Args>(args)...), [](T* inst)
-                                                                               {
-                                                                                    //todo form Lua context
-                                                                                    auto& indexer = inst->indexer;
-                                                                                    auto lock = indexer.sync(); // Sync with all dtors.
-                                                                                    auto id = inst->id;
-                                                                                    delete inst;
-                                                                                    indexer.objects.erase(id);
-                                                                               });
+            auto inst = sptr<T>(new T(std::forward<Args>(args)...), &object_deleter<T>); // Use new/delete to be able sync on destruction.
             objects[inst->id] = inst;
             return inst;
         }
