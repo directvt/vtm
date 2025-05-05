@@ -415,7 +415,7 @@ namespace netxs::unidata
     {{
         static auto data = []
         {{
-            auto v = std::vector<ui16>(0x10FFFF); // ISO 15924 Script No: 0 - 999.
+            auto v = std::vector<ui16>(0x10FFFF + 1); // ISO 15924 Script No: 0 - 999.
             auto j = 0;
             auto s = 0;
             auto l = 0;
