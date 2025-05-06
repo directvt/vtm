@@ -141,7 +141,8 @@ namespace netxs::app::tile
                                 if ((gear.cause & 0x00FF) && !gear.dragged) // Button events only.
                                 if (auto data_ptr = data_shadow.lock())
                                 {
-                                    data_ptr->base::signal(tier::release, input::events::mouse, gear);
+                                    auto& data_src = *data_ptr;
+                                    gear.forward(tier::mouserelease, data_src);
                                     gear.dismiss();
                                 }
                             });
@@ -241,7 +242,8 @@ namespace netxs::app::tile
                                 if (auto new_parent_ptr = applet.base::parent())
                                 {
                                     // Redirect this mouse event to the new world's window.
-                                    gear.pass(tier::release, new_parent_ptr, dot_00);
+                                    auto& new_parent = *new_parent_ptr;
+                                    gear.pass(tier::mouserelease, new_parent, dot_00);
                                 }
                             }
                         });

@@ -7779,7 +7779,11 @@ namespace netxs::ui
                 if (gear.captured()) // Forward mouse wheel events to all parents. Wheeling while button pressed.
                 {
                     auto& offset = this->base::coor();
-                    gear.pass(tier::release, this->base::parent(), offset);
+                    if (auto parent_ptr = base::parent())
+                    {
+                        auto& parent = *parent_ptr;
+                        gear.pass(tier::mouserelease, parent, offset);
+                    }
                 }
                 else
                 {
@@ -8822,11 +8826,12 @@ namespace netxs::ui
                     if (auto parent_ptr = owner.base::parent())
                     {
                         auto& gear = *gear_ptr;
+                        auto& parent = *parent_ptr;
                         gear.set_multihome();
                         if (gear.captured(owner.id)) gear.setfree();
                         auto basis = gear.owner.base::coor();
                         owner.global(basis);
-                        gear.replay(parent_ptr, m.cause, m.coord - basis, m.click - basis, m.delta, m.buttons, m.bttn_id, m.dragged, m.ctlstat, m.whlfp, m.whlsi, m.hzwhl);
+                        gear.replay(parent, m.cause, m.coord - basis, m.click - basis, m.delta, m.buttons, m.bttn_id, m.dragged, m.ctlstat, m.whlfp, m.whlsi, m.hzwhl);
                     }
                 }
             }

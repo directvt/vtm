@@ -14,7 +14,6 @@ namespace netxs::events::userland
             EVENT_XS( die      , input::hids ), // release::global: Notify about the mouse controller is gone. Signal to delete gears inside dtvt-objects.
             EVENT_XS( halt     , input::hids ), // release::global: Notify about the mouse controller is outside.
             EVENT_XS( clipboard, input::hids ), // release/request: Set/get clipboard data.
-            EVENT_XS( mouse    , input::hids ), // Mouse related events.
             GROUP_XS( keybd    , input::hids ), // Keybd related events.
             GROUP_XS( focus    , input::foci ), // Focus related events.
             GROUP_XS( device   , input::hids ), // Primary device event group for fast forwarding.
@@ -1757,24 +1756,6 @@ namespace netxs::input
             return faux;
         }
 
-        void replay(sptr object_ptr, hint new_cause, fp2d new_coord, fp2d new_click, fp2d new_delta, si32 new_button_state, si32 new_bttn_id, bool new_dragged, si32 new_ctlstate, fp32 new_whlfp, si32 new_whlsi, bool new_hzwhl)
-        {
-            alive = true;
-            keybd::ctlstat = new_ctlstate;
-            mouse::coord = new_coord;
-            mouse::click = new_click;
-            mouse::whlfp = new_whlfp;
-            mouse::whlsi = new_whlsi;
-            mouse::hzwhl = new_hzwhl;
-            mouse::cause = new_cause;
-            mouse::delta.set(new_delta);
-            mouse::pressed = new_button_state;
-            mouse::bttn_id = new_bttn_id;
-            mouse::dragged = new_dragged;
-            mouse::pressxy = new_click;
-            pass(tier::release, object_ptr, owner.base::coor(), true);
-        }
-
         auto meta(si32 ctl_key = -1) { return keybd::ctlstat & ctl_key; }
 
         // hids: Stop handeling this event.
@@ -1878,35 +1859,90 @@ namespace netxs::input
 
         auto& area() const { return idmap.area(); }
 
-        void pass(si32 Tier, sptr object_ptr, fp2d offset, bool relative = faux)
+        void dispatch(si32 tier_id, base& boss)
         {
-            if (object_ptr)
+            auto saved_cause = mouse::cause;
+            boss.base::signal(tier_id, mouse::cause, *this);
+            mouse::cause = saved_cause;
+            auto any_bttn_event = mouse::cause & 0xFF00; // Set button_bits = 0.
+            if (alive && mouse::cause != any_bttn_event)
             {
-                auto saved_coord = mouse::coord;
-                auto saved_click = mouse::click;
-                auto saved_cause = mouse::cause;
-                if (relative)
-                {
-                    object_ptr->global(coord);
-                    click += coord - saved_coord;
-                }
-                mouse::coord += offset;
-                mouse::click += offset;
-                object_ptr->base::signal(Tier, input::events::mouse, *this);
-                mouse::coord = saved_coord;
-                mouse::click = saved_click;
+                boss.base::signal(tier_id, any_bttn_event, *this);
                 mouse::cause = saved_cause;
             }
+            if (alive && mouse::cause != input::key::MouseAny)
+            {
+                boss.base::signal(tier_id, input::key::MouseAny, *this);
+                mouse::cause = saved_cause;
+            }
+        }
+        void forward(si32 Tier, base& boss)
+        {
+            auto offset = boss.base::coor() + boss.base::intpad.corner();
+            if (Tier == tier::mousepreview)
+            {
+                if (auto parent_ptr = boss.base::parent())
+                {
+                    auto& parent = *parent_ptr;
+                    pass(Tier, parent, offset);
+                }
+                dispatch(Tier, boss);
+            }
+            else
+            {
+                dispatch(Tier, boss);
+                if ((alive && !captured()) || mouse::cause == input::key::MouseEnter || mouse::cause == input::key::MouseLeave)
+                {
+                    if (auto parent_ptr = boss.base::parent())
+                    {
+                        auto& parent = *parent_ptr;
+                        pass(Tier, parent, offset);
+                    }
+                }
+            }
+        }
+        void pass(si32 Tier, base& boss, fp2d offset, bool relative = faux)
+        {
+            auto saved_coord = mouse::coord;
+            auto saved_click = mouse::click;
+            if (relative)
+            {
+                boss.global(coord);
+                click += coord - saved_coord;
+            }
+            mouse::coord += offset;
+            mouse::click += offset;
+            forward(Tier, boss);
+            mouse::coord = saved_coord;
+            mouse::click = saved_click;
+        }
+        void replay(base& boss, hint new_cause, fp2d new_coord, fp2d new_click, fp2d new_delta, si32 new_button_state, si32 new_bttn_id, bool new_dragged, si32 new_ctlstate, fp32 new_whlfp, si32 new_whlsi, bool new_hzwhl)
+        {
+            alive = true;
+            keybd::ctlstat = new_ctlstate;
+            mouse::coord = new_coord;
+            mouse::click = new_click;
+            mouse::whlfp = new_whlfp;
+            mouse::whlsi = new_whlsi;
+            mouse::hzwhl = new_hzwhl;
+            mouse::cause = new_cause;
+            mouse::delta.set(new_delta);
+            mouse::pressed = new_button_state;
+            mouse::bttn_id = new_bttn_id;
+            mouse::dragged = new_dragged;
+            mouse::pressxy = new_click;
+            pass(tier::mouserelease, boss, owner.base::coor(), true);
         }
         void mouse_leave(id_t last_id, id_t start_id)
         {
             if (last_id)
             {
-                if (auto last = bell::getref<base>(last_id))
+                if (auto last_ptr = bell::getref<base>(last_id))
                 {
+                    auto& last = *last_ptr;
                     auto saved_start = std::exchange(mouse::start, start_id);
                     auto saved_cause = std::exchange(mouse::cause, input::key::MouseLeave);
-                    last->base::signal(tier::release, input::events::mouse, *this);
+                    forward(tier::mouserelease, last);
                     mouse::start = saved_start;
                     mouse::cause = saved_cause;
                 }
@@ -1935,7 +1971,7 @@ namespace netxs::input
                 // acquired by children.
                 auto start_leave = std::exchange(mouse::start, 0); // The first one to track the mouse will assign itself by calling gear.direct<true>(id).
                 auto saved_cause = std::exchange(mouse::cause, input::key::MouseEnter);
-                boss.base::signal(tier::release, input::events::mouse, *this);
+                forward(tier::mouserelease, boss);
                 mouse_leave(mouse::hover, start_leave);
                 mouse::hover = boss.id;
                 mouse::cause = saved_cause;
@@ -1973,15 +2009,14 @@ namespace netxs::input
             auto offset = idmap.coor();
             if (mouse::swift)
             {
-                auto next = bell::getref<base>(mouse::swift);
-                if (next)
+                if (auto next_ptr = bell::getref<base>(mouse::swift))
                 {
-                    redirect_mouse_focus(*next);
-                    pass(tier::release, next, offset, true);
-
+                    auto& next = *next_ptr;
+                    redirect_mouse_focus(next);
+                    pass(tier::mouserelease, next, offset, true);
                     if (alive && !captured()) // Pass unhandled event to the gate.
                     {
-                        owner.base::signal(tier::release, input::events::mouse, *this);
+                        forward(tier::mouserelease, owner);
                     }
                 }
                 else mouse::setfree();
@@ -1989,23 +2024,26 @@ namespace netxs::input
             else
             {
                 if (!tooltip_stop) tooltip_recalc(new_cause);
-                owner.base::signal(tier::preview, input::events::mouse, *this);
+                forward(tier::mousepreview, owner);
                 if (!alive) return;
 
-                auto next = idmap.link(mouse::coord);
-                if (next != owner.id)
+                auto next_id = idmap.link(mouse::coord);
+                if (next_id != owner.id)
                 {
-                    auto next_ptr = bell::getref<base>(next);
-                    pass(tier::preview, next_ptr, offset, true);
-                    if (alive && next_ptr)
+                    if (auto next_ptr = bell::getref<base>(next_id))
                     {
-                        redirect_mouse_focus(*next_ptr);
-                        pass(tier::release, next_ptr, offset, true);
+                        auto& next = *next_ptr;
+                        pass(tier::mousepreview, next, offset, true);
+                        if (alive)
+                        {
+                            redirect_mouse_focus(next);
+                            pass(tier::mouserelease, next, offset, true);
+                        }
                     }
                 }
                 if (alive)
                 {
-                    owner.base::signal(tier::release, input::events::mouse, *this); // Pass unhandled event to the gate.
+                    forward(tier::mouserelease, owner); // Pass unhandled event to the gate.
                 }
             }
         }
