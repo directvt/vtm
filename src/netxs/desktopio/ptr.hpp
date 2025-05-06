@@ -12,10 +12,15 @@ namespace netxs
     // Due to the fact that alias templates are never deduced by template argument deduction (C++20).
     namespace ptr
     {
-        template<typename T>
+        // Compare sptr/wptr.
+        bool is_equal(auto const& w1, auto const& w2)
+        {
+            return !w1.owner_before(w2) && !w2.owner_before(w1);
+        }
+        template<class T>
         bool is_empty(wptr<T> const& w)
         {
-            return !w.owner_before(wptr<T>{}) && !wptr<T>{}.owner_before(w);
+            return is_equal(w, wptr<T>{});
         }
         template<class T>
         auto test(T a, T b)

@@ -122,7 +122,7 @@ namespace netxs::ui
                 auto& oneshot = owner.base::template field<hook>(); //todo Apple clang requires template keyword
                 owner.LISTEN(tier::anycast, e2::form::upon::started, context_keeper_ptr, oneshot)
                 {
-                    owner_wptr = owner.This();
+                    owner_wptr = owner.weak_from_this();
                     owner.base::unfield(oneshot);
                 };
             }

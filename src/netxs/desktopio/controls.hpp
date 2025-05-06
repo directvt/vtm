@@ -422,9 +422,9 @@ namespace netxs::ui
                 bool inside{}; // sock: Is active.
 
                 operator bool () { return inside; }
-                auto calc(base& boss, twod new_curpos)
+                auto calc(base& target, twod new_curpos)
                 {
-                    auto area = rect{ dot_00, boss.base::size() };
+                    auto area = rect{ dot_00, target.base::size() };
                     cursor = new_curpos;
                     inside = area.hittest(new_curpos);
                 }
@@ -3139,15 +3139,15 @@ namespace netxs::ui
                 {
                     base::location = parent_ptr->location;
                     base::location.emplace_back(this);
-                    if constexpr (debugmode)
-                    {
-                        auto iii = ansi::add("location id");
-                        for (auto i : location)
-                        {
-                            iii.add("-", utf::bytes2shades(view{ (char*)&i, sizeof(void*) }));
-                        }
-                        log(iii);
-                    }
+                    //if constexpr (debugmode)
+                    //{
+                    //    auto iii = ansi::add("location id");
+                    //    for (auto i : location)
+                    //    {
+                    //        iii.add("-", utf::bytes2shades(view{ (char*)&i, sizeof(void*) }));
+                    //    }
+                    //    log(iii);
+                    //}
                 }
             };
         }

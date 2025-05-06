@@ -1636,7 +1636,7 @@ namespace netxs::input
         }
         virtual ~hids()
         {
-            mouse_leave(mouse::hover);
+            mouse_leave(owner);
             release_if_captured();
             base::signal(tier::release, input::events::halt, *this);
             base::signal(tier::general, input::events::halt, *this);
@@ -1932,25 +1932,60 @@ namespace netxs::input
             mouse::pressxy = new_click;
             pass(tier::mouserelease, boss, owner.base::coor(), true);
         }
-        void mouse_leave(id_t last_id)
+        void mouse_leave(base& boss)
         {
-            if (last_id)
+            auto this_wptr = weak_from_this();
+            auto saved_cause = std::exchange(mouse::cause, input::key::MouseLeave);
+            for (auto& rec : boss.mouse_focus)
             {
-                if (auto last_ptr = bell::getref<base>(last_id))
+                if (ptr::is_equal(rec.gear_wptr, this_wptr)) // We found our gear. Boss is already focused.
                 {
-                    auto& last = *last_ptr;
-                    auto saved_cause = std::exchange(mouse::cause, input::key::MouseLeave);
-                    forward(tier::mouserelease, last);
-                    mouse::cause = saved_cause;
-                }
-                else
-                {
-                    if constexpr (debugmode)
+                    dispatch(tier::mouserelease, boss); // Signal MouseLeave.
+                    if (auto next_ptr = rec.next_wptr.lock())
                     {
-                        log("%%Possible error condition: Client accounting is broken, dangling id=%last_id%", prompt::hids, last_id);
+                        auto& next = *next_ptr;
+                        mouse_leave(next);
                     }
+                    if (boss.mouse_focus.size() > 1) rec = boss.mouse_focus.back(); // Remove an item without allocations.
+                    boss.mouse_focus.pop_back();
+                    break;
                 }
             }
+            mouse::cause = saved_cause;
+        }
+        void _mouse_enter(base& boss, wptr next_wptr = {})
+        {
+            auto this_wptr = weak_from_this();
+            for (auto& rec : boss.mouse_focus)
+            {
+                if (ptr::is_equal(rec.gear_wptr, this_wptr)) // We found our gear. Boss is already focused.
+                {
+                    if (!ptr::is_empty(rec.next_wptr)) // Unfocus the next branch if next_wptr is not empty.
+                    {
+                        if (auto next_ptr = rec.next_wptr.lock())
+                        {
+                            auto& next = *next_ptr;
+                            mouse_leave(next);
+                        }
+                    }
+                    rec.next_wptr = next_wptr;
+                    return;
+                }
+            }
+            // Gear not found.
+            boss.mouse_focus.emplace_back(weak_from_this(), next_wptr);
+            dispatch(tier::mouserelease, boss); // Signal MouseEnter.
+            if (auto parent_ptr = boss.base::parent())
+            {
+                auto& parent = *parent_ptr;
+                _mouse_enter(parent, boss.weak_from_this());
+            }
+        }
+        void mouse_enter(base& boss)
+        {
+            auto saved_cause = std::exchange(mouse::cause, input::key::MouseEnter);
+            _mouse_enter(boss);
+            mouse::cause = saved_cause;
         }
         void redirect_mouse_focus(base& boss)
         {
@@ -1963,10 +1998,7 @@ namespace netxs::input
                     tooltip_data.clear();
                     tooltip_stop = true;
                 }
-                mouse_leave(mouse::hover);
-                auto saved_cause = std::exchange(mouse::cause, input::key::MouseEnter);
-                forward(tier::mouserelease, boss);
-                mouse::cause = saved_cause;
+                mouse_enter(boss);
                 mouse::hover = boss.id;
             }
         }
@@ -1993,45 +2025,52 @@ namespace netxs::input
         void fire(hint new_cause)//, si32 new_index = mouse::noactive)
         {
             if (mouse_disabled) return;
-
             alive = true;
             mouse::cause = new_cause;
             mouse::coord = mouse::prime;
             mouse::nodbl = faux;
-
-            auto offset = idmap.coor();
+            auto gate_coor = idmap.coor();
             if (mouse::swift)
             {
                 if (auto next_ptr = bell::getref<base>(mouse::swift))
                 {
                     auto& next = *next_ptr;
                     redirect_mouse_focus(next);
-                    pass(tier::mouserelease, next, offset, true);
+                    pass(tier::mouserelease, next, gate_coor, true);
                     if (alive && !captured()) // Pass unhandled event to the gate.
                     {
                         forward(tier::mouserelease, owner);
                     }
                 }
-                else mouse::setfree();
+                else
+                {
+                    mouse::setfree();
+                    redirect_mouse_focus(owner);
+                }
             }
             else
             {
-                if (!tooltip_stop) tooltip_recalc(new_cause);
-                forward(tier::mousepreview, owner);
-                if (!alive) return;
-
-                auto next_id = idmap.link(mouse::coord);
-                if (next_id != owner.id)
+                if (!tooltip_stop)
                 {
-                    if (auto next_ptr = bell::getref<base>(next_id))
+                    tooltip_recalc(new_cause);
+                }
+                auto next_id = idmap.link(mouse::coord);
+                if (auto next_ptr = next_id != owner.id ? bell::getref<base>(next_id) : sptr{})
+                {
+                    auto& next = *next_ptr;
+                    pass(tier::mousepreview, next, gate_coor, true);
+                    if (alive)
                     {
-                        auto& next = *next_ptr;
-                        pass(tier::mousepreview, next, offset, true);
-                        if (alive)
-                        {
-                            redirect_mouse_focus(next);
-                            pass(tier::mouserelease, next, offset, true);
-                        }
+                        redirect_mouse_focus(next);
+                        pass(tier::mouserelease, next, gate_coor, true);
+                    }
+                }
+                else
+                {
+                    forward(tier::mousepreview, owner);
+                    if (alive)
+                    {
+                        redirect_mouse_focus(owner);
                     }
                 }
                 if (alive)

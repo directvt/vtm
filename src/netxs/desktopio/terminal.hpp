@@ -8982,7 +8982,7 @@ namespace netxs::ui
                 auto& oneshot = owner.base::field<hook>();
                 owner.LISTEN(tier::release, e2::form::upon::vtree::attached, parent_ptr, oneshot)
                 {
-                    owner_wptr = owner.This();
+                    owner_wptr = owner.weak_from_this();
                     owner.base::unfield(oneshot);
                 };
             }

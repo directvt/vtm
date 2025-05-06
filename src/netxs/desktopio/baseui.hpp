@@ -619,6 +619,13 @@ namespace netxs::ui
         std::unordered_map<text, std::pair<std::list<netxs::sptr<script_ref>>, bool>, qiew::hash, qiew::equal> keybd_handlers; // base: Map<chord, pair<list<sptr<script>>, preview>>.
         script_ref::location_type location;
 
+        struct mfocus_node
+        {
+            wptr gear_wptr;
+            wptr next_wptr;
+        };
+        std::vector<mfocus_node> mouse_focus; // base: Mouse focus (hovering).
+
         template<class T = base>
         auto   This()       { return std::static_pointer_cast<std::remove_reference_t<T>>(shared_from_this()); }
         auto&  coor() const { return region.coor;          }
