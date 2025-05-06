@@ -1956,21 +1956,18 @@ namespace netxs::input
         {
             if (mouse::hover != boss.id) // The mouse cursor is over the new object.
             {
+                tooltip_set = faux;
                 if (tooltip_data.size())
                 {
                     digest++;
                     tooltip_data.clear();
                     tooltip_stop = true;
                 }
-                tooltip_set = faux;
-                // Firing the leave event right after the enter allows us
-                // to avoid flickering the parent object state when focus
-                // acquired by children.
+                mouse_leave(mouse::hover);
                 auto saved_cause = std::exchange(mouse::cause, input::key::MouseEnter);
                 forward(tier::mouserelease, boss);
-                mouse_leave(mouse::hover);
-                mouse::hover = boss.id;
                 mouse::cause = saved_cause;
+                mouse::hover = boss.id;
             }
         }
         void release_if_captured()
