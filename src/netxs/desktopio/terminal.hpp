@@ -7038,7 +7038,7 @@ namespace netxs::ui
                 if (type == cwdsync)
                 {
                     auto path = text{ data.substr(delimpos) };
-                    bell::enqueue(This(), [&, path](auto& /*boss*/) mutable
+                    base::enqueue([&, path](auto& /*boss*/) mutable
                     {
                         this->base::riseup(tier::preview, e2::form::prop::cwd, path); //todo VS2019 requires `this`
                     });
@@ -7956,7 +7956,7 @@ namespace netxs::ui
         void onexit(si32 code, text msg = {}, bool exit_after_sighup = faux)
         {
             if (exit_after_sighup) close();
-            else bell::enqueue<faux>(This(), [&, code, msg, backup = This()](auto& /*boss*/) mutable
+            else base::enqueue<faux>([&, code, msg, backup = This()](auto& /*boss*/) mutable
             {
                 ipccon.payoff(io_log);
                 auto lock = bell::sync();
@@ -8019,7 +8019,7 @@ namespace netxs::ui
             fdlink = fds;
             if (!ipccon)
             {
-                bell::enqueue<faux>(This(), [&, backup = This()](auto& /*boss*/) mutable // We can't request the title before conio.run(), so we queue the request.
+                base::enqueue<faux>([&, backup = This()](auto& /*boss*/) mutable // We can't request the title before conio.run(), so we queue the request.
                 {
                     auto& title = wtrack.get(ansi::osc_title);
                     if (title.empty()) wtrack.set(ansi::osc_title); // Set default title if it is empty.
@@ -8044,7 +8044,7 @@ namespace netxs::ui
             {
                 if (ipccon.sighup())
                 {
-                    bell::enqueue<faux>(This(), [&, backup = This()](auto& /*boss*/) mutable // This backup is to keep the task active.
+                    base::enqueue<faux>([&, backup = This()](auto& /*boss*/) mutable // This backup is to keep the task active.
                     {
                         ipccon.payoff(io_log); // Wait child process.
                         auto lock = bell::sync();
@@ -8057,7 +8057,7 @@ namespace netxs::ui
             {
                 auto lock = bell::sync();
                 onerun.reset();
-                bell::enqueue(This(), [&, backup = This()](auto& /*boss*/) mutable // The termlink trailer (calling ui::term::close()) should be joined before ui::term dtor.
+                base::enqueue([&, backup = This()](auto& /*boss*/) mutable // The termlink trailer (calling ui::term::close()) should be joined before ui::term dtor.
                 {
                     this->base::riseup(tier::release, e2::form::proceed::quit::one, forced); //todo VS2019 requires `this`
                     backup.reset(); // Backup should dtored under the lock.
@@ -8716,11 +8716,10 @@ namespace netxs::ui
             using input_fields_handler::handle;
 
             dtvt& owner; // link: Terminal object reference.
-            wptr  owner_wptr;
 
             void handle(s11n::xs::bitmap_dtvt       /*lock*/)
             {
-                owner.bell::enqueue(owner_wptr, [&](auto& /*boss*/) mutable
+                owner.base::enqueue([&](auto& /*boss*/) mutable
                 {
                     owner.base::deface();
                 });
@@ -8728,14 +8727,14 @@ namespace netxs::ui
             void handle(s11n::xs::jgc_list            lock)
             {
                 s11n::receive_jgc(lock);
-                owner.bell::enqueue(owner_wptr, [&](auto& /*boss*/) mutable
+                owner.base::enqueue([&](auto& /*boss*/) mutable
                 {
                     owner.base::deface();
                 });
             }
             void handle(s11n::xs::tooltips            lock)
             {
-                owner.bell::enqueue(owner_wptr, [tooltips = lock.thing](auto& boss) mutable
+                owner.base::enqueue([tooltips = lock.thing](auto& boss) mutable
                 {
                     for (auto& tooltip : tooltips)
                     {
@@ -8837,7 +8836,7 @@ namespace netxs::ui
             }
             void handle(s11n::xs::minimize            lock)
             {
-                owner.bell::enqueue(owner_wptr, [&, m = lock.thing](auto& /*boss*/)
+                owner.base::enqueue([&, m = lock.thing](auto& /*boss*/)
                 {
                     if (auto gear_ptr = owner.bell::getref<hids>(m.gear_id))
                     {
@@ -8849,7 +8848,7 @@ namespace netxs::ui
             }
             void handle(s11n::xs::expose            /*lock*/)
             {
-                owner.bell::enqueue(owner_wptr, [&](auto& /*boss*/)
+                owner.base::enqueue([&](auto& /*boss*/)
                 {
                     owner.base::riseup(tier::preview, e2::form::layout::expose);
                 });
@@ -8893,14 +8892,14 @@ namespace netxs::ui
             }
             void handle(s11n::xs::header              lock)
             {
-                owner.bell::enqueue(owner_wptr, [&, /*id = h.window_id,*/ header = lock.thing.utf8](auto& /*boss*/) mutable
+                owner.base::enqueue([&, /*id = h.window_id,*/ header = lock.thing.utf8](auto& /*boss*/) mutable
                 {
                     owner.base::riseup(tier::preview, e2::form::prop::ui::header, header);
                 });
             }
             void handle(s11n::xs::footer              lock)
             {
-                owner.bell::enqueue(owner_wptr, [&, /*id = f.window_id,*/ footer = lock.thing.utf8](auto& /*boss*/) mutable
+                owner.base::enqueue([&, /*id = f.window_id,*/ footer = lock.thing.utf8](auto& /*boss*/) mutable
                 {
                     owner.base::riseup(tier::preview, e2::form::prop::ui::footer, footer);
                 });
@@ -8931,7 +8930,7 @@ namespace netxs::ui
             }
             void handle(s11n::xs::warping             lock)
             {
-                owner.bell::enqueue(owner_wptr, [&, /*id = w.window_id,*/ warp = lock.thing.warpdata](auto& /*boss*/)
+                owner.base::enqueue([&, /*id = w.window_id,*/ warp = lock.thing.warpdata](auto& /*boss*/)
                 {
                     //todo use window_id
                     owner.base::riseup(tier::preview, e2::form::layout::swarp, warp);
@@ -8950,21 +8949,21 @@ namespace netxs::ui
             }
             void handle(s11n::xs::sysstart          /*lock*/)
             {
-                owner.bell::enqueue(owner_wptr, [&](auto& /*boss*/)
+                owner.base::enqueue([&](auto& /*boss*/)
                 {
                     owner.base::riseup(tier::release, e2::form::global::sysstart, 1);
                 });
             }
             void handle(s11n::xs::cwd                 lock)
             {
-                owner.bell::enqueue(owner_wptr, [&, path = lock.thing.path](auto& /*boss*/)
+                owner.base::enqueue([&, path = lock.thing.path](auto& /*boss*/)
                 {
                     owner.base::riseup(tier::preview, e2::form::prop::cwd, path);
                 });
             }
             void handle(s11n::xs::gui_command         lock)
             {
-                owner.bell::enqueue(owner_wptr, [&, gui_cmd = lock.thing](auto& /*boss*/)
+                owner.base::enqueue([&, gui_cmd = lock.thing](auto& /*boss*/)
                 {
                     if (auto gear_ptr = owner.bell::getref<hids>(gui_cmd.gear_id))
                     {
@@ -8978,14 +8977,7 @@ namespace netxs::ui
                 : s11n{ *this, owner.id },
                   input_fields_handler{ owner },
                   owner{ owner }
-            {
-                auto& oneshot = owner.base::field<hook>();
-                owner.LISTEN(tier::release, e2::form::upon::vtree::attached, parent_ptr, oneshot)
-                {
-                    owner_wptr = owner.weak_from_this();
-                    owner.base::unfield(oneshot);
-                };
-            }
+            { }
         };
 
         struct msgs
@@ -9019,7 +9011,7 @@ namespace netxs::ui
         void onexit()
         {
             if (!active.exchange(faux)) return;
-            bell::enqueue(This(), [&](auto& /*boss*/) mutable // Unexpected disconnection.
+            base::enqueue([&](auto& /*boss*/) mutable // Unexpected disconnection.
             {
                 auto lock = stream.bitmap_dtvt.freeze();
                 auto& canvas = lock.thing.image;
@@ -9079,7 +9071,7 @@ namespace netxs::ui
                 stream.sysclose.send(*this, fast);
                 return;
             }
-            bell::enqueue<faux>(This(), [&, backup = This()](auto& /*boss*/) mutable
+            base::enqueue<faux>([&, backup = This()](auto& /*boss*/) mutable
             {
                 ipccon.payoff();
                 auto lock = bell::sync();

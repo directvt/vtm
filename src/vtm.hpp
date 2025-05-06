@@ -555,7 +555,7 @@ namespace netxs::app::vtm
             
             void window_swarp(dent warp)
             {
-                bell::enqueue(This(), [warp](auto& boss) // Keep the focus tree intact while processing events.
+                base::enqueue([warp](auto& boss) // Keep the focus tree intact while processing events.
                 {
                     boss.base::signal(tier::preview, e2::form::layout::swarp, warp);
                 });
@@ -571,7 +571,7 @@ namespace netxs::app::vtm
             }
             void window_close(id_t gear_id)
             {
-                bell::enqueue(This(), [gear_id](auto& boss) // Keep the focus tree intact while processing events.
+                base::enqueue([gear_id](auto& boss) // Keep the focus tree intact while processing events.
                 {
                     if (auto gear_ptr = boss.bell::template getref<hids>(gear_id)) //todo Apple clang requires template
                     {
@@ -583,7 +583,7 @@ namespace netxs::app::vtm
             }
             void window_state(id_t gear_id, auto state)
             {
-                bell::enqueue(This(), [state, gear_id](auto& boss) // Keep the focus tree intact while processing events.
+                base::enqueue([state, gear_id](auto& boss) // Keep the focus tree intact while processing events.
                 {
                     if (auto gear_ptr = boss.bell::template getref<hids>(gear_id))
                     {
@@ -1197,7 +1197,7 @@ namespace netxs::app::vtm
                 auto& window = *window_ptr;
                 window.base::signal(tier::release, e2::form::layout::selected, gear);
                 gear.owner.base::signal(tier::release, e2::form::layout::jumpto, window);
-                bell::enqueue(window_ptr, [&, gear_id = gear.id](auto& /*boss*/) // Keep the focus tree intact while processing events.
+                window.base::enqueue([&, gear_id = gear.id](auto& /*boss*/) // Keep the focus tree intact while processing events.
                 {
                     pro::focus::set(window.This(), gear_id, solo::on);
                 });

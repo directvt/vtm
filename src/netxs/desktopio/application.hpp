@@ -157,7 +157,7 @@ namespace netxs::app::shared
                                         }},
             { "Close",                  [&]
                                         {
-                                            boss.bell::enqueue(boss.This(), [](auto& boss) // Keep the focus tree intact while processing events.
+                                            boss.base::enqueue([](auto& boss) // Keep the focus tree intact while processing events.
                                             {
                                                 boss.base::riseup(tier::release, e2::form::proceed::quit::one, true);
                                             });

@@ -691,7 +691,7 @@ namespace netxs::app::tile
                         }
                         else // Close an empty slot (boss.count() == 1).
                         {
-                            boss.bell::enqueue(boss.This(), [&](auto& /*boss*/) // Enqueue to keep the focus tree intact while processing events.
+                            boss.base::enqueue([&](auto& /*boss*/) // Enqueue to keep the focus tree intact while processing events.
                             {
                                 boss.base::signal(tier::release, e2::form::proceed::quit::one, fast);
                             });
@@ -1181,7 +1181,7 @@ namespace netxs::app::tile
                             if (prev_item_ptr)
                             {
                                 auto& prev_item = *prev_item_ptr;
-                                boss.bell::enqueue(prev_item_ptr, [&, gear_id = gear.id](auto& /*boss*/) // Keep the focus tree intact while processing events.
+                                prev_item.base::enqueue([&, gear_id = gear.id](auto& /*boss*/) // Keep the focus tree intact while processing events.
                                 {
                                     pro::focus::set(prev_item.This(), gear_id, solo::on);
                                 });
@@ -1225,7 +1225,7 @@ namespace netxs::app::tile
                             if (next_item_ptr)
                             {
                                 auto& next_item = *next_item_ptr;
-                                boss.bell::enqueue(next_item_ptr, [&, gear_id = gear.id](auto& /*boss*/) // Keep the focus tree intact while processing events.
+                                next_item.base::enqueue([&, gear_id = gear.id](auto& /*boss*/) // Keep the focus tree intact while processing events.
                                 {
                                     pro::focus::set(next_item.This(), gear_id, solo::on);
                                 });
@@ -1264,7 +1264,7 @@ namespace netxs::app::tile
                             if (prev_item_ptr)
                             {
                                 auto& prev_item = *prev_item_ptr;
-                                boss.bell::enqueue(prev_item_ptr, [&, gear_id = gear.id](auto& /*boss*/) // Keep the focus tree intact while processing events.
+                                prev_item.base::enqueue([&, gear_id = gear.id](auto& /*boss*/) // Keep the focus tree intact while processing events.
                                 {
                                     pro::focus::set(prev_item.This(), gear_id, solo::on);
                                 });
@@ -1311,7 +1311,7 @@ namespace netxs::app::tile
                             if (next_item_ptr)
                             {
                                 auto& next_item = *next_item_ptr;
-                                boss.bell::enqueue(next_item_ptr, [&, gear_id = gear.id](auto& /*boss*/) // Keep the focus tree intact while processing events.
+                                next_item.base::enqueue([&, gear_id = gear.id](auto& /*boss*/) // Keep the focus tree intact while processing events.
                                 {
                                     pro::focus::set(next_item.This(), gear_id, solo::on);
                                 });
@@ -1343,7 +1343,7 @@ namespace netxs::app::tile
                         if (prev_grip_ptr)
                         {
                             auto& prev_grip = *prev_grip_ptr;
-                            boss.bell::enqueue(prev_grip_ptr, [&, gear_id = gear.id](auto& /*boss*/) // Keep the focus tree intact while processing events.
+                            prev_grip.base::enqueue([&, gear_id = gear.id](auto& /*boss*/) // Keep the focus tree intact while processing events.
                             {
                                 pro::focus::set(prev_grip.This(), gear_id, solo::on);
                             });
@@ -1381,7 +1381,7 @@ namespace netxs::app::tile
                         if (next_grip_ptr)
                         {
                             auto& next_grip = *next_grip_ptr;
-                            boss.bell::enqueue(next_grip_ptr, [&, gear_id = gear.id](auto& /*boss*/) // Keep the focus tree intact while processing events.
+                            next_grip.base::enqueue([&, gear_id = gear.id](auto& /*boss*/) // Keep the focus tree intact while processing events.
                             {
                                 pro::focus::set(next_grip.This(), gear_id, solo::on);
                             });
@@ -1495,7 +1495,7 @@ namespace netxs::app::tile
                             auto room = node_veer_ptr->base::size() / 3;
                             if (room.x && room.y) // Suppress split if there is no space.
                             {
-                                boss.bell::enqueue(boss.This(), [&, deed, gear_id = gear.id, item_wptr = ptr::shadow(item_ptr)](auto& /*boss*/) // Enqueue to keep the focus tree intact while processing events.
+                                boss.base::enqueue([&, deed, gear_id = gear.id, item_wptr = ptr::shadow(item_ptr)](auto& /*boss*/) // Enqueue to keep the focus tree intact while processing events.
                                 {
                                     if (auto gear_ptr = boss.bell::template getref<hids>(gear_id))
                                     if (auto item_ptr = item_wptr.lock())

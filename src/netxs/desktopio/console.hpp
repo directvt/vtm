@@ -112,33 +112,25 @@ namespace netxs::ui
         {
             pipe& canal; // link: Data highway.
             gate& owner; // link: Link owner.
-            wptr  owner_wptr; // link: .
 
             link(pipe& canal, gate& owner)
                 : s11n{ *this },
                  canal{ canal },
                  owner{ owner }
-            {
-                auto& oneshot = owner.base::template field<hook>(); //todo Apple clang requires template keyword
-                owner.LISTEN(tier::anycast, e2::form::upon::started, context_keeper_ptr, oneshot)
-                {
-                    owner_wptr = owner.weak_from_this();
-                    owner.base::unfield(oneshot);
-                };
-            }
+            { }
 
             // link: Send an event message to the link owner.
             template<class E, class T>
             void notify(E, T&& data, si32 Tier = tier::release)
             {
-                owner.bell::enqueue(owner_wptr, [Tier, d = data](auto& boss) mutable
+                owner.base::enqueue([Tier, d = data](auto& boss) mutable
                 {
                     boss.base::signal(Tier, E::id, d);
                 });
             }
             void handle(s11n::xs::req_input_fields lock)
             {
-                owner.bell::enqueue(owner_wptr, [&, item = lock.thing](auto& /*boss*/) mutable
+                owner.base::enqueue([&, item = lock.thing](auto& /*boss*/) mutable
                 {
                     auto ext_gear_id = item.gear_id;
                     auto int_gear_id = owner.get_int_gear_id(ext_gear_id);
@@ -900,7 +892,7 @@ namespace netxs::ui
             {
                 if (gui_cmd.cmd_id == syscmd::restore && base::subset.size() > 1)
                 {
-                    bell::enqueue(This(), [](auto& boss) // Keep the focus tree intact while processing events.
+                    base::enqueue([](auto& boss) // Keep the focus tree intact while processing events.
                     {
                         boss.base::signal(tier::release, e2::form::size::restore);
                     });

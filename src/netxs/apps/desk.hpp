@@ -188,7 +188,7 @@ namespace netxs::app::desk
                         {
                             if (auto data_src = src_wptr.lock())
                             {
-                                data_src->bell::enqueue(data_src, [&](auto& data_inst) // Enqueue in order to pass focus one by one.
+                                data_src->base::enqueue([&](auto& data_inst) // Enqueue in order to pass focus one by one.
                                 {
                                     data_inst.base::signal(tier::anycast, e2::form::proceed::quit::one, fast); // Show closing process.
                                 });

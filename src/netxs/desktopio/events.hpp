@@ -783,12 +783,6 @@ namespace netxs::events
             indexer.stop();
         }
         // bell: .
-        template<bool Sync = true, class ...Args>
-        void enqueue(Args&&... args)
-        {
-            indexer.enqueue<Sync>(std::forward<Args>(args)...);
-        }
-        // bell: .
         auto sync()
         {
             return indexer.sync();

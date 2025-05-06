@@ -1744,7 +1744,7 @@ namespace netxs::gui
             {
                 auto copy = lock.thing;
                 //todo implement
-                //owner.bell::enqueue(owner_wptr, [tooltips = std::move(copy)](auto& boss) mutable
+                //owner.base::enqueue([tooltips = std::move(copy)](auto& boss) mutable
                 //{
                 //    for (auto& tooltip : tooltips)
                 //    {
@@ -1775,7 +1775,7 @@ namespace netxs::gui
             void handle(s11n::xs::expose         /*lock*/)
             {
                 owner.window_post_command(ipc::expose_win);
-                //owner.bell::enqueue(owner_wptr, [&](auto& /*boss*/)
+                //owner.base::enqueue([&](auto& /*boss*/)
                 //{
                 //    owner.base::riseup(tier::preview, e2::form::layout::expose);
                 //});
@@ -1843,7 +1843,7 @@ namespace netxs::gui
             void handle(s11n::xs::sysstart       /*lock*/)
             {
                 //todo revise
-                //owner.bell::enqueue(owner_wptr, [&](auto& /*boss*/)
+                //owner.base::enqueue([&](auto& /*boss*/)
                 //{
                 //    owner.base::riseup(tier::release, e2::form::global::sysstart, 1);
                 //});
@@ -1851,7 +1851,7 @@ namespace netxs::gui
             void handle(s11n::xs::cwd            /*lock*/)
             {
                 //todo revise
-                //owner.bell::enqueue(owner_wptr, [&, path = lock.thing.path](auto& /*boss*/)
+                //owner.base::enqueue([&, path = lock.thing.path](auto& /*boss*/)
                 //{
                 //    owner.base::riseup(tier::preview, e2::form::prop::cwd, path);
                 //});
@@ -2199,7 +2199,7 @@ namespace netxs::gui
             }
             else if (auto delta = coor - master.area.coor)
             {
-                bell::enqueue(This(), [&, delta](auto& /*boss*/) // Perform corrections.
+                base::enqueue([&, delta](auto& /*boss*/) // Perform corrections.
                 {
                     move_window(delta);
                 });
@@ -2223,7 +2223,7 @@ namespace netxs::gui
                 }
                 else unsync = faux;
             }
-            if (unsync) bell::enqueue(This(), [&](auto& /*boss*/) // Perform corrections.
+            if (unsync) base::enqueue([&](auto& /*boss*/) // Perform corrections.
             {
                 if (fsmode == winstate::maximized)
                 {
@@ -2566,7 +2566,7 @@ namespace netxs::gui
                         sync_cellsz();
                         update_gui();
                     };
-                    if (enqueue) bell::enqueue(This(), [zoom](auto& /*boss*/){ zoom(); });
+                    if (enqueue) base::enqueue([zoom](auto& /*boss*/){ zoom(); });
                     else         zoom();
                 }
             }
@@ -2659,7 +2659,7 @@ namespace netxs::gui
                     {
                         szgrip.grab(inner_rect, mcoord, border, cellsz);
                     }
-                    bell::enqueue(This(), [&, coord](auto& /*boss*/)
+                    base::enqueue([&, coord](auto& /*boss*/)
                     {
                         resize_by_grips(coord);
                     });
@@ -2675,7 +2675,7 @@ namespace netxs::gui
                 if (auto dxdy = coord - mcoord)
                 {
                     mcoord = coord;
-                    bell::enqueue(This(), [&, dxdy](auto& /*boss*/)
+                    base::enqueue([&, dxdy](auto& /*boss*/)
                     {
                         //todo revise
                         //if (fsmode == winstate::maximized) set_state(winstate::normal);
@@ -3067,7 +3067,7 @@ namespace netxs::gui
                 auto focus_bus_on = mfocus.set_owner(lParam);
                 if (!focus_bus_on)
                 {
-                    bell::enqueue(This(), [&](auto& /*boss*/)
+                    base::enqueue([&](auto& /*boss*/)
                     {
                         base::signal(tier::release, input::events::focus::set::on, { .gear_id = stream.gears->id, .focus_type = solo::on });
                         if (mfocus.wheel) window_post_command(ipc::sync_state);
@@ -3081,7 +3081,7 @@ namespace netxs::gui
                 keybd_send_state();
                 if (focus_bus_on)
                 {
-                    bell::enqueue(This(), [&](auto& /*boss*/)
+                    base::enqueue([&](auto& /*boss*/)
                     {
                         auto seed = base::signal(tier::release, input::events::focus::set::off, { .gear_id = stream.gears->id });
                     });
@@ -3154,7 +3154,7 @@ namespace netxs::gui
                     //}
                 }
             }
-            else if (eventid == timers::blink) bell::enqueue(This(), [&](auto& /*boss*/)
+            else if (eventid == timers::blink) base::enqueue([&](auto& /*boss*/)
             {
                 if (fsmode == winstate::minimized) return;
                 auto visible = blinky.live;
@@ -3181,7 +3181,7 @@ namespace netxs::gui
                     return;
                 }
             }
-            bell::enqueue(This(), [&, menucmd, args](auto& /*boss*/)
+            base::enqueue([&, menucmd, args](auto& /*boss*/)
             {
                 //log("sys_command: menucmd=", utf::to_hex_0x(menucmd));
                 switch (menucmd)
