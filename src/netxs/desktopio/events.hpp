@@ -778,11 +778,6 @@ namespace netxs::events
             return indexer.create<T>(classname, indexer, std::forward<Args>(args)...);
         }
         // bell: .
-        void dequeue()
-        {
-            indexer.stop();
-        }
-        // bell: .
         auto sync()
         {
             return indexer.sync();

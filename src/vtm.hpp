@@ -1987,7 +1987,7 @@ namespace netxs::app::vtm
             base::signal(tier::general, e2::conio::quit); // Trigger to disconnect all users and monitors.
             async.stop(); // Wait until all users and monitors are disconnected.
             if constexpr (debugmode) log(prompt::hall, "Session control stopped");
-            bell::dequeue(); // Wait until all cleanups are completed.
+            base::dequeue(); // Wait until all cleanups are completed.
         }
     };
 }

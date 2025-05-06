@@ -977,7 +977,7 @@ namespace netxs::app::shared
         gate.attach(std::move(applet_ptr));
         config_lock.unlock();
         gate.launch();
-        gate.bell::dequeue();
+        gate.base::dequeue();
         config_lock.lock();
         gate_ptr.reset();
         server->shut();

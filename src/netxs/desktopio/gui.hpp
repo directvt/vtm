@@ -3310,7 +3310,7 @@ namespace netxs::gui
             window_message_pump();
             //for (auto p : { &master, &blinky, &footer, &header }) layer_delete(*p);
             stream.intio.shut(); // Close link to server. Interrupt binary reading loop.
-            bell::dequeue(); // Clear task queue.
+            base::dequeue(); // Clear task queue.
             winio.join();
         }
     };

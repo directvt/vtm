@@ -639,11 +639,16 @@ namespace netxs::ui
         auto parent()       { return father.lock();        }
         void ruined(bool s) { wasted = s;                  }
         auto ruined() const { return wasted;               }
-        // base: .
+        // base: Enqueue task.
         template<bool Sync = true>
         void enqueue(netxs::events::fx<ui::base> proc)
         {
             bell::indexer.enqueue<Sync>(weak_from_this(), std::move(proc));
+        }
+        // base: Clear task queue.
+        void dequeue()
+        {
+            indexer.stop();
         }
         // base: Cleanup expired weak references.
         auto _cleanup()
