@@ -165,9 +165,9 @@ namespace netxs::app::terminal
                         _update_gear(boss, item, gear);
                     }
                 });
-                boss.LISTEN(tier::release, e2::form::state::mouse, active)
+                boss.LISTEN(tier::release, e2::form::state::mouse, hovered)
                 {
-                    if (!active && tick)
+                    if (!hovered && tick)
                     {
                         tick.pacify();
                         if (item.views.size() && item.taken)

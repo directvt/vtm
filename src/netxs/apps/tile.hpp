@@ -146,11 +146,11 @@ namespace netxs::app::tile
                                     gear.dismiss();
                                 }
                             });
-                            boss.LISTEN(tier::release, e2::form::state::mouse, active)
+                            boss.LISTEN(tier::release, e2::form::state::mouse, hovered)
                             {
                                 if (auto data_ptr = data_shadow.lock())
                                 {
-                                    data_ptr->base::signal(tier::release, e2::form::state::highlight, active);
+                                    data_ptr->base::signal(tier::release, e2::form::state::highlight, hovered);
                                 }
                             };
                         });

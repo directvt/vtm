@@ -550,7 +550,7 @@ namespace netxs::app::vtm
             hall& world;
             si32& zorder;
             bool highlighted = faux;
-            si32 active = 0;
+            bool active = faux;
             tone color = { tone::brighter, tone::shadower };
             
             void window_swarp(dent warp)
@@ -986,9 +986,9 @@ namespace netxs::app::vtm
                         }
                     }
                 };
-                LISTEN(tier::release, e2::form::state::mouse, state)
+                LISTEN(tier::release, e2::form::state::mouse, hovered)
                 {
-                    active = state;
+                    active = hovered;
                 };
                 LISTEN(tier::release, e2::form::state::highlight, state)
                 {

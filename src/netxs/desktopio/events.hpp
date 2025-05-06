@@ -460,7 +460,7 @@ namespace netxs::events
         }
         // auth: Create a new object of the specified subtype and return its sptr.
         template<class T, class ...Args>
-        auto create(view classname, Args&&... args)
+        auto create(view /*classname*/, Args&&... args)
         {
             auto lock = sync();
             auto inst = sptr<T>(new T(std::forward<Args>(args)...), &object_deleter<T>); // Use new/delete to be able sync on destruction.

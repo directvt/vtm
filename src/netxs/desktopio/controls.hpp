@@ -1780,16 +1780,14 @@ namespace netxs::ui
             base& boss;
             subs  memo;
 
-            bool omni; // mouse: Ability to accept all hover events (true) or only directly over the object (faux).
             si32 rent; // mouse: Active gears count.
             std::unordered_map<si32, subs> dragmemo; // mouse: Drag subs.
 
         public:
             mouse(base&&) = delete;
-            mouse(base& boss, bool take_all_events = true)
-                : boss{ boss            },
-                  omni{ take_all_events },
-                  rent{ 0               }
+            mouse(base& boss)
+                : boss{ boss },
+                  rent{ 0    }
             {
                 // pro::mouse: Amplify mouse hover on any button press.
                 memo.emplace_back([&](hids& gear)
@@ -1799,30 +1797,21 @@ namespace netxs::ui
                 boss.on(input::key::MouseDown, memo.back());
                 boss.on(input::key::MouseUp  , memo.back());
                 // pro::mouse: Notify about change in number of mouse hovering clients.
-                boss.on(input::key::MouseEnter, memo, [&](hids& gear) // Notify when the number of clients is positive.
+                boss.on(input::key::MouseEnter, memo, [&](hids& /*gear*/) // Notify when the number of clients is positive.
                 {
-                    if (!gear.start) gear.start = boss.bell::id;
-                    if (gear.start == boss.bell::id || omni)
+                    if (!rent++)
                     {
-                        gear.start = boss.bell::id;
-                        if (!rent++)
-                        {
-                            boss.base::signal(tier::release, e2::form::state::mouse, rent);
-                        }
-                        boss.base::signal(tier::release, e2::form::state::hover, rent);
+                        boss.base::signal(tier::release, e2::form::state::mouse, true);
                     }
+                    boss.base::signal(tier::release, e2::form::state::hover, rent);
                 });
-                boss.on(input::key::MouseLeave, memo, [&](hids& gear) // Notify when the number of clients is zero.
+                boss.on(input::key::MouseLeave, memo, [&](hids& /*gear*/) // Notify when the number of clients is zero.
                 {
-                    if (gear.start == boss.bell::id || omni)
+                    if (!--rent)
                     {
-                        gear.start = {};
-                        if (!--rent)
-                        {
-                            boss.base::signal(tier::release, e2::form::state::mouse, rent);
-                        }
-                        boss.base::signal(tier::release, e2::form::state::hover, rent);
+                        boss.base::signal(tier::release, e2::form::state::mouse, faux);
                     }
+                    boss.base::signal(tier::release, e2::form::state::hover, rent);
                 });
                 boss.LISTEN(tier::request, e2::form::state::mouse, state, memo)
                 {
@@ -1847,11 +1836,6 @@ namespace netxs::ui
                         case e2::form::draggable::leftright.id: draggable<hids::buttons::leftright>(enabled); break;
                     }
                 };
-            }
-
-            void take_all_events(bool b)
-            {
-                omni = b;
             }
             template<si32 Button>
             void draggable(bool enabled)
@@ -2066,10 +2050,10 @@ namespace netxs::ui
             {
                 filler = c1;
                 auto& root = tracking_object ? *tracking_object : boss;
-                root.LISTEN(tier::release, e2::form::state::mouse, active, memo)
+                root.LISTEN(tier::release, e2::form::state::mouse, hovered, memo)
                 {
                     robo.pacify();
-                    if (active)
+                    if (hovered)
                     {
                         transit = 256;
                         filler = c2;
@@ -2249,9 +2233,9 @@ namespace netxs::ui
             shade(base& boss)
                 : skill{ boss }
             {
-                boss.LISTEN(tier::release, e2::form::state::mouse, active, memo)
+                boss.LISTEN(tier::release, e2::form::state::mouse, hovered, memo)
                 {
-                    highlighted = active;
+                    highlighted = hovered;
                     boss.base::deface();
                 };
                 boss.LISTEN(tier::release, e2::postrender, parent_canvas, memo)
@@ -4734,7 +4718,7 @@ namespace netxs::ui
                     }
                 }
             });
-            LISTEN(tier::release, e2::form::state::mouse, active)
+            LISTEN(tier::release, e2::form::state::mouse, hovered)
             {
                 auto apply = [&](auto active)
                 {
@@ -4746,7 +4730,7 @@ namespace netxs::ui
                     return faux; // One-shot call.
                 };
                 timer.pacify(activity::mouse_leave);
-                if (active)
+                if (hovered)
                 {
                     apply(activity::mouse_hover);
                 }

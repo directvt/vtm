@@ -991,7 +991,6 @@ namespace netxs::input
         si32 whlsi{}; // mouse: Scroll delta in integer units (lines).
         id_t swift{}; // mouse: Mouse capturer id.
         id_t hover{}; // mouse: Hovered object id.
-        id_t start{}; // mouse: Mouse event initiator id.
         hint cause{}; // mouse: Current event.
         hist stamp{}; // mouse: Recorded intervals between successive button presses to track multi-clicks.
         span delay{}; // mouse: Double-click threshold.
@@ -1637,7 +1636,7 @@ namespace netxs::input
         }
         virtual ~hids()
         {
-            mouse_leave(mouse::hover, mouse::start);
+            mouse_leave(mouse::hover);
             release_if_captured();
             base::signal(tier::release, input::events::halt, *this);
             base::signal(tier::general, input::events::halt, *this);
@@ -1933,17 +1932,15 @@ namespace netxs::input
             mouse::pressxy = new_click;
             pass(tier::mouserelease, boss, owner.base::coor(), true);
         }
-        void mouse_leave(id_t last_id, id_t start_id)
+        void mouse_leave(id_t last_id)
         {
             if (last_id)
             {
                 if (auto last_ptr = bell::getref<base>(last_id))
                 {
                     auto& last = *last_ptr;
-                    auto saved_start = std::exchange(mouse::start, start_id);
                     auto saved_cause = std::exchange(mouse::cause, input::key::MouseLeave);
                     forward(tier::mouserelease, last);
-                    mouse::start = saved_start;
                     mouse::cause = saved_cause;
                 }
                 else
@@ -1969,10 +1966,9 @@ namespace netxs::input
                 // Firing the leave event right after the enter allows us
                 // to avoid flickering the parent object state when focus
                 // acquired by children.
-                auto start_leave = std::exchange(mouse::start, 0); // The first one to track the mouse will assign itself by calling gear.direct<true>(id).
                 auto saved_cause = std::exchange(mouse::cause, input::key::MouseEnter);
                 forward(tier::mouserelease, boss);
-                mouse_leave(mouse::hover, start_leave);
+                mouse_leave(mouse::hover);
                 mouse::hover = boss.id;
                 mouse::cause = saved_cause;
             }

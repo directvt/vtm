@@ -148,11 +148,11 @@ namespace netxs::app::desk
                     {
                         // Reserved for context menu.
                     });
-                    boss.LISTEN(tier::release, e2::form::state::mouse, state)
+                    boss.LISTEN(tier::release, e2::form::state::mouse, hovered)
                     {
                         if (auto data_src = src_wptr.lock())
                         {
-                            data_src->base::signal(tier::release, e2::form::state::highlight, !!state);
+                            data_src->base::signal(tier::release, e2::form::state::highlight, hovered);
                         }
                     };
                 });
@@ -169,13 +169,13 @@ namespace netxs::app::desk
                 ->invoke([&](auto& boss)
                 {
                     boss.base::hidden = true;
-                    item_area->LISTEN(tier::release, e2::form::state::mouse, hover)
+                    item_area->LISTEN(tier::release, e2::form::state::mouse, hovered)
                     {
                         //auto unfolded = boss.base::riseup(tier::request, desk::events::ui::toggle);
                         //auto hidden = !unfolded || !hover;
                         //auto folded = item_area_inst.base::size().x <= boss.base::size().x * 2;
                         //auto hidden = folded || !hover;
-                        auto hidden = !hover;
+                        auto hidden = !hovered;
                         if (boss.base::hidden != hidden)
                         {
                             boss.base::hidden = hidden;
@@ -328,9 +328,9 @@ namespace netxs::app::desk
                         ->limits({ 5, -1 }, { 5, -1 })
                         ->invoke([&](auto& boss)
                         {
-                            boss.LISTEN(tier::release, e2::form::state::mouse, state)
+                            boss.LISTEN(tier::release, e2::form::state::mouse, hovered)
                             {
-                                if (!state)
+                                if (!hovered)
                                 {
                                     boss.base::riseup(tier::preview, e2::form::upon::scroll::to_top::v);
                                 }
@@ -569,10 +569,10 @@ namespace netxs::app::desk
                     {
                         boss.base::riseup(tier::preview, desk::events::ui::toggle, !active);
                     });
-                    boss.LISTEN(tier::release, e2::form::state::mouse, state)
+                    boss.LISTEN(tier::release, e2::form::state::mouse, hovered)
                     {
                         auto& timer = boss.base::template plugin<pro::timer>();
-                        if (state)
+                        if (hovered)
                         {
                             timer.pacify(faux);
                             return;
@@ -699,11 +699,11 @@ namespace netxs::app::desk
                 ->limits({ -1, 1 + tall * 2 }, { -1, 1 + tall * 2 })
                 ->invoke([&](auto& boss)
                 {
-                    boss.LISTEN(tier::release, e2::form::state::mouse, state)
+                    boss.LISTEN(tier::release, e2::form::state::mouse, hovered)
                     {
-                        if (state)
+                        if (hovered)
                         {
-                            boss.base::riseup(tier::preview, desk::events::ui::toggle, state);
+                            boss.base::riseup(tier::preview, desk::events::ui::toggle, hovered);
                         }
                     };
                 });

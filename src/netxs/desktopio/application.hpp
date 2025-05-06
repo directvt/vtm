@@ -64,11 +64,11 @@ namespace netxs::app::shared
             ->invoke([&](auto& boss)
             {
                 boss.base::hidden = true;
-                scrlrail->LISTEN(tier::release, e2::form::state::mouse, active, -, (grip_shadow = ptr::shadow(boss.This())))
+                scrlrail->LISTEN(tier::release, e2::form::state::mouse, hovered, -, (grip_shadow = ptr::shadow(boss.This())))
                 {
                     if (auto grip_ptr = grip_shadow.lock())
                     {
-                        grip_ptr->base::hidden = !active;
+                        grip_ptr->base::hidden = !hovered;
                         grip_ptr->base::reflow();
                     }
                 };
@@ -546,12 +546,12 @@ namespace netxs::app::shared
                     {
                         auto menutent_shadow = ptr::shadow(menutent);
                         auto menucake_shadow = ptr::shadow(menucake);
-                        boss.LISTEN(tier::release, e2::form::state::mouse, hits, -, (menucake_shadow, menutent_shadow))
+                        boss.LISTEN(tier::release, e2::form::state::mouse, hovered, -, (menucake_shadow, menutent_shadow))
                         {
                             if (auto menucake = menucake_shadow.lock())
                             {
                                 auto menu_visible = boss.back() != menucake;
-                                if (!!hits == menu_visible)
+                                if (hovered == menu_visible)
                                 {
                                     boss.roll();
                                     boss.reflow();
