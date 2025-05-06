@@ -422,11 +422,11 @@ namespace netxs::ui
                 bool inside{}; // sock: Is active.
 
                 operator bool () { return inside; }
-                auto calc(base const& master, twod curpos)
+                auto calc(base& boss, twod new_curpos)
                 {
-                    auto area = rect{ dot_00, master.base::size() };
-                    cursor = curpos;
-                    inside = area.hittest(curpos);
+                    auto area = rect{ dot_00, boss.base::size() };
+                    cursor = new_curpos;
+                    inside = area.hittest(new_curpos);
                 }
             };
 
