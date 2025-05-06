@@ -472,7 +472,7 @@ namespace netxs::ui
         };
 
     public:
-        static constexpr auto formname = context::gate;
+        static constexpr auto classname = context::gate;
 
         pipe&      canal; // gate: Channel to outside.
         props_t    props; // gate: Input gate properties.
