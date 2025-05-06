@@ -88,80 +88,62 @@ namespace netxs::ui
             {
                 struct sock : public T
                 {
-                    id_t    id; // sock: Hids ID.
-                    si32 count; // sock: Clients count.
+                    id_t gear_id; // sock: Gear ID.
 
-                    sock(id_t ctrl)
-                        :    id{ ctrl },
-                          count{ 0    }
+                    sock(id_t gear_id)
+                        : gear_id{ gear_id }
                     { }
 
                     operator bool () { return T::operator bool(); }
                 };
 
-                std::vector<sock> items; // sock: Registered hids.
-                subs              token; // sock: Hids subscriptions.
+                std::vector<sock> gears; // sock: Registered hids.
+                subs              tokens; // sock: Hids subscriptions.
 
                 socks(base& boss)
                 {
-                    boss.LISTEN(tier::general, input::events::die, gear, token)
-                    {
-                        del(gear);
-                    };
-                    boss.on(input::key::MouseEnter, token, [&](hids& gear)
+                    boss.on(input::key::MouseEnter, tokens, [&](hids& gear)
                     {
                         add(gear);
                     });
-                    boss.on(input::key::MouseLeave, token, [&](hids& gear)
+                    boss.on(input::key::MouseLeave, tokens, [&](hids& gear)
                     {
-                        dec(gear);
+                        del(gear);
                     });
+                    boss.dup_handler(tier::general, input::events::die.id, tokens.back());
                 }
                 template<bool ConstWarn = true>
                 auto& take(hids& gear)
                 {
-                    for (auto& item : items) // Linear search, because a few items.
+                    for (auto& g : gears) // Linear search, because a few items.
                     {
-                        if (item.id == gear.id) return item;
+                        if (g.gear_id == gear.id) return g;
                     }
-
                     if constexpr (ConstWarn)
                     {
                         log(prompt::sock, "Access to unregistered input device, ", gear.id);
                     }
-
-                    return items.emplace_back(gear.id);
+                    return gears.emplace_back(gear.id);
                 }
-                template<class P>
-                void foreach(P proc)
+                void foreach(auto proc)
                 {
-                    for (auto& item : items)
+                    for (auto& g : gears)
                     {
-                        if (item) proc(item);
+                        if (g) proc(g);
                     }
                 }
                 void add(hids& gear)
                 {
-                    auto& item = take<faux>(gear);
-                    ++item.count;
-                }
-                void dec(hids& gear)
-                {
-                    auto& item = take(gear);
-                    if (--item.count < 1) // item.count could be equal to 0 due to unregistered access.
-                    {
-                        if (items.size() > 1) item = items.back(); // Remove an item without allocations.
-                        items.pop_back();
-                    }
+                    take<faux>(gear);
                 }
                 void del(hids& gear)
                 {
-                    for (auto& item : items) // Linear search, because a few items.
+                    for (auto& g : gears) // Linear search, because a few items.
                     {
-                        if (item.id == gear.id)
+                        if (g.gear_id == gear.id)
                         {
-                            if (items.size() > 1) item = items.back(); // Remove an item without allocations.
-                            items.pop_back();
+                            if (gears.size() > 1) g = gears.back(); // Remove an item without allocations.
+                            gears.pop_back();
                             return;
                         }
                     }
@@ -177,7 +159,7 @@ namespace netxs::ui
             using skill::boss,
                   skill::memo;
 
-            list items;
+            list gears;
             dent outer;
             dent inner;
             bool alive; // pro::sizer: The sizer state.
@@ -196,7 +178,7 @@ namespace netxs::ui
             sizer(base&&) = delete;
             sizer(base& boss, dent outer_rect = { 2, 2, 1, 1 }, dent inner_rect = {})
                 : skill{ boss          },
-                  items{ boss          },
+                  gears{ boss          },
                   outer{ outer_rect    },
                   inner{ inner_rect    },
                   alive{ true          }
@@ -206,7 +188,7 @@ namespace netxs::ui
                 //{
                 //    if (gear.meta(hids::anyCtrl) && !gear.meta(hids::ScrlLock) && gear.whlsi)
                 //    {
-                //        auto& g = items.take(gear);
+                //        auto& g = gears.take(gear);
                 //        if (!g.zoomon)// && g.inside)
                 //        {
                 //            g.zoomdt = {};
@@ -247,9 +229,9 @@ namespace netxs::ui
                         c.link(boss.id);
                         if (c.bga() == 0) c.bga(1); // Active transparent.
                     });
-                    items.foreach([&](auto& item)
+                    gears.foreach([&](auto& g)
                     {
-                        item.draw(canvas, area, cell::shaders::xlight);
+                        g.draw(canvas, area, cell::shaders::xlight);
                     });
                 };
                 boss.LISTEN(tier::preview, e2::form::layout::swarp, warp, memo)
@@ -277,7 +259,7 @@ namespace netxs::ui
                 };
                 boss.on(input::key::MouseMove, memo, [&](hids& gear)
                 {
-                    auto& g = items.take(gear);
+                    auto& g = gears.take(gear);
                     if (g.zoomon && !gear.meta(hids::anyCtrl))
                     {
                         g.zoomon = faux;
@@ -302,7 +284,7 @@ namespace netxs::ui
                 {
                     auto area = boss.base::area();
                     auto coor = area.coor + gear.coord;
-                    if (items.take(gear).grab(area, coor, outer))
+                    if (gears.take(gear).grab(area, coor, outer))
                     {
                         gear.dismiss();
                         boss.bell::expire(); // To prevent d_n_d triggering.
@@ -310,7 +292,7 @@ namespace netxs::ui
                 };
                 boss.LISTEN(tier::release, e2::form::drag::pull::_<Button>, gear, memo)
                 {
-                    auto& g = items.take(gear);
+                    auto& g = gears.take(gear);
                     if (g.seized)
                     {
                         auto zoom = gear.meta(hids::anyCtrl);
@@ -329,11 +311,11 @@ namespace netxs::ui
                 };
                 boss.LISTEN(tier::release, e2::form::drag::cancel::_<Button>, gear, memo)
                 {
-                    items.take(gear).drop();
+                    gears.take(gear).drop();
                 };
                 boss.LISTEN(tier::release, e2::form::drag::stop::_<Button>, gear, memo)
                 {
-                    items.take(gear).drop();
+                    gears.take(gear).drop();
                     boss.base::signal(tier::release, e2::form::upon::dragged, gear);
                 };
             }
@@ -370,7 +352,7 @@ namespace netxs::ui
             using skill::boss,
                   skill::memo;
 
-            list items;
+            list gears;
             wptr dest_shadow;
             sptr dest_object;
 
@@ -378,7 +360,7 @@ namespace netxs::ui
             mover(base&&) = delete;
             mover(base& boss, sptr subject)
                 : skill{ boss },
-                  items{ boss },
+                  gears{ boss },
                   dest_shadow{ subject }
             {
                 engage<hids::buttons::left>();
@@ -395,7 +377,7 @@ namespace netxs::ui
                 {
                     if ((dest_object = dest_shadow.lock()))
                     {
-                        items.take(gear).grab(*dest_object, gear.coord);
+                        gears.take(gear).grab(*dest_object, gear.coord);
                         gear.dismiss();
                     }
                 };
@@ -403,7 +385,7 @@ namespace netxs::ui
                 {
                     if (dest_object)
                     {
-                        if (auto delta = items.take(gear).drag(*dest_object, gear.coord))
+                        if (auto delta = gears.take(gear).drag(*dest_object, gear.coord))
                         {
                             dest_object->base::signal(tier::preview, e2::form::upon::changed, delta);
                         }
@@ -454,7 +436,7 @@ namespace netxs::ui
                   skill::memo;
 
             //pool focus; // track: Is keybd focused.
-            list items; // track: .
+            list gears; // track: .
             bool alive; // track: Is active.
 /*
             void add_keybd(id_t gear_id)
@@ -520,7 +502,7 @@ namespace netxs::ui
             track(base&&) = delete;
             track(base& boss)
                 : skill{ boss },
-                  items{ boss },
+                  gears{ boss },
                   alive{ true }
             {
                 // Keybd focus.
@@ -540,7 +522,7 @@ namespace netxs::ui
                 //if (!skin::globals().tracking) return;
                 boss.on(input::key::MouseMove, memo, [&](hids& gear)
                 {
-                    items.take(gear).calc(boss, gear.coord);
+                    gears.take(gear).calc(boss, gear.coord);
                 });
                 boss.LISTEN(tier::release, e2::render::background::prerender, parent_canvas, memo)
                 {
@@ -549,9 +531,9 @@ namespace netxs::ui
                     auto  coor = parent_canvas.coor();
                     auto  full = parent_canvas.full();
                     auto  base = full.coor - coor - glow.size() / 2;
-                    items.foreach([&](sock& item)
+                    gears.foreach([&](sock& g)
                     {
-                        glow.move(base + item.cursor);
+                        glow.move(base + g.cursor);
                         parent_canvas.plot(glow, cell::shaders::blend);
                     });
                 };

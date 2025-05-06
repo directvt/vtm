@@ -84,13 +84,13 @@ namespace netxs::ui
             using skill::boss,
                   skill::memo;
 
-            list items;
+            list gears;
 
         public:
             cell_highlight(auto&&) = delete;
             cell_highlight(auto& boss)
                 : skill{ boss },
-                  items{ boss }
+                  gears{ boss }
             {
                 boss.LISTEN(tier::release, e2::postrender, parent_canvas, memo)
                 {
@@ -101,19 +101,19 @@ namespace netxs::ui
                     auto step = twod{ 5, 1 };
                     auto area = full;
                     area.size.x += boss.base::oversz.r;
-                    items.foreach([&](sock& item)
+                    gears.foreach([&](sock& g)
                     {
-                        if (item.region.size)
+                        if (g.region.size)
                         {
-                            auto region = item.region.normalize();
+                            auto region = g.region.normalize();
                             auto pos1 = region.coor / step * step;
                             auto pos2 = (region.coor + region.size + step) / step * step;
                             auto pick = rect{ full.coor + pos1, pos2 - pos1 }.trimby(area).trimby(clip);
                             parent_canvas.fill(pick, fill);
                         }
-                        if (item.inside)
+                        if (g.inside)
                         {
-                            auto pos1 = item.curpos / step * step;
+                            auto pos1 = g.curpos / step * step;
                             auto pick = rect{ full.coor + pos1, step }.trimby(clip);
                             parent_canvas.fill(pick, fill);
                         }
@@ -121,21 +121,21 @@ namespace netxs::ui
                 };
                 boss.on(input::key::LeftClick, memo, [&](hids& gear)
                 {
-                    auto& item = items.take(gear);
-                    if (item.region.size)
+                    auto& g = gears.take(gear);
+                    if (g.region.size)
                     {
-                        if (gear.meta(hids::anyCtrl)) item.region.size = gear.coord - item.region.coor;
-                        else                          item.region.size = dot_00;
+                        if (gear.meta(hids::anyCtrl)) g.region.size = gear.coord - g.region.coor;
+                        else                          g.region.size = dot_00;
                     }
                     recalc();
                 });
                 boss.on(input::key::LeftDoubleClick, memo, [&](hids& gear)
                 {
-                    auto& item = items.take(gear);
+                    auto& g = gears.take(gear);
                     auto area = boss.base::size();
                     area.x += boss.base::oversz.r;
-                    item.region.coor = dot_00;
-                    item.region.size = area;
+                    g.region.coor = dot_00;
+                    g.region.size = area;
                     recalc();
                     gear.dismiss();
                 });
@@ -146,16 +146,16 @@ namespace netxs::ui
                 };
                 boss.on(input::key::MouseEnter, memo, [&](hids& gear)
                 {
-                    items.add(gear);
+                    gears.add(gear);
                 });
                 boss.on(input::key::MouseLeave, memo, [&](hids& gear)
                 {
-                    auto& item = items.take(gear);
-                    if (item.region.size)
+                    auto& g = gears.take(gear);
+                    if (g.region.size)
                     {
-                        item.inside = faux;
+                        g.inside = faux;
                     }
-                    else items.del(gear);
+                    else gears.del(gear);
                     recalc();
                 });
                 engage<hids::buttons::left>();
@@ -166,11 +166,11 @@ namespace netxs::ui
                 auto step = twod{ 5, 1 };
                 auto size = boss.base::size();
                 size.x += boss.base::oversz.r;
-                items.foreach([&](sock& item)
+                gears.foreach([&](sock& g)
                 {
-                    if (item.region.size)
+                    if (g.region.size)
                     {
-                        auto region = item.region.normalize();
+                        auto region = g.region.normalize();
                         auto pos1 = region.coor / step;
                         auto pos2 = (region.coor + region.size) / step;
                         pos1 = std::clamp(pos1, dot_00, twod{ 25, 98 } );
@@ -200,12 +200,12 @@ namespace netxs::ui
                 boss.base::signal(tier::release, e2::form::draggable::_<Button>, true);
                 boss.on(input::key::MouseMove, memo, [&](hids& gear)
                 {
-                    items.take(gear).calc(boss, gear.coord);
+                    gears.take(gear).calc(boss, gear.coord);
                     boss.base::deface();
                 });
                 boss.LISTEN(tier::release, e2::form::drag::start::_<Button>, gear, memo)
                 {
-                    auto& g = items.take(gear);
+                    auto& g = gears.take(gear);
                     g.calc(boss, gear.click);
                     if (g.grab(gear.click, gear.meta(hids::anyCtrl)))
                     {
@@ -214,7 +214,7 @@ namespace netxs::ui
                 };
                 boss.LISTEN(tier::release, e2::form::drag::pull::_<Button>, gear, memo)
                 {
-                    if (items.take(gear).drag(gear.coord))
+                    if (gears.take(gear).drag(gear.coord))
                     {
                         recalc();
                         gear.dismiss();
@@ -222,12 +222,12 @@ namespace netxs::ui
                 };
                 boss.LISTEN(tier::release, e2::form::drag::cancel::_<Button>, gear, memo)
                 {
-                    items.take(gear).drop();
+                    gears.take(gear).drop();
                     recalc();
                 };
                 boss.LISTEN(tier::release, e2::form::drag::stop::_<Button>, gear, memo)
                 {
-                    items.take(gear).drop();
+                    gears.take(gear).drop();
                     recalc();
                 };
             }
