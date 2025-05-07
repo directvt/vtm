@@ -1655,14 +1655,17 @@ namespace netxs::app::vtm
                     base::ruined(faux);
                 }
             };
-            LISTEN(tier::release, e2::render::background::prerender, parent_canvas) // Sync hall basis with current gate.
+            LISTEN(tier::release, e2::render::background::prerender, parent_canvas) // Sync the hall basis with the current gate.
             {
                 auto gate_ptr = bell::getref<ui::gate>(parent_canvas.link());
-                parent_canvas.move_basis(gate_ptr->region.coor);
+                parent_canvas.move_basis(gate_ptr->base::coor());
             };
             auto& layers = base::field<std::array<std::vector<sptr>, 3>>();
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
+                auto clip = parent_canvas.clip();         // Draw world without clipping. Wolrd has no size.
+                parent_canvas.clip(parent_canvas.area()); //
+
                 if (users.size() > 1) // Draw users.
                 {
                     static auto color = tone{ tone::brighter, tone::shadower };
@@ -1728,6 +1731,7 @@ namespace netxs::app::vtm
                         }
                     }
                 }
+                parent_canvas.clip(clip); // Restore drawing context.
             };
             base::signal(tier::general, e2::config::fps, ui::skin::globals().maxfps);
         }
