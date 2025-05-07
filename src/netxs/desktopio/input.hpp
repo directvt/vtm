@@ -1083,27 +1083,16 @@ namespace netxs::input
                 }
             }
         }
-        void _calc_pressed_buttons(sysmouse& m)
-        {
-            auto prev_pressed_count = std::exchange(pressed_count, 0);
-            auto bits = m.buttons;
-            while (bits)
-            {
-                if (bits & 0x1) pressed_count++;
-                bits >>= 1;
-            }
-            if (prev_pressed_count != pressed_count)
-            {
-                if (prev_pressed_count < pressed_count) fire(input::key::MouseDown); // Signal down/up with bttn_id=0 in order to update the pressed count for all objects under the event tree.
-                else                                    fire(input::key::MouseUp);   //   See hids::dispatch() for details.
-            }
-        }
         // mouse: Generate mouse event.
         void update(sysmouse& m, core const& idmap)
         {
             auto modschanged = m_sys.ctlstat != m.ctlstat;
             m_sys.set(m);
-            _calc_pressed_buttons(m);
+            if (auto prev_count = std::exchange(pressed_count, std::popcount((ui32)m.buttons)); prev_count != pressed_count)
+            {
+                if (prev_count < pressed_count) fire(input::key::MouseDown); // Signal down/up with bttn_id=0 in order to update the pressed count for all objects under the event tree.
+                else                            fire(input::key::MouseUp);   //   See hids::dispatch() for details.
+            }
             auto busy = captured();
             if (busy && fire_fast())
             {

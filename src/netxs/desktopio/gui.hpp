@@ -2343,14 +2343,15 @@ namespace netxs::gui
                 auto [side_x, side_y] = szgrip.layout(outer_rect);
                 auto dent_x = dent{ s.x < 0, s.x > 0, s.y > 0, s.y < 0 };
                 auto dent_y = dent{ s.x > 0, s.x < 0, 1, 1 };
+                auto shade2 = shade + 0x00'09'09'09 * std::popcount((ui32)stream.m.buttons);
                 fill_grips(side_x, [&, &side_x = side_x](auto& canvas, auto r) //todo &side_x: Apple clang still disallows capturing structured bindings
                 {
-                    netxs::onrect(canvas, r, cell::shaders::full(shade));
+                    netxs::onrect(canvas, r, cell::shaders::full(shade2));
                     netxs::misc::cage(canvas, side_x, dent_x, cell::shaders::full(black)); // 1-px dark contour around.
                 });
                 fill_grips(side_y, [&, &side_y = side_y](auto& canvas, auto r) //todo &side_y: Apple clang still disallows capturing structured bindings
                 {
-                    netxs::onrect(canvas, r, cell::shaders::full(shade));
+                    netxs::onrect(canvas, r, cell::shaders::full(shade2));
                     netxs::misc::cage(canvas, side_y, dent_y, cell::shaders::full(black)); // 1-px dark contour around.
                 });
             }
@@ -2751,6 +2752,10 @@ namespace netxs::gui
             {
                 if (button == bttn::left) drop_grips();
                 //moving = faux; // Stop GUI window dragging if any button released.
+            }
+            if (changed && hit_grips()) // Amplify grips on any mouse press.
+            {
+                netxs::set_flag<task::grips>(reload);
             }
             if (moving) // Don't report mouse clicks while dragging window.
             {
