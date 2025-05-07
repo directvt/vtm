@@ -802,11 +802,11 @@ namespace netxs::app::shared
                 input::bindings::keybind(boss, "Any", "vtm.infopage.UpdateChordPreview()");
                 input::bindings::keybind(boss,
                     #if defined(WIN32)
-                    "Ctrl-Alt | Alt-Ctrl"
+                    "preview:Ctrl-Alt | Alt-Ctrl",
                     #else
-                    "Alt+Shift+B"
+                    "preview:Alt+Shift+B",
                     #endif
-                    , "vtm.infopage.ExclusiveKeyboardMode()", true);
+                    "vtm.infopage.ExclusiveKeyboardMode()");
                 luafx.activate("infopage",
                 {
                     { "UpdateChordPreview",     [&]

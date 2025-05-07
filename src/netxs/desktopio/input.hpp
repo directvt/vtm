@@ -508,7 +508,11 @@ namespace netxs::input
                 };
                 auto keys = std::vector<key_t>{};
                 auto crop = std::vector<text>{};
-                if (utf::to_lower(chord) == "any")
+                //todo reimplement chord_list
+                if (auto anytest = utf::to_lower(chord);
+                    anytest.starts_with("any") ||
+                   (anytest.starts_with(tier::str[tier::preview])
+                       && utf::trim((view{ anytest }.substr(tier::str[tier::preview].size())), ": ").starts_with("any")))
                 {
                     crop.push_back(any_key);
                     return crop;
@@ -518,6 +522,41 @@ namespace netxs::input
                     auto k = key_t{};
                     utf::trim(chord);
                     if (chord.empty()) return k;
+                    if (auto pos = chord.find("::"); pos != text::npos) // Environment event.
+                    {
+                        auto event_tier = chord.starts_with(tier::str[tier::preview]) ? tier::preview
+                                        : chord.starts_with(tier::str[tier::release]) ? tier::release
+                                        : chord.starts_with(tier::str[tier::general]) ? tier::general
+                                        : chord.starts_with(tier::str[tier::anycast]) ? tier::anycast
+                                        : chord.starts_with(tier::str[tier::request]) ? tier::request
+                                                                                      : tier::unknown;
+                        if (event_tier != tier::unknown)
+                        {
+                            auto event_str = chord;
+                            event_str.remove_prefix(tier::str[event_tier].size());
+                            utf::trim_all(event_str, ": ");
+                            auto& rtti = netxs::events::rtti();
+                            auto iter = rtti.find(event_str);
+                            if (iter != rtti.end())
+                            {
+                                auto metadata = iter->second;
+                                k.sign = (byte)(input::key::generic_sign | event_tier);
+                                k.code1 = metadata.event_id;
+                                if constexpr (debugmode) log("generic event: event_str=%% event_id=%% param_typename=%% tier=%%", event_str, metadata.event_id, metadata.param_typename, tier::str[event_tier]);
+                            }
+                            else
+                            {
+                                log("generic event: unknown event '%%'", chord);
+                            }
+                        }
+                        chord = {};
+                        return k;
+                    }
+                    if (chord.starts_with(tier::str[tier::preview])) // Drop the "preview:" prefix (it is not used here).
+                    {
+                        chord.remove_prefix(tier::str[tier::preview].size());
+                        utf::trim_front(chord, ": ");
+                    }
                     auto c = chord.front();
                     if (c != '-') // Is pressed.
                     {
@@ -539,8 +578,7 @@ namespace netxs::input
                     }
                     utf::trim(chord);
                     if (chord.empty()) return k;
-                    auto isscancode = chord.starts_with("0x") || chord.starts_with("0X");
-                    if (isscancode)
+                    if (auto isscancode = chord.starts_with("0x") || chord.starts_with("0X"); isscancode)
                     {
                         chord.remove_prefix(2);
                         if (auto v = utf::to_int<si32, 16>(chord))
@@ -555,32 +593,6 @@ namespace netxs::input
                         k.utf8 = utf::unescape(chord.substr(1, chord.size() - 2));
                         k.code1 = 0xFF;
                         chord.clear();
-                    }
-                    else if (auto event_tier = chord.starts_with(tier::str[tier::preview]) ? tier::preview // Environment event.
-                                             : chord.starts_with(tier::str[tier::release]) ? tier::release
-                                             : chord.starts_with(tier::str[tier::general]) ? tier::general
-                                             : chord.starts_with(tier::str[tier::anycast]) ? tier::anycast
-                                             : chord.starts_with(tier::str[tier::request]) ? tier::request
-                                                                                           : tier::unknown;
-                            event_tier != tier::unknown)
-                    {
-                        auto event_str = chord;
-                        event_str.remove_prefix(tier::str[event_tier].size());
-                        utf::trim_all(event_str, ": ");
-                        auto& rtti = netxs::events::rtti();
-                        auto iter = rtti.find(event_str);
-                        if (iter != rtti.end())
-                        {
-                            auto metadata = iter->second;
-                            k.sign = (byte)(input::key::generic_sign | event_tier);
-                            k.code1 = metadata.event_id;
-                            if constexpr (debugmode) log("generic event: event_str=%% event_id=%% param_typename=%% tier=%%", event_str, metadata.event_id, metadata.param_typename, tier::str[event_tier]);
-                        }
-                        else
-                        {
-                            log("generic event: unknown event '%%'", chord);
-                        }
-                        chord = {};
                     }
                     else if (auto key_name = qiew{ utf::get_word(chord, "+- ") })
                     {
@@ -722,7 +734,6 @@ namespace netxs::input
         struct binding_t
         {
             text chord;
-            bool preview{};
             txts sources; // Event source list.
             netxs::sptr<text> script_ptr;
         };
@@ -744,7 +755,9 @@ namespace netxs::input
             {
                 auto head = chord_qiew_list.begin();
                 auto tail = chord_qiew_list.end();
-                auto binary_chord_list = _get_chord_list(utf::trim(*head++));
+                auto fragment = utf::trim(*head++);
+                auto is_preview = fragment.starts_with(tier::str[tier::preview]);
+                auto binary_chord_list = _get_chord_list(fragment);
                 if (binary_chord_list.size())
                 {
                     while (head != tail)
@@ -754,15 +767,15 @@ namespace netxs::input
                         auto& c = next_chord_list;
                         binary_chord_list.insert(binary_chord_list.end(), c.begin(), c.end());
                     }
-                    return binary_chord_list;
+                    return std::pair{ binary_chord_list, is_preview };
                 }
             }
-            return _get_chord_list();
+            return std::pair{ _get_chord_list(), faux };
         }
-        auto keybind(base& boss, qiew chord_str, auto&& script_body, bool is_preview = faux, txts const& /*sources*/ = {})
+        auto keybind(base& boss, qiew chord_str, auto&& script_body, txts const& /*sources*/ = {})
         {
             if (!chord_str) return;
-            auto chords = input::bindings::get_chords(chord_str);
+            auto [chords, is_preview] = input::bindings::get_chords(chord_str);
             if (chords.size())
             {
                 auto script_ptr = ptr::shared<script_ref>(boss.location, script_body);    
@@ -826,7 +839,7 @@ namespace netxs::input
         {
             for (auto& r : bindings)
             {
-                keybind(boss, r.chord, r.script_ptr, r.preview, r.sources);
+                keybind(boss, r.chord, r.script_ptr, r.sources);
             }
         }
         template<class T>
@@ -876,11 +889,9 @@ namespace netxs::input
                 {
                     auto script_body_ptr = ptr::shared(config.expand(script_ptr));
                     auto on_ptr_list = script_ptr->list("on");
-                    auto onpreview_ptr_list = script_ptr->list("onpreview");
-                    auto preview = faux;
-                    auto set = [&](auto event_ptr)
+                    for (auto event_ptr : on_ptr_list)
                     {
-                        auto on_rec = config.expand(event_ptr); // ... on="MouseDown01" ... onpreview="Enter"... .
+                        auto on_rec = config.expand(event_ptr); // ... on="MouseDown01" ... on="preview:Enter"... .
                         auto source_list = event_ptr->list("source");
                         auto sources = txts{};
                         sources.reserve(source_list.size());
@@ -890,16 +901,7 @@ namespace netxs::input
                             sources.emplace_back(source);
                             //if constexpr (debugmode) log("chord='%%' \tpreview=%% source='%%' script=%%", on_rec, (si32)preview, source, ansi::hi(*script_body_ptr));
                         }
-                        bindings.push_back({ .chord = on_rec, .preview = preview, .sources = std::move(sources), .script_ptr = script_body_ptr });
-                    };
-                    for (auto on_ptr : on_ptr_list)
-                    {
-                        set(on_ptr);
-                    }
-                    preview = true;
-                    for (auto onpreview_ptr : onpreview_ptr_list)
-                    {
-                        set(onpreview_ptr);
+                        bindings.push_back({ .chord = on_rec, .sources = std::move(sources), .script_ptr = script_body_ptr });
                     }
                 }
             }

@@ -470,7 +470,7 @@ R"==(
                 on="MouseWheel"                  fp2d: hz/vt
                 on="MouseDown1"                  Left button push down.
                 on="MouseUp1"                    Left button release.
-                onpreview="MouseDown01"          Right button push down (preview phase).
+                on="preview:MouseDown01"         Right button push down (preview phase).
                 on="MouseClick"                  Any button click.
                 on="MouseClick1"                 Left button click.
                 on="LeftClick"                   Left button click.
@@ -491,7 +491,7 @@ R"==(
                 on="MouseDragCancel11"
             Keybd:
                 on="Enter"
-                onpreview="Enter"
+                on="preview:Enter"
                 on="Ctrl+B"
                 on="-Ctrl"
                 on="-Ctrl"
@@ -636,14 +636,14 @@ R"==(
             <script=ToggleAntialiasingMode on="Ctrl+CapsLock"                    />
             <script=RollFontsBackward      on="Ctrl+Shift+F11"                   />
             <script=RollFontsForward       on="Ctrl+Shift+F12"                   />
-            <script=ResetWheelAccumulator  onpreview="-Ctrl"                     />
+            <script=ResetWheelAccumulator  on="preview:-Ctrl"                    />
             <script=ToggleDebugOverlay     on="Space-Backspace | Backspace-Space"/>
         </gate>
         <desktop script*>  <!-- Desktop bindings. -->
             <script=FocusPrevWindow on="Ctrl+PageUp"  />
             <script=FocusNextWindow on="Ctrl+PageDown"/>
             <script=Disconnect      on="Shift+F7"     />
-            <script=TryToQuit       onpreview="F10"   />
+            <script=TryToQuit       on="preview:F10"  />
             <script=RunApplication  on="Alt+Shift+N"  />
             <script=RunInfoPage     on="Esc+F1"       />
         </desktop>
@@ -696,11 +696,11 @@ R"==(
 )=="
 #if defined (WIN32)
 R"==(
-            <script=ExclusiveKeyboardMode onpreview="Ctrl-Alt | Alt-Ctrl"/>
+            <script=ExclusiveKeyboardMode on="preview: Ctrl-Alt | Alt-Ctrl"/>
 )=="
 #else
 R"==(
-            <script=ExclusiveKeyboardMode onpreview="Alt+Shift+B"/>
+            <script=ExclusiveKeyboardMode on="preview: Alt+Shift+B"/>
 )=="
 #endif
 R"==(
@@ -725,8 +725,8 @@ R"==(
             <script=TerminalReset                      on=""                     />
             <script=TerminalClearScrollback            on=""                     />
             <script=TerminalCopyViewport               on=""                     />
-            <script=TerminalCopySelection              onpreview="Ctrl+Insert"   />
-            <script=TerminalClipboardPaste             onpreview="Shift+Insert"  />
+            <script=TerminalCopySelection              on="preview:Ctrl+Insert"  />
+            <script=TerminalClipboardPaste             on="preview:Shift+Insert" />
             <script=TerminalClipboardWipe              on=""                     />
             <script=TerminalClipboardFormat            on=""                     />
             <script=TerminalSelectionRect              on=""                     />
@@ -740,17 +740,17 @@ R"==(
             <script=TerminalRestart                    on=""                     />
         </terminal>
         <defapp script*>  <!-- Default application bindings (e.g., Info-Page). -->
-            <script="vtm.defapp.ShowClosingPreview(not vtm.gear.IsKeyRepeated())"                 onpreview="Esc" /> <!-- Pred window close action. -->
-            <script="if (vtm.defapp.ShowClosingPreview()) then vtm.defapp.Close() end"            onpreview="-Esc"/> <!-- Close the window on Esc release. -->
-            <script="vtm.defapp.ShowClosingPreview(false)"                                        onpreview="Any" /> <!-- Preview for "Any" is always triggered after all other previews. Non-preview "Any" is triggered before all other keys. -->
-            <script="vtm.defapp.ScrollViewportByPage( 0, 1)"                                      on="PageUp"     />
-            <script="vtm.defapp.ScrollViewportByPage( 0,-1)"                                      on="PageDown"   />
-            <script="vtm.defapp.ScrollViewportByStep( 0, 3)"                                      on="UpArrow"    />
-            <script="vtm.defapp.ScrollViewportByStep( 0,-3)"                                      on="DownArrow"  />
-            <script="vtm.defapp.ScrollViewportByStep( 3, 0)"                                      on="LeftArrow"  />
-            <script="vtm.defapp.ScrollViewportByStep(-3, 0)"                                      on="RightArrow" />
-            <script="if (not vtm.gear.IsKeyRepeated()) then vtm.defapp.ScrollViewportToTop() end" on="Home"       />
-            <script="if (not vtm.gear.IsKeyRepeated()) then vtm.defapp.ScrollViewportToEnd() end" on="End"        />
+            <script="vtm.defapp.ShowClosingPreview(not vtm.gear.IsKeyRepeated())"                 on="preview:Esc" /> <!-- Pred window close action. -->
+            <script="if (vtm.defapp.ShowClosingPreview()) then vtm.defapp.Close() end"            on="preview:-Esc"/> <!-- Close the window on Esc release. -->
+            <script="vtm.defapp.ShowClosingPreview(false)"                                        on="preview:Any" /> <!-- Preview for "Any" is always triggered after all other previews. Non-preview "Any" is triggered before all other keys. -->
+            <script="vtm.defapp.ScrollViewportByPage( 0, 1)"                                      on="PageUp"      />
+            <script="vtm.defapp.ScrollViewportByPage( 0,-1)"                                      on="PageDown"    />
+            <script="vtm.defapp.ScrollViewportByStep( 0, 3)"                                      on="UpArrow"     />
+            <script="vtm.defapp.ScrollViewportByStep( 0,-3)"                                      on="DownArrow"   />
+            <script="vtm.defapp.ScrollViewportByStep( 3, 0)"                                      on="LeftArrow"   />
+            <script="vtm.defapp.ScrollViewportByStep(-3, 0)"                                      on="RightArrow"  />
+            <script="if (not vtm.gear.IsKeyRepeated()) then vtm.defapp.ScrollViewportToTop() end" on="Home"        />
+            <script="if (not vtm.gear.IsKeyRepeated()) then vtm.defapp.ScrollViewportToEnd() end" on="End"         />
         </defapp>
     </events>
 </config>)=="
