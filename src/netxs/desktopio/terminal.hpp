@@ -7767,12 +7767,12 @@ namespace netxs::ui
             LISTEN(tier::release, e2::form::drag::pull  ::left, gear){ if (selection_passed()) selection_extend(gear); };
             LISTEN(tier::release, e2::form::drag::stop  ::left, gear){                         selection_finish(gear); };
             LISTEN(tier::release, e2::form::drag::cancel::left, gear){                         selection_cancel();     };
-            on(input::key::RightClick,                [&](hids& gear){                         selection_pickup(gear); });
-            on(input::key::LeftClick,                 [&](hids& gear){                         selection_lclick(gear); });
-            on(input::key::MiddleClick,               [&](hids& gear){                         selection_mclick(gear); });
-            on(input::key::LeftDoubleClick,           [&](hids& gear){ if (selection_passed()) selection_dblclk(gear); });
-            on(input::key::LeftMultiClick,            [&](hids& gear){ if (selection_passed()) selection_tplclk(gear); });
-            on(input::key::MouseWheel, [&](hids& gear)
+            on(tier::mouserelease, input::key::RightClick,                [&](hids& gear){                         selection_pickup(gear); });
+            on(tier::mouserelease, input::key::LeftClick,                 [&](hids& gear){                         selection_lclick(gear); });
+            on(tier::mouserelease, input::key::MiddleClick,               [&](hids& gear){                         selection_mclick(gear); });
+            on(tier::mouserelease, input::key::LeftDoubleClick,           [&](hids& gear){ if (selection_passed()) selection_dblclk(gear); });
+            on(tier::mouserelease, input::key::LeftMultiClick,            [&](hids& gear){ if (selection_passed()) selection_tplclk(gear); });
+            on(tier::mouserelease, input::key::MouseWheel, [&](hids& gear)
             {
                 if (gear.captured()) // Forward mouse wheel events to all parents. Wheeling while button pressed.
                 {
@@ -9138,7 +9138,7 @@ namespace netxs::ui
                 gear.m_sys.enabled = hids::stat::die;
                 stream.sysmouse.send(*this, gear.m_sys);
             };
-            on(input::key::MouseLeave, [&](hids& gear)
+            on(tier::mouserelease, input::key::MouseLeave, [&](hids& gear)
             {
                 gear.m_sys.gear_id = gear.id;
                 gear.m_sys.enabled = hids::stat::halt;

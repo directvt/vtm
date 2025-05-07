@@ -90,21 +90,21 @@ namespace netxs::app::vtm
             frame(base& boss) : skill{ boss },
                 robo{ boss }
             {
-                boss.onpreview(tier::mousepreview, input::key::LeftClick, memo, [&](hids& /*gear*/)
+                boss.on(tier::mousepreview, input::key::LeftClick, memo, [&](hids& /*gear*/)
                 {
                     //todo window.events(onclick)
                     boss.base::riseup(tier::preview, e2::form::layout::expose);
                 });
-                boss.onpreview(tier::mousepreview, input::key::RightClick, memo, [&](hids& /*gear*/)
+                boss.on(tier::mousepreview, input::key::RightClick, memo, [&](hids& /*gear*/)
                 {
                     //todo window.events(onclick)
                     boss.base::riseup(tier::preview, e2::form::layout::expose);
                 });
-                boss.onpreview(tier::mousepreview, input::key::MouseDown, memo, [&](hids& /*gear*/)
+                boss.on(tier::mousepreview, input::key::MouseDown, memo, [&](hids& /*gear*/)
                 {
                     robo.pacify();
                 });
-                boss.on(input::key::RightClick, memo, [&](hids& gear)
+                boss.on(tier::mouserelease, input::key::RightClick, memo, [&](hids& gear)
                 {
                     auto& area = boss.base::area();
                     auto coord = gear.coord + area.coor;
@@ -365,26 +365,26 @@ namespace netxs::app::vtm
                     if (gear.captured(boss.bell::id)) check_modifiers(gear);
                 };
 
-                boss.on(input::key::MiddleDragStart, memo, [&](hids& gear)
+                boss.on(tier::mouserelease, input::key::MiddleDragStart, memo, [&](hids& gear)
                 {
                     handle_init(gear);
                 });
-                boss.on(input::key::RightDragStart, memo.back());
-                boss.on(input::key::MiddleDragPull, memo, [&](hids& gear)
+                boss.on(tier::mouserelease, input::key::RightDragStart, memo.back());
+                boss.on(tier::mouserelease, input::key::MiddleDragPull, memo, [&](hids& gear)
                 {
                     handle_pull(gear);
                 });
-                boss.on(input::key::RightDragPull, memo.back());
-                boss.on(input::key::MiddleDragStop, memo, [&](hids& gear)
+                boss.on(tier::mouserelease, input::key::RightDragPull, memo.back());
+                boss.on(tier::mouserelease, input::key::MiddleDragStop, memo, [&](hids& gear)
                 {
                     handle_stop(gear);
                 });
-                boss.on(input::key::RightDragStop, memo.back());
-                boss.on(input::key::MiddleDragCancel, memo, [&](hids& gear)
+                boss.on(tier::mouserelease, input::key::RightDragStop, memo.back());
+                boss.on(tier::mouserelease, input::key::MiddleDragCancel, memo, [&](hids& gear)
                 {
                     handle_drop(gear);
                 });
-                boss.on(input::key::RightDragCancel, memo.back());
+                boss.on(tier::mouserelease, input::key::RightDragCancel, memo.back());
                 boss.dup_handler(tier::general, input::events::halt.id, memo.back());
 
                 boss.LISTEN(tier::release, e2::postrender, canvas, memo)
@@ -813,12 +813,12 @@ namespace netxs::app::vtm
                     auto b = std::max(1, title.foot_size.y);
                     object_area = base::area() + dent{ 2, 2, t, b };
                 };
-                on(input::key::LeftDoubleClick, [&](hids& gear)
+                on(tier::mouserelease, input::key::LeftDoubleClick, [&](hids& gear)
                 {
                     base::riseup(tier::preview, e2::form::size::enlarge::maximize, gear);
                     gear.dismiss();
                 });
-                on(input::key::LeftClick, [&](hids& gear)
+                on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
                 {
                     auto home = rect{ -dot_21, base::size() + dot_21 * 2 }; // Including resizer grips.
                     if (!home.hittest(gear.coord))
@@ -827,11 +827,11 @@ namespace netxs::app::vtm
                     }
                 });
                 //todo use input::key::MouseClick
-                on(input::key::RightClick, [&](hids& gear)
+                on(tier::mouserelease, input::key::RightClick, [&](hids& gear)
                 {
                     pro::focus::set(This(), gear.id, solo::on);
                 });
-                on(input::key::MiddleClick, [&](hids& gear)
+                on(tier::mouserelease, input::key::MiddleClick, [&](hids& gear)
                 {
                     pro::focus::set(This(), gear.id, solo::on);
                 });
@@ -1910,7 +1910,7 @@ namespace netxs::app::vtm
                     usergate.base::signal(tier::release, e2::form::layout::shift, center);
                 }
             };
-            usergate.on(input::key::LeftClick, [&](hids& gear) // Fly to another user's viewport.
+            usergate.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear) // Fly to another user's viewport.
             {
                 if (gear.owner.id == usergate.id) return;
                 auto center = usergate.base::coor() + gear.owner.base::size() / 2;

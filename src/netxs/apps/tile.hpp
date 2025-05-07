@@ -136,7 +136,7 @@ namespace netxs::app::tile
                             {
                                 boss.base::detach(); // Destroy itself.
                             };
-                            boss.on(input::key::MouseAny, [&](hids& gear)
+                            boss.on(tier::mouserelease, input::key::MouseAny, [&](hids& gear)
                             {
                                 if ((gear.cause & 0x00FF) && !gear.dragged) // Button events only.
                                 if (auto data_ptr = data_shadow.lock())
@@ -181,7 +181,7 @@ namespace netxs::app::tile
     {
         auto mouse_subs = [](auto& boss)
         {
-            boss.on(input::key::LeftDoubleClick, [&](hids& gear)
+            boss.on(tier::mouserelease, input::key::LeftDoubleClick, [&](hids& gear)
             {
                 boss.base::riseup(tier::preview, e2::form::size::enlarge::maximize, gear);
                 gear.dismiss();
@@ -201,7 +201,7 @@ namespace netxs::app::tile
                         mouse_subs(boss);
                         if (what.applet->size() != dot_00) boss.resize(what.applet->size() + dot_01/*approx title height*/);
                         auto applet_shadow = ptr::shadow(what.applet);
-                        boss.on(input::key::LeftDragStart, [&, applet_shadow](hids& gear)
+                        boss.on(tier::mouserelease, input::key::LeftDragStart, [&, applet_shadow](hids& gear)
                         {
                             if (auto applet_ptr = applet_shadow.lock())
                             if (applet_ptr->area().hittest(gear.coord))
@@ -247,12 +247,12 @@ namespace netxs::app::tile
                                 }
                             }
                         });
-                        boss.on(input::key::LeftRightDragStart);
-                        boss.on(input::key::RightClick, [&](hids& gear)
+                        boss.on(tier::mouserelease, input::key::LeftRightDragStart);
+                        boss.on(tier::mouserelease, input::key::RightClick, [&](hids& gear)
                         {
                             pro::focus::set(boss.This(), gear.id, solo::on);
                         });
-                        boss.on(input::key::MiddleClick);
+                        boss.on(tier::mouserelease, input::key::MiddleClick);
                         boss.LISTEN(tier::anycast, e2::form::upon::started, context_keeper_ptr)
                         {
                             boss.base::riseup(tier::release, tile::events::enlist, boss.This());
@@ -297,7 +297,7 @@ namespace netxs::app::tile
                 ->invoke([&](auto& boss)
                 {
                     mouse_subs(boss);
-                    boss.on(input::key::MouseWheel, [&](hids& gear)
+                    boss.on(tier::mouserelease, input::key::MouseWheel, [&](hids& gear)
                     {
                         if (gear.meta(hids::anyCtrl))
                         {
@@ -340,7 +340,7 @@ namespace netxs::app::tile
                     ->plugin<pro::shade<cell::shaders::xlight>>()
                     ->invoke([&](auto& boss)
                     {
-                        boss.on(input::key::RightClick, [&](hids& gear)
+                        boss.on(tier::mouserelease, input::key::RightClick, [&](hids& gear)
                         {
                             boss.base::riseup(tier::preview, e2::form::size::minimize, gear);
                             gear.dismiss();
@@ -405,7 +405,7 @@ namespace netxs::app::tile
                                                                                                                      " The app to run can be set by RightClick on the taskbar. " }}},
                 [](auto& boss, auto& /*item*/)
                 {
-                    boss.on(input::key::LeftClick, [&](hids& gear)
+                    boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
                     {
                         pro::focus::set(boss.This(), gear.id, solo::on);
                         boss.base::riseup(tier::request, e2::form::proceed::createby, gear);
@@ -415,7 +415,7 @@ namespace netxs::app::tile
                 { menu::item{ menu::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "│", .tooltip = " Split horizontally " }}},
                 [](auto& boss, auto& /*item*/)
                 {
-                    boss.on(input::key::LeftClick, [&](hids& gear)
+                    boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
                     {
                         boss.base::riseup(tier::release, app::tile::events::ui::split::hz, gear);
                         gear.dismiss(true);
@@ -424,7 +424,7 @@ namespace netxs::app::tile
                 { menu::item{ menu::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "──", .tooltip = " Split vertically " }}},
                 [](auto& boss, auto& /*item*/)
                 {
-                    boss.on(input::key::LeftClick, [&](hids& gear)
+                    boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
                     {
                         boss.base::riseup(tier::release, app::tile::events::ui::split::vt, gear);
                         gear.dismiss(true);
@@ -433,7 +433,7 @@ namespace netxs::app::tile
                 { menu::item{ menu::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "×", .tooltip = " Delete pane ", .hover = c1 }}},
                 [](auto& boss, auto& /*item*/)
                 {
-                    boss.on(input::key::LeftClick, [&](hids& gear)
+                    boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
                     {
                         boss.base::riseup(tier::release, e2::form::proceed::quit::one, true);
                         gear.dismiss(true);
@@ -495,7 +495,7 @@ namespace netxs::app::tile
                             app->base::reflow();
                         }
                     };
-                    boss.on(input::key::RightClick, [&](hids& gear)
+                    boss.on(tier::mouserelease, input::key::RightClick, [&](hids& gear)
                     {
                         pro::focus::set(boss.This(), gear.id, solo::on);
                         boss.base::riseup(tier::request, e2::form::proceed::createby, gear);
@@ -922,7 +922,7 @@ namespace netxs::app::tile
                 ->plugin<pro::luafx>();
             static auto on_left_click = [](auto& boss, auto& event)
             {
-                boss.on(input::key::LeftClick, [&](hids& gear)
+                boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
                 {
                     gear.dismiss(true);
                     boss.base::riseup(tier::preview, event, gear);

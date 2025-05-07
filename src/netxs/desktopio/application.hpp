@@ -36,13 +36,13 @@ namespace netxs::app::shared
     };
     const auto closing_by_gesture = [](auto& boss)
     {
-        boss.on(input::key::LeftRightClick, [&](hids& gear)
+        boss.on(tier::mouserelease, input::key::LeftRightClick, [&](hids& gear)
         {
             auto backup = boss.This();
             boss.base::riseup(tier::release, e2::form::proceed::quit::one, true);
             gear.dismiss();
         });
-        boss.on(input::key::MiddleClick, [&](hids& gear)
+        boss.on(tier::mouserelease, input::key::MiddleClick, [&](hids& gear)
         {
             auto backup = boss.This();
             boss.base::riseup(tier::release, e2::form::proceed::quit::one, true);
@@ -454,7 +454,7 @@ namespace netxs::app::shared
                     { menu::item{ menu::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "—", .tooltip = " Minimize " }}},//, .hover = c2 }}}, //toto too funky
                     [](auto& boss, auto& /*item*/)
                     {
-                        boss.on(input::key::LeftClick, [&](hids& gear)
+                        boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
                         {
                             boss.base::riseup(tier::preview, e2::form::size::minimize, gear);
                             gear.dismiss();
@@ -463,7 +463,7 @@ namespace netxs::app::shared
                     { menu::item{ menu::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "□", .tooltip = " Maximize " }}},//, .hover = c6 }}},
                     [](auto& boss, auto& /*item*/)
                     {
-                        boss.on(input::key::LeftClick, [&](hids& gear)
+                        boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
                         {
                             boss.base::riseup(tier::preview, e2::form::size::enlarge::maximize, gear);
                             gear.dismiss();
@@ -473,7 +473,7 @@ namespace netxs::app::shared
                     [c1](auto& boss, auto& /*item*/)
                     {
                         boss.template shader<tier::anycast>(cell::shaders::color(c1), e2::form::state::keybd::command::close);
-                        boss.on(input::key::LeftClick, [&](hids& gear)
+                        boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
                         {
                             auto backup = boss.This(); //todo revise backup
                             boss.base::signal(tier::anycast, e2::form::proceed::quit::one, faux); // fast=faux: Show closing process.
@@ -609,7 +609,7 @@ namespace netxs::app::shared
                 {
                     if (script_ptr->empty()) return;
                     auto& scripting_context_ptr = boss.base::field(ptr::shared<std::unordered_map<text, ui::wptr>>());
-                    boss.on(input::key::LeftClick, [&, script_ptr](hids& gear)
+                    boss.on(tier::mouserelease, input::key::LeftClick, [&, script_ptr](hids& gear)
                     {
                         item.taken = (item.taken + 1) % item.views.size();
                         //todo unify: controls.hpp:2132
@@ -628,7 +628,7 @@ namespace netxs::app::shared
 
                     //if (item.type == menu::type::Option)
                     //{
-                    //    boss.on(input::key::LeftClick, [&](hids& gear)
+                    //    boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
                     //    {
                     //        item.taken = (item.taken + 1) % item.views.size();
                     //    });

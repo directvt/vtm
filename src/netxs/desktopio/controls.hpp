@@ -102,11 +102,11 @@ namespace netxs::ui
 
                 socks(base& boss)
                 {
-                    boss.on(input::key::MouseEnter, tokens, [&](hids& gear)
+                    boss.on(tier::mouserelease, input::key::MouseEnter, tokens, [&](hids& gear)
                     {
                         add(gear);
                     });
-                    boss.on(input::key::MouseLeave, tokens, [&](hids& gear)
+                    boss.on(tier::mouserelease, input::key::MouseLeave, tokens, [&](hids& gear)
                     {
                         del(gear);
                     });
@@ -188,7 +188,7 @@ namespace netxs::ui
                   alive{ true          }
             {
                 // Drop it in favor of changing the cell size in GUI mode.
-                //boss.on(input::key::MouseWheel, memo, [&](hids& gear)
+                //boss.on(tier::mouserelease, input::key::MouseWheel, memo, [&](hids& gear)
                 //{
                 //    if (gear.meta(hids::anyCtrl) && !gear.meta(hids::ScrlLock) && gear.whlsi)
                 //    {
@@ -265,7 +265,7 @@ namespace netxs::ui
                 {
                     outer_rect = outer;
                 };
-                boss.on(input::key::MouseMove, memo, [&](hids& gear)
+                boss.on(tier::mouserelease, input::key::MouseMove, memo, [&](hids& gear)
                 {
                     auto& g = gears.take(gear);
                     if (g.zoomon && !gear.meta(hids::anyCtrl))
@@ -528,7 +528,7 @@ namespace netxs::ui
                 //};
                 // Mouse focus.
                 //if (!skin::globals().tracking) return;
-                boss.on(input::key::MouseMove, memo, [&](hids& gear)
+                boss.on(tier::mouserelease, input::key::MouseMove, memo, [&](hids& gear)
                 {
                     gears.take(gear).calc(boss, gear.coord);
                 });
@@ -1076,7 +1076,7 @@ namespace netxs::ui
                 stop = datetime::now() + limit;
 
                 // No mouse events watchdog.
-                boss.onpreview(tier::mousepreview, input::key::MouseAny, pong, [&](hids& /*gear*/)
+                boss.on(tier::mousepreview, input::key::MouseAny, pong, [&](hids& /*gear*/)
                 {
                     stop = datetime::now() + limit;
                 });
@@ -1362,7 +1362,7 @@ namespace netxs::ui
                     };
                 }
                 //todo unify. pro::focus: Set unique focus on left click. Set group focus on Ctrl+LeftClick.
-                boss.on(input::key::LeftClick, memo, [&](hids& gear)
+                boss.on(tier::mouserelease, input::key::LeftClick, memo, [&](hids& gear)
                 {
                     if (!gear) return;
                     if (gear.meta(hids::anyCtrl))
@@ -1803,7 +1803,7 @@ namespace netxs::ui
                 }
                 else if (dragmemo_button.empty())
                 {
-                    boss.on(input::key::MouseDragStart | button_bits, dragmemo_button, [&](hids& gear)
+                    boss.on(tier::mouserelease, input::key::MouseDragStart | button_bits, dragmemo_button, [&](hids& gear)
                     {
                         if (gear.capture(boss.bell::id))
                         {
@@ -1811,7 +1811,7 @@ namespace netxs::ui
                             gear.dismiss();
                         }
                     });
-                    boss.on(input::key::MouseDragPull | button_bits, dragmemo_button, [&](hids& gear)
+                    boss.on(tier::mouserelease, input::key::MouseDragPull | button_bits, dragmemo_button, [&](hids& gear)
                     {
                         if (gear.captured(boss.bell::id))
                         {
@@ -1819,7 +1819,7 @@ namespace netxs::ui
                             gear.dismiss();
                         }
                     });
-                    boss.on(input::key::MouseDragStop | button_bits, dragmemo_button, [&](hids& gear)
+                    boss.on(tier::mouserelease, input::key::MouseDragStop | button_bits, dragmemo_button, [&](hids& gear)
                     {
                         if (gear.captured(boss.bell::id))
                         {
@@ -1828,7 +1828,7 @@ namespace netxs::ui
                             gear.dismiss();
                         }
                     });
-                    boss.on(input::key::MouseDragCancel | button_bits, dragmemo_button, [&](hids& gear)
+                    boss.on(tier::mouserelease, input::key::MouseDragCancel | button_bits, dragmemo_button, [&](hids& gear)
                     {
                         if (gear.captured(boss.bell::id))
                         {
@@ -2235,7 +2235,7 @@ namespace netxs::ui
                     draw_shadow(parent_canvas);
                 };
                 //test
-                //boss.on(input::key::MouseWheel, [&](hids& gear)
+                //boss.on(tier::mouserelease, input::key::MouseWheel, [&](hids& gear)
                 //{
                 //    boss.base::deface();
                 //});
@@ -2273,7 +2273,7 @@ namespace netxs::ui
                 : skill{ boss },
                   note { data }
             {
-                boss.on(input::key::MouseEnter, memo, [&, wrap, full = wrap.l == si32max](hids& gear)
+                boss.on(tier::mouserelease, input::key::MouseEnter, memo, [&, wrap, full = wrap.l == si32max](hids& gear)
                 {
                     if (gear.tooltip_set) return; // Prevent parents from setting tooltip.
                     if (full || !(boss.area() + wrap).hittest(gear.coord + boss.coor()))
@@ -2626,7 +2626,7 @@ namespace netxs::ui
                 ::lua_getglobal(lua, "vtm");
                 ::lua_pushstring(lua, object_name);
                 ::lua_gettable(lua, -2);
-                auto object_ptr = static_cast<T*>(::lua_touserdata(lua, -1));
+                auto object_ptr = static_cast<T*>((base*)::lua_touserdata(lua, -1));
                 ::lua_pop(lua, 2); // Pop "vtm" and "object_name".
                 return object_ptr;
             }
@@ -4006,7 +4006,7 @@ namespace netxs::ui
             {
                 req_scinfo = scinfo;
             };
-            on(input::key::MouseWheel, [&](hids& gear)
+            on(tier::mouserelease, input::key::MouseWheel, [&](hids& gear)
             {
                 if (gear.meta(hids::anyCtrl)) return; // Ctrl+Wheel is reserved for zooming.
                 if (gear.whlsi)
@@ -4018,7 +4018,7 @@ namespace netxs::ui
                 }
                 gear.dismiss();
             });
-            on(input::key::RightDragStart, [&](hids& gear)
+            on(tier::mouserelease, input::key::RightDragStart, [&](hids& gear)
             {
                 auto ds = gear.delta.get();
                 auto dx = ds.x;
@@ -4037,7 +4037,7 @@ namespace netxs::ui
                     }
                 }
             });
-            on(input::key::RightDragPull, [&](hids& gear)
+            on(tier::mouserelease, input::key::RightDragPull, [&](hids& gear)
             {
                 if (gear.captured(bell::id))
                 {
@@ -4050,7 +4050,7 @@ namespace netxs::ui
                     gear.dismiss();
                 }
             });
-            on(input::key::RightDragCancel, [&](hids& gear)
+            on(tier::mouserelease, input::key::RightDragCancel, [&](hids& gear)
             {
                 if (gear.captured(bell::id))
                 {
@@ -4058,7 +4058,7 @@ namespace netxs::ui
                 }
             });
             bell::dup_handler(tier::general, input::events::halt.id);
-            on(input::key::RightDragStop, [&](hids& gear)
+            on(tier::mouserelease, input::key::RightDragStop, [&](hids& gear)
             {
                 if (gear.captured(bell::id))
                 {
@@ -4077,7 +4077,7 @@ namespace netxs::ui
                     gear.dismiss();
                 }
             });
-            on(input::key::RightClick, [&](hids& gear)
+            on(tier::mouserelease, input::key::RightClick, [&](hids& gear)
             {
                 if (!gear.captured(bell::id))
                 {
@@ -4085,7 +4085,7 @@ namespace netxs::ui
                     if (manual[Y]) cancel<Y, true>();
                 }
             });
-            on(input::key::MouseDown, [&](hids& /*gear*/)
+            on(tier::mouserelease, input::key::MouseDown, [&](hids& /*gear*/)
             {
                 cutoff();
             });
@@ -4548,21 +4548,21 @@ namespace netxs::ui
                 calc.update(scinfo);
                 base::deface();
             };
-            base::on(input::key::MouseWheel, [&](hids& gear)
+            base::on(tier::mouserelease, input::key::MouseWheel, [&](hids& gear)
             {
                 if (gear.meta(hids::anyCtrl)) return; // Ctrl+Wheel is reserved for zooming.
                 if (gear.whlsi) pager(gear.whlsi > 0 ? 1 : -1);
                 gear.dismiss();
             });
-            base::on(input::key::MouseMove, [&](hids& gear)
+            base::on(tier::mouserelease, input::key::MouseMove, [&](hids& gear)
             {
                 calc.cursor_pos = twod{ gear.coord }[Axis];
             });
-            base::on(input::key::LeftDoubleClick, [&](hids& gear)
+            base::on(tier::mouserelease, input::key::LeftDoubleClick, [&](hids& gear)
             {
                 gear.dismiss(); // Do not pass double clicks outside.
             });
-            base::on(input::key::MouseDown, [&](hids& gear)
+            base::on(tier::mouserelease, input::key::MouseDown, [&](hids& gear)
             {
                 if (!on_pager)
                 if (gear.cause == input::key::LeftDown || gear.cause == input::key::RightDown)
@@ -4587,7 +4587,7 @@ namespace netxs::ui
                     }
                 }
             });
-            base::on(input::key::MouseUp, [&](hids& gear)
+            base::on(tier::mouserelease, input::key::MouseUp, [&](hids& gear)
             {
                 if (on_pager && gear.captured(bell::id))
                 {
@@ -4601,7 +4601,7 @@ namespace netxs::ui
                     }
                 }
             });
-            base::on(input::key::RightUp, [&](hids& gear)
+            base::on(tier::mouserelease, input::key::RightUp, [&](hids& gear)
             {
                 //if (!gear.captured(bell::id)) //todo why?
                 {
@@ -4609,7 +4609,7 @@ namespace netxs::ui
                     gear.dismiss();
                 }
             });
-            base::on(input::key::MouseDragStart, [&](hids& gear)
+            base::on(tier::mouserelease, input::key::MouseDragStart, [&](hids& gear)
             {
                 if (on_pager)
                 {
@@ -4624,7 +4624,7 @@ namespace netxs::ui
                     }
                 }
             });
-            base::on(input::key::MouseDragPull, [&](hids& gear)
+            base::on(tier::mouserelease, input::key::MouseDragPull, [&](hids& gear)
             {
                 if (on_pager)
                 {
@@ -4644,12 +4644,12 @@ namespace netxs::ui
                     }
                 }
             });
-            base::on(input::key::MouseDragCancel, [&](hids& gear)
+            base::on(tier::mouserelease, input::key::MouseDragCancel, [&](hids& gear)
             {
                 giveup(gear);
             });
             bell::dup_handler(tier::general, input::events::halt.id);
-            base::on(input::key::MouseDragStop, [&](hids& gear)
+            base::on(tier::mouserelease, input::key::MouseDragStop, [&](hids& gear)
             {
                 if (on_pager)
                 {
@@ -4690,7 +4690,7 @@ namespace netxs::ui
                     timer.actify(activity::mouse_leave, skin::globals().leave_timeout, apply);
                 }
             };
-            //on(input::key::MouseMove, [&](hids& gear)
+            //on(tier::mouserelease, input::key::MouseMove, [&](hids& gear)
             //{
             //    auto apply = [&](auto active)
             //    {

@@ -128,7 +128,7 @@ namespace netxs::app::terminal
             if (item.type == menu::type::Repeat)
             {
                 auto& tick = boss.base::plugin<pro::timer>();
-                boss.on(input::key::LeftDown, [&, proc](hids& gear)
+                boss.on(tier::mouserelease, input::key::LeftDown, [&, proc](hids& gear)
                 {
                     if (item.views.size())
                     {
@@ -154,7 +154,7 @@ namespace netxs::app::terminal
                         _update_gear(boss, item, gear);
                     }
                 });
-                boss.on(input::key::LeftUp, [&, proc](hids& gear)
+                boss.on(tier::mouserelease, input::key::LeftUp, [&, proc](hids& gear)
                 {
                     tick.pacify();
                     gear.setfree();
@@ -180,7 +180,7 @@ namespace netxs::app::terminal
             }
             else
             {
-                boss.on(input::key::LeftClick, [&, proc](hids& gear)
+                boss.on(tier::mouserelease, input::key::LeftClick, [&, proc](hids& gear)
                 {
                     proc(boss, item, gear);
                     if constexpr (AutoUpdate)

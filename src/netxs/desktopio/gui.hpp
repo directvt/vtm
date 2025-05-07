@@ -3253,7 +3253,7 @@ namespace netxs::gui
                 update_gui();
                 window_initilize();
 
-                on(input::key::MouseDragStart, [&](hids& gear)
+                on(tier::mouserelease, input::key::MouseDragStart, [&](hids& gear)
                 {
                     if (fsmode != winstate::normal) return;
                     moving = true;
@@ -3262,12 +3262,12 @@ namespace netxs::gui
                     move_window(dxdy);
                     sync_pixel_layout(); // Align grips and shadow.
                 });
-                on(input::key::LeftDoubleClick, [&](hids& /*gear*/)
+                on(tier::mouserelease, input::key::LeftDoubleClick, [&](hids& /*gear*/)
                 {
                          if (fsmode == winstate::maximized) set_state(winstate::normal);
                     else if (fsmode == winstate::normal)    set_state(winstate::maximized);
                 });
-                on(input::key::MouseWheel, [&](hids& gear)
+                on(tier::mouserelease, input::key::MouseWheel, [&](hids& gear)
                 {
                     zoom_by_wheel(gear.whlfp, faux);
                 });

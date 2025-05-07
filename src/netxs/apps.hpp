@@ -272,7 +272,7 @@ namespace netxs::app::shared
                 ->shader(cell::shaders::xlight, e2::form::state::hover)
                 ->invoke([](auto& boss)
                 {
-                    boss.on(input::key::LeftClick, [&](hids& gear)
+                    boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
                     {
                         boss.base::riseup(tier::anycast, e2::form::proceed::quit::one, true);
                         gear.dismiss();
@@ -305,7 +305,7 @@ namespace netxs::app::shared
                 ->shader(cell{}.bgc(whitelt).fgc(bluedk).und(unln::line), e2::form::state::hover)
                 ->invoke([](auto& boss)
                 {
-                    boss.on(input::key::LeftClick, [&](hids& gear)
+                    boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
                     {
                         boss.base::riseup(tier::anycast, e2::form::proceed::quit::one, true);
                         gear.dismiss();
@@ -333,7 +333,7 @@ namespace netxs::app::shared
             window_ptr->invoke([&](auto& boss)
             {
                 //todo reimplement (tiling/window)
-                //boss.on(input::key::LeftDoubleClick, [&](hids& gear)
+                //boss.on(tier::mouserelease, input::key::LeftDoubleClick, [&](hids& gear)
                 //{
                 //    auto outer = e2::config::plugins::sizer::outer.param();
                 //    boss.base::riseup(tier::request, e2::config::plugins::sizer::outer, outer);
@@ -375,7 +375,7 @@ namespace netxs::app::shared
                     boss.base::riseup(tier::release, e2::config::plugins::sizer::outer, dent{  2, 2, 1, 1 });
                     boss.base::riseup(tier::release, e2::config::plugins::sizer::inner, dent{ -4,-4,-2,-2 });
                     boss.base::riseup(tier::release, e2::config::plugins::align, faux);
-                    parent.on(input::key::RightClick, [&](hids& gear)
+                    parent.on(tier::mouserelease, input::key::RightClick, [&](hids& gear)
                     {
                         auto area = boss.base::area() + dent{ 2, 2, 1, 1 };
                         if (area.hittest(gear.coord))
@@ -584,7 +584,7 @@ namespace netxs::app::shared
                 [c1](auto& boss, auto& /*item*/)
                 {
                     boss.template shader<tier::anycast>(cell::shaders::color(c1), e2::form::state::keybd::command::close, boss.This());
-                    boss.on(input::key::LeftClick, [&](hids& gear)
+                    boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
                     {
                         auto backup = boss.This();
                         boss.base::riseup(tier::release, e2::form::proceed::quit::one, true);
@@ -665,7 +665,7 @@ namespace netxs::app::shared
                                         : ansi::bgc(reddk).fgx(0)        .add("█off "));
                         boss.base::reflow();
                     };
-                    boss.on(input::key::LeftClick, [&](hids& gear)
+                    boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
                     {
                         boss.base::signal(tier::release, ui::tty::events::rawkbd);
                         gear.dismiss_dblclick();
@@ -681,7 +681,7 @@ namespace netxs::app::shared
                     {
                         boss.base::hidden = true;
                         auto& backup = boss.base::template field<text>();
-                        boss.on(input::key::MouseAny, [&](hids& gear)
+                        boss.on(tier::mouserelease, input::key::MouseAny, [&](hids& gear)
                         {
                             if (gear.cause == input::key::MouseDown)
                             {
@@ -775,7 +775,7 @@ namespace netxs::app::shared
             {
                 auto& coord = boss.base::field(fp2d{});
                 auto& window = *window_ptr;
-                window.onpreview(tier::mousepreview, input::key::MouseAny, [&](hids& gear)
+                window.on(tier::mousepreview, input::key::MouseAny, [&](hids& gear)
                 {
                     if (gear.cause != input::key::MouseMove || coord != gear.coord)
                     {

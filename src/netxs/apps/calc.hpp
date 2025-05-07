@@ -126,12 +126,12 @@ namespace netxs::ui
             cell_highlight(base& boss)
                 : boss{ boss }
             {
-                boss.on(input::key::MouseMove, memo, [&](hids& gear)
+                boss.on(tier::mouserelease, input::key::MouseMove, memo, [&](hids& gear)
                 {
                     take(gear).calc(boss, gear.coord);
                     boss.base::deface();
                 });
-                boss.on(input::key::LeftClick, memo, [&](hids& gear)
+                boss.on(tier::mouserelease, input::key::LeftClick, memo, [&](hids& gear)
                 {
                     auto& g = take(gear);
                     if (g.region.size)
@@ -141,7 +141,7 @@ namespace netxs::ui
                     }
                     recalc();
                 });
-                boss.on(input::key::LeftDoubleClick, memo, [&](hids& gear)
+                boss.on(tier::mouserelease, input::key::LeftDoubleClick, memo, [&](hids& gear)
                 {
                     auto& g = take(gear);
                     auto area = boss.base::size();
@@ -151,11 +151,11 @@ namespace netxs::ui
                     recalc();
                     gear.dismiss();
                 });
-                boss.on(input::key::MouseEnter, memo, [&](hids& gear)
+                boss.on(tier::mouserelease, input::key::MouseEnter, memo, [&](hids& gear)
                 {
                     take(gear);
                 });
-                boss.on(input::key::MouseLeave, memo, [&](hids& gear)
+                boss.on(tier::mouserelease, input::key::MouseLeave, memo, [&](hids& gear)
                 {
                     auto& g = take(gear);
                     if (g.region.size)

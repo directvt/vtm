@@ -1150,48 +1150,24 @@ namespace netxs::ui
             }
         }
         // base: Subscribe on/onpreview mouse events.
-        void on(si32 event_id, subs& tokens, auto handler)
-        {
-            bell::submit_generic(tier::mouserelease, event_id, tokens, netxs::events::fx<ptr::arg0<decltype(handler)>>{ std::move(handler) });
-        }
-        void onpreview(si32 Tier, si32 event_id, subs& tokens, auto handler)
+        void on(si32 Tier, si32 event_id, subs& tokens, auto handler)
         {
             bell::submit_generic(Tier, event_id, tokens, netxs::events::fx<ptr::arg0<decltype(handler)>>{ std::move(handler) });
         }
-        void on(si32 event_id, hook& token, auto handler)
-        {
-            token = std::move(handler);
-            bell::dup_handler(tier::mouserelease, event_id, token);
-        }
-        void onpreview(si32 Tier, si32 event_id, hook& token, auto handler)
+        void on(si32 Tier, si32 event_id, hook& token, auto handler)
         {
             token = std::move(handler);
             bell::dup_handler(Tier, event_id, token);
         }
-        void on(si32 event_id, auto handler)
+        void on(si32 Tier, si32 event_id, auto handler)
         {
-            on(event_id, bell::sensors, std::move(handler));
+            on(Tier, event_id, bell::sensors, std::move(handler));
         }
-        void onpreview(si32 Tier, si32 event_id, auto handler)
-        {
-            onpreview(Tier, event_id, bell::sensors, std::move(handler));
-        }
-        void on(si32 event_id, hook token)
-        {
-            bell::dup_handler(tier::mouserelease, event_id, token);
-        }
-        void onpreview(si32 Tier, si32 event_id, hook token)
+        void on(si32 Tier, si32 event_id, hook& token)
         {
             bell::dup_handler(Tier, event_id, token);
         }
-        void on(si32 event_id)
-        {
-            if (bell::sensors.size())
-            {
-                bell::dup_handler(tier::mouserelease, event_id, bell::sensors.back());
-            }
-        }
-        void onpreview(si32 Tier, si32 event_id)
+        void on(si32 Tier, si32 event_id)
         {
             if (bell::sensors.size())
             {
