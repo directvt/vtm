@@ -1075,14 +1075,14 @@ namespace netxs::ui
                     }
                 }
             };
-            onpreview(input::key::LeftRightClick, [&](hids& gear)
+            onpreview(tier::mousepreview, input::key::LeftRightClick, [&](hids& gear)
             {
                 if (gear.clear_clipboard())
                 {
                     gear.dismiss();
                 }
             });
-            onpreview(input::key::LeftRightMultiClick, [&](hids& gear)
+            onpreview(tier::mousepreview, input::key::LeftRightMultiClick, [&](hids& gear)
             {
                 if (gear.clicked == 3)
                 {
@@ -1171,7 +1171,7 @@ namespace netxs::ui
                 {
                     conio.cwd.send(canal, path);
                 };
-                onpreview(input::key::MouseClick, [&](hids& /*gear*/)
+                onpreview(tier::mousepreview, input::key::MouseClick, [&](hids& /*gear*/)
                 {
                     conio.expose.send(canal);
                 });

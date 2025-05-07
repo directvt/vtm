@@ -90,17 +90,17 @@ namespace netxs::app::vtm
             frame(base& boss) : skill{ boss },
                 robo{ boss }
             {
-                boss.onpreview(input::key::LeftClick, memo, [&](hids& /*gear*/)
+                boss.onpreview(tier::mousepreview, input::key::LeftClick, memo, [&](hids& /*gear*/)
                 {
                     //todo window.events(onclick)
                     boss.base::riseup(tier::preview, e2::form::layout::expose);
                 });
-                boss.onpreview(input::key::RightClick, memo, [&](hids& /*gear*/)
+                boss.onpreview(tier::mousepreview, input::key::RightClick, memo, [&](hids& /*gear*/)
                 {
                     //todo window.events(onclick)
                     boss.base::riseup(tier::preview, e2::form::layout::expose);
                 });
-                boss.onpreview(input::key::MouseDown, memo, [&](hids& /*gear*/)
+                boss.onpreview(tier::mousepreview, input::key::MouseDown, memo, [&](hids& /*gear*/)
                 {
                     robo.pacify();
                 });

@@ -775,7 +775,7 @@ namespace netxs::app::shared
             {
                 auto& coord = boss.base::field(fp2d{});
                 auto& window = *window_ptr;
-                window.onpreview(input::key::MouseAny, [&](hids& gear)
+                window.onpreview(tier::mousepreview, input::key::MouseAny, [&](hids& gear)
                 {
                     if (gear.cause != input::key::MouseMove || coord != gear.coord)
                     {

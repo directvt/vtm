@@ -1154,35 +1154,35 @@ namespace netxs::ui
         {
             bell::submit_generic(tier::mouserelease, event_id, tokens, netxs::events::fx<ptr::arg0<decltype(handler)>>{ std::move(handler) });
         }
-        void onpreview(si32 event_id, subs& tokens, auto handler)
+        void onpreview(si32 Tier, si32 event_id, subs& tokens, auto handler)
         {
-            bell::submit_generic(tier::mousepreview, event_id, tokens, netxs::events::fx<ptr::arg0<decltype(handler)>>{ std::move(handler) });
+            bell::submit_generic(Tier, event_id, tokens, netxs::events::fx<ptr::arg0<decltype(handler)>>{ std::move(handler) });
         }
         void on(si32 event_id, hook& token, auto handler)
         {
             token = std::move(handler);
             bell::dup_handler(tier::mouserelease, event_id, token);
         }
-        void onpreview(si32 event_id, hook& token, auto handler)
+        void onpreview(si32 Tier, si32 event_id, hook& token, auto handler)
         {
             token = std::move(handler);
-            bell::dup_handler(tier::mousepreview, event_id, token);
+            bell::dup_handler(Tier, event_id, token);
         }
         void on(si32 event_id, auto handler)
         {
             on(event_id, bell::sensors, std::move(handler));
         }
-        void onpreview(si32 event_id, auto handler)
+        void onpreview(si32 Tier, si32 event_id, auto handler)
         {
-            onpreview(event_id, bell::sensors, std::move(handler));
+            onpreview(Tier, event_id, bell::sensors, std::move(handler));
         }
         void on(si32 event_id, hook token)
         {
             bell::dup_handler(tier::mouserelease, event_id, token);
         }
-        void onpreview(si32 event_id, hook token)
+        void onpreview(si32 Tier, si32 event_id, hook token)
         {
-            bell::dup_handler(tier::mousepreview, event_id, token);
+            bell::dup_handler(Tier, event_id, token);
         }
         void on(si32 event_id)
         {
@@ -1191,11 +1191,11 @@ namespace netxs::ui
                 bell::dup_handler(tier::mouserelease, event_id, bell::sensors.back());
             }
         }
-        void onpreview(si32 event_id)
+        void onpreview(si32 Tier, si32 event_id)
         {
             if (bell::sensors.size())
             {
-                bell::dup_handler(tier::mousepreview, event_id, bell::sensors.back());
+                bell::dup_handler(Tier, event_id, bell::sensors.back());
             }
         }
 

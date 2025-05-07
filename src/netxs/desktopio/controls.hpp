@@ -1076,7 +1076,7 @@ namespace netxs::ui
                 stop = datetime::now() + limit;
 
                 // No mouse events watchdog.
-                boss.onpreview(input::key::MouseAny, pong, [&](hids& /*gear*/)
+                boss.onpreview(tier::mousepreview, input::key::MouseAny, pong, [&](hids& /*gear*/)
                 {
                     stop = datetime::now() + limit;
                 });
