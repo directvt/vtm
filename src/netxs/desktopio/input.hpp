@@ -1083,11 +1083,29 @@ namespace netxs::input
                 }
             }
         }
+        void _calc_pressed_buttons(sysmouse& m)
+        {
+            auto prev_pressed_count = std::exchange(pressed_count, 0);
+            auto bits = m.buttons;
+            while (bits)
+            {
+                if (bits & 0x1) pressed_count++;
+                bits >>= 1;
+            }
+            if (prev_pressed_count != pressed_count)
+            {
+                auto saved_bttn_id = std::exchange(bttn_id, 0);
+                if (m.buttons) m2_push(); // Signal down/up with bttn_id=0 in order to update the pressed count for all objects under the event tree.
+                else           m2_up();   //   See hids::dispatch() for details.
+                bttn_id = saved_bttn_id;
+            }
+        }
         // mouse: Generate mouse event.
         void update(sysmouse& m, core const& idmap)
         {
             auto modschanged = m_sys.ctlstat != m.ctlstat;
             m_sys.set(m);
+            _calc_pressed_buttons(m);
             auto busy = captured();
             if (busy && fire_fast())
             {
@@ -1105,23 +1123,6 @@ namespace netxs::input
             {
                 auto next_state = m.buttons;
                 auto prev_state = pressed;
-                auto prev_pressed_count = std::exchange(pressed_count, 0);
-                auto bits = next_state | prev_state;
-                auto bttn = 0x1;
-                while (bits) // Counting pressed buttons.
-                {
-                    auto pressed_next = next_state & bttn;
-                    if (pressed_next) pressed_count++;
-                    bits >>= 1;
-                    bttn <<= 1;
-                }
-                if (prev_pressed_count != pressed_count)
-                {
-                    auto saved_bttn_id = std::exchange(bttn_id, 0);
-                    if (next_state) m2_push(); // Signal down/up with bttn_id=0 in order to update pressed count.
-                    else            m2_up();
-                    bttn_id = saved_bttn_id;
-                }
                 if (bttn_id & next_state)
                 {
                     auto next_bttn_id = bttn_id | next_state;
@@ -1860,6 +1861,12 @@ namespace netxs::input
 
         void dispatch(si32 tier_id, base& boss)
         {
+            if (tier_id == tier::mouserelease && (mouse::cause == input::key::MouseUp     // Just amplify mouse hover on any button press.
+                                               || mouse::cause == input::key::MouseDown)) //   See mouse::update() for details.
+            {
+                notify_form_state(boss);
+                return;
+            }
             auto saved_cause = mouse::cause;
             boss.base::signal(tier_id, mouse::cause, *this);
             mouse::cause = saved_cause;
@@ -1932,6 +1939,38 @@ namespace netxs::input
             mouse::pressxy = new_click;
             pass(tier::mouserelease, boss, owner.base::coor(), true);
         }
+        // hids: Notify about the number of mouse hovers.
+        void notify_form_state(base& boss, feed enter_or_leave = feed::none)
+        {
+            if (enter_or_leave == feed::fwd)
+            {
+                log("on enter:");
+                if (boss.mouse_focus.size() == 1) // The first mouse cursor came.
+                {
+                    boss.base::signal(tier::release, ui::e2::form::state::mouse, true);
+                }
+            }
+            else if (enter_or_leave == feed::rev)
+            {
+                log("on leave:");
+                if (boss.mouse_focus.empty()) // The last mouse cursor is gone.
+                {
+                    boss.base::signal(tier::release, ui::e2::form::state::mouse, faux);
+                }
+            }
+            else
+            {
+                log("on update:");
+            }
+                for (auto& [g, n] : boss.mouse_focus)
+                {
+                    log("  gear id: ", g.lock()?g.lock()->id:0);
+                    log("  next id: ", n.lock()?n.lock()->id:0);
+                }
+            auto hover_count = boss.mouse_focus.size() ? (si32)boss.mouse_focus.size() + mouse::pressed_count : 0;
+            log("boss id=%% hover_count=%% mouse::pressed_count=%%", boss.id, hover_count, mouse::pressed_count);
+            boss.base::signal(tier::release, ui::e2::form::state::hover, hover_count);
+        }
         void mouse_leave(base& boss)
         {
             auto this_wptr = weak_from_this();
@@ -1948,6 +1987,7 @@ namespace netxs::input
                     }
                     if (boss.mouse_focus.size() > 1) rec = boss.mouse_focus.back(); // Remove an item without allocations.
                     boss.mouse_focus.pop_back();
+                    notify_form_state(boss, feed::rev);
                     break;
                 }
             }
@@ -1975,6 +2015,7 @@ namespace netxs::input
             // Gear not found.
             boss.mouse_focus.emplace_back(weak_from_this(), next_wptr);
             dispatch(tier::mouserelease, boss); // Signal MouseEnter.
+            notify_form_state(boss, feed::fwd);
             if (auto parent_ptr = boss.base::parent())
             {
                 auto& parent = *parent_ptr;

@@ -1771,39 +1771,6 @@ namespace netxs::ui
                 : boss{ boss },
                   rent{ 0    }
             {
-                // pro::mouse: Amplify mouse hover on any button press.
-                memo.emplace_back([&](hids& gear)
-                {
-                    boss.base::signal(tier::release, e2::form::state::hover, rent + gear.mouse::pressed_count);
-                });
-                boss.on(input::key::MouseDown, memo.back());
-                boss.on(input::key::MouseUp  , memo.back());
-                // pro::mouse: Notify about change in number of mouse hovering clients.
-                boss.on(input::key::MouseEnter, memo, [&](hids& /*gear*/) // Notify when the number of clients is positive.
-                {
-                    if (!rent++)
-                    {
-                        boss.base::signal(tier::release, e2::form::state::mouse, true);
-                    }
-                    boss.base::signal(tier::release, e2::form::state::hover, rent);
-                });
-                boss.on(input::key::MouseLeave, memo, [&](hids& /*gear*/) // Notify when the number of clients is zero.
-                {
-                    if (!--rent)
-                    {
-                        boss.base::signal(tier::release, e2::form::state::mouse, faux);
-                    }
-                    boss.base::signal(tier::release, e2::form::state::hover, rent);
-                });
-                boss.LISTEN(tier::request, e2::form::state::mouse, state, memo)
-                {
-                    state = rent;
-                };
-                boss.LISTEN(tier::request, e2::form::state::hover, state, memo)
-                {
-                    state = rent;
-                };
-
                 boss.LISTEN(tier::release, e2::form::draggable::any, enabled, memo)
                 {
                     auto deed = boss.bell::protos();
