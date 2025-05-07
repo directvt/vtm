@@ -88,10 +88,10 @@ namespace netxs::ui
             {
                 struct sock : public T
                 {
-                    id_t gear_id; // sock: Gear ID.
+                    wptr gear_wptr; // sock: Gear's weak ptr.
 
-                    sock(id_t gear_id)
-                        : gear_id{ gear_id }
+                    sock(hids& gear)
+                        : gear_wptr{ gear.weak_from_this() }
                     { }
 
                     operator bool () { return T::operator bool(); }
@@ -110,20 +110,23 @@ namespace netxs::ui
                     {
                         del(gear);
                     });
-                    boss.dup_handler(tier::general, input::events::die.id, tokens.back());
                 }
                 template<bool ConstWarn = true>
                 auto& take(hids& gear)
                 {
+                    auto gear_wptr = gear.weak_from_this();
                     for (auto& g : gears) // Linear search, because a few items.
                     {
-                        if (g.gear_id == gear.id) return g;
+                        if (ptr::is_equal(g.gear_wptr, gear_wptr))
+                        {
+                            return g;
+                        }
                     }
                     if constexpr (ConstWarn)
                     {
                         log(prompt::sock, "Access to unregistered input device, ", gear.id);
                     }
-                    return gears.emplace_back(gear.id);
+                    return gears.emplace_back(gear);
                 }
                 void foreach(auto proc)
                 {
@@ -138,13 +141,14 @@ namespace netxs::ui
                 }
                 void del(hids& gear)
                 {
+                    auto gear_wptr = gear.weak_from_this();
                     for (auto& g : gears) // Linear search, because a few items.
                     {
-                        if (g.gear_id == gear.id)
+                        if (ptr::is_equal(g.gear_wptr, gear_wptr))
                         {
                             if (gears.size() > 1) g = gears.back(); // Remove an item without allocations.
                             gears.pop_back();
-                            return;
+                            break;
                         }
                     }
                 }
@@ -231,7 +235,11 @@ namespace netxs::ui
                     });
                     gears.foreach([&](auto& g)
                     {
-                        g.draw(canvas, area, cell::shaders::xlight);
+                        if (auto gear_ptr = g.gear_wptr.lock())
+                        {
+                            auto& gear = *(std::static_pointer_cast<hids>(gear_ptr));
+                            g.draw(canvas, area, cell::shaders::xlight[1 + gear.pressed_count]);
+                        }
                     });
                 };
                 boss.LISTEN(tier::preview, e2::form::layout::swarp, warp, memo)
