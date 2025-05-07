@@ -607,6 +607,7 @@ namespace netxs::app::shared
                 //auto setup = [script_ptr, &proc_map](ui::item& boss, menu::item& item)
                 auto setup = [script_ptr](ui::item& boss, menu::item& item)
                 {
+                    if (script_ptr->empty()) return;
                     auto& scripting_context_ptr = boss.base::field(ptr::shared<std::unordered_map<text, ui::wptr>>());
                     boss.on(input::key::LeftClick, [&, script_ptr](hids& gear)
                     {

@@ -402,7 +402,7 @@ R"==(
         <menu item*>
             <autohide=menu/autohide/>
             <slim=menu/slim/>
-            <item id="ontop_button" label="^" tooltip=" AlwaysOnTop off ">
+            <item label="^" tooltip=" AlwaysOnTop off ">
                 <!--
                     //todo Mouse test page
                     Format:
@@ -500,9 +500,9 @@ R"==(
                 <script>
                     <on="release:e2::form::prop::zorder" source="terminal"/>
                     local is_topmost=vtm.terminal.ZOrder()==1
-                    vtm.ontop_button.Label(is_topmost and "\\x1b[38:2:0:255:0m^\\x1b[m" or "^")
-                    vtm.ontop_button.Tooltip(is_topmost and " AlwaysOnTop on " or " AlwaysOnTop off ")
-                    vtm.ontop_button.Deface()
+                    vtm.item.Label(is_topmost and "\\x1b[38:2:0:255:0m^\\x1b[m" or "^")
+                    vtm.item.Tooltip(is_topmost and " AlwaysOnTop on " or " AlwaysOnTop off ")
+                    vtm.item.Deface()
                 </script>
             </item>
             <item id="test_button" label="Repeatable button" tooltip=" test ">
