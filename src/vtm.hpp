@@ -620,6 +620,7 @@ namespace netxs::app::vtm
                 : world{ owner },
                   zorder{ what.applet->base::property("applet.zorder", zpos::plain) }
             {
+                base::plugin<pro::mouse>();
                 base::plugin<pro::d_n_d>();
                 base::plugin<pro::ghost>();
                 auto& title = base::plugin<pro::title>(what.applet->base::property("window.header"), what.applet->base::property("window.footer"));

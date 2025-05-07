@@ -482,6 +482,7 @@ namespace netxs::ui
         void set_fullscreen(bool state)
         {
             fullscreen = state;
+            auto& mouse = base::plugin<pro::mouse>();
             mouse.draggable<hids::buttons::left>(state);
         }
         void forward(auto& device)

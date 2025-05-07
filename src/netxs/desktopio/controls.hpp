@@ -1756,20 +1756,17 @@ namespace netxs::ui
             }
         };
 
-        // pro: Mouse events.
+        // pro: Mouse dragging helper.
         class mouse
         {
             base& boss;
             subs  memo;
-
-            si32 rent; // mouse: Active gears count.
             std::unordered_map<si32, subs> dragmemo; // mouse: Drag subs.
 
         public:
             mouse(base&&) = delete;
             mouse(base& boss)
-                : boss{ boss },
-                  rent{ 0    }
+                : boss{ boss }
             {
                 boss.LISTEN(tier::release, e2::form::draggable::any, enabled, memo)
                 {
@@ -2854,8 +2851,6 @@ namespace netxs::ui
         std::map<id_t, subs> memomap; // form: Token set for dependent subscriptions.
 
     public:
-        pro::mouse& mouse; // form: .
-
         auto This() { return base::This<T>(); }
         template<class TT = T, class ...Args>
         static auto ctor(view classname, Args&&... args)
@@ -3097,8 +3092,7 @@ namespace netxs::ui
         }
 
         form()
-            : base{ ui::tui_domain() },
-              mouse{ base::plugin<pro::mouse>() }
+            : base{ ui::tui_domain() }
         {
             LISTEN(tier::anycast, e2::form::upon::started, context_keeper_ptr)
             {

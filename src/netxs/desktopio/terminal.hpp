@@ -7764,7 +7764,6 @@ namespace netxs::ui
         }
         void selection_submit()
         {
-            base::signal(tier::release, e2::form::draggable::left, true);
             LISTEN(tier::release, e2::form::drag::start ::left, gear){ if (selection_passed()) selection_create(gear); };
             LISTEN(tier::release, e2::form::drag::pull  ::left, gear){ if (selection_passed()) selection_extend(gear); };
             LISTEN(tier::release, e2::form::drag::stop  ::left, gear){                         selection_finish(gear); };
@@ -8220,6 +8219,9 @@ namespace netxs::ui
             publish_property(ui::tty::events::layout::align,  [&](auto& v){ v = (si32)target->style.jet(); });
             publish_property(ui::tty::events::search::status, [&](auto& v){ v = target->selection_button(); });
             selection_selmod(config.def_selmod);
+
+            auto& mouse = base::plugin<pro::mouse>();
+            mouse.draggable<hids::buttons::left>(selection_passed());
 
             base::plugin<pro::keybd>();
             auto& luafx = base::plugin<pro::luafx>();

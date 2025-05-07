@@ -331,6 +331,7 @@ namespace netxs::app::tile
                 auto grip = node->attach(slot::_I, ui::mock::ctor()
                     ->isroot(true)
                     ->active()
+                    ->plugin<pro::mouse>()
                     ->plugin<pro::mover>()
                     ->plugin<pro::focus>(pro::focus::mode::focusable)
                     ->plugin<pro::keybd>()

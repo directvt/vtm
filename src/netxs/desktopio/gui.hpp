@@ -1423,7 +1423,6 @@ namespace netxs::gui
         using b256 = std::array<byte, 256>;
         using title = ui::pro::title;
         using focus = ui::pro::focus;
-        using mouse = ui::pro::mouse;
         using kmap = input::key::kmap;
 
         static constexpr auto shadow_dent = dent{ 1,1,1,1 } * 3;
@@ -1880,7 +1879,6 @@ namespace netxs::gui
 
         title titles; // winbase: UI header/footer.
         focus wfocus; // winbase: UI focus.
-        mouse wmouse; // winbase: UI mouse.
         layer master; // winbase: Layer for Client.
         layer blinky; // winbase: Layer for blinking characters.
         layer header; // winbase: Layer for Header.
@@ -1929,7 +1927,6 @@ namespace netxs::gui
             : base{ indexer },
               titles{ *this, "", "", faux },
               wfocus{ *this, ui::pro::focus::mode::relay },
-              wmouse{ *this },
               fcache{ font_names, cell_height, [&]{ netxs::set_flag<task::all>(reload); window_post_command(ipc::no_command); } },
               gcache{ fcache, antialiasing },
               blinks{ .init = blink_rate },

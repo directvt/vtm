@@ -197,7 +197,8 @@ namespace netxs::ui
             template<si32 Button>
             void engage()
             {
-                boss.base::signal(tier::release, e2::form::draggable::_<Button>, true);
+                auto& mouse = boss.base::plugin<pro::mouse>();
+                mouse.template draggable<Button>(true);
                 boss.on(input::key::MouseMove, memo, [&](hids& gear)
                 {
                     gears.take(gear).calc(boss, gear.coord);
