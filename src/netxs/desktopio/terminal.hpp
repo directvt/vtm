@@ -7684,10 +7684,9 @@ namespace netxs::ui
         }
         void selection_tplclk(hids& gear)
         {
-            auto clicks = gear.clicks(hids::buttons::left);
-                 if (clicks == 3) target->selection_byline(gear.coord);
-            else if (clicks == 4) target->selection_bymark(gear.coord);
-            else if (clicks == 5) target->selection_selall();
+                 if (gear.clicked == 3) target->selection_byline(gear.coord);
+            else if (gear.clicked == 4) target->selection_bymark(gear.coord);
+            else if (gear.clicked == 5) target->selection_selall();
             gear.dismiss();
             base::deface();
         }
