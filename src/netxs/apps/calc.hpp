@@ -27,7 +27,6 @@ namespace netxs::events::userland
 
 namespace netxs::ui
 {
-    // console: Template modules for the base class extension.
     namespace pro
     {
         // pro: Cell Highlighter.
