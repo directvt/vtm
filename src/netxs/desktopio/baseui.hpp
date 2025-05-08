@@ -616,6 +616,11 @@ namespace netxs::ui
         si32 family; // base: Object type.
         utf::unordered_map<text, netxs::sptr<std::any>> fields;
         script_ref::location_type location;
+
+        netxs::sptr<std::list<wptr>> class_list_sptr; // base: .
+        std::list<wptr>::iterator    class_list_iter; // base: .
+        view                         instname; //todo drop
+
         //todo make scripts precompiled
         utf::unordered_map<text, std::pair<std::list<netxs::sptr<script_ref>>, bool>> keybd_handlers; // base: Map<chord, pair<list<sptr<script>>, preview>>.
 
@@ -679,6 +684,11 @@ namespace netxs::ui
                     "\n\tobjs ", bell::indexer.objects.size(),
                     "\n\trefs ", ref_count,
                     "\n\tdels ", del_count);
+                log("  Classname map size: ", indexer.lua_map.size());
+                for (auto& [k, v] : indexer.lua_map)
+                {
+                    log("\t'%classname%' count %%", k, v->size());
+                }
             }
             else base::_cleanup();
         }

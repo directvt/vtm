@@ -234,20 +234,20 @@ namespace netxs::events
             static constexpr auto not_handled = __COUNTER__ - _counter;
         };
 
-        id_t                                     next_id;
-        std::recursive_mutex                     mutex;
-        std::unordered_map<id_t, wptr<ui::base>> objects; // auth: Object wptr map by object_id.
-        utf::unordered_map<text, wptr<ui::base>> lua_map; // auth: Object wptr map by class name.
-        fmap                                     general;
-        generics::jobs<wptr<ui::base>>           agent;
-        lua_State*                               lua;
-        si32                                     fps{};
-        hook                                     memo;
-        datetime::quartz<auth>                   quartz;
-        hint                                     e2_timer_tick_id;
-        si32                                     handled{}; // auth: Last notify operation result.
-        std::vector<std::pair<hint, si32>>       queue; // auth: Event queue: { event_id, call state }.
-        std::vector<wptr<fxbase>>                qcopy; // auth: Copy of the current pretenders to exec on current event.
+        id_t                                                      next_id;
+        std::recursive_mutex                                      mutex;
+        std::unordered_map<id_t, wptr<ui::base>>                  objects; // auth: Object wptr map by object_id.
+        utf::unordered_map<text, sptr<std::list<wptr<ui::base>>>> lua_map; // auth: Map of wptrlist by classname.
+        fmap                                                      general;
+        generics::jobs<wptr<ui::base>>                            agent;
+        lua_State*                                                lua;
+        si32                                                      fps{};
+        hook                                                      memo;
+        datetime::quartz<auth>                                    quartz;
+        hint                                                      e2_timer_tick_id;
+        si32                                                      handled{}; // auth: Last notify operation result.
+        std::vector<std::pair<hint, si32>>                        queue; // auth: Event queue: { event_id, call state }.
+        std::vector<wptr<fxbase>>                                 qcopy; // auth: Copy of the current pretenders to exec on current event.
 
         void _cleanup(fmap& reactor, ui64& ref_count, ui64& del_count)
         {
@@ -454,20 +454,39 @@ namespace netxs::events
         {
             auto& indexer = inst_ptr->indexer;
             auto lock = indexer.sync(); // Sync with all dtors.
+            // Remove classname reference.
+            auto& class_list = *(inst_ptr->class_list_sptr);
+            class_list.erase(inst_ptr->class_list_iter);
+            //log("Deleted: '%%' with id: %%", inst_ptr->instname, inst_ptr->id);
+            // Remove object.
             auto id = inst_ptr->id;
             delete inst_ptr;
             indexer.objects.erase(id);
         }
         // auth: Create a new object of the specified subtype and return its sptr.
         template<class T, class ...Args>
-        auto create(view /*classname*/, Args&&... args)
+        auto create(view classname, Args&&... args)
         {
             auto lock = sync();
-            auto inst = sptr<T>(new T(std::forward<Args>(args)...), &object_deleter<T>); // Use new/delete to be able sync on destruction.
-            //log("Created: '%%' with id: %%", classname, inst->id);
-            //lua_map
-            objects[inst->id] = inst;
-            return inst;
+            auto inst_ptr = sptr<T>(new T(std::forward<Args>(args)...), &object_deleter<T>); // Use new/delete to be able sync on destruction.
+            //log("Created: '%%' with id: %%", classname, inst_ptr->id);
+            inst_ptr->instname = classname;
+
+            // Object by class.
+            auto iter = lua_map.find(classname);
+            if (iter == lua_map.end())
+            {
+                iter = lua_map.emplace(classname, ptr::shared<std::list<wptr<ui::base>>>()).first;
+            }
+            auto& class_list_sptr = iter->second;
+            auto& class_list = *class_list_sptr;
+            inst_ptr->class_list_sptr = class_list_sptr;
+            inst_ptr->class_list_iter = class_list.emplace(class_list.end(), inst_ptr);
+
+            // Object by id.
+            objects[inst_ptr->id] = inst_ptr;
+
+            return inst_ptr;
         }
         // auth: Return next available id.
         auto new_id()
