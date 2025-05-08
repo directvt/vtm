@@ -488,6 +488,25 @@ namespace netxs::events
 
             return inst_ptr;
         }
+        // auth: Add an alias for the existing classname.
+        void add_class_alias(view class_alias, auto& inst)
+        {
+            auto lock = sync();
+            auto iter = lua_map.find(class_alias);
+            if (iter == lua_map.end())
+            {
+                iter = lua_map.emplace(class_alias, inst.class_list_sptr).first;
+            }
+        }
+        // auth: Add an alias for the existing classname.
+        template<class T>
+        void add_class_alias(view class_alias, sptr<T> inst_ptr)
+        {
+            if (inst_ptr)
+            {
+                add_class_alias(class_alias, *inst_ptr);
+            }
+        }
         // auth: Return next available id.
         auto new_id()
         {
