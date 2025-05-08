@@ -778,7 +778,7 @@ namespace netxs::input
             auto [chords, is_preview] = input::bindings::get_chords(chord_str);
             if (chords.size())
             {
-                auto script_ptr = ptr::shared<script_ref>(boss.location, script_body);    
+                auto script_ptr = ptr::shared<script_ref>(boss.location, script_body);
                 auto set_handler = script_ptr->script_body_ptr && script_ptr->script_body_ptr->size();
                 for (auto& binary_chord : chords) if (binary_chord.size()) // Scripts always store their sensors at the boss side, since the lifetime of base::location depends on the boss.
                 {

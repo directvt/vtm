@@ -420,7 +420,7 @@ int main(int argc, char* argv[])
             {
                 whoami = type::server;
             }
-            else 
+            else
             {
                 if (success)
                 {
@@ -430,7 +430,7 @@ int main(int argc, char* argv[])
                 else return failed(code::nodaemon);
             }
         }
-        
+
         os::ipc::prefix = prefix;
         auto server = os::ipc::socket::open<os::role::server>(prefix, denied);
         if (!server)

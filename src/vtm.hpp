@@ -552,7 +552,7 @@ namespace netxs::app::vtm
             bool highlighted = faux;
             bool active = faux;
             tone color = { tone::brighter, tone::shadower };
-            
+
             void window_swarp(dent warp)
             {
                 base::enqueue([warp](auto& boss) // Keep the focus tree intact while processing events.
@@ -594,7 +594,7 @@ namespace netxs::app::vtm
                 });
             }
 
-        protected: 
+        protected:
             // window: .
             void deform(rect& new_area) override
             {
@@ -1188,7 +1188,7 @@ namespace netxs::app::vtm
             auto window_ptr = base::signal(tier::request, e2::form::layout::go::item); // Take current window.
             if (window_ptr) window_ptr->base::signal(tier::release, e2::form::layout::unselect, gear); // Hide current window if it was hidden before focusing.
 
-            auto current = window_ptr; 
+            auto current = window_ptr;
             window_ptr.reset();
             if (go_forward) base::signal(tier::request, e2::form::layout::go::prev, window_ptr); // Take prev window.
             else            base::signal(tier::request, e2::form::layout::go::next, window_ptr); // Take next window.

@@ -284,7 +284,7 @@ Hotkey                       | Description
 
             <item script=TerminalViewportCopy    label="PrnScr"/>
             <item script=TerminalSelectionCancel label="Deselect"/>
-            
+
             <item type="Option" script=TerminalSelectionRect>
                 <label="Line" data="false"/>
                 <label="Rect" data="true"/>

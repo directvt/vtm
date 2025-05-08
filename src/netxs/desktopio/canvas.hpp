@@ -1390,7 +1390,7 @@ namespace netxs
                                 fix_collision_vtm8(f);
                                 if (bg != base.bg) dest.bgc_8(b);
                                 dest.fgc_16(f);
-                            } 
+                            }
                             else
                             {
                                 if (bg != base.bg) dest.bgc_8(b);

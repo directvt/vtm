@@ -1464,7 +1464,7 @@ namespace netxs::utf
     }
     template<class ...Args>
     auto& operator << (auto&& s, std::list<Args...> const& list)
-    { 
+    {
         s << "{ ";
         for (auto delim = ""; auto& item : list) s << std::exchange(delim, ", ") << item;
         s << " }";

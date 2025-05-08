@@ -8200,7 +8200,7 @@ namespace netxs::ui
               onesht{ mime::disabled },
               altscr{ config.def_alt_on },
               kbmode{ prot::vt },
-              ime_on{ faux }, 
+              ime_on{ faux },
               rawkbd{ faux },
               bottom_anchored{ true }
         {

@@ -667,7 +667,7 @@ namespace netxs::gui
             }
             for (auto& family_utf8 : families)
             {
-                auto found = BOOL{};   
+                auto found = BOOL{};
                 auto index = ui32{};
                 auto family_utf16 = utf::to_utf(family_utf8);
                 fontlist->FindFamilyName(family_utf16.data(), &index, &found);

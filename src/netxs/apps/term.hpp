@@ -202,7 +202,7 @@ namespace netxs::app::terminal
 
             static const auto proc_map = menu::action_map_t
             {
-                { term::action::Noop, [](ui::item& /*boss*/, menu::item& /*item*/){ } }, 
+                { term::action::Noop, [](ui::item& /*boss*/, menu::item& /*item*/){ } },
                 { term::action::ExclusiveKeyboardMode, [](ui::item& boss, menu::item& item)
                 {
                     item.reindex([](auto& utf8){ return xml::take_or<bool>(utf8, faux); });

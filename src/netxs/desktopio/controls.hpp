@@ -1102,7 +1102,7 @@ namespace netxs::ui
             //     ┌─── input gate 1 (vtm::gate<ui::gate, k>) -> base::root(true)
             //     │      ↓   ↑
             //     │      │   └─ gears (input_t)...
-            //     │      └─ applet (Taskbar/Standalone app (ui::base, f))... 
+            //     │      └─ applet (Taskbar/Standalone app (ui::base, f))...
             //     │
             //     │   ┌─── input gate M (vtm::gate<ui::gate, k>) -> base::root(true)                        ↑ Outside
             //     │   │      ↓   ↑                                                                         ██
@@ -2034,7 +2034,6 @@ namespace netxs::ui
                             boss.base::deface();
                         }
                     }
-                    
                 };
             }
         };

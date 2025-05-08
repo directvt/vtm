@@ -334,11 +334,11 @@ namespace netxs::xml
                 static constexpr auto quotes_fg    = argb{ 0xFF'BB'BB'BB };
                 static constexpr auto value_fg     = argb{ 0xFF'90'96'f0 };
                 static constexpr auto value_bg     = argb{ 0xFF'20'20'20 };
-    
+
                 //test
                 //auto tmp = page.data.front().upto;
                 //auto clr = 0;
-    
+
                 auto yield = ansi::escx{};
                 auto next = data;
                 while (next)
@@ -347,14 +347,14 @@ namespace netxs::xml
                     auto& utf8 = item.utf8;
                     auto  kind = item.kind;
                     next = next->next;
-    
+
                     //test
                     //if (item.upto == page.data.end() || tmp != item.upto)
                     //{
                     //    clr++;
                     //    tmp = item.upto;
                     //}
-    
+
                     auto fgc = argb{};
                     auto bgc = argb{};
                     switch (kind)
@@ -393,7 +393,7 @@ namespace netxs::xml
                         else          yield                  .add(utf8);
                     }
                 }
-    
+
                 auto count = 1;
                 auto width = 0_sz;
                 auto total = lines();

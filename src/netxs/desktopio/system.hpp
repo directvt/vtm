@@ -4129,7 +4129,7 @@ namespace netxs::os
                     os::close(procsinf.hProcess);
                 }
                 else onerror();
-            
+
             #else
 
                 auto p_id = os::process::sysfork(); // dtvt-app can be either a real dtvt-app or a proxy
@@ -5744,7 +5744,7 @@ namespace netxs::os
                     argb::set_vtm16_palette([&](auto index, auto color){ c16.ColorTable[index] = argb::swap_rb(color); }); // conhost crashes if alpha non zero.
                     ok(::SetConsoleScreenBufferInfoEx(os::stdout_fd, &c16), "::SetConsoleScreenBufferInfoEx()", os::unexpected);
                 }
-            #else 
+            #else
                 auto vtrun = ansi::altbuf(true).bpmode(true).cursor(faux).vmouse(true).set_palette(dtvt::vtmode & ui::console::vt16);
                 auto vtend = ansi::scrn_reset().altbuf(faux).bpmode(faux).cursor(true).vmouse(faux).rst_palette(dtvt::vtmode & ui::console::vt16);
                 io::send(os::stdout_fd, vtrun);
@@ -5802,7 +5802,7 @@ namespace netxs::os
                     ok(::FillConsoleOutputAttribute(os::stdout_fd, 0, dtvt::gridsz.x * dtvt::gridsz.y, {}, &count), "::FillConsoleOutputAttribute()", os::unexpected); // To avoid palette flickering.
                     ok(::SetConsoleScreenBufferInfoEx(os::stdout_fd, &palette), "::SetConsoleScreenBufferInfoEx()", os::unexpected);
                 }
-            #else 
+            #else
                 io::send(os::stdout_fd, vtend);
             #endif
 
@@ -5947,7 +5947,7 @@ namespace netxs::os
                                 [[fallthrough]];
                             case input::keybd::type::imeinput:
                                 if (!alive || data.cluster.empty()) return;
-                                switch (data.cluster.front()) 
+                                switch (data.cluster.front())
                                 {
                                     case 0x03: enter(ansi::err("Ctrl+C\r\n")); alarm.bell(); break;
                                     case 0x04: enter(ansi::err("Ctrl+D\r\n")); alarm.bell(); break;
@@ -6007,7 +6007,7 @@ namespace netxs::os
                             shut();
                         }
                     };
-                    auto style = [&](deco format) 
+                    auto style = [&](deco format)
                     {
                         if (!alive) return;
                         wraps = format.wrp() != wrap::off;

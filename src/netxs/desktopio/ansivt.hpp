@@ -1268,7 +1268,7 @@ namespace netxs::ansi
                     ccc[ccc_rlf   ] = V{ p->style.rlf((feed)q.subarg(0)); }; // fx_ccc_rlf
                     ccc[ccc_jet_or] = V{ p->style.jet_or((bias)q.subarg(0)); }; // fx_ccc_or_jet
                     ccc[ccc_wrp_or] = V{ p->style.wrp_or((wrap)q.subarg(0)); }; // fx_ccc_or_wrp
-                    ccc[ccc_rtl_or] = V{ p->style.rtl_or((rtol)q.subarg(0)); 
+                    ccc[ccc_rtl_or] = V{ p->style.rtl_or((rtol)q.subarg(0));
                                          p->brush.rtl(p->style.rtl() == rtol::rtl); }; // fx_ccc_or_rtl
                     ccc[ccc_rlf_or] = V{ p->style.rlf_or((feed)q.subarg(0)); }; // fx_ccc_or_rlf
 
@@ -1638,7 +1638,7 @@ namespace netxs::ansi
                     }
                     else if (c == c0_bel)
                     {
-                        exec(1); 
+                        exec(1);
                         return;
                     }
                     else if (c == c0_esc)

@@ -589,7 +589,7 @@ R"==(
             <mode=selection/mode/>  <!-- Selection clipboard copy format: "text" | "ansi" | "rich" | "html" | "protected" | "none". -->
             <rect=selection/rect/>  <!-- Preferred selection form: Rectangular: true, Linear: false. -->
         </selection>
-        <atexit="auto"/>  <!-- Behavior after the last console process has terminated: "auto" | "ask" | "close" | "restart" | "retry" 
+        <atexit="auto"/>  <!-- Behavior after the last console process has terminated: "auto" | "ask" | "close" | "restart" | "retry"
                                 auto:    Stay open and ask if exit code != 0. (default)
                                 ask:     Stay open and ask.
                                 close:   Always close.

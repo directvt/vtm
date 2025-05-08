@@ -601,7 +601,7 @@ namespace netxs
             :  r{ r },
               d1{ 1 / (r * r)},
               d2{ 1 / ((r - 1) * (r - 1)) },
-              a2{ 1 - d2 }, 
+              a2{ 1 - d2 },
               b2{ 3 * d2},
               c2{ -3 * d2}
         { }
@@ -631,7 +631,7 @@ namespace netxs
             : r{ r },
               d1{ 1 / (r * r)},
               d2{ 1 / ((r - 1) * (r - 1)) },
-              a2{ 1 - d2 }, 
+              a2{ 1 - d2 },
               b2{ 3 * d2},
               c2{ -3 * d2},
             offset_x{ offset_x },
@@ -786,7 +786,7 @@ namespace netxs
         auto dy = std::abs(src_size.x);
         if (src_view.size.x < 0) { dx = -dx; src_view.coor.x -= 1; }
         if (src_view.size.y < 0) { dy = -dy; src_view.coor.y -= 1; }
-        
+
         dst_view.size -= 1;
         auto sptr = bitmap.begin() + (src_view.coor.x + src_view.coor.y * src_size.x);
         auto dptr = canvas.begin() + (dst_view.coor.x + dst_view.coor.y * dst_size.x);
