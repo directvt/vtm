@@ -223,6 +223,14 @@ namespace netxs::events
 
     using wook = wptr<fxbase>;
     using fmap = std::unordered_map<hint, std::list<wptr<fxbase>>>; // Functor wptr-list map by event_id.
+    using fxmap = utf::unordered_map<text, std::function<void()>>; // Class methods.
+
+     // Class methods and registered instances.
+    struct vtm_class
+    {
+        std::list<wptr<ui::base>> objects;
+        fxmap                     methods;
+    };
 
     struct auth
     {
@@ -234,20 +242,20 @@ namespace netxs::events
             static constexpr auto not_handled = __COUNTER__ - _counter;
         };
 
-        id_t                                                      next_id;
-        std::recursive_mutex                                      mutex;
-        std::unordered_map<id_t, wptr<ui::base>>                  objects; // auth: Object wptr map by object_id.
-        utf::unordered_map<text, sptr<std::list<wptr<ui::base>>>> lua_map; // auth: Map of wptrlist by classname.
-        fmap                                                      general;
-        generics::jobs<wptr<ui::base>>                            agent;
-        lua_State*                                                lua;
-        si32                                                      fps{};
-        hook                                                      memo;
-        datetime::quartz<auth>                                    quartz;
-        hint                                                      e2_timer_tick_id;
-        si32                                                      handled{}; // auth: Last notify operation result.
-        std::vector<std::pair<hint, si32>>                        queue; // auth: Event queue: { event_id, call state }.
-        std::vector<wptr<fxbase>>                                 qcopy; // auth: Copy of the current pretenders to exec on current event.
+        id_t                                      next_id;
+        std::recursive_mutex                      mutex;
+        std::unordered_map<id_t, wptr<ui::base>>  objects; // auth: Map of objects by object id.
+        utf::unordered_map<text, sptr<vtm_class>> classes; // auth: Map of classes by classname.
+        fmap                                      general;
+        generics::jobs<wptr<ui::base>>            agent;
+        lua_State*                                lua;
+        si32                                      fps{};
+        hook                                      memo;
+        datetime::quartz<auth>                    quartz;
+        hint                                      e2_timer_tick_id;
+        si32                                      handled{}; // auth: Last notify operation result.
+        std::vector<std::pair<hint, si32>>        queue; // auth: Event queue: { event_id, call state }.
+        std::vector<wptr<fxbase>>                 qcopy; // auth: Copy of the current pretenders to exec on current event.
 
         void _cleanup(fmap& reactor, ui64& ref_count, ui64& del_count)
         {
@@ -454,9 +462,9 @@ namespace netxs::events
         {
             auto& indexer = inst_ptr->indexer;
             auto lock = indexer.sync(); // Sync with all dtors.
-            // Remove classname reference.
-            auto& class_list = *(inst_ptr->class_list_sptr);
-            class_list.erase(inst_ptr->class_list_iter);
+            // Remove metadata reference.
+            auto& class_metadata = *(inst_ptr->class_metadata);
+            class_metadata.objects.erase(inst_ptr->class_iterator);
             //log("Deleted: '%%' with id: %%", inst_ptr->instname, inst_ptr->id);
             // Remove object.
             auto id = inst_ptr->id;
@@ -473,15 +481,15 @@ namespace netxs::events
             inst_ptr->instname = classname;
 
             // Object by class.
-            auto iter = lua_map.find(classname);
-            if (iter == lua_map.end())
+            auto iter = classes.find(classname);
+            if (iter == classes.end())
             {
-                iter = lua_map.emplace(classname, ptr::shared<std::list<wptr<ui::base>>>()).first;
+                iter = classes.emplace(classname, ptr::shared<vtm_class>()).first;
             }
-            auto& class_list_sptr = iter->second;
-            auto& class_list = *class_list_sptr;
-            inst_ptr->class_list_sptr = class_list_sptr;
-            inst_ptr->class_list_iter = class_list.emplace(class_list.end(), inst_ptr);
+            auto& vtm_class_sptr = iter->second;
+            auto& class_objects = vtm_class_sptr->objects;
+            inst_ptr->class_metadata = vtm_class_sptr;
+            inst_ptr->class_iterator = class_objects.emplace(class_objects.end(), inst_ptr);
 
             // Object by id.
             objects[inst_ptr->id] = inst_ptr;
@@ -492,10 +500,10 @@ namespace netxs::events
         void add_class_alias(view class_alias, auto& inst)
         {
             auto lock = sync();
-            auto iter = lua_map.find(class_alias);
-            if (iter == lua_map.end())
+            auto iter = classes.find(class_alias);
+            if (iter == classes.end())
             {
-                iter = lua_map.emplace(class_alias, inst.class_list_sptr).first;
+                iter = classes.emplace(class_alias, inst.class_list_sptr).first;
             }
         }
         // auth: Add an alias for the existing classname.
@@ -847,6 +855,7 @@ namespace netxs::events
 }
 namespace netxs
 {
+    using netxs::events::vtm_class;
     using netxs::events::bell;
     using netxs::events::subs;
     using netxs::events::tier;
