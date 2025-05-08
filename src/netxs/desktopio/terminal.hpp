@@ -258,13 +258,13 @@ namespace netxs::ui
             }
             termconfig(xmls& config)
             {
-                static auto atexit_options = std::unordered_map<text, commands::atexit::codes>
+                static auto atexit_options = utf::unordered_map<text, commands::atexit::codes>
                     {{ "auto",    commands::atexit::smart   },
                      { "ask",     commands::atexit::ask     },
                      { "close",   commands::atexit::close   },
                      { "restart", commands::atexit::restart },
                      { "retry",   commands::atexit::retry   }};
-                static auto fx_options = std::unordered_map<text, commands::fx::shader>
+                static auto fx_options = utf::unordered_map<text, commands::fx::shader>
                     {{ "xlight",  commands::fx::xlight  },
                      { "coolor",  commands::fx::color   },
                      { "invert",  commands::fx::invert  },
@@ -656,7 +656,7 @@ namespace netxs::ui
         struct c_tracking
         {
             using pals = std::remove_const_t<decltype(argb::vt256)>;
-            using func = std::unordered_map<text, std::function<void(view)>>;
+            using func = utf::unordered_map<text, std::function<void(view)>>;
 
             enum class type { invalid, rgbcolor, request };
 

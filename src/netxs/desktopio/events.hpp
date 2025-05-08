@@ -223,7 +223,6 @@ namespace netxs::events
 
     using wook = wptr<fxbase>;
     using fmap = std::unordered_map<hint, std::list<wptr<fxbase>>>; // Functor wptr-list map by event_id.
-    using omap = std::unordered_map<id_t, wptr<ui::base>>;          // Object wptr map by object_id.
 
     struct auth
     {
@@ -237,7 +236,8 @@ namespace netxs::events
 
         id_t                                     next_id;
         std::recursive_mutex                     mutex;
-        omap                                     objects;
+        std::unordered_map<id_t, wptr<ui::base>> objects; // auth: Object wptr map by object_id.
+        utf::unordered_map<text, wptr<ui::base>> lua_map; // auth: Object wptr map by class name.
         fmap                                     general;
         generics::jobs<wptr<ui::base>>           agent;
         lua_State*                               lua;
@@ -465,6 +465,7 @@ namespace netxs::events
             auto lock = sync();
             auto inst = sptr<T>(new T(std::forward<Args>(args)...), &object_deleter<T>); // Use new/delete to be able sync on destruction.
             //log("Created: '%%' with id: %%", classname, inst->id);
+            //lua_map
             objects[inst->id] = inst;
             return inst;
         }
@@ -538,7 +539,7 @@ namespace netxs::events
     };
     auto& rtti()
     {
-        static auto rttidata = std::unordered_map<text, metadata_t, qiew::hash, qiew::equal>{ 512 };
+        static auto rttidata = utf::unordered_map<text, metadata_t>{ 512 };
         return rttidata;
     }
     auto rtti(hint event_id, qiew event, qiew param_typename)

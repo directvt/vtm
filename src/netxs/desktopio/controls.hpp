@@ -1849,7 +1849,7 @@ namespace netxs::ui
             using skill::boss,
                   skill::memo;
 
-            netxs::sptr<std::unordered_map<text, wptr>> scripting_context_ptr; // keybd: Script execution context: sptr<map<$object_name_str, $object_wptr>>.
+            netxs::sptr<utf::unordered_map<text, wptr>> scripting_context_ptr; // keybd: Script execution context: sptr<map<$object_name_str, $object_wptr>>.
             std::list<std::pair<text, wptr>> context_names; // keybd: .
 
             std::unordered_map<id_t, time> last_key; // keybd: .
@@ -2505,7 +2505,7 @@ namespace netxs::ui
             using skill::boss,
                   skill::memo;
         public:
-            using fxmap = std::unordered_map<text, std::function<void()>>;
+            using fxmap = utf::unordered_map<text, std::function<void()>>;
 
             lua_State* lua;
             std::unordered_set<text> registered_names;
@@ -2742,7 +2742,7 @@ namespace netxs::ui
             }
             auto run_script(auto& script)
             {
-                auto scripting_context = std::unordered_map<text, netxs::wptr<base>>{};
+                auto scripting_context = utf::unordered_map<text, netxs::wptr<base>>{};
                 auto shadow = utf::trim(script.cmd, " \r\n\t\f");
                 if (shadow.size() > 2)
                 if (auto c = shadow.front(); (c == '"' || c == '\'') && shadow.back() == c)

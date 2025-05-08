@@ -418,7 +418,7 @@ namespace netxs::xml
         using wptr = netxs::wptr<elem>;
         using heap = std::vector<frag>;
         using vect = std::vector<sptr>;
-        using subs = std::unordered_map<text, vect, qiew::hash, qiew::equal>;
+        using subs = utf::unordered_map<text, vect>;
 
         struct elem
         {
@@ -589,7 +589,7 @@ namespace netxs::xml
                 else                             return fallback;
             }
             template<class T>
-            auto take(qiew attr, T defval, std::unordered_map<text, T> const& dict)
+            auto take(qiew attr, T defval, utf::unordered_map<text, T> const& dict)
             {
                 if (attr.empty()) return defval;
                 auto crop = take(attr, ""s);
@@ -1195,7 +1195,7 @@ namespace netxs::xml
         }
         auto read_node(sptr& item, view& data, si32 deep = {})
         {
-            auto defs = std::unordered_map<text, wptr>{};
+            auto defs = utf::unordered_map<text, wptr>{};
             auto what = type::na;
             auto last = type::na;
             auto fire = faux;
@@ -1306,7 +1306,7 @@ namespace netxs::xml
         }
         void read(view& data)
         {
-            auto defs = std::unordered_map<text, wptr>{};
+            auto defs = utf::unordered_map<text, wptr>{};
             auto what = type::na;
             auto last = type::na;
             auto deep = 0;
@@ -1447,7 +1447,7 @@ namespace netxs::xml
             return crop;
         }
         template<class T>
-        auto take(text frompath, T defval, std::unordered_map<text, T> const& dict)
+        auto take(text frompath, T defval, utf::unordered_map<text, T> const& dict)
         {
             if (frompath.empty()) return defval;
             auto crop = take<true>(frompath, ""s);
@@ -1538,7 +1538,7 @@ namespace netxs::xml
     };
     namespace options
     {
-        static auto format = std::unordered_map<text, si32>
+        static auto format = utf::unordered_map<text, si32>
            {{ "none",      mime::disabled },
             { "text",      mime::textonly },
             { "ansi",      mime::ansitext },
@@ -1546,13 +1546,13 @@ namespace netxs::xml
             { "html",      mime::htmltext },
             { "protected", mime::safetext }};
 
-        static auto cursor = std::unordered_map<text, si32>
+        static auto cursor = utf::unordered_map<text, si32>
            {{ "underline",  text_cursor::underline },
             { "block",      text_cursor::block     },
             { "bar",        text_cursor::I_bar     },
             { "I_bar",      text_cursor::I_bar     }};
 
-        static auto align = std::unordered_map<text, bias>
+        static auto align = utf::unordered_map<text, bias>
            {{ "left",   bias::left   },
             { "right",  bias::right  },
             { "center", bias::center }};

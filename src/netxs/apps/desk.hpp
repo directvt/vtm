@@ -30,7 +30,7 @@ namespace netxs::app::desk
         id_t  gear_id{};
     };
 
-    using menu = std::unordered_map<text, spec>;
+    using menu = utf::unordered_map<text, spec>;
     using usrs = std::list<ui::sptr>;
     using apps = generics::imap<text, std::pair<bool, usrs>>;
 

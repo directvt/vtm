@@ -158,7 +158,7 @@ namespace netxs::directvt
                 auto le_n = netxs::letoh(n);
                 block += view{ (char*)&le_n, sizeof(le_n) };
             }
-            else if constexpr (std::is_same_v<D, std::unordered_map<text, text>>
+            else if constexpr (std::is_same_v<D, utf::unordered_map<text, text>>
                             || std::is_same_v<D, std::map<text, text>>
                             || std::is_same_v<D, generics::imap<text, text>>)
             {

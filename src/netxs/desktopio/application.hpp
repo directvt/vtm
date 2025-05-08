@@ -303,7 +303,7 @@ namespace netxs::app::shared
             static const auto fullscreen = "fullscreen"s;
         }
 
-        static auto options = std::unordered_map<text, si32>
+        static auto options = utf::unordered_map<text, si32>
            {{ type::undefined,  winstate::normal     },
             { type::normal,     winstate::normal     },
             { type::minimized,  winstate::minimized  },
@@ -331,7 +331,7 @@ namespace netxs::app::shared
             static constexpr auto Repeat   = __COUNTER__ - _counter;
         }
 
-        static auto type_options = std::unordered_map<text, si32>
+        static auto type_options = utf::unordered_map<text, si32>
             {{ "Splitter", menu::type::Splitter },
              { "Command",  menu::type::Command  },
              { "Option",   menu::type::Option   },
@@ -391,7 +391,7 @@ namespace netxs::app::shared
             }
         };
 
-        using action_map_t = std::unordered_map<text, std::function<void(ui::item&, menu::item&)>, qiew::hash, qiew::equal>;
+        using action_map_t = utf::unordered_map<text, std::function<void(ui::item&, menu::item&)>>;
         using link = std::tuple<item, std::function<void(ui::item&, item&)>>;
         using list = std::list<link>;
 
@@ -608,7 +608,7 @@ namespace netxs::app::shared
                 auto setup = [script_ptr](ui::item& boss, menu::item& item)
                 {
                     if (script_ptr->empty()) return;
-                    auto& scripting_context_ptr = boss.base::field(ptr::shared<std::unordered_map<text, ui::wptr>>());
+                    auto& scripting_context_ptr = boss.base::field(ptr::shared<utf::unordered_map<text, ui::wptr>>());
                     boss.on(tier::mouserelease, input::key::LeftClick, [&, script_ptr](hids& gear)
                     {
                         item.taken = (item.taken + 1) % item.views.size();

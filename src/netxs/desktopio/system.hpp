@@ -5128,7 +5128,7 @@ namespace netxs::os
                         { key::F11,           "\033[23; ~" },
                         { key::F12,           "\033[24; ~" },
                     };
-                    auto m = std::unordered_map<text, std::pair<text, si32>, qiew::hash, qiew::equal>
+                    auto m = utf::unordered_map<text, std::pair<text, si32>>
                     {
                         //{ "\033\x7f"  , { "\x08", key::Backspace     | hids::LAlt   << 8 }},
                         { "\033\x7f"  , { "",     key::KeySlash      |(hids::LCtrl | hids::LAlt | hids::LShift) << 8 }},

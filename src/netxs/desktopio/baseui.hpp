@@ -614,10 +614,10 @@ namespace netxs::ui
         bool locked; // base: Object has fixed size.
         bool master; // base: Anycast root.
         si32 family; // base: Object type.
-        std::unordered_map<text, netxs::sptr<std::any>, qiew::hash, qiew::equal> fields;
+        utf::unordered_map<text, netxs::sptr<std::any>> fields;
         script_ref::location_type location;
         //todo make scripts precompiled
-        std::unordered_map<text, std::pair<std::list<netxs::sptr<script_ref>>, bool>, qiew::hash, qiew::equal> keybd_handlers; // base: Map<chord, pair<list<sptr<script>>, preview>>.
+        utf::unordered_map<text, std::pair<std::list<netxs::sptr<script_ref>>, bool>> keybd_handlers; // base: Map<chord, pair<list<sptr<script>>, preview>>.
 
         struct mfocus_node
         {

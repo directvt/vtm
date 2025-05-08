@@ -301,14 +301,14 @@ namespace netxs::input
             #undef X
         };
 
-        static const auto specific_names = std::unordered_map<text, si32, qiew::hash, qiew::equal>
+        static const auto specific_names = utf::unordered_map<text, si32>
         {
             #define X(KeyId, Index, Vkey, Scan, CtrlState, Mask, Input, Name, GenericName) \
                 { utf::to_lower(#Name), KeyId },
                 key_list
             #undef X
         };
-        static const auto generic_names = std::unordered_map<text, si32, qiew::hash, qiew::equal>
+        static const auto generic_names = utf::unordered_map<text, si32>
         {
             #define X(KeyId, Index, Vkey, Scan, CtrlState, Mask, Input, Name, GenericName) \
                 { utf::to_lower(GenericName), KeyId & -2 },
@@ -332,7 +332,7 @@ namespace netxs::input
             X(MouseEnter         , 0xD, 0)\
             X(MouseMove          , 0xE, 0)\
             X(MouseWheel         , 0xF, 0)
-        static const auto mouse_names = std::unordered_map<text, std::pair<si32, si32>, qiew::hash, qiew::equal>
+        static const auto mouse_names = utf::unordered_map<text, std::pair<si32, si32>>
         {
             #define X(name, action_index, button_bits) \
                 { utf::to_lower(#name), { action_index, button_bits }},
@@ -1588,7 +1588,7 @@ namespace netxs::input
         //todo unify
         bool interrupt_key_proc{}; // hids: .
         netxs::sptr<text> script_ptr; // hids: A script body passed by pro::keybd/ui::menu.
-        netxs::sptr<std::unordered_map<text, wptr>> scripting_context_ptr; // hids: Script execution context: sptr<map<$object_name_str, $object_wptr>>.
+        netxs::sptr<utf::unordered_map<text, wptr>> scripting_context_ptr; // hids: Script execution context: sptr<map<$object_name_str, $object_wptr>>.
         qiew call_proc; // hids: .
 
         //todo unify

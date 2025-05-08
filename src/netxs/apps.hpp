@@ -367,7 +367,7 @@ namespace netxs::app::shared
 
                     if (cmd.starts_with("@"))
                     {
-                        static auto title_map = std::unordered_map<text, si32>{};
+                        static auto title_map = utf::unordered_map<text, si32>{};
                         auto title = boss.base::riseup(tier::request, e2::form::prop::ui::header);
                         title += std::to_string(++title_map[title]);
                         boss.base::riseup(tier::preview, e2::form::prop::ui::header, title);

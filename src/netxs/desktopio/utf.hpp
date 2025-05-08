@@ -782,6 +782,10 @@ namespace netxs::utf
         }
     };
 
+    template<class Key, class Val>
+    using unordered_map = std::unordered_map<Key, Val, qiew::hash, qiew::equal>;
+
+
     template<class A = si32, si32 Base = 10, class View, class = std::enable_if_t<std::is_base_of_v<view, View>>>
     std::optional<A> to_int(View& ascii)
     {
