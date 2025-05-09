@@ -464,7 +464,7 @@ namespace netxs::ui
         };
 
     public:
-        static constexpr auto classname = context::gate;
+        static constexpr auto classname = basename::gate;
 
         pipe&      canal; // gate: Channel to outside.
         props_t    props; // gate: Input gate properties.
@@ -490,7 +490,7 @@ namespace netxs::ui
             auto gear_it = gears.find(device.gear_id);
             if (gear_it == gears.end())
             {
-                gear_it = gears.emplace(device.gear_id, bell::create<hids>(context::gear, *this, canvas)).first;
+                gear_it = gears.emplace(device.gear_id, bell::create<hids>(basename::gear, *this, canvas)).first;
                 auto& gear = *(gear_it->second);
                 gear.tooltip_timeout = props.tooltip_timeout;
                 gear.board::ghost = props.clip_preview_glow;
@@ -657,7 +657,7 @@ namespace netxs::ui
             }
             if (damaged)
             {
-                if (auto context = canvas.change_basis(base::area()))
+                if (auto context2D = canvas.change_basis(base::area()))
                 {
                     canvas.wipe(props.background_color);
                     if (base::subset.size() == 1 && props.background_image.size()) // Taskbar only (no full screen app on top).

@@ -1126,7 +1126,7 @@ namespace netxs::ui
         void render(face& canvas, bool trim = true, bool pred = true, bool post = true)
         {
             if (hidden) return;
-            if (auto context = canvas.change_basis<Forced>(base::region, trim)) // Basis = base::region.coor.
+            if (auto context2D = canvas.change_basis<Forced>(base::region, trim)) // Basis = base::region.coor.
             {
                 if (pred) base::signal(tier::release, e2::render::background::prerender, canvas);
                 if (post) base::signal(tier::release, e2::postrender, canvas);

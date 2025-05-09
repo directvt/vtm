@@ -313,7 +313,7 @@ namespace netxs::events
     }
 }
 
-namespace netxs::context
+namespace netxs::basename
 {
     #define ctx_list  \
         X(vtm       ) \
@@ -1256,7 +1256,7 @@ namespace netxs::ui
                 {
                     if (live)
                     {
-                        auto saved_context = canvas.bump(dent{ 0,0,head_size.y,foot_size.y });
+                        auto saved_2D_context = canvas.bump(dent{ 0,0,head_size.y,foot_size.y });
                         if (head_live)
                         {
                             canvas.cup(dot_00);
@@ -1267,7 +1267,7 @@ namespace netxs::ui
                             canvas.cup({ 0, head_size.y + boss.size().y });
                             canvas.output(foot_page, cell::shaders::contrast);
                         }
-                        canvas.bump(saved_context);
+                        canvas.bump(saved_2D_context);
                     }
                 };
                 boss.LISTEN(tier::preview, e2::form::prop::ui::header, newtext, memo)
@@ -2986,11 +2986,11 @@ namespace netxs::ui
             base::setpad(new_intpad, new_extpad);
             return This();
         }
-        auto nested_context(auto& parent_canvas)
+        auto nested_2D_context(auto& parent_canvas)
         {
             auto basis = rect{ dot_00, base::region.size } - base::intpad;
-            auto context = parent_canvas.change_basis(basis, true);
-            return context;
+            auto context2D = parent_canvas.change_basis(basis, true);
+            return context2D;
         }
 
         form()
@@ -3130,7 +3130,7 @@ namespace netxs::ui
         }
 
     public:
-        static constexpr auto classname = context::fork;
+        static constexpr auto classname = basename::fork;
         fork(axis orientation = axis::X, si32 grip_width = 0, si32 s1 = 1, si32 s2 = 1)
             : rotation{},
               fraction{},
@@ -3144,7 +3144,7 @@ namespace netxs::ui
             };
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
-                if (auto context = form::nested_context(parent_canvas))
+                if (auto context2D = form::nested_2D_context(parent_canvas))
                 {
                     if (splitter != base::subset.end())
                     if (auto& o = *splitter) o->render(parent_canvas);
@@ -3345,14 +3345,14 @@ namespace netxs::ui
         }
 
     public:
-        static constexpr auto classname = context::list;
+        static constexpr auto classname = basename::list;
         list(axis orientation = axis::Y, sort attach_order = sort::forward)
             : updown{ orientation == axis::Y },
               lineup{ attach_order }
         {
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
-                if (auto context = form::nested_context(parent_canvas))
+                if (auto context2D = form::nested_2D_context(parent_canvas))
                 {
                     auto basis = parent_canvas.full();
                     auto frame = parent_canvas.clip();
@@ -3497,12 +3497,12 @@ namespace netxs::ui
         }
 
     public:
-        static constexpr auto classname = context::grid;
+        static constexpr auto classname = basename::grid;
         grid()
         {
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
-                if (auto context = form::nested_context(parent_canvas))
+                if (auto context2D = form::nested_2D_context(parent_canvas))
                 {
                     for (auto& object : base::subset)
                     {
@@ -3590,12 +3590,12 @@ namespace netxs::ui
         }
 
     public:
-        static constexpr auto classname = context::cake;
+        static constexpr auto classname = basename::cake;
         cake()
         {
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
-                if (auto context = form::nested_context(parent_canvas))
+                if (auto context2D = form::nested_2D_context(parent_canvas))
                 {
                     for (auto& object : base::subset)
                     {
@@ -3631,13 +3631,13 @@ namespace netxs::ui
         }
 
     public:
-        static constexpr auto classname = context::veer;
+        static constexpr auto classname = basename::veer;
         veer()
         {
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
                 if (base::subset.size())
-                if (auto context = form::nested_context(parent_canvas))
+                if (auto context2D = form::nested_2D_context(parent_canvas))
                 {
                     if (auto object = base::subset.back())
                     {
@@ -3748,7 +3748,7 @@ namespace netxs::ui
         }
 
     public:
-        static constexpr auto classname = context::postfx;
+        static constexpr auto classname = basename::postfx;
         page topic; // post: Text content.
 
         postfx(bool scroll_beyond = faux)
@@ -3860,7 +3860,7 @@ namespace netxs::ui
         }
 
     public:
-        static constexpr auto classname = context::rail;
+        static constexpr auto classname = basename::rail;
         rail(axes allow_to_scroll = axes::all, axes allow_to_capture = axes::all, axes allow_overscroll = axes::all, bool smooth_scrolling = faux)
             : permit{ xy(allow_to_scroll)  },
               siezed{ xy(allow_to_capture) },
@@ -4000,7 +4000,7 @@ namespace netxs::ui
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
                 if (empty()) return;
-                if (auto context = form::nested_context(parent_canvas))
+                if (auto context2D = form::nested_2D_context(parent_canvas))
                 {
                     auto& item = *base::subset.back();
                     item.render(parent_canvas, faux);
@@ -4432,7 +4432,7 @@ namespace netxs::ui
         }
 
     public:
-        static constexpr auto classname = context::grip;
+        static constexpr auto classname = basename::grip;
         grip(sptr boss_ptr, auto& drawfx)
             : boss{ boss_ptr }
         {
@@ -4623,7 +4623,7 @@ namespace netxs::ui
         : public form<mock>
     {
         public:
-            static constexpr auto classname = context::mock;
+            static constexpr auto classname = basename::mock;
     };
 
     // controls: Text label.
@@ -4654,7 +4654,7 @@ namespace netxs::ui
         }
 
     public:
-        static constexpr auto classname = context::item;
+        static constexpr auto classname = basename::item;
         // item: .
         template<bool Reflow = true>
         auto set(view new_utf8)
@@ -4679,7 +4679,7 @@ namespace netxs::ui
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
                 auto full = parent_canvas.full();
-                auto context = parent_canvas.bump(-base::intpad, faux);
+                auto context2D = parent_canvas.bump(-base::intpad, faux);
                 parent_canvas.cup(dot_00);
                 parent_canvas.output(data);
                 if (test)
@@ -4713,7 +4713,7 @@ namespace netxs::ui
                         else                 c.und(unln::line);
                     });
                 }
-                parent_canvas.bump(context);
+                parent_canvas.bump(context2D);
             };
         }
         // item: .
@@ -4736,7 +4736,7 @@ namespace netxs::ui
         page data;
 
     public:
-        static constexpr auto classname = context::edit;
+        static constexpr auto classname = basename::edit;
         edit()
         {
         }

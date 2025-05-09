@@ -161,9 +161,9 @@ namespace netxs::app::tile
             {
                 if (window_state == winstate::normal)
                 {
-                    auto context = parent_canvas.bump({ 0, si32max / 2, 0, si32max / 2 });
+                    auto context2D = parent_canvas.bump({ 0, si32max / 2, 0, si32max / 2 });
                     client->render(parent_canvas);
-                    parent_canvas.bump(context);
+                    parent_canvas.bump(context2D);
                 }
             };
             boss.LISTEN(tier::anycast, e2::form::upon::started, root_ptr, memo)

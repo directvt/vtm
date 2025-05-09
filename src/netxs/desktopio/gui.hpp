@@ -1866,7 +1866,7 @@ namespace netxs::gui
                  owner{ owner },
                  intio{ intio },
                  alive{ true },
-                 gears{ owner.bell::create<hids>(context::gear, owner, s11n::bitmap_dtvt.freeze().thing.image) }
+                 gears{ owner.bell::create<hids>(basename::gear, owner, s11n::bitmap_dtvt.freeze().thing.image) }
             {
                 auto& gear = *gears;
                 m.gear_id = gear.id;

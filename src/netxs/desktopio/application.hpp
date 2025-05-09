@@ -930,7 +930,7 @@ namespace netxs::app::shared
             auto connect = [&]
             {
                 auto gui_event_domain = netxs::events::auth{};
-                auto window = gui_event_domain.create<gui::window>(context::gui_window, gui_event_domain, gc.fontlist, gc.cellsize, gc.aliasing, gc.blinking, dot_21);
+                auto window = gui_event_domain.create<gui::window>(basename::gui_window, gui_event_domain, gc.fontlist, gc.cellsize, gc.aliasing, gc.blinking, dot_21);
                 window->connect(gc.winstate, gc.wincoord, gc.gridsize);
             };
             if (os::stdout_fd != os::invalid_fd)

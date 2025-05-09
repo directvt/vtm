@@ -2533,7 +2533,7 @@ namespace netxs::ui
             core::wipe(args...);
             flow::reset();
         }
-        // face: Change current context. Return old context.
+        // face: Change current 2D context. Return old 2D context.
         auto bump(dent delta, bool bump_clip = true)
         {
             auto old_full = flow::full();
@@ -2547,13 +2547,13 @@ namespace netxs::ui
             flow::full(new_full);
             return std::pair{ old_full, old_clip };
         }
-        // face: Restore previously saved context.
+        // face: Restore previously saved 2D context.
         void bump(std::pair<rect, rect> ctx)
         {
             flow::full(ctx.first);
             core::clip(ctx.second);
         }
-        // face: Dive into object context.
+        // face: Dive into object 2D context.
         template<bool Forced = faux>
         auto change_basis(rect object_area, bool trim = true)
         {
@@ -2597,11 +2597,11 @@ namespace netxs::ui
             auto proceed = Forced || nested_clip;
             if (proceed)
             {
-                auto context = ctx{ *this, flow::full(), core::clip(), core::coor(), true };
+                auto context2D = ctx{ *this, flow::full(), core::clip(), core::coor(), true };
                 core::step(                       - object_area.coor);
                 core::clip({     nested_clip.coor - object_area.coor,   nested_clip.size });
                 flow::full({{ }/*object_area.coor - object_area.coor*/, object_area.size });
-                return context;
+                return context2D;
             }
             return ctx{ *this };
         }

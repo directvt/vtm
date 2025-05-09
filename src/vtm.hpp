@@ -615,7 +615,7 @@ namespace netxs::app::vtm
             }
 
         public:
-            static constexpr auto classname = context::window;
+            static constexpr auto classname = basename::window;
             window_t(hall& owner, applink& what)
                 : world{ owner },
                   zorder{ what.applet->base::property("applet.zorder", zpos::plain) }
@@ -1009,7 +1009,7 @@ namespace netxs::app::vtm
                 };
                 LISTEN(tier::release, e2::render::any, parent_canvas)
                 {
-                    if (auto context = form::nested_context(parent_canvas))
+                    if (auto context2D = form::nested_2D_context(parent_canvas))
                     {
                         if (base::subset.size())
                         if (auto& applet_ptr = base::subset.back())
@@ -1215,7 +1215,7 @@ namespace netxs::app::vtm
         }
 
     public:
-        static constexpr auto classname = context::desktop;
+        static constexpr auto classname = basename::desktop;
         hall(xipc server, xmls def_config)
             : config{ def_config },
               maker{ base::plugin<pro::maker>() },
@@ -1734,7 +1734,7 @@ namespace netxs::app::vtm
                         }
                     }
                 }
-                parent_canvas.clip(clip); // Restore drawing context.
+                parent_canvas.clip(clip); // Restore drawing 2D context.
             };
             base::signal(tier::general, e2::config::fps, ui::skin::globals().maxfps);
         }

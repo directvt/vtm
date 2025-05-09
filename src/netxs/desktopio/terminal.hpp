@@ -56,7 +56,7 @@ namespace netxs::ui
     struct term
         : public ui::form<term>
     {
-        static constexpr auto classname = context::terminal;
+        static constexpr auto classname = basename::terminal;
 
         #define proc_list \
             X(Noop                        ) /* */ \
@@ -8645,7 +8645,7 @@ namespace netxs::ui
                             if (dy) parent_canvas.full(full); // Return parent_canvas back.
 
                             viewport_square.coor -= origin;
-                            if (auto context = parent_canvas.change_basis(viewport_square))
+                            if (auto context2D = parent_canvas.change_basis(viewport_square))
                             {
                                 parent_canvas.output<faux>(imebox, viewport_cursor, cell::shaders::mimic(brush));
                             }
@@ -8709,7 +8709,7 @@ namespace netxs::ui
     struct dtvt
         : public ui::form<dtvt>
     {
-        static constexpr auto classname = context::dtvt;
+        static constexpr auto classname = basename::dtvt;
 
         // dtvt: Event handler.
         struct link : s11n, input_fields_handler
