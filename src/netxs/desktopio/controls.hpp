@@ -7,7 +7,8 @@
 
 namespace netxs::events
 {
-    text luna::lua_torawstring(lua_State* lua, si32 idx, bool extended)
+    // luna: Get any text from the stack by index.
+    text luna::vtmlua_torawstring(lua_State* lua, si32 idx, bool extended)
     {
         auto crop = text{};
         auto type = ::lua_type(lua, idx);
@@ -37,7 +38,44 @@ namespace netxs::events
         }
         return crop;
     }
-    si32 luna::vtmlua_call(lua_State* lua) // UpValue[1]: Object_ptr. UpValue[2]: Function_name.
+    // luna: Push the object name to the stack.
+    si32 luna::vtmlua_object2string(lua_State* lua)
+    {
+        auto crop = text{};
+        if (auto object_ptr = (ui::base*)::lua_touserdata(lua, -1)) // Get Object_ptr.
+        {
+            crop = utf::concat("<object:", object_ptr->id, ">");
+        }
+        else crop = "<object>";
+        ::lua_pushstring(lua, crop.data());
+        return 1;
+    }
+    // luna: Log vars from stack.
+    si32 luna::vtmlua_log(lua_State* lua)
+    {
+        auto n = ::lua_gettop(lua);
+        auto crop = text{};
+        for (auto i = 1; i <= n; i++)
+        {
+            auto t = ::lua_type(lua, i);
+            switch (t)
+            {
+                case LUA_TBOOLEAN:
+                case LUA_TNUMBER:
+                case LUA_TSTRING:
+                    crop += luna::vtmlua_torawstring(lua, i);
+                    break;
+                default:
+                    crop += "<";
+                    crop += ::lua_typename(lua, t);
+                    crop += ">";
+                    break;
+            }
+        }
+        log("", crop);
+        return 0;
+    }
+    si32 luna::vtmlua_call_method(lua_State* lua) // UpValue[1]: Object_ptr. UpValue[2]: Function_name.
     {
         // Stack:
         //      lua_upvalueindex(1): Get Object_ptr.
@@ -51,47 +89,12 @@ namespace netxs::events
         }
         return ::lua_gettop(lua);
     }
-    si32 luna::vtmlua_tostring(lua_State* lua)
-    {
-        auto crop = text{};
-        if (auto object_ptr = (ui::base*)::lua_touserdata(lua, -1)) // Get Object_ptr.
-        {
-            crop = utf::concat("<object:", object_ptr->id, ">");
-        }
-        else crop = "<object>";
-        ::lua_pushstring(lua, crop.data());
-        return 1;
-    }
-    si32 luna::vtmlua_log(lua_State* lua)
-    {
-        auto n = ::lua_gettop(lua);
-        auto crop = text{};
-        for (auto i = 1; i <= n; i++)
-        {
-            auto t = ::lua_type(lua, i);
-            switch (t)
-            {
-                case LUA_TBOOLEAN:
-                case LUA_TNUMBER:
-                case LUA_TSTRING:
-                    crop += luna::lua_torawstring(lua, i);
-                    break;
-                default:
-                    crop += "<";
-                    crop += ::lua_typename(lua, t);
-                    crop += ">";
-                    break;
-            }
-        }
-        log("", crop);
-        return 0;
-    }
     si32 luna::vtmlua_index(lua_State* lua)
     {
         // Stack:
         //      1. userdata (or table).
         //      2. fx name (keyname).
-        ::lua_pushcclosure(lua, luna::vtmlua_call, 2);
+        ::lua_pushcclosure(lua, luna::vtmlua_call_method, 2);
         return 1;
     }
     //void luna::log_context()
@@ -101,8 +104,8 @@ namespace netxs::events
     //    ::lua_pushnil(lua);
     //    while (::lua_next(lua, -2))
     //    {
-    //        auto var = luna::lua_torawstring(lua, -2);
-    //        auto val = luna::lua_torawstring(lua, -1, true);
+    //        auto var = luna::vtmlua_torawstring(lua, -2);
+    //        auto val = luna::vtmlua_torawstring(lua, -1, true);
     //        if (val.size()) log("%%vtm.%name% = %value%", prompt::pads, var, val);
     //        ::lua_pop(lua, 1); // Pop val.
     //    }
@@ -119,7 +122,11 @@ namespace netxs::events
         else if constexpr (std::is_integral_v<T>)       ::lua_pushinteger(lua, v);
         else if constexpr (std::is_floating_point_v<T>) ::lua_pushnumber(lua, v);
         else if constexpr (std::is_pointer_v<T>)        ::lua_pushlightuserdata(lua, v);
-        else if constexpr (debugmode) throw;
+        else
+        {
+            if constexpr (debugmode) throw;
+            else ::lua_pushnil(lua);
+        }
     }
     void luna::set_return(auto... args)
     {
@@ -137,16 +144,16 @@ namespace netxs::events
             ::lua_pushnil(lua); // Push prev key.
             while (::lua_next(lua, index)) // Table is in the stack at index. { "<item " + text{ table } + " />" }
             {
-                auto key = luna::lua_torawstring(lua, -2);
+                auto key = luna::vtmlua_torawstring(lua, -2);
                 if (!key.empty()) // Allow stringable keys only.
                 {
-                    auto val = luna::lua_torawstring(lua, -1);
+                    auto val = luna::vtmlua_torawstring(lua, -1);
                     if (val.empty() && lua_istable(lua, -1)) // Extract item list.
                     {
                         ::lua_pushnil(lua); // Push prev key.
                         while (::lua_next(lua, -2)) // Table is in the stack at index -2. { "<key="key2=val2"/>" }
                         {
-                            auto val2 = luna::lua_torawstring(lua, -1);
+                            auto val2 = luna::vtmlua_torawstring(lua, -1);
                             auto key2_type = ::lua_type(lua, -2);
                             if (key2_type != LUA_TSTRING) // key2 is integer index.
                             {
@@ -154,7 +161,7 @@ namespace netxs::events
                             }
                             else
                             {
-                                auto key2 = luna::lua_torawstring(lua, -2);
+                                auto key2 = luna::vtmlua_torawstring(lua, -2);
                                 add_item(key, utf::concat(key2, '=', val2));
                             }
                             ::lua_pop(lua, 1); // Pop val2.
@@ -179,7 +186,7 @@ namespace netxs::events
         if (type != LUA_TNIL)
         {
                  if constexpr (std::is_same_v<std::decay_t<T>, bool>) return (T)::lua_toboolean(lua, idx);
-            else if constexpr (is_string_v || is_cstring_v)           return luna::lua_torawstring(lua, idx);
+            else if constexpr (is_string_v || is_cstring_v)           return luna::vtmlua_torawstring(lua, idx);
             else if constexpr (std::is_integral_v<T>)                 return (T)::lua_tointeger(lua, idx);
             else if constexpr (std::is_floating_point_v<T>)           return (T)::lua_tonumber(lua, idx);
             else if constexpr (std::is_same_v<std::decay_t<T>, twod>) return twod{ ::lua_tointeger(lua, idx), ::lua_tointeger(lua, idx + 1) };
@@ -224,30 +231,6 @@ namespace netxs::events
         ::lua_pop(lua, 2); // Pop "vtm" and "object_name".
         return object_ptr;
     }
-    void luna::run_script(sptr<ui::base> boss_ptr, view script_body)
-    {
-        log("todo run script: boss.id=%% '%%'", boss_ptr->id, script_body);
-    }
-    void luna::run_ext_script(sptr<ui::base> boss_ptr, auto& script)
-    {
-        auto shadow = utf::trim(script.cmd, " \r\n\t\f");
-        if (shadow.size() > 2)
-        if (auto c = shadow.front(); (c == '"' || c == '\'') && shadow.back() == c)
-        {
-            shadow = shadow.substr(1, shadow.size() - 2);
-        }
-        if (shadow.empty()) return;
-        if (script.gear_id)
-        if (auto gear_ptr = boss_ptr->ui::base::getref<input::hids>(script.gear_id))
-        {
-            gear_ptr->set_multihome();
-            luna::set_object(gear_ptr, "gear");
-        }
-        auto result = luna::run_script_body(shadow);
-        if (result.empty()) result = "ok";
-        log(ansi::clr(yellowlt, shadow), "\n", prompt::lua, result);
-        script.cmd = utf::concat(shadow, "\n", prompt::lua, result);
-    }
     bool luna::run_with_gear_wo_return(auto proc)
     {
         auto gear_ptr = luna::get_object<input::hids>("gear");
@@ -280,10 +263,36 @@ namespace netxs::events
         }
         else if (::lua_gettop(lua))
         {
-            result = luna::lua_torawstring(lua, -1);
+            result = luna::vtmlua_torawstring(lua, -1);
             ::lua_settop(lua, 0);
         }
         return result;
+    }
+    void luna::run_script(sptr<ui::base> boss_ptr, view script_body)
+    {
+        log("todo run script: boss.id=%% '%%'", boss_ptr->id, script_body);
+        //todo set context
+        luna::run_script_body(script_body);
+    }
+    void luna::run_ext_script(sptr<ui::base> boss_ptr, auto& script)
+    {
+        auto shadow = utf::trim(script.cmd, " \r\n\t\f");
+        if (shadow.size() > 2)
+        if (auto c = shadow.front(); (c == '"' || c == '\'') && shadow.back() == c)
+        {
+            shadow = shadow.substr(1, shadow.size() - 2);
+        }
+        if (shadow.empty()) return;
+        if (script.gear_id)
+        if (auto gear_ptr = boss_ptr->ui::base::getref<input::hids>(script.gear_id))
+        {
+            gear_ptr->set_multihome();
+            luna::set_object(gear_ptr, "gear");
+        }
+        auto result = luna::run_script_body(shadow);
+        if (result.empty()) result = "ok";
+        log(ansi::clr(yellowlt, shadow), "\n", prompt::lua, result);
+        script.cmd = utf::concat(shadow, "\n", prompt::lua, result);
     }
 
     luna::luna()
@@ -292,8 +301,8 @@ namespace netxs::events
         ::luaL_openlibs(lua);
         ::lua_pushcclosure(lua, luna::vtmlua_log, 0);
         ::lua_setglobal(lua, "log");
-        static auto metalist = std::to_array<luaL_Reg>({{ "__index", luna::vtmlua_index },
-                                                        { "__tostring", luna::vtmlua_tostring },
+        static auto metalist = std::to_array<luaL_Reg>({{ "__index",    luna::vtmlua_index },
+                                                        { "__tostring", luna::vtmlua_object2string },
                                                         { nullptr, nullptr }});
         ::luaL_newmetatable(lua, "vtmmetatable"); // Create a new metatable in registry and push it to the stack.
         ::luaL_setfuncs(lua, metalist.data(), 0); // Assign metamethods for the table which at the top of the stack.

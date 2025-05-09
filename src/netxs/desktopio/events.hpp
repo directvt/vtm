@@ -127,10 +127,10 @@ namespace netxs::events
     {
         lua_State* lua; // luna: .
 
-        static text lua_torawstring(lua_State* lua, si32 idx, bool extended = faux);
-        static si32 vtmlua_tostring(lua_State* lua);
-        static si32 vtmlua_call(lua_State* lua);
+        static text vtmlua_torawstring(lua_State* lua, si32 idx, bool extended = faux);
+        static si32 vtmlua_object2string(lua_State* lua);
         static si32 vtmlua_log(lua_State* lua);
+        static si32 vtmlua_call_method(lua_State* lua);
         static si32 vtmlua_index(lua_State* lua);
         //void log_context();
         void push_value(auto&& v);
@@ -143,8 +143,8 @@ namespace netxs::events
         T* get_object(const char* object_name);
         bool run_with_gear_wo_return(auto proc);
         void run_with_gear(auto proc);
-        text run_script_body(view script_body);
         void run_script(sptr<ui::base> object_ptr, view script_body);
+        text run_script_body(view script_body);
         void run_ext_script(sptr<ui::base> object_ptr, auto& script);
 
         luna();
@@ -221,7 +221,7 @@ namespace netxs::events
                 }
                 else if (::lua_gettop(luafx.lua))
                 {
-                    //result = ::lua_torawstring(luafx.lua, -1);
+                    //result = ::vtmlua_torawstring(luafx.lua, -1);
                     ::lua_settop(luafx.lua, 0);
                 }
             }
