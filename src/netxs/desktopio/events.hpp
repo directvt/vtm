@@ -834,7 +834,7 @@ namespace netxs::events
                 }
                 std::erase_if(sensors, [&](auto& fx_sptr) // Wipe sensors.
                 {
-                    if (!fx_sptr || (!fx_sptr->script_ptr && !fx_sptr->get_inst<char>()))
+                    if (!fx_sptr || (!fx_sptr->script_ptr && !fx_sptr->template get_inst<char>())) //todo template keyword required by gcc
                     {
                         return true; // Erase token if empty.
                     }

@@ -811,7 +811,7 @@ namespace netxs::app::shared
                 {
                     { "UpdateChordPreview",     [&]
                                                 {
-                                                    if (auto gear_ptr = luafx.get_object<hids>("gear"))
+                                                    if (auto gear_ptr = luafx.template get_object<hids>("gear")) //todo template keyword required by gcc
                                                     {
                                                         auto& gear = *gear_ptr;
                                                         if (gear.keystat != input::key::repeated) update(items_inst, gear, true);
@@ -821,7 +821,7 @@ namespace netxs::app::shared
                                                 }},
                     { "ExclusiveKeyboardMode",  [&]
                                                 {
-                                                    if (auto gear_ptr = luafx.get_object<hids>("gear"))
+                                                    if (auto gear_ptr = luafx.template get_object<hids>("gear")) //todo template keyword required by gcc
                                                     {
                                                         auto& gear = *gear_ptr;
                                                         state_inst.base::signal(tier::release, ui::tty::events::rawkbd);

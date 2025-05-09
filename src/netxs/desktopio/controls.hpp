@@ -282,7 +282,7 @@ namespace netxs::events
         }
         return result;
     }
-    void luna::run_script(sptr<ui::base> boss_ptr, view script_body)
+    void luna::run_script(sptr<ui::base> /*boss_ptr*/, view script_body)
     {
         //todo set context
         luna::run_script_body(script_body);
