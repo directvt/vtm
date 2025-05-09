@@ -8230,7 +8230,7 @@ namespace netxs::ui
             {
                 { "KeyEvent",                   [&]
                                                 {
-                                                    run_with_gear([&](auto& gear)
+                                                    luafx.run_with_gear([&](auto& gear)
                                                     {
                                                         auto backup = syskeybd{};
                                                         backup.set(gear);
@@ -8262,7 +8262,7 @@ namespace netxs::ui
                                                 }},
                 { "ExclusiveKeyboardMode",      [&]
                                                 {
-                                                    run_with_gear_wo_return([&](auto& gear){ gear.set_handled(); });
+                                                    luafx.run_with_gear_wo_return([&](auto& gear){ gear.set_handled(); });
                                                     auto args_count = luafx.args_count();
                                                     if (!args_count)
                                                     {
@@ -8271,43 +8271,43 @@ namespace netxs::ui
                                                     }
                                                     else
                                                     {
-                                                        auto state = base::get_args_or(1, 0);
+                                                        auto state = luafx.get_args_or(1, 0);
                                                         set_rawkbd(1 + (si32)!!state);
                                                         luafx.set_return();
                                                     }
                                                 }},
                 { "FindNextMatch",              [&]
                                                 {
-                                                    run_with_gear([&](auto& gear)
+                                                    luafx.run_with_gear([&](auto& gear)
                                                     {
-                                                        auto dir = base::get_args_or(1, si32{ 1 });
+                                                        auto dir = luafx.get_args_or(1, si32{ 1 });
                                                         selection_search(gear, dir > 0 ? feed::fwd : feed::rev);
                                                         gear.set_handled();
                                                     });
                                                 }},
                 { "ScrollViewportByPage",       [&]
                                                 {
-                                                    run_with_gear([&](auto& gear)
+                                                    luafx.run_with_gear([&](auto& gear)
                                                     {
                                                         if (target != &normal) return;
-                                                        auto vector = base::get_args_or(1, dot_00);
+                                                        auto vector = luafx.get_args_or(1, dot_00);
                                                         base::riseup(tier::preview, e2::form::upon::scroll::bypage::v, { .vector = vector });
                                                         gear.set_handled();
                                                     });
                                                 }},
                 { "ScrollViewportByCell",       [&]
                                                 {
-                                                    run_with_gear([&](auto& gear)
+                                                    luafx.run_with_gear([&](auto& gear)
                                                     {
                                                         if (target != &normal) return;
-                                                        auto vector = base::get_args_or(1, dot_00);
+                                                        auto vector = luafx.get_args_or(1, dot_00);
                                                         base::riseup(tier::preview, e2::form::upon::scroll::bystep::v, { .vector = vector });
                                                         gear.set_handled();
                                                     });
                                                 }},
                 { "ScrollViewportToTop",        [&]
                                                 {
-                                                    run_with_gear([&](auto& gear)
+                                                    luafx.run_with_gear([&](auto& gear)
                                                     {
                                                         if (target != &normal) return;
                                                         base::riseup(tier::preview, e2::form::upon::scroll::to_top::y);
@@ -8316,7 +8316,7 @@ namespace netxs::ui
                                                 }},
                 { "ScrollViewportToEnd",        [&]
                                                 {
-                                                    run_with_gear([&](auto& gear)
+                                                    luafx.run_with_gear([&](auto& gear)
                                                     {
                                                         if (target != &normal) return;
                                                         base::riseup(tier::preview, e2::form::upon::scroll::to_end::y);
@@ -8325,25 +8325,25 @@ namespace netxs::ui
                                                 }},
                 { "SendKey",                    [&]
                                                 {
-                                                    run_with_gear([&](auto& gear)
+                                                    luafx.run_with_gear([&](auto& gear)
                                                     {
-                                                        auto crop = base::get_args_or(1, ""s);
+                                                        auto crop = luafx.get_args_or(1, ""s);
                                                         if (crop.size()) data_out(crop);
                                                         gear.set_handled();
                                                     });
                                                 }},
                 { "Print",                      [&]
                                                 {
-                                                    run_with_gear([&](auto& gear)
+                                                    luafx.run_with_gear([&](auto& gear)
                                                     {
-                                                        auto crop = base::get_args_or(1, ""s);
+                                                        auto crop = luafx.get_args_or(1, ""s);
                                                         if (crop.size()) data_in(crop);
                                                         gear.set_handled();
                                                     });
                                                 }},
                 { "CopyViewport",               [&]
                                                 {
-                                                    run_with_gear([&](auto& gear)
+                                                    luafx.run_with_gear([&](auto& gear)
                                                     {
                                                         prnscrn(gear);
                                                         gear.set_handled();
@@ -8351,7 +8351,7 @@ namespace netxs::ui
                                                 }},
                 { "CopySelection",              [&]
                                                 {
-                                                    run_with_gear([&](auto& gear)
+                                                    luafx.run_with_gear([&](auto& gear)
                                                     {
                                                         if (selection_active())
                                                         {
@@ -8367,7 +8367,7 @@ namespace netxs::ui
                                                 }},
                 { "PasteClipboard",             [&]
                                                 {
-                                                    run_with_gear([&](auto& gear)
+                                                    luafx.run_with_gear([&](auto& gear)
                                                     {
                                                         paste(gear);
                                                         gear.set_handled();
@@ -8375,7 +8375,7 @@ namespace netxs::ui
                                                 }},
                 { "ClearClipboard",             [&]
                                                 {
-                                                    run_with_gear([&](auto& gear)
+                                                    luafx.run_with_gear([&](auto& gear)
                                                     {
                                                         gear.clear_clipboard();
                                                         gear.set_handled();
@@ -8383,7 +8383,7 @@ namespace netxs::ui
                                                 }},
                 { "ClipboardFormat",            [&]
                                                 {
-                                                    run_with_gear_wo_return([&](auto& gear){ gear.set_handled(); });
+                                                    luafx.run_with_gear_wo_return([&](auto& gear){ gear.set_handled(); });
                                                     auto args_count = luafx.args_count();
                                                     if (!args_count)
                                                     {
@@ -8392,14 +8392,14 @@ namespace netxs::ui
                                                     }
                                                     else
                                                     {
-                                                        auto state = base::get_args_or(1, 1);
+                                                        auto state = luafx.get_args_or(1, 1);
                                                         set_selmod(state % mime::count);
                                                         luafx.set_return();
                                                     }
                                                 }},
                 { "SelectionForm",              [&]
                                                 {
-                                                    run_with_gear_wo_return([&](auto& gear){ gear.set_handled(); });
+                                                    luafx.run_with_gear_wo_return([&](auto& gear){ gear.set_handled(); });
                                                     auto args_count = luafx.args_count();
                                                     if (!args_count)
                                                     {
@@ -8408,14 +8408,14 @@ namespace netxs::ui
                                                     }
                                                     else
                                                     {
-                                                        auto state = base::get_args_or(1, si32{ 0 });
+                                                        auto state = luafx.get_args_or(1, si32{ 0 });
                                                         set_selalt(state);
                                                         luafx.set_return();
                                                     }
                                                 }},
                 { "ClearSelection",             [&]
                                                 {
-                                                    run_with_gear([&](auto& gear)
+                                                    luafx.run_with_gear([&](auto& gear)
                                                     {
                                                         if (selection_active())
                                                         {
@@ -8426,9 +8426,9 @@ namespace netxs::ui
                                                 }},
                 { "OneShotSelection",           [&]
                                                 {
-                                                    run_with_gear([&](auto& /*gear*/)
+                                                    luafx.run_with_gear([&](auto& /*gear*/)
                                                     {
-                                                        auto format = base::get_args_or(1, ""s);
+                                                        auto format = luafx.get_args_or(1, ""s);
                                                         if (format.empty())
                                                         {
                                                             set_oneshot(mime::textonly);
@@ -8441,7 +8441,7 @@ namespace netxs::ui
                                                 }},
                 { "UndoReadline",               [&]
                                                 {
-                                                    run_with_gear([&](auto& gear)
+                                                    luafx.run_with_gear([&](auto& gear)
                                                     {
                                                         exec_cmd(commands::ui::undo);
                                                         gear.set_handled();
@@ -8449,7 +8449,7 @@ namespace netxs::ui
                                                 }},
                 { "RedoReadline",               [&]
                                                 {
-                                                    run_with_gear([&](auto& gear)
+                                                    luafx.run_with_gear([&](auto& gear)
                                                     {
                                                         exec_cmd(commands::ui::redo);
                                                         gear.set_handled();
@@ -8458,7 +8458,7 @@ namespace netxs::ui
                 { "CwdSync",                    [&]
                                                 {
                                                     auto& cwd_sync = base::property("terminal.cwd_sync", faux);
-                                                    run_with_gear_wo_return([&](auto& gear){ gear.set_handled(); });
+                                                    luafx.run_with_gear_wo_return([&](auto& gear){ gear.set_handled(); });
                                                     auto args_count = luafx.args_count();
                                                     if (!args_count)
                                                     {
@@ -8467,14 +8467,14 @@ namespace netxs::ui
                                                     }
                                                     else
                                                     {
-                                                        auto state = base::get_args_or(1, 0);
+                                                        auto state = luafx.get_args_or(1, 0);
                                                         base::riseup(tier::preview, ui::tty::events::toggle::cwdsync, state);
                                                         luafx.set_return();
                                                     }
                                                 }},
                 { "LineWrapMode",               [&]
                                                 {
-                                                    run_with_gear_wo_return([&](auto& gear){ gear.set_handled(); });
+                                                    luafx.run_with_gear_wo_return([&](auto& gear){ gear.set_handled(); });
                                                     auto args_count = luafx.args_count();
                                                     if (!args_count)
                                                     {
@@ -8483,14 +8483,14 @@ namespace netxs::ui
                                                     }
                                                     else
                                                     {
-                                                        auto state = base::get_args_or(1, si32{ 1 });
+                                                        auto state = luafx.get_args_or(1, si32{ 1 });
                                                         set_wrapln(1 + (si32)!state);
                                                         luafx.set_return();
                                                     }
                                                 }},
                 { "LineAlignMode",              [&]
                                                 {
-                                                    run_with_gear_wo_return([&](auto& gear){ gear.set_handled(); });
+                                                    luafx.run_with_gear_wo_return([&](auto& gear){ gear.set_handled(); });
                                                     auto args_count = luafx.args_count();
                                                     if (!args_count)
                                                     {
@@ -8501,14 +8501,14 @@ namespace netxs::ui
                                                     }
                                                     else
                                                     {
-                                                        auto state = base::get_args_or(1, si32{ 0 });
+                                                        auto state = luafx.get_args_or(1, si32{ 0 });
                                                         set_align(1 + std::clamp(state, 0, 2));
                                                         luafx.set_return();
                                                     }
                                                 }},
                 { "LogMode",                    [&]
                                                 {
-                                                    run_with_gear_wo_return([&](auto& gear){ gear.set_handled(); });
+                                                    luafx.run_with_gear_wo_return([&](auto& gear){ gear.set_handled(); });
                                                     auto args_count = luafx.args_count();
                                                     if (!args_count)
                                                     {
@@ -8517,14 +8517,14 @@ namespace netxs::ui
                                                     }
                                                     else
                                                     {
-                                                        auto state = base::get_args_or(1, 0);
+                                                        auto state = luafx.get_args_or(1, 0);
                                                         set_log(state);
                                                         luafx.set_return();
                                                     }
                                                 }},
                 { "ClearScrollback",            [&]
                                                 {
-                                                    run_with_gear_wo_return([&](auto& gear){ gear.set_handled(); });
+                                                    luafx.run_with_gear_wo_return([&](auto& gear){ gear.set_handled(); });
                                                     if (selection_active())
                                                     {
                                                         exec_cmd(commands::ui::deselect);
@@ -8534,7 +8534,7 @@ namespace netxs::ui
                                                 }},
                 { "Restart",                    [&]
                                                 {
-                                                    run_with_gear([&](auto& gear)
+                                                    luafx.run_with_gear([&](auto& gear)
                                                     {
                                                         exec_cmd(commands::ui::restart);
                                                         gear.set_handled();
@@ -8542,7 +8542,7 @@ namespace netxs::ui
                                                 }},
                 { "Quit",                       [&]
                                                 {
-                                                    run_with_gear([&](auto& gear)
+                                                    luafx.run_with_gear([&](auto& gear)
                                                     {
                                                         exec_cmd(commands::ui::sighup);
                                                         gear.set_handled();

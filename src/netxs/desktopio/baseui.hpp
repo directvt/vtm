@@ -1077,9 +1077,6 @@ namespace netxs::ui
             };
             return prop;
         }
-
-        // Scripting.
-        //todo revise
         // base: Register object methods.
         auto _add_methods(qiew classname, fxmap&& proc_map_init)
         {
@@ -1122,68 +1119,6 @@ namespace netxs::ui
                 auto object_name = utf::concat("object<", bell::id, ">");
                 log("%%Function %fx_name% not found (%object%)", prompt::lua, ansi::hi("vtm.", "instname", ".", fx_name, "()"), object_name);
             }
-        }
-        template<class T>
-        auto get_args_or(si32 idx, T fallback = {})
-        {
-            static constexpr auto is_string_v = requires{ static_cast<const char*>(fallback.data()); };
-            static constexpr auto is_cstring_v = requires{ static_cast<const char*>(fallback); };
-
-            auto lua = bell::indexer.luafx.lua;
-            auto type = ::lua_type(lua, idx);
-            if (type != LUA_TNIL)
-            {
-                     if constexpr (std::is_same_v<std::decay_t<T>, bool>) return (T)::lua_toboolean(lua, idx);
-                else if constexpr (is_string_v || is_cstring_v)           return events::lua_torawstring(lua, idx);
-                else if constexpr (std::is_integral_v<T>)                 return (T)::lua_tointeger(lua, idx);
-                else if constexpr (std::is_floating_point_v<T>)           return (T)::lua_tonumber(lua, idx);
-                else if constexpr (std::is_same_v<std::decay_t<T>, twod>) return twod{ ::lua_tointeger(lua, idx), ::lua_tointeger(lua, idx + 1) };
-                else if constexpr (std::is_same_v<std::decay_t<T>, sptr>)
-                {
-                    if (auto ptr = (base*)::lua_touserdata(lua, idx)) // Get ui::base*.
-                    {
-                        auto object_ptr = ptr->This();
-                        return object_ptr;
-                    }
-                    return sptr{};
-                }
-            }
-            if constexpr (is_string_v || is_cstring_v) return text{ fallback };
-            else                                       return fallback;
-        }
-        auto set_object(sptr object_ptr, qiew object_name)
-        {
-            auto lua = bell::indexer.luafx.lua;
-            if (object_ptr)
-            {
-                if (::lua_getglobal(lua, "vtm") != LUA_TTABLE) // Push "vtm" table to stack.
-                {
-                    ::lua_pop(lua, 1); // Pop if it is a non-table.
-                    ::lua_newtable(lua); // Create and push new "vtm.*" global table.
-                    ::lua_setglobal(lua, "vtm"); // Set global var "vtm". Pop "vtm".
-                    ::lua_getglobal(lua, "vtm"); // Push "vtm" table again to stack.
-                }
-                ::lua_pushstring(lua, object_name.data()); // Push vtm.* var name (key).
-                ::lua_pushlightuserdata(lua, object_ptr.get()); // Object ptr (val).
-                ::luaL_setmetatable(lua, "vtmmetatable"); // Set the metatable for -1 userdata.
-                ::lua_settable(lua, -3); // Set vtm.key=val. Pop key+val.
-                ::lua_pop(lua, 1); // Pop table "vtm".
-            }
-        }
-        template<class T = base>
-        auto get_object(const char* object_name)
-        {
-            auto lua = bell::indexer.luafx.lua;
-            ::lua_getglobal(lua, "vtm");
-            ::lua_pushstring(lua, object_name);
-            ::lua_gettable(lua, -2);
-            auto object_ptr = static_cast<T*>((base*)::lua_touserdata(lua, -1));
-            ::lua_pop(lua, 2); // Pop "vtm" and "object_name".
-            return object_ptr;
-        }
-        void run_script(view script_body)
-        {
-            log("todo run script: boss.id=%% '%%'", id, script_body);
         }
 
         // base: Render to the canvas. Trim = trim viewport to the nested object region.

@@ -20,10 +20,6 @@ namespace netxs::ui
 
 namespace netxs::events
 {
-    text lua_torawstring(lua_State* lua, si32 idx, bool extended = faux);
-    si32 vtmlua_tostring(lua_State* lua);
-    si32 vtmlua_call(lua_State* lua);
-
     struct tier // Keep this enumeration in a fixed order. The last bit of its index indicates the execution order 0: Forward, 1: Reverse.
     {
         // Forward execution order: Execute concrete event  first. Preserve subscription order. Forward means from particular to general: 1. event::group::item, 2. event::group::any
@@ -131,156 +127,28 @@ namespace netxs::events
     {
         lua_State* lua; // luna: .
 
-        static auto vtmlua_log(lua_State* lua)
-        {
-            auto n = ::lua_gettop(lua);
-            auto crop = text{};
-            for (auto i = 1; i <= n; i++)
-            {
-                auto t = ::lua_type(lua, i);
-                switch (t)
-                {
-                    case LUA_TBOOLEAN:
-                    case LUA_TNUMBER:
-                    case LUA_TSTRING:
-                        crop += lua_torawstring(lua, i);
-                        break;
-                    default:
-                        crop += "<";
-                        crop += ::lua_typename(lua, t);
-                        crop += ">";
-                        break;
-                }
-            }
-            log("", crop);
-            return 0;
-        }
-        static auto vtmlua_index(lua_State* lua)
-        {
-            // Stack:
-            //      1. userdata (or table).
-            //      2. fx name (keyname).
-            ::lua_pushcclosure(lua, vtmlua_call, 2);
-            return 1;
-        }
-        //auto log_context()
-        //{
-        //    log("%%context:", prompt::lua);
-        //    ::lua_getglobal(lua, "vtm");
-        //    ::lua_pushnil(lua);
-        //    while (::lua_next(lua, -2))
-        //    {
-        //        auto var = lua_torawstring(lua, -2);
-        //        auto val = lua_torawstring(lua, -1, true);
-        //        if (val.size()) log("%%vtm.%name% = %value%", prompt::pads, var, val);
-        //        ::lua_pop(lua, 1); // Pop val.
-        //    }
-        //    ::lua_pop(lua, 1); // Pop table "vtm".
-        //}
-        auto push_value(auto&& v)
-        {
-            using T = std::decay_t<decltype(v)>;
-            static constexpr auto is_string_v = requires{ (const char*)v.data(); };
-            static constexpr auto is_cstring_v = requires{ (const char*)v[0]; };
-                 if constexpr (std::is_same_v<T, bool>)     ::lua_pushboolean(lua, v);
-            else if constexpr (is_string_v)                 ::lua_pushlstring(lua, v.data(), v.size());
-            else if constexpr (is_cstring_v)                ::lua_pushstring(lua, v);
-            else if constexpr (std::is_integral_v<T>)       ::lua_pushinteger(lua, v);
-            else if constexpr (std::is_floating_point_v<T>) ::lua_pushnumber(lua, v);
-            else if constexpr (std::is_pointer_v<T>)        ::lua_pushlightuserdata(lua, v);
-            else if constexpr (debugmode) throw;
-        }
-        void set_return(auto... args)
-        {
-            ::lua_settop(lua, 0);
-            (push_value(args), ...);
-        }
-        auto args_count()
-        {
-            return ::lua_gettop(lua);
-        }
-        auto read_args(si32 index, auto add_item)
-        {
-            if (lua_istable(lua, index))
-            {
-                ::lua_pushnil(lua); // Push prev key.
-                while (::lua_next(lua, index)) // Table is in the stack at index. { "<item " + text{ table } + " />" }
-                {
-                    auto key = lua_torawstring(lua, -2);
-                    if (!key.empty()) // Allow stringable keys only.
-                    {
-                        auto val = lua_torawstring(lua, -1);
-                        if (val.empty() && lua_istable(lua, -1)) // Extract item list.
-                        {
-                            ::lua_pushnil(lua); // Push prev key.
-                            while (::lua_next(lua, -2)) // Table is in the stack at index -2. { "<key="key2=val2"/>" }
-                            {
-                                auto val2 = lua_torawstring(lua, -1);
-                                auto key2_type = ::lua_type(lua, -2);
-                                if (key2_type != LUA_TSTRING) // key2 is integer index.
-                                {
-                                    add_item(key, val2);
-                                }
-                                else
-                                {
-                                    auto key2 = lua_torawstring(lua, -2);
-                                    add_item(key, utf::concat(key2, '=', val2));
-                                }
-                                ::lua_pop(lua, 1); // Pop val2.
-                            }
-                        }
-                        else
-                        {
-                            add_item(key, val);
-                        }
-                    }
-                    ::lua_pop(lua, 1); // Pop val.
-                }
-            }
-        }
-        auto run_script_body(view script_body)
-        {
-            //log_context();
-            log("%%script:\n%pads%%script%", prompt::lua, prompt::pads, ansi::hi(utf::debase437(script_body)));
+        static text lua_torawstring(lua_State* lua, si32 idx, bool extended = faux);
+        static si32 vtmlua_tostring(lua_State* lua);
+        static si32 vtmlua_call(lua_State* lua);
+        static si32 vtmlua_log(lua_State* lua);
+        static si32 vtmlua_index(lua_State* lua);
+        //void log_context();
+        void push_value(auto&& v);
+        void set_return(auto... args);
+        si32 args_count();
+        void read_args(si32 index, auto add_item);
+        auto get_args_or(si32 idx, auto fallback = {});
+        void set_object(sptr<ui::base> object_ptr, qiew object_name);
+        template<class T = ui::base>
+        T* get_object(const char* object_name);
+        bool run_with_gear_wo_return(auto proc);
+        void run_with_gear(auto proc);
+        text run_script_body(view script_body);
+        void run_script(sptr<ui::base> object_ptr, view script_body);
+        void run_ext_script(sptr<ui::base> object_ptr, auto& script);
 
-            ::lua_settop(lua, 0);
-            auto error = ::luaL_loadbuffer(lua, script_body.data(), script_body.size(), "script body")
-                      || ::lua_pcall(lua, 0, 0, 0);
-            auto result = text{};
-            if (error)
-            {
-                result = ::lua_tostring(lua, -1);
-                log("%%%msg%", prompt::lua, ansi::err(result));
-                ::lua_pop(lua, 1);  // Pop error message from stack.
-            }
-            else if (::lua_gettop(lua))
-            {
-                result = lua_torawstring(lua, -1);
-                ::lua_settop(lua, 0);
-            }
-
-            //todo optimize
-            ::lua_pushnil(lua);          // Wipe global context.
-            ::lua_setglobal(lua, "vtm"); //
-            return result;
-        }
-
-        luna()
-            : lua{ ::luaL_newstate() }
-        {
-            ::luaL_openlibs(lua);
-            ::lua_pushcclosure(lua, vtmlua_log, 0);
-            ::lua_setglobal(lua, "log");
-            static auto metalist = std::to_array<luaL_Reg>({{ "__index", vtmlua_index },
-                                                            { "__tostring", vtmlua_tostring },
-                                                            { nullptr, nullptr }});
-            ::luaL_newmetatable(lua, "vtmmetatable"); // Create a new metatable in registry and push it to the stack.
-            ::luaL_setfuncs(lua, metalist.data(), 0); // Assign metamethods for the table which at the top of the stack.
-        }
-        ~luna()
-        {
-            if (lua) ::lua_close(lua);
-        }
+        luna();
+        ~luna();
     };
 
     struct script_ref

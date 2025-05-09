@@ -351,9 +351,9 @@ namespace netxs::app::tile
                         {
                             { action::MoveGrip,         [&]
                                                         {
-                                                            auto delta = boss.base::get_args_or(1, twod{});
+                                                            auto delta = luafx.get_args_or(1, twod{});
                                                             boss.base::riseup(tier::preview, app::tile::events::ui::grips::move, delta);
-                                                            if (auto gear_ptr = boss.base::get_object<hids>("gear")) //todo gcc requires template keyword
+                                                            if (auto gear_ptr = luafx.get_object<hids>("gear")) //todo gcc requires template keyword
                                                             {
                                                                 gear_ptr->set_handled();
                                                             }
@@ -361,9 +361,9 @@ namespace netxs::app::tile
                                                         }},
                             { action::ResizeGrip,       [&]
                                                         {
-                                                            auto delta = boss.base::get_args_or(1, si32{});
+                                                            auto delta = luafx.get_args_or(1, si32{});
                                                             boss.base::riseup(tier::preview, app::tile::events::ui::grips::resize, delta);
-                                                            if (auto gear_ptr = boss.base::get_object<hids>("gear"))
+                                                            if (auto gear_ptr = luafx.get_object<hids>("gear"))
                                                             {
                                                                 gear_ptr->set_handled();
                                                             }
@@ -371,12 +371,12 @@ namespace netxs::app::tile
                                                         }},
                             { action::FocusNextGrip,    [&]
                                                         {
-                                                            auto gear_ptr = boss.base::get_object<hids>("gear");
+                                                            auto gear_ptr = luafx.get_object<hids>("gear");
                                                             auto ok = !!gear_ptr;
                                                             if (ok)
                                                             {
                                                                 auto& gear = *gear_ptr;
-                                                                auto delta = boss.base::get_args_or(1, si32{ 1 });
+                                                                auto delta = luafx.get_args_or(1, si32{ 1 });
                                                                 delta > 0 ? boss.base::riseup(tier::preview, app::tile::events::ui::focus::nextgrip, gear)
                                                                           : boss.base::riseup(tier::preview, app::tile::events::ui::focus::prevgrip, gear);
                                                                 gear.set_handled();
@@ -1046,94 +1046,94 @@ namespace netxs::app::tile
                     {
                         boss.base::riseup(tier::release, e2::form::proceed::quit::one, true);
                     };
-                    //auto& luafx = boss.bell::indexer.luafx;
+                    auto& luafx = boss.bell::indexer.luafx;
                     auto bindings = input::bindings::load(config, "tile");
                     input::bindings::keybind(boss, bindings);
                     boss.base::add_methods2("tile",
                     {
                         { action::FocusNextPaneOrGrip,  [&]
                                                         {
-                                                            boss.run_with_gear([&](auto& gear)
+                                                            luafx.run_with_gear([&](auto& gear)
                                                             {
-                                                                auto dir = boss.base::get_args_or(1, si32{ 1 });
+                                                                auto dir = luafx.get_args_or(1, si32{ 1 });
                                                                 dir < 0 ? boss.base::signal(tier::preview, app::tile::events::ui::focus::prev, gear)
                                                                         : boss.base::signal(tier::preview, app::tile::events::ui::focus::next, gear);
                                                             });
                                                         }},
                         { action::FocusNextPane,        [&]
                                                         {
-                                                            boss.run_with_gear([&](auto& gear)
+                                                            luafx.run_with_gear([&](auto& gear)
                                                             {
-                                                                auto dir = boss.base::get_args_or(1, si32{ 1 });
+                                                                auto dir = luafx.get_args_or(1, si32{ 1 });
                                                                 dir < 0 ? boss.base::signal(tier::preview, app::tile::events::ui::focus::prevpane, gear)
                                                                         : boss.base::signal(tier::preview, app::tile::events::ui::focus::nextpane, gear);
                                                             });
                                                         }},
                         { action::FocusNextGrip,        [&]
                                                         {
-                                                            boss.run_with_gear([&](auto& gear)
+                                                            luafx.run_with_gear([&](auto& gear)
                                                             {
-                                                                auto dir = boss.base::get_args_or(1, si32{ 1 });
+                                                                auto dir = luafx.get_args_or(1, si32{ 1 });
                                                                 dir < 0 ? boss.base::signal(tier::preview, app::tile::events::ui::focus::prevgrip, gear)
                                                                         : boss.base::signal(tier::preview, app::tile::events::ui::focus::nextgrip, gear);
                                                             });
                                                         }},
                         { action::RunApplication,       [&]
                                                         {
-                                                            boss.run_with_gear([&](auto& gear)
+                                                            luafx.run_with_gear([&](auto& gear)
                                                             {
                                                                 //todo add agrs
-                                                                //auto dir = boss.base::get_args_or(1, si32{ 1 });
+                                                                //auto dir = luafx.get_args_or(1, si32{ 1 });
                                                                 boss.base::signal(tier::preview, app::tile::events::ui::create, gear);
                                                             });
                                                         }},
                         { action::SelectAllPanes,       [&]
                                                         {
-                                                            boss.run_with_gear([&](auto& gear)
+                                                            luafx.run_with_gear([&](auto& gear)
                                                             {
                                                                 boss.base::signal(tier::preview, app::tile::events::ui::select, gear);
                                                             });
                                                         }},
                         { action::SplitPane,            [&]
                                                         {
-                                                            boss.run_with_gear([&](auto& gear)
+                                                            luafx.run_with_gear([&](auto& gear)
                                                             {
-                                                                auto dir = boss.base::get_args_or(1, si32{ 1 });
+                                                                auto dir = luafx.get_args_or(1, si32{ 1 });
                                                                 dir > 0 ? boss.base::signal(tier::preview, app::tile::events::ui::split::vt, gear)
                                                                         : boss.base::signal(tier::preview, app::tile::events::ui::split::hz, gear);
                                                             });
                                                         }},
                         { action::RotateSplit,          [&]
                                                         {
-                                                            boss.run_with_gear([&](auto& gear)
+                                                            luafx.run_with_gear([&](auto& gear)
                                                             {
                                                                 boss.base::signal(tier::preview, app::tile::events::ui::rotate, gear);
                                                             });
                                                         }},
                         { action::SwapPanes,            [&]
                                                         {
-                                                            boss.run_with_gear([&](auto& gear)
+                                                            luafx.run_with_gear([&](auto& gear)
                                                             {
                                                                 boss.base::signal(tier::preview, app::tile::events::ui::swap, gear);
                                                             });
                                                         }},
                         { action::EqualizeSplitRatio,   [&]
                                                         {
-                                                            boss.run_with_gear([&](auto& gear)
+                                                            luafx.run_with_gear([&](auto& gear)
                                                             {
                                                                 boss.base::signal(tier::preview, app::tile::events::ui::equalize, gear);
                                                             });
                                                         }},
                         { action::SetTitle,             [&]
                                                         {
-                                                            boss.run_with_gear([&](auto& gear)
+                                                            luafx.run_with_gear([&](auto& gear)
                                                             {
                                                                 boss.base::signal(tier::preview, app::tile::events::ui::title, gear);
                                                             });
                                                         }},
                         { action::ClosePane,            [&]
                                                         {
-                                                            boss.run_with_gear([&](auto& gear)
+                                                            luafx.run_with_gear([&](auto& gear)
                                                             {
                                                                 boss.base::signal(tier::preview, app::tile::events::ui::close, gear);
                                                             });

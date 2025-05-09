@@ -7,7 +7,7 @@
 
 namespace netxs::events
 {
-    text lua_torawstring(lua_State* lua, si32 idx, bool extended)
+    text luna::lua_torawstring(lua_State* lua, si32 idx, bool extended)
     {
         auto crop = text{};
         auto type = ::lua_type(lua, idx);
@@ -37,7 +37,7 @@ namespace netxs::events
         }
         return crop;
     }
-    si32 vtmlua_call(lua_State* lua) // UpValue[1]: Object_ptr. UpValue[2]: Function_name.
+    si32 luna::vtmlua_call(lua_State* lua) // UpValue[1]: Object_ptr. UpValue[2]: Function_name.
     {
         // Stack:
         //      lua_upvalueindex(1): Get Object_ptr.
@@ -51,7 +51,7 @@ namespace netxs::events
         }
         return ::lua_gettop(lua);
     }
-    si32 vtmlua_tostring(lua_State* lua)
+    si32 luna::vtmlua_tostring(lua_State* lua)
     {
         auto crop = text{};
         if (auto object_ptr = (ui::base*)::lua_touserdata(lua, -1)) // Get Object_ptr.
@@ -61,6 +61,246 @@ namespace netxs::events
         else crop = "<object>";
         ::lua_pushstring(lua, crop.data());
         return 1;
+    }
+    si32 luna::vtmlua_log(lua_State* lua)
+    {
+        auto n = ::lua_gettop(lua);
+        auto crop = text{};
+        for (auto i = 1; i <= n; i++)
+        {
+            auto t = ::lua_type(lua, i);
+            switch (t)
+            {
+                case LUA_TBOOLEAN:
+                case LUA_TNUMBER:
+                case LUA_TSTRING:
+                    crop += luna::lua_torawstring(lua, i);
+                    break;
+                default:
+                    crop += "<";
+                    crop += ::lua_typename(lua, t);
+                    crop += ">";
+                    break;
+            }
+        }
+        log("", crop);
+        return 0;
+    }
+    si32 luna::vtmlua_index(lua_State* lua)
+    {
+        // Stack:
+        //      1. userdata (or table).
+        //      2. fx name (keyname).
+        ::lua_pushcclosure(lua, luna::vtmlua_call, 2);
+        return 1;
+    }
+    //void luna::log_context()
+    //{
+    //    log("%%context:", prompt::lua);
+    //    ::lua_getglobal(lua, "vtm");
+    //    ::lua_pushnil(lua);
+    //    while (::lua_next(lua, -2))
+    //    {
+    //        auto var = luna::lua_torawstring(lua, -2);
+    //        auto val = luna::lua_torawstring(lua, -1, true);
+    //        if (val.size()) log("%%vtm.%name% = %value%", prompt::pads, var, val);
+    //        ::lua_pop(lua, 1); // Pop val.
+    //    }
+    //    ::lua_pop(lua, 1); // Pop table "vtm".
+    //}
+    void luna::push_value(auto&& v)
+    {
+        using T = std::decay_t<decltype(v)>;
+        static constexpr auto is_string_v = requires{ (const char*)v.data(); };
+        static constexpr auto is_cstring_v = requires{ (const char*)v[0]; };
+             if constexpr (std::is_same_v<T, bool>)     ::lua_pushboolean(lua, v);
+        else if constexpr (is_string_v)                 ::lua_pushlstring(lua, v.data(), v.size());
+        else if constexpr (is_cstring_v)                ::lua_pushstring(lua, v);
+        else if constexpr (std::is_integral_v<T>)       ::lua_pushinteger(lua, v);
+        else if constexpr (std::is_floating_point_v<T>) ::lua_pushnumber(lua, v);
+        else if constexpr (std::is_pointer_v<T>)        ::lua_pushlightuserdata(lua, v);
+        else if constexpr (debugmode) throw;
+    }
+    void luna::set_return(auto... args)
+    {
+        ::lua_settop(lua, 0);
+        (push_value(args), ...);
+    }
+    si32 luna::args_count()
+    {
+        return ::lua_gettop(lua);
+    }
+    void luna::read_args(si32 index, auto add_item)
+    {
+        if (lua_istable(lua, index))
+        {
+            ::lua_pushnil(lua); // Push prev key.
+            while (::lua_next(lua, index)) // Table is in the stack at index. { "<item " + text{ table } + " />" }
+            {
+                auto key = luna::lua_torawstring(lua, -2);
+                if (!key.empty()) // Allow stringable keys only.
+                {
+                    auto val = luna::lua_torawstring(lua, -1);
+                    if (val.empty() && lua_istable(lua, -1)) // Extract item list.
+                    {
+                        ::lua_pushnil(lua); // Push prev key.
+                        while (::lua_next(lua, -2)) // Table is in the stack at index -2. { "<key="key2=val2"/>" }
+                        {
+                            auto val2 = luna::lua_torawstring(lua, -1);
+                            auto key2_type = ::lua_type(lua, -2);
+                            if (key2_type != LUA_TSTRING) // key2 is integer index.
+                            {
+                                add_item(key, val2);
+                            }
+                            else
+                            {
+                                auto key2 = luna::lua_torawstring(lua, -2);
+                                add_item(key, utf::concat(key2, '=', val2));
+                            }
+                            ::lua_pop(lua, 1); // Pop val2.
+                        }
+                    }
+                    else
+                    {
+                        add_item(key, val);
+                    }
+                }
+                ::lua_pop(lua, 1); // Pop val.
+            }
+        }
+    }
+    template<class T>
+    auto luna::get_args_or(si32 idx, T fallback)
+    {
+        static constexpr auto is_string_v = requires{ static_cast<const char*>(fallback.data()); };
+        static constexpr auto is_cstring_v = requires{ static_cast<const char*>(fallback); };
+
+        auto type = ::lua_type(lua, idx);
+        if (type != LUA_TNIL)
+        {
+                 if constexpr (std::is_same_v<std::decay_t<T>, bool>) return (T)::lua_toboolean(lua, idx);
+            else if constexpr (is_string_v || is_cstring_v)           return luna::lua_torawstring(lua, idx);
+            else if constexpr (std::is_integral_v<T>)                 return (T)::lua_tointeger(lua, idx);
+            else if constexpr (std::is_floating_point_v<T>)           return (T)::lua_tonumber(lua, idx);
+            else if constexpr (std::is_same_v<std::decay_t<T>, twod>) return twod{ ::lua_tointeger(lua, idx), ::lua_tointeger(lua, idx + 1) };
+            else if constexpr (std::is_same_v<std::decay_t<T>, sptr<ui::base>>)
+            {
+                if (auto ptr = (ui::base*)::lua_touserdata(lua, idx)) // Get ui::base*.
+                {
+                    auto object_ptr = ptr->This();
+                    return object_ptr;
+                }
+                return sptr<ui::base>{};
+            }
+        }
+        if constexpr (is_string_v || is_cstring_v) return text{ fallback };
+        else                                       return fallback;
+    }
+    void luna::set_object(sptr<ui::base> object_ptr, qiew object_name)
+    {
+        if (object_ptr)
+        {
+            if (::lua_getglobal(lua, "vtm") != LUA_TTABLE) // Push "vtm" table to stack.
+            {
+                ::lua_pop(lua, 1); // Pop if it is a non-table.
+                ::lua_newtable(lua); // Create and push new "vtm.*" global table.
+                ::lua_setglobal(lua, "vtm"); // Set global var "vtm". Pop "vtm".
+                ::lua_getglobal(lua, "vtm"); // Push "vtm" table again to stack.
+            }
+            ::lua_pushstring(lua, object_name.data()); // Push vtm.* var name (key).
+            ::lua_pushlightuserdata(lua, object_ptr.get()); // Object ptr (val).
+            ::luaL_setmetatable(lua, "vtmmetatable"); // Set the metatable for -1 userdata.
+            ::lua_settable(lua, -3); // Set vtm.key=val. Pop key+val.
+            ::lua_pop(lua, 1); // Pop table "vtm".
+        }
+    }
+    template<class T>
+    T* luna::get_object(const char* object_name)
+    {
+        ::lua_getglobal(lua, "vtm");
+        ::lua_pushstring(lua, object_name);
+        ::lua_gettable(lua, -2);
+        auto object_ptr = static_cast<T*>((ui::base*)::lua_touserdata(lua, -1));
+        ::lua_pop(lua, 2); // Pop "vtm" and "object_name".
+        return object_ptr;
+    }
+    void luna::run_script(sptr<ui::base> boss_ptr, view script_body)
+    {
+        log("todo run script: boss.id=%% '%%'", boss_ptr->id, script_body);
+    }
+    void luna::run_ext_script(sptr<ui::base> boss_ptr, auto& script)
+    {
+        auto shadow = utf::trim(script.cmd, " \r\n\t\f");
+        if (shadow.size() > 2)
+        if (auto c = shadow.front(); (c == '"' || c == '\'') && shadow.back() == c)
+        {
+            shadow = shadow.substr(1, shadow.size() - 2);
+        }
+        if (shadow.empty()) return;
+        if (script.gear_id)
+        if (auto gear_ptr = boss_ptr->ui::base::getref<input::hids>(script.gear_id))
+        {
+            gear_ptr->set_multihome();
+            luna::set_object(gear_ptr, "gear");
+        }
+        auto result = luna::run_script_body(shadow);
+        if (result.empty()) result = "ok";
+        log(ansi::clr(yellowlt, shadow), "\n", prompt::lua, result);
+        script.cmd = utf::concat(shadow, "\n", prompt::lua, result);
+    }
+    bool luna::run_with_gear_wo_return(auto proc)
+    {
+        auto gear_ptr = luna::get_object<input::hids>("gear");
+        auto ok = !!gear_ptr;
+        if (ok)
+        {
+            auto& gear = *gear_ptr;
+            proc(gear);
+        }
+        return ok;
+    }
+    void luna::run_with_gear(auto proc)
+    {
+        auto ok = luna::run_with_gear_wo_return(proc);
+        luna::set_return(ok);
+    }
+    text luna::run_script_body(view script_body)
+    {
+        //log_context();
+        log("%%script:\n%pads%%script%", prompt::lua, prompt::pads, ansi::hi(utf::debase437(script_body)));
+        ::lua_settop(lua, 0);
+        auto error = ::luaL_loadbuffer(lua, script_body.data(), script_body.size(), "script body")
+                  || ::lua_pcall(lua, 0, 0, 0);
+        auto result = text{};
+        if (error)
+        {
+            result = ::lua_tostring(lua, -1);
+            log("%%%msg%", prompt::lua, ansi::err(result));
+            ::lua_pop(lua, 1);  // Pop error message from stack.
+        }
+        else if (::lua_gettop(lua))
+        {
+            result = luna::lua_torawstring(lua, -1);
+            ::lua_settop(lua, 0);
+        }
+        return result;
+    }
+
+    luna::luna()
+        : lua{ ::luaL_newstate() }
+    {
+        ::luaL_openlibs(lua);
+        ::lua_pushcclosure(lua, luna::vtmlua_log, 0);
+        ::lua_setglobal(lua, "log");
+        static auto metalist = std::to_array<luaL_Reg>({{ "__index", luna::vtmlua_index },
+                                                        { "__tostring", luna::vtmlua_tostring },
+                                                        { nullptr, nullptr }});
+        ::luaL_newmetatable(lua, "vtmmetatable"); // Create a new metatable in registry and push it to the stack.
+        ::luaL_setfuncs(lua, metalist.data(), 0); // Assign metamethods for the table which at the top of the stack.
+    }
+    luna::~luna()
+    {
+        if (lua) ::lua_close(lua);
     }
 }
 
@@ -2742,45 +2982,6 @@ namespace netxs::ui
             auto basis = rect{ dot_00, base::region.size } - base::intpad;
             auto context = parent_canvas.change_basis(basis, true);
             return context;
-        }
-
-        // Scripting.
-        //todo revise
-        auto run_ext_script(auto& script)
-        {
-            auto shadow = utf::trim(script.cmd, " \r\n\t\f");
-            if (shadow.size() > 2)
-            if (auto c = shadow.front(); (c == '"' || c == '\'') && shadow.back() == c)
-            {
-                shadow = shadow.substr(1, shadow.size() - 2);
-            }
-            if (shadow.empty()) return;
-            if (script.gear_id)
-            if (auto gear_ptr = base::getref<input::hids>(script.gear_id))
-            {
-                gear_ptr->set_multihome();
-                base::set_object(gear_ptr, "gear");
-            }
-            auto result = indexer.luafx.run_script_body(shadow);
-            if (result.empty()) result = "ok";
-            log(ansi::clr(yellowlt, shadow), "\n", prompt::lua, result);
-            script.cmd = utf::concat(shadow, "\n", prompt::lua, result);
-        }
-        auto run_with_gear_wo_return(auto proc)
-        {
-            auto gear_ptr = base::get_object<input::hids>("gear");
-            auto ok = !!gear_ptr;
-            if (ok)
-            {
-                auto& gear = *gear_ptr;
-                proc(gear);
-            }
-            return ok;
-        }
-        auto run_with_gear(auto proc)
-        {
-            auto ok = run_with_gear_wo_return(proc);
-            indexer.luafx.set_return(ok);
         }
 
         form()
