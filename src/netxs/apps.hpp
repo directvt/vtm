@@ -779,16 +779,16 @@ namespace netxs::app::shared
                 {
                     if (gear.cause != input::key::MouseMove || coord != gear.coord)
                     {
-                        coord = gear.coord;
-                        auto button_state = ansi::escx{}.pushsgr().bgc(blacklt).fgc(whitelt);
-                        auto pressed = gear.pressed;
-                        auto dragged = gear.dragged;
-                             if (dragged) button_state.pushsgr().bgc(reddk).add(utf::to_bin(pressed)).popsgr();
-                        else if (pressed) button_state.pushsgr().bgc(greenlt).add(utf::to_bin(pressed)).popsgr();
-                        else              button_state.add(utf::to_bin(pressed));
-                        button_state.popsgr();
-                        auto wheeldt = gear.hzwhl ? fp2d{ gear.whlfp, 0 } : fp2d{ 0, gear.whlfp };
-                        if constexpr (debugmode) log("Mouse: %% buttons=%% wheel=%% coord=%%", datetime::now(), button_state, wheeldt, coord);
+                        //coord = gear.coord;
+                        //auto button_state = ansi::escx{}.pushsgr().bgc(blacklt).fgc(whitelt);
+                        //auto pressed = gear.pressed;
+                        //auto dragged = gear.dragged;
+                        //     if (dragged) button_state.pushsgr().bgc(reddk).add(utf::to_bin(pressed)).popsgr();
+                        //else if (pressed) button_state.pushsgr().bgc(greenlt).add(utf::to_bin(pressed)).popsgr();
+                        //else              button_state.add(utf::to_bin(pressed));
+                        //button_state.popsgr();
+                        //auto wheeldt = gear.hzwhl ? fp2d{ gear.whlfp, 0 } : fp2d{ 0, gear.whlfp };
+                        //if constexpr (debugmode) log("Mouse: %% buttons=%% wheel=%% coord=%%", datetime::now(), button_state, wheeldt, coord);
                         update(boss, gear, faux);
                     }
                 });
