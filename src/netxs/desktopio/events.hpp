@@ -153,16 +153,28 @@ namespace netxs::events
 
     struct script_ref
     {
-        using location_type = std::vector<void*>;
-        std::reference_wrapper<location_type> location; // Hierarchical location index of the script owner.
-        sptr<text>                            script_body_ptr; // Script body sptr.
+        using context_t = std::vector<void*>;
+        std::reference_wrapper<context_t> context; // Hierarchical location index of the script owner.
+        sptr<text>                        script_body_ptr; // Script body sptr.
 
-        script_ref(location_type& location, sptr<text> script_body_ptr)
-            : location{ location },
+        static auto to_string(context_t& context)
+        {
+            auto crop = text{};
+            for (auto ptr : context)
+            {
+                crop += utf::bytes2shades(view{ (char*)&ptr, sizeof(void*) });
+                crop += '-';
+            }
+            crop.pop_back();
+            return crop;
+        }
+
+        script_ref(context_t& context, sptr<text> script_body_ptr)
+            : context{ context },
               script_body_ptr{ script_body_ptr }
         { }
-        script_ref(location_type& location, auto&& script_body_ptr)
-            : script_ref{ location, ptr::shared<text>(script_body_ptr) }
+        script_ref(context_t& context, auto&& script_body_ptr)
+            : script_ref{ context, ptr::shared<text>(script_body_ptr) }
         { }
     };
 

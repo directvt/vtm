@@ -2998,19 +2998,11 @@ namespace netxs::ui
         {
             LISTEN(tier::anycast, e2::form::upon::started, root_ptr)
             {
-                if (auto parent_ptr = base::parent()) // Update hierarchy location index on every reattachement.
+                if (auto parent_ptr = base::parent()) // Update scripting context on every reattachement.
                 {
-                    base::location = parent_ptr->location;
-                    base::location.emplace_back(this);
-                    //if constexpr (debugmode)
-                    //{
-                    //    auto iii = ansi::add("location id");
-                    //    for (auto i : location)
-                    //    {
-                    //        iii.add("-", utf::bytes2shades(view{ (char*)&i, sizeof(void*) }));
-                    //    }
-                    //    log(iii);
-                    //}
+                    base::scripting_context = parent_ptr->scripting_context;
+                    base::scripting_context.emplace_back(this);
+                    if constexpr (debugmode) log("scripting context: ", netxs::events::script_ref::to_string(base::scripting_context));
                 }
             };
         }
