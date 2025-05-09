@@ -266,7 +266,7 @@ namespace netxs::events::userland
                 SUBSET_XS( upon )
                 {
                     EVENT_XS( created, input::hids ), // release: Notify the instance of who created it.
-                    EVENT_XS( started, ui::sptr    ), // release: Notify the instance is commissioned. arg: context_keeper_ptr (context keeper).
+                    EVENT_XS( started, ui::sptr    ), // release: Notify the instance is commissioned. arg: root_ptr (anycast root).
                     EVENT_XS( resized, const rect  ), // anycast: Notify about the actual window area.
                     EVENT_XS( changed, twod        ), // Event after resize, arg: diff bw old and new size.
                     EVENT_XS( dragged, input::hids ), // Event after drag.

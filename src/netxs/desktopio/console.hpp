@@ -736,8 +736,8 @@ namespace netxs::ui
         // gate: Rx loop.
         void launch()
         {
-            auto context_keeper_ptr = This();
-            base::signal(tier::anycast, e2::form::upon::started, context_keeper_ptr); // Make all stuff ready to receive input.
+            auto root_ptr = This();
+            base::signal(tier::anycast, e2::form::upon::started, root_ptr); // Make all stuff ready to receive input.
             directvt::binary::stream::reading_loop(canal, [&](view data){ conio.s11n::sync(data); });
             conio.s11n::stop(); // Wake up waiting dtvt objects, if any.
             if constexpr (debugmode) log(prompt::gate, "DirectVT session closed");
@@ -1005,7 +1005,7 @@ namespace netxs::ui
             {
                 disconnect();
             };
-            LISTEN(tier::anycast, e2::form::upon::started, context_keeper_ptr)
+            LISTEN(tier::anycast, e2::form::upon::started, root_ptr)
             {
                 if (props.debug_overlay) debug.start();
                 this->base::signal(tier::release, e2::form::prop::name, props.title);

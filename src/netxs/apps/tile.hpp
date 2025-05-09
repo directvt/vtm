@@ -166,7 +166,7 @@ namespace netxs::app::tile
                     parent_canvas.bump(context);
                 }
             };
-            boss.LISTEN(tier::anycast, e2::form::upon::started, context_keeper_ptr, memo)
+            boss.LISTEN(tier::anycast, e2::form::upon::started, root_ptr, memo)
             {
                 client->clear();
                 if (auto parent_ptr = boss.base::parent())
@@ -253,7 +253,7 @@ namespace netxs::app::tile
                             pro::focus::set(boss.This(), gear.id, solo::on);
                         });
                         boss.on(tier::mouserelease, input::key::MiddleClick);
-                        boss.LISTEN(tier::anycast, e2::form::upon::started, context_keeper_ptr)
+                        boss.LISTEN(tier::anycast, e2::form::upon::started, root_ptr)
                         {
                             boss.base::riseup(tier::release, tile::events::enlist, boss.This());
                         };
@@ -576,15 +576,15 @@ namespace netxs::app::tile
                             }
                         };
                     };
-                    boss.LISTEN(tier::anycast, e2::form::upon::started, context_keeper_ptr)
+                    boss.LISTEN(tier::anycast, e2::form::upon::started, root_ptr)
                     {
                         if (auto item_ptr = boss.back())
                         {
                             auto& item = *item_ptr;
                             if (item.base::root())
                             {
-                                auto nested_context_keeper_ptr = item_ptr;
-                                item.base::signal(tier::anycast, e2::form::upon::started, nested_context_keeper_ptr);
+                                auto nested_root_ptr = item_ptr;
+                                item.base::signal(tier::anycast, e2::form::upon::started, nested_root_ptr);
                             }
                         }
                     };
@@ -733,8 +733,8 @@ namespace netxs::app::tile
                             pro::focus::off(boss.back());
                             boss.attach(app);
                             app->base::signal(tier::anycast, vtm::events::attached, world_ptr);
-                            auto context_keeper_ptr = what.applet;
-                            app->base::signal(tier::anycast, e2::form::upon::started, context_keeper_ptr);
+                            auto root_ptr = what.applet;
+                            app->base::signal(tier::anycast, e2::form::upon::started, root_ptr);
                             pro::focus::set(app, gear.id, solo::off);
                         }
                     };
@@ -1026,9 +1026,9 @@ namespace netxs::app::tile
                         }
                         boss.base::unfield(oneshot);
                     };
-                    boss.LISTEN(tier::anycast, e2::form::upon::started, context_keeper_ptr)
+                    boss.LISTEN(tier::anycast, e2::form::upon::started, root_ptr)
                     {
-                        if (context_keeper_ptr)
+                        if (root_ptr)
                         if (auto world_ptr = boss.base::signal(tier::general, e2::config::creator))
                         {
                             boss.base::signal(tier::anycast, vtm::events::attached, world_ptr);

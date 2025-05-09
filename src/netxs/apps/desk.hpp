@@ -645,7 +645,7 @@ namespace netxs::app::desk
                 ->active()
                 ->invoke([&](auto& boss)
                 {
-                    boss.LISTEN(tier::anycast, e2::form::upon::started, context_keeper_ptr)
+                    boss.LISTEN(tier::anycast, e2::form::upon::started, root_ptr)
                     {
                         auto world_ptr = world.This();
                         auto apps = boss.attach_element(desk::events::apps, world_ptr, apps_template);
@@ -671,7 +671,7 @@ namespace netxs::app::desk
                 ->invoke([&](auto& boss)
                 {
                     boss.base::hidden = userlist_hidden;
-                    boss.LISTEN(tier::anycast, e2::form::upon::started, context_keeper_ptr)
+                    boss.LISTEN(tier::anycast, e2::form::upon::started, root_ptr)
                     {
                         auto world_ptr = world.This();
                         auto users = boss.attach_element(desk::events::usrs, world_ptr, branch_template);

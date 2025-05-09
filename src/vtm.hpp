@@ -1085,8 +1085,8 @@ namespace netxs::app::vtm
                 }
                 base::signal(tier::release, desk::events::apps, apps_list_ptr); // Update taskbar app list.
             };
-            auto context_keeper_ptr = is_handoff ? sptr{} : what.applet;
-            window_ptr->base::signal(tier::anycast, e2::form::upon::started, context_keeper_ptr);
+            auto root_ptr = is_handoff ? sptr{} : what.applet;
+            window_ptr->base::signal(tier::anycast, e2::form::upon::started, root_ptr);
             base::signal(tier::release, desk::events::apps, apps_list_ptr);
             window_ptr->base::reflow();
             return window_ptr;

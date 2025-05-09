@@ -403,9 +403,9 @@ namespace netxs::app::shared
                 ->limits(dot_11)
                 ->invoke([&](auto& boss)
                 {
-                    boss.LISTEN(tier::anycast, e2::form::upon::started, context_keeper_ptr, -, (appcfg))
+                    boss.LISTEN(tier::anycast, e2::form::upon::started, root_ptr, -, (appcfg))
                     {
-                        if (context_keeper_ptr) // context_keeper_ptr is empty when d_n_d.
+                        if (root_ptr) // root_ptr is empty when d_n_d.
                         {
                             boss.start(appcfg.cfg, [appcfg](auto fds)
                             {
@@ -492,9 +492,9 @@ namespace netxs::app::shared
                 {
                     auto& dtvt_inst = *dtvt;
                     auto& term_inst = *term;
-                    boss.LISTEN(tier::release, e2::form::upon::started, context_keeper_ptr, -, (appcfg))
+                    boss.LISTEN(tier::release, e2::form::upon::started, root_ptr, -, (appcfg))
                     {
-                        if (context_keeper_ptr) // context_keeper_ptr is empty when d_n_d.
+                        if (root_ptr) // root_ptr is empty when d_n_d.
                         {
                             dtvt_inst.start(appcfg.cfg, [&, appcfg](auto fds)
                             {
@@ -503,9 +503,9 @@ namespace netxs::app::shared
                             });
                         }
                     };
-                    boss.LISTEN(tier::anycast, e2::form::upon::started, context_keeper_ptr)
+                    boss.LISTEN(tier::anycast, e2::form::upon::started, root_ptr)
                     {
-                        boss.base::signal(tier::release, e2::form::upon::started, context_keeper_ptr);
+                        boss.base::signal(tier::release, e2::form::upon::started, root_ptr);
                     };
                     boss.LISTEN(tier::release, e2::form::global::sysstart, started, -, (order = true))
                     {
