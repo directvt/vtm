@@ -797,7 +797,7 @@ namespace netxs::app::shared
             {
                 auto& items_inst = *items;
                 auto& state_inst = *state_state;
-                auto& luafx = boss.base::template plugin<pro::luafx>(); //todo Apple clang requires template
+                auto& luafx = boss.bell::indexer.luafx;
                 app::shared::base_kb_navigation(config, scroll, boss);
                 input::bindings::keybind(boss, "Any", "vtm.infopage.UpdateChordPreview()");
                 input::bindings::keybind(boss,
@@ -807,11 +807,11 @@ namespace netxs::app::shared
                     "preview:Alt+Shift+B",
                     #endif
                     "vtm.infopage.ExclusiveKeyboardMode()");
-                luafx.activate("infopage",
+                boss.base::add_methods2("infopage",
                 {
                     { "UpdateChordPreview",     [&]
                                                 {
-                                                    if (auto gear_ptr = luafx.template get_object<hids>("gear"))
+                                                    if (auto gear_ptr = boss.base::get_object<hids>("gear"))
                                                     {
                                                         auto& gear = *gear_ptr;
                                                         if (gear.keystat != input::key::repeated) update(items_inst, gear, true);
@@ -821,7 +821,7 @@ namespace netxs::app::shared
                                                 }},
                     { "ExclusiveKeyboardMode",  [&]
                                                 {
-                                                    if (auto gear_ptr = luafx.template get_object<hids>("gear"))
+                                                    if (auto gear_ptr = boss.base::get_object<hids>("gear"))
                                                     {
                                                         auto& gear = *gear_ptr;
                                                         state_inst.base::signal(tier::release, ui::tty::events::rawkbd);

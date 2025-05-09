@@ -842,8 +842,7 @@ namespace netxs::input
                 keybind(boss, r.chord, r.script_ptr, r.sources);
             }
         }
-        template<class T>
-        void dispatch(auto& boss, auto& instance_id, T& scripting_context_ptr, auto& handlers, auto& gear, bool preview_mode, qiew chord)
+        void dispatch(auto& boss, auto& instance_id, auto& handlers, auto& gear, bool preview_mode, qiew chord)
         {
             auto iter = handlers.find(chord);
             if (iter != handlers.end())
@@ -851,24 +850,15 @@ namespace netxs::input
                 auto& [scripts, run_preview] = iter->second;
                 if (!preview_mode || run_preview)
                 {
-                    if (!scripting_context_ptr) // Restore scripting context.
-                    {
-                        scripting_context_ptr = ptr::shared<typename T::element_type>();
-                        std::swap(gear.scripting_context_ptr, scripting_context_ptr);
-                        boss.base::riseup(tier::request, ui::e2::runscript, gear, true);
-                        std::swap(gear.scripting_context_ptr, scripting_context_ptr);
-                    }
                     for (auto& script_ref_ptr : scripts)
                     {
                         if (!gear.interrupt_key_proc)
                         {
-                            auto script_ptr = script_ref_ptr->script_body_ptr;
-                            //todo apply base::location (use events::auth calling infrastructure)
-                            auto temp_script_ptr = std::exchange(gear.script_ptr, script_ptr);
-                            auto temp_scripting_context_ptr = std::exchange(gear.scripting_context_ptr, scripting_context_ptr);
-                            boss.base::riseup(tier::preview, ui::e2::runscript, gear);
-                            gear.script_ptr = temp_script_ptr;
-                            gear.scripting_context_ptr = temp_scripting_context_ptr;
+                            if (auto script_ptr = script_ref_ptr->script_body_ptr)
+                            {
+                                //boss.set_object(gear.This(), "gear");
+                                boss.run_script(*script_ptr);
+                            }
                         }
                     }
                 }
@@ -1588,8 +1578,6 @@ namespace netxs::input
         //todo unify
         bool interrupt_key_proc{}; // hids: .
         netxs::sptr<text> script_ptr; // hids: A script body passed by pro::keybd/ui::menu.
-        netxs::sptr<utf::unordered_map<text, wptr>> scripting_context_ptr; // hids: Script execution context: sptr<map<$object_name_str, $object_wptr>>.
-        qiew call_proc; // hids: .
 
         //todo unify
         bool mouse_disabled = faux; // Hide mouse cursor.

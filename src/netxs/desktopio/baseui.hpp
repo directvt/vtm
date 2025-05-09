@@ -89,8 +89,6 @@ namespace netxs::events::userland
             EVENT_XS( postrender, ui::face       ), // release: UI-tree post-rendering. Draw debug overlay, maker, titles, etc.
             EVENT_XS( shutdown  , const text     ), // general: Server shutdown.
             EVENT_XS( area      , rect           ), // release: Object rectangle.
-            EVENT_XS( runscript , input::hids    ), // preview: Pass script activated by gear to the ui::host. release: Run script on objects in context. request: Restore scripting context.
-            EVENT_XS( luafx     , lua_State*     ), // release: Handle lua __call.
             GROUP_XS( extra     , si32           ), // Event extension slot.
             GROUP_XS( timer     , time           ), // Timer tick, arg: current moment (now).
             GROUP_XS( render    , ui::face       ), // release: UI-tree rendering.
@@ -146,7 +144,6 @@ namespace netxs::events::userland
                 SUBSET_XS( plugins )
                 {
                     EVENT_XS( align, bool     ), // release: Enable/disable align plugin.
-                    EVENT_XS( luafx, name_ref ), // Collect Lua context name references.
                     GROUP_XS( focus, ui::sptr ), // request: pro::focus owner.
                     GROUP_XS( sizer, dent     ), // Configure sizer.
 
@@ -617,9 +614,12 @@ namespace netxs::ui
         utf::unordered_map<text, netxs::sptr<std::any>> fields;
         script_ref::location_type location;
 
-        netxs::sptr<vtm_class>    class_metadata; // base: .
-        std::list<wptr>::iterator class_iterator; // base: .
-        view                      instname; //todo drop
+        struct base_class
+        {
+            netxs::sptr<vtm_class>    class_metadata; // base: .
+            std::list<wptr>::iterator class_iterator; // base: .
+        };
+        utf::unordered_map<text, base_class> base_classes; // base: Base classes map by classname.
 
         //todo make scripts precompiled
         utf::unordered_map<text, std::pair<std::list<netxs::sptr<script_ref>>, bool>> keybd_handlers; // base: Map<chord, pair<list<sptr<script>>, preview>>.
@@ -1077,6 +1077,115 @@ namespace netxs::ui
             };
             return prop;
         }
+
+        // Scripting.
+        //todo revise
+        // base: Register object methods.
+        auto _add_methods(qiew classname, fxmap&& proc_map_init)
+        {
+            auto& methods = base::property<fxmap>("methods");
+            //todo auto& static_methods = base_classes.class_metadata->methods;
+            methods.merge(proc_map_init);
+            if (proc_map_init.size())
+            {
+                log("%%The following functions are not activated for '%%':", prompt::lua, classname);
+                for (auto& [fx_name, val] : proc_map_init)
+                {
+                    log("%%%fx_name%", prompt::pads, ansi::hi(".", fx_name, "()"));
+                }
+            }
+        }
+        // base: Register object methods (in ctor only).
+        auto add_methods(qiew classname, fxmap&& proc_map_init)
+        {
+            base_classes.try_emplace(classname); // Anounce a base class name. Run it in ctor only. Indexer have to fill it after ctor.
+            _add_methods(classname, std::move(proc_map_init));
+        }
+        // base: Register object methods (outside the ctor).
+        auto add_methods2(qiew classname, fxmap&& proc_map_init)
+        {
+            bell::indexer.add_base_class(classname, *this);
+            _add_methods(classname, std::move(proc_map_init));
+        }
+        // base: .
+        void call_method(view fx_name)
+        {
+            auto& methods = base::property<fxmap>("methods");
+            auto iter = methods.find(fx_name);
+            if (iter != methods.end())
+            {
+                auto& fx = iter->second;
+                fx(); // After call, all values in the stack will be returned as a result.
+            }
+            else
+            {
+                auto object_name = utf::concat("object<", bell::id, ">");
+                log("%%Function %fx_name% not found (%object%)", prompt::lua, ansi::hi("vtm.", "instname", ".", fx_name, "()"), object_name);
+            }
+        }
+        template<class T>
+        auto get_args_or(si32 idx, T fallback = {})
+        {
+            static constexpr auto is_string_v = requires{ static_cast<const char*>(fallback.data()); };
+            static constexpr auto is_cstring_v = requires{ static_cast<const char*>(fallback); };
+
+            auto lua = bell::indexer.luafx.lua;
+            auto type = ::lua_type(lua, idx);
+            if (type != LUA_TNIL)
+            {
+                     if constexpr (std::is_same_v<std::decay_t<T>, bool>) return (T)::lua_toboolean(lua, idx);
+                else if constexpr (is_string_v || is_cstring_v)           return events::lua_torawstring(lua, idx);
+                else if constexpr (std::is_integral_v<T>)                 return (T)::lua_tointeger(lua, idx);
+                else if constexpr (std::is_floating_point_v<T>)           return (T)::lua_tonumber(lua, idx);
+                else if constexpr (std::is_same_v<std::decay_t<T>, twod>) return twod{ ::lua_tointeger(lua, idx), ::lua_tointeger(lua, idx + 1) };
+                else if constexpr (std::is_same_v<std::decay_t<T>, sptr>)
+                {
+                    if (auto ptr = (base*)::lua_touserdata(lua, idx)) // Get ui::base*.
+                    {
+                        auto object_ptr = ptr->This();
+                        return object_ptr;
+                    }
+                    return sptr{};
+                }
+            }
+            if constexpr (is_string_v || is_cstring_v) return text{ fallback };
+            else                                       return fallback;
+        }
+        auto set_object(sptr object_ptr, qiew object_name)
+        {
+            auto lua = bell::indexer.luafx.lua;
+            if (object_ptr)
+            {
+                if (::lua_getglobal(lua, "vtm") != LUA_TTABLE) // Push "vtm" table to stack.
+                {
+                    ::lua_pop(lua, 1); // Pop if it is a non-table.
+                    ::lua_newtable(lua); // Create and push new "vtm.*" global table.
+                    ::lua_setglobal(lua, "vtm"); // Set global var "vtm". Pop "vtm".
+                    ::lua_getglobal(lua, "vtm"); // Push "vtm" table again to stack.
+                }
+                ::lua_pushstring(lua, object_name.data()); // Push vtm.* var name (key).
+                ::lua_pushlightuserdata(lua, object_ptr.get()); // Object ptr (val).
+                ::luaL_setmetatable(lua, "vtmmetatable"); // Set the metatable for -1 userdata.
+                ::lua_settable(lua, -3); // Set vtm.key=val. Pop key+val.
+                ::lua_pop(lua, 1); // Pop table "vtm".
+            }
+        }
+        template<class T = base>
+        auto get_object(const char* object_name)
+        {
+            auto lua = bell::indexer.luafx.lua;
+            ::lua_getglobal(lua, "vtm");
+            ::lua_pushstring(lua, object_name);
+            ::lua_gettable(lua, -2);
+            auto object_ptr = static_cast<T*>((base*)::lua_touserdata(lua, -1));
+            ::lua_pop(lua, 2); // Pop "vtm" and "object_name".
+            return object_ptr;
+        }
+        void run_script(view script_body)
+        {
+            log("todo run script: boss.id=%% '%%'", id, script_body);
+        }
+
         // base: Render to the canvas. Trim = trim viewport to the nested object region.
         template<bool Forced = faux>
         void render(face& canvas, bool trim = true, bool pred = true, bool post = true)

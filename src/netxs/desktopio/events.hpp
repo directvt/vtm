@@ -20,6 +20,10 @@ namespace netxs::ui
 
 namespace netxs::events
 {
+    text lua_torawstring(lua_State* lua, si32 idx, bool extended = faux);
+    si32 vtmlua_tostring(lua_State* lua);
+    si32 vtmlua_call(lua_State* lua);
+
     struct tier // Keep this enumeration in a fixed order. The last bit of its index indicates the execution order 0: Forward, 1: Reverse.
     {
         // Forward execution order: Execute concrete event  first. Preserve subscription order. Forward means from particular to general: 1. event::group::item, 2. event::group::any
@@ -122,6 +126,163 @@ namespace netxs::events
     }
     template<hint Group, auto Count> constexpr auto subset = _instantiate<Group>(std::make_index_sequence<Count>{});
 
+    // events: Lua scripting.
+    struct luna
+    {
+        lua_State* lua; // luna: .
+
+        static auto vtmlua_log(lua_State* lua)
+        {
+            auto n = ::lua_gettop(lua);
+            auto crop = text{};
+            for (auto i = 1; i <= n; i++)
+            {
+                auto t = ::lua_type(lua, i);
+                switch (t)
+                {
+                    case LUA_TBOOLEAN:
+                    case LUA_TNUMBER:
+                    case LUA_TSTRING:
+                        crop += lua_torawstring(lua, i);
+                        break;
+                    default:
+                        crop += "<";
+                        crop += ::lua_typename(lua, t);
+                        crop += ">";
+                        break;
+                }
+            }
+            log("", crop);
+            return 0;
+        }
+        static auto vtmlua_index(lua_State* lua)
+        {
+            // Stack:
+            //      1. userdata (or table).
+            //      2. fx name (keyname).
+            ::lua_pushcclosure(lua, vtmlua_call, 2);
+            return 1;
+        }
+        //auto log_context()
+        //{
+        //    log("%%context:", prompt::lua);
+        //    ::lua_getglobal(lua, "vtm");
+        //    ::lua_pushnil(lua);
+        //    while (::lua_next(lua, -2))
+        //    {
+        //        auto var = lua_torawstring(lua, -2);
+        //        auto val = lua_torawstring(lua, -1, true);
+        //        if (val.size()) log("%%vtm.%name% = %value%", prompt::pads, var, val);
+        //        ::lua_pop(lua, 1); // Pop val.
+        //    }
+        //    ::lua_pop(lua, 1); // Pop table "vtm".
+        //}
+        auto push_value(auto&& v)
+        {
+            using T = std::decay_t<decltype(v)>;
+            static constexpr auto is_string_v = requires{ (const char*)v.data(); };
+            static constexpr auto is_cstring_v = requires{ (const char*)v[0]; };
+                 if constexpr (std::is_same_v<T, bool>)     ::lua_pushboolean(lua, v);
+            else if constexpr (is_string_v)                 ::lua_pushlstring(lua, v.data(), v.size());
+            else if constexpr (is_cstring_v)                ::lua_pushstring(lua, v);
+            else if constexpr (std::is_integral_v<T>)       ::lua_pushinteger(lua, v);
+            else if constexpr (std::is_floating_point_v<T>) ::lua_pushnumber(lua, v);
+            else if constexpr (std::is_pointer_v<T>)        ::lua_pushlightuserdata(lua, v);
+            else if constexpr (debugmode) throw;
+        }
+        void set_return(auto... args)
+        {
+            ::lua_settop(lua, 0);
+            (push_value(args), ...);
+        }
+        auto args_count()
+        {
+            return ::lua_gettop(lua);
+        }
+        auto read_args(si32 index, auto add_item)
+        {
+            if (lua_istable(lua, index))
+            {
+                ::lua_pushnil(lua); // Push prev key.
+                while (::lua_next(lua, index)) // Table is in the stack at index. { "<item " + text{ table } + " />" }
+                {
+                    auto key = lua_torawstring(lua, -2);
+                    if (!key.empty()) // Allow stringable keys only.
+                    {
+                        auto val = lua_torawstring(lua, -1);
+                        if (val.empty() && lua_istable(lua, -1)) // Extract item list.
+                        {
+                            ::lua_pushnil(lua); // Push prev key.
+                            while (::lua_next(lua, -2)) // Table is in the stack at index -2. { "<key="key2=val2"/>" }
+                            {
+                                auto val2 = lua_torawstring(lua, -1);
+                                auto key2_type = ::lua_type(lua, -2);
+                                if (key2_type != LUA_TSTRING) // key2 is integer index.
+                                {
+                                    add_item(key, val2);
+                                }
+                                else
+                                {
+                                    auto key2 = lua_torawstring(lua, -2);
+                                    add_item(key, utf::concat(key2, '=', val2));
+                                }
+                                ::lua_pop(lua, 1); // Pop val2.
+                            }
+                        }
+                        else
+                        {
+                            add_item(key, val);
+                        }
+                    }
+                    ::lua_pop(lua, 1); // Pop val.
+                }
+            }
+        }
+        auto run_script_body(view script_body)
+        {
+            //log_context();
+            log("%%script:\n%pads%%script%", prompt::lua, prompt::pads, ansi::hi(utf::debase437(script_body)));
+
+            ::lua_settop(lua, 0);
+            auto error = ::luaL_loadbuffer(lua, script_body.data(), script_body.size(), "script body")
+                      || ::lua_pcall(lua, 0, 0, 0);
+            auto result = text{};
+            if (error)
+            {
+                result = ::lua_tostring(lua, -1);
+                log("%%%msg%", prompt::lua, ansi::err(result));
+                ::lua_pop(lua, 1);  // Pop error message from stack.
+            }
+            else if (::lua_gettop(lua))
+            {
+                result = lua_torawstring(lua, -1);
+                ::lua_settop(lua, 0);
+            }
+
+            //todo optimize
+            ::lua_pushnil(lua);          // Wipe global context.
+            ::lua_setglobal(lua, "vtm"); //
+            return result;
+        }
+
+        luna()
+            : lua{ ::luaL_newstate() }
+        {
+            ::luaL_openlibs(lua);
+            ::lua_pushcclosure(lua, vtmlua_log, 0);
+            ::lua_setglobal(lua, "log");
+            static auto metalist = std::to_array<luaL_Reg>({{ "__index", vtmlua_index },
+                                                            { "__tostring", vtmlua_tostring },
+                                                            { nullptr, nullptr }});
+            ::luaL_newmetatable(lua, "vtmmetatable"); // Create a new metatable in registry and push it to the stack.
+            ::luaL_setfuncs(lua, metalist.data(), 0); // Assign metamethods for the table which at the top of the stack.
+        }
+        ~luna()
+        {
+            if (lua) ::lua_close(lua);
+        }
+    };
+
     struct script_ref
     {
         using location_type = std::vector<void*>;
@@ -167,7 +328,7 @@ namespace netxs::events
             return *static_cast<fxwrapper<Arg, fxbase>*>(this);
         }
         template<class Arg>
-        void call(auto lua, Arg& param)
+        void call(auto& luafx, Arg& param)
         {
             if (script_ptr && script_ptr->script_body_ptr)
             {
@@ -176,24 +337,24 @@ namespace netxs::events
                 //todo pass param
                 auto param_ptr = (char*)&param;
                 //::lua_pushnil(param_ptr);
-                //::lua_setglobal(lua, "param");
+                //::lua_setglobal(luafx.lua, "param");
 
                 //todo make it static indexer::function(script_ptr, param_ptr)
                 log("run script: ", ansi::hi(script), " with param: ", utf::to_hex_0x(param_ptr));
-                ::lua_settop(lua, 0);
-                auto error = ::luaL_loadbuffer(lua, script.data(), script.size(), "script body")
-                          || ::lua_pcall(lua, 0, 0, 0);
+                ::lua_settop(luafx.lua, 0);
+                auto error = ::luaL_loadbuffer(luafx.lua, script.data(), script.size(), "script body")
+                          || ::lua_pcall(luafx.lua, 0, 0, 0);
                 if (error)
                 {
                     auto result = text{};
-                    result = ::lua_tostring(lua, -1);
+                    result = ::lua_tostring(luafx.lua, -1);
                     log("%%%msg%", prompt::lua, ansi::err(result));
-                    ::lua_pop(lua, 1);  // Pop error message from stack.
+                    ::lua_pop(luafx.lua, 1);  // Pop error message from stack.
                 }
-                else if (::lua_gettop(lua))
+                else if (::lua_gettop(luafx.lua))
                 {
-                    //result = ::lua_torawstring(lua, -1);
-                    ::lua_settop(lua, 0);
+                    //result = ::lua_torawstring(luafx.lua, -1);
+                    ::lua_settop(luafx.lua, 0);
                 }
             }
             else if (auto& proc = get_inst<Arg>())
@@ -225,11 +386,11 @@ namespace netxs::events
     using fmap = std::unordered_map<hint, std::list<wptr<fxbase>>>; // Functor wptr-list map by event_id.
     using fxmap = utf::unordered_map<text, std::function<void()>>; // Class methods.
 
-     // Class methods and registered instances.
+    // Class methods and registered instances.
     struct vtm_class
     {
         std::list<wptr<ui::base>> objects;
-        fxmap                     methods;
+        fxmap                     methods; // Static class methods.
     };
 
     struct auth
@@ -248,7 +409,7 @@ namespace netxs::events
         utf::unordered_map<text, sptr<vtm_class>> classes; // auth: Map of classes by classname.
         fmap                                      general;
         generics::jobs<wptr<ui::base>>            agent;
-        lua_State*                                lua;
+        luna                                      luafx;
         si32                                      fps{};
         hook                                      memo;
         datetime::quartz<auth>                    quartz;
@@ -295,9 +456,8 @@ namespace netxs::events
             return proc_ptr;
         }
 
-        auth(lua_State* lua = {}, hint e2_config_fps_id = {}, hint e2_timer_tick_id = {})
+        auth(hint e2_config_fps_id = {}, hint e2_timer_tick_id = {})
             : next_id{ 0 },
-              lua{ lua },
               quartz{ *this },
               e2_timer_tick_id{ e2_timer_tick_id }
         {
@@ -380,7 +540,7 @@ namespace netxs::events
                     {
                         auto& state = queue.back().second; // queue can be reallocated.
                         state = callstate::proceed;
-                        fx_ptr->call(lua, param);
+                        fx_ptr->call(luafx, param);
                     }
                 }
                 while (queue.back().second/*state*/ != callstate::fullstop && ++iter != tail);
@@ -458,62 +618,72 @@ namespace netxs::events
         }
         // auth: Delete object instance.
         template<class T>
-        static void object_deleter(T* inst_ptr)
+        static void deleter(T* inst_ptr)
         {
             auto& indexer = inst_ptr->indexer;
             auto lock = indexer.sync(); // Sync with all dtors.
             // Remove metadata reference.
-            auto& class_metadata = *(inst_ptr->class_metadata);
-            class_metadata.objects.erase(inst_ptr->class_iterator);
-            //log("Deleted: '%%' with id: %%", inst_ptr->instname, inst_ptr->id);
+            for (auto& [classname, refs] : inst_ptr->base_classes)
+            {
+                auto& class_metadata = *(refs.class_metadata);
+                class_metadata.objects.erase(refs.class_iterator);
+                //log("Deleted: '%%' with id: %%", classname, inst_ptr->id);
+            }
             // Remove object.
             auto id = inst_ptr->id;
             delete inst_ptr;
             indexer.objects.erase(id);
         }
+        // auth: Add additional base class.
+        void add_base_class(qiew classname, auto& inst)
+        {
+            if (inst.base_classes.find(classname) == inst.base_classes.end()) // Register only if it is not registered.
+            {
+                auto iter = classes.find(classname);
+                if (iter == classes.end())
+                {
+                    iter = classes.emplace(classname, ptr::shared<vtm_class>()).first;
+                }
+                auto& class_metadata = iter->second;
+                auto& class_objects = class_metadata->objects;
+                auto class_iterator = class_objects.emplace(class_objects.end(), inst.weak_from_this());
+                // Update local references.
+                auto iter2 = inst.base_classes.try_emplace(classname).first;
+                auto& empty_refs = iter2->second;
+                empty_refs.class_metadata = class_metadata;
+                empty_refs.class_iterator = class_iterator;
+            }
+        }
         // auth: Create a new object of the specified subtype and return its sptr.
         template<class T, class ...Args>
-        auto create(view classname, Args&&... args)
+        auto create(qiew classname, Args&&... args)
         {
             auto lock = sync();
-            auto inst_ptr = sptr<T>(new T(std::forward<Args>(args)...), &object_deleter<T>); // Use new/delete to be able sync on destruction.
-            //log("Created: '%%' with id: %%", classname, inst_ptr->id);
-            inst_ptr->instname = classname;
-
-            // Object by class.
-            auto iter = classes.find(classname);
-            if (iter == classes.end())
+            auto inst_ptr = sptr<T>(new T(std::forward<Args>(args)...), &deleter<T>); // Use new/delete to be able sync on destruction.
+            auto& inst = *inst_ptr;
+            auto inst_wptr = inst.weak_from_this();
+            //log("Created: '%%' with id: %%", classname, inst.id);
+            inst.base_classes.try_emplace(classname);
+            for (auto& [name, empty_refs] : inst.base_classes)
             {
-                iter = classes.emplace(classname, ptr::shared<vtm_class>()).first;
+                auto iter = classes.find(name);
+                if (iter == classes.end())
+                {
+                    iter = classes.emplace(name, ptr::shared<vtm_class>()).first;
+                }
+                auto& class_metadata = iter->second;
+                auto& class_objects = class_metadata->objects;
+                // Add global reference.
+                auto class_iterator = class_objects.emplace(class_objects.end(), inst_wptr);
+                // Update local references.
+                empty_refs.class_metadata = class_metadata;
+                empty_refs.class_iterator = class_iterator;
             }
-            auto& vtm_class_sptr = iter->second;
-            auto& class_objects = vtm_class_sptr->objects;
-            inst_ptr->class_metadata = vtm_class_sptr;
-            inst_ptr->class_iterator = class_objects.emplace(class_objects.end(), inst_ptr);
 
-            // Object by id.
-            objects[inst_ptr->id] = inst_ptr;
+            // Index object by id.
+            objects[inst.id] = inst_wptr;
 
             return inst_ptr;
-        }
-        // auth: Add an alias for the existing classname.
-        void add_class_alias(view class_alias, auto& inst)
-        {
-            auto lock = sync();
-            auto iter = classes.find(class_alias);
-            if (iter == classes.end())
-            {
-                iter = classes.emplace(class_alias, inst.class_list_sptr).first;
-            }
-        }
-        // auth: Add an alias for the existing classname.
-        template<class T>
-        void add_class_alias(view class_alias, sptr<T> inst_ptr)
-        {
-            if (inst_ptr)
-            {
-                add_class_alias(class_alias, *inst_ptr);
-            }
         }
         // auth: Return next available id.
         auto new_id()
@@ -856,6 +1026,7 @@ namespace netxs::events
 namespace netxs
 {
     using netxs::events::vtm_class;
+    using netxs::events::fxmap;
     using netxs::events::bell;
     using netxs::events::subs;
     using netxs::events::tier;

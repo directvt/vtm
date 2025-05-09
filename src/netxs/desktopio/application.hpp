@@ -112,44 +112,44 @@ namespace netxs::app::shared
     {
         auto& scroll_inst = *scroll_ptr;
         boss.base::plugin<pro::keybd>();
-        auto& luafx = boss.base::plugin<pro::luafx>();
+        auto& luafx = boss.bell::indexer.luafx;
         auto bindings = input::bindings::load(config, "defapp");
         input::bindings::keybind(boss, bindings);
-        luafx.activate("defapp",
+        boss.base::add_methods2("defapp",
         {
             { "ScrollViewportByPage",   [&]
                                         {
-                                            auto step = twod{ luafx.get_args_or(1, 0),
-                                                              luafx.get_args_or(2, 0) };
+                                            auto step = twod{ boss.base::get_args_or(1, 0),
+                                                              boss.base::get_args_or(2, 0) };
                                             scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bypage::v, { .vector = step });
-                                            if (auto gear_ptr = luafx.template get_object<hids>("gear")) gear_ptr->set_handled();
+                                            if (auto gear_ptr = boss.base::get_object<hids>("gear")) gear_ptr->set_handled();
                                             luafx.set_return(); // No returns.
                                         }},
             { "ScrollViewportByStep",   [&]
                                         {
-                                            auto step = twod{ luafx.get_args_or(1, 0),
-                                                              luafx.get_args_or(2, 0) };
+                                            auto step = twod{ boss.base::get_args_or(1, 0),
+                                                              boss.base::get_args_or(2, 0) };
                                             scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bystep::v, { .vector = step });
-                                            if (auto gear_ptr = luafx.template get_object<hids>("gear")) gear_ptr->set_handled();
+                                            if (auto gear_ptr = boss.base::get_object<hids>("gear")) gear_ptr->set_handled();
                                             luafx.set_return(); // No returns.
                                         }},
             { "ScrollViewportToTop",    [&]
                                         {
                                             scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::to_top::y);
-                                            if (auto gear_ptr = luafx.template get_object<hids>("gear")) gear_ptr->set_handled();
+                                            if (auto gear_ptr = boss.base::get_object<hids>("gear")) gear_ptr->set_handled();
                                             luafx.set_return(); // No returns.
                                         }},
             { "ScrollViewportToEnd",    [&]
                                         {
                                             scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::to_end::y);
-                                            if (auto gear_ptr = luafx.template get_object<hids>("gear")) gear_ptr->set_handled();
+                                            if (auto gear_ptr = boss.base::get_object<hids>("gear")) gear_ptr->set_handled();
                                             luafx.set_return(); // No returns.
                                         }},
             { "ShowClosingPreview",     [&]
                                         {
                                             auto& closing_preview_state = boss.base::property("defapp.closing_preview_state", faux);
                                             auto args_count = luafx.args_count();
-                                            if (args_count && std::exchange(closing_preview_state, luafx.get_args_or(1, faux)) != closing_preview_state)
+                                            if (args_count && std::exchange(closing_preview_state, boss.base::get_args_or(1, faux)) != closing_preview_state)
                                             {
                                                 boss.base::signal(tier::anycast, e2::form::state::keybd::command::close, closing_preview_state);
                                             }
@@ -161,68 +161,68 @@ namespace netxs::app::shared
                                             {
                                                 boss.base::riseup(tier::release, e2::form::proceed::quit::one, true);
                                             });
-                                            if (auto gear_ptr = luafx.template get_object<hids>("gear")) gear_ptr->set_handled();
+                                            if (auto gear_ptr = boss.base::get_object<hids>("gear")) gear_ptr->set_handled();
                                             luafx.set_return();
                                         }},
         });
     };
-    const auto applet_kb_navigation = [](xmls& config, ui::sptr applet_ptr)
+    const auto applet_kb_navigation = [](xmls& config, ui::sptr boss_ptr)
     {
-        auto& applet = *applet_ptr;
-        applet.base::plugin<pro::focus>();
-        applet.base::plugin<pro::keybd>();
-        auto& luafx = applet.base::plugin<pro::luafx>();
-        auto& bindings = applet.base::property<input::bindings::vector>("applet.bindings");
+        auto& boss = *boss_ptr;
+        boss.base::plugin<pro::focus>();
+        boss.base::plugin<pro::keybd>();
+        auto& luafx = boss.bell::indexer.luafx;
+        auto& bindings = boss.base::property<input::bindings::vector>("applet.bindings");
         bindings = input::bindings::load(config, "applet");
-        input::bindings::keybind(applet, bindings);
-        luafx.activate("applet",
+        input::bindings::keybind(boss, bindings);
+        boss.base::add_methods2("applet",
         {
             //{ "FocusNext",          [&]
             //                        {
             //                            auto gui_cmd = e2::command::gui.param();
-            //                            if (auto gear_ptr = luafx.template get_object<hids>("gear"))
+            //                            if (auto gear_ptr = boss.base::get_object<hids>("gear"))
             //                            {
             //                                gui_cmd.gear_id = gear_ptr->id;
             //                                gear_ptr->set_handled();
             //                            }
             //                            gui_cmd.cmd_id = syscmd::focusnextwindow;
-            //                            gui_cmd.args.emplace_back(luafx.get_args_or(1, si32{ 1 }));
-            //                            applet.base::riseup(tier::preview, e2::command::gui, gui_cmd);
+            //                            gui_cmd.args.emplace_back(boss.base::get_args_or(1, si32{ 1 }));
+            //                            boss.base::riseup(tier::preview, e2::command::gui, gui_cmd);
             //                            luafx.set_return();
             //                        }},
             { "Warp",               [&]
                                     {
                                         auto gui_cmd = e2::command::gui.param();
-                                        if (auto gear_ptr = luafx.template get_object<hids>("gear"))
+                                        if (auto gear_ptr = boss.base::get_object<hids>("gear"))
                                         {
                                             gui_cmd.gear_id = gear_ptr->id;
                                             gear_ptr->set_handled();
                                         }
                                         gui_cmd.cmd_id = syscmd::warpwindow;
-                                        gui_cmd.args.emplace_back(luafx.get_args_or(1, si32{ 0 }));
-                                        gui_cmd.args.emplace_back(luafx.get_args_or(2, si32{ 0 }));
-                                        gui_cmd.args.emplace_back(luafx.get_args_or(3, si32{ 0 }));
-                                        gui_cmd.args.emplace_back(luafx.get_args_or(4, si32{ 0 }));
-                                        applet.base::riseup(tier::preview, e2::command::gui, gui_cmd);
+                                        gui_cmd.args.emplace_back(boss.base::get_args_or(1, si32{ 0 }));
+                                        gui_cmd.args.emplace_back(boss.base::get_args_or(2, si32{ 0 }));
+                                        gui_cmd.args.emplace_back(boss.base::get_args_or(3, si32{ 0 }));
+                                        gui_cmd.args.emplace_back(boss.base::get_args_or(4, si32{ 0 }));
+                                        boss.base::riseup(tier::preview, e2::command::gui, gui_cmd);
                                         luafx.set_return();
                                     }},
             { "ZOrder",            [&]
                                     {
                                         auto args_count = luafx.args_count();
-                                        auto& zorder = applet.base::property("applet.zorder", zpos::plain);
-                                        auto gear_ptr = luafx.template get_object<hids>("gear");
+                                        auto& zorder = boss.base::property("applet.zorder", zpos::plain);
+                                        auto gear_ptr = boss.base::get_object<hids>("gear");
                                         if (args_count)
                                         {
                                             auto gui_cmd = e2::command::gui.param();
-                                            zorder = luafx.get_args_or(1, zpos::plain);
+                                            zorder = boss.base::get_args_or(1, zpos::plain);
                                             if (gear_ptr)
                                             {
                                                 gui_cmd.gear_id = gear_ptr->id;
                                             }
                                             gui_cmd.cmd_id = syscmd::zorder;
                                             gui_cmd.args.emplace_back(zorder);
-                                            applet.base::riseup(tier::release, e2::form::prop::zorder, si32{ zorder });
-                                            applet.base::riseup(tier::preview, e2::command::gui, gui_cmd);
+                                            boss.base::riseup(tier::release, e2::form::prop::zorder, si32{ zorder });
+                                            boss.base::riseup(tier::preview, e2::command::gui, gui_cmd);
                                         }
                                         if (gear_ptr) gear_ptr->set_handled();
                                         luafx.set_return(zorder);
@@ -230,61 +230,61 @@ namespace netxs::app::shared
             { "Close",              [&]
                                     {
                                         auto gui_cmd = e2::command::gui.param();
-                                        if (auto gear_ptr = luafx.template get_object<hids>("gear"))
+                                        if (auto gear_ptr = boss.base::get_object<hids>("gear"))
                                         {
                                             gui_cmd.gear_id = gear_ptr->id;
                                             gear_ptr->set_handled();
                                         }
                                         gui_cmd.cmd_id = syscmd::close;
-                                        applet.base::riseup(tier::preview, e2::command::gui, gui_cmd);
+                                        boss.base::riseup(tier::preview, e2::command::gui, gui_cmd);
                                         luafx.set_return();
                                     }},
             { "Minimize",           [&]
                                     {
                                         auto gui_cmd = e2::command::gui.param();
-                                        if (auto gear_ptr = luafx.template get_object<hids>("gear"))
+                                        if (auto gear_ptr = boss.base::get_object<hids>("gear"))
                                         {
                                             gui_cmd.gear_id = gear_ptr->id;
                                             gear_ptr->set_handled();
                                         }
                                         gui_cmd.cmd_id = syscmd::minimize;
-                                        applet.base::riseup(tier::preview, e2::command::gui, gui_cmd);
+                                        boss.base::riseup(tier::preview, e2::command::gui, gui_cmd);
                                         luafx.set_return();
                                     }},
             { "Maximize",           [&]
                                     {
                                         auto gui_cmd = e2::command::gui.param();
-                                        if (auto gear_ptr = luafx.template get_object<hids>("gear"))
+                                        if (auto gear_ptr = boss.base::get_object<hids>("gear"))
                                         {
                                             gui_cmd.gear_id = gear_ptr->id;
                                             gear_ptr->set_handled();
                                         }
                                         gui_cmd.cmd_id = syscmd::maximize;
-                                        applet.base::riseup(tier::preview, e2::command::gui, gui_cmd);
+                                        boss.base::riseup(tier::preview, e2::command::gui, gui_cmd);
                                         luafx.set_return();
                                     }},
             { "Fullscreen",         [&]
                                     {
                                         auto gui_cmd = e2::command::gui.param();
-                                        if (auto gear_ptr = luafx.template get_object<hids>("gear"))
+                                        if (auto gear_ptr = boss.base::get_object<hids>("gear"))
                                         {
                                             gui_cmd.gear_id = gear_ptr->id;
                                             gear_ptr->set_handled();
                                         }
                                         gui_cmd.cmd_id = syscmd::fullscreen;
-                                        applet.base::riseup(tier::preview, e2::command::gui, gui_cmd);
+                                        boss.base::riseup(tier::preview, e2::command::gui, gui_cmd);
                                         luafx.set_return();
                                     }},
             { "Restore",            [&]
                                     {
                                         auto gui_cmd = e2::command::gui.param();
-                                        if (auto gear_ptr = luafx.template get_object<hids>("gear"))
+                                        if (auto gear_ptr = boss.base::get_object<hids>("gear"))
                                         {
                                             gui_cmd.gear_id = gear_ptr->id;
                                             gear_ptr->set_handled();
                                         }
                                         gui_cmd.cmd_id = syscmd::restore;
-                                        applet.base::riseup(tier::preview, e2::command::gui, gui_cmd);
+                                        boss.base::riseup(tier::preview, e2::command::gui, gui_cmd);
                                         luafx.set_return();
                                     }},
         });
@@ -605,24 +605,15 @@ namespace netxs::app::shared
                 }
                 if (item.views.empty()) continue; // Menu item without label.
                 //auto setup = [script_ptr, &proc_map](ui::item& boss, menu::item& item)
-                auto setup = [script_ptr](ui::item& boss, menu::item& item)
+                auto setup = [script_ptr](ui::item& boss, menu::item& /*item*/)
                 {
                     if (script_ptr->empty()) return;
-                    auto& scripting_context_ptr = boss.base::field(ptr::shared<utf::unordered_map<text, ui::wptr>>());
                     boss.on(tier::mouserelease, input::key::LeftClick, [&, script_ptr](hids& gear)
                     {
-                        item.taken = (item.taken + 1) % item.views.size();
-                        //todo unify: controls.hpp:2132
-                        scripting_context_ptr->clear();
-                        std::swap(gear.scripting_context_ptr, scripting_context_ptr);
-                        boss.base::riseup(tier::request, e2::runscript, gear, true);
-                        std::swap(gear.scripting_context_ptr, scripting_context_ptr);
-                        //todo unify: controls.hpp:2143
-                        auto temp_script_ptr = std::exchange(gear.script_ptr, script_ptr);
-                        auto temp_scripting_context_ptr = std::exchange(gear.scripting_context_ptr, scripting_context_ptr);
-                        boss.base::riseup(tier::preview, e2::runscript, gear);
-                        gear.script_ptr = temp_script_ptr;
-                        gear.scripting_context_ptr = temp_scripting_context_ptr;
+                        auto& script_body = *script_ptr;
+                        boss.base::set_object(boss.This(), "gate");
+                        boss.base::set_object(gear.This(), "gear");
+                        boss.base::run_script(script_body);
                         gear.dismiss_dblclick();
                     });
 

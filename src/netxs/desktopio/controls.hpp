@@ -5,35 +5,63 @@
 
 #include "input.hpp"
 
-static auto lua_torawstring(auto lua, auto idx, bool extended = faux)
+namespace netxs::events
 {
-    auto crop = netxs::text{};
-    auto type = ::lua_type(lua, idx);
-    if (type == LUA_TBOOLEAN)
+    text lua_torawstring(lua_State* lua, si32 idx, bool extended)
     {
-        crop = ::lua_toboolean(lua, idx) ? "true" : "false";
-    }
-    else if (type == LUA_TNUMBER || type == LUA_TSTRING)
-    {
-        ::lua_pushvalue(lua, idx); // ::lua_tolstring converts value to string in place.
-        auto len = size_t{};
-        auto ptr = ::lua_tolstring(lua, -1, &len);
-        crop = { ptr, len };
-        ::lua_pop(lua, 1);
-    }
-    else if (type == LUA_TLIGHTUSERDATA)
-    {
-        if (auto object_ptr = (netxs::bell*)::lua_touserdata(lua, idx)) // Get Object_ptr.
+        auto crop = text{};
+        auto type = ::lua_type(lua, idx);
+        if (type == LUA_TBOOLEAN)
         {
-            crop = netxs::utf::concat("<object:", object_ptr->id, ">");
+            crop = ::lua_toboolean(lua, idx) ? "true" : "false";
         }
+        else if (type == LUA_TNUMBER || type == LUA_TSTRING)
+        {
+            ::lua_pushvalue(lua, idx); // ::lua_tolstring converts value to string in place.
+            auto len = size_t{};
+            auto ptr = ::lua_tolstring(lua, -1, &len);
+            crop = { ptr, len };
+            ::lua_pop(lua, 1);
+        }
+        else if (type == LUA_TLIGHTUSERDATA)
+        {
+            if (auto object_ptr = (ui::base*)::lua_touserdata(lua, idx)) // Get Object_ptr.
+            {
+                crop = utf::concat("<object:", object_ptr->id, ">");
+            }
+        }
+        else if (extended)
+        {
+                 if (type == LUA_TFUNCTION) crop = "<function>";
+            else if (type == LUA_TTABLE)    crop = "<table>"; //todo expand table
+        }
+        return crop;
     }
-    else if (extended)
+    si32 vtmlua_call(lua_State* lua) // UpValue[1]: Object_ptr. UpValue[2]: Function_name.
     {
-             if (type == LUA_TFUNCTION) crop = "<function>";
-        else if (type == LUA_TTABLE)    crop = "<table>"; //todo expand table
+        // Stack:
+        //      lua_upvalueindex(1): Get Object_ptr.
+        //      lua_upvalueindex(2): Fx name.
+        //      1. args:        ...
+        //      2.     :        ...
+        if (auto object_ptr = (ui::base*)::lua_touserdata(lua, lua_upvalueindex(1))) // Get Object_ptr.
+        {
+            auto fx_name = ::lua_tostring(lua, lua_upvalueindex(2)); // Get fx name.
+            object_ptr->call_method(fx_name);
+        }
+        return ::lua_gettop(lua);
     }
-    return crop;
+    si32 vtmlua_tostring(lua_State* lua)
+    {
+        auto crop = text{};
+        if (auto object_ptr = (ui::base*)::lua_touserdata(lua, -1)) // Get Object_ptr.
+        {
+            crop = utf::concat("<object:", object_ptr->id, ">");
+        }
+        else crop = "<object>";
+        ::lua_pushstring(lua, crop.data());
+        return 1;
+    }
 }
 
 namespace netxs::context
@@ -1849,9 +1877,6 @@ namespace netxs::ui
             using skill::boss,
                   skill::memo;
 
-            netxs::sptr<utf::unordered_map<text, wptr>> scripting_context_ptr; // keybd: Script execution context: sptr<map<$object_name_str, $object_wptr>>.
-            std::list<std::pair<text, wptr>> context_names; // keybd: .
-
             std::unordered_map<id_t, time> last_key; // keybd: .
             si64 instance_id; // keybd: .
 
@@ -1861,39 +1886,6 @@ namespace netxs::ui
                 : skill{ boss },
                   instance_id{ datetime::now().time_since_epoch().count() }
             {
-                boss.LISTEN(tier::release, e2::config::plugins::luafx, name_and_reference, memo)
-                {
-                    context_names.push_back(name_and_reference);
-                };
-                boss.LISTEN(tier::request, e2::runscript, gear, memo)
-                {
-                    if (gear.scripting_context_ptr)
-                    {
-                        auto& scripting_context = *gear.scripting_context_ptr;
-                        std::erase_if(context_names, [&](auto& name_ref)
-                        {
-                            auto& [name, object_wptr] = name_ref;
-                            auto object_ptr = object_wptr.lock();
-                            auto is_lost = !object_ptr;
-                            if (!is_lost)
-                            {
-                                auto& reference = scripting_context[name];
-                                if (ptr::is_empty(reference))
-                                {
-                                    reference = object_ptr;
-                                }
-                            }
-                            return is_lost;
-                        });
-                    }
-                };
-                boss.LISTEN(tier::release, e2::form::state::focus::count, count, memo)
-                {
-                    if (count == 0)
-                    {
-                        scripting_context_ptr.reset();
-                    }
-                };
                 boss.LISTEN(tier::general, input::events::die, gear, memo)
                 {
                     last_key.erase(gear.id);
@@ -1908,10 +1900,10 @@ namespace netxs::ui
                         if (gear.payload == input::keybd::type::keypress)
                         {
                             gear.interrupt_key_proc = faux;
-                            if (!gear.handled) input::bindings::dispatch(boss, instance_id, scripting_context_ptr, boss.keybd_handlers, gear, faux, input::key::kmap::any_key);
-                            if (!gear.handled) input::bindings::dispatch(boss, instance_id, scripting_context_ptr, boss.keybd_handlers, gear, faux, gear.vkchord);
-                            if (!gear.handled) input::bindings::dispatch(boss, instance_id, scripting_context_ptr, boss.keybd_handlers, gear, faux, gear.chchord);
-                            if (!gear.handled) input::bindings::dispatch(boss, instance_id, scripting_context_ptr, boss.keybd_handlers, gear, faux, gear.scchord);
+                            if (!gear.handled) input::bindings::dispatch(boss, instance_id, boss.keybd_handlers, gear, faux, input::key::kmap::any_key);
+                            if (!gear.handled) input::bindings::dispatch(boss, instance_id, boss.keybd_handlers, gear, faux, gear.vkchord);
+                            if (!gear.handled) input::bindings::dispatch(boss, instance_id, boss.keybd_handlers, gear, faux, gear.chchord);
+                            if (!gear.handled) input::bindings::dispatch(boss, instance_id, boss.keybd_handlers, gear, faux, gear.scchord);
                         }
                     }
                     else
@@ -1924,10 +1916,10 @@ namespace netxs::ui
                     gear.shared_event = gear.touched && gear.touched != instance_id;
                     if (gear.payload == input::keybd::type::keypress)
                     {
-                        if (!gear.touched && !gear.handled) input::bindings::dispatch(boss, instance_id, scripting_context_ptr, boss.keybd_handlers, gear, true, gear.vkchord);
-                        if (!gear.touched && !gear.handled) input::bindings::dispatch(boss, instance_id, scripting_context_ptr, boss.keybd_handlers, gear, true, gear.chchord);
-                        if (!gear.touched && !gear.handled) input::bindings::dispatch(boss, instance_id, scripting_context_ptr, boss.keybd_handlers, gear, true, gear.scchord);
-                        if (!gear.touched && !gear.handled) input::bindings::dispatch(boss, instance_id, scripting_context_ptr, boss.keybd_handlers, gear, true, input::key::kmap::any_key);
+                        if (!gear.touched && !gear.handled) input::bindings::dispatch(boss, instance_id, boss.keybd_handlers, gear, true, gear.vkchord);
+                        if (!gear.touched && !gear.handled) input::bindings::dispatch(boss, instance_id, boss.keybd_handlers, gear, true, gear.chchord);
+                        if (!gear.touched && !gear.handled) input::bindings::dispatch(boss, instance_id, boss.keybd_handlers, gear, true, gear.scchord);
+                        if (!gear.touched && !gear.handled) input::bindings::dispatch(boss, instance_id, boss.keybd_handlers, gear, true, input::key::kmap::any_key);
                     }
                 };
             }
@@ -2496,357 +2488,11 @@ namespace netxs::ui
                 };
             }
         };
-
-        // pro: Lua scripting.
-        class luafx
-            : public skill
-        {
-            using skill::boss,
-                  skill::memo;
-        public:
-            using fxmap = utf::unordered_map<text, std::function<void()>>;
-
-            lua_State* lua;
-            std::unordered_set<text> registered_names;
-            fxmap proc_map;
-
-            luafx(base&&) = delete;
-            luafx(base& boss)
-                : skill{ boss },
-                  lua{ boss.indexer.lua }
-            {
-                boss.LISTEN(tier::anycast, e2::form::upon::started, context_keeper_ptr, memo)
-                {
-                    if (context_keeper_ptr)
-                    {
-                        for (auto& name : registered_names) // Pass all boss's registered_names to context keeper.
-                        {
-                            context_keeper_ptr->base::signal(tier::release, e2::config::plugins::luafx, { name, boss.This() });
-                        }
-                    }
-                };
-                boss.LISTEN(tier::release, e2::luafx, lua, memo)
-                {
-                    auto fx_name = ::lua_tostring(lua, lua_upvalueindex(2)); // Get fx name.
-                    auto iter = proc_map.find(fx_name);
-                    if (iter != proc_map.end())
-                    {
-                        auto& fx = iter->second;
-                        fx(); // After call, all values in the stack will be returned as a result.
-                    }
-                    else
-                    {
-                        auto object_name = registered_names.size() ? *(registered_names.begin()) : utf::concat("object<", boss.id, ">");
-                        log("%%Function %fx_name% not found", prompt::lua, ansi::hi("vtm.", object_name, ".", fx_name, "()"));
-                    }
-                };
-            }
-
-            auto activate(qiew name, fxmap&& proc_map_init, bool self_hosted = faux)
-            {
-                if (!lua) return;
-                registered_names.insert(name);
-                proc_map.merge(proc_map_init);
-                if (proc_map_init.size())
-                {
-                    log("%%The following functions are not activated for '%%':", prompt::lua, name);
-                    for (auto& [fx_name, val] : proc_map_init)
-                    {
-                        log("%%%fx_name%", prompt::pads, ansi::hi(".", fx_name, "()"));
-                    }
-                }
-                if (self_hosted)
-                {
-                    boss.base::signal(tier::release, e2::config::plugins::luafx, { name, boss.This() });
-                }
-            }
-            template<class T>
-            auto get_args_or(si32 idx, T fallback = {})
-            {
-                static constexpr auto is_string_v = requires{ static_cast<const char*>(fallback.data()); };
-                static constexpr auto is_cstring_v = requires{ static_cast<const char*>(fallback); };
-
-                auto type = ::lua_type(lua, idx);
-                if (type != LUA_TNIL)
-                {
-                         if constexpr (std::is_same_v<std::decay_t<T>, bool>) return (T)::lua_toboolean(lua, idx);
-                    else if constexpr (is_string_v || is_cstring_v)           return ::lua_torawstring(lua, idx);
-                    else if constexpr (std::is_integral_v<T>)                 return (T)::lua_tointeger(lua, idx);
-                    else if constexpr (std::is_floating_point_v<T>)           return (T)::lua_tonumber(lua, idx);
-                    else if constexpr (std::is_same_v<std::decay_t<T>, twod>) return twod{ ::lua_tointeger(lua, idx), ::lua_tointeger(lua, idx + 1) };
-                    else if constexpr (std::is_same_v<std::decay_t<T>, sptr>)
-                    {
-                        if (auto ptr = (sptr::element_type*)::lua_touserdata(lua, idx)) // Get ui::base*.
-                        {
-                            auto object_ptr = ptr->This();
-                            return object_ptr;
-                        }
-                        return sptr{};
-                    }
-                }
-                if constexpr (is_string_v || is_cstring_v) return text{ fallback };
-                else                                       return fallback;
-            }
-            auto log_context()
-            {
-                log("%%context:", prompt::lua);
-                ::lua_getglobal(lua, "vtm");
-                ::lua_pushnil(lua);
-                while (::lua_next(lua, -2))
-                {
-                    auto var = ::lua_torawstring(lua, -2);
-                    auto val = ::lua_torawstring(lua, -1, true);
-                    if (val.size()) log("%%vtm.%name% = %value%", prompt::pads, var, val);
-                    ::lua_pop(lua, 1); // Pop val.
-                }
-                ::lua_pop(lua, 1); // Pop table "vtm".
-            }
-            auto set_object(sptr object_ptr, qiew object_name)
-            {
-                if (object_ptr)
-                {
-                    if (::lua_getglobal(lua, "vtm") != LUA_TTABLE) // Push "vtm" table to stack.
-                    {
-                        ::lua_pop(lua, 1); // Pop if it is a non-table.
-                        ::lua_newtable(lua); // Create and push new "vtm.*" global table.
-                        ::lua_setglobal(lua, "vtm"); // Set global var "vtm". Pop "vtm".
-                        ::lua_getglobal(lua, "vtm"); // Push "vtm" table again to stack.
-                    }
-                    ::lua_pushstring(lua, object_name.data()); // Push vtm.* var name (key).
-                    ::lua_pushlightuserdata(lua, object_ptr.get()); // Object ptr (val).
-                    ::luaL_setmetatable(lua, "vtmmetatable"); // Set the metatable for -1 userdata.
-                    ::lua_settable(lua, -3); // Set vtm.key=val. Pop key+val.
-                    ::lua_pop(lua, 1); // Pop table "vtm".
-                }
-            }
-            template<class T = base>
-            auto get_object(const char* object_name)
-            {
-                ::lua_getglobal(lua, "vtm");
-                ::lua_pushstring(lua, object_name);
-                ::lua_gettable(lua, -2);
-                auto object_ptr = static_cast<T*>((base*)::lua_touserdata(lua, -1));
-                ::lua_pop(lua, 2); // Pop "vtm" and "object_name".
-                return object_ptr;
-            }
-            auto push_value(auto&& v)
-            {
-                using T = std::decay_t<decltype(v)>;
-                static constexpr auto is_string_v = requires{ (const char*)v.data(); };
-                static constexpr auto is_cstring_v = requires{ (const char*)v[0]; };
-                     if constexpr (std::is_same_v<T, bool>)     ::lua_pushboolean(lua, v);
-                else if constexpr (is_string_v)                 ::lua_pushlstring(lua, v.data(), v.size());
-                else if constexpr (is_cstring_v)                ::lua_pushstring(lua, v);
-                else if constexpr (std::is_integral_v<T>)       ::lua_pushinteger(lua, v);
-                else if constexpr (std::is_floating_point_v<T>) ::lua_pushnumber(lua, v);
-                else if constexpr (std::is_pointer_v<T>)        ::lua_pushlightuserdata(lua, v);
-                else if constexpr (debugmode) throw;
-            }
-            void set_return(auto... args)
-            {
-                ::lua_settop(lua, 0);
-                (push_value(args), ...);
-            }
-            auto args_count()
-            {
-                return ::lua_gettop(lua);
-            }
-            auto run_with_gear_wo_return(auto proc)
-            {
-                auto gear_ptr = get_object<hids>("gear");
-                auto ok = !!gear_ptr;
-                if (ok)
-                {
-                    auto& gear = *gear_ptr;
-                    proc(gear);
-                }
-                return ok;
-            }
-            auto run_with_gear(auto proc)
-            {
-                auto ok = run_with_gear_wo_return(proc);
-                set_return(ok);
-            }
-            auto read_args(si32 index, auto add_item)
-            {
-                if (lua_istable(lua, index))
-                {
-                    ::lua_pushnil(lua); // Push prev key.
-                    while (::lua_next(lua, index)) // Table is in the stack at index. { "<item " + text{ table } + " />" }
-                    {
-                        auto key = ::lua_torawstring(lua, -2);
-                        if (!key.empty()) // Allow stringable keys only.
-                        {
-                            auto val = ::lua_torawstring(lua, -1);
-                            if (val.empty() && lua_istable(lua, -1)) // Extract item list.
-                            {
-                                ::lua_pushnil(lua); // Push prev key.
-                                while (::lua_next(lua, -2)) // Table is in the stack at index -2. { "<key="key2=val2"/>" }
-                                {
-                                    auto val2 = ::lua_torawstring(lua, -1);
-                                    auto key2_type = ::lua_type(lua, -2);
-                                    if (key2_type != LUA_TSTRING) // key2 is integer index.
-                                    {
-                                        add_item(key, val2);
-                                    }
-                                    else
-                                    {
-                                        auto key2 = ::lua_torawstring(lua, -2);
-                                        add_item(key, utf::concat(key2, '=', val2));
-                                    }
-                                    ::lua_pop(lua, 1); // Pop val2.
-                                }
-                            }
-                            else
-                            {
-                                add_item(key, val);
-                            }
-                        }
-                        ::lua_pop(lua, 1); // Pop val.
-                    }
-                }
-            }
-            auto run_script(auto& script_body, auto& scripting_context)
-            {
-                for (auto& [object_name, object_wptr] : scripting_context)
-                {
-                    if (auto object_ptr = object_wptr.lock())
-                    {
-                        set_object(object_ptr, object_name);
-                    }
-                }
-                log_context();
-                log("%%script:\n%pads%%script%", prompt::lua, prompt::pads, ansi::hi(utf::debase437(script_body)));
-
-                ::lua_settop(lua, 0);
-                auto error = ::luaL_loadbuffer(lua, script_body.data(), script_body.size(), "script body")
-                          || ::lua_pcall(lua, 0, 0, 0);
-                auto result = text{};
-                if (error)
-                {
-                    result = ::lua_tostring(lua, -1);
-                    log("%%%msg%", prompt::lua, ansi::err(result));
-                    ::lua_pop(lua, 1);  // Pop error message from stack.
-                }
-                else if (::lua_gettop(lua))
-                {
-                    result = ::lua_torawstring(lua, -1);
-                    ::lua_settop(lua, 0);
-                }
-
-                //todo optimize
-                ::lua_pushnil(lua);          // Wipe global context.
-                ::lua_setglobal(lua, "vtm"); //
-                return result;
-            }
-            auto run_script(auto& script)
-            {
-                auto scripting_context = utf::unordered_map<text, netxs::wptr<base>>{};
-                auto shadow = utf::trim(script.cmd, " \r\n\t\f");
-                if (shadow.size() > 2)
-                if (auto c = shadow.front(); (c == '"' || c == '\'') && shadow.back() == c)
-                {
-                    shadow = shadow.substr(1, shadow.size() - 2);
-                }
-                if (shadow.empty()) return;
-                if (script.gear_id)
-                if (auto gear_ptr = boss.bell::getref<hids>(script.gear_id))
-                {
-                    gear_ptr->set_multihome();
-                    set_object(gear_ptr, "gear");
-                }
-                auto result = run_script(shadow, scripting_context);
-                if (result.empty()) result = "ok";
-                log(ansi::clr(yellowlt, shadow), "\n", prompt::lua, result);
-                script.cmd = utf::concat(shadow, "\n", prompt::lua, result);
-            }
-        };
     }
-
-    // console: Lua scripting.
-    struct luna
-    {
-        lua_State* lua; // luna: .
-
-        static auto vtmlua_log(lua_State* lua)
-        {
-            auto n = ::lua_gettop(lua);
-            auto crop = text{};
-            for (auto i = 1; i <= n; i++)
-            {
-                auto t = ::lua_type(lua, i);
-                switch (t)
-                {
-                    case LUA_TBOOLEAN:
-                    case LUA_TNUMBER:
-                    case LUA_TSTRING:
-                        crop += ::lua_torawstring(lua, i);
-                        break;
-                    default:
-                        crop += "<";
-                        crop += ::lua_typename(lua, t);
-                        crop += ">";
-                        break;
-                }
-            }
-            log("", crop);
-            return 0;
-        }
-        static auto vtmlua_call(lua_State* lua) // UpValue[1]: Object_ptr. UpValue[2]: Function_name.
-        {
-            // Stack:
-            //      lua_upvalueindex(1): Get Object_ptr.
-            //      lua_upvalueindex(2): Fx name.
-            //      1. args:        ...
-            //      2.     :        ...
-            if (auto object_ptr = (base*)::lua_touserdata(lua, lua_upvalueindex(1))) // Get Object_ptr.
-            {
-                object_ptr->base::signal(tier::release, e2::luafx, lua);
-            }
-            return ::lua_gettop(lua);
-        }
-        static auto vtmlua_index(lua_State* lua)
-        {
-            // Stack:
-            //      1. userdata (or table).
-            //      2. fx name (keyname).
-            ::lua_pushcclosure(lua, vtmlua_call, 2);
-            return 1;
-        }
-        static auto vtmlua_tostring(lua_State* lua)
-        {
-            auto crop = text{};
-            if (auto object_ptr = (base*)::lua_touserdata(lua, -1)) // Get Object_ptr.
-            {
-                crop = utf::concat("<object:", object_ptr->id, ">");
-            }
-            else crop = "<object>";
-            ::lua_pushstring(lua, crop.data());
-            return 1;
-        }
-
-        luna()
-            : lua{ ::luaL_newstate() }
-        {
-            ::luaL_openlibs(lua);
-            ::lua_pushcclosure(lua, vtmlua_log, 0);
-            ::lua_setglobal(lua, "log");
-            static auto metalist = std::to_array<luaL_Reg>({{ "__index", vtmlua_index },
-                                                            { "__tostring", vtmlua_tostring },
-                                                            { nullptr, nullptr }});
-            ::luaL_newmetatable(lua, "vtmmetatable"); // Create a new metatable in registry and push it to the stack.
-            ::luaL_setfuncs(lua, metalist.data(), 0); // Assign metamethods for the table which at the top of the stack.
-        }
-        ~luna()
-        {
-            if (lua) ::lua_close(lua);
-        }
-    };
 
     auto& tui_domain()
     {
-        static auto scripting = luna{};
-        static auto indexer = netxs::events::auth{ scripting.lua, e2::config::fps.id, e2::timer::tick.id };
+        static auto indexer = netxs::events::auth{ e2::config::fps.id, e2::timer::tick.id };
         return indexer;
     }
 
@@ -3096,6 +2742,45 @@ namespace netxs::ui
             auto basis = rect{ dot_00, base::region.size } - base::intpad;
             auto context = parent_canvas.change_basis(basis, true);
             return context;
+        }
+
+        // Scripting.
+        //todo revise
+        auto run_ext_script(auto& script)
+        {
+            auto shadow = utf::trim(script.cmd, " \r\n\t\f");
+            if (shadow.size() > 2)
+            if (auto c = shadow.front(); (c == '"' || c == '\'') && shadow.back() == c)
+            {
+                shadow = shadow.substr(1, shadow.size() - 2);
+            }
+            if (shadow.empty()) return;
+            if (script.gear_id)
+            if (auto gear_ptr = base::getref<input::hids>(script.gear_id))
+            {
+                gear_ptr->set_multihome();
+                base::set_object(gear_ptr, "gear");
+            }
+            auto result = indexer.luafx.run_script_body(shadow);
+            if (result.empty()) result = "ok";
+            log(ansi::clr(yellowlt, shadow), "\n", prompt::lua, result);
+            script.cmd = utf::concat(shadow, "\n", prompt::lua, result);
+        }
+        auto run_with_gear_wo_return(auto proc)
+        {
+            auto gear_ptr = base::get_object<input::hids>("gear");
+            auto ok = !!gear_ptr;
+            if (ok)
+            {
+                auto& gear = *gear_ptr;
+                proc(gear);
+            }
+            return ok;
+        }
+        auto run_with_gear(auto proc)
+        {
+            auto ok = run_with_gear_wo_return(proc);
+            indexer.luafx.set_return(ok);
         }
 
         form()

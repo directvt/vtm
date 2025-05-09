@@ -630,7 +630,7 @@ namespace netxs::app::vtm
                 base::plugin<pro::light>();
                 base::plugin<pro::focus>();
                 base::plugin<pro::keybd>();
-                auto& luafx = base::plugin<pro::luafx>();
+                auto& luafx = bell::indexer.luafx;
                 base::limits(dot_11);
                 base::kind(base::reflow_root);
                 base::root(true);
@@ -638,29 +638,29 @@ namespace netxs::app::vtm
                 auto& bindings = world.base::property<input::bindings::vector>("window.bindings"); // Shared key bindings across the hall.
                 if (bindings.empty()) bindings = input::bindings::load(world.config, "window");
                 input::bindings::keybind(*this, bindings);
-                luafx.activate("window",
+                base::add_methods("window",
                 {
                     { "Warp",               [&]
                                             {
-                                                auto warp = dent{ luafx.get_args_or(1, 0),   // Args...
-                                                                  luafx.get_args_or(2, 0),   //
-                                                                  luafx.get_args_or(3, 0),   //
-                                                                  luafx.get_args_or(4, 0) }; //
+                                                auto warp = dent{ base::get_args_or(1, 0),   // Args...
+                                                                  base::get_args_or(2, 0),   //
+                                                                  base::get_args_or(3, 0),   //
+                                                                  base::get_args_or(4, 0) }; //
                                                 window_swarp(warp);
-                                                if (auto gear_ptr = luafx.template get_object<hids>("gear")) gear_ptr->set_handled();
+                                                if (auto gear_ptr = base::get_object<hids>("gear")) gear_ptr->set_handled();
                                                 luafx.set_return(); // No returns.
                                             }},
                     //{ "ZOrder",             [&]
                     //                        {
                     //                            auto args_count = luafx.args_count();
-                    //                            auto state = window_zorder(args_count, luafx.get_args_or(1, zpos::plain));
-                    //                            if (auto gear_ptr = luafx.template get_object<hids>("gear")) gear_ptr->set_handled();
+                    //                            auto state = window_zorder(args_count, base::get_args_or(1, zpos::plain));
+                    //                            if (auto gear_ptr = base::get_object<hids>("gear")) gear_ptr->set_handled();
                     //                            luafx.set_return(state);
                     //                        }},
                     { "Close",              [&]
                                             {
                                                 auto gear_id = id_t{};
-                                                if (auto gear_ptr = luafx.template get_object<hids>("gear"))
+                                                if (auto gear_ptr = base::get_object<hids>("gear"))
                                                 {
                                                     gear_ptr->set_handled();
                                                     gear_id = gear_ptr->id;
@@ -670,7 +670,7 @@ namespace netxs::app::vtm
                                             }},
                     { "Minimize",           [&]
                                             {
-                                                if (auto gear_ptr = luafx.template get_object<hids>("gear"))
+                                                if (auto gear_ptr = base::get_object<hids>("gear"))
                                                 {
                                                     gear_ptr->set_handled();
                                                     window_state(gear_ptr->id, e2::form::size::minimize.id);
@@ -679,7 +679,7 @@ namespace netxs::app::vtm
                                             }},
                     { "Maximize",           [&]
                                             {
-                                                if (auto gear_ptr = luafx.template get_object<hids>("gear"))
+                                                if (auto gear_ptr = base::get_object<hids>("gear"))
                                                 {
                                                     gear_ptr->set_handled();
                                                     window_state(gear_ptr->id, e2::form::size::enlarge::maximize.id);
@@ -688,7 +688,7 @@ namespace netxs::app::vtm
                                             }},
                     { "Fullscreen",         [&]
                                             {
-                                                if (auto gear_ptr = luafx.template get_object<hids>("gear"))
+                                                if (auto gear_ptr = base::get_object<hids>("gear"))
                                                 {
                                                     gear_ptr->set_handled();
                                                     window_state(gear_ptr->id, e2::form::size::enlarge::fullscreen.id);
@@ -839,13 +839,21 @@ namespace netxs::app::vtm
                 {
                     base::detach(); // The object kills itself.
                 };
+                auto& fast_quit = base::field(faux);
                 LISTEN(tier::general, e2::conio::quit, deal) // Desktop shutdown.
                 {
+                    fast_quit = true;
                     base::signal(tier::anycast, e2::form::proceed::quit::one, true); // Schedule a cleanup.
                 };
                 LISTEN(tier::release, e2::form::upon::vtree::detached, parent_ptr)
                 {
-                    base::cleanup();
+                    if (!fast_quit && parent_ptr)
+                    {
+                        parent_ptr->base::enqueue([&](auto& boss)
+                        {
+                            boss.base::cleanup();
+                        });
+                    }
                 };
 
                 auto& maximize_token = base::field<subs>();
@@ -1219,10 +1227,10 @@ namespace netxs::app::vtm
 
             base::plugin<pro::focus>(pro::focus::mode::focusable);
             base::plugin<pro::keybd>();
-            auto& luafx = base::plugin<pro::luafx>();
+            auto& luafx = bell::indexer.luafx;
             auto bindings = input::bindings::load(config, "desktop");
             input::bindings::keybind(*this, bindings);
-            luafx.activate("desktop",
+            base::add_methods("desktop",
             {
                 { "Shutdown",           [&]
                                         {
@@ -1236,7 +1244,7 @@ namespace netxs::app::vtm
                                         }},
                 { "Disconnect",         [&] //todo Disconnect(gear_id)
                                         {
-                                            auto gear_ptr = luafx.template get_object<hids>("gear");
+                                            auto gear_ptr = base::get_object<hids>("gear");
                                             auto ok = !!gear_ptr;
                                             if (ok)
                                             {
@@ -1248,7 +1256,7 @@ namespace netxs::app::vtm
                 { "Run",                [&]
                                         {
                                             auto args_count = luafx.args_count();
-                                            auto gear_ptr = luafx.template get_object<hids>("gear");
+                                            auto gear_ptr = base::get_object<hids>("gear");
                                             auto gear_id = gear_ptr ? gear_ptr->id : id_t{};
                                             auto appspec = desk::spec{ .hidden  = true,
                                                                        .winform = winstate::normal,
@@ -1308,10 +1316,10 @@ namespace netxs::app::vtm
                                         }},
                 { "FocusNextWindow",    [&]
                                         {
-                                            if (auto gear_ptr = luafx.template get_object<hids>("gear"))
+                                            if (auto gear_ptr = base::get_object<hids>("gear"))
                                             {
                                                 auto& gear = *gear_ptr;
-                                                auto dir = luafx.get_args_or(1, 1);
+                                                auto dir = base::get_args_or(1, 1);
                                                 if (focus_next_window(gear, dir))
                                                 {
                                                     gear.set_handled();
@@ -1393,20 +1401,15 @@ namespace netxs::app::vtm
 
             LISTEN(tier::release, e2::command::run, script)
             {
-                luafx.set_object(This(), "desktop");
+                base::set_object(This(), "desktop");
                 if (script.gear_id)
                 {
                     bell::passover(); // Continue release riseup.
                 }
                 else
                 {
-                    luafx.run_script(script);
+                    run_ext_script(script);
                 }
-            };
-            LISTEN(tier::preview, e2::runscript, gear)
-            {
-                luafx.set_object(This(), "desktop");
-                bell::passover(); // Continue preview riseup.
             };
             LISTEN(tier::preview, e2::command::gui, gui_cmd)
             {
@@ -1972,7 +1975,7 @@ namespace netxs::app::vtm
             auto deskmenu_ptr = app::shared::builder(app::desk::id)(usrcfg, app_config);
             deskmenu_ptr->base::plugin<pro::keybd>();
             //todo
-            //deskmenu_ptr->lua.activate("taskbar")...
+            //deskmenu_ptr->base::add_methods2("taskbar")...
             app::shared::applet_kb_navigation(config, deskmenu_ptr);
             usergate.attach(std::move(deskmenu_ptr));
             usergate.base::extend({ vport, usrcfg.win }); // Restore user's last position.
