@@ -856,7 +856,7 @@ namespace netxs::input
                         {
                             if (auto script_ptr = script_ref_ptr->script_body_ptr)
                             {
-                                //boss.indexer.luafx.set_object(gear.This(), "gear");
+                                boss.indexer.luafx.set_object(gear.This(), "gear");
                                 boss.indexer.luafx.run_script(boss.This(), *script_ptr);
                             }
                         }
