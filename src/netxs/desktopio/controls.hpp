@@ -77,12 +77,15 @@ namespace netxs::events
     }
     si32 luna::vtmlua_call_method(lua_State* lua) // UpValue[1]: Object_ptr. UpValue[2]: Function_name.
     {
-        log("vtmlua_call_method: 1: %% 2: %% 3: %%", luna::vtmlua_torawstring(lua, 1), luna::vtmlua_torawstring(lua, 2), luna::vtmlua_torawstring(lua, 3));
         // Stack:
         //      lua_upvalueindex(1): Get Object_ptr.
         //      lua_upvalueindex(2): Fx name.
         //      1. args:        ...
         //      2.     :        ...
+        if constexpr (debugmode)
+        {
+            log("vtmlua_call_method: 1: %% 2: %% 3: %%", luna::vtmlua_torawstring(lua, 1), luna::vtmlua_torawstring(lua, 2), luna::vtmlua_torawstring(lua, 3));
+        }
         if (auto object_ptr = (ui::base*)::lua_touserdata(lua, lua_upvalueindex(1))) // Get Object_ptr.
         {
             auto fx_name = ::lua_tostring(lua, lua_upvalueindex(2)); // Get fx name.
@@ -90,25 +93,73 @@ namespace netxs::events
         }
         return ::lua_gettop(lua);
     }
-    si32 luna::vtmlua_index2(lua_State* lua)
+    si32 luna::vtmlua_vtm_subindex(lua_State* lua)
     {
-        log("vtmlua_index2: 1: %% 2: %%", luna::vtmlua_torawstring(lua, 1), luna::vtmlua_torawstring(lua, 2));
         // Stack:
-        //      1. userdata (or table).
-        //      2. fx name (keyname).
+        //      1. object_ptr.
+        //      2. fx name.
+        if constexpr (debugmode)
+        {
+            log("vtmlua_vtm_subindex: 1: %% 2: %%", luna::vtmlua_torawstring(lua, 1), luna::vtmlua_torawstring(lua, 2));
+            if (auto object_ptr = (ui::base*)::lua_touserdata(lua, 1))
+            {
+                log("  object_ptr->id=%% with fxname='%%'", object_ptr->id, luna::vtmlua_torawstring(lua, 2));
+            }
+        }
         ::lua_pushcclosure(lua, luna::vtmlua_call_method, 2);
         return 1;
     }
-    si32 luna::vtmlua_index(lua_State* lua)
+    si32 luna::vtmlua_vtm_index(lua_State* lua)
     {
-        log("vtmlua_index: 1: %% 2: %%", luna::vtmlua_torawstring(lua, 1), luna::vtmlua_torawstring(lua, 2));
         // Stack:
         //      1. userdata (or table).
         //      2. object name (keyname).
-        auto object_name = luna::vtmlua_torawstring(lua, 2);
-        ::lua_newtable(lua); // Create and push new table to stack.
-        ::luaL_setmetatable(lua, "vtmmetatable2"); // Set the vtmmetatable2 for table at -1.
-        return 1;
+        if constexpr (debugmode)
+        {
+            log("vtmlua_vtm_index: 1: %% 2: %%", luna::vtmlua_torawstring(lua, 1), luna::vtmlua_torawstring(lua, 2));
+        }
+        // Get internal classes registry.
+        ::lua_pushstring(lua, "classes"); // Push internal registry key 'classes'.
+        if (::lua_gettable(lua, LUA_REGISTRYINDEX) == LUA_TLIGHTUSERDATA) // Retrieve address of 'classes' and push it to the stack at -1.
+        {
+            if (auto classes_ptr = (clasess_umap*)::lua_touserdata(lua, -1)) // Get 'classes'.
+            {
+                auto& classes = *classes_ptr;
+                auto object_name = luna::vtmlua_torawstring(lua, 2);
+                auto iter = classes.find(object_name);
+                if (iter != classes.end() && iter->second)
+                {
+                    auto& subclass = *(iter->second);
+                    auto& objects = subclass.objects;
+                    for (auto& object_wptr : objects)
+                    {
+                        //todo use context to select object
+                        if (auto object_ptr = object_wptr.lock())
+                        {
+                            log("  got vtm object id: ", object_ptr->id);
+
+                            //ok
+                            //::lua_pushlightuserdata(lua, object_ptr.get()); // Push object ptr.
+                            //    ::lua_newtable(lua);
+                            //        //::lua_pushlightuserdata(lua, object_ptr.get()); // Push object ptr.
+                            //        //::lua_pushcclosure(lua, vtmlua_vtm_subindex, 1); // Push c-closure and pop object ptr from the stack.
+                            //        ::lua_pushcfunction(lua, vtmlua_vtm_subindex); // Push c-func to the stack.
+                            //        ::lua_setfield(lua, -2, "__index"); // Set field for -2 and pop c-closure.
+                            //    ::lua_setmetatable(lua, -2);
+
+                            ::lua_pushlightuserdata(lua, object_ptr.get()); // Push object ptr.
+                            ::luaL_setmetatable(lua, "vtm_submetaindex"); // Set the vtm_submetaindex for table at -1.
+                            //todo keep objects locked until we are inside the lua
+                            return 1;
+                        }
+                    }
+                }
+                log("%%No 'vtm.%%' objects found", prompt::lua, object_name);
+                return 0;
+            }
+        }
+        log("%%The class registry is missing or corrupted (see global 'classes')", prompt::lua);
+        return 0;
     }
     //void luna::log_context()
     //{
@@ -224,13 +275,13 @@ namespace netxs::events
             //{
             //    ::lua_pop(lua, 1); // Pop if it is a non-table.
             //    ::lua_newtable(lua); // Create and push new "vtm.*" global table.
-            //    ::luaL_setmetatable(lua, "vtmmetatable"); // Set the metatable for -1 userdata.
+            //    ::luaL_setmetatable(lua, "vtm_metaindex"); // Set the metatable for -1 userdata.
             //    ::lua_setglobal(lua, "vtm"); // Set global var "vtm". Pop "vtm".
             //    ::lua_getglobal(lua, "vtm"); // Push "vtm" table again to stack.
             //}
             //::lua_pushstring(lua, object_name.data()); // Push vtm.* var name (key).
             //::lua_pushlightuserdata(lua, object_ptr.get()); // Push object ptr (val).
-            //::luaL_setmetatable(lua, "vtmmetatable"); // Set the metatable for -1 userdata.
+            //::luaL_setmetatable(lua, "vtm_metaindex"); // Set the metatable for -1 userdata.
             //::lua_settable(lua, -3); // Set vtm.key=val. Pop key+val.
             //::lua_pop(lua, 1); // Pop table "vtm".
         }
@@ -264,7 +315,7 @@ namespace netxs::events
     text luna::run(view script_body)
     {
         //log_context();
-        log("%%script:\n%pads%%script%", prompt::lua, prompt::pads, ansi::hi(utf::debase437(script_body)));
+        log("%%script:\n%pads%%script%", prompt::lua, prompt::pads, ansi::hi(script_body));
         ::lua_settop(lua, 0);
         auto error = ::luaL_loadbuffer(lua, script_body.data(), script_body.size(), "script body")
                   || ::lua_pcall(lua, 0, 0, 0);
@@ -308,30 +359,35 @@ namespace netxs::events
         script.cmd = utf::concat(shadow, "\n", prompt::lua, result);
     }
 
-    luna::luna()
+    luna::luna(clasess_umap& classes)
         : lua{ ::luaL_newstate() }
     {
         ::luaL_openlibs(lua);
+
+        // Set 'log' function.
         ::lua_pushcclosure(lua, luna::vtmlua_log, 0);
         ::lua_setglobal(lua, "log");
 
-        // Define 'vtm' redirecting metatable.
-        static auto metalist = std::to_array<luaL_Reg>({{ "__index",    luna::vtmlua_index },
-                                                        { "__tostring", luna::vtmlua_object2string },
-                                                        { nullptr, nullptr }});
-        ::luaL_newmetatable(lua, "vtmmetatable"); // Create a new metatable in registry and push it to the stack.
-        ::luaL_setfuncs(lua, metalist.data(), 0); // Assign metamethods for the table which at the top of the stack.
+        // Set 'classes' internal object.
+        ::lua_pushstring(lua, "classes"); // Push internal registry key 'classes' name.
+        ::lua_pushlightuserdata(lua, &classes); // Push the 'classes' address as a record value.
+        ::lua_settable(lua, LUA_REGISTRYINDEX); // Set internal registry['classes'] = &classes.
 
-        ::lua_newtable(lua); // Create and push new "vtm.*" global table.
-        ::luaL_setmetatable(lua, "vtmmetatable"); // Set the metatable for table at -1.
-        ::lua_setglobal(lua, "vtm"); // Set global var "vtm". Pop "vtm".
+        // Define 'vtm' redirecting metatable.
+        static auto vtm_metaindex = std::to_array<luaL_Reg>({{ "__index",    luna::vtmlua_vtm_index },
+                                                             { "__tostring", luna::vtmlua_object2string },
+                                                             { nullptr, nullptr }});
+        ::luaL_newmetatable(lua, "vtm_metaindex"); // Create a new metatable in registry and push it to the stack.
+        ::luaL_setfuncs(lua, vtm_metaindex.data(), 0); // Assign metamethods for the table which at the top of the stack.
+            ::lua_newtable(lua); // Create and push new "vtm.*" global table.
+            ::luaL_setmetatable(lua, "vtm_metaindex"); // Set the metatable for table at -1.
+            ::lua_setglobal(lua, "vtm"); // Set global var "vtm". Pop "vtm".
 
         // Define sub-vtm.* redirecting metatable.
-        static auto metalist2 = std::to_array<luaL_Reg>({{ "__index",    luna::vtmlua_index2 },
-                                                         { "__tostring", luna::vtmlua_object2string },
-                                                         { nullptr, nullptr }});
-        ::luaL_newmetatable(lua, "vtmmetatable2"); // Create a new metatable in registry and push it to the stack.
-        ::luaL_setfuncs(lua, metalist2.data(), 0); // Assign metamethods for the table which at the top of the stack.
+        static auto vtm_submetaindex = std::to_array<luaL_Reg>({{ "__index", luna::vtmlua_vtm_subindex },
+                                                                { nullptr, nullptr }});
+        ::luaL_newmetatable(lua, "vtm_submetaindex"); // Create a new metatable in registry and push it to the stack.
+        ::luaL_setfuncs(lua, vtm_submetaindex.data(), 0); // Assign metamethods for the table which at the top of the stack.
     }
     luna::~luna()
     {
@@ -3028,7 +3084,7 @@ namespace netxs::ui
                 {
                     base::scripting_context = parent_ptr->scripting_context;
                     base::scripting_context.emplace_back(this);
-                    if constexpr (debugmode) log("scripting context: ", netxs::events::script_ref::to_string(base::scripting_context));
+                    //if constexpr (debugmode) log("scripting context: ", netxs::events::script_ref::to_string(base::scripting_context));
                 }
             };
         }

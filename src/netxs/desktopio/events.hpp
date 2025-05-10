@@ -122,6 +122,16 @@ namespace netxs::events
     }
     template<hint Group, auto Count> constexpr auto subset = _instantiate<Group>(std::make_index_sequence<Count>{});
 
+    using fxmap = utf::unordered_map<text, std::function<void()>>; // Class methods.
+
+    // Class methods and registered instances.
+    struct vtm_class
+    {
+        std::list<wptr<ui::base>> objects;
+        fxmap                     methods; // Static class methods.
+    };
+    using clasess_umap = utf::unordered_map<text, sptr<vtm_class>>;
+
     // events: Lua scripting.
     struct luna
     {
@@ -131,8 +141,8 @@ namespace netxs::events
         static si32 vtmlua_object2string(lua_State* lua);
         static si32 vtmlua_log(lua_State* lua);
         static si32 vtmlua_call_method(lua_State* lua);
-        static si32 vtmlua_index(lua_State* lua);
-        static si32 vtmlua_index2(lua_State* lua);
+        static si32 vtmlua_vtm_index(lua_State* lua);
+        static si32 vtmlua_vtm_subindex(lua_State* lua);
         //void log_context();
         void push_value(auto&& v);
         void set_return(auto... args);
@@ -148,7 +158,7 @@ namespace netxs::events
         text run(view script_body);
         void run_ext_script(sptr<ui::base> object_ptr, auto& script);
 
-        luna();
+        luna(clasess_umap& classes);
         ~luna();
     };
 
@@ -249,14 +259,6 @@ namespace netxs::events
 
     using wook = wptr<fxbase>;
     using fmap = std::unordered_map<hint, std::list<wptr<fxbase>>>; // Functor wptr-list map by event_id.
-    using fxmap = utf::unordered_map<text, std::function<void()>>; // Class methods.
-
-    // Class methods and registered instances.
-    struct vtm_class
-    {
-        std::list<wptr<ui::base>> objects;
-        fxmap                     methods; // Static class methods.
-    };
 
     struct auth
     {
@@ -271,7 +273,7 @@ namespace netxs::events
         id_t                                      next_id;
         std::recursive_mutex                      mutex;
         std::unordered_map<id_t, wptr<ui::base>>  objects; // auth: Map of objects by object id.
-        utf::unordered_map<text, sptr<vtm_class>> classes; // auth: Map of classes by classname.
+        clasess_umap                              classes; // auth: Map of classes by classname.
         fmap                                      general;
         generics::jobs<wptr<ui::base>>            agent;
         luna                                      luafx;
@@ -323,6 +325,7 @@ namespace netxs::events
 
         auth(hint e2_config_fps_id = {}, hint e2_timer_tick_id = {})
             : next_id{ 0 },
+              luafx{ classes },
               quartz{ *this },
               e2_timer_tick_id{ e2_timer_tick_id }
         {
