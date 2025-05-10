@@ -122,15 +122,7 @@ namespace netxs::events
     }
     template<hint Group, auto Count> constexpr auto subset = _instantiate<Group>(std::make_index_sequence<Count>{});
 
-    using fxmap = utf::unordered_map<text, std::function<void()>>; // Class methods.
-
-    // Class methods and registered instances.
-    struct vtm_class
-    {
-        std::list<wptr<ui::base>> objects;
-        fxmap                     methods; // Static class methods.
-    };
-    using clasess_umap = utf::unordered_map<text, sptr<vtm_class>>;
+    struct auth;
 
     // events: Lua scripting.
     struct luna
@@ -158,7 +150,7 @@ namespace netxs::events
         text run(view script_body);
         void run_ext_script(sptr<ui::base> object_ptr, auto& script);
 
-        luna(clasess_umap& classes);
+        luna(auth& domain);
         ~luna();
     };
 
@@ -259,6 +251,15 @@ namespace netxs::events
 
     using wook = wptr<fxbase>;
     using fmap = std::unordered_map<hint, std::list<wptr<fxbase>>>; // Functor wptr-list map by event_id.
+    using fxmap = utf::unordered_map<text, std::function<void()>>; // Class methods.
+
+    // Class methods and registered instances.
+    struct vtm_class
+    {
+        std::list<wptr<ui::base>> objects;
+        fxmap                     methods; // Static class methods.
+    };
+    using clasess_umap = utf::unordered_map<text, sptr<vtm_class>>;
 
     struct auth
     {
@@ -325,7 +326,7 @@ namespace netxs::events
 
         auth(hint e2_config_fps_id = {}, hint e2_timer_tick_id = {})
             : next_id{ 0 },
-              luafx{ classes },
+              luafx{ *this },
               quartz{ *this },
               e2_timer_tick_id{ e2_timer_tick_id }
         {

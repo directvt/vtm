@@ -118,13 +118,14 @@ namespace netxs::events
         {
             log("vtmlua_vtm_index: 1: %% 2: %%", luna::vtmlua_torawstring(lua, 1), luna::vtmlua_torawstring(lua, 2));
         }
-        // Get internal classes registry.
-        ::lua_pushstring(lua, "classes"); // Push internal registry key 'classes'.
-        if (::lua_gettable(lua, LUA_REGISTRYINDEX) == LUA_TLIGHTUSERDATA) // Retrieve address of 'classes' and push it to the stack at -1.
+        // Get internal domain registry.
+        ::lua_pushstring(lua, "domain"); // Push internal registry key 'domain'.
+        if (::lua_gettable(lua, LUA_REGISTRYINDEX) == LUA_TLIGHTUSERDATA) // Retrieve address of 'domain' and push it to the stack at -1.
         {
-            if (auto classes_ptr = (clasess_umap*)::lua_touserdata(lua, -1)) // Get 'classes'.
+            if (auto domain_ptr = (auth*)::lua_touserdata(lua, -1)) // Get 'domain'.
             {
-                auto& classes = *classes_ptr;
+                auto& domain = *domain_ptr;
+                auto& classes = domain.classes;
                 auto object_name = luna::vtmlua_torawstring(lua, 2);
                 auto iter = classes.find(object_name);
                 if (iter != classes.end() && iter->second)
@@ -158,7 +159,7 @@ namespace netxs::events
                 return 0;
             }
         }
-        log("%%The class registry is missing or corrupted (see global 'classes')", prompt::lua);
+        log("%%The domain registry is missing or corrupted (see global 'domain')", prompt::lua);
         return 0;
     }
     //void luna::log_context()
@@ -359,7 +360,7 @@ namespace netxs::events
         script.cmd = utf::concat(shadow, "\n", prompt::lua, result);
     }
 
-    luna::luna(clasess_umap& classes)
+    luna::luna(auth& domain)
         : lua{ ::luaL_newstate() }
     {
         ::luaL_openlibs(lua);
@@ -368,10 +369,10 @@ namespace netxs::events
         ::lua_pushcclosure(lua, luna::vtmlua_log, 0);
         ::lua_setglobal(lua, "log");
 
-        // Set 'classes' internal object.
-        ::lua_pushstring(lua, "classes"); // Push internal registry key 'classes' name.
-        ::lua_pushlightuserdata(lua, &classes); // Push the 'classes' address as a record value.
-        ::lua_settable(lua, LUA_REGISTRYINDEX); // Set internal registry['classes'] = &classes.
+        // Set 'domain' internal object.
+        ::lua_pushstring(lua, "domain"); // Push internal registry key 'domain' name.
+        ::lua_pushlightuserdata(lua, &domain); // Push the 'domain' address as a record value.
+        ::lua_settable(lua, LUA_REGISTRYINDEX); // Set internal registry['domain'] = &domain.
 
         // Define 'vtm' redirecting metatable.
         static auto vtm_metaindex = std::to_array<luaL_Reg>({{ "__index",    luna::vtmlua_vtm_index },
