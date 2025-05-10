@@ -1401,7 +1401,6 @@ namespace netxs::app::vtm
 
             LISTEN(tier::release, e2::command::run, script)
             {
-                indexer.luafx.set_object(This(), "desktop");
                 if (script.gear_id)
                 {
                     bell::passover(); // Continue release riseup.

@@ -82,10 +82,7 @@ namespace netxs::events
         //      lua_upvalueindex(2): Fx name.
         //      1. args:        ...
         //      2.     :        ...
-        if constexpr (debugmode)
-        {
-            log("vtmlua_call_method: 1: %% 2: %% 3: %%", luna::vtmlua_torawstring(lua, 1), luna::vtmlua_torawstring(lua, 2), luna::vtmlua_torawstring(lua, 3));
-        }
+        //if constexpr (debugmode) log("vtmlua_call_method: 1: %% 2: %% 3: %%", luna::vtmlua_torawstring(lua, 1), luna::vtmlua_torawstring(lua, 2), luna::vtmlua_torawstring(lua, 3));
         if (auto object_ptr = (ui::base*)::lua_touserdata(lua, lua_upvalueindex(1))) // Get Object_ptr.
         {
             auto fx_name = ::lua_tostring(lua, lua_upvalueindex(2)); // Get fx name.
@@ -98,14 +95,14 @@ namespace netxs::events
         // Stack:
         //      1. object_ptr.
         //      2. fx name.
-        if constexpr (debugmode)
-        {
-            log("vtmlua_vtm_subindex: 1: %% 2: %%", luna::vtmlua_torawstring(lua, 1), luna::vtmlua_torawstring(lua, 2));
-            if (auto object_ptr = (ui::base*)::lua_touserdata(lua, 1))
-            {
-                log("  object_ptr->id=%% with fxname='%%'", object_ptr->id, luna::vtmlua_torawstring(lua, 2));
-            }
-        }
+        //if constexpr (debugmode)
+        //{
+        //    log("vtmlua_vtm_subindex: 1: %% 2: %%", luna::vtmlua_torawstring(lua, 1), luna::vtmlua_torawstring(lua, 2));
+        //    if (auto object_ptr = (ui::base*)::lua_touserdata(lua, 1))
+        //    {
+        //        log("  object_ptr->id=%% with fxname='%%'", object_ptr->id, luna::vtmlua_torawstring(lua, 2));
+        //    }
+        //}
         ::lua_pushcclosure(lua, luna::vtmlua_call_method, 2);
         return 1;
     }
@@ -114,52 +111,78 @@ namespace netxs::events
         // Stack:
         //      1. userdata (or table).
         //      2. object name (keyname).
-        if constexpr (debugmode)
+        //if constexpr (debugmode) log("vtmlua_vtm_index: 1: %% 2: %%", luna::vtmlua_torawstring(lua, 1), luna::vtmlua_torawstring(lua, 2));
+        // Get internal indexer registry.
+        ::lua_pushstring(lua, "indexer"); // Push internal registry key 'indexer'.
+        if (::lua_gettable(lua, LUA_REGISTRYINDEX) == LUA_TLIGHTUSERDATA) // Retrieve address of 'indexer' and push it to the stack at -1.
         {
-            log("vtmlua_vtm_index: 1: %% 2: %%", luna::vtmlua_torawstring(lua, 1), luna::vtmlua_torawstring(lua, 2));
-        }
-        // Get internal domain registry.
-        ::lua_pushstring(lua, "domain"); // Push internal registry key 'domain'.
-        if (::lua_gettable(lua, LUA_REGISTRYINDEX) == LUA_TLIGHTUSERDATA) // Retrieve address of 'domain' and push it to the stack at -1.
-        {
-            if (auto domain_ptr = (auth*)::lua_touserdata(lua, -1)) // Get 'domain'.
+            if (auto indexer_ptr = (auth*)::lua_touserdata(lua, -1)) // Get 'indexer'.
             {
-                auto& domain = *domain_ptr;
-                auto& classes = domain.classes;
+                auto& indexer = *indexer_ptr;
+                auto& classes = indexer.classes;
                 auto object_name = luna::vtmlua_torawstring(lua, 2);
                 auto iter = classes.find(object_name);
                 if (iter != classes.end() && iter->second)
                 {
                     auto& subclass = *(iter->second);
                     auto& objects = subclass.objects;
+                    auto& source_ctx = indexer.context_ref.get();
+                    auto target_ptr = sptr<ui::base>{};
+                    log("looking for '%%'", object_name);
+                    log(" 0\tsource context: ", netxs::events::script_ref::to_string(source_ctx));
+                    auto i = 0;
+                    auto closeness = 0;
                     for (auto& object_wptr : objects)
                     {
-                        //todo use context to select object
                         if (auto object_ptr = object_wptr.lock())
                         {
-                            log("  got vtm object id: ", object_ptr->id);
-
-                            //ok
-                            //::lua_pushlightuserdata(lua, object_ptr.get()); // Push object ptr.
-                            //    ::lua_newtable(lua);
-                            //        //::lua_pushlightuserdata(lua, object_ptr.get()); // Push object ptr.
-                            //        //::lua_pushcclosure(lua, vtmlua_vtm_subindex, 1); // Push c-closure and pop object ptr from the stack.
-                            //        ::lua_pushcfunction(lua, vtmlua_vtm_subindex); // Push c-func to the stack.
-                            //        ::lua_setfield(lua, -2, "__index"); // Set field for -2 and pop c-closure.
-                            //    ::lua_setmetatable(lua, -2);
-
-                            ::lua_pushlightuserdata(lua, object_ptr.get()); // Push object ptr.
-                            ::luaL_setmetatable(lua, "vtm_submetaindex"); // Set the vtm_submetaindex for table at -1.
-                            //todo keep objects locked until we are inside the lua
-                            return 1;
+                            auto& boss = *object_ptr;
+                            auto& target_ctx = boss.scripting_context;
+                            log(" %%\ttarget context: ", ++i, netxs::events::script_ref::to_string(target_ctx));
+                            if (target_ctx.empty() // The object is outside the DOM (e.g. 'gear').
+                             || source_ctx.empty() || source_ctx.back() == target_ctx.back()) // Target is the source itself.
+                            {
+                                target_ptr = object_ptr;
+                                break;
+                            }
+                            auto head = target_ctx.begin();
+                            auto dst_head = source_ctx.begin();
+                            auto dst_tail = source_ctx.end();
+                            auto src_head = target_ctx.begin();
+                            auto src_tail = target_ctx.end();
+                            log("  source_ctx.size=%% target_ctx.size=%%", source_ctx.size(), target_ctx.size());
+                            while (src_head != src_tail && dst_head != dst_tail)
+                            {
+                                auto src = *src_head++;
+                                auto dst = *dst_head++;
+                                if (src != dst) break;
+                            }
+                            auto m = (si32)(src_tail - src_head);
+                            if (m > closeness)
+                            {
+                                closeness = m;
+                                target_ptr = object_ptr;
+                            }
                         }
+                        else
+                        {
+                            //todo never happens. Objects wipe their references in dtor.
+                        }
+                    }
+                    //todo move target to the front of the objects
+                    if (target_ptr)
+                    {
+                        ::lua_pushlightuserdata(lua, target_ptr.get()); // Push object ptr.
+                        ::luaL_setmetatable(lua, "vtm_submetaindex"); // Set the vtm_submetaindex for table at -1.
+                        //todo keep objects locked until we are inside the lua
+                        return 1;
                     }
                 }
                 log("%%No 'vtm.%%' objects found", prompt::lua, object_name);
                 return 0;
             }
         }
-        log("%%The domain registry is missing or corrupted (see global 'domain')", prompt::lua);
+        log("%%The indexer registry is missing or corrupted (see global 'indexer')", prompt::lua);
         return 0;
     }
     //void luna::log_context()
@@ -268,23 +291,37 @@ namespace netxs::events
         if constexpr (is_string_v || is_cstring_v) return text{ fallback };
         else                                       return fallback;
     }
-    void luna::set_object(sptr<ui::base> object_ptr, qiew /*object_name*/)
+    void luna::set_object(sptr<ui::base> object_ptr, qiew classname)
     {
         if (object_ptr)
         {
-            //if (::lua_getglobal(lua, "vtm") != LUA_TTABLE) // Push "vtm" table to stack.
-            //{
-            //    ::lua_pop(lua, 1); // Pop if it is a non-table.
-            //    ::lua_newtable(lua); // Create and push new "vtm.*" global table.
-            //    ::luaL_setmetatable(lua, "vtm_metaindex"); // Set the metatable for -1 userdata.
-            //    ::lua_setglobal(lua, "vtm"); // Set global var "vtm". Pop "vtm".
-            //    ::lua_getglobal(lua, "vtm"); // Push "vtm" table again to stack.
-            //}
-            //::lua_pushstring(lua, object_name.data()); // Push vtm.* var name (key).
-            //::lua_pushlightuserdata(lua, object_ptr.get()); // Push object ptr (val).
-            //::luaL_setmetatable(lua, "vtm_metaindex"); // Set the metatable for -1 userdata.
-            //::lua_settable(lua, -3); // Set vtm.key=val. Pop key+val.
-            //::lua_pop(lua, 1); // Pop table "vtm".
+            auto& classes = indexer.classes;
+            auto iter = classes.find(classname);
+            if (iter != classes.end())
+            {
+                auto& subclass = *(iter->second);
+                auto& objects = subclass.objects;
+                auto head = objects.begin();
+                auto tail = objects.end();
+                while (head != tail)
+                {
+                    auto& next_wptr = *head;
+                    if (ptr::is_equal(object_ptr, next_wptr))
+                    {
+                        objects.splice(objects.begin(), objects, head); // Move object_ptr to the top of the list.
+                        break;
+                    }
+                    ++head;
+                }
+                if (head == tail)
+                {
+                    log("%%No registered '%classname%' objects found for <object:%id%>", prompt::lua, classname, object_ptr->id);
+                }
+            }
+            else
+            {
+                log("%%Class '%classname%' for <object:%id%> not found", prompt::lua, classname, object_ptr->id);
+            }
         }
     }
     template<class T>
@@ -313,10 +350,10 @@ namespace netxs::events
         auto ok = luna::run_with_gear_wo_return(proc);
         luna::set_return(ok);
     }
-    text luna::run(view script_body)
+    text luna::run(context_t& context, view script_body)
     {
-        //log_context();
         log("%%script:\n%pads%%script%", prompt::lua, prompt::pads, ansi::hi(script_body));
+        indexer.context_ref = context;
         ::lua_settop(lua, 0);
         auto error = ::luaL_loadbuffer(lua, script_body.data(), script_body.size(), "script body")
                   || ::lua_pcall(lua, 0, 0, 0);
@@ -334,10 +371,9 @@ namespace netxs::events
         }
         return result;
     }
-    void luna::run_script(sptr<ui::base> /*boss_ptr*/, view script_body)
+    text luna::run_script(sptr<ui::base> boss_ptr, view script_body)
     {
-        //todo set context
-        luna::run(script_body);
+        return run(boss_ptr->scripting_context, script_body);
     }
     void luna::run_ext_script(sptr<ui::base> boss_ptr, auto& script)
     {
@@ -354,14 +390,15 @@ namespace netxs::events
             gear_ptr->set_multihome();
             luna::set_object(gear_ptr, "gear");
         }
-        auto result = luna::run(shadow);
+        auto result = luna::run_script(boss_ptr, shadow);
         if (result.empty()) result = "ok";
         log(ansi::clr(yellowlt, shadow), "\n", prompt::lua, result);
         script.cmd = utf::concat(shadow, "\n", prompt::lua, result);
     }
 
-    luna::luna(auth& domain)
-        : lua{ ::luaL_newstate() }
+    luna::luna(auth& indexer)
+        : indexer{ indexer },
+          lua{ ::luaL_newstate() }
     {
         ::luaL_openlibs(lua);
 
@@ -369,10 +406,10 @@ namespace netxs::events
         ::lua_pushcclosure(lua, luna::vtmlua_log, 0);
         ::lua_setglobal(lua, "log");
 
-        // Set 'domain' internal object.
-        ::lua_pushstring(lua, "domain"); // Push internal registry key 'domain' name.
-        ::lua_pushlightuserdata(lua, &domain); // Push the 'domain' address as a record value.
-        ::lua_settable(lua, LUA_REGISTRYINDEX); // Set internal registry['domain'] = &domain.
+        // Set 'indexer' internal object.
+        ::lua_pushstring(lua, "indexer"); // Push internal registry key 'indexer' name.
+        ::lua_pushlightuserdata(lua, &indexer); // Push the 'indexer' address as a record value.
+        ::lua_settable(lua, LUA_REGISTRYINDEX); // Set internal registry['indexer'] = &indexer.
 
         // Define 'vtm' redirecting metatable.
         static auto vtm_metaindex = std::to_array<luaL_Reg>({{ "__index",    luna::vtmlua_vtm_index },
@@ -3085,7 +3122,6 @@ namespace netxs::ui
                 {
                     base::scripting_context = parent_ptr->scripting_context;
                     base::scripting_context.emplace_back(this);
-                    //if constexpr (debugmode) log("scripting context: ", netxs::events::script_ref::to_string(base::scripting_context));
                 }
             };
         }

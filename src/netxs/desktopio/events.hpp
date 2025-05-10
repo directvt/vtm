@@ -122,11 +122,13 @@ namespace netxs::events
     }
     template<hint Group, auto Count> constexpr auto subset = _instantiate<Group>(std::make_index_sequence<Count>{});
 
+    using context_t = std::vector<void*>;
     struct auth;
 
     // events: Lua scripting.
     struct luna
     {
+        auth&      indexer; // luna: .
         lua_State* lua; // luna: .
 
         static text vtmlua_torawstring(lua_State* lua, si32 idx, bool extended = faux);
@@ -146,17 +148,16 @@ namespace netxs::events
         T* get_object(const char* object_name);
         bool run_with_gear_wo_return(auto proc);
         void run_with_gear(auto proc);
-        void run_script(sptr<ui::base> object_ptr, view script_body);
-        text run(view script_body);
+        text run(context_t& context, view script_body);
+        text run_script(sptr<ui::base> object_ptr, view script_body);
         void run_ext_script(sptr<ui::base> object_ptr, auto& script);
 
-        luna(auth& domain);
+        luna(auth& indexer);
         ~luna();
     };
 
     struct script_ref
     {
-        using context_t = std::vector<void*>;
         std::reference_wrapper<context_t> context; // Hierarchical location index of the script owner.
         sptr<text>                        script_body_ptr; // Script body sptr.
 
@@ -168,7 +169,7 @@ namespace netxs::events
                 crop += utf::bytes2shades(view{ (char*)&ptr, sizeof(void*) });
                 crop += '-';
             }
-            crop.pop_back();
+            if (crop.size()) crop.pop_back();
             return crop;
         }
 
@@ -221,8 +222,7 @@ namespace netxs::events
                 //auto param_ptr = (char*)&param;
                 //::lua_pushnil(param_ptr);
                 //::lua_setglobal(luafx.lua, "param");
-                //todo set context
-                luafx.run(script_body);
+                luafx.run(context, script_body);
             }
             else if (auto& proc = get_inst<Arg>())
             {
@@ -275,6 +275,8 @@ namespace netxs::events
         std::recursive_mutex                      mutex;
         std::unordered_map<id_t, wptr<ui::base>>  objects; // auth: Map of objects by object id.
         clasess_umap                              classes; // auth: Map of classes by classname.
+        context_t                                 context; // auth: Default context.
+        std::reference_wrapper<context_t>         context_ref; // auth: .
         fmap                                      general;
         generics::jobs<wptr<ui::base>>            agent;
         luna                                      luafx;
@@ -326,6 +328,7 @@ namespace netxs::events
 
         auth(hint e2_config_fps_id = {}, hint e2_timer_tick_id = {})
             : next_id{ 0 },
+              context_ref{ context },
               luafx{ *this },
               quartz{ *this },
               e2_timer_tick_id{ e2_timer_tick_id }

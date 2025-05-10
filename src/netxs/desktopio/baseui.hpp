@@ -612,7 +612,7 @@ namespace netxs::ui
         bool master; // base: Anycast root.
         si32 family; // base: Object type.
         utf::unordered_map<text, netxs::sptr<std::any>> fields;
-        script_ref::context_t scripting_context;
+        netxs::events::context_t scripting_context;
 
         struct base_class
         {
