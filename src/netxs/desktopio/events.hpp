@@ -145,7 +145,7 @@ namespace netxs::events
         bool run_with_gear_wo_return(auto proc);
         void run_with_gear(auto proc);
         void run_script(sptr<ui::base> object_ptr, view script_body);
-        text run_script_body(view script_body);
+        text run(view script_body);
         void run_ext_script(sptr<ui::base> object_ptr, auto& script);
 
         luna();
@@ -209,34 +209,18 @@ namespace netxs::events
             return *static_cast<fxwrapper<Arg, fxbase>*>(this);
         }
         template<class Arg>
-        void call(auto& luafx, Arg& param)
+        void call(luna& luafx, Arg& param)
         {
             if (script_ptr && script_ptr->script_body_ptr)
             {
-                auto& [location, script_body_ptr] = *script_ptr;
-                auto& script = *script_body_ptr;
+                auto& [context, script_body_ptr] = *script_ptr;
+                auto& script_body = *script_body_ptr;
                 //todo pass param
-                auto param_ptr = (char*)&param;
+                //auto param_ptr = (char*)&param;
                 //::lua_pushnil(param_ptr);
                 //::lua_setglobal(luafx.lua, "param");
-
-                //todo make it static indexer::function(script_ptr, param_ptr)
-                log("run script: ", ansi::hi(script), " with param: ", utf::to_hex_0x(param_ptr));
-                ::lua_settop(luafx.lua, 0);
-                auto error = ::luaL_loadbuffer(luafx.lua, script.data(), script.size(), "script body")
-                          || ::lua_pcall(luafx.lua, 0, 0, 0);
-                if (error)
-                {
-                    auto result = text{};
-                    result = ::lua_tostring(luafx.lua, -1);
-                    log("%%%msg%", prompt::lua, ansi::err(result));
-                    ::lua_pop(luafx.lua, 1);  // Pop error message from stack.
-                }
-                else if (::lua_gettop(luafx.lua))
-                {
-                    //result = ::vtmlua_torawstring(luafx.lua, -1);
-                    ::lua_settop(luafx.lua, 0);
-                }
+                //todo set context
+                luafx.run(script_body);
             }
             else if (auto& proc = get_inst<Arg>())
             {

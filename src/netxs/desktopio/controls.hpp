@@ -261,7 +261,7 @@ namespace netxs::events
         auto ok = luna::run_with_gear_wo_return(proc);
         luna::set_return(ok);
     }
-    text luna::run_script_body(view script_body)
+    text luna::run(view script_body)
     {
         //log_context();
         log("%%script:\n%pads%%script%", prompt::lua, prompt::pads, ansi::hi(utf::debase437(script_body)));
@@ -285,7 +285,7 @@ namespace netxs::events
     void luna::run_script(sptr<ui::base> /*boss_ptr*/, view script_body)
     {
         //todo set context
-        luna::run_script_body(script_body);
+        luna::run(script_body);
     }
     void luna::run_ext_script(sptr<ui::base> boss_ptr, auto& script)
     {
@@ -302,7 +302,7 @@ namespace netxs::events
             gear_ptr->set_multihome();
             luna::set_object(gear_ptr, "gear");
         }
-        auto result = luna::run_script_body(shadow);
+        auto result = luna::run(shadow);
         if (result.empty()) result = "ok";
         log(ansi::clr(yellowlt, shadow), "\n", prompt::lua, result);
         script.cmd = utf::concat(shadow, "\n", prompt::lua, result);
