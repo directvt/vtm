@@ -128,53 +128,68 @@ namespace netxs::events
                     auto& objects = subclass.objects;
                     auto& source_ctx = indexer.context_ref.get();
                     auto target_ptr = sptr<ui::base>{};
-                    log("looking for '%%'", object_name);
-                    log(" 0\tsource context: ", netxs::events::script_ref::to_string(source_ctx));
-                    auto i = 0;
-                    auto closeness = 0;
-                    for (auto& object_wptr : objects)
+                    if (source_ctx.empty() && !objects.empty()) // The object is outside the DOM (e.g. 'gear').
                     {
-                        if (auto object_ptr = object_wptr.lock())
+                        target_ptr = objects.front().lock(); // Take the first available.
+                    }
+                    else
+                    {
+                        log("looking for '%%'", object_name);
+                        log(" source context: ", netxs::events::script_ref::to_string(source_ctx));
+                        auto closeness = 0;
+                        auto head = objects.begin();
+                        auto tail = objects.end();
+                        auto iter2 = head;
+                        while (head != tail)
                         {
-                            auto& boss = *object_ptr;
-                            auto& target_ctx = boss.scripting_context;
-                            log(" %%\ttarget context: ", ++i, netxs::events::script_ref::to_string(target_ctx));
-                            if (target_ctx.empty() // The object is outside the DOM (e.g. 'gear').
-                             || source_ctx.empty() || source_ctx.back() == target_ctx.back()) // Target is the source itself.
+                            auto& object_wptr = *head;
+                            if (auto object_ptr = object_wptr.lock())
                             {
-                                target_ptr = object_ptr;
-                                break;
+                                auto& boss = *object_ptr;
+                                auto& target_ctx = boss.scripting_context;
+                                log(" target context: ", netxs::events::script_ref::to_string(target_ctx));
+                                if (target_ctx.empty() // The object is outside the DOM (e.g. 'gear').
+                                 || source_ctx.back() == target_ctx.back()) // Target is the source itself.
+                                {
+                                    target_ptr = object_ptr;
+                                    iter2 = head;
+                                    break;
+                                }
+                                auto dst_head = target_ctx.begin();
+                                auto dst_tail = target_ctx.end();
+                                auto src_head = source_ctx.begin();
+                                auto src_tail = source_ctx.end();
+                                auto source_ctx_begin = src_head;
+                                while (src_head != src_tail && dst_head != dst_tail)
+                                {
+                                    auto src = *src_head++;
+                                    auto dst = *dst_head++;
+                                    if (src != dst) break;
+                                }
+                                auto m = (si32)(src_head - source_ctx_begin);
+                                if (m > closeness)
+                                {
+                                    closeness = m;
+                                    target_ptr = object_ptr;
+                                    iter2 = head;
+                                }
                             }
-                            auto head = target_ctx.begin();
-                            auto dst_head = source_ctx.begin();
-                            auto dst_tail = source_ctx.end();
-                            auto src_head = target_ctx.begin();
-                            auto src_tail = target_ctx.end();
-                            log("  source_ctx.size=%% target_ctx.size=%%", source_ctx.size(), target_ctx.size());
-                            while (src_head != src_tail && dst_head != dst_tail)
+                            else
                             {
-                                auto src = *src_head++;
-                                auto dst = *dst_head++;
-                                if (src != dst) break;
+                                // Never happens. Objects wipe their references in dtor.
                             }
-                            auto m = (si32)(src_tail - src_head);
-                            if (m > closeness)
-                            {
-                                closeness = m;
-                                target_ptr = object_ptr;
-                            }
+                            ++head;
                         }
-                        else
+                        if (iter2 != objects.begin()) // Move the target to the top of the class object list.
                         {
-                            //todo never happens. Objects wipe their references in dtor.
+                            objects.splice(objects.begin(), objects, iter2);
                         }
                     }
-                    //todo move target to the front of the objects
                     if (target_ptr)
                     {
                         ::lua_pushlightuserdata(lua, target_ptr.get()); // Push object ptr.
                         ::luaL_setmetatable(lua, "vtm_submetaindex"); // Set the vtm_submetaindex for table at -1.
-                        //todo keep objects locked until we are inside the lua
+                        //todo keep target_ptr locked until we are inside the lua
                         return 1;
                     }
                 }
@@ -185,20 +200,6 @@ namespace netxs::events
         log("%%The indexer registry is missing or corrupted (see global 'indexer')", prompt::lua);
         return 0;
     }
-    //void luna::log_context()
-    //{
-    //    log("%%context:", prompt::lua);
-    //    ::lua_getglobal(lua, "vtm");
-    //    ::lua_pushnil(lua);
-    //    while (::lua_next(lua, -2))
-    //    {
-    //        auto var = luna::vtmlua_torawstring(lua, -2);
-    //        auto val = luna::vtmlua_torawstring(lua, -1, true);
-    //        if (val.size()) log("%%vtm.%name% = %value%", prompt::pads, var, val);
-    //        ::lua_pop(lua, 1); // Pop val.
-    //    }
-    //    ::lua_pop(lua, 1); // Pop table "vtm".
-    //}
     void luna::push_value(auto&& v)
     {
         using T = std::decay_t<decltype(v)>;
@@ -291,6 +292,7 @@ namespace netxs::events
         if constexpr (is_string_v || is_cstring_v) return text{ fallback };
         else                                       return fallback;
     }
+    // luna: Move the specified object to the top of the class object list.
     void luna::set_object(sptr<ui::base> object_ptr, qiew classname)
     {
         if (object_ptr)
@@ -324,6 +326,7 @@ namespace netxs::events
             }
         }
     }
+    //todo optimize (take it directly from classes)
     template<class T>
     T* luna::get_object(const char* object_name)
     {

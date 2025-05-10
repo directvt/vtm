@@ -137,7 +137,6 @@ namespace netxs::events
         static si32 vtmlua_call_method(lua_State* lua);
         static si32 vtmlua_vtm_index(lua_State* lua);
         static si32 vtmlua_vtm_subindex(lua_State* lua);
-        //void log_context();
         void push_value(auto&& v);
         void set_return(auto... args);
         si32 args_count();
