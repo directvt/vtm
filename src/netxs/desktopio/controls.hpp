@@ -442,6 +442,35 @@ namespace netxs::events
     {
         if (lua) ::lua_close(lua);
     }
+
+    auth::auth(bool use_timer)
+        : next_id{ 0 },
+          context_ref{ context },
+          luafx{ *this },
+          quartz{ *this },
+          e2_timer_tick_id{ ui::e2::timer::tick.id }
+    {
+        if (use_timer)
+        {
+            memo = _subscribe(tier::general, general, ui::e2::config::fps.id, fx<si32>{ [&](si32& new_fps)
+            {
+                if (new_fps > 0)
+                {
+                    fps = new_fps;
+                    quartz.ignite(fps);
+                    log(prompt::auth, "Rendering refresh rate: ", fps, " fps");
+                }
+                else if (new_fps < 0)
+                {
+                    new_fps = fps;
+                }
+                else
+                {
+                    quartz.stop();
+                }
+            }});
+        }
+    }
 }
 
 namespace netxs::ui
@@ -2840,7 +2869,7 @@ namespace netxs::ui
 
     auto& tui_domain()
     {
-        static auto indexer = netxs::events::auth{ e2::config::fps.id, e2::timer::tick.id };
+        static auto indexer = netxs::events::auth{ true };
         return indexer;
     }
 

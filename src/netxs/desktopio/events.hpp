@@ -332,34 +332,7 @@ namespace netxs::events
             return proc_ptr;
         }
 
-        auth(hint e2_config_fps_id = {}, hint e2_timer_tick_id = {})
-            : next_id{ 0 },
-              context_ref{ context },
-              luafx{ *this },
-              quartz{ *this },
-              e2_timer_tick_id{ e2_timer_tick_id }
-        {
-            if (e2_config_fps_id)
-            {
-                memo = _subscribe(tier::general, general, e2_config_fps_id, fx<si32>{ [&](si32& new_fps)
-                {
-                    if (new_fps > 0)
-                    {
-                        fps = new_fps;
-                        quartz.ignite(fps);
-                        log(prompt::auth, "Rendering refresh rate: ", fps, " fps");
-                    }
-                    else if (new_fps < 0)
-                    {
-                        new_fps = fps;
-                    }
-                    else
-                    {
-                        quartz.stop();
-                    }
-                }});
-            }
-        }
+        auth(bool use_timer = faux);
 
         // auth: .
         void _refresh_and_copy(fmap::mapped_type& fxlist)
