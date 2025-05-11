@@ -533,30 +533,11 @@ namespace netxs::events
         }
         // auth: Create a new object of the specified subtype and return its sptr.
         template<class T, class ...Args>
-        auto create(qiew classname, Args&&... args)
+        auto create(Args&&... args)
         {
             auto lock = sync();
             auto inst_ptr = sptr<T>(new T(std::forward<Args>(args)...), &deleter<T>); // Use new/delete to be able sync on destruction.
             auto& inst = *inst_ptr;
-            //log("Created: '%%' with id: %%", classname, inst.id);
-            inst.base_classes.try_emplace(classname);
-            for (auto& [name, empty_refs] : inst.base_classes)
-            {
-                auto iter = classes.find(name);
-                if (iter == classes.end())
-                {
-                    iter = classes.emplace(name, ptr::shared<vtm_class>()).first;
-                }
-                auto& class_metadata = iter->second;
-                auto& class_objects = class_metadata->objects;
-                // Add global reference.
-                auto class_iterator = class_objects.emplace(class_objects.end(), inst);
-                // Update local references.
-                empty_refs.class_metadata = class_metadata;
-                empty_refs.class_iterator = class_iterator;
-            }
-
-            // Index object by id.
             objects.try_emplace(inst.id, inst);
             return inst_ptr;
         }
@@ -865,9 +846,9 @@ namespace netxs::events
         }
         // bell: Create a new object of the specified subtype and return its sptr.
         template<class T, class ...Args>
-        auto create(view classname, Args&&... args) -> sptr<T>
+        auto create(Args&&... args) -> sptr<T>
         {
-            return indexer.create<T>(classname, indexer, std::forward<Args>(args)...);
+            return indexer.create<T>(indexer, std::forward<Args>(args)...);
         }
         // bell: .
         auto sync()

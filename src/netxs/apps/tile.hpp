@@ -347,7 +347,7 @@ namespace netxs::app::tile
                         auto& luafx = boss.bell::indexer.luafx;
                         auto& bindings = *grip_bindings_ptr;
                         input::bindings::keybind(boss, bindings);
-                        boss.base::add_methods2("grip", //todo self_hosted?
+                        boss.base::add_methods(basename::grip, //todo self_hosted?
                         {
                             { action::MoveGrip,         [&]
                                                         {
@@ -1035,9 +1035,9 @@ namespace netxs::app::tile
                         boss.base::riseup(tier::release, e2::form::proceed::quit::one, true);
                     };
                     auto& luafx = boss.bell::indexer.luafx;
-                    auto bindings = input::bindings::load(config, "tile");
+                    auto bindings = input::bindings::load(config, basename::tile);
                     input::bindings::keybind(boss, bindings);
-                    boss.base::add_methods2("tile",
+                    boss.base::add_methods(basename::tile,
                     {
                         { action::FocusNextPaneOrGrip,  [&]
                                                         {

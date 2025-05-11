@@ -113,9 +113,9 @@ namespace netxs::app::shared
         auto& scroll_inst = *scroll_ptr;
         boss.base::plugin<pro::keybd>();
         auto& luafx = boss.bell::indexer.luafx;
-        auto bindings = input::bindings::load(config, "defapp");
+        auto bindings = input::bindings::load(config, basename::defapp);
         input::bindings::keybind(boss, bindings);
-        boss.base::add_methods2("defapp",
+        boss.base::add_methods(basename::defapp,
         {
             { "ScrollViewportByPage",   [&]
                                         {
@@ -173,9 +173,9 @@ namespace netxs::app::shared
         boss.base::plugin<pro::keybd>();
         auto& luafx = boss.bell::indexer.luafx;
         auto& bindings = boss.base::property<input::bindings::vector>("applet.bindings");
-        bindings = input::bindings::load(config, "applet");
+        bindings = input::bindings::load(config, basename::applet);
         input::bindings::keybind(boss, bindings);
-        boss.base::add_methods2("applet",
+        boss.base::add_methods(basename::applet,
         {
             //{ "FocusNext",          [&]
             //                        {
@@ -929,7 +929,7 @@ namespace netxs::app::shared
             auto connect = [&]
             {
                 auto gui_event_domain = netxs::events::auth{};
-                auto window = gui_event_domain.create<gui::window>(basename::gui_window, gui_event_domain, gc.fontlist, gc.cellsize, gc.aliasing, gc.blinking, dot_21);
+                auto window = gui_event_domain.create<gui::window>(gui_event_domain, gc.fontlist, gc.cellsize, gc.aliasing, gc.blinking, dot_21);
                 window->connect(gc.winstate, gc.wincoord, gc.gridsize);
             };
             if (os::stdout_fd != os::invalid_fd)

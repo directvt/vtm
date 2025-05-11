@@ -490,7 +490,7 @@ namespace netxs::ui
             auto gear_it = gears.find(device.gear_id);
             if (gear_it == gears.end())
             {
-                gear_it = gears.emplace(device.gear_id, bell::create<hids>(basename::gear, *this, canvas)).first;
+                gear_it = gears.emplace(device.gear_id, bell::create<hids>(*this, canvas)).first;
                 auto& gear = *(gear_it->second);
                 gear.tooltip_timeout = props.tooltip_timeout;
                 gear.board::ghost = props.clip_preview_glow;
@@ -498,7 +498,7 @@ namespace netxs::ui
                 gear.board::alpha = props.clip_preview_alfa;
                 gear.mouse::delay = props.dblclick_timeout;
                 auto& luafx = bell::indexer.luafx;
-                gear.base::add_methods2("gear",
+                gear.base::add_methods(basename::gear,
                 {
                     { "IsKeyRepeated",  [&]
                                         {
@@ -762,9 +762,9 @@ namespace netxs::ui
             base::plugin<pro::focus>();
             base::plugin<pro::keybd>();
             auto& luafx = bell::indexer.luafx;
-            auto bindings = input::bindings::load(config, "gate");
+            auto bindings = input::bindings::load(config, basename::gate);
             input::bindings::keybind(*this, bindings);
-            base::add_methods("gate",
+            base::add_methods(basename::gate,
             {
                 { "Disconnect",             [&]
                                             {

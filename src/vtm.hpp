@@ -638,7 +638,7 @@ namespace netxs::app::vtm
                 auto& bindings = world.base::property<input::bindings::vector>("window.bindings"); // Shared key bindings across the hall.
                 if (bindings.empty()) bindings = input::bindings::load(world.config, "window");
                 input::bindings::keybind(*this, bindings);
-                base::add_methods("window",
+                base::add_methods(basename::window,
                 {
                     { "Warp",               [&]
                                             {
@@ -1228,9 +1228,9 @@ namespace netxs::app::vtm
             base::plugin<pro::focus>(pro::focus::mode::focusable);
             base::plugin<pro::keybd>();
             auto& luafx = bell::indexer.luafx;
-            auto bindings = input::bindings::load(config, "desktop");
+            auto bindings = input::bindings::load(config, basename::desktop);
             input::bindings::keybind(*this, bindings);
-            base::add_methods("desktop",
+            base::add_methods(basename::desktop,
             {
                 { "Cleanup",            [&]
                                         {
@@ -1979,7 +1979,7 @@ namespace netxs::app::vtm
             auto deskmenu_ptr = app::shared::builder(app::desk::id)(usrcfg, app_config);
             deskmenu_ptr->base::plugin<pro::keybd>();
             //todo
-            //deskmenu_ptr->base::add_methods2("taskbar")...
+            //deskmenu_ptr->base::add_methods(basename::taskbar)...
             app::shared::applet_kb_navigation(config, deskmenu_ptr);
             usergate.attach(std::move(deskmenu_ptr));
             usergate.base::extend({ vport, usrcfg.win }); // Restore user's last position.

@@ -8224,9 +8224,9 @@ namespace netxs::ui
 
             base::plugin<pro::keybd>();
             auto& luafx = bell::indexer.luafx;
-            auto bindings = input::bindings::load(xml_config, "terminal");
+            auto bindings = input::bindings::load(xml_config, basename::terminal);
             input::bindings::keybind(*this, bindings);
-            base::add_methods("terminal",
+            base::add_methods(basename::terminal,
             {
                 { "KeyEvent",                   [&]
                                                 {

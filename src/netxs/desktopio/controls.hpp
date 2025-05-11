@@ -413,28 +413,30 @@ namespace netxs::events
 namespace netxs::basename
 {
     #define ctx_list  \
-        X(vtm       ) \
-        X(desktop   ) \
-        X(gate      ) \
-        X(gear      ) \
-        X(gui_window) \
-        X(window    ) \
         X(applet    ) \
-        X(taskbar   ) \
-        X(tile      ) \
-        X(grip      ) \
-        X(terminal  ) \
-        X(fork      ) \
-        X(list      ) \
-        X(rail      ) \
-        X(grid      ) \
         X(cake      ) \
-        X(veer      ) \
-        X(postfx    ) \
-        X(mock      ) \
-        X(item      ) \
-        X(edit      ) \
+        X(defapp    ) \
+        X(desktop   ) \
         X(dtvt      ) \
+        X(edit      ) \
+        X(fork      ) \
+        X(gear      ) \
+        X(gate      ) \
+        X(grid      ) \
+        X(grip      ) \
+        X(gui_window) \
+        X(item      ) \
+        X(infopage  ) \
+        X(list      ) \
+        X(mock      ) \
+        X(postfx    ) \
+        X(rail      ) \
+        X(taskbar   ) \
+        X(terminal  ) \
+        X(tile      ) \
+        X(veer      ) \
+        X(vtm       ) \
+        X(window    ) \
 
         #define X(name) static constexpr auto name = #name##sv;
         ctx_list
@@ -2852,15 +2854,9 @@ namespace netxs::ui
     public:
         auto This() { return base::This<T>(); }
         template<class TT = T, class ...Args>
-        static auto ctor(view classname, Args&&... args)
-        {
-            auto item = ui::tui_domain().template create<TT>(classname, std::forward<Args>(args)...);
-            return item;
-        }
-        template<class TT = T, class ...Args>
         static auto ctor(Args&&... args)
         {
-            auto item = ui::tui_domain().template create<TT>(TT::classname, std::forward<Args>(args)...);
+            auto item = ui::tui_domain().template create<TT>(std::forward<Args>(args)...);
             return item;
         }
         // form: Set control as root.

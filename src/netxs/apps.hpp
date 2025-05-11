@@ -807,7 +807,7 @@ namespace netxs::app::shared
                     "preview:Alt+Shift+B",
                     #endif
                     "vtm.infopage.ExclusiveKeyboardMode()");
-                boss.base::add_methods2("infopage",
+                boss.base::add_methods(basename::infopage,
                 {
                     { "UpdateChordPreview",     [&]
                                                 {

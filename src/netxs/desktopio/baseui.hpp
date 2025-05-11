@@ -1127,8 +1127,9 @@ namespace netxs::ui
             return prop;
         }
         // base: Register object methods.
-        auto _add_methods(qiew classname, fxmap&& proc_map_init)
+        auto add_methods(qiew classname, fxmap&& proc_map_init)
         {
+            bell::indexer.add_base_class(classname, *this);
             auto& methods = base::property<fxmap>("methods");
             //todo auto& static_methods = base_classes.class_metadata->methods;
             methods.merge(proc_map_init);
@@ -1140,18 +1141,6 @@ namespace netxs::ui
                     log("%%%fx_name%", prompt::pads, ansi::hi(".", fx_name, "()"));
                 }
             }
-        }
-        // base: Register object methods (in ctor only).
-        auto add_methods(qiew classname, fxmap&& proc_map_init)
-        {
-            base_classes.try_emplace(classname); // Anounce a base class name. Run it in ctor only. Indexer have to fill it after ctor.
-            _add_methods(classname, std::move(proc_map_init));
-        }
-        // base: Register object methods (outside the ctor).
-        auto add_methods2(qiew classname, fxmap&& proc_map_init)
-        {
-            bell::indexer.add_base_class(classname, *this);
-            _add_methods(classname, std::move(proc_map_init));
         }
         // base: .
         void call_method(view fx_name)
