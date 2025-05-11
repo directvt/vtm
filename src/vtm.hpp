@@ -647,20 +647,20 @@ namespace netxs::app::vtm
                                                                   luafx.get_args_or(3, 0),   //
                                                                   luafx.get_args_or(4, 0) }; //
                                                 window_swarp(warp);
-                                                if (auto gear_ptr = luafx.get_object<hids>("gear")) gear_ptr->set_handled();
+                                                if (auto gear_ptr = luafx.get_gear()) gear_ptr->set_handled();
                                                 luafx.set_return(); // No returns.
                                             }},
                     //{ "ZOrder",             [&]
                     //                        {
                     //                            auto args_count = luafx.args_count();
                     //                            auto state = window_zorder(args_count, luafx.get_args_or(1, zpos::plain));
-                    //                            if (auto gear_ptr = luafx.get_object<hids>("gear")) gear_ptr->set_handled();
+                    //                            if (auto gear_ptr = luafx.get_gear()) gear_ptr->set_handled();
                     //                            luafx.set_return(state);
                     //                        }},
                     { "Close",              [&]
                                             {
                                                 auto gear_id = id_t{};
-                                                if (auto gear_ptr = luafx.get_object<hids>("gear"))
+                                                if (auto gear_ptr = luafx.get_gear())
                                                 {
                                                     gear_ptr->set_handled();
                                                     gear_id = gear_ptr->id;
@@ -670,7 +670,7 @@ namespace netxs::app::vtm
                                             }},
                     { "Minimize",           [&]
                                             {
-                                                if (auto gear_ptr = luafx.get_object<hids>("gear"))
+                                                if (auto gear_ptr = luafx.get_gear())
                                                 {
                                                     gear_ptr->set_handled();
                                                     window_state(gear_ptr->id, e2::form::size::minimize.id);
@@ -679,7 +679,7 @@ namespace netxs::app::vtm
                                             }},
                     { "Maximize",           [&]
                                             {
-                                                if (auto gear_ptr = luafx.get_object<hids>("gear"))
+                                                if (auto gear_ptr = luafx.get_gear())
                                                 {
                                                     gear_ptr->set_handled();
                                                     window_state(gear_ptr->id, e2::form::size::enlarge::maximize.id);
@@ -688,7 +688,7 @@ namespace netxs::app::vtm
                                             }},
                     { "Fullscreen",         [&]
                                             {
-                                                if (auto gear_ptr = luafx.get_object<hids>("gear"))
+                                                if (auto gear_ptr = luafx.get_gear())
                                                 {
                                                     gear_ptr->set_handled();
                                                     window_state(gear_ptr->id, e2::form::size::enlarge::fullscreen.id);
@@ -1244,7 +1244,7 @@ namespace netxs::app::vtm
                                         }},
                 { "Disconnect",         [&] //todo Disconnect(gear_id)
                                         {
-                                            auto gear_ptr = luafx.get_object<hids>("gear");
+                                            auto gear_ptr = luafx.get_gear();
                                             auto ok = !!gear_ptr;
                                             if (ok)
                                             {
@@ -1256,7 +1256,7 @@ namespace netxs::app::vtm
                 { "Run",                [&]
                                         {
                                             auto args_count = luafx.args_count();
-                                            auto gear_ptr = luafx.get_object<hids>("gear");
+                                            auto gear_ptr = luafx.get_gear();
                                             auto gear_id = gear_ptr ? gear_ptr->id : id_t{};
                                             auto appspec = desk::spec{ .hidden  = true,
                                                                        .winform = winstate::normal,
@@ -1316,7 +1316,7 @@ namespace netxs::app::vtm
                                         }},
                 { "FocusNextWindow",    [&]
                                         {
-                                            if (auto gear_ptr = luafx.get_object<hids>("gear"))
+                                            if (auto gear_ptr = luafx.get_gear())
                                             {
                                                 auto& gear = *gear_ptr;
                                                 auto dir = luafx.get_args_or(1, 1);
@@ -1407,7 +1407,7 @@ namespace netxs::app::vtm
                 }
                 else
                 {
-                    indexer.luafx.run_ext_script(This(), script);
+                    indexer.luafx.run_ext_script(*this, script);
                 }
             };
             LISTEN(tier::preview, e2::command::gui, gui_cmd)

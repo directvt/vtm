@@ -82,11 +82,25 @@ namespace netxs::events
         //      lua_upvalueindex(2): Fx name.
         //      1. args:        ...
         //      2.     :        ...
-        //if constexpr (debugmode) log("vtmlua_call_method: 1: %% 2: %% 3: %%", luna::vtmlua_torawstring(lua, 1), luna::vtmlua_torawstring(lua, 2), luna::vtmlua_torawstring(lua, 3));
         if (auto object_ptr = (ui::base*)::lua_touserdata(lua, lua_upvalueindex(1))) // Get Object_ptr.
         {
             auto fx_name = ::lua_tostring(lua, lua_upvalueindex(2)); // Get fx name.
+            if constexpr (debugmode)
+            {
+                auto args_count = ::lua_gettop(lua);
+                auto arg_list = text{};
+                for (auto i = 0; i < args_count; i++)
+                {
+                    arg_list += luna::vtmlua_torawstring(lua, i + 1);
+                    if (i + 1 != args_count) arg_list += ", ";
+                }
+                log("vtmlua_call_method: <object:%id%>.%fxname%(%arg%)", object_ptr->id, fx_name, arg_list);
+            }
             object_ptr->call_method(fx_name);
+        }
+        else
+        {
+            if constexpr (debugmode) log("vtmlua_call_method: object not found (fxname=%%)", ::lua_tostring(lua, lua_upvalueindex(2)));
         }
         return ::lua_gettop(lua);
     }
@@ -95,14 +109,6 @@ namespace netxs::events
         // Stack:
         //      1. object_ptr.
         //      2. fx name.
-        //if constexpr (debugmode)
-        //{
-        //    log("vtmlua_vtm_subindex: 1: %% 2: %%", luna::vtmlua_torawstring(lua, 1), luna::vtmlua_torawstring(lua, 2));
-        //    if (auto object_ptr = (ui::base*)::lua_touserdata(lua, 1))
-        //    {
-        //        log("  object_ptr->id=%% with fxname='%%'", object_ptr->id, luna::vtmlua_torawstring(lua, 2));
-        //    }
-        //}
         ::lua_pushcclosure(lua, luna::vtmlua_call_method, 2);
         return 1;
     }
@@ -120,22 +126,32 @@ namespace netxs::events
             {
                 auto& indexer = *indexer_ptr;
                 auto& classes = indexer.classes;
+                auto target_ptr = sptr<ui::base>{};
                 auto object_name = luna::vtmlua_torawstring(lua, 2);
-                auto iter = classes.find(object_name);
-                if (iter != classes.end() && iter->second)
+                auto& source_ctx = indexer.context_ref.get();
+                if constexpr (debugmode) log("looking for '%%'", object_name);
+                if constexpr (debugmode) log(" source context: ", netxs::events::script_ref::to_string(source_ctx));
+                if (object_name == "gear")
+                {
+                    target_ptr = indexer.active_gear_ptr;
+                }
+                else if (object_name == "gate")
+                {
+                    if (indexer.active_gear_ptr)
+                    {
+                        target_ptr = indexer.active_gear_ptr->owner.This();
+                    }
+                }
+                else if (auto iter = classes.find(object_name); iter != classes.end() && iter->second)
                 {
                     auto& subclass = *(iter->second);
                     auto& objects = subclass.objects;
-                    auto& source_ctx = indexer.context_ref.get();
-                    auto target_ptr = sptr<ui::base>{};
-                    if (source_ctx.empty() && !objects.empty()) // The object is outside the DOM (e.g. 'gear').
+                    if (source_ctx.empty() && !objects.empty()) // The object is outside the DOM.
                     {
                         target_ptr = objects.front().lock(); // Take the first available.
                     }
                     else
                     {
-                        log("looking for '%%'", object_name);
-                        log(" source context: ", netxs::events::script_ref::to_string(source_ctx));
                         auto closeness = 0;
                         auto head = objects.begin();
                         auto tail = objects.end();
@@ -147,8 +163,8 @@ namespace netxs::events
                             {
                                 auto& boss = *object_ptr;
                                 auto& target_ctx = boss.scripting_context;
-                                log(" target context: ", netxs::events::script_ref::to_string(target_ctx));
-                                if (target_ctx.empty() // The object is outside the DOM (e.g. 'gear').
+                                if constexpr (debugmode) log(" target context: ", netxs::events::script_ref::to_string(target_ctx));
+                                if (target_ctx.empty() // The object is outside the DOM.
                                  || source_ctx.back() == target_ctx.back()) // Target is the source itself.
                                 {
                                     target_ptr = object_ptr;
@@ -185,13 +201,13 @@ namespace netxs::events
                             objects.splice(objects.begin(), objects, iter2);
                         }
                     }
-                    if (target_ptr)
-                    {
-                        ::lua_pushlightuserdata(lua, target_ptr.get()); // Push object ptr.
-                        ::luaL_setmetatable(lua, "vtm_submetaindex"); // Set the vtm_submetaindex for table at -1.
-                        //todo keep target_ptr locked until we are inside the lua
-                        return 1;
-                    }
+                }
+                if (target_ptr)
+                {
+                    ::lua_pushlightuserdata(lua, target_ptr.get()); // Push object ptr.
+                    ::luaL_setmetatable(lua, "vtm_submetaindex"); // Set the vtm_submetaindex for table at -1.
+                    //todo keep target_ptr locked until we are inside the lua
+                    return 1;
                 }
                 log("%%No 'vtm.%%' objects found", prompt::lua, object_name);
                 return 0;
@@ -292,54 +308,19 @@ namespace netxs::events
         if constexpr (is_string_v || is_cstring_v) return text{ fallback };
         else                                       return fallback;
     }
-    // luna: Move the specified object to the top of the class object list.
-    void luna::set_object(sptr<ui::base> object_ptr, qiew classname)
+    // luna: Set active gear.
+    void luna::set_gear(input::hids& gear)
     {
-        if (object_ptr)
-        {
-            auto& classes = indexer.classes;
-            auto iter = classes.find(classname);
-            if (iter != classes.end())
-            {
-                auto& subclass = *(iter->second);
-                auto& objects = subclass.objects;
-                auto head = objects.begin();
-                auto tail = objects.end();
-                while (head != tail)
-                {
-                    auto& next_wptr = *head;
-                    if (ptr::is_equal(object_ptr, next_wptr))
-                    {
-                        objects.splice(objects.begin(), objects, head); // Move object_ptr to the top of the list.
-                        break;
-                    }
-                    ++head;
-                }
-                if (head == tail)
-                {
-                    log("%%No registered '%classname%' objects found for <object:%id%>", prompt::lua, classname, object_ptr->id);
-                }
-            }
-            else
-            {
-                log("%%Class '%classname%' for <object:%id%> not found", prompt::lua, classname, object_ptr->id);
-            }
-        }
+        indexer.active_gear_ptr = gear.This<input::hids>();
     }
-    //todo optimize (take it directly from classes)
-    template<class T>
-    T* luna::get_object(const char* object_name)
+    // luna: Set active gear.
+    sptr<input::hids> luna::get_gear()
     {
-        ::lua_getglobal(lua, "vtm");
-        ::lua_pushstring(lua, object_name);
-        ::lua_gettable(lua, -2);
-        auto object_ptr = static_cast<T*>((ui::base*)::lua_touserdata(lua, -1));
-        ::lua_pop(lua, 2); // Pop "vtm" and "object_name".
-        return object_ptr;
+        return indexer.active_gear_ptr;
     }
     bool luna::run_with_gear_wo_return(auto proc)
     {
-        auto gear_ptr = luna::get_object<input::hids>("gear");
+        auto gear_ptr = luna::get_gear();
         auto ok = !!gear_ptr;
         if (ok)
         {
@@ -374,11 +355,11 @@ namespace netxs::events
         }
         return result;
     }
-    text luna::run_script(sptr<ui::base> boss_ptr, view script_body)
+    text luna::run_script(ui::base& boss, view script_body)
     {
-        return run(boss_ptr->scripting_context, script_body);
+        return run(boss.scripting_context, script_body);
     }
-    void luna::run_ext_script(sptr<ui::base> boss_ptr, auto& script)
+    void luna::run_ext_script(ui::base& boss, auto& script)
     {
         auto shadow = utf::trim(script.cmd, " \r\n\t\f");
         if (shadow.size() > 2)
@@ -388,12 +369,13 @@ namespace netxs::events
         }
         if (shadow.empty()) return;
         if (script.gear_id)
-        if (auto gear_ptr = boss_ptr->ui::base::getref<input::hids>(script.gear_id))
+        if (auto gear_ptr = boss.ui::base::getref<input::hids>(script.gear_id))
         {
-            gear_ptr->set_multihome();
-            luna::set_object(gear_ptr, "gear");
+            auto& gear = *gear_ptr;
+            gear.set_multihome();
+            luna::set_gear(gear);
         }
-        auto result = luna::run_script(boss_ptr, shadow);
+        auto result = luna::run_script(boss, shadow);
         if (result.empty()) result = "ok";
         log(ansi::clr(yellowlt, shadow), "\n", prompt::lua, result);
         script.cmd = utf::concat(shadow, "\n", prompt::lua, result);
@@ -3121,11 +3103,7 @@ namespace netxs::ui
         {
             LISTEN(tier::anycast, e2::form::upon::started, root_ptr)
             {
-                if (auto parent_ptr = base::parent()) // Update scripting context on every reattachement.
-                {
-                    base::scripting_context = parent_ptr->scripting_context;
-                    base::scripting_context.emplace_back(this);
-                }
+                base::update_scripting_context(); // Update scripting context on every reattachement.
             };
         }
     };

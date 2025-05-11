@@ -13,9 +13,16 @@
     float  fmod(float  a, float  b) { return fmodl(a, b); }
 #endif
 
-namespace netxs::ui
+namespace netxs
 {
-    struct base;
+    namespace ui
+    {
+        struct base;
+    }
+    namespace input
+    {
+        struct hids;
+    }
 }
 
 namespace netxs::events
@@ -142,14 +149,13 @@ namespace netxs::events
         si32 args_count();
         void read_args(si32 index, auto add_item);
         auto get_args_or(si32 idx, auto fallback = {});
-        void set_object(sptr<ui::base> object_ptr, qiew object_name);
-        template<class T = ui::base>
-        T* get_object(const char* object_name);
+        void set_gear(input::hids& gear);
+        sptr<input::hids> get_gear();
         bool run_with_gear_wo_return(auto proc);
         void run_with_gear(auto proc);
         text run(context_t& context, view script_body);
-        text run_script(sptr<ui::base> object_ptr, view script_body);
-        void run_ext_script(sptr<ui::base> object_ptr, auto& script);
+        text run_script(ui::base& object, view script_body);
+        void run_ext_script(ui::base& object, auto& script);
 
         luna(auth& indexer);
         ~luna();
@@ -286,6 +292,7 @@ namespace netxs::events
         si32                                      handled{}; // auth: Last notify operation result.
         std::vector<std::pair<hint, si32>>        queue; // auth: Event queue: { event_id, call state }.
         std::vector<wptr<fxbase>>                 qcopy; // auth: Copy of the current pretenders to exec on current event.
+        sptr<input::hids>                         active_gear_ptr; // auth: Active gear.
 
         void _cleanup(fmap& reactor, ui64& ref_count, ui64& del_count)
         {

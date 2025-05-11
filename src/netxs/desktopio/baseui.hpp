@@ -612,7 +612,6 @@ namespace netxs::ui
         bool master; // base: Anycast root.
         si32 family; // base: Object type.
         utf::unordered_map<text, netxs::sptr<std::any>> fields;
-        netxs::events::context_t scripting_context;
 
         struct base_class
         {
@@ -620,6 +619,7 @@ namespace netxs::ui
             std::list<wptr>::iterator class_iterator; // base: .
         };
         utf::unordered_map<text, base_class> base_classes; // base: Base classes map by classname.
+        netxs::events::context_t             scripting_context; // base: List of ids of all ancestors.
 
         //todo make scripts precompiled
         utf::unordered_map<text, std::pair<std::list<netxs::sptr<script_ref>>, bool>> keybd_handlers; // base: Map<chord, pair<list<sptr<script>>, preview>>.
@@ -644,6 +644,16 @@ namespace netxs::ui
         auto parent()       { return father.lock();        }
         void ruined(bool s) { wasted = s;                  }
         auto ruined() const { return wasted;               }
+        // base: Update scripting context. Run on anycast, e2::form::upon::started.
+        void update_scripting_context()
+        {
+            if (auto parent_ptr = base::parent())
+            {
+                base::scripting_context = parent_ptr->scripting_context;
+            }
+            base::scripting_context.emplace_back(this);
+            //todo sort all base::base_classes.* references
+        }
         // base: Enqueue task.
         template<bool Sync = true>
         void enqueue(netxs::events::fx<ui::base> proc)
@@ -1167,6 +1177,7 @@ namespace netxs::ui
                 subset.erase(std::exchange(item_ptr->holder, subset.end()));
                 item_ptr->base::signal(tier::release, e2::form::upon::vtree::detached, backup);
                 item_ptr->relyon.clear();
+                item_ptr->base::scripting_context.clear();
             }
         }
         // base: Update nested object.
@@ -1180,6 +1191,7 @@ namespace netxs::ui
                 new_item_ptr->father = This();
                 old_item_ptr->base::signal(tier::release, e2::form::upon::vtree::detached, backup);
                 old_item_ptr->relyon.clear();
+                old_item_ptr->base::scripting_context.clear();
                 new_item_ptr->base::signal(tier::release, e2::form::upon::vtree::attached, backup);
             }
         }

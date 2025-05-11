@@ -1874,6 +1874,7 @@ namespace netxs::gui
                 m.enabled = input::hids::stat::ok;
                 m.coordxy = { si16min, si16min };
                 c.fast = true;
+                //todo run gear.base::update_scripting_context() outside the ctor
             }
         };
 

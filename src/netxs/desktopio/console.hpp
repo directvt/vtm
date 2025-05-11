@@ -520,6 +520,8 @@ namespace netxs::ui
                                             luafx.set_return();
                                         }},
                 });
+                gear.base::father = This();            // Gear has a fixed parent.
+                gear.base::update_scripting_context(); //
             }
             auto& [ext_gear_id, gear_ptr] = *gear_it;
             gear_ptr->set_multihome();
@@ -766,7 +768,7 @@ namespace netxs::ui
             {
                 { "Disconnect",             [&]
                                             {
-                                                auto gear_ptr = luafx.get_object<hids>("gear");
+                                                auto gear_ptr = luafx.get_gear();
                                                 auto ok = !!gear_ptr;
                                                 if (ok)
                                                 {
@@ -777,7 +779,7 @@ namespace netxs::ui
                                             }},
                 { "DebugOverlay",           [&]
                                             {
-                                                auto gear_ptr = luafx.get_object<hids>("gear");
+                                                auto gear_ptr = luafx.get_gear();
                                                 auto ok = !!gear_ptr;
                                                 if (ok)
                                                 {
@@ -791,7 +793,7 @@ namespace netxs::ui
                 { "IncreaseCellHeight",     [&]
                                             {
                                                 auto gui_cmd = e2::command::gui.param();
-                                                auto gear_ptr = luafx.get_object<hids>("gear");
+                                                auto gear_ptr = luafx.get_gear();
                                                 auto ok = !!gear_ptr;
                                                 if (ok)
                                                 {
@@ -806,7 +808,7 @@ namespace netxs::ui
                 { "RollFonts",              [&]
                                             {
                                                 auto gui_cmd = e2::command::gui.param();
-                                                auto gear_ptr = luafx.get_object<hids>("gear");
+                                                auto gear_ptr = luafx.get_gear();
                                                 auto ok = !!gear_ptr;
                                                 if (ok)
                                                 {
@@ -821,7 +823,7 @@ namespace netxs::ui
                 { "WheelAccumReset",        [&]
                                             {
                                                 auto gui_cmd = e2::command::gui.param();
-                                                auto gear_ptr = luafx.get_object<hids>("gear");
+                                                auto gear_ptr = luafx.get_gear();
                                                 auto ok = !!gear_ptr;
                                                 if (ok)
                                                 {
@@ -834,7 +836,7 @@ namespace netxs::ui
                 { "CellHeightReset",        [&]
                                             {
                                                 auto gui_cmd = e2::command::gui.param();
-                                                auto gear_ptr = luafx.get_object<hids>("gear");
+                                                auto gear_ptr = luafx.get_gear();
                                                 auto ok = !!gear_ptr;
                                                 if (ok)
                                                 {
@@ -848,7 +850,7 @@ namespace netxs::ui
                 { "AntialiasingMode",       [&]
                                             {
                                                 auto gui_cmd = e2::command::gui.param();
-                                                auto gear_ptr = luafx.get_object<hids>("gear");
+                                                auto gear_ptr = luafx.get_gear();
                                                 auto ok = !!gear_ptr;
                                                 if (ok)
                                                 {
@@ -913,8 +915,7 @@ namespace netxs::ui
             };
             LISTEN(tier::release, e2::command::run, script)
             {
-                indexer.luafx.set_object(This(), "gate");
-                indexer.luafx.run_ext_script(This(), script);
+                indexer.luafx.run_ext_script(*this, script);
             };
             LISTEN(tier::release, e2::conio::mouse, m)
             {
@@ -1007,6 +1008,7 @@ namespace netxs::ui
             };
             LISTEN(tier::anycast, e2::form::upon::started, root_ptr)
             {
+                base::update_scripting_context(); // Gate has no parents.
                 if (props.debug_overlay) debug.start();
                 this->base::signal(tier::release, e2::form::prop::name, props.title);
                 //todo revise

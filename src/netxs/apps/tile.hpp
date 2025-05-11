@@ -353,7 +353,7 @@ namespace netxs::app::tile
                                                         {
                                                             auto delta = luafx.get_args_or(1, twod{});
                                                             boss.base::riseup(tier::preview, app::tile::events::ui::grips::move, delta);
-                                                            if (auto gear_ptr = luafx.template get_object<hids>("gear")) //todo gcc requires template keyword
+                                                            if (auto gear_ptr = luafx.get_gear())
                                                             {
                                                                 gear_ptr->set_handled();
                                                             }
@@ -363,7 +363,7 @@ namespace netxs::app::tile
                                                         {
                                                             auto delta = luafx.get_args_or(1, si32{});
                                                             boss.base::riseup(tier::preview, app::tile::events::ui::grips::resize, delta);
-                                                            if (auto gear_ptr = luafx.template get_object<hids>("gear"))
+                                                            if (auto gear_ptr = luafx.get_gear())
                                                             {
                                                                 gear_ptr->set_handled();
                                                             }
@@ -371,7 +371,7 @@ namespace netxs::app::tile
                                                         }},
                             { action::FocusNextGrip,    [&]
                                                         {
-                                                            auto gear_ptr = luafx.template get_object<hids>("gear");
+                                                            auto gear_ptr = luafx.get_gear();
                                                             auto ok = !!gear_ptr;
                                                             if (ok)
                                                             {
