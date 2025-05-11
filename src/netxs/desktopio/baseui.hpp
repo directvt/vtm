@@ -749,17 +749,29 @@ namespace netxs::ui
             return parent_ptr;
         }
         // base: Fire an event for all nested objects (except those with base::master == true).
-        void broadcast(si32 Tier, hint event, auto& param)
+        void broadcast(si32 Tier, hint event, auto&& param, bool forced = true)
         {
             auto lock = bell::sync();
             bell::_signal(Tier, event, param);
             for (auto item_ptr : base::subset)
             {
-                if (item_ptr && !item_ptr->master)
+                if (item_ptr && (forced || !item_ptr->master))
                 {
-                    item_ptr->broadcast(Tier, event, param);
+                    item_ptr->broadcast(Tier, event, param, forced);
                 }
             }
+        }
+        template<class Event>
+        void broadcast(si32 Tier, Event, auto&& param, bool forced = true)
+        {
+            auto lock = bell::sync();
+            base::broadcast(Tier, Event::id, param, forced);
+        }
+        template<class Event>
+        void broadcast(si32 Tier, Event)
+        {
+            auto lock = bell::sync();
+            base::broadcast(Tier, Event::id, Event::param());
         }
         auto signal(si32 Tier, hint event, auto& param)
         {
@@ -767,7 +779,7 @@ namespace netxs::ui
             if (Tier == tier::anycast)
             {
                 auto root_ptr = gettop();
-                root_ptr->broadcast(Tier, event, param);
+                root_ptr->broadcast(Tier, event, param, faux);
             }
             else bell::_signal(Tier, event, param);
         }

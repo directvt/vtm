@@ -490,7 +490,7 @@ namespace netxs::app::tile
                             //pro::focus::off(boss.back()); // Unset focus from node_veer if it is focused.
                             auto app = app_window(what);
                             parent_ptr->attach(app);
-                            app->base::signal(tier::anycast, e2::form::upon::started);
+                            app->base::broadcast(tier::anycast, e2::form::upon::started);
                             app->base::reflow();
                         }
                     };
@@ -575,18 +575,6 @@ namespace netxs::app::tile
                                 }
                             }
                         };
-                    };
-                    boss.LISTEN(tier::anycast, e2::form::upon::started, root_ptr)
-                    {
-                        if (auto item_ptr = boss.back())
-                        {
-                            auto& item = *item_ptr;
-                            if (item.base::root())
-                            {
-                                auto nested_root_ptr = item_ptr;
-                                item.base::signal(tier::anycast, e2::form::upon::started, nested_root_ptr);
-                            }
-                        }
                     };
                     boss.LISTEN(tier::preview, e2::form::size::minimize, gear, -, (saved_ratio = 1, min_ratio = 1, min_state))
                     {
@@ -734,7 +722,7 @@ namespace netxs::app::tile
                             boss.attach(app);
                             app->base::signal(tier::anycast, vtm::events::attached, world_ptr);
                             auto root_ptr = what.applet;
-                            app->base::signal(tier::anycast, e2::form::upon::started, root_ptr);
+                            app->base::broadcast(tier::anycast, e2::form::upon::started, root_ptr);
                             pro::focus::set(app, gear.id, solo::off);
                         }
                     };

@@ -3294,7 +3294,7 @@ namespace netxs::gui
                 {
                     update_footer();
                 };
-                base::signal(tier::anycast, e2::form::upon::started, This());
+                base::broadcast(tier::anycast, e2::form::upon::started, This());
             }
             auto winio = std::thread{ [&]
             {
