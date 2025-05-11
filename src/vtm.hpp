@@ -636,7 +636,7 @@ namespace netxs::app::vtm
                 base::root(true);
 
                 auto& bindings = world.base::property<input::bindings::vector>("window.bindings"); // Shared key bindings across the hall.
-                if (bindings.empty()) bindings = input::bindings::load(world.config, "window");
+                if (bindings.empty()) bindings = input::bindings::load(world.config, basename::window);
                 input::bindings::keybind(*this, bindings);
                 base::add_methods(basename::window,
                 {

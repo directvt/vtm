@@ -5,6 +5,40 @@
 
 #include "input.hpp"
 
+namespace netxs::basename
+{
+    #define ctx_list  \
+        X(applet    ) \
+        X(cake      ) \
+        X(defapp    ) \
+        X(desktop   ) \
+        X(dtvt      ) \
+        X(edit      ) \
+        X(fork      ) \
+        X(gear      ) \
+        X(gate      ) \
+        X(grid      ) \
+        X(grip      ) \
+        X(gui_window) \
+        X(item      ) \
+        X(infopage  ) \
+        X(list      ) \
+        X(mock      ) \
+        X(postfx    ) \
+        X(rail      ) \
+        X(taskbar   ) \
+        X(terminal  ) \
+        X(tile      ) \
+        X(veer      ) \
+        X(vtm       ) \
+        X(window    ) \
+
+    #define X(name) static constexpr auto name = #name##sv;
+    ctx_list
+    #undef X
+    #undef ctx_list
+}
+
 namespace netxs::events
 {
     // luna: Get any text from the stack by index.
@@ -131,11 +165,11 @@ namespace netxs::events
                 auto& source_ctx = indexer.context_ref.get();
                 if constexpr (debugmode) log("looking for '%%'", object_name);
                 if constexpr (debugmode) log(" source context: ", netxs::events::script_ref::to_string(source_ctx));
-                if (object_name == "gear")
+                if (object_name == basename::gear)
                 {
                     target_ptr = indexer.active_gear_ptr.get();
                 }
-                else if (object_name == "gate")
+                else if (object_name == basename::gate)
                 {
                     if (indexer.active_gear_ptr)
                     {
@@ -396,7 +430,7 @@ namespace netxs::events
         ::luaL_setfuncs(lua, vtm_metaindex.data(), 0); // Assign metamethods for the table which at the top of the stack.
             ::lua_newtable(lua); // Create and push new "vtm.*" global table.
             ::luaL_setmetatable(lua, "vtm_metaindex"); // Set the metatable for table at -1.
-            ::lua_setglobal(lua, "vtm"); // Set global var "vtm". Pop "vtm".
+            ::lua_setglobal(lua, basename::vtm.data()); // Set global var "vtm". Pop "vtm".
 
         // Define sub-vtm.* redirecting metatable.
         static auto vtm_submetaindex = std::to_array<luaL_Reg>({{ "__index", luna::vtmlua_vtm_subindex },
@@ -408,40 +442,6 @@ namespace netxs::events
     {
         if (lua) ::lua_close(lua);
     }
-}
-
-namespace netxs::basename
-{
-    #define ctx_list  \
-        X(applet    ) \
-        X(cake      ) \
-        X(defapp    ) \
-        X(desktop   ) \
-        X(dtvt      ) \
-        X(edit      ) \
-        X(fork      ) \
-        X(gear      ) \
-        X(gate      ) \
-        X(grid      ) \
-        X(grip      ) \
-        X(gui_window) \
-        X(item      ) \
-        X(infopage  ) \
-        X(list      ) \
-        X(mock      ) \
-        X(postfx    ) \
-        X(rail      ) \
-        X(taskbar   ) \
-        X(terminal  ) \
-        X(tile      ) \
-        X(veer      ) \
-        X(vtm       ) \
-        X(window    ) \
-
-        #define X(name) static constexpr auto name = #name##sv;
-        ctx_list
-        #undef X
-        #undef ctx_list
 }
 
 namespace netxs::ui
