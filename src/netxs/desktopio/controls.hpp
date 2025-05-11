@@ -167,14 +167,11 @@ namespace netxs::events
                 if constexpr (debugmode) log(" source context: ", netxs::events::script_ref::to_string(source_ctx));
                 if (object_name == basename::gear)
                 {
-                    target_ptr = indexer.active_gear_ptr.get();
+                    target_ptr = &(indexer.active_gear_ref.get());
                 }
                 else if (object_name == basename::gate)
                 {
-                    if (indexer.active_gear_ptr)
-                    {
-                        target_ptr = &(indexer.active_gear_ptr->owner);
-                    }
+                    target_ptr = &(indexer.active_gear_ref.get().owner);
                 }
                 else if (auto iter = classes.find(object_name); iter != classes.end() && iter->second)
                 {
@@ -337,20 +334,19 @@ namespace netxs::events
     // luna: Set active gear.
     void luna::set_gear(input::hids& gear)
     {
-        indexer.active_gear_ptr = gear.This<input::hids>();
+        indexer.active_gear_ref = gear;
     }
     // luna: Set active gear.
-    sptr<input::hids> luna::get_gear()
+    input::hids& luna::get_gear()
     {
-        return indexer.active_gear_ptr;
+        return indexer.active_gear_ref.get();
     }
     bool luna::run_with_gear_wo_return(auto proc)
     {
-        auto gear_ptr = luna::get_gear();
-        auto ok = !!gear_ptr;
+        auto& gear = luna::get_gear();
+        auto ok = gear.is_real();
         if (ok)
         {
-            auto& gear = *gear_ptr;
             proc(gear);
         }
         return ok;
@@ -448,7 +444,10 @@ namespace netxs::events
           context_ref{ context },
           luafx{ *this },
           quartz{ *this },
-          e2_timer_tick_id{ ui::e2::timer::tick.id }
+          e2_timer_tick_id{ ui::e2::timer::tick.id },
+          _null_owner_sptr{ auth::create<ui::base>(*this) },
+          _null_gear_sptr{ auth::create<input::hids>(*this, *_null_owner_sptr, _null_idmap) },
+          active_gear_ref{ *_null_gear_sptr }
     {
         if (use_timer)
         {

@@ -1622,6 +1622,10 @@ namespace netxs::input
             return alive;
         }
 
+        bool is_real()
+        {
+            return id != 2;
+        }
         void set_multihome()
         {
             auto [world_wptr, parent_wptr] = multihome;

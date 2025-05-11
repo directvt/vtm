@@ -150,7 +150,7 @@ namespace netxs::events
         void read_args(si32 index, auto add_item);
         auto get_args_or(si32 idx, auto fallback = {});
         void set_gear(input::hids& gear);
-        sptr<input::hids> get_gear();
+        input::hids& get_gear();
         bool run_with_gear_wo_return(auto proc);
         void run_with_gear(auto proc);
         text run(context_t& context, view script_body);
@@ -292,7 +292,10 @@ namespace netxs::events
         si32                                      handled{}; // auth: Last notify operation result.
         std::vector<std::pair<hint, si32>>        queue; // auth: Event queue: { event_id, call state }.
         std::vector<wptr<fxbase>>                 qcopy; // auth: Copy of the current pretenders to exec on current event.
-        sptr<input::hids>                         active_gear_ptr; // auth: Active gear.
+        core                                      _null_idmap;
+        sptr<ui::base>                            _null_owner_sptr;
+        sptr<input::hids>                         _null_gear_sptr;
+        std::reference_wrapper<input::hids>       active_gear_ref; // auth: Active gear.
 
         void _cleanup(fmap& reactor, ui64& ref_count, ui64& del_count)
         {

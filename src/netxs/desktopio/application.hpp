@@ -122,7 +122,7 @@ namespace netxs::app::shared
                                             auto step = twod{ luafx.get_args_or(1, 0),
                                                               luafx.get_args_or(2, 0) };
                                             scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bypage::v, { .vector = step });
-                                            if (auto gear_ptr = luafx.get_gear()) gear_ptr->set_handled();
+                                            luafx.get_gear().set_handled();
                                             luafx.set_return(); // No returns.
                                         }},
             { "ScrollViewportByStep",   [&]
@@ -130,19 +130,19 @@ namespace netxs::app::shared
                                             auto step = twod{ luafx.get_args_or(1, 0),
                                                               luafx.get_args_or(2, 0) };
                                             scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bystep::v, { .vector = step });
-                                            if (auto gear_ptr = luafx.get_gear()) gear_ptr->set_handled();
+                                            luafx.get_gear().set_handled();
                                             luafx.set_return(); // No returns.
                                         }},
             { "ScrollViewportToTop",    [&]
                                         {
                                             scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::to_top::y);
-                                            if (auto gear_ptr = luafx.get_gear()) gear_ptr->set_handled();
+                                            luafx.get_gear().set_handled();
                                             luafx.set_return(); // No returns.
                                         }},
             { "ScrollViewportToEnd",    [&]
                                         {
                                             scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::to_end::y);
-                                            if (auto gear_ptr = luafx.get_gear()) gear_ptr->set_handled();
+                                            luafx.get_gear().set_handled();
                                             luafx.set_return(); // No returns.
                                         }},
             { "ShowClosingPreview",     [&]
@@ -161,7 +161,7 @@ namespace netxs::app::shared
                                             {
                                                 boss.base::riseup(tier::release, e2::form::proceed::quit::one, true);
                                             });
-                                            if (auto gear_ptr = luafx.get_gear()) gear_ptr->set_handled();
+                                            luafx.get_gear().set_handled();
                                             luafx.set_return();
                                         }},
         });
@@ -180,10 +180,11 @@ namespace netxs::app::shared
             //{ "FocusNext",          [&]
             //                        {
             //                            auto gui_cmd = e2::command::gui.param();
-            //                            if (auto gear_ptr = luafx.get_gear())
+            //                            auto& gear = luafx.get_gear();
+            //                            if (gear.is_real())
             //                            {
-            //                                gui_cmd.gear_id = gear_ptr->id;
-            //                                gear_ptr->set_handled();
+            //                                gui_cmd.gear_id = gear.id;
+            //                                gear.set_handled();
             //                            }
             //                            gui_cmd.cmd_id = syscmd::focusnextwindow;
             //                            gui_cmd.args.emplace_back(luafx.get_args_or(1, si32{ 1 }));
@@ -193,10 +194,11 @@ namespace netxs::app::shared
             { "Warp",               [&]
                                     {
                                         auto gui_cmd = e2::command::gui.param();
-                                        if (auto gear_ptr = luafx.get_gear())
+                                        auto& gear = luafx.get_gear();
+                                        if (gear.is_real())
                                         {
-                                            gui_cmd.gear_id = gear_ptr->id;
-                                            gear_ptr->set_handled();
+                                            gui_cmd.gear_id = gear.id;
+                                            gear.set_handled();
                                         }
                                         gui_cmd.cmd_id = syscmd::warpwindow;
                                         gui_cmd.args.emplace_back(luafx.get_args_or(1, si32{ 0 }));
@@ -210,30 +212,31 @@ namespace netxs::app::shared
                                     {
                                         auto args_count = luafx.args_count();
                                         auto& zorder = boss.base::property("applet.zorder", zpos::plain);
-                                        auto gear_ptr = luafx.get_gear();
+                                        auto& gear = luafx.get_gear();
                                         if (args_count)
                                         {
                                             auto gui_cmd = e2::command::gui.param();
                                             zorder = luafx.get_args_or(1, zpos::plain);
-                                            if (gear_ptr)
+                                            if (gear.is_real())
                                             {
-                                                gui_cmd.gear_id = gear_ptr->id;
+                                                gui_cmd.gear_id = gear.id;
                                             }
                                             gui_cmd.cmd_id = syscmd::zorder;
                                             gui_cmd.args.emplace_back(zorder);
                                             boss.base::riseup(tier::release, e2::form::prop::zorder, si32{ zorder });
                                             boss.base::riseup(tier::preview, e2::command::gui, gui_cmd);
                                         }
-                                        if (gear_ptr) gear_ptr->set_handled();
+                                        gear.set_handled();
                                         luafx.set_return(zorder);
                                     }},
             { "Close",              [&]
                                     {
                                         auto gui_cmd = e2::command::gui.param();
-                                        if (auto gear_ptr = luafx.get_gear())
+                                        auto& gear = luafx.get_gear();
+                                        if (gear.is_real())
                                         {
-                                            gui_cmd.gear_id = gear_ptr->id;
-                                            gear_ptr->set_handled();
+                                            gui_cmd.gear_id = gear.id;
+                                            gear.set_handled();
                                         }
                                         gui_cmd.cmd_id = syscmd::close;
                                         boss.base::riseup(tier::preview, e2::command::gui, gui_cmd);
@@ -242,10 +245,11 @@ namespace netxs::app::shared
             { "Minimize",           [&]
                                     {
                                         auto gui_cmd = e2::command::gui.param();
-                                        if (auto gear_ptr = luafx.get_gear())
+                                        auto& gear = luafx.get_gear();
+                                        if (gear.is_real())
                                         {
-                                            gui_cmd.gear_id = gear_ptr->id;
-                                            gear_ptr->set_handled();
+                                            gui_cmd.gear_id = gear.id;
+                                            gear.set_handled();
                                         }
                                         gui_cmd.cmd_id = syscmd::minimize;
                                         boss.base::riseup(tier::preview, e2::command::gui, gui_cmd);
@@ -254,10 +258,11 @@ namespace netxs::app::shared
             { "Maximize",           [&]
                                     {
                                         auto gui_cmd = e2::command::gui.param();
-                                        if (auto gear_ptr = luafx.get_gear())
+                                        auto& gear = luafx.get_gear();
+                                        if (gear.is_real())
                                         {
-                                            gui_cmd.gear_id = gear_ptr->id;
-                                            gear_ptr->set_handled();
+                                            gui_cmd.gear_id = gear.id;
+                                            gear.set_handled();
                                         }
                                         gui_cmd.cmd_id = syscmd::maximize;
                                         boss.base::riseup(tier::preview, e2::command::gui, gui_cmd);
@@ -266,10 +271,11 @@ namespace netxs::app::shared
             { "Fullscreen",         [&]
                                     {
                                         auto gui_cmd = e2::command::gui.param();
-                                        if (auto gear_ptr = luafx.get_gear())
+                                        auto& gear = luafx.get_gear();
+                                        if (gear.is_real())
                                         {
-                                            gui_cmd.gear_id = gear_ptr->id;
-                                            gear_ptr->set_handled();
+                                            gui_cmd.gear_id = gear.id;
+                                            gear.set_handled();
                                         }
                                         gui_cmd.cmd_id = syscmd::fullscreen;
                                         boss.base::riseup(tier::preview, e2::command::gui, gui_cmd);
@@ -278,10 +284,11 @@ namespace netxs::app::shared
             { "Restore",            [&]
                                     {
                                         auto gui_cmd = e2::command::gui.param();
-                                        if (auto gear_ptr = luafx.get_gear())
+                                        auto& gear = luafx.get_gear();
+                                        if (gear.is_real())
                                         {
-                                            gui_cmd.gear_id = gear_ptr->id;
-                                            gear_ptr->set_handled();
+                                            gui_cmd.gear_id = gear.id;
+                                            gear.set_handled();
                                         }
                                         gui_cmd.cmd_id = syscmd::restore;
                                         boss.base::riseup(tier::preview, e2::command::gui, gui_cmd);

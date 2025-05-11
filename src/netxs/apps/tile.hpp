@@ -353,29 +353,24 @@ namespace netxs::app::tile
                                                         {
                                                             auto delta = luafx.get_args_or(1, twod{});
                                                             boss.base::riseup(tier::preview, app::tile::events::ui::grips::move, delta);
-                                                            if (auto gear_ptr = luafx.get_gear())
-                                                            {
-                                                                gear_ptr->set_handled();
-                                                            }
+                                                            auto& gear = luafx.get_gear();
+                                                            gear.set_handled();
                                                             luafx.set_return();
                                                         }},
                             { action::ResizeGrip,       [&]
                                                         {
                                                             auto delta = luafx.get_args_or(1, si32{});
                                                             boss.base::riseup(tier::preview, app::tile::events::ui::grips::resize, delta);
-                                                            if (auto gear_ptr = luafx.get_gear())
-                                                            {
-                                                                gear_ptr->set_handled();
-                                                            }
+                                                            auto& gear = luafx.get_gear();
+                                                            gear.set_handled();
                                                             luafx.set_return();
                                                         }},
                             { action::FocusNextGrip,    [&]
                                                         {
-                                                            auto gear_ptr = luafx.get_gear();
-                                                            auto ok = !!gear_ptr;
+                                                            auto& gear = luafx.get_gear();
+                                                            auto ok = gear.is_real();
                                                             if (ok)
                                                             {
-                                                                auto& gear = *gear_ptr;
                                                                 auto delta = luafx.get_args_or(1, si32{ 1 });
                                                                 delta > 0 ? boss.base::riseup(tier::preview, app::tile::events::ui::focus::nextgrip, gear)
                                                                           : boss.base::riseup(tier::preview, app::tile::events::ui::focus::prevgrip, gear);

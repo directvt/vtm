@@ -768,22 +768,22 @@ namespace netxs::ui
             {
                 { "Disconnect",             [&]
                                             {
-                                                auto gear_ptr = luafx.get_gear();
-                                                auto ok = !!gear_ptr;
+                                                auto& gear = luafx.get_gear();
+                                                auto ok = gear.is_real();
                                                 if (ok)
                                                 {
-                                                    gear_ptr->set_handled();
+                                                    gear.set_handled();
                                                 }
                                                 base::signal(tier::preview, e2::conio::quit);
                                                 luafx.set_return();
                                             }},
                 { "DebugOverlay",           [&]
                                             {
-                                                auto gear_ptr = luafx.get_gear();
-                                                auto ok = !!gear_ptr;
+                                                auto& gear = luafx.get_gear();
+                                                auto ok = gear.is_real();
                                                 if (ok)
                                                 {
-                                                    gear_ptr->set_handled();
+                                                    gear.set_handled();
                                                 }
                                                 props.debug_overlay ? debug.stop() : debug.start();
                                                 props.debug_overlay = !props.debug_overlay;
@@ -793,12 +793,12 @@ namespace netxs::ui
                 { "IncreaseCellHeight",     [&]
                                             {
                                                 auto gui_cmd = e2::command::gui.param();
-                                                auto gear_ptr = luafx.get_gear();
-                                                auto ok = !!gear_ptr;
+                                                auto& gear = luafx.get_gear();
+                                                auto ok = gear.is_real();
                                                 if (ok)
                                                 {
-                                                    gui_cmd.gear_id = gear_ptr->id;
-                                                    gear_ptr->set_handled();
+                                                    gui_cmd.gear_id = gear.id;
+                                                    gear.set_handled();
                                                 }
                                                 gui_cmd.cmd_id = syscmd::tunecellheight;
                                                 gui_cmd.args.emplace_back(luafx.get_args_or(1, fp32{ 1.f }));
@@ -808,12 +808,12 @@ namespace netxs::ui
                 { "RollFonts",              [&]
                                             {
                                                 auto gui_cmd = e2::command::gui.param();
-                                                auto gear_ptr = luafx.get_gear();
-                                                auto ok = !!gear_ptr;
+                                                auto& gear = luafx.get_gear();
+                                                auto ok = gear.is_real();
                                                 if (ok)
                                                 {
-                                                    gui_cmd.gear_id = gear_ptr->id;
-                                                    gear_ptr->set_handled();
+                                                    gui_cmd.gear_id = gear.id;
+                                                    gear.set_handled();
                                                 }
                                                 gui_cmd.cmd_id = syscmd::rollfontlist;
                                                 gui_cmd.args.emplace_back(luafx.get_args_or(1, si32{ 1 }));
@@ -823,11 +823,11 @@ namespace netxs::ui
                 { "WheelAccumReset",        [&]
                                             {
                                                 auto gui_cmd = e2::command::gui.param();
-                                                auto gear_ptr = luafx.get_gear();
-                                                auto ok = !!gear_ptr;
+                                                auto& gear = luafx.get_gear();
+                                                auto ok = gear.is_real();
                                                 if (ok)
                                                 {
-                                                    gui_cmd.gear_id = gear_ptr->id;
+                                                    gui_cmd.gear_id = gear.id;
                                                 }
                                                 gui_cmd.cmd_id = syscmd::resetwheelaccum;
                                                 base::signal(tier::preview, e2::command::gui, gui_cmd);
@@ -836,12 +836,12 @@ namespace netxs::ui
                 { "CellHeightReset",        [&]
                                             {
                                                 auto gui_cmd = e2::command::gui.param();
-                                                auto gear_ptr = luafx.get_gear();
-                                                auto ok = !!gear_ptr;
+                                                auto& gear = luafx.get_gear();
+                                                auto ok = gear.is_real();
                                                 if (ok)
                                                 {
-                                                    gui_cmd.gear_id = gear_ptr->id;
-                                                    gear_ptr->set_handled();
+                                                    gui_cmd.gear_id = gear.id;
+                                                    gear.set_handled();
                                                 }
                                                 gui_cmd.cmd_id = syscmd::resetcellheight;
                                                 base::signal(tier::preview, e2::command::gui, gui_cmd);
@@ -850,12 +850,12 @@ namespace netxs::ui
                 { "AntialiasingMode",       [&]
                                             {
                                                 auto gui_cmd = e2::command::gui.param();
-                                                auto gear_ptr = luafx.get_gear();
-                                                auto ok = !!gear_ptr;
+                                                auto& gear = luafx.get_gear();
+                                                auto ok = gear.is_real();
                                                 if (ok)
                                                 {
-                                                    gui_cmd.gear_id = gear_ptr->id;
-                                                    gear_ptr->set_handled();
+                                                    gui_cmd.gear_id = gear.id;
+                                                    gear.set_handled();
                                                 }
                                                 //todo args
                                                 gui_cmd.cmd_id = syscmd::toggleaamode;

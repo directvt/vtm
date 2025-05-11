@@ -811,23 +811,17 @@ namespace netxs::app::shared
                 {
                     { "UpdateChordPreview",     [&]
                                                 {
-                                                    if (auto gear_ptr = luafx.get_gear())
-                                                    {
-                                                        auto& gear = *gear_ptr;
-                                                        if (gear.keystat != input::key::repeated) update(items_inst, gear, true);
-                                                        if (rawkbd) gear.set_handled();
-                                                    }
+                                                    auto& gear = luafx.get_gear();
+                                                    if (gear.keystat != input::key::repeated) update(items_inst, gear, true);
+                                                    if (rawkbd) gear.set_handled();
                                                     luafx.set_return(); // No returns.
                                                 }},
                     { "ExclusiveKeyboardMode",  [&]
                                                 {
-                                                    if (auto gear_ptr = luafx.get_gear())
-                                                    {
-                                                        auto& gear = *gear_ptr;
-                                                        state_inst.base::signal(tier::release, ui::tty::events::rawkbd);
-                                                        if (gear.keystat != input::key::repeated) update(items_inst, gear, true);
-                                                        gear.set_handled();
-                                                    }
+                                                    auto& gear = luafx.get_gear();
+                                                    state_inst.base::signal(tier::release, ui::tty::events::rawkbd);
+                                                    if (gear.keystat != input::key::repeated) update(items_inst, gear, true);
+                                                    gear.set_handled();
                                                     luafx.set_return(); // No returns.
                                                 }},
                 });
