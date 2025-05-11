@@ -512,7 +512,7 @@ namespace netxs::events
             delete inst_ptr;
             indexer.objects.erase(id);
         }
-        // auth: Add additional base class.
+        // auth: Add additional base class. Must run before anycast, e2::form::upon::started.
         void add_base_class(qiew classname, auto& inst)
         {
             if (inst.base_classes.find(classname) == inst.base_classes.end()) // Register only if it is not registered.
@@ -912,4 +912,16 @@ namespace netxs
     using netxs::events::wook;
     //using netxs::events::sref;
     using netxs::events::script_ref;
+}
+namespace std
+{
+    template<>
+    struct std::less<netxs::events::context_t>
+    {
+        using context_t = netxs::events::context_t;
+        bool operator () (context_t const& l, context_t const& r) const
+        {
+            return std::lexicographical_compare(l.begin(), l.end(), r.begin(), r.end());
+        }
+    };
 }

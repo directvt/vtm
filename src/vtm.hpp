@@ -1232,6 +1232,11 @@ namespace netxs::app::vtm
             input::bindings::keybind(*this, bindings);
             base::add_methods("desktop",
             {
+                { "Cleanup",            [&]
+                                        {
+                                            base::cleanup();
+                                            luafx.set_return();
+                                        }},
                 { "Shutdown",           [&]
                                         {
                                             auto args_count = luafx.args_count();

@@ -102,12 +102,12 @@ namespace netxs
 
     struct noop
     {
-        constexpr auto operator()(auto&&...)
+        constexpr auto operator () (auto&&...)
         {
             return faux;
             //return *this;
         }
-        constexpr operator bool() const { return faux; }
+        constexpr operator bool () const { return faux; }
         constexpr noop(auto&&...) { }
     };
 

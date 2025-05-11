@@ -615,8 +615,8 @@ namespace netxs::ui
 
         struct base_class
         {
-            netxs::sptr<vtm_class>    class_metadata; // base: .
-            std::list<wptr>::iterator class_iterator; // base: .
+            netxs::sptr<vtm_class>    class_metadata; // base: Base class metadata.
+            std::list<wptr>::iterator class_iterator; // base: class_metadata.objects std::list iterator.
         };
         utf::unordered_map<text, base_class> base_classes; // base: Base classes map by classname.
         netxs::events::context_t             scripting_context; // base: List of ids of all ancestors.
@@ -652,7 +652,31 @@ namespace netxs::ui
                 base::scripting_context = parent_ptr->scripting_context;
             }
             base::scripting_context.emplace_back(this);
-            //todo sort all base::base_classes.* references
+            // Sort all base::base_classes.* references.
+            for (auto& [classname, base_class_metadata] : base_classes)
+            {
+                if (base_class_metadata.class_metadata)
+                {
+                    auto& objects = base_class_metadata.class_metadata->objects;
+                    auto objects_iterator = base_class_metadata.class_iterator;
+                    auto head = objects.begin();
+                    auto tail = objects.end();
+                    auto next = std::next(objects_iterator);
+                    if (next != tail)
+                    {
+                        // Find valid next.
+
+                    }
+                    if (objects_iterator != head)
+                    {
+                        // Find valid prev.
+                        auto prev = std::prev(objects_iterator);
+
+
+                    }
+
+                }
+            }
         }
         // base: Enqueue task.
         template<bool Sync = true>
@@ -698,6 +722,17 @@ namespace netxs::ui
                 for (auto& [k, v] : indexer.classes)
                 {
                     log("\t'%classname%' count %%, \tmethods: %%", k, v->objects.size(), v->methods.size());
+                    for (auto boss_wptr : v->objects)
+                    {
+                        if (auto boss_ptr = boss_wptr.lock())
+                        {
+                            log("context: %ctx% %id%", netxs::events::script_ref::to_string(boss_ptr->scripting_context), boss_ptr->id);
+                        }
+                        else
+                        {
+                            log(ansi::err("Dangling reference"));
+                        }
+                    }
                 }
             }
             else base::_cleanup();
@@ -713,15 +748,16 @@ namespace netxs::ui
             }
             return parent_ptr;
         }
-        void broadcast(hint event, auto& param)
+        // base: Fire an event for all nested objects (except those with base::master == true).
+        void broadcast(si32 Tier, hint event, auto& param)
         {
             auto lock = bell::sync();
-            bell::_signal(tier::anycast, event, param);
+            bell::_signal(Tier, event, param);
             for (auto item_ptr : base::subset)
             {
                 if (item_ptr && !item_ptr->master)
                 {
-                    item_ptr->broadcast(event, param);
+                    item_ptr->broadcast(Tier, event, param);
                 }
             }
         }
@@ -731,7 +767,7 @@ namespace netxs::ui
             if (Tier == tier::anycast)
             {
                 auto root_ptr = gettop();
-                root_ptr->broadcast(event, param);
+                root_ptr->broadcast(Tier, event, param);
             }
             else bell::_signal(Tier, event, param);
         }

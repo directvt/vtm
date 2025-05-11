@@ -66,7 +66,7 @@ namespace netxs
             if (changed) *this = p;
             return changed;
         }
-        constexpr explicit operator bool()   const { return x != T{} || y != T{};      }
+        constexpr explicit operator bool ()  const { return x != T{} || y != T{};      }
         constexpr auto& operator [] (si32 i)       { return i ? y : x;                 }
         constexpr auto& operator [] (si32 i) const { return i ? y : x;                 }
         constexpr auto& operator ++ ()             { ++x; ++y;           return *this; }

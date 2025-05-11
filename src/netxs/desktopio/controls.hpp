@@ -3036,8 +3036,9 @@ namespace netxs::ui
                 {
                     auto new_item = item_template(data_src, arg_new_value)
                                          ->depend(data_src);
-                    item_shadow = ptr::shadow(new_item); // Update current item shadow.
+                    item_shadow = ptr::shadow(new_item);
                     boss_ptr->replace(old_item, new_item);
+                    new_item->base::broadcast(tier::anycast, e2::form::upon::started.id, boss_ptr);
                     boss_ptr->base::reflow();
                 }
             };

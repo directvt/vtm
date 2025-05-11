@@ -699,9 +699,9 @@ namespace netxs::utf
         {
             using is_transparent = void;
             using hash_type = std::hash<view>;
-            auto operator()(text const& s) const { return hash_type{}(s); }
-            auto operator()(char const* s) const { return hash_type{}(s); }
-            auto operator()(view s)        const { return hash_type{}(s); }
+            auto operator () (text const& s) const { return hash_type{}(s); }
+            auto operator () (char const* s) const { return hash_type{}(s); }
+            auto operator () (view s)        const { return hash_type{}(s); }
         };
 
         constexpr qiew(qiew const&) = default;
