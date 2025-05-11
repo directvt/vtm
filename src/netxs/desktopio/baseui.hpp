@@ -615,8 +615,8 @@ namespace netxs::ui
 
         struct base_class
         {
-            netxs::sptr<vtm_class>    class_metadata; // base: Base class metadata.
-            std::list<wptr>::iterator class_iterator; // base: class_metadata.objects std::list iterator.
+            netxs::sptr<vtm_class>                                class_metadata; // base: Base class metadata.
+            std::list<std::reference_wrapper<ui::base>>::iterator class_iterator; // base: class_metadata.objects std::list iterator.
         };
         utf::unordered_map<text, base_class> base_classes; // base: Base classes map by classname.
         netxs::events::context_t             scripting_context; // base: List of ids of all ancestors.
@@ -694,13 +694,10 @@ namespace netxs::ui
         {
             auto ref_count = ui64{};
             auto del_count = ui64{};
-            for (auto& [item_id, item_wptr] : bell::indexer.objects)
+            for (auto& [item_id, item_ref] : bell::indexer.objects)
             {
-                if (auto item_ptr = item_wptr.lock())
-                {
-                    auto& item = *item_ptr;
-                    bell::indexer._cleanup(item.reactor, ref_count, del_count);
-                }
+                auto& item = item_ref.get();
+                bell::indexer._cleanup(item.reactor, ref_count, del_count);
             }
             bell::indexer._cleanup(bell::indexer.general, ref_count, del_count);
             return std::pair{ ref_count, del_count };
@@ -722,16 +719,10 @@ namespace netxs::ui
                 for (auto& [k, v] : indexer.classes)
                 {
                     log("\t'%classname%' count %%, \tmethods: %%", k, v->objects.size(), v->methods.size());
-                    for (auto boss_wptr : v->objects)
+                    for (auto& boss_ref : v->objects)
                     {
-                        if (auto boss_ptr = boss_wptr.lock())
-                        {
-                            log("context: %ctx% %id%", netxs::events::script_ref::to_string(boss_ptr->scripting_context), boss_ptr->id);
-                        }
-                        else
-                        {
-                            log(ansi::err("Dangling reference"));
-                        }
+                        auto& boss = boss_ref.get();
+                        log("context: %ctx% %id%", netxs::events::script_ref::to_string(boss.scripting_context), boss.id);
                     }
                 }
             }

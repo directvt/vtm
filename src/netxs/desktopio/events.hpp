@@ -261,8 +261,8 @@ namespace netxs::events
     // Class methods and registered instances.
     struct vtm_class
     {
-        std::list<wptr<ui::base>> objects;
-        fxmap                     methods; // Static class methods.
+        std::list<std::reference_wrapper<ui::base>> objects;
+        fxmap                                       methods; // Static class methods.
     };
     using clasess_umap = utf::unordered_map<text, sptr<vtm_class>>;
 
@@ -278,7 +278,7 @@ namespace netxs::events
 
         id_t                                      next_id;
         std::recursive_mutex                      mutex;
-        std::unordered_map<id_t, wptr<ui::base>>  objects; // auth: Map of objects by object id.
+        std::unordered_map<id_t, std::reference_wrapper<ui::base>>  objects; // auth: Map of objects by object id.
         clasess_umap                              classes; // auth: Map of classes by classname.
         context_t                                 context; // auth: Default context.
         std::reference_wrapper<context_t>         context_ref; // auth: .
@@ -487,10 +487,9 @@ namespace netxs::events
             auto lock = sync();
             auto iter = objects.find(id);
             if (iter != objects.end())
-            if (auto item_ptr = iter->second.lock())
-            if (auto inst_ptr = std::static_pointer_cast<T>(item_ptr))
             {
-                return inst_ptr;
+                auto boss_ptr = iter->second.get().template This<T>();
+                return boss_ptr;
             }
             return sptr<T>{};
         }
@@ -524,7 +523,7 @@ namespace netxs::events
                 }
                 auto& class_metadata = iter->second;
                 auto& class_objects = class_metadata->objects;
-                auto class_iterator = class_objects.emplace(class_objects.end(), inst.weak_from_this());
+                auto class_iterator = class_objects.emplace(class_objects.end(), inst);
                 // Update local references.
                 auto iter2 = inst.base_classes.try_emplace(classname).first;
                 auto& empty_refs = iter2->second;
@@ -539,7 +538,6 @@ namespace netxs::events
             auto lock = sync();
             auto inst_ptr = sptr<T>(new T(std::forward<Args>(args)...), &deleter<T>); // Use new/delete to be able sync on destruction.
             auto& inst = *inst_ptr;
-            auto inst_wptr = inst.weak_from_this();
             //log("Created: '%%' with id: %%", classname, inst.id);
             inst.base_classes.try_emplace(classname);
             for (auto& [name, empty_refs] : inst.base_classes)
@@ -552,15 +550,14 @@ namespace netxs::events
                 auto& class_metadata = iter->second;
                 auto& class_objects = class_metadata->objects;
                 // Add global reference.
-                auto class_iterator = class_objects.emplace(class_objects.end(), inst_wptr);
+                auto class_iterator = class_objects.emplace(class_objects.end(), inst);
                 // Update local references.
                 empty_refs.class_metadata = class_metadata;
                 empty_refs.class_iterator = class_iterator;
             }
 
             // Index object by id.
-            objects[inst.id] = inst_wptr;
-
+            objects.try_emplace(inst.id, inst);
             return inst_ptr;
         }
         // auth: Return next available id.
