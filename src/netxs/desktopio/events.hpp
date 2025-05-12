@@ -282,10 +282,26 @@ namespace netxs::events
         si32                                      handled{}; // auth: Last notify operation result.
         std::vector<std::pair<hint, si32>>        queue; // auth: Event queue: { event_id, call state }.
         std::vector<wptr<fxbase>>                 qcopy; // auth: Copy of the current pretenders to exec on current event.
-        core                                      _null_idmap;
-        sptr<input::hids>                         _null_gear_sptr;
+        std::vector<bool>                         gear_indexing; // auth: Gear visual indexing.
+        sptr<input::hids>                         _null_gear_sptr; // auth: Fallback gear sptr.
         std::reference_wrapper<input::hids>       active_gear_ref; // auth: Active gear.
 
+        auto take_gear_available_index()
+        {
+            auto iter = std::find(gear_indexing.begin(), gear_indexing.end(), faux);
+            if (iter == gear_indexing.end()) iter = gear_indexing.emplace(iter, true);
+            else                            *iter = true;
+            auto n = (si32)(iter - gear_indexing.begin());
+            return n;
+        }
+        auto release_gear_index(si32 n)
+        {
+            if (n >= 0 && n < gear_indexing.size()) gear_indexing[n] = faux;
+            else
+            {
+                if constexpr (debugmode) log(prompt::host, ansi::err("Gear accounting error: ring size:", gear_indexing.size(), " gear_number:", n));
+            }
+        }
         void _cleanup(fmap& reactor, ui64& ref_count, ui64& del_count)
         {
             auto lref = ui64{};

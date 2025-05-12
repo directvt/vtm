@@ -40,16 +40,10 @@ namespace netxs::events::userland
             SUBSET_XS( device )
             {
                 GROUP_XS( mouse, input::hids ), // release: Primary mouse event for fast forwarding.
-                GROUP_XS( user , id_t        ), // Device properties.
 
                 SUBSET_XS( mouse )
                 {
                     EVENT_XS( on, input::hids ),
-                };
-                SUBSET_XS( user )
-                {
-                    EVENT_XS( login , id_t ),
-                    EVENT_XS( logout, id_t ),
                 };
             };
         };
@@ -1586,7 +1580,7 @@ namespace netxs::input
         bool keybd_disabled = faux; // Inactive gear.
         si32 countdown = 0;
 
-        id_t user_index; // hids: User/Device image/icon index.
+        si32 gear_index; // hids: Gear visual index.
         kmap other_key; // hids: Dynamic key-vt mapping.
 
         bool shared_event = faux; // hids: The key event was touched by another procees/handler. See pro::keybd(release, key::post) for detailts.
@@ -1599,27 +1593,27 @@ namespace netxs::input
               idmap{ idmap },
               alive{ faux },
               timer{ base::plugin<ui::pro::timer>() },
+              gear_index{ indexer.take_gear_available_index() },
               other_key{ build_other_key(key::KeySlash, key::KeySlash | (hids::anyShift << 8)) }, // Defaults for US layout.
               multihome{ owner.base::property<multihome_t>("multihome") }
         {
             mouse::prime = dot_mx;
             mouse::coord = dot_mx;
             keybd::gear_id = bell::id;
-            base::signal(tier::general, input::events::device::user::login, user_index);
         }
         // Null gear.
-        hids(auth& indexer, core const& idmap)
-            : hids{ indexer, *this, idmap }
+        hids(auth& indexer)
+            : hids{ indexer, *this, board::image }
         { }
         virtual ~hids()
         {
             mouse_leave(owner);
             release_if_captured();
+            bell::indexer.release_gear_index(gear_index);
             base::signal(tier::release, input::events::halt, *this);
             base::signal(tier::general, input::events::halt, *this);
             base::signal(tier::release, input::events::die, *this);
             base::signal(tier::general, input::events::die, *this);
-            base::signal(tier::general, input::events::device::user::logout, user_index);
         }
 
         // hids: Whether event processing is complete.

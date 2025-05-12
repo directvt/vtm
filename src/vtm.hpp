@@ -1427,22 +1427,6 @@ namespace netxs::app::vtm
                 world_ptr = base::This();
             };
 
-            auto& user_numbering = base::field<std::vector<bool>>();
-            LISTEN(tier::general, input::events::device::user::login, props)
-            {
-                props = 0;
-                while (props < user_numbering.size() && user_numbering[props]) { props++; }
-                if (props == user_numbering.size()) user_numbering.push_back(true);
-                else                                user_numbering[props] = true;
-            };
-            LISTEN(tier::general, input::events::device::user::logout, props)
-            {
-                if (props < user_numbering.size()) user_numbering[props] = faux;
-                else
-                {
-                    if constexpr (debugmode) log(prompt::host, ansi::err("User accounting error: ring size:", user_numbering.size(), " user_number:", props));
-                }
-            };
             LISTEN(tier::request, vtm::events::apptype, what)
             {
                 auto& setup = menu_list[what.menuid];

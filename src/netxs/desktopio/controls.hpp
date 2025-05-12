@@ -435,7 +435,7 @@ namespace netxs::events
           luafx{ *this },
           quartz{ *this },
           e2_timer_tick_id{ ui::e2::timer::tick.id },
-          _null_gear_sptr{ auth::create<input::hids>(*this, _null_idmap) },
+          _null_gear_sptr{ auth::create<input::hids>(*this) },
           active_gear_ref{ *_null_gear_sptr }
     {
         if (use_timer)
@@ -1342,8 +1342,8 @@ namespace netxs::ui
                             if (iter == user_icon.end())
                             if (auto gear_ptr = boss.bell::getref<hids>(gear_id))
                             {
-                                auto index = gear_ptr->user_index;
-                                auto color = argb::vt256[4 + index % (256 - 4)];
+                                auto index = gear_ptr->gear_index;
+                                auto color = argb::vt256[3 + index % (256 - 3)];
                                 auto image = ansi::fgc(color).add("\0▀"sv);
                                 user_icon.push_front({ gear_id, image });
                                 rebuild();

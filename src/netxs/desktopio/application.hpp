@@ -929,7 +929,10 @@ namespace netxs::app::shared
     }
     void splice(xipc client, gui_config_t& gc)
     {
-        if (os::dtvt::active || !(os::dtvt::vtmode & ui::console::gui)) os::tty::splice(client);
+        if (os::dtvt::active || !(os::dtvt::vtmode & ui::console::gui))
+        {
+            os::tty::splice(client);
+        }
         else
         {
             os::dtvt::client = client;
