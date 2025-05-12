@@ -1343,7 +1343,7 @@ namespace netxs::ui
                             if (auto gear_ptr = boss.bell::getref<hids>(gear_id))
                             {
                                 auto index = gear_ptr->gear_index;
-                                auto color = argb::vt256[3 + index % (256 - 3)];
+                                auto color = argb::vt256[4 + index % (256 - 4)];
                                 auto image = ansi::fgc(color).add("\0▀"sv);
                                 user_icon.push_front({ gear_id, image });
                                 rebuild();

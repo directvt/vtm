@@ -490,7 +490,7 @@ namespace netxs::ui
             auto gear_it = gears.find(device.gear_id);
             if (gear_it == gears.end())
             {
-                gear_it = gears.emplace(device.gear_id, bell::create<hids>(*this, canvas)).first;
+                gear_it = gears.emplace(device.gear_id, bell::create<hids>(*this, canvas, !!device.gear_id)).first;
                 auto& gear = *(gear_it->second);
                 gear.tooltip_timeout = props.tooltip_timeout;
                 gear.board::ghost = props.clip_preview_glow;

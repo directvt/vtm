@@ -1587,13 +1587,13 @@ namespace netxs::input
 
         multihome_t& multihome; // hids: .
 
-        hids(auth& indexer, base& owner, core const& idmap)
+        hids(auth& indexer, base& owner, core const& idmap, bool use_index)
             : base{ indexer },
               owner{ owner },
               idmap{ idmap },
               alive{ faux },
               timer{ base::plugin<ui::pro::timer>() },
-              gear_index{ indexer.take_gear_available_index() },
+              gear_index{ use_index ? indexer.take_gear_available_index() : 16 - 4/*vt256[0xFF000000], see pro::title*/ },
               other_key{ build_other_key(key::KeySlash, key::KeySlash | (hids::anyShift << 8)) }, // Defaults for US layout.
               multihome{ owner.base::property<multihome_t>("multihome") }
         {
@@ -1603,7 +1603,7 @@ namespace netxs::input
         }
         // Null gear.
         hids(auth& indexer)
-            : hids{ indexer, *this, board::image }
+            : hids{ indexer, *this, board::image, faux }
         { }
         virtual ~hids()
         {
