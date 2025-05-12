@@ -166,17 +166,7 @@ namespace netxs::events
         std::reference_wrapper<context_t> context; // Hierarchical location index of the script owner.
         sptr<text>                        script_body_ptr; // Script body sptr.
 
-        static auto to_string(context_t& context)
-        {
-            auto crop = text{};
-            for (auto ptr : context)
-            {
-                crop += utf::bytes2shades(view{ (char*)&ptr, sizeof(void*) });
-                crop += '-';
-            }
-            if (crop.size()) crop.pop_back();
-            return crop;
-        }
+        static text to_string(context_t& context);
 
         script_ref(context_t& context, sptr<text> script_body_ptr)
             : context{ context },
@@ -293,7 +283,6 @@ namespace netxs::events
         std::vector<std::pair<hint, si32>>        queue; // auth: Event queue: { event_id, call state }.
         std::vector<wptr<fxbase>>                 qcopy; // auth: Copy of the current pretenders to exec on current event.
         core                                      _null_idmap;
-        sptr<ui::base>                            _null_owner_sptr;
         sptr<input::hids>                         _null_gear_sptr;
         std::reference_wrapper<input::hids>       active_gear_ref; // auth: Active gear.
 
@@ -514,15 +503,18 @@ namespace netxs::events
             auto lock = sync();
             auto inst_ptr = sptr<T>(new T(std::forward<Args>(args)...), &deleter<T>); // Use new/delete to be able sync on destruction.
             auto& inst = *inst_ptr;
+            //log("Create '%%' with id: %id%", T::classname, inst.id);
             objects.try_emplace(inst.id, inst);
             return inst_ptr;
         }
-        // auth: Return next available id.
+        // auth: Returns the next available id. The default gear has id = 0.
         auto new_id()
         {
-            while (netxs::on_key(objects, ++next_id))
-            { }
-            return next_id;
+            while (netxs::on_key(objects, next_id))
+            {
+                next_id++;
+            }
+            return next_id++;
         }
         // auth: .
         template<bool Sync = true>

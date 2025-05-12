@@ -9,6 +9,40 @@
 
 namespace netxs
 {
+    namespace basename
+    {
+        #define ctx_list  \
+            X(applet    ) \
+            X(cake      ) \
+            X(defapp    ) \
+            X(desktop   ) \
+            X(dtvt      ) \
+            X(edit      ) \
+            X(fork      ) \
+            X(gear      ) \
+            X(gate      ) \
+            X(grid      ) \
+            X(grip      ) \
+            X(gui_window) \
+            X(item      ) \
+            X(infopage  ) \
+            X(list      ) \
+            X(mock      ) \
+            X(postfx    ) \
+            X(rail      ) \
+            X(taskbar   ) \
+            X(terminal  ) \
+            X(tile      ) \
+            X(veer      ) \
+            X(vtm       ) \
+            X(window    ) \
+    
+        #define X(name) static constexpr auto name = #name##sv;
+        ctx_list
+        #undef X
+        #undef ctx_list
+    }
+
     struct eccc
     {
         text env{}; // eccc: Environment var list delimited by \0.
@@ -722,7 +756,7 @@ namespace netxs::ui
                     for (auto& boss_ref : v->objects)
                     {
                         auto& boss = boss_ref.get();
-                        log("context: %ctx% %id%", netxs::events::script_ref::to_string(boss.scripting_context), boss.id);
+                        log("context: %ctx%", netxs::events::script_ref::to_string(boss.scripting_context));
                     }
                 }
             }
@@ -956,15 +990,6 @@ namespace netxs::ui
             }
             parent_ptr->change(parent_ptr->base::region + parent_ptr->base::extpad);
         }
-        // base: Remove the form from the visual tree.
-        void detach()
-        {
-            if (auto parent_ptr = base::parent())
-            {
-                base::strike();
-                parent_ptr->remove(This());
-            }
-        }
         // base: Calculate global coordinate.
         void global(auto& coor)
         {
@@ -1158,16 +1183,13 @@ namespace netxs::ui
                 log("%%Function %fx_name% not found (%object%)", prompt::lua, ansi::hi("vtm.", "instname", ".", fx_name, "()"), object_name);
             }
         }
-
-        // base: Render to the canvas. Trim = trim viewport to the nested object region.
-        template<bool Forced = faux>
-        void render(face& canvas, bool trim = true, bool pred = true, bool post = true)
+        // base: Remove the form from the visual tree.
+        void detach()
         {
-            if (hidden) return;
-            if (auto context2D = canvas.change_basis<Forced>(base::region, trim)) // Basis = base::region.coor.
+            if (auto parent_ptr = base::parent())
             {
-                if (pred) base::signal(tier::release, e2::render::background::prerender, canvas);
-                if (post) base::signal(tier::release, e2::postrender, canvas);
+                base::strike();
+                parent_ptr->remove(This());
             }
         }
         // base: Attach nested object.
@@ -1205,7 +1227,6 @@ namespace netxs::ui
                 subset.erase(std::exchange(item_ptr->holder, subset.end()));
                 item_ptr->base::signal(tier::release, e2::form::upon::vtree::detached, backup);
                 item_ptr->relyon.clear();
-                item_ptr->base::scripting_context.clear();
             }
         }
         // base: Update nested object.
@@ -1219,7 +1240,6 @@ namespace netxs::ui
                 new_item_ptr->father = This();
                 old_item_ptr->base::signal(tier::release, e2::form::upon::vtree::detached, backup);
                 old_item_ptr->relyon.clear();
-                old_item_ptr->base::scripting_context.clear();
                 new_item_ptr->base::signal(tier::release, e2::form::upon::vtree::attached, backup);
             }
         }
@@ -1241,6 +1261,17 @@ namespace netxs::ui
             while (subset.size())
             {
                 pop_back();
+            }
+        }
+        // base: Render to the canvas. Trim = trim viewport to the nested object region.
+        template<bool Forced = faux>
+        void render(face& canvas, bool trim = true, bool pred = true, bool post = true)
+        {
+            if (hidden) return;
+            if (auto context2D = canvas.change_basis<Forced>(base::region, trim)) // Basis = base::region.coor.
+            {
+                if (pred) base::signal(tier::release, e2::render::background::prerender, canvas);
+                if (post) base::signal(tier::release, e2::postrender, canvas);
             }
         }
         // base: Subscribe on/onpreview mouse events.

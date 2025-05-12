@@ -1443,6 +1443,8 @@ namespace netxs::input
         using list = std::list<wptr>;
         using kmap = std::unordered_map<si32, text>;
 
+        static constexpr auto classname = basename::gear;
+
         enum modifiers
         {
             LCtrl        = 1 <<  0, // Left  ⌃ Ctrl
@@ -1605,6 +1607,10 @@ namespace netxs::input
             keybd::gear_id = bell::id;
             base::signal(tier::general, input::events::device::user::login, user_index);
         }
+        // Null gear.
+        hids(auth& indexer, core const& idmap)
+            : hids{ indexer, *this, idmap }
+        { }
         virtual ~hids()
         {
             mouse_leave(owner);

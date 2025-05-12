@@ -5,42 +5,29 @@
 
 #include "input.hpp"
 
-namespace netxs::basename
-{
-    #define ctx_list  \
-        X(applet    ) \
-        X(cake      ) \
-        X(defapp    ) \
-        X(desktop   ) \
-        X(dtvt      ) \
-        X(edit      ) \
-        X(fork      ) \
-        X(gear      ) \
-        X(gate      ) \
-        X(grid      ) \
-        X(grip      ) \
-        X(gui_window) \
-        X(item      ) \
-        X(infopage  ) \
-        X(list      ) \
-        X(mock      ) \
-        X(postfx    ) \
-        X(rail      ) \
-        X(taskbar   ) \
-        X(terminal  ) \
-        X(tile      ) \
-        X(veer      ) \
-        X(vtm       ) \
-        X(window    ) \
-
-    #define X(name) static constexpr auto name = #name##sv;
-    ctx_list
-    #undef X
-    #undef ctx_list
-}
-
 namespace netxs::events
 {
+    text script_ref::to_string(context_t& context)
+    {
+        auto crop = text{};
+        for (auto ptr : context)
+        {
+            crop += utf::bytes2shades(view{ (char*)&ptr, sizeof(void*) });
+            crop += '-';
+        }
+        if (crop.size())
+        {
+            crop.pop_back();
+            auto id = ((ui::base*)context.back())->id;
+            crop += " " + std::to_string(id);
+        }
+        else
+        {
+            crop += " 0";
+        }
+        return crop;
+    }
+
     // luna: Get any text from the stack by index.
     text luna::vtmlua_torawstring(lua_State* lua, si32 idx, bool extended)
     {
@@ -184,6 +171,7 @@ namespace netxs::events
                     else
                     {
                         auto closeness = 0;
+                        auto target_size = 0_sz;
                         auto head = objects.begin();
                         auto tail = objects.end();
                         auto iter2 = head;
@@ -204,16 +192,17 @@ namespace netxs::events
                             auto src_head = source_ctx.begin();
                             auto src_tail = source_ctx.end();
                             auto source_ctx_begin = src_head;
-                            while (src_head != src_tail && dst_head != dst_tail)
+                            while (src_head != src_tail && dst_head != dst_tail && *src_head == *dst_head)
                             {
-                                auto src = *src_head++;
-                                auto dst = *dst_head++;
-                                if (src != dst) break;
+                                ++src_head;
+                                ++dst_head;
                             }
                             auto m = (si32)(src_head - source_ctx_begin);
-                            if (m > closeness)
+                            if (m > closeness
+                                || (m == closeness && target_ctx.size() < target_size))
                             {
                                 closeness = m;
+                                target_size = target_ctx.size();
                                 target_ptr = &boss;
                                 iter2 = head;
                             }
@@ -227,6 +216,7 @@ namespace netxs::events
                 }
                 if (target_ptr)
                 {
+                    if constexpr (debugmode) log("       selected: ", netxs::events::script_ref::to_string(target_ptr->scripting_context));
                     ::lua_pushlightuserdata(lua, target_ptr); // Push object ptr.
                     ::luaL_setmetatable(lua, "vtm_submetaindex"); // Set the vtm_submetaindex for table at -1.
                     //todo keep target_ptr locked until we are inside the lua
@@ -445,8 +435,7 @@ namespace netxs::events
           luafx{ *this },
           quartz{ *this },
           e2_timer_tick_id{ ui::e2::timer::tick.id },
-          _null_owner_sptr{ auth::create<ui::base>(*this) },
-          _null_gear_sptr{ auth::create<input::hids>(*this, *_null_owner_sptr, _null_idmap) },
+          _null_gear_sptr{ auth::create<input::hids>(*this, _null_idmap) },
           active_gear_ref{ *_null_gear_sptr }
     {
         if (use_timer)

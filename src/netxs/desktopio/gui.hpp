@@ -1425,6 +1425,7 @@ namespace netxs::gui
         using focus = ui::pro::focus;
         using kmap = input::key::kmap;
 
+        static constexpr auto classname = basename::gui_window;
         static constexpr auto shadow_dent = dent{ 1,1,1,1 } * 3;
         static constexpr auto wheel_delta_base = 120; // WHEEL_DELTA
 

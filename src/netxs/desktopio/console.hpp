@@ -490,38 +490,45 @@ namespace netxs::ui
             auto gear_it = gears.find(device.gear_id);
             if (gear_it == gears.end())
             {
-                gear_it = gears.emplace(device.gear_id, bell::create<hids>(*this, canvas)).first;
-                auto& gear = *(gear_it->second);
-                gear.tooltip_timeout = props.tooltip_timeout;
-                gear.board::ghost = props.clip_preview_glow;
-                gear.board::brush = props.clip_preview_clrs;
-                gear.board::alpha = props.clip_preview_alfa;
-                gear.mouse::delay = props.dblclick_timeout;
-                auto& luafx = bell::indexer.luafx;
-                gear.base::add_methods(basename::gear,
+                if (device.gear_id == 0)
                 {
-                    { "IsKeyRepeated",  [&]
-                                        {
-                                            auto repeated = gear.keystat == input::key::repeated;
-                                            luafx.set_return(repeated);
-                                        }},
-                    { "SetHandled",     [&]
-                                        {
-                                            gear.set_handled();
-                                            gear.interrupt_key_proc = true;
-                                            luafx.set_return();
-                                        }},
-                    { "RepeatWhilePressed", [&]
-                                        {
-                                            if (auto object_ptr = luafx.get_args_or(1, sptr{}))
+                    gear_it = gears.emplace(device.gear_id, indexer._null_gear_sptr).first;
+                }
+                else
+                {
+                    gear_it = gears.emplace(device.gear_id, bell::create<hids>(*this, canvas)).first;
+                    auto& gear = *(gear_it->second);
+                    gear.tooltip_timeout = props.tooltip_timeout;
+                    gear.board::ghost = props.clip_preview_glow;
+                    gear.board::brush = props.clip_preview_clrs;
+                    gear.board::alpha = props.clip_preview_alfa;
+                    gear.mouse::delay = props.dblclick_timeout;
+                    auto& luafx = bell::indexer.luafx;
+                    gear.base::add_methods(basename::gear,
+                    {
+                        { "IsKeyRepeated",  [&]
                                             {
-                                                gear.repeat_while_pressed(object_ptr->id);
-                                            }
-                                            luafx.set_return();
-                                        }},
-                });
-                gear.base::father = This();            // Gear has a fixed parent.
-                gear.base::update_scripting_context(); //
+                                                auto repeated = gear.keystat == input::key::repeated;
+                                                luafx.set_return(repeated);
+                                            }},
+                        { "SetHandled",     [&]
+                                            {
+                                                gear.set_handled();
+                                                gear.interrupt_key_proc = true;
+                                                luafx.set_return();
+                                            }},
+                        { "RepeatWhilePressed", [&]
+                                            {
+                                                if (auto object_ptr = luafx.get_args_or(1, sptr{}))
+                                                {
+                                                    gear.repeat_while_pressed(object_ptr->id);
+                                                }
+                                                luafx.set_return();
+                                            }},
+                    });
+                    gear.base::father = This();            // Gear has a fixed parent.
+                    gear.base::update_scripting_context(); //
+                }
             }
             auto& [ext_gear_id, gear_ptr] = *gear_it;
             gear_ptr->set_multihome();
