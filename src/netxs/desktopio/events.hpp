@@ -296,7 +296,7 @@ namespace netxs::events
         }
         auto release_gear_index(si32 n)
         {
-            if (n >= 0 && n < gear_indexing.size()) gear_indexing[n] = faux;
+            if (n >= 0 && n < (si32)gear_indexing.size()) gear_indexing[n] = faux;
             else
             {
                 if constexpr (debugmode) log(prompt::host, ansi::err("Gear accounting error: ring size:", gear_indexing.size(), " gear_number:", n));
