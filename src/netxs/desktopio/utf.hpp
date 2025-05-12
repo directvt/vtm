@@ -1687,7 +1687,7 @@ namespace netxs::utf
         auto buff = text{};
         auto bstr = text{};
         auto gstr = text{};
-        buff += "\x1b[#{\x1b[38:2:0:128:0m";
+        buff += "\x1b[#{";
         auto head = utf8.begin();
         auto tail = utf8.end();
         while (head != tail)
@@ -1696,7 +1696,8 @@ namespace netxs::utf
             auto b = *head++;
             gstr = std::to_string(g);
             bstr = std::to_string(b);
-            buff += "\x1b[48:2:32:" + gstr + ":" + bstr + "m░";
+            buff += "\x1b[38:2:32:" + gstr + ":128m";
+            buff += "\x1b[48:2:32:128:" + bstr + "m▐";
         }
         buff += "\x1b[#}";
         return buff;

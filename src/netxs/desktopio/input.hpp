@@ -1593,7 +1593,7 @@ namespace netxs::input
               idmap{ idmap },
               alive{ faux },
               timer{ base::plugin<ui::pro::timer>() },
-              gear_index{ use_index ? indexer.take_gear_available_index() : 16 - 4/*vt256[0xFF000000], see pro::title*/ },
+              gear_index{ use_index ? indexer.take_gear_available_index() : 16 - 4 + 256 - 4/*vt256[0xFF000000], see pro::title*/ },
               other_key{ build_other_key(key::KeySlash, key::KeySlash | (hids::anyShift << 8)) }, // Defaults for US layout.
               multihome{ owner.base::property<multihome_t>("multihome") }
         {
@@ -1609,7 +1609,7 @@ namespace netxs::input
         {
             mouse_leave(owner);
             release_if_captured();
-            bell::indexer.release_gear_index(gear_index);
+            if (gear_index != 16 - 4 + 256 - 4) bell::indexer.release_gear_index(gear_index);
             base::signal(tier::release, input::events::halt, *this);
             base::signal(tier::general, input::events::halt, *this);
             base::signal(tier::release, input::events::die, *this);

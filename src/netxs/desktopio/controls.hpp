@@ -1750,7 +1750,7 @@ namespace netxs::ui
                     {
                         if (root_ptr) // root_ptr is always empty when the boss is dropped via d_n_d.
                         {
-                            pro::focus::set(boss.This(), id_t{}, solo::off);
+                            pro::focus::set(boss.This(), id_t{}, solo::on); // Use solo::on in order to focus only the last started window/object only.
                         }
                     };
                 }
