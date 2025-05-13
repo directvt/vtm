@@ -221,7 +221,7 @@ namespace netxs::events
                 else if (param.type() == typeid(std::reference_wrapper<dent>)) return luna::vtmlua_push_value(lua, std::any_cast<std::reference_wrapper<dent>>(param).get());
                 else if (param.type() == typeid(std::reference_wrapper<sptr<ui::base>>)) return luna::vtmlua_push_value(lua, std::any_cast<std::reference_wrapper<sptr<ui::base>>>(param).get());
             }
-            else return 0;
+            return 0;
         });
     }
     si32 luna::vtmlua_vtm_index(lua_State* lua)
@@ -232,75 +232,9 @@ namespace netxs::events
         //if constexpr (debugmode) log("vtmlua_vtm_index: 1: %% 2: %%", luna::vtmlua_torawstring(lua, 1), luna::vtmlua_torawstring(lua, 2));
         return luna::vtmlua_run_with_indexer(lua, [&](auth& indexer)
         {
-            auto& classes = indexer.classes;
-            auto target_ptr = (ui::base*)nullptr;
             auto object_name = luna::vtmlua_torawstring(lua, 2);
             auto& source_ctx = indexer.context_ref.get();
-            if constexpr (debugmode) log("looking for '%%'", object_name);
-            if constexpr (debugmode) log(" source context: ", netxs::events::script_ref::to_string(source_ctx));
-            if (object_name == basename::gear)
-            {
-                target_ptr = &(indexer.active_gear_ref.get());
-            }
-            else if (object_name == basename::gate)
-            {
-                target_ptr = &(indexer.active_gear_ref.get().owner);
-            }
-            else if (auto iter = classes.find(object_name); iter != classes.end() && iter->second)
-            {
-                auto& subclass = *(iter->second);
-                auto& objects = subclass.objects;
-                if (source_ctx.empty() && !objects.empty()) // The object is outside the DOM.
-                {
-                    target_ptr = &(objects.front().get()); // Take the first available.
-                }
-                else
-                {
-                    auto closeness = 0;
-                    auto target_size = 0_sz;
-                    auto head = objects.begin();
-                    auto tail = objects.end();
-                    auto iter2 = head;
-                    while (head != tail)
-                    {
-                        auto& boss = head->get();
-                        auto& target_ctx = boss.scripting_context;
-                        if constexpr (debugmode) log(" target context: ", netxs::events::script_ref::to_string(target_ctx));
-                        if (target_ctx.empty() // The object is outside the DOM.
-                            || source_ctx.back() == target_ctx.back()) // Target is the source itself.
-                        {
-                            target_ptr = &boss;
-                            iter2 = head;
-                            break;
-                        }
-                        auto dst_head = target_ctx.begin();
-                        auto dst_tail = target_ctx.end();
-                        auto src_head = source_ctx.begin();
-                        auto src_tail = source_ctx.end();
-                        auto source_ctx_begin = src_head;
-                        while (src_head != src_tail && dst_head != dst_tail && *src_head == *dst_head)
-                        {
-                            ++src_head;
-                            ++dst_head;
-                        }
-                        auto m = (si32)(src_head - source_ctx_begin);
-                        if (m > closeness
-                            || (m == closeness && target_ctx.size() < target_size))
-                        {
-                            closeness = m;
-                            target_size = target_ctx.size();
-                            target_ptr = &boss;
-                            iter2 = head;
-                        }
-                        ++head;
-                    }
-                    if (iter2 != objects.begin()) // Move the target to the top of the class object list.
-                    {
-                        objects.splice(objects.begin(), objects, iter2);
-                    }
-                }
-            }
-            if (target_ptr)
+            if (auto target_ptr = indexer.get_target(source_ctx, object_name))
             {
                 if constexpr (debugmode) log("       selected: ", netxs::events::script_ref::to_string(target_ptr->scripting_context));
                 ::lua_pushlightuserdata(lua, target_ptr); // Push object ptr.
@@ -536,6 +470,75 @@ namespace netxs::events
                 }
             }});
         }
+    }
+    ui::base* auth::get_target(context_t& source_ctx, view object_name)
+    {
+        auto target_ptr = (ui::base*)nullptr;
+        if constexpr (debugmode) log("looking for '%%'", object_name);
+        if constexpr (debugmode) log(" source context: ", netxs::events::script_ref::to_string(source_ctx));
+        if (object_name == basename::gear)
+        {
+            target_ptr = &(active_gear_ref.get());
+        }
+        else if (object_name == basename::gate)
+        {
+            target_ptr = &(active_gear_ref.get().owner);
+        }
+        else if (auto iter = classes.find(object_name); iter != classes.end() && iter->second)
+        {
+            auto& subclass = *(iter->second);
+            auto& subobjects = subclass.objects;
+            if (source_ctx.empty() && !subobjects.empty()) // The object is outside the DOM.
+            {
+                target_ptr = &(subobjects.front().get()); // Take the first available.
+            }
+            else
+            {
+                auto closeness = 0;
+                auto target_size = 0_sz;
+                auto head = subobjects.begin();
+                auto tail = subobjects.end();
+                auto iter2 = head;
+                while (head != tail)
+                {
+                    auto& boss = head->get();
+                    auto& target_ctx = boss.scripting_context;
+                    if constexpr (debugmode) log(" target context: ", netxs::events::script_ref::to_string(target_ctx));
+                    if (target_ctx.empty() // The object is outside the DOM.
+                        || source_ctx.back() == target_ctx.back()) // Target is the source itself.
+                    {
+                        target_ptr = &boss;
+                        iter2 = head;
+                        break;
+                    }
+                    auto dst_head = target_ctx.begin();
+                    auto dst_tail = target_ctx.end();
+                    auto src_head = source_ctx.begin();
+                    auto src_tail = source_ctx.end();
+                    auto source_ctx_begin = src_head;
+                    while (src_head != src_tail && dst_head != dst_tail && *src_head == *dst_head)
+                    {
+                        ++src_head;
+                        ++dst_head;
+                    }
+                    auto m = (si32)(src_head - source_ctx_begin);
+                    if (m > closeness
+                        || (m == closeness && target_ctx.size() < target_size))
+                    {
+                        closeness = m;
+                        target_size = target_ctx.size();
+                        target_ptr = &boss;
+                        iter2 = head;
+                    }
+                    ++head;
+                }
+                if (iter2 != subobjects.begin()) // Move the target to the top of the class object list.
+                {
+                    subobjects.splice(subobjects.begin(), subobjects, iter2);
+                }
+            }
+        }
+        return target_ptr;
     }
 }
 

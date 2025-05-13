@@ -766,7 +766,7 @@ namespace netxs::input
             }
             return std::pair{ _get_chord_list(), faux };
         }
-        auto keybind(base& boss, qiew chord_str, auto&& script_body, txts const& /*sources*/ = {})
+        auto keybind(base& boss, qiew chord_str, auto&& script_body, txts const& sources = {})
         {
             if (!chord_str) return;
             auto [chords, is_preview] = input::bindings::get_chords(chord_str);
@@ -785,9 +785,34 @@ namespace netxs::input
                             auto event_id = netxs::aligned<hint>(binary_chord.data() + 1);
                             if (set_handler)
                             {
-                                log("Set handler for script: ", ansi::hi(*(script_ptr->script_body_ptr)));
-                                //todo subscribe on sources (with boss.sensors!)
-                                boss.bell::submit_generic(tier_id, event_id, script_ptr);
+                                if (sources.empty())
+                                {
+                                    log("Set handler for script: ", ansi::hi(*(script_ptr->script_body_ptr)));
+                                    boss.bell::submit_generic(tier_id, event_id, script_ptr);
+                                }
+                                else
+                                {
+                                    log("Deferred setting handler on '%target%' for script: ", sources.front(), ansi::hi(*(script_ptr->script_body_ptr)));
+                                    //todo revise: too hacky
+                                    auto& indexer = boss.indexer;
+                                    indexer._null_gear_sptr->base::enqueue([&, id = boss.id, tier_id, event_id, sources, script_ptr](auto& /*gear_0*/) // Subscribe on sources (with boss.sensors).
+                                    {
+                                        auto boss_ptr = indexer.getref(id);
+                                        for (auto& src_name : sources)
+                                        {
+                                            log("Set handler on '%target%' for script: ", src_name, ansi::hi(*(script_ptr->script_body_ptr)));
+                                            if (auto target_ptr = indexer.get_target(boss_ptr->scripting_context, src_name))
+                                            {
+                                                target_ptr->bell::submit_generic(tier_id, event_id, boss_ptr->sensors, script_ptr);
+                                            }
+                                            else
+                                            {
+                                                log("%%Event source '%src_name%' not found", prompt::lua, src_name);
+                                            }
+                                            
+                                        }
+                                    });
+                                }
                             }
                             else // Reset all script bindings for event_id.
                             {

@@ -343,6 +343,7 @@ namespace netxs::events
 
         auth(bool use_timer = faux);
 
+        ui::base* get_target(context_t& source_ctx, view object_name);
         // auth: .
         void _refresh_and_copy(fmap::mapped_type& fxlist)
         {
