@@ -133,12 +133,8 @@ namespace netxs::events
         ::lua_pushcclosure(lua, luna::vtmlua_call_method, 2);
         return 1;
     }
-    si32 luna::vtmlua_vtm_index(lua_State* lua)
+    si32 luna::vtmlua_run_with_indexer(lua_State* lua, auto proc)
     {
-        // Stack:
-        //      1. userdata (or table).
-        //      2. object name (keyname).
-        //if constexpr (debugmode) log("vtmlua_vtm_index: 1: %% 2: %%", luna::vtmlua_torawstring(lua, 1), luna::vtmlua_torawstring(lua, 2));
         // Get internal indexer registry.
         ::lua_pushstring(lua, "indexer"); // Push internal registry key 'indexer'.
         if (::lua_gettable(lua, LUA_REGISTRYINDEX) == LUA_TLIGHTUSERDATA) // Retrieve address of 'indexer' and push it to the stack at -1.
@@ -146,105 +142,179 @@ namespace netxs::events
             if (auto indexer_ptr = (auth*)::lua_touserdata(lua, -1)) // Get 'indexer'.
             {
                 auto& indexer = *indexer_ptr;
-                auto& classes = indexer.classes;
-                auto target_ptr = (ui::base*)nullptr;
-                auto object_name = luna::vtmlua_torawstring(lua, 2);
-                auto& source_ctx = indexer.context_ref.get();
-                if constexpr (debugmode) log("looking for '%%'", object_name);
-                if constexpr (debugmode) log(" source context: ", netxs::events::script_ref::to_string(source_ctx));
-                if (object_name == basename::gear)
-                {
-                    target_ptr = &(indexer.active_gear_ref.get());
-                }
-                else if (object_name == basename::gate)
-                {
-                    target_ptr = &(indexer.active_gear_ref.get().owner);
-                }
-                else if (auto iter = classes.find(object_name); iter != classes.end() && iter->second)
-                {
-                    auto& subclass = *(iter->second);
-                    auto& objects = subclass.objects;
-                    if (source_ctx.empty() && !objects.empty()) // The object is outside the DOM.
-                    {
-                        target_ptr = &(objects.front().get()); // Take the first available.
-                    }
-                    else
-                    {
-                        auto closeness = 0;
-                        auto target_size = 0_sz;
-                        auto head = objects.begin();
-                        auto tail = objects.end();
-                        auto iter2 = head;
-                        while (head != tail)
-                        {
-                            auto& boss = head->get();
-                            auto& target_ctx = boss.scripting_context;
-                            if constexpr (debugmode) log(" target context: ", netxs::events::script_ref::to_string(target_ctx));
-                            if (target_ctx.empty() // The object is outside the DOM.
-                             || source_ctx.back() == target_ctx.back()) // Target is the source itself.
-                            {
-                                target_ptr = &boss;
-                                iter2 = head;
-                                break;
-                            }
-                            auto dst_head = target_ctx.begin();
-                            auto dst_tail = target_ctx.end();
-                            auto src_head = source_ctx.begin();
-                            auto src_tail = source_ctx.end();
-                            auto source_ctx_begin = src_head;
-                            while (src_head != src_tail && dst_head != dst_tail && *src_head == *dst_head)
-                            {
-                                ++src_head;
-                                ++dst_head;
-                            }
-                            auto m = (si32)(src_head - source_ctx_begin);
-                            if (m > closeness
-                                || (m == closeness && target_ctx.size() < target_size))
-                            {
-                                closeness = m;
-                                target_size = target_ctx.size();
-                                target_ptr = &boss;
-                                iter2 = head;
-                            }
-                            ++head;
-                        }
-                        if (iter2 != objects.begin()) // Move the target to the top of the class object list.
-                        {
-                            objects.splice(objects.begin(), objects, iter2);
-                        }
-                    }
-                }
-                if (target_ptr)
-                {
-                    if constexpr (debugmode) log("       selected: ", netxs::events::script_ref::to_string(target_ptr->scripting_context));
-                    ::lua_pushlightuserdata(lua, target_ptr); // Push object ptr.
-                    ::luaL_setmetatable(lua, "vtm_submetaindex"); // Set the vtm_submetaindex for table at -1.
-                    //todo keep target_ptr locked until we are inside the lua
-                    return 1;
-                }
-                log("%%No 'vtm.%%' objects found", prompt::lua, object_name);
-                return 0;
+                return proc(indexer);
             }
         }
-        log("%%The indexer registry is missing or corrupted (see global 'indexer')", prompt::lua);
+        else
+        {
+            log("%%The indexer registry is missing or corrupted (see global 'indexer')", prompt::lua);
+        }
         return 0;
     }
-    void luna::push_value(auto&& v)
+    si32 luna::vtmlua_push_value(lua_State* lua, auto&& v)
     {
         using T = std::decay_t<decltype(v)>;
         static constexpr auto is_string_v = requires{ (const char*)v.data(); };
-        static constexpr auto is_cstring_v = requires{ (const char*)v[0]; };
-             if constexpr (std::is_same_v<T, bool>)     ::lua_pushboolean(lua, v);
-        else if constexpr (is_string_v)                 ::lua_pushlstring(lua, v.data(), v.size());
-        else if constexpr (is_cstring_v)                ::lua_pushstring(lua, v);
-        else if constexpr (std::is_integral_v<T>)       ::lua_pushinteger(lua, v);
-        else if constexpr (std::is_floating_point_v<T>) ::lua_pushnumber(lua, v);
-        else if constexpr (std::is_pointer_v<T>)        ::lua_pushlightuserdata(lua, v);
+        static constexpr auto is_cstring_v = !std::is_same_v<T, twod> && requires{ (const char*)v[0]; };
+
+        auto args_count = 1;
+             if constexpr (std::is_same_v<T, bool>)                  ::lua_pushboolean(lua, v);
+        else if constexpr (std::is_integral_v<T>)                    ::lua_pushinteger(lua, v);
+        else if constexpr (std::is_floating_point_v<T>)              ::lua_pushnumber(lua, v);
+        else if constexpr (std::is_same_v<T, argb>)                  luna::vtmlua_push_value(lua, v.token);
+        else if constexpr (std::is_same_v<T, time>)                  luna::vtmlua_push_value(lua, v.time_since_epoch().count());
+        else if constexpr (std::is_same_v<T, span>)                  luna::vtmlua_push_value(lua, v.count());
+        else if constexpr (std::is_convertible_v<T, sptr<ui::base>>) ::lua_pushlightuserdata(lua, (void*)v.get());
+        else if constexpr (!std::is_same_v<T, noop>)                 ::lua_pushlightuserdata(lua, (void*)&v);
+        else if constexpr (is_string_v)                              ::lua_pushlstring(lua, v.data(), v.size());
+        else if constexpr (is_cstring_v)                             ::lua_pushstring(lua, v);
+        else if constexpr (std::is_pointer_v<T>)                     ::lua_pushlightuserdata(lua, (void*)v);
+        else if constexpr (std::is_same_v<T, twod> || std::is_same_v<T, fp2d>)
+        {
+            luna::vtmlua_push_value(lua, v.x);
+            luna::vtmlua_push_value(lua, v.y);
+            args_count = 2;
+        }
+        else if constexpr (std::is_same_v<T, dent>)
+        {
+            luna::vtmlua_push_value(lua, v.l);
+            luna::vtmlua_push_value(lua, v.r);
+            luna::vtmlua_push_value(lua, v.t);
+            luna::vtmlua_push_value(lua, v.b);
+            args_count = 4;
+        }
+        else if constexpr (std::is_same_v<T, rect>)
+        {
+            luna::vtmlua_push_value(lua, v.coor);
+            luna::vtmlua_push_value(lua, v.size);
+            args_count = 4;
+        }
         else
         {
-            if constexpr (debugmode) throw;
-            else ::lua_pushnil(lua);
+            args_count = 0;
         }
+        return args_count;
+    }
+    si32 luna::vtmlua_vtm_call(lua_State* lua)
+    {
+        return luna::vtmlua_run_with_indexer(lua, [&](auth& indexer)
+        {
+            auto& param = indexer.script_param;
+            if (param.has_value())
+            {
+                     if (param.type() == typeid(std::reference_wrapper<time>)) return luna::vtmlua_push_value(lua, std::any_cast<std::reference_wrapper<time>>(param).get());
+                else if (param.type() == typeid(std::reference_wrapper<bool>)) return luna::vtmlua_push_value(lua, std::any_cast<std::reference_wrapper<bool>>(param).get());
+                else if (param.type() == typeid(std::reference_wrapper<text>)) return luna::vtmlua_push_value(lua, std::any_cast<std::reference_wrapper<text>>(param).get());
+                else if (param.type() == typeid(std::reference_wrapper<si32>)) return luna::vtmlua_push_value(lua, std::any_cast<std::reference_wrapper<si32>>(param).get());
+                else if (param.type() == typeid(std::reference_wrapper<si64>)) return luna::vtmlua_push_value(lua, std::any_cast<std::reference_wrapper<si64>>(param).get());
+                else if (param.type() == typeid(std::reference_wrapper<ui32>)) return luna::vtmlua_push_value(lua, std::any_cast<std::reference_wrapper<ui32>>(param).get());
+                else if (param.type() == typeid(std::reference_wrapper<ui64>)) return luna::vtmlua_push_value(lua, std::any_cast<std::reference_wrapper<ui64>>(param).get());
+                else if (param.type() == typeid(std::reference_wrapper<si16>)) return luna::vtmlua_push_value(lua, std::any_cast<std::reference_wrapper<si16>>(param).get());
+                else if (param.type() == typeid(std::reference_wrapper<ui16>)) return luna::vtmlua_push_value(lua, std::any_cast<std::reference_wrapper<ui16>>(param).get());
+                else if (param.type() == typeid(std::reference_wrapper<fp32>)) return luna::vtmlua_push_value(lua, std::any_cast<std::reference_wrapper<fp32>>(param).get());
+                else if (param.type() == typeid(std::reference_wrapper<fp64>)) return luna::vtmlua_push_value(lua, std::any_cast<std::reference_wrapper<fp64>>(param).get());
+                else if (param.type() == typeid(std::reference_wrapper<argb>)) return luna::vtmlua_push_value(lua, std::any_cast<std::reference_wrapper<argb>>(param).get());
+                else if (param.type() == typeid(std::reference_wrapper<span>)) return luna::vtmlua_push_value(lua, std::any_cast<std::reference_wrapper<span>>(param).get());
+                else if (param.type() == typeid(std::reference_wrapper<twod>)) return luna::vtmlua_push_value(lua, std::any_cast<std::reference_wrapper<twod>>(param).get());
+                else if (param.type() == typeid(std::reference_wrapper<fp2d>)) return luna::vtmlua_push_value(lua, std::any_cast<std::reference_wrapper<fp2d>>(param).get());
+                else if (param.type() == typeid(std::reference_wrapper<rect>)) return luna::vtmlua_push_value(lua, std::any_cast<std::reference_wrapper<rect>>(param).get());
+                else if (param.type() == typeid(std::reference_wrapper<dent>)) return luna::vtmlua_push_value(lua, std::any_cast<std::reference_wrapper<dent>>(param).get());
+                else if (param.type() == typeid(std::reference_wrapper<sptr<ui::base>>)) return luna::vtmlua_push_value(lua, std::any_cast<std::reference_wrapper<sptr<ui::base>>>(param).get());
+            }
+            else return 0;
+        });
+    }
+    si32 luna::vtmlua_vtm_index(lua_State* lua)
+    {
+        // Stack:
+        //      1. userdata (or table).
+        //      2. object name (keyname).
+        //if constexpr (debugmode) log("vtmlua_vtm_index: 1: %% 2: %%", luna::vtmlua_torawstring(lua, 1), luna::vtmlua_torawstring(lua, 2));
+        return luna::vtmlua_run_with_indexer(lua, [&](auth& indexer)
+        {
+            auto& classes = indexer.classes;
+            auto target_ptr = (ui::base*)nullptr;
+            auto object_name = luna::vtmlua_torawstring(lua, 2);
+            auto& source_ctx = indexer.context_ref.get();
+            if constexpr (debugmode) log("looking for '%%'", object_name);
+            if constexpr (debugmode) log(" source context: ", netxs::events::script_ref::to_string(source_ctx));
+            if (object_name == basename::gear)
+            {
+                target_ptr = &(indexer.active_gear_ref.get());
+            }
+            else if (object_name == basename::gate)
+            {
+                target_ptr = &(indexer.active_gear_ref.get().owner);
+            }
+            else if (auto iter = classes.find(object_name); iter != classes.end() && iter->second)
+            {
+                auto& subclass = *(iter->second);
+                auto& objects = subclass.objects;
+                if (source_ctx.empty() && !objects.empty()) // The object is outside the DOM.
+                {
+                    target_ptr = &(objects.front().get()); // Take the first available.
+                }
+                else
+                {
+                    auto closeness = 0;
+                    auto target_size = 0_sz;
+                    auto head = objects.begin();
+                    auto tail = objects.end();
+                    auto iter2 = head;
+                    while (head != tail)
+                    {
+                        auto& boss = head->get();
+                        auto& target_ctx = boss.scripting_context;
+                        if constexpr (debugmode) log(" target context: ", netxs::events::script_ref::to_string(target_ctx));
+                        if (target_ctx.empty() // The object is outside the DOM.
+                            || source_ctx.back() == target_ctx.back()) // Target is the source itself.
+                        {
+                            target_ptr = &boss;
+                            iter2 = head;
+                            break;
+                        }
+                        auto dst_head = target_ctx.begin();
+                        auto dst_tail = target_ctx.end();
+                        auto src_head = source_ctx.begin();
+                        auto src_tail = source_ctx.end();
+                        auto source_ctx_begin = src_head;
+                        while (src_head != src_tail && dst_head != dst_tail && *src_head == *dst_head)
+                        {
+                            ++src_head;
+                            ++dst_head;
+                        }
+                        auto m = (si32)(src_head - source_ctx_begin);
+                        if (m > closeness
+                            || (m == closeness && target_ctx.size() < target_size))
+                        {
+                            closeness = m;
+                            target_size = target_ctx.size();
+                            target_ptr = &boss;
+                            iter2 = head;
+                        }
+                        ++head;
+                    }
+                    if (iter2 != objects.begin()) // Move the target to the top of the class object list.
+                    {
+                        objects.splice(objects.begin(), objects, iter2);
+                    }
+                }
+            }
+            if (target_ptr)
+            {
+                if constexpr (debugmode) log("       selected: ", netxs::events::script_ref::to_string(target_ptr->scripting_context));
+                ::lua_pushlightuserdata(lua, target_ptr); // Push object ptr.
+                ::luaL_setmetatable(lua, "vtm_submetaindex"); // Set the vtm_submetaindex for table at -1.
+                //todo keep target_ptr locked until we are inside the lua
+                return 1;
+            }
+            log("%%No 'vtm.%%' objects found", prompt::lua, object_name);
+            return 0;
+        });
+    }
+    si32 luna::push_value(auto&& v)
+    {
+        return luna::vtmlua_push_value(lua, v);
     }
     void luna::set_return(auto... args)
     {
@@ -346,13 +416,20 @@ namespace netxs::events
         auto ok = luna::run_with_gear_wo_return(proc);
         luna::set_return(ok);
     }
-    text luna::run(context_t& context, view script_body)
+    text luna::run(context_t& context, view script_body, auto&& param)
     {
+        using T = std::decay_t<decltype(param)>;
         log("%%script:\n%pads%%script%", prompt::lua, prompt::pads, ansi::hi(script_body));
+        //if constexpr (std::is_same_v<T, noop>) log("%%script:\n%pads%%script%", prompt::lua, prompt::pads, ansi::hi(script_body));
+        //else                                   log("%%script:\n%pads%%script%\n  with arg: %%", prompt::lua, prompt::pads, ansi::hi(script_body), param);
+
         indexer.context_ref = context;
+        indexer.script_param = std::ref((T&)param);
+
         ::lua_settop(lua, 0);
         auto error = ::luaL_loadbuffer(lua, script_body.data(), script_body.size(), "script body")
                   || ::lua_pcall(lua, 0, 0, 0);
+        indexer.script_param.reset();
         auto result = text{};
         if (error)
         {
@@ -411,6 +488,7 @@ namespace netxs::events
         // Define 'vtm' redirecting metatable.
         static auto vtm_metaindex = std::to_array<luaL_Reg>({{ "__index",    luna::vtmlua_vtm_index },
                                                              { "__tostring", luna::vtmlua_object2string },
+                                                             { "__call",     luna::vtmlua_vtm_call },
                                                              { nullptr, nullptr }});
         ::luaL_newmetatable(lua, "vtm_metaindex"); // Create a new metatable in registry and push it to the stack.
         ::luaL_setfuncs(lua, vtm_metaindex.data(), 0); // Assign metamethods for the table which at the top of the stack.

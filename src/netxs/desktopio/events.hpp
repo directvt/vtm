@@ -142,9 +142,12 @@ namespace netxs::events
         static si32 vtmlua_object2string(lua_State* lua);
         static si32 vtmlua_log(lua_State* lua);
         static si32 vtmlua_call_method(lua_State* lua);
+        static si32 vtmlua_run_with_indexer(lua_State* lua, auto proc);
+        static si32 vtmlua_vtm_call(lua_State* lua);
         static si32 vtmlua_vtm_index(lua_State* lua);
         static si32 vtmlua_vtm_subindex(lua_State* lua);
-        void push_value(auto&& v);
+        static si32 vtmlua_push_value(lua_State* lua, auto&& v);
+        si32 push_value(auto&& v);
         void set_return(auto... args);
         si32 args_count();
         void read_args(si32 index, auto add_item);
@@ -153,7 +156,8 @@ namespace netxs::events
         input::hids& get_gear();
         bool run_with_gear_wo_return(auto proc);
         void run_with_gear(auto proc);
-        text run(context_t& context, view script_body);
+        template<class Arg = noop>
+        text run(context_t& context, view script_body, Arg&& param = {});
         text run_script(ui::base& object, view script_body);
         void run_ext_script(ui::base& object, auto& script);
 
@@ -213,11 +217,7 @@ namespace netxs::events
             {
                 auto& [context, script_body_ptr] = *script_ptr;
                 auto& script_body = *script_body_ptr;
-                //todo pass param
-                //auto param_ptr = (char*)&param;
-                //::lua_pushnil(param_ptr);
-                //::lua_setglobal(luafx.lua, "param");
-                luafx.run(context, script_body);
+                luafx.run(context, script_body, param);
             }
             else if (auto& proc = get_inst<Arg>())
             {
@@ -285,6 +285,7 @@ namespace netxs::events
         std::vector<bool>                         gear_indexing; // auth: Gear visual indexing.
         sptr<input::hids>                         _null_gear_sptr; // auth: Fallback gear sptr.
         std::reference_wrapper<input::hids>       active_gear_ref; // auth: Active gear.
+        std::any                                  script_param; // auth: .
 
         auto take_gear_available_index()
         {
