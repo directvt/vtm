@@ -1226,7 +1226,8 @@ namespace netxs::app::vtm
             {
                 { "Cleanup",            [&]
                                         {
-                                            base::cleanup();
+                                            auto show_details = luafx.get_args_or(1, faux);
+                                            base::cleanup(show_details);
                                             luafx.set_return();
                                         }},
                 { "Shutdown",           [&]

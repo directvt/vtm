@@ -737,9 +737,9 @@ namespace netxs::ui
             return std::pair{ ref_count, del_count };
         }
         // base: Cleanup expired weak references.
-        void cleanup()
+        void cleanup(bool show_details = faux)
         {
-            if constexpr (debugmode)
+            if (show_details)
             {
                 auto start = datetime::now();
                 auto [ref_count, del_count] = base::_cleanup();
