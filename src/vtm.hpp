@@ -1230,6 +1230,29 @@ namespace netxs::app::vtm
                                             base::cleanup(show_details);
                                             luafx.set_return();
                                         }},
+                { "EventList",          [&]
+                                            {
+                                                log("Registered events:");
+                                                auto maxlen = 0;
+                                                auto events = std::vector<std::pair<view, view>>{};
+                                                events.reserve(netxs::events::rtti().size());
+                                                for (auto& [event_name, metadata] : netxs::events::rtti())
+                                                {
+                                                    events.push_back({ event_name, metadata.param_typename });
+                                                    if (event_name.size() > maxlen) maxlen = (si32)event_name.size();
+                                                }
+                                                std::sort(events.begin(), events.end(), [](auto a, auto b){ return a.first < b.first; });
+                                                auto mpad = text(maxlen, ' ');
+                                                auto digits = std::to_string(netxs::events::rtti().size()).size();
+                                                auto i = 0;
+                                                for (auto& [event_name, type] : events)
+                                                {
+                                                    auto pad = view{ mpad.data(), maxlen - event_name.size() };
+                                                    auto n = utf::adjust(std::to_string(++i), digits, ' ', true);
+                                                    log(" %n% %event% %pad% type: %%", n, ansi::clr(tint::greenlt, event_name), pad, ansi::clr(tint::yellowlt, type));
+                                                }
+                                                luafx.set_return();
+                                            }},
                 { "Shutdown",           [&]
                                         {
                                             auto args_count = luafx.args_count();
