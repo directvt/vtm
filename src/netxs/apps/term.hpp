@@ -497,17 +497,6 @@ namespace netxs::app::terminal
                 parent_canvas.fill(full, [&](cell& c){ c.fgc(c.bgc()).bgc(bgc).txt(bar).link(bar); });
             };
         });
-
-        //term->attach_property(ui::tty::events::colors::bg,      terminal::events::release::colors::bg)
-        //    ->attach_property(ui::tty::events::colors::fg,      terminal::events::release::colors::fg)
-        //    ->attach_property(ui::tty::events::selmod,          terminal::events::release::selection::mode)
-        //    ->attach_property(ui::tty::events::onesht,          terminal::events::release::selection::shot)
-        //    ->attach_property(ui::tty::events::selalt,          terminal::events::release::selection::box)
-        //    ->attach_property(ui::tty::events::rawkbd,          terminal::events::release::rawkbd)
-        //    ->attach_property(ui::tty::events::io_log,          terminal::events::release::io_log)
-        //    ->attach_property(ui::tty::events::layout::wrapln,  terminal::events::release::wrapln)
-        //    ->attach_property(ui::tty::events::layout::align,   terminal::events::release::align)
-        //    ->attach_property(ui::tty::events::search::status,  terminal::events::search::status)
         term->invoke([&](auto& boss)
             {
                 ui_term_events(boss, appcfg);

@@ -8024,16 +8024,16 @@ namespace netxs::ui
                     if (config.send_input.size()) ipccon.write<faux>(config.send_input);
                     auto lock = bell::sync();
                     // Sync external listeners with terminal current state.
-                    base::signal(tier::release, ui::tty::events::io_log,         io_log); //[&](auto& v){ v = io_log; });
-                    base::signal(tier::release, ui::tty::events::selmod,         selmod); //[&](auto& v){ v = selmod; });
-                    base::signal(tier::release, ui::tty::events::onesht,         onesht); //[&](auto& v){ v = onesht; });
-                    base::signal(tier::release, ui::tty::events::selalt,         selalt); //[&](auto& v){ v = selalt; });
-                    base::signal(tier::release, ui::tty::events::rawkbd,         rawkbd); //[&](auto& v){ v = rawkbd; });
-                    base::signal(tier::release, ui::tty::events::colors::bg,     target->brush.bgc()); //[&](auto& v){ v = target->brush.bgc(); });
-                    base::signal(tier::release, ui::tty::events::colors::fg,     target->brush.fgc()); //[&](auto& v){ v = target->brush.fgc(); });
-                    base::signal(tier::release, ui::tty::events::layout::wrapln, (si32)target->style.wrp()); //[&](auto& v){ v = (si32)target->style.wrp(); });
-                    base::signal(tier::release, ui::tty::events::layout::align,  (si32)target->style.jet()); //[&](auto& v){ v = (si32)target->style.jet(); });
-                    base::signal(tier::release, ui::tty::events::search::status, target->selection_button()); //[&](auto& v){ v = target->selection_button(); });
+                    base::signal(tier::release, ui::tty::events::io_log,         io_log);
+                    base::signal(tier::release, ui::tty::events::selmod,         selmod);
+                    base::signal(tier::release, ui::tty::events::onesht,         onesht);
+                    base::signal(tier::release, ui::tty::events::selalt,         selalt);
+                    base::signal(tier::release, ui::tty::events::rawkbd,         rawkbd);
+                    base::signal(tier::release, ui::tty::events::colors::bg,     target->brush.bgc());
+                    base::signal(tier::release, ui::tty::events::colors::fg,     target->brush.fgc());
+                    base::signal(tier::release, ui::tty::events::layout::wrapln, (si32)target->style.wrp());
+                    base::signal(tier::release, ui::tty::events::layout::align,  (si32)target->style.jet());
+                    base::signal(tier::release, ui::tty::events::search::status, target->selection_button());
                     backup.reset(); // Backup should dtored under the lock.
                 });
                 appcfg.win = target->panel;
@@ -8218,16 +8218,6 @@ namespace netxs::ui
             set_fg_color(config.def_fcolor);
             set_bg_color(config.def_bcolor);
             selection_submit();
-            //publish_property(ui::tty::events::io_log,         [&](auto& v){ v = io_log; });
-            //publish_property(ui::tty::events::selmod,         [&](auto& v){ v = selmod; });
-            //publish_property(ui::tty::events::onesht,         [&](auto& v){ v = onesht; });
-            //publish_property(ui::tty::events::selalt,         [&](auto& v){ v = selalt; });
-            //publish_property(ui::tty::events::rawkbd,         [&](auto& v){ v = rawkbd; });
-            //publish_property(ui::tty::events::colors::bg,     [&](auto& v){ v = target->brush.bgc(); });
-            //publish_property(ui::tty::events::colors::fg,     [&](auto& v){ v = target->brush.fgc(); });
-            //publish_property(ui::tty::events::layout::wrapln, [&](auto& v){ v = (si32)target->style.wrp(); });
-            //publish_property(ui::tty::events::layout::align,  [&](auto& v){ v = (si32)target->style.jet(); });
-            //publish_property(ui::tty::events::search::status, [&](auto& v){ v = target->selection_button(); });
             selection_selmod(config.def_selmod);
 
             auto& mouse = base::plugin<pro::mouse>();
