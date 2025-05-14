@@ -875,7 +875,6 @@ namespace netxs::input
                         {
                             if (auto script_ptr = script_ref_ptr->script_body_ptr)
                             {
-                                boss.indexer.luafx.set_gear(gear);
                                 boss.indexer.luafx.run_script(boss, *script_ptr);
                             }
                         }
@@ -1026,7 +1025,7 @@ namespace netxs::input
         void m2_move()             { fire(input::key::MouseMove                 );               } //log("move        bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin((si16)bttn_id), coord, pressxy); }
         void m2_wheel()            { fire(input::key::MouseWheel                );               } //log("wheel       bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin((si16)bttn_id), coord, pressxy, " \thzwhl=", hzwhl, " whlfp=", whlfp, " whlsi=", whlsi); }
         void m2_sglclick()         { fire(input::key::MouseClick       | bttn_id);               } //log("sgl click   bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin((si16)bttn_id), coord, pressxy); }
-        void m2_dblclick()         { fire(input::key::MouseDoubleClick | bttn_id);               } //log("dbl click   bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin((si16)bttn_id), coord, pressxy); }
+        void m2_dblclick()         { fire(input::key::MouseDoubleClick | bttn_id);               log("dbl click   bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin((si16)bttn_id), coord, pressxy); }
         void m2_dblpress()         { fire(input::key::MouseDoublePress | bttn_id);               } //log("dbl press   bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin((si16)bttn_id), coord, pressxy); }
         void m2_multiclick()       { fire(input::key::MouseMultiClick  | bttn_id);               } //log("multi_click bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin((si16)bttn_id), coord, pressxy, " \tclicks: ", clicked); }
         void m2_multipress()       { fire(input::key::MouseMultiPress  | bttn_id);               } //log("multi_press bttn=%% \tcoor=%% \tpressxy=%%", utf::to_bin((si16)bttn_id), coord, pressxy, " \tclicks: ", clicked); }
@@ -1644,7 +1643,7 @@ namespace netxs::input
 
         bool is_real()
         {
-            return id != 2;
+            return id != 0;
         }
         void set_multihome()
         {
@@ -1653,6 +1652,7 @@ namespace netxs::input
             {
                 world_ptr->base::father = parent_wptr;
             }
+            bell::indexer.luafx.set_gear(*this);
         }
 
         auto tooltip_enabled(time const& now)
@@ -1756,15 +1756,22 @@ namespace netxs::input
         void dismiss(bool set_nodbl = faux)
         {
             alive = faux;
-            if (set_nodbl) nodbl = true;
+            if (set_nodbl)
+            {
+                mouse::nodbl = true;
+            }
         }
         void dismiss_dblclick()
         {
             nodbl = true;
         }
-        void set_handled()
+        void set_handled(bool do_dismiss = true)
         {
             keybd::handled = true;
+            if (do_dismiss)
+            {
+                dismiss(true);
+            }
         }
 
         si32 repeat_bttn_id = {}; // hids: .
@@ -1926,11 +1933,13 @@ namespace netxs::input
             mouse::hzwhl = new_hzwhl;
             mouse::cause = new_cause;
             mouse::delta.set(new_delta);
-            mouse::pressed = new_button_state;
-            mouse::bttn_id = new_bttn_id;
             mouse::dragged = new_dragged;
             mouse::pressxy = new_click;
+            auto saved_pressed = std::exchange(mouse::pressed, new_button_state); // Save/restore state to avoid double click leaks.
+            auto saved_bttn_id = std::exchange(mouse::bttn_id, new_bttn_id);      //
             pass(tier::mouserelease, boss, owner.base::coor(), true);
+            mouse::pressed = saved_pressed;
+            mouse::bttn_id = saved_bttn_id;
         }
         // hids: Notify about the number of mouse hovers.
         void notify_form_state(base& boss, feed enter_or_leave = feed::none)

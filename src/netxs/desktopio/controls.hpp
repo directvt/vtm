@@ -396,7 +396,6 @@ namespace netxs::events
         {
             auto& gear = *gear_ptr;
             gear.set_multihome();
-            luna::set_gear(gear);
         }
         auto result = luna::run_script(boss, shadow);
         if (result.empty()) result = "ok";
@@ -2354,7 +2353,7 @@ namespace netxs::ui
                     }
                     else
                     {
-                        gear.set_handled();
+                        gear.set_handled(faux); // faux: Set handled for keybd only.
                     }
                 };
                 boss.LISTEN(tier::preview, input::events::keybd::any, gear, memo)

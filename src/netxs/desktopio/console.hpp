@@ -507,7 +507,8 @@ namespace netxs::ui
                                         }},
                     { "SetHandled",     [&]
                                         {
-                                            gear.set_handled();
+                                            auto dismiss = luafx.get_args_or(1, faux);
+                                            gear.set_handled(dismiss);
                                             gear.interrupt_key_proc = true;
                                             luafx.set_return();
                                         }},
@@ -524,8 +525,10 @@ namespace netxs::ui
                 gear.base::update_scripting_context(); //
             }
             auto& [ext_gear_id, gear_ptr] = *gear_it;
-            gear_ptr->set_multihome();
-            gear_ptr->hids::take(device);
+            auto& gear = *gear_ptr;
+            gear.set_multihome();
+            gear.hids::take(device);
+            //todo should we set default gear here?
             base::strike();
         }
         void fire(hint event_id)

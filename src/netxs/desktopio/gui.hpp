@@ -1818,6 +1818,7 @@ namespace netxs::gui
                 lock.unlock();
                 auto guard = owner.sync();
                 auto& gear = *gears;
+                gear.set_multihome();
                 auto basis = gear.owner.base::coor();
                 owner.global(basis);
                 gear.replay(owner, mouse.cause, mouse.coord - basis, mouse.click - basis, mouse.delta, mouse.buttons, mouse.bttn_id, mouse.dragged, mouse.ctlstat, mouse.whlfp, mouse.whlsi, mouse.hzwhl);
