@@ -1348,7 +1348,7 @@ namespace netxs::xml
             homelist = document->take(homepath);
         }
 
-        auto cd(text gotopath, view fallback = {})
+        auto cd(view gotopath, view fallback = {})
         {
             backpath = utf::trim(fallback, '/');
             if (gotopath.empty()) return faux;
@@ -1389,7 +1389,7 @@ namespace netxs::xml
                 cwdstack.pop_back();
             }
         }
-        void pushd(text gotopath, view fallback = {})
+        void pushd(view gotopath, view fallback = {})
         {
             cwdstack.push_back({ homepath, backpath });
             cd(gotopath, fallback);

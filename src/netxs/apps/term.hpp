@@ -24,7 +24,7 @@ namespace netxs::events::userland
                 EVENT_XS( io_log   , bool ),
                 EVENT_XS( cwdsync  , bool ),
                 EVENT_XS( alwaysontop, state_pair_t ),
-                EVENT_XS( rawkbd   , bool ),
+                EVENT_XS( rawkbd   , si32 ),
                 GROUP_XS( selection, si32 ),
                 GROUP_XS( colors   , argb ),
 
@@ -47,7 +47,7 @@ namespace netxs::events::userland
                 EVENT_XS( io_log   , bool ),
                 EVENT_XS( cwdsync  , bool ),
                 EVENT_XS( alwaysontop, bool ),
-                EVENT_XS( rawkbd   , bool ),
+                EVENT_XS( rawkbd   , si32 ),
                 GROUP_XS( selection, si32 ),
                 GROUP_XS( colors   , argb ),
 
@@ -100,446 +100,6 @@ namespace netxs::app::terminal
     }
 
     namespace events = netxs::events::userland::terminal;
-
-    namespace
-    {
-        using namespace app::shared;
-        auto _update(ui::item& boss, menu::item& item)
-        {
-            auto& look = item.views[item.taken];
-            boss.base::signal(tier::release, e2::data::utf8,              look.label);
-            boss.base::signal(tier::preview, e2::form::prop::ui::tooltip, look.tooltip);
-            boss.reflow();
-        }
-        auto _update_gear(ui::item& boss, menu::item& item, hids& gear)
-        {
-            auto& look = item.views[item.taken];
-            gear.set_tooltip(look.tooltip, true);
-            _update(boss, item);
-        }
-        auto _update_to(ui::item& boss, menu::item& item, ui64 i)
-        {
-            item.select(i);
-            _update(boss, item);
-        }
-        template<bool AutoUpdate = faux>
-        auto _submit(ui::item& boss, menu::item& item, std::function<void(ui::item&, menu::item&, hids&)> proc)
-        {
-            if (item.type == menu::type::Repeat)
-            {
-                auto& tick = boss.base::plugin<pro::timer>();
-                boss.on(tier::mouserelease, input::key::LeftDown, [&, proc](hids& gear)
-                {
-                    if (item.views.size())
-                    {
-                        item.taken = (item.taken + 1) % item.views.size();
-                    }
-                    if (gear.capture(boss.id))
-                    {
-                        proc(boss, item, gear);
-                        tick.actify(0, skin::globals().repeat_delay, [&, proc](auto)
-                        {
-                            proc(boss, item, gear);
-                            tick.actify(1, skin::globals().repeat_rate, [&, proc](auto)
-                            {
-                                proc(boss, item, gear);
-                                return true; // Repeat forever.
-                            });
-                            return faux; // One shot call (first).
-                        });
-                        gear.dismiss(true);
-                    }
-                    if (item.views.size())
-                    {
-                        _update_gear(boss, item, gear);
-                    }
-                });
-                boss.on(tier::mouserelease, input::key::LeftUp, [&, proc](hids& gear)
-                {
-                    tick.pacify();
-                    gear.setfree();
-                    gear.dismiss(true);
-                    if (item.views.size() && item.taken)
-                    {
-                        item.taken = 0;
-                        _update_gear(boss, item, gear);
-                    }
-                });
-                boss.LISTEN(tier::release, e2::form::state::mouse, hovered)
-                {
-                    if (!hovered && tick)
-                    {
-                        tick.pacify();
-                        if (item.views.size() && item.taken)
-                        {
-                            item.taken = 0;
-                            _update(boss, item);
-                        }
-                    }
-                };
-            }
-            else
-            {
-                boss.on(tier::mouserelease, input::key::LeftClick, [&, proc](hids& gear)
-                {
-                    proc(boss, item, gear);
-                    if constexpr (AutoUpdate)
-                    {
-                        if (item.type == menu::type::Option) _update_gear(boss, item, gear);
-                    }
-                    gear.nodbl = true;
-                });
-            }
-        };
-        auto construct_menu(xmls& config)
-        {
-            //auto highlight_color = skin::color(tone::highlight);
-            //auto c3 = highlight_color;
-
-            using term = ui::term;
-            namespace preview = terminal::events::preview;
-            namespace release = terminal::events::release;
-
-            static const auto proc_map = menu::action_map_t
-            {
-                { term::action::Noop, [](ui::item& /*boss*/, menu::item& /*item*/){ } },
-                { term::action::ExclusiveKeyboardMode, [](ui::item& boss, menu::item& item)
-                {
-                    item.reindex([](auto& utf8){ return xml::take_or<bool>(utf8, faux); });
-                    _submit<true>(boss, item, [](auto& boss, auto& item, auto& /*gear*/)
-                    {
-                        boss.base::signal(tier::anycast, preview::rawkbd, item.views[item.taken].value);
-                    });
-                    boss.LISTEN(tier::anycast, release::rawkbd, state)
-                    {
-                        _update_to(boss, item, state);
-                    };
-                }},
-                { term::action::TerminalWrapMode, [](ui::item& boss, menu::item& item)
-                {
-                    item.reindex([](auto& utf8){ return xml::take<bool>(utf8).value() ? wrap::on : wrap::off; });
-                    _submit(boss, item, [](auto& boss, auto& item, auto& /*gear*/)
-                    {
-                        boss.base::signal(tier::anycast, preview::wrapln, item.views[item.taken].value);
-                    });
-                    boss.LISTEN(tier::anycast, release::wrapln, wrapln)
-                    {
-                        _update_to(boss, item, wrapln);
-                    };
-                }},
-                { term::action::TerminalAlignMode, [](ui::item& boss, menu::item& item)
-                {
-                    item.reindex([](auto& utf8){ return netxs::get_or(xml::options::align, utf8, bias::left); });
-                    _submit(boss, item, [](auto& boss, auto& item, auto& /*gear*/)
-                    {
-                        boss.base::signal(tier::anycast, preview::align, item.views[item.taken].value);
-                    });
-                    boss.LISTEN(tier::anycast, release::align, align)
-                    {
-                        _update_to(boss, item, align);
-                    };
-                }},
-                { term::action::TerminalFindPrev, [](ui::item& boss, menu::item& item)
-                {
-                    item.reindex([](auto& utf8){ return xml::take<bool>(utf8).value(); });
-                    _submit(boss, item, [](auto& boss, auto& /*item*/, auto& gear)
-                    {
-                        boss.base::signal(tier::anycast, terminal::events::search::reverse, gear);
-                    });
-                    boss.LISTEN(tier::anycast, terminal::events::search::status, status)
-                    {
-                        _update_to(boss, item, (status & 2) ? 1 : 0);
-                    };
-                }},
-                { term::action::TerminalFindNext, [](ui::item& boss, menu::item& item)
-                {
-                    item.reindex([](auto& utf8){ return xml::take<bool>(utf8).value(); });
-                    _submit(boss, item, [](auto& boss, auto& /*item*/, auto& gear)
-                    {
-                        boss.base::signal(tier::anycast, terminal::events::search::forward, gear);
-                    });
-                    boss.LISTEN(tier::anycast, terminal::events::search::status, status)
-                    {
-                        _update_to(boss, item, (status & 1) ? 1 : 0);
-                    };
-                }},
-                { term::action::TerminalOutput, [](ui::item& boss, menu::item& item)
-                {
-                    _submit<true>(boss, item, [](auto& boss, auto& item, auto& /*gear*/)
-                    {
-                        boss.base::signal(tier::anycast, terminal::events::data::in, view{ item.views[item.taken].data });
-                    });
-                }},
-                { term::action::TerminalSendKey, [](ui::item& boss, menu::item& item)
-                {
-                    _submit<true>(boss, item, [](auto& boss, auto& item, auto& /*gear*/)
-                    {
-                        boss.base::signal(tier::anycast, terminal::events::data::out, view{ item.views[item.taken].data });
-                    });
-                }},
-                { term::action::TerminalQuit, [](ui::item& boss, menu::item& item)
-                {
-                    _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& /*gear*/)
-                    {
-                        boss.base::signal(tier::anycast, terminal::events::cmd, ui::term::commands::ui::commands::sighup);
-                    });
-                }},
-                { term::action::TerminalFullscreen, [](ui::item& boss, menu::item& item)
-                {
-                    _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& gear)
-                    {
-                        boss.base::riseup(tier::preview, e2::form::size::enlarge::fullscreen, gear);
-                    });
-                }},
-                { term::action::TerminalMaximize, [](ui::item& boss, menu::item& item)
-                {
-                    _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& gear)
-                    {
-                        boss.base::riseup(tier::preview, e2::form::size::enlarge::maximize, gear);
-                    });
-                }},
-                { term::action::TerminalMinimize, [](ui::item& boss, menu::item& item)
-                {
-                    _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& gear)
-                    {
-                        boss.base::riseup(tier::preview, e2::form::size::minimize, gear);
-                    });
-                }},
-                { term::action::TerminalRestart, [](ui::item& boss, menu::item& item)
-                {
-                    _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& /*gear*/)
-                    {
-                        boss.base::signal(tier::anycast, terminal::events::cmd, ui::term::commands::ui::commands::restart);
-                    });
-                }},
-                { term::action::TerminalUndo, [](ui::item& boss, menu::item& item)
-                {
-                    _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& /*gear*/)
-                    {
-                        boss.base::signal(tier::anycast, terminal::events::cmd, ui::term::commands::ui::commands::undo);
-                    });
-                }},
-                { term::action::TerminalRedo, [](ui::item& boss, menu::item& item)
-                {
-                    _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& /*gear*/)
-                    {
-                        boss.base::signal(tier::anycast, terminal::events::cmd, ui::term::commands::ui::commands::redo);
-                    });
-                }},
-                { term::action::TerminalClipboardPaste, [](ui::item& boss, menu::item& item)
-                {
-                    _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& gear)
-                    {
-                        boss.base::signal(tier::anycast, terminal::events::data::paste, gear);
-                    });
-                }},
-                { term::action::TerminalClipboardWipe, [](ui::item& boss, menu::item& item)
-                {
-                    _submit<true>(boss, item, [](auto& /*boss*/, auto& /*item*/, auto& gear)
-                    {
-                        gear.clear_clipboard();
-                    });
-                }},
-                { term::action::TerminalClipboardCopy, [](ui::item& boss, menu::item& item)
-                {
-                    _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& gear)
-                    {
-                        boss.base::signal(tier::anycast, terminal::events::data::copy, gear);
-                    });
-                }},
-                { term::action::TerminalClipboardFormat, [](ui::item& boss, menu::item& item)
-                {
-                    item.reindex([](auto& utf8){ return netxs::get_or(xml::options::format, utf8, mime::disabled); });
-                    _submit(boss, item, [](auto& boss, auto& item, auto& /*gear*/)
-                    {
-                        boss.base::signal(tier::anycast, preview::selection::mode, item.views[item.taken].value);
-                    });
-                    boss.LISTEN(tier::anycast, release::selection::mode, mode)
-                    {
-                        _update_to(boss, item, mode);
-                    };
-                }},
-                { term::action::TerminalSelectionOneShot, [](ui::item& boss, menu::item& item)
-                {
-                    item.reindex([](auto& utf8){ return netxs::get_or(xml::options::format, utf8, mime::disabled); });
-                    _submit(boss, item, [](auto& boss, auto& item, auto& /*gear*/)
-                    {
-                        boss.base::signal(tier::anycast, preview::selection::shot, item.views[item.taken].value);
-                    });
-                    boss.LISTEN(tier::anycast, release::selection::shot, mode)
-                    {
-                        _update_to(boss, item, mode);
-                    };
-                }},
-                { term::action::TerminalSelectionRect, [](ui::item& boss, menu::item& item)
-                {
-                    item.reindex([](auto& utf8){ return xml::take<bool>(utf8).value(); });
-                    _submit(boss, item, [](auto& boss, auto& item, auto& /*gear*/)
-                    {
-                        boss.base::signal(tier::anycast, preview::selection::box, item.views[item.taken].value);
-                    });
-                    boss.LISTEN(tier::anycast, release::selection::box, selbox)
-                    {
-                        _update_to(boss, item, selbox);
-                    };
-                }},
-                { term::action::TerminalSelectionCancel, [](ui::item& boss, menu::item& item)
-                {
-                    _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& /*gear*/)
-                    {
-                        boss.base::signal(tier::anycast, terminal::events::cmd, ui::term::commands::ui::commands::deselect);
-                    });
-                }},
-                { term::action::TerminalViewportCopy, [](ui::item& boss, menu::item& item)
-                {
-                    _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& gear)
-                    {
-                        boss.base::signal(tier::anycast, terminal::events::data::prnscrn, gear);
-                    });
-                }},
-                { term::action::TerminalScrollViewportByPage, [](ui::item& boss, menu::item& item)
-                {
-                    _submit<true>(boss, item, [](auto& boss, auto& item, auto& /*gear*/)
-                    {
-                        auto delta = xml::take_or<twod>(item.views[item.taken].data, dot_00);
-                        boss.base::signal(tier::anycast, e2::form::upon::scroll::bypage::v, { .vector = delta });
-                    });
-                }},
-                { term::action::TerminalScrollViewportByCell, [](ui::item& boss, menu::item& item)
-                {
-                    _submit<true>(boss, item, [](auto& boss, auto& item, auto& /*gear*/)
-                    {
-                        auto delta = xml::take_or<twod>(item.views[item.taken].data, dot_00);
-                        boss.base::signal(tier::anycast, e2::form::upon::scroll::bystep::v, { .vector = delta });
-                    });
-                }},
-                { term::action::TerminalScrollViewportToTop, [](ui::item& boss, menu::item& item)
-                {
-                    _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& /*gear*/)
-                    {
-                        boss.base::signal(tier::anycast, e2::form::upon::scroll::to_top::y);
-                    });
-                }},
-                { term::action::TerminalScrollViewportToEnd, [](ui::item& boss, menu::item& item)
-                {
-                    _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& /*gear*/)
-                    {
-                        boss.base::signal(tier::anycast, e2::form::upon::scroll::to_end::y);
-                    });
-                }},
-                { term::action::TerminalStdioLog, [](ui::item& boss, menu::item& item)
-                {
-                    item.reindex([](auto& utf8){ return xml::take<bool>(utf8).value(); });
-                    _submit<true>(boss, item, [](auto& boss, auto& item, auto& /*gear*/)
-                    {
-                        boss.base::signal(tier::anycast, preview::io_log, item.views[item.taken].value);
-                    });
-                    boss.LISTEN(tier::anycast, release::io_log, state)
-                    {
-                        _update_to(boss, item, state);
-                    };
-                }},
-                { term::action::TerminalCwdSync, [](ui::item& boss, menu::item& item)
-                {
-                    item.reindex([](auto& utf8){ return xml::take<bool>(utf8).value(); });
-                    _submit(boss, item, [](auto& boss, auto& item, auto& /*gear*/)
-                    {
-                        boss.base::signal(tier::anycast, preview::cwdsync, item.views[item.taken].value);
-                    });
-                    boss.LISTEN(tier::anycast, release::cwdsync, state)
-                    {
-                        _update_to(boss, item, state);
-                    };
-                }},
-                { term::action::AlwaysOnTopApplet, [](ui::item& boss, menu::item& item)
-                {
-                    //todo scripting: it is a temporary solution (until scripting is implemented)
-                    item.reindex([](auto& utf8){ return xml::take<bool>(utf8).value(); });
-                    _submit(boss, item, [](auto& boss, auto& item, auto& gear)
-                    {
-                        auto state = item.views[item.taken].value;
-                        auto state_pair = std::pair{ state, gear.id };
-                        boss.base::signal(tier::anycast, preview::alwaysontop, state_pair);
-                    });
-                    boss.LISTEN(tier::anycast, release::alwaysontop, state)
-                    {
-                        _update_to(boss, item, state);
-                    };
-                }},
-                { term::action::TerminalLogStart, [](ui::item& /*boss*/, menu::item& /*item*/)
-                {
-
-                }},
-                { term::action::TerminalLogPause, [](ui::item& /*boss*/, menu::item& /*item*/)
-                {
-
-                }},
-                { term::action::TerminalLogStop, [](ui::item& /*boss*/, menu::item& /*item*/)
-                {
-
-                }},
-                { term::action::TerminalLogAbort, [](ui::item& /*boss*/, menu::item& /*item*/)
-                {
-
-                }},
-                { term::action::TerminalLogRestart, [](ui::item& /*boss*/, menu::item& /*item*/)
-                {
-
-                }},
-                { term::action::TerminalVideoRecStart, [](ui::item& /*boss*/, menu::item& /*item*/)
-                {
-
-                }},
-                { term::action::TerminalVideoRecStop, [](ui::item& /*boss*/, menu::item& /*item*/)
-                {
-
-                }},
-                { term::action::TerminalVideoRecPause, [](ui::item& /*boss*/, menu::item& /*item*/)
-                {
-
-                }},
-                { term::action::TerminalVideoRecAbort, [](ui::item& /*boss*/, menu::item& /*item*/)
-                {
-
-                }},
-                { term::action::TerminalVideoRecRestart, [](ui::item& /*boss*/, menu::item& /*item*/)
-                {
-
-                }},
-                { term::action::TerminalVideoPlay, [](ui::item& /*boss*/, menu::item& /*item*/)
-                {
-
-                }},
-                { term::action::TerminalVideoPause, [](ui::item& /*boss*/, menu::item& /*item*/)
-                {
-
-                }},
-                { term::action::TerminalVideoStop, [](ui::item& /*boss*/, menu::item& /*item*/)
-                {
-
-                }},
-                { term::action::TerminalVideoForward, [](ui::item& /*boss*/, menu::item& /*item*/)
-                {
-
-                }},
-                { term::action::TerminalVideoBackward, [](ui::item& /*boss*/, menu::item& /*item*/)
-                {
-
-                }},
-                { term::action::TerminalVideoHome, [](ui::item& /*boss*/, menu::item& /*item*/)
-                {
-
-                }},
-                { term::action::TerminalVideoEnd, [](ui::item& /*boss*/, menu::item& /*item*/)
-                {
-
-                }},
-            };
-
-            config.cd("/config/terminal", "/config/defapp");
-            return menu::load(config, proc_map);
-        }
-    }
 
     auto ui_term_events = [](ui::term& boss, eccc& appcfg)
     {
@@ -653,7 +213,7 @@ namespace netxs::app::terminal
             ->plugin<pro::focus>()
             ->invoke([&](auto& boss)
             {
-                closing_on_quit(boss);
+                app::shared::closing_on_quit(boss);
             });
         window//->plugin<pro::track>()
             //->plugin<pro::acryl>()
@@ -892,7 +452,8 @@ namespace netxs::app::terminal
         auto hz = term_stat_area->attach(slot::_2, ui::grip<axis::X>::ctor(scroll, drawfx))
             ->limits({ -1, 1 }, { -1, 1 });
 
-        auto [slot1, cover, menu_data] = construct_menu(config);
+        config.cd("/config/terminal", "/config/defapp");
+        auto [slot1, cover, menu_data] = app::shared::menu::load(config);
         auto menu = object->attach(slot::_1, slot1)
             ->shader(cell::shaders::fuse(window_clr))
             ->invoke([&](auto& boss)
@@ -937,17 +498,17 @@ namespace netxs::app::terminal
             };
         });
 
-        term->attach_property(ui::tty::events::colors::bg,      terminal::events::release::colors::bg)
-            ->attach_property(ui::tty::events::colors::fg,      terminal::events::release::colors::fg)
-            ->attach_property(ui::tty::events::selmod,          terminal::events::release::selection::mode)
-            ->attach_property(ui::tty::events::onesht,          terminal::events::release::selection::shot)
-            ->attach_property(ui::tty::events::selalt,          terminal::events::release::selection::box)
-            ->attach_property(ui::tty::events::rawkbd,          terminal::events::release::rawkbd)
-            ->attach_property(ui::tty::events::io_log,          terminal::events::release::io_log)
-            ->attach_property(ui::tty::events::layout::wrapln,  terminal::events::release::wrapln)
-            ->attach_property(ui::tty::events::layout::align,   terminal::events::release::align)
-            ->attach_property(ui::tty::events::search::status,  terminal::events::search::status)
-            ->invoke([&](auto& boss)
+        //term->attach_property(ui::tty::events::colors::bg,      terminal::events::release::colors::bg)
+        //    ->attach_property(ui::tty::events::colors::fg,      terminal::events::release::colors::fg)
+        //    ->attach_property(ui::tty::events::selmod,          terminal::events::release::selection::mode)
+        //    ->attach_property(ui::tty::events::onesht,          terminal::events::release::selection::shot)
+        //    ->attach_property(ui::tty::events::selalt,          terminal::events::release::selection::box)
+        //    ->attach_property(ui::tty::events::rawkbd,          terminal::events::release::rawkbd)
+        //    ->attach_property(ui::tty::events::io_log,          terminal::events::release::io_log)
+        //    ->attach_property(ui::tty::events::layout::wrapln,  terminal::events::release::wrapln)
+        //    ->attach_property(ui::tty::events::layout::align,   terminal::events::release::align)
+        //    ->attach_property(ui::tty::events::search::status,  terminal::events::search::status)
+        term->invoke([&](auto& boss)
             {
                 ui_term_events(boss, appcfg);
             });

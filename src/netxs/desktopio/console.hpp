@@ -762,7 +762,8 @@ namespace netxs::ui
             base::plugin<pro::focus>();
             base::plugin<pro::keybd>();
             auto& luafx = bell::indexer.luafx;
-            auto bindings = input::bindings::load(config, basename::gate);
+            auto script_list = config.list("/config/events/gate/script");
+            auto bindings = input::bindings::load(config, script_list);
             input::bindings::keybind(*this, bindings);
             base::add_methods(basename::gate,
             {

@@ -394,9 +394,8 @@ namespace netxs::app::tile
             auto [menu_block, cover, menu_data] = menu::mini(true, faux, 1,
             menu::list
             {
-                //todo make it configurable
-                { menu::item{ menu::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "+", .tooltip = " Launch application instance.                            \n"
-                                                                                                                     " The app to run can be set by RightClick on the taskbar. " }}},
+                { menu::item{ .alive = true, .label = "+", .tooltip = " Launch application instance.                            \n"
+                                                                      " The app to run can be set by RightClick on the taskbar. " },
                 [](auto& boss, auto& /*item*/)
                 {
                     boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
@@ -406,7 +405,7 @@ namespace netxs::app::tile
                         gear.dismiss(true);
                     });
                 }},
-                { menu::item{ menu::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "│", .tooltip = " Split horizontally " }}},
+                { menu::item{ .alive = true, .label = "│", .tooltip = " Split horizontally " },
                 [](auto& boss, auto& /*item*/)
                 {
                     boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
@@ -415,7 +414,7 @@ namespace netxs::app::tile
                         gear.dismiss(true);
                     });
                 }},
-                { menu::item{ menu::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "──", .tooltip = " Split vertically " }}},
+                { menu::item{ .alive = true, .label = "──", .tooltip = " Split vertically " },
                 [](auto& boss, auto& /*item*/)
                 {
                     boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
@@ -424,7 +423,7 @@ namespace netxs::app::tile
                         gear.dismiss(true);
                     });
                 }},
-                { menu::item{ menu::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "×", .tooltip = " Delete pane ", .hover = c1 }}},
+                { menu::item{ .alive = true, .label = "×", .tooltip = " Delete pane ", .hover = c1 },
                 [](auto& boss, auto& /*item*/)
                 {
                     boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
@@ -915,27 +914,28 @@ namespace netxs::app::tile
             };
             using namespace app::shared;
             //todo scripting
-            static const auto proc_map = menu::action_map_t
-            {
-                { "TileFocusPrev"         , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::focus::prev    ); }},
-                { "TileFocusNext"         , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::focus::next    ); }},
-                { "TileFocusPrevPane"     , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::focus::prevpane); }},
-                { "TileFocusNextPane"     , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::focus::nextpane); }},
-                { "TileFocusPrevGrip"     , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::focus::prevgrip); }},
-                { "TileFocusNextGrip"     , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::focus::nextgrip); }},
-                { "TileRunApplication"    , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::create         ); }},
-                { "TileSelectAllPanes"    , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::select         ); }},
-                { "TileSplitHorizontally" , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::split::hz      ); }},
-                { "TileSplitVertically"   , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::split::vt      ); }},
-                { "TileSplitOrientation"  , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::rotate         ); }},
-                { "TileSwapPanes"         , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::swap           ); }},
-                { "TileEqualizeSplitRatio", [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::equalize       ); }},
-                { "TileSetManagerTitle"   , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::title          ); }},
-                { "TileClosePane"         , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::close          ); }},
-            };
+            //static const auto proc_map = menu::action_map_t
+            //{
+            //    { "TileFocusPrev"         , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::focus::prev    ); }},
+            //    { "TileFocusNext"         , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::focus::next    ); }},
+            //    { "TileFocusPrevPane"     , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::focus::prevpane); }},
+            //    { "TileFocusNextPane"     , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::focus::nextpane); }},
+            //    { "TileFocusPrevGrip"     , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::focus::prevgrip); }},
+            //    { "TileFocusNextGrip"     , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::focus::nextgrip); }},
+            //    { "TileRunApplication"    , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::create         ); }},
+            //    { "TileSelectAllPanes"    , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::select         ); }},
+            //    { "TileSplitHorizontally" , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::split::hz      ); }},
+            //    { "TileSplitVertically"   , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::split::vt      ); }},
+            //    { "TileSplitOrientation"  , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::rotate         ); }},
+            //    { "TileSwapPanes"         , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::swap           ); }},
+            //    { "TileEqualizeSplitRatio", [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::equalize       ); }},
+            //    { "TileSetManagerTitle"   , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::title          ); }},
+            //    { "TileClosePane"         , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::close          ); }},
+            //};
+            auto script_list = config.list("/config/events/tile/grip/script");
+            auto grip_bindings_ptr = ptr::shared(input::bindings::load(config, script_list));
             config.cd("/config/tile", "/config/defapp");
-            auto grip_bindings_ptr = ptr::shared(input::bindings::load(config, "tile/grip"));
-            auto [menu_block, cover, menu_data] = menu::load(config, proc_map);
+            auto [menu_block, cover, menu_data] = menu::load(config);
             object->attach(slot::_1, menu_block)
                 ->invoke([](auto& boss)
                 {
@@ -1035,7 +1035,8 @@ namespace netxs::app::tile
                         boss.base::riseup(tier::release, e2::form::proceed::quit::one, true);
                     };
                     auto& luafx = boss.bell::indexer.luafx;
-                    auto bindings = input::bindings::load(config, basename::tile);
+                    auto script_list = config.list("/config/events/tile/script");
+                    auto bindings = input::bindings::load(config, script_list);
                     input::bindings::keybind(boss, bindings);
                     boss.base::add_methods(basename::tile,
                     {

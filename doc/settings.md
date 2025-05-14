@@ -23,7 +23,7 @@ See [`/src/vtm.xml`](../src/vtm.xml) for reference.
 
 We call the text data in the settings file "plain XML data" even though our file format is not technically XML, but only visually resembles it.
 
-There are two predefined settings source locations:
+There are two predefined settings source locations and this can be changed as needed:
 ```xml
 <file="/etc/vtm/settings.xml"/>        <!-- Default system-wide settings source. The "/etc/..." path will be auto converted to the "%PROGRAMDATA%\..." on Windows. -->
 <file="~/.config/vtm/settings.xml"/>   <!-- Default user-wise settings source. -->
@@ -61,7 +61,7 @@ The file list is built in the following order from the following sources:
 
 ### Key differences from XML
 
- - All stored values are UTF-8 strings (the settings consumer decides on its own side how to interpret the string):
+ - All stored values are UTF-8 strings (the settings target decides on its own side how to interpret the string):
    - `name=2000` and `name="2000"` have the same meaning.
  - There is no distinction between XML-attribute and XML-subobject, i.e. any attributes are sub-objects:
    - `<name param=value />` and `<name> <param=value /> </name>` have the same meaning.
@@ -69,7 +69,6 @@ The file list is built in the following order from the following sources:
    - E.g. `<name=names_value param=params_value />` - subobject `name` has text value `names_value`.
  - Each object can be defined in any way, either using an XML-attribute or an XML-subobject syntax:
    - `<... name=value />`, `<...> <name> "value" </name> </...>`, and `<...> <name=value /> </...>` have the same meaning.
- - The object name that ending in an asterisk indicates that this object is not an object, but it is a template for all subsequent objects with the same name in the same scope. See `Template Example` below.
  - Compact syntax is allowed.
    - `<node0><node1><thing name=value/></node1></node0>` and `<node0/node1/thing name=value/>` have the same meaning.
  - Objects can reference values of other objects using absolute references (three levels of indirection allowed).
@@ -84,7 +83,7 @@ The file list is built in the following order from the following sources:
    - `\r`  ASCII 0x0D CF
    - `\e`  ASCII 0x1B ESC
    - `\\`  ASCII 0x5C Backslash
-   - `\u`  A Unicode escape sequence in the form `\u{XXX}` or `\uXXX`, where `XXX` is the hexadecimal codepoint value.
+   - `\u`  A Unicode escape sequence in the form `\u{XX...}` or `\uXX...`, where `XX...` is the hexadecimal codepoint value.
    - `$0`  Current module full path (it only expands in cases where it makes sense)
 
 Let's take the following object hierarchy as an example:
@@ -152,45 +151,6 @@ The following forms of element declaration are equivalent:
 </document>
 ```
 
-#### Templates
-
-- Using asterisk `*` at the end of the element name sets defaults for subsequent elements with the same name.
-
-Note. Placing an asterisk without any other nested elements (such as `<listitem*/>`) indicates the start of a new list of elements. This list will replace the existing one when merging the configuration.
-
-The following declarations have the same meaning:
-
-```xml
-<list>
-    <listitem id=first  name="text_string1">text_string2</listitem>
-    <listitem id=second name="text_string1">text_string2</listitem>
-</list>
-```
-
-```xml
-<list>
-    <listitem* name="text_string1"/> <!-- skip this element and set name="text_string1" as default for the following listitems -->
-    <listitem id=first >text_string2</listitem>
-    <listitem id=second>text_string2</listitem>
-</list>
-```
-
-```xml
-<list>
-    <listitem* name="text_string1"/>
-    <listitem="text_string2" id=first />
-    <listitem="text_string2" id=second/>
-</list>
-```
-
-```xml
-<list>
-    <listitem*="text_string2" name="text_string1"/>  <!-- skip this element and set listitem="text_string2" and name="text_string1" as default for the following listitems -->
-    <listitem id=first />
-    <listitem id=second/>
-</list>
-```
-
 ### Compact XML syntax
 
 The following declarations have the same meaning:
@@ -216,7 +176,7 @@ The following declarations have the same meaning:
 ...
 <config>  <!-- Global configuration. -->
     <variables>  <!-- Global namespace - Unresolved literals will try to be resolved from here. -->
-        <variable_name = variable_value/>  <!-- Globally referenced variable. -->
+        <variable_name = variable_value/>  <!-- Globally visible variable. -->
         ...  <!-- Set of global variables. -->
     </variables>
     ...
@@ -224,36 +184,59 @@ The following declarations have the same meaning:
     <object2=/config/object1/>    <!-- object2 references the value of /config/object1 using an absolute reference (three levels of indirection allowed). -->
     <object3="/config/object1"/>  <!-- object3 contains the string value "/config/object1". -->
     ...
-    <desktop>  <!-- Desktop client settings. -->
+    <desktop>  <!-- Desktop settings. -->
         <taskbar ... >  <!-- Taskbar menu settings. -->
-            ...  <!-- Set of additional taskbar settings. -->
-            <item ... >  <!-- Taskbar menu item definition. -->
-                ...  <!-- Additional application settings. -->
+            ...  <!-- Taskbar settings. -->
+            <item ... >  <!-- Taskbar menu item declaration. -->
+                ...  <!-- Item settings. -->
             </item>
             ...  <!-- Set of taskbar menu items. -->
         </taskbar>
-        ...  <!-- Set of additional desktop settings. -->
+        ...  <!-- Desktop settings. -->
     </desktop>
     <terminal ... >  <!-- Built-in terminal configuration section. -->
         ...
     </terminal>
-    <events>  <!-- The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop. -->
-        <gate>  <!-- Native GUI window layer key bindings. -->
-            <key="Key+Chord" script="<script body>"/>
+    <events>  <!-- The required key/mouse combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop. -->
+        <gate>  <!-- Native GUI window layer event bindings. -->
+            <script="<script body>" on="Key+Chord" on="Another+Key+Chord" on="SomeMouseEvent" on="SomeGenericEvent"/>
+            <script="<script body>">
+                <on="Key+Chord"/>
+                <on="SomeGenericEvent" source="GenericEventSourceId"/>
+            </script>
+            <script>
+                <on="Key+Chord1"/>
+                <on="Key+Chord2"/>
+                raw text script body;
+                raw text script body;
+                ...
+            </script>
             ...
         </gate>
-        <desktop>  <!-- Desktop layer key bindings. -->
-            <key="Key+Chord" script="<script body>"/>
+        <desktop>  <!-- Desktop layer event bindings. -->
+            <script="<script body>" on="Key+Chord"/>
             ...
         </desktop>
-        <applet>  <!-- Application/window layer key bindings. -->
-            <key="Key+Chord" script="<script body>"/>
+        <applet>  <!-- Application/window layer event bindings. -->
+            <script="<script body>" on="Key+Chord"/>
             ...
         </applet>
-        <terminal>  <!-- Application specific layer key bindings. -->
-            <key="Key+Chord" script="<script body>"/>
+        <terminal>  <!-- Application specific layer event bindings. -->
+            <script="<script body>" on="Key+Chord"/>
             ...
         </terminal>
+        <tile>  <!-- Application specific layer event bindings. -->
+            <script="<script body>" on="Key+Chord"/>
+            ...
+            <grip> <!-- Pane's grip event bindings. -->
+                <script="<script body>" on="Key+Chord"/>
+                ...
+            </grip>
+        </tile>
+        <defapp>  <!-- Default application event bindings (e.g., Info-Page). -->
+            <script="<script body>" on="Key+Chord"/>
+            ...
+        </defapp>
     </events>
 </config>
 ```
@@ -267,7 +250,7 @@ Value type | Format
 `RGBA`     | Hex: `#rrggbbaa` \| Hex: `0xaarrggbb` \| Decimal: `r,g,b,a` \| 256-color index: `i`
 `boolean`  | `true` \| `false` \| `yes` \| `no` \| `1` \| `0` \| `on` \| `off` \| `undef`
 `string`   | _UTF-8 text string_
-`x;y`      | _integer_ <any_delimeter> _integer_
+`2D point` | _integer_ <any_delimeter> _integer_
 
 #### Taskbar menu item configuration `<config/desktop/taskbar/item ... />`
 
@@ -280,7 +263,8 @@ Attribute  | Description                                       | Value type | De
 `tooltip`  |  Item tooltip text                                | `string`   | empty
 `title`    |  App window title                                 | `string`   | empty
 `footer`   |  App window footer                                | `string`   | empty
-`winsize`  |  App window size                                  | `x;y`      |
+`wincoor`  |  App window coordinates                           | `2D point` |
+`winsize`  |  App window size                                  | `2D point` |
 `winform`  |  App window state                                 | `undefined` \| `normal` \| `maximized` \| `minimized` |
 `type`     |  Desktop window type                              | `string`   | `vtty`
 `env`      |  Environment variable in "var=val" format         | `string`   |
@@ -304,7 +288,7 @@ Window type<br>(case insensitive) | Parameter `cmd=` | Description
 `tile`                            | [[ v[`n:m:w`] \| h[`n:m:w`] ] ( id1 \| _nested_block_ , id2 \| _nested_block_ )] | Run tiling window manager with layout specified in `cmd`. Usage example `type=tile cmd="v(h1:1(Term, Term),Term)"`.<br>`n:m` - Ratio between panes (default n:m=1:1).<br>`w` - Resizing grip width (default w=1).
 `site`                            | `cmd=@` or empty | The attribute `title=<view_title>` is used to set region name/title. Setting the value of the `cmd` attribute to `@` adds numbering to the title.
 
-The following configuration items produce the same final result:
+The following item declarations are identical:
 ```
 <item ... cmd=mc/>
 <item ... type=vtty cmd=mc/>
@@ -315,38 +299,42 @@ The following configuration items produce the same final result:
 
 > 2025 Feb 28: This section is under development.
 
-In vtm there are several layers of key combination processing. Each layer has its own set of key bindings. Keys processed at the previous layer usually do not get to the next one.
-
-Layer                  | Config section               | Description
------------------------|------------------------------|------------
-`gate`                 |                              | ...
-`desktop`              |                              | ...
-`applet`               |                              | ...
-`tile`                 |                              | ...
-`defapp`               |                              | ...
-...                    |                              | ...
-
 #### Syntax
 
-The syntax for defining key combination bindings is:
+The syntax for defining event bindings is:
 
 ```xml
-<key="Key+Chord | ... | Another+Key+Chord" [ preview ] script="<script body>"/>
+<dom_element1>
+    <script="script body" on="EventId1" ... on="preview:EventId2" ...>
+        <on="EventId"/>
+        <on="EventId" source="OptionalEventSourceObjectID"/>
+        ...
+        raw text script body
+        ...
+    </script>
+</dom_element1>
+<dom_element2 id="AdditionalIDforDom_element2"> <!--  `id=""` is an additional ID for the visual tree object. -->
+    <script="script body" on="EventId"/>
+</dom_element2>
 ```
 
 Tag      | Value
 ---------|--------
-`key`    | The text string containing the key combinations.
-`preview`| A Boolean value specifying that hotkey actions should be processed while traversing the focus tree until the target object is reached (ignoring keyboard exclusive mode). Default is `off`.
-`script` | The Lua script body.
+`script` | A Lua script.
+`on`     | A text string containing the Event id: key combinations, mouse or generic event id.
+`source` | A text string containing the ID of the visual tree object that is the source of events for the binding.
 
-The following joiners are allowed for combining keys:
+The `preview:` prefix of the EventID is ​​an indication that event processing should be performed in reverse order - from the container to the nested objects. By default, the visual tree traversal order is from the nested objects to the container.
+
+#### Keyboard events
+
+The following keyboard-specific event delimiters/joiners are available to form a key-chord:
 
 Joiner | Meaning
 -------|--------
 `+`    | The subsequent key is in pressed state.
 `-`    | The subsequent key is in released state. This joiner is allowed for the last key only.
-` \| ` | The separator for key combinations in a list (vertical bar surrounded by spaces).
+` \| ` | The separator to combine multiple key chords in a key chord list (vertical bar surrounded by at least one space on either side).
 
 Key combinations can be of the following types:
 
@@ -357,19 +345,134 @@ Type        | Example                |Description
 `Specific`  | `LeftShift+RightShift` | A key combination with explicitly specified physical keys.
 `Scancodes` | `0x3B+0x3C`            | A key combination represented solely by scan codes of physical keys in hexadecimal format.
 
-Generic, literal and specific key sequences can be mixed in any order.
+Generic, literal and specific key sequences can be mixed in any order within a key chord list.
 
 The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop.
 
-#### Interpretation
+#### Mouse events
 
-Configuration record                                           | Interpretation
+The following formats are available:
+
+- Named  
+  `<Mouse | Left | Right | LeftRight | Middle><Down | Up | [Double | Multi]Click | <Double | Multi>Press | Drag<Start | Pull | Stop | Cancel>>`
+- Generic  
+  `<Mouse><Down | Up | [Double | Multi]Click | <Double | Multi>Press | Drag<Start | Pull | Stop | Cancel>><bbb...>`  
+  where `<bbb...>` is a set of 8 bits to represent mouse buttons (decimal or binary):
+  Decimal `<bbb...>` | Binary `<bbb...>` | Corresponding mouse button(s)
+  -------------------|-------------------|-----------------
+  0                  | 0                 | Any button
+  1                  | 1                 | Left
+  2                  | 01                | Right
+  3                  | 001               | Middle
+  4                  | 0001              | Button4
+  5                  | 00001             | Button5
+  6                  | 000001            | Button6
+  7                  | 0000001           | Button7
+  8                  | 00000001          | Button8
+  n/a                | 11                | Left+Right
+  n/a                | 111               | Left+Middle+Right
+  n/a                | 011               | Middle+Right
+  n/a                | 10000001          | Left+Button8
+
+```
+  011  Middle+Right
+  ││└──────── middle is pressed
+  │└───────── right is pressed
+  └────────── left is not pressed
+  10000001  Left+Button8
+  │      └─── button8 is pressed
+  └────────── left is pressed
+```
+
+  Note: In binary `<bbb...>` format the trailing zeros can be omitted.
+
+Available mouse actions:
+
+Action/EventID                      | Description
+------------------------------------|----------------------------------
+MouseDown<bbb...>                   | Button<bbb...> push down / pressed.
+MouseUp<bbb...>                     | Button<bbb...> release.
+MouseClick<bbb...>                  | Press and release button<bbb...> w/o movement.
+MouseDoublePress<bbb...>            | Double press by button<bbb...>.
+MouseMultiPress<bbb...>             | Multi press by button<bbb...>.
+MouseDoubleClick<bbb...>            | Double click by button<bbb...>.
+MouseMultiClick<bbb...>             | Multi click by button<bbb...>.
+MouseDragStart<bbb...>              | Drag start with button<bbb...> pressed.
+MouseDragPull<bbb...>               | Drag pull with button<bbb...> pressed.
+MouseDragStop<bbb...>               | Drag stop with button<bbb...> pressed.
+MouseDragCancel<bbb...>             | Drag cancel with button<bbb...> pressed.
+MouseEnter                          | Mouse enter.
+MouseLeave                          | Mouse leave.
+MouseMove                           | Mouse move by fp2d delta.
+MouseWheel                          | Wheel by fp2d delta.
+MouseAny                            | Any mouse event.
+
+Matching between Named and Generic formats:
+
+Named format        | Generic format       | Internal representation | Notes
+--------------------|----------------------|-------------------------|------------
+MouseAny            |                      | `0x10'00`               | Any mouse event
+MouseDown           | MouseDown0           | `0x11'00`
+MouseUp             | MouseUp0             | `0x12'00`
+LeftClick           | MouseClick1          | `0x13'01`               | Left click
+LeftRightClick      | MouseClick11         | `0x13'03`               | Left + Right click.
+MouseClick          | MouseClick0          | `0x13'00`               | Any click
+MouseDoubleClick    | MouseDoubleClick0    | `0x14'00`
+MouseDoublePress    | MouseDoublePress0    | `0x15'00`
+MouseMultiClick     | MouseMultiClick0     | `0x16'00`
+MouseMultiPress     | MouseMultiPress0     | `0x17'00`
+MouseDragStart      | MouseDragStart0      | `0x18'00`
+MouseDragPull       | MouseDragPull0       | `0x19'00`
+MouseDragStop       | MouseDragStop0       | `0x1A'00`
+MouseDragCancel     | MouseDragCancel0     | `0x1B'00`
+MouseLeave          |                      | `0x1C'00`
+MouseEnter          |                      | `0x1D'00`
+MouseMove           |                      | `0x1E'00`
+MouseWheel          |                      | `0x1F'00`
+
+#### Generic events
+
+//todo...
+
+#### Examples
+
+Configuration                                                  | Interpretation
 ---------------------------------------------------------------|-----------------
-`<key="Key+Chord" script=ScriptReference/>`                    | Append existing bindings using an indirect reference (the `ScriptReference` variable without quotes).
-`<key="Key+Chord | Another+Chord" script="<script body>"/>`    | Append existing bindings for `Key+Chord | Another+Chord`.
-`<key="Key+Chord" script="<script body>"/>`                    | Append existing bindings with the directly specified Lua script `"<script body>"`.
-`<key="Key+Chord" script=""/>`                                 | Remove all existing bindings for the specified key combination "Key+Chord".
-`<key=""          script="..."/>`                              | Do nothing.
+`<script=ScriptReference on="Key+Chord"/>`                     | Append existing bindings using an indirect reference (the `ScriptReference` variable without quotes).
+`<script="text"  on="Key+Chord | Another+Chord"/>`             | Append existing bindings for `Key+Chord | Another+Chord`.
+`<script="text"  on="Key+Chord"/>`                             | Append existing bindings with the directly specified Lua script body.
+`<script="text"><on="Key+Chord" source="ObjectID"/></script>`  | Binding to an event source using a specific ObjectID.
+`<script=""      on="Key+Chord"/>`                             | Remove all existing bindings for the specified key combination "Key+Chord".
+`<script="..."   on=""         />`                             | Do nothing.
+
+EventId                     | Description
+----------------------------|-------------
+`on="MouseEnter"`           | Mouse enter.
+`on="MouseLeave"`           | Mouse leave.
+`on="MouseMove"`            | Mouse move.
+`on="MouseWheel"`           | Mouse wheeling by fp2d step (hz/vt).
+`on="MouseDown1"`           | Left button push down.
+`on="MouseUp1"`             | Left button release.
+`on="preview:MouseDown01"`  | Right button push down (preview phase).
+`on="MouseClick"`           | Any button click.
+`on="MouseClick1"`          | Left button click.
+`on="LeftClick"`            | Left button click.
+`on="MouseClick01"`         | Right button click.
+`on="MouseClick2"`          | Right button click.
+`on="MouseClick3"`          | Middle button click.
+`on="MouseClick11"`         | Left+Right button click.
+`on="MouseDoublePress1"`    | Double click (and stay pressed) by left button.
+`on="MouseDoubleClick1"`    | Double click (and release) by left button
+`on="MouseDragStart11"`     | Drag start with Left and Right mouse buttons pressed.
+`on="MouseDragPull11"`      | Dragging with Left and Right mouse buttons pressed.
+`on="MouseDragStop11"`      | Release Left and Right mouse buttons after dragging.
+`on="MouseDragCancel11"`    | The current dragging was interrupted for some reason, such as pressing additional mouse buttons.
+`on="Enter"`                | The `Enter` key was pressed.
+`on="preview:Enter"`        | The `Enter` key was pressed (detected in a preview phase).
+`on="Ctrl+B"`               | The `Ctrl+B` key combination was pressed.
+`on="-Ctrl"`                | The `Ctrl` key was released.
+`on="Esc-F10"`              | The `Esc-F10` key combination was released.
+
 
 ### DirectVT configuration payload received from the parent process
 
@@ -606,9 +709,9 @@ Notes
         <TerminalScrollViewportToTop       ="if (not vtm.gear.IsKeyRepeated()) then vtm.terminal.ScrollViewportToTop() end"/>  <!-- Scroll viewport to the scrollback top. -->
         <TerminalScrollViewportToEnd       ="if (not vtm.gear.IsKeyRepeated()) then vtm.terminal.ScrollViewportToEnd() end"/>  <!-- Scroll viewport to the scrollback top. -->
         <TerminalSendKey                   ="vtm.terminal.SendKey('test\\r')"/>           <!-- Simulating keypresses using the specified string. -->
-        <TerminalOutput                    ="vtm.terminal.Print('Hello!')"/>              <!-- Direct output the string to the terminal scrollback. -->
+        <TerminalOutput                    ="vtm.terminal.Print('Hello!\\n')"/>           <!-- Direct output the string to the terminal scrollback. -->
         <TerminalReset                     ="vtm.terminal.Print('\\x1b[!p')"/>            <!-- Clear scrollback and SGR-attributes. -->
-        <TerminalClear                     ="vtm.terminal.Print('\\x1b[2J')"/>            <!-- Clear TTY viewport. -->
+        <TerminalClearScrollback           ="vtm.terminal.ClearScrollback()"/>            <!-- Clear scrollback above current line. -->
         <TerminalCopyViewport              ="vtm.terminal.CopyViewport()"/>               <!-- Сopy viewport to clipboard. -->
         <TerminalCopySelection             ="vtm.terminal.CopySelection()"/>              <!-- Сopy selection to clipboard. -->
         <TerminalClipboardPaste            ="vtm.terminal.PasteClipboard()"/>             <!-- Paste from clipboard. -->
@@ -637,7 +740,6 @@ Notes
                     " It can be configured in ~/.config/vtm/settings.xml "
                 </tooltip>
             </item>
-            <item* hidden=no winsize=0,0 wincoor=0,0 winform="normal"/>  <!-- Asterisk in the xml node name to set default node values (it is a template). -->
             <item id="Term" label="Terminal Emulator" type="dtvt" title="Terminal" cmd="$0 -r term">
                 <tooltip>
                     " Terminal Console               \n"
@@ -668,64 +770,85 @@ Notes
                         <menu item*>
                             <autohide=menu/autohide/>
                             <slim=menu/slim/>
-                            <item script=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
+                            <item label="^" tooltip=" AlwaysOnTop off ">
+                                <script=AlwaysOnTopApplet on="LeftClick"/> <!-- The default event source is the parent object, i.e. source="item" (aka vtm.item). -->
+                                <script>  <!-- A binding to update the menu item label at runtime. -->
+                                    <on="release: e2::form::prop::zorder" source="terminal"/>
+                                    local is_topmost=vtm()                     -- Use event arguments to get the current state.
+                                    -- local is_topmost=vtm.terminal.ZOrder()  -- or ask the terminal instance iteslf for the current zorder state.
+                                    vtm.item.Label(is_topmost==1 and "\\x1b[38:2:0:255:0m^\\x1b[m" or "^")
+                                    vtm.item.Tooltip(is_topmost==1 and " AlwaysOnTop on " or " AlwaysOnTop off ")
+                                    vtm.item.Deface()
+                                </script>
+                            </item>
+                            <item label="<">
+                                <script=TerminalFindPrev on="LeftClick"/>
                                 <tooltip>
                                     " Previous match                                  \n"
                                     "   LeftClick to jump to previous match or scroll \n"
                                     "             one page up if nothing to search    \n"
                                     "   Match clipboard data if no selection          "
                                 </tooltip>
-                                <label="<"/>
-                                <label="\e[38:2:0:255:0m<\e[m"/>
                             </item>
-                            <item script=TerminalFindNext>
+                            <item label=">">
+                                <script=TerminalFindNext on="LeftClick"/>
                                 <tooltip>
                                     " Next match                                     \n"
                                     "   LeftClick to jump to next match or scroll    \n"
                                     "             one page down if nothing to search \n"
                                     "   Match clipboard data if no selection         "
                                 </tooltip>
-                                <label=">"/>
-                                <label="\e[38:2:0:255:0m>\e[m"/>
                             </item>
-                            <item type="Option" script=TerminalWrapMode>
+                            <item label="Wrap">
                                 <tooltip>
                                     " Wrapping text lines on/off      \n"
                                     "   Applied to selection if it is "
                                 </tooltip>
-                                <label="Wrap"                     data="off"/>
-                                <label="\e[38:2:0:255:0mWrap\e[m" data="on"/>
+                                <script=TerminalWrapMode on="LeftClick"/>
+                                <script>
+                                    <on="release: ui::tty::events::layout::wrapln" source="terminal"/>
+                                    local m=vtm()                           -- Use event arguments to get the current state.
+                                    -- local m=vtm.terminal.LineWrapMode()  -- or ask the terminal instance iteslf for the current state.
+                                    vtm.item.Label(m==1 and "\e[38:2:0:255:0mWrap\e[m" or "Wrap")
+                                    vtm.item.Deface()
+                                </script>
                             </item>
-                            <item type="Option" script=TerminalClipboardFormat tooltip=" Clipboard format ">  <!-- type=Option means that the тext label will be selected when clicked. -->
-                                <label="Clipboard"                       data="none"/>
-                                <label="\e[38:2:0:255:0mPlaintext\e[m"   data="text"/>
-                                <label="\e[38:2:255:255:0mANSI-text\e[m" data="ansi"/>
-                                <label                                   data="rich">
-                                    "\e[38:2:109:231:237m""R"
-                                    "\e[38:2:109:237:186m""T"
-                                    "\e[38:2:60:255:60m"  "F"
-                                    "\e[38:2:189:255:53m" "-"
-                                    "\e[38:2:255:255:49m" "s"
-                                    "\e[38:2:255:189:79m" "t"
-                                    "\e[38:2:255:114:94m" "y"
-                                    "\e[38:2:255:60:157m" "l"
-                                    "\e[38:2:255:49:214m" "e" "\e[m"
-                                </label>
-                                <label="\e[38:2:0:255:255mHTML-code\e[m" data="html"/>
-                                <label="\e[38:2:0:255:255mProtected\e[m" data="protected"/>
+                            <item label="Clipboard" tooltip=" Clipboard format ">  <!-- type=Option means that the тext label will be selected when clicked. -->
+                                <script=TerminalClipboardFormat on="LeftClick"/>
+                                <script>
+                                    <on="release: ui::tty::events::selmod" source="terminal"/>
+                                    local m=vtm()                              -- Use event arguments to get the current state.
+                                    -- local m=vtm.terminal.ClipboardFormat()  -- or ask the terminal instance iteslf for the current state.
+                                    vtm.item.Label(m==1 and "\e[38:2:0:255:0mPlaintext\e[m"     -- "textonly"
+                                                or m==2 and "\e[38:2:255:255:0mANSI-text\e[m"   -- "ansitext"
+                                                or m==3 and "\e[38:2:109:231:237m".."R"..
+                                                            "\e[38:2:109:237:186m".."T"..
+                                                            "\e[38:2:60:255:60m"  .."F"..
+                                                            "\e[38:2:189:255:53m" .."-"..
+                                                            "\e[38:2:255:255:49m" .."s"..
+                                                            "\e[38:2:255:189:79m" .."t"..
+                                                            "\e[38:2:255:114:94m" .."y"..
+                                                            "\e[38:2:255:60:157m" .."l"..
+                                                            "\e[38:2:255:49:214m" .."e".."\e[m" -- "richtext"
+                                                or m==4 and "\e[38:2:0:255:255mHTML-code\e[m"   -- "htmltext"
+                                                or m==5 and "\e[38:2:0:255:255mProtected\e[m"   -- "safetext" ala protected
+                                                or          "Clipboard")                          -- "disabled"
+                                    vtm.item.Deface()
+                                </script>
                             </item>
-                            <item script=TerminalOutput tooltip=" Clear scrollback and SGR-attributes ">
-                                <label="Reset" data="\e[!p"/>
+                            <item label="Reset" tooltip=" Clear scrollback and SGR-attributes ">
+                                <script=TerminalReset on="LeftClick"/>
                             </item>
                         </menu>
                     </terminal>
                 </config>
             </item>
             <autorun run*>  <!-- Autorun specified menu items:     -->
-                <!--  <run* id="Term" winsize=80,25 />             -->
-                <!--  <run wincoor=92,31 winform=minimized />      -->  <!-- Autorun supports minimized winform only. -->
-                <!--  <run wincoor=8,31 />                         -->
-                <!--  <run wincoor=8,4 winsize=164,25 focused />   -->
+                <!-- //todo use scripting. init_script()? on="anycast:Start"?-->
+                <!--  <run*/>             -->
+                <!--  <run id="Term" winsize=80,25  wincoor=92,31 winform=minimized />      -->  <!-- Autorun supports minimized winform only. -->
+                <!--  <run id="Term" winsize=80,25  wincoor=8,31 />                         -->
+                <!--  <run id="Term" winsize=164,25 wincoor=8,4 focused />   -->
             </autorun>
             <width>  <!-- Taskbar menu width. -->
                 <folded=18/>
@@ -761,7 +884,7 @@ Notes
         <sendinput=""/>  <!-- Send input on startup. E.g. sendinput="echo \"test\"\n" -->
         <cwdsync=" cd $P\n"/>  <!-- Command to sync the current working directory. When 'Sync' is active, $P (case sensitive) will be replaced with the current path received via OSC9;9 notification. Prefixed with a space to avoid touching command history. -->
         <scrollback>
-            <size=40000    />   <!-- Initial scrollback buffer size. -->
+            <size=100000   />   <!-- Initial scrollback buffer size. -->
             <growstep=0    />   <!-- Scrollback buffer grow step. The buffer behaves like a ring in case of zero. -->
             <growlimit=0   />   <!-- Scrollback buffer grow limit. The buffer will behave like a ring when the limit is reached. If set to zero, then the limit is equal to the initial buffer size. -->
             <maxline=65535 />   <!-- Max line length. Line splits if it exceeds the limit. -->
@@ -804,76 +927,101 @@ Notes
         <menu item*>
             <autohide=menu/autohide/>
             <slim=menu/slim/>
-            <item script=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
+            <item label="^" tooltip=" AlwaysOnTop off ">
+                <script=AlwaysOnTopApplet on="LeftClick"/> <!-- The default event source is the parent object, i.e. source="item" (aka vtm.item). -->
+                <script>  <!-- A binding to update the menu item label at runtime. -->
+                    <on="release: e2::form::prop::zorder" source="terminal"/>
+                    local is_topmost=vtm()                     -- Use event arguments to get the current state.
+                    -- local is_topmost=vtm.terminal.ZOrder()  -- or ask the terminal instance iteslf for the current zorder state.
+                    vtm.item.Label(is_topmost==1 and "\\x1b[38:2:0:255:0m^\\x1b[m" or "^")
+                    vtm.item.Tooltip(is_topmost==1 and " AlwaysOnTop on " or " AlwaysOnTop off ")
+                    vtm.item.Deface()
+                </script>
+            </item>
+            <item label="<">
+                <script=TerminalFindPrev on="LeftClick"/>
                 <tooltip>
                     " Previous match                                  \n"
                     "   LeftClick to jump to previous match or scroll \n"
                     "             one page up if nothing to search    \n"
                     "   Match clipboard data if no selection          "
                 </tooltip>
-                <label="<"/>
-                <label="\e[38:2:0:255:0m<\e[m"/>
             </item>
-            <item script=TerminalFindNext>
+            <item label=">">
+                <script=TerminalFindNext on="LeftClick"/>
                 <tooltip>
                     " Next match                                     \n"
                     "   LeftClick to jump to next match or scroll    \n"
                     "             one page down if nothing to search \n"
                     "   Match clipboard data if no selection         "
                 </tooltip>
-                <label=">"/>
-                <label="\e[38:2:0:255:0m>\e[m"/>
             </item>
-            <item type="Option" script=ExclusiveKeyboardMode>
+            <item label=" Desktop ">
                 <tooltip>
                     " Toggle exclusive keyboard mode              \n"
                     "   Exclusive keyboard mode allows keystrokes \n"
                     "   to be passed through without processing   "
                 </tooltip>
-                <label=" Desktop "                                      data="off"/>
-                <label="\e[48:2:0:128:128;38:2:0:255:0m Exclusive \e[m" data="on"/>
+                <script=ExclusiveKeyboardMode on="LeftClick"/>
+                <script>
+                    <on="release: ui::tty::events::rawkbd" source="terminal"/>
+                    local m=vtm()                                    -- Use event arguments to get the current state.
+                    -- local m=vtm.terminal.ExclusiveKeyboardMode()  -- or ask the terminal instance iteslf for the current state.
+                    vtm.item.Label(m==1 and "\e[48:2:0:128:128;38:2:0:255:0m Exclusive \e[m" or " Desktop ")
+                    vtm.item.Tooltip(m==1 and " ExclusiveKeyboardMode on " or " ExclusiveKeyboardMode off ")
+                    vtm.item.Deface()
+                </script>
             </item>
-            <item type="Option" script=TerminalWrapMode>
+            <item label="Wrap">
                 <tooltip>
                     " Wrapping text lines on/off      \n"
                     "   Applied to selection if it is "
                 </tooltip>
-                <label="Wrap"                     data="off"/>
-                <label="\e[38:2:0:255:0mWrap\e[m" data="on"/>
+                <script=TerminalWrapMode on="LeftClick"/>
+                <script>
+                    <on="release: ui::tty::events::layout::wrapln" source="terminal"/>
+                    local m=vtm()                           -- Use event arguments to get the current state.
+                    -- local m=vtm.terminal.LineWrapMode()  -- or ask the terminal instance iteslf for the current state.
+                    vtm.item.Label(m==1 and "\e[38:2:0:255:0mWrap\e[m" or "Wrap")
+                    vtm.item.Deface()
+                </script>
             </item>
-            <item type="Option" script=TerminalClipboardFormat tooltip=" Clipboard format ">  <!-- type=Option means that the тext label will be selected when clicked. -->
-                <label="Clipboard"                       data="none"/>
-                <label="\e[38:2:0:255:0mPlaintext\e[m"   data="text"/>
-                <label="\e[38:2:255:255:0mANSI-text\e[m" data="ansi"/>
-                <label                                   data="rich">
-                    "\e[38:2:109:231:237m""R"
-                    "\e[38:2:109:237:186m""T"
-                    "\e[38:2:60:255:60m"  "F"
-                    "\e[38:2:189:255:53m" "-"
-                    "\e[38:2:255:255:49m" "s"
-                    "\e[38:2:255:189:79m" "t"
-                    "\e[38:2:255:114:94m" "y"
-                    "\e[38:2:255:60:157m" "l"
-                    "\e[38:2:255:49:214m" "e" "\e[m"
-                </label>
-                <label="\e[38:2:0:255:255mHTML-code\e[m" data="html"/>
-                <label="\e[38:2:0:255:255mProtected\e[m" data="protected"/>
+            <item label="Clipboard" tooltip=" Clipboard format ">  <!-- type=Option means that the тext label will be selected when clicked. -->
+                <script=TerminalClipboardFormat on="LeftClick"/>
+                <script>
+                    <on="release: ui::tty::events::selmod" source="terminal"/>
+                    local m=vtm()                              -- Use event arguments to get the current state.
+                    -- local m=vtm.terminal.ClipboardFormat()  -- or ask the terminal instance iteslf for the current state.
+                    vtm.item.Label(m==1 and "\e[38:2:0:255:0mPlaintext\e[m"     -- "textonly"
+                                or m==2 and "\e[38:2:255:255:0mANSI-text\e[m"   -- "ansitext"
+                                or m==3 and "\e[38:2:109:231:237m".."R"..
+                                            "\e[38:2:109:237:186m".."T"..
+                                            "\e[38:2:60:255:60m"  .."F"..
+                                            "\e[38:2:189:255:53m" .."-"..
+                                            "\e[38:2:255:255:49m" .."s"..
+                                            "\e[38:2:255:189:79m" .."t"..
+                                            "\e[38:2:255:114:94m" .."y"..
+                                            "\e[38:2:255:60:157m" .."l"..
+                                            "\e[38:2:255:49:214m" .."e".."\e[m" -- "richtext"
+                                or m==4 and "\e[38:2:0:255:255mHTML-code\e[m"   -- "htmltext"
+                                or m==5 and "\e[38:2:0:255:255mProtected\e[m"   -- "safetext" ala protected
+                                or          "Clipboard")                          -- "disabled"
+                    vtm.item.Deface()
+                </script>
             </item>
-            <!-- <item type="Option" script=TerminalCwdSync> -->
-            <!--     <label="Sync"                     data="off" tooltip=" CWD sync is off "/> -->
-            <!--     <label="\e[38:2:0:255:0mSync\e[m" data="on"  tooltip=" CWD sync is on                          \n Make sure your shell has OSC9;9 enabled "/> -->
-            <!-- </item> -->
-            <item type="Option" script=TerminalStdioLog>
-                <label="Log"                     data="off" tooltip=" Console logging is off "/>
-                <label="\e[38:2:0:255:0mLog\e[m" data="on"  tooltip=" Console logging is on   \n Run Logs to see output  "/>
+            <item label="Log" tooltip=" Console logging        \n Run Logs to see output ">
+                <script=TerminalStdioLog on="LeftClick"/>
+                <script>
+                    <on="release: ui::tty::events::io_log" source="terminal"/>
+                    local m=vtm()                      -- Use event arguments to get the current state.
+                    -- local m=vtm.terminal.LogMode()  -- or ask the terminal instance iteslf for the current state.
+                    vtm.item.Label(m==1 and "\e[38:2:0:255:0mLog\e[m" or "Log")
+                    vtm.item.Deface()
+                </script>
             </item>
-            <item script=TerminalOutput tooltip=" Clear TTY viewport ">
-                <label="Clear" data="\e[2J"/>
+            <item label="Clear" tooltip=" Clear scrollback ">
+                <script=TerminalClearScrollback on="LeftClick"/>
             </item>
-            <item script=TerminalOutput tooltip=" Clear scrollback and SGR-attributes ">
-                <label="Reset" data="\e[!p"/>
-            </item>
-            <!-- <item label="Hello, World!" tooltip=" Simulate keypress " script=TerminalSendKey data="Hello World!"/> -->
         </menu>
         <selection>
             <mode=selection/mode/>  <!-- Selection clipboard copy format: "text" | "ansi" | "rich" | "html" | "protected" | "none". -->
@@ -916,116 +1064,120 @@ Notes
             <slim=menu/slim/>
         </menu>
     </defapp>
-    <events>  <!-- The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop. The 'key*' statement here is to clear all previous bindings and start a new list. -->
-        <gate key*>  <!-- `User gate`/`standalone app` key bindings. -->
-            <key="CapsLock+UpArrow"                                     script=IncreaseCellHeight/>
-            <key="CapsLock+DownArrow"                                   script=DecreaseCellHeight/>
-            <key="Esc+0"                                                script=ResetCellHeight/>
-            <key="Ctrl+CapsLock"                                        script=ToggleAntialiasingMode/>
-            <key="Ctrl+Shift+F11"                                       script=RollFontsBackward/>
-            <key="Ctrl+Shift+F12"                                       script=RollFontsForward/>
-            <key="-Ctrl" preview                                        script=ResetWheelAccumulator/>
-            <key="Space-Backspace | Backspace-Space"                    script=ToggleDebugOverlay/>
+    <events>  <!-- The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop. -->
+        <gate script*>  <!-- `User gate`/`standalone app` bindings. The 'script*' statement here is to clear all previous bindings and start a new list. -->
+            <script=IncreaseCellHeight     on="CapsLock+UpArrow"                 />
+            <script=DecreaseCellHeight     on="CapsLock+DownArrow"               />
+            <script=ResetCellHeight        on="Esc+0"                            />
+            <script=ToggleAntialiasingMode on="Ctrl+CapsLock"                    />
+            <script=RollFontsBackward      on="Ctrl+Shift+F11"                   />
+            <script=RollFontsForward       on="Ctrl+Shift+F12"                   />
+            <script=ResetWheelAccumulator  on="preview:-Ctrl"                    />
+            <script=ToggleDebugOverlay     on="Space-Backspace | Backspace-Space"/>
         </gate>
-        <desktop key*>  <!-- Desktop key bindings. -->
-            <key="Ctrl+PageUp"                                          script=FocusPrevWindow/>
-            <key="Ctrl+PageDown"                                        script=FocusNextWindow/>
-            <key="Shift+F7"                                             script=Disconnect/>
-            <key="F10" preview                                          script=TryToQuit/>
-            <key="Alt+Shift+N"                                          script=RunApplication/>
-            <key="Esc+F1"                                               script=RunInfoPage/>
+        <desktop script*>  <!-- Desktop bindings. -->
+            <script=FocusPrevWindow on="Ctrl+PageUp"  />
+            <script=FocusNextWindow on="Ctrl+PageDown"/>
+            <script=Disconnect      on="Shift+F7"     />
+            <script=TryToQuit       on="preview:F10"  />
+            <script=RunApplication  on="Alt+Shift+N"  />
+            <script=RunInfoPage     on="Esc+F1"       />
         </desktop>
-        <applet key*>  <!-- Applet key bindings. -->
-            <key="Esc+T"                                                script=AlwaysOnTopApplet/>
-            <key="Esc+W"                                                script=CloseApplet/>
-            <key="Esc+M"                                                script=MinimizeApplet/>
-            <key="Esc+F10"                                              script=RestoreApplet/>
-            <key="Esc+F11"                                              script=MaximizeApplet/>
-            <key="Esc+F12"                                              script=FullscreenApplet/>
-            <key="Esc+LeftArrow"                                        script=MoveAppletLeft/>
-            <key="Esc+RightArrow"                                       script=MoveAppletRight/>
-            <key="Esc+UpArrow"                                          script=MoveAppletUp/>
-            <key="Esc+DownArrow"                                        script=MoveAppletDown/>
-            <key="Esc+LeftArrow+UpArrow    | Esc+UpArrow+LeftArrow"     script=MoveAppletTopLeft/>
-            <key="Esc+LeftArrow+DownArrow  | Esc+DownArrow+LeftArrow"   script=MoveAppletBottomLeft/>
-            <key="Esc+RightArrow+UpArrow   | Esc+UpArrow+RightArrow"    script=MoveAppletTopRight/>
-            <key="Esc+RightArrow+DownArrow | Esc+DownArrow+RightArrow"  script=MoveAppletBottomRight/>
-            <key="Esc+LeftArrow+RightArrow"                             script=IncreaseAppletWidth/>
-            <key="Esc+RightArrow+LeftArrow"                             script=DecreaseAppletWidth/>
-            <key="Esc+UpArrow+DownArrow"                                script=IncreaseAppletHeight/>
-            <key="Esc+DownArrow+UpArrow"                                script=DecreaseAppletHeight/>
+        <applet script*>  <!-- Applet bindings. -->
+            <script=AlwaysOnTopApplet     on="Esc+T"                                              />
+            <script=CloseApplet           on="Esc+W"                                              />
+            <script=MinimizeApplet        on="Esc+M"                                              />
+            <script=RestoreApplet         on="Esc+F10"                                            />
+            <script=MaximizeApplet        on="Esc+F11"                                            />
+            <script=FullscreenApplet      on="Esc+F12"                                            />
+            <script=MoveAppletLeft        on="Esc+LeftArrow"                                      />
+            <script=MoveAppletRight       on="Esc+RightArrow"                                     />
+            <script=MoveAppletUp          on="Esc+UpArrow"                                        />
+            <script=MoveAppletDown        on="Esc+DownArrow"                                      />
+            <script=MoveAppletTopLeft     on="Esc+LeftArrow+UpArrow    | Esc+UpArrow+LeftArrow"   />
+            <script=MoveAppletBottomLeft  on="Esc+LeftArrow+DownArrow  | Esc+DownArrow+LeftArrow" />
+            <script=MoveAppletTopRight    on="Esc+RightArrow+UpArrow   | Esc+UpArrow+RightArrow"  />
+            <script=MoveAppletBottomRight on="Esc+RightArrow+DownArrow | Esc+DownArrow+RightArrow"/>
+            <script=IncreaseAppletWidth   on="Esc+LeftArrow+RightArrow"                           />
+            <script=DecreaseAppletWidth   on="Esc+RightArrow+LeftArrow"                           />
+            <script=IncreaseAppletHeight  on="Esc+UpArrow+DownArrow"                              />
+            <script=DecreaseAppletHeight  on="Esc+DownArrow+UpArrow"                              />
         </applet>
-        <tile key*>
-            <key="Ctrl+PageUp"     script=TileFocusPrev/>
-            <key="Ctrl+PageDown"   script=TileFocusNext/>
-            <key=""                script=TileFocusPrevPane/>
-            <key=""                script=TileFocusNextPane/>
-            <key="Alt+Shift+N"     script=TileRunApplication/>
-            <key="Alt+Shift+A"     script=TileSelectAllPanes/>
-            <key="Alt+Shift+'|'"   script=TileSplitHorizontally/>
-            <key="Alt+Shift+Minus" script=TileSplitVertically/>
-            <key="Alt+Shift+R"     script=TileSplitOrientation/>
-            <key="Alt+Shift+S"     script=TileSwapPanes/>
-            <key="Alt+Shift+E"     script=TileEqualizeSplitRatio/>
-            <key="Alt+Shift+F2"    script=TileSetManagerTitle/>
-            <key="Alt+Shift+W"     script=TileClosePane/>
-            <grip key*>
-                <key="LeftArrow"                          script=TileMoveGripLeft/>
-                <key="RightArrow"                         script=TileMoveGripRight/>
-                <key="UpArrow"                            script=TileMoveGripUp/>
-                <key="DownArrow"                          script=TileMoveGripDown/>
-                <key="'-'"                                script=TileDecreaseGripWidth/>
-                <key="Shift+'+' | '+' | '=' | NumpadPlus" script=TileIncreaseGripWidth/>
-                <key="Shift+Tab"                          script=TileFocusPrevGrip/>
-                <key="Tab"                                script=TileFocusNextGrip/>
+        <tile script*>
+            <script=TileFocusPrev          on="Ctrl+PageUp"    />
+            <script=TileFocusNext          on="Ctrl+PageDown"  />
+            <script=TileFocusPrevPane      on=""               />
+            <script=TileFocusNextPane      on=""               />
+            <script=TileRunApplication     on="Alt+Shift+N"    />
+            <script=TileSelectAllPanes     on="Alt+Shift+A"    />
+            <script=TileSplitHorizontally  on="Alt+Shift+'|'"  />
+            <script=TileSplitVertically    on="Alt+Shift+Minus"/>
+            <script=TileSplitOrientation   on="Alt+Shift+R"    />
+            <script=TileSwapPanes          on="Alt+Shift+S"    />
+            <script=TileEqualizeSplitRatio on="Alt+Shift+E"    />
+            <script=TileSetManagerTitle    on="Alt+Shift+F2"   />
+            <script=TileClosePane          on="Alt+Shift+W"    />
+            <grip script*>
+                <script=TileMoveGripLeft      on="LeftArrow"                         />
+                <script=TileMoveGripRight     on="RightArrow"                        />
+                <script=TileMoveGripUp        on="UpArrow"                           />
+                <script=TileMoveGripDown      on="DownArrow"                         />
+                <script=TileDecreaseGripWidth on="'-'"                               />
+                <script=TileIncreaseGripWidth on="Shift+'+' | '+' | '=' | NumpadPlus"/>
+                <script=TileFocusPrevGrip     on="Shift+Tab"                         />
+                <script=TileFocusNextGrip     on="Tab"                               />
             </grip>
         </tile>
-        <terminal key*>  <!-- Terminal key bindings. -->
-            <key="Esc"                   script="vtm.gear.SetHandled()"/> <!-- Do nothing. We use the Esc key as a modifier. Its press+release events will only be sent after the key is physically released, and only if no other keys were pressed along with Esc. -->
-            <key="-Esc"                  script="vtm.terminal.ClearSelection(); vtm.terminal.KeyEvent({ virtcod=0x1b, scancod=1, keystat=1, cluster='\\u{1b}' }, { virtcod=0x1b, scancod=1, keystat=0 })"/> <!-- Clear selection if it is and send Esc press and release events. -->
-            <key="Ctrl-Alt | Alt-Ctrl" preview script=ExclusiveKeyboardMode/>
-            <key="Alt+Shift+B" preview   script=ExclusiveKeyboardMode/>
-            <key="Alt+RightArrow"        script=TerminalFindNext/>
-            <key="Alt+LeftArrow"         script=TerminalFindPrev/>
-            <key="Shift+Ctrl+PageUp"     script=TerminalScrollViewportOnePageUp/>
-            <key="Shift+Ctrl+PageDown"   script=TerminalScrollViewportOnePageDown/>
-            <key="Shift+Alt+LeftArrow"   script=TerminalScrollViewportOnePageLeft/>
-            <key="Shift+Alt+RightArrow"  script=TerminalScrollViewportOnePageRight/>
-            <key="Shift+Ctrl+UpArrow"    script=TerminalScrollViewportOneLineUp/>
-            <key="Shift+Ctrl+DownArrow"  script=TerminalScrollViewportOneLineDown/>
-            <key="Shift+Ctrl+LeftArrow"  script=TerminalScrollViewportOneCellLeft/>
-            <key="Shift+Ctrl+RightArrow" script=TerminalScrollViewportOneCellRight/>
-            <key="Shift+Ctrl+Home"       script=TerminalScrollViewportToTop/>
-            <key="Shift+Ctrl+End"        script=TerminalScrollViewportToEnd/>
-            <key=""                      script=TerminalSendKey/>
-            <key=""                      script=TerminalOutput/>
-            <key=""                      script=TerminalCopyViewport/>
-            <key="Ctrl+Insert"  preview  script=TerminalCopySelection/>
-            <key="Shift+Insert" preview  script=TerminalClipboardPaste/>
-            <key=""                      script=TerminalClipboardWipe/>
-            <key=""                      script=TerminalClipboardFormat/>
-            <key=""                      script=TerminalSelectionRect/>
-            <key=""                      script=TerminalSelectionOneShot/>
-            <key=""                      script=TerminalUndo/>
-            <key=""                      script=TerminalRedo/>
-            <key=""                      script=TerminalCwdSync/>
-            <key=""                      script=TerminalWrapMode/>
-            <key=""                      script=TerminalAlignMode/>
-            <key=""                      script=TerminalStdioLog/>
-            <key=""                      script=TerminalRestart/>
+        <terminal script*>  <!-- Terminal bindings. -->
+            <script=ExclusiveKeyboardMode on="preview: Ctrl-Alt | Alt-Ctrl"/>
+            <script=ExclusiveKeyboardMode on="preview: Alt+Shift+B"/>
+            <script="vtm.gear.SetHandled()" on="Esc"/> <!-- Do nothing. We use the Esc key as a modifier. Its press+release events will only be sent after the key is physically released, and only if no other keys were pressed along with Esc. -->
+            <script                         on="-Esc">  --  Clear selection if it is and send Esc press and release events.
+                vtm.terminal.ClearSelection()
+                vtm.terminal.KeyEvent({ virtcod=0x1b, scancod=1, keystat=1, cluster='\\u{1b}' }, { virtcod=0x1b, scancod=1, keystat=0 })
+            </script>
+            <script=TerminalFindNext                   on="Alt+RightArrow"       />
+            <script=TerminalFindPrev                   on="Alt+LeftArrow"        />
+            <script=TerminalScrollViewportOnePageUp    on="Shift+Ctrl+PageUp"    />
+            <script=TerminalScrollViewportOnePageDown  on="Shift+Ctrl+PageDown"  />
+            <script=TerminalScrollViewportOnePageLeft  on="Shift+Alt+LeftArrow"  />
+            <script=TerminalScrollViewportOnePageRight on="Shift+Alt+RightArrow" />
+            <script=TerminalScrollViewportOneLineUp    on="Shift+Ctrl+UpArrow"   />
+            <script=TerminalScrollViewportOneLineDown  on="Shift+Ctrl+DownArrow" />
+            <script=TerminalScrollViewportOneCellLeft  on="Shift+Ctrl+LeftArrow" />
+            <script=TerminalScrollViewportOneCellRight on="Shift+Ctrl+RightArrow"/>
+            <script=TerminalScrollViewportToTop        on="Shift+Ctrl+Home"      />
+            <script=TerminalScrollViewportToEnd        on="Shift+Ctrl+End"       />
+            <script=TerminalSendKey                    on=""                     />
+            <script=TerminalReset                      on=""                     />
+            <script=TerminalClearScrollback            on=""                     />
+            <script=TerminalCopyViewport               on=""                     />
+            <script=TerminalCopySelection              on="preview:Ctrl+Insert"  />
+            <script=TerminalClipboardPaste             on="preview:Shift+Insert" />
+            <script=TerminalClipboardWipe              on=""                     />
+            <script=TerminalClipboardFormat            on=""                     />
+            <script=TerminalSelectionRect              on=""                     />
+            <script=TerminalSelectionOneShot           on=""                     />
+            <script=TerminalUndo                       on=""                     />
+            <script=TerminalRedo                       on=""                     />
+            <script=TerminalCwdSync                    on=""                     />
+            <script=TerminalWrapMode                   on=""                     />
+            <script=TerminalAlignMode                  on=""                     />
+            <script=TerminalStdioLog                   on=""                     />
+            <script=TerminalRestart                    on=""                     />
         </terminal>
-        <defapp key*>  <!-- Default application bindings (e.g., Info-Page). -->
-            <key="Esc"  preview script="vtm.defapp.ShowClosingPreview(not vtm.gear.IsKeyRepeated())"/> <!-- Pred window close action. -->
-            <key="-Esc" preview script="if (vtm.defapp.ShowClosingPreview()) then vtm.defapp.Close() end"/> <!-- Close the window on Esc release. -->
-            <key="Any"  preview script="vtm.defapp.ShowClosingPreview(false)"/> <!-- Preview for "Any" is always triggered after all other previews. Non-preview "Any" is triggered before all other keys. -->
-            <key="PageUp"       script="vtm.defapp.ScrollViewportByPage( 0, 1)"/>
-            <key="PageDown"     script="vtm.defapp.ScrollViewportByPage( 0,-1)"/>
-            <key="UpArrow"      script="vtm.defapp.ScrollViewportByStep( 0, 3)"/>
-            <key="DownArrow"    script="vtm.defapp.ScrollViewportByStep( 0,-3)"/>
-            <key="LeftArrow"    script="vtm.defapp.ScrollViewportByStep( 3, 0)"/>
-            <key="RightArrow"   script="vtm.defapp.ScrollViewportByStep(-3, 0)"/>
-            <key="Home"         script="if (not vtm.gear.IsKeyRepeated()) then vtm.defapp.ScrollViewportToTop() end"/>
-            <key="End"          script="if (not vtm.gear.IsKeyRepeated()) then vtm.defapp.ScrollViewportToEnd() end"/>
+        <defapp script*>  <!-- Default application bindings (e.g., Info-Page). -->
+            <script="vtm.defapp.ShowClosingPreview(not vtm.gear.IsKeyRepeated())"                 on="preview:Esc" /> <!-- Pred window close action. -->
+            <script="if (vtm.defapp.ShowClosingPreview()) then vtm.defapp.Close() end"            on="preview:-Esc"/> <!-- Close the window on Esc release. -->
+            <script="vtm.defapp.ShowClosingPreview(false)"                                        on="preview:Any" /> <!-- Preview for "Any" is always triggered after all other previews. Non-preview "Any" is triggered before all other keys. -->
+            <script="vtm.defapp.ScrollViewportByPage( 0, 1)"                                      on="PageUp"      />
+            <script="vtm.defapp.ScrollViewportByPage( 0,-1)"                                      on="PageDown"    />
+            <script="vtm.defapp.ScrollViewportByStep( 0, 3)"                                      on="UpArrow"     />
+            <script="vtm.defapp.ScrollViewportByStep( 0,-3)"                                      on="DownArrow"   />
+            <script="vtm.defapp.ScrollViewportByStep( 3, 0)"                                      on="LeftArrow"   />
+            <script="vtm.defapp.ScrollViewportByStep(-3, 0)"                                      on="RightArrow"  />
+            <script="if (not vtm.gear.IsKeyRepeated()) then vtm.defapp.ScrollViewportToTop() end" on="Home"        />
+            <script="if (not vtm.gear.IsKeyRepeated()) then vtm.defapp.ScrollViewportToEnd() end" on="End"         />
         </defapp>
     </events>
 </config>

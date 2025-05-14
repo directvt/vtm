@@ -15,7 +15,7 @@ namespace netxs::events::userland
             EVENT_XS( selmod, si32 ),
             EVENT_XS( onesht, si32 ),
             EVENT_XS( selalt, si32 ),
-            EVENT_XS( rawkbd, bool ),
+            EVENT_XS( rawkbd, si32 ),
             GROUP_XS( toggle, bool ),
             GROUP_XS( colors, argb ),
             GROUP_XS( layout, si32 ),
@@ -8207,16 +8207,16 @@ namespace netxs::ui
             set_fg_color(config.def_fcolor);
             set_bg_color(config.def_bcolor);
             selection_submit();
-            publish_property(ui::tty::events::io_log,         [&](auto& v){ v = io_log; });
-            publish_property(ui::tty::events::selmod,         [&](auto& v){ v = selmod; });
-            publish_property(ui::tty::events::onesht,         [&](auto& v){ v = onesht; });
-            publish_property(ui::tty::events::selalt,         [&](auto& v){ v = selalt; });
-            publish_property(ui::tty::events::rawkbd,         [&](auto& v){ v = rawkbd; });
-            publish_property(ui::tty::events::colors::bg,     [&](auto& v){ v = target->brush.bgc(); });
-            publish_property(ui::tty::events::colors::fg,     [&](auto& v){ v = target->brush.fgc(); });
-            publish_property(ui::tty::events::layout::wrapln, [&](auto& v){ v = (si32)target->style.wrp(); });
-            publish_property(ui::tty::events::layout::align,  [&](auto& v){ v = (si32)target->style.jet(); });
-            publish_property(ui::tty::events::search::status, [&](auto& v){ v = target->selection_button(); });
+            //publish_property(ui::tty::events::io_log,         [&](auto& v){ v = io_log; });
+            //publish_property(ui::tty::events::selmod,         [&](auto& v){ v = selmod; });
+            //publish_property(ui::tty::events::onesht,         [&](auto& v){ v = onesht; });
+            //publish_property(ui::tty::events::selalt,         [&](auto& v){ v = selalt; });
+            //publish_property(ui::tty::events::rawkbd,         [&](auto& v){ v = rawkbd; });
+            //publish_property(ui::tty::events::colors::bg,     [&](auto& v){ v = target->brush.bgc(); });
+            //publish_property(ui::tty::events::colors::fg,     [&](auto& v){ v = target->brush.fgc(); });
+            //publish_property(ui::tty::events::layout::wrapln, [&](auto& v){ v = (si32)target->style.wrp(); });
+            //publish_property(ui::tty::events::layout::align,  [&](auto& v){ v = (si32)target->style.jet(); });
+            //publish_property(ui::tty::events::search::status, [&](auto& v){ v = target->selection_button(); });
             selection_selmod(config.def_selmod);
 
             auto& mouse = base::plugin<pro::mouse>();
@@ -8224,7 +8224,8 @@ namespace netxs::ui
 
             base::plugin<pro::keybd>();
             auto& luafx = bell::indexer.luafx;
-            auto bindings = input::bindings::load(xml_config, basename::terminal);
+            auto script_list = xml_config.list("/config/events/terminal/script");
+            auto bindings = input::bindings::load(xml_config, script_list);
             input::bindings::keybind(*this, bindings);
             base::add_methods(basename::terminal,
             {

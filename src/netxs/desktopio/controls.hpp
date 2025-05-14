@@ -3143,26 +3143,26 @@ namespace netxs::ui
             }
             return backup;
         }
-        template<class BackendProp, class P>
-        void publish_property(BackendProp, P setter)
-        {
-            LISTEN(tier::request, BackendProp{}, property_value, -, (setter))
-            {
-                setter(property_value);
-            };
-        }
-        template<class BackendProp, class FrontendProp>
-        auto attach_property(BackendProp, FrontendProp)
-        {
-            auto backup = This();
-            auto property_value = base::signal(tier::request, BackendProp{});
-            base::signal(tier::anycast, FrontendProp{}, property_value);
-            LISTEN(tier::release, BackendProp{}, property_value)
-            {
-                this->base::signal(tier::anycast, FrontendProp{}, property_value);
-            };
-            return backup;
-        }
+        //template<class BackendProp, class P>
+        //void publish_property(BackendProp, P setter)
+        //{
+        //    LISTEN(tier::request, BackendProp{}, property_value, -, (setter))
+        //    {
+        //        setter(property_value);
+        //    };
+        //}
+        //template<class BackendProp, class FrontendProp>
+        //auto attach_property(BackendProp, FrontendProp)
+        //{
+        //    auto backup = This();
+        //    auto property_value = base::signal(tier::request, BackendProp{});
+        //    base::signal(tier::anycast, FrontendProp{}, property_value);
+        //    LISTEN(tier::release, BackendProp{}, property_value)
+        //    {
+        //        this->base::signal(tier::anycast, FrontendProp{}, property_value);
+        //    };
+        //    return backup;
+        //}
         auto limits(twod new_min_sz = -dot_11, twod new_max_sz = -dot_11)
         {
             base::limits(new_min_sz, new_max_sz);
@@ -4841,6 +4841,10 @@ namespace netxs::ui
             _set(new_utf8);
             if constexpr (Reflow) base::reflow();
             return This();
+        }
+        auto get()
+        {
+            return utf8;
         }
         // item: .
         auto& get_source()

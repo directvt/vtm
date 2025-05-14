@@ -887,31 +887,26 @@ namespace netxs::input
                 }
             }
         }
-        auto load(xmls& config, qiew section)
+        auto load(xmls& config, auto& script_list)
         {
             auto bindings = input::bindings::vector{};
-            if (section)
+            for (auto script_ptr : script_list)
             {
-                auto path = "/config/events/" + section.str() + "/script";
-                auto script_list = config.list(path);
-                for (auto script_ptr : script_list)
+                auto script_body_ptr = ptr::shared(config.expand(script_ptr));
+                auto on_ptr_list = script_ptr->list("on");
+                for (auto event_ptr : on_ptr_list)
                 {
-                    auto script_body_ptr = ptr::shared(config.expand(script_ptr));
-                    auto on_ptr_list = script_ptr->list("on");
-                    for (auto event_ptr : on_ptr_list)
+                    auto on_rec = config.expand(event_ptr); // ... on="MouseDown01" ... on="preview:Enter"... .
+                    auto source_list = event_ptr->list("source");
+                    auto sources = txts{};
+                    sources.reserve(source_list.size());
+                    for (auto src_ptr : source_list)
                     {
-                        auto on_rec = config.expand(event_ptr); // ... on="MouseDown01" ... on="preview:Enter"... .
-                        auto source_list = event_ptr->list("source");
-                        auto sources = txts{};
-                        sources.reserve(source_list.size());
-                        for (auto src_ptr : source_list)
-                        {
-                            auto source = config.expand(src_ptr);
-                            sources.emplace_back(source);
-                            //if constexpr (debugmode) log("chord='%%' \tpreview=%% source='%%' script=%%", on_rec, (si32)preview, source, ansi::hi(*script_body_ptr));
-                        }
-                        bindings.push_back({ .chord = on_rec, .sources = std::move(sources), .script_ptr = script_body_ptr });
+                        auto source = config.expand(src_ptr);
+                        sources.emplace_back(source);
+                        //if constexpr (debugmode) log("chord='%%' \tpreview=%% source='%%' script=%%", on_rec, (si32)preview, source, ansi::hi(*script_body_ptr));
                     }
+                    bindings.push_back({ .chord = on_rec, .sources = std::move(sources), .script_ptr = script_body_ptr });
                 }
             }
             return bindings;

@@ -636,7 +636,11 @@ namespace netxs::app::vtm
                 base::root(true);
 
                 auto& bindings = world.base::property<input::bindings::vector>("window.bindings"); // Shared key bindings across the hall.
-                if (bindings.empty()) bindings = input::bindings::load(world.config, basename::window);
+                if (bindings.empty())
+                {
+                    auto script_list = world.config.list("/config/events/window/script");
+                    bindings = input::bindings::load(world.config, script_list);
+                }
                 input::bindings::keybind(*this, bindings);
                 base::add_methods(basename::window,
                 {
@@ -1220,7 +1224,8 @@ namespace netxs::app::vtm
             base::plugin<pro::focus>(pro::focus::mode::focusable);
             base::plugin<pro::keybd>();
             auto& luafx = bell::indexer.luafx;
-            auto bindings = input::bindings::load(config, basename::desktop);
+            auto script_list = config.list("/config/events/desktop/script");
+            auto bindings = input::bindings::load(config, script_list);
             input::bindings::keybind(*this, bindings);
             base::add_methods(basename::desktop,
             {

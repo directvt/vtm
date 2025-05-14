@@ -226,7 +226,6 @@ R"==(
                     " It can be configured in ~/.config/vtm/settings.xml "
                 </tooltip>
             </item>
-            <item* hidden=no winsize=0,0 wincoor=0,0 winform="normal"/>  <!-- Asterisk in the xml node name to set default node values (it is a template). -->
             <item id="Term" label="Terminal Emulator" type="dtvt" title="Terminal" cmd="$0 -r term">
                 <tooltip>
                     " Terminal Console               \n"
@@ -259,57 +258,75 @@ R"==(
                         <menu item*>
                             <autohide=menu/autohide/>
                             <slim=menu/slim/>
-                            <item type="Option" script=AlwaysOnTopApplet>
-                                <label="^"                     data="off" tooltip=" AlwaysOnTop off "/>
-                                <label="\e[38:2:0:255:0m^\e[m" data="on"  tooltip=" AlwaysOnTop on "/>
+                            <item label="^" tooltip=" AlwaysOnTop off ">
+                                <script=AlwaysOnTopApplet on="LeftClick"/> <!-- The default event source is the parent object, i.e. source="item" (aka vtm.item). -->
+                                <script>  <!-- A binding to update the menu item label at runtime. -->
+                                    <on="release: e2::form::prop::zorder" source="terminal"/>
+                                    local is_topmost=vtm()                     -- Use event arguments to get the current state.
+                                    -- local is_topmost=vtm.terminal.ZOrder()  -- or ask the terminal instance iteslf for the current zorder state.
+                                    vtm.item.Label(is_topmost==1 and "\\x1b[38:2:0:255:0m^\\x1b[m" or "^")
+                                    vtm.item.Tooltip(is_topmost==1 and " AlwaysOnTop on " or " AlwaysOnTop off ")
+                                    vtm.item.Deface()
+                                </script>
                             </item>
-                            <item script=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
+                            <item label="<">
+                                <script=TerminalFindPrev on="LeftClick"/>
                                 <tooltip>
                                     " Previous match                                  \n"
                                     "   LeftClick to jump to previous match or scroll \n"
                                     "             one page up if nothing to search    \n"
                                     "   Match clipboard data if no selection          "
                                 </tooltip>
-                                <label="<"/>
-                                <label="\e[38:2:0:255:0m<\e[m"/>
                             </item>
-                            <item script=TerminalFindNext>
+                            <item label=">">
+                                <script=TerminalFindNext on="LeftClick"/>
                                 <tooltip>
                                     " Next match                                     \n"
                                     "   LeftClick to jump to next match or scroll    \n"
                                     "             one page down if nothing to search \n"
                                     "   Match clipboard data if no selection         "
                                 </tooltip>
-                                <label=">"/>
-                                <label="\e[38:2:0:255:0m>\e[m"/>
                             </item>
-                            <item type="Option" script=TerminalWrapMode>
+                            <item label="Wrap">
                                 <tooltip>
                                     " Wrapping text lines on/off      \n"
                                     "   Applied to selection if it is "
                                 </tooltip>
-                                <label="Wrap"                     data="off"/>
-                                <label="\e[38:2:0:255:0mWrap\e[m" data="on"/>
+                                <script=TerminalWrapMode on="LeftClick"/>
+                                <script>
+                                    <on="release: ui::tty::events::layout::wrapln" source="terminal"/>
+                                    local m=vtm()                           -- Use event arguments to get the current state.
+                                    -- local m=vtm.terminal.LineWrapMode()  -- or ask the terminal instance iteslf for the current state.
+                                    vtm.item.Label(m==1 and "\e[38:2:0:255:0mWrap\e[m" or "Wrap")
+                                    vtm.item.Deface()
+                                </script>
                             </item>
-                            <item type="Option" script=TerminalClipboardFormat tooltip=" Clipboard format ">  <!-- type=Option means that the тext label will be selected when clicked. -->
-                                <label="Clipboard"                       data="none"/>
-                                <label="\e[38:2:0:255:0mPlaintext\e[m"   data="text"/>
-                                <label="\e[38:2:255:255:0mANSI-text\e[m" data="ansi"/>
-                                <label                                   data="rich">
-                                    "\e[38:2:109:231:237m""R"
-                                    "\e[38:2:109:237:186m""T"
-                                    "\e[38:2:60:255:60m"  "F"
-                                    "\e[38:2:189:255:53m" "-"
-                                    "\e[38:2:255:255:49m" "s"
-                                    "\e[38:2:255:189:79m" "t"
-                                    "\e[38:2:255:114:94m" "y"
-                                    "\e[38:2:255:60:157m" "l"
-                                    "\e[38:2:255:49:214m" "e" "\e[m"
-                                </label>
-                                <label="\e[38:2:0:255:255mHTML-code\e[m" data="html"/>
-                                <label="\e[38:2:0:255:255mProtected\e[m" data="protected"/>
+                            <item label="Clipboard" tooltip=" Clipboard format ">  <!-- type=Option means that the тext label will be selected when clicked. -->
+                                <script=TerminalClipboardFormat on="LeftClick"/>
+                                <script>
+                                    <on="release: ui::tty::events::selmod" source="terminal"/>
+                                    local m=vtm()                              -- Use event arguments to get the current state.
+                                    -- local m=vtm.terminal.ClipboardFormat()  -- or ask the terminal instance iteslf for the current state.
+                                    vtm.item.Label(m==1 and "\e[38:2:0:255:0mPlaintext\e[m"     -- "textonly"
+                                                or m==2 and "\e[38:2:255:255:0mANSI-text\e[m"   -- "ansitext"
+                                                or m==3 and "\e[38:2:109:231:237m".."R"..
+                                                            "\e[38:2:109:237:186m".."T"..
+                                                            "\e[38:2:60:255:60m"  .."F"..
+                                                            "\e[38:2:189:255:53m" .."-"..
+                                                            "\e[38:2:255:255:49m" .."s"..
+                                                            "\e[38:2:255:189:79m" .."t"..
+                                                            "\e[38:2:255:114:94m" .."y"..
+                                                            "\e[38:2:255:60:157m" .."l"..
+                                                            "\e[38:2:255:49:214m" .."e".."\e[m" -- "richtext"
+                                                or m==4 and "\e[38:2:0:255:255mHTML-code\e[m"   -- "htmltext"
+                                                or m==5 and "\e[38:2:0:255:255mProtected\e[m"   -- "safetext" ala protected
+                                                or          "Clipboard")                          -- "disabled"
+                                    vtm.item.Deface()
+                                </script>
                             </item>
-                            <item label="Reset" script=TerminalReset tooltip=" Clear scrollback and SGR-attributes "/>
+                            <item label="Reset" tooltip=" Clear scrollback and SGR-attributes ">
+                                <script=TerminalReset on="LeftClick"/>
+                            </item>
                         </menu>
 )=="
 R"==(
@@ -318,10 +335,10 @@ R"==(
             </item>
             <autorun run*>  <!-- Autorun specified menu items:     -->
                 <!-- //todo use scripting. init_script()? on="anycast:Start"?-->
-                <!--  <run* id="Term" winsize=80,25 />             -->
-                <!--  <run wincoor=92,31 winform=minimized />      -->  <!-- Autorun supports minimized winform only. -->
-                <!--  <run wincoor=8,31 />                         -->
-                <!--  <run wincoor=8,4 winsize=164,25 focused />   -->
+                <!--  <run*/>             -->
+                <!--  <run id="Term" winsize=80,25  wincoor=92,31 winform=minimized />      -->  <!-- Autorun supports minimized winform only. -->
+                <!--  <run id="Term" winsize=80,25  wincoor=8,31 />                         -->
+                <!--  <run id="Term" winsize=164,25 wincoor=8,4 focused />   -->
             </autorun>
             <width>  <!-- Taskbar menu width. -->
                 <folded=18/>
@@ -403,114 +420,22 @@ R"==(
             <autohide=menu/autohide/>
             <slim=menu/slim/>
             <item label="^" tooltip=" AlwaysOnTop off ">
-                <!--
-                    //todo Mouse test page
-                    Format:
-                        Named:   <Mouse | Left | Right | LeftRight | Middle><Down | Up | [Double | Multi]Click | <Double | Multi>Press | Drag<Start | Pull | Stop | Cancel>>
-                            last 8 bits for 8 mouse buttons
-                            MouseAny            ->                      -> 0x10'00   Any mouse event
-                            MouseDown           -> MouseDown0           -> 0x11'00
-                            MouseUp             -> MouseUp0             -> 0x12'00
-                            MouseClick          -> MouseClick0          -> 0x13'00   Any click
-                            MouseDoubleClick    -> MouseDoubleClick0    -> 0x14'00
-                            MouseDoublePress    -> MouseDoublePress0    -> 0x15'00
-                            MouseMultiClick     -> MouseMultiClick0     -> 0x16'00
-                            MouseMultiPress     -> MouseMultiPress0     -> 0x17'00
-                            MouseDragStart      -> MouseDragStart0      -> 0x18'00
-                            MouseDragPull       -> MouseDragPull0       -> 0x19'00
-                            MouseDragStop       -> MouseDragStop0       -> 0x1A'00
-                            MouseDragCancel     -> MouseDragCancel0     -> 0x1B'00
-                            MouseLeave          ->                      -> 0x1C'00
-                            MouseEnter          ->                      -> 0x1D'00
-                            MouseMove           ->                      -> 0x1E'00
-                            MouseWheel          ->                      -> 0x1F'00
-                        Generic: <Mouse><Down | Up | [Double | Multi]Click | <Double | Multi>Press | Drag<Start | Pull | Stop | Cancel>><bbb...>
-                            <bbb...>:
-                                0: 0: Any button
-                                1: 1: Left
-                                2: 01: Right
-                                3: 001: Middle
-                                4: 0001: Button4
-                                5: 00001: Button5
-                                6: 000001: Button6
-                                7: 0000001: Button7
-                                8: 00000001: Button8
-                                11: Left+Right
-                                111: Left+Middle+Right
-                                011: Middle+Right
-                                ││└── middle
-                                │└─── right
-                                └──── left
-                                10000001: Left+Button8
-                                │      └─── button8
-                                └────────── left
-                                etc... The trailing zeros can be omitted.
-                    Action:
-                        MouseDown<bbb...>            Button<bbb...> push down / pressed.
-                        MouseUp<bbb...>              Button<bbb...> release.
-                        MouseClick<bbb...>           Press and release button<bbb...> w/o movement.
-                            MouseDoublePress<bbb...>     Double press by button<bbb...>.
-                            MouseMultiPress<bbb...>      Multi press by button<bbb...>.
-                                MouseDoubleClick<bbb...>     Double click by button<bbb...>.
-                                MouseMultiClick<bbb...>      Multi click by button<bbb...>.
-                        MouseDragStart<bbb...>       Drag start with button<bbb...> pressed.
-                        MouseDragPull<bbb...>        Drag pull with button<bbb...> pressed.
-                        MouseDragStop<bbb...>        Drag stop with button<bbb...> pressed.
-                        MouseDragCancel<bbb...>      Drag cancel with button<bbb...> pressed.
-                        MouseEnter              Mouse enter.
-                        MouseLeave              Mouse leave.
-                        MouseMove               Mouse move by fp2d delta.
-                        MouseWheel              Wheel by fp2d delta.
-                        MouseAny                Any mouse event.
-
-                on="MouseEnter"          Mouse enter.
-                ??? on="Ctrl+MouseEnter"     Mouse enter with Ctrl modifier pressed.
-                on="MouseLeave"
-                on="MouseMove"
-                on="MouseWheel"                  fp2d: hz/vt
-                on="MouseDown1"                  Left button push down.
-                on="MouseUp1"                    Left button release.
-                on="preview:MouseDown01"         Right button push down (preview phase).
-                on="MouseClick"                  Any button click.
-                on="MouseClick1"                 Left button click.
-                on="LeftClick"                   Left button click.
-                on="MouseClick01"                Right button click.
-                on="MouseClick2"                 Right button click.
-                on="MouseClick3"                 Middle button click.
-                on="MouseClick11"                Left+Right button click.
-                ?? on="Ctrl+Shift+MouseClick1"      Left button click with Ctrl+Shift modifiers pressed.
-                ?? on="Ctrl+Shift+MouseDown1"       Left button push down with Ctrl+Shift modifiers pressed.
-                ?? on="Ctrl+Shift+MouseUp1"         Left button release with Ctrl+Shift modifiers pressed.
-                on="MouseDoublePress1"           Double click (and stay pressed) by left button.
-                on="MouseDoubleClick1"           Double click (and release) by left button
-                ?? on="Ctrl+MouseMultiPress1"       Multi click (and stay pressed) by left button with Ctrl modifier pressed.
-                ?? on="Ctrl+MouseDoubleClick1"      Double click (and release) by left button with Ctrl modifier pressed.
-                on="MouseDragStart11"            Drag start with Left and Right mouse buttons pressed.
-                on="MouseDragPull11"
-                on="MouseDragStop11"
-                on="MouseDragCancel11"
-            Keybd:
-                on="Enter"
-                on="preview:Enter"
-                on="Ctrl+B"
-                on="-Ctrl"
-                on="-Ctrl"
-                -->
-                <script=AlwaysOnTopApplet on="RightClick" on="LeftClick" on="-Enter" on="-Space"/> <!-- The default event source is the parent object, i.e. source="item" (aka vtm.item). -->
-                <script>
-                    <on="release:e2::form::prop::zorder" source="terminal"/>
-                    local is_topmost=vtm.terminal.ZOrder()==1
-                    vtm.item.Label(is_topmost and "\\x1b[38:2:0:255:0m^\\x1b[m" or "^")
-                    vtm.item.Tooltip(is_topmost and " AlwaysOnTop on " or " AlwaysOnTop off ")
+                <script=AlwaysOnTopApplet on="LeftClick"/> <!-- The default event source is the parent object, i.e. source="item" (aka vtm.item). -->
+                <script>  <!-- A binding to update the menu item label at runtime. -->
+                    <on="release: e2::form::prop::zorder" source="terminal"/>
+                    local is_topmost=vtm()                     -- Use event arguments to get the current state.
+                    -- local is_topmost=vtm.terminal.ZOrder()  -- or ask the terminal instance iteslf for the current zorder state.
+                    vtm.item.Label(is_topmost==1 and "\\x1b[38:2:0:255:0m^\\x1b[m" or "^")
+                    vtm.item.Tooltip(is_topmost==1 and " AlwaysOnTop on " or " AlwaysOnTop off ")
                     vtm.item.Deface()
                 </script>
             </item>
             <item id="test_button" label="Repeatable button" tooltip=" test ">
-                <script on="MouseDown" on="Enter" on="Space">  <!-- Script to colorize pressed label (by any mouse button). -->
+                <script on="MouseDown" on="Enter" on="Space">  <!-- Script to colorize the pressed label (by any mouse button) and printing 'Test' while it is pressed. -->
                     if (not vtm.gear.IsKeyRepeated()) then    -- First run - colorize label and activate the mouse button to repeat.
                         vtm.test_button.Label("\e[37mRepeatable button\e[m")
                         vtm.test_button.Deface()
-                        vtm.gear.RepeatWhilePressed(vtm.test_button)    -- Capture the mouse and trigger the mouse button event to repeat while pressed.
+                        vtm.gear.RepeatWhilePressed(vtm.test_button)    -- Capture (by vtm.test_button) the mouse and trigger the mouse button event to repeat while pressed.
                     end
                     vtm.terminal.Print('Test\\n')
                 </script>
@@ -519,71 +444,90 @@ R"==(
                     vtm.test_button.Deface()
                 </script>
             </item>
-            <item script=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
+            <item label="<">
+                <script=TerminalFindPrev on="LeftClick"/>
                 <tooltip>
                     " Previous match                                  \n"
                     "   LeftClick to jump to previous match or scroll \n"
                     "             one page up if nothing to search    \n"
                     "   Match clipboard data if no selection          "
                 </tooltip>
-                <label="<"/>
-                <label="\e[38:2:0:255:0m<\e[m"/>
             </item>
-            <item script=TerminalFindNext>
+            <item label=">">
+                <script=TerminalFindNext on="LeftClick"/>
                 <tooltip>
                     " Next match                                     \n"
                     "   LeftClick to jump to next match or scroll    \n"
                     "             one page down if nothing to search \n"
                     "   Match clipboard data if no selection         "
                 </tooltip>
-                <label=">"/>
-                <label="\e[38:2:0:255:0m>\e[m"/>
             </item>
-            <item type="Option" script=ExclusiveKeyboardMode>
+            <item label=" Desktop ">
                 <tooltip>
                     " Toggle exclusive keyboard mode              \n"
                     "   Exclusive keyboard mode allows keystrokes \n"
                     "   to be passed through without processing   "
                 </tooltip>
-                <label=" Desktop "                                      data="off"/>
-                <label="\e[48:2:0:128:128;38:2:0:255:0m Exclusive \e[m" data="on"/>
+                <script=ExclusiveKeyboardMode on="LeftClick"/>
+                <script>
+                    <on="release: ui::tty::events::rawkbd" source="terminal"/>
+                    local m=vtm()                                    -- Use event arguments to get the current state.
+                    -- local m=vtm.terminal.ExclusiveKeyboardMode()  -- or ask the terminal instance iteslf for the current state.
+                    vtm.item.Label(m==1 and "\e[48:2:0:128:128;38:2:0:255:0m Exclusive \e[m" or " Desktop ")
+                    vtm.item.Tooltip(m==1 and " ExclusiveKeyboardMode on " or " ExclusiveKeyboardMode off ")
+                    vtm.item.Deface()
+                </script>
             </item>
-            <item type="Option" script=TerminalWrapMode>
+            <item label="Wrap">
                 <tooltip>
                     " Wrapping text lines on/off      \n"
                     "   Applied to selection if it is "
                 </tooltip>
-                <label="Wrap"                     data="off"/>
-                <label="\e[38:2:0:255:0mWrap\e[m" data="on"/>
+                <script=TerminalWrapMode on="LeftClick"/>
+                <script>
+                    <on="release: ui::tty::events::layout::wrapln" source="terminal"/>
+                    local m=vtm()                           -- Use event arguments to get the current state.
+                    -- local m=vtm.terminal.LineWrapMode()  -- or ask the terminal instance iteslf for the current state.
+                    vtm.item.Label(m==1 and "\e[38:2:0:255:0mWrap\e[m" or "Wrap")
+                    vtm.item.Deface()
+                </script>
             </item>
-            <item type="Option" script=TerminalClipboardFormat tooltip=" Clipboard format ">  <!-- type=Option means that the тext label will be selected when clicked. -->
-                <label="Clipboard"                       data="none"/>
-                <label="\e[38:2:0:255:0mPlaintext\e[m"   data="text"/>
-                <label="\e[38:2:255:255:0mANSI-text\e[m" data="ansi"/>
-                <label                                   data="rich">
-                    "\e[38:2:109:231:237m""R"
-                    "\e[38:2:109:237:186m""T"
-                    "\e[38:2:60:255:60m"  "F"
-                    "\e[38:2:189:255:53m" "-"
-                    "\e[38:2:255:255:49m" "s"
-                    "\e[38:2:255:189:79m" "t"
-                    "\e[38:2:255:114:94m" "y"
-                    "\e[38:2:255:60:157m" "l"
-                    "\e[38:2:255:49:214m" "e" "\e[m"
-                </label>
-                <label="\e[38:2:0:255:255mHTML-code\e[m" data="html"/>
-                <label="\e[38:2:0:255:255mProtected\e[m" data="protected"/>
+            <item label="Clipboard" tooltip=" Clipboard format ">  <!-- type=Option means that the тext label will be selected when clicked. -->
+                <script=TerminalClipboardFormat on="LeftClick"/>
+                <script>
+                    <on="release: ui::tty::events::selmod" source="terminal"/>
+                    local m=vtm()                              -- Use event arguments to get the current state.
+                    -- local m=vtm.terminal.ClipboardFormat()  -- or ask the terminal instance iteslf for the current state.
+                    vtm.item.Label(m==1 and "\e[38:2:0:255:0mPlaintext\e[m"     -- "textonly"
+                                or m==2 and "\e[38:2:255:255:0mANSI-text\e[m"   -- "ansitext"
+                                or m==3 and "\e[38:2:109:231:237m".."R"..
+                                            "\e[38:2:109:237:186m".."T"..
+                                            "\e[38:2:60:255:60m"  .."F"..
+                                            "\e[38:2:189:255:53m" .."-"..
+                                            "\e[38:2:255:255:49m" .."s"..
+                                            "\e[38:2:255:189:79m" .."t"..
+                                            "\e[38:2:255:114:94m" .."y"..
+                                            "\e[38:2:255:60:157m" .."l"..
+                                            "\e[38:2:255:49:214m" .."e".."\e[m" -- "richtext"
+                                or m==4 and "\e[38:2:0:255:255mHTML-code\e[m"   -- "htmltext"
+                                or m==5 and "\e[38:2:0:255:255mProtected\e[m"   -- "safetext" ala protected
+                                or          "Clipboard")                          -- "disabled"
+                    vtm.item.Deface()
+                </script>
             </item>
-            <!-- <item type="Option" script=TerminalCwdSync> -->
-            <!--     <label="Sync"                     data="off" tooltip=" CWD sync is off "/> -->
-            <!--     <label="\e[38:2:0:255:0mSync\e[m" data="on"  tooltip=" CWD sync is on                          \n Make sure your shell has OSC9;9 enabled "/> -->
-            <!-- </item> -->
-            <item type="Option" script=TerminalStdioLog>
-                <label="Log"                     data="off" tooltip=" Console logging is off "/>
-                <label="\e[38:2:0:255:0mLog\e[m" data="on"  tooltip=" Console logging is on   \n Run Logs to see output  "/>
+            <item label="Log" tooltip=" Console logging        \n Run Logs to see output ">
+                <script=TerminalStdioLog on="LeftClick"/>
+                <script>
+                    <on="release: ui::tty::events::io_log" source="terminal"/>
+                    local m=vtm()                      -- Use event arguments to get the current state.
+                    -- local m=vtm.terminal.LogMode()  -- or ask the terminal instance iteslf for the current state.
+                    vtm.item.Label(m==1 and "\e[38:2:0:255:0mLog\e[m" or "Log")
+                    vtm.item.Deface()
+                </script>
             </item>
-            <item label="Clear" script=TerminalClearScrollback tooltip=" Clear scrollback "/>
-            <!-- <item label="Hello, World!" tooltip=" Simulate keypress " script=TerminalSendKey data="Hello World!"/> -->
+            <item label="Clear" tooltip=" Clear scrollback ">
+                <script=TerminalClearScrollback on="LeftClick"/>
+            </item>
         </menu>
         <selection>
             <mode=selection/mode/>  <!-- Selection clipboard copy format: "text" | "ansi" | "rich" | "html" | "protected" | "none". -->
@@ -628,8 +572,8 @@ R"==(
             <slim=menu/slim/>
         </menu>
     </defapp>
-    <events>  <!-- The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop. The 'script*' statement here is to clear all previous bindings and start a new list. -->
-        <gate script*>  <!-- `User gate`/`standalone app` bindings. -->
+    <events>  <!-- The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop. -->
+        <gate script*>  <!-- `User gate`/`standalone app` bindings. The 'script*' statement here is to clear all previous bindings and start a new list. -->
             <script=IncreaseCellHeight     on="CapsLock+UpArrow"                 />
             <script=DecreaseCellHeight     on="CapsLock+DownArrow"               />
             <script=ResetCellHeight        on="Esc+0"                            />
