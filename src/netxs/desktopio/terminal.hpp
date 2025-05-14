@@ -8023,6 +8023,17 @@ namespace netxs::ui
                     if (title.empty()) wtrack.set(ansi::osc_title); // Set default title if it is empty.
                     if (config.send_input.size()) ipccon.write<faux>(config.send_input);
                     auto lock = bell::sync();
+                    // Sync external listeners with terminal current state.
+                    base::signal(tier::release, ui::tty::events::io_log,         io_log); //[&](auto& v){ v = io_log; });
+                    base::signal(tier::release, ui::tty::events::selmod,         selmod); //[&](auto& v){ v = selmod; });
+                    base::signal(tier::release, ui::tty::events::onesht,         onesht); //[&](auto& v){ v = onesht; });
+                    base::signal(tier::release, ui::tty::events::selalt,         selalt); //[&](auto& v){ v = selalt; });
+                    base::signal(tier::release, ui::tty::events::rawkbd,         rawkbd); //[&](auto& v){ v = rawkbd; });
+                    base::signal(tier::release, ui::tty::events::colors::bg,     target->brush.bgc()); //[&](auto& v){ v = target->brush.bgc(); });
+                    base::signal(tier::release, ui::tty::events::colors::fg,     target->brush.fgc()); //[&](auto& v){ v = target->brush.fgc(); });
+                    base::signal(tier::release, ui::tty::events::layout::wrapln, (si32)target->style.wrp()); //[&](auto& v){ v = (si32)target->style.wrp(); });
+                    base::signal(tier::release, ui::tty::events::layout::align,  (si32)target->style.jet()); //[&](auto& v){ v = (si32)target->style.jet(); });
+                    base::signal(tier::release, ui::tty::events::search::status, target->selection_button()); //[&](auto& v){ v = target->selection_button(); });
                     backup.reset(); // Backup should dtored under the lock.
                 });
                 appcfg.win = target->panel;
