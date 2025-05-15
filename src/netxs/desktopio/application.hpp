@@ -525,14 +525,18 @@ namespace netxs::app::shared
                 auto script_list = data.list("script");
                 item.alive = script_list.size();
                 item.bindings = input::bindings::load(config, script_list);
+                auto classname_list = config.expand_list(data_ptr, "id");
                 auto label_list = data.list("label");
                 item.label = label_list.size() ? config.expand(label_list.front()) : "empty"s;
                 item.tooltip = data.take("tooltip", ""s);
-                auto setup = [](ui::item& boss, menu::item& item)
+                auto setup = [classname_list = std::move(classname_list)](ui::item& boss, menu::item& item)
                 {
                     auto& luafx = boss.bell::indexer.luafx;
+                    for (auto& classname : classname_list)
+                    {
+                        boss.bell::indexer.add_base_class(classname, boss);
+                    }
                     input::bindings::keybind(boss, item.bindings);
-                    //todo gear.dismiss_dblclick();
                     boss.base::add_methods(basename::item,
                     {
                         { "Label",      [&]

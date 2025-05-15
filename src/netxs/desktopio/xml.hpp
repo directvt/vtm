@@ -1446,6 +1446,17 @@ namespace netxs::xml
             }
             return crop;
         }
+        auto expand_list(document::sptr subsection_ptr, view attribute)
+        {
+            auto strings = txts{};
+            auto attr_list = subsection_ptr->list(attribute);
+            strings.reserve(attr_list.size());
+            for (auto attr_ptr : attr_list)
+            {
+                strings.emplace_back(expand(attr_ptr));
+            }
+            return strings;
+        }
         template<class T>
         auto take(text frompath, T defval, utf::unordered_map<text, T> const& dict)
         {
