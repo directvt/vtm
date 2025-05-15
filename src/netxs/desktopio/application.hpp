@@ -564,7 +564,7 @@ namespace netxs::app::shared
                                                 boss.base::signal(tier::preview, e2::form::prop::ui::tooltip, new_tooltip);
                                                 luafx.set_return();
                                             }
-                                            else // Get label.
+                                            else // Get tooltip.
                                             {
                                                 auto current_tooltip = boss.base::signal(tier::request, e2::form::prop::ui::tooltip);
                                                 luafx.set_return(current_tooltip);

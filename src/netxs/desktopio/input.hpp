@@ -310,22 +310,23 @@ namespace netxs::input
             #undef X
         };
         #define mouse_list \
-            X(MouseAny           , 0x0, 0)\
-            X(MouseDown          , 0x1, 0)X(LeftDown          , 0x1, 0b001)X(RightDown          , 0x1, 0b010)X(LeftRightDown          , 0x1, 0b011)X(MiddleDown          , 0x1, 0b100)\
-            X(MouseUp            , 0x2, 0)X(LeftUp            , 0x2, 0b001)X(RightUp            , 0x2, 0b010)X(LeftRightUp            , 0x2, 0b011)X(MiddleUp            , 0x2, 0b100)\
-            X(MouseClick         , 0x3, 0)X(LeftClick         , 0x3, 0b001)X(RightClick         , 0x3, 0b010)X(LeftRightClick         , 0x3, 0b011)X(MiddleClick         , 0x3, 0b100)\
-            X(MouseDoubleClick   , 0x4, 0)X(LeftDoubleClick   , 0x4, 0b001)X(RightDoubleClick   , 0x4, 0b010)X(LeftRightDoubleClick   , 0x4, 0b011)X(MiddleDoubleClick   , 0x4, 0b100)\
-            X(MouseDoublePress   , 0x5, 0)X(LeftDoublePress   , 0x5, 0b001)X(RightDoublePress   , 0x5, 0b010)X(LeftRightDoublePress   , 0x5, 0b011)X(MiddleDoublePress   , 0x5, 0b100)\
-            X(MouseMultiClick    , 0x6, 0)X(LeftMultiClick    , 0x6, 0b001)X(RightMultiClick    , 0x6, 0b010)X(LeftRightMultiClick    , 0x6, 0b011)X(MiddleMultiClick    , 0x6, 0b100)\
-            X(MouseMultiPress    , 0x7, 0)X(LeftMultiPress    , 0x7, 0b001)X(RightMultiPress    , 0x7, 0b010)X(LeftRightMultiPress    , 0x7, 0b011)X(MiddleMultiPress    , 0x7, 0b100)\
-            X(MouseDragStart     , 0x8, 0)X(LeftDragStart     , 0x8, 0b001)X(RightDragStart     , 0x8, 0b010)X(LeftRightDragStart     , 0x8, 0b011)X(MiddleDragStart     , 0x8, 0b100)\
-            X(MouseDragPull      , 0x9, 0)X(LeftDragPull      , 0x9, 0b001)X(RightDragPull      , 0x9, 0b010)X(LeftRightDragPull      , 0x9, 0b011)X(MiddleDragPull      , 0x9, 0b100)\
-            X(MouseDragStop      , 0xA, 0)X(LeftDragStop      , 0xA, 0b001)X(RightDragStop      , 0xA, 0b010)X(LeftRightDragStop      , 0xA, 0b011)X(MiddleDragStop      , 0xA, 0b100)\
-            X(MouseDragCancel    , 0xB, 0)X(LeftDragCancel    , 0xB, 0b001)X(RightDragCancel    , 0xB, 0b010)X(LeftRightDragCancel    , 0xB, 0b011)X(MiddleDragCancel    , 0xB, 0b100)\
-            X(MouseLeave         , 0xC, 0)\
-            X(MouseEnter         , 0xD, 0)\
-            X(MouseMove          , 0xE, 0)\
-            X(MouseWheel         , 0xF, 0)
+            X(MouseAny           , 0x00, 0)\
+            X(MouseDown          , 0x01, 0)X(LeftDown          , 0x1, 0b001)X(RightDown          , 0x1, 0b010)X(LeftRightDown          , 0x1, 0b011)X(MiddleDown          , 0x1, 0b100)\
+            X(MouseUp            , 0x02, 0)X(LeftUp            , 0x2, 0b001)X(RightUp            , 0x2, 0b010)X(LeftRightUp            , 0x2, 0b011)X(MiddleUp            , 0x2, 0b100)\
+            X(MouseClick         , 0x03, 0)X(LeftClick         , 0x3, 0b001)X(RightClick         , 0x3, 0b010)X(LeftRightClick         , 0x3, 0b011)X(MiddleClick         , 0x3, 0b100)\
+            X(MouseDoubleClick   , 0x04, 0)X(LeftDoubleClick   , 0x4, 0b001)X(RightDoubleClick   , 0x4, 0b010)X(LeftRightDoubleClick   , 0x4, 0b011)X(MiddleDoubleClick   , 0x4, 0b100)\
+            X(MouseDoublePress   , 0x05, 0)X(LeftDoublePress   , 0x5, 0b001)X(RightDoublePress   , 0x5, 0b010)X(LeftRightDoublePress   , 0x5, 0b011)X(MiddleDoublePress   , 0x5, 0b100)\
+            X(MouseMultiClick    , 0x06, 0)X(LeftMultiClick    , 0x6, 0b001)X(RightMultiClick    , 0x6, 0b010)X(LeftRightMultiClick    , 0x6, 0b011)X(MiddleMultiClick    , 0x6, 0b100)\
+            X(MouseMultiPress    , 0x07, 0)X(LeftMultiPress    , 0x7, 0b001)X(RightMultiPress    , 0x7, 0b010)X(LeftRightMultiPress    , 0x7, 0b011)X(MiddleMultiPress    , 0x7, 0b100)\
+            X(MouseDragStart     , 0x08, 0)X(LeftDragStart     , 0x8, 0b001)X(RightDragStart     , 0x8, 0b010)X(LeftRightDragStart     , 0x8, 0b011)X(MiddleDragStart     , 0x8, 0b100)\
+            X(MouseDragPull      , 0x09, 0)X(LeftDragPull      , 0x9, 0b001)X(RightDragPull      , 0x9, 0b010)X(LeftRightDragPull      , 0x9, 0b011)X(MiddleDragPull      , 0x9, 0b100)\
+            X(MouseDragStop      , 0x0A, 0)X(LeftDragStop      , 0xA, 0b001)X(RightDragStop      , 0xA, 0b010)X(LeftRightDragStop      , 0xA, 0b011)X(MiddleDragStop      , 0xA, 0b100)\
+            X(MouseDragCancel    , 0x0B, 0)X(LeftDragCancel    , 0xB, 0b001)X(RightDragCancel    , 0xB, 0b010)X(LeftRightDragCancel    , 0xB, 0b011)X(MiddleDragCancel    , 0xB, 0b100)\
+            X(MouseHover         , 0x0C, 0)\
+            X(MouseEnter         , 0x0D, 0)\
+            X(MouseLeave         , 0x0E, 0)\
+            X(MouseMove          , 0x0F, 0)\
+            X(MouseWheel         , 0x10, 0)
         static const auto mouse_names = utf::unordered_map<text, std::pair<si32, si32>>
         {
             #define X(name, action_index, button_bits) \
@@ -335,7 +336,7 @@ namespace netxs::input
         };
 
         #define X(name, action_index, button_bits) \
-            static constexpr auto name = ((input::key::mouse_sign | action_index) << 8) | button_bits;
+            static constexpr auto name = (action_index << 8) | button_bits;
             mouse_list
         #undef X
 
@@ -403,9 +404,10 @@ namespace netxs::input
                 chchord += '\xFF';
                 chchord += cluster;
             }
-            static void push_mouse(si32 sign, si32 button_id, text& m_chord)
+            static void push_mouse(si32 sign, si32 action_id, si32 button_id, text& m_chord)
             {
                 m_chord += (byte)sign;
+                m_chord += (byte)action_id;
                 m_chord += (byte)button_id;
             }
             template<class P = noop>
@@ -613,8 +615,9 @@ namespace netxs::input
                                     button_index = 1 << std::min(7, d - '0' - 1);
                                 }
                             }
-                            k.sign = (byte)(input::key::mouse_sign | action_index);
-                            k.code1 = button_index;
+                            k.sign = (byte)(input::key::mouse_sign);
+                            k.code1 = action_index;
+                            k.code2 = button_index;
                             //log("mouse event=%%", ansi::hi(utf::to_hex_0x((k.sign<<8)|k.code1)));
                         }
                         else if (auto iter = input::key::generic_names.find(name); iter == input::key::generic_names.end()) // Is specific.
@@ -641,7 +644,7 @@ namespace netxs::input
                 while (chord)
                 {
                     auto k = take(chord); // Unfold.
-                    if (!input::key::is_mouse(k.sign) && !k.code1) return crop; // Unknown key or event.
+                    if (!input::key::is_mouse(k.sign) && !k.code1) return crop; // Unknown key or generic event.
                     keys.push_back(k);
                 }
                 if (keys.empty() || keys.size() > 8)
@@ -658,7 +661,7 @@ namespace netxs::input
                 if (auto& k = keys.front(); input::key::is_mouse(k.sign)) // It is mouse event.
                 {
                     auto& m_chord = crop.emplace_back();
-                    push_mouse(k.sign, k.code1, m_chord);
+                    push_mouse(k.sign, k.code1, k.code2, m_chord);
                     return crop;
                 }
                 // Sort all but last.
@@ -766,6 +769,43 @@ namespace netxs::input
             }
             return std::pair{ _get_chord_list(), faux };
         }
+        void set_handler(auto reset_handler, base& boss, si32 tier_id, hint event_id, txts const& sources, netxs::sptr<script_ref> script_ptr)
+        {
+            if (reset_handler) // Reset all script bindings for event_id.
+            {
+                boss.bell::erase_script_handlers(tier_id, event_id);
+            }
+            else // Set new handler.
+            {
+                if (sources.empty())
+                {
+                    log("Set handler for script: ", ansi::hi(*(script_ptr->script_body_ptr)));
+                    boss.bell::submit_generic(tier_id, event_id, script_ptr);
+                }
+                else //todo revise: too hacky
+                {
+                    log("Deferred setting handler on '%target%' for script: ", sources.front(), ansi::hi(*(script_ptr->script_body_ptr)));
+                    auto& indexer = boss.indexer;
+                    indexer._null_gear_sptr->ui::base::enqueue([&, id = boss.id, tier_id, event_id, sources, script_ptr](auto& /*gear_0*/) // Subscribe on sources (with boss.sensors).
+                    {
+                        auto boss_ptr = indexer.getref(id);
+                        for (auto& src_name : sources)
+                        {
+                            log("Set handler on '%target%' for script: ", src_name, ansi::hi(*(script_ptr->script_body_ptr)));
+                            if (auto target_ptr = indexer.get_target(boss_ptr->scripting_context, src_name))
+                            {
+                                target_ptr->bell::submit_generic(tier_id, event_id, boss_ptr->sensors, script_ptr);
+                            }
+                            else
+                            {
+                                log("%%Event source '%src_name%' not found", prompt::lua, src_name);
+                            }
+                            
+                        }
+                    });
+                }
+            }
+        }
         auto keybind(base& boss, qiew chord_str, auto&& script_body, txts const& sources = {})
         {
             if (!chord_str) return;
@@ -773,7 +813,7 @@ namespace netxs::input
             if (chords.size())
             {
                 auto script_ptr = ptr::shared<script_ref>(boss.scripting_context, script_body);
-                auto set_handler = script_ptr->script_body_ptr && script_ptr->script_body_ptr->size();
+                auto reset_handler = !(script_ptr->script_body_ptr && script_ptr->script_body_ptr->size());
                 for (auto& binary_chord : chords) if (binary_chord.size()) // Scripts always store their sensors at the boss side, since the lifetime of base::scripting_context depends on the boss.
                 {
                     auto k = (byte)binary_chord.front();
@@ -783,64 +823,23 @@ namespace netxs::input
                         {
                             auto tier_id = k & 0x0F;
                             auto event_id = netxs::aligned<hint>(binary_chord.data() + 1);
-                            if (set_handler)
-                            {
-                                if (sources.empty())
-                                {
-                                    log("Set handler for script: ", ansi::hi(*(script_ptr->script_body_ptr)));
-                                    boss.bell::submit_generic(tier_id, event_id, script_ptr);
-                                }
-                                else
-                                {
-                                    log("Deferred setting handler on '%target%' for script: ", sources.front(), ansi::hi(*(script_ptr->script_body_ptr)));
-                                    //todo revise: too hacky
-                                    auto& indexer = boss.indexer;
-                                    indexer._null_gear_sptr->base::enqueue([&, id = boss.id, tier_id, event_id, sources, script_ptr](auto& /*gear_0*/) // Subscribe on sources (with boss.sensors).
-                                    {
-                                        auto boss_ptr = indexer.getref(id);
-                                        for (auto& src_name : sources)
-                                        {
-                                            log("Set handler on '%target%' for script: ", src_name, ansi::hi(*(script_ptr->script_body_ptr)));
-                                            if (auto target_ptr = indexer.get_target(boss_ptr->scripting_context, src_name))
-                                            {
-                                                target_ptr->bell::submit_generic(tier_id, event_id, boss_ptr->sensors, script_ptr);
-                                            }
-                                            else
-                                            {
-                                                log("%%Event source '%src_name%' not found", prompt::lua, src_name);
-                                            }
-                                            
-                                        }
-                                    });
-                                }
-                            }
-                            else // Reset all script bindings for event_id.
-                            {
-                                boss.bell::erase_script_handlers(tier_id, event_id);
-                            }
+                            set_handler(reset_handler, boss, tier_id, event_id, sources, script_ptr);
                         }
                         else
                         {
                             log(ansi::err("Broken generic event: ", ansi::hi(utf::debase437(binary_chord))));
                         }
                     }
-                    else if (input::key::is_mouse(k))
+                    else if (input::key::is_mouse(k) && binary_chord.size() == 3)
                     {
-                        auto event_id = (binary_chord[0] << 8) | binary_chord[1];
+                        auto event_id = (binary_chord[1] << 8) | binary_chord[2];
                         auto tier_id = is_preview ? tier::mousepreview : tier::mouserelease;
-                        if (set_handler)
-                        {
-                            //todo subscribe on sources (with boss.sensors!)
-                            boss.bell::submit_generic(tier_id, event_id, script_ptr);
-                        }
-                        else // Reset all script bindings for event_id.
-                        {
-                            boss.bell::erase_script_handlers(tier_id, event_id);
-                        }
+                        set_handler(reset_handler, boss, tier_id, event_id, sources, script_ptr);
                     }
                     else // Keybd events.
                     {
-                        if (set_handler)
+                        //todo unify like mouse and generic events (set_handler())
+                        if (!reset_handler)
                         {
                             auto& [script_ptr_list, preview] = boss.keybd_handlers[binary_chord];
                             script_ptr_list.emplace_back(script_ptr);
@@ -1445,6 +1444,22 @@ namespace netxs::input
         }
     };
 
+    struct tooltip_t
+    {
+        text string{};
+        ui32 digest{};
+
+        auto get() const
+        {
+            return qiew{ string };
+        }
+        void set(view utf8)
+        {
+            digest++;
+            string = utf8;
+        }
+    };
+
     // input: Human interface device controller.
     struct hids
         : public mouse,
@@ -1576,15 +1591,14 @@ namespace netxs::input
 
         //todo unify
         span tooltip_timeout; // hids: .
-        text tooltip_data; // hids: Tooltip data.
-        ui32 digest = 0; // hids: Tooltip digest.
-        ui32 digest_tracker = 0; // hids: Tooltip changes tracker.
-        ui32 tooltip_digest = 0; // hids: Tooltip digest.
+        netxs::sptr<tooltip_t> tooltip_sptr; // hids: Last visible tooltip.
+        bool tooltip_changed = {}; // hids: Last visible tooltip has been changed.
+        ui32 tooltip_digest = 0; // hids: Last tooltip digest.
         time tooltip_time = {}; // hids: The moment to show tooltip.
         bool tooltip_show = faux; // hids: Show tooltip or not.
         bool tooltip_stop = true; // hids: Disable tooltip.
-        bool tooltip_set  = faux; // hids: Tooltip has been set.
         twod tooltip_coor = {}; // hids: .
+        page tooltip_page; // hids: Tooltip render cache for gate.
 
         //todo unify
         rect slot; // slot for pro::maker and e2::createby.
@@ -1655,54 +1669,50 @@ namespace netxs::input
             bell::indexer.luafx.set_gear(*this);
         }
 
-        auto tooltip_enabled(time const& now)
+        auto is_tooltip_visible(time const& now)
         {
             return !mouse::m_sys.buttons
                 && !mouse_disabled
                 && !tooltip_stop
                 && tooltip_show
-                && tooltip_data.size()
                 && tooltip_time < now
+                && tooltip_sptr
+                && tooltip_sptr->get().size() // The topmost tooltip is not an empty string.
                 && !captured();
         }
-        void set_tooltip(view data, bool update = faux)
+        void set_tooltip(netxs::sptr<tooltip_t> data_sptr = {})
         {
-            tooltip_set = true;
-            if (!update || data != tooltip_data)
-            {
-                tooltip_data = data;
-                if (update)
-                {
-                    if (tooltip_digest == digest) // To show tooltip even after clicks.
-                    {
-                        ++tooltip_digest;
-                    }
-                    if (!tooltip_stop) tooltip_stop = data.empty();
-                }
-                else
-                {
-                    tooltip_show = faux;
-                    tooltip_stop = data.empty();
-                    tooltip_time = datetime::now() + tooltip_timeout;
-                }
-                digest++;
-            }
+            tooltip_sptr = data_sptr;
         }
-        auto is_tooltip_changed()
+        void request_tooltip(base& boss)
         {
-            return std::exchange(digest_tracker, digest) != digest_tracker;
+            auto prev_tooltip = std::exchange(tooltip_sptr, netxs::sptr<tooltip_t>{});
+            boss.base::raw_riseup(tier::mouserelease, input::key::MouseHover, *this);
+            tooltip_changed = !ptr::is_equal(prev_tooltip, tooltip_sptr);
+            if (tooltip_changed)
+            {
+                tooltip_show = faux;
+                tooltip_stop = faux;
+                tooltip_time = datetime::now() + tooltip_timeout;
+            }
         }
         auto get_tooltip()
         {
-            return std::pair{ qiew{ tooltip_data }, tooltip_digest == digest };
+            auto changed = std::exchange(tooltip_changed, faux);
+            auto tooltip_view = qiew{};
+            if (tooltip_sptr)
+            {
+                tooltip_view = tooltip_sptr->get();
+            }
+            return std::pair{ tooltip_view, changed };
         }
         void tooltip_recalc(hint deed)
         {
             if (deed == input::key::MouseMove)
             {
-                if (tooltip_coor(mouse::coord) || (tooltip_show && tooltip_digest != digest)) // Do nothing on shuffle.
+                if (tooltip_coor(mouse::coord) || (tooltip_show && tooltip_changed)) // Do nothing on shuffle.
                 {
-                    if (tooltip_show && tooltip_digest == digest) // Drop tooltip if moved.
+                    if (tooltip_show && !tooltip_changed) // Hide tooltip if moved.
                     {
                         tooltip_stop = true;
                     }
@@ -1727,13 +1737,12 @@ namespace netxs::input
         auto tooltip_check(time now) // Called every timer tick.
         {
             if (tooltip_stop) return faux;
-            if (!tooltip_show && tooltip_time < now && !captured())
+            if (tooltip_show || (tooltip_show = tooltip_time < now && !captured()))
             {
-                tooltip_show = true;
-                if (tooltip_digest != digest)
+                if (tooltip_sptr && tooltip_digest != tooltip_sptr->digest)
                 {
-                    tooltip_digest = digest;
-                    return true;
+                    tooltip_digest = tooltip_sptr->digest;
+                    tooltip_changed = true;
                 }
             }
             else if (captured())
@@ -1742,12 +1751,8 @@ namespace netxs::input
                 {
                     tooltip_stop = true;
                 }
-                //else if (tooltip_time < now) // Give time to update tooltip text after mouse button release.
-                //{
-                //    tooltip_time = now + 100ms;
-                //}
             }
-            return faux;
+            return tooltip_changed;
         }
 
         auto meta(si32 ctl_key = -1) { return keybd::ctlstat & ctl_key; }
@@ -2034,15 +2039,9 @@ namespace netxs::input
         {
             if (mouse::hover != boss.id) // The mouse cursor is over the new object.
             {
-                tooltip_set = faux;
-                if (tooltip_data.size())
-                {
-                    digest++;
-                    tooltip_data.clear();
-                    tooltip_stop = true;
-                }
                 mouse_enter(boss);
                 mouse::hover = boss.id;
+                request_tooltip(boss);
             }
         }
         void release_if_captured()
@@ -2093,10 +2092,6 @@ namespace netxs::input
             }
             else
             {
-                if (!tooltip_stop)
-                {
-                    tooltip_recalc(new_cause);
-                }
                 auto next_id = idmap.link(mouse::coord);
                 if (auto next_ptr = next_id != owner.id ? bell::getref<base>(next_id) : sptr{})
                 {
@@ -2119,6 +2114,10 @@ namespace netxs::input
                 if (alive)
                 {
                     forward(tier::mouserelease, owner); // Pass unhandled event to the gate.
+                }
+                if (!tooltip_stop)
+                {
+                    tooltip_recalc(new_cause);
                 }
             }
         }

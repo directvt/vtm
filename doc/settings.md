@@ -401,6 +401,7 @@ MouseDragStart<bbb...>              | Drag start with button<bbb...> pressed.
 MouseDragPull<bbb...>               | Drag pull with button<bbb...> pressed.
 MouseDragStop<bbb...>               | Drag stop with button<bbb...> pressed.
 MouseDragCancel<bbb...>             | Drag cancel with button<bbb...> pressed.
+MouseHover                          | Mouse hover.
 MouseEnter                          | Mouse enter.
 MouseLeave                          | Mouse leave.
 MouseMove                           | Mouse move by fp2d delta.
@@ -411,24 +412,25 @@ Matching between Named and Generic formats:
 
 Named format        | Generic format       | Internal representation | Notes
 --------------------|----------------------|-------------------------|------------
-MouseAny            |                      | `0x10'00`               | Any mouse event
-MouseDown           | MouseDown0           | `0x11'00`
-MouseUp             | MouseUp0             | `0x12'00`
-LeftClick           | MouseClick1          | `0x13'01`               | Left click
-LeftRightClick      | MouseClick11         | `0x13'03`               | Left + Right click.
-MouseClick          | MouseClick0          | `0x13'00`               | Any click
-MouseDoubleClick    | MouseDoubleClick0    | `0x14'00`
-MouseDoublePress    | MouseDoublePress0    | `0x15'00`
-MouseMultiClick     | MouseMultiClick0     | `0x16'00`
-MouseMultiPress     | MouseMultiPress0     | `0x17'00`
-MouseDragStart      | MouseDragStart0      | `0x18'00`
-MouseDragPull       | MouseDragPull0       | `0x19'00`
-MouseDragStop       | MouseDragStop0       | `0x1A'00`
-MouseDragCancel     | MouseDragCancel0     | `0x1B'00`
-MouseLeave          |                      | `0x1C'00`
-MouseEnter          |                      | `0x1D'00`
-MouseMove           |                      | `0x1E'00`
-MouseWheel          |                      | `0x1F'00`
+MouseAny            |                      | `0x00'00`               | Any mouse event
+MouseDown           | MouseDown0           | `0x01'00`
+MouseUp             | MouseUp0             | `0x02'00`
+LeftClick           | MouseClick1          | `0x03'01`               | Left click
+LeftRightClick      | MouseClick11         | `0x03'03`               | Left + Right click.
+MouseClick          | MouseClick0          | `0x03'00`               | Any click
+MouseDoubleClick    | MouseDoubleClick0    | `0x04'00`
+MouseDoublePress    | MouseDoublePress0    | `0x05'00`
+MouseMultiClick     | MouseMultiClick0     | `0x06'00`
+MouseMultiPress     | MouseMultiPress0     | `0x07'00`
+MouseDragStart      | MouseDragStart0      | `0x08'00`
+MouseDragPull       | MouseDragPull0       | `0x09'00`
+MouseDragStop       | MouseDragStop0       | `0x0A'00`
+MouseDragCancel     | MouseDragCancel0     | `0x0B'00`
+MouseHover          |                      | `0x0C'00`
+MouseEnter          |                      | `0x0D'00`
+MouseLeave          |                      | `0x0E'00`
+MouseMove           |                      | `0x0F'00`
+MouseWheel          |                      | `0x10'00`
 
 #### Generic events
 

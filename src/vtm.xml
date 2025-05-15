@@ -27,7 +27,7 @@ R"==(<!-- Ordered list of paths to settings files. -->
         <color fgc=color/default bgc=color/default/>  <!-- Cursor cell color. By default, the cursor color (bgc) is set to either black or white depending on the lightness of the underlying text background. -->
     </cursor>
     <tooltips>  <!-- Not implemented for GUI mode. -->
-        <timeout=2000ms/>
+        <timeout=400ms/>
         <enabled=true/>
         <color fgc=pureblack bgc=purewhite/>
     </tooltips>

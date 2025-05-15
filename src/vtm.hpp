@@ -624,7 +624,6 @@ namespace netxs::app::vtm
                 base::plugin<pro::d_n_d>();
                 base::plugin<pro::ghost>();
                 auto& title = base::plugin<pro::title>(what.applet->base::property("window.header"), what.applet->base::property("window.footer"));
-                base::plugin<pro::notes>(what.applet->base::property("window.footer"), dent{ 2,2,1,1 });
                 base::plugin<pro::sizer>();
                 base::plugin<pro::frame>();
                 base::plugin<pro::light>();

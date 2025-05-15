@@ -606,36 +606,38 @@ namespace netxs::ui
             {
                 auto& gear = *gear_ptr;
                 if (gear.mouse_disabled) continue;
-                if (gear.tooltip_enabled(stamp))
+                if (gear.is_tooltip_visible(stamp))
                 {
-                    auto [tooltip_data, tooltip_update] = gear.get_tooltip();
+                    auto [tooltip_data, changed] = gear.get_tooltip();
                     if (tooltip_data)
                     {
-                        //todo optimize - cache tooltip_page
-                        auto tooltip_page = page{ tooltip_data };
+                        if (changed)
+                        {
+                            gear.tooltip_page = tooltip_data;
+                        }
                         auto full_area = full;
-                        full_area.coor = std::max(dot_00, twod{ gear.coord } - twod{ 4, tooltip_page.size() + 1 });
+                        full_area.coor = std::max(dot_00, twod{ gear.coord } - twod{ 4, gear.tooltip_page.size() + 1 });
                         full_area.size.x = dot_mx.x; // Prevent line wrapping.
                         canvas.full(full_area);
                         canvas.cup(dot_00);
-                        canvas.output(tooltip_page, cell::shaders::color(props.tooltip_colors));
+                        canvas.output(gear.tooltip_page, cell::shaders::color(props.tooltip_colors));
                     }
                 }
             }
             canvas.area(area);
             canvas.full(full);
         }
-        void send_tooltips()
+        void sync_tooltips()
         {
             auto list = conio.tooltips.freeze();
-            for (auto& [ext_gear_id, gear_ptr] : gears /* use filter gear.is_tooltip_changed()*/)
+            for (auto& [ext_gear_id, gear_ptr] : gears)
             {
                 auto& gear = *gear_ptr;
                 if (gear.mouse_disabled) continue;
-                if (gear.is_tooltip_changed())
+                auto [tooltip_data, changed] = gear.get_tooltip();
+                if (changed)
                 {
-                    auto [tooltip_data, tooltip_update] = gear.get_tooltip();
-                    list.thing.push(ext_gear_id, tooltip_data, tooltip_update);
+                    list.thing.push(ext_gear_id, tooltip_data);
                 }
             }
             list.thing.sendby<true>(canal);
@@ -680,7 +682,7 @@ namespace netxs::ui
                     }
                     if (props.tooltip_enabled)
                     {
-                        if (direct) send_tooltips();
+                        if (direct) sync_tooltips();
                         else        draw_tooltips(stamp);
                     }
                     if (props.debug_overlay)

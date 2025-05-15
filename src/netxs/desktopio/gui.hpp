@@ -1743,17 +1743,7 @@ namespace netxs::gui
             void handle(s11n::xs::tooltips         lock)
             {
                 auto copy = lock.thing;
-                //todo implement
-                //owner.base::enqueue([tooltips = std::move(copy)](auto& boss) mutable
-                //{
-                //    for (auto& tooltip : tooltips)
-                //    {
-                //        if (auto gear_ptr = boss.bell::getref<hids>(tooltip.gear_id))
-                //        {
-                //            gear_ptr->set_tooltip(tooltip.tip_text, tooltip.update);
-                //        }
-                //    }
-                //});
+                //todo implement like as in ui::dtvt
             }
             //todo use xs::screenmode
             void handle(s11n::xs::fullscrn       /*lock*/)

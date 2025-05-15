@@ -8712,6 +8712,18 @@ namespace netxs::ui
     {
         static constexpr auto classname = basename::dtvt;
 
+        std::unordered_map<id_t, netxs::sptr<input::tooltip_t>> tooltips;
+        auto& get_tooltip_reference(id_t gear_id)
+        {
+            auto iter = tooltips.find(gear_id);
+            if (iter == tooltips.end())
+            {
+                iter = tooltips.emplace(gear_id, ptr::shared<input::tooltip_t>()).first;
+            }
+            auto& tooltip_sptr = iter->second;
+            return tooltip_sptr;
+        }
+
         // dtvt: Event handler.
         struct link : s11n, input_fields_handler
         {
@@ -8736,15 +8748,12 @@ namespace netxs::ui
             }
             void handle(s11n::xs::tooltips            lock)
             {
-                owner.base::enqueue([tooltips = lock.thing](auto& boss) mutable
+                owner.base::enqueue([&, tooltips = lock.thing](auto& /*boss*/) mutable
                 {
                     for (auto& tooltip : tooltips)
                     {
-                        if (auto gear_ptr = boss.bell::template getref<hids>(tooltip.gear_id)) //todo Apple clang requires template.
-                        {
-                            gear_ptr->set_multihome();
-                            gear_ptr->set_tooltip(tooltip.tip_text, tooltip.update);
-                        }
+                        auto tooltip_sptr = owner.get_tooltip_reference(tooltip.gear_id);
+                        tooltip_sptr->set(tooltip.utf8);
                     }
                 });
             }
@@ -9139,6 +9148,11 @@ namespace netxs::ui
                 gear.m_sys.enabled = hids::stat::die;
                 stream.sysmouse.send(*this, gear.m_sys);
             };
+            on(tier::mouserelease, input::key::MouseHover, [&](hids& gear)
+            {
+                auto& tooltip_sptr = get_tooltip_reference(gear.id);
+                gear.set_tooltip(tooltip_sptr); // Set tooltip reference.
+            });
             on(tier::mouserelease, input::key::MouseLeave, [&](hids& gear)
             {
                 gear.m_sys.gear_id = gear.id;

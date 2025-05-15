@@ -2701,30 +2701,30 @@ namespace netxs::ui
             using skill::boss,
                   skill::memo;
 
-            text note;
+            netxs::sptr<input::tooltip_t> tooltip_sptr;
 
         public:
             notes(base&&) = delete;
-            notes(base& boss, view data = {}, dent wrap = { si32max })
+            notes(base& boss, qiew data = {})
                 : skill{ boss },
-                  note { data }
+                  tooltip_sptr{ ptr::shared<input::tooltip_t>(data) }
             {
-                boss.on(tier::mouserelease, input::key::MouseEnter, memo, [&, wrap, full = wrap.l == si32max](hids& gear)
+                boss.on(tier::mouserelease, input::key::MouseHover, memo, [&](hids& gear)
                 {
-                    if (gear.tooltip_set) return; // Prevent parents from setting tooltip.
-                    if (full || !(boss.area() + wrap).hittest(gear.coord + boss.coor()))
-                    {
-                        gear.set_tooltip(note);
-                    }
+                    gear.set_tooltip(tooltip_sptr);
                 });
-                boss.LISTEN(tier::preview, e2::form::prop::ui::tooltip, new_note, memo)
+                boss.LISTEN(tier::preview, e2::form::prop::ui::tooltip, utf8, memo)
                 {
-                    note = new_note;
+                    tooltip_sptr->set(utf8);
+                };
+                boss.LISTEN(tier::request, e2::form::prop::ui::tooltip, utf8, memo)
+                {
+                    utf8 = tooltip_sptr->get();
                 };
             }
             void update(view new_note)
             {
-                note = new_note;
+                tooltip_sptr->set(new_note);
             }
         };
 
