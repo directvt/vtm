@@ -8017,12 +8017,11 @@ namespace netxs::ui
             fdlink = fds;
             if (!ipccon)
             {
-                base::enqueue<faux>([&, backup = This()](auto& /*boss*/) mutable // We can't request the title before conio.run(), so we queue the request.
+                base::enqueue([&, backup = This()](auto& /*boss*/) mutable // We can't request the title before conio.run(), so we queue the request.
                 {
                     auto& title = wtrack.get(ansi::osc_title);
                     if (title.empty()) wtrack.set(ansi::osc_title); // Set default title if it is empty.
                     if (config.send_input.size()) ipccon.write<faux>(config.send_input);
-                    auto lock = bell::sync();
                     // Sync external listeners with terminal current state.
                     base::signal(tier::release, ui::tty::events::io_log,         io_log);
                     base::signal(tier::release, ui::tty::events::selmod,         selmod);

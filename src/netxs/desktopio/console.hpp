@@ -1023,18 +1023,14 @@ namespace netxs::ui
             };
             LISTEN(tier::request, e2::form::prop::ui::footer, f)
             {
-                auto window_id = id_t{};
+                //todo auto window_id = id_t{};
                 auto footer = conio.footer.freeze();
-                conio.footer_request.send(canal, window_id);
-                footer.wait();
                 f = footer.thing.utf8;
             };
             LISTEN(tier::request, e2::form::prop::ui::header, h)
             {
-                auto window_id = id_t{};
+                //todo auto window_id = id_t{};
                 auto header = conio.header.freeze();
-                conio.header_request.send(canal, window_id);
-                header.wait();
                 h = header.thing.utf8;
             };
             LISTEN(tier::preview, e2::form::prop::ui::footer, newfooter)

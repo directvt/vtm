@@ -3291,10 +3291,14 @@ namespace netxs::gui
                         auto filtered = ui::para{ utf8 }.lyric->utf8();
                         window_set_title(filtered);
                     }
+                    auto window_id = id_t{};
+                    stream.header.send(stream.intio, window_id, utf8);
                 };
                 LISTEN(tier::release, e2::form::prop::ui::footer, utf8)
                 {
                     update_footer();
+                    auto window_id = id_t{};
+                    stream.footer.send(stream.intio, window_id, utf8);
                 };
                 base::broadcast(tier::anycast, e2::form::upon::started, This());
             }
