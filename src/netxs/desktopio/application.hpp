@@ -556,20 +556,19 @@ namespace netxs::app::shared
                                         }},
                         { "Tooltip",    [&]
                                         {
-                                            //todo set tooltip
-                                            //auto args_count = luafx.args_count();
-                                            //if (args_count) // Set label.
-                                            //{
-                                            //    auto new_label = luafx.get_args_or(1, "label"s);
-                                            //    boss.set(new_label);
-                                            //    luafx.set_return();
-                                            //}
-                                            //else // Get label.
-                                            //{
-                                            //    auto current_label = boss.get();
-                                            //    luafx.set_return(current_label);
-                                            //}
-                                            luafx.set_return();
+                                            
+                                            auto args_count = luafx.args_count();
+                                            if (args_count) // Set tooltip.
+                                            {
+                                                auto new_tooltip = luafx.get_args_or(1, ""s);
+                                                boss.base::signal(tier::preview, e2::form::prop::ui::tooltip, new_tooltip);
+                                                luafx.set_return();
+                                            }
+                                            else // Get label.
+                                            {
+                                                auto current_tooltip = boss.base::signal(tier::request, e2::form::prop::ui::tooltip);
+                                                luafx.set_return(current_tooltip);
+                                            }
                                         }},
                         { "Deface",     [&]
                                         {
