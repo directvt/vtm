@@ -368,7 +368,7 @@ namespace netxs::app::shared
                     else             button->shader(cell::shaders::xlight,       e2::form::state::hover);
                 }
                 button->template plugin<pro::notes>(tooltip)
-                    ->setpad({ 2, 2, !slimsize, !slimsize })
+                    ->setpad({ 0, 0, !slimsize, !slimsize })
                     ->invoke([&](auto& boss) // Store shared ptr to the menu item config.
                     {
                         auto& item_props = boss.base::field(std::move(props));
@@ -392,7 +392,7 @@ namespace netxs::app::shared
             {
                 auto control = std::vector<link>
                 {
-                    { menu::item{ .alive = true, .label = "—", .tooltip = " Minimize " },//, .hover = c2 }, //todo too funky
+                    { menu::item{ .alive = true, .label = "  —  ", .tooltip = " Minimize " },//, .hover = c2 }, //todo too funky
                     [](auto& boss, auto& /*item*/)
                     {
                         boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
@@ -401,7 +401,7 @@ namespace netxs::app::shared
                             gear.dismiss();
                         });
                     }},
-                    { menu::item{ .alive = true, .label = "□", .tooltip = " Maximize " },//, .hover = c6 },
+                    { menu::item{ .alive = true, .label = "  □  ", .tooltip = " Maximize " },//, .hover = c6 },
                     [](auto& boss, auto& /*item*/)
                     {
                         boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
@@ -410,7 +410,7 @@ namespace netxs::app::shared
                             gear.dismiss();
                         });
                     }},
-                    { menu::item{ .alive = true, .label = "×", .tooltip = " Close ", .hover = c1 },
+                    { menu::item{ .alive = true, .label = "  ×  ", .tooltip = " Close ", .hover = c1 },
                     [c1](auto& boss, auto& /*item*/)
                     {
                         boss.template shader<tier::anycast>(cell::shaders::color(c1), e2::form::state::keybd::command::close);
@@ -587,11 +587,11 @@ namespace netxs::app::shared
             //auto c3 = highlight_color;
             auto items = list
             {
-                { item{ .alive = true, .label = ansi::und(true).add("F").nil().add("ile"), .tooltip = " File menu item " }, [&](auto& /*boss*/, auto& /*item*/){ }},
-                { item{ .alive = true, .label = ansi::und(true).add("E").nil().add("dit"), .tooltip = " Edit menu item " }, [&](auto& /*boss*/, auto& /*item*/){ }},
-                { item{ .alive = true, .label = ansi::und(true).add("V").nil().add("iew"), .tooltip = " View menu item " }, [&](auto& /*boss*/, auto& /*item*/){ }},
-                { item{ .alive = true, .label = ansi::und(true).add("D").nil().add("ata"), .tooltip = " Data menu item " }, [&](auto& /*boss*/, auto& /*item*/){ }},
-                { item{ .alive = true, .label = ansi::und(true).add("H").nil().add("elp"), .tooltip = " Help menu item " }, [&](auto& /*boss*/, auto& /*item*/){ }},
+                { item{ .alive = true, .label = ansi::add("  ").und(true).add("F").nil().add("ile  "), .tooltip = " File menu item " }, [&](auto& /*boss*/, auto& /*item*/){ }},
+                { item{ .alive = true, .label = ansi::add("  ").und(true).add("E").nil().add("dit  "), .tooltip = " Edit menu item " }, [&](auto& /*boss*/, auto& /*item*/){ }},
+                { item{ .alive = true, .label = ansi::add("  ").und(true).add("V").nil().add("iew  "), .tooltip = " View menu item " }, [&](auto& /*boss*/, auto& /*item*/){ }},
+                { item{ .alive = true, .label = ansi::add("  ").und(true).add("D").nil().add("ata  "), .tooltip = " Data menu item " }, [&](auto& /*boss*/, auto& /*item*/){ }},
+                { item{ .alive = true, .label = ansi::add("  ").und(true).add("H").nil().add("elp  "), .tooltip = " Help menu item " }, [&](auto& /*boss*/, auto& /*item*/){ }},
             };
             auto [menu, cover, menu_data] = create(config, items);
             return menu;

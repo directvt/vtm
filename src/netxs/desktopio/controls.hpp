@@ -353,7 +353,7 @@ namespace netxs::events
     text luna::run(context_t& context, view script_body, auto&& param)
     {
         using T = std::decay_t<decltype(param)>;
-        //log("%%script:\n%pads%%script%", prompt::lua, prompt::pads, ansi::hi(script_body));
+        log("%%script:\n%pads%%script%", prompt::lua, prompt::pads, ansi::hi(script_body));
         //if constexpr (std::is_same_v<T, noop>) log("%%script:\n%pads%%script%", prompt::lua, prompt::pads, ansi::hi(script_body));
         //else                                   log("%%script:\n%pads%%script%\n  with arg: %%", prompt::lua, prompt::pads, ansi::hi(script_body), param);
 

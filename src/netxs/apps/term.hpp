@@ -3,84 +3,6 @@
 
 #pragma once
 
-namespace netxs::events::userland
-{
-    namespace terminal
-    {
-        using state_pair_t = std::pair<bool, id_t>;
-
-        EVENTPACK( terminal::events, ui::e2::extra::slot3 )
-        {
-            EVENT_XS( cmd    , si32 ),
-            GROUP_XS( preview, si32 ),
-            GROUP_XS( release, si32 ),
-            GROUP_XS( data   , si32 ),
-            GROUP_XS( search , input::hids ),
-
-            SUBSET_XS( preview )
-            {
-                EVENT_XS( align    , si32 ),
-                EVENT_XS( wrapln   , si32 ),
-                EVENT_XS( io_log   , bool ),
-                EVENT_XS( cwdsync  , bool ),
-                EVENT_XS( alwaysontop, state_pair_t ),
-                EVENT_XS( rawkbd   , si32 ),
-                GROUP_XS( selection, si32 ),
-                GROUP_XS( colors   , argb ),
-
-                SUBSET_XS( selection )
-                {
-                    EVENT_XS( mode, si32 ),
-                    EVENT_XS( box , si32 ),
-                    EVENT_XS( shot, si32 ),
-                };
-                SUBSET_XS( colors )
-                {
-                    EVENT_XS( bg, argb ),
-                    EVENT_XS( fg, argb ),
-                };
-            };
-            SUBSET_XS( release )
-            {
-                EVENT_XS( align    , si32 ),
-                EVENT_XS( wrapln   , si32 ),
-                EVENT_XS( io_log   , bool ),
-                EVENT_XS( cwdsync  , bool ),
-                EVENT_XS( alwaysontop, bool ),
-                EVENT_XS( rawkbd   , si32 ),
-                GROUP_XS( selection, si32 ),
-                GROUP_XS( colors   , argb ),
-
-                SUBSET_XS( selection )
-                {
-                    EVENT_XS( mode, si32 ),
-                    EVENT_XS( box , si32 ),
-                    EVENT_XS( shot, si32 ),
-                };
-                SUBSET_XS( colors )
-                {
-                    EVENT_XS( bg, argb ),
-                    EVENT_XS( fg, argb ),
-                };
-            };
-            SUBSET_XS( data )
-            {
-                EVENT_XS( in     , view        ),
-                EVENT_XS( out    , view        ),
-                EVENT_XS( paste  , input::hids ),
-                EVENT_XS( copy   , input::hids ),
-                EVENT_XS( prnscrn, input::hids ),
-            };
-            SUBSET_XS( search )
-            {
-                EVENT_XS( forward, input::hids ),
-                EVENT_XS( reverse, input::hids ),
-                EVENT_XS( status , si32        ),
-            };
-        };
-    }
-}
-
 // term: Teletype Console.
 namespace netxs::app::teletype
 {
@@ -99,8 +21,6 @@ namespace netxs::app::terminal
         static constexpr auto borders   = "/config/terminal/border";
     }
 
-    namespace events = netxs::events::userland::terminal;
-
     auto ui_term_events = [](ui::term& boss, eccc& appcfg)
     {
         boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
@@ -110,61 +30,6 @@ namespace netxs::app::terminal
         boss.LISTEN(tier::preview, e2::form::proceed::quit::one, fast)
         {
             boss.close(fast);
-        };
-        boss.LISTEN(tier::anycast, terminal::events::cmd, cmd)
-        {
-            boss.exec_cmd(static_cast<ui::term::commands::ui::commands>(cmd));
-        };
-        boss.LISTEN(tier::anycast, terminal::events::data::in, data)
-        {
-            boss.data_in(data);
-        };
-        boss.LISTEN(tier::anycast, terminal::events::data::out, data)
-        {
-            boss.data_out(data);
-        };
-        //todo add color picker to the menu
-        boss.LISTEN(tier::anycast, terminal::events::preview::colors::bg, bg)
-        {
-            boss.set_bg_color(bg);
-        };
-        boss.LISTEN(tier::anycast, terminal::events::preview::colors::fg, fg)
-        {
-            boss.set_fg_color(fg);
-        };
-        boss.LISTEN(tier::anycast, e2::form::prop::colors::any, clr)
-        {
-            auto deed = boss.bell::protos();
-                 if (deed == e2::form::prop::colors::bg.id) boss.base::signal(tier::anycast, terminal::events::preview::colors::bg, clr);
-            else if (deed == e2::form::prop::colors::fg.id) boss.base::signal(tier::anycast, terminal::events::preview::colors::fg, clr);
-        };
-        boss.LISTEN(tier::anycast, terminal::events::preview::selection::mode, selmod)
-        {
-            boss.set_selmod(selmod);
-        };
-        boss.LISTEN(tier::anycast, terminal::events::preview::selection::shot, selmod)
-        {
-            boss.set_oneshot(selmod);
-        };
-        boss.LISTEN(tier::anycast, terminal::events::preview::selection::box, selbox)
-        {
-            boss.set_selalt(selbox);
-        };
-        boss.LISTEN(tier::anycast, terminal::events::preview::rawkbd, rawkbd)
-        {
-            boss.set_rawkbd(rawkbd + 1);
-        };
-        boss.LISTEN(tier::anycast, terminal::events::preview::wrapln, wrapln)
-        {
-            boss.set_wrapln(wrapln);
-        };
-        boss.LISTEN(tier::anycast, terminal::events::preview::io_log, state)
-        {
-            boss.set_log(state);
-        };
-        boss.LISTEN(tier::anycast, terminal::events::preview::align, align)
-        {
-            boss.set_align(align);
         };
         boss.LISTEN(tier::release, e2::form::upon::started, root_ptr, -, (appcfg))
         {
@@ -176,34 +41,6 @@ namespace netxs::app::terminal
         boss.LISTEN(tier::anycast, e2::form::upon::started, root_ptr)
         {
             boss.base::signal(tier::release, e2::form::upon::started, root_ptr);
-        };
-        boss.LISTEN(tier::anycast, terminal::events::search::forward, gear)
-        {
-            boss.selection_search(gear, feed::fwd);
-        };
-        boss.LISTEN(tier::anycast, terminal::events::search::reverse, gear)
-        {
-            boss.selection_search(gear, feed::rev);
-        };
-        boss.LISTEN(tier::anycast, terminal::events::data::paste, gear)
-        {
-            boss.paste(gear);
-        };
-        boss.LISTEN(tier::anycast, terminal::events::data::copy, gear)
-        {
-            boss.copy(gear);
-        };
-        boss.LISTEN(tier::anycast, terminal::events::data::prnscrn, gear)
-        {
-            boss.prnscrn(gear);
-        };
-        boss.LISTEN(tier::anycast, e2::form::upon::scroll::any, i)
-        {
-            auto info = e2::form::upon::scroll::bypage::y.param();
-            auto deed = boss.bell::protos();
-            boss.base::raw_riseup(tier::request, e2::form::upon::scroll::any.id, info);
-            info.vector = i.vector;
-            boss.base::raw_riseup(tier::preview, deed, info);
         };
     };
     auto build_teletype = [](eccc appcfg, xmls& config)
@@ -353,55 +190,27 @@ namespace netxs::app::terminal
             ->plugin<pro::focus>(pro::focus::mode::focused)
             ->invoke([&](auto& boss)
             {
-                //todo scripting: it is a temporary solution (until scripting is implemented)
-                auto& zorder = window->base::property("applet.zorder", zpos::plain);
-                boss.LISTEN(tier::anycast, terminal::events::preview::alwaysontop, state_pair)
-                {
-                    auto [state, gear_id] = state_pair;
-                    auto new_zorder = state ? zpos::topmost : zpos::plain;
-                    if (zorder != new_zorder)
-                    {
-                        auto gui_cmd = e2::command::gui.param();
-                        gui_cmd.gear_id = gear_id;
-                        gui_cmd.cmd_id = syscmd::zorder;
-                        gui_cmd.args.emplace_back(new_zorder);
-                        boss.base::riseup(tier::preview, e2::command::gui, gui_cmd);
-                    }
-                };
-                auto& window_inst = *window;
-                window_inst.LISTEN(tier::preview, e2::command::gui, gui_cmd) // Sync alwaysontop state with UI.
-                {
-                    if (gui_cmd.cmd_id == syscmd::zorder && gui_cmd.args.size())
-                    {
-                        auto new_zorder = any_get_or(gui_cmd.args[0], zpos::plain);
-                        zorder = new_zorder;
-                        auto state = new_zorder == zpos::topmost;
-                        boss.base::signal(tier::anycast, terminal::events::release::alwaysontop, state);
-                    }
-                    window_inst.bell::passover();
-                };
-
                 auto& cwd_commands = boss.base::property("terminal.cwd_commands", config.take(attr::cwdsync, ""s));
                 auto& cwd_sync = boss.base::property("terminal.cwd_sync", faux);
                 auto& cwd_path = boss.base::property("terminal.cwd_path", os::fs::path{});
-                boss.LISTEN(tier::preview, ui::tty::events::toggle::cwdsync, state)
-                {
-                    boss.base::signal(tier::anycast, terminal::events::preview::cwdsync, state);
-                };
-                boss.LISTEN(tier::anycast, terminal::events::preview::cwdsync, state)
-                {
-                    if (cwd_sync != state)
-                    {
-                        cwd_sync = state;
-                        boss.base::signal(tier::anycast, terminal::events::release::cwdsync, state);
-                        if (cwd_sync)
-                        {
-                            auto cmd = cwd_commands;
-                            utf::replace_all(cmd, "$P", ".");
-                            boss.data_out(cmd); // Trigger command prompt reprint.
-                        }
-                    }
-                };
+                //boss.LISTEN(tier::preview, ui::tty::events::toggle::cwdsync, state)
+                //{
+                //    boss.base::signal(tier::anycast, terminal::events::preview::cwdsync, state);
+                //};
+                //boss.LISTEN(tier::anycast, terminal::events::preview::cwdsync, state)
+                //{
+                //    if (cwd_sync != state)
+                //    {
+                //        cwd_sync = state;
+                //        boss.base::signal(tier::anycast, terminal::events::release::cwdsync, state);
+                //        if (cwd_sync)
+                //        {
+                //            auto cmd = cwd_commands;
+                //            utf::replace_all(cmd, "$P", ".");
+                //            boss.data_out(cmd); // Trigger command prompt reprint.
+                //        }
+                //    }
+                //};
                 boss.LISTEN(tier::preview, e2::form::prop::cwd, path)
                 {
                     if (cwd_sync)

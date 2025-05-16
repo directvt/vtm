@@ -1907,6 +1907,7 @@ namespace netxs::input
                                                || mouse::cause == input::key::MouseDown)) //   See mouse::update() for details.
             {
                 notify_form_state(boss);
+                return;
             }
             auto saved_cause = mouse::cause;
             boss.base::signal(tier_id, mouse::cause, *this);

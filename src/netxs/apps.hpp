@@ -573,14 +573,14 @@ namespace netxs::app::shared
                 });
             auto object = window_ptr->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, 0);
-            auto ver = ansi::fgc(b1).add("▀▄").fgc().add("  Text-based Desktop Environment");
+            auto ver = ansi::fgc(b1).add("  ▀▄").fgc().add("  Text-based Desktop Environment  ");
             auto [menu_block, cover, menu_data] = menu::mini(faux, faux, 1,
             menu::list
             {
                 { menu::item{ .alive = faux, .label = ver },
                 [](auto& /*boss*/, auto& /*item*/)
                 { }},
-                { menu::item{ .alive = true, .label = "×", .tooltip = " Close ", .hover = c1 },
+                { menu::item{ .alive = true, .label = "  ×  ", .tooltip = " Close ", .hover = c1 },
                 [c1](auto& boss, auto& /*item*/)
                 {
                     boss.template shader<tier::anycast>(cell::shaders::color(c1), e2::form::state::keybd::command::close, boss.This());
