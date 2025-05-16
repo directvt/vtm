@@ -2711,7 +2711,7 @@ namespace netxs::ui
             {
                 boss.on(tier::mouserelease, input::key::MouseHover, memo, [&](hids& gear)
                 {
-                    gear.set_tooltip(tooltip_sptr);
+                    gear.tooltip.set(tooltip_sptr);
                 });
                 boss.LISTEN(tier::preview, e2::form::prop::ui::tooltip, utf8, memo)
                 {
@@ -2722,9 +2722,9 @@ namespace netxs::ui
                     utf8 = tooltip_sptr->get();
                 };
             }
-            void update(view new_note)
+            void update(view utf8)
             {
-                tooltip_sptr->set(new_note);
+                tooltip_sptr->set(utf8);
             }
         };
 

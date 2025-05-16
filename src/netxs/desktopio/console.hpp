@@ -492,7 +492,7 @@ namespace netxs::ui
             {
                 gear_it = gears.emplace(device.gear_id, bell::create<hids>(*this, canvas, !!device.gear_id)).first;
                 auto& gear = *(gear_it->second);
-                gear.tooltip_timeout = props.tooltip_timeout;
+                gear.tooltip.timeout = props.tooltip_timeout;
                 gear.board::ghost = props.clip_preview_glow;
                 gear.board::brush = props.clip_preview_clrs;
                 gear.board::alpha = props.clip_preview_alfa;
@@ -606,7 +606,7 @@ namespace netxs::ui
             {
                 auto& gear = *gear_ptr;
                 if (gear.mouse_disabled) continue;
-                if (auto tooltip_page_sptr = gear.get_tooltip_render())
+                if (auto tooltip_page_sptr = gear.tooltip.get_render())
                 {
                     auto& tooltip_page = *tooltip_page_sptr;
                     auto full_area = full;
@@ -627,7 +627,7 @@ namespace netxs::ui
             {
                 auto& gear = *gear_ptr;
                 if (gear.mouse_disabled) continue;
-                if (auto v = gear.get_tooltip())
+                if (auto v = gear.tooltip.get())
                 {
                     list.thing.push(ext_gear_id, v.value());
                 }
@@ -641,7 +641,7 @@ namespace netxs::ui
             {
                 auto& gear = *gear_ptr;
                 if (gear.mouse_disabled) continue;
-                result |= gear.tooltip_check(now);
+                result |= gear.tooltip.check(now);
             }
             return result;
         }

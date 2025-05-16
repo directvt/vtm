@@ -9151,7 +9151,7 @@ namespace netxs::ui
             on(tier::mouserelease, input::key::MouseHover, [&](hids& gear)
             {
                 auto& tooltip_sptr = get_tooltip_reference(gear.id);
-                gear.set_tooltip(tooltip_sptr); // Set tooltip reference.
+                gear.tooltip.set(tooltip_sptr); // Set tooltip reference.
             });
             on(tier::mouserelease, input::key::MouseLeave, [&](hids& gear)
             {
