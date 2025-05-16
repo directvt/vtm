@@ -1448,6 +1448,7 @@ namespace netxs::input
     {
         text string{};
         ui32 digest{};
+        netxs::sptr<page> page_sptr; // Tooltip render cache for gate.
 
         auto get() const
         {
@@ -1457,6 +1458,15 @@ namespace netxs::input
         {
             digest++;
             string = utf8;
+            page_sptr.reset();
+        }
+        auto get_render()
+        {
+            if (!page_sptr)
+            {
+                page_sptr = ptr::shared(page{ string });
+            }
+            return page_sptr;
         }
     };
 
@@ -1590,15 +1600,15 @@ namespace netxs::input
         ui::pro::timer& timer; // hids: .
 
         //todo unify
-        span tooltip_timeout; // hids: .
-        netxs::sptr<tooltip_t> tooltip_sptr; // hids: Last visible tooltip.
-        bool tooltip_changed = {}; // hids: Last visible tooltip has been changed.
-        ui32 tooltip_digest = 0; // hids: Last tooltip digest.
-        time tooltip_time = {}; // hids: The moment to show tooltip.
-        bool tooltip_show = faux; // hids: Show tooltip or not.
-        bool tooltip_stop = true; // hids: Disable tooltip.
-        twod tooltip_coor = {}; // hids: .
-        page tooltip_page; // hids: Tooltip render cache for gate.
+        netxs::sptr<tooltip_t>  tooltip_sptr; // hids: Last visible tooltip.
+        span                    tooltip_timeout = {}; // hids: Time to wait for the tooltip to be shown.
+        time                    tooltip_time_to_run = {}; // hids: The moment to show tooltip.
+        bool                    tooltip_visible = {}; // hids: Tooltip could be rendered.
+        bool                    tooltip_fresh = {}; // hids: Tooltip is visible and just updated.
+        bool                    tooltip_canceled = {}; // hids: Tooltip canceled.
+        bool                    tooltip_changed_visibility = {}; // hids: Tooltip changes its visibility.
+        ui32                    tooltip_digest = {}; // hids: Digest for tracking current tooltip updates.
+        twod                    tooltip_coor = {}; // hids: Mouse position when tooltip shown.
 
         //todo unify
         rect slot; // slot for pro::maker and e2::createby.
@@ -1609,8 +1619,8 @@ namespace netxs::input
         netxs::sptr<text> script_ptr; // hids: A script body passed by pro::keybd/ui::menu.
 
         //todo unify
-        bool mouse_disabled = faux; // Hide mouse cursor.
-        bool keybd_disabled = faux; // Inactive gear.
+        bool mouse_disabled = true; // Hide mouse cursor.
+        bool keybd_disabled = true; // Inactive gear.
         si32 countdown = 0;
 
         si32 gear_index; // hids: Gear visual index.
@@ -1669,90 +1679,120 @@ namespace netxs::input
             bell::indexer.luafx.set_gear(*this);
         }
 
-        auto is_tooltip_visible(time const& now)
+        void set_tooltip(netxs::sptr<tooltip_t> new_tooltip_sptr = {})
         {
-            return !mouse::m_sys.buttons
-                && !mouse_disabled
-                && !tooltip_stop
-                && tooltip_show
-                && tooltip_time < now
-                && tooltip_sptr
-                && tooltip_sptr->get().size() // The topmost tooltip is not an empty string.
-                && !captured();
-        }
-        void set_tooltip(netxs::sptr<tooltip_t> data_sptr = {})
-        {
-            tooltip_sptr = data_sptr;
+            log("  set_tooltip() to ", ansi::hi(tooltip_sptr?tooltip_sptr->get():qiew{}));
+            tooltip_sptr = new_tooltip_sptr;
         }
         void request_tooltip(base& boss)
         {
+            log("request_tooltip()");
             auto prev_tooltip = std::exchange(tooltip_sptr, netxs::sptr<tooltip_t>{});
             boss.base::raw_riseup(tier::mouserelease, input::key::MouseHover, *this);
-            tooltip_changed = !ptr::is_equal(prev_tooltip, tooltip_sptr);
-            if (tooltip_changed)
+            if (!ptr::is_equal(prev_tooltip, tooltip_sptr))
             {
-                tooltip_show = faux;
-                tooltip_stop = faux;
-                tooltip_time = datetime::now() + tooltip_timeout;
+                tooltip_visible = faux;
+                tooltip_changed_visibility = true;
+                tooltip_canceled = !tooltip_sptr || tooltip_sptr->get().empty();
+                if (!tooltip_canceled)
+                {
+                    tooltip_time_to_run = datetime::now() + tooltip_timeout;
+                    tooltip_digest = tooltip_sptr->digest;
+                }
+                if (tooltip_sptr)
+                {
+                    tooltip_digest = tooltip_sptr->digest;
+                }
+            }
+        }
+        auto get_tooltip_render()
+        {
+            log("get_tooltip_render()");
+            if (tooltip_visible && tooltip_sptr)
+            {
+                return tooltip_sptr->get_render();
+            }
+            else
+            {
+                return netxs::sptr<page>{};
             }
         }
         auto get_tooltip()
         {
-            auto changed = std::exchange(tooltip_changed, faux);
-            auto tooltip_view = qiew{};
-            if (tooltip_sptr)
+            log("get_tooltip()=", ansi::hi(tooltip_visible&&tooltip_fresh&&tooltip_sptr ? tooltip_sptr->get() : qiew{}));
+            if (tooltip_fresh)
             {
-                tooltip_view = tooltip_sptr->get();
-            }
-            return std::pair{ tooltip_view, changed };
-        }
-        void tooltip_recalc(hint deed)
-        {
-            if (deed == input::key::MouseMove)
-            {
-                if (tooltip_coor(mouse::coord) || (tooltip_show && tooltip_changed)) // Do nothing on shuffle.
-                {
-                    if (tooltip_show && !tooltip_changed) // Hide tooltip if moved.
-                    {
-                        tooltip_stop = true;
-                    }
-                    else
-                    {
-                        tooltip_time = datetime::now() + tooltip_timeout;
-                    }
-                }
-            }
-            else if (deed == input::key::MouseWheel) // Drop tooltip away.
-            {
-                tooltip_stop = true;
+                tooltip_fresh = faux;
+                return std::optional{ tooltip_visible && tooltip_sptr ? tooltip_sptr->get() : qiew{} };
             }
             else
             {
-                if (tooltip_show == faux) // Reset timer to begin,
+                return std::optional<qiew>{};
+            }
+        }
+        void tooltip_hide()
+        {
+            tooltip_fresh = true;
+            tooltip_visible = faux;
+            tooltip_canceled = true;
+            tooltip_changed_visibility = true;
+        }
+        void tooltip_recalc(hint deed)
+        {
+            if (tooltip_canceled) return;
+            log("tooltip_recalc");
+            if (deed == input::key::MouseMove)
+            {
+                log("  deed == input::key::MouseMove");
+                if (tooltip_coor(mouse::coord)) // Hide tooltip on mouse move.
                 {
-                    tooltip_time = datetime::now() + tooltip_timeout;
+                    log("    tooltip_coor(mouse::coord)=", tooltip_coor(mouse::coord));
+                    if (tooltip_visible)
+                    {
+                        tooltip_hide();
+                    }
+                    else // Reset timer to begin.
+                    {
+                        tooltip_time_to_run = datetime::now() + tooltip_timeout;
+                    }
                 }
+            }
+            else if (deed == input::key::MouseWheel             // Hide tooltip on wheeling.
+                 || (deed >> 8 == input::key::MouseDown >> 8))  // Hide tooltip on any press.
+            {
+                log("  input::key::MouseWheel or MouseDown");
+                tooltip_hide();
             }
         }
         auto tooltip_check(time now) // Called every timer tick.
         {
-            if (tooltip_stop) return faux;
-            if (tooltip_show || (tooltip_show = tooltip_time < now && !captured()))
+            if (tooltip_changed_visibility)
             {
-                if (tooltip_sptr && tooltip_digest != tooltip_sptr->digest)
-                {
-                    tooltip_digest = tooltip_sptr->digest;
-                    tooltip_changed = true;
-                }
+                log("tooltip_check()\n  tooltip_changed_visibility");
+                tooltip_changed_visibility = faux;
+                return true;
             }
-            else if (captured())
+            else if (tooltip_sptr && tooltip_digest != tooltip_sptr->digest) // Show tooltip immediately if it is recently updated.
             {
-                if (!tooltip_show) // If not shown then drop tooltip.
-                {
-                    tooltip_stop = true;
-                }
+                log("tooltip_check()\n  tooltip_digest != tooltip_sptr->digest");
+                tooltip_digest = tooltip_sptr->digest;
+                tooltip_fresh = true;
+                tooltip_visible = true;
+                tooltip_canceled = tooltip_sptr->get().empty();
+                tooltip_coor(mouse::coord);
+                return true;
             }
-            return tooltip_changed;
+            else if (!tooltip_canceled && !tooltip_visible && tooltip_sptr && tooltip_time_to_run < now) // Show tooltip on idle timeout.
+            {
+                log("tooltip_check()\n  tooltip_time_to_run < now");
+                tooltip_fresh = true;
+                tooltip_visible = true;
+                return true;
+            }
+            else
+            {
+                return faux;
+            }
         }
 
         auto meta(si32 ctl_key = -1) { return keybd::ctlstat & ctl_key; }
@@ -1854,7 +1894,10 @@ namespace netxs::input
             }
             else
             {
-                tooltip_stop = true;
+                if (tooltip_visible)
+                {
+                    tooltip_hide();
+                }
                 keybd::update(k);
             }
         }
@@ -2115,10 +2158,7 @@ namespace netxs::input
                 {
                     forward(tier::mouserelease, owner); // Pass unhandled event to the gate.
                 }
-                if (!tooltip_stop)
-                {
-                    tooltip_recalc(new_cause);
-                }
+                tooltip_recalc(new_cause);
             }
         }
         bool fire_fast()

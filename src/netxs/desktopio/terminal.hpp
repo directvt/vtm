@@ -8752,7 +8752,7 @@ namespace netxs::ui
                 {
                     for (auto& tooltip : tooltips)
                     {
-                        auto tooltip_sptr = owner.get_tooltip_reference(tooltip.gear_id);
+                        auto& tooltip_sptr = owner.get_tooltip_reference(tooltip.gear_id);
                         tooltip_sptr->set(tooltip.utf8);
                     }
                 });

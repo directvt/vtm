@@ -115,7 +115,7 @@ namespace netxs::events
                     arg_list += luna::vtmlua_torawstring(lua, i + 1);
                     if (i + 1 != args_count) arg_list += ", ";
                 }
-                log("vtmlua_call_method: <object:%id%>.%fxname%(%arg%)", object_ptr->id, fx_name, arg_list);
+                //log("vtmlua_call_method: <object:%id%>.%fxname%(%arg%)", object_ptr->id, fx_name, arg_list);
             }
             object_ptr->call_method(fx_name);
         }
@@ -236,13 +236,13 @@ namespace netxs::events
             auto& source_ctx = indexer.context_ref.get();
             if (auto target_ptr = indexer.get_target(source_ctx, object_name))
             {
-                if constexpr (debugmode) log("       selected: ", netxs::events::script_ref::to_string(target_ptr->scripting_context));
+                //if constexpr (debugmode) log("       selected: ", netxs::events::script_ref::to_string(target_ptr->scripting_context));
                 ::lua_pushlightuserdata(lua, target_ptr); // Push object ptr.
                 ::luaL_setmetatable(lua, "vtm_submetaindex"); // Set the vtm_submetaindex for table at -1.
                 //todo keep target_ptr locked until we are inside the lua
                 return 1;
             }
-            log("%%No 'vtm.%%' objects found", prompt::lua, object_name);
+            log("%%No 'vtm.%%' object found", prompt::lua, object_name);
             return 0;
         });
     }
@@ -353,7 +353,7 @@ namespace netxs::events
     text luna::run(context_t& context, view script_body, auto&& param)
     {
         using T = std::decay_t<decltype(param)>;
-        log("%%script:\n%pads%%script%", prompt::lua, prompt::pads, ansi::hi(script_body));
+        //log("%%script:\n%pads%%script%", prompt::lua, prompt::pads, ansi::hi(script_body));
         //if constexpr (std::is_same_v<T, noop>) log("%%script:\n%pads%%script%", prompt::lua, prompt::pads, ansi::hi(script_body));
         //else                                   log("%%script:\n%pads%%script%\n  with arg: %%", prompt::lua, prompt::pads, ansi::hi(script_body), param);
 
@@ -473,8 +473,8 @@ namespace netxs::events
     ui::base* auth::get_target(context_t& source_ctx, view object_name)
     {
         auto target_ptr = (ui::base*)nullptr;
-        if constexpr (debugmode) log("looking for '%%'", object_name);
-        if constexpr (debugmode) log(" source context: ", netxs::events::script_ref::to_string(source_ctx));
+        //if constexpr (debugmode) log("looking for '%%'", object_name);
+        //if constexpr (debugmode) log(" source context: ", netxs::events::script_ref::to_string(source_ctx));
         if (object_name == basename::gear)
         {
             target_ptr = &(active_gear_ref.get());
@@ -502,7 +502,7 @@ namespace netxs::events
                 {
                     auto& boss = head->get();
                     auto& target_ctx = boss.scripting_context;
-                    if constexpr (debugmode) log(" target context: ", netxs::events::script_ref::to_string(target_ctx));
+                    //if constexpr (debugmode) log(" target context: ", netxs::events::script_ref::to_string(target_ctx));
                     if (target_ctx.empty() // The object is outside the DOM.
                         || source_ctx.back() == target_ctx.back()) // Target is the source itself.
                     {
