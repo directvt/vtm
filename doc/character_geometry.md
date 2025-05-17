@@ -1,4 +1,4 @@
-# Unicode Character Geometry Modifiers
+# Unicode Character Geometry Modifiers (VT2D)
 
 In the terminal world, character width detection is not well defined and is context dependent, which is the cause of the following issues:
 
