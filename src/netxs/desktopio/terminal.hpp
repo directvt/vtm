@@ -7040,7 +7040,7 @@ namespace netxs::ui
                 auto gates = base::riseup(tier::request, e2::form::state::keybd::enlist); // Take all foci.
                 for (auto gate_id : gates) // Signal them to set the clipboard data.
                 {
-                    if (auto gear_ptr = bell::getref<hids>(gate_id))
+                    if (auto gear_ptr = base::getref<hids>(gate_id))
                     {
                         gear_ptr->set_clipboard(clipdata);
                     }
@@ -8743,7 +8743,7 @@ namespace netxs::ui
                 if (owner.active)
                 {
                     auto guard = owner.sync();
-                    if (auto gear_ptr = owner.bell::getref<hids>(m.gear_id))
+                    if (auto gear_ptr = owner.base::getref<hids>(m.gear_id))
                     if (auto parent_ptr = owner.base::parent())
                     {
                         auto& gear = *gear_ptr;
@@ -8760,7 +8760,7 @@ namespace netxs::ui
                 if (owner.active)
                 {
                     auto guard = owner.sync();
-                    if (auto gear_ptr = owner.bell::getref<hids>(m.gear_id))
+                    if (auto gear_ptr = owner.base::getref<hids>(m.gear_id))
                     if (auto parent_ptr = owner.base::parent())
                     {
                         auto& gear = *gear_ptr;
@@ -8795,7 +8795,7 @@ namespace netxs::ui
                 if (owner.active)
                 {
                     auto guard = owner.sync();
-                    if (auto gear_ptr = owner.bell::getref<hids>(k.gear_id))
+                    if (auto gear_ptr = owner.base::getref<hids>(k.gear_id))
                     {
                         auto& gear = *gear_ptr;
                         gear.set_multihome();
@@ -8814,7 +8814,7 @@ namespace netxs::ui
                 if (owner.active)
                 {
                     auto guard = owner.sync();
-                    if (auto gear_ptr = owner.bell::getref<hids>(m.gear_id))
+                    if (auto gear_ptr = owner.base::getref<hids>(m.gear_id))
                     if (auto parent_ptr = owner.base::parent())
                     {
                         auto& gear = *gear_ptr;
@@ -8831,7 +8831,7 @@ namespace netxs::ui
             {
                 owner.base::enqueue([&, m = lock.thing](auto& /*boss*/)
                 {
-                    if (auto gear_ptr = owner.bell::getref<hids>(m.gear_id))
+                    if (auto gear_ptr = owner.base::getref<hids>(m.gear_id))
                     {
                         auto& gear = *gear_ptr;
                         gear.set_multihome();
@@ -8853,7 +8853,7 @@ namespace netxs::ui
                 if (owner.active)
                 {
                     auto guard = owner.sync();
-                    if (auto gear_ptr = owner.bell::getref<hids>(c.gear_id))
+                    if (auto gear_ptr = owner.base::getref<hids>(c.gear_id))
                     {
                         gear_ptr->set_multihome();
                         gear_ptr->set_clipboard(c);
@@ -8867,7 +8867,7 @@ namespace netxs::ui
                 if (owner.active)
                 {
                     auto guard = owner.sync();
-                    if (auto gear_ptr = owner.bell::getref<hids>(c.gear_id))
+                    if (auto gear_ptr = owner.base::getref<hids>(c.gear_id))
                     {
                         auto& gear = *gear_ptr;
                         gear.set_multihome();
@@ -8958,7 +8958,7 @@ namespace netxs::ui
             {
                 owner.base::enqueue([&, gui_cmd = lock.thing](auto& /*boss*/)
                 {
-                    if (auto gear_ptr = owner.bell::getref<hids>(gui_cmd.gear_id))
+                    if (auto gear_ptr = owner.base::getref<hids>(gui_cmd.gear_id))
                     {
                         gear_ptr->set_multihome();
                         owner.base::riseup(tier::preview, e2::command::gui, gui_cmd);

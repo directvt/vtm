@@ -1421,7 +1421,7 @@ namespace netxs::ui
                             if (!gear_id) return;
                             auto iter = std::find_if(user_icon.begin(), user_icon.end(), [&](auto& a){ return a.gear_id == gear_id; });
                             if (iter == user_icon.end())
-                            if (auto gear_ptr = boss.bell::getref<hids>(gear_id))
+                            if (auto gear_ptr = boss.base::getref<hids>(gear_id))
                             {
                                 auto index = gear_ptr->gear_index;
                                 auto color = argb::vt256[4 + index % (256 - 4)];
@@ -1657,7 +1657,7 @@ namespace netxs::ui
                 auto iter = gears.emplace(gear_id, std::move(new_chain)).first;
                 if (gear_id)
                 {
-                    if (auto gear_ptr = boss.bell::getref<hids>(gear_id))
+                    if (auto gear_ptr = boss.base::getref<hids>(gear_id))
                     {
                         auto& chain = iter->second;
                         gear_ptr->LISTEN(tier::release, input::events::die, gear, chain.token)
@@ -1712,7 +1712,7 @@ namespace netxs::ui
             }
             static void set_multihome(sptr item_ptr, id_t gear_id)
             {
-                if (auto gear_ptr = item_ptr->bell::getref<hids>(gear_id))
+                if (auto gear_ptr = item_ptr->base::getref<hids>(gear_id))
                 {
                     gear_ptr->set_multihome();
                 }

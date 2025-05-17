@@ -1459,7 +1459,7 @@ namespace netxs::app::tile
                             {
                                 boss.base::enqueue([&, deed, gear_id = gear.id, item_wptr = ptr::shadow(item_ptr)](auto& /*boss*/) // Enqueue to keep the focus tree intact while processing events.
                                 {
-                                    if (auto gear_ptr = boss.bell::template getref<hids>(gear_id))
+                                    if (auto gear_ptr = boss.base::template getref<hids>(gear_id))
                                     if (auto item_ptr = item_wptr.lock())
                                     {
                                         item_ptr->base::raw_riseup(tier::release, deed, *gear_ptr);

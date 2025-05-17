@@ -675,6 +675,19 @@ namespace netxs::ui
         auto parent()       { return father.lock();        }
         void ruined(bool s) { wasted = s;                  }
         auto ruined() const { return wasted;               }
+        // base: Return sptr of the object by its id.
+        template<class T = base>
+        auto getref(id_t id)
+        {
+            auto lock = bell::sync();
+            auto iter = bell::indexer.objects.find(id);
+            if (iter != bell::indexer.objects.end())
+            {
+                auto boss_ptr = iter->second.get().This<T>();
+                return boss_ptr;
+            }
+            return netxs::sptr<T>{};
+        }
         // base: Update scripting context. Run on anycast, e2::form::upon::started.
         void update_scripting_context()
         {

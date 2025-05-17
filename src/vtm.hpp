@@ -521,11 +521,11 @@ namespace netxs::app::vtm
                         if (under != new_under)
                         {
                             auto object = vtm::events::d_n_d::ask.param();
-                            if (auto old_object = boss.bell::getref<base>(under))
+                            if (auto old_object = boss.base::getref(under))
                             {
                                 old_object->base::riseup(tier::release, vtm::events::d_n_d::abort, object);
                             }
-                            if (auto new_object = boss.bell::getref<base>(new_under))
+                            if (auto new_object = boss.base::getref(new_under))
                             {
                                 new_object->base::riseup(tier::release, vtm::events::d_n_d::ask, object);
                             }
@@ -573,7 +573,7 @@ namespace netxs::app::vtm
             {
                 base::enqueue([gear_id](auto& boss) // Keep the focus tree intact while processing events.
                 {
-                    if (auto gear_ptr = boss.bell::template getref<hids>(gear_id)) //todo Apple clang requires template
+                    if (auto gear_ptr = boss.base::template getref<hids>(gear_id)) //todo Apple clang requires template
                     {
                         auto& gear = *gear_ptr;
                         gear.set_multihome();
@@ -585,7 +585,7 @@ namespace netxs::app::vtm
             {
                 base::enqueue([state, gear_id](auto& boss) // Keep the focus tree intact while processing events.
                 {
-                    if (auto gear_ptr = boss.bell::template getref<hids>(gear_id))
+                    if (auto gear_ptr = boss.base::template getref<hids>(gear_id))
                     {
                         auto& gear = *gear_ptr;
                         gear.set_multihome();
@@ -1062,7 +1062,7 @@ namespace netxs::app::vtm
                     auto gear_id_list = window.base::riseup(tier::request, e2::form::state::keybd::enlist);
                     for (auto gear_id : gear_id_list)
                     {
-                        if (auto gear_ptr = bell::getref<hids>(gear_id))
+                        if (auto gear_ptr = base::getref<hids>(gear_id))
                         {
                             auto gear_test = base::signal(tier::request, e2::form::state::keybd::next, { gear_id, 0 });
                             if (gear_test.second == 1) // If it is the last focused item.
@@ -1436,7 +1436,7 @@ namespace netxs::app::vtm
             {
                 auto hit = faux;
                 if (gui_cmd.cmd_id == syscmd::focusnextwindow)
-                if (auto gear_ptr = bell::getref<hids>(gui_cmd.gear_id))
+                if (auto gear_ptr = base::getref<hids>(gui_cmd.gear_id))
                 {
                     auto& gear = *gear_ptr;
                     auto dir = gui_cmd.args.size() ? any_get_or(gui_cmd.args[0], 1) : 1;
@@ -1535,7 +1535,7 @@ namespace netxs::app::vtm
                     //todo revise
                     if (hall_focus) // Take the last active keyboard.
                     {
-                        gear_ptr = bell::getref<hids>(hall_focus);
+                        gear_ptr = base::getref<hids>(hall_focus);
                         //if (gear_ptr)
                         //{
                         //    appspec.gear_id = hall_focus;
@@ -1543,7 +1543,7 @@ namespace netxs::app::vtm
                     }
                     if (!gear_ptr && users.size()) // Take any existing.
                     {
-                        auto gate_ptr = bell::getref<gate>(users.back().first->id);
+                        auto gate_ptr = base::getref<gate>(users.back().first->id);
                         auto& gears = gate_ptr->gears;
                         for (auto& [ext_gear_id, _gear_ptr] : gears)
                         {
@@ -1554,7 +1554,7 @@ namespace netxs::app::vtm
                         }
                     }
                 }
-                else gear_ptr = bell::getref<hids>(appspec.gear_id);
+                else gear_ptr = base::getref<hids>(appspec.gear_id);
 
                 auto gear_id = appspec.gear_id;
                 auto menu_id = appspec.menuid;
@@ -1665,7 +1665,7 @@ namespace netxs::app::vtm
             };
             LISTEN(tier::release, e2::render::background::prerender, parent_canvas) // Sync the hall basis with the current gate.
             {
-                if (auto gate_ptr = bell::getref<ui::gate>(parent_canvas.link()))
+                if (auto gate_ptr = base::getref<ui::gate>(parent_canvas.link()))
                 {
                     parent_canvas.move_basis(gate_ptr->base::coor());
                 }

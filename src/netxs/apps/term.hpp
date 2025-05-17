@@ -160,7 +160,7 @@ namespace netxs::app::terminal
                         auto gear_id_list = boss.base::riseup(tier::request, e2::form::state::keybd::enlist);
                         for (auto gear_id : gear_id_list)
                         {
-                            if (auto gear_ptr = boss.bell::template getref<hids>(gear_id)) //todo Apple clang requires template
+                            if (auto gear_ptr = boss.base::template getref<hids>(gear_id)) //todo Apple clang requires template
                             {
                                 auto& gear = *gear_ptr;
                                 boss.base::riseup(tier::preview, e2::form::size::enlarge::fullscreen, gear);

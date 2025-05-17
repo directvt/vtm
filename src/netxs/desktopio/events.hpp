@@ -484,19 +484,6 @@ namespace netxs::events
             auto lock = sync();
             _notify(tier::general, general, e2_timer_tick_id, now);
         }
-        // auth: Return sptr of the object by its id.
-        template<class T = ui::base>
-        auto getref(id_t id)
-        {
-            auto lock = sync();
-            auto iter = objects.find(id);
-            if (iter != objects.end())
-            {
-                auto boss_ptr = iter->second.get().template This<T>();
-                return boss_ptr;
-            }
-            return sptr<T>{};
-        }
         // auth: Delete object instance.
         template<class T>
         static void deleter(T* inst_ptr)
@@ -878,12 +865,6 @@ namespace netxs::events
         auto unique_lock()
         {
             return indexer.unique_lock();
-        }
-        // bell: Return sptr of the object by its id.
-        template<class T = bell>
-        auto getref(id_t id)
-        {
-            return indexer.getref<T>(id);
         }
 
         bell(auth& indexer)
