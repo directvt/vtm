@@ -155,7 +155,7 @@ namespace netxs::events
     {
         using T = std::decay_t<decltype(v)>;
         static constexpr auto is_string_v = requires{ (const char*)v.data(); };
-        static constexpr auto is_cstring_v = !std::is_same_v<T, twod> && requires{ (const char*)v[0]; };
+        static constexpr auto is_cstring_v = !std::is_same_v<T, twod> && requires{ (const char*)&v[0]; };
 
         auto args_count = 1;
              if constexpr (std::is_same_v<T, bool>)                  ::lua_pushboolean(lua, v);

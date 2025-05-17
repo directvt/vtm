@@ -908,7 +908,7 @@ namespace netxs
 namespace std
 {
     template<>
-    struct std::less<netxs::events::context_t>
+    struct less<netxs::events::context_t>
     {
         using context_t = netxs::events::context_t;
         bool operator () (context_t const& l, context_t const& r) const

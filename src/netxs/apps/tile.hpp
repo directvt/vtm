@@ -77,7 +77,7 @@ namespace netxs::app::tile
         X(SetTitle           ) \
         X(ClosePane          ) \
 
-    struct action
+    struct methods
     {
         #define X(_proc) static constexpr auto _proc = #_proc;
         proc_list
@@ -349,7 +349,7 @@ namespace netxs::app::tile
                         input::bindings::keybind(boss, bindings);
                         boss.base::add_methods(basename::grip, //todo self_hosted?
                         {
-                            { action::MoveGrip,         [&]
+                            { methods::MoveGrip,        [&]
                                                         {
                                                             auto delta = luafx.get_args_or(1, dot_00);
                                                             boss.base::riseup(tier::preview, app::tile::events::ui::grips::move, delta);
@@ -357,7 +357,7 @@ namespace netxs::app::tile
                                                             gear.set_handled();
                                                             luafx.set_return();
                                                         }},
-                            { action::ResizeGrip,       [&]
+                            { methods::ResizeGrip,      [&]
                                                         {
                                                             auto delta = luafx.get_args_or(1, si32{});
                                                             boss.base::riseup(tier::preview, app::tile::events::ui::grips::resize, delta);
@@ -365,7 +365,7 @@ namespace netxs::app::tile
                                                             gear.set_handled();
                                                             luafx.set_return();
                                                         }},
-                            { action::FocusNextGrip,    [&]
+                            { methods::FocusNextGrip,   [&]
                                                         {
                                                             auto& gear = luafx.get_gear();
                                                             auto ok = gear.is_real();
@@ -904,34 +904,7 @@ namespace netxs::app::tile
                 ->plugin<items>()
                 ->plugin<pro::focus>()
                 ->plugin<pro::keybd>();
-            static auto on_left_click = [](auto& boss, auto& event)
-            {
-                boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
-                {
-                    gear.dismiss(true);
-                    boss.base::riseup(tier::preview, event, gear);
-                });
-            };
             using namespace app::shared;
-            //todo scripting
-            //static const auto proc_map = menu::action_map_t
-            //{
-            //    { "TileFocusPrev"         , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::focus::prev    ); }},
-            //    { "TileFocusNext"         , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::focus::next    ); }},
-            //    { "TileFocusPrevPane"     , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::focus::prevpane); }},
-            //    { "TileFocusNextPane"     , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::focus::nextpane); }},
-            //    { "TileFocusPrevGrip"     , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::focus::prevgrip); }},
-            //    { "TileFocusNextGrip"     , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::focus::nextgrip); }},
-            //    { "TileRunApplication"    , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::create         ); }},
-            //    { "TileSelectAllPanes"    , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::select         ); }},
-            //    { "TileSplitHorizontally" , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::split::hz      ); }},
-            //    { "TileSplitVertically"   , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::split::vt      ); }},
-            //    { "TileSplitOrientation"  , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::rotate         ); }},
-            //    { "TileSwapPanes"         , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::swap           ); }},
-            //    { "TileEqualizeSplitRatio", [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::equalize       ); }},
-            //    { "TileSetManagerTitle"   , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::title          ); }},
-            //    { "TileClosePane"         , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::close          ); }},
-            //};
             auto script_list = config.list("/config/events/tile/grip/script");
             auto grip_bindings_ptr = ptr::shared(input::bindings::load(config, script_list));
             config.cd("/config/tile", "/config/defapp");
@@ -1040,7 +1013,7 @@ namespace netxs::app::tile
                     input::bindings::keybind(boss, bindings);
                     boss.base::add_methods(basename::tile,
                     {
-                        { action::FocusNextPaneOrGrip,  [&]
+                        { methods::FocusNextPaneOrGrip, [&]
                                                         {
                                                             luafx.run_with_gear([&](auto& gear)
                                                             {
@@ -1049,7 +1022,7 @@ namespace netxs::app::tile
                                                                         : boss.base::signal(tier::preview, app::tile::events::ui::focus::next, gear);
                                                             });
                                                         }},
-                        { action::FocusNextPane,        [&]
+                        { methods::FocusNextPane,       [&]
                                                         {
                                                             luafx.run_with_gear([&](auto& gear)
                                                             {
@@ -1058,7 +1031,7 @@ namespace netxs::app::tile
                                                                         : boss.base::signal(tier::preview, app::tile::events::ui::focus::nextpane, gear);
                                                             });
                                                         }},
-                        { action::FocusNextGrip,        [&]
+                        { methods::FocusNextGrip,       [&]
                                                         {
                                                             luafx.run_with_gear([&](auto& gear)
                                                             {
@@ -1067,7 +1040,7 @@ namespace netxs::app::tile
                                                                         : boss.base::signal(tier::preview, app::tile::events::ui::focus::nextgrip, gear);
                                                             });
                                                         }},
-                        { action::RunApplication,       [&]
+                        { methods::RunApplication,      [&]
                                                         {
                                                             luafx.run_with_gear([&](auto& gear)
                                                             {
@@ -1076,14 +1049,14 @@ namespace netxs::app::tile
                                                                 boss.base::signal(tier::preview, app::tile::events::ui::create, gear);
                                                             });
                                                         }},
-                        { action::SelectAllPanes,       [&]
+                        { methods::SelectAllPanes,      [&]
                                                         {
                                                             luafx.run_with_gear([&](auto& gear)
                                                             {
                                                                 boss.base::signal(tier::preview, app::tile::events::ui::select, gear);
                                                             });
                                                         }},
-                        { action::SplitPane,            [&]
+                        { methods::SplitPane,           [&]
                                                         {
                                                             luafx.run_with_gear([&](auto& gear)
                                                             {
@@ -1092,35 +1065,35 @@ namespace netxs::app::tile
                                                                         : boss.base::signal(tier::preview, app::tile::events::ui::split::hz, gear);
                                                             });
                                                         }},
-                        { action::RotateSplit,          [&]
+                        { methods::RotateSplit,         [&]
                                                         {
                                                             luafx.run_with_gear([&](auto& gear)
                                                             {
                                                                 boss.base::signal(tier::preview, app::tile::events::ui::rotate, gear);
                                                             });
                                                         }},
-                        { action::SwapPanes,            [&]
+                        { methods::SwapPanes,           [&]
                                                         {
                                                             luafx.run_with_gear([&](auto& gear)
                                                             {
                                                                 boss.base::signal(tier::preview, app::tile::events::ui::swap, gear);
                                                             });
                                                         }},
-                        { action::EqualizeSplitRatio,   [&]
+                        { methods::EqualizeSplitRatio,  [&]
                                                         {
                                                             luafx.run_with_gear([&](auto& gear)
                                                             {
                                                                 boss.base::signal(tier::preview, app::tile::events::ui::equalize, gear);
                                                             });
                                                         }},
-                        { action::SetTitle,             [&]
+                        { methods::SetTitle,            [&]
                                                         {
                                                             luafx.run_with_gear([&](auto& gear)
                                                             {
                                                                 boss.base::signal(tier::preview, app::tile::events::ui::title, gear);
                                                             });
                                                         }},
-                        { action::ClosePane,            [&]
+                        { methods::ClosePane,           [&]
                                                         {
                                                             luafx.run_with_gear([&](auto& gear)
                                                             {

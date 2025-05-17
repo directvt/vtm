@@ -1243,7 +1243,7 @@ namespace netxs::app::vtm
                                                 for (auto& [event_name, metadata] : netxs::events::rtti())
                                                 {
                                                     events.push_back({ event_name, metadata.param_typename });
-                                                    if (event_name.size() > maxlen) maxlen = (si32)event_name.size();
+                                                    if ((si32)event_name.size() > maxlen) maxlen = (si32)event_name.size();
                                                 }
                                                 std::sort(events.begin(), events.end(), [](auto a, auto b){ return a.first < b.first; });
                                                 auto mpad = text(maxlen, ' ');
