@@ -193,7 +193,7 @@ namespace netxs::app::terminal
                 auto& cwd_commands = boss.base::property("terminal.cwd_commands", config.take(attr::cwdsync, ""s));
                 auto& cwd_sync = boss.base::property("terminal.cwd_sync", faux);
                 auto& cwd_path = boss.base::property("terminal.cwd_path", os::fs::path{});
-                //boss.LISTEN(tier::preview, ui::tty::events::toggle::cwdsync, state)
+                //boss.LISTEN(tier::preview, terminal::events::toggle::cwdsync, state)
                 //{
                 //    boss.base::signal(tier::anycast, terminal::events::preview::cwdsync, state);
                 //};

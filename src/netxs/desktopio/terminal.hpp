@@ -7,9 +7,9 @@
 
 namespace netxs::events::userland
 {
-    namespace tty
+    namespace terminal
     {
-        EVENTPACK( ui::tty::events, ui::e2::extra::slot5 )
+        EVENTPACK( terminal::events, ui::e2::extra::slot5 )
         {
             EVENT_XS( io_log, si32 ),
             EVENT_XS( selmod, si32 ),
@@ -48,9 +48,9 @@ namespace netxs::events::userland
 // terminal: Terminal UI control.
 namespace netxs::ui
 {
-    namespace tty
+    namespace terminal
     {
-        namespace events = netxs::events::userland::tty;
+        namespace events = netxs::events::userland::terminal;
     }
 
     struct term
@@ -1380,14 +1380,14 @@ namespace netxs::ui
                 {
                     auto w = parser::style.wrp() == wrap::none ? (si32)owner.config.def_wrpmod
                                                                : (si32)parser::style.wrp();
-                    owner.base::signal(tier::release, ui::tty::events::layout::wrapln, w);
+                    owner.base::signal(tier::release, terminal::events::layout::wrapln, w);
                     changed = true;
                 }
                 if (parser::style.jet() != old_style.jet())
                 {
                     auto a = parser::style.jet() == bias::none ? (si32)bias::left
                                                                : (si32)parser::style.jet();
-                    owner.base::signal(tier::release, ui::tty::events::layout::align, a);
+                    owner.base::signal(tier::release, terminal::events::layout::align, a);
                     changed = true;
                 }
                 if (changed && owner.styled)
@@ -7464,13 +7464,13 @@ namespace netxs::ui
         {
             selmod = newmod;
             base::signal(tier::release, e2::form::draggable::left, selection_passed());
-            base::signal(tier::release, ui::tty::events::selmod, selmod);
+            base::signal(tier::release, terminal::events::selmod, selmod);
         }
         // term: Run one-shot selection.
         void selection_oneshot(si32 newmod)
         {
             onesht = newmod;
-            base::signal(tier::release, ui::tty::events::onesht, onesht);
+            base::signal(tier::release, terminal::events::onesht, onesht);
             selection_selmod(newmod);
         }
         // term: Set selection form.
@@ -7478,7 +7478,7 @@ namespace netxs::ui
         {
             selalt = boxed;
             base::signal(tier::release, e2::form::draggable::left, selection_passed());
-            base::signal(tier::release, ui::tty::events::selalt, selalt);
+            base::signal(tier::release, terminal::events::selalt, selalt);
         }
         // term: Set the next selection mode.
         void selection_selmod()
@@ -7807,7 +7807,7 @@ namespace netxs::ui
                                   :  console.arena;
                 }
             }
-            base::signal(tier::release, ui::tty::events::search::status, console.selection_button(delta));
+            base::signal(tier::release, terminal::events::search::status, console.selection_button(delta));
             if (target == &normal && delta)
             {
                 selection_moveto(delta);
@@ -7834,7 +7834,7 @@ namespace netxs::ui
             defclr = brush;
             brush.link(console.brush.link());
             console.brush.reset(brush);
-            base::signal(tier::release, ui::tty::events::colors::bg, bg);
+            base::signal(tier::release, terminal::events::colors::bg, bg);
         }
         void set_fg_color(argb fg)
         {
@@ -7845,13 +7845,13 @@ namespace netxs::ui
             defclr = brush;
             brush.link(console.brush.link());
             console.brush.reset(brush);
-            base::signal(tier::release, ui::tty::events::colors::fg, fg);
+            base::signal(tier::release, terminal::events::colors::fg, fg);
         }
         void set_rawkbd(si32 state = {})
         {
             if (!state) rawkbd = !rawkbd;
             else        rawkbd = state - 1;
-            base::signal(tier::release, ui::tty::events::rawkbd, rawkbd);
+            base::signal(tier::release, terminal::events::rawkbd, rawkbd);
         }
         void set_wrapln(si32 wrapln = {})
         {
@@ -7888,7 +7888,7 @@ namespace netxs::ui
             if (config.allow_logs)
             {
                 io_log = state;
-                base::signal(tier::release, ui::tty::events::io_log, state);
+                base::signal(tier::release, terminal::events::io_log, state);
             }
         }
         void clear_scrollback()
@@ -8002,16 +8002,16 @@ namespace netxs::ui
                     if (title.empty()) wtrack.set(ansi::osc_title); // Set default title if it is empty.
                     if (config.send_input.size()) ipccon.write<faux>(config.send_input);
                     // Sync external listeners with terminal current state.
-                    base::signal(tier::release, ui::tty::events::io_log,         io_log);
-                    base::signal(tier::release, ui::tty::events::selmod,         selmod);
-                    base::signal(tier::release, ui::tty::events::onesht,         onesht);
-                    base::signal(tier::release, ui::tty::events::selalt,         selalt);
-                    base::signal(tier::release, ui::tty::events::rawkbd,         rawkbd);
-                    base::signal(tier::release, ui::tty::events::colors::bg,     target->brush.bgc());
-                    base::signal(tier::release, ui::tty::events::colors::fg,     target->brush.fgc());
-                    base::signal(tier::release, ui::tty::events::layout::wrapln, (si32)target->style.wrp());
-                    base::signal(tier::release, ui::tty::events::layout::align,  (si32)target->style.jet());
-                    base::signal(tier::release, ui::tty::events::search::status, target->selection_button());
+                    base::signal(tier::release, terminal::events::io_log,         io_log);
+                    base::signal(tier::release, terminal::events::selmod,         selmod);
+                    base::signal(tier::release, terminal::events::onesht,         onesht);
+                    base::signal(tier::release, terminal::events::selalt,         selalt);
+                    base::signal(tier::release, terminal::events::rawkbd,         rawkbd);
+                    base::signal(tier::release, terminal::events::colors::bg,     target->brush.bgc());
+                    base::signal(tier::release, terminal::events::colors::fg,     target->brush.fgc());
+                    base::signal(tier::release, terminal::events::layout::wrapln, (si32)target->style.wrp());
+                    base::signal(tier::release, terminal::events::layout::align,  (si32)target->style.jet());
+                    base::signal(tier::release, terminal::events::search::status, target->selection_button());
                     backup.reset(); // Backup should dtored under the lock.
                 });
                 appcfg.win = target->panel;
@@ -8448,7 +8448,7 @@ namespace netxs::ui
                                                         else
                                                         {
                                                             auto state = luafx.get_args_or(1, 0);
-                                                            base::riseup(tier::preview, ui::tty::events::toggle::cwdsync, state);
+                                                            base::riseup(tier::preview, terminal::events::toggle::cwdsync, state);
                                                             luafx.set_return();
                                                         }
                                                     }},

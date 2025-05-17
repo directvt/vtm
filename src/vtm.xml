@@ -294,7 +294,7 @@ R"==(
                                 </tooltip>
                                 <script=TerminalWrapMode on="LeftClick"/>
                                 <script>
-                                    <on="release: ui::tty::events::layout::wrapln" source="terminal"/>
+                                    <on="release: terminal::events::layout::wrapln" source="terminal"/>
                                     local m=vtm()                           -- Use event arguments to get the current state.
                                     -- local m=vtm.terminal.LineWrapMode()  -- or ask the terminal instance iteslf for the current state.
                                     vtm.item.Label(m==1 and "\e[38:2:0:255:0m  Wrap  \e[m" or "  Wrap  ")
@@ -304,7 +304,7 @@ R"==(
                             <item label="  Clipboard  " tooltip=" Clipboard format ">  <!-- type=Option means that the тext label will be selected when clicked. -->
                                 <script=TerminalClipboardFormat on="LeftClick"/>
                                 <script>
-                                    <on="release: ui::tty::events::selmod" source="terminal"/>
+                                    <on="release: terminal::events::selmod" source="terminal"/>
                                     local m=vtm()                              -- Use event arguments to get the current state.
                                     -- local m=vtm.terminal.ClipboardFormat()  -- or ask the terminal instance iteslf for the current state.
                                     vtm.item.Label(m==1 and "\e[38:2:0:255:0m  Plaintext  \e[m  "     -- "textonly"
@@ -456,7 +456,7 @@ R"==(
                 </tooltip>
                 <script=ExclusiveKeyboardMode on="LeftClick"/>
                 <script>
-                    <on="release: ui::tty::events::rawkbd" source="terminal"/>
+                    <on="release: terminal::events::rawkbd" source="terminal"/>
                     local m=vtm()                                    -- Use event arguments to get the current state.
                     -- local m=vtm.terminal.ExclusiveKeyboardMode()  -- or ask the terminal instance iteslf for the current state.
                     vtm.item.Label(m==1 and "\e[48:2:0:128:128;38:2:0:255:0m  Exclusive  \e[m" or "   Desktop   ")
@@ -471,7 +471,7 @@ R"==(
                 </tooltip>
                 <script=TerminalWrapMode on="LeftClick"/>
                 <script>
-                    <on="release: ui::tty::events::layout::wrapln" source="terminal"/>
+                    <on="release: terminal::events::layout::wrapln" source="terminal"/>
                     local m=vtm()                           -- Use event arguments to get the current state.
                     -- local m=vtm.terminal.LineWrapMode()  -- or ask the terminal instance iteslf for the current state.
                     vtm.item.Label(m==1 and "\e[38:2:0:255:0m  Wrap  \e[m" or "  Wrap  ")
@@ -481,7 +481,7 @@ R"==(
             <item label="  Clipboard  " tooltip=" Clipboard format ">  <!-- type=Option means that the тext label will be selected when clicked. -->
                 <script=TerminalClipboardFormat on="LeftClick"/>
                 <script>
-                    <on="release: ui::tty::events::selmod" source="terminal"/>
+                    <on="release: terminal::events::selmod" source="terminal"/>
                     local m=vtm()                              -- Use event arguments to get the current state.
                     -- local m=vtm.terminal.ClipboardFormat()  -- or ask the terminal instance iteslf for the current state.
                     vtm.item.Label(m==1 and "\e[38:2:0:255:0m  Plaintext  \e[m  "     -- "textonly"
@@ -504,7 +504,7 @@ R"==(
             <item label="  Log  " tooltip=" Console logging        \n Use Logs to see output ">
                 <script=TerminalStdioLog on="LeftClick"/>
                 <script>
-                    <on="release: ui::tty::events::io_log" source="terminal"/>
+                    <on="release: terminal::events::io_log" source="terminal"/>
                     local m=vtm()                      -- Use event arguments to get the current state.
                     -- local m=vtm.terminal.LogMode()  -- or ask the terminal instance iteslf for the current state.
                     vtm.item.Label(m==1 and "\e[38:2:0:255:0m  Log  \e[m" or "  Log  ")
@@ -550,42 +550,18 @@ R"==(
                     " The app to run can be set by RightClick on the taskbar. "
                 </tooltip>
             </item>
-            <item label="  :::  " tooltip=" Select all panes ">
-                <script=TileSelectAllPanes     on="LeftClick"/>
-            </item>
-            <item label="   │   " tooltip=" Split active panes horizontally ">
-                <script=TileSplitHorizontally  on="LeftClick"/>
-            </item>
-            <item label="  ──  "  tooltip=" Split active panes vertically ">
-                <script=TileSplitVertically    on="LeftClick"/>
-            </item>
-            <item label="  ┌┘  "  tooltip=" Change split orientation ">
-                <script=TileSplitOrientation   on="LeftClick"/>
-            </item>
-            <item label="  <->  " tooltip=" Swap two or more panes ">
-                <script=TileSwapPanes          on="LeftClick"/>
-            </item>
-            <item label="  >|<  " tooltip=" Equalize split ratio ">
-                <script=TileEqualizeSplitRatio on="LeftClick"/>
-            </item>
-            <item label='  "…"  ' tooltip=" Set tiling window manager title using clipboard data ">
-                <script=TileSetManagerTitle    on="LeftClick"/>
-            </item>
-            <item label="  ×  "   tooltip=" Close active application ">
-                <script=TileClosePane          on="LeftClick"/>
-            </item>
-            <!-- <item label="  <  "   tooltip=" Focus the previous pane or the split grip ">
-                    <script=TileFocusPrev      on="LeftClick"/>
-                </item> -->
-            <!-- <item label="  >  "   tooltip=" Focus the next pane or the split grip ">
-                    <script=TileFocusNext      on="LeftClick"/>
-                </item> -->
-            <!-- <item label="  <-  "  tooltip=" Focus the previous pane ">
-                    <script=TileFocusPrevPane  on="LeftClick"/>
-                </item> -->
-            <!-- <item label="  ->  "  tooltip=" Focus the next pane ">
-                    <script=TileFocusNextPane  on="LeftClick"/>
-                </item> -->
+            <item label="  :::  " tooltip=" Select all panes "                                    ><script=TileSelectAllPanes     on="LeftClick"/></item>
+            <item label="   │   " tooltip=" Split active panes horizontally "                     ><script=TileSplitHorizontally  on="LeftClick"/></item>
+            <item label="  ──  "  tooltip=" Split active panes vertically "                       ><script=TileSplitVertically    on="LeftClick"/></item>
+            <item label="  ┌┘  "  tooltip=" Change split orientation "                            ><script=TileSplitOrientation   on="LeftClick"/></item>
+            <item label="  <->  " tooltip=" Swap two or more panes "                              ><script=TileSwapPanes          on="LeftClick"/></item>
+            <item label="  >|<  " tooltip=" Equalize split ratio "                                ><script=TileEqualizeSplitRatio on="LeftClick"/></item>
+            <item label='  "…"  ' tooltip=" Set tiling window manager title using clipboard data "><script=TileSetManagerTitle    on="LeftClick"/></item>
+            <item label="  ×  "   tooltip=" Close active application "                            ><script=TileClosePane          on="LeftClick"/></item>
+            <!-- <item label="  <  "   tooltip=" Focus the previous pane or the split grip "><script=TileFocusPrev      on="LeftClick"/></item> -->
+            <!-- <item label="  >  "   tooltip=" Focus the next pane or the split grip "    ><script=TileFocusNext      on="LeftClick"/></item> -->
+            <!-- <item label="  <-  "  tooltip=" Focus the previous pane "                  ><script=TileFocusPrevPane  on="LeftClick"/></item> -->
+            <!-- <item label="  ->  "  tooltip=" Focus the next pane "                      ><script=TileFocusNextPane  on="LeftClick"/></item> -->
         </menu>
     </tile>
     <defapp>

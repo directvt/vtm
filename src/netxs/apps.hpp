@@ -658,7 +658,7 @@ namespace netxs::app::shared
                 ->shader(cell::shaders::xlight, e2::form::state::hover)
                 ->invoke([&](auto& boss)
                 {
-                    boss.LISTEN(tier::release, ui::tty::events::rawkbd, state)
+                    boss.LISTEN(tier::release, ui::terminal::events::rawkbd, state)
                     {
                         rawkbd = !rawkbd;
                         boss.set(rawkbd ? ansi::bgc(greendk).fgc(whitelt).add(" on █")
@@ -667,7 +667,7 @@ namespace netxs::app::shared
                     };
                     boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
                     {
-                        boss.base::signal(tier::release, ui::tty::events::rawkbd);
+                        boss.base::signal(tier::release, ui::terminal::events::rawkbd);
                         gear.dismiss_dblclick();
                     });
                 });
@@ -819,7 +819,7 @@ namespace netxs::app::shared
                     { "ExclusiveKeyboardMode",  [&]
                                                 {
                                                     auto& gear = luafx.get_gear();
-                                                    state_inst.base::signal(tier::release, ui::tty::events::rawkbd);
+                                                    state_inst.base::signal(tier::release, ui::terminal::events::rawkbd);
                                                     if (gear.keystat != input::key::repeated) update(items_inst, gear, true);
                                                     gear.set_handled();
                                                     luafx.set_return(); // No returns.

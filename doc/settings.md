@@ -547,7 +547,7 @@ Notes
         <color fgc=color/default bgc=color/default/>  <!-- Cursor cell color. By default, the cursor color (bgc) is set to either black or white depending on the lightness of the underlying text background. -->
     </cursor>
     <tooltips>  <!-- Not implemented for GUI mode. -->
-        <timeout=2000ms/>
+        <timeout=400ms/>
         <enabled=true/>
         <color fgc=pureblack bgc=purewhite/>
     </tooltips>
@@ -772,18 +772,18 @@ Notes
                         <menu item*>
                             <autohide=menu/autohide/>
                             <slim=menu/slim/>
-                            <item label="^" tooltip=" AlwaysOnTop off ">
+                            <item label="  " tooltip=" AlwaysOnTop off ">
                                 <script=AlwaysOnTopApplet on="LeftClick"/> <!-- The default event source is the parent object, i.e. source="item" (aka vtm.item). -->
                                 <script>  <!-- A binding to update the menu item label at runtime. -->
-                                    <on="release: e2::form::prop::zorder" source="terminal"/>
-                                    local is_topmost=vtm()                     -- Use event arguments to get the current state.
-                                    -- local is_topmost=vtm.terminal.ZOrder()  -- or ask the terminal instance iteslf for the current zorder state.
-                                    vtm.item.Label(is_topmost==1 and "\\x1b[38:2:0:255:0m^\\x1b[m" or "^")
+                                    <on="release: e2::form::prop::zorder" source="applet"/>
+                                    local is_topmost=vtm()                   -- Use event arguments to get the current state.
+                                    -- local is_topmost=vtm.applet.ZOrder()  -- or ask the object iteslf for the current state.
+                                    vtm.item.Label(is_topmost==1 and "\\x1b[38:2:0:255:0m▀ \\x1b[m" or "  ")
                                     vtm.item.Tooltip(is_topmost==1 and " AlwaysOnTop on " or " AlwaysOnTop off ")
                                     vtm.item.Deface()
                                 </script>
                             </item>
-                            <item label="<">
+                            <item label="  <  ">
                                 <script=TerminalFindPrev on="LeftClick"/>
                                 <tooltip>
                                     " Previous match                                  \n"
@@ -792,7 +792,7 @@ Notes
                                     "   Match clipboard data if no selection          "
                                 </tooltip>
                             </item>
-                            <item label=">">
+                            <item label="  >  ">
                                 <script=TerminalFindNext on="LeftClick"/>
                                 <tooltip>
                                     " Next match                                     \n"
@@ -801,44 +801,44 @@ Notes
                                     "   Match clipboard data if no selection         "
                                 </tooltip>
                             </item>
-                            <item label="Wrap">
+                            <item label="  Wrap  ">
                                 <tooltip>
                                     " Wrapping text lines on/off      \n"
                                     "   Applied to selection if it is "
                                 </tooltip>
                                 <script=TerminalWrapMode on="LeftClick"/>
                                 <script>
-                                    <on="release: ui::tty::events::layout::wrapln" source="terminal"/>
+                                    <on="release: terminal::events::layout::wrapln" source="terminal"/>
                                     local m=vtm()                           -- Use event arguments to get the current state.
                                     -- local m=vtm.terminal.LineWrapMode()  -- or ask the terminal instance iteslf for the current state.
-                                    vtm.item.Label(m==1 and "\e[38:2:0:255:0mWrap\e[m" or "Wrap")
+                                    vtm.item.Label(m==1 and "\e[38:2:0:255:0m  Wrap  \e[m" or "  Wrap  ")
                                     vtm.item.Deface()
                                 </script>
                             </item>
-                            <item label="Clipboard" tooltip=" Clipboard format ">  <!-- type=Option means that the тext label will be selected when clicked. -->
+                            <item label="  Clipboard  " tooltip=" Clipboard format ">  <!-- type=Option means that the тext label will be selected when clicked. -->
                                 <script=TerminalClipboardFormat on="LeftClick"/>
                                 <script>
-                                    <on="release: ui::tty::events::selmod" source="terminal"/>
+                                    <on="release: terminal::events::selmod" source="terminal"/>
                                     local m=vtm()                              -- Use event arguments to get the current state.
                                     -- local m=vtm.terminal.ClipboardFormat()  -- or ask the terminal instance iteslf for the current state.
-                                    vtm.item.Label(m==1 and "\e[38:2:0:255:0mPlaintext\e[m"     -- "textonly"
-                                                or m==2 and "\e[38:2:255:255:0mANSI-text\e[m"   -- "ansitext"
-                                                or m==3 and "\e[38:2:109:231:237m".."R"..
-                                                            "\e[38:2:109:237:186m".."T"..
-                                                            "\e[38:2:60:255:60m"  .."F"..
-                                                            "\e[38:2:189:255:53m" .."-"..
-                                                            "\e[38:2:255:255:49m" .."s"..
-                                                            "\e[38:2:255:189:79m" .."t"..
-                                                            "\e[38:2:255:114:94m" .."y"..
-                                                            "\e[38:2:255:60:157m" .."l"..
-                                                            "\e[38:2:255:49:214m" .."e".."\e[m" -- "richtext"
-                                                or m==4 and "\e[38:2:0:255:255mHTML-code\e[m"   -- "htmltext"
-                                                or m==5 and "\e[38:2:0:255:255mProtected\e[m"   -- "safetext" ala protected
-                                                or          "Clipboard")                          -- "disabled"
+                                    vtm.item.Label(m==1 and "\e[38:2:0:255:0m  Plaintext  \e[m  "     -- "textonly"
+                                                or m==2 and "\e[38:2:255:255:0m  ANSI-text  \e[m  "   -- "ansitext"
+                                                or m==3 and "\e[38:2:109:231:237m  ".."R"..
+                                                            "\e[38:2:109:237:186m"  .."T"..
+                                                            "\e[38:2:60:255:60m"    .."F"..
+                                                            "\e[38:2:189:255:53m"   .."-"..
+                                                            "\e[38:2:255:255:49m"   .."s"..
+                                                            "\e[38:2:255:189:79m"   .."t"..
+                                                            "\e[38:2:255:114:94m"   .."y"..
+                                                            "\e[38:2:255:60:157m"   .."l"..
+                                                            "\e[38:2:255:49:214m"   .."e".."  \e[m" -- "richtext"
+                                                or m==4 and "\e[38:2:0:255:255m  HTML-code  \e[m"   -- "htmltext"
+                                                or m==5 and "\e[38:2:0:255:255m  Protected  \e[m"   -- "safetext" ala protected
+                                                or          "  Clipboard  ")                        -- "disabled"
                                     vtm.item.Deface()
                                 </script>
                             </item>
-                            <item label="Reset" tooltip=" Clear scrollback and SGR-attributes ">
+                            <item label="  Reset  " tooltip=" Clear scrollback and SGR-attributes ">
                                 <script=TerminalReset on="LeftClick"/>
                             </item>
                         </menu>
@@ -929,18 +929,18 @@ Notes
         <menu item*>
             <autohide=menu/autohide/>
             <slim=menu/slim/>
-            <item label="^" tooltip=" AlwaysOnTop off ">
+            <item label="  " tooltip=" AlwaysOnTop off ">
                 <script=AlwaysOnTopApplet on="LeftClick"/> <!-- The default event source is the parent object, i.e. source="item" (aka vtm.item). -->
                 <script>  <!-- A binding to update the menu item label at runtime. -->
-                    <on="release: e2::form::prop::zorder" source="terminal"/>
-                    local is_topmost=vtm()                     -- Use event arguments to get the current state.
-                    -- local is_topmost=vtm.terminal.ZOrder()  -- or ask the terminal instance iteslf for the current zorder state.
-                    vtm.item.Label(is_topmost==1 and "\\x1b[38:2:0:255:0m^\\x1b[m" or "^")
+                    <on="release: e2::form::prop::zorder" source="applet"/>
+                    local is_topmost=vtm()                   -- Use event arguments to get the current state.
+                    -- local is_topmost=vtm.applet.ZOrder()  -- or ask the object iteslf for the current state.
+                    vtm.item.Label(is_topmost==1 and "\\x1b[38:2:0:255:0m▀ \\x1b[m" or "  ")
                     vtm.item.Tooltip(is_topmost==1 and " AlwaysOnTop on " or " AlwaysOnTop off ")
                     vtm.item.Deface()
                 </script>
             </item>
-            <item label="<">
+            <item label="  <  ">
                 <script=TerminalFindPrev on="LeftClick"/>
                 <tooltip>
                     " Previous match                                  \n"
@@ -949,7 +949,7 @@ Notes
                     "   Match clipboard data if no selection          "
                 </tooltip>
             </item>
-            <item label=">">
+            <item label="  >  ">
                 <script=TerminalFindNext on="LeftClick"/>
                 <tooltip>
                     " Next match                                     \n"
@@ -958,7 +958,7 @@ Notes
                     "   Match clipboard data if no selection         "
                 </tooltip>
             </item>
-            <item label=" Desktop ">
+            <item label="   Desktop   ">
                 <tooltip>
                     " Toggle exclusive keyboard mode              \n"
                     "   Exclusive keyboard mode allows keystrokes \n"
@@ -966,62 +966,62 @@ Notes
                 </tooltip>
                 <script=ExclusiveKeyboardMode on="LeftClick"/>
                 <script>
-                    <on="release: ui::tty::events::rawkbd" source="terminal"/>
+                    <on="release: terminal::events::rawkbd" source="terminal"/>
                     local m=vtm()                                    -- Use event arguments to get the current state.
                     -- local m=vtm.terminal.ExclusiveKeyboardMode()  -- or ask the terminal instance iteslf for the current state.
-                    vtm.item.Label(m==1 and "\e[48:2:0:128:128;38:2:0:255:0m Exclusive \e[m" or " Desktop ")
+                    vtm.item.Label(m==1 and "\e[48:2:0:128:128;38:2:0:255:0m  Exclusive  \e[m" or "   Desktop   ")
                     vtm.item.Tooltip(m==1 and " ExclusiveKeyboardMode on " or " ExclusiveKeyboardMode off ")
                     vtm.item.Deface()
                 </script>
             </item>
-            <item label="Wrap">
+            <item label="  Wrap  ">
                 <tooltip>
                     " Wrapping text lines on/off      \n"
                     "   Applied to selection if it is "
                 </tooltip>
                 <script=TerminalWrapMode on="LeftClick"/>
                 <script>
-                    <on="release: ui::tty::events::layout::wrapln" source="terminal"/>
+                    <on="release: terminal::events::layout::wrapln" source="terminal"/>
                     local m=vtm()                           -- Use event arguments to get the current state.
                     -- local m=vtm.terminal.LineWrapMode()  -- or ask the terminal instance iteslf for the current state.
-                    vtm.item.Label(m==1 and "\e[38:2:0:255:0mWrap\e[m" or "Wrap")
+                    vtm.item.Label(m==1 and "\e[38:2:0:255:0m  Wrap  \e[m" or "  Wrap  ")
                     vtm.item.Deface()
                 </script>
             </item>
-            <item label="Clipboard" tooltip=" Clipboard format ">  <!-- type=Option means that the тext label will be selected when clicked. -->
+            <item label="  Clipboard  " tooltip=" Clipboard format ">  <!-- type=Option means that the тext label will be selected when clicked. -->
                 <script=TerminalClipboardFormat on="LeftClick"/>
                 <script>
-                    <on="release: ui::tty::events::selmod" source="terminal"/>
+                    <on="release: terminal::events::selmod" source="terminal"/>
                     local m=vtm()                              -- Use event arguments to get the current state.
                     -- local m=vtm.terminal.ClipboardFormat()  -- or ask the terminal instance iteslf for the current state.
-                    vtm.item.Label(m==1 and "\e[38:2:0:255:0mPlaintext\e[m"     -- "textonly"
-                                or m==2 and "\e[38:2:255:255:0mANSI-text\e[m"   -- "ansitext"
-                                or m==3 and "\e[38:2:109:231:237m".."R"..
-                                            "\e[38:2:109:237:186m".."T"..
-                                            "\e[38:2:60:255:60m"  .."F"..
-                                            "\e[38:2:189:255:53m" .."-"..
-                                            "\e[38:2:255:255:49m" .."s"..
-                                            "\e[38:2:255:189:79m" .."t"..
-                                            "\e[38:2:255:114:94m" .."y"..
-                                            "\e[38:2:255:60:157m" .."l"..
-                                            "\e[38:2:255:49:214m" .."e".."\e[m" -- "richtext"
-                                or m==4 and "\e[38:2:0:255:255mHTML-code\e[m"   -- "htmltext"
-                                or m==5 and "\e[38:2:0:255:255mProtected\e[m"   -- "safetext" ala protected
-                                or          "Clipboard")                          -- "disabled"
+                    vtm.item.Label(m==1 and "\e[38:2:0:255:0m  Plaintext  \e[m  "     -- "textonly"
+                                or m==2 and "\e[38:2:255:255:0m  ANSI-text  \e[m  "   -- "ansitext"
+                                or m==3 and "\e[38:2:109:231:237m  ".."R"..
+                                            "\e[38:2:109:237:186m"  .."T"..
+                                            "\e[38:2:60:255:60m"    .."F"..
+                                            "\e[38:2:189:255:53m"   .."-"..
+                                            "\e[38:2:255:255:49m"   .."s"..
+                                            "\e[38:2:255:189:79m"   .."t"..
+                                            "\e[38:2:255:114:94m"   .."y"..
+                                            "\e[38:2:255:60:157m"   .."l"..
+                                            "\e[38:2:255:49:214m"   .."e".."  \e[m" -- "richtext"
+                                or m==4 and "\e[38:2:0:255:255m  HTML-code  \e[m"   -- "htmltext"
+                                or m==5 and "\e[38:2:0:255:255m  Protected  \e[m"   -- "safetext" ala protected
+                                or          "  Clipboard  ")                        -- "disabled"
                     vtm.item.Deface()
                 </script>
             </item>
-            <item label="Log" tooltip=" Console logging        \n Run Logs to see output ">
+            <item label="  Log  " tooltip=" Console logging        \n Use Logs to see output ">
                 <script=TerminalStdioLog on="LeftClick"/>
                 <script>
-                    <on="release: ui::tty::events::io_log" source="terminal"/>
+                    <on="release: terminal::events::io_log" source="terminal"/>
                     local m=vtm()                      -- Use event arguments to get the current state.
                     -- local m=vtm.terminal.LogMode()  -- or ask the terminal instance iteslf for the current state.
-                    vtm.item.Label(m==1 and "\e[38:2:0:255:0mLog\e[m" or "Log")
+                    vtm.item.Label(m==1 and "\e[38:2:0:255:0m  Log  \e[m" or "  Log  ")
                     vtm.item.Deface()
                 </script>
             </item>
-            <item label="Clear" tooltip=" Clear scrollback ">
+            <item label="  Clear  " tooltip=" Clear scrollback ">
                 <script=TerminalClearScrollback on="LeftClick"/>
             </item>
         </menu>
@@ -1040,24 +1040,36 @@ Notes
         <menu item*>
             <autohide=menu/autohide/>
             <slim=menu/slim/>
-            <item script=TileRunApplication label=" + ">
+            <item label="  " tooltip=" AlwaysOnTop off ">
+                <script=AlwaysOnTopApplet on="LeftClick"/> <!-- The default event source is the parent object, i.e. source="item" (aka vtm.item). -->
+                <script>  <!-- A binding to update the menu item label at runtime. -->
+                    <on="release: e2::form::prop::zorder" source="applet"/>
+                    local is_topmost=vtm()                   -- Use event arguments to get the current state.
+                    -- local is_topmost=vtm.applet.ZOrder()  -- or ask the object iteslf for the current state.
+                    vtm.item.Label(is_topmost==1 and "\\x1b[38:2:0:255:0m▀ \\x1b[m" or "  ")
+                    vtm.item.Tooltip(is_topmost==1 and " AlwaysOnTop on " or " AlwaysOnTop off ")
+                    vtm.item.Deface()
+                </script>
+            </item>
+            <item label="   +   ">
+                <script=TileRunApplication on="LeftClick"/>
                 <tooltip>
                     " Launch application instances in active empty slots.     \n"
                     " The app to run can be set by RightClick on the taskbar. "
                 </tooltip>
             </item>
-            <item script=TileSelectAllPanes     label=":::" tooltip=" Select all panes "/>
-            <item script=TileSplitHorizontally  label=" │ " tooltip=" Split active panes horizontally "/>
-            <item script=TileSplitVertically    label="──"  tooltip=" Split active panes vertically "/>
-            <item script=TileSplitOrientation   label="┌┘"  tooltip=" Change split orientation "/>
-            <item script=TileSwapPanes          label="<->" tooltip=" Swap two or more panes "/>
-            <item script=TileEqualizeSplitRatio label=">|<" tooltip=" Equalize split ratio "/>
-            <item script=TileSetManagerTitle    label='"…"' tooltip=" Set tiling window manager title using clipboard data "/>
-            <item script=TileClosePane          label="×"   tooltip=" Close active application "/>
-            <!-- <item script=TileFocusPrev      label="<"   tooltip=" Focus the previous pane or the split grip "/> -->
-            <!-- <item script=TileFocusNext      label=">"   tooltip=" Focus the next pane or the split grip "/> -->
-            <!-- <item script=TileFocusPrevPane  label="<-"  tooltip=" Focus the previous pane "/> -->
-            <!-- <item script=TileFocusNextPane  label="->"  tooltip=" Focus the next pane "/> -->
+            <item label="  :::  " tooltip=" Select all panes "                                    ><script=TileSelectAllPanes     on="LeftClick"/></item>
+            <item label="   │   " tooltip=" Split active panes horizontally "                     ><script=TileSplitHorizontally  on="LeftClick"/></item>
+            <item label="  ──  "  tooltip=" Split active panes vertically "                       ><script=TileSplitVertically    on="LeftClick"/></item>
+            <item label="  ┌┘  "  tooltip=" Change split orientation "                            ><script=TileSplitOrientation   on="LeftClick"/></item>
+            <item label="  <->  " tooltip=" Swap two or more panes "                              ><script=TileSwapPanes          on="LeftClick"/></item>
+            <item label="  >|<  " tooltip=" Equalize split ratio "                                ><script=TileEqualizeSplitRatio on="LeftClick"/></item>
+            <item label='  "…"  ' tooltip=" Set tiling window manager title using clipboard data "><script=TileSetManagerTitle    on="LeftClick"/></item>
+            <item label="  ×  "   tooltip=" Close active application "                            ><script=TileClosePane          on="LeftClick"/></item>
+            <!-- <item label="  <  "   tooltip=" Focus the previous pane or the split grip "><script=TileFocusPrev      on="LeftClick"/></item> -->
+            <!-- <item label="  >  "   tooltip=" Focus the next pane or the split grip "    ><script=TileFocusNext      on="LeftClick"/></item> -->
+            <!-- <item label="  <-  "  tooltip=" Focus the previous pane "                  ><script=TileFocusPrevPane  on="LeftClick"/></item> -->
+            <!-- <item label="  ->  "  tooltip=" Focus the next pane "                      ><script=TileFocusNextPane  on="LeftClick"/></item> -->
         </menu>
     </tile>
     <defapp>
@@ -1171,7 +1183,7 @@ Notes
         <defapp script*>  <!-- Default application bindings (e.g., Info-Page). -->
             <script="vtm.defapp.ShowClosingPreview(not vtm.gear.IsKeyRepeated())"                 on="preview:Esc" /> <!-- Pred window close action. -->
             <script="if (vtm.defapp.ShowClosingPreview()) then vtm.defapp.Close() end"            on="preview:-Esc"/> <!-- Close the window on Esc release. -->
-            <script="vtm.defapp.ShowClosingPreview(false)"                                        on="preview:Any" /> <!-- Preview for "Any" is always triggered after all other previews. Non-preview "Any" is triggered before all other keys. -->
+            <script="if (vtm.gear.IsKeyRepeated()) then vtm.defapp.ShowClosingPreview(false) end" on="preview:Any" /> <!-- Preview for "Any" is always triggered after all other previews. Non-preview "Any" is triggered before all other keys. -->
             <script="vtm.defapp.ScrollViewportByPage( 0, 1)"                                      on="PageUp"      />
             <script="vtm.defapp.ScrollViewportByPage( 0,-1)"                                      on="PageDown"    />
             <script="vtm.defapp.ScrollViewportByStep( 0, 3)"                                      on="UpArrow"     />
