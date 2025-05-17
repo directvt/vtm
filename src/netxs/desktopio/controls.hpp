@@ -2705,9 +2705,9 @@ namespace netxs::ui
 
         public:
             notes(base&&) = delete;
-            notes(base& boss, qiew data = {})
+            notes(base& boss, text data = {})
                 : skill{ boss },
-                  tooltip_sptr{ ptr::shared<input::tooltip_t>(data) }
+                  tooltip_sptr{ ptr::shared<input::tooltip_t>(std::move(data)) }
             {
                 boss.on(tier::mouserelease, input::key::MouseHover, memo, [&](hids& gear)
                 {
