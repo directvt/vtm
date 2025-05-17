@@ -1570,7 +1570,7 @@ namespace netxs::input
         }
         // Null gear.
         hids(auth& indexer)
-            : hids{ indexer, *this, board::image, faux }
+            : hids{ indexer, *this, indexer._null_idmap, faux }
         { }
         virtual ~hids()
         {

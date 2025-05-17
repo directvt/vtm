@@ -1193,7 +1193,7 @@ namespace netxs::xml
             }
             while (data.size());
         }
-        auto read_node(sptr& item, view& data, si32 deep = {})
+        auto read_node(sptr& item, view& data, si32 deep = {}) -> document::type
         {
             auto defs = utf::unordered_map<text, wptr>{};
             auto what = type::na;

@@ -292,6 +292,7 @@ namespace netxs::events
         std::vector<wptr<fxbase>>                 qcopy; // auth: Copy of the current pretenders to exec on current event.
         std::vector<bool>                         gear_indexing; // auth: Gear visual indexing.
         sptr<input::hids>                         _null_gear_sptr; // auth: Fallback gear sptr.
+        core                                      _null_idmap; // auth: Fallback gear idmap.
         std::reference_wrapper<input::hids>       active_gear_ref; // auth: Active gear.
         std::any                                  script_param; // auth: .
         utf::unordered_map<text, hint>            keybd_chords; // auth: Registered keyboard chords.
