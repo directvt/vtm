@@ -1269,6 +1269,9 @@ namespace netxs::input
         ui32 digest{};
         netxs::sptr<page> page_sptr; // Tooltip render cache for gate.
 
+        tooltip_t(qiew string = {})
+            : string{ string }
+        { }
         auto get() const
         {
             return qiew{ string };
