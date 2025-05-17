@@ -821,8 +821,8 @@ Notes
                                     <on="release: terminal::events::selmod" source="terminal"/>
                                     local m=vtm()                              -- Use event arguments to get the current state.
                                     -- local m=vtm.terminal.ClipboardFormat()  -- or ask the terminal instance iteslf for the current state.
-                                    vtm.item.Label(m==1 and "\e[38:2:0:255:0m  Plaintext  \e[m  "     -- "textonly"
-                                                or m==2 and "\e[38:2:255:255:0m  ANSI-text  \e[m  "   -- "ansitext"
+                                    vtm.item.Label(m==1 and "\e[38:2:0:255:0m  Plaintext  \e[m"     -- "textonly"
+                                                or m==2 and "\e[38:2:255:255:0m  ANSI-text  \e[m"   -- "ansitext"
                                                 or m==3 and "\e[38:2:109:231:237m  ".."R"..
                                                             "\e[38:2:109:237:186m"  .."T"..
                                                             "\e[38:2:60:255:60m"    .."F"..
@@ -994,8 +994,8 @@ Notes
                     <on="release: terminal::events::selmod" source="terminal"/>
                     local m=vtm()                              -- Use event arguments to get the current state.
                     -- local m=vtm.terminal.ClipboardFormat()  -- or ask the terminal instance iteslf for the current state.
-                    vtm.item.Label(m==1 and "\e[38:2:0:255:0m  Plaintext  \e[m  "     -- "textonly"
-                                or m==2 and "\e[38:2:255:255:0m  ANSI-text  \e[m  "   -- "ansitext"
+                    vtm.item.Label(m==1 and "\e[38:2:0:255:0m  Plaintext  \e[m"     -- "textonly"
+                                or m==2 and "\e[38:2:255:255:0m  ANSI-text  \e[m"   -- "ansitext"
                                 or m==3 and "\e[38:2:109:231:237m  ".."R"..
                                             "\e[38:2:109:237:186m"  .."T"..
                                             "\e[38:2:60:255:60m"    .."F"..

@@ -4902,7 +4902,6 @@ namespace netxs::os
                         {
                             auto changed = 0;
                             check(changed, m.ctlstat, kbmod);
-                            check(changed, m.buttons, (si32)(r.Event.MouseEvent.dwButtonState & 0b00011111));
                             check(changed, m.hzwheel, !!(r.Event.MouseEvent.dwEventFlags & MOUSE_HWHEELED));
                             auto wheeldt = (si16)((0xFFFF0000 & r.Event.MouseEvent.dwButtonState) >> 16); // dwButtonState too large when mouse scrolls. Use si16 to preserve dt sign.
                             if (wheeldt) // Same code in gui.hpp.
@@ -4920,10 +4919,23 @@ namespace netxs::os
                                 m.wheelsi = {};
                                 m.hzwheel = {};
                             }
+                            auto new_button_state = (si32)(r.Event.MouseEvent.dwButtonState & 0b00011111);
+                            auto new_coords_state = twod{ r.Event.MouseEvent.dwMousePosition.X, r.Event.MouseEvent.dwMousePosition.Y };
                             if (!((dtvt::vtmode & ui::console::nt16) && wheeldt)) // Skip the mouse coord update when wheeling on win7/8 (broken coords).
                             {
-                                check(changed, m.coordxy, twod{ r.Event.MouseEvent.dwMousePosition.X, r.Event.MouseEvent.dwMousePosition.Y });
+                                if (m.coordxy != new_coords_state)
+                                {
+                                    changed++;
+                                    m.coordxy = new_coords_state;
+                                    if (new_button_state && !m.buttons) // Update mouse cursor position before mouse pressed (to avoid unexpected drag). WT don't track mouse when it unfocused and they send new position with pressed button in a single event when clicking over unfocused WT.
+                                    {
+                                        m.changed++;
+                                        m.timecod = datetime::now();
+                                        mouse(m);
+                                    }
+                                }
                             }
+                            check(changed, m.buttons, new_button_state);
                             if (changed || wheeldt) // Don't fire the same state (conhost fires the same events every second).
                             {
                                 m.changed++;
