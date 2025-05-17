@@ -447,7 +447,8 @@ namespace netxs::events
           quartz{ *this },
           e2_timer_tick_id{ ui::e2::timer::tick.id },
           _null_gear_sptr{ auth::create<input::hids>(*this) },
-          active_gear_ref{ *_null_gear_sptr }
+          active_gear_ref{ *_null_gear_sptr },
+          anykey_event{ get_kbchord_hint(input::key::kmap::any_key) }
     {
         if (use_timer)
         {
@@ -2344,11 +2345,10 @@ namespace netxs::ui
                         timecod = gear.timecod;
                         if (gear.payload == input::keybd::type::keypress)
                         {
-                            gear.interrupt_key_proc = faux;
-                            if (!gear.handled) input::bindings::dispatch(boss, instance_id, boss.keybd_handlers, gear, faux, input::key::kmap::any_key);
-                            if (!gear.handled) input::bindings::dispatch(boss, instance_id, boss.keybd_handlers, gear, faux, gear.vkchord);
-                            if (!gear.handled) input::bindings::dispatch(boss, instance_id, boss.keybd_handlers, gear, faux, gear.chchord);
-                            if (!gear.handled) input::bindings::dispatch(boss, instance_id, boss.keybd_handlers, gear, faux, gear.scchord);
+                            if (!gear.handled) input::bindings::dispatch(boss, instance_id, gear, tier::keybdrelease, boss.indexer.anykey_event);
+                            if (!gear.handled) input::bindings::dispatch(boss, instance_id, gear, tier::keybdrelease, gear.vkevent);
+                            if (!gear.handled) input::bindings::dispatch(boss, instance_id, gear, tier::keybdrelease, gear.chevent);
+                            if (!gear.handled) input::bindings::dispatch(boss, instance_id, gear, tier::keybdrelease, gear.scevent);
                         }
                     }
                     else
@@ -2361,10 +2361,10 @@ namespace netxs::ui
                     gear.shared_event = gear.touched && gear.touched != instance_id;
                     if (gear.payload == input::keybd::type::keypress)
                     {
-                        if (!gear.touched && !gear.handled) input::bindings::dispatch(boss, instance_id, boss.keybd_handlers, gear, true, gear.vkchord);
-                        if (!gear.touched && !gear.handled) input::bindings::dispatch(boss, instance_id, boss.keybd_handlers, gear, true, gear.chchord);
-                        if (!gear.touched && !gear.handled) input::bindings::dispatch(boss, instance_id, boss.keybd_handlers, gear, true, gear.scchord);
-                        if (!gear.touched && !gear.handled) input::bindings::dispatch(boss, instance_id, boss.keybd_handlers, gear, true, input::key::kmap::any_key);
+                        if (!gear.touched && !gear.handled) input::bindings::dispatch(boss, instance_id, gear, tier::keybdpreview, gear.vkevent);
+                        if (!gear.touched && !gear.handled) input::bindings::dispatch(boss, instance_id, gear, tier::keybdpreview, gear.chevent);
+                        if (!gear.touched && !gear.handled) input::bindings::dispatch(boss, instance_id, gear, tier::keybdpreview, gear.scevent);
+                        if (!gear.touched && !gear.handled) input::bindings::dispatch(boss, instance_id, gear, tier::keybdpreview, boss.indexer.anykey_event);
                     }
                 };
             }

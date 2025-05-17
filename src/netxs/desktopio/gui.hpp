@@ -1799,6 +1799,9 @@ namespace netxs::gui
                 lock.unlock();
                 auto guard = owner.sync();
                 auto& gear = *gears;
+                gear.keybd::vkevent = owner.indexer.get_kbchord_hint(keybd.vkchord);
+                gear.keybd::scevent = owner.indexer.get_kbchord_hint(keybd.scchord);
+                gear.keybd::chevent = owner.indexer.get_kbchord_hint(keybd.chchord);
                 keybd.syncto(gear);
                 owner.base::signal(tier::release, input::events::keybd::post, gear);
             };

@@ -39,6 +39,8 @@ namespace netxs::events
         static constexpr auto general = __COUNTER__ - counter; // events: Run forwrad handlers for all objects.
         static constexpr auto mousepreview = __COUNTER__ - counter; // events: Run in subscription order for all objects.
         static constexpr auto mouserelease = __COUNTER__ - counter; // events: Run in subscription order for all objects.
+        static constexpr auto keybdpreview = __COUNTER__ - counter; // events: Run in subscription order for all objects.
+        static constexpr auto keybdrelease = __COUNTER__ - counter; // events: Run in subscription order for all objects.
         static constexpr auto unknown = __COUNTER__ - counter; // events: .
         static constexpr auto str = std::to_array({ "release"sv,
                                                     "preview"sv,
@@ -47,12 +49,16 @@ namespace netxs::events
                                                     "general"sv,
                                                     "mousepreview"sv,
                                                     "mouserelease"sv,
+                                                    "keybdpreview"sv,
+                                                    "keybdrelease"sv,
                                                     "unknown"sv, });
         static constexpr auto order = std::to_array({ feed::fwd,
                                                       feed::rev,
                                                       feed::fwd,
                                                       feed::rev,
                                                       feed::fwd,
+                                                      feed::none,
+                                                      feed::none,
                                                       feed::none,
                                                       feed::none, });
     };
@@ -288,7 +294,20 @@ namespace netxs::events
         sptr<input::hids>                         _null_gear_sptr; // auth: Fallback gear sptr.
         std::reference_wrapper<input::hids>       active_gear_ref; // auth: Active gear.
         std::any                                  script_param; // auth: .
+        utf::unordered_map<text, hint>            keybd_chords; // auth: Registered keyboard chords.
+        hint                                      chord_index{}; // auth: Next available keybd chord index.
+        hint                                      anykey_event{};
 
+        auto get_kbchord_hint(qiew chord)
+        {
+            auto iter = keybd_chords.find(chord);
+            if (iter == keybd_chords.end())
+            {
+                iter = keybd_chords.try_emplace(chord, chord_index++).first;
+            }
+            auto chord_hint = iter->second;
+            return chord_hint;
+        }
         auto take_gear_available_index()
         {
             auto iter = std::find(gear_indexing.begin(), gear_indexing.end(), faux);
@@ -322,7 +341,7 @@ namespace netxs::events
         }
         auto tier_mask(si32 Tier)
         {
-            return (hint)Tier << (8 * sizeof(hint) - 3); // Use the last three bits for tier.
+            return (hint)Tier << (8 * sizeof(hint) - 4); // Use the last four bits for tier.
         }
         void _subscribe_copy(si32 Tier, fmap& reactor, hint event, hook& proc_ptr)
         {
@@ -406,9 +425,9 @@ namespace netxs::events
                         fx_ptr->call(luafx, param);
                     }
                 }
-                while (queue.back().second/*state*/ != callstate::fullstop && ++iter != tail);
+                while (queue.back().second/*callstate*/ != callstate::fullstop && ++iter != tail);
                 qcopy.resize(head);
-                handled = queue.back().second/*state*/ != callstate::not_handled;
+                handled = queue.back().second/*callstate*/ != callstate::not_handled;
                 queue.pop_back();
             }
             else
@@ -765,6 +784,13 @@ namespace netxs::events
             {
                 indexer._subscribe_copy(Tier, reactor, event_id, sensors.back());
             }
+        }
+        auto has_handlers(si32 tier_id, hint event_id)
+        {
+            auto event_key = event_id | indexer.tier_mask(tier_id);
+            auto& r = tier_id == tier::general ? indexer.general : reactor;
+            auto iter = r.find(event_key);
+            return iter != r.end() ? iter->second.size() : 0;
         }
         // bell: Erase all script handlers for the specified event.
         void erase_script_handlers(si32 tier_id, hint event_id)

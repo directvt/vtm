@@ -779,19 +779,19 @@ namespace netxs::input
             {
                 if (sources.empty())
                 {
-                    log("Set handler for script: ", ansi::hi(*(script_ptr->script_body_ptr)));
+                    //log("Set handler for script: ", ansi::hi(*(script_ptr->script_body_ptr)));
                     boss.bell::submit_generic(tier_id, event_id, script_ptr);
                 }
                 else //todo revise: too hacky
                 {
-                    log("Deferred setting handler on '%target%' for script: ", sources.front(), ansi::hi(*(script_ptr->script_body_ptr)));
+                    //log("Deferred setting handler on '%target%' for script: ", sources.front(), ansi::hi(*(script_ptr->script_body_ptr)));
                     auto& indexer = boss.indexer;
                     indexer._null_gear_sptr->ui::base::enqueue([&, id = boss.id, tier_id, event_id, sources, script_ptr](auto& /*gear_0*/) // Subscribe on sources (with boss.sensors).
                     {
                         auto boss_ptr = indexer.getref(id);
                         for (auto& src_name : sources)
                         {
-                            log("Set handler on '%target%' for script: ", src_name, ansi::hi(*(script_ptr->script_body_ptr)));
+                            //log("Set handler on '%target%' for script: ", src_name, ansi::hi(*(script_ptr->script_body_ptr)));
                             if (auto target_ptr = indexer.get_target(boss_ptr->scripting_context, src_name))
                             {
                                 target_ptr->bell::submit_generic(tier_id, event_id, boss_ptr->sensors, script_ptr);
@@ -838,17 +838,9 @@ namespace netxs::input
                     }
                     else // Keybd events.
                     {
-                        //todo unify like mouse and generic events (set_handler())
-                        if (!reset_handler)
-                        {
-                            auto& [script_ptr_list, preview] = boss.keybd_handlers[binary_chord];
-                            script_ptr_list.emplace_back(script_ptr);
-                            preview = is_preview;
-                        }
-                        else // Reset all bindings for chord.
-                        {
-                            boss.keybd_handlers.erase(binary_chord);
-                        }
+                        auto event_id = boss.indexer.get_kbchord_hint(binary_chord);
+                        auto tier_id = is_preview ? tier::keybdpreview : tier::keybdrelease;
+                        set_handler(reset_handler, boss, tier_id, event_id, sources, script_ptr);
                     }
                 }
             }
@@ -860,29 +852,13 @@ namespace netxs::input
                 keybind(boss, r.chord, r.script_ptr, r.sources);
             }
         }
-        void dispatch(auto& boss, auto& instance_id, auto& handlers, auto& gear, bool preview_mode, qiew chord)
+        void dispatch(auto& boss, auto& instance_id, auto& gear, si32 tier_id, hint event_id)
         {
-            auto iter = handlers.find(chord);
-            if (iter != handlers.end())
+            boss.base::signal(tier_id, event_id, gear);
+            if (tier_id == tier::keybdpreview && !boss.bell::accomplished()// && !gear.handled
+                && boss.bell::has_handlers(tier::keybdrelease, event_id))
             {
-                auto& [scripts, run_preview] = iter->second;
-                if (!preview_mode || run_preview)
-                {
-                    for (auto& script_ref_ptr : scripts)
-                    {
-                        if (!gear.interrupt_key_proc)
-                        {
-                            if (auto script_ptr = script_ref_ptr->script_body_ptr)
-                            {
-                                boss.indexer.luafx.run_script(boss, *script_ptr);
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    gear.touched = instance_id;
-                }
+                gear.touched = instance_id;
             }
         }
         auto load(xmls& config, auto& script_list)
@@ -1271,6 +1247,10 @@ namespace netxs::input
         text scchord{};
         text chchord{};
         byte payload{}; // keybd: Payload type.
+
+        hint vkevent{}; // In-process keybd virtcod chord identifier.
+        hint scevent{}; // In-process keybd scancod chord identifier.
+        hint chevent{}; // In-process keybd cluster chord identifier.
 
         auto doinput()
         {
@@ -1724,10 +1704,6 @@ namespace netxs::input
         bool slot_forced = faux; // slot is preferred over cfg.winsize.
 
         //todo unify
-        bool interrupt_key_proc{}; // hids: .
-        netxs::sptr<text> script_ptr; // hids: A script body passed by pro::keybd/ui::menu.
-
-        //todo unify
         bool mouse_disabled = true; // Hide mouse cursor.
         bool keybd_disabled = true; // Inactive gear.
         si32 countdown = 0;
@@ -1891,6 +1867,9 @@ namespace netxs::input
                 {
                     tooltip.hide();
                 }
+                keybd::vkevent = indexer.get_kbchord_hint(k.vkchord);
+                keybd::scevent = indexer.get_kbchord_hint(k.scchord);
+                keybd::chevent = indexer.get_kbchord_hint(k.chchord);
                 keybd::update(k);
             }
         }

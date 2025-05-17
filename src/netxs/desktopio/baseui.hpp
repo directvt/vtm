@@ -655,9 +655,6 @@ namespace netxs::ui
         utf::unordered_map<text, base_class> base_classes; // base: Base classes map by classname.
         netxs::events::context_t             scripting_context; // base: List of ids of all ancestors.
 
-        //todo make scripts precompiled
-        utf::unordered_map<text, std::pair<std::list<netxs::sptr<script_ref>>, bool>> keybd_handlers; // base: Map<chord, pair<list<sptr<script>>, preview>>.
-
         struct mfocus_node
         {
             wptr gear_wptr;

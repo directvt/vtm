@@ -8799,6 +8799,9 @@ namespace netxs::ui
                     {
                         auto& gear = *gear_ptr;
                         gear.set_multihome();
+                        gear.keybd::vkevent = owner.indexer.get_kbchord_hint(k.vkchord);
+                        gear.keybd::scevent = owner.indexer.get_kbchord_hint(k.scchord);
+                        gear.keybd::chevent = owner.indexer.get_kbchord_hint(k.chchord);
                         k.syncto(gear);
                         owner.base::riseup(tier::release, input::events::keybd::post, gear, true);
                     }

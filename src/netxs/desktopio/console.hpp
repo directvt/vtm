@@ -509,7 +509,7 @@ namespace netxs::ui
                                         {
                                             auto dismiss = luafx.get_args_or(1, faux);
                                             gear.set_handled(dismiss);
-                                            gear.interrupt_key_proc = true;
+                                            gear.indexer.expire();
                                             luafx.set_return();
                                         }},
                     { "RepeatWhilePressed", [&]
