@@ -1696,6 +1696,7 @@ namespace netxs::ansi
         //text debug{};
 
     public:
+        virtual ~parser() = default;
         parser() = default;
         parser(deco style, mark brush = {})
             : style{ style },
