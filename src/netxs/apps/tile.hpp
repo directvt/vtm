@@ -100,7 +100,7 @@ namespace netxs::app::tile
         items(base&&) = delete;
         items(base& boss)
             : skill{ boss },
-              client{ boss.attach(ui::list::ctor(axis::Y, sort::reverse)) },
+              client{ boss.attach(ui::list::ctor(axis::Y)) },// sort::reverse)) },
               window_state{ winstate::undefined }
         {
             boss.LISTEN(tier::release, e2::area, new_area, memo)

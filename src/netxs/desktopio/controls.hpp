@@ -3443,7 +3443,7 @@ namespace netxs::ui
         : public form<list>
     {
         bool updown; // list: List orientation, true: vertical(default), faux: horizontal.
-        sort lineup; // list: Attachment order.
+        //sort lineup; // list: Attachment order.
 
     protected:
         // list: .
@@ -3504,9 +3504,9 @@ namespace netxs::ui
 
     public:
         static constexpr auto classname = basename::list;
-        list(axis orientation = axis::Y, sort attach_order = sort::forward)
-            : updown{ orientation == axis::Y },
-              lineup{ attach_order }
+        list(axis orientation = axis::Y)//, sort attach_order = sort::forward)
+            : updown{ orientation == axis::Y }
+              //lineup{ attach_order }
         {
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
