@@ -419,6 +419,10 @@ R"==(
         <menu item*>
             <autohide=menu/autohide/>
             <slim=menu/slim/>
+            <!-- //todo implement "linked nodes" (ala operator '|' ):
+                <LeftClick  on="LeftClick"/>
+                <AlwaysOnTopApplet="vtm.applet.ZOrder(vtm.applet.ZOrder()==1 and 0 or 1);"/>
+                <item label=" script="vtm.gear.SetHandled();"|AlwaysOnTopApplet|LeftClick  tooltip=" AlwaysOnTop "/>  -->
             <item label="  " tooltip=" AlwaysOnTop off ">
                 <script=AlwaysOnTopApplet on="LeftClick"/> <!-- The default event source is the parent object, i.e. source="item" (aka vtm.item). -->
                 <script>  <!-- A binding to update the menu item label at runtime. -->

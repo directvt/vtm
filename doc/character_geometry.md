@@ -54,7 +54,16 @@ Users can explicitly specify the size of the character matrix (by zeroing `_xy`)
     ```bash
     printf "👩‍👩‍👧‍👧\UD0279\n👩‍👩‍👧‍👧\UD0312\n"
     ```
-- Example 3. Output the longest word in the Hindi language 16x1 (G1_00):
+- Example 3. Output a solid 9x3 character:
+  - `pwsh`
+    ```pwsh
+    "👩‍👩‍👧‍👧`u{D03C3}"
+    ```
+  - `wsl/bash`
+    ```bash
+    printf "👩‍👩‍👧‍👧\UD03C3"
+    ```
+- Example 4. Output the longest word in the Hindi language 16x1 (G1_00):
   - `pwsh`
     ```pwsh
     "`u{2}विश्वविज्ञानकोशनिर्माणसमिति`u{D0121}"
