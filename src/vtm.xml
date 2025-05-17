@@ -430,20 +430,6 @@ R"==(
                     vtm.item.Deface()
                 </script>
             </item>
-            <item id="test_button" label=" Repeatable button " tooltip=" test ">
-                <script on="MouseDown" on="Enter" on="Space">  <!-- Script to colorize the pressed label (by any mouse button) and printing 'Test' while it is pressed. -->
-                    if (not vtm.gear.IsKeyRepeated()) then    -- First run - colorize label and activate the mouse button to repeat.
-                        vtm.test_button.Label("\e[44m Repeatable button \e[m")
-                        vtm.test_button.Deface()
-                        vtm.gear.RepeatWhilePressed(vtm.test_button)    -- Capture (by vtm.test_button) the mouse and trigger the mouse button event to repeat while pressed.
-                    end
-                    vtm.terminal.Print('Test\\n')
-                </script>
-                <script on="MouseUp" on="-Enter" on="-Space">  <!-- Script to restore default label state. -->
-                    vtm.test_button.Label(" Repeatable button ")    -- Restore default colors.
-                    vtm.test_button.Deface()
-                </script>
-            </item>
             <item label="  <  ">
                 <script=TerminalFindPrev on="LeftClick"/>
                 <tooltip>
@@ -722,7 +708,7 @@ R"==(
         <defapp script*>  <!-- Default application bindings (e.g., Info-Page). -->
             <script="vtm.defapp.ShowClosingPreview(not vtm.gear.IsKeyRepeated())"                 on="preview:Esc" /> <!-- Pred window close action. -->
             <script="if (vtm.defapp.ShowClosingPreview()) then vtm.defapp.Close() end"            on="preview:-Esc"/> <!-- Close the window on Esc release. -->
-            <script="vtm.defapp.ShowClosingPreview(false)"                                        on="preview:Any" /> <!-- Preview for "Any" is always triggered after all other previews. Non-preview "Any" is triggered before all other keys. -->
+            <script="if (vtm.gear.IsKeyRepeated()) then vtm.defapp.ShowClosingPreview(false) end" on="preview:Any" /> <!-- Preview for "Any" is always triggered after all other previews. Non-preview "Any" is triggered before all other keys. -->
             <script="vtm.defapp.ScrollViewportByPage( 0, 1)"                                      on="PageUp"      />
             <script="vtm.defapp.ScrollViewportByPage( 0,-1)"                                      on="PageDown"    />
             <script="vtm.defapp.ScrollViewportByStep( 0, 3)"                                      on="UpArrow"     />

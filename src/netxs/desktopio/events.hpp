@@ -303,7 +303,7 @@ namespace netxs::events
             auto iter = keybd_chords.find(chord);
             if (iter == keybd_chords.end())
             {
-                iter = keybd_chords.try_emplace(chord, chord_index++).first;
+                iter = keybd_chords.try_emplace(chord, ++chord_index).first;
             }
             auto chord_hint = iter->second;
             return chord_hint;
