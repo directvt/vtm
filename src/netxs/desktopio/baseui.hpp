@@ -649,8 +649,8 @@ namespace netxs::ui
 
         struct base_class
         {
-            netxs::sptr<vtm_class>                                class_metadata; // base: Base class metadata.
-            std::list<std::reference_wrapper<ui::base>>::iterator class_iterator; // base: class_metadata.objects std::list iterator.
+            netxs::sptr<vtm_class>                   class_metadata; // base: Base class metadata.
+            netxs::events::vtm_class::list::iterator class_iterator; // base: class_metadata.objects std::list iterator.
         };
         utf::unordered_map<text, base_class> base_classes; // base: Base classes map by classname.
         netxs::events::context_t             scripting_context; // base: List of ids of all ancestors.
@@ -686,31 +686,27 @@ namespace netxs::ui
                 base::scripting_context = parent_ptr->scripting_context;
             }
             base::scripting_context.emplace_back(this);
-            // Sort all base::base_classes.* references.
-            for (auto& [classname, base_class_metadata] : base_classes)
-            {
-                if (base_class_metadata.class_metadata)
-                {
-                    auto& objects = base_class_metadata.class_metadata->objects;
-                    auto objects_iterator = base_class_metadata.class_iterator;
-                    auto head = objects.begin();
-                    auto tail = objects.end();
-                    auto next = std::next(objects_iterator);
-                    if (next != tail)
-                    {
-                        // Find valid next.
-
-                    }
-                    if (objects_iterator != head)
-                    {
-                        // Find valid prev.
-                        auto prev = std::prev(objects_iterator);
-
-
-                    }
-
-                }
-            }
+            //todo Sort all base::base_classes.* references.
+            //for (auto& [classname, base_class_metadata] : base_classes)
+            //{
+            //    if (base_class_metadata.class_metadata)
+            //    {
+            //        auto& objects = base_class_metadata.class_metadata->objects;
+            //        auto objects_iterator = base_class_metadata.class_iterator;
+            //        auto head = objects.begin();
+            //        auto tail = objects.end();
+            //        auto next = std::next(objects_iterator);
+            //        if (next != tail)
+            //        {
+            //            // Find valid next.
+            //        }
+            //        if (objects_iterator != head)
+            //        {
+            //            // Find valid prev.
+            //            auto prev = std::prev(objects_iterator);
+            //        }
+            //    }
+            //}
         }
         // base: Enqueue task.
         template<bool Sync = true>

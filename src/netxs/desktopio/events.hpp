@@ -251,8 +251,10 @@ namespace netxs::events
     // Class methods and registered instances.
     struct vtm_class
     {
-        std::list<std::reference_wrapper<ui::base>> objects;
-        fxmap                                       methods; // Static class methods.
+        //using deque = std::deque<std::reference_wrapper<ui::base>>;
+        using list = std::list<std::reference_wrapper<ui::base>>;
+        list  objects; // List of references to class objects.
+        fxmap methods; // Static class methods.
     };
     using clasess_umap = utf::unordered_map<text, sptr<vtm_class>>;
 
