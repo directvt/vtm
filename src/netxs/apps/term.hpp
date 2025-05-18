@@ -191,26 +191,26 @@ namespace netxs::app::terminal
             ->invoke([&](auto& boss)
             {
                 auto& cwd_commands = boss.base::property("terminal.cwd_commands", config.take(attr::cwdsync, ""s));
-                auto& cwd_sync = boss.base::property("terminal.cwd_sync", faux);
+                auto& cwd_sync = boss.base::property("terminal.cwd_sync", 0);
                 auto& cwd_path = boss.base::property("terminal.cwd_path", os::fs::path{});
-                //boss.LISTEN(tier::preview, terminal::events::toggle::cwdsync, state)
-                //{
-                //    boss.base::signal(tier::anycast, terminal::events::preview::cwdsync, state);
-                //};
-                //boss.LISTEN(tier::anycast, terminal::events::preview::cwdsync, state)
-                //{
-                //    if (cwd_sync != state)
-                //    {
-                //        cwd_sync = state;
-                //        boss.base::signal(tier::anycast, terminal::events::release::cwdsync, state);
-                //        if (cwd_sync)
-                //        {
-                //            auto cmd = cwd_commands;
-                //            utf::replace_all(cmd, "$P", ".");
-                //            boss.data_out(cmd); // Trigger command prompt reprint.
-                //        }
-                //    }
-                //};
+                boss.LISTEN(tier::preview, ui::terminal::events::toggle::cwdsync, state)
+                {
+                    boss.base::signal(tier::anycast, ui::terminal::events::preview::cwdsync, state);
+                };
+                boss.LISTEN(tier::anycast, ui::terminal::events::preview::cwdsync, state)
+                {
+                    if (cwd_sync != state)
+                    {
+                        cwd_sync = state;
+                        boss.base::signal(tier::anycast, ui::terminal::events::release::cwdsync, state);
+                        if (cwd_sync)
+                        {
+                            auto cmd = cwd_commands;
+                            utf::replace_all(cmd, "$P", ".");
+                            boss.data_out(cmd); // Trigger command prompt reprint.
+                        }
+                    }
+                };
                 boss.LISTEN(tier::preview, e2::form::prop::cwd, path)
                 {
                     if (cwd_sync)

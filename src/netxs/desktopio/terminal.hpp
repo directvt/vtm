@@ -11,19 +11,29 @@ namespace netxs::events::userland
     {
         EVENTPACK( terminal::events, ui::e2::extra::slot5 )
         {
-            EVENT_XS( io_log, si32 ),
-            EVENT_XS( selmod, si32 ),
-            EVENT_XS( onesht, si32 ),
-            EVENT_XS( selalt, si32 ),
-            EVENT_XS( rawkbd, si32 ),
-            GROUP_XS( toggle, bool ),
-            GROUP_XS( colors, argb ),
-            GROUP_XS( layout, si32 ),
-            GROUP_XS( search, input::hids ),
+            EVENT_XS( io_log,  si32 ),
+            EVENT_XS( selmod,  si32 ),
+            EVENT_XS( onesht,  si32 ),
+            EVENT_XS( selalt,  si32 ),
+            EVENT_XS( rawkbd,  si32 ),
+            GROUP_XS( toggle,  si32 ),
+            GROUP_XS( preview, si32 ),
+            GROUP_XS( release, si32 ),
+            GROUP_XS( colors,  argb ),
+            GROUP_XS( layout,  si32 ),
+            GROUP_XS( search,  input::hids ),
 
             SUBSET_XS( toggle )
             {
-                EVENT_XS( cwdsync, bool ), // preview: Request to toggle cwdsync.
+                EVENT_XS( cwdsync, si32 ), // preview: Request to toggle cwdsync.
+            };
+            SUBSET_XS( preview )
+            {
+                EVENT_XS( cwdsync, si32 ),
+            };
+            SUBSET_XS( release )
+            {
+                EVENT_XS( cwdsync, si32 ),
             };
             SUBSET_XS( layout )
             {
@@ -8437,7 +8447,7 @@ namespace netxs::ui
                                                     }},
                 { methods::CwdSync,                 [&]
                                                     {
-                                                        auto& cwd_sync = base::property("terminal.cwd_sync", faux);
+                                                        auto& cwd_sync = base::property("terminal.cwd_sync", 0);
                                                         luafx.run_with_gear_wo_return([&](auto& gear){ gear.set_handled(); });
                                                         auto args_count = luafx.args_count();
                                                         if (!args_count)

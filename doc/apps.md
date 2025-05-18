@@ -145,10 +145,15 @@ Hotkey                       | Description
             <item label="  Maximize  ">     <script=MaximizeApplet                     on="LeftClick"/></item>
             <item label="  Minimize  ">     <script=MinimizeApplet                     on="LeftClick"/></item>
 
-            <item label="  Sync  ">
+            <item label="  CwdSync  ">
                 <script=TerminalCwdSync on="LeftClick"/>
-                <label="Sync"                     data="off" tooltip=" CWD sync is off "/>
-                <label="\e[38:2:0:255:0mSync\e[m" data="on"  tooltip=" CWD sync is on                          \n Make sure your shell has OSC9;9 enabled "/>
+                <script>  <!-- A binding to update the menu item label at runtime. -->
+                    <on="preview: terminal::events::toggle::cwdsync" source="terminal"/>
+                    local state=vtm()                   -- Use event arguments to get the current state.
+                    vtm.item.Label(state==1 and "\\x1b[38:2:0:255:0m  CwdSync  \\x1b[m" or "  CwdSync  ")
+                    vtm.item.Tooltip(state==1 and " CWD sync is on                          \\n Make sure your shell has OSC9;9 enabled " or " CWD sync is off ")
+                    vtm.item.Deface()
+                </script>
             </item>
 
             <item label="  Hello, World! " tooltip=" Simulate keypresses ">
@@ -156,37 +161,14 @@ Hotkey                       | Description
             </item>
             <item label="  Push Me  " tooltip=" test ">
                 <script="vtm.terminal.Print('\\x1b[37mPush Me\\x1b[m')" on="LeftClick"/>
-                <label="Push Me" data="pressed"/>
-                <label="\e[37mPush Me\e[m"/>
             </item>
 
-            <item label=" HTML ">
-                <script=TerminalSelectionOneShot on="LeftClick"/>
-                <tooltip>
-                    " One-shot toggle to copy as HTML \n"
-                    " while mouse tracking is active. "
-                </tooltip>
-                <label=" HTML "                                      data="none"/>
-                <label="\e[48:2:0:128:128;38:2:0:255:255m HTML \e[m" data="html"/>
-            </item>
-            <item label=" Text ">
-                <script=TerminalSelectionOneShot on="LeftClick"/>
-                <tooltip>
-                    " One-shot toggle to copy as Text \n"
-                    " while mouse tracking is active. "
-                </tooltip>
-                <label=" Text "                                  data="none"/>
-                <label="\e[48:2:0:128:0;38:2:0:255:0m Text \e[m" data="text"/>
-            </item>
             <item label="  One-Shot  ">
                 <script=TerminalSelectionOneShot on="LeftClick"/>
                 <tooltip>
-                    " One-shot toggle to copy as Text/HTML \n"
-                    " while mouse tracking is active.      "
+                    " One-shot toggle to select and copy text \n"
+                    " while mouse tracking is active.         "
                 </tooltip>
-                <label="One-Shot"                                      data="none"/>
-                <label="\e[48:2:0:128:0;38:2:0:255:0m  Text  \e[m"     data="text"/>
-                <label="\e[48:2:0:128:128;38:2:0:255:255m  HTML  \e[m" data="html"/>
             </item>
         </menu>
     </terminal>
