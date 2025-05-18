@@ -251,6 +251,7 @@ Value type | Format
 `boolean`  | `true` \| `false` \| `yes` \| `no` \| `1` \| `0` \| `on` \| `off` \| `undef`
 `string`   | _UTF-8 text string_
 `2D point` | _integer_ <any_delimeter> _integer_
+`Duration` | _integer_ followed by<br>- `...ms`  for milliseconds<br>- `...us`  for microseconds<br>- `...ns`  for  nanoseconds<br>- `...s`   for      seconds<br>- `...min` for      minutes<br>- `...h`   for        hours<br>- `...d`   for         days<br>- `...w`   for        weeks<br>
 
 #### Taskbar menu item configuration `<config/desktop/taskbar/item ... />`
 
@@ -295,38 +296,47 @@ The following item declarations are identical:
 <item ... type=dtvt cmd='vtm -r vtty mc'/>
 ```
 
-### Key bindings
+### Event scripting
 
-> 2025 Feb 28: This section is under development.
-
-#### Syntax
+#### General syntax
 
 The syntax for defining event bindings is:
 
 ```xml
 <dom_element1>
-    <script="script body" on="EventId1" ... on="preview:EventId2" ...>
-        <on="EventId"/>
-        <on="EventId" source="OptionalEventSourceObjectID"/>
+    <script="script body" on="EventID1" ... on="preview:EventId2" ...>
+        <on="EventID"/>
+        <on="EventID" source="OptionalEventSourceObjectID"/>
         ...
         raw text script body
         ...
     </script>
 </dom_element1>
-<dom_element2 id="AdditionalIDforDom_element2"> <!--  `id=""` is an additional ID for the visual tree object. -->
-    <script="script body" on="EventId"/>
+<dom_element2 id="AdditionalIDfor_dom_element2">
+    <script="script body" on="EventID"/>
 </dom_element2>
 ```
 
-Tag      | Value
----------|--------
-`script` | A Lua script.
-`on`     | A text string containing the Event id: key combinations, mouse or generic event id.
-`source` | A text string containing the ID of the visual tree object that is the source of events for the binding.
+Tag                 | Belongs to           | Value           | Description
+--------------------|----------------------|-----------------|---------------
+`<dom_element_tag>` |                      | ObjectID        | Visual tree object id.
+`id`                | `<dom_element_tag>`  | UTF-8 string    | Additional id for the visual tree object.
+`script`            | `<dom_element_tag>`  | UTF-8 string    | A Lua script that will be executed when the events specified by the `on` tags occur.
+`on`                | `script`             | EventID         | Specific event id text string.
+`source`            | `on`                 | ObjectID        | Visual tree object id.
 
 The `preview:` prefix of the EventID is ​​an indication that event processing should be performed in reverse order - from the container to the nested objects. By default, the visual tree traversal order is from the nested objects to the container.
 
+Note: Using an empty string in the `script=""` tag with a non-empty event value specified in the `on=EventID` tag resets all subscriptions for that EventID.
+
 #### Keyboard events
+
+Synax:
+```
+<... on="KeyboardSpecificEvent" ...>
+  or
+<... on="preview:KeyboardSpecificEvent" ...>
+```
 
 The following keyboard-specific event delimiters/joiners are available to form a key-chord:
 
@@ -351,7 +361,14 @@ The required key combination sequence can be generated on the Info page, accessi
 
 #### Mouse events
 
-The following formats are available:
+Synax:
+```
+<... on="MouseSpecificEvent" ...>
+  or
+<... on="preview:MouseSpecificEvent" ...>
+```
+
+The following formats are available for mouse-specific events:
 
 - Named  
   `<Mouse | Left | Right | LeftRight | Middle><Down | Up | [Double | Multi]Click | <Double | Multi>Press | Drag<Start | Pull | Stop | Cancel>>`
@@ -386,9 +403,9 @@ The following formats are available:
 
   Note: In binary `<bbb...>` format the trailing zeros can be omitted.
 
-Available mouse actions:
+The following mouse events are tracked:
 
-Action/EventID                      | Description
+EventID                             | Description
 ------------------------------------|----------------------------------
 MouseDown<bbb...>                   | Button<bbb...> push down / pressed.
 MouseUp<bbb...>                     | Button<bbb...> release.
@@ -413,30 +430,135 @@ Matching between Named and Generic formats:
 Named format        | Generic format       | Internal representation | Notes
 --------------------|----------------------|-------------------------|------------
 MouseAny            |                      | `0x00'00`               | Any mouse event
-MouseDown           | MouseDown0           | `0x01'00`
-MouseUp             | MouseUp0             | `0x02'00`
+MouseDown           | MouseDown0           | `0x01'00`               | Any mouse button down.
+MouseUp             | MouseUp0             | `0x02'00`               | Any mouse button up.
 LeftClick           | MouseClick1          | `0x03'01`               | Left click
 LeftRightClick      | MouseClick11         | `0x03'03`               | Left + Right click.
 MouseClick          | MouseClick0          | `0x03'00`               | Any click
-MouseDoubleClick    | MouseDoubleClick0    | `0x04'00`
-MouseDoublePress    | MouseDoublePress0    | `0x05'00`
-MouseMultiClick     | MouseMultiClick0     | `0x06'00`
-MouseMultiPress     | MouseMultiPress0     | `0x07'00`
-MouseDragStart      | MouseDragStart0      | `0x08'00`
-MouseDragPull       | MouseDragPull0       | `0x09'00`
-MouseDragStop       | MouseDragStop0       | `0x0A'00`
-MouseDragCancel     | MouseDragCancel0     | `0x0B'00`
-MouseHover          |                      | `0x0C'00`
-MouseEnter          |                      | `0x0D'00`
-MouseLeave          |                      | `0x0E'00`
-MouseMove           |                      | `0x0F'00`
-MouseWheel          |                      | `0x10'00`
+MouseDoubleClick    | MouseDoubleClick0    | `0x04'00`               | The mouse button is pressed and released twice.
+MouseDoublePress    | MouseDoublePress0    | `0x05'00`               | The mouse button is pressed twice and remains pressed.
+MouseMultiClick     | MouseMultiClick0     | `0x06'00`               | The mouse button is pressed and released several times.
+MouseMultiPress     | MouseMultiPress0     | `0x07'00`               | The mouse button is pressed several times and remains pressed.
+MouseDragStart      | MouseDragStart0      | `0x08'00`               | The mouse started moving with the button just pressed.
+MouseDragPull       | MouseDragPull0       | `0x09'00`               | The mouse continues to move with the button pressed.
+MouseDragStop       | MouseDragStop0       | `0x0A'00`               | The mouse button is released after moving while it was pressed.
+MouseDragCancel     | MouseDragCancel0     | `0x0B'00`               | Mouse movement with the button pressed was cancelled due to another button being pressed or canceled by the system.
+MouseHover          |                      | `0x0C'00`               | The mouse cursor moved to hover directly over the object.
+MouseEnter          |                      | `0x0D'00`               | The mouse cursor has moved inside the geometric boundaries of the object.
+MouseLeave          |                      | `0x0E'00`               | The mouse cursor has moved outside the geometric boundaries of the object.
+MouseMove           |                      | `0x0F'00`               | The mouse cursor has moved within the geometric boundaries of the object.
+MouseWheel          |                      | `0x10'00`               | The mouse wheel is scrolled by 2D step (to distinguish between horizontal and vertical scrolling).
 
 #### Generic events
 
-//todo...
+Synax:
+```
+<... on="EventTier: Generic::Event::ID" ...>
+```
+
+The following generic event tiers are available for use:
+
+EventTier | Description
+----------|------------
+`general:`| Events that fire globally without being tied to any objects.
+`preview:`| Events typically provide previews of object property values ​​for an upcoming `release:` event.
+`release:`| Events typically notify the set values ​​of an object's properties.
+`request:`| Events typically request values ​​of properties of an object.
+`anycast:`| Events firing on a subset of all nested objects on some branch of the visual tree.
+
+The list of available generic event identifiers can be retrieved using the `vtm.desktop.EventList()` script command in the `vtm --monitor` environment monitoring mode or the `Log Monitor` command line applet.
+
+#### Event sources
+
+Visual tree objects can subscribe to events of any other environment objects using the `source="..."` subtag of the `on="..."` tag. In addition to the list of standard object names, it is possible to register custom object names.
+
+//todo At the moment, this is only available for window menu items `<menu><item id="CustomObjectId"/></menu>`.
+
+Standard object names
+
+|ObjectID/ClassID | Role                     | Methods                                            | Method description
+|-----------------|--------------------------|----------------------------------------------------|-------------------
+|`vtm`            | Scripting context holder | Parentheses operator(): `vtm()`                    | Retrieve event parameters.
+|                 |                          | Dot index: `vtm.ObjectId`/`vtm.ClassId`            | Retrieve object refernce by ObjectId/ClassId.
+|`gate`           | User viewport            | `vtm.gate.Disconnect()`                            | Disconnect user from the desktop.
+|                 |                          | `vtm.gate.DebugOverlay(bool state)`                | Set debug overlay.
+|                 |                          | `vtm.gate.IncreaseCellHeight(int n)`               | Increase/decrease cell height for GUI mode.
+|                 |                          | `vtm.gate.RollFonts(int n)`                        | Roll by step n the list of fonts specified in the configuration.
+|                 |                          | `vtm.gate.WheelAccumReset()`                       | Reset floating point step accumulator for mouse wheel.
+|                 |                          | `vtm.gate.CellHeightReset()`                       | Resets the cell height to the value specified in the settings.
+|                 |                          | `vtm.gate.AntialiasingMode() -> int`               | Toggle anti-aliasing mode.
+|`applet`         | Running applet           | `vtm.applet.Warp(int l, int r, int t, int b)`      | Request to deform the applet window. The parameters specify four deltas for the left, right, top and bottom sides of the applet window.
+|                 |                          | `vtm.applet.ZOrder() -> int`                       | Request the current z-order state of the applet window.
+|                 |                          | `vtm.applet.ZOrder(int n) -> int`                  | Set the current z-order state for the applet window. -1: backmost; 0: plain; 1: topmost.
+|                 |                          | `vtm.applet.Close()`                               | Close applet window.
+|                 |                          | `vtm.applet.Minimize()`                            | Minimize applet window.
+|                 |                          | `vtm.applet.Maximize()`                            | Maximize applet window.
+|                 |                          | `vtm.applet.Fullscreen()`                          | Fullscreen applet window.
+|                 |                          | `vtm.applet.Restore()`                             | Restore applet window.
+|`gear`           | User mouse and keyboard  | `vtm.gear.IsKeyRepeated() -> bool`                 | Returns true if the keyboard event is a key-repeat generated event.
+|                 |                          | `vtm.gear.SetHandled()`                            | Set that the event is processed, and stop further processing.
+|                 |                          | `vtm.gear.RepeatWhilePressed(ref ObjectId)`        | Capture the mouse by ObjectId and trigger the mouse button pressed event to repeat while pressed.
+|`desktop`        | Desktop environment      | `vtm.desktop.Cleanup(bool b)`                      | Clean up temporary internal structures of the desktop environment and optionally report the state of registry objects.
+|                 |                          | `vtm.desktop.EventList()`                          | Print all available generic event IDs.
+|                 |                          | `vtm.desktop.Shutdown()`                           | Close all windows and shutdown the desktop.
+|                 |                          | `vtm.desktop.Disconnect()`                         | Disconnect the current desktop user.
+|                 |                          | `vtm.desktop.Run({ lua_table })`                   | Run the specified applet.
+|                 |                          | `vtm.desktop.FocusNextWindow(int n)`               | Set focus to the next (n=1) or previous (n=-1) desktop window.
+|`window`         | Desktop window           | `vtm.window.Warp(int l, int r, int t, int b)`      | Request to deform the desktop window. The parameters specify four deltas for the left, right, top and bottom sides of the desktop window.
+|                 |                          | `vtm.window.Close()`                               | Close desktop window.
+|                 |                          | `vtm.window.Minimize()`                            | Minimize desktop window.
+|                 |                          | `vtm.window.Maximize()`                            | Maximize desktop window.
+|                 |                          | `vtm.window.Fullscreen()`                          | Fullscreen desktop window.
+|`tile`           | Tiling window manager    | `vtm.tile.FocusNextPaneOrGrip(int n)`              | Set focus to the next (n=1) or previous (n=-1) tile's pane or pane splitter.
+|                 |                          | `vtm.tile.FocusNextPane(int n)`                    | Set focus to the next (n=1) or previous (n=-1) tile's pane.
+|                 |                          | `vtm.tile.FocusNextGrip(int n)`                    | Set focus to the next (n=1) or previous (n=-1) pane splitter.
+|                 |                          | `vtm.tile.RunApplication()`                        | Run the default applet inside the selected empty panes.
+|                 |                          | `vtm.tile.SelectAllPanes()`                        | Select all tile's panes.
+|                 |                          | `vtm.tile.SplitPane(int axis)`                     | Split the selected panes. If axis > 0: split vertically, otherwise split horizontally.
+|                 |                          | `vtm.tile.RotateSplit()`                           | Toggle pane splitter orientation.
+|                 |                          | `vtm.tile.SwapPanes()`                             | Cyclically swap selected panes.
+|                 |                          | `vtm.tile.EqualizeSplitRatio()`                    | Equalize split ratio.
+|                 |                          | `vtm.tile.SetTitle()`                              | Set the window manager title.
+|                 |                          | `vtm.tile.ClosePane()`                             | Close selected panes.
+|`grip`           | Pane splitter            | `vtm.grip.MoveGrip(int x, int y)`                  | Move splitter by 2D step specified by pair { x, y }. 
+|                 |                          | `vtm.grip.ResizeGrip(int n)`                       | Set splitter width to n.
+|                 |                          | `vtm.grip.FocusNextGrip(int n)`                    | Set focus to the next (n=1) or previous (n=-1) tile's splitter.
+|`terminal`       |                          | `vtm.terminal.KeyEvent({ ... })`                   | Generates a terminal key event using the specified parameters.<br>- `keystat=...,`: Pressed state. 1 - Pressed, 0 - Released.<br>- `ctlstat=...,`: Keyboard modifiers bit-field.<br>- `virtcod=...,`: Key virtual code.<br>- `scancod=...,`: Key scan code.<br>- `keycode=...,`: Physical key code.<br>- `extflag=...,`: Extanded key flag.<br>- `cluster=...,`: Text cluster generated by the key.
+|                 |                          | `vtm.terminal.ExclusiveKeyboardMode(int n)`        | Set/reset exclusive keyboard mode for the terminal.
+|                 |                          | `vtm.terminal.FindNextMatch(int n)`                | Highlight next/previous(n>0/n<0) match of selected text fragment. Clipboard content is used if no active selection.
+|                 |                          | `vtm.terminal.ScrollViewportByPage(int x, int y)`  | Scroll the terminal viewport page by page in the direction specified by the 2D point { x, y }.
+|                 |                          | `vtm.terminal.ScrollViewportByCell(int x, int y)`  | Scroll the terminal viewport cell by cell in the direction specified by the 2D point { x, y }.
+|                 |                          | `vtm.terminal.ScrollViewportToTop()`               | Scroll the terminal viewport to the scrollback top.
+|                 |                          | `vtm.terminal.ScrollViewportToEnd()`               | Scroll the terminal viewport to the scrollback bottom.
+|                 |                          | `vtm.terminal.SendKey(string s)`                   | Send the text string `s` as terminal input.
+|                 |                          | `vtm.terminal.Print(string s)`                     | Print the text string `s` to the terminal scrollback buffer.
+|                 |                          | `vtm.terminal.CopyViewport()`                      | Сopy terminal viewport to the clipboard.
+|                 |                          | `vtm.terminal.CopySelection()`                     | Copy selected lines or the current line to the clipboard.
+|                 |                          | `vtm.terminal.PasteClipboard()`                    | Paste from clipboard.
+|                 |                          | `vtm.terminal.ClearClipboard()`                    | Reset clipboard.
+|                 |                          | `vtm.terminal.ClipboardFormat(int n)`              | Set the terminal text selection copy format.<br>n=0: Disabled<br>n=1: Plain text<br>n=2: ANSI<br>n=3: RTF<br>n=4: HTML<br>n=5: Sensitive plain text.
+|                 |                          | `vtm.terminal.ClipboardFormat() -> int`            | Get the current terminal text selection copy format.
+|                 |                          | `vtm.terminal.SelectionForm(int n)`                | Set selection form. n=0: linear form; n=1: boxed form.
+|                 |                          | `vtm.terminal.SelectionForm() -> n`                | Get the current selection form.
+|                 |                          | `vtm.terminal.ClearSelection()`                    | Deselect a selection.
+|                 |                          | `vtm.terminal.OneShotSelection()`                  | One-shot toggle to copy text while mouse tracking is active. Keep selection if 'Ctrl' key is pressed.
+|                 |                          | `vtm.terminal.UndoReadline()`                      | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input.
+|                 |                          | `vtm.terminal.RedoReadline()`                      | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command.
+|                 |                          | `vtm.terminal.CwdSync(int n)`                      | Set the current working directory sync mode.
+|                 |                          | `vtm.terminal.CwdSync() -> n`                      | Get the current working directory sync mode.
+|                 |                          | `vtm.terminal.LineWrapMode(int n)`                 | Set the current line wrapping mode. Applied to the active selection if it is.<br>n=0: line wrapping is off<br>n=1: line wrapping is on
+|                 |                          | `vtm.terminal.LineWrapMode() -> n`                 | Get the current line wrapping mode.
+|                 |                          | `vtm.terminal.LineAlignMode(int n)`                | Set the current line aligning mode. Applied to the active selection if it is.<br>n=0: left<br>n=1: right<br>n=2: center
+|                 |                          | `vtm.terminal.LineAlignMode() -> n`                | Get the current line aligning mode.
+|                 |                          | `vtm.terminal.LogMode(int n)`                      | Set the current terminal logging mode on/off.
+|                 |                          | `vtm.terminal.LogMode() -> n`                      | Get the current terminal logging mode state.
+|                 |                          | `vtm.terminal.ClearScrollback()`                   | Clear the terminal scrollback buffer.
+|                 |                          | `vtm.terminal.Restart()`                           | Restart the current terminal session.
+|                 |                          | `vtm.terminal.Quit()`                              | Close terminal.
 
 #### Examples
+
+Key bindings:
 
 Configuration                                                  | Interpretation
 ---------------------------------------------------------------|-----------------
@@ -447,34 +569,36 @@ Configuration                                                  | Interpretation
 `<script=""      on="Key+Chord"/>`                             | Remove all existing bindings for the specified key combination "Key+Chord".
 `<script="..."   on=""         />`                             | Do nothing.
 
-EventId                     | Description
-----------------------------|-------------
-`on="MouseEnter"`           | Mouse enter.
-`on="MouseLeave"`           | Mouse leave.
-`on="MouseMove"`            | Mouse move.
-`on="MouseWheel"`           | Mouse wheeling by fp2d step (hz/vt).
-`on="MouseDown1"`           | Left button push down.
-`on="MouseUp1"`             | Left button release.
-`on="preview:MouseDown01"`  | Right button push down (preview phase).
-`on="MouseClick"`           | Any button click.
-`on="MouseClick1"`          | Left button click.
-`on="LeftClick"`            | Left button click.
-`on="MouseClick01"`         | Right button click.
-`on="MouseClick2"`          | Right button click.
-`on="MouseClick3"`          | Middle button click.
-`on="MouseClick11"`         | Left+Right button click.
-`on="MouseDoublePress1"`    | Double click (and stay pressed) by left button.
-`on="MouseDoubleClick1"`    | Double click (and release) by left button
-`on="MouseDragStart11"`     | Drag start with Left and Right mouse buttons pressed.
-`on="MouseDragPull11"`      | Dragging with Left and Right mouse buttons pressed.
-`on="MouseDragStop11"`      | Release Left and Right mouse buttons after dragging.
-`on="MouseDragCancel11"`    | The current dragging was interrupted for some reason, such as pressing additional mouse buttons.
-`on="Enter"`                | The `Enter` key was pressed.
-`on="preview:Enter"`        | The `Enter` key was pressed (detected in a preview phase).
-`on="Ctrl+B"`               | The `Ctrl+B` key combination was pressed.
-`on="-Ctrl"`                | The `Ctrl` key was released.
-`on="Esc-F10"`              | The `Esc-F10` key combination was released.
+EventId's:
 
+EventId                        | Description
+-------------------------------|-------------
+`on="MouseEnter"`              | Mouse enter.
+`on="MouseLeave"`              | Mouse leave.
+`on="MouseMove"`               | Mouse move.
+`on="MouseWheel"`              | Mouse wheeling by fp2d step (hz/vt).
+`on="MouseDown1"`              | Left button push down.
+`on="MouseUp1"`                | Left button release.
+`on="preview:MouseDown01"`     | Right button push down (preview phase).
+`on="MouseClick"`              | Any button click.
+`on="MouseClick1"`             | Left button click.
+`on="LeftClick"`               | Left button click.
+`on="MouseClick01"`            | Right button click.
+`on="MouseClick2"`             | Right button click.
+`on="MouseClick3"`             | Middle button click.
+`on="MouseClick11"`            | Left+Right button click.
+`on="MouseDoublePress1"`       | Double click (and stay pressed) by left button.
+`on="MouseDoubleClick1"`       | Double click (and release) by left button
+`on="MouseDragStart11"`        | Drag start with Left and Right mouse buttons pressed.
+`on="MouseDragPull11"`         | Dragging with Left and Right mouse buttons pressed.
+`on="MouseDragStop11"`         | Release Left and Right mouse buttons after dragging.
+`on="MouseDragCancel11"`       | The current dragging was interrupted for some reason, such as pressing additional mouse buttons.
+`on="Enter"`                   | The `Enter` key was pressed.
+`on="preview:Enter"`           | The `Enter` key was pressed (detected in a preview phase).
+`on="Ctrl+B"`                  | The `Ctrl+B` key combination was pressed.
+`on="-Ctrl"`                   | The `Ctrl` key was released.
+`on="Esc-F10"`                 | The `Esc-F10` key combination was released.
+`on="general: e2::timer::any"` | Timer event, related to the current frame rate, usually about 60 times per second.
 
 ### DirectVT configuration payload received from the parent process
 
@@ -815,7 +939,7 @@ Notes
                                     vtm.item.Deface()
                                 </script>
                             </item>
-                            <item label="  Clipboard  " tooltip=" Clipboard format ">  <!-- type=Option means that the тext label will be selected when clicked. -->
+                            <item label="  Clipboard  " tooltip=" Clipboard format ">
                                 <script=TerminalClipboardFormat on="LeftClick"/>
                                 <script>
                                     <on="release: terminal::events::selmod" source="terminal"/>
@@ -988,7 +1112,7 @@ Notes
                     vtm.item.Deface()
                 </script>
             </item>
-            <item label="  Clipboard  " tooltip=" Clipboard format ">  <!-- type=Option means that the тext label will be selected when clicked. -->
+            <item label="  Clipboard  " tooltip=" Clipboard format ">
                 <script=TerminalClipboardFormat on="LeftClick"/>
                 <script>
                     <on="release: terminal::events::selmod" source="terminal"/>

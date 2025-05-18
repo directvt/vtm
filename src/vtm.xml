@@ -301,7 +301,7 @@ R"==(
                                     vtm.item.Deface()
                                 </script>
                             </item>
-                            <item label="  Clipboard  " tooltip=" Clipboard format ">  <!-- type=Option means that the тext label will be selected when clicked. -->
+                            <item label="  Clipboard  " tooltip=" Clipboard format ">
                                 <script=TerminalClipboardFormat on="LeftClick"/>
                                 <script>
                                     <on="release: terminal::events::selmod" source="terminal"/>
@@ -482,7 +482,7 @@ R"==(
                     vtm.item.Deface()
                 </script>
             </item>
-            <item label="  Clipboard  " tooltip=" Clipboard format ">  <!-- type=Option means that the тext label will be selected when clicked. -->
+            <item label="  Clipboard  " tooltip=" Clipboard format ">
                 <script=TerminalClipboardFormat on="LeftClick"/>
                 <script>
                     <on="release: terminal::events::selmod" source="terminal"/>
