@@ -1,4 +1,4 @@
-# VT2D. Unicode character Geometry Modifiers
+# VT2D: Unicode character Geometry Modifiers
 
 A user interface based solely on monospaced Unicode characters (a concept known as a text-based user interface, or TUI) has known issues with character width detection, leading to the following limits:
 
@@ -44,7 +44,7 @@ Example 1. Output a 3x1 (31_00) character:
     ```pwsh
     "👩‍👩‍👧‍👧`u{D009F}"
     ```
-  - `wsl/bash`
+  - `bash`
     ```bash
     printf "👩‍👩‍👧‍👧\UD009F\n"
     ```
@@ -53,7 +53,7 @@ Example 2. Output a 6x2 character (by stacking two 6x1 fragments 62_01 and 62_02
     ```pwsh
     "👩‍👩‍👧‍👧`u{D0279}`n👩‍👩‍👧‍👧`u{D0312}"
     ```
-  - `wsl/bash`
+  - `bash`
     ```bash
     printf "👩‍👩‍👧‍👧\UD0279\n👩‍👩‍👧‍👧\UD0312\n"
     ```
@@ -62,7 +62,7 @@ Example 3. Output a solid 9x3 character:
     ```pwsh
     "👩‍👩‍👧‍👧`u{D03C3}"
     ```
-  - `wsl/bash`
+  - `bash`
     ```bash
     printf "👩‍👩‍👧‍👧\UD03C3\n"
     ```
@@ -71,7 +71,7 @@ Example 4. Output the longest word in the Hindi language 16x1 (G1_00):
     ```pwsh
     "`u{2}विश्वविज्ञानकोशनिर्माणसमिति`u{D0121}"
     ```
-  - `wsl/bash`
+  - `bash`
     ```bash
     printf "\U2विश्वविज्ञानकोशनिर्माणसमिति\UD0121\n"
     ```
