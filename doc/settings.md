@@ -429,12 +429,12 @@ Matching between Named and Generic formats:
 
 Named format        | Generic format       | Internal representation | Notes
 --------------------|----------------------|-------------------------|------------
-MouseAny            |                      | `0x00'00`               | Any mouse event
+MouseAny            |                      | `0x00'00`               | Any mouse event.
 MouseDown           | MouseDown0           | `0x01'00`               | Any mouse button down.
 MouseUp             | MouseUp0             | `0x02'00`               | Any mouse button up.
-LeftClick           | MouseClick1          | `0x03'01`               | Left click
+LeftClick           | MouseClick1          | `0x03'01`               | Left click.
 LeftRightClick      | MouseClick11         | `0x03'03`               | Left + Right click.
-MouseClick          | MouseClick0          | `0x03'00`               | Any click
+MouseClick          | MouseClick0          | `0x03'00`               | Any click.
 MouseDoubleClick    | MouseDoubleClick0    | `0x04'00`               | The mouse button is pressed and released twice.
 MouseDoublePress    | MouseDoublePress0    | `0x05'00`               | The mouse button is pressed twice and remains pressed.
 MouseMultiClick     | MouseMultiClick0     | `0x06'00`               | The mouse button is pressed and released several times.
