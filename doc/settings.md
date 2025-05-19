@@ -563,7 +563,7 @@ Key bindings:
 Configuration                                                  | Interpretation
 ---------------------------------------------------------------|-----------------
 `<script=ScriptReference on="Key+Chord"/>`                     | Append existing bindings using an indirect reference (the `ScriptReference` variable without quotes).
-`<script="text"  on="Key+Chord | Another+Chord"/>`             | Append existing bindings for `Key+Chord | Another+Chord`.
+`<script="text"  on="Key+Chord \| Another+Chord"/>`            | Append existing bindings for `Key+Chord | Another+Chord`.
 `<script="text"  on="Key+Chord"/>`                             | Append existing bindings with the directly specified Lua script body.
 `<script="text"><on="Key+Chord" source="ObjectID"/></script>`  | Binding to an event source using a specific ObjectID.
 `<script=""      on="Key+Chord"/>`                             | Remove all existing bindings for the specified key combination "Key+Chord".
@@ -577,9 +577,9 @@ EventId                        | Description
 `on="MouseLeave"`              | Mouse leave.
 `on="MouseMove"`               | Mouse move.
 `on="MouseWheel"`              | Mouse wheeling by fp2d step (hz/vt).
-`on="MouseDown1"`              | Left button push down.
-`on="MouseUp1"`                | Left button release.
-`on="preview:MouseDown01"`     | Right button push down (preview phase).
+`on="MouseDown1"`              | The left button is pressed down.
+`on="MouseUp1"`                | The left button is released.
+`on="preview:MouseDown01"`     | The right button is pressed down (preview phase).
 `on="MouseClick"`              | Any button click.
 `on="MouseClick1"`             | Left button click.
 `on="LeftClick"`               | Left button click.
@@ -587,8 +587,8 @@ EventId                        | Description
 `on="MouseClick2"`             | Right button click.
 `on="MouseClick3"`             | Middle button click.
 `on="MouseClick11"`            | Left+Right button click.
-`on="MouseDoublePress1"`       | Double click (and stay pressed) by left button.
-`on="MouseDoubleClick1"`       | Double click (and release) by left button
+`on="MouseDoublePress1"`       | Double click (and hold pressed) by the left button.
+`on="MouseDoubleClick1"`       | Double click (and release) by the left button.
 `on="MouseDragStart11"`        | Drag start with Left and Right mouse buttons pressed.
 `on="MouseDragPull11"`         | Dragging with Left and Right mouse buttons pressed.
 `on="MouseDragStop11"`         | Release Left and Right mouse buttons after dragging.
