@@ -539,19 +539,19 @@ Standard object names
 |                 |                          | `vtm.terminal.ClipboardFormat(int n)`              | Set the terminal text selection copy format.<br>n=0: Disabled<br>n=1: Plain text<br>n=2: ANSI<br>n=3: RTF<br>n=4: HTML<br>n=5: Sensitive plain text.
 |                 |                          | `vtm.terminal.ClipboardFormat() -> int`            | Get the current terminal text selection copy format.
 |                 |                          | `vtm.terminal.SelectionForm(int n)`                | Set selection form. n=0: linear form; n=1: boxed form.
-|                 |                          | `vtm.terminal.SelectionForm() -> n`                | Get the current selection form.
+|                 |                          | `vtm.terminal.SelectionForm() -> int`              | Get the current selection form.
 |                 |                          | `vtm.terminal.ClearSelection()`                    | Deselect a selection.
-|                 |                          | `vtm.terminal.OneShotSelection()`                  | One-shot toggle to copy text while mouse tracking is active. Keep selection if 'Ctrl' key is pressed.
+|                 |                          | `vtm.terminal.OneShotSelection()`                  | One-shot toggle to copy text while mouse tracking is active. Keep selection if `Ctrl` key is pressed.
 |                 |                          | `vtm.terminal.UndoReadline()`                      | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input.
 |                 |                          | `vtm.terminal.RedoReadline()`                      | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command.
 |                 |                          | `vtm.terminal.CwdSync(int n)`                      | Set the current working directory sync mode.
-|                 |                          | `vtm.terminal.CwdSync() -> n`                      | Get the current working directory sync mode.
+|                 |                          | `vtm.terminal.CwdSync() -> int`                    | Get the current working directory sync mode.
 |                 |                          | `vtm.terminal.LineWrapMode(int n)`                 | Set the current line wrapping mode. Applied to the active selection if it is.<br>n=0: line wrapping is off<br>n=1: line wrapping is on
-|                 |                          | `vtm.terminal.LineWrapMode() -> n`                 | Get the current line wrapping mode.
+|                 |                          | `vtm.terminal.LineWrapMode() -> int`               | Get the current line wrapping mode.
 |                 |                          | `vtm.terminal.LineAlignMode(int n)`                | Set the current line aligning mode. Applied to the active selection if it is.<br>n=0: left<br>n=1: right<br>n=2: center
-|                 |                          | `vtm.terminal.LineAlignMode() -> n`                | Get the current line aligning mode.
+|                 |                          | `vtm.terminal.LineAlignMode() -> int`              | Get the current line aligning mode.
 |                 |                          | `vtm.terminal.LogMode(int n)`                      | Set the current terminal logging mode on/off.
-|                 |                          | `vtm.terminal.LogMode() -> n`                      | Get the current terminal logging mode state.
+|                 |                          | `vtm.terminal.LogMode() -> int`                    | Get the current terminal logging mode state.
 |                 |                          | `vtm.terminal.ClearScrollback()`                   | Clear the terminal scrollback buffer.
 |                 |                          | `vtm.terminal.Restart()`                           | Restart the current terminal session.
 |                 |                          | `vtm.terminal.Quit()`                              | Close terminal.
