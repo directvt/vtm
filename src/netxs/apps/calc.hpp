@@ -3,13 +3,11 @@
 
 #pragma once
 
-#include "../desktopio/application.hpp"
-
 namespace netxs::events::userland
 {
     namespace calc
     {
-        EVENTPACK( netxs::events::userland::root::custom )
+        EVENTPACK( app::calc::events, netxs::events::userland::seed::custom )
         {
             GROUP_XS( ui, input::hids ),
 
@@ -29,26 +27,18 @@ namespace netxs::events::userland
 
 namespace netxs::ui
 {
-    // console: Template modules for the base class behavior extension.
     namespace pro
     {
-        //todo PoC, unify, too hacky
         // pro: Cell Highlighter.
         class cell_highlight
-            : public skill
         {
-            struct sock
+            struct actor
             {
-                twod curpos; // sock: Current coor.
-                bool inside; // sock: Is active.
-                bool seized; // sock: Is seized.
-                rect region; // sock: Selected region.
+                twod curpos{}; // actor: Current coor.
+                bool inside{}; // actor: Is active.
+                bool seized{}; // actor: Is seized.
+                rect region{}; // actor: Selected region.
 
-                sock()
-                    : inside{ faux },
-                      seized{ faux }
-                { }
-                operator bool () { return inside || seized || region.size; }
                 auto grab(twod coord, bool resume)
                 {
                     if (inside)
@@ -82,88 +72,20 @@ namespace netxs::ui
                     seized = faux;
                 }
             };
-            using list = socks<sock>;
-            using skill::boss,
-                  skill::memo;
+            using umap = std::unordered_map<id_t, actor>;
 
-            list items;
+            base& boss;
+            subs  memo;
+            umap  gears;
 
-        public:
-            cell_highlight(base&&) = delete;
-            cell_highlight(base& boss)
-                : skill{ boss },
-                  items{ boss }
+            auto& take(hids& gear)
             {
-                boss.LISTEN(tier::release, e2::postrender, parent_canvas, memo)
+                auto iter = gears.find(gear.id);
+                if (iter == gears.end())
                 {
-                    auto full = parent_canvas.full();
-                    auto clip = parent_canvas.clip();
-                    auto mark = cell{}.bgc(bluelt).bga(0x40);
-                    auto fill = [&](cell& c){ c.fuse(mark); };
-                    auto step = twod{ 5, 1 };
-                    auto area = full;
-                    area.size.x += boss.base::oversz.r;
-                    items.foreach([&](sock& item)
-                    {
-                        if (item.region.size)
-                        {
-                            auto region = item.region.normalize();
-                            auto pos1 = region.coor / step * step;
-                            auto pos2 = (region.coor + region.size + step) / step * step;
-                            auto pick = rect{ full.coor + pos1, pos2 - pos1 }.trimby(area).trimby(clip);
-                            parent_canvas.fill(pick, fill);
-                        }
-                        if (item.inside)
-                        {
-                            auto pos1 = item.curpos / step * step;
-                            auto pick = rect{ full.coor + pos1, step }.trimby(clip);
-                            parent_canvas.fill(pick, fill);
-                        }
-                    });
-                };
-                boss.LISTEN(tier::release, input::events::mouse::button::click::left, gear, memo)
-                {
-                    auto& item = items.take(gear);
-                    if (item.region.size)
-                    {
-                        if (gear.meta(hids::anyCtrl)) item.region.size = gear.coord - item.region.coor;
-                        else                          item.region.size = dot_00;
-                    }
-                    recalc();
-                };
-                boss.LISTEN(tier::release, input::events::mouse::button::dblclick::left, gear, memo)
-                {
-                    auto& item = items.take(gear);
-                    auto area = boss.base::size();
-                    area.x += boss.base::oversz.r;
-                    item.region.coor = dot_00;
-                    item.region.size = area;
-                    recalc();
-                    gear.dismiss();
-                };
-                boss.LISTEN(tier::general, input::events::die, gear, memo)
-                {
-                    recalc();
-                    boss.base::deface();
-                };
-                boss.LISTEN(tier::release, input::events::mouse::hover::any, gear, memo)
-                {
-                    if (gear.cause == input::events::mouse::hover::enter.id)
-                    {
-                        items.add(gear);
-                    }
-                    else if (gear.cause == input::events::mouse::hover::leave.id)
-                    {
-                        auto& item = items.take(gear);
-                        if (item.region.size)
-                        {
-                            item.inside = faux;
-                        }
-                        else items.del(gear);
-                        recalc();
-                    }
-                };
-                engage<hids::buttons::left>();
+                    iter = gears.emplace(gear.id, actor{}).first;
+                }
+                return iter->second;
             }
             void recalc()
             {
@@ -171,11 +93,11 @@ namespace netxs::ui
                 auto step = twod{ 5, 1 };
                 auto size = boss.base::size();
                 size.x += boss.base::oversz.r;
-                items.foreach([&](sock& item)
+                for (auto& [id, g] : gears)
                 {
-                    if (item.region.size)
+                    if (g.region.size)
                     {
-                        auto region = item.region.normalize();
+                        auto region = g.region.normalize();
                         auto pos1 = region.coor / step;
                         auto pos2 = (region.coor + region.size) / step;
                         pos1 = std::clamp(pos1, dot_00, twod{ 25, 98 } );
@@ -187,7 +109,7 @@ namespace netxs::ui
                         data += std::to_string(pos2.y + 1);
                         data += ", ";
                     }
-                });
+                }
                 if (data.size())
                 {
                     data.pop_back(); // pop", "
@@ -198,43 +120,113 @@ namespace netxs::ui
                 log(prompt::calc, "DATA ", data, ansi::nil());
                 boss.base::signal(tier::release, e2::data::utf8, data);
             }
-            // pro::cell_highlight: Configuring the mouse button to operate.
-            template<hids::buttons Button>
-            void engage()
+
+        public:
+            cell_highlight(base&&) = delete;
+            cell_highlight(base& boss)
+                : boss{ boss }
             {
-                boss.base::signal(tier::release, e2::form::draggable::_<Button>, true);
-                boss.LISTEN(tier::release, input::events::mouse::move, gear, memo)
+                boss.on(tier::mouserelease, input::key::MouseMove, memo, [&](hids& gear)
                 {
-                    items.take(gear).calc(boss, gear.coord);
+                    take(gear).calc(boss, gear.coord);
+                    boss.base::deface();
+                });
+                boss.on(tier::mouserelease, input::key::LeftClick, memo, [&](hids& gear)
+                {
+                    auto& g = take(gear);
+                    if (g.region.size)
+                    {
+                        if (gear.meta(hids::anyCtrl)) g.region.size = gear.coord - g.region.coor;
+                        else                          g.region.size = dot_00;
+                    }
+                    recalc();
+                });
+                boss.on(tier::mouserelease, input::key::LeftDoubleClick, memo, [&](hids& gear)
+                {
+                    auto& g = take(gear);
+                    auto area = boss.base::size();
+                    area.x += boss.base::oversz.r;
+                    g.region.coor = dot_00;
+                    g.region.size = area;
+                    recalc();
+                    gear.dismiss();
+                });
+                boss.on(tier::mouserelease, input::key::MouseEnter, memo, [&](hids& gear)
+                {
+                    take(gear);
+                });
+                boss.on(tier::mouserelease, input::key::MouseLeave, memo, [&](hids& gear)
+                {
+                    auto& g = take(gear);
+                    if (g.region.size)
+                    {
+                        g.inside = faux;
+                    }
+                    else gears.erase(gear.id);
+                    recalc();
+                });
+                boss.LISTEN(tier::general, input::events::die, gear, memo)
+                {
+                    gears.erase(gear.id);
+                    recalc();
                     boss.base::deface();
                 };
-                boss.LISTEN(tier::release, e2::form::drag::start::_<Button>, gear, memo)
+                boss.LISTEN(tier::release, e2::form::drag::start::left, gear, memo)
                 {
-                    auto& g = items.take(gear);
+                    auto& g = take(gear);
                     g.calc(boss, gear.click);
                     if (g.grab(gear.click, gear.meta(hids::anyCtrl)))
                     {
                         gear.dismiss();
                     }
                 };
-                boss.LISTEN(tier::release, e2::form::drag::pull::_<Button>, gear, memo)
+                boss.LISTEN(tier::release, e2::form::drag::pull::left, gear, memo)
                 {
-                    if (items.take(gear).drag(gear.coord))
+                    if (take(gear).drag(gear.coord))
                     {
                         recalc();
                         gear.dismiss();
                     }
                 };
-                boss.LISTEN(tier::release, e2::form::drag::cancel::_<Button>, gear, memo)
+                boss.LISTEN(tier::release, e2::form::drag::cancel::left, gear, memo)
                 {
-                    items.take(gear).drop();
+                    take(gear).drop();
                     recalc();
                 };
-                boss.LISTEN(tier::release, e2::form::drag::stop::_<Button>, gear, memo)
+                boss.LISTEN(tier::release, e2::form::drag::stop::left, gear, memo)
                 {
-                    items.take(gear).drop();
+                    take(gear).drop();
                     recalc();
                 };
+                boss.LISTEN(tier::release, e2::postrender, parent_canvas, memo)
+                {
+                    auto full = parent_canvas.full();
+                    auto clip = parent_canvas.clip();
+                    auto mark = cell{}.bgc(bluelt).bga(0x40);
+                    auto fill = [&](cell& c){ c.fuse(mark); };
+                    auto step = twod{ 5, 1 };
+                    auto area = full;
+                    area.size.x += boss.base::oversz.r;
+                    for (auto& [id, g] : gears)
+                    {
+                        if (g.region.size)
+                        {
+                            auto region = g.region.normalize();
+                            auto pos1 = region.coor / step * step;
+                            auto pos2 = (region.coor + region.size + step) / step * step;
+                            auto pick = rect{ full.coor + pos1, pos2 - pos1 }.trimby(area).trimby(clip);
+                            parent_canvas.fill(pick, fill);
+                        }
+                        if (g.inside)
+                        {
+                            auto pos1 = g.curpos / step * step;
+                            auto pick = rect{ full.coor + pos1, step }.trimby(clip);
+                            parent_canvas.fill(pick, fill);
+                        }
+                    }
+                };
+                auto& mouse = boss.base::plugin<pro::mouse>();
+                mouse.draggable<hids::buttons::left>(true);
             }
         };
     }
@@ -336,7 +328,7 @@ namespace netxs::app::calc
             window->plugin<pro::focus>(pro::focus::mode::focused)
                   ->colors(whitelt, 0x60'00'5f'1A)
                   ->limits({ 10,7 }, { -1,-1 })
-                  ->plugin<pro::keybd>("defapp")
+                  ->plugin<pro::keybd>()
                   ->shader(c3, e2::form::state::focus::count)
                   //->plugin<pro::acryl>()
                   ->plugin<pro::cache>()

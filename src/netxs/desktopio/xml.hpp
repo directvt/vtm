@@ -334,11 +334,11 @@ namespace netxs::xml
                 static constexpr auto quotes_fg    = argb{ 0xFF'BB'BB'BB };
                 static constexpr auto value_fg     = argb{ 0xFF'90'96'f0 };
                 static constexpr auto value_bg     = argb{ 0xFF'20'20'20 };
-    
+
                 //test
                 //auto tmp = page.data.front().upto;
                 //auto clr = 0;
-    
+
                 auto yield = ansi::escx{};
                 auto next = data;
                 while (next)
@@ -347,14 +347,14 @@ namespace netxs::xml
                     auto& utf8 = item.utf8;
                     auto  kind = item.kind;
                     next = next->next;
-    
+
                     //test
                     //if (item.upto == page.data.end() || tmp != item.upto)
                     //{
                     //    clr++;
                     //    tmp = item.upto;
                     //}
-    
+
                     auto fgc = argb{};
                     auto bgc = argb{};
                     switch (kind)
@@ -393,7 +393,7 @@ namespace netxs::xml
                         else          yield                  .add(utf8);
                     }
                 }
-    
+
                 auto count = 1;
                 auto width = 0_sz;
                 auto total = lines();
@@ -418,7 +418,7 @@ namespace netxs::xml
         using wptr = netxs::wptr<elem>;
         using heap = std::vector<frag>;
         using vect = std::vector<sptr>;
-        using subs = std::unordered_map<text, vect, qiew::hash, qiew::equal>;
+        using subs = utf::unordered_map<text, vect>;
 
         struct elem
         {
@@ -589,7 +589,7 @@ namespace netxs::xml
                 else                             return fallback;
             }
             template<class T>
-            auto take(qiew attr, T defval, std::unordered_map<text, T> const& dict)
+            auto take(qiew attr, T defval, utf::unordered_map<text, T> const& dict)
             {
                 if (attr.empty()) return defval;
                 auto crop = take(attr, ""s);
@@ -1073,9 +1073,11 @@ namespace netxs::xml
             {
                 auto temp = data;
                 utf::trim_front(temp, whitespaces);
+                //auto p = std::vector{ std::tuple{ 0, what, last, temp }};
                 peek(temp, what, last);
                 do
                 {
+                    //p.push_back(std::tuple{ 1, what, last, temp });
                     if (what == type::quoted_text)
                     {
                         diff(temp, data, type::quoted_text);
@@ -1104,7 +1106,7 @@ namespace netxs::xml
                         trim(data);
                         data = temp;
                         auto next = ptr::shared<elem>();
-                        read_node(next, data, deep + 1);
+                        what = read_node(next, data, deep + 1);
                         push(item, next, defs);
                         temp = data;
                         utf::trim_front(temp, whitespaces);
@@ -1133,6 +1135,7 @@ namespace netxs::xml
                         diff(temp, data, type::unknown);
                         data = temp;
                     }
+                    //p.push_back(std::tuple{ 2, what, last, temp });
                     peek(temp, what, last);
                 }
                 while (what != type::close_tag && what != type::eof);
@@ -1190,9 +1193,9 @@ namespace netxs::xml
             }
             while (data.size());
         }
-        void read_node(sptr& item, view& data, si32 deep = {})
+        auto read_node(sptr& item, view& data, si32 deep = {}) -> document::type
         {
-            auto defs = std::unordered_map<text, wptr>{};
+            auto defs = utf::unordered_map<text, wptr>{};
             auto what = type::na;
             auto last = type::na;
             auto fire = faux;
@@ -1299,10 +1302,11 @@ namespace netxs::xml
                 seal(item);
                 compacted.pop_back();
             }
+            return what;
         }
         void read(view& data)
         {
-            auto defs = std::unordered_map<text, wptr>{};
+            auto defs = utf::unordered_map<text, wptr>{};
             auto what = type::na;
             auto last = type::na;
             auto deep = 0;
@@ -1344,7 +1348,7 @@ namespace netxs::xml
             homelist = document->take(homepath);
         }
 
-        auto cd(text gotopath, view fallback = {})
+        auto cd(view gotopath, view fallback = {})
         {
             backpath = utf::trim(fallback, '/');
             if (gotopath.empty()) return faux;
@@ -1385,7 +1389,7 @@ namespace netxs::xml
                 cwdstack.pop_back();
             }
         }
-        void pushd(text gotopath, view fallback = {})
+        void pushd(view gotopath, view fallback = {})
         {
             cwdstack.push_back({ homepath, backpath });
             cd(gotopath, fallback);
@@ -1442,8 +1446,19 @@ namespace netxs::xml
             }
             return crop;
         }
+        auto expand_list(document::sptr subsection_ptr, view attribute)
+        {
+            auto strings = txts{};
+            auto attr_list = subsection_ptr->list(attribute);
+            strings.reserve(attr_list.size());
+            for (auto attr_ptr : attr_list)
+            {
+                strings.emplace_back(expand(attr_ptr));
+            }
+            return strings;
+        }
         template<class T>
-        auto take(text frompath, T defval, std::unordered_map<text, T> const& dict)
+        auto take(text frompath, T defval, utf::unordered_map<text, T> const& dict)
         {
             if (frompath.empty()) return defval;
             auto crop = take<true>(frompath, ""s);
@@ -1534,7 +1549,7 @@ namespace netxs::xml
     };
     namespace options
     {
-        static auto format = std::unordered_map<text, si32>
+        static auto format = utf::unordered_map<text, si32>
            {{ "none",      mime::disabled },
             { "text",      mime::textonly },
             { "ansi",      mime::ansitext },
@@ -1542,13 +1557,13 @@ namespace netxs::xml
             { "html",      mime::htmltext },
             { "protected", mime::safetext }};
 
-        static auto cursor = std::unordered_map<text, si32>
+        static auto cursor = utf::unordered_map<text, si32>
            {{ "underline",  text_cursor::underline },
             { "block",      text_cursor::block     },
             { "bar",        text_cursor::I_bar     },
             { "I_bar",      text_cursor::I_bar     }};
 
-        static auto align = std::unordered_map<text, bias>
+        static auto align = utf::unordered_map<text, bias>
            {{ "left",   bias::left   },
             { "right",  bias::right  },
             { "center", bias::center }};

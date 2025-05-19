@@ -248,10 +248,6 @@ HEADER_BASE = r'''/**
 
 #pragma once
 
-#include <cstdint>
-#include <vector>
-#include <iterator>
-
 namespace netxs::unidata
 {{
     namespace widths
@@ -419,7 +415,7 @@ namespace netxs::unidata
     {{
         static auto data = []
         {{
-            auto v = std::vector<ui16>(0x10FFFF); // ISO 15924 Script No: 0 - 999.
+            auto v = std::vector<ui16>(0x10FFFF + 1); // ISO 15924 Script No: 0 - 999.
             auto j = 0;
             auto s = 0;
             auto l = 0;
@@ -667,6 +663,9 @@ apply_customcp(CUSTOMIZE,           chrs)
 apply_nonprint(set(ZEROWIDTH), set(PRINTABLE), chrs)
 noncmd_id = apply_commands(set(CONTROLCP), NONCTRLCP, set(PRINTABLE), chrs)
 apply_wscripts(data.src['ISOCODS'], data.src['SCRIPTS'], chrs)
+
+ # Allow nulls to be printable.
+chrs[0].ucwidth = 'slim'
 
 # 00 33 7 555 00
 # ranges: 0,2 3,2 7,1 5,3 0,2

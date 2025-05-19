@@ -5,13 +5,6 @@
 
 #include "intmath.hpp"
 
-#include <string>
-#include <thread>
-#include <mutex>
-#include <chrono>
-#include <optional>
-#include <condition_variable>
-
 namespace netxs
 {
     using span = std::chrono::steady_clock::duration;

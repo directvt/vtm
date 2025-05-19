@@ -3,21 +3,44 @@
 
 #pragma once
 
-#include <array>
-#include <vector>
-#include <optional>
 #include <algorithm>
-#include <limits>
-#include <cmath>
-#include <cfenv>
-#include <cassert>
 #include <any>
-#include <bit>
+#include <array>
 #include <atomic>
+#include <bit>
+#include <bitset>
+#include <cassert>
+#include <cfenv>
+#include <charconv>
+#include <chrono>
+#include <cmath>
+#include <condition_variable>
+#include <cstdint>
 #include <cstring> // std::memcpy
-#include <utility> // std::cmp_equal
+#include <deque>
+#include <fstream>
+#include <filesystem>
+#include <functional>
+#include <future>
+#include <iterator>
+#include <limits>
+#include <list>
+#include <map>
+#include <memory>
+#include <mutex>
 #include <numeric> // std::accumulate
+#include <optional>
+#include <span>
+#include <sstream>
+#include <string>
+#include <string_view>
+#include <thread>
+#include <type_traits>
 #include <typeindex>
+#include <unordered_map>
+#include <unordered_set>
+#include <utility> // std::cmp_equal
+#include <vector>
 
 #ifndef faux
     #define faux (false)
@@ -42,7 +65,7 @@ namespace netxs
     using flag = std::atomic<bool>;
     using many = std::vector<std::any>;
 
-    constexpr size_t operator "" _sz (unsigned long long i) { return static_cast<size_t>(i); }
+    constexpr size_t operator ""_sz (unsigned long long i) { return static_cast<size_t>(i); }
     static constexpr auto bytemin = std::numeric_limits<byte>::min();
     static constexpr auto bytemax = std::numeric_limits<byte>::max();
     static constexpr auto int8min = std::numeric_limits<int8>::min();
@@ -79,12 +102,13 @@ namespace netxs
 
     struct noop
     {
-        constexpr auto operator()(auto&&...)
+        constexpr auto operator () (auto&&...)
         {
             return faux;
             //return *this;
         }
-        //constexpr operator bool() const { return faux; }
+        constexpr operator bool () const { return faux; }
+        constexpr noop(auto&&...) { }
     };
 
     enum class feed : byte { none, rev, fwd };
@@ -142,6 +166,19 @@ namespace netxs
         return value.type() == typeid(T) ? std::any_cast<T>(value)
                                          : fallback;
     }
+    template<ui32 FieldMask>
+    static constexpr si32 field_offset()
+    {
+        auto mask = FieldMask;
+        if (mask == 0) return 0;
+        auto n = 0;
+        while ((mask & 1) == 0)
+        {
+            mask >>= 1;
+            ++n;
+        }
+        return n;
+    }
     // intmath: Set a single p-bit to v.
     template<sz_t P, class T>
     void set_bit(T&& n, bool v)
@@ -196,19 +233,21 @@ namespace netxs
         else assert(faux);
         return r;
     }
+    static constexpr auto endian_BE = std::endian::native == std::endian::big;
+    static constexpr auto endian_LE = std::endian::native == std::endian::little;
     // intmath: Convert LE to host endianness.
-    template<class T, bool BE = std::endian::native == std::endian::big>
+    template<class T>
     constexpr auto letoh(T i)
     {
-        if constexpr (BE && sizeof(T) > 1) return swap_bytes(i);
-        else                               return i;
+        if constexpr (endian_BE && sizeof(T) > 1) return swap_bytes(i);
+        else                                      return i;
     }
     // intmath: Convert BE to host endianness.
-    template<class T, bool LE = std::endian::native == std::endian::little>
+    template<class T>
     constexpr auto betoh(T i)
     {
-        if constexpr (LE && sizeof(T) > 1) return swap_bytes(i);
-        else                               return i;
+        if constexpr (endian_LE && sizeof(T) > 1) return swap_bytes(i);
+        else                                      return i;
     }
     // intmath: Get the aligned integral value.
     template<class T>
@@ -562,7 +601,7 @@ namespace netxs
             :  r{ r },
               d1{ 1 / (r * r)},
               d2{ 1 / ((r - 1) * (r - 1)) },
-              a2{ 1 - d2 }, 
+              a2{ 1 - d2 },
               b2{ 3 * d2},
               c2{ -3 * d2}
         { }
@@ -592,7 +631,7 @@ namespace netxs
             : r{ r },
               d1{ 1 / (r * r)},
               d2{ 1 / ((r - 1) * (r - 1)) },
-              a2{ 1 - d2 }, 
+              a2{ 1 - d2 },
               b2{ 3 * d2},
               c2{ -3 * d2},
             offset_x{ offset_x },
@@ -747,7 +786,7 @@ namespace netxs
         auto dy = std::abs(src_size.x);
         if (src_view.size.x < 0) { dx = -dx; src_view.coor.x -= 1; }
         if (src_view.size.y < 0) { dy = -dy; src_view.coor.y -= 1; }
-        
+
         dst_view.size -= 1;
         auto sptr = bitmap.begin() + (src_view.coor.x + src_view.coor.y * src_size.x);
         auto dptr = canvas.begin() + (dst_view.coor.x + dst_view.coor.y * dst_size.x);

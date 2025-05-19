@@ -7,23 +7,33 @@
 
 namespace netxs::events::userland
 {
-    namespace tty
+    namespace terminal
     {
-        EVENTPACK( ui::e2::extra::slot5 )
+        EVENTPACK( terminal::events, ui::e2::extra::slot5 )
         {
-            EVENT_XS( io_log, bool ),
-            EVENT_XS( selmod, si32 ),
-            EVENT_XS( onesht, si32 ),
-            EVENT_XS( selalt, si32 ),
-            EVENT_XS( rawkbd, bool ),
-            GROUP_XS( toggle, bool ),
-            GROUP_XS( colors, argb ),
-            GROUP_XS( layout, si32 ),
-            GROUP_XS( search, input::hids ),
+            EVENT_XS( io_log,  si32 ),
+            EVENT_XS( selmod,  si32 ),
+            EVENT_XS( onesht,  si32 ),
+            EVENT_XS( selalt,  si32 ),
+            EVENT_XS( rawkbd,  si32 ),
+            GROUP_XS( toggle,  si32 ),
+            GROUP_XS( preview, si32 ),
+            GROUP_XS( release, si32 ),
+            GROUP_XS( colors,  argb ),
+            GROUP_XS( layout,  si32 ),
+            GROUP_XS( search,  input::hids ),
 
             SUBSET_XS( toggle )
             {
-                EVENT_XS( cwdsync, bool ), // preview: Request to toggle cwdsync.
+                EVENT_XS( cwdsync, si32 ), // preview: Request to toggle cwdsync.
+            };
+            SUBSET_XS( preview )
+            {
+                EVENT_XS( cwdsync, si32 ),
+            };
+            SUBSET_XS( release )
+            {
+                EVENT_XS( cwdsync, si32 ),
             };
             SUBSET_XS( layout )
             {
@@ -48,65 +58,45 @@ namespace netxs::events::userland
 // terminal: Terminal UI control.
 namespace netxs::ui
 {
-    namespace tty
+    namespace terminal
     {
-        namespace events = netxs::events::userland::tty;
+        namespace events = netxs::events::userland::terminal;
     }
 
     struct term
         : public ui::form<term>
     {
+        static constexpr auto classname = basename::terminal;
 
         #define proc_list \
-            X(Noop                        ) /* */ \
-            X(AlwaysOnTopApplet           ) /* */ \
-            X(ExclusiveKeyboardMode       ) /* */ \
-            X(TerminalQuit                ) /* */ \
-            X(TerminalCwdSync             ) /* */ \
-            X(TerminalFullscreen          ) /* */ \
-            X(TerminalMaximize            ) /* */ \
-            X(TerminalMinimize            ) /* */ \
-            X(TerminalRestart             ) /* */ \
-            X(TerminalSendKey             ) /* */ \
-            X(TerminalWrapMode            ) /* */ \
-            X(TerminalAlignMode           ) /* */ \
-            X(TerminalOutput              ) /* */ \
-            X(TerminalFindNext            ) /* */ \
-            X(TerminalFindPrev            ) /* */ \
-            X(TerminalUndo                ) /* Undo/Redo for cooked read on win32 */ \
-            X(TerminalRedo                ) /* */ \
-            X(TerminalClipboardCopy       ) /* */ \
-            X(TerminalClipboardPaste      ) /* */ \
-            X(TerminalClipboardWipe       ) /* */ \
-            X(TerminalClipboardFormat     ) /* */ \
-            X(TerminalSelectionRect       ) /* Linear/Rectangular */ \
-            X(TerminalSelectionCancel     ) /* */ \
-            X(TerminalSelectionOneShot    ) /* One-shot toggle to copy text while mouse tracking is active */ \
-            X(TerminalScrollViewportByPage) /* */ \
-            X(TerminalScrollViewportByCell) /* */ \
-            X(TerminalScrollViewportToTop ) /* */ \
-            X(TerminalScrollViewportToEnd ) /* */ \
-            X(TerminalViewportCopy        ) /* */ \
-            X(TerminalStdioLog            ) /* */ \
-            X(TerminalLogStart            ) /* */ \
-            X(TerminalLogPause            ) /* */ \
-            X(TerminalLogStop             ) /* */ \
-            X(TerminalLogAbort            ) /* */ \
-            X(TerminalLogRestart          ) /* */ \
-            X(TerminalVideoRecStart       ) /* */ \
-            X(TerminalVideoRecStop        ) /* */ \
-            X(TerminalVideoRecPause       ) /* */ \
-            X(TerminalVideoRecAbort       ) /* */ \
-            X(TerminalVideoRecRestart     ) /* */ \
-            X(TerminalVideoPlay           ) /* */ \
-            X(TerminalVideoPause          ) /* */ \
-            X(TerminalVideoStop           ) /* */ \
-            X(TerminalVideoForward        ) /* */ \
-            X(TerminalVideoBackward       ) /* */ \
-            X(TerminalVideoHome           ) /* */ \
-            X(TerminalVideoEnd            ) /* */
+            X(KeyEvent             ) /* */ \
+            X(ExclusiveKeyboardMode) /* */ \
+            X(FindNextMatch        ) /* */ \
+            X(ScrollViewportByPage ) /* */ \
+            X(ScrollViewportByCell ) /* */ \
+            X(ScrollViewportToTop  ) /* */ \
+            X(ScrollViewportToEnd  ) /* */ \
+            X(SendKey              ) /* */ \
+            X(Print                ) /* */ \
+            X(CopyViewport         ) /* */ \
+            X(CopySelection        ) /* */ \
+            X(PasteClipboard       ) /* */ \
+            X(ClearClipboard       ) /* */ \
+            X(ClipboardFormat      ) /* */ \
+            X(SelectionForm        ) /* Linear/Rectangular */ \
+            X(ClearSelection       ) /* */ \
+            X(OneShotSelection     ) /* One-shot toggle to copy text while mouse tracking is active */ \
+            X(UndoReadline         ) /* Undo for cooked read on win32 */ \
+            X(RedoReadline         ) /* Redo for cooked read on win32 */ \
+            X(CwdSync              ) /* */ \
+            X(LineWrapMode         ) /* */ \
+            X(LineAlignMode        ) /* */ \
+            X(LogMode              ) /* */ \
+            X(ClearScrollback      ) /* */ \
+            X(Restart              ) /* */ \
+            X(Quit                 ) /* */ \
 
-        struct action
+        struct methods
         {
             #define X(_proc) static constexpr auto _proc = #_proc;
             proc_list
@@ -257,13 +247,13 @@ namespace netxs::ui
             }
             termconfig(xmls& config)
             {
-                static auto atexit_options = std::unordered_map<text, commands::atexit::codes>
+                static auto atexit_options = utf::unordered_map<text, commands::atexit::codes>
                     {{ "auto",    commands::atexit::smart   },
                      { "ask",     commands::atexit::ask     },
                      { "close",   commands::atexit::close   },
                      { "restart", commands::atexit::restart },
                      { "retry",   commands::atexit::retry   }};
-                static auto fx_options = std::unordered_map<text, commands::fx::shader>
+                static auto fx_options = utf::unordered_map<text, commands::fx::shader>
                     {{ "xlight",  commands::fx::xlight  },
                      { "coolor",  commands::fx::color   },
                      { "invert",  commands::fx::invert  },
@@ -348,7 +338,25 @@ namespace netxs::ui
                 {
                     data.clear();
                     if (hash) data.scp();
-                    data.jet(bias::right).add(size, "/", std::max(mxsz, peak));
+                    data.jet(bias::right);
+                    auto total = std::max(mxsz, peak);
+                    //todo optimize?
+                    if (total % 1000)
+                    {
+                        data.add(size, "/"sv, total);
+                    }
+                    else // Apply decimal prefixes to terminal scrollback size.
+                    {
+                        if (size % 1000) data.add(size);
+                        else
+                        {
+                            if (!(size % 1000000)) data.add(size / 1000000, 'M');
+                            else                   data.add(size / 1000, 'K');
+                        }
+                        data.add("/"sv);
+                        if (!(total % 1000000)) data.add(total / 1000000, 'M');
+                        else                    data.add(total / 1000, 'K');
+                    }
                     //if (mxsz && step && size != mxsz) data.add("+", step);
                     data.add(" ", area.x, ":", area.y);
                     if (hash)
@@ -431,7 +439,7 @@ namespace netxs::ui
                         {
                             if (gear.captured(owner.id))
                             {
-                                if (!gear.m_sys.buttons) gear.setfree(true);
+                                if (!gear.m_sys.buttons) gear.setfree();
                             }
                             else if (gear.m_sys.buttons) gear.capture(owner.id);
                             auto& console = *owner.target;
@@ -637,7 +645,7 @@ namespace netxs::ui
         struct c_tracking
         {
             using pals = std::remove_const_t<decltype(argb::vt256)>;
-            using func = std::unordered_map<text, std::function<void(view)>>;
+            using func = utf::unordered_map<text, std::function<void(view)>>;
 
             enum class type { invalid, rgbcolor, request };
 
@@ -963,6 +971,10 @@ namespace netxs::ui
                 vt.csier.table[csi_dsr] = V{ p->owner.wtrack.report(q(6)); }; // CSI n n  Device status report (DSR).
                 vt.csier.table[csi_pda] = V{ p->owner.wtrack.device(q(0)); }; // CSI n c  Send device attributes (Primary DA).
 
+                // Do not use non-standard vt.
+                //vt.csier.table[csi_ccc][ccc_cup] = V{ p->cup0(q); }; // CCC_CUP
+                //vt.csier.table[csi_ccc][ccc_chx] = V{ p->chx0(q.subarg(0)); }; // CCC_СHX
+                //vt.csier.table[csi_ccc][ccc_chy] = V{ p->chy0(q.subarg(0)); }; // CCC_СHY
                 vt.csier.table[csi_ccc][ccc_sbs] = V{ p->owner.sbsize(q); }; // CCC_SBS: Set scrollback size.
                 vt.csier.table[csi_ccc][ccc_rst] = V{ p->owner.setdef();  }; // CCC_RST: Reset to defaults.
                 vt.csier.table[csi_ccc][ccc_sgr] = V{ p->owner.setsgr(q); }; // CCC_SGR: Set default SGR.
@@ -1152,6 +1164,9 @@ namespace netxs::ui
             ui64  alive; // bufferbase: Selection is active (digest).
             line  match; // bufferbase: Search pattern for highlighting.
 
+            rich  tail_frag; // bufferbase: IRM cached fragment.
+            rich  char_2d; // bufferbase: 2D char image.
+
             bufferbase(term& master)
                 : owner{ master },
                   panel{ dot_11 },
@@ -1316,7 +1331,6 @@ namespace netxs::ui
                 sctop = std::max(0, n_top - 1);
                 scend = n_end != 0 ? std::max(1, panel.y - n_end)
                                    : 0;
-
                 auto y_max = panel.y - 1;
                 y_end = std::clamp(y_max - scend, 0, y_max);
                 y_top = std::clamp(sctop        , 0, y_end);
@@ -1333,16 +1347,12 @@ namespace netxs::ui
             // bufferbase: Reset coord and set the scrolling region using 1-based top and bottom. Use 0 to reset.
     virtual void set_scroll_region(si32 top, si32 bottom)
             {
-                // Sanity check.
                 top    = std::clamp(top,    0, panel.y);
                 bottom = std::clamp(bottom, 0, panel.y);
-                if (top    != 0 &&
-                    bottom != 0 && top >= bottom)
-                    //bottom != 0 && top > bottom) top = bottom; //todo Nobody respects that.
+                if (top != 0 && bottom != 0 && top >= bottom) // && top > bottom) top = bottom; //todo Nobody respects that.
                 {
                     top = bottom = 0;
                 }
-
                 n_top = top    == 1       ? 0 : top;
                 n_end = bottom == panel.y ? 0 : bottom;
                 update_region();
@@ -1360,10 +1370,10 @@ namespace netxs::ui
             }
             // bufferbase: Base-CSI contract (see ansi::csi_t).
             //             task(...), meta(...), data(...)
-            void task(ansi::rule /*property*/)
+            void task(ansi::rule property)
             {
                 parser::flush();
-                log(prompt::term, "DirectVT extensions are not supported");
+                log("%%DirectVT extensions are not supported: arg=%%, cmd=%%", prompt::term, property.arg, property.cmd);
                 //auto& cur_line = batch.current();
                 //if (cur_line.busy())
                 //{
@@ -1380,14 +1390,14 @@ namespace netxs::ui
                 {
                     auto w = parser::style.wrp() == wrap::none ? (si32)owner.config.def_wrpmod
                                                                : (si32)parser::style.wrp();
-                    owner.base::signal(tier::release, ui::tty::events::layout::wrapln, w);
+                    owner.base::signal(tier::release, terminal::events::layout::wrapln, w);
                     changed = true;
                 }
                 if (parser::style.jet() != old_style.jet())
                 {
                     auto a = parser::style.jet() == bias::none ? (si32)bias::left
                                                                : (si32)parser::style.jet();
-                    owner.base::signal(tier::release, ui::tty::events::layout::align, a);
+                    owner.base::signal(tier::release, terminal::events::layout::align, a);
                     changed = true;
                 }
                 if (changed && owner.styled)
@@ -1807,10 +1817,6 @@ namespace netxs::ui
                 if (n)
                 {
                     auto c = cell{ parser::brush };
-                    //if (c.wdt() != 1)
-                    //{
-                    //    c.wdt(2);
-                    //}
                     parser::assign(n, c);
                 }
             }
@@ -1899,13 +1905,12 @@ namespace netxs::ui
                 parser::flush();
                 scroll_region(y_top, y_end, n, n > 0 ? faux : true);
             }
-            // bufferbase: CSI n L  Insert n lines. Place cursor to the begining of the current.
+            // bufferbase: CSI n L  Insert n lines. Place cursor to the beginning of the current.
     virtual void il(si32 n)
             {
                 parser::flush();
-               /* Works only if cursor is in the scroll region.
-                * Inserts n lines at the current row and removes n lines at the scroll bottom.
-                */
+                // Works only if cursor is in the scroll region.
+                // Inserts n lines at the current row and removes n lines at the scroll bottom.
                 if (n > 0 && coord.y >= y_top
                           && coord.y <= y_end)
                 {
@@ -1913,34 +1918,45 @@ namespace netxs::ui
                     coord.x = 0;
                 }
             }
-            // bufferbase: CSI n M  Delete n lines. Place cursor to the begining of the current.
+            // bufferbase: CSI n M  Delete n lines. Place cursor to the beginning of the current.
     virtual void dl(si32 n)
             {
                 parser::flush();
-               /* Works only if cursor is in the scroll region.
-                * Deletes n lines at the current row and add n lines at the scroll bottom.
-                */
-                if (n > 0 && coord.y >= y_top
-                          && coord.y <= y_end)
+                // Works only if cursor is in the scroll region.
+                // Deletes n lines at the current row and add n lines at the scroll bottom.
+                if (n > 0 && coord.y >= y_top && coord.y <= y_end)
                 {
                     scroll_region(coord.y, y_end, -n, faux);
                     coord.x = 0;
                 }
             }
+            // bufferbase: Reverse index with using scrollback.
+    virtual void _ri(si32 n)
+            {
+                // Reverse index
+                // - move cursor up if it is outside of scrolling region or below the top line of scrolling region.
+                // - scroll down if cursor is on the top line of scroll region.
+                auto new_coord_y = coord.y - n;
+                if (new_coord_y < y_top && coord.y >= y_top)
+                {
+                    auto dy = y_top - new_coord_y;
+                    scroll_region(y_top, y_end, dy, true);
+                    coord.y = y_top;
+                }
+                else coord.y = std::clamp(new_coord_y, 0, panel.y - 1);
+            }
             // bufferbase: ESC M  Reverse index.
     virtual void ri()
             {
                 parser::flush();
-               /*
-                * Reverse index
-                * - move cursor one line up if it is outside of scrolling region or below the top line of scrolling region.
-                * - one line scroll down if cursor is on the top line of scroll region.
-                */
+                // Reverse index
+                // - move cursor one line up if it is outside of scrolling region or below the top line of scrolling region.
+                // - one line scroll down if cursor is on the top line of scroll region.
                 if (coord.y != y_top)
                 {
                     coord.y--;
                 }
-                else scroll_region(y_top, y_end, 1, true);
+                else scroll_region(y_top, y_end, 1, faux); // vi does not expect scrollback data (use_scrollback = true).
             }
             // bufferbase: CSI t;b r  Set scrolling region (t/b: top+bottom).
             void scr(fifo& q)
@@ -1987,11 +2003,24 @@ namespace netxs::ui
                     coord.x -= n;
                 }
             }
+            // bufferbase: Absolute horizontal cursor position (0-based).
+    virtual void chx0(si32 n)
+            {
+                parser::flush();
+                coord.x = n;
+            }
             // bufferbase: CSI n G  Absolute horizontal cursor position (1-based).
     virtual void chx(si32 n)
             {
                 parser::flush();
                 coord.x = n - 1;
+            }
+            // bufferbase: Absolute vertical cursor position (0-based).
+    virtual void chy0(si32 n)
+            {
+                parser::flush_data();
+                if (decom) coord.y = std::clamp(n + y_top, y_top, y_end);
+                else       coord.y = std::clamp(n, 0, panel.y - 1);
             }
             // bufferbase: CSI n d  Absolute vertical cursor position (1-based).
     virtual void chy(si32 n)
@@ -2018,6 +2047,11 @@ namespace netxs::ui
     virtual void cup0(twod p)
             {
                 parser::flush_data();
+                _cup(p);
+            }
+            // bufferbase: Cursor position (0-based) w/o data_flush.
+    virtual void cup2(twod p)
+            {
                 _cup(p);
             }
             // bufferbase: CSI y; x H/F  Cursor position (1-based).
@@ -2055,10 +2089,14 @@ namespace netxs::ui
                 }
                 else coord.y = std::clamp(new_coord_y, 0, panel.y - 1);
             }
-            // bufferbase: Line feed. Index. Scroll region up if new_coord_y > end.
-    virtual void lf(si32 n)
+            // bufferbase: Move cursor back.
+    virtual void _cub(si32 n)
             {
-                parser::flush_data();
+                coord.x -= n;
+            }
+            // bufferbase: Line feed. Index. Scroll region up if new_coord_y > end.
+    virtual void _lf(si32 n)
+            {
                 auto new_coord_y = coord.y + n;
                 if (new_coord_y > y_end && coord.y <= y_end)
                 {
@@ -2068,6 +2106,12 @@ namespace netxs::ui
                 }
                 else coord.y = std::clamp(new_coord_y, 0, panel.y - 1);
                 if (coord.x < 0 || coord.x > panel.x) coord.x = 0; // Auto cr if the cursor is outside the viewport (to prevent infinitely long lines when autocr is disabled).
+            }
+            // bufferbase: Line feed. Index. Scroll region up if new_coord_y > end.
+    virtual void lf(si32 n)
+            {
+                parser::flush_data();
+                _lf(n);
             }
             // bufferbase: '\r'  CR Cursor return. Go to home of visible line instead of home of paragraph.
     virtual void cr()
@@ -2256,6 +2300,65 @@ namespace netxs::ui
                 auto forward_is_available = uifwd ? 1 << 0 : 0;
                 auto reverse_is_available = uirev ? 1 << 1 : 0;
                 return forward_is_available | reverse_is_available;
+            }
+            // bufferbase: Clear scrollback keeping current line.
+    virtual void clear_scrollback() = 0;
+            // bufferbase: Proceed 2d text.
+            template<class Span>
+            void data_2d(twod block_size, Span const& proto, auto print_stripe)
+            {
+                assert(block_size.y > 1);
+                char_2d.unpack2d(proto, block_size);
+                auto clip = char_2d.clip();
+                auto size = char_2d.size();
+                auto wrapln = parser::style.wrp() == wrap::on;
+                auto is_first = coord.x == 0 || (coord.x >= panel.x && wrapln);
+                auto print_stripes = [&]
+                {
+                    auto head = char_2d.begin() + clip.coor.y * size.x;
+                    auto tail = head + clip.size.y * size.x;
+                    auto rest = size.x - (clip.coor.x + clip.size.x);
+                    while (true)
+                    {
+                        head += clip.coor.x;
+                        auto next = head + clip.size.x;
+                        auto line = std::span(head, next);
+                        print_stripe(line);
+                        head = next + rest;
+                        if (head != tail)
+                        {
+                            _cub(clip.size.x);
+                            _lf(1);
+                        }
+                        else break;
+                    }
+                };
+
+                if (!is_first) // Go up to make room for 2D char.
+                {
+                    _ri(block_size.y - 1);
+                }
+                if (wrapln)
+                {
+                    auto left = clip;
+                    while (left.size.x > 0)
+                    {
+                        clip.coor.x = left.coor.x;
+                        clip.size.x = std::min(panel.x - coord.x % panel.x, left.size.x);
+                        print_stripes();
+                        left.coor.x += clip.size.x;
+                        left.size.x -= clip.size.x;
+                        if (left.size.x > 0)
+                        {
+                            _cub(coord.x);
+                            _lf(1);
+                        }
+                    }
+                }
+                else
+                {
+                    print_stripes();
+                }
             }
 
             // bufferbase: Update terminal status.
@@ -2472,11 +2575,62 @@ namespace netxs::ui
                     }
                 }
             }
-            // alt_screen: Parser callback.
-            void data(si32 count, core::body const& proto) override
+            // alt_screen: .
+            auto& _fragment_from_current_coord(si32 left_cells)
             {
-                //_data(count, proto, cell::shaders::full);
-                _data(count, proto, cell::shaders::skipnuls);
+                canvas.copy_piece(tail_frag, coord.x + coord.y * panel.x, left_cells);
+                return tail_frag;
+            }
+            // alt_screen: .
+            template<bool Copy, class Span, class Shader>
+            void _data_direct_fill(si32 count, Span const& proto, Shader fuse)
+            {
+                auto fill = [&](auto start_iter, auto seek)
+                {
+                    auto dest = start_iter + seek;
+                    assert(count <= panel.x - coord.x);
+                    auto tail = dest + count;
+                    auto data = proto.begin();
+                    rich::forward_fill_proc<Copy>(data, dest, tail, fuse);
+                };
+                fill(canvas.begin(), coord.x + coord.y * panel.x);
+            }
+            // alt_screen: Insert new text using the specified cell shader.
+            template<class Span, class Shader>
+            void _data_insert(si32 count, Span const& proto, Shader fuse)
+            {
+                auto next_x = coord.x + count;
+                if (next_x < panel.x)
+                {
+                    auto left_cells = panel.x - next_x;
+                    tail_frag = _fragment_from_current_coord(left_cells);
+                    _data_direct_fill<faux>(count, proto, fuse);
+                    coord.x = next_x;
+                    if (tail_frag.size())
+                    {
+                        _data_direct_fill<true>(tail_frag.length(), tail_frag, fuse);
+                    }
+                }
+                else
+                {
+                    _data(count, proto, fuse);
+                }
+            }
+            // alt_screen: Parser callback.
+            void data(si32 width, si32 height, core::body const& proto) override
+            {
+                if (width)
+                {
+                    if (height == 1)
+                    {
+                        owner.insmod ? _data_insert(width, proto, cell::shaders::skipnulls)
+                                     : _data(width, proto, cell::shaders::skipnulls);
+                    }
+                    else // We do not support insmod for data_2d().
+                    {
+                        data_2d({ width, height }, proto, [&](auto& l){ _data<true>((si32)l.size(), l, cell::shaders::skipnulls); });
+                    }
+                }
             }
             // alt_screen: Clear viewport.
             void clear_all() override
@@ -2527,7 +2681,7 @@ namespace netxs::ui
                 coord.x = coorx;
             }
             // alt_screen: Shift by n the scroll region.
-            void scroll_region(si32 top, si32 end, si32 n, bool /*use_scrollback*/ = faux) override
+            void scroll_region(si32 top, si32 end, si32 n, [[maybe_unused]] bool use_scrollback = faux) override
             {
                 seltop.y += n;
                 selend.y += n;
@@ -2553,6 +2707,16 @@ namespace netxs::ui
                 auto coor = std::clamp(coord, dot_00, panel - dot_11);
                 auto c = canvas[coor];
                 return c;
+            }
+            // alt_screen: Clear scrollback keeping current line.
+            void clear_scrollback() override
+            {
+                if (coord.y > 0 && panel.y > 1)
+                {
+                    scroll_region(0, panel.y - 1, -coord.y);
+                }
+                canvas.del_below({ 0, 1 }, brush.spare.dry());
+                set_coord({ coord.x, 0 });
             }
             //text get_current_line() override
             //{
@@ -2901,8 +3065,8 @@ namespace netxs::ui
                     set_width(new_size.x);
                     if (ring::peak <= new_size.y)
                     {
-                        static constexpr auto BOTTOM_ANCHORED = true;
-                        ring::resize<BOTTOM_ANCHORED>(new_size.y);
+                        static constexpr auto BottomAnchored = true;
+                        ring::resize<BottomAnchored>(new_size.y);
                     }
                     return old_value != vsize;
                 }
@@ -2971,18 +3135,30 @@ namespace netxs::ui
                 {
                     recalc(l._kind, l._size, l.style.get_kind(), l.length());
                 }
-                // buff: Rewrite the indices from the specified position to the end.
+                // buff: Rewrite the indices from the specified position to the end or to the top (negative from).
                 void reindex(si32 from)
                 {
-                    assert(from >= 0);
-                    auto a = begin() + from;
-                    auto b = end();
-                    auto i = from == 0 ? 0
-                                       : (a - 1)->index + 1;
-                    while (a != b)
+                    if (from >= 0)
                     {
-                        a->index = i++;
-                        ++a;
+                        auto a = begin() + from;
+                        auto b = end();
+                        auto i = from == 0 ? 0 : (a - 1)->index + 1;
+                        while (a != b)
+                        {
+                            a->index = i++;
+                            ++a;
+                        }
+                    }
+                    else
+                    {
+                        auto a = begin();
+                        auto b = a + std::abs(from);
+                        auto i = b->index - std::abs(from);
+                        while (a != b)
+                        {
+                            a->index = i++;
+                            ++a;
+                        }
                     }
                 }
                 // buff: Remove the specified number of lines at the specified position (inclusive).
@@ -3002,6 +3178,20 @@ namespace netxs::ui
                     slide = 0;
                     invite(0, deco{}.wrp(auto_wrap), cell{}); // At least one line must exist.
                     ancid = back().index;
+                    ancdy = 0;
+                    set_width(width);
+                }
+                // buff: Clear scrollback keeping current line.
+                void clear_but_current()
+                {
+                    auto backup = current();
+                    backup.index = 0;
+                    ring::clear();
+                    auto& curln = ring::push_back(backup); // Keep current line.
+                    basis = 0;
+                    slide = 0;
+                    invite(curln); // Sync current line state (length, wrap mode).
+                    ancid = curln.index;
                     ancdy = 0;
                     set_width(width);
                 }
@@ -3088,12 +3278,12 @@ namespace netxs::ui
             bool test_index()
             {
                 #if defined(DEBUG)
-                auto m = index.front().index;
-                for (auto& i : index)
-                {
-                    assert(i.index >= m && i.index - m < 2);
-                    m = i.index;
-                }
+                    auto m = index.front().index;
+                    for (auto& i : index)
+                    {
+                        assert(i.index >= m && i.index - m < 2);
+                        m = i.index;
+                    }
                 #endif
                 return true;
             }
@@ -3117,11 +3307,11 @@ namespace netxs::ui
             auto test_resize()
             {
                 #if defined(DEBUG)
-                auto c = batch.caret;
-                #endif
-                sync_coord();
-                #if defined(DEBUG)
-                assert(c == batch.caret);
+                    auto c = batch.caret;
+                    sync_coord();
+                    assert(c == batch.caret);
+                #else
+                    sync_coord();
                 #endif
                 return true;
             }
@@ -3514,12 +3704,19 @@ namespace netxs::ui
                     batch.recalc(curln);
                 }
 
-                if (in_top > 0 || in_end > 0) // The cursor is outside the scrolling region.
+                if (!owner.bottom_anchored || in_top > 0 || in_end > 0) // The cursor is outside the scrolling region.
                 {
-                    if (in_top > 0) coord.y = std::max(0,           y_top - in_top);
-                    else            coord.y = std::min(panel.y - 1, y_end + in_end);
-                    coord.x = std::clamp(coord.x, 0, panel.x - 1);
-                    batch.basis = std::max(0, batch.vsize - arena);
+                         if (in_top > 0) coord.y = std::max(0,           y_top - in_top);
+                    else if (in_end > 0) coord.y = std::min(panel.y - 1, y_end + in_end);
+                    coord = std::clamp(coord, dot_00, panel - dot_11);
+                    if (owner.bottom_anchored)
+                    {
+                        batch.basis = std::max(0, batch.vsize - arena);
+                    }
+                    else // Try to keep batch.basis as is.
+                    {
+                        batch.basis = std::clamp(batch.basis, 0, std::max(0, batch.vsize - 1));
+                    }
                     index_rebuild();
                     if (vsized || !away) recalc_slide(away);
                     return;
@@ -3780,8 +3977,7 @@ namespace netxs::ui
                 coord.y = std::clamp(coord.y, 0, panel.y - 1);
                 if (coord.x < 0) coord.x = 0;
 
-                if (coord.y >= y_top
-                 && coord.y <= y_end)
+                if (coord.y >= y_top && coord.y <= y_end)
                 {
                     auto& curln = batch.current();
                     auto  wraps = curln.wrapped();
@@ -3834,22 +4030,28 @@ namespace netxs::ui
                 }
             }
 
-            void cup (fifo& q) override { bufferbase::cup (q); sync_coord<faux>(); }
-            void cup (twod  p) override { bufferbase::cup (p); sync_coord<faux>(); }
+            void  cup(fifo& q) override { bufferbase:: cup(q); sync_coord<faux>(); }
+            void  cup(twod  p) override { bufferbase:: cup(p); sync_coord<faux>(); }
             void cup0(twod  p) override { bufferbase::cup0(p); sync_coord<faux>(); }
-            void cuf (si32  n) override { bufferbase::cuf (n); sync_coord<faux>(); }
-            void cub (si32  n) override { bufferbase::cub (n); sync_coord<faux>(); }
-            void chx (si32  n) override { bufferbase::chx (n); sync_coord<faux>(); }
-            void tab (si32  n) override { bufferbase::tab (n); sync_coord<faux>(); }
-            void chy (si32  n) override { bufferbase::chy (n); sync_coord(); }
-            void scl (si32  n) override { bufferbase::scl (n); sync_coord(); }
-            void il  (si32  n) override { bufferbase::il  (n); sync_coord(); }
-            void dl  (si32  n) override { bufferbase::dl  (n); sync_coord(); }
-            void up  (si32  n) override { bufferbase::up  (n); sync_coord(); }
-            void dn  (si32  n) override { bufferbase::dn  (n); sync_coord(); }
-            void lf  (si32  n) override { bufferbase::lf  (n); sync_coord(); }
-            void ri  ()        override { bufferbase::ri  ( ); sync_coord(); }
-            void cr  ()        override { bufferbase::cr  ( ); sync_coord(); }
+            void cup2(twod  p) override { bufferbase::cup2(p); sync_coord<faux>(); }
+            void  cuf(si32  n) override { bufferbase:: cuf(n); sync_coord<faux>(); }
+            void  cub(si32  n) override { bufferbase:: cub(n); sync_coord<faux>(); }
+            void _cub(si32  n) override { bufferbase::_cub(n); batch.caret -= n;   }
+            void  chx(si32  n) override { bufferbase:: chx(n); sync_coord<faux>(); }
+            void chx0(si32  n) override { bufferbase::chx0(n); sync_coord<faux>(); }
+            void  tab(si32  n) override { bufferbase:: tab(n); sync_coord<faux>(); }
+            void  chy(si32  n) override { bufferbase:: chy(n); sync_coord(); }
+            void chy0(si32  n) override { bufferbase::chy0(n); sync_coord(); }
+            void  scl(si32  n) override { bufferbase:: scl(n); sync_coord(); }
+            void   il(si32  n) override { bufferbase::  il(n); sync_coord(); }
+            void   dl(si32  n) override { bufferbase::  dl(n); sync_coord(); }
+            void   up(si32  n) override { bufferbase::  up(n); sync_coord(); }
+            void   dn(si32  n) override { bufferbase::  dn(n); sync_coord(); }
+            void   lf(si32  n) override { bufferbase::  lf(n); sync_coord(); }
+            void  _lf(si32  n) override { bufferbase:: _lf(n); sync_coord(); }
+            void  _ri(si32  n) override { bufferbase:: _ri(n); sync_coord(); }
+            void   ri()        override { bufferbase::  ri();  sync_coord(); }
+            void   cr()        override { bufferbase::  cr();  sync_coord(); }
 
             // scroll_buf: Reset the scrolling region.
             void reset_scroll_region()
@@ -4275,11 +4477,11 @@ namespace netxs::ui
             // scroll_buf: Move internal caret by count with wrapping.
             void _fwd(si32 count)
             {
+                coord.x += count;
                 if (count > 0)
                 {
                     if (coord.y < y_top)
                     {
-                        coord.x += count;
                         if (coord.x > panel.x)
                         {
                             wrapdn();
@@ -4294,7 +4496,6 @@ namespace netxs::ui
                     else if (coord.y <= y_end)
                     {
                         auto& curln = batch.current();
-                        coord.x += count;
                         if (coord.x >= panel.x && curln.wrapped())
                         {
                             wrapdn();
@@ -4308,7 +4509,6 @@ namespace netxs::ui
                     }
                     else
                     {
-                        coord.x += count;
                         if (coord.x > panel.x)
                         {
                             wrapdn();
@@ -4320,7 +4520,6 @@ namespace netxs::ui
                 {
                     if (coord.y < y_top)
                     {
-                        coord.x += count;
                         if (coord.x < 0)
                         {
                             wrapup();
@@ -4335,7 +4534,6 @@ namespace netxs::ui
                     else if (coord.y <= y_end)
                     {
                         auto& curln = batch.current();
-                        coord.x += count;
                         if (coord.x < 0 && curln.wrapped())
                         {
                             wrapup(); //failed for CUF(-(panel.x + 1)) at coord.x = 1
@@ -4346,7 +4544,13 @@ namespace netxs::ui
                                 if (coord.y < y_top)
                                 {
                                     batch.basis -= y_top - coord.y;
-                                    if (batch.basis < 0) batch.basis = 0;
+                                    if (batch.basis < 0) // Scroll down by pushing -batch.basis empty lines to front.
+                                    {
+                                        auto n = -batch.basis;
+                                        while (n-- > 0) batch.insert(0, id_t{}, parser::style, parser::brush);
+                                        batch.reindex(batch.basis); // Reindex backward.
+                                        batch.basis = 0;
+                                    }
                                     coord.y = y_top;
                                     index_rebuild();
                                 }
@@ -4355,7 +4559,6 @@ namespace netxs::ui
                     }
                     else
                     {
-                        coord.x += count;
                         if (coord.x < 0)
                         {
                             wrapup();
@@ -4672,10 +4875,98 @@ namespace netxs::ui
                 }
                 assert(test_coord());
             }
-            // scroll_buf: Proceed new text (parser callback).
-            void data(si32 count, core::body const& proto) override
+            // scroll_buf: .
+            template<bool Copy, class Span, class Shader>
+            void _data_direct_fill(si32 count, Span const& proto, Shader fuse)
             {
-                _data(count, proto, cell::shaders::skipnuls);
+                auto fill = [&](auto start_iter, auto seek)
+                {
+                    auto dest = start_iter + seek;
+                    assert(count <= panel.x - coord.x);
+                    auto tail = dest + count;
+                    auto data = proto.begin();
+                    rich::forward_fill_proc<Copy>(data, dest, tail, fuse);
+                };
+                if (coord.y < y_top)
+                {
+                    fill(upbox.begin(), coord.x + coord.y * panel.x);
+                }
+                else if (coord.y <= y_end)
+                {
+                    auto& curln = batch.current();
+                    auto  start = batch.caret;
+                    auto newlen = batch.caret + count;
+                    if (newlen > curln.length())
+                    {
+                        curln.crop(newlen);
+                        auto& mapln = index[coord.y - y_top];
+                        mapln.width = newlen % panel.x;
+                        batch.recalc(curln);
+                    }
+                    fill(curln.begin(), start);
+                }
+                else
+                {
+                    fill(dnbox.begin(), coord.x + (coord.y - (y_end + 1)) * panel.x);
+                }
+            }
+            // scroll_buf: .
+            auto& _fragment_from_current_coord(si32 left_cells)
+            {
+                if (coord.y < y_top)
+                {
+                    upbox.copy_piece(tail_frag, coord.x + coord.y * panel.x, left_cells);
+                }
+                else if (coord.y <= y_end)
+                {
+                    auto& curln = batch.current();
+                    auto  start = batch.caret;
+                    curln.copy_piece(tail_frag, start, left_cells);
+                }
+                else
+                {
+                    dnbox.copy_piece(tail_frag, coord.x + (coord.y - (y_end + 1)) * panel.x, left_cells);
+                }
+                return tail_frag;
+            }
+            // scroll_buf: Insert text using the specified cell shader.
+            template<class Span, class Shader>
+            void _data_insert(si32 count, Span const& proto, Shader fuse)
+            {
+                auto next_x = coord.x + count;
+                if (next_x < panel.x)
+                {
+                    auto left_cells = panel.x - next_x;
+                    tail_frag = _fragment_from_current_coord(left_cells);
+                    _data_direct_fill<faux>(count, proto, fuse);
+                    coord.x = next_x;
+                    sync_coord();
+                    if (tail_frag.size())
+                    {
+                        _data_direct_fill<true>(tail_frag.length(), tail_frag, fuse);
+                    }
+                }
+                else
+                {
+                    _data(count, proto, fuse);
+                }
+            }
+            // scroll_buf: Proceed new text (parser callback).
+            void data(si32 width, si32 height, core::body const& proto) override
+            {
+                if (width)
+                {
+                    if (height == 1)
+                    {
+                        owner.insmod ? _data_insert(width, proto, cell::shaders::skipnulls)
+                                     : _data(width, proto, cell::shaders::skipnulls);
+                    }
+                    else // We do not support insmod for data_2d().
+                    {
+                        data_2d({ width, height }, proto, [&](auto& l){ _data<true>((si32)l.size(), l, cell::shaders::skipnulls); });
+                    }
+                }
+                else sync_coord();
             }
             // scroll_buf: Clear scrollback.
             void clear_all() override
@@ -5034,7 +5325,7 @@ namespace netxs::ui
                 assert(test_futures());
                 // Note: coord is unsynced -- see set_scroll_region()
             }
-            // scroll_buf: Scroll the specified region by n lines. The scrollback can only be used with the whole scrolling region.
+            // scroll_buf: Scroll the specified region by n lines (basis - n). The scrollback can only be used with the whole scrolling region.
             void scroll_region(si32 top, si32 end, si32 n, bool use_scrollback) override
             {
                 assert(top >= y_top && end <= y_end);
@@ -5048,8 +5339,7 @@ namespace netxs::ui
                 auto count = std::abs(n);
                 if (n < 0) // Scroll text up.
                 {
-                    if (top == y_top &&
-                        end == y_end && use_scrollback)
+                    if (top == y_top && end == y_end && use_scrollback)
                     {
                         count -= feed_futures(count);
                         if (count > 0)
@@ -5090,8 +5380,7 @@ namespace netxs::ui
                 }
                 else // Scroll text down.
                 {
-                    if (top == y_top &&
-                        end == y_end && use_scrollback && batch.basis >= n) // Just move the viewport up.
+                    if (top == y_top && end == y_end && use_scrollback && batch.basis >= n) // Just move the viewport up.
                     {
                         batch.basis -= n;
                     }
@@ -5135,6 +5424,12 @@ namespace netxs::ui
                 auto& curln = batch.current();
                 auto c = curln.length() && batch.caret <= curln.length() ? curln.at(std::clamp(batch.caret, 0, curln.length() - 1)) : parser::brush;
                 return c;
+            }
+            // scroll_buf: Clear scrollback keeping current line.
+            void clear_scrollback() override
+            {
+                batch.clear_but_current();
+                resize_viewport(panel, true);
             }
             //text get_current_line() override
             //{
@@ -6263,6 +6558,7 @@ namespace netxs::ui
                         curln.style.jet(align);
                         batch.recalc(curln);
                     });
+                    if (a != bias::none) style.jet(a);
                     resize_viewport(panel, true); // Recalc batch.basis.
                 }
                 else
@@ -6610,6 +6906,7 @@ namespace netxs::ui
         cell       defclr; // term: Default/current colors (SGR49/39).
         twod       origin; // term: Viewport position.
         twod       follow; // term: Viewport follows cursor (bool: X, Y).
+        bool       insmod; // term: Insert/replace mode.
         bool       decckm; // term: Cursor keys Application(true)/ANSI(faux) mode.
         bool       bpmode; // term: Bracketed paste mode.
         bool       unsync; // term: Viewport is out of sync.
@@ -6632,6 +6929,7 @@ namespace netxs::ui
         os::fdrw   fdlink; // term: Optional DirectVT uplink.
         hook       onerun; // term: One-shot token for restart session.
         bool       rawkbd; // term: Exclusive keyboard access.
+        bool       bottom_anchored; // term: Anchor scrollback content when resizing (default is anchor at bottom).
         vtty       ipccon; // term: IPC connector. Should be destroyed first.
 
         // term: Place rectangle block to the scrollback buffer.
@@ -6654,12 +6952,12 @@ namespace netxs::ui
                 head += clip.coor.x;
                 auto next = head + clip.size.x;
                 auto line = std::span(head, next);
-                scrollback.cup0(coor);
+                scrollback.cup2(coor);
                 scrollback.template _data<true>(clip.size.x, line, fuse);
                 head = next + rest;
                 coor.y++;
             }
-            scrollback.cup0(save);
+            scrollback.cup2(save);
         }
         // term: CSI srcTop ; srcLeft ; srcBottom ; srcRight ; srcBuffIndex ; dstTop ; dstLeft ; dstBuffIndex $ v  — Copy rectangular area (DECCRA). BuffIndex: 1..6, 1 is default index. All coords are 1-based (inclusive).
         void deccra(fifo& q)
@@ -6729,7 +7027,7 @@ namespace netxs::ui
                 if (type == cwdsync)
                 {
                     auto path = text{ data.substr(delimpos) };
-                    bell::enqueue<faux>(This(), [&, path](auto& /*boss*/) mutable
+                    base::enqueue([&, path](auto& /*boss*/) mutable
                     {
                         this->base::riseup(tier::preview, e2::form::prop::cwd, path); //todo VS2019 requires `this`
                     });
@@ -6752,7 +7050,7 @@ namespace netxs::ui
                 auto gates = base::riseup(tier::request, e2::form::state::keybd::enlist); // Take all foci.
                 for (auto gate_id : gates) // Signal them to set the clipboard data.
                 {
-                    if (auto gear_ptr = bell::getref<hids>(gate_id))
+                    if (auto gear_ptr = base::getref<hids>(gate_id))
                     {
                         gear_ptr->set_clipboard(clipdata);
                     }
@@ -6983,11 +7281,14 @@ namespace netxs::ui
         {
             switch (n)
             {
-            case 20:    // LNM—Line Feed/New Line Mode on.
-                target->set_autocr(true);
-                break;
-            default:
-                break;
+                case 4:     // Insert/Replace Mode (IRM) on.
+                    insmod = true;
+                    break;
+                case 20:    // LNM—Line Feed/New Line Mode on.
+                    target->set_autocr(true);
+                    break;
+                default:
+                    break;
             }
         }
         // term: Reset termnail parameters.
@@ -6995,11 +7296,14 @@ namespace netxs::ui
         {
             switch (n)
             {
-            case 20:    // LNM—Line Feed/New Line Mode off.
-                target->set_autocr(faux);
-                break;
-            default:
-                break;
+                case 4:     // Insert/Replace Mode (IRM) off.
+                    insmod = faux;
+                    break;
+                case 20:    // LNM—Line Feed/New Line Mode off.
+                    target->set_autocr(faux);
+                    break;
+                default:
+                    break;
             }
         }
         // term: Set termnail parameters.
@@ -7170,13 +7474,13 @@ namespace netxs::ui
         {
             selmod = newmod;
             base::signal(tier::release, e2::form::draggable::left, selection_passed());
-            base::signal(tier::release, ui::tty::events::selmod, selmod);
+            base::signal(tier::release, terminal::events::selmod, selmod);
         }
         // term: Run one-shot selection.
         void selection_oneshot(si32 newmod)
         {
             onesht = newmod;
-            base::signal(tier::release, ui::tty::events::onesht, onesht);
+            base::signal(tier::release, terminal::events::onesht, onesht);
             selection_selmod(newmod);
         }
         // term: Set selection form.
@@ -7184,7 +7488,7 @@ namespace netxs::ui
         {
             selalt = boxed;
             base::signal(tier::release, e2::form::draggable::left, selection_passed());
-            base::signal(tier::release, ui::tty::events::selalt, selalt);
+            base::signal(tier::release, terminal::events::selalt, selalt);
         }
         // term: Set the next selection mode.
         void selection_selmod()
@@ -7278,10 +7582,12 @@ namespace netxs::ui
                 _copy(gear, data);
             }
             auto ctrl_pressed = gear.meta(hids::anyCtrl);
-            if (onesht != mime::disabled && !ctrl_pressed) selection_oneshot(mime::disabled);
+            if (onesht != mime::disabled && !ctrl_pressed)
+            {
+                selection_oneshot(mime::disabled);
+            }
             if (ctrl_pressed || selection_cancel()) // Keep selection if Ctrl is pressed.
             {
-                bell::expire(tier::release);
                 return true;
             }
             return faux;
@@ -7356,7 +7662,6 @@ namespace netxs::ui
                 console.selection_follow(gear.coord, go_on);
                 selection_extend(gear);
                 gear.dismiss();
-                bell::expire(tier::release);
             }
             else selection_cancel();
         }
@@ -7364,17 +7669,14 @@ namespace netxs::ui
         {
             target->selection_byword(gear.coord);
             gear.dismiss();
-            bell::expire(tier::release);
             base::deface();
         }
         void selection_tplclk(hids& gear)
         {
-            auto clicks = gear.clicks(hids::buttons::left);
-                 if (clicks == 3) target->selection_byline(gear.coord);
-            else if (clicks == 4) target->selection_bymark(gear.coord);
-            else if (clicks == 5) target->selection_selall();
+                 if (gear.clicked == 3) target->selection_byline(gear.coord);
+            else if (gear.clicked == 4) target->selection_bymark(gear.coord);
+            else if (gear.clicked == 5) target->selection_selall();
             gear.dismiss();
-            bell::expire(tier::release);
             base::deface();
         }
         void selection_create(hids& gear)
@@ -7450,40 +7752,42 @@ namespace netxs::ui
         }
         void selection_submit()
         {
-            base::signal(tier::release, e2::form::draggable::left, selection_passed());
-            LISTEN(tier::release, input::events::mouse::scroll::act, gear)
+            LISTEN(tier::release, e2::form::drag::start ::left, gear){ if (selection_passed()) selection_create(gear); };
+            LISTEN(tier::release, e2::form::drag::pull  ::left, gear){ if (selection_passed()) selection_extend(gear); };
+            LISTEN(tier::release, e2::form::drag::stop  ::left, gear){                         selection_finish(gear); };
+            LISTEN(tier::release, e2::form::drag::cancel::left, gear){                         selection_cancel();     };
+            on(tier::mouserelease, input::key::RightClick,                [&](hids& gear){                         selection_pickup(gear); });
+            on(tier::mouserelease, input::key::LeftClick,                 [&](hids& gear){                         selection_lclick(gear); });
+            on(tier::mouserelease, input::key::MiddleClick,               [&](hids& gear){                         selection_mclick(gear); });
+            on(tier::mouserelease, input::key::LeftDoubleClick,           [&](hids& gear){ if (selection_passed()) selection_dblclk(gear); });
+            on(tier::mouserelease, input::key::LeftMultiClick,            [&](hids& gear){ if (selection_passed()) selection_tplclk(gear); });
+            on(tier::mouserelease, input::key::MouseWheel, [&](hids& gear)
             {
                 if (gear.captured()) // Forward mouse wheel events to all parents. Wheeling while button pressed.
                 {
                     auto& offset = this->base::coor();
-                    gear.pass(tier::release, this->base::parent(), offset);
-                }
-            };
-            //todo make it configurable
-            LISTEN(tier::release, e2::form::drag::start                 ::left,  gear) { if (selection_passed()) selection_create(gear); };
-            LISTEN(tier::release, e2::form::drag::pull                  ::left,  gear) { if (selection_passed()) selection_extend(gear); };
-            LISTEN(tier::release, e2::form::drag::stop                  ::left,  gear) {                         selection_finish(gear); };
-            LISTEN(tier::release, e2::form::drag::cancel                ::left,  gear) {                         selection_cancel();     };
-            LISTEN(tier::release, input::events::mouse::button::click   ::right, gear) {                         selection_pickup(gear); };
-            LISTEN(tier::release, input::events::mouse::button::click   ::left,  gear) {                         selection_lclick(gear); };
-            LISTEN(tier::release, input::events::mouse::button::click   ::middle,gear) {                         selection_mclick(gear); };
-            LISTEN(tier::release, input::events::mouse::button::dblclick::left,  gear) { if (selection_passed()) selection_dblclk(gear); };
-            LISTEN(tier::release, input::events::mouse::button::tplclick::left,  gear) { if (selection_passed()) selection_tplclk(gear); };
-            LISTEN(tier::release, input::events::mouse::scroll::act, gear)
-            {
-                if (gear.meta(hids::anyCtrl)) return; // Ctrl+Wheel is reserved for zooming.
-                if (altscr && target == &altbuf)
-                {
-                    if (gear.whlsi)
+                    if (auto parent_ptr = base::parent())
                     {
-                        auto count = std::abs(gear.whlsi);
-                        auto arrow = decckm ? gear.whlsi > 0 ? "\033OA"sv : "\033OB"sv
-                                            : gear.whlsi > 0 ? "\033[A"sv : "\033[B"sv;
-                        data_out(utf::repeat(arrow, count));
+                        auto& parent = *parent_ptr;
+                        gear.pass(tier::mouserelease, parent, offset);
                     }
-                    gear.dismiss();
                 }
-            };
+                else
+                {
+                    if (gear.meta(hids::anyCtrl)) return; // Ctrl+Wheel is reserved for zooming.
+                    if (altscr && target == &altbuf)
+                    {
+                        if (gear.whlsi)
+                        {
+                            auto count = std::abs(gear.whlsi);
+                            auto arrow = decckm ? gear.whlsi > 0 ? "\033OA"sv : "\033OB"sv
+                                                : gear.whlsi > 0 ? "\033[A"sv : "\033[B"sv;
+                            data_out(utf::repeat(arrow, count));
+                        }
+                        gear.dismiss();
+                    }
+                }
+            });
         }
         void selection_search(hids& gear, feed dir)
         {
@@ -7513,7 +7817,7 @@ namespace netxs::ui
                                   :  console.arena;
                 }
             }
-            base::signal(tier::release, ui::tty::events::search::status, console.selection_button(delta));
+            base::signal(tier::release, terminal::events::search::status, console.selection_button(delta));
             if (target == &normal && delta)
             {
                 selection_moveto(delta);
@@ -7540,7 +7844,7 @@ namespace netxs::ui
             defclr = brush;
             brush.link(console.brush.link());
             console.brush.reset(brush);
-            base::signal(tier::release, ui::tty::events::colors::bg, bg);
+            base::signal(tier::release, terminal::events::colors::bg, bg);
         }
         void set_fg_color(argb fg)
         {
@@ -7551,13 +7855,13 @@ namespace netxs::ui
             defclr = brush;
             brush.link(console.brush.link());
             console.brush.reset(brush);
-            base::signal(tier::release, ui::tty::events::colors::fg, fg);
+            base::signal(tier::release, terminal::events::colors::fg, fg);
         }
         void set_rawkbd(si32 state = {})
         {
             if (!state) rawkbd = !rawkbd;
             else        rawkbd = state - 1;
-            base::signal(tier::release, ui::tty::events::rawkbd, rawkbd);
+            base::signal(tier::release, terminal::events::rawkbd, rawkbd);
         }
         void set_wrapln(si32 wrapln = {})
         {
@@ -7566,7 +7870,7 @@ namespace netxs::ui
             {
                 follow[axis::Y] = true; // Reset viewport.
             }
-            ondata<true>();
+            ondata<true>(); // Trigger to rise event.
         }
         void set_align(si32 align = {})
         {
@@ -7575,7 +7879,7 @@ namespace netxs::ui
             {
                 follow[axis::Y] = true; // Reset viewport.
             }
-            ondata<true>();
+            ondata<true>(); // Trigger to rise event.
         }
         void set_selmod(si32 mode)
         {
@@ -7594,8 +7898,13 @@ namespace netxs::ui
             if (config.allow_logs)
             {
                 io_log = state;
-                base::signal(tier::release, ui::tty::events::io_log, state);
+                base::signal(tier::release, terminal::events::io_log, state);
             }
+        }
+        void clear_scrollback()
+        {
+            target->clear_scrollback();
+            ondata<true>();
         }
         void exec_cmd(commands::ui::commands cmd)
         {
@@ -7634,7 +7943,7 @@ namespace netxs::ui
         void onexit(si32 code, text msg = {}, bool exit_after_sighup = faux)
         {
             if (exit_after_sighup) close();
-            else bell::enqueue<faux>(This(), [&, code, msg, backup = This()](auto& /*boss*/)
+            else base::enqueue<faux>([&, code, msg, backup = This()](auto& /*boss*/) mutable
             {
                 ipccon.payoff(io_log);
                 auto lock = bell::sync();
@@ -7652,7 +7961,7 @@ namespace netxs::ui
                     auto byemsg = error().add("Press Esc to close or press Enter to restart the session.\r\n")
                                          .add("\n");
                     ondata(byemsg);
-                    this->LISTEN(tier::release, input::events::keybd::key::post, gear, onerun) //todo VS2019 requires `this`
+                    this->LISTEN(tier::release, input::events::keybd::post, gear, onerun) //todo VS2019 requires `this`
                     {
                         if (gear.keystat)
                         {
@@ -7684,6 +7993,7 @@ namespace netxs::ui
                     case commands::atexit::close:        close(); break;
                     case commands::atexit::restart:      renew(); break;
                 }
+                backup.reset(); // Backup should dtored under the lock.
             });
         }
         void start()
@@ -7696,11 +8006,23 @@ namespace netxs::ui
             fdlink = fds;
             if (!ipccon)
             {
-                bell::enqueue<faux>(This(), [&, backup = This()](auto& /*boss*/) mutable // We can't request the title before conio.run(), so we queue the request.
+                base::enqueue([&, backup = This()](auto& /*boss*/) mutable // We can't request the title before conio.run(), so we queue the request.
                 {
                     auto& title = wtrack.get(ansi::osc_title);
                     if (title.empty()) wtrack.set(ansi::osc_title); // Set default title if it is empty.
                     if (config.send_input.size()) ipccon.write<faux>(config.send_input);
+                    // Sync external listeners with terminal current state.
+                    base::signal(tier::release, terminal::events::io_log,         io_log);
+                    base::signal(tier::release, terminal::events::selmod,         selmod);
+                    base::signal(tier::release, terminal::events::onesht,         onesht);
+                    base::signal(tier::release, terminal::events::selalt,         selalt);
+                    base::signal(tier::release, terminal::events::rawkbd,         rawkbd);
+                    base::signal(tier::release, terminal::events::colors::bg,     target->brush.bgc());
+                    base::signal(tier::release, terminal::events::colors::fg,     target->brush.fgc());
+                    base::signal(tier::release, terminal::events::layout::wrapln, (si32)target->style.wrp());
+                    base::signal(tier::release, terminal::events::layout::align,  (si32)target->style.jet());
+                    base::signal(tier::release, terminal::events::search::status, target->selection_button());
+                    backup.reset(); // Backup should dtored under the lock.
                 });
                 appcfg.win = target->panel;
                 ipccon.runapp(*this, appcfg, fdlink);
@@ -7719,17 +8041,24 @@ namespace netxs::ui
             {
                 if (ipccon.sighup())
                 {
-                    bell::enqueue<faux>(This(), [&, backup = This()](auto& /*boss*/) mutable
+                    base::enqueue<faux>([&, backup = This()](auto& /*boss*/) mutable // This backup is to keep the task active.
                     {
                         ipccon.payoff(io_log); // Wait child process.
+                        auto lock = bell::sync();
                         this->base::riseup(tier::release, e2::form::proceed::quit::one, forced); //todo VS2019 requires `this`
+                        backup.reset(); // Backup should dtored under the lock.
                     });
                 }
             }
             else // Child process exited with non-zero code and term waits keypress.
             {
+                auto lock = bell::sync();
                 onerun.reset();
-                this->base::riseup(tier::release, e2::form::proceed::quit::one, forced); //todo VS2019 requires `this`
+                base::enqueue([&, backup = This()](auto& /*boss*/) mutable // The termlink trailer (calling ui::term::close()) should be joined before ui::term dtor.
+                {
+                    this->base::riseup(tier::release, e2::form::proceed::quit::one, forced); //todo VS2019 requires `this`
+                    backup.reset(); // Backup should dtored under the lock.
+                });
             }
         }
         // term: Resize terminal window.
@@ -7737,18 +8066,19 @@ namespace netxs::ui
         {
             base::riseup(tier::preview, e2::form::prop::window::size, winsz);
         }
-        // term: Custom data output (ConSrv callback).
+        // term: Custom data output (ConSrv cooked read callback).
         template<class Fx>
         void data(rich& cooked, Fx fx)
         {
-            if (auto count = cooked.size().x)
+            if (auto width = cooked.length())
             {
                 auto& proto = cooked.pick();
                 auto& brush = target == &normal ? normal.parser::brush
                                                 : altbuf.parser::brush;
                 cooked.each([&](cell& c){ c.meta(brush); });
-                if (target == &normal) normal._data(count, proto, fx);
-                else                   altbuf._data(count, proto, fx);
+                //todo split by char height and do _data2d(...) for each
+                if (target == &normal) normal._data(width, proto, fx);
+                else                   altbuf._data(width, proto, fx);
             }
         }
         // term: Move composition cursor (imebox.caret) inside viewport with wordwrapping.
@@ -7787,7 +8117,7 @@ namespace netxs::ui
                         follow[axis::Y] = true;
                     }
                     ipccon.keybd(gear, decckm, kbmode);
-                    if (!gear.touched || gear.keystat != input::key::released) gear.set_handled();
+                    if (!gear.touched || gear.keystat != input::key::released) gear.set_handled(faux);
                     break;
                 case keybd::type::imeinput:
                 case keybd::type::keypaste:
@@ -7855,6 +8185,7 @@ namespace netxs::ui
               wtrack{ *this },
               ctrack{ *this },
               follow{ 0, 1 },
+              insmod{ faux },
               decckm{ faux },
               bpmode{ faux },
               unsync{ faux },
@@ -7868,326 +8199,345 @@ namespace netxs::ui
               onesht{ mime::disabled },
               altscr{ config.def_alt_on },
               kbmode{ prot::vt },
-              ime_on{ faux }, 
-              rawkbd{ faux }
+              ime_on{ faux },
+              rawkbd{ faux },
+              bottom_anchored{ true }
         {
             set_fg_color(config.def_fcolor);
             set_bg_color(config.def_bcolor);
             selection_submit();
-            publish_property(ui::tty::events::io_log,         [&](auto& v){ v = io_log; });
-            publish_property(ui::tty::events::selmod,         [&](auto& v){ v = selmod; });
-            publish_property(ui::tty::events::onesht,         [&](auto& v){ v = onesht; });
-            publish_property(ui::tty::events::selalt,         [&](auto& v){ v = selalt; });
-            publish_property(ui::tty::events::rawkbd,         [&](auto& v){ v = rawkbd; });
-            publish_property(ui::tty::events::colors::bg,     [&](auto& v){ v = target->brush.bgc(); });
-            publish_property(ui::tty::events::colors::fg,     [&](auto& v){ v = target->brush.fgc(); });
-            publish_property(ui::tty::events::layout::wrapln, [&](auto& v){ v = (si32)target->style.wrp(); });
-            publish_property(ui::tty::events::layout::align,  [&](auto& v){ v = (si32)target->style.jet(); });
-            publish_property(ui::tty::events::search::status, [&](auto& v){ v = target->selection_button(); });
             selection_selmod(config.def_selmod);
 
-            auto& keybd = base::plugin<pro::keybd>("terminal");
-            auto& luafx = base::plugin<pro::luafx>();
-            auto bindings = pro::keybd::load(xml_config, "terminal");
-            keybd.bind(bindings);
-            luafx.activate("terminal.proc_map",
+            auto& mouse = base::plugin<pro::mouse>();
+            mouse.draggable<hids::buttons::left>(selection_passed());
+
+            base::plugin<pro::keybd>();
+            auto& luafx = bell::indexer.luafx;
+            auto script_list = xml_config.list("/config/events/terminal/script");
+            auto bindings = input::bindings::load(xml_config, script_list);
+            input::bindings::keybind(*this, bindings);
+            base::add_methods(basename::terminal,
             {
-                { "KeyEvent",                   [&]
-                                                {
-                                                    luafx.run_with_gear([&](auto& gear)
+                { methods::KeyEvent,                [&]
                                                     {
-                                                        auto backup = syskeybd{};
-                                                        backup.set(gear);
-                                                        auto args_count = luafx.args_count();
-                                                        auto index = 0;
-                                                        while (index < args_count)
+                                                        luafx.run_with_gear([&](auto& gear)
                                                         {
-                                                            //log("key args:");
-                                                            auto k = syskeybd{};
-                                                            k.syncto(gear);
-                                                            gear.ctlstat = backup.ctlstat;
-                                                            luafx.read_args(++index, [&](qiew key, qiew val)
+                                                            auto backup = syskeybd{};
+                                                            backup.set(gear);
+                                                            auto args_count = luafx.args_count();
+                                                            auto index = 0;
+                                                            while (index < args_count)
                                                             {
-                                                                     if (key == "keystat") gear.keystat = xml::take_or(val, input::key::released);
-                                                                else if (key == "ctlstat") gear.ctlstat = xml::take_or(val, backup.ctlstat);
-                                                                else if (key == "virtcod") gear.virtcod = xml::take_or(val, 0);
-                                                                else if (key == "scancod") gear.scancod = xml::take_or(val, 0);
-                                                                else if (key == "keycode") gear.keycode = xml::take_or(val, 0);
-                                                                else if (key == "extflag") gear.extflag = xml::take_or(val, 0);
-                                                                else if (key == "cluster") gear.cluster = val;
-                                                                else log("%%Unknown key event parameters %%=%%", prompt::lua, key, utf::debase437(val));
-                                                                //log("  %%=%%", key, utf::debase437(val));
-                                                            });
-                                                            key_event(gear);
-                                                        }
-                                                        backup.syncto(gear);
-                                                        gear.set_handled();
-                                                    });
-                                                }},
-                { "SetExclusiveKeyboardMode",   [&]
-                                                {
-                                                    luafx.run_with_gear([&](auto& gear)
+                                                                //log("key args:");
+                                                                auto k = syskeybd{};
+                                                                k.syncto(gear);
+                                                                gear.ctlstat = backup.ctlstat;
+                                                                luafx.read_args(++index, [&](qiew key, qiew val)
+                                                                {
+                                                                         if (key == "keystat") gear.keystat = xml::take_or(val, input::key::released);
+                                                                    else if (key == "ctlstat") gear.ctlstat = xml::take_or(val, backup.ctlstat);
+                                                                    else if (key == "virtcod") gear.virtcod = xml::take_or(val, 0);
+                                                                    else if (key == "scancod") gear.scancod = xml::take_or(val, 0);
+                                                                    else if (key == "keycode") gear.keycode = xml::take_or(val, 0);
+                                                                    else if (key == "extflag") gear.extflag = xml::take_or(val, 0);
+                                                                    else if (key == "cluster") gear.cluster = val;
+                                                                    else log("%%Unknown key event parameters %%=%%", prompt::lua, key, utf::debase437(val));
+                                                                    //log("  %%=%%", key, utf::debase437(val));
+                                                                });
+                                                                key_event(gear);
+                                                            }
+                                                            backup.syncto(gear);
+                                                            gear.set_handled();
+                                                        });
+                                                    }},
+                { methods::ExclusiveKeyboardMode,   [&]
                                                     {
+                                                        luafx.run_with_gear_wo_return([&](auto& gear){ gear.set_handled(); });
                                                         auto args_count = luafx.args_count();
                                                         if (!args_count)
                                                         {
-                                                            exec_cmd(commands::ui::toggleraw);
+                                                            auto state = (si32)rawkbd;
+                                                            luafx.set_return(state);
                                                         }
                                                         else
                                                         {
-                                                            auto state = luafx.get_args_or(1, true);
-                                                            set_rawkbd(1 + (si32)state);
+                                                            auto state = luafx.get_args_or(1, 0);
+                                                            set_rawkbd(1 + (si32)!!state);
+                                                            luafx.set_return();
                                                         }
-                                                        gear.set_handled();
-                                                    });
-                                                }},
-                { "FindNextMatch",              [&]
-                                                {
-                                                    luafx.run_with_gear([&](auto& gear)
+                                                    }},
+                { methods::FindNextMatch,           [&]
                                                     {
-                                                        auto dir = luafx.get_args_or(1, si32{ 1 });
-                                                        selection_search(gear, dir > 0 ? feed::fwd : feed::rev);
-                                                        gear.set_handled();
-                                                    });
-                                                }},
-                { "ScrollViewportByPage",       [&]
-                                                {
-                                                    luafx.run_with_gear([&](auto& gear)
-                                                    {
-                                                        if (target != &normal) return;
-                                                        auto vector = luafx.get_args_or(1, dot_00);
-                                                        base::riseup(tier::preview, e2::form::upon::scroll::bypage::v, { .vector = vector });
-                                                        gear.set_handled();
-                                                    });
-                                                }},
-                { "ScrollViewportByCell",       [&]
-                                                {
-                                                    luafx.run_with_gear([&](auto& gear)
-                                                    {
-                                                        if (target != &normal) return;
-                                                        auto vector = luafx.get_args_or(1, dot_00);
-                                                        base::riseup(tier::preview, e2::form::upon::scroll::bystep::v, { .vector = vector });
-                                                        gear.set_handled();
-                                                    });
-                                                }},
-                { "ScrollViewportToTop",        [&]
-                                                {
-                                                    luafx.run_with_gear([&](auto& gear)
-                                                    {
-                                                        if (target != &normal) return;
-                                                        base::riseup(tier::preview, e2::form::upon::scroll::to_top::y);
-                                                        gear.set_handled();
-                                                    });
-                                                }},
-                { "ScrollViewportToEnd",        [&]
-                                                {
-                                                    luafx.run_with_gear([&](auto& gear)
-                                                    {
-                                                        if (target != &normal) return;
-                                                        base::riseup(tier::preview, e2::form::upon::scroll::to_end::y);
-                                                        gear.set_handled();
-                                                    });
-                                                }},
-                { "SendKey",                    [&]
-                                                {
-                                                    luafx.run_with_gear([&](auto& gear)
-                                                    {
-                                                        auto crop = luafx.get_args_or(1, ""s);
-                                                        if (crop.size()) data_out(crop);
-                                                        gear.set_handled();
-                                                    });
-                                                }},
-                { "Print",                      [&]
-                                                {
-                                                    luafx.run_with_gear([&](auto& gear)
-                                                    {
-                                                        auto crop = luafx.get_args_or(1, ""s);
-                                                        if (crop.size()) data_in(crop);
-                                                        gear.set_handled();
-                                                    });
-                                                }},
-                { "CopyViewport",               [&]
-                                                {
-                                                    luafx.run_with_gear([&](auto& gear)
-                                                    {
-                                                        prnscrn(gear);
-                                                        gear.set_handled();
-                                                    });
-                                                }},
-                { "CopySelection",              [&]
-                                                {
-                                                    luafx.run_with_gear([&](auto& gear)
-                                                    {
-                                                        if (selection_active())
+                                                        luafx.run_with_gear([&](auto& gear)
                                                         {
-                                                            copy(gear);
+                                                            auto dir = luafx.get_args_or(1, si32{ 1 });
+                                                            selection_search(gear, dir > 0 ? feed::fwd : feed::rev);
                                                             gear.set_handled();
-                                                        }
-                                                        else if (auto v = ipccon.get_current_line())
+                                                        });
+                                                    }},
+                { methods::ScrollViewportByPage,    [&]
+                                                    {
+                                                        luafx.run_with_gear([&](auto& gear)
                                                         {
-                                                            _copy(gear, v.value());
+                                                            if (target != &normal) return;
+                                                            auto vector = luafx.get_args_or(1, dot_00);
+                                                            base::riseup(tier::preview, e2::form::upon::scroll::bypage::v, { .vector = vector });
                                                             gear.set_handled();
-                                                        }
-                                                    });
-                                                }},
-                { "PasteClipboard",             [&]
-                                                {
-                                                    luafx.run_with_gear([&](auto& gear)
+                                                        });
+                                                    }},
+                { methods::ScrollViewportByCell,    [&]
                                                     {
-                                                        paste(gear);
-                                                        gear.set_handled();
-                                                    });
-                                                }},
-                { "ClearClipboard",             [&]
-                                                {
-                                                    luafx.run_with_gear([&](auto& gear)
-                                                    {
-                                                        gear.clear_clipboard();
-                                                        gear.set_handled();
-                                                    });
-                                                }},
-                { "SetClipboardFormat",         [&]
-                                                {
-                                                    luafx.run_with_gear([&](auto& gear)
-                                                    {
-                                                        auto format = luafx.get_args_or(1, ""s);
-                                                        if (format.empty())
+                                                        luafx.run_with_gear([&](auto& gear)
                                                         {
-                                                            exec_cmd(commands::ui::togglesel);
-                                                        }
-                                                        else
-                                                        {
-                                                            set_selmod((si32)netxs::get_or(xml::options::format, format, mime::textonly));
-                                                        }
-                                                        gear.set_handled();
-                                                    });
-                                                }},
-                { "SetSelectionForm",           [&]
-                                                {
-                                                    luafx.run_with_gear([&](auto& gear)
+                                                            if (target != &normal) return;
+                                                            auto vector = luafx.get_args_or(1, dot_00);
+                                                            base::riseup(tier::preview, e2::form::upon::scroll::bystep::v, { .vector = vector });
+                                                            gear.set_handled();
+                                                        });
+                                                    }},
+                { methods::ScrollViewportToTop,     [&]
                                                     {
+                                                        luafx.run_with_gear([&](auto& gear)
+                                                        {
+                                                            if (target != &normal) return;
+                                                            base::riseup(tier::preview, e2::form::upon::scroll::to_top::y);
+                                                            gear.set_handled();
+                                                        });
+                                                    }},
+                { methods::ScrollViewportToEnd,     [&]
+                                                    {
+                                                        luafx.run_with_gear([&](auto& gear)
+                                                        {
+                                                            if (target != &normal) return;
+                                                            base::riseup(tier::preview, e2::form::upon::scroll::to_end::y);
+                                                            gear.set_handled();
+                                                        });
+                                                    }},
+                { methods::SendKey,                 [&]
+                                                    {
+                                                        luafx.run_with_gear([&](auto& gear)
+                                                        {
+                                                            auto crop = luafx.get_args_or(1, ""s);
+                                                            if (crop.size()) data_out(crop);
+                                                            gear.set_handled();
+                                                        });
+                                                    }},
+                { methods::Print,                   [&]
+                                                    {
+                                                        luafx.run_with_gear([&](auto& gear)
+                                                        {
+                                                            auto crop = luafx.get_args_or(1, ""s);
+                                                            if (crop.size()) data_in(crop);
+                                                            gear.set_handled();
+                                                        });
+                                                    }},
+                { methods::CopyViewport,            [&]
+                                                    {
+                                                        luafx.run_with_gear([&](auto& gear)
+                                                        {
+                                                            prnscrn(gear);
+                                                            gear.set_handled();
+                                                        });
+                                                    }},
+                { methods::CopySelection,           [&]
+                                                    {
+                                                        luafx.run_with_gear([&](auto& gear)
+                                                        {
+                                                            if (selection_active())
+                                                            {
+                                                                copy(gear);
+                                                                gear.set_handled();
+                                                            }
+                                                            else if (auto v = ipccon.get_current_line())
+                                                            {
+                                                                _copy(gear, v.value());
+                                                                gear.set_handled();
+                                                            }
+                                                        });
+                                                    }},
+                { methods::PasteClipboard,          [&]
+                                                    {
+                                                        luafx.run_with_gear([&](auto& gear)
+                                                        {
+                                                            paste(gear);
+                                                            gear.set_handled();
+                                                        });
+                                                    }},
+                { methods::ClearClipboard,          [&]
+                                                    {
+                                                        luafx.run_with_gear([&](auto& gear)
+                                                        {
+                                                            gear.clear_clipboard();
+                                                            gear.set_handled();
+                                                        });
+                                                    }},
+                { methods::ClipboardFormat,         [&]
+                                                    {
+                                                        luafx.run_with_gear_wo_return([&](auto& gear){ gear.set_handled(); });
                                                         auto args_count = luafx.args_count();
                                                         if (!args_count)
                                                         {
-                                                            exec_cmd(commands::ui::toggleselalt);
+                                                            auto state = (si32)selmod;
+                                                            luafx.set_return(state);
                                                         }
                                                         else
                                                         {
-                                                            auto form = luafx.get_args_or(1, faux);
-                                                            set_selalt(form);
+                                                            auto state = luafx.get_args_or(1, 1);
+                                                            set_selmod(state % mime::count);
+                                                            luafx.set_return();
                                                         }
-                                                        gear.set_handled();
-                                                    });
-                                                }},
-                { "ClearSelection",             [&]
-                                                {
-                                                    luafx.run_with_gear([&](auto& gear)
+                                                    }},
+                { methods::SelectionForm,           [&]
                                                     {
+                                                        luafx.run_with_gear_wo_return([&](auto& gear){ gear.set_handled(); });
+                                                        auto args_count = luafx.args_count();
+                                                        if (!args_count)
+                                                        {
+                                                            auto state = (si32)selalt;
+                                                            luafx.set_return(state);
+                                                        }
+                                                        else
+                                                        {
+                                                            auto state = luafx.get_args_or(1, si32{ 0 });
+                                                            set_selalt(state);
+                                                            luafx.set_return();
+                                                        }
+                                                    }},
+                { methods::ClearSelection,          [&]
+                                                    {
+                                                        luafx.run_with_gear([&](auto& gear)
+                                                        {
+                                                            if (selection_active())
+                                                            {
+                                                                exec_cmd(commands::ui::deselect);
+                                                                gear.set_handled();
+                                                            }
+                                                        });
+                                                    }},
+                { methods::OneShotSelection,        [&]
+                                                    {
+                                                        luafx.run_with_gear([&](auto& /*gear*/)
+                                                        {
+                                                            auto format = luafx.get_args_or(1, ""s);
+                                                            if (format.empty())
+                                                            {
+                                                                set_oneshot(mime::textonly);
+                                                            }
+                                                            else
+                                                            {
+                                                                set_oneshot(netxs::get_or(xml::options::format, format, mime::textonly));
+                                                            }
+                                                        });
+                                                    }},
+                { methods::UndoReadline,            [&]
+                                                    {
+                                                        luafx.run_with_gear([&](auto& gear)
+                                                        {
+                                                            exec_cmd(commands::ui::undo);
+                                                            gear.set_handled();
+                                                        });
+                                                    }},
+                { methods::RedoReadline,            [&]
+                                                    {
+                                                        luafx.run_with_gear([&](auto& gear)
+                                                        {
+                                                            exec_cmd(commands::ui::redo);
+                                                            gear.set_handled();
+                                                        });
+                                                    }},
+                { methods::CwdSync,                 [&]
+                                                    {
+                                                        auto& cwd_sync = base::property("terminal.cwd_sync", 0);
+                                                        luafx.run_with_gear_wo_return([&](auto& gear){ gear.set_handled(); });
+                                                        auto args_count = luafx.args_count();
+                                                        if (!args_count)
+                                                        {
+                                                            auto state = (si32)cwd_sync;
+                                                            luafx.set_return(state);
+                                                        }
+                                                        else
+                                                        {
+                                                            auto state = luafx.get_args_or(1, 0);
+                                                            base::riseup(tier::preview, terminal::events::toggle::cwdsync, state);
+                                                            luafx.set_return();
+                                                        }
+                                                    }},
+                { methods::LineWrapMode,            [&]
+                                                    {
+                                                        luafx.run_with_gear_wo_return([&](auto& gear){ gear.set_handled(); });
+                                                        auto args_count = luafx.args_count();
+                                                        if (!args_count)
+                                                        {
+                                                            auto state = target->style.wrp() == wrap::off ? 0 : 1;
+                                                            luafx.set_return(state);
+                                                        }
+                                                        else
+                                                        {
+                                                            auto state = luafx.get_args_or(1, si32{ 1 });
+                                                            set_wrapln(1 + (si32)!state);
+                                                            luafx.set_return();
+                                                        }
+                                                    }},
+                { methods::LineAlignMode,           [&]
+                                                    {
+                                                        luafx.run_with_gear_wo_return([&](auto& gear){ gear.set_handled(); });
+                                                        auto args_count = luafx.args_count();
+                                                        if (!args_count)
+                                                        {
+                                                            auto align = target->style.jet();
+                                                            auto state = align == bias::left || align == bias::none  ? 0 :
+                                                                                                align == bias::right ? 1 : 2;
+                                                            luafx.set_return(state);
+                                                        }
+                                                        else
+                                                        {
+                                                            auto state = luafx.get_args_or(1, si32{ 0 });
+                                                            set_align(1 + std::clamp(state, 0, 2));
+                                                            luafx.set_return();
+                                                        }
+                                                    }},
+                { methods::LogMode,                 [&]
+                                                    {
+                                                        luafx.run_with_gear_wo_return([&](auto& gear){ gear.set_handled(); });
+                                                        auto args_count = luafx.args_count();
+                                                        if (!args_count)
+                                                        {
+                                                            auto state = (si32)io_log;
+                                                            luafx.set_return(state);
+                                                        }
+                                                        else
+                                                        {
+                                                            auto state = luafx.get_args_or(1, 0);
+                                                            set_log(state);
+                                                            luafx.set_return();
+                                                        }
+                                                    }},
+                { methods::ClearScrollback,         [&]
+                                                    {
+                                                        luafx.run_with_gear_wo_return([&](auto& gear){ gear.set_handled(); });
                                                         if (selection_active())
                                                         {
                                                             exec_cmd(commands::ui::deselect);
+                                                        }
+                                                        clear_scrollback();
+                                                        luafx.set_return();
+                                                    }},
+                { methods::Restart,                 [&]
+                                                    {
+                                                        luafx.run_with_gear([&](auto& gear)
+                                                        {
+                                                            exec_cmd(commands::ui::restart);
                                                             gear.set_handled();
-                                                        }
-                                                    });
-                                                }},
-                { "OneShotSelection",           [&]
-                                                {
-                                                    luafx.run_with_gear([&](auto& /*gear*/)
+                                                        });
+                                                    }},
+                { methods::Quit,                    [&]
                                                     {
-                                                        auto format = luafx.get_args_or(1, ""s);
-                                                        if (format.empty())
+                                                        luafx.run_with_gear([&](auto& gear)
                                                         {
-                                                            set_oneshot(mime::textonly);
-                                                        }
-                                                        else
-                                                        {
-                                                            set_oneshot(netxs::get_or(xml::options::format, format, mime::textonly));
-                                                        }
-                                                    });
-                                                }},
-                { "UndoReadline",               [&]
-                                                {
-                                                    luafx.run_with_gear([&](auto& gear)
-                                                    {
-                                                        exec_cmd(commands::ui::undo);
-                                                        gear.set_handled();
-                                                    });
-                                                }},
-                { "RedoReadline",               [&]
-                                                {
-                                                    luafx.run_with_gear([&](auto& gear)
-                                                    {
-                                                        exec_cmd(commands::ui::redo);
-                                                        gear.set_handled();
-                                                    });
-                                                }},
-                { "SetCwdSync",                 [&]
-                                                {
-                                                    luafx.run_with_gear([&](auto& gear)
-                                                    {
-                                                        base::riseup(tier::preview, ui::tty::events::toggle::cwdsync, true);
-                                                        gear.set_handled();
-                                                    });
-                                                }},
-                { "SetWrappingMode",            [&]
-                                                {
-                                                    luafx.run_with_gear([&](auto& gear)
-                                                    {
-                                                        auto args_count = luafx.args_count();
-                                                        if (!args_count)
-                                                        {
-                                                            exec_cmd(commands::ui::togglewrp);
-                                                        }
-                                                        else
-                                                        {
-                                                            auto state = luafx.get_args_or(1, true);
-                                                            set_wrapln(1 + (si32)!state);
-                                                        }
-                                                        gear.set_handled();
-                                                    });
-                                                }},
-                { "SetAligningMode",            [&]
-                                                {
-                                                    luafx.run_with_gear([&](auto& gear)
-                                                    {
-                                                        auto args_count = luafx.args_count();
-                                                        if (!args_count)
-                                                        {
-                                                            exec_cmd(commands::ui::togglejet);
-                                                        }
-                                                        else
-                                                        {
-                                                            auto state = luafx.get_args_or(1, ""s);
-                                                            set_align((si32)netxs::get_or(xml::options::align, state, bias::none));
-                                                        }
-                                                        gear.set_handled();
-                                                    });
-                                                }},
-                { "SetLogging",                 [&]
-                                                {
-                                                    luafx.run_with_gear([&](auto& gear)
-                                                    {
-                                                        set_log(luafx.get_args_or(1, !io_log));
-                                                        ondata<true>();
-                                                        gear.set_handled();
-                                                    });
-                                                }},
-                { "Restart",                    [&]
-                                                {
-                                                    luafx.run_with_gear([&](auto& gear)
-                                                    {
-                                                        exec_cmd(commands::ui::restart);
-                                                        gear.set_handled();
-                                                    });
-                                                }},
-                { "Quit",                       [&]
-                                                {
-                                                    luafx.run_with_gear([&](auto& gear)
-                                                    {
-                                                        exec_cmd(commands::ui::sighup);
-                                                        gear.set_handled();
-                                                    });
-                                                }},
+                                                            exec_cmd(commands::ui::sighup);
+                                                            gear.set_handled();
+                                                        });
+                                                    }},
             });
 
             LISTEN(tier::general, e2::timer::tick, timestamp) // Update before world rendering.
@@ -8241,7 +8591,7 @@ namespace netxs::ui
                     origin = new_area.coor;
                 }
             };
-            LISTEN(tier::release, input::events::keybd::key::post, gear)
+            LISTEN(tier::release, input::events::keybd::post, gear)
             {
                 key_event(gear);
             };
@@ -8285,7 +8635,7 @@ namespace netxs::ui
                             if (dy) parent_canvas.full(full); // Return parent_canvas back.
 
                             viewport_square.coor -= origin;
-                            if (auto context = parent_canvas.change_basis(viewport_square))
+                            if (auto context2D = parent_canvas.change_basis(viewport_square))
                             {
                                 parent_canvas.output<faux>(imebox, viewport_cursor, cell::shaders::mimic(brush));
                             }
@@ -8349,17 +8699,30 @@ namespace netxs::ui
     struct dtvt
         : public ui::form<dtvt>
     {
+        static constexpr auto classname = basename::dtvt;
+
+        std::unordered_map<id_t, netxs::sptr<input::tooltip_t>> tooltips;
+        auto& get_tooltip_reference(id_t gear_id)
+        {
+            auto iter = tooltips.find(gear_id);
+            if (iter == tooltips.end())
+            {
+                iter = tooltips.emplace(gear_id, ptr::shared<input::tooltip_t>()).first;
+            }
+            auto& tooltip_sptr = iter->second;
+            return tooltip_sptr;
+        }
+
         // dtvt: Event handler.
         struct link : s11n, input_fields_handler
         {
             using input_fields_handler::handle;
 
             dtvt& owner; // link: Terminal object reference.
-            wptr  owner_wptr;
 
             void handle(s11n::xs::bitmap_dtvt       /*lock*/)
             {
-                owner.bell::enqueue(owner_wptr, [&](auto& /*boss*/) mutable
+                owner.base::enqueue([&](auto& /*boss*/) mutable
                 {
                     owner.base::deface();
                 });
@@ -8367,22 +8730,19 @@ namespace netxs::ui
             void handle(s11n::xs::jgc_list            lock)
             {
                 s11n::receive_jgc(lock);
-                owner.bell::enqueue(owner_wptr, [&](auto& /*boss*/) mutable
+                owner.base::enqueue([&](auto& /*boss*/) mutable
                 {
                     owner.base::deface();
                 });
             }
             void handle(s11n::xs::tooltips            lock)
             {
-                owner.bell::enqueue(owner_wptr, [tooltips = lock.thing](auto& boss) mutable
+                owner.base::enqueue([&, tooltips = lock.thing](auto& /*boss*/) mutable
                 {
                     for (auto& tooltip : tooltips)
                     {
-                        if (auto gear_ptr = boss.bell::template getref<hids>(tooltip.gear_id)) //todo Apple clang requires template.
-                        {
-                            gear_ptr->set_multihome();
-                            gear_ptr->set_tooltip(tooltip.tip_text, tooltip.update);
-                        }
+                        auto& tooltip_sptr = owner.get_tooltip_reference(tooltip.gear_id);
+                        tooltip_sptr->set(tooltip.utf8);
                     }
                 });
             }
@@ -8393,12 +8753,12 @@ namespace netxs::ui
                 if (owner.active)
                 {
                     auto guard = owner.sync();
-                    if (auto gear_ptr = owner.bell::getref<hids>(m.gear_id))
+                    if (auto gear_ptr = owner.base::getref<hids>(m.gear_id))
                     if (auto parent_ptr = owner.base::parent())
                     {
                         auto& gear = *gear_ptr;
                         gear.set_multihome();
-                        if (gear.captured(owner.id)) gear.setfree(true);
+                        if (gear.captured(owner.id)) gear.setfree();
                         parent_ptr->base::riseup(tier::preview, e2::form::size::enlarge::fullscreen, gear);
                     }
                 }
@@ -8410,12 +8770,12 @@ namespace netxs::ui
                 if (owner.active)
                 {
                     auto guard = owner.sync();
-                    if (auto gear_ptr = owner.bell::getref<hids>(m.gear_id))
+                    if (auto gear_ptr = owner.base::getref<hids>(m.gear_id))
                     if (auto parent_ptr = owner.base::parent())
                     {
                         auto& gear = *gear_ptr;
                         gear.set_multihome();
-                        if (gear.captured(owner.id)) gear.setfree(true);
+                        if (gear.captured(owner.id)) gear.setfree();
                         parent_ptr->base::riseup(tier::preview, e2::form::size::enlarge::maximize, gear);
                     }
                 }
@@ -8445,12 +8805,15 @@ namespace netxs::ui
                 if (owner.active)
                 {
                     auto guard = owner.sync();
-                    if (auto gear_ptr = owner.bell::getref<hids>(k.gear_id))
+                    if (auto gear_ptr = owner.base::getref<hids>(k.gear_id))
                     {
                         auto& gear = *gear_ptr;
                         gear.set_multihome();
+                        gear.keybd::vkevent = owner.indexer.get_kbchord_hint(k.vkchord);
+                        gear.keybd::scevent = owner.indexer.get_kbchord_hint(k.scchord);
+                        gear.keybd::chevent = owner.indexer.get_kbchord_hint(k.chchord);
                         k.syncto(gear);
-                        owner.base::riseup(tier::release, input::events::keybd::key::post, gear, true);
+                        owner.base::riseup(tier::release, input::events::keybd::post, gear, true);
                     }
                 }
             };
@@ -8461,23 +8824,24 @@ namespace netxs::ui
                 if (owner.active)
                 {
                     auto guard = owner.sync();
-                    if (auto gear_ptr = owner.bell::getref<hids>(m.gear_id))
+                    if (auto gear_ptr = owner.base::getref<hids>(m.gear_id))
                     if (auto parent_ptr = owner.base::parent())
                     {
                         auto& gear = *gear_ptr;
+                        auto& parent = *parent_ptr;
                         gear.set_multihome();
-                        if (gear.captured(owner.id)) gear.setfree(true);
+                        if (gear.captured(owner.id)) gear.setfree();
                         auto basis = gear.owner.base::coor();
                         owner.global(basis);
-                        gear.replay(parent_ptr, m.cause, m.coord - basis, m.click - basis, m.delta, m.buttons, m.ctlstat, m.whlfp, m.whlsi, m.hzwhl);
+                        gear.replay(parent, m.cause, m.coord - basis, m.click - basis, m.delta, m.buttons, m.bttn_id, m.dragged, m.ctlstat, m.whlfp, m.whlsi, m.hzwhl);
                     }
                 }
             }
             void handle(s11n::xs::minimize            lock)
             {
-                owner.bell::enqueue(owner_wptr, [&, m = lock.thing](auto& /*boss*/)
+                owner.base::enqueue([&, m = lock.thing](auto& /*boss*/)
                 {
-                    if (auto gear_ptr = owner.bell::getref<hids>(m.gear_id))
+                    if (auto gear_ptr = owner.base::getref<hids>(m.gear_id))
                     {
                         auto& gear = *gear_ptr;
                         gear.set_multihome();
@@ -8487,7 +8851,7 @@ namespace netxs::ui
             }
             void handle(s11n::xs::expose            /*lock*/)
             {
-                owner.bell::enqueue(owner_wptr, [&](auto& /*boss*/)
+                owner.base::enqueue([&](auto& /*boss*/)
                 {
                     owner.base::riseup(tier::preview, e2::form::layout::expose);
                 });
@@ -8499,7 +8863,7 @@ namespace netxs::ui
                 if (owner.active)
                 {
                     auto guard = owner.sync();
-                    if (auto gear_ptr = owner.bell::getref<hids>(c.gear_id))
+                    if (auto gear_ptr = owner.base::getref<hids>(c.gear_id))
                     {
                         gear_ptr->set_multihome();
                         gear_ptr->set_clipboard(c);
@@ -8513,7 +8877,7 @@ namespace netxs::ui
                 if (owner.active)
                 {
                     auto guard = owner.sync();
-                    if (auto gear_ptr = owner.bell::getref<hids>(c.gear_id))
+                    if (auto gear_ptr = owner.base::getref<hids>(c.gear_id))
                     {
                         auto& gear = *gear_ptr;
                         gear.set_multihome();
@@ -8531,14 +8895,14 @@ namespace netxs::ui
             }
             void handle(s11n::xs::header              lock)
             {
-                owner.bell::enqueue(owner_wptr, [&, /*id = h.window_id,*/ header = lock.thing.utf8](auto& /*boss*/) mutable
+                owner.base::enqueue([&, /*id = h.window_id,*/ header = lock.thing.utf8](auto& /*boss*/) mutable
                 {
                     owner.base::riseup(tier::preview, e2::form::prop::ui::header, header);
                 });
             }
             void handle(s11n::xs::footer              lock)
             {
-                owner.bell::enqueue(owner_wptr, [&, /*id = f.window_id,*/ footer = lock.thing.utf8](auto& /*boss*/) mutable
+                owner.base::enqueue([&, /*id = f.window_id,*/ footer = lock.thing.utf8](auto& /*boss*/) mutable
                 {
                     owner.base::riseup(tier::preview, e2::form::prop::ui::footer, footer);
                 });
@@ -8569,7 +8933,7 @@ namespace netxs::ui
             }
             void handle(s11n::xs::warping             lock)
             {
-                owner.bell::enqueue(owner_wptr, [&, /*id = w.window_id,*/ warp = lock.thing.warpdata](auto& /*boss*/)
+                owner.base::enqueue([&, /*id = w.window_id,*/ warp = lock.thing.warpdata](auto& /*boss*/)
                 {
                     //todo use window_id
                     owner.base::riseup(tier::preview, e2::form::layout::swarp, warp);
@@ -8588,23 +8952,23 @@ namespace netxs::ui
             }
             void handle(s11n::xs::sysstart          /*lock*/)
             {
-                owner.bell::enqueue(owner_wptr, [&](auto& /*boss*/)
+                owner.base::enqueue([&](auto& /*boss*/)
                 {
                     owner.base::riseup(tier::release, e2::form::global::sysstart, 1);
                 });
             }
             void handle(s11n::xs::cwd                 lock)
             {
-                owner.bell::enqueue(owner_wptr, [&, path = lock.thing.path](auto& /*boss*/)
+                owner.base::enqueue([&, path = lock.thing.path](auto& /*boss*/)
                 {
                     owner.base::riseup(tier::preview, e2::form::prop::cwd, path);
                 });
             }
             void handle(s11n::xs::gui_command         lock)
             {
-                owner.bell::enqueue(owner_wptr, [&, gui_cmd = lock.thing](auto& /*boss*/)
+                owner.base::enqueue([&, gui_cmd = lock.thing](auto& /*boss*/)
                 {
-                    if (auto gear_ptr = owner.bell::getref<hids>(gui_cmd.gear_id))
+                    if (auto gear_ptr = owner.base::getref<hids>(gui_cmd.gear_id))
                     {
                         gear_ptr->set_multihome();
                         owner.base::riseup(tier::preview, e2::command::gui, gui_cmd);
@@ -8616,14 +8980,7 @@ namespace netxs::ui
                 : s11n{ *this, owner.id },
                   input_fields_handler{ owner },
                   owner{ owner }
-            {
-                auto& oneshot = owner.base::field<hook>();
-                owner.LISTEN(tier::release, e2::form::upon::vtree::attached, parent_ptr, oneshot)
-                {
-                    owner_wptr = owner.This();
-                    owner.base::unfield(oneshot);
-                };
-            }
+            { }
         };
 
         struct msgs
@@ -8657,7 +9014,7 @@ namespace netxs::ui
         void onexit()
         {
             if (!active.exchange(faux)) return;
-            bell::enqueue(This(), [&](auto& /*boss*/) mutable // Unexpected disconnection.
+            base::enqueue([&](auto& /*boss*/) mutable // Unexpected disconnection.
             {
                 auto lock = stream.bitmap_dtvt.freeze();
                 auto& canvas = lock.thing.image;
@@ -8717,10 +9074,12 @@ namespace netxs::ui
                 stream.sysclose.send(*this, fast);
                 return;
             }
-            bell::enqueue<faux>(This(), [&, backup = This()](auto& /*boss*/) mutable
+            base::enqueue<faux>([&, backup = This()](auto& /*boss*/) mutable
             {
                 ipccon.payoff();
+                auto lock = bell::sync();
                 this->base::riseup(tier::release, e2::form::proceed::quit::one, true); // MSVC2019
+                backup.reset(); // Backup should dtored under the lock.
             });
         }
         // dtvt: Splash screen if there is no next frame.
@@ -8767,7 +9126,7 @@ namespace netxs::ui
             {
                 if (gear.captured(base::id))
                 {
-                    if (!gear.m_sys.buttons) gear.setfree(true);
+                    if (!gear.m_sys.buttons) gear.setfree();
                 }
                 else if (gear.m_sys.buttons) gear.capture(base::id);
                 gear.m_sys.gear_id = gear.id;
@@ -8776,30 +9135,30 @@ namespace netxs::ui
             };
             LISTEN(tier::general, input::events::die, gear)
             {
-                gear.setfree(true);
+                gear.setfree();
                 gear.m_sys.gear_id = gear.id;
                 gear.m_sys.enabled = hids::stat::die;
                 stream.sysmouse.send(*this, gear.m_sys);
             };
-            LISTEN(tier::general, input::events::halt, gear)
+            on(tier::mouserelease, input::key::MouseHover, [&](hids& gear)
+            {
+                auto& tooltip_sptr = get_tooltip_reference(gear.id);
+                gear.tooltip.set(tooltip_sptr); // Set tooltip reference.
+            });
+            on(tier::mouserelease, input::key::MouseLeave, [&](hids& gear)
             {
                 gear.m_sys.gear_id = gear.id;
                 gear.m_sys.enabled = hids::stat::halt;
                 stream.sysmouse.send(*this, gear.m_sys);
-            };
-            LISTEN(tier::release, input::events::mouse::hover::leave, gear)
-            {
-                gear.m_sys.gear_id = gear.id;
-                gear.m_sys.enabled = hids::stat::halt;
-                stream.sysmouse.send(*this, gear.m_sys);
-            };
+            });
+            bell::dup_handler(tier::general, input::events::halt.id);
             LISTEN(tier::release, input::events::focus::set::any, seed)
             {
-                auto deed = this->bell::protos(tier::release);
+                auto deed = this->bell::protos();
                 auto state = deed == input::events::focus::set::on.id;
                 stream.sysfocus.send(*this, seed.gear_id, state, seed.focus_type, seed.treeid, seed.digest);
             };
-            LISTEN(tier::preview, input::events::keybd::key::any, gear)
+            LISTEN(tier::preview, input::events::keybd::any, gear)
             {
                 gear.gear_id = gear.id;
                 stream.syskeybd.send(*this, gear);

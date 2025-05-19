@@ -3,9 +3,6 @@
 
 #pragma once
 
-#include <memory>
-#include <mutex>
-
 namespace netxs
 {
     template<class T> using sptr = std::shared_ptr<T>;
@@ -15,10 +12,15 @@ namespace netxs
     // Due to the fact that alias templates are never deduced by template argument deduction (C++20).
     namespace ptr
     {
-        template<typename T>
+        // Compare sptr/wptr.
+        bool is_equal(auto const& w1, auto const& w2)
+        {
+            return !w1.owner_before(w2) && !w2.owner_before(w1);
+        }
+        template<class T>
         bool is_empty(wptr<T> const& w)
         {
-            return !w.owner_before(wptr<T>{}) && !wptr<T>{}.owner_before(w);
+            return is_equal(w, wptr<T>{});
         }
         template<class T>
         auto test(T a, T b)
@@ -36,6 +38,7 @@ namespace netxs
             if constexpr (std::is_same_v<T, void>) return std::make_shared<std::decay_t<Args>...>(std::forward<Args>(args)...);
             else                                   return std::make_shared<T>(std::forward<Args>(args)...);
         }
+
         namespace
         {
             template<class T>
@@ -45,23 +48,31 @@ namespace netxs
             struct _function<R(*)(Args...)> // Static pointers.
             {
                 using type = std::function<R(Args...)>;
+                using arg0 = std::tuple_element_t<0, std::tuple<Args...>>;
             };
             template<class R, class A, class ...Args>
             struct _function<R(A::*)(Args...)> // Member functions.
             {
                 using type = std::function<R(Args...)>;
+                using arg0 = std::tuple_element_t<0, std::tuple<Args...>>;
             };
             template<class R, class A, class ...Args>
             struct _function<R(A::*)(Args...) const> // Const member functions.
             {
                 using type = std::function<R(Args...)>;
+                using arg0 = std::tuple_element_t<0, std::tuple<Args...>>;
             };
         }
+
         template<class F>
-        auto function(F lambda) // Don't use lambdas/functions with auto args here.
+        using arg0 = typename _function<F>::arg0;
+
+        template<class F, class FxType = _function<F>::type>
+        auto sharedfx(F lambda) // Don't use lambdas/functions with auto args here.
         {
-            return ptr::shared(typename _function<F>::type{ lambda });
+            return ptr::shared(FxType{ std::move(lambda) });
         }
+
         template<class T>
         auto singleton()
         {
@@ -79,7 +90,7 @@ namespace netxs
         }
 
         template<class...> struct change_value_type_helper;
-        template<template<class...> class C, class... Args>
+        template<template<class...> class C, class ...Args>
         struct change_value_type_helper<C<Args...>>
         {
             template<class ...NewArgs>

@@ -5,15 +5,11 @@
 // auto logger = netxs::logger::attach([&](auto& a){ ipc.write_message(a); },  //  1st logger proc
 //                                     file_write,                             //  2nd logger proc
 //                                     ...         );                          //  Nth logger proc
-// log("Text message with %parameter1 and %parameter2. ", p1.str(), p2.str(), rest.str());
-// 
+// log("Text message with %parameter1% and %parameter2%. ", p1.str(), p2.str(), rest.str());
+
 #pragma once
 
-#include "ptr.hpp"
-
-#include <vector>
-#include <functional>
-#include <unordered_map>
+#include "utf.hpp"
 
 namespace netxs
 {

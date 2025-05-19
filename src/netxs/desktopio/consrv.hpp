@@ -505,9 +505,9 @@ struct impl : consrv
         using vect = std::vector<INPUT_RECORD>;
         using irec = INPUT_RECORD;
         using work = std::thread;
-        using cast = std::unordered_map<text, std::unordered_map<text, text>>;
-        using hist = std::unordered_map<text, memo>;
-        using mbtn = netxs::input::mouse::hist;
+        using cast = utf::unordered_map<text, utf::unordered_map<text, text>>;
+        using hist = utf::unordered_map<text, memo>;
+        using mbtn = std::array<netxs::input::mouse::hist_t, 5>;
 
         impl& server; // evnt: Console server reference.
         vect  stream; // evnt: Input event list.
@@ -1012,8 +1012,8 @@ struct impl : consrv
                     {
                         .dwMousePosition =
                         {
-                            .X = (si16)std::clamp<si32>(coord.x, 0, si16max),
-                            .Y = (si16)std::clamp<si32>(coord.y, 0, si16max),
+                            .X = (si16)std::clamp<si32>(coord.x, si16min, si16max),
+                            .Y = (si16)std::clamp<si32>(coord.y, si16min, si16max),
                         },
                         .dwButtonState     = (DWORD)bttns,
                         .dwControlKeyState = state,
@@ -1497,7 +1497,7 @@ struct impl : consrv
                         }
                     }
                 }
-                stream.clear(); // Don't try to catch the next events (we are too fast for IME input; ~1ms between events from IME). 
+                stream.clear(); // Don't try to catch the next events (we are too fast for IME input; ~1ms between events from IME).
             }
             while (cooked.ustr.empty() && ((void)signal.wait(lock, [&]{ return stream.size() || closed || cancel; }), !closed && !cancel));
 
@@ -1943,9 +1943,10 @@ struct impl : consrv
         }
         auto decode_char(utfx code)
         {
-                 if (code < 0x20 || code == 0x7F) code = *(utf::c0_wchr.begin() + std::min<size_t>(code, utf::c0_wchr.size() - 1));
-            else if (code < OEMtoBMP.size())      code = OEMtoBMP[code];
-            else                                  code = defchar();
+                 if (code <  0x20)           code = utf::c0_wchr[code];
+            else if (code == 0x7F)           code = utf::c0_wchr[0x20];
+            else if (code < OEMtoBMP.size()) code = OEMtoBMP[code];
+            else                             code = defchar();
             return (wchr)code;
         }
         auto decode_char(byte lead, byte next)
@@ -1966,10 +1967,8 @@ struct impl : consrv
         }
         auto decode(utfx code, text& toUTF8)
         {
-            if (code < 0x20 || code == 0x7F)
-            {
-                toUTF8 += *(utf::c0_view.begin() + std::min<size_t>(code, utf::c0_view.size() - 1));
-            }
+                 if (code <  0x20) toUTF8 += utf::c0_view[code];
+            else if (code == 0x7F) toUTF8 += utf::c0_view[0x20];
             else
             {
                 if (codepage != CP_UTF8)
@@ -3367,7 +3366,8 @@ struct impl : consrv
             netxs::onbody(dest, copy, allfx, eolfx);
             auto success = direct(packet.target, [&](auto& scrollback)
             {
-                uiterm.write_block(scrollback, dest, crop.coor, rect{ dot_00, window_inst.panel }, cell::shaders::full); // cell::shaders::skipnuls for transparency?
+                scrollback.flush_data();
+                uiterm.write_block(scrollback, dest, crop.coor, rect{ dot_00, window_inst.panel }, cell::shaders::full); // cell::shaders::skipnulls for transparency?
                 return true;
             });
             if (!success) crop = {};
@@ -3974,15 +3974,17 @@ struct impl : consrv
         auto windowsz = twod{ packet.input.windowsz_x, packet.input.windowsz_y };
         console.cup0(caretpos);
         console.brush.meta(attr_to_brush(packet.input.attributes));
-        if (&console != uiterm.target) // If not active buffer.
+        auto saved_anchoring = std::exchange(uiterm.bottom_anchored, faux);
+        if (&console != uiterm.target) // It is an additional/alternate buffer.
         {
-            check_buffer_size(console, buffsize);
             console.resize_viewport(buffsize);
         }
-        else // If active buffer.
+        else // It is the primary buffer.
         {
+            check_buffer_size(console, buffsize);
             uiterm.window_resize(windowsz);
         }
+        uiterm.bottom_anchored = saved_anchoring;
         log("\tbuffer size: ", buffsize,
           "\n\tcursor coor: ", twod{ packet.input.cursorposx, packet.input.cursorposy },
           "\n\twindow coor: ", twod{ packet.input.windowposx, packet.input.windowposy },
@@ -4026,15 +4028,17 @@ struct impl : consrv
         auto size = twod{ packet.input.buffersz_x, packet.input.buffersz_y };
         log("\tinput.size: ", size);
         auto target_ptr = (hndl*)packet.target;
-        if (target_ptr->link != &uiterm.target) // It is additional/alternate buffer.
+        auto saved_anchoring = std::exchange(uiterm.bottom_anchored, faux);
+        if (target_ptr->link != &uiterm.target) // It is an additional/alternate buffer.
         {
             console.resize_viewport(size);
         }
-        else
+        else // It is the primary buffer.
         {
             check_buffer_size(console, size);
             uiterm.window_resize(size);
         }
+        uiterm.bottom_anchored = saved_anchoring;
         auto viewport = console.panel;
         packet.input.buffersz_x = (si16)(viewport.x);
         packet.input.buffersz_y = (si16)(viewport.y);
@@ -4158,6 +4162,7 @@ struct impl : consrv
         filler.size(scrl.size);
         direct(packet.target, [&](auto& scrollback)
         {
+            scrollback.flush_data();
             uiterm.write_block(scrollback, filler, scrl.coor, clip, cell::shaders::full);
             uiterm.write_block(scrollback, mirror, dest,      clip, cell::shaders::full);
             return true;

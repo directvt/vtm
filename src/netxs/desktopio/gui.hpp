@@ -667,7 +667,7 @@ namespace netxs::gui
             }
             for (auto& family_utf8 : families)
             {
-                auto found = BOOL{};   
+                auto found = BOOL{};
                 auto index = ui32{};
                 auto family_utf16 = utf::to_utf(family_utf8);
                 fontlist->FindFamilyName(family_utf16.data(), &index, &found);
@@ -1035,7 +1035,10 @@ namespace netxs::gui
                     else if (codepoint.cdpoint == utf::vs08_code) img_alignment.y = snap::center;
                     else if (codepoint.cdpoint == utf::vs09_code) img_alignment.y = snap::tail;
                 }
-                else codepoints.push_back(codepoint);
+                else
+                {
+                    codepoints.push_back(codepoint);
+                }
             }
             if (codepoints.empty()) return;
 
@@ -1081,7 +1084,7 @@ namespace netxs::gui
             if (!length) return;
             auto actual_width = swapxy ? std::max(1.f, length) :
                         is_box_drawing ? std::max(1.f, std::floor((length / cellsz.x))) * cellsz.x
-                                       : std::max(1.f, std::ceil(((length - 0.1f * cellsz.x) / cellsz.x))) * cellsz.x;
+                                       : std::max(1.f, std::ceil(((length - (0.114f/*min=0.113: Bold+Italic Courier V*/) * cellsz.x) / cellsz.x))) * cellsz.x;
             auto k = 1.f;
             if (actual_width > matrix.x) // Check if the glyph exceeds the matrix width. (scale down)
             {
@@ -1361,9 +1364,9 @@ namespace netxs::gui
                 netxs::onrect(target, block, cell::shaders::full(fgc));
             }
             if (c.xy() == 0) return;
-            auto token = c.tkn() & ~3; // Clear first two bits for font style.
-            if (c.itc()) token |= fonts::style::italic;
-            if (c.bld()) token |= fonts::style::bold;
+            auto token = c.tkn();
+            if (c.itc()) token ^= 0xAAAA'AAAA'AAAA'AA00; // Randomize token to differentiate italics (0xb101010...0000'0000 excluding matrix metadata).
+            if (c.bld()) token ^= 0x5555'5555'5555'5500; // Randomize token to differentiate bolds (0xb010101...0000'0000 excluding matrix metadata).
             auto iter = glyphs.find(token);
             if (iter == glyphs.end())
             {
@@ -1420,9 +1423,9 @@ namespace netxs::gui
         using b256 = std::array<byte, 256>;
         using title = ui::pro::title;
         using focus = ui::pro::focus;
-        using keybd = ui::pro::keybd;
         using kmap = input::key::kmap;
 
+        static constexpr auto classname = basename::gui_window;
         static constexpr auto shadow_dent = dent{ 1,1,1,1 } * 3;
         static constexpr auto wheel_delta_base = 120; // WHEEL_DELTA
 
@@ -1651,20 +1654,17 @@ namespace netxs::gui
             void direct(s11n::xs::bitmap_dtvt lock, view& data)
             {
                 auto& bitmap = lock.thing;
-                auto resize = [&](auto new_gridsz)
-                {
-                    //todo use digest instead of winsize
-                    if (owner.waitsz == new_gridsz) owner.waitsz = dot_00;
-                };
                 if (owner.reload == task::all || owner.fsmode == winstate::minimized) // We need full repaint.
                 {
                     if (owner.fsmode == winstate::minimized) owner.redraw = true;
-                    bitmap.get(data, {}, resize);
+                    bitmap.get(data);
+                    if (owner.waitsz == bitmap.image.size()) owner.waitsz = dot_00;
                 }
                 else
                 {
                     auto update = [&](auto head, auto iter, auto tail)
                     {
+                        if (owner.waitsz == bitmap.image.size()) owner.waitsz = dot_00;
                         if (owner.waitsz || owner.gridsz.x == 0 || owner.cellsz.x == 0) return;
                         auto offset = (si32)(iter - head);
                         auto length = (si32)(tail - iter);
@@ -1695,7 +1695,7 @@ namespace netxs::gui
                             }
                         }
                     };
-                    bitmap.get(data, update, resize);
+                    bitmap.get(data, update);
                     netxs::set_flag<task::inner>(owner.reload);
                     owner.check_blinky();
                 }
@@ -1743,17 +1743,7 @@ namespace netxs::gui
             void handle(s11n::xs::tooltips         lock)
             {
                 auto copy = lock.thing;
-                //todo implement
-                //owner.bell::enqueue(owner_wptr, [tooltips = std::move(copy)](auto& boss) mutable
-                //{
-                //    for (auto& tooltip : tooltips)
-                //    {
-                //        if (auto gear_ptr = boss.bell::getref<hids>(tooltip.gear_id))
-                //        {
-                //            gear_ptr->set_tooltip(tooltip.tip_text, tooltip.update);
-                //        }
-                //    }
-                //});
+                //todo implement like as in ui::dtvt
             }
             //todo use xs::screenmode
             void handle(s11n::xs::fullscrn       /*lock*/)
@@ -1775,7 +1765,7 @@ namespace netxs::gui
             void handle(s11n::xs::expose         /*lock*/)
             {
                 owner.window_post_command(ipc::expose_win);
-                //owner.bell::enqueue(owner_wptr, [&](auto& /*boss*/)
+                //owner.base::enqueue([&](auto& /*boss*/)
                 //{
                 //    owner.base::riseup(tier::preview, e2::form::layout::expose);
                 //});
@@ -1809,8 +1799,11 @@ namespace netxs::gui
                 lock.unlock();
                 auto guard = owner.sync();
                 auto& gear = *gears;
+                gear.keybd::vkevent = owner.indexer.get_kbchord_hint(keybd.vkchord);
+                gear.keybd::scevent = owner.indexer.get_kbchord_hint(keybd.scchord);
+                gear.keybd::chevent = owner.indexer.get_kbchord_hint(keybd.chchord);
                 keybd.syncto(gear);
-                owner.base::signal(tier::release, input::events::keybd::key::post, gear);
+                owner.base::signal(tier::release, input::events::keybd::post, gear);
             };
             void handle(s11n::xs::mouse_event      lock)
             {
@@ -1818,16 +1811,17 @@ namespace netxs::gui
                 lock.unlock();
                 auto guard = owner.sync();
                 auto& gear = *gears;
+                gear.set_multihome();
                 auto basis = gear.owner.base::coor();
                 owner.global(basis);
-                gear.replay(owner.This(), mouse.cause, mouse.coord - basis, mouse.click - basis, mouse.delta, mouse.buttons, mouse.ctlstat, mouse.whlfp, mouse.whlsi, mouse.hzwhl);
+                gear.replay(owner, mouse.cause, mouse.coord - basis, mouse.click - basis, mouse.delta, mouse.buttons, mouse.bttn_id, mouse.dragged, mouse.ctlstat, mouse.whlfp, mouse.whlsi, mouse.hzwhl);
             }
             void handle(s11n::xs::warping          lock)
             {
                 auto warp = lock.thing;
                 lock.unlock();
                 auto guard = owner.sync();
-                owner.warp_window(warp.warpdata);
+                owner.warp_window(warp.warpdata * owner.cellsz);
             }
             void handle(s11n::xs::logs             lock)
             {
@@ -1843,7 +1837,7 @@ namespace netxs::gui
             void handle(s11n::xs::sysstart       /*lock*/)
             {
                 //todo revise
-                //owner.bell::enqueue(owner_wptr, [&](auto& /*boss*/)
+                //owner.base::enqueue([&](auto& /*boss*/)
                 //{
                 //    owner.base::riseup(tier::release, e2::form::global::sysstart, 1);
                 //});
@@ -1851,7 +1845,7 @@ namespace netxs::gui
             void handle(s11n::xs::cwd            /*lock*/)
             {
                 //todo revise
-                //owner.bell::enqueue(owner_wptr, [&, path = lock.thing.path](auto& /*boss*/)
+                //owner.base::enqueue([&, path = lock.thing.path](auto& /*boss*/)
                 //{
                 //    owner.base::riseup(tier::preview, e2::form::prop::cwd, path);
                 //});
@@ -1867,7 +1861,7 @@ namespace netxs::gui
                  owner{ owner },
                  intio{ intio },
                  alive{ true },
-                 gears{ owner.bell::create<hids>(owner, s11n::bitmap_dtvt.freeze().thing.image) }
+                 gears{ owner.bell::create<hids>(owner, s11n::bitmap_dtvt.freeze().thing.image, true) }
             {
                 auto& gear = *gears;
                 m.gear_id = gear.id;
@@ -1875,6 +1869,7 @@ namespace netxs::gui
                 m.enabled = input::hids::stat::ok;
                 m.coordxy = { si16min, si16min };
                 c.fast = true;
+                //todo run gear.base::update_scripting_context() outside the ctor
             }
         };
 
@@ -2197,7 +2192,7 @@ namespace netxs::gui
             }
             else if (auto delta = coor - master.area.coor)
             {
-                bell::enqueue(This(), [&, delta](auto& /*boss*/) // Perform corrections.
+                base::enqueue([&, delta](auto& /*boss*/) // Perform corrections.
                 {
                     move_window(delta);
                 });
@@ -2221,7 +2216,7 @@ namespace netxs::gui
                 }
                 else unsync = faux;
             }
-            if (unsync) bell::enqueue(This(), [&](auto& /*boss*/) // Perform corrections.
+            if (unsync) base::enqueue([&](auto& /*boss*/) // Perform corrections.
             {
                 if (fsmode == winstate::maximized)
                 {
@@ -2344,14 +2339,15 @@ namespace netxs::gui
                 auto [side_x, side_y] = szgrip.layout(outer_rect);
                 auto dent_x = dent{ s.x < 0, s.x > 0, s.y > 0, s.y < 0 };
                 auto dent_y = dent{ s.x > 0, s.x < 0, 1, 1 };
+                auto shade2 = shade + 0x00'09'09'09 * std::popcount((ui32)stream.m.buttons);
                 fill_grips(side_x, [&, &side_x = side_x](auto& canvas, auto r) //todo &side_x: Apple clang still disallows capturing structured bindings
                 {
-                    netxs::onrect(canvas, r, cell::shaders::full(shade));
+                    netxs::onrect(canvas, r, cell::shaders::full(shade2));
                     netxs::misc::cage(canvas, side_x, dent_x, cell::shaders::full(black)); // 1-px dark contour around.
                 });
                 fill_grips(side_y, [&, &side_y = side_y](auto& canvas, auto r) //todo &side_y: Apple clang still disallows capturing structured bindings
                 {
-                    netxs::onrect(canvas, r, cell::shaders::full(shade));
+                    netxs::onrect(canvas, r, cell::shaders::full(shade2));
                     netxs::misc::cage(canvas, side_y, dent_y, cell::shaders::full(black)); // 1-px dark contour around.
                 });
             }
@@ -2564,7 +2560,7 @@ namespace netxs::gui
                         sync_cellsz();
                         update_gui();
                     };
-                    if (enqueue) bell::enqueue(This(), [zoom](auto& /*boss*/){ zoom(); });
+                    if (enqueue) base::enqueue([zoom](auto& /*boss*/){ zoom(); });
                     else         zoom();
                 }
             }
@@ -2657,7 +2653,7 @@ namespace netxs::gui
                     {
                         szgrip.grab(inner_rect, mcoord, border, cellsz);
                     }
-                    bell::enqueue(This(), [&, coord](auto& /*boss*/)
+                    base::enqueue([&, coord](auto& /*boss*/)
                     {
                         resize_by_grips(coord);
                     });
@@ -2673,7 +2669,7 @@ namespace netxs::gui
                 if (auto dxdy = coord - mcoord)
                 {
                     mcoord = coord;
-                    bell::enqueue(This(), [&, dxdy](auto& /*boss*/)
+                    base::enqueue([&, dxdy](auto& /*boss*/)
                     {
                         //todo revise
                         //if (fsmode == winstate::maximized) set_state(winstate::normal);
@@ -2753,18 +2749,28 @@ namespace netxs::gui
                 if (button == bttn::left) drop_grips();
                 //moving = faux; // Stop GUI window dragging if any button released.
             }
+            if (changed && hit_grips()) // Amplify grips on any mouse press.
+            {
+                netxs::set_flag<task::grips>(reload);
+            }
             if (moving) // Don't report mouse clicks while dragging window.
             {
-                if (!mbttns) moving = faux;
+                if (!mbttns) // Update mouse cursor position after stop dragging window.
+                {
+                    moving = faux;
+                    stream.m.changed++;
+                    stream.m.timecod = datetime::now();
+                    stream.m.ctlstat = get_mods_state();
+                    stream.mouse(stream.m);
+                }
                 return;
             }
 
             static auto dblclick = datetime::now() - 1s;
             if (changed && (seized || inside))
             {
-                auto timecode = datetime::now();
                 stream.m.changed++;
-                stream.m.timecod = timecode;
+                stream.m.timecod = datetime::now();
                 stream.m.ctlstat = get_mods_state();
                 stream.mouse(stream.m);
             }
@@ -2963,7 +2969,7 @@ namespace netxs::gui
         }
         void MoveWindow(many const& args)
         {
-            if (args.size())
+            if (args.size() != 2) return;
             if (auto delta = twod{ any_get_or(args[0]), any_get_or(args[1]) })
             {
                 move_window(delta);
@@ -2990,9 +2996,9 @@ namespace netxs::gui
                 //todo implement
             }
         }
-        void AlwaysOnTop(many const& args)
+        void ZOrder(many const& args)
         {
-            auto state = args.size() ? any_get_or(args.front(), faux) : faux;
+            auto state = args.size() ? any_get_or(args.front(), zpos::plain) : zpos::plain;
             window_send_command(master.hWnd, state ? ipc::make_ontop : ipc::set_normal);
         }
 
@@ -3059,7 +3065,7 @@ namespace netxs::gui
                 auto focus_bus_on = mfocus.set_owner(lParam);
                 if (!focus_bus_on)
                 {
-                    bell::enqueue(This(), [&](auto& /*boss*/)
+                    base::enqueue([&](auto& /*boss*/)
                     {
                         base::signal(tier::release, input::events::focus::set::on, { .gear_id = stream.gears->id, .focus_type = solo::on });
                         if (mfocus.wheel) window_post_command(ipc::sync_state);
@@ -3073,7 +3079,7 @@ namespace netxs::gui
                 keybd_send_state();
                 if (focus_bus_on)
                 {
-                    bell::enqueue(This(), [&](auto& /*boss*/)
+                    base::enqueue([&](auto& /*boss*/)
                     {
                         auto seed = base::signal(tier::release, input::events::focus::set::off, { .gear_id = stream.gears->id });
                     });
@@ -3146,7 +3152,7 @@ namespace netxs::gui
                     //}
                 }
             }
-            else if (eventid == timers::blink) bell::enqueue(This(), [&](auto& /*boss*/)
+            else if (eventid == timers::blink) base::enqueue([&](auto& /*boss*/)
             {
                 if (fsmode == winstate::minimized) return;
                 auto visible = blinky.live;
@@ -3173,7 +3179,7 @@ namespace netxs::gui
                     return;
                 }
             }
-            bell::enqueue(This(), [&, menucmd, args](auto& /*boss*/)
+            base::enqueue([&, menucmd, args](auto& /*boss*/)
             {
                 //log("sys_command: menucmd=", utf::to_hex_0x(menucmd));
                 switch (menucmd)
@@ -3196,7 +3202,7 @@ namespace netxs::gui
                     case syscmd::warpwindow:      WarpWindow(args);         break;
                     case syscmd::move:            MoveWindow(args);         break;
                     case syscmd::focusnextwindow: FocusNextWindow(args);    break;
-                    case syscmd::alwaysontop:     AlwaysOnTop(args);        break;
+                    case syscmd::zorder:          ZOrder(args);             break;
                 }
                 update_gui();
             });
@@ -3243,7 +3249,7 @@ namespace netxs::gui
                 update_gui();
                 window_initilize();
 
-                LISTEN(tier::release, input::events::mouse::button::drag::start::any, gear)//, -, (accum_ptr))
+                on(tier::mouserelease, input::key::MouseDragStart, [&](hids& gear)
                 {
                     if (fsmode != winstate::normal) return;
                     moving = true;
@@ -3251,19 +3257,19 @@ namespace netxs::gui
                     auto dxdy = twod{ std::round(gear.delta.get() * cellsz) };
                     move_window(dxdy);
                     sync_pixel_layout(); // Align grips and shadow.
-                };
-                LISTEN(tier::release, input::events::mouse::button::dblclick::left, gear)
+                });
+                on(tier::mouserelease, input::key::LeftDoubleClick, [&](hids& /*gear*/)
                 {
                          if (fsmode == winstate::maximized) set_state(winstate::normal);
                     else if (fsmode == winstate::normal)    set_state(winstate::maximized);
-                };
-                LISTEN(tier::release, input::events::mouse::scroll::any, gear)
+                });
+                on(tier::mouserelease, input::key::MouseWheel, [&](hids& gear)
                 {
                     zoom_by_wheel(gear.whlfp, faux);
-                };
+                });
                 LISTEN(tier::release, input::events::focus::set::any, seed, -, (treeid = datetime::uniqueid(), digest = ui64{}))
                 {
-                    auto deed = this->bell::protos(tier::release);
+                    auto deed = this->bell::protos();
                     auto state = deed == input::events::focus::set::on.id;
                     stream.sysfocus.send(stream.intio, seed.gear_id, state, seed.focus_type, treeid, ++digest);
                 };
@@ -3278,12 +3284,16 @@ namespace netxs::gui
                         auto filtered = ui::para{ utf8 }.lyric->utf8();
                         window_set_title(filtered);
                     }
+                    auto window_id = id_t{};
+                    stream.header.send(stream.intio, window_id, utf8);
                 };
                 LISTEN(tier::release, e2::form::prop::ui::footer, utf8)
                 {
                     update_footer();
+                    auto window_id = id_t{};
+                    stream.footer.send(stream.intio, window_id, utf8);
                 };
-                base::signal(tier::anycast, e2::form::upon::started, This());
+                base::broadcast(tier::anycast, e2::form::upon::started, This());
             }
             auto winio = std::thread{ [&]
             {
@@ -3301,7 +3311,7 @@ namespace netxs::gui
             window_message_pump();
             //for (auto p : { &master, &blinky, &footer, &header }) layer_delete(*p);
             stream.intio.shut(); // Close link to server. Interrupt binary reading loop.
-            bell::dequeue(); // Clear task queue.
+            base::dequeue(); // Clear task queue.
             winio.join();
         }
     };

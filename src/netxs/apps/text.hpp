@@ -7,7 +7,7 @@ namespace netxs::events::userland
 {
     namespace textancy
     {
-        EVENTPACK(netxs::events::userland::root::custom )
+        EVENTPACK( app::textancy::events, netxs::events::userland::seed::custom )
         {
             GROUP_XS( ui, input::hids ),
 
@@ -41,7 +41,7 @@ namespace netxs::app::textancy
         {
             return ansi::wrp(wrap::off).mgr(0).bld(true).cap(caption).erl().und(unln::none).eol().mgr(1).unc(0).wrp(wrap::on);
         };
-        auto topic3_chars = 
+        auto topic3_chars =
 "\nThere are important differences between \033[22mplain text\033[1m (created and edited by text editors) and "
 "\033[38:2:109:231:237m""r"
 "\033[38:2:109:237:186m""i"
@@ -95,7 +95,7 @@ displaying the requested definition in a popup window or temporary buffer. Some 
 
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>(pro::focus::mode::hub)
-                  ->plugin<pro::keybd>("defapp")
+                  ->plugin<pro::keybd>()
                   ->shader(c3, e2::form::state::focus::count)
                   //->plugin<pro::acryl>()
                   ->plugin<pro::cache>()

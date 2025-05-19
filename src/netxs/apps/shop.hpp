@@ -7,7 +7,7 @@ namespace netxs::events::userland
 {
     namespace shop
     {
-        EVENTPACK( netxs::events::userland::root::custom )
+        EVENTPACK( app::shop::events, netxs::events::userland::seed::custom )
         {
             GROUP_XS( ui, input::hids ),
 
@@ -195,7 +195,7 @@ namespace netxs::app::shop
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>(pro::focus::mode::focused)
                   ->colors(whitelt, 0x60000000)
-                  ->plugin<pro::keybd>("defapp")
+                  ->plugin<pro::keybd>()
                   ->plugin<pro::acryl>()
                   ->plugin<pro::cache>()
                   ->invoke([](auto& boss)

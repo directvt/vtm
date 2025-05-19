@@ -39,6 +39,7 @@ namespace netxs::app::app1
     static constexpr auto name = "Application";
 }
 
+#include "desktopio/application.hpp"
 #include "apps/term.hpp"
 
 //#if defined(DEBUG)
@@ -69,7 +70,7 @@ namespace netxs::app::shared
     {
         auto build_strobe        = [](eccc /*appcfg*/, xmls& /*config*/)
         {
-            auto window = ui::cake::ctor()
+            auto window_ptr = ui::cake::ctor()
                 ->plugin<pro::focus>(pro::focus::mode::focused)
                 ->plugin<pro::notes>(" Left+Right click to close ")
                 ->active()
@@ -78,7 +79,7 @@ namespace netxs::app::shared
                     closing_by_gesture(boss);
                     closing_on_quit(boss);
                 });
-            auto body = window->attach(ui::mock::ctor());
+            auto body = window_ptr->attach(ui::mock::ctor());
             auto& color = body->base::field(cell{ whitespace });
             auto& state = body->base::field(true);
             body->shader(color)
@@ -91,12 +92,12 @@ namespace netxs::app::shared
                         boss.base::deface();
                     };
                 });
-            return window;
+            return window_ptr;
         };
         auto build_empty         = [](eccc /*appcfg*/, xmls& /*config*/)
         {
-            auto window = ui::cake::ctor();
-            window->plugin<pro::focus>(pro::focus::mode::focused)
+            auto window_ptr = ui::cake::ctor();
+            window_ptr->plugin<pro::focus>(pro::focus::mode::focused)
                   //->plugin<pro::track>()
                   //->plugin<pro::acryl>()
                   ->plugin<pro::notes>(" Left+Right click to close ")
@@ -110,9 +111,9 @@ namespace netxs::app::shared
                           boss.base::riseup(tier::preview, e2::form::prop::ui::header, title);
                       };
                   });
-            auto object = window->attach(ui::mock::ctor())
+            auto object = window_ptr->attach(ui::mock::ctor())
                                 ->active();
-            return window;
+            return window_ptr;
         };
         auto build_truecolor     = [](eccc /*appcfg*/, xmls& config)
         {
@@ -218,16 +219,16 @@ namespace netxs::app::shared
             truecolor += r_grut03;
             truecolor += wiki01;
 
-            auto window = ui::cake::ctor();
-            window->plugin<pro::focus>(pro::focus::mode::focused)
-                  ->plugin<pro::keybd>("defapp")
+            auto window_ptr = ui::cake::ctor();
+            window_ptr->plugin<pro::focus>(pro::focus::mode::focused)
+                  ->plugin<pro::keybd>()
                   //->plugin<pro::acryl>()
                   ->plugin<pro::cache>()
                   ->invoke([](auto& boss)
                     {
                         closing_on_quit(boss);
                     });
-            auto object = window->attach(ui::fork::ctor(axis::Y))
+            auto object = window_ptr->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, 0xA0'c4'0f'1f);
                 config.cd("/config/defapp");
                 auto [menu_block, cover, menu_data] = app::shared::menu::create(config, {});
@@ -241,18 +242,18 @@ namespace netxs::app::shared
                         auto sb = layers->attach(ui::fork::ctor());
                         auto vt = sb->attach(slot::_2, ui::grip<axis::Y>::ctor(scroll));
                         auto hz = test_stat_area->attach(slot::_2, ui::grip<axis::X>::ctor(scroll));
-            window->invoke([&](auto& boss)
+            window_ptr->invoke([&](auto& boss)
             {
                 app::shared::base_kb_navigation(config, scroll, boss);
             });
-            return window;
+            return window_ptr;
         };
         auto build_app1          = [](eccc /*appcfg*/, xmls& /*config*/)
         {
-            auto window = ui::cake::ctor()
+            auto window_ptr = ui::cake::ctor()
                 ->active()
                 ->plugin<pro::focus>(pro::focus::mode::focused)
-                ->plugin<pro::keybd>("defapp")
+                ->plugin<pro::keybd>()
                 //->plugin<pro::acryl>()
                 //->plugin<pro::cache>()
                 ->alignment({ snap::both, snap::both })
@@ -260,7 +261,7 @@ namespace netxs::app::shared
                 {
                     closing_on_quit(boss);
                 });
-            auto basis = window->attach(ui::fork::ctor(axis::Y))
+            auto basis = window_ptr->attach(ui::fork::ctor(axis::Y))
                 ->alignment({ snap::both, snap::both });
             auto header = basis->attach(slot::_1, ui::fork::ctor(axis::X))
                                 ->alignment({ snap::both, snap::both })
@@ -271,11 +272,11 @@ namespace netxs::app::shared
                 ->shader(cell::shaders::xlight, e2::form::state::hover)
                 ->invoke([](auto& boss)
                 {
-                    boss.LISTEN(tier::release, input::events::mouse::button::click::left, gear)
+                    boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
                     {
                         boss.base::riseup(tier::anycast, e2::form::proceed::quit::one, true);
                         gear.dismiss();
-                    };
+                    });
                 });
             auto body = basis->attach(slot::_2, ui::fork::ctor(axis::X, 1))
                                 ->colors(whitelt, bluedk);
@@ -304,13 +305,13 @@ namespace netxs::app::shared
                 ->shader(cell{}.bgc(whitelt).fgc(bluedk).und(unln::line), e2::form::state::hover)
                 ->invoke([](auto& boss)
                 {
-                    boss.LISTEN(tier::release, input::events::mouse::button::click::left, gear)
+                    boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
                     {
                         boss.base::riseup(tier::anycast, e2::form::proceed::quit::one, true);
                         gear.dismiss();
-                    };
+                    });
                 });
-            return window;
+            return window_ptr;
         };
 
         app::shared::initialize builder_strobe    { app::strobe::id   , build_strobe     };
@@ -328,11 +329,11 @@ namespace netxs::app::shared
     {
         auto build_site = [](eccc appcfg, xmls& /*config*/)
         {
-            auto window = ui::cake::ctor();
-            window->invoke([&](auto& boss)
+            auto window_ptr = ui::cake::ctor();
+            window_ptr->invoke([&](auto& boss)
             {
                 //todo reimplement (tiling/window)
-                //boss.LISTEN(tier::release, input::events::mouse::button::dblclick::left, gear)
+                //boss.on(tier::mouserelease, input::key::LeftDoubleClick, [&](hids& gear)
                 //{
                 //    auto outer = e2::config::plugins::sizer::outer.param();
                 //    boss.base::riseup(tier::request, e2::config::plugins::sizer::outer, outer);
@@ -344,8 +345,9 @@ namespace netxs::app::shared
                 //        boss.base::extend(viewport);
                 //        gear.dismiss();
                 //    }
-                //};
+                //});
                 closing_on_quit(boss);
+                boss.base::property("applet.zorder", zpos::backmost);
                 boss.LISTEN(tier::release, e2::render::background::prerender, parent_canvas)
                 {
                     auto title_fg_color = argb{ 0xFFffffff };
@@ -365,7 +367,7 @@ namespace netxs::app::shared
 
                     if (cmd.starts_with("@"))
                     {
-                        static auto title_map = std::unordered_map<text, si32>{};
+                        static auto title_map = utf::unordered_map<text, si32>{};
                         auto title = boss.base::riseup(tier::request, e2::form::prop::ui::header);
                         title += std::to_string(++title_map[title]);
                         boss.base::riseup(tier::preview, e2::form::prop::ui::header, title);
@@ -373,8 +375,7 @@ namespace netxs::app::shared
                     boss.base::riseup(tier::release, e2::config::plugins::sizer::outer, dent{  2, 2, 1, 1 });
                     boss.base::riseup(tier::release, e2::config::plugins::sizer::inner, dent{ -4,-4,-2,-2 });
                     boss.base::riseup(tier::release, e2::config::plugins::align, faux);
-                    boss.base::riseup(tier::preview, e2::form::prop::zorder, zpos::backmost);
-                    parent.LISTEN(tier::release, input::events::mouse::button::click::right, gear)
+                    parent.on(tier::mouserelease, input::key::RightClick, [&](hids& gear)
                     {
                         auto area = boss.base::area() + dent{ 2, 2, 1, 1 };
                         if (area.hittest(gear.coord))
@@ -382,10 +383,10 @@ namespace netxs::app::shared
                             app::shared::set_title(boss, gear, bias::center);
                             gear.dismiss(true);
                         }
-                    };
+                    });
                     parent.LISTEN(tier::release, e2::form::state::focus::on, gear_id, boss.relyon)
                     {
-                        if (auto gear_ptr = parent.bell::getref<hids>(gear_id))
+                        if (auto gear_ptr = parent.base::getref<hids>(gear_id))
                         {
                             auto& gear = *gear_ptr;
                             gear.owner.base::signal(tier::release, e2::form::layout::jumpto, parent);
@@ -393,7 +394,7 @@ namespace netxs::app::shared
                     };
                 };
             });
-            return window;
+            return window_ptr;
         };
         auto build_dtvt = [](eccc appcfg, xmls& /*config*/)
         {
@@ -402,9 +403,9 @@ namespace netxs::app::shared
                 ->limits(dot_11)
                 ->invoke([&](auto& boss)
                 {
-                    boss.LISTEN(tier::anycast, e2::form::upon::started, root, -, (appcfg))
+                    boss.LISTEN(tier::anycast, e2::form::upon::started, root_ptr, -, (appcfg))
                     {
-                        if (root) // root is empty when d_n_d.
+                        if (root_ptr) // root_ptr is empty when d_n_d.
                         {
                             boss.start(appcfg.cfg, [appcfg](auto fds)
                             {
@@ -430,7 +431,7 @@ namespace netxs::app::shared
         auto build_dtty = [](eccc appcfg, xmls& config)
         {
             auto window_clr = skin::color(tone::window_clr);
-            auto window = ui::veer::ctor()
+            auto window_ptr = ui::veer::ctor()
                 ->limits(dot_11)
                 ->plugin<pro::focus>();
             auto term_cake = ui::cake::ctor()
@@ -485,15 +486,15 @@ namespace netxs::app::shared
                         term_inst.close(fast, faux);
                     };
                 });
-            window->branch(dtvt)
+            window_ptr->branch(dtvt)
                 ->branch(term_cake)
                 ->invoke([&](auto& boss)
                 {
                     auto& dtvt_inst = *dtvt;
                     auto& term_inst = *term;
-                    boss.LISTEN(tier::release, e2::form::upon::started, root, -, (appcfg))
+                    boss.LISTEN(tier::release, e2::form::upon::started, root_ptr, -, (appcfg))
                     {
-                        if (root) // root is empty when d_n_d.
+                        if (root_ptr) // root_ptr is empty when d_n_d.
                         {
                             dtvt_inst.start(appcfg.cfg, [&, appcfg](auto fds)
                             {
@@ -502,9 +503,9 @@ namespace netxs::app::shared
                             });
                         }
                     };
-                    boss.LISTEN(tier::anycast, e2::form::upon::started, root)
+                    boss.LISTEN(tier::anycast, e2::form::upon::started, root_ptr)
                     {
-                        boss.base::signal(tier::release, e2::form::upon::started, root);
+                        boss.base::signal(tier::release, e2::form::upon::started, root_ptr);
                     };
                     boss.LISTEN(tier::release, e2::form::global::sysstart, started, -, (order = true))
                     {
@@ -519,7 +520,7 @@ namespace netxs::app::shared
                             boss.back()->base::deface();
                             order = !order;
                         }
-                        boss.bell::expire(tier::release, true);
+                        boss.bell::passover();
                     };
                     boss.LISTEN(tier::release, e2::form::proceed::quit::any, fast, -, (count = 2))
                     {
@@ -530,7 +531,7 @@ namespace netxs::app::shared
                         }
                     };
                 });
-            return window;
+            return window_ptr;
         };
         auto build_vtty = [](eccc appcfg, xmls& config)
         {
@@ -557,9 +558,9 @@ namespace netxs::app::shared
 
             auto notes = ansi::nil().mgl(2).mgr(2).wrp(wrap::off).fgc(whitedk).jet(bias::right)
                 .add(app::shared::repository);
-            auto window = ui::cake::ctor()
+            auto window_ptr = ui::cake::ctor()
                 ->plugin<pro::focus>(pro::focus::mode::focused)
-                ->plugin<pro::keybd>("infopage")
+                ->plugin<pro::keybd>()
                 ->plugin<pro::acryl>()
                 ->plugin<pro::cache>()
                 ->colors(whitedk, 0x30000000)
@@ -570,25 +571,25 @@ namespace netxs::app::shared
                         boss.base::riseup(tier::release, e2::form::proceed::quit::one, fast);
                     };
                 });
-            auto object = window->attach(ui::fork::ctor(axis::Y))
+            auto object = window_ptr->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, 0);
-            auto ver = ansi::fgc(b1).add("▀▄").fgc().add("  Text-based Desktop Environment");
+            auto ver = ansi::fgc(b1).add("  ▀▄").fgc().add("  Text-based Desktop Environment  ");
             auto [menu_block, cover, menu_data] = menu::mini(faux, faux, 1,
             menu::list
             {
-                { menu::item{ menu::type::Splitter, faux, 0, std::vector<menu::item::look>{{ .label = ver }}},
+                { menu::item{ .alive = faux, .label = ver },
                 [](auto& /*boss*/, auto& /*item*/)
                 { }},
-                { menu::item{ menu::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "×", .tooltip = " Close ", .hover = c1 }}},
-                [window, c1](auto& boss, auto& /*item*/)
+                { menu::item{ .alive = true, .label = "  ×  ", .tooltip = " Close ", .hover = c1 },
+                [c1](auto& boss, auto& /*item*/)
                 {
                     boss.template shader<tier::anycast>(cell::shaders::color(c1), e2::form::state::keybd::command::close, boss.This());
-                    boss.LISTEN(tier::release, input::events::mouse::button::click::left, gear)
+                    boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
                     {
                         auto backup = boss.This();
                         boss.base::riseup(tier::release, e2::form::proceed::quit::one, true);
                         gear.dismiss(true);
-                    };
+                    });
                 }},
             });
             auto menu_object = object->attach(slot::_1, menu_block);
@@ -639,6 +640,8 @@ namespace netxs::app::shared
             };
             auto body = data();
             auto items = scroll->attach(ui::list::ctor());
+
+            // Keybd test subsection.
             auto title_grid_state = items->attach(ui::list::ctor(axis::Y)->setpad({ 0, 0, 0, 2}));
             auto title_block = title_grid_state->attach(ui::item::ctor("Keyboard Test")->setpad({ 2, 0, 1, 0 }));
             auto chord_block = title_grid_state->attach(ui::grid::ctor())
@@ -648,25 +651,25 @@ namespace netxs::app::shared
                 ->template plugin<pro::grade>();
             auto state_block = title_grid_state->attach(ui::fork::ctor());
             auto state_label = state_block->attach(slot::_1, ui::item::ctor("Exclusive keyboard mode:")->setpad({ 2, 1, 0, 0 }));
-            auto& rawkbd = window->base::field(faux);
+            auto& rawkbd = window_ptr->base::field(faux);
             auto state_state = state_block->attach(slot::_2, ui::item::ctor(ansi::bgc(reddk).fgx(0).add("█off ")))
                 ->setpad({ 1, 1, 0, 0 })
                 ->active()
                 ->shader(cell::shaders::xlight, e2::form::state::hover)
                 ->invoke([&](auto& boss)
                 {
-                    boss.LISTEN(tier::release, ui::tty::events::rawkbd, state)
+                    boss.LISTEN(tier::release, ui::terminal::events::rawkbd, state)
                     {
                         rawkbd = !rawkbd;
                         boss.set(rawkbd ? ansi::bgc(greendk).fgc(whitelt).add(" on █")
                                         : ansi::bgc(reddk).fgx(0)        .add("█off "));
                         boss.base::reflow();
                     };
-                    boss.LISTEN(tier::release, input::events::mouse::button::click::left, gear)
+                    boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
                     {
-                        boss.base::signal(tier::release, ui::tty::events::rawkbd);
+                        boss.base::signal(tier::release, ui::terminal::events::rawkbd);
                         gear.dismiss_dblclick();
-                    };
+                    });
                 });
             auto field = []
             {
@@ -678,9 +681,9 @@ namespace netxs::app::shared
                     {
                         boss.base::hidden = true;
                         auto& backup = boss.base::template field<text>();
-                        boss.LISTEN(tier::release, input::events::mouse::any, gear)
+                        boss.on(tier::mouserelease, input::key::MouseAny, [&](hids& gear)
                         {
-                            if (netxs::events::subevent(gear.cause, input::events::mouse::button::down::any.id))
+                            if (gear.cause == input::key::MouseDown)
                             {
                                 if (backup.empty())
                                 {
@@ -696,7 +699,7 @@ namespace netxs::app::shared
                                 boss.set(backup);
                                 backup.clear();
                             }
-                        };
+                        });
                     });
                 return f;
             };
@@ -714,7 +717,7 @@ namespace netxs::app::shared
                                                  pressed_label, pressed[0],       pressed[1],       pressed[2],        pressed[3],
                                                 released_label, released[0],      released[1],      released[2],       released[3] });
             released[0]->set("<Press any keys>")->hidden = faux;;
-            auto& update = window->base::field([pressed, released](auto& boss, hids& gear, bool is_key_event)
+            auto& update = window_ptr->base::field([pressed, released](auto& boss, hids& gear, bool is_key_event)
             {
                 //log("vkchord=%% keyid=%% hexvkchord=%% hexscchord=%% hexchchord=%%", input::key::kmap::to_string(gear.vkchord, faux),
                 //    input::key::map::data(gear.keycode).name,
@@ -770,47 +773,55 @@ namespace netxs::app::shared
             }
             items->invoke([&](auto& boss)
             {
-                boss.LISTEN(tier::release, input::events::mouse::button::down::any, gear)
+                auto& coord = boss.base::field(fp2d{});
+                auto& window = *window_ptr;
+                window.on(tier::mousepreview, input::key::MouseAny, [&](hids& gear)
                 {
-                    update(boss, gear, faux);
-                };
+                    if (gear.cause != input::key::MouseMove || coord != gear.coord)
+                    {
+                        //coord = gear.coord;
+                        //auto button_state = ansi::escx{}.pushsgr().bgc(blacklt).fgc(whitelt);
+                        //auto pressed = gear.pressed;
+                        //auto dragged = gear.dragged;
+                        //     if (dragged) button_state.pushsgr().bgc(reddk).add(utf::to_bin(pressed)).popsgr();
+                        //else if (pressed) button_state.pushsgr().bgc(greenlt).add(utf::to_bin(pressed)).popsgr();
+                        //else              button_state.add(utf::to_bin(pressed));
+                        //button_state.popsgr();
+                        //auto wheeldt = gear.hzwhl ? fp2d{ gear.whlfp, 0 } : fp2d{ 0, gear.whlfp };
+                        //if constexpr (debugmode) log("Mouse: %% buttons=%% wheel=%% coord=%%", datetime::now(), button_state, wheeldt, coord);
+                        update(boss, gear, faux);
+                    }
+                });
             });
-            window->invoke([&](auto& boss)
+            window_ptr->invoke([&](auto& boss)
             {
                 auto& items_inst = *items;
                 auto& state_inst = *state_state;
-                auto& luafx = boss.base::template plugin<pro::luafx>(); //todo Apple clang requires template
-                auto& keybd = boss.base::template plugin<pro::keybd>();
+                auto& luafx = boss.bell::indexer.luafx;
                 app::shared::base_kb_navigation(config, scroll, boss);
-                keybd.bind("Any", "vtm.infopage.UpdateChordPreview()");
-                keybd.bind(
+                input::bindings::keybind(boss, "Any", "vtm.infopage.UpdateChordPreview()");
+                input::bindings::keybind(boss,
                     #if defined(WIN32)
-                    "Ctrl-Alt | Alt-Ctrl"
+                    "preview:Ctrl-Alt | Alt-Ctrl",
                     #else
-                    "Alt+Shift+B"
+                    "preview:Alt+Shift+B",
                     #endif
-                    , "vtm.infopage.ExclusiveKeyboardMode()", true);
-                luafx.activate("infopage.proc_map",
+                    "vtm.infopage.ExclusiveKeyboardMode()");
+                boss.base::add_methods(basename::infopage,
                 {
                     { "UpdateChordPreview",     [&]
                                                 {
-                                                    if (auto gear_ptr = luafx.template get_object<hids>("gear"))
-                                                    {
-                                                        auto& gear = *gear_ptr;
-                                                        if (gear.keystat != input::key::repeated) update(items_inst, gear, true);
-                                                        if (rawkbd) gear.set_handled();
-                                                    }
+                                                    auto& gear = luafx.get_gear();
+                                                    if (gear.keystat != input::key::repeated) update(items_inst, gear, true);
+                                                    if (rawkbd) gear.set_handled();
                                                     luafx.set_return(); // No returns.
                                                 }},
                     { "ExclusiveKeyboardMode",  [&]
                                                 {
-                                                    if (auto gear_ptr = luafx.template get_object<hids>("gear"))
-                                                    {
-                                                        auto& gear = *gear_ptr;
-                                                        state_inst.base::signal(tier::release, ui::tty::events::rawkbd);
-                                                        if (gear.keystat != input::key::repeated) update(items_inst, gear, true);
-                                                        gear.set_handled();
-                                                    }
+                                                    auto& gear = luafx.get_gear();
+                                                    state_inst.base::signal(tier::release, ui::terminal::events::rawkbd);
+                                                    if (gear.keystat != input::key::repeated) update(items_inst, gear, true);
+                                                    gear.set_handled();
                                                     luafx.set_return(); // No returns.
                                                 }},
                 });
@@ -820,7 +831,7 @@ namespace netxs::app::shared
                 ->limits({ -1, 1 })
                 ->upload(notes);
             layers->attach(app::shared::scroll_bars(scroll));
-            return window;
+            return window_ptr;
         };
 
         app::shared::initialize site_builder{ app::site::id, build_site };
@@ -829,10 +840,5 @@ namespace netxs::app::shared
         app::shared::initialize dtvt_builder{ app::dtvt::id, build_dtvt };
         app::shared::initialize dtty_builder{ app::dtty::id, build_dtty };
         app::shared::initialize info_builder{ app::info::id, build_info };
-        //todo UD
-        app::shared::initialize noui_builder{ "noui", build_vtty };
-        app::shared::initialize shell_builder{ "shell", build_vtty };
-        app::shared::initialize ansivt_builder{ "ansivt", build_vtty };
-        app::shared::initialize headless_builder{ "headless", build_vtty };
     }
 }

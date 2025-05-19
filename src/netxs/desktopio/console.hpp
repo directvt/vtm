@@ -22,6 +22,7 @@ namespace netxs::ui
         static constexpr auto vt256   = 1 << (__COUNTER__ - _counter);
         static constexpr auto direct  = 1 << (__COUNTER__ - _counter);
         static constexpr auto vtrgb   = 1 << (__COUNTER__ - _counter);
+        static constexpr auto vt_2D   = 1 << (__COUNTER__ - _counter);
 
         template<class T>
         auto str(T mode)
@@ -34,6 +35,7 @@ namespace netxs::ui
                 if (mode & vt16   ) result += "vt16 ";
                 if (mode & vt256  ) result += "vt256 ";
                 if (mode & vtrgb  ) result += "vtrgb ";
+                if (mode & vt_2D  ) result += "vt_2D ";
                 if (mode & direct ) result += "direct ";
                 if (result.size()) result.pop_back();
             }
@@ -110,33 +112,25 @@ namespace netxs::ui
         {
             pipe& canal; // link: Data highway.
             gate& owner; // link: Link owner.
-            wptr  owner_wptr; // link: .
 
             link(pipe& canal, gate& owner)
                 : s11n{ *this },
                  canal{ canal },
                  owner{ owner }
-            {
-                auto& oneshot = owner.base::template field<hook>(); //todo Apple clang requires template keyword
-                owner.LISTEN(tier::anycast, e2::form::upon::started, root, oneshot)
-                {
-                    owner_wptr = owner.This();
-                    owner.base::unfield(oneshot);
-                };
-            }
+            { }
 
             // link: Send an event message to the link owner.
             template<class E, class T>
             void notify(E, T&& data, si32 Tier = tier::release)
             {
-                owner.bell::enqueue(owner_wptr, [Tier, d = data](auto& boss) mutable
+                owner.base::enqueue([Tier, d = data](auto& boss) mutable
                 {
                     boss.base::signal(Tier, E::id, d);
                 });
             }
             void handle(s11n::xs::req_input_fields lock)
             {
-                owner.bell::enqueue(owner_wptr, [&, item = lock.thing](auto& /*boss*/) mutable
+                owner.base::enqueue([&, item = lock.thing](auto& /*boss*/) mutable
                 {
                     auto ext_gear_id = item.gear_id;
                     auto int_gear_id = owner.get_int_gear_id(ext_gear_id);
@@ -161,11 +155,11 @@ namespace netxs::ui
             //todo use s11n::xs::screenmode:  normal/fullscreen/maximized/minimized
             void handle(s11n::xs::fullscrn  /*lock*/)
             {
-                owner.fullscreen = true;
+                owner.set_fullscreen(true);
             }
             void handle(s11n::xs::restored  /*lock*/)
             {
-                owner.fullscreen = faux;
+                owner.set_fullscreen(faux);
             }
             void handle(s11n::xs::sysboard    lock)
             {
@@ -353,6 +347,7 @@ namespace netxs::ui
                 paint = std::thread{ [&, vtmode]
                 {
                          if (vtmode == svga::dtvt ) render<binary::bitmap_dtvt_t >();
+                    else if (vtmode == svga::vt_2D) render<binary::bitmap_vt_2D_t>();
                     else if (vtmode == svga::vtrgb) render<binary::bitmap_vtrgb_t>();
                     else if (vtmode == svga::vt256) render<binary::bitmap_vt256_t>();
                     else if (vtmode == svga::vt16 ) render<binary::bitmap_vt16_t >();
@@ -456,6 +451,7 @@ namespace netxs::ui
                        : legacy_mode & ui::console::vt256  ? svga::vt256
                        : legacy_mode & ui::console::gui    ? svga::dtvt
                        : legacy_mode & ui::console::direct ? svga::dtvt
+                       : legacy_mode & ui::console::vt_2D  ? svga::vt_2D
                        : legacy_mode & ui::console::vtrgb  ? svga::vtrgb
                                                            : svga::vtrgb;
             }
@@ -468,6 +464,8 @@ namespace netxs::ui
         };
 
     public:
+        static constexpr auto classname = basename::gate;
+
         pipe&      canal; // gate: Channel to outside.
         props_t    props; // gate: Input gate properties.
         diff       paint; // gate: Renderer.
@@ -481,20 +479,26 @@ namespace netxs::ui
         pro::debug& debug;
         input::multihome_t& multihome;
 
+        void set_fullscreen(bool state)
+        {
+            fullscreen = state;
+            auto& mouse = base::plugin<pro::mouse>();
+            mouse.draggable<hids::buttons::left>(state);
+        }
         void forward(auto& device)
         {
             auto gear_it = gears.find(device.gear_id);
             if (gear_it == gears.end())
             {
-                gear_it = gears.emplace(device.gear_id, bell::create<hids>(*this, canvas)).first;
+                gear_it = gears.emplace(device.gear_id, bell::create<hids>(*this, canvas, !!device.gear_id)).first;
                 auto& gear = *(gear_it->second);
-                gear.tooltip_timeout = props.tooltip_timeout;
+                gear.tooltip.timeout = props.tooltip_timeout;
                 gear.board::ghost = props.clip_preview_glow;
                 gear.board::brush = props.clip_preview_clrs;
                 gear.board::alpha = props.clip_preview_alfa;
                 gear.mouse::delay = props.dblclick_timeout;
-                auto& luafx = gear.base::template plugin<pro::luafx>(); //todo apple clang requires template keyword
-                luafx.activate("gear.proc_map",
+                auto& luafx = bell::indexer.luafx;
+                gear.base::add_methods(basename::gear,
                 {
                     { "IsKeyRepeated",  [&]
                                         {
@@ -503,15 +507,28 @@ namespace netxs::ui
                                         }},
                     { "SetHandled",     [&]
                                         {
-                                            gear.set_handled();
-                                            gear.interrupt_key_proc = true;
+                                            auto dismiss = luafx.get_args_or(1, faux);
+                                            gear.set_handled(dismiss);
+                                            gear.indexer.expire();
+                                            luafx.set_return();
+                                        }},
+                    { "RepeatWhilePressed", [&]
+                                        {
+                                            if (auto object_ptr = luafx.get_args_or(1, sptr{}))
+                                            {
+                                                gear.repeat_while_pressed(object_ptr->id);
+                                            }
                                             luafx.set_return();
                                         }},
                 });
+                gear.base::father = This();            // Gear has a fixed parent.
+                gear.base::update_scripting_context(); //
             }
             auto& [ext_gear_id, gear_ptr] = *gear_it;
-            gear_ptr->set_multihome();
-            gear_ptr->hids::take(device);
+            auto& gear = *gear_ptr;
+            gear.set_multihome();
+            gear.hids::take(device);
+            //todo should we set default gear here?
             base::strike();
         }
         void fire(hint event_id)
@@ -548,7 +565,7 @@ namespace netxs::ui
         {
             static const auto idle = cell{}.txt("\xE2\x96\x88"/*\u2588 █ */).bgc(0x00).fgc(0xFF00ff00);
             static const auto busy = cell{}.bgc(reddk).fgc(0xFFffffff);
-            auto brush = gear.m_sys.buttons ? cell{ busy }.txt(64 + (char)gear.m_sys.buttons/*A-Z*/)
+            auto brush = gear.m_sys.buttons ? cell{ busy }.txt(64 + (char)gear.m_sys.buttons/*A-Z...*/)
                                             : idle;
             auto area = rect{ gear.owner.coor() + gear.coord, dot_11 };
             parent_canvas.fill(area, cell::shaders::fuse(brush));
@@ -579,7 +596,7 @@ namespace netxs::ui
                 }
             }
         }
-        void draw_tooltips(time const& stamp)
+        void draw_tooltips()
         {
             auto full = canvas.full();
             auto area = canvas.area();
@@ -589,36 +606,30 @@ namespace netxs::ui
             {
                 auto& gear = *gear_ptr;
                 if (gear.mouse_disabled) continue;
-                if (gear.tooltip_enabled(stamp))
+                if (auto tooltip_page_sptr = gear.tooltip.get_render())
                 {
-                    auto [tooltip_data, tooltip_update] = gear.get_tooltip();
-                    if (tooltip_data)
-                    {
-                        //todo optimize - cache tooltip_page
-                        auto tooltip_page = page{ tooltip_data };
-                        auto full_area = full;
-                        full_area.coor = std::max(dot_00, twod{ gear.coord } - twod{ 4, tooltip_page.size() + 1 });
-                        full_area.size.x = dot_mx.x; // Prevent line wrapping.
-                        canvas.full(full_area);
-                        canvas.cup(dot_00);
-                        canvas.output(tooltip_page, cell::shaders::color(props.tooltip_colors));
-                    }
+                    auto& tooltip_page = *tooltip_page_sptr;
+                    auto full_area = full;
+                    full_area.coor = std::max(dot_00, twod{ gear.coord } - twod{ 4, tooltip_page.size() + 1 });
+                    full_area.size.x = dot_mx.x; // Prevent line wrapping.
+                    canvas.full(full_area);
+                    canvas.cup(dot_00);
+                    canvas.output(tooltip_page, cell::shaders::color(props.tooltip_colors));
                 }
             }
             canvas.area(area);
             canvas.full(full);
         }
-        void send_tooltips()
+        void sync_tooltips()
         {
             auto list = conio.tooltips.freeze();
-            for (auto& [ext_gear_id, gear_ptr] : gears /* use filter gear.is_tooltip_changed()*/)
+            for (auto& [ext_gear_id, gear_ptr] : gears)
             {
                 auto& gear = *gear_ptr;
                 if (gear.mouse_disabled) continue;
-                if (gear.is_tooltip_changed())
+                if (auto v = gear.tooltip.get())
                 {
-                    auto [tooltip_data, tooltip_update] = gear.get_tooltip();
-                    list.thing.push(ext_gear_id, tooltip_data, tooltip_update);
+                    list.thing.push(ext_gear_id, v.value());
                 }
             }
             list.thing.sendby<true>(canal);
@@ -630,7 +641,7 @@ namespace netxs::ui
             {
                 auto& gear = *gear_ptr;
                 if (gear.mouse_disabled) continue;
-                result |= gear.tooltip_check(now);
+                result |= gear.tooltip.check(now);
             }
             return result;
         }
@@ -645,7 +656,7 @@ namespace netxs::ui
             }
             if (damaged)
             {
-                if (auto context = canvas.change_basis(base::area()))
+                if (auto context2D = canvas.change_basis(base::area()))
                 {
                     canvas.wipe(props.background_color);
                     if (base::subset.size() == 1 && props.background_image.size()) // Taskbar only (no full screen app on top).
@@ -663,8 +674,8 @@ namespace netxs::ui
                     }
                     if (props.tooltip_enabled)
                     {
-                        if (direct) send_tooltips();
-                        else        draw_tooltips(stamp);
+                        if (direct) sync_tooltips();
+                        else        draw_tooltips();
                     }
                     if (props.debug_overlay)
                     {
@@ -719,12 +730,13 @@ namespace netxs::ui
             //       but any form can move under the cursor, so for the form itself,
             //       the mouse cursor moves inside the form.
             base::ruined(faux);
-            fire(input::events::mouse::move.id);
+            fire(input::key::MouseMove);
         }
         // gate: Rx loop.
         void launch()
         {
-            base::signal(tier::anycast, e2::form::upon::started, This()); // Make all stuff ready to receive input.
+            auto root_ptr = This();
+            base::signal(tier::anycast, e2::form::upon::started, root_ptr); // Make all stuff ready to receive input.
             directvt::binary::stream::reading_loop(canal, [&](view data){ conio.s11n::sync(data); });
             conio.s11n::stop(); // Wake up waiting dtvt objects, if any.
             if constexpr (debugmode) log(prompt::gate, "DirectVT session closed");
@@ -745,46 +757,46 @@ namespace netxs::ui
               multihome{ base::property<input::multihome_t>("multihome") }
         {
             base::plugin<pro::focus>();
-            auto& keybd = base::plugin<pro::keybd>("gate");
-            auto& mouse = base::plugin<pro::mouse>();
-            auto& luafx = base::plugin<pro::luafx>();
-            auto bindings = pro::keybd::load(config, "gate");
-            keybd.bind(bindings);
-            luafx.activate("gate.proc_map",
+            base::plugin<pro::keybd>();
+            auto& luafx = bell::indexer.luafx;
+            auto script_list = config.list("/config/events/gate/script");
+            auto bindings = input::bindings::load(config, script_list);
+            input::bindings::keybind(*this, bindings);
+            base::add_methods(basename::gate,
             {
                 { "Disconnect",             [&]
                                             {
-                                                auto gear_ptr = luafx.template get_object<hids>("gear");
-                                                auto ok = !!gear_ptr;
+                                                auto& gear = luafx.get_gear();
+                                                auto ok = gear.is_real();
                                                 if (ok)
                                                 {
-                                                    gear_ptr->set_handled();
+                                                    gear.set_handled();
                                                 }
                                                 base::signal(tier::preview, e2::conio::quit);
                                                 luafx.set_return();
                                             }},
                 { "DebugOverlay",           [&]
                                             {
-                                                auto gear_ptr = luafx.template get_object<hids>("gear");
-                                                auto ok = !!gear_ptr;
+                                                auto& gear = luafx.get_gear();
+                                                auto ok = gear.is_real();
                                                 if (ok)
                                                 {
-                                                    gear_ptr->set_handled();
+                                                    gear.set_handled();
                                                 }
                                                 props.debug_overlay ? debug.stop() : debug.start();
                                                 props.debug_overlay = !props.debug_overlay;
                                                 base::deface();
                                                 luafx.set_return();
                                             }},
-                { "IncreasecCellHeight",    [&]
+                { "IncreaseCellHeight",     [&]
                                             {
                                                 auto gui_cmd = e2::command::gui.param();
-                                                auto gear_ptr = luafx.template get_object<hids>("gear");
-                                                auto ok = !!gear_ptr;
+                                                auto& gear = luafx.get_gear();
+                                                auto ok = gear.is_real();
                                                 if (ok)
                                                 {
-                                                    gui_cmd.gear_id = gear_ptr->id;
-                                                    gear_ptr->set_handled();
+                                                    gui_cmd.gear_id = gear.id;
+                                                    gear.set_handled();
                                                 }
                                                 gui_cmd.cmd_id = syscmd::tunecellheight;
                                                 gui_cmd.args.emplace_back(luafx.get_args_or(1, fp32{ 1.f }));
@@ -794,12 +806,12 @@ namespace netxs::ui
                 { "RollFonts",              [&]
                                             {
                                                 auto gui_cmd = e2::command::gui.param();
-                                                auto gear_ptr = luafx.template get_object<hids>("gear");
-                                                auto ok = !!gear_ptr;
+                                                auto& gear = luafx.get_gear();
+                                                auto ok = gear.is_real();
                                                 if (ok)
                                                 {
-                                                    gui_cmd.gear_id = gear_ptr->id;
-                                                    gear_ptr->set_handled();
+                                                    gui_cmd.gear_id = gear.id;
+                                                    gear.set_handled();
                                                 }
                                                 gui_cmd.cmd_id = syscmd::rollfontlist;
                                                 gui_cmd.args.emplace_back(luafx.get_args_or(1, si32{ 1 }));
@@ -809,11 +821,11 @@ namespace netxs::ui
                 { "WheelAccumReset",        [&]
                                             {
                                                 auto gui_cmd = e2::command::gui.param();
-                                                auto gear_ptr = luafx.template get_object<hids>("gear");
-                                                auto ok = !!gear_ptr;
+                                                auto& gear = luafx.get_gear();
+                                                auto ok = gear.is_real();
                                                 if (ok)
                                                 {
-                                                    gui_cmd.gear_id = gear_ptr->id;
+                                                    gui_cmd.gear_id = gear.id;
                                                 }
                                                 gui_cmd.cmd_id = syscmd::resetwheelaccum;
                                                 base::signal(tier::preview, e2::command::gui, gui_cmd);
@@ -822,12 +834,12 @@ namespace netxs::ui
                 { "CellHeightReset",        [&]
                                             {
                                                 auto gui_cmd = e2::command::gui.param();
-                                                auto gear_ptr = luafx.template get_object<hids>("gear");
-                                                auto ok = !!gear_ptr;
+                                                auto& gear = luafx.get_gear();
+                                                auto ok = gear.is_real();
                                                 if (ok)
                                                 {
-                                                    gui_cmd.gear_id = gear_ptr->id;
-                                                    gear_ptr->set_handled();
+                                                    gui_cmd.gear_id = gear.id;
+                                                    gear.set_handled();
                                                 }
                                                 gui_cmd.cmd_id = syscmd::resetcellheight;
                                                 base::signal(tier::preview, e2::command::gui, gui_cmd);
@@ -836,12 +848,12 @@ namespace netxs::ui
                 { "AntialiasingMode",       [&]
                                             {
                                                 auto gui_cmd = e2::command::gui.param();
-                                                auto gear_ptr = luafx.template get_object<hids>("gear");
-                                                auto ok = !!gear_ptr;
+                                                auto& gear = luafx.get_gear();
+                                                auto ok = gear.is_real();
                                                 if (ok)
                                                 {
-                                                    gui_cmd.gear_id = gear_ptr->id;
-                                                    gear_ptr->set_handled();
+                                                    gui_cmd.gear_id = gear.id;
+                                                    gear.set_handled();
                                                 }
                                                 //todo args
                                                 gui_cmd.cmd_id = syscmd::toggleaamode;
@@ -881,7 +893,7 @@ namespace netxs::ui
             {
                 if (gui_cmd.cmd_id == syscmd::restore && base::subset.size() > 1)
                 {
-                    bell::enqueue(This(), [](auto& boss) // Keep the focus tree intact while processing events.
+                    base::enqueue([](auto& boss) // Keep the focus tree intact while processing events.
                     {
                         boss.base::signal(tier::release, e2::form::size::restore);
                     });
@@ -901,18 +913,7 @@ namespace netxs::ui
             };
             LISTEN(tier::release, e2::command::run, script)
             {
-                luafx.set_object(This(), "gate");
-                luafx.run_script(script);
-            };
-            LISTEN(tier::preview, e2::runscript, gear)
-            {
-                if (!gear.script_ptr) return;
-                if (!gear.scripting_context_ptr) return;
-                auto& script_body = *gear.script_ptr;
-                auto& scripting_context = *gear.scripting_context_ptr;
-                luafx.set_object(This(), "gate");
-                luafx.set_object(gear.This(), "gear");
-                luafx.run_script(script_body, scripting_context);
+                indexer.luafx.run_ext_script(*this, script);
             };
             LISTEN(tier::release, e2::conio::mouse, m)
             {
@@ -951,7 +952,7 @@ namespace netxs::ui
                     auto [ext_gear_id, gear_ptr] = get_ext_gear_id(seed.gear_id);
                     if (gear_ptr)
                     {
-                        auto deed = bell::protos(tier::preview);
+                        auto deed = bell::protos();
                         auto state = deed == input::events::focus::set::on.id;
                         conio.sysfocus.send(canal, ext_gear_id, state, seed.focus_type, ui64{}, ui64{});
                     }
@@ -984,14 +985,6 @@ namespace netxs::ui
                 dest_region.coor += base::coor();
                 this->base::riseup(tier::release, e2::form::proceed::create, dest_region);
             };
-            LISTEN(tier::preview, input::events::mouse::button::click::leftright, gear)
-            {
-                if (gear.clear_clipboard())
-                {
-                    this->bell::expire(tier::release);
-                    gear.dismiss();
-                }
-            };
             LISTEN(tier::release, e2::conio::pointer, pointer)
             {
                 props.legacy_mode |= pointer ? ui::console::mouse : 0;
@@ -1001,7 +994,6 @@ namespace netxs::ui
                 this->base::signal(tier::anycast, e2::form::proceed::quit::one, fast);
                 disconnect();
                 paint.stop();
-                mouse.reset(); // Reset active mouse clients to avoid hanging pointers.
                 bell::sensors.clear();
             };
             LISTEN(tier::preview, e2::conio::quit, deal) // Disconnect.
@@ -1012,8 +1004,9 @@ namespace netxs::ui
             {
                 disconnect();
             };
-            LISTEN(tier::anycast, e2::form::upon::started, item_ptr)
+            LISTEN(tier::anycast, e2::form::upon::started, root_ptr)
             {
+                base::update_scripting_context(); // Gate has no parents.
                 if (props.debug_overlay) debug.start();
                 this->base::signal(tier::release, e2::form::prop::name, props.title);
                 //todo revise
@@ -1024,18 +1017,14 @@ namespace netxs::ui
             };
             LISTEN(tier::request, e2::form::prop::ui::footer, f)
             {
-                auto window_id = id_t{};
+                //todo auto window_id = id_t{};
                 auto footer = conio.footer.freeze();
-                conio.footer_request.send(canal, window_id);
-                footer.wait();
                 f = footer.thing.utf8;
             };
             LISTEN(tier::request, e2::form::prop::ui::header, h)
             {
-                auto window_id = id_t{};
+                //todo auto window_id = id_t{};
                 auto header = conio.header.freeze();
-                conio.header_request.send(canal, window_id);
-                header.wait();
                 h = header.thing.utf8;
             };
             LISTEN(tier::preview, e2::form::prop::ui::footer, newfooter)
@@ -1072,28 +1061,38 @@ namespace netxs::ui
                     }
                 }
             };
-            LISTEN(tier::preview, input::events::mouse::button::tplclick::leftright, gear)
+            on(tier::mousepreview, input::key::LeftRightClick, [&](hids& gear)
             {
-                if (props.debug_overlay)
+                if (gear.clear_clipboard())
                 {
-                    props.show_regions = true;
-                    props.debug_overlay = faux;
-                    debug.stop();
+                    gear.dismiss();
                 }
-                else
+            });
+            on(tier::mousepreview, input::key::LeftRightMultiClick, [&](hids& gear)
+            {
+                if (gear.clicked == 3)
                 {
-                    if (props.show_regions)
+                    if (props.debug_overlay)
                     {
-                        props.show_regions = faux;
+                        props.show_regions = true;
+                        props.debug_overlay = faux;
+                        debug.stop();
                     }
                     else
                     {
-                        props.debug_overlay = true;
-                        debug.start();
+                        if (props.show_regions)
+                        {
+                            props.show_regions = faux;
+                        }
+                        else
+                        {
+                            props.debug_overlay = true;
+                            debug.start();
+                        }
                     }
+                    gear.dismiss();
                 }
-                gear.dismiss();
-            };
+            });
             if (direct) // Forward unhandled events outside.
             {
                 LISTEN(tier::preview, e2::form::size::minimize, gear)
@@ -1101,52 +1100,55 @@ namespace netxs::ui
                     auto [ext_gear_id, gear_ptr] = get_ext_gear_id(gear.id);
                     if (gear_ptr) conio.minimize.send(canal, ext_gear_id);
                 };
-                LISTEN(tier::release, input::events::mouse::scroll::any, gear)
+                on(tier::mouserelease, input::key::MouseAny, [&, isvtm](hids& gear)
                 {
-                    auto [ext_gear_id, gear_ptr] = get_ext_gear_id(gear.id);
-                    if (gear_ptr) conio.mouse_event.send(canal, ext_gear_id, gear.ctlstat, gear.mouse::cause, gear.coord, gear.delta.get(), gear.take_button_state(), gear.whlfp, gear.whlsi, gear.hzwhl, gear.click);
-                    gear.dismiss();
-                };
-                LISTEN(tier::release, input::events::mouse::button::any, gear, -, (isvtm))
-                {
-                    namespace button = input::events::mouse::button;
                     auto forward = faux;
-                    auto cause = gear.mouse::cause;
-                    if (isvtm && (gear.index == hids::leftright || // Reserved for dragging nested vtm.
-                                  gear.index == hids::right)       // Reserved for creation inside nested vtm.
-                              && netxs::events::subevent(cause, button::drag::any.id))
+                    if (gear.cause == input::key::MouseMove)
+                    {
+                        return;
+                    }
+                    else if (gear.cause == input::key::MouseWheel)
+                    {
+                        forward = true;
+                    }
+                    if (isvtm && gear.dragged && (gear.bttn_id == hids::buttons::bttn_id[hids::buttons::leftright] || // Reserved for dragging nested vtm.
+                                                  gear.bttn_id == hids::buttons::bttn_id[hids::buttons::right]))      // Reserved for creation inside nested vtm.
                     {
                         return; // Pass event to the hall.
                     }
-                    if (fullscreen && netxs::events::subevent(cause, button::drag::any.id)) // Enable left drag in GUI fullscreen mode.
+                    else if (fullscreen && gear.dragged) // Allow left drag in GUI fullscreen mode.
                     {
                         return; // Pass event to the hall.
                     }
-                    if (netxs::events::subevent(cause, button::click     ::any.id)
-                     || netxs::events::subevent(cause, button::dblclick  ::any.id)
-                     || netxs::events::subevent(cause, button::tplclick  ::any.id)
-                     || netxs::events::subevent(cause, button::drag::pull::any.id))
+                    else
                     {
-                        gear.setfree();
-                        forward = true;
-                    }
-                    else if (netxs::events::subevent(cause, button::drag::start::any.id))
-                    {
-                        gear.capture(bell::id); // To avoid unhandled mouse pull processing.
-                        forward = true;
-                    }
-                    else if (netxs::events::subevent(cause, button::drag::cancel::any.id)
-                          || netxs::events::subevent(cause, button::drag::stop  ::any.id))
-                    {
-                        gear.setfree();
+                        auto action = gear.cause & 0xFF00;
+                        if (action == input::key::MouseClick
+                         || action == input::key::MouseDoubleClick
+                         || action == input::key::MouseMultiClick
+                         || action == input::key::MouseDragPull)
+                        {
+                            gear.setfree();
+                            forward = true;
+                        }
+                        else if (action == input::key::MouseDragStart)
+                        {
+                            gear.capture(bell::id); // To avoid unhandled mouse pull processing.
+                            forward = true;
+                        }
+                        else if (action == input::key::MouseDragCancel
+                              || action == input::key::MouseDragStop)
+                        {
+                            gear.setfree();
+                        }
                     }
                     if (forward)
                     {
                         auto [ext_gear_id, gear_ptr] = get_ext_gear_id(gear.id);
-                        if (gear_ptr) conio.mouse_event.send(canal, ext_gear_id, gear.ctlstat, cause, gear.coord, gear.delta.get(), gear.take_button_state(), gear.whlfp, gear.whlsi, gear.hzwhl, gear.click);
+                        if (gear_ptr) conio.mouse_event.send(canal, ext_gear_id, gear.ctlstat, gear.cause, gear.coord, gear.delta.get(), gear.pressed, gear.bttn_id, gear.dragged, gear.whlfp, gear.whlsi, gear.hzwhl, gear.click);
                         gear.dismiss();
                     }
-                };
+                });
                 LISTEN(tier::release, e2::config::fps, fps)
                 {
                     if (fps > 0) this->base::signal(tier::general, e2::config::fps, fps);
@@ -1155,10 +1157,10 @@ namespace netxs::ui
                 {
                     conio.cwd.send(canal, path);
                 };
-                LISTEN(tier::preview, input::events::mouse::button::click::any, gear)
+                on(tier::mousepreview, input::key::MouseClick, [&](hids& /*gear*/)
                 {
                     conio.expose.send(canal);
-                };
+                });
                 LISTEN(tier::preview, e2::form::layout::expose, item)
                 {
                     conio.expose.send(canal);

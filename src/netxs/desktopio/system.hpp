@@ -7,10 +7,6 @@
     #define __BSD__
 #endif
 
-#include <type_traits>
-#include <iostream>
-#include <filesystem>
-
 #if defined(_WIN32)
 
     #if not defined(NOMINMAX)
@@ -99,6 +95,7 @@ namespace netxs::os
     static constexpr auto ttysize = twod{ 2500, 50 };
     static constexpr auto app_wait_timeout = 5000;
     static constexpr auto unexpected = " returns unexpected result"sv;
+    static auto codepage = (std::setlocale(LC_CTYPE, ".UTF8"), 65001); // Set the UTF-8 character classification for STL.
     static auto autosync = true; // Auto sync viewport with cursor position (win7/8 console).
     static auto finalized = flag{ faux }; // Ready flag for clean exit.
     void release()
@@ -933,21 +930,21 @@ namespace netxs::os
                         }
                         coord = std::clamp(coord, dot_00, console::buffer - dot_11);
                     }
-                    void data(si32 count, core::body const& proto)
+                    void data(si32 width, si32 /*height*/, core::body const& proto)
                     {
                         auto start = coord;
                         auto panel = std::max(dot_11, console::buffer);
-                        coord.x += count;
+                        coord.x += width;
                         coord.y += (coord.x + (panel.x - 1)) / panel.x - 1;
                         coord.x  = (coord.x - 1) % panel.x + 1;
                         start.y -= scroll();
                         auto seek = coord.x + coord.y * panel.x;
-                        if (count > seek)
+                        if (width > seek)
                         {
-                            count = seek;
+                            width = seek;
                             start = {};
                         }
-                        cache.resize(count);
+                        cache.resize(width);
                         auto head = cache.begin();
                         auto tail = cache.end();
                         auto data = proto.end();
@@ -1151,6 +1148,13 @@ namespace netxs::os
                                                            nullptr);
                 }
                 auto wenv = utf::to_utf(envars);
+                auto limits = JOBOBJECT_BASIC_LIMIT_INFORMATION{};
+                ::QueryInformationJobObject(nullptr,        // HANDLE hJob
+                                            JOBOBJECTINFOCLASS::JobObjectBasicLimitInformation, // JobObjectInformationClass
+                                            &limits,        // LPVOID  lpJobObjectInformation,
+                                            sizeof(limits), // DWORD   cbJobObjectInformationLength,
+                                            nullptr);       // LPDWORD lpReturnLength
+                auto allowed_job_breakway = limits.LimitFlags & JOB_OBJECT_LIMIT_BREAKAWAY_OK ? CREATE_BREAKAWAY_FROM_JOB : 0;
                 auto result = ::CreateProcessAsUserW(token,
                                                      nullptr,                      // lpApplicationName
                                                      cmdarg.data(),                // lpCommandLine
@@ -1160,7 +1164,7 @@ namespace netxs::os
                                                      DETACHED_PROCESS |            // dwCreationFlags
                                                      EXTENDED_STARTUPINFO_PRESENT |// override startupInfo type
                                                      CREATE_UNICODE_ENVIRONMENT |  // environment block in UTF-16
-                                                     CREATE_BREAKAWAY_FROM_JOB,    // disassociate with the job
+                                                     allowed_job_breakway,         // disassociate with the job if it is and it is allowed by parents
                                                      wenv.size() ? wenv.data()     // lpEnvironment
                                                                  : nullptr,
                                                      nullptr,                      // lpCurrentDirectory
@@ -2331,7 +2335,6 @@ namespace netxs::os
     {
         static const auto elevated = []
         {
-            std::setlocale(LC_CTYPE, ".UTF8"); // Set the UTF-8 character classification for STL.
             #if defined(_WIN32)
                 //todo Workaround for https://github.com/PowerShell/Win32-OpenSSH/issues/2037
                 os::env::unset("c28fc6f98a2c44abbbd89d6a3037d0d9_POSIX_FD_STATE");
@@ -2567,7 +2570,7 @@ namespace netxs::os
                     auto buff = std::vector<char>(size);
                     if (::sysctl(name.data(), name.size(), buff.data(), &size, nullptr, 0) == 0)
                     {
-                        result = text(buff.data(), size);
+                        result = utf::trim(view{ buff.data(), size }, '\0');
                     }
                 }
 
@@ -3927,12 +3930,13 @@ namespace netxs::os
                 }
                 else if (os::stdout_fd != os::invalid_fd)
                 {
+                    auto vtm_env = os::env::get("VTM");
                     #if defined(_WIN32)
                     {
                         //todo revise
-                        auto nt16 = os::env::get("VTM").empty() && nt::RtlGetVersion().dwBuildNumber < 19041; // Windows Server 2019's conhost doesn't handle truecolor well enough.
+                        auto nt16 = vtm_env.empty() && nt::RtlGetVersion().dwBuildNumber < 19041; // Windows Server 2019's conhost doesn't handle truecolor well enough.
                         dtvt::vtmode |= nt16 ? ui::console::nt | ui::console::nt16
-                                            : ui::console::nt;
+                                             : ui::console::nt;
                     }
                     #elif defined(__linux__)
                         if (os::linux_console) dtvt::vtmode |= ui::console::mouse;
@@ -3988,13 +3992,19 @@ namespace netxs::os
                             }
                         #endif
                     }
-                    if (!(dtvt::vtmode & (ui::console::nt16 | ui::console::vt16 | ui::console::vt256))) dtvt::vtmode |= ui::console::vtrgb;
+                    if (!(dtvt::vtmode & (ui::console::nt16 | ui::console::vt16 | ui::console::vt256)))
+                    {
+
+                        dtvt::vtmode |= vtm_env.empty() ? ui::console::vtrgb
+                                                        : ui::console::vt_2D;
+                    }
 
                     log(prompt::os, "Terminal type: ", term);
                     log(prompt::os, "Color mode: ", dtvt::vtmode & ui::console::vt16  ? "xterm 16-color"
                                                   : dtvt::vtmode & ui::console::nt16  ? "Win32 Console API 16-color"
                                                   : dtvt::vtmode & ui::console::vt256 ? "xterm 256-color"
-                                                                                      : "xterm truecolor");
+                                                  : dtvt::vtmode & ui::console::vtrgb ? "xterm truecolor"
+                                                                                      : "xterm VT2D (truecolor with 2D Character Geometry support)");
                     log(prompt::os, "Mouse mode: ", dtvt::vtmode & ui::console::mouse ? "PS/2"
                                                   : dtvt::vtmode & ui::console::nt    ? "Win32 Console API"
                                                                                       : "VT-style");
@@ -4119,7 +4129,7 @@ namespace netxs::os
                     os::close(procsinf.hProcess);
                 }
                 else onerror();
-            
+
             #else
 
                 auto p_id = os::process::sysfork(); // dtvt-app can be either a real dtvt-app or a proxy
@@ -4540,6 +4550,7 @@ namespace netxs::os
                 void direct(s11n::xs::bitmap_vt16    /*lock*/, view& data) { io::send(data); }
                 void direct(s11n::xs::bitmap_vt256   /*lock*/, view& data) { io::send(data); }
                 void direct(s11n::xs::bitmap_vtrgb   /*lock*/, view& data) { io::send(data); }
+                void direct(s11n::xs::bitmap_vt_2D   /*lock*/, view& data) { io::send(data); }
                 void direct(s11n::xs::bitmap_dtvt      lock,   view& data) // Decode for nt16 mode.
                 {
                     auto& bitmap = lock.thing;
@@ -4891,7 +4902,6 @@ namespace netxs::os
                         {
                             auto changed = 0;
                             check(changed, m.ctlstat, kbmod);
-                            check(changed, m.buttons, (si32)(r.Event.MouseEvent.dwButtonState & 0b00011111));
                             check(changed, m.hzwheel, !!(r.Event.MouseEvent.dwEventFlags & MOUSE_HWHEELED));
                             auto wheeldt = (si16)((0xFFFF0000 & r.Event.MouseEvent.dwButtonState) >> 16); // dwButtonState too large when mouse scrolls. Use si16 to preserve dt sign.
                             if (wheeldt) // Same code in gui.hpp.
@@ -4909,10 +4919,23 @@ namespace netxs::os
                                 m.wheelsi = {};
                                 m.hzwheel = {};
                             }
+                            auto new_button_state = (si32)(r.Event.MouseEvent.dwButtonState & 0b00011111);
+                            auto new_coords_state = twod{ r.Event.MouseEvent.dwMousePosition.X, r.Event.MouseEvent.dwMousePosition.Y };
                             if (!((dtvt::vtmode & ui::console::nt16) && wheeldt)) // Skip the mouse coord update when wheeling on win7/8 (broken coords).
                             {
-                                check(changed, m.coordxy, twod{ r.Event.MouseEvent.dwMousePosition.X, r.Event.MouseEvent.dwMousePosition.Y });
+                                if (m.coordxy != new_coords_state)
+                                {
+                                    changed++;
+                                    m.coordxy = new_coords_state;
+                                    if (new_button_state && !m.buttons) // Update mouse cursor position before mouse pressed (to avoid unexpected drag). WT don't track mouse when it unfocused and they send new position with pressed button in a single event when clicking over unfocused WT.
+                                    {
+                                        m.changed++;
+                                        m.timecod = datetime::now();
+                                        mouse(m);
+                                    }
+                                }
                             }
+                            check(changed, m.buttons, new_button_state);
                             if (changed || wheeldt) // Don't fire the same state (conhost fires the same events every second).
                             {
                                 m.changed++;
@@ -5117,7 +5140,7 @@ namespace netxs::os
                         { key::F11,           "\033[23; ~" },
                         { key::F12,           "\033[24; ~" },
                     };
-                    auto m = std::unordered_map<text, std::pair<text, si32>, qiew::hash, qiew::equal>
+                    auto m = utf::unordered_map<text, std::pair<text, si32>>
                     {
                         //{ "\033\x7f"  , { "\x08", key::Backspace     | hids::LAlt   << 8 }},
                         { "\033\x7f"  , { "",     key::KeySlash      |(hids::LCtrl | hids::LAlt | hids::LShift) << 8 }},
@@ -5432,9 +5455,9 @@ namespace netxs::os
                                 m.wheelsi = {};
                                 m.ctlstat = {};
                                 // 000 000 00
-                                //   | ||| ||
-                                //   | ||| └----- button number
-                                //   | └--------- ctl state
+                                //   │ │││ ││
+                                //   │ |││ └----- button number
+                                //   │ └--------- ctl state
                                 if (ctl & 0x04) m.ctlstat |= input::hids::LShift;
                                 if (ctl & 0x08) m.ctlstat |= input::hids::LAlt;
                                 if (ctl & 0x10) m.ctlstat |= input::hids::LCtrl;
@@ -5451,9 +5474,9 @@ namespace netxs::os
                                 m.coordxy = twod{ x, y };
                                 switch (ctl)
                                 {
-                                    case 0: netxs::set_bit<input::hids::left  >(m.buttons, ispressed); break;
-                                    case 1: netxs::set_bit<input::hids::middle>(m.buttons, ispressed); break;
-                                    case 2: netxs::set_bit<input::hids::right >(m.buttons, ispressed); break;
+                                    case 0: netxs::set_bit<input::hids::buttons::left  >(m.buttons, ispressed); break;
+                                    case 1: netxs::set_bit<input::hids::buttons::middle>(m.buttons, ispressed); break;
+                                    case 2: netxs::set_bit<input::hids::buttons::right >(m.buttons, ispressed); break;
                                     case 64:
                                         m.wheelfp = 1;
                                         m.wheelsi = 1;
@@ -5733,7 +5756,7 @@ namespace netxs::os
                     argb::set_vtm16_palette([&](auto index, auto color){ c16.ColorTable[index] = argb::swap_rb(color); }); // conhost crashes if alpha non zero.
                     ok(::SetConsoleScreenBufferInfoEx(os::stdout_fd, &c16), "::SetConsoleScreenBufferInfoEx()", os::unexpected);
                 }
-            #else 
+            #else
                 auto vtrun = ansi::altbuf(true).bpmode(true).cursor(faux).vmouse(true).set_palette(dtvt::vtmode & ui::console::vt16);
                 auto vtend = ansi::scrn_reset().altbuf(faux).bpmode(faux).cursor(true).vmouse(faux).rst_palette(dtvt::vtmode & ui::console::vt16);
                 io::send(os::stdout_fd, vtrun);
@@ -5791,7 +5814,7 @@ namespace netxs::os
                     ok(::FillConsoleOutputAttribute(os::stdout_fd, 0, dtvt::gridsz.x * dtvt::gridsz.y, {}, &count), "::FillConsoleOutputAttribute()", os::unexpected); // To avoid palette flickering.
                     ok(::SetConsoleScreenBufferInfoEx(os::stdout_fd, &palette), "::SetConsoleScreenBufferInfoEx()", os::unexpected);
                 }
-            #else 
+            #else
                 io::send(os::stdout_fd, vtend);
             #endif
 
@@ -5936,7 +5959,7 @@ namespace netxs::os
                                 [[fallthrough]];
                             case input::keybd::type::imeinput:
                                 if (!alive || data.cluster.empty()) return;
-                                switch (data.cluster.front()) 
+                                switch (data.cluster.front())
                                 {
                                     case 0x03: enter(ansi::err("Ctrl+C\r\n")); alarm.bell(); break;
                                     case 0x04: enter(ansi::err("Ctrl+D\r\n")); alarm.bell(); break;
@@ -5996,7 +6019,7 @@ namespace netxs::os
                             shut();
                         }
                     };
-                    auto style = [&](deco format) 
+                    auto style = [&](deco format)
                     {
                         if (!alive) return;
                         wraps = format.wrp() != wrap::off;

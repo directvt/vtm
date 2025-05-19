@@ -27,7 +27,7 @@ R"==(<!-- Ordered list of paths to settings files. -->
         <color fgc=color/default bgc=color/default/>  <!-- Cursor cell color. By default, the cursor color (bgc) is set to either black or white depending on the lightness of the underlying text background. -->
     </cursor>
     <tooltips>  <!-- Not implemented for GUI mode. -->
-        <timeout=2000ms/>
+        <timeout=400ms/>
         <enabled=true/>
         <color fgc=pureblack bgc=purewhite/>
     </tooltips>
@@ -128,7 +128,7 @@ R"==(
         <FocusPrevWindow       ="vtm.desktop.FocusNextWindow(-1)"/>  <!-- Switch focus to the prev window. -->
         <FocusNextWindow       ="vtm.desktop.FocusNextWindow( 1)"/>  <!-- Switch focus to the next window. -->
 
-        <AlwaysOnTopApplet     ="vtm.applet.AlwaysOnTop(not vtm.applet.AlwaysOnTop())"/>  <!-- Request to toggle AlwaysOnTop window flag. -->
+        <AlwaysOnTopApplet     ="vtm.applet.ZOrder(vtm.applet.ZOrder()==1 and 0 or 1)"/>  <!-- Request to toggle z-order window attribute. -1: backmost; 0: plain; 1: topmost. -->
         <CloseApplet           ="vtm.applet.Close()"/>            <!-- Request to Close window. -->
         <MinimizeApplet        ="vtm.applet.Minimize()"/>         <!-- Request to Minimize window. -->
         <MaximizeApplet        ="vtm.applet.Maximize()"/>         <!-- Request to Maximize window. -->
@@ -171,15 +171,15 @@ R"==(
 
         <Disconnect            ="vtm.gate.Disconnect()"/>             <!-- Disconnect from the desktop. -->
         <ToggleDebugOverlay    ="vtm.gate.DebugOverlay()"/>           <!-- Toggle debug overlay. -->
-        <IncreaseCellHeight    ="vtm.gate.IncreasecCellHeight( 1)"/>  <!-- Increase the text cell height by one pixel. -->
-        <DecreaseCellHeight    ="vtm.gate.IncreasecCellHeight(-1)"/>  <!-- Decrease the text cell height by one pixel. -->
+        <IncreaseCellHeight    ="vtm.gate.IncreaseCellHeight( 1)"/>   <!-- Increase the text cell height by one pixel. -->
+        <DecreaseCellHeight    ="vtm.gate.IncreaseCellHeight(-1)"/>   <!-- Decrease the text cell height by one pixel. -->
         <ResetWheelAccumulator ="vtm.gate.WheelAccumReset()"/>        <!-- Reset wheel accumulator. -->
         <ResetCellHeight       ="if (not vtm.gear.IsKeyRepeated()) then vtm.gate.CellHeightReset() end"/>   <!-- Reset text cell height. -->
         <ToggleAntialiasingMode="if (not vtm.gear.IsKeyRepeated()) then vtm.gate.AntialiasingMode() end"/>  <!-- Toggle text antialiasing mode. -->
         <RollFontsBackward     ="if (not vtm.gear.IsKeyRepeated()) then vtm.gate.RollFonts(-1) end"/>       <!-- Roll font list backward. -->
         <RollFontsForward      ="if (not vtm.gear.IsKeyRepeated()) then vtm.gate.RollFonts( 1) end"/>       <!-- Roll font list forward. -->
 
-        <ExclusiveKeyboardMode             ="vtm.terminal.SetExclusiveKeyboardMode()"/>   <!-- Toggle exclusive keyboard mode by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
+        <ExclusiveKeyboardMode             ="vtm.terminal.ExclusiveKeyboardMode(vtm.terminal.ExclusiveKeyboardMode()==1 and 0 or 1)"/>  <!-- Toggle exclusive keyboard mode by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
         <TerminalFindPrev                  ="vtm.terminal.FindNextMatch(-1)"/>            <!-- Highlight prev match of selected text fragment. Clipboard content is used if no active selection. -->
         <TerminalFindNext                  ="vtm.terminal.FindNextMatch( 1)"/>            <!-- Highlight next match of selected text fragment. Clipboard content is used if no active selection. -->
         <TerminalScrollViewportOnePageUp   ="vtm.terminal.ScrollViewportByPage( 0, 1)"/>  <!-- Scroll viewport one page up. -->
@@ -192,22 +192,24 @@ R"==(
         <TerminalScrollViewportOneCellRight="vtm.terminal.ScrollViewportByCell(-1, 0)"/>  <!-- Scroll viewport one cell to the right. -->
         <TerminalScrollViewportToTop       ="if (not vtm.gear.IsKeyRepeated()) then vtm.terminal.ScrollViewportToTop() end"/>  <!-- Scroll viewport to the scrollback top. -->
         <TerminalScrollViewportToEnd       ="if (not vtm.gear.IsKeyRepeated()) then vtm.terminal.ScrollViewportToEnd() end"/>  <!-- Scroll viewport to the scrollback top. -->
-        <TerminalSendKey                   ="vtm.terminal.SendKey('test\r')"/>            <!-- Simulating keypresses using the specified string. -->
-        <TerminalOutput                    ="vtm.terminal.Print('Hello!')"/>              <!-- Direct output the string to the terminal scrollback. -->
+        <TerminalSendKey                   ="vtm.terminal.SendKey('test\\r')"/>           <!-- Simulating keypresses using the specified string. -->
+        <TerminalOutput                    ="vtm.terminal.Print('Hello!\\n')"/>           <!-- Direct output the string to the terminal scrollback. -->
+        <TerminalReset                     ="vtm.terminal.Print('\\x1b[!p')"/>            <!-- Clear scrollback and SGR-attributes. -->
+        <TerminalClearScrollback           ="vtm.terminal.ClearScrollback()"/>            <!-- Clear scrollback above current line. -->
         <TerminalCopyViewport              ="vtm.terminal.CopyViewport()"/>               <!-- Сopy viewport to clipboard. -->
         <TerminalCopySelection             ="vtm.terminal.CopySelection()"/>              <!-- Сopy selection to clipboard. -->
         <TerminalClipboardPaste            ="vtm.terminal.PasteClipboard()"/>             <!-- Paste from clipboard. -->
         <TerminalClipboardWipe             ="vtm.terminal.ClearClipboard()"/>             <!-- Reset clipboard. -->
-        <TerminalClipboardFormat           ="vtm.terminal.SetClipboardFormat()"/>         <!-- Toggle terminal text selection copy format. -->
-        <TerminalSelectionForm             ="vtm.terminal.SetSelectionForm()"/>           <!-- Toggle between linear and rectangular selection form. -->
+        <TerminalClipboardFormat           ="vtm.terminal.ClipboardFormat((vtm.terminal.ClipboardFormat() + 1) % 6)"/>  <!-- Toggle terminal text selection copy format. 0: Disabled; 1: Plain text; 2: ANSI; 3: RTF; 4: HTML; 5: Sensitive plain text. -->
+        <TerminalSelectionForm             ="vtm.terminal.SelectionForm(vtm.terminal.SelectionForm()==1 and 0 or 1)"/>  <!-- Toggle between linear and rectangular selection form. 0: linear form; 1: boxed form. -->
         <TerminalSelectionCancel           ="vtm.terminal.ClearSelection()"/>             <!-- Deselect a selection. -->
         <TerminalSelectionOneShot          ="vtm.terminal.OneShotSelection()"/>           <!-- One-shot toggle to copy text while mouse tracking is active. Keep selection if 'Ctrl' key is pressed. -->
         <TerminalUndo                      ="vtm.terminal.UndoReadline()"/>               <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input. -->
         <TerminalRedo                      ="vtm.terminal.RedoReadline()"/>               <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command. -->
-        <TerminalCwdSync                   ="vtm.terminal.SetCwdSync()"/>                 <!-- Toggle the current working directory sync mode. -->
-        <TerminalWrapMode                  ="vtm.terminal.SetWrappingMode()"/>            <!-- Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is. -->
-        <TerminalAlignMode                 ="vtm.terminal.SetAligningMode()"/>            <!-- Toggle terminal scrollback lines aligning mode. Applied to the active selection if it is. -->
-        <TerminalStdioLog                  ="vtm.terminal.SetLogging()"/>                 <!-- Toggle stdin/stdout logging. -->
+        <TerminalCwdSync                   ="vtm.terminal.CwdSync(vtm.terminal.CwdSync()==1 and 0 or 1)"/>            <!-- Toggle the current working directory sync mode. -->
+        <TerminalWrapMode                  ="vtm.terminal.LineWrapMode(vtm.terminal.LineWrapMode()==1 and 0 or 1)"/>  <!-- Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is. 0: line wrapping is off; 1: line wrapping is on. -->
+        <TerminalAlignMode                 ="vtm.terminal.LineAlignMode((vtm.terminal.LineAlignMode() + 1) % 3)"/>    <!-- Toggle terminal scrollback lines aligning mode. Applied to the active selection if it is. 0: left; 1: right; 2: center. -->
+        <TerminalStdioLog                  ="vtm.terminal.LogMode(vtm.terminal.LogMode()==1 and 0 or 1)"/>            <!-- Toggle stdin/stdout logging. -->
         <TerminalRestart                   ="vtm.terminal.Restart()"/>                    <!-- Terminate runnning console apps and restart current session. -->
     </variables>
 )=="
@@ -224,7 +226,6 @@ R"==(
                     " It can be configured in ~/.config/vtm/settings.xml "
                 </tooltip>
             </item>
-            <item* hidden=no winsize=0,0 wincoor=0,0 winform="normal"/>  <!-- Asterisk in the xml node name to set default node values (it is a template). -->
             <item id="Term" label="Terminal Emulator" type="dtvt" title="Terminal" cmd="$0 -r term">
                 <tooltip>
                     " Terminal Console               \n"
@@ -257,54 +258,74 @@ R"==(
                         <menu item*>
                             <autohide=menu/autohide/>
                             <slim=menu/slim/>
-                            <item action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
+                            <item label="  " tooltip=" AlwaysOnTop off ">
+                                <script=AlwaysOnTopApplet on="LeftClick"/> <!-- The default event source is the parent object, i.e. source="item" (aka vtm.item). -->
+                                <script>  <!-- A binding to update the menu item label at runtime. -->
+                                    <on="release: e2::form::prop::zorder" source="applet"/>
+                                    local is_topmost=vtm()                   -- Use event arguments to get the current state.
+                                    -- local is_topmost=vtm.applet.ZOrder()  -- or ask the object iteslf for the current state.
+                                    vtm.item.Label(is_topmost==1 and "\\x1b[38:2:0:255:0m▀ \\x1b[m" or "  ")
+                                    vtm.item.Tooltip(is_topmost==1 and " AlwaysOnTop on " or " AlwaysOnTop off ")
+                                    vtm.item.Deface()
+                                </script>
+                            </item>
+                            <item label="  <  ">
+                                <script=TerminalFindPrev on="LeftClick"/>
                                 <tooltip>
                                     " Previous match                                  \n"
                                     "   LeftClick to jump to previous match or scroll \n"
                                     "             one page up if nothing to search    \n"
                                     "   Match clipboard data if no selection          "
                                 </tooltip>
-                                <label="<"/>
-                                <label="\e[38:2:0:255:0m<\e[m"/>
                             </item>
-                            <item action=TerminalFindNext>
+                            <item label="  >  ">
+                                <script=TerminalFindNext on="LeftClick"/>
                                 <tooltip>
                                     " Next match                                     \n"
                                     "   LeftClick to jump to next match or scroll    \n"
                                     "             one page down if nothing to search \n"
                                     "   Match clipboard data if no selection         "
                                 </tooltip>
-                                <label=">"/>
-                                <label="\e[38:2:0:255:0m>\e[m"/>
                             </item>
-                            <item type="Option" action=TerminalWrapMode>
+                            <item label="  Wrap  ">
                                 <tooltip>
                                     " Wrapping text lines on/off      \n"
                                     "   Applied to selection if it is "
                                 </tooltip>
-                                <label="Wrap"                     data="off"/>
-                                <label="\e[38:2:0:255:0mWrap\e[m" data="on"/>
+                                <script=TerminalWrapMode on="LeftClick"/>
+                                <script>
+                                    <on="release: terminal::events::layout::wrapln" source="terminal"/>
+                                    local m=vtm()                           -- Use event arguments to get the current state.
+                                    -- local m=vtm.terminal.LineWrapMode()  -- or ask the terminal instance iteslf for the current state.
+                                    vtm.item.Label(m==1 and "\e[38:2:0:255:0m  Wrap  \e[m" or "  Wrap  ")
+                                    vtm.item.Deface()
+                                </script>
                             </item>
-                            <item type="Option" action=TerminalClipboardFormat tooltip=" Clipboard format ">  <!-- type=Option means that the тext label will be selected when clicked. -->
-                                <label="Clipboard"                       data="none"/>
-                                <label="\e[38:2:0:255:0mPlaintext\e[m"   data="text"/>
-                                <label="\e[38:2:255:255:0mANSI-text\e[m" data="ansi"/>
-                                <label                                   data="rich">
-                                    "\e[38:2:109:231:237m""R"
-                                    "\e[38:2:109:237:186m""T"
-                                    "\e[38:2:60:255:60m"  "F"
-                                    "\e[38:2:189:255:53m" "-"
-                                    "\e[38:2:255:255:49m" "s"
-                                    "\e[38:2:255:189:79m" "t"
-                                    "\e[38:2:255:114:94m" "y"
-                                    "\e[38:2:255:60:157m" "l"
-                                    "\e[38:2:255:49:214m" "e" "\e[m"
-                                </label>
-                                <label="\e[38:2:0:255:255mHTML-code\e[m" data="html"/>
-                                <label="\e[38:2:0:255:255mProtected\e[m" data="protected"/>
+                            <item label="  Clipboard  " tooltip=" Clipboard format ">
+                                <script=TerminalClipboardFormat on="LeftClick"/>
+                                <script>
+                                    <on="release: terminal::events::selmod" source="terminal"/>
+                                    local m=vtm()                              -- Use event arguments to get the current state.
+                                    -- local m=vtm.terminal.ClipboardFormat()  -- or ask the terminal instance iteslf for the current state.
+                                    vtm.item.Label(m==1 and "\e[38:2:0:255:0m  Plaintext  \e[m"     -- "textonly"
+                                                or m==2 and "\e[38:2:255:255:0m  ANSI-text  \e[m"   -- "ansitext"
+                                                or m==3 and "\e[38:2:109:231:237m  ".."R"..
+                                                            "\e[38:2:109:237:186m"  .."T"..
+                                                            "\e[38:2:60:255:60m"    .."F"..
+                                                            "\e[38:2:189:255:53m"   .."-"..
+                                                            "\e[38:2:255:255:49m"   .."s"..
+                                                            "\e[38:2:255:189:79m"   .."t"..
+                                                            "\e[38:2:255:114:94m"   .."y"..
+                                                            "\e[38:2:255:60:157m"   .."l"..
+                                                            "\e[38:2:255:49:214m"   .."e".."  \e[m" -- "richtext"
+                                                or m==4 and "\e[38:2:0:255:255m  HTML-code  \e[m"   -- "htmltext"
+                                                or m==5 and "\e[38:2:0:255:255m  Protected  \e[m"   -- "safetext" ala protected
+                                                or          "  Clipboard  ")                        -- "disabled"
+                                    vtm.item.Deface()
+                                </script>
                             </item>
-                            <item action=TerminalOutput tooltip=" Clear scrollback and SGR-attributes ">
-                                <label="Reset" data="\e[!p"/>
+                            <item label="  Reset  " tooltip=" Clear scrollback and SGR-attributes ">
+                                <script=TerminalReset on="LeftClick"/>
                             </item>
                         </menu>
 )=="
@@ -312,11 +333,12 @@ R"==(
                     </terminal>
                 </config>
             </item>
-            <autorun item*>  <!-- Autorun specified menu items:     -->
-                <!--  <item* id=Term winsize=80,25 />               -->
-                <!--  <item wincoor=92,31 winform=minimized />      -->  <!-- Autorun supports minimized winform only. -->
-                <!--  <item wincoor=8,31 />                         -->
-                <!--  <item wincoor=8,4 winsize=164,25 focused />   -->
+            <autorun run*>  <!-- Autorun specified menu items:     -->
+                <!-- //todo use scripting. init_script()? on="anycast:Start"?-->
+                <!--  <run*/>             -->
+                <!--  <run id="Term" winsize=80,25  wincoor=92,31 winform=minimized />      -->  <!-- Autorun supports minimized winform only. -->
+                <!--  <run id="Term" winsize=80,25  wincoor=8,31 />                         -->
+                <!--  <run id="Term" winsize=164,25 wincoor=8,4 focused />   -->
             </autorun>
             <width>  <!-- Taskbar menu width. -->
                 <folded=18/>
@@ -354,7 +376,7 @@ R"==(
         <sendinput=""/>  <!-- Send input on startup. E.g. sendinput="echo \"test\"\n" -->
         <cwdsync=" cd $P\n"/>  <!-- Command to sync the current working directory. When 'Sync' is active, $P (case sensitive) will be replaced with the current path received via OSC9;9 notification. Prefixed with a space to avoid touching command history. -->
         <scrollback>
-            <size=40000    />   <!-- Initial scrollback buffer size. -->
+            <size=100000   />   <!-- Initial scrollback buffer size. -->
             <growstep=0    />   <!-- Scrollback buffer grow step. The buffer behaves like a ring in case of zero. -->
             <growlimit=0   />   <!-- Scrollback buffer grow limit. The buffer will behave like a ring when the limit is reached. If set to zero, then the limit is equal to the initial buffer size. -->
             <maxline=65535 />   <!-- Max line length. Line splits if it exceeds the limit. -->
@@ -397,82 +419,111 @@ R"==(
         <menu item*>
             <autohide=menu/autohide/>
             <slim=menu/slim/>
-            <item action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
+            <!-- //todo implement "linked nodes" (ala operator '|' ):
+                <LeftClick  on="LeftClick"/>
+                <AlwaysOnTopApplet="vtm.applet.ZOrder(vtm.applet.ZOrder()==1 and 0 or 1);"/>
+                <item label=" script="vtm.gear.SetHandled();"|AlwaysOnTopApplet|LeftClick  tooltip=" AlwaysOnTop "/>  -->
+            <item label="  " tooltip=" AlwaysOnTop off ">
+                <script=AlwaysOnTopApplet on="LeftClick"/> <!-- The default event source is the parent object, i.e. source="item" (aka vtm.item). -->
+                <script>  <!-- A binding to update the menu item label at runtime. -->
+                    <on="release: e2::form::prop::zorder" source="applet"/>
+                    local is_topmost=vtm()                   -- Use event arguments to get the current state.
+                    -- local is_topmost=vtm.applet.ZOrder()  -- or ask the object iteslf for the current state.
+                    vtm.item.Label(is_topmost==1 and "\\x1b[38:2:0:255:0m▀ \\x1b[m" or "  ")
+                    vtm.item.Tooltip(is_topmost==1 and " AlwaysOnTop on " or " AlwaysOnTop off ")
+                    vtm.item.Deface()
+                </script>
+            </item>
+            <item label="  <  ">
+                <script=TerminalFindPrev on="LeftClick"/>
                 <tooltip>
                     " Previous match                                  \n"
                     "   LeftClick to jump to previous match or scroll \n"
                     "             one page up if nothing to search    \n"
                     "   Match clipboard data if no selection          "
                 </tooltip>
-                <label="<"/>
-                <label="\e[38:2:0:255:0m<\e[m"/>
             </item>
-            <item action=TerminalFindNext>
+            <item label="  >  ">
+                <script=TerminalFindNext on="LeftClick"/>
                 <tooltip>
                     " Next match                                     \n"
                     "   LeftClick to jump to next match or scroll    \n"
                     "             one page down if nothing to search \n"
                     "   Match clipboard data if no selection         "
                 </tooltip>
-                <label=">"/>
-                <label="\e[38:2:0:255:0m>\e[m"/>
             </item>
-            <item type="Option" action=ExclusiveKeyboardMode>
+            <item label="   Desktop   ">
                 <tooltip>
                     " Toggle exclusive keyboard mode              \n"
                     "   Exclusive keyboard mode allows keystrokes \n"
                     "   to be passed through without processing   "
                 </tooltip>
-                <label=" Desktop "                                      data="off"/>
-                <label="\e[48:2:0:128:128;38:2:0:255:0m Exclusive \e[m" data="on"/>
+                <script=ExclusiveKeyboardMode on="LeftClick"/>
+                <script>
+                    <on="release: terminal::events::rawkbd" source="terminal"/>
+                    local m=vtm()                                    -- Use event arguments to get the current state.
+                    -- local m=vtm.terminal.ExclusiveKeyboardMode()  -- or ask the terminal instance iteslf for the current state.
+                    vtm.item.Label(m==1 and "\e[48:2:0:128:128;38:2:0:255:0m  Exclusive  \e[m" or "   Desktop   ")
+                    vtm.item.Tooltip(m==1 and " ExclusiveKeyboardMode on " or " ExclusiveKeyboardMode off ")
+                    vtm.item.Deface()
+                </script>
             </item>
-            <item type="Option" action=TerminalWrapMode>
+            <item label="  Wrap  ">
                 <tooltip>
                     " Wrapping text lines on/off      \n"
                     "   Applied to selection if it is "
                 </tooltip>
-                <label="Wrap"                     data="off"/>
-                <label="\e[38:2:0:255:0mWrap\e[m" data="on"/>
+                <script=TerminalWrapMode on="LeftClick"/>
+                <script>
+                    <on="release: terminal::events::layout::wrapln" source="terminal"/>
+                    local m=vtm()                           -- Use event arguments to get the current state.
+                    -- local m=vtm.terminal.LineWrapMode()  -- or ask the terminal instance iteslf for the current state.
+                    vtm.item.Label(m==1 and "\e[38:2:0:255:0m  Wrap  \e[m" or "  Wrap  ")
+                    vtm.item.Deface()
+                </script>
             </item>
-            <item type="Option" action=TerminalClipboardFormat tooltip=" Clipboard format ">  <!-- type=Option means that the тext label will be selected when clicked. -->
-                <label="Clipboard"                       data="none"/>
-                <label="\e[38:2:0:255:0mPlaintext\e[m"   data="text"/>
-                <label="\e[38:2:255:255:0mANSI-text\e[m" data="ansi"/>
-                <label                                   data="rich">
-                    "\e[38:2:109:231:237m""R"
-                    "\e[38:2:109:237:186m""T"
-                    "\e[38:2:60:255:60m"  "F"
-                    "\e[38:2:189:255:53m" "-"
-                    "\e[38:2:255:255:49m" "s"
-                    "\e[38:2:255:189:79m" "t"
-                    "\e[38:2:255:114:94m" "y"
-                    "\e[38:2:255:60:157m" "l"
-                    "\e[38:2:255:49:214m" "e" "\e[m"
-                </label>
-                <label="\e[38:2:0:255:255mHTML-code\e[m" data="html"/>
-                <label="\e[38:2:0:255:255mProtected\e[m" data="protected"/>
+            <item label="  Clipboard  " tooltip=" Clipboard format ">
+                <script=TerminalClipboardFormat on="LeftClick"/>
+                <script>
+                    <on="release: terminal::events::selmod" source="terminal"/>
+                    local m=vtm()                              -- Use event arguments to get the current state.
+                    -- local m=vtm.terminal.ClipboardFormat()  -- or ask the terminal instance iteslf for the current state.
+                    vtm.item.Label(m==1 and "\e[38:2:0:255:0m  Plaintext  \e[m"     -- "textonly"
+                                or m==2 and "\e[38:2:255:255:0m  ANSI-text  \e[m"   -- "ansitext"
+                                or m==3 and "\e[38:2:109:231:237m  ".."R"..
+                                            "\e[38:2:109:237:186m"  .."T"..
+                                            "\e[38:2:60:255:60m"    .."F"..
+                                            "\e[38:2:189:255:53m"   .."-"..
+                                            "\e[38:2:255:255:49m"   .."s"..
+                                            "\e[38:2:255:189:79m"   .."t"..
+                                            "\e[38:2:255:114:94m"   .."y"..
+                                            "\e[38:2:255:60:157m"   .."l"..
+                                            "\e[38:2:255:49:214m"   .."e".."  \e[m" -- "richtext"
+                                or m==4 and "\e[38:2:0:255:255m  HTML-code  \e[m"   -- "htmltext"
+                                or m==5 and "\e[38:2:0:255:255m  Protected  \e[m"   -- "safetext" ala protected
+                                or          "  Clipboard  ")                        -- "disabled"
+                    vtm.item.Deface()
+                </script>
             </item>
-            <!-- <item type="Option" action=TerminalCwdSync> -->
-            <!--     <label="Sync"                     data="off" tooltip=" CWD sync is off "/> -->
-            <!--     <label="\e[38:2:0:255:0mSync\e[m" data="on"  tooltip=" CWD sync is on                          \n Make sure your shell has OSC9;9 enabled "/> -->
-            <!-- </item> -->
-            <item type="Option" action=TerminalStdioLog>
-                <label="Log"                     data="off" tooltip=" Console logging is off "/>
-                <label="\e[38:2:0:255:0mLog\e[m" data="on"  tooltip=" Console logging is on   \n Run Logs to see output  "/>
+            <item label="  Log  " tooltip=" Console logging        \n Use Logs to see output ">
+                <script=TerminalStdioLog on="LeftClick"/>
+                <script>
+                    <on="release: terminal::events::io_log" source="terminal"/>
+                    local m=vtm()                      -- Use event arguments to get the current state.
+                    -- local m=vtm.terminal.LogMode()  -- or ask the terminal instance iteslf for the current state.
+                    vtm.item.Label(m==1 and "\e[38:2:0:255:0m  Log  \e[m" or "  Log  ")
+                    vtm.item.Deface()
+                </script>
             </item>
-            <item action=TerminalOutput tooltip=" Clear TTY viewport ">
-                <label="Clear" data="\e[2J"/>
+            <item label="  Clear  " tooltip=" Clear scrollback ">
+                <script=TerminalClearScrollback on="LeftClick"/>
             </item>
-            <item action=TerminalOutput tooltip=" Clear scrollback and SGR-attributes ">
-                <label="Reset" data="\e[!p"/>
-            </item>
-            <!-- <item label="Hello, World!" tooltip=" Simulate keypress " action=TerminalSendKey data="Hello World!"/> -->
         </menu>
         <selection>
             <mode=selection/mode/>  <!-- Selection clipboard copy format: "text" | "ansi" | "rich" | "html" | "protected" | "none". -->
             <rect=selection/rect/>  <!-- Preferred selection form: Rectangular: true, Linear: false. -->
         </selection>
-        <atexit="auto"/>  <!-- Behavior after the last console process has terminated: "auto" | "ask" | "close" | "restart" | "retry" 
+        <atexit="auto"/>  <!-- Behavior after the last console process has terminated: "auto" | "ask" | "close" | "restart" | "retry"
                                 auto:    Stay open and ask if exit code != 0. (default)
                                 ask:     Stay open and ask.
                                 close:   Always close.
@@ -485,24 +536,36 @@ R"==(
         <menu item*>
             <autohide=menu/autohide/>
             <slim=menu/slim/>
-            <item action=TileRunApplication label=" + ">
+            <item label="  " tooltip=" AlwaysOnTop off ">
+                <script=AlwaysOnTopApplet on="LeftClick"/> <!-- The default event source is the parent object, i.e. source="item" (aka vtm.item). -->
+                <script>  <!-- A binding to update the menu item label at runtime. -->
+                    <on="release: e2::form::prop::zorder" source="applet"/>
+                    local is_topmost=vtm()                   -- Use event arguments to get the current state.
+                    -- local is_topmost=vtm.applet.ZOrder()  -- or ask the object iteslf for the current state.
+                    vtm.item.Label(is_topmost==1 and "\\x1b[38:2:0:255:0m▀ \\x1b[m" or "  ")
+                    vtm.item.Tooltip(is_topmost==1 and " AlwaysOnTop on " or " AlwaysOnTop off ")
+                    vtm.item.Deface()
+                </script>
+            </item>
+            <item label="   +   ">
+                <script=TileRunApplication on="LeftClick"/>
                 <tooltip>
                     " Launch application instances in active empty slots.     \n"
                     " The app to run can be set by RightClick on the taskbar. "
                 </tooltip>
             </item>
-            <item action=TileSelectAllPanes     label=":::" tooltip=" Select all panes "/>
-            <item action=TileSplitHorizontally  label=" │ " tooltip=" Split active panes horizontally "/>
-            <item action=TileSplitVertically    label="──"  tooltip=" Split active panes vertically "/>
-            <item action=TileSplitOrientation   label="┌┘"  tooltip=" Change split orientation "/>
-            <item action=TileSwapPanes          label="<->" tooltip=" Swap two or more panes "/>
-            <item action=TileEqualizeSplitRatio label=">|<" tooltip=" Equalize split ratio "/>
-            <item action=TileSetManagerTitle    label='"…"' tooltip=" Set tiling window manager title using clipboard data "/>
-            <item action=TileClosePane          label="×"   tooltip=" Close active application "/>
-            <!-- <item action=TileFocusPrev      label="<"   tooltip=" Focus the previous pane or the split grip "/> -->
-            <!-- <item action=TileFocusNext      label=">"   tooltip=" Focus the next pane or the split grip "/> -->
-            <!-- <item action=TileFocusPrevPane  label="<-"  tooltip=" Focus the previous pane "/> -->
-            <!-- <item action=TileFocusNextPane  label="->"  tooltip=" Focus the next pane "/> -->
+            <item label="  :::  " tooltip=" Select all panes "                                    ><script=TileSelectAllPanes     on="LeftClick"/></item>
+            <item label="   │   " tooltip=" Split active panes horizontally "                     ><script=TileSplitHorizontally  on="LeftClick"/></item>
+            <item label="  ──  "  tooltip=" Split active panes vertically "                       ><script=TileSplitVertically    on="LeftClick"/></item>
+            <item label="  ┌┘  "  tooltip=" Change split orientation "                            ><script=TileSplitOrientation   on="LeftClick"/></item>
+            <item label="  <->  " tooltip=" Swap two or more panes "                              ><script=TileSwapPanes          on="LeftClick"/></item>
+            <item label="  >|<  " tooltip=" Equalize split ratio "                                ><script=TileEqualizeSplitRatio on="LeftClick"/></item>
+            <item label='  "…"  ' tooltip=" Set tiling window manager title using clipboard data "><script=TileSetManagerTitle    on="LeftClick"/></item>
+            <item label="  ×  "   tooltip=" Close active application "                            ><script=TileClosePane          on="LeftClick"/></item>
+            <!-- <item label="  <  "   tooltip=" Focus the previous pane or the split grip "><script=TileFocusPrev      on="LeftClick"/></item> -->
+            <!-- <item label="  >  "   tooltip=" Focus the next pane or the split grip "    ><script=TileFocusNext      on="LeftClick"/></item> -->
+            <!-- <item label="  <-  "  tooltip=" Focus the previous pane "                  ><script=TileFocusPrevPane  on="LeftClick"/></item> -->
+            <!-- <item label="  ->  "  tooltip=" Focus the next pane "                      ><script=TileFocusNextPane  on="LeftClick"/></item> -->
         </menu>
     </tile>
     <defapp>
@@ -511,125 +574,129 @@ R"==(
             <slim=menu/slim/>
         </menu>
     </defapp>
-    <events>  <!-- The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop. The 'key*' statement here is to clear all previous bindings and start a new list. -->
-        <gate key*>  <!-- `User gate`/`standalone app` key bindings. -->
-            <key="CapsLock+UpArrow"                                     script=IncreaseCellHeight/>
-            <key="CapsLock+DownArrow"                                   script=DecreaseCellHeight/>
-            <key="Esc+0"                                                script=ResetCellHeight/>
-            <key="Ctrl+CapsLock"                                        script=ToggleAntialiasingMode/>
-            <key="Ctrl+Shift+F11"                                       script=RollFontsBackward/>
-            <key="Ctrl+Shift+F12"                                       script=RollFontsForward/>
-            <key="-Ctrl" preview                                        script=ResetWheelAccumulator/>
-            <key="Space-Backspace | Backspace-Space"                    script=ToggleDebugOverlay/>
+    <events>  <!-- The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop. -->
+        <gate script*>  <!-- `User gate`/`standalone app` bindings. The 'script*' statement here is to clear all previous bindings and start a new list. -->
+            <script=IncreaseCellHeight     on="CapsLock+UpArrow"                 />
+            <script=DecreaseCellHeight     on="CapsLock+DownArrow"               />
+            <script=ResetCellHeight        on="Esc+0"                            />
+            <script=ToggleAntialiasingMode on="Ctrl+CapsLock"                    />
+            <script=RollFontsBackward      on="Ctrl+Shift+F11"                   />
+            <script=RollFontsForward       on="Ctrl+Shift+F12"                   />
+            <script=ResetWheelAccumulator  on="preview:-Ctrl"                    />
+            <script=ToggleDebugOverlay     on="Space-Backspace | Backspace-Space"/>
         </gate>
-        <desktop key*>  <!-- Desktop key bindings. -->
-            <key="Ctrl+PageUp"                                          script=FocusPrevWindow/>
-            <key="Ctrl+PageDown"                                        script=FocusNextWindow/>
-            <key="Shift+F7"                                             script=Disconnect/>
-            <key="F10" preview                                          script=TryToQuit/>
-            <key="Alt+Shift+N"                                          script=RunApplication/>
-            <key="Esc+F1"                                               script=RunInfoPage/>
+        <desktop script*>  <!-- Desktop bindings. -->
+            <script=FocusPrevWindow on="Ctrl+PageUp"  />
+            <script=FocusNextWindow on="Ctrl+PageDown"/>
+            <script=Disconnect      on="Shift+F7"     />
+            <script=TryToQuit       on="preview:F10"  />
+            <script=RunApplication  on="Alt+Shift+N"  />
+            <script=RunInfoPage     on="Esc+F1"       />
         </desktop>
-        <applet key*>  <!-- Applet key bindings. -->
-            <key="Esc+T"                                                script=AlwaysOnTopApplet/>
-            <key="Esc+W"                                                script=CloseApplet/>
-            <key="Esc+M"                                                script=MinimizeApplet/>
-            <key="Esc+F10"                                              script=RestoreApplet/>
-            <key="Esc+F11"                                              script=MaximizeApplet/>
-            <key="Esc+F12"                                              script=FullscreenApplet/>
-            <key="Esc+LeftArrow"                                        script=MoveAppletLeft/>
-            <key="Esc+RightArrow"                                       script=MoveAppletRight/>
-            <key="Esc+UpArrow"                                          script=MoveAppletUp/>
-            <key="Esc+DownArrow"                                        script=MoveAppletDown/>
-            <key="Esc+LeftArrow+UpArrow    | Esc+UpArrow+LeftArrow"     script=MoveAppletTopLeft/>
-            <key="Esc+LeftArrow+DownArrow  | Esc+DownArrow+LeftArrow"   script=MoveAppletBottomLeft/>
-            <key="Esc+RightArrow+UpArrow   | Esc+UpArrow+RightArrow"    script=MoveAppletTopRight/>
-            <key="Esc+RightArrow+DownArrow | Esc+DownArrow+RightArrow"  script=MoveAppletBottomRight/>
-            <key="Esc+LeftArrow+RightArrow"                             script=IncreaseAppletWidth/>
-            <key="Esc+RightArrow+LeftArrow"                             script=DecreaseAppletWidth/>
-            <key="Esc+UpArrow+DownArrow"                                script=IncreaseAppletHeight/>
-            <key="Esc+DownArrow+UpArrow"                                script=DecreaseAppletHeight/>
+        <applet script*>  <!-- Applet bindings. -->
+            <script=AlwaysOnTopApplet     on="Esc+T"                                              />
+            <script=CloseApplet           on="Esc+W"                                              />
+            <script=MinimizeApplet        on="Esc+M"                                              />
+            <script=RestoreApplet         on="Esc+F10"                                            />
+            <script=MaximizeApplet        on="Esc+F11"                                            />
+            <script=FullscreenApplet      on="Esc+F12"                                            />
+            <script=MoveAppletLeft        on="Esc+LeftArrow"                                      />
+            <script=MoveAppletRight       on="Esc+RightArrow"                                     />
+            <script=MoveAppletUp          on="Esc+UpArrow"                                        />
+            <script=MoveAppletDown        on="Esc+DownArrow"                                      />
+            <script=MoveAppletTopLeft     on="Esc+LeftArrow+UpArrow    | Esc+UpArrow+LeftArrow"   />
+            <script=MoveAppletBottomLeft  on="Esc+LeftArrow+DownArrow  | Esc+DownArrow+LeftArrow" />
+            <script=MoveAppletTopRight    on="Esc+RightArrow+UpArrow   | Esc+UpArrow+RightArrow"  />
+            <script=MoveAppletBottomRight on="Esc+RightArrow+DownArrow | Esc+DownArrow+RightArrow"/>
+            <script=IncreaseAppletWidth   on="Esc+LeftArrow+RightArrow"                           />
+            <script=DecreaseAppletWidth   on="Esc+RightArrow+LeftArrow"                           />
+            <script=IncreaseAppletHeight  on="Esc+UpArrow+DownArrow"                              />
+            <script=DecreaseAppletHeight  on="Esc+DownArrow+UpArrow"                              />
         </applet>
-        <tile key*>
-            <key="Ctrl+PageUp"     script=TileFocusPrev/>
-            <key="Ctrl+PageDown"   script=TileFocusNext/>
-            <key=""                script=TileFocusPrevPane/>
-            <key=""                script=TileFocusNextPane/>
-            <key="Alt+Shift+N"     script=TileRunApplication/>
-            <key="Alt+Shift+A"     script=TileSelectAllPanes/>
-            <key="Alt+Shift+'|'"   script=TileSplitHorizontally/>
-            <key="Alt+Shift+Minus" script=TileSplitVertically/>
-            <key="Alt+Shift+R"     script=TileSplitOrientation/>
-            <key="Alt+Shift+S"     script=TileSwapPanes/>
-            <key="Alt+Shift+E"     script=TileEqualizeSplitRatio/>
-            <key="Alt+Shift+F2"    script=TileSetManagerTitle/>
-            <key="Alt+Shift+W"     script=TileClosePane/>
-            <grip key*>
-                <key="LeftArrow"                          script=TileMoveGripLeft/>
-                <key="RightArrow"                         script=TileMoveGripRight/>
-                <key="UpArrow"                            script=TileMoveGripUp/>
-                <key="DownArrow"                          script=TileMoveGripDown/>
-                <key="'-'"                                script=TileDecreaseGripWidth/>
-                <key="Shift+'+' | '+' | '=' | NumpadPlus" script=TileIncreaseGripWidth/>
-                <key="Shift+Tab"                          script=TileFocusPrevGrip/>
-                <key="Tab"                                script=TileFocusNextGrip/>
+        <tile script*>
+            <script=TileFocusPrev          on="Ctrl+PageUp"    />
+            <script=TileFocusNext          on="Ctrl+PageDown"  />
+            <script=TileFocusPrevPane      on=""               />
+            <script=TileFocusNextPane      on=""               />
+            <script=TileRunApplication     on="Alt+Shift+N"    />
+            <script=TileSelectAllPanes     on="Alt+Shift+A"    />
+            <script=TileSplitHorizontally  on="Alt+Shift+'|'"  />
+            <script=TileSplitVertically    on="Alt+Shift+Minus"/>
+            <script=TileSplitOrientation   on="Alt+Shift+R"    />
+            <script=TileSwapPanes          on="Alt+Shift+S"    />
+            <script=TileEqualizeSplitRatio on="Alt+Shift+E"    />
+            <script=TileSetManagerTitle    on="Alt+Shift+F2"   />
+            <script=TileClosePane          on="Alt+Shift+W"    />
+            <grip script*>
+                <script=TileMoveGripLeft      on="LeftArrow"                         />
+                <script=TileMoveGripRight     on="RightArrow"                        />
+                <script=TileMoveGripUp        on="UpArrow"                           />
+                <script=TileMoveGripDown      on="DownArrow"                         />
+                <script=TileDecreaseGripWidth on="'-'"                               />
+                <script=TileIncreaseGripWidth on="Shift+'+' | '+' | '=' | NumpadPlus"/>
+                <script=TileFocusPrevGrip     on="Shift+Tab"                         />
+                <script=TileFocusNextGrip     on="Tab"                               />
             </grip>
         </tile>
-        <terminal key*>  <!-- Terminal key bindings. -->
+        <terminal script*>  <!-- Terminal bindings. -->
 )=="
 #if defined (WIN32)
 R"==(
-            <key="Ctrl-Alt | Alt-Ctrl" preview script=ExclusiveKeyboardMode/>
+            <script=ExclusiveKeyboardMode on="preview: Ctrl-Alt | Alt-Ctrl"/>
 )=="
 #else
 R"==(
-            <key="Alt+Shift+B" preview   script=ExclusiveKeyboardMode/>
+            <script=ExclusiveKeyboardMode on="preview: Alt+Shift+B"/>
 )=="
 #endif
 R"==(
-            <key="Esc"                   script="vtm.gear.SetHandled()"/> <!-- Do nothing. We use the Esc key as a modifier. Its press+release events will only be sent after the key is physically released, and only if no other keys were pressed along with Esc. -->
-            <key="-Esc"                  script="vtm.terminal.ClearSelection(); vtm.terminal.KeyEvent({ virtcod=0x1b, scancod=1, keystat=1, cluster='\\u{1b}' }, { virtcod=0x1b, scancod=1, keystat=0 })"/> <!-- Clear selection if it is and send Esc press and release events. -->
-            <key="Alt+RightArrow"        script=TerminalFindNext/>
-            <key="Alt+LeftArrow"         script=TerminalFindPrev/>
-            <key="Shift+Ctrl+PageUp"     script=TerminalScrollViewportOnePageUp/>
-            <key="Shift+Ctrl+PageDown"   script=TerminalScrollViewportOnePageDown/>
-            <key="Shift+Alt+LeftArrow"   script=TerminalScrollViewportOnePageLeft/>
-            <key="Shift+Alt+RightArrow"  script=TerminalScrollViewportOnePageRight/>
-            <key="Shift+Ctrl+UpArrow"    script=TerminalScrollViewportOneLineUp/>
-            <key="Shift+Ctrl+DownArrow"  script=TerminalScrollViewportOneLineDown/>
-            <key="Shift+Ctrl+LeftArrow"  script=TerminalScrollViewportOneCellLeft/>
-            <key="Shift+Ctrl+RightArrow" script=TerminalScrollViewportOneCellRight/>
-            <key="Shift+Ctrl+Home"       script=TerminalScrollViewportToTop/>
-            <key="Shift+Ctrl+End"        script=TerminalScrollViewportToEnd/>
-            <key=""                      script=TerminalSendKey/>
-            <key=""                      script=TerminalOutput/>
-            <key=""                      script=TerminalCopyViewport/>
-            <key="Ctrl+Insert"  preview  script=TerminalCopySelection/>
-            <key="Shift+Insert" preview  script=TerminalClipboardPaste/>
-            <key=""                      script=TerminalClipboardWipe/>
-            <key=""                      script=TerminalClipboardFormat/>
-            <key=""                      script=TerminalSelectionRect/>
-            <key=""                      script=TerminalSelectionOneShot/>
-            <key=""                      script=TerminalUndo/>
-            <key=""                      script=TerminalRedo/>
-            <key=""                      script=TerminalCwdSync/>
-            <key=""                      script=TerminalWrapMode/>
-            <key=""                      script=TerminalAlignMode/>
-            <key=""                      script=TerminalStdioLog/>
-            <key=""                      script=TerminalRestart/>
+            <script="vtm.gear.SetHandled()" on="Esc"/> <!-- Do nothing. We use the Esc key as a modifier. Its press+release events will only be sent after the key is physically released, and only if no other keys were pressed along with Esc. -->
+            <script                         on="-Esc">  --  Clear selection if it is and send Esc press and release events.
+                vtm.terminal.ClearSelection()
+                vtm.terminal.KeyEvent({ virtcod=0x1b, scancod=1, keystat=1, cluster='\\u{1b}' }, { virtcod=0x1b, scancod=1, keystat=0 })
+            </script>
+            <script=TerminalFindNext                   on="Alt+RightArrow"       />
+            <script=TerminalFindPrev                   on="Alt+LeftArrow"        />
+            <script=TerminalScrollViewportOnePageUp    on="Shift+Ctrl+PageUp"    />
+            <script=TerminalScrollViewportOnePageDown  on="Shift+Ctrl+PageDown"  />
+            <script=TerminalScrollViewportOnePageLeft  on="Shift+Alt+LeftArrow"  />
+            <script=TerminalScrollViewportOnePageRight on="Shift+Alt+RightArrow" />
+            <script=TerminalScrollViewportOneLineUp    on="Shift+Ctrl+UpArrow"   />
+            <script=TerminalScrollViewportOneLineDown  on="Shift+Ctrl+DownArrow" />
+            <script=TerminalScrollViewportOneCellLeft  on="Shift+Ctrl+LeftArrow" />
+            <script=TerminalScrollViewportOneCellRight on="Shift+Ctrl+RightArrow"/>
+            <script=TerminalScrollViewportToTop        on="Shift+Ctrl+Home"      />
+            <script=TerminalScrollViewportToEnd        on="Shift+Ctrl+End"       />
+            <script=TerminalSendKey                    on=""                     />
+            <script=TerminalReset                      on=""                     />
+            <script=TerminalClearScrollback            on=""                     />
+            <script=TerminalCopyViewport               on=""                     />
+            <script=TerminalCopySelection              on="preview:Ctrl+Insert"  />
+            <script=TerminalClipboardPaste             on="preview:Shift+Insert" />
+            <script=TerminalClipboardWipe              on=""                     />
+            <script=TerminalClipboardFormat            on=""                     />
+            <script=TerminalSelectionRect              on=""                     />
+            <script=TerminalSelectionOneShot           on=""                     />
+            <script=TerminalUndo                       on=""                     />
+            <script=TerminalRedo                       on=""                     />
+            <script=TerminalCwdSync                    on=""                     />
+            <script=TerminalWrapMode                   on=""                     />
+            <script=TerminalAlignMode                  on=""                     />
+            <script=TerminalStdioLog                   on=""                     />
+            <script=TerminalRestart                    on=""                     />
         </terminal>
-        <defapp key*>  <!-- Default application bindings (e.g., Info-Page). -->
-            <key="Esc"  preview script="vtm.defapp.ShowClosingPreview(not vtm.gear.IsKeyRepeated())"/> <!-- Pred window close action. -->
-            <key="-Esc" preview script="if (vtm.defapp.ShowClosingPreview()) then vtm.defapp.Close() end"/> <!-- Close the window on Esc release. -->
-            <key="Any"  preview script="vtm.defapp.ShowClosingPreview(false)"/> <!-- Preview for "Any" is always triggered after all other previews. Non-preview "Any" is triggered before all other keys. -->
-            <key="PageUp"       script="vtm.defapp.ScrollViewportByPage( 0, 1)"/>
-            <key="PageDown"     script="vtm.defapp.ScrollViewportByPage( 0,-1)"/>
-            <key="UpArrow"      script="vtm.defapp.ScrollViewportByStep( 0, 3)"/>
-            <key="DownArrow"    script="vtm.defapp.ScrollViewportByStep( 0,-3)"/>
-            <key="LeftArrow"    script="vtm.defapp.ScrollViewportByStep( 3, 0)"/>
-            <key="RightArrow"   script="vtm.defapp.ScrollViewportByStep(-3, 0)"/>
-            <key="Home"         script="if (not vtm.gear.IsKeyRepeated()) then vtm.defapp.ScrollViewportToTop() end"/>
-            <key="End"          script="if (not vtm.gear.IsKeyRepeated()) then vtm.defapp.ScrollViewportToEnd() end"/>
+        <defapp script*>  <!-- Default application bindings (e.g., Info-Page). -->
+            <script="vtm.defapp.ShowClosingPreview(not vtm.gear.IsKeyRepeated())"                 on="preview:Esc" /> <!-- Pred window close action. -->
+            <script="if (vtm.defapp.ShowClosingPreview()) then vtm.defapp.Close() end"            on="preview:-Esc"/> <!-- Close the window on Esc release. -->
+            <script="if (vtm.gear.IsKeyRepeated()) then vtm.defapp.ShowClosingPreview(false) end" on="preview:Any" /> <!-- Preview for "Any" is always triggered after all other previews. Non-preview "Any" is triggered before all other keys. -->
+            <script="vtm.defapp.ScrollViewportByPage( 0, 1)"                                      on="PageUp"      />
+            <script="vtm.defapp.ScrollViewportByPage( 0,-1)"                                      on="PageDown"    />
+            <script="vtm.defapp.ScrollViewportByStep( 0, 3)"                                      on="UpArrow"     />
+            <script="vtm.defapp.ScrollViewportByStep( 0,-3)"                                      on="DownArrow"   />
+            <script="vtm.defapp.ScrollViewportByStep( 3, 0)"                                      on="LeftArrow"   />
+            <script="vtm.defapp.ScrollViewportByStep(-3, 0)"                                      on="RightArrow"  />
+            <script="if (not vtm.gear.IsKeyRepeated()) then vtm.defapp.ScrollViewportToTop() end" on="Home"        />
+            <script="if (not vtm.gear.IsKeyRepeated()) then vtm.defapp.ScrollViewportToEnd() end" on="End"         />
         </defapp>
     </events>
 </config>)=="

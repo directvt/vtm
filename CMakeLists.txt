@@ -20,13 +20,14 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Windows")    # WIN32 and similar checks are soft-
     # /EHsc    Tells the compiler that exceptions can only occur at a throw statement or at a function call.
     # /bigobj  Our event model spawns a large number of objects. By default, an object file can hold up to 65,279 (almost 2^16) addressable sections. This limit applies no matter which target platform is specified. /bigobj increases that address capacity to 4,294,967,296 (2^32).
     # /utf-8   All literals in our source code are in UTF-8 format.
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc /bigobj /utf-8 /Zc:preprocessor")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /O2 /EHsc /bigobj /utf-8 /Zc:preprocessor")
     set(WIN32_RESOURCES ".resources/images/vtm.rc")
 else()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DLUA_USE_POSIX")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -pthread")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O2 -DLUA_USE_POSIX")
     # Static linkage
-    #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static -pthread -s")
+    #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static -O2 -pthread")
+    #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -static -O2 -DLUA_USE_POSIX")
 endif()
 
 # Lua

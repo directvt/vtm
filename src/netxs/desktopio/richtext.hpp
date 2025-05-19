@@ -132,19 +132,20 @@ namespace netxs::ui
                     while (n)
                     {
                         auto& c = block.at(p);
-                        if (c.isspc() || c.wdt() == utf::matrix::vs<21,21>
-                         || c.txt().ends_with(utf::utf8view<0x200B>)) break;
+                        if (c.isspc() || c.matrix_end() || c.txt().ends_with(utf::utf8view<0x200B>)) break;
                         n--;
                         p--;
                     }
                     if (n > 0) // Cut by whitespace.
                     {
-                        printout.size.x = n + 1;
+                        printout.size.x = n + (RtoL ? 0 : 1);
                     }
-                    else // Cut on a widechar boundary (CJK/Emoji).
+                    else // Try to cut on a matrix boundary (CJK/Emoji).
                     {
                         auto q = curpoint + printout.size.x - 1;
-                        if (block.at(q).wdt() == utf::matrix::vs<21,11>)
+                        auto& c = block.at(q);
+                        auto [w, h, x, y] = c.whxy();
+                        if (w != 1 && h == 1 && x == 1 && y == 1)
                         {
                             --printout.size.x;
                         }
@@ -193,16 +194,27 @@ namespace netxs::ui
         auto middle() { return (cliprect.size.x >> 1) - (textline.size.x >> 1); }
         void autocr() { if (caretpos.x >= caret_mx) flow::nl(highness); }
 
+        void cut_leading_spaces(auto const& block)
+        {
+            while (textline.size.x > 0 && block.at(curpoint).isspc())
+            {
+                textline.size.x--;
+                curpoint++;
+            }
+        }
         template<bool Split, bool RtoL, bool ReLF, class T, class P>
         void centred(T const& block, P print)
         {
             while (textline.size.x > 0)
             {
                 autocr();
-                auto axis = textline.size.x >= caret_mx ? 0
-                                                        : middle();
+                auto axis = textline.size.x >= caret_mx ? 0 : middle();
                 flow::ax(axis);
                 output<Split, true, RtoL, ReLF>(block, print);
+                if constexpr (!Split) // Cut all leading spaces on wrapping.
+                {
+                    cut_leading_spaces(block);
+                }
             }
         }
         template<bool Split, bool RtoL, bool ReLF, class T, class P>
@@ -212,6 +224,10 @@ namespace netxs::ui
             {
                 autocr();
                 output<Split, true, RtoL, ReLF>(block, print);
+                if constexpr (!Split) // Cut all leading spaces on wrapping.
+                {
+                    cut_leading_spaces(block);
+                }
             }
         }
         template<bool Split, bool RtoL, bool ReLF, class T, class P>
@@ -314,7 +330,7 @@ namespace netxs::ui
                 if (cmd == ansi::fn::el && arg == 0)
                 {
                     auto coor = flow::cp();
-                    auto mark = block.brush();
+                    auto mark = cell{ block.brush() }.txt(' ');
                     auto line = arighted ? rect{{ textpads.l, coor.y }, { coor.x, 1 }}
                                          : rect{ coor, { caret_mx - coor.x + 1, 1 }};
                     line.coor.x += pagerect.coor.x;
@@ -565,6 +581,28 @@ namespace netxs::ui
             if (width == netxs::si32max) width = length() - at;
             return rich{ core::crop(at, width) };
         }
+        auto copy_piece(rich& dest, si32 from, si32 width) const
+        {
+            auto my_size = size();
+            if (from >= my_size.x * my_size.y)
+            {
+                dest.crop(0);
+                return;
+            }
+            auto new_width = from % my_size.x + width;
+            if (new_width > my_size.x)
+            {
+                width = my_size.x - from;
+            }
+            dest.crop(width);
+            auto src = begin() + from;
+            auto dst = dest.begin();
+            auto end = dest.end();
+            while (dst != end)
+            {
+                *dst++ = *src++;
+            }
+        }
         auto empty()
         {
             return canvas.empty();
@@ -636,31 +674,45 @@ namespace netxs::ui
                             // winsrv2019's cmd.exe sets title with a zero at the end
                             //*dst++ = cell{ c, whitespace };
                         }
-                        else if (w != 0 && h == 1)
+                        else if (h == 1)
                         {
-                            if (c.rtl())
+                            if (w == 1)
                             {
-                                x = w;
-                                do fuse(*dest++, c.wdt(w, h, x--, 1));
-                                while (x != 0 && dest != tail);
+                                fuse(*dest++, c.wdt(w, h, 1, 1));
                             }
-                            else
+                            else if (w != 0)
                             {
-                                do fuse(*dest++, c.wdt(w, h, ++x, 1));
-                                while (x != w && dest != tail);
+                                if (c.rtl())
+                                {
+                                    x = w;
+                                    do fuse(*dest++, c.wdt(w, h, x--, 1));
+                                    while (x != 0 && dest != tail);
+                                }
+                                else
+                                {
+                                    do fuse(*dest++, c.wdt(w, h, ++x, 1));
+                                    while (x != w && dest != tail);
+                                }
                             }
                         }
                     }
                     else if (x == 0) // x==0; Expand hz cell stripe.
                     {
-                        if (c.rtl())
+                        if (w == 1)
                         {
-                            x = w;
-                            while (x != 0) fuse(*dest++, c.wdt(w, h, x--, y));
+                            fuse(*dest++, c.wdt(w, h, 1, y));
                         }
                         else
                         {
-                            while (x != w) fuse(*dest++, c.wdt(w, h, ++x, y));
+                            if (c.rtl())
+                            {
+                                x = w;
+                                while (x != 0 && dest != tail) fuse(*dest++, c.wdt(w, h, x--, y));
+                            }
+                            else
+                            {
+                                while (x != w && dest != tail) fuse(*dest++, c.wdt(w, h, ++x, y));
+                            }
                         }
                     }
                     else fuse(*dest++, c);
@@ -694,31 +746,45 @@ namespace netxs::ui
                             // winsrv2019's cmd.exe sets title with a zero at the end
                             //*dst++ = cell{ c, whitespace };
                         }
-                        else if (w != 0 && h == 1)
+                        else if (h == 1)
                         {
-                            if (c.rtl())
+                            if (w == 1)
                             {
-                                x = w;
-                                do set(c.wdt(w, h, x--, 1));
-                                while (x != 0 && size != 0);
+                                set(c.wdt(w, h, 1, 1));
                             }
-                            else
+                            else if (w != 0)
                             {
-                                do set(c.wdt(w, h, ++x, 1));
-                                while (x != w && size != 0);
+                                if (c.rtl())
+                                {
+                                    x = w;
+                                    do set(c.wdt(w, h, x--, 1));
+                                    while (x != 0 && size != 0);
+                                }
+                                else
+                                {
+                                    do set(c.wdt(w, h, ++x, 1));
+                                    while (x != w && size != 0);
+                                }
                             }
                         }
                     }
                     else if (x == 0) // x==0; Expand hz cell stripe.
                     {
-                        if (c.rtl())
+                        if (w == 1)
                         {
-                            x = w;
-                            while (x != 0) set(c.wdt(w, h, x--, y));
+                            set(c.wdt(w, h, 1, y));
                         }
                         else
                         {
-                            while (x != w) set(c.wdt(w, h, ++x, y));
+                            if (c.rtl())
+                            {
+                                x = w;
+                                while (x != 0 && size != 0) set(c.wdt(w, h, x--, y));
+                            }
+                            else
+                            {
+                                while (x != w && size != 0) set(c.wdt(w, h, ++x, y));
+                            }
                         }
                     }
                     else set(c);
@@ -746,35 +812,78 @@ namespace netxs::ui
                             // winsrv2019's cmd.exe sets title with a zero at the end
                             //*dst++ = cell{ c, whitespace };
                         }
-                        else if (w != 0 && h == 1)
+                        else if (h == 1)
                         {
-                            if (c.rtl())
+                            if (w == 1)
                             {
-                                do fuse(*--dest, c.wdt(w, h, ++x, 1));
-                                while (x != w && dest != tail);
+                                fuse(*--dest, c.wdt(w, h, 1, 1));
                             }
-                            else
+                            else if (w != 0)
                             {
-                                x = w;
-                                do fuse(*--dest, c.wdt(w, h, x--, 1));
-                                while (x != 0 && dest != tail);
+                                if (c.rtl())
+                                {
+                                    do fuse(*--dest, c.wdt(w, h, ++x, 1));
+                                    while (x != w && dest != tail);
+                                }
+                                else
+                                {
+                                    x = w;
+                                    do fuse(*--dest, c.wdt(w, h, x--, 1));
+                                    while (x != 0 && dest != tail);
+                                }
                             }
                         }
                     }
                     else if (x == 0) // x==0; Expand hz cell stripe.
                     {
-                        if (c.rtl())
+                        if (w == 1)
                         {
-                            while (x != w) fuse(*--dest, c.wdt(w, h, ++x, y));
+                            fuse(*--dest, c.wdt(w, h, 1, y));
                         }
                         else
                         {
-                            x = w;
-                            while (x != 0) fuse(*--dest, c.wdt(w, h, x--, y));
+                            if (c.rtl())
+                            {
+                                while (x != w && dest != tail) fuse(*--dest, c.wdt(w, h, ++x, y));
+                            }
+                            else
+                            {
+                                x = w;
+                                while (x != 0 && dest != tail) fuse(*--dest, c.wdt(w, h, x--, y));
+                            }
                         }
                     }
                     else fuse(*--dest, c);
                 }
+            }
+        }
+        void unpack2d(auto const& proto, twod block_size)
+        {
+            core::size(block_size);
+            //todo simplify (use netxs::onrect)
+            auto iter = core::begin();
+            auto bottom = block_size.x * (block_size.y - 1);
+            auto width_check = block_size.x;
+            for (auto c : proto)
+            {
+                auto [w, h, x, y] = c.whxy();
+                assert(y == 0);
+                if (x != 0) w = 1;
+                width_check -= w;
+                if (width_check < 0) break;
+                auto stride = block_size.x - w;
+                auto dx = w;
+                auto dy = bottom + w;
+                if (x == 0) // Fullsize character.
+                {
+                    y += 1;
+                    netxs::inrect(iter, dx, dy, stride, [&](cell& b){ b = c.xy(++x, y); }, [&]{ x = 0; y++; });
+                }
+                else // Vertical stripe (char_size = twod{ 1, h }).
+                {
+                    netxs::inrect(iter, dx, dy, stride, [&](cell& b){ b = c.xy(x, ++y); });
+                }
+                iter += w;
             }
         }
         // rich: Splice proto with auto grow.
@@ -1195,24 +1304,10 @@ namespace netxs::ui
             else if (!busy()) locus.push(cmd);
         }
         // para: Convert into the screen-adapted sequence (unfold, remove zerospace chars, etc.).
-        void data(si32 count, core::body const& proto) override
+        void data(si32 width, si32 /*height*/, core::body const& proto) override
         {
-            lyric->splice(caret, count, proto, cell::shaders::full);
-            caret += count;
-        }
-        //todo unify: see ui::page::post
-        void post(utf::frag const& cluster)
-        {
-            if (cluster.attr.cdpoint == 0) // Override null character - set a narrow width.
-            {
-                auto c = cluster;
-                c.attr.cmatrix = netxs::utf::matrix::vs<11,11>;
-                ansi::parser::post(c);
-            }
-            else
-            {
-                ansi::parser::post(cluster);
-            }
+            lyric->splice(caret, width, proto, cell::shaders::full);
+            caret += width;
         }
         void id(ui32 newid) { index = newid; }
         auto id() const     { return index;  }
@@ -1281,10 +1376,18 @@ namespace netxs::ui
                 caret--;
                 auto& line = content();
                 auto  iter = line.begin() + caret;
-                //todo use whxy
-                if (iter->wdt() == utf::matrix::vs<21,21> && caret > 0 && (--iter)->wdt() == utf::matrix::vs<21,11>)
+                if (caret > 0)
                 {
-                    caret--;
+                    auto [w, h, x, y] = iter->whxy();
+                    if (w == 2 && x == 2 && caret > 0)
+                    {
+                        --iter;
+                        auto [w2, h2, x2, y2] = iter->whxy();
+                        if (w2 == 2 && x2 == 1)
+                        {
+                            caret--;
+                        }
+                    }
                 }
                 return true;
             }
@@ -1313,10 +1416,18 @@ namespace netxs::ui
                 auto& line = content();
                 auto  iter = line.begin() + caret;
                 caret++;
-                //todo use whxy
-                if (iter->wdt() == utf::matrix::vs<21,11> && caret < length() && (++iter)->wdt() == utf::matrix::vs<21,21>)
+                if (caret < length())
                 {
-                    caret++;
+                    auto [w, h, x, y] = iter->whxy();
+                    if (w == 2 && x == 1)
+                    {
+                        ++iter;
+                        auto [w2, h2, x2, y2] = iter->whxy();
+                        if (w2 == 2 && x2 == 2)
+                        {
+                            caret++;
+                        }
+                    }
                 }
                 return true;
             }
@@ -1469,9 +1580,18 @@ namespace netxs::ui
                         insert(*iter2);
                         return true;
                     }
-                    //todo use whxy
-                    if ((iter1++)->wdt() == utf::matrix::vs<21,11> && iter1 != end_1 && (iter1++)->wdt() != utf::matrix::vs<21,21>) log(prompt::para, "Corrupted glyph");
-                    if ((iter2++)->wdt() == utf::matrix::vs<21,11> && iter2 != end_2 && (iter2++)->wdt() != utf::matrix::vs<21,21>) log(prompt::para, "Corrupted glyph");
+                    auto [w1, h1, x1, y1] = (iter1++)->whxy();
+                    if (w1 == 2 && x1 == 1 && iter1 != end_1)
+                    {
+                        auto [w3, h3, x3, y3] = (iter1++)->whxy();
+                        if (w3 != 2 || x3 != 2) log(prompt::para, "Corrupted glyph");
+                    }
+                    auto [w2, h2, x2, y2] = (iter2++)->whxy();
+                    if (w1 == 2 && x2 == 1 && iter2 != end_2)
+                    {
+                        auto [w3, h3, x3, y3] = (iter2++)->whxy();
+                        if (w3 != 2 || x3 != 2) log(prompt::para, "Corrupted glyph");
+                    }
                 }
             }
             return faux;
@@ -1824,29 +1944,18 @@ namespace netxs::ui
             auto& item = **layer;
             item.locus.push(cmd);
         }
+        // page: .
         void meta(deco const& /*old_style*/) override
         {
             auto& item = **layer;
             item.style = parser::style;
         }
-        void post(utf::frag const& cluster)
-        {
-            if (cluster.attr.cdpoint == 0) // Override null character - set a narrow width.
-            {
-                auto c = cluster;
-                c.attr.cmatrix = netxs::utf::matrix::vs<11,11>;
-                ansi::parser::post(c);
-            }
-            else
-            {
-                ansi::parser::post(cluster);
-            }
-        }
-        void data(si32 count, core::body const& proto) override
+        // page: .
+        void data(si32 width, si32 /*height*/, core::body const& proto) override
         {
             auto& item = **layer;
-            item.lyric->splice(item.caret, count, proto, cell::shaders::full);
-            item.caret += count;
+            item.lyric->splice(item.caret, width, proto, cell::shaders::full);
+            item.caret += width;
         }
         auto& current()       { return **layer; } // page: Access to the current paragraph.
         auto& current() const { return **layer; } // page: RO access to the current paragraph.
@@ -2136,6 +2245,7 @@ namespace netxs::ui
             auto stk(bool ) { }
             auto ovr(bool ) { }
             auto blk(bool ) { }
+            auto cursor0(si32 ) { }
         };
 
         auto to_html(text font = {}) const
@@ -2216,6 +2326,7 @@ namespace netxs::ui
             auto stk(bool ) { }
             auto ovr(bool ) { }
             auto blk(bool ) { }
+            auto cursor0(si32 ) { }
         };
 
         template<bool UseSGR = true>
@@ -2238,7 +2349,7 @@ namespace netxs::ui
                     auto [w, h, x, y] = c.whxy();
                     if (x == 1) // Capture the first cell only.
                     {
-                        c.scan<svga::vtrgb, UseSGR>(dest.base, dest);
+                        c.scan<svga::vt_2D, UseSGR>(dest.base, dest);
                     }
                 });
             }
@@ -2422,7 +2533,7 @@ namespace netxs::ui
             core::wipe(args...);
             flow::reset();
         }
-        // face: Change current context. Return old context.
+        // face: Change current 2D context. Return old 2D context.
         auto bump(dent delta, bool bump_clip = true)
         {
             auto old_full = flow::full();
@@ -2436,13 +2547,13 @@ namespace netxs::ui
             flow::full(new_full);
             return std::pair{ old_full, old_clip };
         }
-        // face: Restore previously saved context.
+        // face: Restore previously saved 2D context.
         void bump(std::pair<rect, rect> ctx)
         {
             flow::full(ctx.first);
             core::clip(ctx.second);
         }
-        // face: Dive into object context.
+        // face: Dive into object 2D context.
         template<bool Forced = faux>
         auto change_basis(rect object_area, bool trim = true)
         {
@@ -2486,11 +2597,11 @@ namespace netxs::ui
             auto proceed = Forced || nested_clip;
             if (proceed)
             {
-                auto context = ctx{ *this, flow::full(), core::clip(), core::coor(), true };
+                auto context2D = ctx{ *this, flow::full(), core::clip(), core::coor(), true };
                 core::step(                       - object_area.coor);
                 core::clip({     nested_clip.coor - object_area.coor,   nested_clip.size });
                 flow::full({{ }/*object_area.coor - object_area.coor*/, object_area.size });
-                return context;
+                return context2D;
             }
             return ctx{ *this };
         }

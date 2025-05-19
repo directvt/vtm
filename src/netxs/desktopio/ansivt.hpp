@@ -5,11 +5,6 @@
 
 #include "canvas.hpp"
 
-#include <mutex>
-#include <array>
-#include <list>
-#include <functional>
-
 namespace netxs::ansi
 {
     using ctrl = utf::ctrl;
@@ -242,7 +237,7 @@ namespace netxs::ansi
     static const auto ccc_rtl_or = 17 ; // CSI 17: n       p  - set text right-to-left none/on/off if it is not set.
     static const auto ccc_rlf_or = 18 ; // CSI 18: n       p  - set reverse line feed none/on/off if it is not set.
     static const auto ccc_idx    = 19 ; // CSI 19: id      p  - Split the text run and associate the fragment with an id.
-    static const auto ccc_cup    = 20 ; // CSI 20: x [: y] p  - cursor absolute position 0-based.
+    static const auto ccc_cup    = 20 ; // CSI 20: x  : y  p  - cursor absolute position 0-based.
     static const auto ccc_chx    = 21 ; // CSI 21: x       p  - cursor H absolute position 0-based.
     static const auto ccc_chy    = 22 ; // CSI 22: y       p  - cursor V absolute position 0-based.
     static const auto ccc_ref    = 23 ; // CSI 23: id      p  - create the reference to the existing paragraph.
@@ -253,7 +248,8 @@ namespace netxs::ansi
     static const auto ccc_pad    = 30 ; // CSI 30: n       p  - Set left/right padding for the built-in terminal.
     static const auto ccc_lnk    = 31 ; // CSI 31: n       p  - Set object id to the cell owner.
     static const auto ccc_lsr    = 32 ; // CSI 32: n       p  - Enable line style reporting.
-    static const auto ccc_stl    = 33 ; // CSI 32: n       p  - Line style report.
+    static const auto ccc_stl    = 33 ; // CSI 33: n       p  - Line style report.
+    static const auto ccc_cur    = 34 ; // CSI 34: n       p  - Set cursor inside the cell. 0: None, 1: Underline, 2: Block, 3: I-bar. cell::px stores cursor fg/bg if cursor is set.
 
     //static const auto ctrl_break = si32{ 0xE046 }; // Pressed Ctrl+Break scancode.
     static const auto ctrl_break = si32{ 0x46 }; // Pressed Ctrl+Break scancode.
@@ -429,10 +425,11 @@ namespace netxs::ansi
             return add("\033[", b + 40, 'm');
         }
         template<svga Mode = svga::vtrgb>
-        auto& fgc(argb c) // basevt: SGR Foreground color. RGB: red, green, blue.
+        auto& fgc(argb c) // basevt: SGR Foreground color. RGB: red, green, blue (+alpha for VT2D).
         {
                  if constexpr (Mode == svga::vt16 ) return fgc_16(c.to_vtm16(true));
             else if constexpr (Mode == svga::vt256) return fgc256(c.to_256cube());
+            else if constexpr (Mode == svga::vt_2D) return fgx(c);
             else if constexpr (Mode == svga::vtrgb) return c.chan.a == 0 ? add("\033[39m")
                                                                          : add("\033[38;2;", c.chan.r, ';',
                                                                                              c.chan.g, ';',
@@ -444,6 +441,7 @@ namespace netxs::ansi
         {
                  if constexpr (Mode == svga::vt16 ) return bgc_8(c.to_vtm8());
             else if constexpr (Mode == svga::vt256) return bgc256(c.to_256cube());
+            else if constexpr (Mode == svga::vt_2D) return bgx(c);
             else if constexpr (Mode == svga::vtrgb) return c.chan.a == 0 ? add("\033[49m")
                                                                          : add("\033[48;2;", c.chan.r, ';',
                                                                                              c.chan.g, ';',
@@ -451,80 +449,34 @@ namespace netxs::ansi
             else return block;
         }
         template<class ...Args>
-        auto& clr(argb c, Args&&... data) { return fgc(c).add(std::forward<Args>(data)...).nil(); } // basevt: Add colored message.
+        auto& clr(argb c, Args&&... data) { return pushsgr().fgc(c).add(std::forward<Args>(data)...).popsgr(); } // basevt: Add colored message.
         template<class ...Args>
-        auto& hi(Args&&... data) { return inv(true).add(std::forward<Args>(data)...).nil(); } // basevt: Add highlighted message.
+        auto& hi(Args&&... data) { return inv(true).add(std::forward<Args>(data)...).inv(faux); } // basevt: Add highlighted message.
         auto& err() { return fgc(redlt); } // basevt: Add error color.
         template<class ...Args>
-        auto& err(Args&&... data) { return fgc(redlt).add(std::forward<Args>(data)...).nil(); } // basevt: Add error message.
+        auto& err(Args&&... data) { return pushsgr().fgc(redlt).add(std::forward<Args>(data)...).popsgr(); } // basevt: Add error message.
         // basevt: Ansify/textify content of specified region.
         template<bool UseSGR = true, bool Initial = true, bool Finalize = true>
         auto& s11n(core const& canvas, rect region, cell& state)
         {
-            auto badfx = [&]
-            {
-                add(utf::replacement);
-                state.set_gc();
-                state.wdt(1, 1, 1, 1);
-            };
-            auto side_badfx = [&] // Restoring the halves on the side
-            {
-                add(state.txt());
-                state.set_gc();
-                state.wdt(1, 1, 1, 1);
-            };
             auto allfx = [&](cell const& c)
             {
-                auto [cw, ch, cx, cy] = c.whxy();
-                if (cw < 2) // Narrow character
+                auto utf8 = c.txt<svga::vtrgb>();
+                auto [w, h, x, y] = c.whxy();
+                c.scan_attr<svga::vtrgb, UseSGR>(state, block);
+                if (w == 0 || h == 0 || y != 1 || x != 1 || utf8.empty() || (byte)utf8.front() < 32) // 2D fragment is either non-standard or empty or C0.
                 {
-                    auto [w, h, x, y] = state.whxy();
-                    if (w != 1 && x == 1) badfx(); // Left part alone
-                    c.scan<svga::vtrgb, UseSGR>(state, block);
+                    add(" "sv);
                 }
                 else
                 {
-                    if (cw == 2 && cx == 1) // Left part
-                    {
-                        auto [w, h, x, y] = state.whxy();
-                        if (w != 1 && x == 1) badfx(); // Left part alone
-                        c.scan_attr<svga::vtrgb, UseSGR>(state, block);
-                        state.set_gc(c); // Save char from c for the next iteration
-                    }
-                    else if (cw == 2 && cx == 2) // Right part
-                    {
-                        auto [w, h, x, y] = state.whxy();
-                        if (w == 2 && x == 1)
-                        {
-                            if (state.check_pair(c))
-                            {
-                                state.scan<svga::vtrgb, UseSGR>(state, block);
-                                state.set_gc(); // Cleanup used t
-                            }
-                            else
-                            {
-                                badfx(); // Left part alone
-                                c.scan_attr<svga::vtrgb, UseSGR>(state, block);
-                                badfx(); // Right part alone
-                            }
-                        }
-                        else
-                        {
-                            c.scan_attr<svga::vtrgb, UseSGR>(state, block);
-                            if (state.xy() == 0) side_badfx(); // Right part alone at the left side
-                            else                 badfx(); // Right part alone
-                        }
-                    }
+                    add(utf8);
                 }
             };
             auto eolfx = [&]
             {
-                auto [w, h, x, y] = state.whxy();
-                if (w != 1 && x == 1) side_badfx();  // Left part alone at the right side
-                state.set_gc();
                 basevt::eol();
             };
-
             if (region)
             {
                 if constexpr (UseSGR && Initial) basevt::nil();
@@ -672,13 +624,13 @@ namespace netxs::ansi
 
             auto m_bttn = std::bitset<8>{ (ui32)gear.m_sys.buttons };
             auto s_bttn = std::bitset<8>{ (ui32)gear.m_sav.buttons };
-            auto m_left = m_bttn[hids::left  ];
-            auto m_rght = m_bttn[hids::right ];
-            auto m_mddl = m_bttn[hids::middle];
-            auto s_left = s_bttn[hids::left  ];
-            auto s_rght = s_bttn[hids::right ];
-            auto s_mddl = s_bttn[hids::middle];
-            auto pressed = bool{};
+            auto m_left = m_bttn[hids::buttons::left  ];
+            auto m_rght = m_bttn[hids::buttons::right ];
+            auto m_mddl = m_bttn[hids::buttons::middle];
+            auto s_left = s_bttn[hids::buttons::left  ];
+            auto s_rght = s_bttn[hids::buttons::right ];
+            auto s_mddl = s_bttn[hids::buttons::middle];
+            auto pressed = true;
 
             if (m_left != s_left)
             {
@@ -695,25 +647,27 @@ namespace netxs::ansi
                 ctrl |= mddl;
                 pressed = m_mddl;
             }
+            //todo impl ext mouse buttons 128..131/m_5..m_8
+            //else if (m_5 != s_5)
+            //{
+            //    ...
+            //}
+            //...
             else if (gear.m_sys.wheelsi)
             {
                 if (gear.m_sys.hzwheel) ctrl |= gear.m_sys.wheelsi > 0 ? wheel_lt : wheel_rt;
                 else                    ctrl |= gear.m_sys.wheelsi > 0 ? wheel_up : wheel_dn;
-                pressed = true;
             }
             else if (gear.m_sys.buttons)
             {
-                //todo impl ext mouse buttons 128-131
                      if (m_left) ctrl |= left;
                 else if (m_rght) ctrl |= rght;
                 else if (m_mddl) ctrl |= mddl;
                 ctrl |= idle;
-                pressed = true;
             }
             else
             {
                 ctrl |= idle + btup;
-                pressed = faux;
             }
             coor += dot_11;
             auto count = std::max(1, std::abs(gear.m_sys.wheelsi));
@@ -744,12 +698,12 @@ namespace netxs::ansi
 
             auto m_bttn = std::bitset<8>{ (ui32)gear.m_sys.buttons };
             auto s_bttn = std::bitset<8>{ (ui32)gear.m_sav.buttons };
-            auto m_left = m_bttn[hids::left  ];
-            auto m_rght = m_bttn[hids::right ];
-            auto m_mddl = m_bttn[hids::middle];
-            auto s_left = s_bttn[hids::left  ];
-            auto s_rght = s_bttn[hids::right ];
-            auto s_mddl = s_bttn[hids::middle];
+            auto m_left = m_bttn[hids::buttons::left  ];
+            auto m_rght = m_bttn[hids::buttons::right ];
+            auto m_mddl = m_bttn[hids::buttons::middle];
+            auto s_left = s_bttn[hids::buttons::left  ];
+            auto s_rght = s_bttn[hids::buttons::right ];
+            auto s_mddl = s_bttn[hids::buttons::middle];
 
             //todo impl ext mouse buttons 128-131
                  if (m_left != s_left) ctrl |= m_left ? left : btup;
@@ -809,14 +763,14 @@ namespace netxs::ansi
         auto& chy(si32 n)        { return add("\033[22:", n  , csi_ccc); } // escx: Cursor 0-based vertical absolute.
         auto& cpx(si32 n)        { return add("\033[3:" , n  , csi_ccc); } // escx: Cursor horizontal percent position.
         auto& cpy(si32 n)        { return add("\033[4:" , n  , csi_ccc); } // escx: Cursor vertical percent position.
-        auto& cup(twod p) { return add("\033[20:", p.y, ':',        // escx: 0-Based cursor position.
-                                                   p.x, csi_ccc); }
-        auto& cpp(twod p) { return add("\033[2:" , p.x, ':',        // escx: Cursor percent position.
-                                                   p.y, csi_ccc); }
-        auto& mgn(dent n) { return add("\033[6:" , n.l, ':',        // escx: Margin (left, right, top, bottom).
-                                                   n.r, ':',
-                                                   n.t, ':',
-                                                   n.b, csi_ccc); }
+        auto& cup(twod p)        { return add("\033[20:", p.x, ':',        // escx: 0-Based cursor position.
+                                                          p.y, csi_ccc); }
+        auto& cpp(twod p)        { return add("\033[2:" , p.x, ':',        // escx: Cursor percent position.
+                                                          p.y, csi_ccc); }
+        auto& mgn(dent n)        { return add("\033[6:" , n.l, ':',        // escx: Margin (left, right, top, bottom).
+                                                          n.r, ':',
+                                                          n.t, ':',
+                                                          n.b, csi_ccc); }
         auto& mgl(si32 n)        { return add("\033[7:" , n  , csi_ccc); } // escx: Left margin. Positive - native binding. Negative - opposite binding.
         auto& mgr(si32 n)        { return add("\033[8:" , n  , csi_ccc); } // escx: Right margin. Positive - native binding. Negative - opposite binding.
         auto& mgt(si32 n)        { return add("\033[9:" , n  , csi_ccc); } // escx: Top margin. Positive - native binding. Negative - opposite binding.
@@ -835,6 +789,10 @@ namespace netxs::ansi
         auto& link(si32 i)       { return add("\033[31:", i  , csi_ccc); } // escx: Set object id link.
         auto& styled(si32 b)     { return add("\033[32:", b  , csi_ccc); } // escx: Enable line style reporting (0/1).
         auto& style(si32 i)      { return add("\033[33:", i  , csi_ccc); } // escx: Line style response (deco::format: alignment, wrapping, RTL, etc).
+        auto& cursor0(si32 i)    { return add("\033[34:", i  , csi_ccc); } // escx: Set cursor  0: None, 1: Underline, 2: Block, 3: I-bar. cell::px stores cursor fg/bg if cursor is set.
+        //auto& hplink0(si32 i)    { return add("\033[35:", i  , csi_ccc); } // escx: Set hyperlink cell.
+        //auto& bitmap0(si32 i)    { return add("\033[36:", i  , csi_ccc); } // escx: Set bitmap inside the cell.
+        //auto& fusion0(si32 i)    { return add("\033[37:", i  , csi_ccc); } // escx: Object outline boundary.
         auto& cap(qiew utf8, si32 w = 2, si32 h = 2, bool underline = true)
         {
             for (auto y = 1; y <= h; y++)
@@ -958,6 +916,7 @@ namespace netxs::ansi
     auto styled(si32 b)        { return escx{}.styled(b);     } // ansi: Enable line style reporting.
     auto style(si32 i)         { return escx{}.style(i);      } // ansi: Line style report.
     auto link(si32 i)          { return escx{}.link(i);       } // ansi: Set object id link.
+    auto cursor0(si32 i)       { return escx{}.cursor0(i);    } // ansi: Set cursor inside the cell.
     auto ref(si32 i)           { return escx{}.ref(i);        } // ansi: Create the reference to the existing paragraph. Create new id if it is not existing.
     auto idx(si32 i)           { return escx{}.idx(i);        } // ansi: Split the text run and associate the fragment with an id.
                                                                        //       All following text is under the IDX until the next command is issued.
@@ -1215,7 +1174,7 @@ namespace netxs::ansi
             * Unicode:
             * - void task(ansi::rule const& cmd);          // Proceed curses command.
             * - void meta(deco& old, deco& new);           // Proceed new style.
-            * - void data(si32 count, core::body const& proto);  // Proceed new cells.
+            * - void data(si32 width, si32 height, core::body const& proto);  // Proceed new cells.
             * SGR:
             * - void nil();                          // Reset all SGR to default.
             * - void sav();                          // Set current SGR as default.
@@ -1236,6 +1195,7 @@ namespace netxs::ansi
             * - void rlf(bool b);                    // Set reverse line feed.
             * - void rtl(bool b);                    // Set right to left text.
             * - void link(id_t i);                   // Set object id link.
+            * - void cursor0(si32 i);                // Set cursor inside the cell.
             */
 
             table_quest   .resize(0x100);
@@ -1287,8 +1247,8 @@ namespace netxs::ansi
 
                 auto& ccc = table[csi_ccc].resize(0x100);
                     ccc.template enable_multi_arg<NoMultiArg>();
-                    ccc[ccc_cup] = V{ F(ay, q.subarg(0)); F(ax, q.subarg(0)); }; // fx_ccc_cup
-                    ccc[ccc_cpp] = V{ F(py, q.subarg(0)); F(px, q.subarg(0)); }; // fx_ccc_cpp
+                    ccc[ccc_cup] = V{ F(ax, q.subarg(0)); F(ay, q.subarg(0)); }; // fx_ccc_cup
+                    ccc[ccc_cpp] = V{ F(px, q.subarg(0)); F(py, q.subarg(0)); }; // fx_ccc_cpp
                     ccc[ccc_chx] = V{ F(ax, q.subarg(0)); }; // fx_ccc_chx
                     ccc[ccc_chy] = V{ F(ay, q.subarg(0)); }; // fx_ccc_chy
                     ccc[ccc_cpx] = V{ F(px, q.subarg(0)); }; // fx_ccc_cpx
@@ -1308,11 +1268,12 @@ namespace netxs::ansi
                     ccc[ccc_rlf   ] = V{ p->style.rlf((feed)q.subarg(0)); }; // fx_ccc_rlf
                     ccc[ccc_jet_or] = V{ p->style.jet_or((bias)q.subarg(0)); }; // fx_ccc_or_jet
                     ccc[ccc_wrp_or] = V{ p->style.wrp_or((wrap)q.subarg(0)); }; // fx_ccc_or_wrp
-                    ccc[ccc_rtl_or] = V{ p->style.rtl_or((rtol)q.subarg(0)); 
+                    ccc[ccc_rtl_or] = V{ p->style.rtl_or((rtol)q.subarg(0));
                                          p->brush.rtl(p->style.rtl() == rtol::rtl); }; // fx_ccc_or_rtl
                     ccc[ccc_rlf_or] = V{ p->style.rlf_or((feed)q.subarg(0)); }; // fx_ccc_or_rlf
 
                     ccc[ccc_lnk   ] = V{ p->brush.link((id_t)q.subarg(0)); }; // fx_ccc_lnk
+                    ccc[ccc_cur   ] = V{ p->brush.cursor0(q.subarg(0)); }; // fx_ccc_cur
 
                     ccc[ccc_nop] = nullptr;
                     ccc[ccc_idx] = nullptr;
@@ -1677,7 +1638,7 @@ namespace netxs::ansi
                     }
                     else if (c == c0_bel)
                     {
-                        exec(1); 
+                        exec(1);
                         return;
                     }
                     else if (c == c0_esc)
@@ -1730,10 +1691,12 @@ namespace netxs::ansi
 
     private:
         core::body proto_cells{}; // parser: Proto lyric.
-        si32       proto_count{}; // parser: Proto lyric length.
+        si32       proto_count{}; // parser: Proto length.
+        si32       proto_depth{}; // parser: Proto height.
         //text debug{};
 
     public:
+        virtual ~parser() = default;
         parser() = default;
         parser(deco style, mark brush = {})
             : style{ style },
@@ -1760,7 +1723,8 @@ namespace netxs::ansi
             proto_cells.assign(n, c);
             auto [w, h, x, y] = c.whxy();
             auto wdt = x == 0 ? w : 1;
-            data(n * wdt, proto_cells);
+            auto hgt = y == 0 ? h : 1;
+            data(n * wdt, hgt, proto_cells);
             proto_cells.clear();
         }
         template<bool ResetStyle = true>
@@ -1782,10 +1746,11 @@ namespace netxs::ansi
         }
         void data(core& cooked)
         {
-            if (auto len = cooked.size().x)
+            auto size = cooked.size();
+            if (size.x)
             {
                 cooked.each([&](cell& c){ c.meta(brush); });
-                data(len, cooked.pick());
+                data(size.x, size.y, cooked.pick());
             }
         }
         auto& get_ansi_marker()
@@ -1793,9 +1758,21 @@ namespace netxs::ansi
             static auto marker = ansi::marker{};
             return marker;
         }
+        void check_height(si32 height)
+        {
+            if (proto_depth != height)
+            {
+                if (proto_count)
+                {
+                    flush();
+                }
+                proto_depth = height;
+            }
+        }
         void ascii(view plain)
         {
             assert(plain.length());
+            check_height(1);
             brush.txt(plain.back());
             auto start = proto_cells.size();
             proto_cells.resize(start + plain.length(), brush);
@@ -1817,6 +1794,8 @@ namespace netxs::ansi
             {
                 auto [w, h, x, y] = utf::matrix::whxy(v);
                 auto wdt = x == 0 ? w : 1;
+                auto hgt = y == 0 ? h : 1;
+                check_height(hgt);
                 proto_count += wdt;
                 brush.txt(utf8, w, h, x, y);
                 proto_cells.push_back(brush);
@@ -1860,7 +1839,7 @@ namespace netxs::ansi
         {
             if (proto_count)
             {
-                data(proto_count, proto_cells);
+                data(proto_count, proto_depth, proto_cells);
                 proto_cells.clear();
                 proto_count = 0;
             }
@@ -1871,7 +1850,7 @@ namespace netxs::ansi
             flush_data();
         }
         virtual void meta(deco const& /*old_style*/) { };
-        virtual void data(si32 /*count*/, core::body const& /*proto*/) { };
+        virtual void data(si32 /*width*/, si32 /*height*/, core::body const& /*proto*/) { };
     };
 
     // ansi: Cursor manipulation command list.
@@ -1890,8 +1869,8 @@ namespace netxs::ansi
                                 push({ fn::py, p.y }); return *this; }
         writ& cpx(si32 x)     { push({ fn::px, x   }); return *this; } // Cursor horizontal percent position.
         writ& cpy(si32 y)     { push({ fn::py, y   }); return *this; } // Cursor vertical percent position.
-        writ& cup(twod p)     { push({ fn::ay, p.y });                 // 0-Based cursor position.
-                                push({ fn::ax, p.x }); return *this; }
+        writ& cup(twod p)     { push({ fn::ax, p.x });                 // 0-Based cursor position.
+                                push({ fn::ay, p.y }); return *this; }
         writ& cuu(si32 n = 1) { push({ fn::dy,-n   }); return *this; } // Cursor up.
         writ& cud(si32 n = 1) { push({ fn::dy, n   }); return *this; } // Cursor down.
         writ& cuf(si32 n = 1) { push({ fn::dx, n   }); return *this; } // Cursor forward.

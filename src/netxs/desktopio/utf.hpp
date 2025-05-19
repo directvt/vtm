@@ -6,18 +6,6 @@
 #include "quartz.hpp"
 #include "unidata.hpp"
 
-#include <string>
-#include <string_view>
-#include <vector>
-#include <list>
-#include <map>
-#include <algorithm>
-#include <charconv>
-#include <optional>
-#include <sstream>
-#include <span>
-#include <bitset>
-
 namespace netxs
 {
     using view = std::string_view;
@@ -31,6 +19,7 @@ namespace netxs
     using namespace std::literals;
 
     static constexpr auto whitespaces = " \n\r\t"sv;
+    static constexpr auto onlydigits  = "0123456789"sv;
     static constexpr auto alphabetic  = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"sv;
     static constexpr auto base64code  = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     static constexpr auto whitespace  = ' '; // '.';
@@ -45,12 +34,45 @@ namespace netxs::utf
 {
     using ctrl = unidata::cntrls;
 
-    static constexpr auto c0_view = { "·"sv, "☺"sv, "☻"sv, "♥"sv, "♦"sv, "♣"sv, "♠"sv, "•"sv, "◘"sv, "○"sv, "◙"sv, "♂"sv, "♀"sv, "♪"sv, "♫"sv, "☼"sv,
-                                      "►"sv, "◄"sv, "↕"sv, "‼"sv, "¶"sv, "§"sv, "▬"sv, "↨"sv, "↑"sv, "↓"sv, "→"sv, "←"sv, "∟"sv, "↔"sv, "▲"sv, "▼"sv,
-                                      "⌂"sv };
-    static constexpr auto c0_wchr = { L'\0',L'☺', L'☻', L'♥', L'♦', L'♣', L'♠', L'•', L'◘', L'○', L'◙', L'♂', L'♀', L'♪', L'♫', L'☼',
-                                      L'►', L'◄', L'↕', L'‼', L'¶', L'§', L'▬', L'↨', L'↑', L'↓', L'→', L'←', L'∟', L'↔', L'▲', L'▼',
-                                      L'⌂' };
+    template<size_t N>
+    struct _str2array
+    {
+        std::array<char, N - 1> array;
+
+        template<auto... I>
+        static constexpr auto make_array(auto& arr, std::index_sequence<I...>)
+        {
+            return std::array<char, sizeof...(I)>{ arr[I]... };
+        }
+        constexpr _str2array(char const (&str)[N]) //constexpr _str2array(auto&& str)
+            : array{ make_array(str, std::make_index_sequence<sizeof(str) - 1>{}) }
+        { }
+        constexpr _str2array(std::array<char, N - 1> const& str)
+            : array{ str }
+        { }
+    };
+    template<auto M>
+    _str2array(std::array<char, M>) -> _str2array<M + 1>;
+    // Returns an array of concatenated string literals.
+    constexpr auto cat(auto&&... strs) // (const char (&...strs)[N])
+    {
+        return std::apply([](auto... c){ return std::array<char, sizeof...(c)>{ c... }; }, std::tuple_cat(std::tuple_cat(utf::_str2array{ strs }.array)...));
+    }
+
+    static constexpr auto c0_view = std::to_array({ "·"sv, "☺"sv, "☻"sv, "♥"sv, "♦"sv, "♣"sv, "♠"sv, "•"sv, "◘"sv, "○"sv, "◙"sv, "♂"sv, "♀"sv, "♪"sv, "♫"sv, "☼"sv,
+                                                    "►"sv, "◄"sv, "↕"sv, "‼"sv, "¶"sv, "§"sv, "▬"sv, "↨"sv, "↑"sv, "↓"sv, "→"sv, "←"sv, "∟"sv, "↔"sv, "▲"sv, "▼"sv,
+                                                    "⌂"sv });
+    static constexpr auto c0_wchr = std::to_array({ L'\0',L'☺', L'☻', L'♥', L'♦', L'♣', L'♠', L'•', L'◘', L'○', L'◙', L'♂', L'♀', L'♪', L'♫', L'☼',
+                                                    L'►', L'◄', L'↕', L'‼', L'¶', L'§', L'▬', L'↨', L'↑', L'↓', L'→', L'←', L'∟', L'↔', L'▲', L'▼',
+                                                    L'⌂' });
+    static constexpr auto ext_437 = std::to_array({ "Ç"sv, "ü"sv, "é"sv, "â"sv, "ä"sv, "à"sv, "å"sv, "ç"sv, "ê"sv, "ë"sv, "è"sv, "ï"sv, "î"sv, "ì"sv, "Ä"sv, "Å"sv,
+                                                    "É"sv, "æ"sv, "Æ"sv, "ô"sv, "ö"sv, "ò"sv, "û"sv, "ù"sv, "ÿ"sv, "Ö"sv, "Ü"sv, "¢"sv, "£"sv, "¥"sv, "₧"sv, "ƒ"sv,
+                                                    "á"sv, "í"sv, "ó"sv, "ú"sv, "ñ"sv, "Ñ"sv, "ª"sv, "º"sv, "¿"sv, "⌐"sv, "¬"sv, "½"sv, "¼"sv, "¡"sv, "«"sv, "»"sv,
+                                                    "░"sv, "▒"sv, "▓"sv, "│"sv, "┤"sv, "╡"sv, "╢"sv, "╖"sv, "╕"sv, "╣"sv, "║"sv, "╗"sv, "╝"sv, "╜"sv, "╛"sv, "┐"sv,
+                                                    "└"sv, "┴"sv, "┬"sv, "├"sv, "─"sv, "┼"sv, "╞"sv, "╟"sv, "╚"sv, "╔"sv, "╩"sv, "╦"sv, "╠"sv, "═"sv, "╬"sv, "╧"sv,
+                                                    "╨"sv, "╤"sv, "╥"sv, "╙"sv, "╘"sv, "╒"sv, "╓"sv, "╫"sv, "╪"sv, "┘"sv, "┌"sv, "█"sv, "▄"sv, "▌"sv, "▐"sv, "▀"sv,
+                                                    "α"sv, "ß"sv, "Γ"sv, "π"sv, "Σ"sv, "σ"sv, "µ"sv, "τ"sv, "Φ"sv, "Θ"sv, "Ω"sv, "δ"sv, "∞"sv, "φ"sv, "ε"sv, "∩"sv,
+                                                    "≡"sv, "±"sv, "≥"sv, "≤"sv, "⌠"sv, "⌡"sv, "÷"sv, "≈"sv, "°"sv, "∙"sv, "·"sv, "√"sv, "ⁿ"sv, "²"sv, "■"sv, "·"sv, });
     static constexpr auto replacement_code = utfx{ 0x0000'FFFD };
     static constexpr auto vs04_code = utfx{ 0x0000'FE03 };
     static constexpr auto vs05_code = utfx{ 0x0000'FE04 };
@@ -91,9 +113,12 @@ namespace netxs::utf
     // utf: Unicode Character Size Modifiers
     namespace matrix
     {
+        static constexpr auto x_bits = (byte)0b0001'1111; // Character geometry x fragment selector bits (for mosaic_mask).
+        static constexpr auto y_bits = 5; // y-fragment selector bits offset.
         template<si32 xxy>
-        static auto mosaic = []{ return xxy / 10 + ((xxy % 10) << 5); }();
+        static auto mosaic = []{ return xxy / 10 + ((xxy % 10) << y_bits); }();
         static auto p = [](auto x){ return x * (x + 1) / 2; }; // ref: https://github.com/directvt/vtm/assets/11535558/88bf5648-533e-4786-87de-b3dc4103273c
+        static constexpr auto stx = utfx{ 0x02 }; // Custom cluster initiator (STX).
         static constexpr auto kx = 16;
         static constexpr auto ky = 4;
         static constexpr auto mx = p(kx + 1);
@@ -114,6 +139,8 @@ namespace netxs::utf
         static constexpr auto vs_code = vs_block + vs<wwh, xxy>;
         template<si32 wwh, si32 xxy = 0, auto code = vs_code<wwh, xxy>>
         static constexpr auto vss = utf8view<code>;
+        static constexpr auto min_vs_code = vs_code<00, 00>;
+        static constexpr auto max_vs_code = vs_code<164, 164>;
 
         auto vs_runtime(si32 w, si32 h, si32 x = {}, si32 y = {})
         {
@@ -184,20 +211,18 @@ namespace netxs::utf
         {
             if (next.utf8len && unidata::allied(next))
             {
-                if (next.cdpoint >= matrix::vs_code<00, 00> && next.cdpoint <= matrix::vs_code<164, 164>) // Set matrix size and drop VS-wh_xy modificator.
+                if (next.cdpoint >= matrix::min_vs_code && next.cdpoint <= matrix::max_vs_code) // Set matrix size.
                 {
                     cmatrix = (si32)(next.cdpoint - matrix::vs_block);
+                    return 0_sz;
                 }
-                else
+                else if (next.ucwidth > unidata::ucwidth)
                 {
-                    if (next.ucwidth > unidata::ucwidth)
-                    {
-                        unidata::ucwidth = next.ucwidth;
-                        cmatrix = mtx[unidata::ucwidth];
-                    }
-                    utf8len += next.utf8len;
-                    cpcount += 1;
+                    unidata::ucwidth = next.ucwidth;
+                    cmatrix = mtx[unidata::ucwidth];
                 }
+                utf8len += next.utf8len;
+                cpcount += 1;
                 return 0_sz;
             }
             else
@@ -206,27 +231,6 @@ namespace netxs::utf
             }
         }
     };
-
-    // utf: First byte based UTF-8 codepoint lengths.
-    static constexpr auto utf8lengths = std::to_array(
-    {   //      0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
-        /* 0 */ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        /* 1 */ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        /* 2 */ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        /* 3 */ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        /* 4 */ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        /* 5 */ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        /* 6 */ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        /* 7 */ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        /* 8 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        /* 9 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        /* A */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        /* B */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        /* C */ 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-        /* D */ 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-        /* E */ 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-        /* F */ 4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    });
 
     // utf: Codepoint iterator.
     struct cpit
@@ -274,82 +278,91 @@ namespace netxs::utf
             {
                 auto data = reinterpret_cast<byte const*>(textptr);
                 cp = *data;
-                switch (utf8lengths[cp])
+                // First byte based UTF-8 codepoint lengths.
+                if (cp < 0x80) // : len = 1
                 {
-                    case 1:
-                        utf8len = 1U;
-                        break;
-                    case 0:
-                        return prop(utf8len = 1);
-                        break;
-                    case 2:
-                        if (balance > 1)
+                    utf8len = 1U;
+                }
+                else if (cp < 0xC2) // : len = 0
+                {
+                    return prop(utf8len = 1);
+                }
+                else if (cp < 0xE0) // : len = 2
+                {
+                    if (balance > 1)
+                    {
+                        if (c2 = *++data; (c2 & 0xC0) == 0x80)
                         {
-                            if (c2 = *++data; (c2 & 0xC0) == 0x80)
-                            {
-                                utf8len = 2U;
-                                cp = ((cp & 0b00011111) << 6)
-                                    | (c2 & 0b00111111);
-                            }
-                            else return prop(utf8len = 1);
+                            utf8len = 2U;
+                            cp = ((cp & 0b00011111) << 6)
+                                | (c2 & 0b00111111);
                         }
                         else return prop(utf8len = 1);
-                        break;
-                    case 3:
-                        if (balance > 2)
+                    }
+                    else return prop(utf8len = 1);
+                }
+                else if (cp < 0xF0) // : len = 3
+                {
+                    if (balance > 2)
+                    {
+                        if (c2 = *++data; (c2 & 0xC0) == 0x80)
                         {
-                            if (c2 = *++data; (c2 & 0xC0) == 0x80)
+                            if (c3 = *++data; (c3 & 0xC0) == 0x80)
                             {
-                                if (c3 = *++data; (c3 & 0xC0) == 0x80)
-                                {
-                                    utf8len = 3U;
-                                    cp = ((cp & 0b00001111) << 12)
-                                        |((c2 & 0b00111111) << 6)
-                                        | (c3 & 0b00111111);
+                                utf8len = 3U;
+                                cp = ((cp & 0b00001111) << 12)
+                                    |((c2 & 0b00111111) << 6)
+                                    | (c3 & 0b00111111);
 
-                                    if (cp >= 0xfdd0 && (cp < 0xfdf0 || ((cp & 0xfffe) == 0xfffe)))
+                                if (cp >= 0xfdd0 && (cp < 0xfdf0 || ((cp & 0xfffe) == 0xfffe)))
+                                {
+                                    return prop(utf8len);
+                                }
+                            }
+                            else return prop(utf8len = 2);
+                        }
+                        else return prop(utf8len = 1);
+                    }
+                    else return prop(utf8len = balance);
+                }
+                else if (cp < 0xF5) // : len = 4
+                {
+                    if (balance > 3)
+                    {
+                        if (c2 = *++data; (c2 & 0xC0) == 0x80)
+                        {
+                            if (c3 = *++data; (c3 & 0xC0) == 0x80)
+                            {
+                                if (c4 = *++data; (c4 & 0xC0) == 0x80)
+                                {
+                                    utf8len = 4U;
+                                    cp = ((cp & 0b00000111) << 18)
+                                        |((c2 & 0b00111111) << 12)
+                                        |((c3 & 0b00111111) << 6)
+                                        | (c4 & 0b00111111);
+
+                                    if (cp > 0x10ffff)
                                     {
                                         return prop(utf8len);
                                     }
                                 }
-                                else return prop(utf8len = 2);
+                                else return prop(utf8len = 3);
                             }
-                            else return prop(utf8len = 1);
+                            else return prop(utf8len = 2);
                         }
-                        else return prop(utf8len = balance);
-                        break;
-                    default: // case 4
-                        if (balance > 3)
-                        {
-                            if (c2 = *++data; (c2 & 0xC0) == 0x80)
-                            {
-                                if (c3 = *++data; (c3 & 0xC0) == 0x80)
-                                {
-                                    if (c4 = *++data; (c4 & 0xC0) == 0x80)
-                                    {
-                                        utf8len = 4U;
-                                        cp = ((cp & 0b00000111) << 18)
-                                            |((c2 & 0b00111111) << 12)
-                                            |((c3 & 0b00111111) << 6)
-                                            | (c4 & 0b00111111);
-
-                                        if (cp > 0x10ffff)
-                                        {
-                                            return prop(utf8len);
-                                        }
-                                    }
-                                    else return prop(utf8len = 3);
-                                }
-                                else return prop(utf8len = 2);
-                            }
-                            else return prop(utf8len = 1);
-                        }
-                        else return prop(utf8len = balance);
-                        break;
+                        else return prop(utf8len = 1);
+                    }
+                    else return prop(utf8len = balance);
+                }
+                else //if (cp <= 0xFF) : len = 0
+                {
+                    return prop(utf8len = 1);
                 }
             }
-            else return prop(utf8len = 0);
-
+            else
+            {
+                return prop(utf8len = 0);
+            }
             return prop(cp, utf8len);
         }
         auto next()
@@ -377,15 +390,15 @@ namespace netxs::utf
                     if constexpr (AllowControls) return frag{ view(code.textptr, code.utf8len), next };
                     else
                     {
-                        if (next.cdpoint == 0x02 /*ansi::c0_stx*/) // Custom cluster initiator.
+                        if (next.cdpoint == matrix::stx)
                         {
+                            auto head = code.textptr;
+                            auto utf8len = next.utf8len;
+                            auto cpcount = 1; // STX
                             code.step();
                             next = code.take();
-                            auto head = code.textptr;
-                            auto left = next;
-                            auto utf8len = 0_sz;
-                            auto cpcount = 0;
-                            while (next.correct && (next.cdpoint < matrix::vs_code<00, 00> || next.cdpoint > matrix::vs_code<164, 164>)) // Eat all until VS.
+                            auto left = next; // Base char in cluster.
+                            while (next.correct && (next.cdpoint < matrix::min_vs_code || next.cdpoint > matrix::max_vs_code)) // Eat all until VS.
                             {
                                 utf8len += next.utf8len;
                                 cpcount += 1;
@@ -443,16 +456,67 @@ namespace netxs::utf
     {
         return frag::take_cluster<AllowControls>(utf8);
     }
-
-    // utf: Break the text into the enriched grapheme clusters.
-    //      Forward the result to the dest using the "serve" and "yield" lambdas.
-    //      serve: Handle escaped control sequences.
+    // utf: Break the text into the grapheme clusters.
+    void decode_clusters(view utf8, auto yield)
+    {
+        if (auto code = cpit{ utf8 })
+        {
+            auto next = code.take();
+            do
+            {
+                if (next.is_cmd())
+                {
+                    auto head = code.textptr;
+                    //auto crop = frag{ view(head, next.utf8len), next };
+                    auto crop = view(head, next.utf8len);
+                    if (!yield(crop)) return;
+                    code.step();
+                    next = code.take();
+                }
+                else
+                {
+                    auto head = code.textptr;
+                    auto left = next;
+                    do
+                    {
+                        code.step();
+                        if (next.correct)
+                        {
+                            if (!code || (next = code.take(), left.combine(next)))
+                            {
+                                //auto crop = frag{ view(head, left.utf8len), left };
+                                auto crop = view(head, left.utf8len);
+                                if (!yield(crop)) return;
+                                break;
+                            }
+                        }
+                        else
+                        {
+                            //next.utf8len = left.utf8len;
+                            //auto crop = frag{ replacement, next };
+                            auto crop = replacement;
+                            if (!yield(crop)) return;
+                            next = code.take();
+                            break;
+                        }
+                    }
+                    while (true);
+                }
+            }
+            while (code);
+        }
+    }
+    // utf: Break the text into the grapheme clusters.
+    //      Forward the result using the callable "serve" and "yield".
+    //      serve: Processes controls and returns the rest of the utf8.
     //             auto s = [&](utf::prop const& traits, view utf8) -> view;
-    //      yield: Handle grapheme clusters.
+    //      yield: Processes clusters.
     //             auto y = [&](frag const& cluster){};
-    //      Clusterize: parse by grapheme clusters (true) or codepoints (faux)
-    template<bool Clusterize = true, class S, class Y, class A>
-    void decode(S serve, Y yield, A ascii, view utf8, si32& decsg)
+    //      ascii: Processes ASCII chars (fast forward).
+    //             auto a = [&](frag const& cluster){};
+    //      Clusterize: Decode cluster-by-cluster (if true) or codepoint-by-codepoint (if faux).
+    template<bool Clusterize = true>
+    void decode(auto serve, auto yield, auto ascii, view utf8, si32& decsg)
     {
         static const auto dec_sgm_lookup = std::vector<frag> // DEC Special Graphics mode lookup table.
         {//  _      `      a      b       c       d       e      f      g      h       i       j      k      l      m      n     o       p      q      r      s      t      u      v      w      x      y      z      {      |      }      ~                                 };
@@ -465,16 +529,16 @@ namespace netxs::utf
             {
                 if (next.is_cmd())
                 {
-                    code.step();
-                    auto custom_cluster_initiator = Clusterize && next.cdpoint == 0x02/*ansi::c0_stx*/ && code;
+                    auto custom_cluster_initiator = Clusterize && next.cdpoint == matrix::stx && code.balance > 1;
                     if (custom_cluster_initiator)
                     {
-                        next = code.take();
                         auto rest = code.rest();
-                        auto left = next;
-                        auto utf8len = 0_sz;
-                        auto cpcount = 0;
-                        while (next.correct && (next.cdpoint < matrix::vs_code<00, 00> || next.cdpoint > matrix::vs_code<164, 164>)) // Eat all until VS.
+                        auto utf8len = next.utf8len;
+                        auto cpcount = 1; // STX
+                        code.step();
+                        next = code.take();
+                        auto left = next; // Base char in cluster.
+                        while (next.correct && (next.cdpoint < matrix::min_vs_code || next.cdpoint > matrix::max_vs_code)) // Eat all until VS.
                         {
                             utf8len += next.utf8len;
                             cpcount += 1;
@@ -488,10 +552,10 @@ namespace netxs::utf
                             left.cmatrix = next.cdpoint - matrix::vs_block;
                             auto crop = frag{ rest.substr(0, left.utf8len), left };
                             yield(crop);
-                            code.step(); // Drop VS codepoint.
+                            code.step();
                             next = code.take();
                         }
-                        else // Silently ignore STX.
+                        else // Broken cluster. Silently ignore STX.
                         {
                             code.redo(rest.substr(1));
                             next = left;
@@ -499,6 +563,7 @@ namespace netxs::utf
                     }
                     else // Proceed general control.
                     {
+                        code.step();
                         auto rest = code.rest();
                         auto chars = serve(next, rest);
                         code.redo(chars);
@@ -598,6 +663,32 @@ namespace netxs::utf
             while (code);
         }
     }
+    auto codepoint_count(auto&& cluster)
+    {
+        auto count = 0;
+        auto head = std::begin(cluster);
+        auto tail = std::end(cluster);
+        while (head != tail)
+        {
+            auto c = *head++;
+            if ((c & 0xC0) != 0x80) ++count;
+        }
+        return count;
+    }
+    void reverse_clusters(view utf8, auto& dest)
+    {
+        auto rest = (si32)utf8.size();
+        dest.resize(dest.size() + rest);
+        auto a = dest.end();
+        utf::decode_clusters(utf8, [&](auto cluster)
+        {
+            rest -= (si32)cluster.size();
+            if (rest < 0) return faux;
+            auto b = std::exchange(a, a - cluster.size());
+            dest.replace(a, b, cluster);
+            return true;
+        });
+    }
 
     struct qiew : public view
     {
@@ -608,9 +699,9 @@ namespace netxs::utf
         {
             using is_transparent = void;
             using hash_type = std::hash<view>;
-            auto operator()(text const& s) const { return hash_type{}(s); }
-            auto operator()(char const* s) const { return hash_type{}(s); }
-            auto operator()(view s)        const { return hash_type{}(s); }
+            auto operator () (text const& s) const { return hash_type{}(s); }
+            auto operator () (char const* s) const { return hash_type{}(s); }
+            auto operator () (view s)        const { return hash_type{}(s); }
         };
 
         constexpr qiew(qiew const&) = default;
@@ -690,6 +781,10 @@ namespace netxs::utf
             return faux;
         }
     };
+
+    template<class Key, class Val>
+    using unordered_map = std::unordered_map<Key, Val, qiew::hash, qiew::equal>;
+
 
     template<class A = si32, si32 Base = 10, class View, class = std::enable_if_t<std::is_base_of_v<view, View>>>
     std::optional<A> to_int(View& ascii)
@@ -1369,7 +1464,7 @@ namespace netxs::utf
     }
     template<class ...Args>
     auto& operator << (auto&& s, std::list<Args...> const& list)
-    { 
+    {
         s << "{ ";
         for (auto delim = ""; auto& item : list) s << std::exchange(delim, ", ") << item;
         s << " }";
@@ -1558,13 +1653,54 @@ namespace netxs::utf
             do
             {
                 auto c = next.cdpoint;
-                if (c < 0x20 || c == 0x7F) buff += *(utf::c0_view.begin() + std::min<size_t>(c, utf::c0_view.size() - 1));
-                else                       buff += view(code.textptr, code.utf8len);
+                     if (c < 0x20)  buff += utf::c0_view[c];
+                else if (c == 0x7F) buff += utf::c0_view[0x20];
+                else                buff += view(code.textptr, code.utf8len);
                 code.step();
                 next = code.take();
             }
             while (code);
         }
+    }
+    // utf: Replace all bytes with "cp437" glyphs.
+    auto debase437bytes(qiew utf8, text& buff)
+    {
+        for (byte c : utf8)
+        {
+                 if (c < 0x20)  buff += utf::c0_view[c];
+            else if (c == 0x7F) buff += utf::c0_view[0x20];
+            else if (c < 0x7F)  buff += c;
+            else                buff += utf::ext_437[c - 0x80];
+        }
+    }
+    // utf: Replace all bytes with "cp437" glyphs.
+    auto debase437bytes(qiew utf8)
+    {
+        auto buff = text{};
+        debase437bytes(utf8, buff);
+        return buff;
+    }
+    // utf: Replace all bytes with colored blocks.
+    auto bytes2shades(qiew utf8)
+    {
+        assert(utf8.size() % 2 == 0);
+        auto buff = text{};
+        auto bstr = text{};
+        auto gstr = text{};
+        buff += "\x1b[#{";
+        auto head = utf8.begin();
+        auto tail = utf8.end();
+        while (head != tail)
+        {
+            auto g = *head++;
+            auto b = *head++;
+            gstr = std::to_string(g);
+            bstr = std::to_string(b);
+            buff += "\x1b[38:2:32:" + gstr + ":128m";
+            buff += "\x1b[48:2:32:128:" + bstr + "m▐";
+        }
+        buff += "\x1b[#}";
+        return buff;
     }
     // utf: Return a string without control chars (replace all ctrls with "cp437" glyphs).
     auto debase437(qiew utf8)
@@ -1665,6 +1801,11 @@ namespace netxs::utf
         while (!utf8.empty() && utf8.front() == space) utf8.remove_prefix(1);
         while (!utf8.empty() && utf8. back() == space) utf8.remove_suffix(1);
         return utf8;
+    }
+    auto trim_all(view& utf8, view delims)
+    {
+        trim_front(utf8, delims);
+        trim_back (utf8, delims);
     }
     auto trim(view utf8, view delims)
     {

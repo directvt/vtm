@@ -7,10 +7,42 @@
 #include "events.hpp"
 #include "xml.hpp"
 
-#include <future>
-
 namespace netxs
 {
+    namespace basename
+    {
+        #define ctx_list  \
+            X(applet    ) \
+            X(cake      ) \
+            X(defapp    ) \
+            X(desktop   ) \
+            X(dtvt      ) \
+            X(edit      ) \
+            X(fork      ) \
+            X(gear      ) \
+            X(gate      ) \
+            X(grid      ) \
+            X(grip      ) \
+            X(gui_window) \
+            X(item      ) \
+            X(infopage  ) \
+            X(list      ) \
+            X(mock      ) \
+            X(postfx    ) \
+            X(rail      ) \
+            X(taskbar   ) \
+            X(terminal  ) \
+            X(tile      ) \
+            X(veer      ) \
+            X(vtm       ) \
+            X(window    ) \
+    
+        #define X(name) static constexpr auto name = #name##sv;
+        ctx_list
+        #undef X
+        #undef ctx_list
+    }
+
     struct eccc
     {
         text env{}; // eccc: Environment var list delimited by \0.
@@ -37,7 +69,7 @@ namespace netxs
         static constexpr auto resetwheelaccum = __COUNTER__ - _counter;
         static constexpr auto toggleaamode    = __COUNTER__ - _counter;
         static constexpr auto focusnextwindow = __COUNTER__ - _counter;
-        static constexpr auto alwaysontop     = __COUNTER__ - _counter;
+        static constexpr auto zorder          = __COUNTER__ - _counter;
         static constexpr auto warpwindow      = __COUNTER__ - _counter;
     };
     struct winstate
@@ -85,13 +117,12 @@ namespace netxs::events::userland
 {
     namespace e2
     {
-        EVENTPACK( netxs::events::userland::root::base )
+        using name_ref = std::pair<text, ui::wptr>;
+        EVENTPACK( e2, netxs::events::userland::seed::e2 )
         {
             EVENT_XS( postrender, ui::face       ), // release: UI-tree post-rendering. Draw debug overlay, maker, titles, etc.
             EVENT_XS( shutdown  , const text     ), // general: Server shutdown.
             EVENT_XS( area      , rect           ), // release: Object rectangle.
-            EVENT_XS( runscript , input::hids    ), // preview: Pass script activated by gear to the ui::host. release: Run script on objects in context. request: Restore scripting context.
-            EVENT_XS( luafx     , lua_State*     ), // release: Handle lua __call.
             GROUP_XS( extra     , si32           ), // Event extension slot.
             GROUP_XS( timer     , time           ), // Timer tick, arg: current moment (now).
             GROUP_XS( render    , ui::face       ), // release: UI-tree rendering.
@@ -269,7 +300,7 @@ namespace netxs::events::userland
                 SUBSET_XS( upon )
                 {
                     EVENT_XS( created, input::hids ), // release: Notify the instance of who created it.
-                    EVENT_XS( started, ui::sptr    ), // release: Notify the instance is commissioned. arg: visual root.
+                    EVENT_XS( started, ui::sptr    ), // release: Notify the instance is commissioned. arg: root_ptr (anycast root).
                     EVENT_XS( resized, const rect  ), // anycast: Notify about the actual window area.
                     EVENT_XS( changed, twod        ), // Event after resize, arg: diff bw old and new size.
                     EVENT_XS( dragged, input::hids ), // Event after drag.
@@ -460,7 +491,7 @@ namespace netxs::events::userland
                 };
                 SUBSET_XS( state )
                 {
-                    EVENT_XS( mouse    , si32       ), // Notify if mouse is active or not. The form is active when the number of clients (form::eventa::mouse::enter - mouse::leave) is not zero, only release.
+                    EVENT_XS( mouse    , bool       ), // Notify if mouse is active or not. The form is active when the number of clients (form::eventa::mouse::enter - mouse::leave) is not zero, only release.
                     EVENT_XS( hover    , si32       ), // Notify how many mouse cursors are hovering, si32 - number of cursors.
                     EVENT_XS( color    , ui::tone   ), // Notify has changed tone, preview to set.
                     EVENT_XS( highlight, bool       ),
@@ -497,12 +528,6 @@ namespace netxs::events::userland
 namespace netxs::ui
 {
     namespace e2 = netxs::events::userland::e2;
-
-    // controls: UI extensions.
-    namespace pro
-    {
-        struct skill;
-    }
 
     //todo reimplement
     struct skin
@@ -620,7 +645,22 @@ namespace netxs::ui
         bool locked; // base: Object has fixed size.
         bool master; // base: Anycast root.
         si32 family; // base: Object type.
-        std::unordered_map<text, netxs::sptr<std::any>, qiew::hash, qiew::equal> fields;
+        utf::unordered_map<text, netxs::sptr<std::any>> fields;
+
+        struct base_class
+        {
+            netxs::sptr<vtm_class>                   class_metadata; // base: Base class metadata.
+            netxs::events::vtm_class::list::iterator class_iterator; // base: class_metadata.objects std::list iterator.
+        };
+        utf::unordered_map<text, base_class> base_classes; // base: Base classes map by classname.
+        netxs::events::context_t             scripting_context; // base: List of ids of all ancestors.
+
+        struct mfocus_node
+        {
+            wptr gear_wptr;
+            wptr next_wptr;
+        };
+        std::vector<mfocus_node> mouse_focus; // base: Mouse focus (hovering).
 
         template<class T = base>
         auto   This()       { return std::static_pointer_cast<std::remove_reference_t<T>>(shared_from_this()); }
@@ -635,24 +675,98 @@ namespace netxs::ui
         auto parent()       { return father.lock();        }
         void ruined(bool s) { wasted = s;                  }
         auto ruined() const { return wasted;               }
-        // base: Cleanup weak references.
-        auto cleanup()
+        // base: Return sptr of the object by its id.
+        template<class T = base>
+        auto getref(id_t id)
+        {
+            auto lock = bell::sync();
+            auto iter = bell::indexer.objects.find(id);
+            if (iter != bell::indexer.objects.end())
+            {
+                auto boss_ptr = iter->second.get().This<T>();
+                return boss_ptr;
+            }
+            return netxs::sptr<T>{};
+        }
+        // base: Update scripting context. Run on anycast, e2::form::upon::started.
+        void update_scripting_context()
+        {
+            if (auto parent_ptr = base::parent())
+            {
+                base::scripting_context = parent_ptr->scripting_context;
+            }
+            base::scripting_context.emplace_back(this);
+            //todo Sort all base::base_classes.* references.
+            //for (auto& [classname, base_class_metadata] : base_classes)
+            //{
+            //    if (base_class_metadata.class_metadata)
+            //    {
+            //        auto& objects = base_class_metadata.class_metadata->objects;
+            //        auto objects_iterator = base_class_metadata.class_iterator;
+            //        auto head = objects.begin();
+            //        auto tail = objects.end();
+            //        auto next = std::next(objects_iterator);
+            //        if (next != tail)
+            //        {
+            //            // Find valid next.
+            //        }
+            //        if (objects_iterator != head)
+            //        {
+            //            // Find valid prev.
+            //            auto prev = std::prev(objects_iterator);
+            //        }
+            //    }
+            //}
+        }
+        // base: Enqueue task.
+        template<bool Sync = true>
+        void enqueue(netxs::events::fx<ui::base> proc)
+        {
+            bell::indexer.enqueue<Sync>(weak_from_this(), std::move(proc));
+        }
+        // base: Clear task queue.
+        void dequeue()
+        {
+            indexer.stop();
+        }
+        // base: Cleanup expired weak references.
+        auto _cleanup()
         {
             auto ref_count = ui64{};
             auto del_count = ui64{};
-            for (auto& [item_id, item_wptr] : indexer.store)
+            for (auto& [item_id, item_ref] : bell::indexer.objects)
             {
-                if (auto item_ptr = item_wptr.lock())
+                auto& item = item_ref.get();
+                bell::indexer._cleanup(item.reactor, ref_count, del_count);
+            }
+            bell::indexer._cleanup(bell::indexer.general, ref_count, del_count);
+            return std::pair{ ref_count, del_count };
+        }
+        // base: Cleanup expired weak references.
+        void cleanup(bool show_details = faux)
+        {
+            if (show_details)
+            {
+                auto start = datetime::now();
+                auto [ref_count, del_count] = base::_cleanup();
+                auto stop = datetime::now() - start;
+                log(prompt::base, "Cleanup expired weak references",
+                    "\n\ttime ", utf::format(stop.count()), "ns",
+                    "\n\tobjs ", bell::indexer.objects.size(),
+                    "\n\trefs ", ref_count,
+                    "\n\tdels ", del_count);
+                log("  Classes count: ", indexer.classes.size());
+                for (auto& [k, v] : indexer.classes)
                 {
-                    auto& item = *item_ptr;
-                    item.preview.cleanup(ref_count, del_count);
-                    item.request.cleanup(ref_count, del_count);
-                    item.release.cleanup(ref_count, del_count);
-                    item.anycast.cleanup(ref_count, del_count);
+                    log("\t'%classname%' count %%, \tmethods: %%", k, v->objects.size(), v->methods.size());
+                    for (auto& boss_ref : v->objects)
+                    {
+                        auto& boss = boss_ref.get();
+                        log("context: %ctx%", netxs::events::script_ref::to_string(boss.scripting_context));
+                    }
                 }
             }
-            general.cleanup(ref_count, del_count);
-            return std::pair{ ref_count, del_count };
+            else base::_cleanup();
         }
         // base: Find the root of the visual tree.
         auto gettop()
@@ -665,17 +779,30 @@ namespace netxs::ui
             }
             return parent_ptr;
         }
-        void broadcast(hint event, auto& param)
+        // base: Fire an event for all nested objects (except those with base::master == true).
+        void broadcast(si32 Tier, hint event, auto&& param, bool forced = true)
         {
             auto lock = bell::sync();
-            anycast.notify(event, param);
+            bell::_signal(Tier, event, param);
             for (auto item_ptr : base::subset)
             {
-                if (item_ptr && !item_ptr->master)
+                if (item_ptr && (forced || !item_ptr->master))
                 {
-                    item_ptr->broadcast(event, param);
+                    item_ptr->broadcast(Tier, event, param, forced);
                 }
             }
+        }
+        template<class Event>
+        void broadcast(si32 Tier, Event, auto&& param, bool forced = true)
+        {
+            auto lock = bell::sync();
+            base::broadcast(Tier, Event::id, param, forced);
+        }
+        template<class Event>
+        void broadcast(si32 Tier, Event)
+        {
+            auto lock = bell::sync();
+            base::broadcast(Tier, Event::id, Event::param());
         }
         auto signal(si32 Tier, hint event, auto& param)
         {
@@ -683,9 +810,9 @@ namespace netxs::ui
             if (Tier == tier::anycast)
             {
                 auto root_ptr = gettop();
-                root_ptr->broadcast(event, param);
+                root_ptr->broadcast(Tier, event, param, faux);
             }
-            else reactors[Tier]->notify(event, param);
+            else bell::_signal(Tier, event, param);
         }
         // base: Fire an event.
         // Usage example:
@@ -869,15 +996,6 @@ namespace netxs::ui
             }
             parent_ptr->change(parent_ptr->base::region + parent_ptr->base::extpad);
         }
-        // base: Remove the form from the visual tree.
-        void detach()
-        {
-            if (auto parent_ptr = base::parent())
-            {
-                base::strike();
-                parent_ptr->remove(This());
-            }
-        }
         // base: Calculate global coordinate.
         void global(auto& coor)
         {
@@ -908,13 +1026,13 @@ namespace netxs::ui
                     parent_ptr = parent_ptr->base::parent();
                 }
             }
-            else if (!bell::accomplished(Tier))
+            else if (!bell::accomplished())
             {
                 auto parent_ptr = base::parent();
                 while (parent_ptr)
                 {
                     parent_ptr->base::signal(Tier, event_id, param);
-                    if (parent_ptr->bell::accomplished(Tier)) break;
+                    if (parent_ptr->bell::accomplished()) break;
                     parent_ptr = parent_ptr->base::parent();
                 }
             }
@@ -958,7 +1076,7 @@ namespace netxs::ui
         auto plugin_name()
         {
             static auto name = []{ auto name_ptr = std::type_index(typeid(T)).name();
-                                   return qiew{ name_ptr, std::strlen(name_ptr) + 1/*include trailing null*/ }; }();
+                                   return qiew{ name_ptr, std::strlen(name_ptr) + 1/*include the trailing null to make it inaccessible to field users*/ }; }();
             return name;
         }
         // base: Detach the specified plugin.
@@ -974,14 +1092,20 @@ namespace netxs::ui
         }
         // base: Return a reference to a plugin of the specified type. Create an instance of the specified plugin using the specified arguments if it does not exist.
         template<class T, class ...Args>
-        auto& plugin(Args&&... args)
+        auto& _plugin(auto& boss, Args&&... args)
         {
             auto iter = fields.find(plugin_name<T>());
             if (iter == fields.end())
             {
-                iter = fields.emplace(plugin_name<T>(), ptr::shared(std::make_any<T>(*this, std::forward<Args>(args)...))).first;
+                iter = fields.emplace(plugin_name<T>(), ptr::shared(std::make_any<T>(boss, std::forward<Args>(args)...))).first;
             }
             return *(std::any_cast<T>(iter->second.get()));
+        }
+        // base: Return a reference to a plugin of the specified type. Create an instance of the specified plugin using the specified arguments if it does not exist.
+        template<class T, class ...Args>
+        auto& plugin(Args&&... args)
+        {
+            return _plugin<T>(*this, std::forward<Args>(args)...);
         }
         // base: Allocate an anonymous property.
         template<class T = text>
@@ -1029,19 +1153,49 @@ namespace netxs::ui
                 {
                     prop = new_value;
                 }
-                boss.bell::expire(Tier, true);
+                boss.bell::passover();
             };
             return prop;
         }
-        // base: Render to the canvas. Trim = trim viewport to the nested object region.
-        template<bool Forced = faux>
-        void render(face& canvas, bool trim = true, bool pred = true, bool post = true)
+        // base: Register object methods.
+        auto add_methods(qiew classname, fxmap&& proc_map_init)
         {
-            if (hidden) return;
-            if (auto context = canvas.change_basis<Forced>(base::region, trim)) // Basis = base::region.coor.
+            bell::indexer.add_base_class(classname, *this);
+            auto& methods = base::property<fxmap>("methods");
+            //todo auto& static_methods = base_classes.class_metadata->methods;
+            methods.merge(proc_map_init);
+            if (proc_map_init.size())
             {
-                if (pred) base::signal(tier::release, e2::render::background::prerender, canvas);
-                if (post) base::signal(tier::release, e2::postrender, canvas);
+                log("%%The following functions are not activated for '%%':", prompt::lua, classname);
+                for (auto& [fx_name, val] : proc_map_init)
+                {
+                    log("%%%fx_name%", prompt::pads, ansi::hi(".", fx_name, "()"));
+                }
+            }
+        }
+        // base: .
+        void call_method(view fx_name)
+        {
+            auto& methods = base::property<fxmap>("methods");
+            auto iter = methods.find(fx_name);
+            if (iter != methods.end())
+            {
+                auto& fx = iter->second;
+                fx(); // After call, all values in the stack will be returned as a result.
+            }
+            else
+            {
+                auto object_name = utf::concat("object<", bell::id, ">");
+                log("%%Function %fx_name% not found (%object%)", prompt::lua, ansi::hi("vtm.", "instname", ".", fx_name, "()"), object_name);
+            }
+        }
+        // base: Remove the form from the visual tree.
+        void detach()
+        {
+            if (auto parent_ptr = base::parent())
+            {
+                base::strike();
+                parent_ptr->remove(This());
             }
         }
         // base: Attach nested object.
@@ -1077,8 +1231,6 @@ namespace netxs::ui
             {
                 auto backup = This();
                 subset.erase(std::exchange(item_ptr->holder, subset.end()));
-                //todo revise (see pro::mouse::reset(soul))
-                //item_ptr->father = {};
                 item_ptr->base::signal(tier::release, e2::form::upon::vtree::detached, backup);
                 item_ptr->relyon.clear();
             }
@@ -1092,8 +1244,6 @@ namespace netxs::ui
                 *(old_item_ptr->holder) = new_item_ptr;
                 new_item_ptr->holder = std::exchange(old_item_ptr->holder, subset.end());
                 new_item_ptr->father = This();
-                //todo revise (see pro::mouse::reset(soul))
-                //old_item_ptr->father = {};
                 old_item_ptr->base::signal(tier::release, e2::form::upon::vtree::detached, backup);
                 old_item_ptr->relyon.clear();
                 new_item_ptr->base::signal(tier::release, e2::form::upon::vtree::attached, backup);
@@ -1117,6 +1267,42 @@ namespace netxs::ui
             while (subset.size())
             {
                 pop_back();
+            }
+        }
+        // base: Render to the canvas. Trim = trim viewport to the nested object region.
+        template<bool Forced = faux>
+        void render(face& canvas, bool trim = true, bool pred = true, bool post = true)
+        {
+            if (hidden) return;
+            if (auto context2D = canvas.change_basis<Forced>(base::region, trim)) // Basis = base::region.coor.
+            {
+                if (pred) base::signal(tier::release, e2::render::background::prerender, canvas);
+                if (post) base::signal(tier::release, e2::postrender, canvas);
+            }
+        }
+        // base: Subscribe on/onpreview mouse events.
+        void on(si32 Tier, si32 event_id, subs& tokens, auto handler)
+        {
+            bell::submit_generic(Tier, event_id, tokens, netxs::events::fx<ptr::arg0<decltype(handler)>>{ std::move(handler) });
+        }
+        void on(si32 Tier, si32 event_id, hook& token, auto handler)
+        {
+            token = std::move(handler);
+            bell::dup_handler(Tier, event_id, token);
+        }
+        void on(si32 Tier, si32 event_id, auto handler)
+        {
+            on(Tier, event_id, bell::sensors, std::move(handler));
+        }
+        void on(si32 Tier, si32 event_id, hook& token)
+        {
+            bell::dup_handler(Tier, event_id, token);
+        }
+        void on(si32 Tier, si32 event_id)
+        {
+            if (bell::sensors.size())
+            {
+                bell::dup_handler(Tier, event_id, bell::sensors.back());
             }
         }
 
@@ -1203,4 +1389,137 @@ namespace netxs::ui
             }
         }
     };
+
+    // controls: UI extensions.
+    namespace pro
+    {
+        // pro: Runtime animation support (time-based).
+        class robot
+        {
+            using subs = std::unordered_map<id_t, hook>;
+
+            base& boss;
+            subs  memo;
+
+        public:
+            robot(base&&) = delete;
+            robot(base& boss) : boss{ boss } { }
+
+            // pro::robot: Every timer tick, yield the
+            //             delta from the flow and, if delta,
+            //             Call the proc (millisecond precision).
+            template<class P, class S>
+            void actify(id_t ID, S flow, P proc)
+            {
+                auto init = datetime::now();
+                boss.LISTEN(tier::general, e2::timer::any, p, memo[ID], (ID, proc, flow, init))
+                {
+                    auto now = datetime::round<si32>(p - init);
+                    if (auto data = flow(now))
+                    {
+                        static constexpr auto zero = std::decay_t<decltype(data.value())>{};
+                        auto& v = data.value();
+                        if (v != zero) proc(v);
+                    }
+                    else
+                    {
+                        pacify(ID);
+                    }
+                };
+                boss.base::signal(tier::release, e2::form::animate::start, ID);
+            }
+            // pro::robot: Optional proceed every timer tick,
+            //             yield the delta from the flow and,
+            //             if delta, Call the proc (millisecond precision).
+            template<class P, class S>
+            void actify(id_t ID, std::optional<S> flow, P proc)
+            {
+                if (flow)
+                {
+                    actify(ID, flow.value(), proc);
+                }
+            }
+            template<class P, class S>
+            void actify(S flow, P proc)
+            {
+                actify(bell::noid, flow, proc);
+            }
+            template<class P, class S>
+            void actify(std::optional<S> flow, P proc)
+            {
+                if (flow)
+                {
+                    actify(bell::noid, flow.value(), proc);
+                }
+            }
+            // pro::robot: Cancel tick activity.
+            void pacify(id_t id = bell::noid)
+            {
+                if (id == bell::noid) memo.clear(); // Stop all animations.
+                else                  memo.erase(id);
+                boss.base::signal(tier::release, e2::form::animate::stop, id);
+            }
+            // pro::robot: Check activity by id.
+            bool active(id_t id)
+            {
+                return memo.contains(id);
+            }
+            // pro::robot: Check any activity.
+            operator bool ()
+            {
+                return !memo.empty();
+            }
+        };
+
+        // pro: Scheduler (timeout based).
+        class timer
+        {
+            using subs = std::unordered_map<id_t, hook>;
+
+            base& boss;
+            subs  memo;
+
+        public:
+            timer(base&&) = delete;
+            timer(base& boss) : boss{ boss } { }
+
+            // pro::timer: Start countdown for specified ID.
+            template<class P>
+            void actify(id_t ID, span timeout, P lambda)
+            {
+                auto alarm = datetime::now() + timeout;
+                boss.LISTEN(tier::general, e2::timer::any, now, memo[ID], (ID, timeout, lambda, alarm))
+                {
+                    if (now > alarm)
+                    {
+                        alarm = now + timeout;
+                        if (!lambda(ID)) pacify(ID);
+                    }
+                };
+            }
+            // pro::timer: Start countdown.
+            template<class P>
+            void actify(span timeout, P lambda)
+            {
+                actify(bell::noid, timeout, lambda);
+            }
+            // pro::timer: Cancel timer ('id=noid' for all).
+            void pacify(id_t id = bell::noid)
+            {
+                if (id == bell::noid) memo.clear(); // Stop all timers.
+                else                  memo.erase(id);
+                //boss.base::signal(tier::release, e2::form::animate::stop, id);
+            }
+            // pro::timer: Check activity by id.
+            bool active(id_t id)
+            {
+                return memo.contains(id);
+            }
+            // pro::timer: Check any activity.
+            operator bool ()
+            {
+                return !memo.empty();
+            }
+        };
+    }
 }

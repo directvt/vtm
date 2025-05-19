@@ -5,10 +5,7 @@
 
 #include "utf.hpp"
 #include "generics.hpp"
-
-#if defined(__linux__) || defined(__APPLE__)
-    #include <stdint.h>
-#endif
+#include "ptr.hpp"
 
 namespace netxs
 {
@@ -69,7 +66,7 @@ namespace netxs
             if (changed) *this = p;
             return changed;
         }
-        constexpr explicit operator bool()   const { return x != T{} || y != T{};      }
+        constexpr explicit operator bool ()  const { return x != T{} || y != T{};      }
         constexpr auto& operator [] (si32 i)       { return i ? y : x;                 }
         constexpr auto& operator [] (si32 i) const { return i ? y : x;                 }
         constexpr auto& operator ++ ()             { ++x; ++y;           return *this; }
@@ -202,7 +199,7 @@ namespace netxs
     static constexpr auto dot_22 = twod{ 2,2 };
     static constexpr auto dot_21 = twod{ 2,1 };
     static constexpr auto dot_33 = twod{ 3,3 };
-    static constexpr auto dot_mx = twod{ (si32)(si32max / 2.f), (si32)(si32max / 2.f) };
+    static constexpr auto dot_mx = twod{ (si32)(fp32)(si32max / 2), (si32)(fp32)(si32max / 2) }; // Be sure that fp2d{ dot_mx } == twod{ dot_mx }.
 
     twod divround(twod p, si32 n) { return { divround(p.x, n  ), divround(p.y, n  ) }; }
     twod divround(si32 n, twod p) { return { divround(n  , p.x), divround(n  , p.y) }; }

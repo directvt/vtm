@@ -3,19 +3,6 @@
 
 #pragma once
 
-#include "intmath.hpp"
-
-#include <type_traits>
-#include <list>
-#include <vector>
-#include <map>
-#include <unordered_map>
-#include <mutex>
-#include <condition_variable>
-#include <deque>
-#include <thread>
-#include <functional>
-
 namespace netxs::generics
 {
     // generics: .
@@ -930,7 +917,7 @@ namespace netxs::generics
             forward.clear();
         }
         template<class K>
-        auto erase(K&& key )
+        auto erase(K&& key)
         {
             auto storage_it = storage.find(std::forward<K>(key));
             if (storage_it != storage.end())
@@ -946,7 +933,7 @@ namespace netxs::generics
             return faux;
         }
         template<class K>
-        auto contains(K&& key )
+        auto contains(K&& key)
         {
             return storage.contains(std::forward<K>(key));
         }

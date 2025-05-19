@@ -1,42 +1,45 @@
-# Unicode Character Geometry Modifiers
+# VT2D. Unicode character Geometry Modifiers
 
-In the terminal world, character width detection is not well defined and is context dependent, which is the cause of the following issues:
+A user interface based solely on monospaced Unicode characters (a concept known as a text-based user interface, or TUI) has known issues with character width detection, leading to the following limits:
 
 - No way to specify a custom width for displayed characters.
-- No way to simultaneously display the same characters in both narrow and wide variants.
+- No way to display the same characters in narrow and wide variants.
 - No way to use triple and quadruple characters along with narrow and wide.
-- Different assumptions about character widths in applications and terminal emulators.
-- No way to display wide characters partially.
-- No way to display characters higher two cells.
+- Different character width assumptions across applications and terminal emulators.
+- No way to partially display wide characters.
+- No way to display characters taller than one cell.
 - No way to display subcell sized characters.
 - No way to rotate or mirror characters.
 
-## Character Matrix
+## Character matrix
 
-By defining that the graphical representation of a character is a cellular matrix (1x1 matrix consists of one fragment), the concept of "wide/narrow" can be completely avoided.
+Each Unicode character is a sequence of codepoints (one or more) - this is the so-called grapheme cluster. Using a font, this sequence is translated into a glyph run.
+
+![DEVA-2x1](images/deva_2x1_glyph_run_transparent.png)
+
+By defining that the graphical representation of the character is a cellular matrix (1x1 matrix consists of one fragment), the final scaling and rasterization of the glyph run can be performed in a rectangular cell matrix defined either implicitly based on the Unicode properties of the cluster codepoints, or explicitly using a modifier codepoint from the Unicode codepoint range 0xD0000-0xD08F6.
 
 1x1 | 2x2 | 3x1
 ----|-----|-----
 ![SGR-CFA-A](images/A_1x1.png) | ![SGR-CFA-E](images/E_2x2.png) | ![SGR-CFA-Indic](images/deva_3x1.png)
 
-Each character is a sequence of codepoints (one or more) - this is the so-called grapheme cluster. Using a font, this sequence is translated into a glyph run. The final scaling and rasterization of the glyph run is done into a rectangular terminal cell matrix, defined either implicitly based on the Unicode properties of the cluster codepoints, or explicitly using a modifier codepoint from the Unicode codepoint range 0xD0000-0xD08F6.
-
-Matrix fragments up to 16x4 cells require at least four associated integer values, which can be packed into Unicode codepoint space by enumerating "wh_xy" values:
+Matrix fragments up to 16x4 cells require at least four associated integer values, which can be packed into the Unicode codepoint space by enumerating "wh_xy" values, where:
   - w: Character matrix width.
   - h: Character matrix height.
-  - x: Horizontal fragment selector inside the matrix.
-  - y: Vertical fragment selector inside the matrix.
+  - x: Horizontal fragment selector within the matrix.
+  - y: Vertical fragment selector within the matrix.
   - For character matrices larger than 16x4, pixel graphics should be used.
 
 [Table source](images/vtm_character_geometry_modifiers_16x4.xhtml)
 
 ![image](images/vtm_character_geometry_modifiers_16x4.png)
 
-Terminals can annotate each scrollback cell with character matrix metadata and use it to display either the entire character image or a specific fragment within the cell.
+### The resulting concept
 
-Users can explicitly specify the size of the character matrix (by zeroing `_xy`) or select any fragment of it (non-zero `_xy`) by placing a specific modifier character after the grapheme cluster.
+- Terminals can annotate each scrollback cell with character matrix metadata and use it to display either the entire character image or a specific fragment within the cell.
+- Users/applications can explicitly specify the size of the character matrix (by zeroing out `_xy`) or select any fragment of it (non-zero `_xy`) by placing a specific modifier character after the grapheme cluster.
 
-- Example 1. Output a 3x1 (31_00) character:
+Example 1. Output a 3x1 (31_00) character:
   - `pwsh`
     ```pwsh
     "👩‍👩‍👧‍👧`u{D009F}"
@@ -45,7 +48,7 @@ Users can explicitly specify the size of the character matrix (by zeroing `_xy`)
     ```bash
     printf "👩‍👩‍👧‍👧\UD009F\n"
     ```
-- Example 2. Output a 6x2 character (by stacking two 6x1 fragments 62_01 and 62_02 on top of each other):
+Example 2. Output a 6x2 character (by stacking two 6x1 fragments 62_01 and 62_02 on top of each other):
   - `pwsh`
     ```pwsh
     "👩‍👩‍👧‍👧`u{D0279}`n👩‍👩‍👧‍👧`u{D0312}"
@@ -54,7 +57,16 @@ Users can explicitly specify the size of the character matrix (by zeroing `_xy`)
     ```bash
     printf "👩‍👩‍👧‍👧\UD0279\n👩‍👩‍👧‍👧\UD0312\n"
     ```
-- Example 3. Output the longest word in the Hindi language 16x1 (G1_00):
+Example 3. Output a solid 9x3 character:
+  - `pwsh`
+    ```pwsh
+    "👩‍👩‍👧‍👧`u{D03C3}"
+    ```
+  - `wsl/bash`
+    ```bash
+    printf "👩‍👩‍👧‍👧\UD03C3\n"
+    ```
+Example 4. Output the longest word in the Hindi language 16x1 (G1_00):
   - `pwsh`
     ```pwsh
     "`u{2}विश्वविज्ञानकोशनिर्माणसमिति`u{D0121}"
@@ -63,12 +75,12 @@ Users can explicitly specify the size of the character matrix (by zeroing `_xy`)
     ```bash
     printf "\U2विश्वविज्ञानकोशनिर्माणसमिति\UD0121\n"
     ```
-- Screenshot:  
+Expected result:  
   ![image](images/vtm_character_geometry_modifiers_screenshot.png)
 
 ### Helper functions
 
-Example functions for converting between modifier codepoints and character matrix parameter tuples `wh_xy`.
+Possible implementation of helper functions for converting between modifier codepoints and character matrix parameter tuples `wh_xy`.
 
 ```c++
 struct wh_xy
@@ -159,6 +171,8 @@ int get_angle(int state) { int angle = 90 * (state & 0b011); return angle; }
 int get_hflip(int state) { int hflip = state >> 2; return hflip; }
 ```
 
-# Summary
+# New Look for Text-based User Interface
+
+Screenshot of a test page in a terminal emulator that supports the VT2D concept:
 
 ![image](images/vtm_character_geometry_modifiers_summary.png)

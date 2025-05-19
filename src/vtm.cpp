@@ -339,9 +339,6 @@ int main(int argc, char* argv[])
         else if (shadow.starts_with(app::term::id))      { aptype = app::terminal::id;  apname = app::terminal::name;  }
         else if (shadow.starts_with(app::dtvt::id))      { aptype = app::dtvt::id;      apname = app::dtvt::name;      }
         else if (shadow.starts_with(app::dtty::id))      { aptype = app::dtty::id;      apname = app::dtty::name;      }
-        //todo undocumented
-        else if (shadow.starts_with(/*UD*/"headless"))   { aptype = app::teletype::id; apname = app::teletype::name;   }
-        else if (shadow.starts_with(/*UD*/"noui"))       { aptype = app::teletype::id; apname = app::teletype::name;   }
         //#if defined(DEBUG)
         else if (shadow.starts_with(app::calc::id))      { aptype = app::calc::id;      apname = app::calc::name;      }
         else if (shadow.starts_with(app::shop::id))      { aptype = app::shop::id;      apname = app::shop::name;      }
@@ -420,7 +417,7 @@ int main(int argc, char* argv[])
             {
                 whoami = type::server;
             }
-            else 
+            else
             {
                 if (success)
                 {
@@ -430,7 +427,7 @@ int main(int argc, char* argv[])
                 else return failed(code::nodaemon);
             }
         }
-        
+
         os::ipc::prefix = prefix;
         auto server = os::ipc::socket::open<os::role::server>(prefix, denied);
         if (!server)

@@ -7,7 +7,7 @@ using namespace netxs;
 
 int main(int argc, char* argv[])
 {
-    auto defaults = 
+    auto defaults =
     #include "../vtm.xml"
 
     os::dtvt::initialize();
