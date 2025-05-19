@@ -1,4 +1,4 @@
-# VT2D. Unicode character Geometry Modifiers
+# VT2D: Unicode character Geometry Modifiers
 
 A user interface based solely on monospaced Unicode characters (a concept known as a text-based user interface, or TUI) has known issues with character width detection, leading to the following limits:
 
