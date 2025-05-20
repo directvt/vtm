@@ -340,6 +340,8 @@ namespace netxs::input
             mouse_list
         #undef X
 
+        static constexpr auto MouseAnyButtonMask = 0xFF00;
+
         #undef mouse_list
         #undef key_list
 
@@ -1282,7 +1284,7 @@ namespace netxs::input
             string = utf8;
             page_sptr.reset();
         }
-        auto get_render()
+        auto get_render_sptr()
         {
             if (!page_sptr)
             {
@@ -1428,7 +1430,22 @@ namespace netxs::input
             bool                    changed_visibility = {}; // tooltip: Tooltip changes its visibility.
             ui32                    digest = {};             // tooltip: Digest for tracking current tooltip updates.
             twod                    coor = {};               // tooltip: Mouse position when tooltip shown.
+            argb                    default_fgc = {};        // tooltip: Default fgc color.
+            argb                    default_bgc = {};        // tooltip: Default bgc color.
 
+            void set_text(qiew utf8, argb fgc, argb bgc)
+            {
+                if (!current_sptr)
+                {
+                    current_sptr = ptr::shared<input::tooltip_t>(utf8);
+                }
+                else
+                {
+                    current_sptr->set(utf8);
+                }
+                default_fgc = fgc;
+                default_bgc = bgc;
+            }
             void set(netxs::sptr<tooltip_t> new_current_sptr = {})
             {
                 current_sptr = new_current_sptr;
@@ -1439,10 +1456,15 @@ namespace netxs::input
                 boss.base::raw_riseup(tier::mouserelease, input::key::MouseHover, gear);
                 if (!ptr::is_equal(prev_sptr, current_sptr))
                 {
-                    visible = faux;
-                    changed_visibility = true;
                     canceled = !current_sptr || current_sptr->get().empty();
-                    if (!canceled)
+                    if (canceled)
+                    {
+                        if (visible)
+                        {
+                            fresh = true;
+                        }
+                    }
+                    else
                     {
                         time_to_run = datetime::now() + timeout;
                         digest = current_sptr->digest;
@@ -1451,20 +1473,24 @@ namespace netxs::input
                     {
                         digest = current_sptr->digest;
                     }
+                    visible = faux;
+                    changed_visibility = true;
                 }
             }
-            auto get_render()
+            auto get_render_sptr_and_offset()
             {
                 if (visible && current_sptr)
                 {
-                    return current_sptr->get_render();
+                    auto render_sptr = current_sptr->get_render_sptr();
+                    auto page_offset = -twod{ 4, render_sptr->size() + 1 };
+                    return std::pair{ render_sptr, page_offset };
                 }
                 else
                 {
-                    return netxs::sptr<page>{};
+                    return std::pair{ netxs::sptr<page>{}, dot_00 };
                 }
             }
-            auto get()
+            auto get_fresh_qiew()
             {
                 if (fresh)
                 {
@@ -1501,6 +1527,7 @@ namespace netxs::input
                     }
                 }
                 else if (deed == input::key::MouseWheel             // Hide tooltip on wheeling.
+                     ||  deed == input::key::MouseLeave             // Hide tooltip on mouse leave.
                      || (deed >> 8 == input::key::MouseDown >> 8))  // Hide tooltip on any press.
                 {
                     hide();
@@ -1733,7 +1760,7 @@ namespace netxs::input
             auto saved_cause = mouse::cause;
             boss.base::signal(tier_id, mouse::cause, *this);
             mouse::cause = saved_cause;
-            auto any_bttn_event = mouse::cause & 0xFF00; // Set button_bits = 0.
+            auto any_bttn_event = mouse::cause & input::key::MouseAnyButtonMask; // Set button_bits = 0.
             if (alive && mouse::cause != any_bttn_event)
             {
                 boss.base::signal(tier_id, any_bttn_event, *this);

@@ -907,7 +907,7 @@ namespace netxs::directvt
 
         STRUCT_macro(frame_element,     (blob, data))
         STRUCT_macro(jgc_element,       (ui64, token) (text, cluster))
-        STRUCT_macro(tooltip_element,   (id_t, gear_id) (text, utf8))
+        STRUCT_macro(tooltip_element,   (id_t, gear_id) (text, utf8) (argb, fgc) (argb, bgc))
         STRUCT_macro(mouse_event,       (id_t, gear_id)
                                         (si32, ctlstat)
                                         (hint, cause)
