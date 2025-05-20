@@ -340,6 +340,8 @@ namespace netxs::input
             mouse_list
         #undef X
 
+        static constexpr auto MouseAnyButtonMask = 0xFF00;
+
         #undef mouse_list
         #undef key_list
 
@@ -1758,7 +1760,7 @@ namespace netxs::input
             auto saved_cause = mouse::cause;
             boss.base::signal(tier_id, mouse::cause, *this);
             mouse::cause = saved_cause;
-            auto any_bttn_event = mouse::cause & 0xFF00; // Set button_bits = 0.
+            auto any_bttn_event = mouse::cause & input::key::MouseAnyButtonMask; // Set button_bits = 0.
             if (alive && mouse::cause != any_bttn_event)
             {
                 boss.base::signal(tier_id, any_bttn_event, *this);

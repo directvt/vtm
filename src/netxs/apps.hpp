@@ -683,7 +683,7 @@ namespace netxs::app::shared
                         auto& backup = boss.base::template field<text>();
                         boss.on(tier::mouserelease, input::key::MouseAny, [&](hids& gear)
                         {
-                            if (gear.cause == input::key::MouseDown)
+                            if ((gear.cause & input::key::MouseAnyButtonMask) == input::key::MouseDown)
                             {
                                 if (backup.empty())
                                 {
@@ -698,6 +698,7 @@ namespace netxs::app::shared
                                 gear.setfree();
                                 boss.set(backup);
                                 backup.clear();
+                                gear.dismiss_dblclick();
                             }
                         });
                     });
