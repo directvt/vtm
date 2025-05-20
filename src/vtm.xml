@@ -222,16 +222,16 @@ R"==(
             <item*/>  <!-- Clear all previously defined items. Start a new list of items. -->
             <item splitter label="apps">
                 <tooltip>
-                    " Default applications group                         \n"
-                    " It can be configured in ~/.config/vtm/settings.xml "
-                </tooltip>
+					" \e[1mDefault applications group\e[m                         \n"
+					" It can be configured in ~/.config/vtm/settings.xml "
+				</tooltip>
             </item>
             <item id="Term" label="Terminal Emulator" type="dtvt" title="Terminal" cmd="$0 -r term">
                 <tooltip>
-                    " Terminal Console               \n"
-                    "   LeftClick to launch instance \n"
-                    "   RightClick to set as default "
-                </tooltip>
+					" \e[1mTerminal Console\e[m               \n"
+					"   LeftClick to launch instance \n"
+					"   RightClick to set as default "
+				</tooltip>
                 <config>  <!-- The following config partially overrides the base configuration. It is valid for DirectVT apps only. -->
                     <terminal>
                         <scrollback>
@@ -244,9 +244,9 @@ R"==(
                     </terminal>
                 </config>
             </item>
-            <item id="Tile" label="Window Manager"  type="tile" title="Window Manager" cmd="h1:1(Term, Term)"      tooltip=" Tiling Window Manager           \n   LeftClick to launch instance  \n   RightClick to set as default  "/>
-            <item id="Site" label="Viewport Marker" type="site" title="\e[11:3pSite "  cmd="@" winform="maximized" tooltip=" Desktop Viewport Marker         \n   LeftClick to launch instance  \n   RightClick to set as default  "/>  <!-- "\e[11:3p" for center alignment, cmd="@" for instance numbering -->
-            <item id="Logs" label="Log Monitor"     type="dtvt" title="Log Monitor"    cmd="$0 -q -r term $0 -m"   tooltip=" Log Monitor                     \n   LeftClick to launch instance  \n   RightClick to set as default  ">
+            <item id="Tile" label="Window Manager"  type="tile" title="Window Manager" cmd="h1:1(Term, Term)"      tooltip=" \e[1mTiling Window Manager\e[m           \n   LeftClick to launch instance  \n   RightClick to set as default  "/>
+            <item id="Site" label="Viewport Marker" type="site" title="Site "          cmd="@" winform="maximized" tooltip=" \e[1mDesktop Viewport Marker\e[m         \n   LeftClick to launch instance  \n   RightClick to set as default  "/>  <!-- "\e[11:3p" for center alignment, cmd="@" for instance numbering -->
+            <item id="Logs" label="Log Monitor"     type="dtvt" title="Log Monitor"    cmd="$0 -q -r term $0 -m"   tooltip=" \e[1mLog Monitor\e[m                     \n   LeftClick to launch instance  \n   RightClick to set as default  ">
                 <config>
                     <terminal>
                         <scrollback>
@@ -272,20 +272,18 @@ R"==(
                             <item label="  <  ">
                                 <script=TerminalFindPrev on="LeftClick"/>
                                 <tooltip>
-                                    " Previous match                                  \n"
-                                    "   LeftClick to jump to previous match or scroll \n"
-                                    "             one page up if nothing to search    \n"
-                                    "   Match clipboard data if no selection          "
-                                </tooltip>
+					                " \e[1mPrevious match           Alt+LeftArrow\e[m  \n"
+					                "   Click to jump to the previous match   \n"
+					                "   Match clipboard data if no selection  "
+				                </tooltip>
                             </item>
                             <item label="  >  ">
                                 <script=TerminalFindNext on="LeftClick"/>
                                 <tooltip>
-                                    " Next match                                     \n"
-                                    "   LeftClick to jump to next match or scroll    \n"
-                                    "             one page down if nothing to search \n"
-                                    "   Match clipboard data if no selection         "
-                                </tooltip>
+					                " \e[1mNext match              Alt+RightArrow\e[m  \n"
+					                "   Click to jump to the next match       \n"
+					                "   Match clipboard data if no selection  "
+				                </tooltip>
                             </item>
                             <item label="  Wrap  ">
                                 <tooltip>
@@ -437,27 +435,25 @@ R"==(
             <item label="  <  ">
                 <script=TerminalFindPrev on="LeftClick"/>
                 <tooltip>
-                    " Previous match                                  \n"
-                    "   LeftClick to jump to previous match or scroll \n"
-                    "             one page up if nothing to search    \n"
-                    "   Match clipboard data if no selection          "
-                </tooltip>
+					" \e[1mPrevious match           Alt+LeftArrow\e[m  \n"
+					"   Click to jump to the previous match   \n"
+					"   Match clipboard data if no selection  "
+				</tooltip>
             </item>
             <item label="  >  ">
                 <script=TerminalFindNext on="LeftClick"/>
                 <tooltip>
-                    " Next match                                     \n"
-                    "   LeftClick to jump to next match or scroll    \n"
-                    "             one page down if nothing to search \n"
-                    "   Match clipboard data if no selection         "
-                </tooltip>
+					" \e[1mNext match              Alt+RightArrow\e[m  \n"
+					"   Click to jump to the next match       \n"
+					"   Match clipboard data if no selection  "
+				</tooltip>
             </item>
             <item label="   Desktop   ">
                 <tooltip>
-                    " Toggle exclusive keyboard mode              \n"
-                    "   Exclusive keyboard mode allows keystrokes \n"
-                    "   to be passed through without processing   "
-                </tooltip>
+					" \e[1mToggle exclusive keyboard mode\e[m              \n"
+					"   Exclusive keyboard mode allows keystrokes \n"
+					"   to be passed through without processing   "
+				</tooltip>
                 <script=ExclusiveKeyboardMode on="LeftClick"/>
                 <script>
                     <on="release: terminal::events::rawkbd" source="terminal"/>
@@ -505,7 +501,7 @@ R"==(
                     vtm.item.Deface()
                 </script>
             </item>
-            <item label="  Log  " tooltip=" Console logging        \n Use Logs to see output ">
+            <item label="  Log  " tooltip=" \e[1mConsole logging\e[m        \n Use Logs to see output ">
                 <script=TerminalStdioLog on="LeftClick"/>
                 <script>
                     <on="release: terminal::events::io_log" source="terminal"/>

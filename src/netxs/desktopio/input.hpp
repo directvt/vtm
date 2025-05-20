@@ -1457,14 +1457,7 @@ namespace netxs::input
                 if (!ptr::is_equal(prev_sptr, current_sptr))
                 {
                     canceled = !current_sptr || current_sptr->get().empty();
-                    if (canceled)
-                    {
-                        if (visible)
-                        {
-                            fresh = true;
-                        }
-                    }
-                    else
+                    if (!canceled)
                     {
                         time_to_run = datetime::now() + timeout;
                         digest = current_sptr->digest;
@@ -1473,6 +1466,7 @@ namespace netxs::input
                     {
                         digest = current_sptr->digest;
                     }
+                    fresh = true;
                     visible = faux;
                     changed_visibility = true;
                 }
