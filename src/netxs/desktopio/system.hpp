@@ -2645,7 +2645,7 @@ namespace netxs::os
 
             #endif
         }
-        auto execvpe(text cmd, text env)
+        auto execvpe([[maybe_unused]] text cmd, [[maybe_unused]] text env)
         {
             #if defined(_WIN32)
             #else
@@ -2845,7 +2845,7 @@ namespace netxs::os
 
             #endif
         }
-        void spawn(text cmd, text cwd, text env)
+        void spawn([[maybe_unused]] text cmd, [[maybe_unused]]  text cwd, [[maybe_unused]]  text env)
         {
             #if defined(_WIN32)
             #else

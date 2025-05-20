@@ -606,13 +606,18 @@ namespace netxs::ui
             {
                 auto& gear = *gear_ptr;
                 if (gear.mouse_disabled) continue;
-                if (auto tooltip_page_sptr = gear.tooltip.get_render())
+                auto [tooltip_page_sptr, tooltip_offset] = gear.tooltip.get_render_sptr_and_offset();
+                if (tooltip_page_sptr)
                 {
                     auto& tooltip_page = *tooltip_page_sptr;
-                    auto full_area = full;
-                    full_area.coor = std::max(dot_00, twod{ gear.coord } - twod{ 4, tooltip_page.size() + 1 });
-                    full_area.size.x = dot_mx.x; // Prevent line wrapping.
-                    canvas.full(full_area);
+                    auto fs_area = full;
+                    auto page_area = full;
+                    page_area.coor = tooltip_offset + twod{ gear.coord };
+                    page_area.size = tooltip_page.limits();
+                    fs_area.size = std::max(dot_00, fs_area.size - page_area.size);
+                    page_area.coor = fs_area.clamp(page_area.coor);
+                    page_area.size.x = dot_mx.x; // Prevent line wrapping.
+                    canvas.full(page_area);
                     canvas.cup(dot_00);
                     canvas.output(tooltip_page, cell::shaders::color(props.tooltip_colors));
                 }
@@ -627,9 +632,10 @@ namespace netxs::ui
             {
                 auto& gear = *gear_ptr;
                 if (gear.mouse_disabled) continue;
-                if (auto v = gear.tooltip.get())
+                if (auto v = gear.tooltip.get_fresh_qiew())
                 {
-                    list.thing.push(ext_gear_id, v.value());
+                    auto tooltip_qiew = v.value();
+                    list.thing.push(ext_gear_id, tooltip_qiew, props.tooltip_colors.fgc(), props.tooltip_colors.bgc());
                 }
             }
             list.thing.sendby<true>(canal);

@@ -875,8 +875,8 @@ Notes
                 <config>  <!-- The following config partially overrides the base configuration. It is valid for DirectVT apps only. -->
                     <terminal>
                         <scrollback>
-                            <size=40000/>  <!-- Scrollback buffer length. -->
-                            <wrap=on/>     <!-- Lines wrapping mode. -->
+                            <size=100000/>  <!-- Scrollback buffer length. -->
+                            <wrap=on/>      <!-- Lines wrapping mode. -->
                         </scrollback>
                         <selection>
                             <mode=selection/mode/>  <!-- Clipboard copy format: "text" | "ansi" | "rich" | "html" | "protected" | "none" . -->
@@ -890,7 +890,7 @@ Notes
                 <config>
                     <terminal>
                         <scrollback>
-                            <size=5000/>
+                            <size=50000/>
                             <wrap="off"/>
                         </scrollback>
                         <menu item*>

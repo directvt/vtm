@@ -49,6 +49,7 @@ namespace netxs::gui
             :  hdc{},
               hWnd{},
               prev{ .coor = dot_mx },
+              area{ .size = dot_11 },
               live{ faux }
         { }
         void hide() { live = faux; }
@@ -1490,14 +1491,15 @@ namespace netxs::gui
         struct task
         {
             static constexpr auto _counter = 1 + __COUNTER__;
-            static constexpr auto blink  = 1 << (__COUNTER__ - _counter);
-            static constexpr auto moved  = 1 << (__COUNTER__ - _counter);
-            static constexpr auto sized  = 1 << (__COUNTER__ - _counter);
-            static constexpr auto grips  = 1 << (__COUNTER__ - _counter);
-            static constexpr auto hover  = 1 << (__COUNTER__ - _counter);
-            static constexpr auto inner  = 1 << (__COUNTER__ - _counter);
-            static constexpr auto header = 1 << (__COUNTER__ - _counter);
-            static constexpr auto footer = 1 << (__COUNTER__ - _counter);
+            static constexpr auto blink    = 1 << (__COUNTER__ - _counter);
+            static constexpr auto moved    = 1 << (__COUNTER__ - _counter);
+            static constexpr auto sized    = 1 << (__COUNTER__ - _counter);
+            static constexpr auto grips    = 1 << (__COUNTER__ - _counter);
+            static constexpr auto hover    = 1 << (__COUNTER__ - _counter);
+            static constexpr auto inner    = 1 << (__COUNTER__ - _counter);
+            static constexpr auto header   = 1 << (__COUNTER__ - _counter);
+            static constexpr auto footer   = 1 << (__COUNTER__ - _counter);
+            static constexpr auto tooltip  = 1 << (__COUNTER__ - _counter);
             static constexpr auto all = -1;
         };
         struct vkey
@@ -1727,6 +1729,18 @@ namespace netxs::gui
                 auto& item = lock.thing;
                 owner.base::riseup(tier::preview, e2::form::prop::ui::footer, item.utf8);
             }
+            void handle(s11n::xs::tooltips         lock)
+            {
+                for (auto& tooltip : lock.thing)
+                {
+                    gears->tooltip.visible = tooltip.utf8.size();
+                    if (gears->tooltip.visible)
+                    {
+                        gears->tooltip.set_text(tooltip.utf8, tooltip.fgc, tooltip.bgc);
+                    }
+                }
+                owner.update_tooltip();
+            }
             void handle(s11n::xs::clipdata         lock)
             {
                 auto& item = lock.thing;
@@ -1739,11 +1753,6 @@ namespace netxs::gui
             void handle(s11n::xs::clipdata_request lock)
             {
                 s11n::recycle_cliprequest(intio, lock);
-            }
-            void handle(s11n::xs::tooltips         lock)
-            {
-                auto copy = lock.thing;
-                //todo implement like as in ui::dtvt
             }
             //todo use xs::screenmode
             void handle(s11n::xs::fullscrn       /*lock*/)
@@ -1879,6 +1888,15 @@ namespace netxs::gui
         layer blinky; // winbase: Layer for blinking characters.
         layer header; // winbase: Layer for Header.
         layer footer; // winbase: Layer for Footer.
+        layer tooltip_layer; // winbase: Layer for Tooltip.
+        std::array<std::reference_wrapper<layer>, 5> layers =
+        {
+            master,
+            blinky,
+            footer,
+            header,
+            tooltip_layer,
+        };
         fonts fcache; // winbase: Font cache.
         glyph gcache; // winbase: Glyph cache.
         blink blinks; // winbase: Blinking layer state.
@@ -1905,6 +1923,7 @@ namespace netxs::gui
         twod  normcs; // winbase: Cell size for normal mode.
         face  h_grid; // winbase: Header layer cell grid.
         face  f_grid; // winbase: Footer layer cell grid.
+        face  tooltip_grid; // winbase: Tooltip layer cell grid.
         rect  grip_l; // winbase: Resizing grips left segment area.
         rect  grip_r; // winbase: Resizing grips right segment area.
         rect  grip_t; // winbase: Resizing grips top segment area.
@@ -2094,15 +2113,34 @@ namespace netxs::gui
         }
         void update_header()
         {
-            size_title(h_grid, titles.head_page);
+            page_to_grid(faux, h_grid, titles.head_page, cell::shaders::contrast);
             sync_pixel_layout();
             netxs::set_flag<task::header>(reload);
         }
         void update_footer()
         {
-            size_title(f_grid, titles.foot_page);
+            page_to_grid(faux, f_grid, titles.foot_page, cell::shaders::contrast);
             sync_pixel_layout();
             netxs::set_flag<task::footer>(reload);
+        }
+        void update_tooltip()
+        {
+            auto& tooltip = stream.gears->tooltip;
+            auto [render_sptr, tooltip_offset] = tooltip.get_render_sptr_and_offset();
+            if (render_sptr)
+            {
+                auto& tooltip_page = *render_sptr;
+                auto  tooltip_clrs = cell{}.bgc(tooltip.default_bgc).fgc(tooltip.default_fgc);
+                page_to_grid(true, tooltip_grid, tooltip_page, cell::shaders::color(tooltip_clrs));
+                tooltip_layer.area.coor = mcoord + tooltip_offset * cellsz;
+                tooltip_layer.area.size = tooltip_grid.size() * cellsz;
+                tooltip_layer.show();
+            }
+            else
+            {
+                tooltip_layer.hide();
+            }
+            netxs::set_flag<task::tooltip>(reload);
         }
         void set_font_list(auto& flist)
         {
@@ -2112,7 +2150,11 @@ namespace netxs::gui
         }
         auto move_window(twod delta)
         {
-            for (auto p : { &master, &blinky, &footer, &header }) p->area.coor += delta;
+            for (auto& l : layers)
+            {
+                auto& p = l.get();
+                p.area.coor += delta;
+            }
             netxs::set_flag<task::moved>(reload);
         }
         void drop_grips()
@@ -2149,7 +2191,11 @@ namespace netxs::gui
             }
             else if (fsmode == winstate::minimized)
             {
-                for (auto p : { &master, &blinky, &footer, &header }) p->hide();
+                for (auto& l : layers)
+                {
+                    auto& p = l.get();
+                    p.hide();
+                }
             }
             else if (fsmode == winstate::maximized)
             {
@@ -2188,7 +2234,11 @@ namespace netxs::gui
             {
                 log("%%Set window to minimized state (implicit)", prompt::gui);
                 fsmode = winstate::minimized;
-                for (auto p : { &master, &blinky, &footer, &header }) p->hide();
+                for (auto& l : layers)
+                {
+                    auto& p = l.get();
+                    p.hide();
+                }
             }
             else if (auto delta = coor - master.area.coor)
             {
@@ -2197,6 +2247,12 @@ namespace netxs::gui
                     move_window(delta);
                 });
             }
+        }
+        void fit_to_displays(rect& layer_area)
+        {
+            auto fs_area = window_get_fs_area(master.area);
+            fs_area.size = std::max(dot_00, fs_area.size - layer_area.size);
+            layer_area.coor = fs_area.clamp(layer_area.coor);
         }
         void check_fsmode()
         {
@@ -2243,20 +2299,24 @@ namespace netxs::gui
                 }
                 if (fsmode != winstate::minimized)
                 {
-                    for (auto p : { &master, &blinky, &footer, &header }) p->prev.coor = dot_mx; // Windows moves our windows the way it wants, breaking the layout.
+                    for (auto& l : layers)
+                    {
+                        auto& p = l.get();
+                        p.prev.coor = dot_mx; // Windows moves our windows the way it wants, breaking the layout.
+                    }
                     netxs::set_flag<task::moved>(reload);
                 }
                 update_gui();
             });
         }
-        void size_title(ui::face& title_grid, ui::page& title_page)
+        void page_to_grid(bool update_all, ui::face& target_grid, ui::page& source_page, auto fuse)
         {
             auto grid_size = gridsz;
-            title_grid.calc_page_height(title_page, grid_size);
-            title_grid.size(grid_size);
-            title_grid.wipe();
-            title_grid.cup(dot_00);
-            title_grid.output(title_page, cell::shaders::contrast);
+            target_grid.get_page_size(source_page, grid_size, update_all);
+            target_grid.size(grid_size);
+            target_grid.wipe();
+            target_grid.cup(dot_00);
+            target_grid.output(source_page, fuse);
         }
         void size_window(twod size_delta = {})
         {
@@ -2269,8 +2329,8 @@ namespace netxs::gui
             master.area = blinky.area + border;
             if (fsmode != winstate::maximized)
             {
-                size_title(h_grid, titles.head_page);
-                size_title(f_grid, titles.foot_page);
+                page_to_grid(faux, h_grid, titles.head_page, cell::shaders::contrast);
+                page_to_grid(faux, f_grid, titles.foot_page, cell::shaders::contrast);
                 sync_pixel_layout();
             }
             if (sizechanged)
@@ -2453,15 +2513,19 @@ namespace netxs::gui
                 }
             }
         }
-        void draw_title(layer& s, auto& facedata) //todo just output ui::core
+        void draw_grid(layer& s, auto& facedata, bool apply_contour = true) //todo just output ui::core
         {
             auto canvas = layer_get_bits(s, true);
             fill_grid(canvas, facedata, shadow_dent.corner());
-            netxs::misc::contour(canvas); // 1ms
+            if (apply_contour)
+            {
+                netxs::misc::contour(canvas); // 1ms
+            }
             s.strike<true>(canvas.area());
         }
-        void draw_header() { draw_title(header, h_grid); }
-        void draw_footer() { draw_title(footer, f_grid); }
+        void draw_header()  { draw_grid(header, h_grid); }
+        void draw_footer()  { draw_grid(footer, f_grid); }
+        void draw_tooltip() { draw_grid(tooltip_layer, tooltip_grid, faux); }
         void check_blinky()
         {
             auto changed = std::exchange(blinks.show, !!blinks.poll) != blinks.show;
@@ -2520,7 +2584,15 @@ namespace netxs::gui
                     if (what & (task::sized | task::header)) draw_header();
                     if (what & (task::sized | task::footer)) draw_footer();
                 }
-                for (auto p : { &master, &blinky, &footer, &header }) layer_present(*p);
+                if (what & task::tooltip && tooltip_layer.live)
+                {
+                    fit_to_displays(tooltip_layer.area);
+                    draw_tooltip();
+                }
+                for (auto& l : layers)
+                {
+                    layer_present(l);
+                }
             }
             isbusy.exchange(faux);
         }
@@ -3239,7 +3311,8 @@ namespace netxs::gui
             if (!(layer_create(master, this, wincoord, gridsize, border, cellsz)
                && layer_create(blinky)
                && layer_create(header)
-               && layer_create(footer))) return;
+               && layer_create(footer)
+               && layer_create(tooltip_layer))) return;
             else
             {
                 auto lock = bell::sync();
@@ -3309,7 +3382,7 @@ namespace netxs::gui
                 window_shutdown(); // Interrupt dispatching.
             }};
             window_message_pump();
-            //for (auto p : { &master, &blinky, &footer, &header }) layer_delete(*p);
+            //for (auto& l : layers) layer_delete(l);
             stream.intio.shut(); // Close link to server. Interrupt binary reading loop.
             base::dequeue(); // Clear task queue.
             winio.join();
@@ -3723,12 +3796,15 @@ namespace netxs::gui
         }
         void layer_move_all()
         {
-            auto layers = { &master, &blinky, &footer, &header };
             auto lock = ::BeginDeferWindowPos((si32)layers.size());
-            for (auto p : layers) if (p->prev.coor(p->live ? p->area.coor : p->hidden))
+            for (auto& l : layers)
             {
-                lock = ::DeferWindowPos(lock, (HWND)p->hWnd, 0, p->prev.coor.x, p->prev.coor.y, 0, 0, SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
-                if (!lock) { log("%%DeferWindowPos returns unexpected result: %ec%", prompt::gui, ::GetLastError()); }
+                auto& p = l.get();
+                if (p.prev.coor(p.live ? p.area.coor : p.hidden))
+                {
+                    lock = ::DeferWindowPos(lock, (HWND)p.hWnd, 0, p.prev.coor.x, p.prev.coor.y, 0, 0, SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
+                    if (!lock) { log("%%DeferWindowPos returns unexpected result: %ec%", prompt::gui, ::GetLastError()); }
+                }
             }
             ::EndDeferWindowPos(lock);
         }
@@ -3763,7 +3839,10 @@ namespace netxs::gui
             {
                 //log("\t", rect{{ update_area.left, update_area.top }, { update_area.right - update_area. left, update_area.bottom - update_area.top }});
                 auto ok = ::UpdateLayeredWindowIndirect((HWND)s.hWnd, &update_info);
-                if constexpr (debugmode) if (!ok) log("%%UpdateLayeredWindowIndirect call failed", prompt::gui);
+                if constexpr (debugmode) if (!ok)
+                {
+                    log("%%UpdateLayeredWindowIndirect call failed (%%)", prompt::gui, ::GetLastError());
+                }
             };
             //static auto clr = 0; clr++;
             for (auto r : s.sync)
@@ -4026,7 +4105,11 @@ namespace netxs::gui
             ::RemoveMenu(ctxmenu, SC_SIZE, MF_BYCOMMAND);
             // The first ShowWindow() call ignores SW_SHOW.
             auto mode = SW_SHOW;
-            for (auto p : { &master, &blinky, &footer, &header }) ::ShowWindow((HWND)p->hWnd, std::exchange(mode, SW_SHOWNA));
+            for (auto& l : layers)
+            {
+                auto& p = l.get();
+                ::ShowWindow((HWND)p.hWnd, std::exchange(mode, SW_SHOWNA));
+            }
             ::AddClipboardFormatListener((HWND)master.hWnd); // It posts WM_CLIPBOARDUPDATE to sync clipboard anyway.
             sync_clipboard(); // Clipboard should be in sync at (before) startup.
             window_make_foreground();

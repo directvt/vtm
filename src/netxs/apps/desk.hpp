@@ -157,7 +157,11 @@ namespace netxs::app::desk
                     };
                 });
             auto app_label = item_area->attach(slot::_1, ui::item::ctor(ansi::add(utf8).mgl(0).wrp(wrap::off).jet(bias::left)))
+                ->active()
                 ->setpad({ tall + 1, 0, tall, tall })
+                ->template plugin<pro::notes>(" Running application          \n"
+                                              "   LeftClick to activate      \n"
+                                              "   DoubleLeftClick to fly to  ")
                 ->flexible()
                 ->drawdots()
                 ->shader(cF, e2::form::state::focus::count, data_src);

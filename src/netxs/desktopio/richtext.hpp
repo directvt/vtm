@@ -2466,7 +2466,7 @@ namespace netxs::ui
                 textpage.stream(find);
             }
         }
-        auto calc_page_height(page& object, twod& size)
+        auto get_page_size(page& object, twod& size, bool update_all)
         {
             auto cp = dot_00;
             flow::reset();
@@ -2477,7 +2477,14 @@ namespace netxs::ui
             };
             object.stream(publish);
             auto& cover = flow::minmax();
-            size.y = cover.size.y;
+            if (update_all)
+            {
+                size = cover.size;
+            }
+            else
+            {
+                size.y = cover.size.y;
+            }
             return cp;
         }
         // face: Reflow text page on the canvas and hold position
