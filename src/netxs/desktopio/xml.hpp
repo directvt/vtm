@@ -239,7 +239,10 @@ namespace netxs::xml
             close_inline,  // '>'     ex: ... >
             empty_tag,     // '/>'    ex: ... />
             equal,         // '='     ex: name=value
-            defaults,      // '*'     ex: name*
+            defaults,      //todo deprecate  '*'     ex: name*
+            lua_op_shl,    // '<<'    ex: Lua's shift left operator
+            lua_op_less,   // '< '    ex: Lua's less than operator
+            lua_op_less_eq,// '<='    ex: Lua's less than or equal operator
             compact,       // '/[^>]' ex: compact syntax: <name/nested_block1/nested_block2=value param=value />
             include,       // ':'     ex: <name:...=value param=value />
             localpath,     //         ex: <name:/path/path=value param=value />
@@ -651,19 +654,22 @@ namespace netxs::xml
             }
         };
 
-        static constexpr auto find_start         = "<"sv;
-        static constexpr auto rawtext_delims     = std::tuple{ " "sv, "/>"sv, ">"sv, "<"sv, "\n"sv, "\r"sv, "\t"sv };
-        static constexpr auto token_delims       = " \t\n\r=*/><"sv;
-        static constexpr auto view_comment_begin = "<!--"sv;
-        static constexpr auto view_comment_close = "-->"sv;
-        static constexpr auto view_close_tag     = "</"sv;
-        static constexpr auto view_begin_tag     = "<"sv;
-        static constexpr auto view_empty_tag     = "/>"sv;
-        static constexpr auto view_slash         = "/"sv;
-        static constexpr auto view_close_inline  = ">"sv;
-        static constexpr auto view_quoted_text   = "\""sv;
-        static constexpr auto view_equal         = "="sv;
-        static constexpr auto view_defaults      = "*"sv;
+        static constexpr auto find_start          = "<"sv;
+        static constexpr auto rawtext_delims      = std::tuple{ " "sv, "/>"sv, ">"sv, "<"sv, "\n"sv, "\r"sv, "\t"sv };
+        static constexpr auto token_delims        = " \t\n\r=*/><"sv;
+        static constexpr auto view_comment_begin  = "<!--"sv;
+        static constexpr auto view_comment_close  = "-->"sv;
+        static constexpr auto view_close_tag      = "</"sv;
+        static constexpr auto view_begin_tag      = "<"sv;
+        static constexpr auto view_empty_tag      = "/>"sv;
+        static constexpr auto view_slash          = "/"sv;
+        static constexpr auto view_close_inline   = ">"sv;
+        static constexpr auto view_quoted_text    = "\""sv;
+        static constexpr auto view_equal          = "="sv;
+        static constexpr auto view_defaults       = "*"sv;
+        static constexpr auto view_lua_op_shl     = "<<"sv;
+        static constexpr auto view_lua_op_less    = "< "sv;
+        static constexpr auto view_lua_op_less_eq = "<="sv;
 
         suit page;
         sptr root;
@@ -856,22 +862,25 @@ namespace netxs::xml
             {
                 switch (what)
                 {
-                    case type::na:            return view{ "{START}" }   ;
-                    case type::eof:           return view{ "{EOF}" }     ;
-                    case type::eol:           return view{ "{EOL}" }     ;
-                    case type::token:         return view{ "{token}" }   ;
-                    case type::raw_text:      return view{ "{raw text}" };
-                    case type::compact:       return view{ "{compact}" } ;
-                    case type::quoted_text:   return view_quoted_text    ;
-                    case type::begin_tag:     return view_begin_tag      ;
-                    case type::close_tag:     return view_close_tag      ;
-                    case type::comment_begin: return view_comment_begin  ;
-                    case type::comment_close: return view_comment_close  ;
-                    case type::close_inline:  return view_close_inline   ;
-                    case type::empty_tag:     return view_empty_tag      ;
-                    case type::equal:         return view_equal          ;
-                    case type::defaults:      return view_defaults       ;
-                    default:                  return view{ "{unknown}" } ;
+                    case type::na:              return view{ "{START}" }    ;
+                    case type::eof:             return view{ "{EOF}" }      ;
+                    case type::eol:             return view{ "{EOL}" }      ;
+                    case type::token:           return view{ "{token}" }    ;
+                    case type::raw_text:        return view{ "{raw text}" } ;
+                    case type::compact:         return view{ "{compact}" }  ;
+                    case type::quoted_text:     return view_quoted_text     ;
+                    case type::begin_tag:       return view_begin_tag       ;
+                    case type::close_tag:       return view_close_tag       ;
+                    case type::comment_begin:   return view_comment_begin   ;
+                    case type::comment_close:   return view_comment_close   ;
+                    case type::close_inline:    return view_close_inline    ;
+                    case type::empty_tag:       return view_empty_tag       ;
+                    case type::equal:           return view_equal           ;
+                    case type::defaults:        return view_defaults        ;
+                    case type::lua_op_shl:      return view_lua_op_shl      ;
+                    case type::lua_op_less:     return view_lua_op_less     ;
+                    case type::lua_op_less_eq:  return view_lua_op_less_eq  ;
+                    default:                    return view{ "{unknown}" }  ;
                 };
             };
             fail(ansi::add("Unexpected '", str(what), "' after '", str(last), "'"));
@@ -1088,8 +1097,8 @@ namespace netxs::xml
                     }
                     else if (what == type::raw_text)
                     {
-                        auto size = data.find('<');
-                        if (size == view::npos)
+                        auto iter = utf::find_char_except_skips(data, '<', view_lua_op_shl, view_lua_op_less, view_lua_op_less_eq);
+                        if (iter == data.end())
                         {
                             item->body.push_back(page.append(type::unknown, data));
                             data = {};
@@ -1097,6 +1106,7 @@ namespace netxs::xml
                             what = type::eof;
                             break;
                         }
+                        auto size = iter - data.begin();
                         item->body.push_back(page.append(type::raw_text, data.substr(0, size)));
                         data.remove_prefix(size);
                         temp = data;
