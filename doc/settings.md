@@ -65,6 +65,8 @@ The file list is built in the following order from the following sources:
    - `name=2000` and `name="2000"` have the same meaning.
  - There is no distinction between XML-attribute and XML-subobject, i.e. any attributes are sub-objects:
    - `<name param=value />` and `<name> <param=value /> </name>` have the same meaning.
+ - No spaces are allowed between the opening angle bracket and the name when declaring an XML-subobject.
+   - `... < name ...`, `... <= ...`, `... << ...` are treated as parts of Lua script code.
  - In addition to a set of sub-objects each object can contain its own text value:
    - E.g. `<name=names_value param=params_value />` - subobject `name` has text value `names_value`.
  - Each object can be defined in any way, either using an XML-attribute or an XML-subobject syntax:
