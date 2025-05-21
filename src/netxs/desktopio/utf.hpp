@@ -1709,8 +1709,17 @@ namespace netxs::utf
         debase437(utf8, buff);
         return buff;
     }
-    // utf: Find char position ignoring backslashed.
+    // utf: Find char position.
     auto _find_char(auto head, auto tail, auto hittest)
+    {
+        while (head != tail && !hittest(head))
+        {
+            ++head;
+        }
+        return head;
+    }
+    // utf: Find char position ignoring backslashed.
+    auto _find_char_except_escaped(auto head, auto tail, auto hittest)
     {
         while (head != tail)
         {
@@ -1723,20 +1732,60 @@ namespace netxs::utf
     template<class Iter>
     auto find_char(Iter head, Iter tail, view delims)
     {
-        return _find_char(head, tail, [&](auto iter){ return delims.find(*iter) != view::npos; });
+        return _find_char_except_escaped(head, tail, [&](auto iter){ return delims.find(*iter) != view::npos; });
+    }
+    // utf: Check if utf8 start with test string.
+    bool _starts_with(auto& iter, view utf8, view test)
+    {
+        auto found = utf8.starts_with(test);
+        if (found)
+        {
+            iter += test.size();
+        }
+        return found;
+    }
+    // utf: Check if utf8 starts with something using test proc (the test proc must do increment of iter if skips).
+    bool _starts_with(auto& iter, view utf8, auto test)
+    {
+        return test(iter, utf8);
+    }
+    // utf: Find char position ignoring skips.
+    template<class ...Args>
+    auto find_char_except_skips(view utf8, char c, Args&&... skips)
+    {
+        auto head = utf8.begin();
+        auto tail = utf8.end();
+        auto found_iter = _find_char(head, tail, [&](auto& iter)
+        {
+            if (*iter == c)
+            {
+                auto substr = view{ iter, tail };
+                auto found = (utf::_starts_with(iter, substr, skips) || ...);
+                if (found)
+                {
+                    return iter == tail; // faux if not end
+                }
+                else
+                {
+                    return true;
+                }
+            }
+            return faux;
+        });
+        return found_iter;
     }
     // utf: Find substring position ignoring backslashed.
     auto find_substring(view& utf8, auto... delims)
     {
         auto head = utf8.begin();
         auto tail = utf8.end();
-        return _find_char(head, tail, [&](auto iter){ return (view{ iter, tail }.starts_with(delims) || ...); });
+        return _find_char_except_escaped(head, tail, [&](auto iter){ return (view{ iter, tail }.starts_with(delims) || ...); });
     }
     // utf: Find char position ignoring backslashed.
     template<class Iter>
     auto find_char(Iter head, Iter tail, char delim)
     {
-        return _find_char(head, tail, [&](auto iter){ return *iter == delim; });
+        return _find_char_except_escaped(head, tail, [&](auto iter){ return *iter == delim; });
     }
     auto check_any(view shadow, view delims)
     {
