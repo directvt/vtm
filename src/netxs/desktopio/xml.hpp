@@ -248,6 +248,7 @@ namespace netxs::xml
             unknown,       //
             tag_value,     // Quoted value.     ex: object="value"
             tag_reference, // Non-quoted value. ex: object=reference/to/value
+            tag_joiner,    // Value joiner.     ex: object="value" | reference
             error,         // Inline error message.
         };
 
@@ -377,7 +378,8 @@ namespace netxs::xml
                         case type::quotes:        fgc = quotes_fg;    break;
                         case type::defaults:      fgc = defaults_fg;  break;
                         case type::unknown:       fgc = redlt;        break;
-                        case type::tag_reference: fgc = token_fg;     break;
+                        case type::tag_joiner:    fgc = liter_fg;     break;
+                        case type::tag_reference: fgc = end_token_fg; break;
                         case type::tag_value:     fgc = value_fg;
                                                   bgc = value_bg;     break;
                         case type::error:         fgc = whitelt;
@@ -655,6 +657,7 @@ namespace netxs::xml
 
         static constexpr auto find_start          = "<"sv;
         static constexpr auto rawtext_delims      = std::tuple{ " "sv, "/>"sv, ">"sv, "<"sv, "\n"sv, "\r"sv, "\t"sv };
+        static constexpr auto reference_delims    = std::tuple_cat(rawtext_delims, std::tuple{ "|"sv, "\'"sv, "\""sv, "="sv });
         static constexpr auto token_delims        = " \t\n\r=*/><"sv;
         static constexpr auto view_comment_begin  = "<!--"sv;
         static constexpr auto view_comment_close  = "-->"sv;
@@ -669,6 +672,7 @@ namespace netxs::xml
         static constexpr auto view_lua_op_shl     = "<<"sv;
         static constexpr auto view_lua_op_less    = "< "sv;
         static constexpr auto view_lua_op_less_eq = "<="sv;
+        static constexpr auto view_tag_joiner     = "|"sv;
 
         suit page;
         sptr root;
@@ -876,6 +880,8 @@ namespace netxs::xml
                     case type::token:           return view{ "{token}" }    ;
                     case type::raw_text:        return view{ "{raw text}" } ;
                     case type::compact:         return view{ "{compact}" }  ;
+                    case type::tag_reference:   return view{ "{reference}" };
+                    case type::tag_value:       return view{ "{value}" }    ;
                     case type::quoted_text:     return view_quoted_text     ;
                     case type::begin_tag:       return view_begin_tag       ;
                     case type::close_tag:       return view_close_tag       ;
@@ -898,11 +904,10 @@ namespace netxs::xml
             last = what;
             if (data.empty()) what = type::eof;
             else if (data.starts_with(view_comment_begin)) what = type::comment_begin;
-            else if (last == type::na)
+            else if (last == type::na && data.starts_with(view_begin_tag))
             {
-                if (!data.starts_with(view_close_tag    )
-                 &&  data.starts_with(view_begin_tag    )) what = type::begin_tag;
-                else return;
+                if (data.starts_with(view_close_tag)) what = type::close_tag;
+                else                                  what = type::begin_tag;
             }
             else if (data.starts_with(view_close_tag    )) what = type::close_tag;
             else if (data.starts_with(view_begin_tag    )) what = type::begin_tag;
@@ -915,6 +920,9 @@ namespace netxs::xml
             }
             else if (data.starts_with(view_quoted_text  )) what = type::quoted_text;
             else if (data.starts_with(view_equal        )) what = type::equal;
+            else if (data.starts_with(view_tag_joiner   )
+                  && (last == type::tag_value
+                   || last == type::tag_reference))        what = type::tag_joiner;
             else if (data.starts_with(view_defaults     )
                   && last == type::token)                  what = type::defaults;
             else if (whitespaces.find(data.front()) != view::npos) what = type::spaces;
@@ -923,6 +931,8 @@ namespace netxs::xml
                   || last == type::token
                   || last == type::defaults
                   || last == type::raw_text
+                  || last == type::tag_value
+                  || last == type::tag_reference
                   || last == type::compact
                   || last == type::quoted_text) what = type::token;
             else                                what = type::raw_text;
@@ -939,7 +949,8 @@ namespace netxs::xml
                 auto delim = data.front();
                 if (delim != '\'' && delim != '\"')
                 {
-                    auto crop = utf::take_front(data, rawtext_delims);
+                    auto crop = kind == type::tag_reference ? utf::take_front(data, reference_delims)
+                                                            : utf::take_front(data, rawtext_delims);
                                page.append(type::quotes);
                     item_ptr = page.append(kind, crop);
                                page.append(type::quotes);
@@ -973,6 +984,7 @@ namespace netxs::xml
                 case type::quoted_text:   data.remove_prefix(view_quoted_text  .size()); break;
                 case type::equal:         data.remove_prefix(view_equal        .size()); break;
                 case type::defaults:      data.remove_prefix(view_defaults     .size()); break;
+                case type::tag_joiner:    data.remove_prefix(view_tag_joiner   .size()); break;
                 case type::token:
                 case type::top_token:
                 case type::end_token:     utf::eat_tail(data, token_delims); break;
@@ -996,12 +1008,18 @@ namespace netxs::xml
         }
         auto diff(view& data, view& temp, type kind = type::spaces)
         {
-                 if (temp.size() > data.size()) page.append(kind, temp.substr(0, temp.size() - data.size()));
-            else if (temp.size() < data.size()) fail("Unexpected data");
+            if (temp.size() > data.size())
+            {
+                return page.append(kind, temp.substr(0, temp.size() - data.size()));
+            }
+            else if (temp.size() < data.size())
+            {
+                fail("Unexpected data");
+            }
+            return page.append(kind);
         }
         auto pair(sptr& item, view& data, type& what, type& last, type kind)
         {
-            //todo
             item->name = page.append(kind, name(data));
             auto temp = data;
             utf::trim_front(temp, whitespaces);
@@ -1029,19 +1047,42 @@ namespace netxs::xml
                 page.append(type::equal, skip(data, what));
                 trim(data);
                 peek(data, what, last);
-                if (what == type::quoted_text)
+                auto not_empty = true;
+                do
                 {
-                    item->body.push_back(body(data, type::tag_value));
+                    if (what == type::quoted_text)
+                    {
+                        what = type::tag_value;
+                        item->body.push_back(body(data, type::tag_value));
+                    }
+                    else if (what == type::raw_text)
+                    {
+                        auto is_digit = netxs::onlydigits.find(data.front()) != text::npos;
+                        what = is_digit ? type::tag_value : type::tag_reference;
+                        item->body.push_back(body(data, what));
+                    }
+                    else
+                    {
+                        fail(last, what);
+                        break;
+                    }
+                    auto test = data;
+                    utf::trim_front(test, whitespaces);
+                    //trim(test);
+                    peek(test, what, last);
+                    not_empty = what == type::tag_joiner;
+                    if (not_empty) // Eat tag_joiner.
+                    {
+                        skip(test, type::tag_joiner);
+                        auto joiner_frag = diff(test, data, type::tag_joiner);
+                        item->body.push_back(joiner_frag);
+                        data = test;
+                        //temp = test;
+                        trim(data);
+                        peek(data, what, last);
+                    }
                 }
-                else if (what == type::raw_text)
-                {
-                    auto is_digit = netxs::onlydigits.find(data.front()) != text::npos;
-                    item->body.push_back(body(data, is_digit ? type::tag_value : type::tag_reference));
-                }
-                else
-                {
-                    fail(last, what);
-                }
+                while (not_empty);
             }
             else if (what != type::compact) // Add placeholder for absent value.
             {
@@ -1158,6 +1199,7 @@ namespace netxs::xml
                     }
                     else if (what != type::close_tag && what != type::eof)
                     {
+                        last = type::unknown;
                         fail(last, what);
                         skip(temp, what);
                         diff(temp, data, type::unknown);
@@ -1260,6 +1302,7 @@ namespace netxs::xml
                         item = next;
                     }
                     trim(data);
+                    auto prev_last = last;
                     peek(data, what, last);
                     if (what == type::token)
                     {
@@ -1309,11 +1352,21 @@ namespace netxs::xml
                         page.append(type::close_inline, skip(data, what));
                         read_subsections(item, data, what, last, deep, defs);
                     }
-                    else fire = true;
+                    else
+                    {
+                        fire = true;
+                        last = prev_last;
+                    }
                 }
-                else fire = true;
+                else
+                {
+                    fire = true;
+                }
             }
-            else fire = true;
+            else
+            {
+                fire = true;
+            }
             if (!item->name)
             {
                 auto head = page.back;
