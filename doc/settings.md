@@ -327,7 +327,7 @@ Tag                 | Belongs to           | Value           | Description
 `on`                | `script`             | EventID         | Specific event id text string.
 `source`            | `on`                 | ObjectID        | Visual tree object id.
 
-The `preview:` prefix of the EventID is ​​an indication that event processing should be performed in reverse order - from the container to the nested objects. By default, the visual tree traversal order is from the nested objects to the container.
+The `preview:` prefix of the EventID is an indication that event processing should be performed in reverse order - from the container to the nested objects. By default, the visual tree traversal order is from the nested objects to the container.
 
 Note: Using an empty string in the `script=""` tag with a non-empty event value specified in the `on=EventID` tag resets all subscriptions for that EventID.
 
@@ -463,9 +463,9 @@ The following generic event tiers are available for use:
 EventTier | Description
 ----------|------------
 `general:`| Events that fire globally without being tied to any objects.
-`preview:`| Events typically provide previews of object property values ​​for an upcoming `release:` event.
-`release:`| Events typically notify the set values ​​of an object's properties.
-`request:`| Events typically request values ​​of properties of an object.
+`preview:`| Events typically provide previews of object property values for an upcoming `release:` event.
+`release:`| Events typically notify the set values of an object's properties.
+`request:`| Events typically request values of properties of an object.
 `anycast:`| Events firing on a subset of all nested objects on some branch of the visual tree.
 
 The list of available generic event identifiers can be retrieved using the `vtm.desktop.EventList()` script command in the `vtm --monitor` environment monitoring mode or the `Log Monitor` command line applet.
