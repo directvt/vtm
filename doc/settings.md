@@ -1154,6 +1154,9 @@ Notes
             <item label="  Clear  " tooltip=" Clear scrollback ">
                 <script=TerminalClearScrollback on="LeftClick"/>
             </item>
+            <item label="  Restart  " tooltip=" Restart current terminal session ">
+                <script=TerminalRestart on="LeftClick"/>
+            </item>
         </menu>
         <selection>
             <mode=selection/mode/>  <!-- Selection clipboard copy format: "text" | "ansi" | "rich" | "html" | "protected" | "none". -->
