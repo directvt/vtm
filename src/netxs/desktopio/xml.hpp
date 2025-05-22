@@ -246,7 +246,8 @@ namespace netxs::xml
             compact,       // '/[^>]' ex: compact syntax: <name/nested_block1/nested_block2=value param=value />
             spaces,        // ' '     ex: \s\t\r\n...
             unknown,       //
-            tag_value,     //
+            tag_value,     // Quoted value.     ex: object="value"
+            tag_reference, // Non-quoted value. ex: object=reference/to/value
             error,         // Inline error message.
         };
 
@@ -376,6 +377,7 @@ namespace netxs::xml
                         case type::quotes:        fgc = quotes_fg;    break;
                         case type::defaults:      fgc = defaults_fg;  break;
                         case type::unknown:       fgc = redlt;        break;
+                        case type::tag_reference: fgc = token_fg;     break;
                         case type::tag_value:     fgc = value_fg;
                                                   bgc = value_bg;     break;
                         case type::error:         fgc = whitelt;
@@ -929,7 +931,7 @@ namespace netxs::xml
         {
             return utf::take_front(data, token_delims).str();
         }
-        auto body(view& data, type kind = type::tag_value) -> frag
+        auto body(view& data, type kind) -> frag
         {
             auto item_ptr = frag{};
             if (data.size())
@@ -951,7 +953,10 @@ namespace netxs::xml
                                page.append(type::quotes, delim_view);
                 }
             }
-            else item_ptr = page.append(kind);
+            else
+            {
+                item_ptr = page.append(kind);
+            }
             return item_ptr;
         }
         auto skip(view& data, type kind)
@@ -1024,11 +1029,19 @@ namespace netxs::xml
                 page.append(type::equal, skip(data, what));
                 trim(data);
                 peek(data, what, last);
-                if (what == type::quoted_text || what == type::raw_text)
+                if (what == type::quoted_text)
                 {
-                    item->body.push_back(body(data));
+                    item->body.push_back(body(data, type::tag_value));
                 }
-                else fail(last, what);
+                else if (what == type::raw_text)
+                {
+                    auto is_digit = netxs::onlydigits.find(data.front()) != text::npos;
+                    item->body.push_back(body(data, is_digit ? type::tag_value : type::tag_reference));
+                }
+                else
+                {
+                    fail(last, what);
+                }
             }
             else if (what != type::compact) // Add placeholder for absent value.
             {
@@ -1096,7 +1109,7 @@ namespace netxs::xml
                     {
                         diff(temp, data, type::quoted_text);
                         data = temp;
-                        item->body.push_back(body(data));
+                        item->body.push_back(body(data, type::tag_value));
                         trim(data);
                         temp = data;
                     }
