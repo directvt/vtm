@@ -244,9 +244,6 @@ namespace netxs::xml
             lua_op_less,   // '< '    ex: Lua's less than operator
             lua_op_less_eq,// '<='    ex: Lua's less than or equal operator
             compact,       // '/[^>]' ex: compact syntax: <name/nested_block1/nested_block2=value param=value />
-            include,       // ':'     ex: <name:...=value param=value />
-            localpath,     //         ex: <name:/path/path=value param=value />
-            filepath,      //         ex: <name:"/filepath/filepath"=value param=value />
             spaces,        // ' '     ex: \s\t\r\n...
             unknown,       //
             tag_value,     //
@@ -705,7 +702,7 @@ namespace netxs::xml
         {
             path = utf::trim(path, '/');
             auto slash_pos = path.rfind('/', path.size());
-            auto parent_path = path.substr(0, slash_pos);
+            auto parent_path = slash_pos != text::npos ? path.substr(0, slash_pos) : view{} ;
             auto branch_path = slash_pos != text::npos ? path.substr(slash_pos + sizeof('/')) : path;
             auto dest_host = take(parent_path);
             auto parent = dest_host.size() ? dest_host.front() : root;
@@ -744,7 +741,14 @@ namespace netxs::xml
                     {
                         if (from->utf8.empty()) // Checking indent. Take indent from parent + pads if it is absent.
                         {
-                            from->utf8 = parent->from->utf8 + "    ";
+                            if (parent->from->utf8.empty()) // Most likely this is the root namespace.
+                            {
+                                from->utf8 = "\n";
+                            }
+                            else // Ordinary nested node.
+                            {
+                                from->utf8 = parent->from->utf8 + "    ";
+                            }
                         }
                         if (from->next && from->next->kind == type::begin_tag) // Checking begin_tag.
                         {

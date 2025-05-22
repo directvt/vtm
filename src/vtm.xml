@@ -1,9 +1,9 @@
 R"==(<!-- Ordered list of paths to settings files. -->
-<!-- <file*/>  Specify a new list and clear previously defined sources. -->
-<!-- <file="/path/to/settings.xml"/> The settings (the <config> subsection only) will be loaded and overlayed in the specified order. -->
-<file*/>  <!-- Clear previously defined sources. Start a new list. -->
-<file="/etc/vtm/settings.xml"/>        <!-- Default system-wide settings source. The "/etc/..." path will be auto converted to the "%PROGRAMDATA%\..." on Windows. -->
-<file="~/.config/vtm/settings.xml"/>   <!-- Default user-wise settings source. -->
+<!-- <include*/>  Specify a new list and clear previously defined sources. -->
+<!-- <include="/path/to/settings.xml"/> The settings (the <config> subsection only) will be loaded and overlayed in the specified order. -->
+<include*/>  <!-- Clear previously defined sources. Start a new list. -->
+<include="/etc/vtm/settings.xml"/>        <!-- Default system-wide settings source. The "/etc/..." path will be auto converted to the "%PROGRAMDATA%\..." on Windows. -->
+<include="~/.config/vtm/settings.xml"/>   <!-- Default user-wise settings source. -->
 <config>  <!-- App configuration. -->
     <gui>  <!-- GUI mode related settings. (win32 platform only for now) -->
         <antialiasing=on/>    <!-- Antialiasing of rendered glyphs. Note: Multi-layered color glyphs such as emoji are always antialiased. -->

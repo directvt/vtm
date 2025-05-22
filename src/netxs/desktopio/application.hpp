@@ -695,7 +695,7 @@ namespace netxs::app::shared
         {
             if (cfg)
             {
-                auto file_list = cfg.take<true>("/file");
+                auto file_list = cfg.take<true>("/include");
                 if (file_list.size())
                 {
                     log("%%Update settings source files from %src%", prompt::apps, cfg.page.file);
@@ -771,7 +771,7 @@ namespace netxs::app::shared
             attach_file_list(defcfg, dvtcfg);
             attach_file_list(defcfg, clicfg);
 
-            auto config_sources = defcfg.take("/file");
+            auto config_sources = defcfg.take("/include");
             for (auto& file_rec : config_sources) if (file_rec && !file_rec->base) // Overlay configs from the specified sources if it is.
             {
                 auto src_file = file_rec->take_value();

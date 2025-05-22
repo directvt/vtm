@@ -4,12 +4,12 @@
 graph TB
     subgraph Settings loading order
     direction LR
-        A1["1"] --- B1("Init hardcoded &lt;file=.../&gt; list")
-        B1 --> C1("Take &lt;file=.../&gt; list from the $VTM_CONFIG value or file it referencing")
-        C1 --> G1("Take &lt;file=.../&gt; list from the received DirectVT packet")
-        G1 --> H1("Take &lt;file=.../&gt; list from the --config' CLI option value or file it referencing")
+        A1["1"] --- B1("Init hardcoded &lt;include=.../&gt; list")
+        B1 --> C1("Take &lt;include=.../&gt; list from the $VTM_CONFIG value or file it referencing")
+        C1 --> G1("Take &lt;include=.../&gt; list from the received DirectVT packet")
+        G1 --> H1("Take &lt;include=.../&gt; list from the --config' CLI option value or file it referencing")
     direction LR
-        A2["2"] --- B2("Overlay &lt;config/&gt; subsections from the resultant &lt;file=.../&gt; list")
+        A2["2"] --- B2("Overlay &lt;config/&gt; subsections from the resultant &lt;include=.../&gt; list")
         B2 --> C2("Overlay &lt;config/&gt; subsection from the $VTM_CONFIG value or file it referencing")
         C2 --> G2("Overlay &lt;config/&gt; subsection from the received DirectVT packet")
         G2 --> H2("Overlay &lt;config/&gt; subsection from the --config' CLI option value or file it referencing")
@@ -25,35 +25,35 @@ We call the text data in the settings file "plain XML data" even though our file
 
 There are two predefined settings source locations and this can be changed as needed:
 ```xml
-<file="/etc/vtm/settings.xml"/>        <!-- Default system-wide settings source. The "/etc/..." path will be auto converted to the "%PROGRAMDATA%\..." on Windows. -->
-<file="~/.config/vtm/settings.xml"/>   <!-- Default user-wise settings source. -->
+<include="/etc/vtm/settings.xml"/>        <!-- Default system-wide settings source. The "/etc/..." path will be auto converted to the "%PROGRAMDATA%\..." on Windows. -->
+<include="~/.config/vtm/settings.xml"/>   <!-- Default user-wise settings source. -->
 ```
 
 The process of loading settings consists of the following steps:
-- Build an ordered list of the setting source files by looking for the root `<file=.../>` subsections.
-- Overlay the `<config/>` subsection from the source files in the specified order.
-- Overlay the `<config/>` subsection from the value of the `$VTM_CONFIG` environment variable or from a settings file it references.
-- Overlay the `<config/>` subsection from the DirectVT config payload received from the parent process.
-- Overlay the `<config/>` subsection from the specified `--config <...>` CLI option value or from a settings file it referencing.
+- Build an ordered list of the setting source files by looking for the root `<include=.../>` subsections.
+- Overlay the XML data from the source files in the specified order.
+- Overlay the XML data from the value of the `$VTM_CONFIG` environment variable or from a settings file it references.
+- Overlay the XML data from the DirectVT config payload received from the parent process.
+- Overlay the XML data from the specified `--config <...>` CLI option value or from a settings file it referencing.
 
 The file list is built in the following order from the following sources:
 - The settings file list from the hardcoded configuration containing a list of two files:
   ```xml
-  <file*/>  <!-- Clear previously defined sources. Start a new list. -->
-  <file="/etc/vtm/settings.xml"/>        <!-- Default system-wide settings source. The "/etc/..." path will be auto converted to the "%PROGRAMDATA%\..." on Windows. -->
-  <file="~/.config/vtm/settings.xml"/>   <!-- Default user-wise settings source. -->
+  <include*/>  <!-- Clear previously defined sources. Start a new list. -->
+  <include="/etc/vtm/settings.xml"/>        <!-- Default system-wide settings source. The "/etc/..." path will be auto converted to the "%PROGRAMDATA%\..." on Windows. -->
+  <include="~/.config/vtm/settings.xml"/>   <!-- Default user-wise settings source. -->
   ...
   ```
 - The settings file list from the `$VTM_CONFIG` environment variable value or from a settings file it referencing.
   - A case with a plain XML-data:
-    - `$VTM_CONFIG=<file*/><file='/path/to/override_defaults.xml'/>...` - Clear the current file list and begin a new file list containing a single file '/path/to/override_defaults.xml'.
-    - `$VTM_CONFIG=<file='/path/to/first.xml'/><file='/path/to/second.xml'/>...` - Append the current file list with the files '/path/to/first.xml' and '/path/to/second.xml'.
+    - `$VTM_CONFIG=<include*/><include='/path/to/override_defaults.xml'/>...` - Clear the current file list and begin a new file list containing a single file '/path/to/override_defaults.xml'.
+    - `$VTM_CONFIG=<include='/path/to/first.xml'/><include='/path/to/second.xml'/>...` - Append the current file list with the files '/path/to/first.xml' and '/path/to/second.xml'.
   - A case with a file reference:
     - `$VTM_CONFIG='/path/to/override_defaults.xml'` - Take the file list from the '/path/to/override_defaults.xml'.
 - The settings file list from the DirectVT config received from the parent process.
 - The settings file list from the specified `--config <...>` CLI option value or from a settings file it referencing.
   - A case with a plain XML-data:
-    - `./vtm --config "<file*/><file='/path/to/override_defaults.xml'/>..."` - Clear the current file list and begin a new file list containing a single file '/path/to/override_defaults.xml/'.
+    - `./vtm --config "<include*/><include='/path/to/override_defaults.xml'/>..."` - Clear the current file list and begin a new file list containing a single file '/path/to/override_defaults.xml/'.
   - A case with a file reference:
     - `./vtm --config "/path/to/override_defaults.xml"` - Take the file list from the '/path/to/override_defaults.xml'.
 
@@ -174,7 +174,7 @@ The following declarations have the same meaning:
 ### Vtm configuration structure
 
 ```xml
-<file= ... />  <!-- Ordered list of references to settings files used to form the resultant configuration. -->
+<include= ... />  <!-- Ordered list of references to settings files used to form the resultant configuration. -->
 ...
 <config>  <!-- Global configuration. -->
     <variables>  <!-- Global namespace - Unresolved literals will try to be resolved from here. -->
@@ -647,9 +647,9 @@ Notes
 `$VTM-CONFIG=/path/to/settings.xml`.
 `settings.xml`:
 ```xml
-<file*/>  <!-- Clear previously defined sources. Start a new list. -->
-<file="/etc/vtm/settings.xml"/>        <!-- Default system-wide settings source. The "/etc/..." path will be auto converted to the "%PROGRAMDATA%\..." on Windows. -->
-<file="~/.config/vtm/settings.xml"/>   <!-- Default user-wise settings source. -->
+<include*/>  <!-- Clear previously defined sources. Start a new list. -->
+<include="/etc/vtm/settings.xml"/>        <!-- Default system-wide settings source. The "/etc/..." path will be auto converted to the "%PROGRAMDATA%\..." on Windows. -->
+<include="~/.config/vtm/settings.xml"/>   <!-- Default user-wise settings source. -->
 <config>  <!-- App configuration. -->
     <gui>  <!-- GUI mode related settings. (win32 platform only for now) -->
         <antialiasing=on/>    <!-- Antialiasing of rendered glyphs. Note: Multi-layered color glyphs such as emoji are always antialiased. -->
