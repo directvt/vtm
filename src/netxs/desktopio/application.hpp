@@ -708,7 +708,7 @@ namespace netxs::app::shared
         {
             if (cfg)
             {
-                auto config_data = cfg.take("/config/");
+                auto config_data = cfg.take("/");
                 if (config_data.size())
                 {
                     log(prompt::pads, "Merging settings from ", cfg.page.file);

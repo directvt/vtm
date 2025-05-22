@@ -706,63 +706,59 @@ namespace netxs::xml
             path = utf::trim(path, '/');
             auto slash_pos = path.rfind('/', path.size());
             auto parent_path = path.substr(0, slash_pos);
-            auto branch_path = slash_pos != text::npos ? path.substr(slash_pos + sizeof('/')) : view{};
+            auto branch_path = slash_pos != text::npos ? path.substr(slash_pos + sizeof('/')) : path;
             auto dest_host = take(parent_path);
-            if (dest_host.size())
+            auto parent = dest_host.size() ? dest_host.front() : root;
+            if (parent->mode == elem::form::pact)
             {
-                auto parent = dest_host.front();
-                if (parent->mode == elem::form::pact)
+                log("%%Destination path is not suitable for merging '%parent_path%'", prompt::xml, parent_path);
+                return;
+            }
+            auto& hive = parent->hive;
+            auto iter = hive.find(qiew{ branch_path });
+            if (iter == hive.end())
+            {
+                iter = hive.emplace(branch_path , vect{}).first;
+            }
+            auto& dest = iter->second;
+            for (auto& item : list) if (item && item->name->utf8 == branch_path)
+            {
+                //todo unify
+                if (item->base) dest.clear();
+                auto mode = item->mode;
+                auto from = item->from;
+                auto upto = item->upto;
+                auto next = upto->next;
+                if (auto gate = mode == elem::form::attr ? parent->insA : parent->insB)
+                if (auto prev = gate->prev.lock())
+                if (auto past = from->prev.lock())
                 {
-                    log("%%Destination path is not suitable for merging '%parent_path%'", prompt::xml, parent_path);
-                    return;
-                }
-                auto& hive = parent->hive;
-                auto iter = hive.find(qiew{ branch_path });
-                if (iter == hive.end())
-                {
-                    iter = hive.emplace(branch_path , vect{}).first;
-                }
-                auto& dest = iter->second;
-                for (auto& item : list) if (item && item->name->utf8 == branch_path)
-                {
-                    //todo unify
-                    if (item->base) dest.clear();
-                    auto mode = item->mode;
-                    auto from = item->from;
-                    auto upto = item->upto;
-                    auto next = upto->next;
-                    if (auto gate = mode == elem::form::attr ? parent->insA : parent->insB)
-                    if (auto prev = gate->prev.lock())
-                    if (auto past = from->prev.lock())
+                    from->prev = prev;
+                    upto->next = gate;
+                    gate->prev = upto;
+                    prev->next = from;
+                    past->next = next;  // Release an element from the previous list.
+                    if (next) next->prev = past;
+                    dest.push_back(item);
+                    if (mode != elem::form::attr) // Prepend '\n    <' to item when inserting it to gate==insB.
                     {
-                        from->prev = prev;
-                        upto->next = gate;
-                        gate->prev = upto;
-                        prev->next = from;
-                        past->next = next;  // Release an element from the previous list.
-                        if (next) next->prev = past;
-                        dest.push_back(item);
-                        if (mode != elem::form::attr) // Prepend '\n    <' to item when inserting it to gate==insB.
+                        if (from->utf8.empty()) // Checking indent. Take indent from parent + pads if it is absent.
                         {
-                            if (from->utf8.empty()) // Checking indent. Take indent from parent + pads if it is absent.
+                            from->utf8 = parent->from->utf8 + "    ";
+                        }
+                        if (from->next && from->next->kind == type::begin_tag) // Checking begin_tag.
+                        {
+                            auto shadow = view{ from->next->utf8 };
+                            if (utf::trim_front(shadow, whitespaces).empty()) // Set it to '<' if it is absent.
                             {
-                                from->utf8 = parent->from->utf8 + "    ";
-                            }
-                            if (from->next && from->next->kind == type::begin_tag) // Checking begin_tag.
-                            {
-                                auto shadow = view{ from->next->utf8 };
-                                if (utf::trim_front(shadow, whitespaces).empty()) // Set it to '<' if it is absent.
-                                {
-                                    from->next->utf8 = "<";
-                                }
+                                from->next->utf8 = "<";
                             }
                         }
-                        continue;
                     }
-                    log("%%Unexpected format for item '%parent_path%/%item->name->utf8%'", prompt::xml, parent_path, item->name->utf8);
+                    continue;
                 }
+                log("%%Unexpected format for item '%parent_path%/%item->name->utf8%'", prompt::xml, parent_path, item->name->utf8);
             }
-            else log("%%Destination path not found '%parent_path%'", prompt::xml, parent_path);
         }
         // xml: Attach the node list to the specified path.
         void attach(view mount_point, vect const& sub_list)
@@ -815,7 +811,10 @@ namespace netxs::xml
                     log("%%Unexpected format for item '%mount_point%%node%'", prompt::xml, mount_point, item->name->utf8);
                 }
             }
-            else log("%%Destination path not found '%mount_point%'", prompt::xml, mount_point);
+            else
+            {
+                log("%%Destination path not found '%mount_point%'", prompt::xml, mount_point);
+            }
         }
         void overlay(sptr node_ptr, text path)
         {
@@ -843,7 +842,10 @@ namespace netxs::xml
                     {
                         join(path + "/" + sub_name, sub_list);
                     }
-                    else log("%%Unexpected tag without data: %tag%", prompt::xml, sub_name);
+                    else
+                    {
+                        log("%%Unexpected tag without data: %tag%", prompt::xml, sub_name);
+                    }
                 }
             }
         }
@@ -991,7 +993,6 @@ namespace netxs::xml
         auto pair(sptr& item, view& data, type& what, type& last, type kind)
         {
             //todo
-            //include external blocks if name contains ':'s.
             item->name = page.append(kind, name(data));
             auto temp = data;
             utf::trim_front(temp, whitespaces);
@@ -1197,8 +1198,14 @@ namespace netxs::xml
                 }
                 else if (what == type::eof)
                 {
+                    auto spaced = trim(data);
+                    item->insB = spaced ? page.back
+                                        : page.append(type::spaces);
                     trim(data);
-                    if (page.back->kind == type::eof) fail("Unexpected {EOF}");
+                    if (deep != 0)
+                    {
+                        fail("Unexpected {EOF}");
+                    }
                 }
             }
             while (data.size());
