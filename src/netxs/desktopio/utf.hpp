@@ -2135,9 +2135,16 @@ namespace netxs::utf
     {
         auto head = utf8.begin();
         auto tail = utf8.end();
-        auto stop = find_char(head, tail, delims);
+        auto stop = utf::find_char(head, tail, delims);
         if (stop == tail) utf8 = view{};
         else              utf8.remove_prefix(std::distance(head, stop));
+    }
+    // utf: Remove utf8 tail including delim.
+    auto eat_tail(view& utf8, char delim)
+    {
+        auto stop = utf8.rfind(delim);
+        if (stop == text::npos) utf8 = {};
+        else                    utf8 = utf8.substr(0, stop);
     }
     template<class View>
     auto pop_front(View&& line, auto size)

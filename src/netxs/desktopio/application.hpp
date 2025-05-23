@@ -522,11 +522,11 @@ namespace netxs::app::shared
             {
                 auto item = menu::item{};
                 auto& data = *data_ptr;
-                auto script_list = data.list("script");
+                auto script_list = data.get_list2("script");
                 item.alive = script_list.size();
                 item.bindings = input::bindings::load(config, script_list);
                 auto classname_list = config.expand_list(data_ptr, "id");
-                auto label_list = data.list("label");
+                auto label_list = data.get_list2("label");
                 item.label = label_list.size() ? config.expand(label_list.front()) : "empty"s;
                 item.tooltip = data.take("tooltip", ""s);
                 auto setup = [classname_list = std::move(classname_list)](ui::item& boss, menu::item& item)
@@ -695,7 +695,7 @@ namespace netxs::app::shared
         {
             if (cfg)
             {
-                auto file_list = cfg.take<true>("/include");
+                auto file_list = cfg.take_ptr_list<true>("/include");
                 if (file_list.size())
                 {
                     log("%%Update settings source files from %src%", prompt::apps, cfg.page.file);
@@ -708,7 +708,7 @@ namespace netxs::app::shared
         {
             if (cfg)
             {
-                auto config_data = cfg.take("/");
+                auto config_data = cfg.take_ptr_list("/");
                 if (config_data.size())
                 {
                     log(prompt::pads, "Merging settings from ", cfg.page.file);
@@ -771,7 +771,7 @@ namespace netxs::app::shared
             attach_file_list(defcfg, dvtcfg);
             attach_file_list(defcfg, clicfg);
 
-            auto config_sources = defcfg.take("/include");
+            auto config_sources = defcfg.take_ptr_list("/include");
             for (auto& file_rec : config_sources) if (file_rec && !file_rec->base) // Overlay configs from the specified sources if it is.
             {
                 auto src_file = file_rec->take_value();

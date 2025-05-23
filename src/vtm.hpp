@@ -1106,7 +1106,7 @@ namespace netxs::app::vtm
             conf_rec.appcfg.cmd = item.take(attr::cmd,      fallback.appcfg.cmd);
             conf_rec.type       = item.take(attr::type,     fallback.type    );
             utf::to_lower(conf_rec.type);
-            auto envar          = item.list(attr::env);
+            auto envar          = item.get_list2(attr::env);
             if (envar.empty()) conf_rec.appcfg.env = fallback.appcfg.env;
             else for (auto& v : envar)
             {
@@ -1119,7 +1119,7 @@ namespace netxs::app::vtm
             if (conf_rec.title.empty()) conf_rec.title = conf_rec.menuid + (conf_rec.appcfg.cmd.empty() ? ""s : ": " + conf_rec.appcfg.cmd);
             if (conf_rec.appcfg.cfg.empty())
             {
-                auto patch = item.list(attr::config);
+                auto patch = item.get_list2(attr::config);
                 if (patch.size())
                 {
                     if (fallback.appcfg.cfg.empty() && patch.size() == 1)

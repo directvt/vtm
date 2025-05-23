@@ -478,7 +478,7 @@ namespace netxs::xml
                 return faux;
             }
             template<bool WithTemplate = faux>
-            auto list(qiew path_str)
+            auto get_list2(qiew path_str)
             {
                 utf::trim(path_str, '/');
                 auto anchor = this;
@@ -694,14 +694,14 @@ namespace netxs::xml
             read(data);
         }
         template<bool WithTemplate = faux>
-        auto take(view path)
+        auto take_ptr_list(view path)
         {
             if (!root) return vect{};
             else
             {
                 utf::trim(path, '/');
                 if (path.empty()) return vect{ root };
-                else              return root->list<WithTemplate>(path);
+                else              return root->get_list2<WithTemplate>(path);
             }
         }
         auto join(view path, vect const& list)
@@ -710,7 +710,7 @@ namespace netxs::xml
             auto slash_pos = path.rfind('/', path.size());
             auto parent_path = slash_pos != text::npos ? path.substr(0, slash_pos) : view{} ;
             auto branch_path = slash_pos != text::npos ? path.substr(slash_pos + sizeof('/')) : path;
-            auto dest_host = take(parent_path);
+            auto dest_host = take_ptr_list(parent_path);
             auto parent = dest_host.size() ? dest_host.front() : root;
             if (parent->mode == elem::form::pact)
             {
@@ -773,7 +773,7 @@ namespace netxs::xml
         // xml: Attach the node list to the specified path.
         void attach(view mount_point, vect const& sub_list)
         {
-            auto dest_list = take(mount_point);
+            auto dest_list = take_ptr_list(mount_point);
             if (dest_list.size())
             {
                 auto& parent = dest_list.front();
@@ -831,7 +831,7 @@ namespace netxs::xml
             auto& node = *node_ptr;
             auto& name = node.name->utf8;
             path += "/" + name;
-            auto dest_list = take<true>(path);
+            auto dest_list = take_ptr_list<true>(path);
             auto is_dest_list = (dest_list.size() && dest_list.front()->fake) || dest_list.size() > 1;
             if (is_dest_list || dest_list.empty())
             {
@@ -1426,13 +1426,13 @@ namespace netxs::xml
             : document{ ptr::shared<xml::document>(utf8_xml, "") }
         {
             homepath = "";
-            homelist = document->take(homepath);
+            homelist = document->take_ptr_list(homepath);
         }
         settings(xml::document& d)
             : document{ ptr::shared<xml::document>(std::move(d)) }
         {
             homepath = "";
-            homelist = document->take(homepath);
+            homelist = document->take_ptr_list(homepath);
         }
 
         auto cd(view gotopath, view fallback = {})
@@ -1442,14 +1442,14 @@ namespace netxs::xml
             if (gotopath.front() == '/')
             {
                 homepath = utf::get_trimmed(gotopath, '/');
-                homelist = document->take(homepath);
+                homelist = document->take_ptr_list(homepath);
             }
             else
             {
                 auto relative = utf::get_trimmed(gotopath, '/');
                 if (homelist.size())
                 {
-                    homelist = homelist.front()->list(relative);
+                    homelist = homelist.front()->get_list2(relative);
                 }
                 homepath += '/';
                 homepath += relative;
@@ -1483,96 +1483,128 @@ namespace netxs::xml
             cd(gotopath, fallback);
         }
         template<bool Quiet = faux, class T = si32>
-        auto take(text frompath, T defval = {}, si32 primary_value = 3) // Three levels of references (to avoid circular references).
+        auto take(text frompath, T defval = {})
         {
             if (frompath.empty()) return defval;
             auto crop = text{};
             if (frompath.front() == '/')
             {
                 frompath = utf::get_trimmed(frompath, '/');
-                tempbuff = document->take(frompath);
+                tempbuff = document->take_ptr_list(frompath);
             }
             else
             {
                 frompath = utf::get_trimmed(frompath, '/');
-                if (homelist.size()) tempbuff = homelist.front()->list(frompath);
+                if (homelist.size()) tempbuff = homelist.front()->get_list2(frompath);
                 if (tempbuff.empty() && backpath.size())
                 {
                     frompath = backpath + "/" + frompath;
-                    tempbuff = document->take(frompath);
+                    tempbuff = document->take_ptr_list(frompath);
                 }
                 else
                 {
                     frompath = homepath + "/" + frompath;
                 }
             }
-            if (tempbuff.size()) crop = tempbuff.back()->take_value();
+            if (tempbuff.size())
+            {
+                crop = settings::expand(tempbuff.back());
+            }
             else
             {
                 if constexpr (!Quiet) log("%%%red% xml path not found: %nil%%path%", prompt::xml, ansi::fgc(redlt), ansi::nil(), frompath);
                 return defval;
             }
-            auto is_quoted = tempbuff.back()->is_quoted();
             tempbuff.clear();
-            auto is_like_variable = [&]{ return primary_value && !is_quoted && crop.size() && (crop.front() == '/' || crop.size() < 128); };
             if constexpr (std::is_same_v<std::decay_t<T>, text>)
             {
-                if (is_like_variable()) // Try to find variable if it is not quoted and its len < 128.
+                return crop;
+            }
+            else
+            {
+                if (auto result = xml::take<T>(crop))
                 {
-                    return take<Quiet>(crop.front() == '/' ? crop : "/" + crop, crop, primary_value - 1);
+                    return result.value();
+                }
+                else
+                {
+                    return defval;
                 }
             }
-            if (auto result = xml::take<T>(crop)) return result.value();
-            if (is_like_variable())               return take<Quiet>(crop.front() == '/' ? crop : "/" + crop, defval, primary_value - 1);
-            else                                  return defval;
         }
-        // settings: Lookup document context.
-        text expand_name(qiew name)
+        // settings: Lookup document context for name's value.
+        bool _expand_namepath(qiew namepath, text& value)
+        {
+            auto name_list = document->take_ptr_list(namepath);
+            if (name_list.size())
+            {
+                auto item_ptr = name_list.front();
+                //todo detect loops
+                settings::_expand(item_ptr, value);
+                return true;
+            }
+            return faux;
+        }
+        // settings: Lookup document context for name's value.
+        void _expand_name(qiew name, text& value)
+        {
+            auto namepath = text{};
+            if (name.size())
+            {
+                if (name.front() != '/') // Relative reference. Iterate over nested contexts.
+                {
+                    auto context_path = qiew{ homepath };
+                    while (true)
+                    {
+                        namepath = context_path;
+                        namepath += '/';
+                        namepath += name;
+                        if (settings::_expand_namepath(namepath, value))
+                        {
+                            break;
+                        }
+                        if (context_path.empty())
+                        {
+                            log("%%Settings reference '%ref%' not found", utf::concat(homepath, '/', name));
+                            break;
+                        }
+                        utf::eat_tail(context_path, '/');
+                    }
+                }
+                else // Absolute reference.
+                {
+                    if (!settings::_expand_namepath(name, value))
+                    {
+                        value += name;
+                    }
+                }
+            }
+        }
+        void _expand(document::sptr item_ptr, text& value)
+        {
+            for (auto& value_placeholder : item_ptr->body)
+            {
+                if (value_placeholder->kind == document::type::tag_reference)
+                {
+                    settings::_expand_name(value_placeholder->utf8, value);
+                }
+                else if (value_placeholder->kind != document::type::tag_joiner)
+                {
+                    value += value_placeholder->utf8;
+                }
+            }
+        }
+        text expand(document::sptr item_ptr)
         {
             auto value = text{};
-            auto namepath = text{};
-            if (name.size() && name.front() != '/')
-            {
-                namepath = homepath;
-                namepath += '/';
-                namepath += utf::get_trimmed_back(name, '/');
-            }
-            while (namepath.size())
-            {
-                    auto name_list = document->take(namepath);
-                    //
-            }
+            settings::_expand(item_ptr, value);
+            utf::unescape(value);
             return value;
-        }
-        text expand(document::sptr item_ptr, si32 primary_value = 3)
-        {
-            //auto value = text{};
-            //for (auto& value_placeholder : item_ptr->body)
-            //{
-            //    if (value_placeholder->kind == document::type::tag_reference)
-            //    {
-            //        value += expand_name(value_placeholder->utf8);
-            //    }
-            //    else
-            //    {
-            //        value += value_placeholder->utf8;
-            //    }
-            //}
-            //utf::unescape(value);
-
-            auto crop = item_ptr->take_value();
-            auto is_quoted = item_ptr->is_quoted();
-            auto is_like_variable = !is_quoted && primary_value && crop.size() && (crop.front() == '/' || crop.size() < 128);
-            if (is_like_variable) // Try to find variable if it is not quoted and its len < 128.
-            {
-                return take<true>(crop.front() == '/' ? crop : "/" + crop, crop, primary_value - 1);
-            }
-            return crop;
         }
         auto expand_list(document::sptr subsection_ptr, view attribute)
         {
             auto strings = txts{};
-            auto attr_list = subsection_ptr->list(attribute);
+            auto attr_list = subsection_ptr->get_list2(attribute);
             strings.reserve(attr_list.size());
             for (auto attr_ptr : attr_list)
             {
@@ -1625,8 +1657,8 @@ namespace netxs::xml
         auto list(view frompath)
         {
             if (frompath.empty())        return homelist;
-            if (frompath.front() == '/') return document->take<WithTemplate>(frompath);
-            if (homelist.size())         return homelist.front()->list<WithTemplate>(frompath);
+            if (frompath.front() == '/') return document->take_ptr_list<WithTemplate>(frompath);
+            if (homelist.size())         return homelist.front()->get_list2<WithTemplate>(frompath);
             else                         return vect{};
         }
         template<class T>
@@ -1663,7 +1695,7 @@ namespace netxs::xml
             auto path = text{};
             document->overlay(tmp_config.root, path);
             homepath = "/";
-            homelist = document->take(homepath);
+            homelist = document->take_ptr_list(homepath);
         }
         friend auto& operator << (std::ostream& s, settings const& p)
         {
