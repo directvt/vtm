@@ -54,7 +54,7 @@ while True: # loop infinitly
 This will print `My data` to the panel every 1 second.
 
 I guess we now want to print some actual data. Lets print the time.
-    In python, we get that from `datetime.datetime.now()`. `datetime.datetime.now()` returns the time in this format: `YYYY-MM-DD HH:MM:SS.SSSSSS`. We don't want the date or nanoseconds, so lets split those off: `datetime.datetime.now().split(' ')[1].split('.')[0]` returns `HH:MM:SS`. perfect.
+In python, to do that, we get `datetime.now()` and use its `strftime()` method to format the time. The format `%H:%M:%S` prints the time like `09:58:30` for example. In case you prefer a 12-hour clock, you can use `%I:%M:%S %p` to print that like `09:58:30 AM`. Look at [date(1)](https://man.archlinux.org/man/date.1.en) for more information about this formatting.
 Now lets put that in the script:
 ```python
 #!/usr/bin/env python3
@@ -64,7 +64,7 @@ import datetime
 
 print("\033[?1049h") # switch to altbuf mode
 while True: # loop infinitly
-    time=datetime.datetime.now().split(' ')[1].split('.')[0] # get current time
+    time=datetime.now().strftime(r"%H:%M:%S") # format time
     print(time) # print data: the time
     sleep(1) # wait 1 second before looping back to the start
 
@@ -81,9 +81,8 @@ import datetime
 
 print("\033[?1049h") # switch to altbuf mode
 while True: # loop infinitly
-    time=datetime.datetime.now().split(' ')[1].split('.')[0] # get current time
-    date=datetime.datetime.now().split(' ')[0]
-    print(time,'|',date,'|','Hello world!') # print data: time | date | Hello world!
+    timedate=datetime.now().strftime(r"%H:%M:%S | %a %e %b %Y") # format timedate
+    print(timedate,'|','Hello world!') # print data: time | date | Hello world!
     sleep(1) # wait 1 second before looping back to the start
 
 ```
@@ -95,7 +94,8 @@ A bash adaptation of the script we just created in python (so people that don't 
 #!/usr/bin/env bash
 # my custom panel
 
-echo -e "\e[?1049h" # switch to altbuf mode
+echo -e "\e[?1049h" # switch to altbuf mode.
+# note we can also achieve that using `tput smcup`, but as it's sure that we'll get VTMs xterm-complient terminal, we don't need the extra dependency
 
 while true; do
     time="$(date +%X)" # get time (in local format)
@@ -106,4 +106,4 @@ done
 
 ```
 
-<sub>Written by [vosjedev](https://vosjedev.pii.at/)</sub>
+<sub>Written (and updated) by [vosjedev](https://vosjedev.net/)</sub>
