@@ -510,7 +510,7 @@ namespace netxs::input
                 if (auto anytest = utf::to_lower(chord);
                     anytest.starts_with("any") ||
                    (anytest.starts_with(tier::str[tier::preview])
-                       && utf::trim((view{ anytest }.substr(tier::str[tier::preview].size())), ": ").starts_with("any")))
+                       && utf::get_trimmed((view{ anytest }.substr(tier::str[tier::preview].size())), ": ").starts_with("any")))
                 {
                     crop.push_back(any_key);
                     return crop;
@@ -518,7 +518,7 @@ namespace netxs::input
                 auto take = [](qiew& chord)
                 {
                     auto k = key_t{};
-                    utf::trim(chord);
+                    utf::trim(chord, ' ');
                     if (chord.empty()) return k;
                     if (auto pos = chord.find("::"); pos != text::npos) // Environment event.
                     {
@@ -532,7 +532,7 @@ namespace netxs::input
                         {
                             auto event_str = chord;
                             event_str.remove_prefix(tier::str[event_tier].size());
-                            utf::trim_all(event_str, ": ");
+                            utf::trim(event_str, ": ");
                             auto& rtti = netxs::events::rtti();
                             auto iter = rtti.find(event_str);
                             if (iter != rtti.end())
@@ -561,7 +561,7 @@ namespace netxs::input
                         if (c == '+')
                         {
                             chord.pop_front(); // Pop '+'.
-                            utf::trim(chord);
+                            utf::trim(chord, ' ');
                             if (chord.empty()) return k;
                             c = chord.front();
                         }
@@ -570,11 +570,11 @@ namespace netxs::input
                     {
                         k.sign |= input::key::unpressed_sign;
                         chord.pop_front(); // Pop '-'.
-                        utf::trim(chord);
+                        utf::trim(chord, ' ');
                         if (chord.empty()) return k;
                         c = chord.front();
                     }
-                    utf::trim(chord);
+                    utf::trim(chord, ' ');
                     if (chord.empty()) return k;
                     if (auto isscancode = chord.starts_with("0x") || chord.starts_with("0X"); isscancode)
                     {
@@ -596,7 +596,7 @@ namespace netxs::input
                     {
                         auto name = utf::to_lower(key_name);
                         auto name_shadow = qiew{ name };
-                        auto digits = utf::trim_back(name_shadow, netxs::onlydigits);
+                        auto digits = utf::trim_back_get_cuts(name_shadow, netxs::onlydigits);
                         if (auto iter_m = input::key::mouse_names.find(name_shadow); iter_m != input::key::mouse_names.end()) // Mouse events.
                         {
                             auto [action_index, button_index] = iter_m->second;
@@ -639,7 +639,7 @@ namespace netxs::input
                             k.code2 = n2 ? code + 1 : 0;
                         }
                     }
-                    utf::trim(chord);
+                    utf::trim(chord, ' ');
                     return k;
                 };
                 // Split.
@@ -2128,7 +2128,7 @@ namespace netxs::input
             {
                 auto head = chord_qiew_list.begin();
                 auto tail = chord_qiew_list.end();
-                auto fragment = utf::trim(*head++);
+                auto fragment = utf::get_trimmed(*head++, ' ');
                 auto is_preview = fragment.starts_with(tier::str[tier::preview]);
                 auto binary_chord_list = _get_chord_list(fragment);
                 if (binary_chord_list.size())

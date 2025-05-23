@@ -144,7 +144,7 @@ namespace netxs::ui
             {
                 auto cmd = eccc{ .cmd = lock.thing.utf8 };
                 notify(e2::command::run, cmd);
-                auto msg = utf::concat(prompt::repl, ansi::clr(yellowlt, utf::trim(cmd.cmd, "\r\n")));
+                auto msg = utf::concat(prompt::repl, ansi::clr(yellowlt, utf::get_trimmed(cmd.cmd, "\r\n")));
                 s11n::logs.send(canal, ui32{}, datetime::now(), msg);
             }
             void handle(s11n::xs::syswinsz    lock)

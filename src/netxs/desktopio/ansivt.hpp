@@ -311,7 +311,7 @@ namespace netxs::ansi
                 {
                     auto str = std::to_string(data);
                     auto shadow = qiew{ str };
-                    utf::trim_back(shadow, "0");
+                    utf::trim_back(shadow, '0');
                     block += shadow;
                 }
             }

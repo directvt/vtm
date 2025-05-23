@@ -41,7 +41,8 @@ namespace netxs::app::vtm
     }
     namespace path
     {
-        static constexpr auto item     = "/config/desktop/taskbar/item";
+        static constexpr auto taskbar  = "/config/desktop/taskbar";
+        static constexpr auto item     = "item";
         static constexpr auto autorun  = "/config/desktop/taskbar/autorun/run";
         static constexpr auto selected = "/config/desktop/taskbar/selected";
         static constexpr auto viewport = "/config/desktop/viewport/coor";
@@ -1301,22 +1302,21 @@ namespace netxs::app::vtm
                                             else
                                             {
                                                 auto utf8_xml = ansi::escx{};
-                                                utf8_xml += "<item>";
                                                 luafx.read_args(1, [&](qiew key, qiew val)
                                                 {
                                                     //log("  %%=%%", key, utf::debase437(val));
                                                     utf8_xml += "<";
+                                                    //todo just use utf::unordered_map for loadspec
                                                     utf::filter_alphanumeric(key, utf8_xml);
                                                     utf8_xml += "=\"";
                                                     utf::escape(val, utf8_xml, '"');
                                                     utf8_xml += "\"/>";
                                                 });
-                                                utf8_xml += "</item>";
                                                 log("%%Run %%", prompt::host, ansi::hi(utf::debase437(utf8_xml)));
                                                 auto appconf = xml::settings{ utf8_xml };
-                                                appconf.cd("item");
-                                                auto itemptr = appconf.homelist.front();
+                                                auto itemptr = appconf.document->root;
                                                 auto menuid = itemptr->take(attr::id, ""s);
+                                                config.pushd(path::taskbar);
                                                 if (menu_list.contains(menuid))
                                                 {
                                                     auto& appbase = menu_list[menuid];
@@ -1328,6 +1328,7 @@ namespace netxs::app::vtm
                                                     if (menuid.empty()) menuid = "vtm.run(" + utf8_xml + ")";
                                                     hall::loadspec(appspec, appspec, *itemptr, menuid);
                                                 }
+                                                config.popd();
                                             }
                                             auto title = appspec.title.empty() && appspec.label.empty() ? appspec.menuid
                                                        : appspec.title.empty() ? appspec.label
@@ -1382,6 +1383,7 @@ namespace netxs::app::vtm
                 utf::replace_all(conf_rec.appcfg.cmd, "$0", current_module_file);
                 utf::replace_all(conf_rec.appcfg.env, "$0", current_module_file);
             };
+            config.pushd(path::taskbar);
             for (auto item_ptr : config.list(path::item))
             {
                 auto& item = *item_ptr;
@@ -1411,6 +1413,8 @@ namespace netxs::app::vtm
                     else                 free_list.emplace_back(std::move(conf_rec.menuid), std::move(conf_rec));
                 }
             }
+            config.popd();
+
             for (auto& [menuid, conf_rec] : free_list)
             {
                 apps_list[menuid];

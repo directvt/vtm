@@ -745,7 +745,7 @@ namespace netxs::app::tile
             {
                 // add split
                 utf8.remove_prefix(1);
-                utf::trim_front(utf8, " ");
+                utf::trim_front(utf8, ' ');
                 auto s1 = si32{ 1 };
                 auto s2 = si32{ 1 };
                 auto w  = si32{-1 };
@@ -757,14 +757,14 @@ namespace netxs::app::tile
                     if (auto r = utf::to_int(utf8)) // Right side ratio
                     {
                         s2 = std::abs(r.value());
-                        utf::trim_front(utf8, " ");
+                        utf::trim_front(utf8, ' ');
                         if (!utf8.empty() && utf8.front() == ':') // Grip width.
                         {
                             utf8.remove_prefix(1);
                             if (auto g = utf::to_int(utf8))
                             {
                                 w = std::abs(g.value());
-                                utf::trim_front(utf8, " ");
+                                utf::trim_front(utf8, ' ');
                             }
                         }
                     }
@@ -780,7 +780,7 @@ namespace netxs::app::tile
             }
             else  // Add application.
             {
-                utf::trim_front(utf8, " ");
+                utf::trim_front(utf8, ' ');
                 auto menuid = utf::take_front(utf8, " ,)").str();
                 if (menuid.empty()) return slot_ptr;
 

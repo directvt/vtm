@@ -2570,7 +2570,7 @@ namespace netxs::os
                     auto buff = std::vector<char>(size);
                     if (::sysctl(name.data(), name.size(), buff.data(), &size, nullptr, 0) == 0)
                     {
-                        result = utf::trim(view{ buff.data(), size }, '\0');
+                        result = utf::get_trimmed(view{ buff.data(), size }, '\0');
                     }
                 }
 

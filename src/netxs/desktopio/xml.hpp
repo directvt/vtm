@@ -480,7 +480,7 @@ namespace netxs::xml
             template<bool WithTemplate = faux>
             auto list(qiew path_str)
             {
-                path_str = utf::trim(path_str, '/');
+                utf::trim(path_str, '/');
                 auto anchor = this;
                 auto crop = vect{}; //auto& items = config.root->hive["menu"][0]->hive["item"]...;
                 auto temp = text{};
@@ -647,7 +647,7 @@ namespace netxs::xml
                  || crop.starts_with('\r'))
                 {
                     auto temp = view{ crop };
-                    auto dent = text{ utf::trim_front(temp, whitespaces) };
+                    auto dent = text{ utf::trim_front_get_cuts(temp, whitespaces) };
                     crop = temp;
                     utf::replace_all(crop, dent, "\n");
                 }
@@ -699,14 +699,14 @@ namespace netxs::xml
             if (!root) return vect{};
             else
             {
-                path = utf::trim(path, '/');
+                utf::trim(path, '/');
                 if (path.empty()) return vect{ root };
                 else              return root->list<WithTemplate>(path);
             }
         }
         auto join(view path, vect const& list)
         {
-            path = utf::trim(path, '/');
+            utf::trim(path, '/');
             auto slash_pos = path.rfind('/', path.size());
             auto parent_path = slash_pos != text::npos ? path.substr(0, slash_pos) : view{} ;
             auto branch_path = slash_pos != text::npos ? path.substr(slash_pos + sizeof('/')) : path;
@@ -759,7 +759,7 @@ namespace netxs::xml
                         if (from->next && from->next->kind == type::begin_tag) // Checking begin_tag.
                         {
                             auto shadow = view{ from->next->utf8 };
-                            if (utf::trim_front(shadow, whitespaces).empty()) // Set it to '<' if it is absent.
+                            if (utf::trim_front_get_cuts(shadow, whitespaces).empty()) // Set it to '<' if it is absent.
                             {
                                 from->next->utf8 = "<";
                             }
@@ -1001,7 +1001,7 @@ namespace netxs::xml
         }
         auto trim(view& data)
         {
-            auto temp = utf::trim_front(data, whitespaces);
+            auto temp = utf::trim_front_get_cuts(data, whitespaces);
             auto crop = !temp.empty();
             if (crop) page.append(type::spaces, std::move(temp));
             return crop;
@@ -1212,7 +1212,7 @@ namespace netxs::xml
                 if (what == type::close_tag) // Proceed '</token>'.
                 {
                     auto skip_frag = skip(temp, what);
-                    auto trim_frag = utf::trim_front(temp, whitespaces);
+                    auto trim_frag = utf::trim_front_get_cuts(temp, whitespaces);
                     peek(temp, what, last);
                     if (what == type::token)
                     {
@@ -1330,7 +1330,7 @@ namespace netxs::xml
                         while (true) // Pull inline comments: .../>  <!-- comments --> ... <!-- comments -->
                         {
                             temp = data;
-                            auto idle = utf::trim_front(temp, whitespaces);
+                            auto idle = utf::trim_front_get_cuts(temp, whitespaces);
                             auto w = what;
                             auto l = last;
                             peek(temp, w, l);
@@ -1416,7 +1416,7 @@ namespace netxs::xml
         sptr document; // settings: XML document.
         vect tempbuff; // settings: Temp buffer.
         vect homelist; // settings: Current directory item list.
-        text homepath; // settings: Current working directory.
+        text homepath; // settings: Current working directory (reference context).
         text backpath; // settings: Fallback path.
         hist cwdstack; // settings: Stack for saving current cwd.
 
@@ -1425,44 +1425,44 @@ namespace netxs::xml
         settings(view utf8_xml)
             : document{ ptr::shared<xml::document>(utf8_xml, "") }
         {
-            homepath = "/";
+            homepath = "";
             homelist = document->take(homepath);
         }
         settings(xml::document& d)
             : document{ ptr::shared<xml::document>(std::move(d)) }
         {
-            homepath = "/";
+            homepath = "";
             homelist = document->take(homepath);
         }
 
         auto cd(view gotopath, view fallback = {})
         {
-            backpath = utf::trim(fallback, '/');
+            backpath = utf::get_trimmed(fallback, '/');
             if (gotopath.empty()) return faux;
             if (gotopath.front() == '/')
             {
-                homepath = "/";
-                homepath += utf::trim(gotopath, '/');
+                homepath = utf::get_trimmed(gotopath, '/');
                 homelist = document->take(homepath);
             }
             else
             {
-                auto relative = utf::trim(gotopath, '/');
+                auto relative = utf::get_trimmed(gotopath, '/');
                 if (homelist.size())
                 {
                     homelist = homelist.front()->list(relative);
                 }
-                homepath += "/";
+                homepath += '/';
                 homepath += relative;
             }
             auto test = !!homelist.size();
             if constexpr (debugmode)
             if (!test)
             {
-                log("%%%err%xml path not found: %path%%nil%", prompt::xml, ansi::err(), homepath, ansi::nil());
+                log("%%%err%xml path not found: /%path%/%nil%", prompt::xml, ansi::err(), homepath, ansi::nil());
             }
             return test;
         }
+        // settings: Pop document context.
         void popd()
         {
             if (cwdstack.empty())
@@ -1476,6 +1476,7 @@ namespace netxs::xml
                 cwdstack.pop_back();
             }
         }
+        // settings: Push document context.
         void pushd(view gotopath, view fallback = {})
         {
             cwdstack.push_back({ homepath, backpath });
@@ -1488,19 +1489,22 @@ namespace netxs::xml
             auto crop = text{};
             if (frompath.front() == '/')
             {
-                frompath = utf::trim(frompath, '/');
+                frompath = utf::get_trimmed(frompath, '/');
                 tempbuff = document->take(frompath);
             }
             else
             {
-                frompath = utf::trim(frompath, '/');
+                frompath = utf::get_trimmed(frompath, '/');
                 if (homelist.size()) tempbuff = homelist.front()->list(frompath);
                 if (tempbuff.empty() && backpath.size())
                 {
                     frompath = backpath + "/" + frompath;
                     tempbuff = document->take(frompath);
                 }
-                else frompath = homepath + "/" + frompath;
+                else
+                {
+                    frompath = homepath + "/" + frompath;
+                }
             }
             if (tempbuff.size()) crop = tempbuff.back()->take_value();
             else
@@ -1522,8 +1526,40 @@ namespace netxs::xml
             if (is_like_variable())               return take<Quiet>(crop.front() == '/' ? crop : "/" + crop, defval, primary_value - 1);
             else                                  return defval;
         }
-        auto expand(document::sptr item_ptr, si32 primary_value = 3)
+        // settings: Lookup document context.
+        text expand_name(qiew name)
         {
+            auto value = text{};
+            auto namepath = text{};
+            if (name.size() && name.front() != '/')
+            {
+                namepath = homepath;
+                namepath += '/';
+                namepath += utf::get_trimmed_back(name, '/');
+            }
+            while (namepath.size())
+            {
+                    auto name_list = document->take(namepath);
+                    //
+            }
+            return value;
+        }
+        text expand(document::sptr item_ptr, si32 primary_value = 3)
+        {
+            //auto value = text{};
+            //for (auto& value_placeholder : item_ptr->body)
+            //{
+            //    if (value_placeholder->kind == document::type::tag_reference)
+            //    {
+            //        value += expand_name(value_placeholder->utf8);
+            //    }
+            //    else
+            //    {
+            //        value += value_placeholder->utf8;
+            //    }
+            //}
+            //utf::unescape(value);
+
             auto crop = item_ptr->take_value();
             auto is_quoted = item_ptr->is_quoted();
             auto is_like_variable = !is_quoted && primary_value && crop.size() && (crop.front() == '/' || crop.size() < 128);
