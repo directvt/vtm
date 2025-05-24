@@ -1534,9 +1534,9 @@ namespace netxs::xml
                 if (value_placeholder->kind == document::type::tag_reference)
                 {
                     auto& reference_name = value_placeholder->utf8;
-                    if (auto item_ptr = settings::_find_name(reference_name))
+                    if (auto base_item_ptr = settings::_find_name(reference_name))
                     {
-                        settings::_take_value(item_ptr, value);
+                        settings::_take_value(base_item_ptr, value);
                     }
                 }
                 else if (value_placeholder->kind != document::type::tag_joiner)
