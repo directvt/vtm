@@ -553,7 +553,7 @@ namespace netxs::xml
                 }
                 return crop;
             }
-            auto take_value()
+            auto _concat_values()
             {
                 auto value = text{};
                 for (auto& value_placeholder : body)
@@ -614,65 +614,6 @@ namespace netxs::xml
                     init_value(value, faux, node.is_quoted());
                 }
             }
-            //template<class T>
-            //auto take(qiew attr, T fallback = {})
-            //{
-            //    if (auto iter = hive.find(attr); iter != hive.end())
-            //    {
-            //        auto& item_set = iter->second;
-            //        if (item_set.size()) // Take the first item only.
-            //        {
-            //            auto crop = item_set.front()->take_value();
-            //            return xml::take_or<T>(crop, fallback);
-            //        }
-            //    }
-            //    if (auto defs_ptr = defs.lock()) return defs_ptr->take(attr, fallback);
-            //    else                             return fallback;
-            //}
-            //template<class T>
-            //auto take(qiew attr, T defval, utf::unordered_map<text, T> const& dict)
-            //{
-            //    if (attr.empty()) return defval;
-            //    auto crop = take(attr, ""s);
-            //    auto iter = dict.find(crop);
-            //    return iter == dict.end() ? defval
-            //                              : iter->second;
-            //}
-            //auto show(sz_t indent = 0) -> text
-            //{
-            //    auto data = text{};
-            //    data += text(indent, ' ') + '<' + name->utf8;
-            //    if (fake)
-            //    {
-            //        data += view_defaults;
-            //    }
-            //    if (body.size())
-            //    {
-            //        auto crop = take_value();
-            //        if (crop.size())
-            //        {
-            //            data.push_back('=');
-            //            utf::quote(crop, data, '\"');
-            //        }
-            //    }
-            //    if (hive.empty())
-            //    {
-            //        data += "/>\n";
-            //    }
-            //    else
-            //    {
-            //        data += ">\n";
-            //        for (auto& [sub_name, sub_list] : hive)
-            //        {
-            //            for (auto& item : sub_list)
-            //            {
-            //                data += item->show(indent + 4);
-            //            }
-            //        }
-            //        data += text(indent, ' ') + "</" + name->utf8 + ">\n";
-            //    }
-            //    return data;
-            //}
             auto snapshot()
             {
                 auto crop = text{};

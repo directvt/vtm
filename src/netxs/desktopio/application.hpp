@@ -706,7 +706,13 @@ namespace netxs::app::shared
                 if (file_list.size())
                 {
                     log("%%Update settings source files from %src%", prompt::apps, cfg.page.file);
-                    for (auto& file : file_list) if (file && !file->base) log("%%%file%", prompt::pads, file->take_value());
+                    for (auto& file : file_list)
+                    {
+                        if (file && !file->base)
+                        {
+                            log("%%%file%", prompt::pads, file->_concat_values());
+                        }
+                    }
                     defcfg.attach("/", file_list);
                 }
             }
@@ -781,7 +787,7 @@ namespace netxs::app::shared
             auto config_sources = defcfg.take_ptr_list("/include");
             for (auto& file_rec : config_sources) if (file_rec && !file_rec->base) // Overlay configs from the specified sources if it is.
             {
-                auto src_file = file_rec->take_value();
+                auto src_file = file_rec->_concat_values();
                 auto src_conf = xml::document{};
                 load_from_file(src_conf, src_file);
                 show_cfg(src_conf);
