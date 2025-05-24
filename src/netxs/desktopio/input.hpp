@@ -2244,17 +2244,17 @@ namespace netxs::input
             auto bindings = input::bindings::vector{};
             for (auto script_ptr : script_list)
             {
-                auto script_body_ptr = ptr::shared(config.expand(script_ptr));
+                auto script_body_ptr = ptr::shared(config.take_value(script_ptr));
                 auto on_ptr_list = script_ptr->get_list2("on");
                 for (auto event_ptr : on_ptr_list)
                 {
-                    auto on_rec = config.expand(event_ptr); // ... on="MouseDown01" ... on="preview:Enter"... .
+                    auto on_rec = config.take_value(event_ptr); // ... on="MouseDown01" ... on="preview:Enter"... .
                     auto source_list = event_ptr->get_list2("source");
                     auto sources = txts{};
                     sources.reserve(source_list.size());
                     for (auto src_ptr : source_list)
                     {
-                        auto source = config.expand(src_ptr);
+                        auto source = config.take_value(src_ptr);
                         sources.emplace_back(source);
                         //if constexpr (debugmode) log("chord='%%' \tpreview=%% source='%%' script=%%", on_rec, (si32)preview, source, ansi::hi(*script_body_ptr));
                     }

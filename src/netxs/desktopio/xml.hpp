@@ -1482,6 +1482,111 @@ namespace netxs::xml
             cwdstack.push_back({ homepath, backpath });
             cd(gotopath, fallback);
         }
+        // settings: Lookup document context for item_ptr by its reference name path.
+        void _find_namepath(view reference_namepath, document::sptr& item_ptr)
+        {
+            auto name_list = document->take_ptr_list(reference_namepath);
+            if (name_list.size())
+            {
+                //todo detect loops
+                item_ptr = name_list.front();
+            }
+        }
+        // settings: Lookup document context for item_ptr by its reference name.
+        auto _find_name(view reference_name)
+        {
+            auto item_ptr = document::sptr{};
+            auto namepath = text{};
+            if (reference_name.size())
+            {
+                if (reference_name.front() != '/') // Relative reference. Iterate over nested contexts.
+                {
+                    auto context_path = qiew{ homepath };
+                    while (true)
+                    {
+                        namepath = context_path;
+                        namepath += '/';
+                        namepath += reference_name;
+                        settings::_find_namepath(namepath, item_ptr);
+                        if (item_ptr)
+                        {
+                            break;
+                        }
+                        if (context_path.empty())
+                        {
+                            log("%%Settings reference '%ref%' not found", utf::concat(homepath, '/', reference_name));
+                            break;
+                        }
+                        utf::eat_tail(context_path, '/');
+                    }
+                }
+                else // Absolute reference.
+                {
+                    settings::_find_namepath(reference_name, item_ptr);
+                }
+            }
+            return item_ptr;
+        }
+        void _take_value(document::sptr item_ptr, text& value)
+        {
+            for (auto& value_placeholder : item_ptr->body)
+            {
+                if (value_placeholder->kind == document::type::tag_reference)
+                {
+                    auto& reference_name = value_placeholder->utf8;
+                    if (auto item_ptr = settings::_find_name(reference_name))
+                    {
+                        settings::_take_value(item_ptr, value);
+                    }
+                }
+                else if (value_placeholder->kind != document::type::tag_joiner)
+                {
+                    value += value_placeholder->utf8;
+                }
+            }
+        }
+        text take_value(document::sptr item_ptr)
+        {
+            auto value = text{};
+            settings::_take_value(item_ptr, value);
+            utf::unescape(value);
+            return value;
+        }
+        auto take_value_list_of(document::sptr subsection_ptr, view attribute)
+        {
+            auto strings = txts{};
+            auto attr_list = subsection_ptr->get_list2(attribute);
+            strings.reserve(attr_list.size());
+            for (auto attr_ptr : attr_list)
+            {
+                strings.emplace_back(settings::take_value(attr_ptr));
+            }
+            return strings;
+        }
+        void _take_ptr_list_of(document::sptr subsection_ptr, view attribute, document::vect& ptr_list)
+        {
+            // Recursively take all base lists.
+            for (auto& value_placeholder : subsection_ptr->body)
+            {
+                if (value_placeholder->kind == document::type::tag_reference)
+                {
+                    auto& reference_name = value_placeholder->utf8;
+                    if (auto base_ptr = settings::_find_name(reference_name))
+                    {
+                        settings::_take_ptr_list_of(base_ptr, attribute, ptr_list);
+                    }
+                }
+            }
+            // Take native attribute list.
+            auto attr_list = subsection_ptr->get_list2(attribute);
+            ptr_list.insert(ptr_list.end(), attr_list.begin(), attr_list.end());
+        }
+        auto take_ptr_list_of(document::sptr subsection_ptr, view attribute)
+        {
+            auto ptr_list = document::vect{};
+            settings::_take_ptr_list_of(subsection_ptr, attribute, ptr_list);
+            return ptr_list;
+        }
         template<bool Quiet = faux, class T = si32>
         auto take(text frompath, T defval = {})
         {
@@ -1508,7 +1613,7 @@ namespace netxs::xml
             }
             if (tempbuff.size())
             {
-                crop = settings::expand(tempbuff.back());
+                crop = settings::take_value(tempbuff.back());
             }
             else
             {
@@ -1532,91 +1637,11 @@ namespace netxs::xml
                 }
             }
         }
-        // settings: Lookup document context for name's value.
-        bool _expand_namepath(qiew namepath, text& value)
-        {
-            auto name_list = document->take_ptr_list(namepath);
-            if (name_list.size())
-            {
-                auto item_ptr = name_list.front();
-                //todo detect loops
-                settings::_expand(item_ptr, value);
-                return true;
-            }
-            return faux;
-        }
-        // settings: Lookup document context for name's value.
-        void _expand_name(qiew name, text& value)
-        {
-            auto namepath = text{};
-            if (name.size())
-            {
-                if (name.front() != '/') // Relative reference. Iterate over nested contexts.
-                {
-                    auto context_path = qiew{ homepath };
-                    while (true)
-                    {
-                        namepath = context_path;
-                        namepath += '/';
-                        namepath += name;
-                        if (settings::_expand_namepath(namepath, value))
-                        {
-                            break;
-                        }
-                        if (context_path.empty())
-                        {
-                            log("%%Settings reference '%ref%' not found", utf::concat(homepath, '/', name));
-                            break;
-                        }
-                        utf::eat_tail(context_path, '/');
-                    }
-                }
-                else // Absolute reference.
-                {
-                    if (!settings::_expand_namepath(name, value))
-                    {
-                        value += name;
-                    }
-                }
-            }
-        }
-        void _expand(document::sptr item_ptr, text& value)
-        {
-            for (auto& value_placeholder : item_ptr->body)
-            {
-                if (value_placeholder->kind == document::type::tag_reference)
-                {
-                    settings::_expand_name(value_placeholder->utf8, value);
-                }
-                else if (value_placeholder->kind != document::type::tag_joiner)
-                {
-                    value += value_placeholder->utf8;
-                }
-            }
-        }
-        text expand(document::sptr item_ptr)
-        {
-            auto value = text{};
-            settings::_expand(item_ptr, value);
-            utf::unescape(value);
-            return value;
-        }
-        auto expand_list(document::sptr subsection_ptr, view attribute)
-        {
-            auto strings = txts{};
-            auto attr_list = subsection_ptr->get_list2(attribute);
-            strings.reserve(attr_list.size());
-            for (auto attr_ptr : attr_list)
-            {
-                strings.emplace_back(expand(attr_ptr));
-            }
-            return strings;
-        }
         template<class T>
         auto take(text frompath, T defval, utf::unordered_map<text, T> const& dict)
         {
             if (frompath.empty()) return defval;
-            auto crop = take<true>(frompath, ""s);
+            auto crop = settings::take<true>(frompath, ""s);
             if (crop.empty())
             {
                 log("%%%red% xml path not found: %nil%%path%", prompt::xml, ansi::fgc(redlt), ansi::nil(), frompath);
@@ -1639,16 +1664,16 @@ namespace netxs::xml
             auto txt_path = frompath + '/' + "txt";
             auto fba_path = frompath + '/' + "alpha";
             auto crop = cell{ defval.txt() };
-            crop.fgc(take<true>(fgc_path, defval.fgc()));
-            crop.bgc(take<true>(bgc_path, defval.bgc()));
-            crop.itc(take<true>(itc_path, defval.itc()));
-            crop.bld(take<true>(bld_path, defval.bld()));
-            crop.und(take<true>(und_path, defval.und()));
-            crop.inv(take<true>(inv_path, defval.inv()));
-            crop.ovr(take<true>(ovr_path, defval.ovr()));
-            crop.blk(take<true>(blk_path, defval.blk()));
-            auto t = take<true>(txt_path, ""s);
-            auto a = take<true>(fba_path, -1);
+            crop.fgc(settings::take<true>(fgc_path, defval.fgc()));
+            crop.bgc(settings::take<true>(bgc_path, defval.bgc()));
+            crop.itc(settings::take<true>(itc_path, defval.itc()));
+            crop.bld(settings::take<true>(bld_path, defval.bld()));
+            crop.und(settings::take<true>(und_path, defval.und()));
+            crop.inv(settings::take<true>(inv_path, defval.inv()));
+            crop.ovr(settings::take<true>(ovr_path, defval.ovr()));
+            crop.blk(settings::take<true>(blk_path, defval.blk()));
+            auto t = settings::take<true>(txt_path, ""s);
+            auto a = settings::take<true>(fba_path, -1);
             if (t.size()) crop.txt(t);
             if (a != -1)  crop.alpha((byte)std::clamp(a, 0, 255));
             return crop;
@@ -1664,7 +1689,7 @@ namespace netxs::xml
         template<class T>
         void set(view frompath, T&& value)
         {
-            auto items = list(frompath);
+            auto items = settings::list(frompath);
             if (items.empty())
             {
                 //todo add new

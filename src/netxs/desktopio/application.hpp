@@ -525,9 +525,9 @@ namespace netxs::app::shared
                 auto script_list = data.get_list2("script");
                 item.alive = script_list.size();
                 item.bindings = input::bindings::load(config, script_list);
-                auto classname_list = config.expand_list(data_ptr, "id");
+                auto classname_list = config.take_value_list_of(data_ptr, "id");
                 auto label_list = data.get_list2("label");
-                item.label = label_list.size() ? config.expand(label_list.front()) : "empty"s;
+                item.label = label_list.size() ? config.take_value(label_list.front()) : "empty"s;
                 item.tooltip = data.take("tooltip", ""s);
                 auto setup = [classname_list = std::move(classname_list)](ui::item& boss, menu::item& item)
                 {
@@ -823,7 +823,7 @@ namespace netxs::app::shared
         for (auto& f : recs)
         {
             //todo implement 'fonts/font/file' - font file path/url
-            gui_config.fontlist.push_back(config.expand(f));
+            gui_config.fontlist.push_back(config.take_value(f));
         }
         return gui_config;
     }
