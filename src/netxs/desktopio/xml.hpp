@@ -825,7 +825,7 @@ namespace netxs::xml
                 log("%%Destination path not found '%mount_point%'", prompt::xml, mount_point);
             }
         }
-        void overlay(sptr node_ptr, text path)
+        void overlay(sptr node_ptr, text path = {})
         {
             auto& node = *node_ptr;
             auto& name = node.name->utf8;
@@ -1411,57 +1411,21 @@ namespace netxs::xml
     {
         using vect = xml::document::vect;
         using sptr = netxs::sptr<xml::document>;
-        using hist = std::list<std::pair<text, text>>;
 
         sptr document; // settings: XML document.
         vect tempbuff; // settings: Temp buffer.
-        vect homelist; // settings: Current directory item list.
         text homepath; // settings: Current working directory (reference context).
-        text backpath; // settings: Fallback path.
-        hist cwdstack; // settings: Stack for saving current cwd.
+        txts cwdstack; // settings: Stack for saving current cwd.
 
         settings() = default;
         settings(settings const&) = default;
         settings(view utf8_xml)
             : document{ ptr::shared<xml::document>(utf8_xml, "") }
-        {
-            homepath = "";
-            homelist = document->take_ptr_list(homepath);
-        }
-        settings(xml::document& d)
-            : document{ ptr::shared<xml::document>(std::move(d)) }
-        {
-            homepath = "";
-            homelist = document->take_ptr_list(homepath);
-        }
+        { }
+        settings(xml::document& other)
+            : document{ ptr::shared<xml::document>(std::move(other)) }
+        { }
 
-        auto cd(view gotopath, view fallback = {})
-        {
-            backpath = utf::get_trimmed(fallback, '/');
-            if (gotopath.empty()) return faux;
-            if (gotopath.front() == '/')
-            {
-                homepath = utf::get_trimmed(gotopath, '/');
-                homelist = document->take_ptr_list(homepath);
-            }
-            else
-            {
-                auto relative = utf::get_trimmed(gotopath, '/');
-                if (homelist.size())
-                {
-                    homelist = homelist.front()->get_list2(relative);
-                }
-                homepath += '/';
-                homepath += relative;
-            }
-            auto test = !!homelist.size();
-            if constexpr (debugmode)
-            if (!test)
-            {
-                log("%%%err%xml path not found: /%path%/%nil%", prompt::xml, ansi::err(), homepath, ansi::nil());
-            }
-            return test;
-        }
         // settings: Pop document context.
         void popd()
         {
@@ -1471,16 +1435,28 @@ namespace netxs::xml
             }
             else
             {
-                auto& [gotopath, fallback] = cwdstack.back();
-                cd("/" + gotopath, fallback);
+                homepath.clear();
+                homepath += '/';
+                homepath += cwdstack.back();
                 cwdstack.pop_back();
             }
         }
         // settings: Push document context.
-        void pushd(view gotopath, view fallback = {})
+        void pushd(qiew gotopath)
         {
-            cwdstack.push_back({ homepath, backpath });
-            cd(gotopath, fallback);
+            cwdstack.push_back(homepath);
+            if (gotopath)
+            {
+                if (gotopath.front() == '/') // Absolute path.
+                {
+                    homepath = utf::get_trimmed(gotopath, '/');
+                }
+                else // Relative path.
+                {
+                    homepath += '/';
+                    homepath += utf::get_trimmed(gotopath, '/');
+                }
+            }
         }
         // settings: Lookup document context for all item_ptrs by reference name.
         template<bool WithTemplate = faux>
@@ -1762,18 +1738,11 @@ namespace netxs::xml
             return crop;
         }
         template<bool WithTemplate = faux>
-        auto list(view frompath)
+        auto list(qiew frompath)
         {
-            if (frompath.empty())
-            {
-                return homelist;
-            }
-            else
-            {
-                auto item_ptr_list = document::vect{};
-                settings::_find_all_ptrs<WithTemplate>(frompath, item_ptr_list);
-                return item_ptr_list;
-            }
+            auto item_ptr_list = document::vect{};
+            settings::_find_all_ptrs<WithTemplate>(frompath ? frompath : qiew{ homepath }, item_ptr_list);
+            return item_ptr_list;
         }
         template<class T>
         void set(view frompath, T&& value)
@@ -1800,16 +1769,12 @@ namespace netxs::xml
             if (utf8_xml.empty()) return;
             if (filepath.size()) document->page.file = filepath;
             homepath.clear();
-            homelist.clear();
             auto tmp_config = xml::document{ utf8_xml, filepath };
             if constexpr (Print)
             {
                 log("%%Settings from %file%:\n%config%", prompt::xml, filepath.empty() ? "memory"sv : filepath, tmp_config.page.show());
             }
-            auto path = text{};
-            document->overlay(tmp_config.root, path);
-            homepath = "/";
-            homelist = document->take_ptr_list(homepath);
+            document->overlay(tmp_config.root);
         }
         friend auto& operator << (std::ostream& s, settings const& p)
         {

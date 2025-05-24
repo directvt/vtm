@@ -909,7 +909,7 @@ namespace netxs::app::tile
                 auto script_list = config.settings::take_ptr_list_for_name("", "script");
                 auto grip_bindings_ptr = ptr::shared(input::bindings::load(config, script_list));
             config.settings::popd();
-            config.settings::pushd("/config/tile");
+            config.settings::pushd("/config/tile/");
             auto [menu_block, cover, menu_data] = menu::load(config);
             object->attach(slot::_1, menu_block)
                 ->invoke([](auto& boss)

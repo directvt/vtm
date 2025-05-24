@@ -633,68 +633,6 @@ namespace netxs::app::vtm
                 base::limits(dot_11);
                 base::kind(base::reflow_root);
                 base::root(true);
-
-                //auto& luafx = bell::indexer.luafx;
-                //auto& bindings = world.base::property<input::bindings::vector>("window.bindings"); // Shared key bindings across the hall.
-                //if (bindings.empty())
-                //{
-                //    world.config.settings::pushd("/config/events/window/");
-                //        auto script_list = world.config.settings::take_ptr_list_for_name("", "script");
-                //        bindings = input::bindings::load(world.config, script_list);
-                //    world.config.settings::popd();
-                //}
-                //input::bindings::keybind(*this, bindings);
-                //base::add_methods(basename::window,
-                //{
-                //    { "Warp",               [&]
-                //                            {
-                //                                auto warp = dent{ luafx.get_args_or(1, 0),   // Args...
-                //                                                  luafx.get_args_or(2, 0),   //
-                //                                                  luafx.get_args_or(3, 0),   //
-                //                                                  luafx.get_args_or(4, 0) }; //
-                //                                window_swarp(warp);
-                //                                luafx.get_gear().set_handled();
-                //                                luafx.set_return(); // No returns.
-                //                            }},
-                //    //{ "ZOrder",             [&]
-                //    //                        {
-                //    //                            auto args_count = luafx.args_count();
-                //    //                            auto state = window_zorder(args_count, luafx.get_args_or(1, zpos::plain));
-                //    //                            luafx.get_gear().set_handled();
-                //    //                            luafx.set_return(state);
-                //    //                        }},
-                //    { "Close",              [&]
-                //                            {
-                //                                auto gear_id = id_t{};
-                //                                auto& gear = luafx.get_gear();
-                //                                gear.set_handled();
-                //                                gear_id = gear.id;
-                //                                window_close(gear_id);
-                //                                luafx.set_return();
-                //                            }},
-                //    { "Minimize",           [&]
-                //                            {
-                //                                auto& gear = luafx.get_gear();
-                //                                gear.set_handled();
-                //                                window_state(gear.id, e2::form::size::minimize.id);
-                //                                luafx.set_return();
-                //                            }},
-                //    { "Maximize",           [&]
-                //                            {
-                //                                auto& gear = luafx.get_gear();
-                //                                gear.set_handled();
-                //                                window_state(gear.id, e2::form::size::enlarge::maximize.id);
-                //                                luafx.set_return();
-                //                            }},
-                //    { "Fullscreen",         [&]
-                //                            {
-                //                                auto& gear = luafx.get_gear();
-                //                                gear.set_handled();
-                //                                window_state(gear.id, e2::form::size::enlarge::fullscreen.id);
-                //                                luafx.set_return();
-                //                            }},
-                //});
-
                 LISTEN(tier::preview, e2::command::gui, gui_cmd)
                 {
                     auto hit = true;
