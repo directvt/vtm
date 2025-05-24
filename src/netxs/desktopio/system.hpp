@@ -2668,7 +2668,7 @@ namespace netxs::os
                 environ = backup;
             #endif
         }
-        auto fork([[maybe_unused]] bool system, [[maybe_unused]] text prefix, [[maybe_unused]] view config, [[maybe_unused]] view script = {})
+        auto fork([[maybe_unused]] bool system, [[maybe_unused]] text prefix, [[maybe_unused]] view config_utf8, [[maybe_unused]] view script = {})
         {
             auto msg = [](auto& success)
             {
@@ -2683,15 +2683,15 @@ namespace netxs::os
                 if (system && nt::session() && nt::connect(os::path::ipcname, FILE_WRITE_DATA, svclink)) // Try vtm service to run server in Session 0.
                 {
                     auto envars = os::env::add(); // Take current envvars block.
-                    auto size = (ui32)(prefix.size() + config.size() + envars.size() + 2);
-                    auto data = utf::concat(view{ (char*)&size, sizeof(size) }, prefix, '\xFF', config, '\xFF', envars);
+                    auto size = (ui32)(prefix.size() + config_utf8.size() + envars.size() + 2);
+                    auto data = utf::concat(view{ (char*)&size, sizeof(size) }, prefix, '\xFF', config_utf8, '\xFF', envars);
                     io::send(svclink, data);
                     success.reset(svclink); // Do not close until confirmation from the server process is received.
                 }
                 else
                 {
                     auto cfpath = utf::concat(prefix, os::path::cfg_suffix);
-                    auto handle = process::memory::set(cfpath, config);
+                    auto handle = process::memory::set(cfpath, config_utf8);
                     auto cmdarg = utf::to_utf(utf::concat(os::process::binary(), " -s -p ", nt::escape(prefix), " -c :", cfpath, script.size() ? utf::concat(" -x ", nt::escape(script)) : ""s));
                     if (os::nt::runas(cmdarg))
                     {

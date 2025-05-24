@@ -478,6 +478,43 @@ namespace netxs::xml
                 return faux;
             }
             template<bool WithTemplate = faux>
+            auto get_list3(qiew path_str, vect& crop)
+            {
+                utf::trim(path_str, '/');
+                auto anchor = this;
+                auto temp = text{};
+                auto path = utf::split(path_str, '/');
+                if (path.size())
+                {
+                    auto head = path.begin();
+                    auto tail = path.end();
+                    while (head != tail)
+                    {
+                        temp = *head++;
+                        if (auto iter = anchor->hive.find(temp);
+                                 iter!= anchor->hive.end())
+                        {
+                            auto& i = iter->second;
+                            crop.reserve(i.size());
+                            if (head == tail)
+                            {
+                                for (auto& item : i)
+                                {
+                                    if constexpr (WithTemplate) crop.push_back(item);
+                                    else       if (!item->fake) crop.push_back(item);
+                                }
+                            }
+                            else if (i.size() && i.front())
+                            {
+                                anchor = &(*(i.front()));
+                            }
+                            else break;
+                        }
+                        else break;
+                    }
+                }
+            }
+            template<bool WithTemplate = faux>
             auto get_list2(qiew path_str)
             {
                 utf::trim(path_str, '/');
@@ -577,62 +614,65 @@ namespace netxs::xml
                     init_value(value, faux, node.is_quoted());
                 }
             }
-            template<class T>
-            auto take(qiew attr, T fallback = {})
-            {
-                if (auto iter = hive.find(attr); iter != hive.end())
-                {
-                    auto& item_set = iter->second;
-                    if (item_set.size()) // Take the first item only.
-                    {
-                        auto crop = item_set.front()->take_value();
-                        return xml::take_or<T>(crop, fallback);
-                    }
-                }
-                if (auto defs_ptr = defs.lock()) return defs_ptr->take(attr, fallback);
-                else                             return fallback;
-            }
-            template<class T>
-            auto take(qiew attr, T defval, utf::unordered_map<text, T> const& dict)
-            {
-                if (attr.empty()) return defval;
-                auto crop = take(attr, ""s);
-                auto iter = dict.find(crop);
-                return iter == dict.end() ? defval
-                                          : iter->second;
-            }
-            auto show(sz_t indent = 0) -> text
-            {
-                auto data = text{};
-                data += text(indent, ' ') + '<' + name->utf8;
-                if (fake) data += view_defaults;
-
-                if (body.size())
-                {
-                    auto crop = take_value();
-                    if (crop.size())
-                    {
-                        data.push_back('=');
-                        utf::quote(crop, data, '\"');
-                    }
-                }
-
-                if (hive.empty()) data += "/>\n";
-                else
-                {
-                    data += ">\n";
-                    for (auto& [sub_name, sub_list] : hive)
-                    {
-                        for (auto& item : sub_list)
-                        {
-                            data += item->show(indent + 4);
-                        }
-                    }
-                    data += text(indent, ' ') + "</" + name->utf8 + ">\n";
-                }
-
-                return data;
-            }
+            //template<class T>
+            //auto take(qiew attr, T fallback = {})
+            //{
+            //    if (auto iter = hive.find(attr); iter != hive.end())
+            //    {
+            //        auto& item_set = iter->second;
+            //        if (item_set.size()) // Take the first item only.
+            //        {
+            //            auto crop = item_set.front()->take_value();
+            //            return xml::take_or<T>(crop, fallback);
+            //        }
+            //    }
+            //    if (auto defs_ptr = defs.lock()) return defs_ptr->take(attr, fallback);
+            //    else                             return fallback;
+            //}
+            //template<class T>
+            //auto take(qiew attr, T defval, utf::unordered_map<text, T> const& dict)
+            //{
+            //    if (attr.empty()) return defval;
+            //    auto crop = take(attr, ""s);
+            //    auto iter = dict.find(crop);
+            //    return iter == dict.end() ? defval
+            //                              : iter->second;
+            //}
+            //auto show(sz_t indent = 0) -> text
+            //{
+            //    auto data = text{};
+            //    data += text(indent, ' ') + '<' + name->utf8;
+            //    if (fake)
+            //    {
+            //        data += view_defaults;
+            //    }
+            //    if (body.size())
+            //    {
+            //        auto crop = take_value();
+            //        if (crop.size())
+            //        {
+            //            data.push_back('=');
+            //            utf::quote(crop, data, '\"');
+            //        }
+            //    }
+            //    if (hive.empty())
+            //    {
+            //        data += "/>\n";
+            //    }
+            //    else
+            //    {
+            //        data += ">\n";
+            //        for (auto& [sub_name, sub_list] : hive)
+            //        {
+            //            for (auto& item : sub_list)
+            //            {
+            //                data += item->show(indent + 4);
+            //            }
+            //        }
+            //        data += text(indent, ' ') + "</" + name->utf8 + ">\n";
+            //    }
+            //    return data;
+            //}
             auto snapshot()
             {
                 auto crop = text{};
@@ -667,6 +707,7 @@ namespace netxs::xml
         static constexpr auto view_slash          = "/"sv;
         static constexpr auto view_close_inline   = ">"sv;
         static constexpr auto view_quoted_text    = "\""sv;
+        static constexpr auto view_quoted_text_2  = "\'"sv;
         static constexpr auto view_equal          = "="sv;
         static constexpr auto view_defaults       = "*"sv;
         static constexpr auto view_lua_op_shl     = "<<"sv;
@@ -692,6 +733,23 @@ namespace netxs::xml
             page.init(file);
             root = ptr::shared<elem>();
             read(data);
+        }
+        template<bool WithTemplate = faux>
+        auto take_ptr_list2(view path, vect& ptr_list)
+        {
+            if (root)
+            {
+                utf::trim(path, '/');
+                if (path.empty())
+                {
+                    ptr_list.clear();
+                    ptr_list.push_back(root);
+                }
+                else
+                {
+                    root->get_list3<WithTemplate>(path, ptr_list);
+                }
+            }
         }
         template<bool WithTemplate = faux>
         auto take_ptr_list(view path)
@@ -918,7 +976,8 @@ namespace netxs::xml
                 if (last == type::token) what = type::compact;
                 else                     what = type::raw_text;
             }
-            else if (data.starts_with(view_quoted_text  )) what = type::quoted_text;
+            else if (data.starts_with(view_quoted_text  )
+                  || data.starts_with(view_quoted_text_2)) what = type::quoted_text;
             else if (data.starts_with(view_equal        )) what = type::equal;
             else if (data.starts_with(view_tag_joiner   )
                   && (last == type::tag_value
@@ -1472,7 +1531,7 @@ namespace netxs::xml
             else
             {
                 auto& [gotopath, fallback] = cwdstack.back();
-                cd(gotopath, fallback);
+                cd("/" + gotopath, fallback);
                 cwdstack.pop_back();
             }
         }
@@ -1481,6 +1540,39 @@ namespace netxs::xml
         {
             cwdstack.push_back({ homepath, backpath });
             cd(gotopath, fallback);
+        }
+        // settings: Lookup document context for all item_ptrs by reference name.
+        template<bool WithTemplate = faux>
+        void _find_all_ptrs(view reference_name, document::vect& item_ptr_list)
+        {
+            auto namepath = text{};
+            if (reference_name.size())
+            {
+                if (reference_name.front() != '/') // Relative reference. Iterate over nested contexts.
+                {
+                    auto context_path = qiew{ homepath };
+                    while (true)
+                    {
+                        namepath = context_path;
+                        namepath += '/';
+                        namepath += reference_name;
+                        document->take_ptr_list2<WithTemplate>(namepath, item_ptr_list);
+                        if (context_path.empty())
+                        {
+                            break;
+                        }
+                        utf::eat_tail(context_path, '/');
+                    }
+                }
+                else // Absolute reference.
+                {
+                    document->take_ptr_list2<WithTemplate>(reference_name, item_ptr_list);
+                }
+            }
+            if (item_ptr_list.empty())
+            {
+                log("%%Settings reference '%ref%' not found", prompt::xml, reference_name);
+            }
         }
         // settings: Lookup document context for item_ptr by its reference name path.
         void _find_namepath(view reference_namepath, document::sptr& item_ptr)
@@ -1497,33 +1589,30 @@ namespace netxs::xml
         {
             auto item_ptr = document::sptr{};
             auto namepath = text{};
-            if (reference_name.size())
+            if (reference_name.empty() || reference_name.front() != '/') // Relative reference. Iterate over nested contexts.
             {
-                if (reference_name.front() != '/') // Relative reference. Iterate over nested contexts.
+                auto context_path = qiew{ homepath };
+                while (true)
                 {
-                    auto context_path = qiew{ homepath };
-                    while (true)
+                    namepath = context_path;
+                    namepath += '/';
+                    namepath += reference_name;
+                    settings::_find_namepath(namepath, item_ptr);
+                    if (item_ptr)
                     {
-                        namepath = context_path;
-                        namepath += '/';
-                        namepath += reference_name;
-                        settings::_find_namepath(namepath, item_ptr);
-                        if (item_ptr)
-                        {
-                            break;
-                        }
-                        if (context_path.empty())
-                        {
-                            log("%%Settings reference '%ref%' not found", utf::concat(homepath, '/', reference_name));
-                            break;
-                        }
-                        utf::eat_tail(context_path, '/');
+                        break;
                     }
+                    if (context_path.empty())
+                    {
+                        log("%%Settings reference '%ref%' not found", prompt::xml, utf::concat(homepath, '/', reference_name));
+                        break;
+                    }
+                    utf::eat_tail(context_path, '/');
                 }
-                else // Absolute reference.
-                {
-                    settings::_find_namepath(reference_name, item_ptr);
-                }
+            }
+            else // Absolute reference.
+            {
+                settings::_find_namepath(reference_name, item_ptr);
             }
             return item_ptr;
         }
@@ -1552,18 +1641,7 @@ namespace netxs::xml
             utf::unescape(value);
             return value;
         }
-        auto take_value_list_of(document::sptr subsection_ptr, view attribute)
-        {
-            auto strings = txts{};
-            auto attr_list = subsection_ptr->get_list2(attribute);
-            strings.reserve(attr_list.size());
-            for (auto attr_ptr : attr_list)
-            {
-                strings.emplace_back(settings::take_value(attr_ptr));
-            }
-            return strings;
-        }
-        void _take_ptr_list_of(document::sptr subsection_ptr, view attribute, document::vect& ptr_list)
+        void _take_ptr_list_of(document::sptr subsection_ptr, view attribute, document::vect& item_ptr_list)
         {
             // Recursively take all base lists.
             for (auto& value_placeholder : subsection_ptr->body)
@@ -1573,51 +1651,55 @@ namespace netxs::xml
                     auto& reference_name = value_placeholder->utf8;
                     if (auto base_ptr = settings::_find_name(reference_name))
                     {
-                        settings::_take_ptr_list_of(base_ptr, attribute, ptr_list);
+                        settings::_take_ptr_list_of(base_ptr, attribute, item_ptr_list);
                     }
                 }
             }
             // Take native attribute list.
-            auto attr_list = subsection_ptr->get_list2(attribute);
-            ptr_list.insert(ptr_list.end(), attr_list.begin(), attr_list.end());
+            subsection_ptr->get_list3(attribute, item_ptr_list);
         }
         auto take_ptr_list_of(document::sptr subsection_ptr, view attribute)
         {
-            auto ptr_list = document::vect{};
-            settings::_take_ptr_list_of(subsection_ptr, attribute, ptr_list);
-            return ptr_list;
+            auto item_ptr_list = document::vect{};
+            settings::_take_ptr_list_of(subsection_ptr, attribute, item_ptr_list);
+            return item_ptr_list;
         }
-        template<bool Quiet = faux, class T = si32>
-        auto take(text frompath, T defval = {})
+        auto take_ptr_list_for_name(view subsection_name, view attribute)
         {
-            if (frompath.empty()) return defval;
+            auto item_ptr_list = document::vect{};
+            if (auto subsection_ptr = settings::_find_name(subsection_name))
+            {
+                settings::_take_ptr_list_of(subsection_ptr, attribute, item_ptr_list);
+            }
+            return item_ptr_list;
+        }
+        auto take_value_list_of(document::sptr subsection_ptr, view attribute)
+        {
+            auto strings = txts{};
+            settings::_take_ptr_list_of(subsection_ptr, attribute, tempbuff);
+            strings.reserve(tempbuff.size());
+            for (auto attr_ptr : tempbuff)
+            {
+                strings.emplace_back(settings::take_value(attr_ptr));
+            }
+            tempbuff.clear();
+            return strings;
+        }
+        template<bool Quiet = true, class T = si32>
+        auto take_from(document::sptr subsection_ptr, view attribute, T defval = {})
+        {
             auto crop = text{};
-            if (frompath.front() == '/')
-            {
-                frompath = utf::get_trimmed(frompath, '/');
-                tempbuff = document->take_ptr_list(frompath);
-            }
-            else
-            {
-                frompath = utf::get_trimmed(frompath, '/');
-                if (homelist.size()) tempbuff = homelist.front()->get_list2(frompath);
-                if (tempbuff.empty() && backpath.size())
-                {
-                    frompath = backpath + "/" + frompath;
-                    tempbuff = document->take_ptr_list(frompath);
-                }
-                else
-                {
-                    frompath = homepath + "/" + frompath;
-                }
-            }
+            settings::_take_ptr_list_of(subsection_ptr, attribute, tempbuff);
             if (tempbuff.size())
             {
                 crop = settings::take_value(tempbuff.back());
             }
             else
             {
-                if constexpr (!Quiet) log("%%%red% xml path not found: %nil%%path%", prompt::xml, ansi::fgc(redlt), ansi::nil(), frompath);
+                if constexpr (!Quiet)
+                {
+                    log("%%%red% xml path not found: %nil%%path%", prompt::xml, ansi::fgc(redlt), ansi::nil(), attribute);
+                }
                 return defval;
             }
             tempbuff.clear();
@@ -1637,18 +1719,78 @@ namespace netxs::xml
                 }
             }
         }
+        template<bool Quiet = true, class T = si32>
+        auto take(text frompath, T defval = {})
+        {
+            if (auto item_ptr = settings::_find_name(frompath))
+            {
+                auto crop = settings::take_value(item_ptr);
+                if constexpr (std::is_same_v<std::decay_t<T>, text>)
+                {
+                    return crop;
+                }
+                else
+                {
+                    if (auto result = xml::take<T>(crop))
+                    {
+                        return result.value();
+                    }
+                    else
+                    {
+                        return defval;
+                    }
+                }
+            }
+            if constexpr (!Quiet)
+            {
+                log("%%%red% xml path not found: %nil%%path%", prompt::xml, ansi::fgc(redlt), ansi::nil(), frompath);
+            }
+            return defval;
+        }
+        template<bool Quiet = true, class T>
+        auto take_from(document::sptr subsection_ptr, view attribute, T defval, utf::unordered_map<text, T> const& dict)
+        {
+            if (subsection_ptr)
+            {
+                auto crop = settings::take_from<Quiet>(subsection_ptr, attribute, ""s);
+                if (crop.empty())
+                {
+                    if constexpr (!Quiet)
+                    {
+                        log("%%%red% xml path not found: %nil%%path%", prompt::xml, ansi::fgc(redlt), ansi::nil(), attribute);
+                    }
+                }
+                else
+                {
+                    auto iter = dict.find(crop);
+                    if (iter != dict.end())
+                    {
+                        return iter->second;
+                    }
+                }
+            }
+            return defval;
+        }
         template<class T>
         auto take(text frompath, T defval, utf::unordered_map<text, T> const& dict)
         {
-            if (frompath.empty()) return defval;
-            auto crop = settings::take<true>(frompath, ""s);
-            if (crop.empty())
+            if (frompath.size())
             {
-                log("%%%red% xml path not found: %nil%%path%", prompt::xml, ansi::fgc(redlt), ansi::nil(), frompath);
-                return defval;
+                auto crop = settings::take(frompath, ""s);
+                if (crop.empty())
+                {
+                    log("%%%red% xml path not found: %nil%%path%", prompt::xml, ansi::fgc(redlt), ansi::nil(), frompath);
+                }
+                else
+                {
+                    auto iter = dict.find(crop);
+                    if (iter != dict.end())
+                    {
+                        return iter->second;
+                    }
+                }
             }
-            auto iter = dict.find(crop);
-            return iter == dict.end() ? defval : iter->second;
+            return defval;
         }
         auto take(text frompath, cell defval)
         {
@@ -1664,16 +1806,16 @@ namespace netxs::xml
             auto txt_path = frompath + '/' + "txt";
             auto fba_path = frompath + '/' + "alpha";
             auto crop = cell{ defval.txt() };
-            crop.fgc(settings::take<true>(fgc_path, defval.fgc()));
-            crop.bgc(settings::take<true>(bgc_path, defval.bgc()));
-            crop.itc(settings::take<true>(itc_path, defval.itc()));
-            crop.bld(settings::take<true>(bld_path, defval.bld()));
-            crop.und(settings::take<true>(und_path, defval.und()));
-            crop.inv(settings::take<true>(inv_path, defval.inv()));
-            crop.ovr(settings::take<true>(ovr_path, defval.ovr()));
-            crop.blk(settings::take<true>(blk_path, defval.blk()));
-            auto t = settings::take<true>(txt_path, ""s);
-            auto a = settings::take<true>(fba_path, -1);
+            crop.fgc(settings::take(fgc_path, defval.fgc()));
+            crop.bgc(settings::take(bgc_path, defval.bgc()));
+            crop.itc(settings::take(itc_path, defval.itc()));
+            crop.bld(settings::take(bld_path, defval.bld()));
+            crop.und(settings::take(und_path, defval.und()));
+            crop.inv(settings::take(inv_path, defval.inv()));
+            crop.ovr(settings::take(ovr_path, defval.ovr()));
+            crop.blk(settings::take(blk_path, defval.blk()));
+            auto t = settings::take(txt_path, ""s);
+            auto a = settings::take(fba_path, -1);
             if (t.size()) crop.txt(t);
             if (a != -1)  crop.alpha((byte)std::clamp(a, 0, 255));
             return crop;
@@ -1681,10 +1823,16 @@ namespace netxs::xml
         template<bool WithTemplate = faux>
         auto list(view frompath)
         {
-            if (frompath.empty())        return homelist;
-            if (frompath.front() == '/') return document->take_ptr_list<WithTemplate>(frompath);
-            if (homelist.size())         return homelist.front()->get_list2<WithTemplate>(frompath);
-            else                         return vect{};
+            if (frompath.empty())
+            {
+                return homelist;
+            }
+            else
+            {
+                auto item_ptr_list = document::vect{};
+                settings::_find_all_ptrs<WithTemplate>(frompath, item_ptr_list);
+                return item_ptr_list;
+            }
         }
         template<class T>
         void set(view frompath, T&& value)
@@ -1751,5 +1899,5 @@ namespace netxs::xml
 }
 namespace netxs
 {
-    using xmls = xml::settings;
+    using settings = xml::settings;
 }

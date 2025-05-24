@@ -865,7 +865,7 @@ namespace netxs::app::tile
                 }
             }
         };
-        auto build_inst = [](eccc appcfg, xmls& config) -> sptr
+        auto build_inst = [](eccc appcfg, settings& config) -> sptr
         {
             // tile (ui::fork, f, k)
             //  │ │
@@ -905,9 +905,11 @@ namespace netxs::app::tile
                 ->plugin<pro::focus>()
                 ->plugin<pro::keybd>();
             using namespace app::shared;
-            auto script_list = config.list("/config/events/tile/grip/script");
-            auto grip_bindings_ptr = ptr::shared(input::bindings::load(config, script_list));
-            config.cd("/config/tile", "/config/defapp");
+            config.settings::pushd("/config/events/tile/grip/");
+                auto script_list = config.settings::take_ptr_list_for_name("", "script");
+                auto grip_bindings_ptr = ptr::shared(input::bindings::load(config, script_list));
+            config.settings::popd();
+            config.settings::pushd("/config/tile");
             auto [menu_block, cover, menu_data] = menu::load(config);
             object->attach(slot::_1, menu_block)
                 ->invoke([](auto& boss)
@@ -1008,8 +1010,10 @@ namespace netxs::app::tile
                         boss.base::riseup(tier::release, e2::form::proceed::quit::one, true);
                     };
                     auto& luafx = boss.bell::indexer.luafx;
-                    auto script_list = config.list("/config/events/tile/script");
-                    auto bindings = input::bindings::load(config, script_list);
+                    config.settings::pushd("/config/events/tile/");
+                        auto script_list = config.settings::take_ptr_list_for_name("", "script");
+                        auto bindings = input::bindings::load(config, script_list);
+                    config.settings::popd();
                     input::bindings::keybind(boss, bindings);
                     boss.base::add_methods(basename::tile,
                     {
@@ -1502,6 +1506,7 @@ namespace netxs::app::tile
                         });
                     };
                 });
+            config.settings::popd();
             return object;
         };
     }

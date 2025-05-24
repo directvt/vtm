@@ -68,7 +68,7 @@ namespace netxs::app::shared
 {
     namespace
     {
-        auto build_strobe        = [](eccc /*appcfg*/, xmls& /*config*/)
+        auto build_strobe        = [](eccc /*appcfg*/, settings& /*config*/)
         {
             auto window_ptr = ui::cake::ctor()
                 ->plugin<pro::focus>(pro::focus::mode::focused)
@@ -94,7 +94,7 @@ namespace netxs::app::shared
                 });
             return window_ptr;
         };
-        auto build_empty         = [](eccc /*appcfg*/, xmls& /*config*/)
+        auto build_empty         = [](eccc /*appcfg*/, settings& /*config*/)
         {
             auto window_ptr = ui::cake::ctor();
             window_ptr->plugin<pro::focus>(pro::focus::mode::focused)
@@ -115,7 +115,7 @@ namespace netxs::app::shared
                                 ->active();
             return window_ptr;
         };
-        auto build_truecolor     = [](eccc /*appcfg*/, xmls& config)
+        auto build_truecolor     = [](eccc /*appcfg*/, settings& config)
         {
             //todo put all ansi art into external files
             auto r_grut00 = ansi::wrp(wrap::off).rlf(feed::fwd).jet(bias::center).add(
@@ -230,7 +230,7 @@ namespace netxs::app::shared
                     });
             auto object = window_ptr->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, 0xA0'c4'0f'1f);
-                config.cd("/config/defapp");
+            config.settings::pushd("/config/defapp/");
                 auto [menu_block, cover, menu_data] = app::shared::menu::create(config, {});
                 auto menu = object->attach(slot::_1, menu_block);
                 auto test_stat_area = object->attach(slot::_2, ui::fork::ctor(axis::Y));
@@ -242,13 +242,14 @@ namespace netxs::app::shared
                         auto sb = layers->attach(ui::fork::ctor());
                         auto vt = sb->attach(slot::_2, ui::grip<axis::Y>::ctor(scroll));
                         auto hz = test_stat_area->attach(slot::_2, ui::grip<axis::X>::ctor(scroll));
+            config.settings::popd();
             window_ptr->invoke([&](auto& boss)
             {
                 app::shared::base_kb_navigation(config, scroll, boss);
             });
             return window_ptr;
         };
-        auto build_app1          = [](eccc /*appcfg*/, xmls& /*config*/)
+        auto build_app1          = [](eccc /*appcfg*/, settings& /*config*/)
         {
             auto window_ptr = ui::cake::ctor()
                 ->active()
@@ -327,7 +328,7 @@ namespace netxs::app::shared
 {
     namespace
     {
-        auto build_site = [](eccc appcfg, xmls& /*config*/)
+        auto build_site = [](eccc appcfg, settings& /*config*/)
         {
             auto window_ptr = ui::cake::ctor();
             window_ptr->invoke([&](auto& boss)
@@ -396,7 +397,7 @@ namespace netxs::app::shared
             });
             return window_ptr;
         };
-        auto build_dtvt = [](eccc appcfg, xmls& /*config*/)
+        auto build_dtvt = [](eccc appcfg, settings& /*config*/)
         {
             return ui::dtvt::ctor()
                 ->plugin<pro::focus>(pro::focus::mode::relay)
@@ -428,7 +429,7 @@ namespace netxs::app::shared
                     };
                 });
         };
-        auto build_dtty = [](eccc appcfg, xmls& config)
+        auto build_dtty = [](eccc appcfg, settings& config)
         {
             auto window_clr = skin::color(tone::window_clr);
             auto window_ptr = ui::veer::ctor()
@@ -446,10 +447,10 @@ namespace netxs::app::shared
                 ->invoke([&](auto& boss)
                 {
                     auto& dtvt_inst = *dtvt;
-                    boss.config.def_atexit = ui::term::commands::atexit::ask;
+                    boss.defcfg.def_atexit = ui::term::commands::atexit::ask;
                     if constexpr (!debugmode) // Forced disabling of logging for the controlling terminal.
                     {
-                        boss.config.allow_logs = faux;
+                        boss.defcfg.allow_logs = faux;
                         boss.io_log = faux;
                     }
                     boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
@@ -533,19 +534,19 @@ namespace netxs::app::shared
                 });
             return window_ptr;
         };
-        auto build_vtty = [](eccc appcfg, xmls& config)
+        auto build_vtty = [](eccc appcfg, settings& config)
         {
             auto args = os::process::binary() + " -r vtty " + appcfg.cmd;
             std::swap(appcfg.cmd, args);
             return build_dtvt(appcfg, config);
         };
-        auto build_term = [](eccc appcfg, xmls& config)
+        auto build_term = [](eccc appcfg, settings& config)
         {
             auto args = os::process::binary() + " -r term " + appcfg.cmd;
             std::swap(appcfg.cmd, args);
             return build_dtvt(appcfg, config);
         };
-        auto build_info = [](eccc /*appcfg*/, xmls& config)
+        auto build_info = [](eccc /*appcfg*/, settings& config)
         {
             using namespace app::shared;
 

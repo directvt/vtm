@@ -2149,13 +2149,14 @@ namespace netxs::input
         {
             if (reset_handler) // Reset all script bindings for event_id.
             {
+                //log("Erase handlers for event_id:%%", event_id);
                 boss.bell::erase_script_handlers(tier_id, event_id);
             }
             else // Set new handler.
             {
                 if (sources.empty())
                 {
-                    //log("Set handler for script: ", ansi::hi(*(script_ptr->script_body_ptr)));
+                    //log("Set handler for event_id:%% script: %%", event_id, ansi::hi(*(script_ptr->script_body_ptr)));
                     boss.bell::submit_generic(tier_id, event_id, script_ptr);
                 }
                 else //todo revise: too hacky
@@ -2239,25 +2240,24 @@ namespace netxs::input
                 gear.touched = instance_id;
             }
         }
-        auto load(xmls& config, auto& script_list)
+        auto load(settings& config, auto& script_list)
         {
             auto bindings = input::bindings::vector{};
             for (auto script_ptr : script_list)
             {
-                auto script_body_ptr = ptr::shared(config.take_value(script_ptr));
-                auto on_ptr_list = script_ptr->get_list2("on");
+                auto script_body_ptr = ptr::shared(config.settings::take_value(script_ptr));
+                auto on_ptr_list = config.settings::take_ptr_list_of(script_ptr, "on");
                 for (auto event_ptr : on_ptr_list)
                 {
-                    auto on_rec = config.take_value(event_ptr); // ... on="MouseDown01" ... on="preview:Enter"... .
-                    auto source_list = event_ptr->get_list2("source");
-                    auto sources = txts{};
-                    sources.reserve(source_list.size());
-                    for (auto src_ptr : source_list)
-                    {
-                        auto source = config.take_value(src_ptr);
-                        sources.emplace_back(source);
-                        //if constexpr (debugmode) log("chord='%%' \tpreview=%% source='%%' script=%%", on_rec, (si32)preview, source, ansi::hi(*script_body_ptr));
-                    }
+                    auto on_rec = config.settings::take_value(event_ptr); // ... on="MouseDown01" ... on="preview:Enter"... .
+                    auto sources = config.settings::take_value_list_of(event_ptr, "source");
+                    //if constexpr (debugmode)
+                    //{
+                    //    for (auto& sourse : sources)
+                    //    {
+                    //         log("chord='%%' \tpreview=%% source='%%' script=%%", on_rec, (si32)preview, source, ansi::hi(*script_body_ptr));
+                    //    }
+                    //}
                     bindings.push_back({ .chord = on_rec, .sources = std::move(sources), .script_ptr = script_body_ptr });
                 }
             }

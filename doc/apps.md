@@ -200,7 +200,7 @@ Hotkey                       | Description
             <script=TerminalClipboardPaste             on="preview:Shift+Insert" />
             <script=TerminalClipboardWipe              on=""                     />
             <script=TerminalClipboardFormat            on=""                     />
-            <script=TerminalSelectionRect              on=""                     />
+            <script=TerminalSelectionFrom              on=""                     />
             <script=TerminalSelectionOneShot           on=""                     />
             <script=TerminalUndo                       on=""                     />
             <script=TerminalRedo                       on=""                     />

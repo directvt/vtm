@@ -506,11 +506,6 @@ Standard object names
 |                 |                          | `vtm.desktop.Disconnect()`                         | Disconnect the current desktop user.
 |                 |                          | `vtm.desktop.Run({ lua_table })`                   | Run the specified applet.
 |                 |                          | `vtm.desktop.FocusNextWindow(int n)`               | Set focus to the next (n=1) or previous (n=-1) desktop window.
-|`window`         | Desktop window           | `vtm.window.Warp(int l, int r, int t, int b)`      | Request to deform the desktop window. The parameters specify four deltas for the left, right, top and bottom sides of the desktop window.
-|                 |                          | `vtm.window.Close()`                               | Close desktop window.
-|                 |                          | `vtm.window.Minimize()`                            | Minimize desktop window.
-|                 |                          | `vtm.window.Maximize()`                            | Maximize desktop window.
-|                 |                          | `vtm.window.Fullscreen()`                          | Fullscreen desktop window.
 |`tile`           | Tiling window manager    | `vtm.tile.FocusNextPaneOrGrip(int n)`              | Set focus to the next (n=1) or previous (n=-1) tile's pane or pane splitter.
 |                 |                          | `vtm.tile.FocusNextPane(int n)`                    | Set focus to the next (n=1) or previous (n=-1) tile's pane.
 |                 |                          | `vtm.tile.FocusNextGrip(int n)`                    | Set focus to the next (n=1) or previous (n=-1) pane splitter.
@@ -1303,7 +1298,7 @@ Notes
             <script=TerminalClipboardPaste             on="preview:Shift+Insert" />
             <script=TerminalClipboardWipe              on=""                     />
             <script=TerminalClipboardFormat            on=""                     />
-            <script=TerminalSelectionRect              on=""                     />
+            <script=TerminalSelectionFrom              on=""                     />
             <script=TerminalSelectionOneShot           on=""                     />
             <script=TerminalUndo                       on=""                     />
             <script=TerminalRedo                       on=""                     />
