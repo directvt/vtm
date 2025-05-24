@@ -118,7 +118,7 @@ R"==(
                             <autohide=/defaults/menu/autohide/>
                             <slim=/defaults/menu/slim/>
                             <item label="  " tooltip=" AlwaysOnTop off ">
-                                <script=AlwaysOnTopApplet on="LeftClick"/> <!-- The default event source is the parent object, i.e. source="item" (aka vtm.item). -->
+                                <script=OnLeftClick|AlwaysOnTopApplet/> <!-- The default event source is the parent object, i.e. source="item" (aka vtm.item). -->
                                 <script>  <!-- A binding to update the menu item label at runtime. -->
                                     <on="release: e2::form::prop::zorder" source="applet"/>
                                     local is_topmost=vtm()                   -- Use event arguments to get the current state.
@@ -128,28 +128,25 @@ R"==(
                                     vtm.item.Deface()
                                 </script>
                             </item>
-                            <item label="  <  ">
-                                <script=TerminalFindPrev on="LeftClick"/>
+                            <item label="  <  " script=OnLeftClick|TerminalFindPrev>
                                 <tooltip>
                                     " \e[1mPrevious match           Alt+LeftArrow\e[m  \n"
                                     "   Click to jump to the previous match   \n"
                                     "   Match clipboard data if no selection  "
                                 </tooltip>
                             </item>
-                            <item label="  >  ">
-                                <script=TerminalFindNext on="LeftClick"/>
+                            <item label="  >  " script=OnLeftClick|TerminalFindNext>
                                 <tooltip>
                                     " \e[1mNext match              Alt+RightArrow\e[m  \n"
                                     "   Click to jump to the next match       \n"
                                     "   Match clipboard data if no selection  "
                                 </tooltip>
                             </item>
-                            <item label="  Wrap  ">
+                            <item label="  Wrap  " script=OnLeftClick|TerminalWrapMode>
                                 <tooltip>
                                     " Wrapping text lines on/off      \n"
                                     "   Applied to selection if it is "
                                 </tooltip>
-                                <script=TerminalWrapMode on="LeftClick"/>
                                 <script>
                                     <on="release: terminal::events::layout::wrapln" source="terminal"/>
                                     local m=vtm()                           -- Use event arguments to get the current state.
@@ -158,8 +155,7 @@ R"==(
                                     vtm.item.Deface()
                                 </script>
                             </item>
-                            <item label="  Clipboard  " tooltip=" Clipboard format ">
-                                <script=TerminalClipboardFormat on="LeftClick"/>
+                            <item label="  Clipboard  " tooltip=" Clipboard format " script=OnLeftClick|TerminalClipboardFormat>
                                 <script>
                                     <on="release: terminal::events::selmod" source="terminal"/>
                                     local m=vtm()                              -- Use event arguments to get the current state.
@@ -181,9 +177,7 @@ R"==(
                                     vtm.item.Deface()
                                 </script>
                             </item>
-                            <item label="  Reset  " tooltip=" Clear scrollback and SGR-attributes ">
-                                <script=TerminalReset on="LeftClick"/>
-                            </item>
+                            <item label="  Reset  " tooltip=" Clear scrollback and SGR-attributes " script=OnLeftClick|TerminalReset/>
                         </menu>
 )=="
 R"==(
@@ -276,12 +270,7 @@ R"==(
         <menu item*>
             <autohide=/defaults/menu/autohide/>
             <slim=/defaults/menu/slim/>
-            <!-- //todo implement "linked nodes" (ala operator '|' ):
-                <OnLeftClick  on="LeftClick"/>
-                <AlwaysOnTopApplet="vtm.applet.ZOrder(vtm.applet.ZOrder()==1 and 0 or 1);"/>
-                <item label=" AlwaysOnTop " script="vtm.gear.SetHandled();"|AlwaysOnTopApplet|OnLeftClick  tooltip=" AlwaysOnTop "/>  -->
-            <item label="  " tooltip=" AlwaysOnTop off ">
-                <script=AlwaysOnTopApplet on="LeftClick"/> <!-- The default event source is the parent object, i.e. source="item" (aka vtm.item). -->
+            <item label="  " tooltip=" AlwaysOnTop off " script=OnLeftClick|AlwaysOnTopApplet> <!-- The default event source is the parent object, i.e. source="item" (aka vtm.item). -->
                 <script>  <!-- A binding to update the menu item label at runtime. -->
                     <on="release: e2::form::prop::zorder" source="applet"/>
                     local is_topmost=vtm()                   -- Use event arguments to get the current state.
@@ -291,29 +280,26 @@ R"==(
                     vtm.item.Deface()
                 </script>
             </item>
-            <item label="  <  ">
-                <script=TerminalFindPrev on="LeftClick"/>
+            <item label="  <  " script=OnLeftClick|TerminalFindPrev>
                 <tooltip>
                     " \e[1mPrevious match           Alt+LeftArrow\e[m  \n"
                     "   Click to jump to the previous match   \n"
                     "   Match clipboard data if no selection  "
                 </tooltip>
             </item>
-            <item label="  >  ">
-                <script=TerminalFindNext on="LeftClick"/>
+            <item label="  >  " script=OnLeftClick|TerminalFindNext>
                 <tooltip>
                     " \e[1mNext match              Alt+RightArrow\e[m  \n"
                     "   Click to jump to the next match       \n"
                     "   Match clipboard data if no selection  "
                 </tooltip>
             </item>
-            <item label="   Desktop   ">
+            <item label="   Desktop   " script=OnLeftClick|ExclusiveKeyboardMode>
                 <tooltip>
                     " \e[1mToggle exclusive keyboard mode\e[m              \n"
                     "   Exclusive keyboard mode allows keystrokes \n"
                     "   to be passed through without processing   "
                 </tooltip>
-                <script=ExclusiveKeyboardMode on="LeftClick"/>
                 <script>
                     <on="release: terminal::events::rawkbd" source="terminal"/>
                     local m=vtm()                                    -- Use event arguments to get the current state.
@@ -323,12 +309,11 @@ R"==(
                     vtm.item.Deface()
                 </script>
             </item>
-            <item label="  Wrap  ">
+            <item label="  Wrap  " script=OnLeftClick|TerminalWrapMode>
                 <tooltip>
                     " Wrapping text lines on/off      \n"
                     "   Applied to selection if it is "
                 </tooltip>
-                <script=TerminalWrapMode on="LeftClick"/>
                 <script>
                     <on="release: terminal::events::layout::wrapln" source="terminal"/>
                     local m=vtm()                           -- Use event arguments to get the current state.
@@ -337,8 +322,7 @@ R"==(
                     vtm.item.Deface()
                 </script>
             </item>
-            <item label="  Clipboard  " tooltip=" Clipboard format ">
-                <script=TerminalClipboardFormat on="LeftClick"/>
+            <item label="  Clipboard  " tooltip=" Clipboard format " script=OnLeftClick|TerminalClipboardFormat>
                 <script>
                     <on="release: terminal::events::selmod" source="terminal"/>
                     local m=vtm()                              -- Use event arguments to get the current state.
@@ -360,8 +344,7 @@ R"==(
                     vtm.item.Deface()
                 </script>
             </item>
-            <item label="  Log  " tooltip=" \e[1mConsole logging\e[m        \n Use Logs to see output ">
-                <script=TerminalStdioLog on="LeftClick"/>
+            <item label="  Log  " tooltip=" \e[1mConsole logging\e[m        \n Use Logs to see output " script=OnLeftClick|TerminalStdioLog>
                 <script>
                     <on="release: terminal::events::io_log" source="terminal"/>
                     local m=vtm()                      -- Use event arguments to get the current state.
@@ -370,12 +353,8 @@ R"==(
                     vtm.item.Deface()
                 </script>
             </item>
-            <item label="  Clear  " tooltip=" Clear scrollback ">
-                <script=TerminalClearScrollback on="LeftClick"/>
-            </item>
-            <item label="  Restart  " tooltip=" Restart current terminal session ">
-                <script=TerminalRestart on="LeftClick"/>
-            </item>
+            <item label="  Clear  "   tooltip=" Clear scrollback "                 script=OnLeftClick|TerminalClearScrollback/>
+            <item label="  Restart  " tooltip=" Restart current terminal session " script=OnLeftClick|TerminalRestart/>
         </menu>
         <selection>
             <mode=/defaults/selection/mode/>  <!-- Selection clipboard copy format: "text" | "ansi" | "rich" | "html" | "protected" | "none". -->
@@ -394,8 +373,7 @@ R"==(
         <menu item*>
             <autohide=/defaults/menu/autohide/>
             <slim=/defaults/menu/slim/>
-            <item label="  " tooltip=" AlwaysOnTop off ">
-                <script=AlwaysOnTopApplet on="LeftClick"/> <!-- The default event source is the parent object, i.e. source="item" (aka vtm.item). -->
+            <item label="  " tooltip=" AlwaysOnTop off " script=OnLeftClick|AlwaysOnTopApplet> <!-- The default event source is the parent object, i.e. source="item" (aka vtm.item). -->
                 <script>  <!-- A binding to update the menu item label at runtime. -->
                     <on="release: e2::form::prop::zorder" source="applet"/>
                     local is_topmost=vtm()                   -- Use event arguments to get the current state.
@@ -405,25 +383,24 @@ R"==(
                     vtm.item.Deface()
                 </script>
             </item>
-            <item label="   +   ">
-                <script=TileRunApplication on="LeftClick"/>
+            <item label="   +   " script=OnLeftClick|TileRunApplication>
                 <tooltip>
                     " Launch application instances in active empty slots.     \n"
                     " The app to run can be set by RightClick on the taskbar. "
                 </tooltip>
             </item>
-            <item label="  :::  " tooltip=" Select all panes "                                    ><script=TileSelectAllPanes     on="LeftClick"/></item>
-            <item label="   │   " tooltip=" Split active panes horizontally "                     ><script=TileSplitHorizontally  on="LeftClick"/></item>
-            <item label="  ──  "  tooltip=" Split active panes vertically "                       ><script=TileSplitVertically    on="LeftClick"/></item>
-            <item label="  ┌┘  "  tooltip=" Change split orientation "                            ><script=TileSplitOrientation   on="LeftClick"/></item>
-            <item label="  <->  " tooltip=" Swap two or more panes "                              ><script=TileSwapPanes          on="LeftClick"/></item>
-            <item label="  >|<  " tooltip=" Equalize split ratio "                                ><script=TileEqualizeSplitRatio on="LeftClick"/></item>
-            <item label='  "…"  ' tooltip=" Set tiling window manager title using clipboard data "><script=TileSetManagerTitle    on="LeftClick"/></item>
-            <item label="  ×  "   tooltip=" Close active application "                            ><script=TileClosePane          on="LeftClick"/></item>
-            <!-- <item label="  <  "   tooltip=" Focus the previous pane or the split grip "><script=TileFocusPrev      on="LeftClick"/></item> -->
-            <!-- <item label="  >  "   tooltip=" Focus the next pane or the split grip "    ><script=TileFocusNext      on="LeftClick"/></item> -->
-            <!-- <item label="  <-  "  tooltip=" Focus the previous pane "                  ><script=TileFocusPrevPane  on="LeftClick"/></item> -->
-            <!-- <item label="  ->  "  tooltip=" Focus the next pane "                      ><script=TileFocusNextPane  on="LeftClick"/></item> -->
+            <item label="  :::  " tooltip=" Select all panes "                                     script=OnLeftClick|TileSelectAllPanes    />
+            <item label="   │   " tooltip=" Split active panes horizontally "                      script=OnLeftClick|TileSplitHorizontally />
+            <item label="  ──  "  tooltip=" Split active panes vertically "                        script=OnLeftClick|TileSplitVertically   />
+            <item label="  ┌┘  "  tooltip=" Change split orientation "                             script=OnLeftClick|TileSplitOrientation  />
+            <item label="  <->  " tooltip=" Swap two or more panes "                               script=OnLeftClick|TileSwapPanes         />
+            <item label="  >|<  " tooltip=" Equalize split ratio "                                 script=OnLeftClick|TileEqualizeSplitRatio/>
+            <item label='  "…"  ' tooltip=" Set tiling window manager title using clipboard data " script=OnLeftClick|TileSetManagerTitle   />
+            <item label="  ×  "   tooltip=" Close active application "                             script=OnLeftClick|TileClosePane         />
+            <!-- <item label="  <  "   tooltip=" Focus the previous pane or the split grip " script=OnLeftClick|TileFocusPrev    /> -->
+            <!-- <item label="  >  "   tooltip=" Focus the next pane or the split grip "     script=OnLeftClick|TileFocusNext    /> -->
+            <!-- <item label="  <-  "  tooltip=" Focus the previous pane "                   script=OnLeftClick|TileFocusPrevPane/> -->
+            <!-- <item label="  ->  "  tooltip=" Focus the next pane "                       script=OnLeftClick|TileFocusNextPane/> -->
         </menu>
     </tile>
     <defapp>
@@ -561,6 +538,7 @@ R"==(
 )=="
 R"==(
 <!-- Globals - Unresolved literals will try to be resolved from here. -->
+<OnLeftClick on="LeftClick"/>
 <true  = 1 />
 <yes   = 1 />
 <on    = 1 />
