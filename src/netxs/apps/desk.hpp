@@ -12,7 +12,6 @@ namespace netxs::app::desk
     struct spec
     {
         text   menuid{};
-        text    alias{};
         bool   hidden{}; // Hide existing item on taskbar.
         bool    fixed{}; // Item can't be updated by the new instance (see desk::events::exec).
         text    label{};

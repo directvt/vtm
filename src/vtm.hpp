@@ -21,7 +21,6 @@ namespace netxs::app::vtm
     namespace attr
     {
         static constexpr auto id       = "id";
-        static constexpr auto alias    = "alias";
         static constexpr auto hidden   = "hidden";
         static constexpr auto label    = "label";
         static constexpr auto tooltip  = "tooltip";
@@ -1027,11 +1026,10 @@ namespace netxs::app::vtm
             window_ptr->base::reflow();
             return window_ptr;
         }
-        auto loadspec(auto& conf_rec, auto& fallback, auto& item_ptr, text menuid, bool splitter = {}, text alias = {})
+        auto loadspec(auto& conf_rec, auto& fallback, auto& item_ptr, text menuid, bool splitter = {})
         {
             conf_rec.splitter   = splitter;
             conf_rec.menuid     = menuid;
-            conf_rec.alias      = alias;
             conf_rec.label      = config.settings::take_from(item_ptr, attr::label,    fallback.label   );
             if (conf_rec.label.empty()) conf_rec.label = conf_rec.menuid;
             conf_rec.hidden     = config.settings::take_from(item_ptr, attr::hidden,   fallback.hidden  );
@@ -1331,24 +1329,24 @@ namespace netxs::app::vtm
                 auto splitter = config.settings::take_from(item_ptr, attr::splitter, faux);
                 auto menuid = splitter ? "splitter_" + std::to_string(splitter_count++)
                                        : config.settings::take_from(item_ptr, attr::id, ""s);
-                if (menuid.empty()) menuid = "App" + std::to_string(auto_id++);
-                auto alias = config.settings::take_from<true>(item_ptr, attr::alias, ""s);
-
+                if (menuid.empty())
+                {
+                    menuid = "App" + std::to_string(auto_id++);
+                }
                 auto& proto = find(menuid);
                 if (!proto.notfound) // Update existing record.
                 {
                     auto& conf_rec = proto;
                     conf_rec.fixed = true;
-                    hall::loadspec(conf_rec, conf_rec, item_ptr, menuid, splitter, alias);
+                    hall::loadspec(conf_rec, conf_rec, item_ptr, menuid, splitter);
                     expand(conf_rec);
                 }
                 else // New item.
                 {
                     auto conf_rec = desk::spec{};
                     conf_rec.fixed = true;
-                    auto& dflt = alias.size() ? find(alias) // New based on alias_id.
-                                              : dflt_spec;  // New item.
-                    hall::loadspec(conf_rec, dflt, item_ptr, menuid, splitter, alias);
+                    auto& dflt = dflt_spec;  // New item.
+                    hall::loadspec(conf_rec, dflt, item_ptr, menuid, splitter);
                     expand(conf_rec);
                     if (conf_rec.hidden) temp_list.emplace_back(std::move(conf_rec.menuid), std::move(conf_rec));
                     else                 free_list.emplace_back(std::move(conf_rec.menuid), std::move(conf_rec));

@@ -64,17 +64,20 @@ The file list is built in the following order from the following sources:
  - All stored values are UTF-8 strings (the settings target decides on its own side how to interpret the string):
    - `name=2000` and `name="2000"` have the same meaning.
  - There is no distinction between XML-attribute and XML-subobject, i.e. any attributes are sub-objects:
-   - `<name param=value />` and `<name> <param=value /> </name>` have the same meaning.
+   - `<name param="value" />` and `<name> <param="value" /> </name>` have the same meaning.
  - No spaces are allowed between the opening angle bracket and the name when declaring an XML-subobject.
    - `... < name ...`, `... <= ...`, `... << ...` are treated as parts of Lua script code.
  - In addition to a set of sub-objects each object can contain its own text value:
-   - E.g. `<name=names_value param=params_value />` - subobject `name` has text value `names_value`.
+   - E.g. `<name="names_value" param="params_value"/>` - subobject `name` has text value `names_value`.
  - Each object can be defined in any way, either using an XML-attribute or an XML-subobject syntax:
-   - `<... name=value />`, `<...> <name> "value" </name> </...>`, and `<...> <name=value /> </...>` have the same meaning.
+   - `<... name="value" />`, `<...> <name> "value" </name> </...>`, and `<...> <name="value" /> </...>` have the same meaning.
  - Compact syntax is allowed.
-   - `<node0><node1><thing name=value/></node1></node0>` and `<node0/node1/thing name=value/>` have the same meaning.
- - Objects can reference values of other objects using absolute references (three levels of indirection allowed).
-   - `thing2` refers to the value `thing1` in `<node1 thing1=value1/><node2 thing2=/node1/thing1 />`.
+   - `<node0><node1><thing name="value"/></node1></node0>` and `<node0/node1/thing name="value"/>` have the same meaning.
+ - Objects can reference objects using relative and absolute references.
+   - Non-quoted values that do not begin with a decimal digit are references to other objects.
+   - `thing2` refers to the value `/node1/thing1` in `<node1 thing1="value1"/><node2 thing2=/node1/thing1 />`.
+   - `thing2` refers to the value `thing1` within the scope of `<node1 thing1="value1"><node2 thing2=thing1 /></node1>`.
+ - The object reference includes all of the object's contents, including the object's value and all nested objects.
  - Any Unicode characters are allowed, including the U+0000 (null) character.
  - Multiple root elements are allowed.
  - There is no support for named XML character entities.
@@ -153,6 +156,46 @@ The following forms of element declaration are equivalent:
 </document>
 ```
 
+```xml
+<document>
+    <basename="a"/>
+    <thing name=basename>text1</thing>
+    <thing name="b">text2</thing>
+</document>
+```
+
+```xml
+<document>
+    <basething="text1" name="a"/>
+    <thing=basething/>
+    <thing name="b">text2</thing>
+</document>
+```
+
+```xml
+<document>
+    <basething name="a"/>
+    <thing="text1" | basething/>
+    <thing name="b">text2</thing>
+</document>
+```
+
+```xml
+<document>
+    <basething name="a"/>
+    <thing=basething | "text1"/>
+    <thing name="b">text2</thing>
+</document>
+```
+
+```xml
+<basething name="a"/>
+<document>
+    <thing=basething | "text1"/>
+    <thing name="b">text2</thing>
+</document>
+```
+
 ### Compact XML syntax
 
 The following declarations have the same meaning:
@@ -201,8 +244,8 @@ The following declarations have the same meaning:
     </terminal>
     <events>  <!-- The required key/mouse combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop. -->
         <gate>  <!-- Native GUI window layer event bindings. -->
-            <script="<script body>" on="Key+Chord" on="Another+Key+Chord" on="SomeMouseEvent" on="SomeGenericEvent"/>
-            <script="<script body>">
+            <script="script body" on="Key+Chord" on="Another+Key+Chord" on="SomeMouseEvent" on="SomeGenericEvent"/>
+            <script="script body">
                 <on="Key+Chord"/>
                 <on="SomeGenericEvent" source="GenericEventSourceId"/>
             </script>
@@ -216,27 +259,27 @@ The following declarations have the same meaning:
             ...
         </gate>
         <desktop>  <!-- Desktop layer event bindings. -->
-            <script="<script body>" on="Key+Chord"/>
+            <script="script body" on="Key+Chord"/>
             ...
         </desktop>
         <applet>  <!-- Application/window layer event bindings. -->
-            <script="<script body>" on="Key+Chord"/>
+            <script="script body" on="Key+Chord"/>
             ...
         </applet>
         <terminal>  <!-- Application specific layer event bindings. -->
-            <script="<script body>" on="Key+Chord"/>
+            <script="script body" on="Key+Chord"/>
             ...
         </terminal>
         <tile>  <!-- Application specific layer event bindings. -->
-            <script="<script body>" on="Key+Chord"/>
+            <script="script body" on="Key+Chord"/>
             ...
             <grip> <!-- Pane's grip event bindings. -->
-                <script="<script body>" on="Key+Chord"/>
+                <script="script body" on="Key+Chord"/>
                 ...
             </grip>
         </tile>
         <defapp>  <!-- Default application event bindings (e.g., Info-Page). -->
-            <script="<script body>" on="Key+Chord"/>
+            <script="script body" on="Key+Chord"/>
             ...
         </defapp>
     </events>
@@ -260,7 +303,6 @@ Value type | Format
 Attribute  | Description                                       | Value type | Default value
 -----------|---------------------------------------------------|------------|---------------
 `id`       |  Item id                                          | `string`   |
-`alias`    |  Item template `id` reference                     | `string`   |
 `hidden`   |  Item visibility on taskbar                       | `boolean`  | `no`
 `label`    |  Item label text                                  | `string`   | =`id`
 `tooltip`  |  Item tooltip text                                | `string`   | empty
@@ -276,26 +318,26 @@ Attribute  | Description                                       | Value type | De
 `cfg`      |  Configuration patch for dtvt-apps in XML-format  | `string`   | empty
 `config`   |  Configuration patch for dtvt-apps                | `xml-node` | empty
 
-The menu item of DirectVT Gateway type (`type=dtvt`) can be additionally configured using a `<config>` subsection or a `cfg="xml-text-data"` attribute. The `<config>` subsection will be ignored if the `cfg` attribute contains a non-empty value.
+The menu item of DirectVT Gateway type (`type="dtvt"`) can be additionally configured using a `<config>` subsection or a `cfg="xml-text-data"` attribute. The `<config>` subsection will be ignored if the `cfg` attribute contains a non-empty value.
 
 The content of the `cfg` attribute (or `<config>` subsection) is passed to the dtvt-application on launch.
 
-#### Desktop window type `<config/desktop/taskbar/item type=... />`
+#### Desktop window type `<config/desktop/taskbar/item type="..."/>`
 
 Window type<br>(case insensitive) | Parameter `cmd=` | Description
 ----------------------------------|------------------|------------
-`vtty` (default)                  | A CUI application command line with arguments | Run a CUI application inside the `Teletype Console dtvt-bridge`. Usage example `type=vtty cmd="cui_app ..."`. It is the same as `type=dtvt cmd="vtm -r vtty cui_app ..."`.
-`term`                            | A CUI application command line with arguments | Run a CUI application inside the `Terminal Console dtvt-bridge`. Usage example `type=term cmd="cui_app ..."`. It is the same as `type=dtvt cmd="vtm -r term cui_app ..."`.
-`dtvt`                            | A DirectVT-aware application command line with arguments | Run a DirectVT-aware application inside the `DirectVT Gateway`. Usage example `type=dtvt cmd="dtvt_app ..."`.
-`dtty`                            | A DirectVT-aware application command line with arguments | Run a DirectVT-aware application inside the `DirectVT Gateway with TTY` which has additional controlling terminal. Usage example `type=dtty cmd="dtvt_app ..."`.
-`tile`                            | [[ v[`n:m:w`] \| h[`n:m:w`] ] ( id1 \| _nested_block_ , id2 \| _nested_block_ )] | Run tiling window manager with layout specified in `cmd`. Usage example `type=tile cmd="v(h1:1(Term, Term),Term)"`.<br>`n:m` - Ratio between panes (default n:m=1:1).<br>`w` - Resizing grip width (default w=1).
-`site`                            | `cmd=@` or empty | The attribute `title=<view_title>` is used to set region name/title. Setting the value of the `cmd` attribute to `@` adds numbering to the title.
+`vtty` (default)                  | A CUI application command line with arguments | Run a CUI application inside the `Teletype Console dtvt-bridge`. Usage example `type="vtty" cmd="cui_app ..."`. It is the same as `type="dtvt" cmd="vtm -r vtty cui_app ..."`.
+`term`                            | A CUI application command line with arguments | Run a CUI application inside the `Terminal Console dtvt-bridge`. Usage example `type="term" cmd="cui_app ..."`. It is the same as `type="dtvt" cmd="vtm -r term cui_app ..."`.
+`dtvt`                            | A DirectVT-aware application command line with arguments | Run a DirectVT-aware application inside the `DirectVT Gateway`. Usage example `type="dtvt" cmd="dtvt_app ..."`.
+`dtty`                            | A DirectVT-aware application command line with arguments | Run a DirectVT-aware application inside the `DirectVT Gateway with TTY` which has additional controlling terminal. Usage example `type="dtty" cmd="dtvt_app ..."`.
+`tile`                            | [[ v[`n:m:w`] \| h[`n:m:w`] ] ( id1 \| _nested_block_ , id2 \| _nested_block_ )] | Run tiling window manager with layout specified in `cmd`. Usage example `type="tile" cmd="v(h1:1(Term, Term),Term)"`.<br>`n:m` - Ratio between panes (default n:m=1:1).<br>`w` - Resizing grip width (default w=1).
+`site`                            | `cmd=@` or empty | The attribute `title="view_title"` is used to set region name/title. Setting the value of the `cmd` attribute to `@` adds numbering to the title.
 
 The following item declarations are identical:
 ```
-<item ... cmd=mc/>
-<item ... type=vtty cmd=mc/>
-<item ... type=dtvt cmd='vtm -r vtty mc'/>
+<item ... cmd="mc"/>
+<item ... type="vtty" cmd="mc"/>
+<item ... type="dtvt" cmd="vtm -r vtty mc"/>
 ```
 
 ### Event scripting
@@ -321,15 +363,15 @@ The syntax for defining event bindings is:
 
 Tag                 | Belongs to           | Value           | Description
 --------------------|----------------------|-----------------|---------------
-`<dom_element_tag>` |                      | ObjectID        | Visual tree object id.
-`id`                | `<dom_element_tag>`  | UTF-8 string    | Additional id for the visual tree object.
-`script`            | `<dom_element_tag>`  | UTF-8 string    | A Lua script that will be executed when the events specified by the `on` tags occur.
+`<dom_element>`     |                      | ObjectID        | Visual tree object id.
+`id`                | `<dom_element>`      | UTF-8 string    | Additional id for the visual tree object.
+`script`            | `<dom_element>`      | UTF-8 string    | A Lua script that will be executed when the events specified by the `on` tags occur.
 `on`                | `script`             | EventID         | Specific event id text string.
 `source`            | `on`                 | ObjectID        | Visual tree object id.
 
 The `preview:` prefix of the EventID is an indication that event processing should be performed in reverse order - from the container to the nested objects. By default, the visual tree traversal order is from the nested objects to the container.
 
-Note: Using an empty string in the `script=""` tag with a non-empty event value specified in the `on=EventID` tag resets all subscriptions for that EventID.
+Note: Using an empty string in the `script=""` tag with a non-empty event value specified in the `on="EventID"` tag resets all subscriptions for that EventID.
 
 #### Keyboard events
 
@@ -607,7 +649,7 @@ The value of the `cfg` menu item attribute (or a whole `<config>` subsection) wi
     <desktop>
       <taskbar>
         ...
-        <item ... title="DirectVT-aware Application" type=dtvt ... cfg="plain xml data as alternative to <config> subsection" cmd="dtvt_app...">
+        <item ... title="DirectVT-aware Application" type="dtvt" ... cfg="plain xml data as alternative to <config> subsection" cmd="dtvt_app...">
           <config> <!-- item's `<config>` subsection in case of 'cfg=' is not specified -->
             ...
           </config>
@@ -626,8 +668,8 @@ The value of the `cfg` menu item attribute (or a whole `<config>` subsection) wi
 ```xml
 <config>
     <desktop>
-        <taskbar selected=Term item*>  <!-- Use asterisk to remove previous/existing items from the list. -->
-            <item id=Term/>  <!-- id=Term title="Term" type=SHELL cmd=os_default_shell -->
+        <taskbar selected="Term" item*>  <!-- Use asterisk to remove previous/existing items from the list. -->
+            <item id="Term"/>  <!-- id=Term title="Term" type="vtty" cmd="os_default_shell" -->
         </taskbar>
     </desktop>
 </config>
