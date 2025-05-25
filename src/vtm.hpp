@@ -1162,7 +1162,7 @@ namespace netxs::app::vtm
             base::plugin<pro::keybd>();
             auto& luafx = bell::indexer.luafx;
             config.settings::push_context("/config/events/desktop/");
-                auto script_list = config.settings::take_ptr_list_for_name("", "script");
+                auto script_list = config.settings::take_ptr_list_for_name("script");
                 auto bindings = input::bindings::load(config, script_list);
             config.settings::pop_context();
             input::bindings::keybind(*this, bindings);
@@ -1323,7 +1323,7 @@ namespace netxs::app::vtm
                 utf::replace_all(conf_rec.appcfg.env, "$0", current_module_file);
             };
             config.settings::push_context(path::taskbar);
-            auto item_ptr_list = config.settings::take_ptr_list_for_name("", path::item);
+            auto item_ptr_list = config.settings::take_ptr_list_for_name(path::item);
             for (auto item_ptr : item_ptr_list)
             {
                 auto splitter = config.settings::take_value_from(item_ptr, attr::splitter, faux);
@@ -1693,7 +1693,7 @@ namespace netxs::app::vtm
         {
             auto what = applink{};
             config.settings::push_context(path::autorun);
-            auto apps = config.settings::take_ptr_list_for_name("", "run");
+            auto apps = config.settings::take_ptr_list_for_name("run");
             auto foci = book{};
             foci.reserve(apps.size());
             for (auto app_ptr : apps)

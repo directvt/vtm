@@ -906,7 +906,7 @@ namespace netxs::app::tile
                 ->plugin<pro::keybd>();
             using namespace app::shared;
             config.settings::push_context("/config/events/tile/grip/");
-                auto script_list = config.settings::take_ptr_list_for_name("", "script");
+                auto script_list = config.settings::take_ptr_list_for_name("script");
                 auto grip_bindings_ptr = ptr::shared(input::bindings::load(config, script_list));
             config.settings::pop_context();
             config.settings::push_context("/config/tile/");
@@ -1011,7 +1011,7 @@ namespace netxs::app::tile
                     };
                     auto& luafx = boss.bell::indexer.luafx;
                     config.settings::push_context("/config/events/tile/");
-                        auto script_list = config.settings::take_ptr_list_for_name("", "script");
+                        auto script_list = config.settings::take_ptr_list_for_name("script");
                         auto bindings = input::bindings::load(config, script_list);
                     config.settings::pop_context();
                     input::bindings::keybind(boss, bindings);

@@ -445,6 +445,7 @@ namespace netxs::xml
             bool fake; // elem: Is it template.
             bool base; // elem: Merge overwrite priority (new list?).
             form mode; // elem: Element storage form.
+            wptr boss; // elem: Parent context.
 
             elem()
                 : fake{ faux },
@@ -462,6 +463,10 @@ namespace netxs::xml
                 }
             }
 
+            auto get_parent_ptr()
+            {
+                return boss.lock();
+            }
             auto is_quoted()
             {
                 if (body.size() == 1)
@@ -710,28 +715,31 @@ namespace netxs::xml
             auto parent_path = slash_pos != text::npos ? path.substr(0, slash_pos) : view{} ;
             auto branch_path = slash_pos != text::npos ? path.substr(slash_pos + sizeof('/')) : path;
             auto dest_host = take_ptr_list(parent_path);
-            auto parent = dest_host.size() ? dest_host.front() : root;
-            if (parent->mode == elem::form::pact)
+            auto parent_ptr = dest_host.size() ? dest_host.front() : root;
+            if (parent_ptr->mode == elem::form::pact)
             {
                 log("%%Destination path is not suitable for merging '%parent_path%'", prompt::xml, parent_path);
                 return;
             }
-            auto& hive = parent->hive;
+            auto& hive = parent_ptr->hive;
             auto iter = hive.find(qiew{ branch_path });
             if (iter == hive.end())
             {
                 iter = hive.emplace(branch_path , vect{}).first;
             }
-            auto& dest = iter->second;
-            for (auto& item : list) if (item && item->name->utf8 == branch_path)
+            auto& dest_list = iter->second;
+            for (auto& item_ptr : list) if (item_ptr && item_ptr->name->utf8 == branch_path)
             {
                 //todo unify
-                if (item->base) dest.clear();
-                auto mode = item->mode;
-                auto from = item->from;
-                auto upto = item->upto;
+                if (item_ptr->base)
+                {
+                    dest_list.clear();
+                }
+                auto mode = item_ptr->mode;
+                auto from = item_ptr->from;
+                auto upto = item_ptr->upto;
                 auto next = upto->next;
-                if (auto gate = mode == elem::form::attr ? parent->insA : parent->insB)
+                if (auto gate = mode == elem::form::attr ? parent_ptr->insA : parent_ptr->insB)
                 if (auto prev = gate->prev.lock())
                 if (auto past = from->prev.lock())
                 {
@@ -741,18 +749,19 @@ namespace netxs::xml
                     prev->next = from;
                     past->next = next;  // Release an element from the previous list.
                     if (next) next->prev = past;
-                    dest.push_back(item);
+                    item_ptr->boss = parent_ptr;
+                    dest_list.push_back(item_ptr);
                     if (mode != elem::form::attr) // Prepend '\n    <' to item when inserting it to gate==insB.
                     {
                         if (from->utf8.empty()) // Checking indent. Take indent from parent + pads if it is absent.
                         {
-                            if (parent->from->utf8.empty()) // Most likely this is the root namespace.
+                            if (parent_ptr->from->utf8.empty()) // Most likely this is the root namespace.
                             {
                                 from->utf8 = "\n";
                             }
                             else // Ordinary nested node.
                             {
-                                from->utf8 = parent->from->utf8 + "    ";
+                                from->utf8 = parent_ptr->from->utf8 + "    ";
                             }
                         }
                         if (from->next && from->next->kind == type::begin_tag) // Checking begin_tag.
@@ -766,7 +775,7 @@ namespace netxs::xml
                     }
                     continue;
                 }
-                log("%%Unexpected format for item '%parent_path%/%item->name->utf8%'", prompt::xml, parent_path, item->name->utf8);
+                log("%%Unexpected format for item '%parent_path%/%item->name->utf8%'", prompt::xml, parent_path, item_ptr->name->utf8);
             }
         }
         // xml: Attach the node list to the specified path.
@@ -775,21 +784,24 @@ namespace netxs::xml
             auto dest_list = take_ptr_list(mount_point);
             if (dest_list.size())
             {
-                auto& parent = dest_list.front();
-                if (parent->mode == elem::form::pact)
+                auto& parent_ptr = dest_list.front();
+                if (parent_ptr->mode == elem::form::pact)
                 {
                     log("%%Destination path is not suitable for merging '%parent_path%'", prompt::xml, mount_point);
                     return;
                 }
-                auto& parent_hive = parent->hive;
+                auto& parent_hive = parent_ptr->hive;
                 auto connect = [&](auto& subnode_name)
                 {
                     auto iter = parent_hive.find(subnode_name);
-                    if (iter == parent_hive.end()) iter = parent_hive.emplace(subnode_name, vect{}).first;
+                    if (iter == parent_hive.end())
+                    {
+                        iter = parent_hive.emplace(subnode_name, vect{}).first;
+                    }
                     return iter;
                 };
                 auto iter = connect(sub_list.front()->name->utf8);
-                for (auto& item : sub_list)
+                for (auto& item_ptr : sub_list)
                 {
                     auto& current_node_name = iter->first;
                     auto& subnode_name = sub_list.front()->name->utf8;
@@ -798,13 +810,16 @@ namespace netxs::xml
                         iter = connect(subnode_name);
                     }
                     //todo unify
-                    auto& dest = iter->second;
-                    if (item->base) dest.clear();
-                    auto mode = item->mode;
-                    auto from = item->from;
-                    auto upto = item->upto;
+                    auto& dest_list2 = iter->second;
+                    if (item_ptr->base)
+                    {
+                        dest_list2.clear();
+                    }
+                    auto mode = item_ptr->mode;
+                    auto from = item_ptr->from;
+                    auto upto = item_ptr->upto;
                     auto next = upto->next;
-                    if (auto gate = mode == elem::form::attr ? parent->insA : parent->insB)
+                    if (auto gate = mode == elem::form::attr ? parent_ptr->insA : parent_ptr->insB)
                     if (auto prev = gate->prev.lock())
                     if (auto past = from->prev.lock())
                     {
@@ -814,10 +829,11 @@ namespace netxs::xml
                         prev->next = from;
                         past->next = next;  // Release an element from the previous list.
                         if (next) next->prev = past;
-                        dest.push_back(item);
+                        item_ptr->boss = parent_ptr;
+                        dest_list2.push_back(item_ptr);
                         continue;
                     }
-                    log("%%Unexpected format for item '%mount_point%%node%'", prompt::xml, mount_point, item->name->utf8);
+                    log("%%Unexpected format for item '%mount_point%%node%'", prompt::xml, mount_point, item_ptr->name->utf8);
                 }
             }
             else
@@ -838,8 +854,8 @@ namespace netxs::xml
             }
             else
             {
-                auto& dest = dest_list.front();
-                dest->sync_value(node);
+                auto& dest_ptr = dest_list.front();
+                dest_ptr->sync_value(node);
                 for (auto& [sub_name, sub_list] : node.hive) // Proceed subelements.
                 {
                     auto count = sub_list.size();
@@ -1124,7 +1140,10 @@ namespace netxs::xml
         void push(sptr& item, sptr& next, auto& defs)
         {
             auto& sub_name = next->name->utf8;
-            if (next->fake) defs[sub_name] = next;
+            if (next->fake)
+            {
+                defs[sub_name] = next;
+            }
             else
             {
                 auto iter = defs.find(sub_name);
@@ -1134,6 +1153,7 @@ namespace netxs::xml
                 }
             }
             item->hive[sub_name].push_back(next);
+            next->boss = item;
         }
         void read_subsections(sptr& item, view& data, type& what, type& last, si32& deep, auto& defs)
         {
@@ -1298,6 +1318,7 @@ namespace netxs::xml
                         temp = pair(next, data, what, last, type::top_token);
                         auto& sub_name = next->name->utf8;
                         item->hive[sub_name].push_back(next);
+                        next->boss = item;
                         compacted.push_back(item);
                         item = next;
                     }
@@ -1410,12 +1431,11 @@ namespace netxs::xml
     struct settings
     {
         using vect = xml::document::vect;
-        using sptr = netxs::sptr<xml::document>;
+        using sptr = xml::document::sptr;
 
-        sptr document; // settings: XML document.
-        vect tempbuff; // settings: Temp buffer.
-        text homepath; // settings: Current working directory (reference context).
-        txts cwdstack; // settings: Stack for saving current cwd.
+        netxs::sptr<xml::document> document; // settings: XML document.
+        vect tmpbuff; // settings: Temp buffer.
+        vect context; // settings: Current working context stack (reference context).
 
         settings() = default;
         settings(settings const&) = default;
@@ -1426,59 +1446,25 @@ namespace netxs::xml
             : document{ ptr::shared<xml::document>(std::move(other)) }
         { }
 
-        // settings: Pop document context.
-        void pop_context()
+        auto get_context()
         {
-            if (cwdstack.empty())
-            {
-                log("%%CWD stack is empty", prompt::xml);
-            }
-            else
-            {
-                homepath.clear();
-                homepath += '/';
-                homepath += cwdstack.back();
-                cwdstack.pop_back();
-            }
-        }
-        // settings: Push document context.
-        void push_context(qiew gotopath)
-        {
-            cwdstack.push_back(homepath);
-            if (gotopath)
-            {
-                if (gotopath.front() == '/') // Absolute path.
-                {
-                    homepath = utf::get_trimmed(gotopath, '/');
-                }
-                else // Relative path.
-                {
-                    homepath += '/';
-                    homepath += utf::get_trimmed(gotopath, '/');
-                }
-            }
+            auto context_path = context.size() ? context.back() : document->root;
+            return context_path;
         }
         // settings: Lookup document context for all item_ptrs by reference name.
         template<bool WithTemplate = faux>
-        void _find_all_ptrs(view reference_name, document::vect& item_ptr_list)
+        void _find_all_ptrs(view reference_name, vect& item_ptr_list)
         {
             auto namepath = text{};
             if (reference_name.size())
             {
                 if (reference_name.front() != '/') // Relative reference. Iterate over nested contexts.
                 {
-                    auto context_path = qiew{ homepath };
-                    while (true)
+                    auto context_ptr = settings::get_context();
+                    while (context_ptr)
                     {
-                        namepath = context_path;
-                        namepath += '/';
-                        namepath += reference_name;
-                        document->take_ptr_list2<WithTemplate>(namepath, item_ptr_list);
-                        if (context_path.empty())
-                        {
-                            break;
-                        }
-                        utf::eat_tail(context_path, '/');
+                        context_ptr->get_list3(reference_name, item_ptr_list);
+                        context_ptr = context_ptr->get_parent_ptr();
                     }
                 }
                 else // Absolute reference.
@@ -1492,61 +1478,46 @@ namespace netxs::xml
             }
         }
         // settings: Lookup document context for item_ptr by its reference name path.
-        void _find_namepath(view reference_namepath, document::sptr& item_ptr)
+        void _find_namepath(view reference_namepath, sptr& item_ptr)
         {
-            auto name_list = document->take_ptr_list(reference_namepath);
-            if (name_list.size())
+            auto item_ptr_list = document->take_ptr_list(reference_namepath);
+            if (item_ptr_list.size())
             {
                 //todo detect loops
-                item_ptr = name_list.front();
+                item_ptr = item_ptr_list.front();
             }
         }
         // settings: Lookup document context for item_ptr by its reference name.
-        auto _find_name(view reference_name)
+        auto _find_name(view reference_path)
         {
-            auto item_ptr = document::sptr{};
+            auto item_ptr = sptr{};
             auto namepath = text{};
-            if (reference_name.empty() || reference_name.front() != '/') // Relative reference. Iterate over nested contexts.
+            if (reference_path.empty() || reference_path.front() != '/') // Relative reference. Iterate over nested contexts.
             {
-                auto context_path = qiew{ homepath };
-                while (true)
+                auto item_ptr_list = vect{};
+                auto context_ptr = settings::get_context();
+                while (context_ptr)
                 {
-                    namepath = context_path;
-                    namepath += '/';
-                    namepath += reference_name;
-                    settings::_find_namepath(namepath, item_ptr);
-                    if (item_ptr)
+                    context_ptr->get_list3(reference_path, item_ptr_list);
+                    if (item_ptr_list.size() && item_ptr_list.front())
                     {
+                        item_ptr = item_ptr_list.front();
                         break;
                     }
-                    if (context_path.empty())
-                    {
-                        log("%%Settings reference '%ref%' not found", prompt::xml, utf::concat(homepath, '/', reference_name));
-                        break;
-                    }
-                    utf::eat_tail(context_path, '/');
+                    context_ptr = context_ptr->get_parent_ptr();
+                }
+                if (!context_ptr)
+                {
+                    log("%%Settings reference '%ref%' not found", prompt::xml, reference_path);
                 }
             }
             else // Absolute reference.
             {
-                settings::_find_namepath(reference_name, item_ptr);
+                settings::_find_namepath(reference_path, item_ptr);
             }
             return item_ptr;
         }
-        //auto _find_name_in_subsection(document::sptr subsection_ptr, view reference_name)
-        //{
-        //    auto item_ptr = document::sptr{};
-        //    if (subsection_ptr)
-        //    {
-        //        auto iter = subsection_ptr->hive.find(reference_name);
-        //        if (iter != subsection_ptr->hive.end() && iter->second.size()) // Lookup in current subsection.
-        //        {
-        //            item_ptr = iter->second.back();
-        //        }
-        //    }
-        //    return item_ptr;
-        //}
-        void _take_value(document::sptr item_ptr, text& value)
+        void _take_value(sptr item_ptr, text& value)
         {
             for (auto& value_placeholder : item_ptr->body)
             {
@@ -1569,14 +1540,14 @@ namespace netxs::xml
                 }
             }
         }
-        text take_value(document::sptr item_ptr)
+        text take_value(sptr item_ptr)
         {
             auto value = text{};
             settings::_take_value(item_ptr, value);
             utf::unescape(value);
             return value;
         }
-        void _take_ptr_list_of(document::sptr subsection_ptr, view attribute, document::vect& item_ptr_list)
+        void _take_ptr_list_of(sptr subsection_ptr, view attribute, vect& item_ptr_list)
         {
             // Recursively take all base lists.
             for (auto& value_placeholder : subsection_ptr->body)
@@ -1598,41 +1569,40 @@ namespace netxs::xml
             // Take native attribute list.
             subsection_ptr->get_list3(attribute, item_ptr_list);
         }
-        auto take_ptr_list_of(document::sptr subsection_ptr, view attribute)
+        auto take_ptr_list_of(sptr subsection_ptr, view attribute)
         {
             auto item_ptr_list = document::vect{};
             settings::_take_ptr_list_of(subsection_ptr, attribute, item_ptr_list);
             return item_ptr_list;
         }
-        auto take_ptr_list_for_name(view subsection_name, view attribute)
+        // settings: Get item_ptr list from the current context.
+        auto take_ptr_list_for_name(view attribute)
         {
             auto item_ptr_list = document::vect{};
-            if (auto subsection_ptr = settings::_find_name(subsection_name))
-            {
-                settings::_take_ptr_list_of(subsection_ptr, attribute, item_ptr_list);
-            }
+            auto context_ptr = settings::get_context();
+            settings::_take_ptr_list_of(context_ptr, attribute, item_ptr_list);
             return item_ptr_list;
         }
-        auto take_value_list_of(document::sptr subsection_ptr, view attribute)
+        auto take_value_list_of(sptr subsection_ptr, view attribute)
         {
             auto strings = txts{};
-            settings::_take_ptr_list_of(subsection_ptr, attribute, tempbuff);
-            strings.reserve(tempbuff.size());
-            for (auto attr_ptr : tempbuff)
+            settings::_take_ptr_list_of(subsection_ptr, attribute, tmpbuff);
+            strings.reserve(tmpbuff.size());
+            for (auto attr_ptr : tmpbuff)
             {
                 strings.emplace_back(settings::take_value(attr_ptr));
             }
-            tempbuff.clear();
+            tmpbuff.clear();
             return strings;
         }
         template<bool Quiet = true, class T = si32>
-        auto take_value_from(document::sptr subsection_ptr, view attribute, T defval = {})
+        auto take_value_from(sptr subsection_ptr, view attribute, T defval = {})
         {
             auto crop = text{};
-            settings::_take_ptr_list_of(subsection_ptr, attribute, tempbuff);
-            if (tempbuff.size())
+            settings::_take_ptr_list_of(subsection_ptr, attribute, tmpbuff);
+            if (tmpbuff.size())
             {
-                crop = settings::take_value(tempbuff.back());
+                crop = settings::take_value(tmpbuff.back());
             }
             else
             {
@@ -1642,7 +1612,7 @@ namespace netxs::xml
                 }
                 return defval;
             }
-            tempbuff.clear();
+            tmpbuff.clear();
             if constexpr (std::is_same_v<std::decay_t<T>, text>)
             {
                 return crop;
@@ -1688,7 +1658,7 @@ namespace netxs::xml
             return defval;
         }
         template<bool Quiet = true, class T>
-        auto take_value_from(document::sptr subsection_ptr, view attribute, T defval, utf::unordered_map<text, T> const& dict)
+        auto take_value_from(sptr subsection_ptr, view attribute, T defval, utf::unordered_map<text, T> const& dict)
         {
             if (subsection_ptr)
             {
@@ -1760,28 +1730,6 @@ namespace netxs::xml
             if (a != -1)  crop.alpha((byte)std::clamp(a, 0, 255));
             return crop;
         }
-        template<bool WithTemplate = faux>
-        auto list(qiew frompath)
-        {
-            auto item_ptr_list = document::vect{};
-            settings::_find_all_ptrs<WithTemplate>(frompath ? frompath : qiew{ homepath }, item_ptr_list);
-            return item_ptr_list;
-        }
-        template<class T>
-        void set(view frompath, T&& value)
-        {
-            auto items = settings::list(frompath);
-            if (items.empty())
-            {
-                //todo add new
-            }
-            else
-            {
-                auto line = utf::concat(value);
-                utf::unescape(line);
-                items.front()->init_value(line);
-            }
-        }
         auto utf8()
         {
             return document->page.utf8();
@@ -1791,13 +1739,35 @@ namespace netxs::xml
         {
             if (utf8_xml.empty()) return;
             if (filepath.size()) document->page.file = filepath;
-            homepath.clear();
+            context.clear();
             auto tmp_config = xml::document{ utf8_xml, filepath };
             if constexpr (Print)
             {
                 log("%%Settings from %file%:\n%config%", prompt::xml, filepath.empty() ? "memory"sv : filepath, tmp_config.page.show());
             }
             document->overlay(tmp_config.root);
+        }
+        // settings: Pop document context.
+        void pop_context()
+        {
+            if (context.empty())
+            {
+                log("%%Context stack is empty", prompt::xml);
+            }
+            else
+            {
+                context.pop_back();
+            }
+        }
+        // settings: Push document context by name.
+        void push_context(sptr new_context_ptr)
+        {
+            context.push_back(new_context_ptr);
+        }
+        void push_context(qiew context_path)
+        {
+            auto new_context_ptr = settings::_find_name(context_path);
+            settings::push_context(new_context_ptr);
         }
         friend auto& operator << (std::ostream& s, settings const& p)
         {

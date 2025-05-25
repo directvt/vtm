@@ -114,7 +114,7 @@ namespace netxs::app::shared
         boss.base::plugin<pro::keybd>();
         auto& luafx = boss.bell::indexer.luafx;
         config.settings::push_context("/config/events/defapp/");
-            auto script_list = config.settings::take_ptr_list_for_name("", "script");
+            auto script_list = config.settings::take_ptr_list_for_name("script");
             auto bindings = input::bindings::load(config, script_list);
         config.settings::pop_context();
         input::bindings::keybind(boss, bindings);
@@ -177,7 +177,7 @@ namespace netxs::app::shared
         auto& luafx = boss.bell::indexer.luafx;
         auto& bindings = boss.base::property<input::bindings::vector>("applet.bindings");
         config.settings::push_context("/config/events/applet/");
-            auto script_list = config.settings::take_ptr_list_for_name("", "script");
+            auto script_list = config.settings::take_ptr_list_for_name("script");
             bindings = input::bindings::load(config, script_list);
         config.settings::pop_context();
         input::bindings::keybind(boss, bindings);
@@ -524,7 +524,7 @@ namespace netxs::app::shared
         {
             auto list = menu::list{};
             config.settings::push_context("menu/");
-            auto menuitem_ptr_list = config.settings::take_ptr_list_for_name("", "item");
+            auto menuitem_ptr_list = config.settings::take_ptr_list_for_name("item");
             for (auto data_ptr : menuitem_ptr_list)
             {
                 auto item = menu::item{};
@@ -833,7 +833,7 @@ namespace netxs::app::shared
         if (gui_config.cellsize == 0) gui_config.cellsize = 20;
         if (gui_config.gridsize.x == 0 || gui_config.gridsize.y == 0) gui_config.gridsize = dot_mx;
         config.settings::push_context("/config/gui/fonts/");
-            auto recs = config.settings::take_ptr_list_for_name("", "font");
+            auto recs = config.settings::take_ptr_list_for_name("font");
             for (auto& f : recs)
             {
                 //todo implement 'fonts/font/file' - font file path/url
