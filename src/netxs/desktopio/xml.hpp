@@ -262,11 +262,13 @@ namespace netxs::xml
             wptr prev; // literal: Pointer to the prev.
             frag next; // literal: Pointer to the next.
             type kind; // literal: Content type.
+            si32 mark; // literal: Reference loop detector mark.
             text utf8; // literal: Content data.
 
             template<class ...Args>
             literal(type kind, Args&&... args)
                 : kind{ kind },
+                  mark{      },
                   utf8{ std::forward<Args>(args)... }
             { }
         };
@@ -1466,14 +1468,17 @@ namespace netxs::xml
         netxs::sptr<xml::document> document; // settings: XML document.
         vect tmpbuff; // settings: Temp buffer.
         vect context; // settings: Current working context stack (reference context).
+        si32 touched; // settings: Reference loop detector.
 
         settings() = default;
         settings(settings const&) = default;
         settings(view utf8_xml)
-            : document{ ptr::shared<xml::document>(utf8_xml, "") }
+            : document{ ptr::shared<xml::document>(utf8_xml, "") },
+              touched{}
         { }
         settings(xml::document& other)
-            : document{ ptr::shared<xml::document>(std::move(other)) }
+            : document{ ptr::shared<xml::document>(std::move(other)) },
+              touched{}
         { }
 
         auto get_context()
@@ -1513,7 +1518,6 @@ namespace netxs::xml
             auto item_ptr_list = document->take_ptr_list(reference_namepath);
             if (item_ptr_list.size())
             {
-                //todo detect loops
                 item_ptr = item_ptr_list.front();
             }
         }
@@ -1554,9 +1558,17 @@ namespace netxs::xml
                 if (value_placeholder->kind == document::type::tag_reference)
                 {
                     auto& reference_name = value_placeholder->utf8;
-                    if (auto base_item_ptr = settings::_find_name(reference_name))
+                    if (value_placeholder->mark != touched)
                     {
-                        settings::_take_value(base_item_ptr, value);
+                        value_placeholder->mark = touched;
+                        if (auto base_item_ptr = settings::_find_name(reference_name))
+                        {
+                            settings::_take_value(base_item_ptr, value);
+                        }
+                    }
+                    else
+                    {
+                        log("%%%red%Reference loop detected for '%ref%'%nil%", prompt::xml, ansi::fgc(redlt), reference_name, ansi::nil());
                     }
                 }
                 else if (value_placeholder->kind != document::type::tag_joiner)
@@ -1567,6 +1579,7 @@ namespace netxs::xml
         }
         text take_value(sptr item_ptr)
         {
+            touched++;
             auto value = text{};
             settings::_take_value(item_ptr, value);
             utf::unescape(value);
@@ -1580,14 +1593,17 @@ namespace netxs::xml
                 if (value_placeholder->kind == document::type::tag_reference)
                 {
                     auto& reference_name = value_placeholder->utf8;
-                    //if (auto base_ptr = settings::_find_name_in_subsection(subsection_ptr, reference_name)) // Lookup in current subsection.
-                    //{
-                    //    settings::_take_ptr_list_of(base_ptr, attribute, item_ptr_list);
-                    //}
-                    //else 
-                    if (auto base_ptr = settings::_find_name(reference_name)) // Lookup outside.
+                    if (value_placeholder->mark != touched)
                     {
-                        settings::_take_ptr_list_of(base_ptr, attribute, item_ptr_list);
+                        value_placeholder->mark = touched;
+                        if (auto base_ptr = settings::_find_name(reference_name)) // Lookup outside.
+                        {
+                            settings::_take_ptr_list_of(base_ptr, attribute, item_ptr_list);
+                        }
+                    }
+                    else
+                    {
+                        log("%%%red%Reference loop detected for '%ref%'%nil%", prompt::xml, ansi::fgc(redlt), reference_name, ansi::nil());
                     }
                 }
             }
@@ -1596,6 +1612,7 @@ namespace netxs::xml
         }
         auto take_ptr_list_of(sptr subsection_ptr, view attribute)
         {
+            touched++;
             auto item_ptr_list = document::vect{};
             settings::_take_ptr_list_of(subsection_ptr, attribute, item_ptr_list);
             return item_ptr_list;
@@ -1603,6 +1620,7 @@ namespace netxs::xml
         // settings: Get item_ptr list from the current context.
         auto take_ptr_list_for_name(view attribute)
         {
+            touched++;
             auto item_ptr_list = document::vect{};
             auto context_ptr = settings::get_context();
             settings::_take_ptr_list_of(context_ptr, attribute, item_ptr_list);
@@ -1610,6 +1628,7 @@ namespace netxs::xml
         }
         auto take_value_list_of(sptr subsection_ptr, view attribute)
         {
+            touched++;
             auto strings = txts{};
             settings::_take_ptr_list_of(subsection_ptr, attribute, tmpbuff);
             strings.reserve(tmpbuff.size());
@@ -1623,6 +1642,7 @@ namespace netxs::xml
         template<bool Quiet = true, class T = si32>
         auto take_value_from(sptr subsection_ptr, view attribute, T defval = {})
         {
+            touched++;
             auto crop = text{};
             settings::_take_ptr_list_of(subsection_ptr, attribute, tmpbuff);
             if (tmpbuff.size())
@@ -1657,6 +1677,7 @@ namespace netxs::xml
         template<bool Quiet = true, class T = si32>
         auto take(text frompath, T defval = {})
         {
+            touched++;
             if (auto item_ptr = settings::_find_name(frompath))
             {
                 auto crop = settings::take_value(item_ptr);
@@ -1685,6 +1706,7 @@ namespace netxs::xml
         template<bool Quiet = true, class T>
         auto take_value_from(sptr subsection_ptr, view attribute, T defval, utf::unordered_map<text, T> const& dict)
         {
+            touched++;
             if (subsection_ptr)
             {
                 auto crop = settings::take_value_from<Quiet>(subsection_ptr, attribute, ""s);
@@ -1709,6 +1731,7 @@ namespace netxs::xml
         template<class T>
         auto take(text frompath, T defval, utf::unordered_map<text, T> const& dict)
         {
+            touched++;
             if (frompath.size())
             {
                 auto crop = settings::take(frompath, ""s);
@@ -1729,6 +1752,7 @@ namespace netxs::xml
         }
         auto take(text frompath, cell defval)
         {
+            touched++;
             if (frompath.empty()) return defval;
             auto fgc_path = frompath + '/' + "fgc";
             auto bgc_path = frompath + '/' + "bgc";
