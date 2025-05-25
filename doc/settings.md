@@ -205,8 +205,8 @@ The following forms of element declaration are equivalent:
 ```
 
 ```xml
-<ThingTemplate="text"|NumberRef>
-    <name=LetterRef/>
+<ThingTemplate = "text" | NumberRef>
+    <name = LetterRef/>
 </ThingTemplate>
 <document>
     <thing=ThingTemplate NumberRef="1" LetterRef="a"/>
