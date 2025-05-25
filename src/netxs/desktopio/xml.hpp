@@ -531,65 +531,64 @@ namespace netxs::xml
                 utf::unescape(value);
                 return value;
             }
+            auto _unsync_body(elem& node)
+            {
+                return body.size() != node.body.size()
+                    || !std::ranges::equal(body, node.body, [](auto& s, auto& d){ return s->utf8 == d->utf8; });
+                    //|| !std::equal(body.begin(), body.end(), node.body.begin(), [&](auto& s, auto& d){ return s->utf8 == d->utf8; });
+            }
             void sync_value(elem& node)
             {
-                if (body.size())
-                if (body.size() != node.body.size() || !std::equal(body.begin(), body.end(), node.body.begin(), [&](auto& s, auto& d){ return s->utf8 == d->utf8; }))
+                if (body.size() && _unsync_body(node)) // root_ptr has no body.
                 {
+                    //todo preserve semantics
                     auto value = text{};
                     for (auto& value_placeholder : node.body)
                     {
                         value += value_placeholder->utf8;
                     }
-                    if (body.size())
+                    for (auto& value_placeholder : body)
                     {
-                        for (auto& value_placeholder : body)
+                        value_placeholder->utf8.clear();
+                    }
+                    body.resize(1);
+                    auto value_placeholder = body.front();
+                    if (value_placeholder->kind == type::tag_value) // equal [spaces] quotes tag_value quotes
+                    if (auto quote_placeholder = value_placeholder->prev.lock())
+                    if (quote_placeholder->kind == type::quotes)
+                    if (auto equal_placeholder = quote_placeholder->prev.lock())
+                    {
+                        if (equal_placeholder->kind != type::equal) // Spaces after equal sign.
                         {
-                            value_placeholder->utf8.clear();
+                            equal_placeholder = equal_placeholder->prev.lock();
                         }
-                        body.resize(1);
-                        auto value_placeholder = body.front();
-                        if (value_placeholder->kind == type::tag_value) // equal [spaces] quotes tag_value quotes
-                        if (auto quote_placeholder = value_placeholder->prev.lock())
-                        if (quote_placeholder->kind == type::quotes)
-                        if (auto equal_placeholder = quote_placeholder->prev.lock())
+                        if (equal_placeholder && equal_placeholder->kind == type::equal)
                         {
-                            if (equal_placeholder->kind != type::equal) // Spaces after equal sign.
+                            if (node.is_quoted())
                             {
-                                equal_placeholder = equal_placeholder->prev.lock();
-                            }
-                            if (equal_placeholder && equal_placeholder->kind == type::equal)
-                            {
-                                if (node.is_quoted())
+                                equal_placeholder->utf8 = "="sv;
+                                quote_placeholder->utf8 = "\""sv;
+                                if (value_placeholder->next)
                                 {
-                                    equal_placeholder->utf8 = "="sv;
-                                    quote_placeholder->utf8 = "\""sv;
-                                    if (value_placeholder->next)
-                                    {
-                                        value_placeholder->next->utf8 = "\""sv;
-                                    }
-                                }
-                                else
-                                {
-                                    equal_placeholder->utf8 = value.size() ? "="sv : ""sv;
-                                    quote_placeholder->utf8 = ""sv;
-                                    if (value_placeholder->next)
-                                    {
-                                        value_placeholder->next->utf8 = ""sv;
-                                    }
+                                    value_placeholder->next->utf8 = "\""sv;
                                 }
                             }
                             else
                             {
-                                log("%%Equal sign placeholder not found", prompt::xml);
+                                equal_placeholder->utf8 = value.size() ? "="sv : ""sv;
+                                quote_placeholder->utf8 = ""sv;
+                                if (value_placeholder->next)
+                                {
+                                    value_placeholder->next->utf8 = ""sv;
+                                }
                             }
                         }
-                        value_placeholder->utf8 = value;
+                        else
+                        {
+                            log("%%Equal sign placeholder not found", prompt::xml);
+                        }
                     }
-                    else
-                    {
-                        log("%%Unexpected assignment to '%%'", prompt::xml, name->utf8);
-                    }
+                    value_placeholder->utf8 = value;
                 }
             }
             auto snapshot()
