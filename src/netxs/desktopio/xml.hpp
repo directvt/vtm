@@ -877,13 +877,13 @@ namespace netxs::xml
 
     private:
         vect compacted;
-        auto fail(text msg)
+        void fail(text msg)
         {
             page.fail = true;
             page.append(type::error, msg);
             log("%%%msg% at %page.file%:%lines%", prompt::xml, msg, page.file, page.lines());
         }
-        auto fail(type last, type what)
+        void fail(type last, type what)
         {
             auto str = [&](type what)
             {
@@ -937,7 +937,8 @@ namespace netxs::xml
                   || data.starts_with(view_quoted_text_2)) what = type::quoted_text;
             else if (data.starts_with(view_equal        )) what = type::equal;
             else if (data.starts_with(view_tag_joiner   )
-                  && (last == type::tag_value
+                  && (last == type::quoted_text
+                   || last == type::tag_value
                    || last == type::tag_reference))        what = type::tag_joiner;
             else if (data.starts_with(view_defaults     )
                   && last == type::token)                  what = type::defaults;
@@ -1019,7 +1020,10 @@ namespace netxs::xml
         {
             auto temp = utf::trim_front_get_cuts(data, whitespaces);
             auto crop = !temp.empty();
-            if (crop) page.append(type::spaces, std::move(temp));
+            if (crop)
+            {
+                page.append(type::spaces, temp);
+            }
             return crop;
         }
         auto diff(view& data, view& temp, type kind = type::spaces)
@@ -1174,6 +1178,31 @@ namespace netxs::xml
                         trim(data);
                         temp = data;
                     }
+                    else if (what == type::tag_joiner)
+                    {
+                        skip(temp, type::tag_joiner);
+                        auto joiner_frag = diff(temp, data, type::tag_joiner);
+                        item->body.push_back(joiner_frag);
+                        trim(temp);
+                        data = temp;
+                        peek(temp, what, last);
+                        if (what == type::quoted_text)
+                        {
+                            continue;
+                        }
+                        else if (what == type::raw_text && netxs::onlydigits.find(temp.front()) == text::npos) // Only literal raw text is allowed as a reference name.
+                        {
+                            what = type::tag_reference;
+                            item->body.push_back(body(data, what));
+                            trim(data);
+                            temp = data;
+                        }
+                        else
+                        {
+                            fail(last, what);
+                            break;
+                        }
+                    }
                     else if (what == type::raw_text)
                     {
                         auto iter = utf::find_char_except_skips(data, '<', view_lua_op_shl, view_lua_op_less, view_lua_op_less_eq);
@@ -1301,7 +1330,8 @@ namespace netxs::xml
             if (what == type::begin_tag)
             {
                 page.append(type::begin_tag, skip(data, what));
-                trim(data);
+                // No spaces allowed between type::begin_tag and type::token
+                //trim(data);
                 peek(data, what, last);
                 if (what == type::token)
                 {
@@ -1524,11 +1554,6 @@ namespace netxs::xml
                 if (value_placeholder->kind == document::type::tag_reference)
                 {
                     auto& reference_name = value_placeholder->utf8;
-                    //if (auto base_ptr = settings::_find_name_in_subsection(subsection_ptr, reference_name)) // Lookup in current subsection.
-                    //{
-                    //    settings::_take_ptr_list_of(base_ptr, attribute, item_ptr_list);
-                    //}
-                    //else
                     if (auto base_item_ptr = settings::_find_name(reference_name))
                     {
                         settings::_take_value(base_item_ptr, value);

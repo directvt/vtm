@@ -196,6 +196,24 @@ The following forms of element declaration are equivalent:
 </document>
 ```
 
+```xml
+<basething name="a"/>
+<document>
+    <thing> "" | basething | "text1" </thing>
+    <thing name="b">text2</thing>
+</document>
+```
+
+```xml
+<ThingTemplate="text"|NumberRef>
+    <name=LetterRef/>
+</ThingTemplate>
+<document>
+    <thing=ThingTemplate NumberRef="1" LetterRef="a"/>
+    <thing=ThingTemplate NumberRef="2" LetterRef="b"/>
+</document>
+```
+
 ### Compact XML syntax
 
 The following declarations have the same meaning:
