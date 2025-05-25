@@ -1326,6 +1326,7 @@ namespace netxs::app::vtm
             auto item_ptr_list = config.settings::take_ptr_list_for_name(path::item);
             for (auto item_ptr : item_ptr_list)
             {
+                config.settings::push_context(item_ptr);
                 auto splitter = config.settings::take_value_from(item_ptr, attr::splitter, faux);
                 auto menuid = splitter ? "splitter_" + std::to_string(splitter_count++)
                                        : config.settings::take_value_from(item_ptr, attr::id, ""s);
@@ -1351,6 +1352,7 @@ namespace netxs::app::vtm
                     if (conf_rec.hidden) temp_list.emplace_back(std::move(conf_rec.menuid), std::move(conf_rec));
                     else                 free_list.emplace_back(std::move(conf_rec.menuid), std::move(conf_rec));
                 }
+                config.settings::pop_context();
             }
             config.settings::pop_context();
             for (auto& [menuid, conf_rec] : free_list)
