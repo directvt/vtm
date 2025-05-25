@@ -531,44 +531,6 @@ namespace netxs::xml
                 utf::unescape(value);
                 return value;
             }
-            void init_value(qiew value, bool unescaped = true, std::optional<bool> quoted = {})
-            {
-                if (body.size())
-                {
-                    for (auto& value_placeholder : body) value_placeholder->utf8.clear();
-                    body.resize(1);
-                    auto value_placeholder = body.front();
-                    if (value_placeholder->kind == type::tag_value) // equal [spaces] quotes tag_value quotes
-                    if (auto quote_placeholder = value_placeholder->prev.lock())
-                    if (quote_placeholder->kind == type::quotes)
-                    if (auto equal_placeholder = quote_placeholder->prev.lock())
-                    {
-                        if (equal_placeholder->kind != type::equal) // Spaces after equal sign.
-                        {
-                            equal_placeholder = equal_placeholder->prev.lock();
-                        }
-                        if (equal_placeholder && equal_placeholder->kind == type::equal)
-                        {
-                            if ((value.size() && !quoted) || quoted.value())
-                            {
-                                equal_placeholder->utf8 = "="sv;
-                                quote_placeholder->utf8 = "\""sv;
-                                if (value_placeholder->next) value_placeholder->next->utf8 = "\""sv;
-                            }
-                            else
-                            {
-                                equal_placeholder->utf8 = value.size() ? "="sv : ""sv;
-                                quote_placeholder->utf8 = ""sv;
-                                if (value_placeholder->next) value_placeholder->next->utf8 = ""sv;
-                            }
-                        }
-                        else log("%%Equal sign placeholder not found", prompt::xml);
-                    }
-                    if (unescaped) utf::escape(value, value_placeholder->utf8, '\"');
-                    else           value_placeholder->utf8 = value;
-                }
-                else log("%%Unexpected assignment to '%%'", prompt::xml, name->utf8);
-            }
             void sync_value(elem& node)
             {
                 if (body.size())
@@ -579,7 +541,55 @@ namespace netxs::xml
                     {
                         value += value_placeholder->utf8;
                     }
-                    init_value(value, faux, node.is_quoted());
+                    if (body.size())
+                    {
+                        for (auto& value_placeholder : body)
+                        {
+                            value_placeholder->utf8.clear();
+                        }
+                        body.resize(1);
+                        auto value_placeholder = body.front();
+                        if (value_placeholder->kind == type::tag_value) // equal [spaces] quotes tag_value quotes
+                        if (auto quote_placeholder = value_placeholder->prev.lock())
+                        if (quote_placeholder->kind == type::quotes)
+                        if (auto equal_placeholder = quote_placeholder->prev.lock())
+                        {
+                            if (equal_placeholder->kind != type::equal) // Spaces after equal sign.
+                            {
+                                equal_placeholder = equal_placeholder->prev.lock();
+                            }
+                            if (equal_placeholder && equal_placeholder->kind == type::equal)
+                            {
+                                if (node.is_quoted())
+                                {
+                                    equal_placeholder->utf8 = "="sv;
+                                    quote_placeholder->utf8 = "\""sv;
+                                    if (value_placeholder->next)
+                                    {
+                                        value_placeholder->next->utf8 = "\""sv;
+                                    }
+                                }
+                                else
+                                {
+                                    equal_placeholder->utf8 = value.size() ? "="sv : ""sv;
+                                    quote_placeholder->utf8 = ""sv;
+                                    if (value_placeholder->next)
+                                    {
+                                        value_placeholder->next->utf8 = ""sv;
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                log("%%Equal sign placeholder not found", prompt::xml);
+                            }
+                        }
+                        value_placeholder->utf8 = value;
+                    }
+                    else
+                    {
+                        log("%%Unexpected assignment to '%%'", prompt::xml, name->utf8);
+                    }
                 }
             }
             auto snapshot()
