@@ -936,7 +936,7 @@ Notes
         <menu item*>
             <autohide=/Menu/Defaults/autohide/>
             <slim=/Menu/Defaults/slim/>
-            <item=/MenuButtons/AlwaysOnTop/>
+            <item=/Menu/Buttons/AlwaysOnTop/>
             <item label="   +   " script=OnLeftClick|TileRunApplication>
                 <tooltip>
                     " Launch application instances in active empty slots.     \n"
