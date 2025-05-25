@@ -521,45 +521,6 @@ namespace netxs::xml
                     }
                 }
             }
-            template<bool WithTemplate = faux>
-            auto get_list2(qiew path_str)
-            {
-                utf::trim(path_str, '/');
-                auto anchor = this;
-                auto crop = vect{}; //auto& items = config.root->hive["menu"][0]->hive["item"]...;
-                auto temp = text{};
-                auto path = utf::split(path_str, '/');
-                if (path.size())
-                {
-                    auto head = path.begin();
-                    auto tail = path.end();
-                    while (head != tail)
-                    {
-                        temp = *head++;
-                        if (auto iter = anchor->hive.find(temp);
-                                 iter!= anchor->hive.end())
-                        {
-                            auto& i = iter->second;
-                            crop.reserve(i.size());
-                            if (head == tail)
-                            {
-                                for (auto& item : i)
-                                {
-                                    if constexpr (WithTemplate) crop.push_back(item);
-                                    else       if (!item->fake) crop.push_back(item);
-                                }
-                            }
-                            else if (i.size() && i.front())
-                            {
-                                anchor = &(*(i.front()));
-                            }
-                            else break;
-                        }
-                        else break;
-                    }
-                }
-                return crop;
-            }
             auto _concat_values()
             {
                 auto value = text{};
@@ -702,13 +663,20 @@ namespace netxs::xml
         template<bool WithTemplate = faux>
         auto take_ptr_list(view path)
         {
-            if (!root) return vect{};
-            else
+            auto item_ptr_list = vect{};
+            if (root)
             {
                 utf::trim(path, '/');
-                if (path.empty()) return vect{ root };
-                else              return root->get_list2<WithTemplate>(path);
+                if (path.empty())
+                {
+                    item_ptr_list.push_back(root);
+                }
+                else
+                {
+                    root->get_list3<WithTemplate>(path, item_ptr_list);
+                }
             }
+            return item_ptr_list;
         }
         auto join(view path, vect const& list)
         {
