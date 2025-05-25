@@ -23,7 +23,7 @@ R"==(<include*/>  <!-- Ordered list of <include="/path/to/settings.xml"/>. The s
         <style="bar"/>  <!-- Cursor style: "bar" | "block" | "underline" ( |  █  _ ). -->
         <blink=400ms/>  <!-- Cursor blink period. Set to zero for a steady cursor. -->
         <show=true/>
-        <color fgc=/color/default bgc=/color/default/>  <!-- Cursor cell color. By default, the cursor color (bgc) is set to either black or white depending on the lightness of the underlying text background. -->
+        <color fgc=/Colors/default bgc=/Colors/default/>  <!-- Cursor cell color. By default, the cursor color (bgc) is set to either black or white depending on the lightness of the underlying text background. -->
     </cursor>
     <tooltips>  <!-- Not implemented for GUI mode. -->
         <timeout=400ms/>
@@ -98,7 +98,7 @@ R"==(
                             <wrap=true/>    <!-- Lines wrapping mode. -->
                         </scrollback>
                         <selection>
-                            <mode=/defaults/selection/mode/>  <!-- Clipboard copy format: "text" | "ansi" | "rich" | "html" | "protected" | "none" . -->
+                            <mode=/Terminal/selection/mode/>  <!-- Clipboard copy format: "text" | "ansi" | "rich" | "html" | "protected" | "none" . -->
                         </selection>
                     </terminal>
                 </config>
@@ -112,75 +112,16 @@ R"==(
                             <size=50000/>
                             <wrap=false/>
                         </scrollback>
-)=="
-R"==(
                         <menu item*>
-                            <autohide=/defaults/menu/autohide/>
-                            <slim=/defaults/menu/slim/>
-                            <item label="  " tooltip=" AlwaysOnTop off ">
-                                <script=OnLeftClick|AlwaysOnTopApplet/> <!-- The default event source is the parent object, i.e. source="item" (aka vtm.item). -->
-                                <script>  <!-- A binding to update the menu item label at runtime. -->
-                                    <on="release: e2::form::prop::zorder" source="applet"/>
-                                    local is_topmost=vtm()                   -- Use event arguments to get the current state.
-                                    -- local is_topmost=vtm.applet.ZOrder()  -- or ask the object iteslf for the current state.
-                                    vtm.item.Label(is_topmost==1 and "\\x1b[38:2:0:255:0m▀ \\x1b[m" or "  ")
-                                    vtm.item.Tooltip(is_topmost==1 and " AlwaysOnTop on " or " AlwaysOnTop off ")
-                                    vtm.item.Deface()
-                                </script>
-                            </item>
-                            <item label="  <  " script=OnLeftClick|TerminalFindPrev>
-                                <tooltip>
-                                    " \e[1mPrevious match           Alt+LeftArrow\e[m  \n"
-                                    "   Click to jump to the previous match   \n"
-                                    "   Match clipboard data if no selection  "
-                                </tooltip>
-                            </item>
-                            <item label="  >  " script=OnLeftClick|TerminalFindNext>
-                                <tooltip>
-                                    " \e[1mNext match              Alt+RightArrow\e[m  \n"
-                                    "   Click to jump to the next match       \n"
-                                    "   Match clipboard data if no selection  "
-                                </tooltip>
-                            </item>
-                            <item label="  Wrap  " script=OnLeftClick|TerminalWrapMode>
-                                <tooltip>
-                                    " Wrapping text lines on/off      \n"
-                                    "   Applied to selection if it is "
-                                </tooltip>
-                                <script>
-                                    <on="release: terminal::events::layout::wrapln" source="terminal"/>
-                                    local m=vtm()                           -- Use event arguments to get the current state.
-                                    -- local m=vtm.terminal.LineWrapMode()  -- or ask the terminal instance iteslf for the current state.
-                                    vtm.item.Label(m==1 and "\e[38:2:0:255:0m  Wrap  \e[m" or "  Wrap  ")
-                                    vtm.item.Deface()
-                                </script>
-                            </item>
-                            <item label="  Clipboard  " tooltip=" Clipboard format " script=OnLeftClick|TerminalClipboardFormat>
-                                <script>
-                                    <on="release: terminal::events::selmod" source="terminal"/>
-                                    local m=vtm()                              -- Use event arguments to get the current state.
-                                    -- local m=vtm.terminal.ClipboardFormat()  -- or ask the terminal instance iteslf for the current state.
-                                    vtm.item.Label(m==1 and "\e[38:2:0:255:0m  Plaintext  \e[m"     -- "textonly"
-                                                or m==2 and "\e[38:2:255:255:0m  ANSI-text  \e[m"   -- "ansitext"
-                                                or m==3 and "\e[38:2:109:231:237m  ".."R"..
-                                                            "\e[38:2:109:237:186m"  .."T"..
-                                                            "\e[38:2:60:255:60m"    .."F"..
-                                                            "\e[38:2:189:255:53m"   .."-"..
-                                                            "\e[38:2:255:255:49m"   .."s"..
-                                                            "\e[38:2:255:189:79m"   .."t"..
-                                                            "\e[38:2:255:114:94m"   .."y"..
-                                                            "\e[38:2:255:60:157m"   .."l"..
-                                                            "\e[38:2:255:49:214m"   .."e".."  \e[m" -- "richtext"
-                                                or m==4 and "\e[38:2:0:255:255m  HTML-code  \e[m"   -- "htmltext"
-                                                or m==5 and "\e[38:2:0:255:255m  Protected  \e[m"   -- "safetext" ala protected
-                                                or          "  Clipboard  ")                        -- "disabled"
-                                    vtm.item.Deface()
-                                </script>
-                            </item>
-                            <item label="  Reset  " tooltip=" Clear scrollback and SGR-attributes " script=OnLeftClick|TerminalReset/>
+                            <autohide=/Menu/Defaults/autohide/>
+                            <slim=/Menu/Defaults/slim/>
+                            <item=/Menu/Buttons/AlwaysOnTop/>
+                            <item=/Menu/Buttons/FindPrev/>
+                            <item=/Menu/Buttons/FindNext/>
+                            <item=/Menu/Buttons/WrapMode/>
+                            <item=/Menu/Buttons/ClipboardFormat/>
+                            <item=/Menu/Buttons/ClearScrollback/>
                         </menu>
-)=="
-R"==(
                     </terminal>
                 </config>
             </item>
@@ -201,7 +142,7 @@ R"==(
                 <focused  fgc=puregreen                     />  <!-- Focused taskbar item color. -->
                 <selected fgc=whitelt                       />  <!-- Default taskbar item color. -->
                 <active   fgc=whitelt                       />  <!-- Running taskbar item color. -->
-                <inactive fgc=blacklt bgc=/color/transparent/>  <!-- Blocked taskbar item color (e.g. when the app is maximized by a remote user). -->
+                <inactive fgc=blacklt bgc=/Colors/transparent/>  <!-- Blocked taskbar item color (e.g. when the app is maximized by a remote user). -->
             </colors>
         </taskbar>
         <panel>  <!-- Desktop info panel. -->
@@ -254,7 +195,7 @@ R"==(
             <color14 = cyanlt     />
             <color15 = whitelt    />
             <default fgc=whitedk bgc=pureblack/>  <!-- Default/current colors (SGR49/39). -->
-            <bground = /color/default/>  <!-- Independent background color of the scrollback canvas. Set to 0x00ffffff(or =/color/default) to sync with SGR49 (default background). -->
+            <bground = /Colors/default/>  <!-- Independent background color of the scrollback canvas. Set to 0x00ffffff(or =/Colors/default) to sync with SGR49 (default background). -->
             <match fx="color" fgc=whitelt bgc=0xFF007F00/>  <!-- Color of the selected text occurrences. Set an fx to use cell::shaders: "xlight" | "color" | "invert" | "reverse". -->
             <selection>
                 <text      fx="color"  fgc=whitelt bgc=bluelt/>  <!-- Highlighting of the selected text in plaintext mode. -->
@@ -268,97 +209,21 @@ R"==(
         <border=0/>  <!-- Width of the left and right border of the terminal window. -->
         <tablen=8/>  <!-- Tab length. -->
         <menu item*>
-            <autohide=/defaults/menu/autohide/>
-            <slim=/defaults/menu/slim/>
-            <item label="  " tooltip=" AlwaysOnTop off " script=OnLeftClick|AlwaysOnTopApplet> <!-- The default event source is the parent object, i.e. source="item" (aka vtm.item). -->
-                <script>  <!-- A binding to update the menu item label at runtime. -->
-                    <on="release: e2::form::prop::zorder" source="applet"/>
-                    local is_topmost=vtm()                   -- Use event arguments to get the current state.
-                    -- local is_topmost=vtm.applet.ZOrder()  -- or ask the object iteslf for the current state.
-                    vtm.item.Label(is_topmost==1 and "\\x1b[38:2:0:255:0m▀ \\x1b[m" or "  ")
-                    vtm.item.Tooltip(is_topmost==1 and " AlwaysOnTop on " or " AlwaysOnTop off ")
-                    vtm.item.Deface()
-                </script>
-            </item>
-            <item label="  <  " script=OnLeftClick|TerminalFindPrev>
-                <tooltip>
-                    " \e[1mPrevious match           Alt+LeftArrow\e[m  \n"
-                    "   Click to jump to the previous match   \n"
-                    "   Match clipboard data if no selection  "
-                </tooltip>
-            </item>
-            <item label="  >  " script=OnLeftClick|TerminalFindNext>
-                <tooltip>
-                    " \e[1mNext match              Alt+RightArrow\e[m  \n"
-                    "   Click to jump to the next match       \n"
-                    "   Match clipboard data if no selection  "
-                </tooltip>
-            </item>
-            <item label="   Desktop   " script=OnLeftClick|ExclusiveKeyboardMode>
-                <tooltip>
-                    " \e[1mToggle exclusive keyboard mode\e[m              \n"
-                    "   Exclusive keyboard mode allows keystrokes \n"
-                    "   to be passed through without processing   "
-                </tooltip>
-                <script>
-                    <on="release: terminal::events::rawkbd" source="terminal"/>
-                    local m=vtm()                                    -- Use event arguments to get the current state.
-                    -- local m=vtm.terminal.ExclusiveKeyboardMode()  -- or ask the terminal instance iteslf for the current state.
-                    vtm.item.Label(m==1 and "\e[48:2:0:128:128;38:2:0:255:0m  Exclusive  \e[m" or "   Desktop   ")
-                    vtm.item.Tooltip(m==1 and " ExclusiveKeyboardMode on " or " ExclusiveKeyboardMode off ")
-                    vtm.item.Deface()
-                </script>
-            </item>
-            <item label="  Wrap  " script=OnLeftClick|TerminalWrapMode>
-                <tooltip>
-                    " Wrapping text lines on/off      \n"
-                    "   Applied to selection if it is "
-                </tooltip>
-                <script>
-                    <on="release: terminal::events::layout::wrapln" source="terminal"/>
-                    local m=vtm()                           -- Use event arguments to get the current state.
-                    -- local m=vtm.terminal.LineWrapMode()  -- or ask the terminal instance iteslf for the current state.
-                    vtm.item.Label(m==1 and "\e[38:2:0:255:0m  Wrap  \e[m" or "  Wrap  ")
-                    vtm.item.Deface()
-                </script>
-            </item>
-            <item label="  Clipboard  " tooltip=" Clipboard format " script=OnLeftClick|TerminalClipboardFormat>
-                <script>
-                    <on="release: terminal::events::selmod" source="terminal"/>
-                    local m=vtm()                              -- Use event arguments to get the current state.
-                    -- local m=vtm.terminal.ClipboardFormat()  -- or ask the terminal instance iteslf for the current state.
-                    vtm.item.Label(m==1 and "\e[38:2:0:255:0m  Plaintext  \e[m"     -- "textonly"
-                                or m==2 and "\e[38:2:255:255:0m  ANSI-text  \e[m"   -- "ansitext"
-                                or m==3 and "\e[38:2:109:231:237m  ".."R"..
-                                            "\e[38:2:109:237:186m"  .."T"..
-                                            "\e[38:2:60:255:60m"    .."F"..
-                                            "\e[38:2:189:255:53m"   .."-"..
-                                            "\e[38:2:255:255:49m"   .."s"..
-                                            "\e[38:2:255:189:79m"   .."t"..
-                                            "\e[38:2:255:114:94m"   .."y"..
-                                            "\e[38:2:255:60:157m"   .."l"..
-                                            "\e[38:2:255:49:214m"   .."e".."  \e[m" -- "richtext"
-                                or m==4 and "\e[38:2:0:255:255m  HTML-code  \e[m"   -- "htmltext"
-                                or m==5 and "\e[38:2:0:255:255m  Protected  \e[m"   -- "safetext" ala protected
-                                or          "  Clipboard  ")                        -- "disabled"
-                    vtm.item.Deface()
-                </script>
-            </item>
-            <item label="  Log  " tooltip=" \e[1mConsole logging\e[m        \n Use Logs to see output " script=OnLeftClick|TerminalStdioLog>
-                <script>
-                    <on="release: terminal::events::io_log" source="terminal"/>
-                    local m=vtm()                      -- Use event arguments to get the current state.
-                    -- local m=vtm.terminal.LogMode()  -- or ask the terminal instance iteslf for the current state.
-                    vtm.item.Label(m==1 and "\e[38:2:0:255:0m  Log  \e[m" or "  Log  ")
-                    vtm.item.Deface()
-                </script>
-            </item>
-            <item label="  Clear  "   tooltip=" Clear scrollback "                 script=OnLeftClick|TerminalClearScrollback/>
-            <item label="  Restart  " tooltip=" Restart current terminal session " script=OnLeftClick|TerminalRestart/>
+            <autohide=/Menu/Defaults/autohide/>
+            <slim=/Menu/Defaults/slim/>
+            <item=/Menu/Buttons/AlwaysOnTop/>
+            <item=/Menu/Buttons/FindPrev/>
+            <item=/Menu/Buttons/FindNext/>
+            <item=/Menu/Buttons/ExclusiveKeyboard/>
+            <item=/Menu/Buttons/WrapMode/>
+            <item=/Menu/Buttons/ClipboardFormat/>
+            <item=/Menu/Buttons/StdioLog/>
+            <item=/Menu/Buttons/ClearScrollback/>
+            <item=/Menu/Buttons/Restart/>
         </menu>
         <selection>
-            <mode=/defaults/selection/mode/>  <!-- Selection clipboard copy format: "text" | "ansi" | "rich" | "html" | "protected" | "none". -->
-            <rect=/defaults/selection/rect/>  <!-- Preferred selection form: Rectangular: true, Linear: false. -->
+            <mode=/Terminal/selection/mode/>  <!-- Selection clipboard copy format: "text" | "ansi" | "rich" | "html" | "protected" | "none". -->
+            <rect=/Terminal/selection/rect/>  <!-- Preferred selection form: Rectangular: true, Linear: false. -->
         </selection>
         <atexit="auto"/>  <!-- Behavior after the last console process has terminated: "auto" | "ask" | "close" | "restart" | "retry"
                                 auto:    Stay open and ask if exit code != 0. (default)
@@ -371,18 +236,9 @@ R"==(
 R"==(
     <tile>
         <menu item*>
-            <autohide=/defaults/menu/autohide/>
-            <slim=/defaults/menu/slim/>
-            <item label="  " tooltip=" AlwaysOnTop off " script=OnLeftClick|AlwaysOnTopApplet> <!-- The default event source is the parent object, i.e. source="item" (aka vtm.item). -->
-                <script>  <!-- A binding to update the menu item label at runtime. -->
-                    <on="release: e2::form::prop::zorder" source="applet"/>
-                    local is_topmost=vtm()                   -- Use event arguments to get the current state.
-                    -- local is_topmost=vtm.applet.ZOrder()  -- or ask the object iteslf for the current state.
-                    vtm.item.Label(is_topmost==1 and "\\x1b[38:2:0:255:0m▀ \\x1b[m" or "  ")
-                    vtm.item.Tooltip(is_topmost==1 and " AlwaysOnTop on " or " AlwaysOnTop off ")
-                    vtm.item.Deface()
-                </script>
-            </item>
+            <autohide=/Menu/Defaults/autohide/>
+            <slim=/Menu/Defaults/slim/>
+            <item=/MenuButtons/AlwaysOnTop/>
             <item label="   +   " script=OnLeftClick|TileRunApplication>
                 <tooltip>
                     " Launch application instances in active empty slots.     \n"
@@ -404,9 +260,7 @@ R"==(
         </menu>
     </tile>
     <defapp>
-        <menu>
-            <autohide=/defaults/menu/autohide/>
-            <slim=/defaults/menu/slim/>
+        <menu=/Menu/Defaults>
         </menu>
     </defapp>
     <events>  <!-- The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop. -->
@@ -538,13 +392,113 @@ R"==(
 )=="
 R"==(
 <!-- Globals - Unresolved literals will try to be resolved from here. -->
-<OnLeftClick on="LeftClick"/>
 <true  = 1 />
 <yes   = 1 />
 <on    = 1 />
 <false = 0 />
 <no    = 0 />
 <off   = 0 />
+
+<OnLeftClick on="LeftClick"/>
+
+<Menu>
+    <Defaults>
+        <autohide=false/>  <!-- Auto hide window menu items on mouse leave. -->
+        <slim=true/>       <!-- Make the window menu one cell high (slim=true) or three cells high (slim=false). -->
+    </Defaults>
+    <Buttons>
+        <AlwaysOnTop label="  " tooltip=" AlwaysOnTop off " script=OnLeftClick|AlwaysOnTopApplet> <!-- The default event source is the parent object, i.e. source="item" (aka vtm.item). -->
+            <script>  <!-- A binding to update the menu item label at runtime. -->
+                <on="release: e2::form::prop::zorder" source="applet"/>
+                local is_topmost=vtm()                   -- Use event arguments to get the current state.
+                -- local is_topmost=vtm.applet.ZOrder()  -- or ask the object iteslf for the current state.
+                vtm.item.Label(is_topmost==1 and "\\x1b[38:2:0:255:0m▀ \\x1b[m" or "  ")
+                vtm.item.Tooltip(is_topmost==1 and " AlwaysOnTop on " or " AlwaysOnTop off ")
+                vtm.item.Deface()
+            </script>
+        </AlwaysOnTop>
+        <FindPrev label="  <  " script=OnLeftClick|TerminalFindPrev>
+            <tooltip>
+                " \e[1mPrevious match           Alt+LeftArrow\e[m  \n"
+                "   Click to jump to the previous match   \n"
+                "   Match clipboard data if no selection  "
+            </tooltip>
+        </FindPrev>
+        <FindNext label="  >  " script=OnLeftClick|TerminalFindNext>
+            <tooltip>
+                " \e[1mNext match              Alt+RightArrow\e[m  \n"
+                "   Click to jump to the next match       \n"
+                "   Match clipboard data if no selection  "
+            </tooltip>
+        </FindNext>
+        <ExclusiveKeyboard label="   Desktop   " script=OnLeftClick|ExclusiveKeyboardMode>
+            <tooltip>
+                " \e[1mToggle exclusive keyboard mode\e[m              \n"
+                "   Exclusive keyboard mode allows keystrokes \n"
+                "   to be passed through without processing   "
+            </tooltip>
+            <script>
+                <on="release: terminal::events::rawkbd" source="terminal"/>
+                local m=vtm()                                    -- Use event arguments to get the current state.
+                -- local m=vtm.terminal.ExclusiveKeyboardMode()  -- or ask the terminal instance iteslf for the current state.
+                vtm.item.Label(m==1 and "\e[48:2:0:128:128;38:2:0:255:0m  Exclusive  \e[m" or "   Desktop   ")
+                vtm.item.Tooltip(m==1 and " ExclusiveKeyboardMode on " or " ExclusiveKeyboardMode off ")
+                vtm.item.Deface()
+            </script>
+        </ExclusiveKeyboard>
+        <WrapMode label="  Wrap  " script=OnLeftClick|TerminalWrapMode>
+            <tooltip>
+                " Wrapping text lines on/off      \n"
+                "   Applied to selection if it is "
+            </tooltip>
+            <script>
+                <on="release: terminal::events::layout::wrapln" source="terminal"/>
+                local m=vtm()                           -- Use event arguments to get the current state.
+                -- local m=vtm.terminal.LineWrapMode()  -- or ask the terminal instance iteslf for the current state.
+                vtm.item.Label(m==1 and "\e[38:2:0:255:0m  Wrap  \e[m" or "  Wrap  ")
+                vtm.item.Deface()
+            </script>
+        </WrapMode>
+        <ClipboardFormat label="  Clipboard  " tooltip=" Clipboard format " script=OnLeftClick|TerminalClipboardFormat>
+            <script>
+                <on="release: terminal::events::selmod" source="terminal"/>
+                local m=vtm()                              -- Use event arguments to get the current state.
+                -- local m=vtm.terminal.ClipboardFormat()  -- or ask the terminal instance iteslf for the current state.
+                vtm.item.Label(m==1 and "\e[38:2:0:255:0m  Plaintext  \e[m"     -- "textonly"
+                            or m==2 and "\e[38:2:255:255:0m  ANSI-text  \e[m"   -- "ansitext"
+                            or m==3 and "\e[38:2:109:231:237m  ".."R"..
+                                        "\e[38:2:109:237:186m"  .."T"..
+                                        "\e[38:2:60:255:60m"    .."F"..
+                                        "\e[38:2:189:255:53m"   .."-"..
+                                        "\e[38:2:255:255:49m"   .."s"..
+                                        "\e[38:2:255:189:79m"   .."t"..
+                                        "\e[38:2:255:114:94m"   .."y"..
+                                        "\e[38:2:255:60:157m"   .."l"..
+                                        "\e[38:2:255:49:214m"   .."e".."  \e[m" -- "richtext"
+                            or m==4 and "\e[38:2:0:255:255m  HTML-code  \e[m"   -- "htmltext"
+                            or m==5 and "\e[38:2:0:255:255m  Protected  \e[m"   -- "safetext" ala protected
+                            or          "  Clipboard  ")                        -- "disabled"
+                vtm.item.Deface()
+            </script>
+        </ClipboardFormat>
+        <StdioLog label="  Log  " tooltip=" \e[1mConsole logging\e[m        \n Use Logs to see output " script=OnLeftClick|TerminalStdioLog>
+            <script>
+                <on="release: terminal::events::io_log" source="terminal"/>
+                local m=vtm()                      -- Use event arguments to get the current state.
+                -- local m=vtm.terminal.LogMode()  -- or ask the terminal instance iteslf for the current state.
+                vtm.item.Label(m==1 and "\e[38:2:0:255:0m  Log  \e[m" or "  Log  ")
+                vtm.item.Deface()
+            </script>
+        </StdioLog>
+        <ClearScrollback label="  Clear  "   tooltip=" Clear scrollback "                 script=OnLeftClick|TerminalClearScrollback/>
+        <Restart         label="  Restart  " tooltip=" Restart current terminal session " script=OnLeftClick|TerminalRestart/>
+    </Buttons>
+</Menu>
+
+<Colors>
+    <default     = 0x00ffffff />
+    <transparent = nocolor    />
+</Colors>
 <blackdk     = 0xFF101010 />
 <reddk       = 0xFFc40f1f />
 <greendk     = 0xFF12a10e />
@@ -570,20 +524,16 @@ R"==(
 <purecyan    = 0xFF00ffff />
 <pureyellow  = 0xFFff00ff />
 <nocolor     = 0x00000000 />
-<color>
-    <default     = 0x00ffffff />
-    <transparent = nocolor    />
-</color>
-<defaults>
-    <menu>
-        <autohide=false/>  <!-- Auto hide window menu items on mouse leave. -->
-        <slim=true/>       <!-- Make the window menu one cell high (slim=true) or three cells high (slim=false). -->
-    </menu>
+
+<Terminal>
     <selection>
         <mode="text"/>  <!-- Clipboard copy format: "text" | "ansi" | "rich" | "html" | "protected" | "none" . -->
         <rect=false/>   <!-- Preferred selection form: Rectangular: true, Linear: false. -->
     </selection>
-</defaults>
+</Terminal>
+
+)==" // MSVC2022: C2026 String too big, trailing characters truncated.
+R"==(
 <!-- vtm.* scripting context:
     - .gate: ...
     - .applet (standalone app): ...
@@ -594,93 +544,93 @@ R"==(
                 - .tile: ...
                     - .grip: ...
                 - .terminal: ...  -->
-<TryToQuit             ="vtm.desktop.Shutdown('try')"/>      <!-- Shut down the desktop server if no applications are running. -->
-<RunApplication        ="vtm.desktop.Run()"/>                <!-- Run default application. -->
-<RunInfoPage           ="vtm.desktop.Run({ title='Info-page', hidden=true, label='Info', type='info' })"/>  <!-- Run Info-page. -->
-<FocusPrevWindow       ="vtm.desktop.FocusNextWindow(-1)"/>  <!-- Switch focus to the prev window. -->
-<FocusNextWindow       ="vtm.desktop.FocusNextWindow( 1)"/>  <!-- Switch focus to the next window. -->
+<TryToQuit             ="vtm.desktop.Shutdown('try');"/>      <!-- Shut down the desktop server if no applications are running. -->
+<RunApplication        ="vtm.desktop.Run();"/>                <!-- Run default application. -->
+<RunInfoPage           ="vtm.desktop.Run({ title='Info-page', hidden=true, label='Info', type='info' });"/>  <!-- Run Info-page. -->
+<FocusPrevWindow       ="vtm.desktop.FocusNextWindow(-1);"/>  <!-- Switch focus to the prev window. -->
+<FocusNextWindow       ="vtm.desktop.FocusNextWindow( 1);"/>  <!-- Switch focus to the next window. -->
 
-<AlwaysOnTopApplet     ="vtm.applet.ZOrder(vtm.applet.ZOrder()==1 and 0 or 1)"/>  <!-- Request to toggle z-order window attribute. -1: backmost; 0: plain; 1: topmost. -->
-<CloseApplet           ="vtm.applet.Close()"/>            <!-- Request to Close window. -->
-<MinimizeApplet        ="vtm.applet.Minimize()"/>         <!-- Request to Minimize window. -->
-<MaximizeApplet        ="vtm.applet.Maximize()"/>         <!-- Request to Maximize window. -->
-<FullscreenApplet      ="vtm.applet.Fullscreen()"/>       <!-- Request to Maximize window to full screen. -->
-<RestoreApplet         ="vtm.applet.Restore()"/>          <!-- Request to Restore maximized/fullscreen window. -->
-<MoveAppletLeft        ="vtm.applet.Warp( 1,-1, 0, 0)"/>  <!-- Request to Move window to the left. WarpApplet(l, r, t, b): The parameters specify four deltas for the left, right, top and bottom sides of the window. -->
-<MoveAppletRight       ="vtm.applet.Warp(-1, 1, 0, 0)"/>  <!-- Request to Move window to the right. -->
-<MoveAppletUp          ="vtm.applet.Warp( 0, 0, 1,-1)"/>  <!-- Request to Move window up. -->
-<MoveAppletDown        ="vtm.applet.Warp( 0, 0,-1, 1)"/>  <!-- Request to Move window down. -->
-<MoveAppletTopLeft     ="vtm.applet.Warp( 2,-2, 1,-1)"/>  <!-- Request to Move window to the top-left. -->
-<MoveAppletBottomLeft  ="vtm.applet.Warp( 2,-2,-1, 1)"/>  <!-- Request to Move window to the bottom-left. -->
-<MoveAppletTopRight    ="vtm.applet.Warp(-2, 2, 1,-1)"/>  <!-- Request to Move window to the top-right. -->
-<MoveAppletBottomRight ="vtm.applet.Warp(-2, 2,-1, 1)"/>  <!-- Request to Move window to the bottom-right. -->
-<IncreaseAppletWidth   ="vtm.applet.Warp( 0, 1, 0, 0)"/>  <!-- Request to Increase window width. -->
-<DecreaseAppletWidth   ="vtm.applet.Warp( 0,-1, 0, 0)"/>  <!-- Request to Decrease window width. -->
-<IncreaseAppletHeight  ="vtm.applet.Warp( 0, 0, 0, 1)"/>  <!-- Request to Increase window height. -->
-<DecreaseAppletHeight  ="vtm.applet.Warp( 0, 0, 0,-1)"/>  <!-- Request to Decrease window height. -->
+<AlwaysOnTopApplet     ="vtm.applet.ZOrder(vtm.applet.ZOrder()==1 and 0 or 1);"/>  <!-- Request to toggle z-order window attribute. -1: backmost; 0: plain; 1: topmost. -->
+<CloseApplet           ="vtm.applet.Close();"/>            <!-- Request to Close window. -->
+<MinimizeApplet        ="vtm.applet.Minimize();"/>         <!-- Request to Minimize window. -->
+<MaximizeApplet        ="vtm.applet.Maximize();"/>         <!-- Request to Maximize window. -->
+<FullscreenApplet      ="vtm.applet.Fullscreen();"/>       <!-- Request to Maximize window to full screen. -->
+<RestoreApplet         ="vtm.applet.Restore();"/>          <!-- Request to Restore maximized/fullscreen window. -->
+<MoveAppletLeft        ="vtm.applet.Warp( 1,-1, 0, 0);"/>  <!-- Request to Move window to the left. WarpApplet(l, r, t, b): The parameters specify four deltas for the left, right, top and bottom sides of the window. -->
+<MoveAppletRight       ="vtm.applet.Warp(-1, 1, 0, 0);"/>  <!-- Request to Move window to the right. -->
+<MoveAppletUp          ="vtm.applet.Warp( 0, 0, 1,-1);"/>  <!-- Request to Move window up. -->
+<MoveAppletDown        ="vtm.applet.Warp( 0, 0,-1, 1);"/>  <!-- Request to Move window down. -->
+<MoveAppletTopLeft     ="vtm.applet.Warp( 2,-2, 1,-1);"/>  <!-- Request to Move window to the top-left. -->
+<MoveAppletBottomLeft  ="vtm.applet.Warp( 2,-2,-1, 1);"/>  <!-- Request to Move window to the bottom-left. -->
+<MoveAppletTopRight    ="vtm.applet.Warp(-2, 2, 1,-1);"/>  <!-- Request to Move window to the top-right. -->
+<MoveAppletBottomRight ="vtm.applet.Warp(-2, 2,-1, 1);"/>  <!-- Request to Move window to the bottom-right. -->
+<IncreaseAppletWidth   ="vtm.applet.Warp( 0, 1, 0, 0);"/>  <!-- Request to Increase window width. -->
+<DecreaseAppletWidth   ="vtm.applet.Warp( 0,-1, 0, 0);"/>  <!-- Request to Decrease window width. -->
+<IncreaseAppletHeight  ="vtm.applet.Warp( 0, 0, 0, 1);"/>  <!-- Request to Increase window height. -->
+<DecreaseAppletHeight  ="vtm.applet.Warp( 0, 0, 0,-1);"/>  <!-- Request to Decrease window height. -->
 
-<TileFocusPrev         ="vtm.tile.FocusNextPaneOrGrip(-1)"/>  <!-- Focus the previous pane or the split grip. -->
-<TileFocusNext         ="vtm.tile.FocusNextPaneOrGrip( 1)"/>  <!-- Focus the next pane or the split grip. -->
-<TileFocusPrevPane     ="vtm.tile.FocusNextPane(-1)"/>        <!-- Focus the previous pane. -->
-<TileFocusNextPane     ="vtm.tile.FocusNextPane( 1)"/>        <!-- Focus the next pane. -->
-<TileRunApplication    ="vtm.tile.RunApplication()"/>         <!-- Launch application instances in active empty slots. The app to run can be set by RightClick on the taskbar. -->
-<TileSelectAllPanes    ="vtm.tile.SelectAllPanes()"/>         <!-- Select all panes. -->
-<TileSplitHorizontally ="vtm.tile.SplitPane(0)"/>             <!-- Split active panes horizontally. -->
-<TileSplitVertically   ="vtm.tile.SplitPane(1)"/>             <!-- Split active panes vertically. -->
-<TileSplitOrientation  ="vtm.tile.RotateSplit()"/>            <!-- Change split orientation. -->
-<TileSwapPanes         ="vtm.tile.SwapPanes()"/>              <!-- Swap two or more panes. -->
-<TileEqualizeSplitRatio="vtm.tile.EqualizeSplitRatio()"/>     <!-- Equalize split ratio. -->
-<TileSetManagerTitle   ="vtm.tile.SetTitle()"/>               <!-- Set tiling window manager title using clipboard data. -->
-<TileClosePane         ="vtm.tile.ClosePane()"/>              <!-- Close active application. -->
-<TileMoveGripLeft      ="vtm.grip.MoveGrip(-1, 0)"/>          <!-- Move the split grip to the left. -->
-<TileMoveGripRight     ="vtm.grip.MoveGrip( 1, 0)"/>          <!-- Move the split grip to the right. -->
-<TileMoveGripUp        ="vtm.grip.MoveGrip( 0,-1)"/>          <!-- Move the split grip up. -->
-<TileMoveGripDown      ="vtm.grip.MoveGrip( 0, 1)"/>          <!-- Move the split grip down. -->
-<TileDecreaseGripWidth ="vtm.grip.ResizeGrip(-1)"/>           <!-- Decrease the split grip width. -->
-<TileIncreaseGripWidth ="vtm.grip.ResizeGrip( 1)"/>           <!-- Increase the split grip width. -->
-<TileFocusPrevGrip     ="vtm.grip.FocusNextGrip(-1)"/>        <!-- Focus the prev split grip. -->
-<TileFocusNextGrip     ="vtm.grip.FocusNextGrip( 1)"/>        <!-- Focus the next split grip. -->
+<TileFocusPrev         ="vtm.tile.FocusNextPaneOrGrip(-1);"/>  <!-- Focus the previous pane or the split grip. -->
+<TileFocusNext         ="vtm.tile.FocusNextPaneOrGrip( 1);"/>  <!-- Focus the next pane or the split grip. -->
+<TileFocusPrevPane     ="vtm.tile.FocusNextPane(-1);"/>        <!-- Focus the previous pane. -->
+<TileFocusNextPane     ="vtm.tile.FocusNextPane( 1);"/>        <!-- Focus the next pane. -->
+<TileRunApplication    ="vtm.tile.RunApplication();"/>         <!-- Launch application instances in active empty slots. The app to run can be set by RightClick on the taskbar. -->
+<TileSelectAllPanes    ="vtm.tile.SelectAllPanes();"/>         <!-- Select all panes. -->
+<TileSplitHorizontally ="vtm.tile.SplitPane(0);"/>             <!-- Split active panes horizontally. -->
+<TileSplitVertically   ="vtm.tile.SplitPane(1);"/>             <!-- Split active panes vertically. -->
+<TileSplitOrientation  ="vtm.tile.RotateSplit();"/>            <!-- Change split orientation. -->
+<TileSwapPanes         ="vtm.tile.SwapPanes();"/>              <!-- Swap two or more panes. -->
+<TileEqualizeSplitRatio="vtm.tile.EqualizeSplitRatio();"/>     <!-- Equalize split ratio. -->
+<TileSetManagerTitle   ="vtm.tile.SetTitle();"/>               <!-- Set tiling window manager title using clipboard data. -->
+<TileClosePane         ="vtm.tile.ClosePane();"/>              <!-- Close active application. -->
+<TileMoveGripLeft      ="vtm.grip.MoveGrip(-1, 0);"/>          <!-- Move the split grip to the left. -->
+<TileMoveGripRight     ="vtm.grip.MoveGrip( 1, 0);"/>          <!-- Move the split grip to the right. -->
+<TileMoveGripUp        ="vtm.grip.MoveGrip( 0,-1);"/>          <!-- Move the split grip up. -->
+<TileMoveGripDown      ="vtm.grip.MoveGrip( 0, 1);"/>          <!-- Move the split grip down. -->
+<TileDecreaseGripWidth ="vtm.grip.ResizeGrip(-1);"/>           <!-- Decrease the split grip width. -->
+<TileIncreaseGripWidth ="vtm.grip.ResizeGrip( 1);"/>           <!-- Increase the split grip width. -->
+<TileFocusPrevGrip     ="vtm.grip.FocusNextGrip(-1);"/>        <!-- Focus the prev split grip. -->
+<TileFocusNextGrip     ="vtm.grip.FocusNextGrip( 1);"/>        <!-- Focus the next split grip. -->
 
-<Disconnect            ="vtm.gate.Disconnect()"/>             <!-- Disconnect from the desktop. -->
-<ToggleDebugOverlay    ="vtm.gate.DebugOverlay()"/>           <!-- Toggle debug overlay. -->
-<IncreaseCellHeight    ="vtm.gate.IncreaseCellHeight( 1)"/>   <!-- Increase the text cell height by one pixel. -->
-<DecreaseCellHeight    ="vtm.gate.IncreaseCellHeight(-1)"/>   <!-- Decrease the text cell height by one pixel. -->
-<ResetWheelAccumulator ="vtm.gate.WheelAccumReset()"/>        <!-- Reset wheel accumulator. -->
-<ResetCellHeight       ="if (not vtm.gear.IsKeyRepeated()) then vtm.gate.CellHeightReset() end"/>   <!-- Reset text cell height. -->
-<ToggleAntialiasingMode="if (not vtm.gear.IsKeyRepeated()) then vtm.gate.AntialiasingMode() end"/>  <!-- Toggle text antialiasing mode. -->
-<RollFontsBackward     ="if (not vtm.gear.IsKeyRepeated()) then vtm.gate.RollFonts(-1) end"/>       <!-- Roll font list backward. -->
-<RollFontsForward      ="if (not vtm.gear.IsKeyRepeated()) then vtm.gate.RollFonts( 1) end"/>       <!-- Roll font list forward. -->
+<Disconnect            ="vtm.gate.Disconnect();"/>             <!-- Disconnect from the desktop. -->
+<ToggleDebugOverlay    ="vtm.gate.DebugOverlay();"/>           <!-- Toggle debug overlay. -->
+<IncreaseCellHeight    ="vtm.gate.IncreaseCellHeight( 1);"/>   <!-- Increase the text cell height by one pixel. -->
+<DecreaseCellHeight    ="vtm.gate.IncreaseCellHeight(-1);"/>   <!-- Decrease the text cell height by one pixel. -->
+<ResetWheelAccumulator ="vtm.gate.WheelAccumReset();"/>        <!-- Reset wheel accumulator. -->
+<ResetCellHeight       ="if (not vtm.gear.IsKeyRepeated()) then vtm.gate.CellHeightReset() end;"/>   <!-- Reset text cell height. -->
+<ToggleAntialiasingMode="if (not vtm.gear.IsKeyRepeated()) then vtm.gate.AntialiasingMode() end;"/>  <!-- Toggle text antialiasing mode. -->
+<RollFontsBackward     ="if (not vtm.gear.IsKeyRepeated()) then vtm.gate.RollFonts(-1) end;"/>       <!-- Roll font list backward. -->
+<RollFontsForward      ="if (not vtm.gear.IsKeyRepeated()) then vtm.gate.RollFonts( 1) end;"/>       <!-- Roll font list forward. -->
 
-<ExclusiveKeyboardMode             ="vtm.terminal.ExclusiveKeyboardMode(vtm.terminal.ExclusiveKeyboardMode()==1 and 0 or 1)"/>  <!-- Toggle exclusive keyboard mode by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
-<TerminalFindPrev                  ="vtm.terminal.FindNextMatch(-1)"/>            <!-- Highlight prev match of selected text fragment. Clipboard content is used if no active selection. -->
-<TerminalFindNext                  ="vtm.terminal.FindNextMatch( 1)"/>            <!-- Highlight next match of selected text fragment. Clipboard content is used if no active selection. -->
-<TerminalScrollViewportOnePageUp   ="vtm.terminal.ScrollViewportByPage( 0, 1)"/>  <!-- Scroll viewport one page up. -->
-<TerminalScrollViewportOnePageDown ="vtm.terminal.ScrollViewportByPage( 0,-1)"/>  <!-- Scroll viewport one page down. -->
-<TerminalScrollViewportOnePageLeft ="vtm.terminal.ScrollViewportByPage( 1, 0)"/>  <!-- Scroll viewport one page to the left. -->
-<TerminalScrollViewportOnePageRight="vtm.terminal.ScrollViewportByPage(-1, 0)"/>  <!-- Scroll viewport one page to the right. -->
-<TerminalScrollViewportOneLineUp   ="vtm.terminal.ScrollViewportByCell( 0, 1)"/>  <!-- Scroll viewport one line up. -->
-<TerminalScrollViewportOneLineDown ="vtm.terminal.ScrollViewportByCell( 0,-1)"/>  <!-- Scroll viewport one line down. -->
-<TerminalScrollViewportOneCellLeft ="vtm.terminal.ScrollViewportByCell( 1, 0)"/>  <!-- Scroll viewport one cell to the left. -->
-<TerminalScrollViewportOneCellRight="vtm.terminal.ScrollViewportByCell(-1, 0)"/>  <!-- Scroll viewport one cell to the right. -->
-<TerminalScrollViewportToTop       ="if (not vtm.gear.IsKeyRepeated()) then vtm.terminal.ScrollViewportToTop() end"/>  <!-- Scroll viewport to the scrollback top. -->
-<TerminalScrollViewportToEnd       ="if (not vtm.gear.IsKeyRepeated()) then vtm.terminal.ScrollViewportToEnd() end"/>  <!-- Scroll viewport to the scrollback top. -->
-<TerminalSendKey                   ="vtm.terminal.SendKey('test\\r')"/>           <!-- Simulating keypresses using the specified string. -->
-<TerminalOutput                    ="vtm.terminal.Print('Hello!\\n')"/>           <!-- Direct output the string to the terminal scrollback. -->
-<TerminalReset                     ="vtm.terminal.Print('\\x1b[!p')"/>            <!-- Clear scrollback and SGR-attributes. -->
-<TerminalClearScrollback           ="vtm.terminal.ClearScrollback()"/>            <!-- Clear scrollback above current line. -->
-<TerminalCopyViewport              ="vtm.terminal.CopyViewport()"/>               <!-- Сopy viewport to clipboard. -->
-<TerminalCopySelection             ="vtm.terminal.CopySelection()"/>              <!-- Сopy selection to clipboard. -->
-<TerminalClipboardPaste            ="vtm.terminal.PasteClipboard()"/>             <!-- Paste from clipboard. -->
-<TerminalClipboardWipe             ="vtm.terminal.ClearClipboard()"/>             <!-- Reset clipboard. -->
-<TerminalClipboardFormat           ="vtm.terminal.ClipboardFormat((vtm.terminal.ClipboardFormat() + 1) % 6)"/>  <!-- Toggle terminal text selection copy format. 0: Disabled; 1: Plain text; 2: ANSI; 3: RTF; 4: HTML; 5: Sensitive plain text. -->
-<TerminalSelectionForm             ="vtm.terminal.SelectionForm(vtm.terminal.SelectionForm()==1 and 0 or 1)"/>  <!-- Toggle between linear and rectangular selection form. 0: linear form; 1: boxed form. -->
-<TerminalSelectionCancel           ="vtm.terminal.ClearSelection()"/>             <!-- Deselect a selection. -->
-<TerminalSelectionOneShot          ="vtm.terminal.OneShotSelection()"/>           <!-- One-shot toggle to copy text while mouse tracking is active. Keep selection if 'Ctrl' key is pressed. -->
-<TerminalUndo                      ="vtm.terminal.UndoReadline()"/>               <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input. -->
-<TerminalRedo                      ="vtm.terminal.RedoReadline()"/>               <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command. -->
-<TerminalCwdSync                   ="vtm.terminal.CwdSync(vtm.terminal.CwdSync()==1 and 0 or 1)"/>            <!-- Toggle the current working directory sync mode. -->
-<TerminalWrapMode                  ="vtm.terminal.LineWrapMode(vtm.terminal.LineWrapMode()==1 and 0 or 1)"/>  <!-- Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is. 0: line wrapping is off; 1: line wrapping is on. -->
-<TerminalAlignMode                 ="vtm.terminal.LineAlignMode((vtm.terminal.LineAlignMode() + 1) % 3)"/>    <!-- Toggle terminal scrollback lines aligning mode. Applied to the active selection if it is. 0: left; 1: right; 2: center. -->
-<TerminalStdioLog                  ="vtm.terminal.LogMode(vtm.terminal.LogMode()==1 and 0 or 1)"/>            <!-- Toggle stdin/stdout logging. -->
-<TerminalRestart                   ="vtm.terminal.Restart()"/>                    <!-- Terminate runnning console apps and restart current session. -->
+<ExclusiveKeyboardMode             ="vtm.terminal.ExclusiveKeyboardMode(vtm.terminal.ExclusiveKeyboardMode()==1 and 0 or 1);"/>  <!-- Toggle exclusive keyboard mode by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
+<TerminalFindPrev                  ="vtm.terminal.FindNextMatch(-1);"/>            <!-- Highlight prev match of selected text fragment. Clipboard content is used if no active selection. -->
+<TerminalFindNext                  ="vtm.terminal.FindNextMatch( 1);"/>            <!-- Highlight next match of selected text fragment. Clipboard content is used if no active selection. -->
+<TerminalScrollViewportOnePageUp   ="vtm.terminal.ScrollViewportByPage( 0, 1);"/>  <!-- Scroll viewport one page up. -->
+<TerminalScrollViewportOnePageDown ="vtm.terminal.ScrollViewportByPage( 0,-1);"/>  <!-- Scroll viewport one page down. -->
+<TerminalScrollViewportOnePageLeft ="vtm.terminal.ScrollViewportByPage( 1, 0);"/>  <!-- Scroll viewport one page to the left. -->
+<TerminalScrollViewportOnePageRight="vtm.terminal.ScrollViewportByPage(-1, 0);"/>  <!-- Scroll viewport one page to the right. -->
+<TerminalScrollViewportOneLineUp   ="vtm.terminal.ScrollViewportByCell( 0, 1);"/>  <!-- Scroll viewport one line up. -->
+<TerminalScrollViewportOneLineDown ="vtm.terminal.ScrollViewportByCell( 0,-1);"/>  <!-- Scroll viewport one line down. -->
+<TerminalScrollViewportOneCellLeft ="vtm.terminal.ScrollViewportByCell( 1, 0);"/>  <!-- Scroll viewport one cell to the left. -->
+<TerminalScrollViewportOneCellRight="vtm.terminal.ScrollViewportByCell(-1, 0);"/>  <!-- Scroll viewport one cell to the right. -->
+<TerminalScrollViewportToTop       ="if (not vtm.gear.IsKeyRepeated()) then vtm.terminal.ScrollViewportToTop() end;"/>  <!-- Scroll viewport to the scrollback top. -->
+<TerminalScrollViewportToEnd       ="if (not vtm.gear.IsKeyRepeated()) then vtm.terminal.ScrollViewportToEnd() end;"/>  <!-- Scroll viewport to the scrollback top. -->
+<TerminalSendKey                   ="vtm.terminal.SendKey('test\\r');"/>           <!-- Simulating keypresses using the specified string. -->
+<TerminalOutput                    ="vtm.terminal.Print('Hello!\\n');"/>           <!-- Direct output the string to the terminal scrollback. -->
+<TerminalReset                     ="vtm.terminal.Print('\\x1b[!p');"/>            <!-- Clear scrollback and SGR-attributes. -->
+<TerminalClearScrollback           ="vtm.terminal.ClearScrollback();"/>            <!-- Clear scrollback above current line. -->
+<TerminalCopyViewport              ="vtm.terminal.CopyViewport();"/>               <!-- Сopy viewport to clipboard. -->
+<TerminalCopySelection             ="vtm.terminal.CopySelection();"/>              <!-- Сopy selection to clipboard. -->
+<TerminalClipboardPaste            ="vtm.terminal.PasteClipboard();"/>             <!-- Paste from clipboard. -->
+<TerminalClipboardWipe             ="vtm.terminal.ClearClipboard();"/>             <!-- Reset clipboard. -->
+<TerminalClipboardFormat           ="vtm.terminal.ClipboardFormat((vtm.terminal.ClipboardFormat() + 1) % 6);"/>  <!-- Toggle terminal text selection copy format. 0: Disabled; 1: Plain text; 2: ANSI; 3: RTF; 4: HTML; 5: Sensitive plain text. -->
+<TerminalSelectionForm             ="vtm.terminal.SelectionForm(vtm.terminal.SelectionForm()==1 and 0 or 1);"/>  <!-- Toggle between linear and rectangular selection form. 0: linear form; 1: boxed form. -->
+<TerminalSelectionCancel           ="vtm.terminal.ClearSelection();"/>             <!-- Deselect a selection. -->
+<TerminalSelectionOneShot          ="vtm.terminal.OneShotSelection();"/>           <!-- One-shot toggle to copy text while mouse tracking is active. Keep selection if 'Ctrl' key is pressed. -->
+<TerminalUndo                      ="vtm.terminal.UndoReadline();"/>               <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input. -->
+<TerminalRedo                      ="vtm.terminal.RedoReadline();"/>               <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command. -->
+<TerminalCwdSync                   ="vtm.terminal.CwdSync(vtm.terminal.CwdSync()==1 and 0 or 1);"/>            <!-- Toggle the current working directory sync mode. -->
+<TerminalWrapMode                  ="vtm.terminal.LineWrapMode(vtm.terminal.LineWrapMode()==1 and 0 or 1);"/>  <!-- Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is. 0: line wrapping is off; 1: line wrapping is on. -->
+<TerminalAlignMode                 ="vtm.terminal.LineAlignMode((vtm.terminal.LineAlignMode() + 1) % 3);"/>    <!-- Toggle terminal scrollback lines aligning mode. Applied to the active selection if it is. 0: left; 1: right; 2: center. -->
+<TerminalStdioLog                  ="vtm.terminal.LogMode(vtm.terminal.LogMode()==1 and 0 or 1);"/>            <!-- Toggle stdin/stdout logging. -->
+<TerminalRestart                   ="vtm.terminal.Restart();"/>                    <!-- Terminate runnning console apps and restart current session. -->
 )=="
