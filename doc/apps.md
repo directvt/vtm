@@ -245,11 +245,17 @@ Tiling Window Manager is a window container that organizes the workspace into mu
 
 ```xml
 <OnLeftClick on="LeftClick"/>
+<Menu>
+    <Defaults>
+        <autohide=false/>  <!-- Auto hide window menu items on mouse leave. -->
+        <slim=true/>       <!-- Make the window menu one cell high (slim=true) or three cells high (slim=false). -->
+    </Defaults>
+</Menu>
 <config>
     <tile>
         <menu item*>
-            <autohide=menu/autohide/>
-            <slim=menu/slim/>
+            <autohide=/Menu/Defaults/autohide/>
+            <slim=/Menu/Defaults/slim/>
             <item label="  " tooltip=" AlwaysOnTop off " script=OnLeftClick | AlwaysOnTopApplet> <!-- The default event source is the parent object, i.e. source="item" (aka vtm.item). -->
                 <script>  <!-- A binding to update the menu item label at runtime. -->
                     <on="release: e2::form::prop::zorder" source="applet"/>
