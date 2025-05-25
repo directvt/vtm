@@ -230,7 +230,7 @@ namespace netxs::app::shared
                     });
             auto object = window_ptr->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, 0xA0'c4'0f'1f);
-            config.settings::pushd("/config/defapp/");
+            config.settings::push_context("/config/defapp/");
                 auto [menu_block, cover, menu_data] = app::shared::menu::create(config, {});
                 auto menu = object->attach(slot::_1, menu_block);
                 auto test_stat_area = object->attach(slot::_2, ui::fork::ctor(axis::Y));
@@ -242,7 +242,7 @@ namespace netxs::app::shared
                         auto sb = layers->attach(ui::fork::ctor());
                         auto vt = sb->attach(slot::_2, ui::grip<axis::Y>::ctor(scroll));
                         auto hz = test_stat_area->attach(slot::_2, ui::grip<axis::X>::ctor(scroll));
-            config.settings::popd();
+            config.settings::pop_context();
             window_ptr->invoke([&](auto& boss)
             {
                 app::shared::base_kb_navigation(config, scroll, boss);

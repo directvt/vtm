@@ -113,10 +113,10 @@ namespace netxs::app::shared
         auto& scroll_inst = *scroll_ptr;
         boss.base::plugin<pro::keybd>();
         auto& luafx = boss.bell::indexer.luafx;
-        config.settings::pushd("/config/events/defapp/");
+        config.settings::push_context("/config/events/defapp/");
             auto script_list = config.settings::take_ptr_list_for_name("", "script");
             auto bindings = input::bindings::load(config, script_list);
-        config.settings::popd();
+        config.settings::pop_context();
         input::bindings::keybind(boss, bindings);
         boss.base::add_methods(basename::defapp,
         {
@@ -176,10 +176,10 @@ namespace netxs::app::shared
         boss.base::plugin<pro::keybd>();
         auto& luafx = boss.bell::indexer.luafx;
         auto& bindings = boss.base::property<input::bindings::vector>("applet.bindings");
-        config.settings::pushd("/config/events/applet/");
+        config.settings::push_context("/config/events/applet/");
             auto script_list = config.settings::take_ptr_list_for_name("", "script");
             bindings = input::bindings::load(config, script_list);
-        config.settings::popd();
+        config.settings::pop_context();
         input::bindings::keybind(boss, bindings);
         boss.base::add_methods(basename::applet,
         {
@@ -514,16 +514,16 @@ namespace netxs::app::shared
         };
         const auto create = [](settings& config, list menu_items)
         {
-            config.settings::pushd("menu/");
+            config.settings::push_context("menu/");
             auto autohide = config.settings::take("autohide", faux);
             auto slimsize = config.settings::take("slim"    , true);
-            config.settings::popd();
+            config.settings::pop_context();
             return mini(autohide, slimsize, 0, menu_items);
         };
         const auto load = [](settings& config)
         {
             auto list = menu::list{};
-            config.settings::pushd("menu/");
+            config.settings::push_context("menu/");
             auto menuitem_ptr_list = config.settings::take_ptr_list_for_name("", "item");
             for (auto data_ptr : menuitem_ptr_list)
             {
@@ -534,7 +534,7 @@ namespace netxs::app::shared
                 auto classname_list = config.settings::take_value_list_of(data_ptr, "id");
                 auto label_list = config.settings::take_ptr_list_of(data_ptr, "label");
                 item.label = label_list.size() ? config.settings::take_value(label_list.front()) : "empty"s;
-                item.tooltip = config.settings::take_from(data_ptr, "tooltip", ""s);
+                item.tooltip = config.settings::take_value_from(data_ptr, "tooltip", ""s);
                 auto setup = [classname_list = std::move(classname_list)](ui::item& boss, menu::item& item)
                 {
                     auto& luafx = boss.bell::indexer.luafx;
@@ -585,7 +585,7 @@ namespace netxs::app::shared
                 };
                 list.push_back({ item, setup });
             }
-            config.settings::popd();
+            config.settings::pop_context();
             return menu::create(config, list);
         };
         const auto demo = [](settings& config)
@@ -832,14 +832,14 @@ namespace netxs::app::shared
                                         .cellsize = std::clamp(config.settings::take("/config/gui/cellheight", si32{ 20 }), 0, 256) };
         if (gui_config.cellsize == 0) gui_config.cellsize = 20;
         if (gui_config.gridsize.x == 0 || gui_config.gridsize.y == 0) gui_config.gridsize = dot_mx;
-        config.settings::pushd("/config/gui/fonts/");
+        config.settings::push_context("/config/gui/fonts/");
             auto recs = config.settings::take_ptr_list_for_name("", "font");
             for (auto& f : recs)
             {
                 //todo implement 'fonts/font/file' - font file path/url
                 gui_config.fontlist.push_back(config.settings::take_value(f));
             }
-        config.settings::popd();
+        config.settings::pop_context();
         return gui_config;
     }
     auto get_tui_config(settings& config, ui::skin& g)

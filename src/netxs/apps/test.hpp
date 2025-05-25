@@ -644,7 +644,7 @@ namespace netxs::app::test
                 });
             auto object0 = window->attach(ui::fork::ctor(axis::Y))
                                  ->colors(whitelt, 0xA0'00'37'db);
-            config.settings::pushd("/config/defapp/");
+            config.settings::push_context("/config/defapp/");
                 auto [menu_block, cover, menu_data] = app::shared::menu::create(config, {});
                 auto menu = object0->attach(slot::_1, menu_block);
                 auto test_stat_area = object0->attach(slot::_2, ui::fork::ctor(axis::Y));
@@ -686,7 +686,7 @@ namespace netxs::app::test
                     b.grad(argb{ 0xFF00FFFF }, argb{ 0x40FFFFFF });
                     b[{5, 0}].alpha(0);
                     b[{5, 1}].alpha(0);
-            config.settings::popd();
+            config.settings::pop_context();
             window->invoke([&](auto& boss)
             {
                 app::shared::base_kb_navigation(config, scroll, boss);

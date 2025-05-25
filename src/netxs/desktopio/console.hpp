@@ -765,10 +765,10 @@ namespace netxs::ui
             base::plugin<pro::focus>();
             base::plugin<pro::keybd>();
             auto& luafx = bell::indexer.luafx;
-            config.settings::pushd("/config/events/gate/");
+            config.settings::push_context("/config/events/gate/");
                 auto script_list = config.settings::take_ptr_list_for_name("", "script");
                 auto bindings = input::bindings::load(config, script_list);
-            config.settings::popd();
+            config.settings::pop_context();
             input::bindings::keybind(*this, bindings);
             base::add_methods(basename::gate,
             {

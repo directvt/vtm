@@ -347,7 +347,7 @@ namespace netxs::app::calc
                   });
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, 0);
-            config.settings::pushd("/config/defapp/");
+            config.settings::push_context("/config/defapp/");
                 auto menu = object->attach(slot::_1, app::shared::menu::demo(config));
                 auto all_rail = object->attach(slot::_2, ui::rail::ctor());
                 auto all_stat = all_rail->attach(ui::fork::ctor(axis::Y))
@@ -418,7 +418,7 @@ namespace netxs::app::calc
                                 auto pad = plus_pad->attach(slot::_2, ui::mock::ctor())
                                                    ->limits({ 1,1 }, { 1,1 });
                     layers->attach(app::shared::scroll_bars(scroll));
-            config.settings::popd();
+            config.settings::pop_context();
             window->invoke([&](auto& boss)
             {
                 app::shared::base_kb_navigation(config, scroll, boss);

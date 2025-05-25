@@ -1427,7 +1427,7 @@ namespace netxs::xml
         { }
 
         // settings: Pop document context.
-        void popd()
+        void pop_context()
         {
             if (cwdstack.empty())
             {
@@ -1442,7 +1442,7 @@ namespace netxs::xml
             }
         }
         // settings: Push document context.
-        void pushd(qiew gotopath)
+        void push_context(qiew gotopath)
         {
             cwdstack.push_back(homepath);
             if (gotopath)
@@ -1533,6 +1533,19 @@ namespace netxs::xml
             }
             return item_ptr;
         }
+        //auto _find_name_in_subsection(document::sptr subsection_ptr, view reference_name)
+        //{
+        //    auto item_ptr = document::sptr{};
+        //    if (subsection_ptr)
+        //    {
+        //        auto iter = subsection_ptr->hive.find(reference_name);
+        //        if (iter != subsection_ptr->hive.end() && iter->second.size()) // Lookup in current subsection.
+        //        {
+        //            item_ptr = iter->second.back();
+        //        }
+        //    }
+        //    return item_ptr;
+        //}
         void _take_value(document::sptr item_ptr, text& value)
         {
             for (auto& value_placeholder : item_ptr->body)
@@ -1540,6 +1553,11 @@ namespace netxs::xml
                 if (value_placeholder->kind == document::type::tag_reference)
                 {
                     auto& reference_name = value_placeholder->utf8;
+                    //if (auto base_ptr = settings::_find_name_in_subsection(subsection_ptr, reference_name)) // Lookup in current subsection.
+                    //{
+                    //    settings::_take_ptr_list_of(base_ptr, attribute, item_ptr_list);
+                    //}
+                    //else
                     if (auto base_item_ptr = settings::_find_name(reference_name))
                     {
                         settings::_take_value(base_item_ptr, value);
@@ -1566,7 +1584,12 @@ namespace netxs::xml
                 if (value_placeholder->kind == document::type::tag_reference)
                 {
                     auto& reference_name = value_placeholder->utf8;
-                    if (auto base_ptr = settings::_find_name(reference_name))
+                    //if (auto base_ptr = settings::_find_name_in_subsection(subsection_ptr, reference_name)) // Lookup in current subsection.
+                    //{
+                    //    settings::_take_ptr_list_of(base_ptr, attribute, item_ptr_list);
+                    //}
+                    //else 
+                    if (auto base_ptr = settings::_find_name(reference_name)) // Lookup outside.
                     {
                         settings::_take_ptr_list_of(base_ptr, attribute, item_ptr_list);
                     }
@@ -1603,7 +1626,7 @@ namespace netxs::xml
             return strings;
         }
         template<bool Quiet = true, class T = si32>
-        auto take_from(document::sptr subsection_ptr, view attribute, T defval = {})
+        auto take_value_from(document::sptr subsection_ptr, view attribute, T defval = {})
         {
             auto crop = text{};
             settings::_take_ptr_list_of(subsection_ptr, attribute, tempbuff);
@@ -1665,11 +1688,11 @@ namespace netxs::xml
             return defval;
         }
         template<bool Quiet = true, class T>
-        auto take_from(document::sptr subsection_ptr, view attribute, T defval, utf::unordered_map<text, T> const& dict)
+        auto take_value_from(document::sptr subsection_ptr, view attribute, T defval, utf::unordered_map<text, T> const& dict)
         {
             if (subsection_ptr)
             {
-                auto crop = settings::take_from<Quiet>(subsection_ptr, attribute, ""s);
+                auto crop = settings::take_value_from<Quiet>(subsection_ptr, attribute, ""s);
                 if (crop.empty())
                 {
                     if constexpr (!Quiet)

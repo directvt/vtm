@@ -1030,19 +1030,19 @@ namespace netxs::app::vtm
         {
             conf_rec.splitter   = splitter;
             conf_rec.menuid     = menuid;
-            conf_rec.label      = config.settings::take_from(item_ptr, attr::label,    fallback.label   );
+            conf_rec.label      = config.settings::take_value_from(item_ptr, attr::label,    fallback.label   );
             if (conf_rec.label.empty()) conf_rec.label = conf_rec.menuid;
-            conf_rec.hidden     = config.settings::take_from(item_ptr, attr::hidden,   fallback.hidden  );
-            conf_rec.tooltip    = config.settings::take_from(item_ptr, attr::tooltip,  fallback.tooltip );
-            conf_rec.title      = config.settings::take_from(item_ptr, attr::title,    fallback.title   );
-            conf_rec.footer     = config.settings::take_from(item_ptr, attr::footer,   fallback.footer  );
-            conf_rec.winsize    = config.settings::take_from(item_ptr, attr::winsize,  fallback.winsize );
-            conf_rec.wincoor    = config.settings::take_from(item_ptr, attr::wincoor,  fallback.wincoor );
-            conf_rec.winform    = config.settings::take_from(item_ptr, attr::winform,  fallback.winform, shared::win::options);
-            conf_rec.appcfg.cwd = config.settings::take_from(item_ptr, attr::cwd,      fallback.appcfg.cwd);
-            conf_rec.appcfg.cfg = config.settings::take_from(item_ptr, attr::cfg,      ""s);
-            conf_rec.appcfg.cmd = config.settings::take_from(item_ptr, attr::cmd,      fallback.appcfg.cmd);
-            conf_rec.type       = config.settings::take_from(item_ptr, attr::type,     fallback.type    );
+            conf_rec.hidden     = config.settings::take_value_from(item_ptr, attr::hidden,   fallback.hidden  );
+            conf_rec.tooltip    = config.settings::take_value_from(item_ptr, attr::tooltip,  fallback.tooltip );
+            conf_rec.title      = config.settings::take_value_from(item_ptr, attr::title,    fallback.title   );
+            conf_rec.footer     = config.settings::take_value_from(item_ptr, attr::footer,   fallback.footer  );
+            conf_rec.winsize    = config.settings::take_value_from(item_ptr, attr::winsize,  fallback.winsize );
+            conf_rec.wincoor    = config.settings::take_value_from(item_ptr, attr::wincoor,  fallback.wincoor );
+            conf_rec.winform    = config.settings::take_value_from(item_ptr, attr::winform,  fallback.winform, shared::win::options);
+            conf_rec.appcfg.cwd = config.settings::take_value_from(item_ptr, attr::cwd,      fallback.appcfg.cwd);
+            conf_rec.appcfg.cfg = config.settings::take_value_from(item_ptr, attr::cfg,      ""s);
+            conf_rec.appcfg.cmd = config.settings::take_value_from(item_ptr, attr::cmd,      fallback.appcfg.cmd);
+            conf_rec.type       = config.settings::take_value_from(item_ptr, attr::type,     fallback.type    );
             utf::to_lower(conf_rec.type);
             auto envar          = config.settings::take_value_list_of(item_ptr, attr::env);
             if (envar.empty()) conf_rec.appcfg.env = fallback.appcfg.env;
@@ -1161,10 +1161,10 @@ namespace netxs::app::vtm
             base::plugin<pro::focus>(pro::focus::mode::focusable);
             base::plugin<pro::keybd>();
             auto& luafx = bell::indexer.luafx;
-            config.settings::pushd("/config/events/desktop/");
+            config.settings::push_context("/config/events/desktop/");
                 auto script_list = config.settings::take_ptr_list_for_name("", "script");
                 auto bindings = input::bindings::load(config, script_list);
-            config.settings::popd();
+            config.settings::pop_context();
             input::bindings::keybind(*this, bindings);
             base::add_methods(basename::desktop,
             {
@@ -1254,8 +1254,8 @@ namespace netxs::app::vtm
                                                 log("%%Run %%", prompt::host, ansi::hi(utf::debase437(utf8_xml)));
                                                 auto appconf = settings{ utf8_xml };
                                                 auto item_ptr = appconf.document->root;
-                                                auto menuid = config.settings::take_from(item_ptr, attr::id, ""s);
-                                                config.settings::pushd(path::taskbar);
+                                                auto menuid = config.settings::take_value_from(item_ptr, attr::id, ""s);
+                                                config.settings::push_context(path::taskbar);
                                                 if (menu_list.contains(menuid))
                                                 {
                                                     auto& appbase = menu_list[menuid];
@@ -1267,7 +1267,7 @@ namespace netxs::app::vtm
                                                     if (menuid.empty()) menuid = "vtm.run(" + utf8_xml + ")";
                                                     hall::loadspec(appspec, appspec, item_ptr, menuid);
                                                 }
-                                                config.settings::popd();
+                                                config.settings::pop_context();
                                             }
                                             auto title = appspec.title.empty() && appspec.label.empty() ? appspec.menuid
                                                        : appspec.title.empty() ? appspec.label
@@ -1322,13 +1322,13 @@ namespace netxs::app::vtm
                 utf::replace_all(conf_rec.appcfg.cmd, "$0", current_module_file);
                 utf::replace_all(conf_rec.appcfg.env, "$0", current_module_file);
             };
-            config.settings::pushd(path::taskbar);
+            config.settings::push_context(path::taskbar);
             auto item_ptr_list = config.settings::take_ptr_list_for_name("", path::item);
             for (auto item_ptr : item_ptr_list)
             {
-                auto splitter = config.settings::take_from(item_ptr, attr::splitter, faux);
+                auto splitter = config.settings::take_value_from(item_ptr, attr::splitter, faux);
                 auto menuid = splitter ? "splitter_" + std::to_string(splitter_count++)
-                                       : config.settings::take_from(item_ptr, attr::id, ""s);
+                                       : config.settings::take_value_from(item_ptr, attr::id, ""s);
                 if (menuid.empty())
                 {
                     menuid = "App" + std::to_string(auto_id++);
@@ -1352,7 +1352,7 @@ namespace netxs::app::vtm
                     else                 free_list.emplace_back(std::move(conf_rec.menuid), std::move(conf_rec));
                 }
             }
-            config.settings::popd();
+            config.settings::pop_context();
             for (auto& [menuid, conf_rec] : free_list)
             {
                 apps_list[menuid];
@@ -1692,7 +1692,7 @@ namespace netxs::app::vtm
         void autorun()
         {
             auto what = applink{};
-            config.settings::pushd(path::autorun);
+            config.settings::push_context(path::autorun);
             auto apps = config.settings::take_ptr_list_for_name("", "run");
             auto foci = book{};
             foci.reserve(apps.size());
@@ -1700,11 +1700,11 @@ namespace netxs::app::vtm
             {
                 if (app_ptr && !app_ptr->fake)
                 {
-                    what.menuid =   config.settings::take_from(app_ptr, attr::id, ""s);
-                    what.square = { config.settings::take_from(app_ptr, attr::wincoor, dot_00),
-                                    config.settings::take_from(app_ptr, attr::winsize, twod{ 80,27 }) };
-                    auto winform =  config.settings::take_from(app_ptr, attr::winform, winstate::normal, shared::win::options);
-                    auto focused =  config.settings::take_from(app_ptr, attr::focused, faux);
+                    what.menuid =   config.settings::take_value_from(app_ptr, attr::id, ""s);
+                    what.square = { config.settings::take_value_from(app_ptr, attr::wincoor, dot_00),
+                                    config.settings::take_value_from(app_ptr, attr::winsize, twod{ 80,27 }) };
+                    auto winform =  config.settings::take_value_from(app_ptr, attr::winform, winstate::normal, shared::win::options);
+                    auto focused =  config.settings::take_value_from(app_ptr, attr::focused, faux);
                     what.forced = !!what.square.size;
                     if (what.menuid.size())
                     {
@@ -1715,7 +1715,7 @@ namespace netxs::app::vtm
                     else log(prompt::hall, "Unexpected empty app id in autorun configuration");
                 }
             }
-            config.settings::popd();
+            config.settings::pop_context();
             auto count = 0;
             for (auto& window_ptr : foci)
             {
