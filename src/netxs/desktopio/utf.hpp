@@ -1709,7 +1709,7 @@ namespace netxs::utf
         debase437(utf8, buff);
         return buff;
     }
-    // utf: Find char position.
+    // utf: Find char position iterator.
     auto _find_char(auto head, auto tail, auto hittest)
     {
         while (head != tail && !hittest(head))
@@ -1718,7 +1718,7 @@ namespace netxs::utf
         }
         return head;
     }
-    // utf: Find char position ignoring backslashed.
+    // utf: Find char position iterator ignoring backslashed.
     auto _find_char_except_escaped(auto head, auto tail, auto hittest)
     {
         while (head != tail)
@@ -1728,7 +1728,7 @@ namespace netxs::utf
         }
         return head;
     }
-    // utf: Find char position ignoring backslashed.
+    // utf: Find char position iterator ignoring backslashed.
     template<class Iter>
     auto find_char(Iter head, Iter tail, view delims)
     {
@@ -1749,7 +1749,7 @@ namespace netxs::utf
     {
         return test(iter, utf8);
     }
-    // utf: Find char position ignoring skips.
+    // utf: Find char position iterator ignoring skips.
     template<class ...Args>
     auto find_char_except_skips(view utf8, char c, Args&&... skips)
     {
@@ -1774,14 +1774,14 @@ namespace netxs::utf
         });
         return found_iter;
     }
-    // utf: Find substring position ignoring backslashed.
+    // utf: Find substring position iterator ignoring backslashed.
     auto find_substring(view& utf8, auto... delims)
     {
         auto head = utf8.begin();
         auto tail = utf8.end();
         return _find_char_except_escaped(head, tail, [&](auto iter){ return (view{ iter, tail }.starts_with(delims) || ...); });
     }
-    // utf: Find char position ignoring backslashed.
+    // utf: Find char position iterator ignoring backslashed.
     template<class Iter>
     auto find_char(Iter head, Iter tail, char delim)
     {
@@ -1853,14 +1853,14 @@ namespace netxs::utf
         utf::trim_back_if(utf8, [&](char c){ return delims.find(c) == text::npos; });
     }
     // utf: Trim the utf8 front and return trims.
-    auto trim_front_get_cuts(view& utf8, view delims)
+    auto pop_front_chars(view& utf8, view delims)
     {
         auto temp = utf8;
         utf::trim_front(utf8, delims);
         return temp.substr(0, temp.size() - utf8.size());
     }
     // utf: Trim the utf8 back and return trims.
-    auto trim_back_get_cuts(view& utf8, view delims)
+    auto pop_back_chars(view& utf8, view delims)
     {
         auto temp = utf8;
         utf::trim_back(utf8, delims);
@@ -2025,6 +2025,29 @@ namespace netxs::utf
         _escape(utf8, iter, quote);
         *iter++ = quote;
         dest.resize(iter - dest.begin());
+    }
+    // utf: Trim utf8 up to and including stopstr, and return the trims.
+    template<bool Lazy = true>
+    auto take_front_including(view& utf8, view stopstr)
+    {
+        auto iter = utf::find_substring(utf8, stopstr);
+        if (iter == utf8.end())
+        {
+            if constexpr (Lazy)
+            {
+                utf8 = {};
+                return qiew{ utf8 };
+            }
+            else
+            {
+                auto crop = qiew{ utf8 };
+                utf8 = {};
+                return crop;
+            }
+        }
+        auto str = qiew{ utf8.begin(), iter + stopstr.size() };
+        utf8.remove_prefix(str.size());
+        return str;
     }
     template<bool Lazy = true>
     auto take_front(view& utf8, view delims)

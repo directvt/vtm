@@ -1700,7 +1700,7 @@ namespace netxs::app::vtm
             foci.reserve(apps.size());
             for (auto app_ptr : apps)
             {
-                if (app_ptr && !app_ptr->fake)
+                if (app_ptr && !app_ptr->base)
                 {
                     what.menuid =   config.settings::take_value_from(app_ptr, attr::id, ""s);
                     what.square = { config.settings::take_value_from(app_ptr, attr::wincoor, dot_00),

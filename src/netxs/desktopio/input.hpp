@@ -596,7 +596,7 @@ namespace netxs::input
                     {
                         auto name = utf::to_lower(key_name);
                         auto name_shadow = qiew{ name };
-                        auto digits = utf::trim_back_get_cuts(name_shadow, netxs::onlydigits);
+                        auto digits = utf::pop_back_chars(name_shadow, netxs::onlydigits);
                         if (auto iter_m = input::key::mouse_names.find(name_shadow); iter_m != input::key::mouse_names.end()) // Mouse events.
                         {
                             auto [action_index, button_index] = iter_m->second;
