@@ -1,4 +1,4 @@
-# Text-based Desktop Environment settings
+# Text-based desktop environment settings
 
 ```mermaid
 graph TB
@@ -321,6 +321,7 @@ Value type | Format
 Attribute  | Description                                       | Value type | Default value
 -----------|---------------------------------------------------|------------|---------------
 `id`       |  Item id                                          | `string`   |
+`splitter` |  Non-active menu item                             | presence   | Not present
 `hidden`   |  Item visibility on taskbar                       | `boolean`  | `no`
 `label`    |  Item label text                                  | `string`   | =`id`
 `tooltip`  |  Item tooltip text                                | `string`   | empty

@@ -1327,9 +1327,9 @@ namespace netxs::app::vtm
             for (auto item_ptr : item_ptr_list)
             {
                 config.settings::push_context(item_ptr);
-                auto splitter = config.settings::take_value_from(item_ptr, attr::splitter, faux);
-                auto menuid = splitter ? "splitter_" + std::to_string(splitter_count++)
-                                       : config.settings::take_value_from(item_ptr, attr::id, ""s);
+                auto is_splitter = !config.settings::take_value_list_of(item_ptr, attr::splitter).empty();
+                auto menuid = is_splitter ? "splitter_" + std::to_string(splitter_count++)
+                                          : config.settings::take_value_from(item_ptr, attr::id, ""s);
                 if (menuid.empty())
                 {
                     menuid = "App" + std::to_string(auto_id++);
@@ -1339,7 +1339,7 @@ namespace netxs::app::vtm
                 {
                     auto& conf_rec = proto;
                     conf_rec.fixed = true;
-                    hall::loadspec(conf_rec, conf_rec, item_ptr, menuid, splitter);
+                    hall::loadspec(conf_rec, conf_rec, item_ptr, menuid, is_splitter);
                     expand(conf_rec);
                 }
                 else // New item.
@@ -1347,7 +1347,7 @@ namespace netxs::app::vtm
                     auto conf_rec = desk::spec{};
                     conf_rec.fixed = true;
                     auto& dflt = dflt_spec;  // New item.
-                    hall::loadspec(conf_rec, dflt, item_ptr, menuid, splitter);
+                    hall::loadspec(conf_rec, dflt, item_ptr, menuid, is_splitter);
                     expand(conf_rec);
                     if (conf_rec.hidden) temp_list.emplace_back(std::move(conf_rec.menuid), std::move(conf_rec));
                     else                 free_list.emplace_back(std::move(conf_rec.menuid), std::move(conf_rec));
