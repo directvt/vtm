@@ -256,11 +256,14 @@ namespace netxs::xml
             tag_numvalue,  // Value begins with digit.    ex: object=123ms
             tag_reference, // Non-quoted value.           ex: object=reference/to/value
             tag_joiner,    // Value joiner.               ex: object="value" | reference
+            raw_reference, // Reference from outside.     ex: <object> "" | reference </object>
+            raw_quoted,    // Quoted text from outside.   ex: <object> "quoted text" | reference </object>
             error,         // Inline error message.
         };
 
         struct literal;
         using fptr = netxs::sptr<literal>;
+        using heap = std::vector<fptr>;
 
         struct literal
         {
@@ -272,11 +275,10 @@ namespace netxs::xml
             si32 mark; // literal: Reference loop detector mark.
             text utf8; // literal: Content data.
 
-            template<class ...Args>
-            literal(type kind, Args&&... args)
+            literal(type kind, view utf8 = {})
                 : kind{ kind },
                   mark{      },
-                  utf8{ std::forward<Args>(args)... }
+                  utf8{ utf8 }
             { }
         };
 
@@ -302,23 +304,46 @@ namespace netxs::xml
                 file = filename;
                 back = data;
             }
-            void _append(type kind, view crop)
+            void _append(type kind, view utf8)
             {
-                auto frag = ptr::shared<literal>(kind, crop);
+                auto frag = ptr::shared<literal>(kind, utf8);
                 frag->prev = back;
                 back->next = frag;
                 back = frag;
             }
-            auto append(type kind, view crop = {})
+            auto append(type kind, view utf8 = {})
             {
-                _append(kind, crop);
+                _append(kind, utf8);
                 return back;
             }
-            void append_if_nonempty(type kind, view crop)
+            void append_if_nonempty(type kind, view utf8)
             {
-                if (crop.size())
+                if (utf8.size())
                 {
-                    _append(kind, crop);
+                    _append(kind, utf8);
+                }
+            }
+            void clear_between(fptr begin, fptr end)
+            {
+                end->prev = begin;
+                begin->next = end;
+            }
+            void insert_between(fptr begin, fptr end, heap& frag_ptr_list)
+            {
+                //todo optimize
+                end->prev = begin;
+                begin->next = end;
+                auto insertion_point = begin;
+                for (auto& frag_ptr : frag_ptr_list)
+                {
+                    auto& kind = frag_ptr->kind;
+                    auto& utf8 = frag_ptr->utf8;
+                    auto frag = ptr::shared<literal>(kind, utf8);
+                    auto prev_next = insertion_point->next;
+                    insertion_point->next = frag;
+                    frag->prev = insertion_point;
+                    frag->next = prev_next;
+                    insertion_point = frag;
                 }
             }
             auto lines()
@@ -385,8 +410,6 @@ namespace netxs::xml
                         case type::end_token:     fgc = end_token_fg; break;
                         case type::compact:       fgc = end_token_fg; break;
                         case type::token:         fgc = token_fg;     break;
-                        case type::raw_text:      fgc = yellowdk;     break;
-                        case type::quoted_text:   fgc = yellowdk;     break;
                         case type::comment_begin: fgc = comment_fg;   break;
                         case type::comment_close: fgc = comment_fg;   break;
                         case type::begin_tag:     fgc = liter_fg;     break;
@@ -399,6 +422,11 @@ namespace netxs::xml
                         case type::unknown:       fgc = redlt;        break;
                         case type::tag_joiner:    fgc = liter_fg;     break;
                         case type::tag_reference: fgc = end_token_fg; break;
+                        case type::raw_reference: fgc = end_token_fg; break;
+                        case type::raw_text:      fgc = value_fg;     break;
+                        case type::quoted_text:
+                        case type::raw_quoted:
+                        case type::tag_numvalue:
                         case type::tag_value:     fgc = value_fg;
                                                   bgc = value_bg;     break;
                         case type::error:         fgc = whitelt;
@@ -439,7 +467,6 @@ namespace netxs::xml
         struct elem;
         using sptr = netxs::sptr<elem>;
         using wptr = netxs::wptr<elem>;
-        using heap = std::vector<fptr>;
         using vect = std::vector<sptr>;
         using subs = utf::unordered_map<text, vect>;
 
@@ -559,54 +586,64 @@ namespace netxs::xml
             {
                 if (item.body.size() && _unsync_body(item)) // An empty incoming body does nothing.
                 {
-                    //todo preserve semantics
-                    auto value = text{};
-                    for (auto& value_placeholder : item.body)
+                    auto dst_begin = vbeg;
+                    auto dst_end = vend;
+                    auto src_begin = item.vbeg;
+                    auto src_end = item.vend;
+                    auto insertion_point = dst_begin;
+                    auto item_iterator = src_begin;
+                    // Clear dst frags.
+                    dst_end->prev = dst_begin;
+                    dst_begin->next = dst_end;
+                    body.clear();
+                    // Copy src frags to dst.
+                    while (item_iterator != src_end)
                     {
-                        value += value_placeholder->utf8;
-                    }
-                    for (auto& value_placeholder : body)
-                    {
-                        value_placeholder->utf8.clear();
-                    }
-                    body.resize(1);
-                    auto value_placeholder = body.front();
-                    if (value_placeholder->kind == type::tag_value) // equal [spaces] quotes tag_value quotes
-                    if (auto quote_placeholder = value_placeholder->prev.lock())
-                    if (quote_placeholder->kind == type::quotes)
-                    if (auto equal_placeholder = quote_placeholder->prev.lock())
-                    {
-                        if (equal_placeholder->kind != type::equal) // Spaces after equal sign.
+                        item_iterator = item_iterator->next;
+                        auto& kind = item_iterator->kind;
+                        auto& utf8 = item_iterator->utf8;
+                        auto frag_ptr = ptr::shared<literal>(kind, utf8);
+                        if (kind == type::tag_reference
+                         || kind == type::quoted_text
+                         || kind == type::tag_numvalue)
                         {
-                            equal_placeholder = equal_placeholder->prev.lock();
+                            body.push_back(frag_ptr);
                         }
-                        if (equal_placeholder && equal_placeholder->kind == type::equal)
+                        auto prev_next = insertion_point->next;
+                        insertion_point->next = frag_ptr;
+                        frag_ptr->prev = insertion_point;
+                        frag_ptr->next = prev_next;
+                        insertion_point = frag_ptr;
+                    }
+                    //todo inject raw literals
+                    for (auto& frag_ptr : item.body)
+                    {
+                        auto& kind = frag_ptr->kind;
+                        if (kind == type::raw_reference
+                         || kind == type::raw_quoted
+                         || kind == type::raw_text
+                         || kind == type::unknown)
                         {
-                            if (item.is_quoted())
-                            {
-                                equal_placeholder->utf8 = "="sv;
-                                quote_placeholder->utf8 = "\""sv;
-                                if (value_placeholder->next)
-                                {
-                                    value_placeholder->next->utf8 = "\""sv;
-                                }
-                            }
-                            else
-                            {
-                                equal_placeholder->utf8 = value.size() ? "="sv : ""sv;
-                                quote_placeholder->utf8 = ""sv;
-                                if (value_placeholder->next)
-                                {
-                                    value_placeholder->next->utf8 = ""sv;
-                                }
-                            }
-                        }
-                        else
-                        {
-                            log("%%Equal sign placeholder not found", prompt::xml);
+                            auto& utf8 = frag_ptr->utf8;
+                            auto copy_frag_ptr = ptr::shared<literal>(kind, utf8);
+                            body.push_back(copy_frag_ptr);
                         }
                     }
-                    value_placeholder->utf8 = value;
+                    //todo sync suit
+                    //
+                    // inline:
+                    //vbeg
+                    //type::tag_reference
+                    //type::quoted_text
+                    //type::tag_numvalue
+                    //vend
+                    //
+                    // outside:
+                    //insB
+                    //type::raw_reference
+                    //type::raw_quoted
+                    //type::raw_text
+                    //type::unknown
                 }
             }
             auto snapshot()
@@ -878,8 +915,10 @@ namespace netxs::xml
                     case type::raw_text:        return view{ "{raw text}" } ;
                     case type::compact:         return view{ "{compact}" }  ;
                     case type::tag_reference:   return view{ "{reference}" };
+                    case type::raw_reference:   return view{ "{reference}" };
                     case type::tag_value:       return view{ "{value}" }    ;
                     case type::quoted_text:     return view_quoted_text     ;
+                    case type::raw_quoted:      return view_quoted_text     ;
                     case type::begin_tag:       return view_begin_tag       ;
                     case type::close_tag:       return view_close_tag       ;
                     case type::comment_begin:   return view_comment_begin   ;
@@ -1087,7 +1126,7 @@ namespace netxs::xml
                         auto delim = data.front();
                         auto delim_view = view(&delim, 1);
                                         page.append(type::quotes, delim_view);
-                        auto frag_ptr = page.append(type::quoted_text, utf::take_quote(data, delim));
+                        auto frag_ptr = page.append(type::raw_quoted, utf::take_quote(data, delim));
                                         page.append(type::quotes, delim_view);
                         item_ptr->body.push_back(frag_ptr);
 
@@ -1110,7 +1149,7 @@ namespace netxs::xml
                         {
                             what = type::tag_reference;
                             // #reference
-                            auto frag_ptr = page.append(type::tag_reference, utf::take_front(data, reference_delims));
+                            auto frag_ptr = page.append(type::raw_reference, utf::take_front(data, reference_delims));
                             item_ptr->body.push_back(frag_ptr);
                             page.append_if_nonempty(type::spaces, utf::pop_front_chars(data, whitespaces));
                             temp = data;
@@ -1446,7 +1485,9 @@ namespace netxs::xml
         {
             for (auto& value_placeholder : item_ptr->body)
             {
-                if (value_placeholder->kind == document::type::tag_reference)
+                auto kind = value_placeholder->kind;
+                if (kind == document::type::tag_reference
+                 || kind == document::type::raw_reference)
                 {
                     auto& reference_name = value_placeholder->utf8;
                     if (value_placeholder->mark != touched)
@@ -1462,7 +1503,7 @@ namespace netxs::xml
                         log("%%%red%Reference loop detected for '%ref%'%nil%", prompt::xml, ansi::fgc(redlt), reference_name, ansi::nil());
                     }
                 }
-                else if (value_placeholder->kind != document::type::tag_joiner)
+                else // if (value_placeholder->kind != document::type::tag_joiner)
                 {
                     value += value_placeholder->utf8;
                 }
@@ -1481,7 +1522,9 @@ namespace netxs::xml
             // Recursively take all base lists.
             for (auto& value_placeholder : subsection_ptr->body)
             {
-                if (value_placeholder->kind == document::type::tag_reference)
+                auto kind = value_placeholder->kind;
+                if (kind == document::type::tag_reference
+                 || kind == document::type::raw_reference)
                 {
                     auto& reference_name = value_placeholder->utf8;
                     if (value_placeholder->mark != touched)
