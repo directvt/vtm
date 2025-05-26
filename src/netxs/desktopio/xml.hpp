@@ -403,6 +403,7 @@ namespace netxs::xml
 
                     auto fgc = argb{};
                     auto bgc = argb{};
+                    auto und = faux;
                     switch (kind)
                     {
                         case type::eof:           fgc = redlt;        break;
@@ -421,8 +422,8 @@ namespace netxs::xml
                         case type::defaults:      fgc = defaults_fg;  break;
                         case type::unknown:       fgc = redlt;        break;
                         case type::tag_joiner:    fgc = liter_fg;     break;
-                        case type::tag_reference: fgc = end_token_fg; break;
-                        case type::raw_reference: fgc = end_token_fg; break;
+                        case type::tag_reference: fgc = end_token_fg; und = true; break;
+                        case type::raw_reference: fgc = end_token_fg; und = true;  break;
                         case type::raw_text:      fgc = value_fg;     break;
                         case type::quoted_text:
                         case type::raw_quoted:
@@ -439,9 +440,18 @@ namespace netxs::xml
 
                     if (utf8.size())
                     {
-                             if (bgc) yield.fgc(fgc).bgc(bgc).add(utf8).nil();
-                        else if (fgc) yield.fgc(fgc)         .add(utf8).nil();
-                        else          yield                  .add(utf8);
+                        if (und)
+                        {
+                                 if (bgc) yield.fgc(fgc).bgc(bgc).und(true).add(utf8).nil();
+                            else if (fgc) yield.fgc(fgc)         .und(true).add(utf8).nil();
+                            else          yield                  .und(true).add(utf8).nil();
+                        }
+                        else
+                        {
+                                 if (bgc) yield.fgc(fgc).bgc(bgc).add(utf8).nil();
+                            else if (fgc) yield.fgc(fgc)         .add(utf8).nil();
+                            else          yield                  .add(utf8);
+                        }
                     }
                 }
 
