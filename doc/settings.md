@@ -18,7 +18,7 @@ graph TB
 
 ## TL;DR
 
-The settings are stored in an XML-like format, forming a hierarchical list of key=value pairs.  
+The settings are stored in a Pure 'XML' which is an XML-like format, storing a hierarchical list of key=value pairs.  
 See [`/src/vtm.xml`](../src/vtm.xml) for reference.
 
 We call the text data in the settings file "plain XML data" even though our file format is not technically XML, but only visually resembles it.
@@ -57,7 +57,7 @@ The file list is built in the following order from the following sources:
   - A case with a file reference:
     - `./vtm --config "/path/to/override_defaults.xml"` - Take the file list from the '/path/to/override_defaults.xml'.
 
-## Details
+## Pure XML
 
 ### Key differences from XML
 
@@ -223,7 +223,7 @@ The following forms of element declaration are equivalent:
       <thing=ThingTemplate NumberRef="2" LetterRef="b"/>
   </document>
   ```
-- Parameterized template from foreign namespace:
+- Parameterized templating from an external namespace:
   ```xml
   <Namespace>
       <ThingTemplate = "text" | NumberRef>
