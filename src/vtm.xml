@@ -401,7 +401,7 @@ R"==(
     <off   = 0 />
 </Macro>
 
-<Menu>
+<Menu=/Scripting>
     <Defaults>
         <autohide=false/>  <!-- Auto hide window menu items on mouse leave. -->
         <slim=true/>       <!-- Make the window menu one cell high (slim=true) or three cells high (slim=false). -->

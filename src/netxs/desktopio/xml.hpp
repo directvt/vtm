@@ -271,14 +271,14 @@ namespace netxs::xml
 
             wptr prev; // literal: Pointer to the prev.
             fptr next; // literal: Pointer to the next.
-            type kind; // literal: Content type.
-            si32 mark; // literal: Reference loop detector mark.
+            bool busy; // literal: Reference loop detector mark.
             text utf8; // literal: Content data.
+            type kind; // literal: Content type.
 
             literal(type kind, view utf8 = {})
-                : kind{ kind },
-                  mark{      },
-                  utf8{ utf8 }
+                : busy{      },
+                  utf8{ utf8 },
+                  kind{ kind }
             { }
         };
 
@@ -1431,17 +1431,14 @@ namespace netxs::xml
         netxs::sptr<xml::document> document; // settings: XML document.
         vect tmpbuff; // settings: Temp buffer.
         vect context; // settings: Current working context stack (reference context).
-        si32 touched; // settings: Reference loop detector.
 
         settings() = default;
         settings(settings const&) = default;
         settings(view utf8_xml)
-            : document{ ptr::shared<xml::document>(utf8_xml, "") },
-              touched{}
+            : document{ ptr::shared<xml::document>(utf8_xml, "") }
         { }
         settings(xml::document& other)
-            : document{ ptr::shared<xml::document>(std::move(other)) },
-              touched{}
+            : document{ ptr::shared<xml::document>(std::move(other)) }
         { }
 
         sptr get_context()
@@ -1536,14 +1533,18 @@ namespace netxs::xml
                  || kind == document::type::raw_reference)
                 {
                     auto& reference_name = value_placeholder->utf8;
-                    if (value_placeholder->mark != touched)
+                    if (!value_placeholder->busy)
                     {
-                        value_placeholder->mark = touched;
+                        value_placeholder->busy = true;
                         if (auto base_item_ptr = settings::_find_name(reference_name))
                         {
-                            touched++;
                             settings::_take_value(base_item_ptr, value);
                         }
+                        else
+                        {
+                            log("%%%red%Reference name '%ref%' not found%nil%", prompt::xml, ansi::fgc(redlt), reference_name, ansi::nil());
+                        }
+                        value_placeholder->busy = faux;
                     }
                     else
                     {
@@ -1558,7 +1559,6 @@ namespace netxs::xml
         }
         text take_value(sptr item_ptr)
         {
-            touched++;
             auto value = text{};
             settings::_take_value(item_ptr, value);
             utf::unescape(value);
@@ -1574,13 +1574,14 @@ namespace netxs::xml
                  || kind == document::type::raw_reference)
                 {
                     auto& reference_name = value_placeholder->utf8;
-                    if (value_placeholder->mark != touched) // Silently ignore reference loops.
+                    if (!value_placeholder->busy) // Silently ignore reference loops.
                     {
-                        value_placeholder->mark = touched;
+                        value_placeholder->busy = true;
                         if (auto base_ptr = settings::_find_name(reference_name)) // Lookup outside.
                         {
                             settings::_take_ptr_list_of(base_ptr, attribute, item_ptr_list);
                         }
+                        value_placeholder->busy = faux;
                     }
                 }
             }
@@ -1589,7 +1590,6 @@ namespace netxs::xml
         }
         auto take_ptr_list_of(sptr subsection_ptr, view attribute)
         {
-            touched++;
             auto item_ptr_list = document::vect{};
             settings::_take_ptr_list_of(subsection_ptr, attribute, item_ptr_list);
             return item_ptr_list;
@@ -1597,7 +1597,6 @@ namespace netxs::xml
         // settings: Get item_ptr list from the current context.
         auto take_ptr_list_for_name(view attribute)
         {
-            touched++;
             auto item_ptr_list = document::vect{};
             auto absolute = attribute.size() && attribute.front() == '/';
             if (auto context_ptr = absolute ? settings::_find_name<true>(attribute) : settings::get_context())
@@ -1608,7 +1607,6 @@ namespace netxs::xml
         }
         auto take_value_list_of(sptr subsection_ptr, view attribute)
         {
-            touched++;
             auto strings = txts{};
             settings::_take_ptr_list_of(subsection_ptr, attribute, tmpbuff);
             strings.reserve(tmpbuff.size());
@@ -1622,7 +1620,6 @@ namespace netxs::xml
         template<bool Quiet = true, class T = si32>
         auto take_value_from(sptr subsection_ptr, view attribute, T defval = {})
         {
-            touched++;
             auto crop = text{};
             settings::_take_ptr_list_of(subsection_ptr, attribute, tmpbuff);
             if (tmpbuff.size())
@@ -1657,7 +1654,6 @@ namespace netxs::xml
         template<bool Quiet = true, class T = si32>
         auto take(text frompath, T defval = {})
         {
-            touched++;
             auto absolute = frompath.size() && frompath.front() == '/';
             auto context_ptr = sptr{};
             if (absolute)
@@ -1672,7 +1668,6 @@ namespace netxs::xml
             }
             if (context_ptr)
             {
-                touched++;
                 auto ctx = settings::push_context(context_ptr);
                 auto item_ptr_list = vect{};
                 context_ptr->get_list3(frompath, item_ptr_list);
@@ -1706,7 +1701,6 @@ namespace netxs::xml
         template<bool Quiet = true, class T>
         auto take_value_from(sptr subsection_ptr, view attribute, T defval, utf::unordered_map<text, T> const& dict)
         {
-            touched++;
             if (subsection_ptr)
             {
                 auto crop = settings::take_value_from<Quiet>(subsection_ptr, attribute, ""s);
