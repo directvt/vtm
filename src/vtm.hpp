@@ -1161,10 +1161,10 @@ namespace netxs::app::vtm
             base::plugin<pro::focus>(pro::focus::mode::focusable);
             base::plugin<pro::keybd>();
             auto& luafx = bell::indexer.luafx;
-            config.settings::push_context("/config/events/desktop/");
-                auto script_list = config.settings::take_ptr_list_for_name("script");
-                auto bindings = input::bindings::load(config, script_list);
-            config.settings::pop_context();
+            auto desktop_context = config.settings::push_context("/config/events/desktop/");
+            auto script_list = config.settings::take_ptr_list_for_name("script");
+            auto bindings = input::bindings::load(config, script_list);
+            //config.settings::pop_context();
             input::bindings::keybind(*this, bindings);
             base::add_methods(basename::desktop,
             {
@@ -1255,7 +1255,7 @@ namespace netxs::app::vtm
                                                 auto appconf = settings{ utf8_xml };
                                                 auto item_ptr = appconf.document->root;
                                                 auto menuid = config.settings::take_value_from(item_ptr, attr::id, ""s);
-                                                config.settings::push_context(path::taskbar);
+                                                auto taskbar_context = config.settings::push_context(path::taskbar);
                                                 if (menu_list.contains(menuid))
                                                 {
                                                     auto& appbase = menu_list[menuid];
@@ -1267,7 +1267,7 @@ namespace netxs::app::vtm
                                                     if (menuid.empty()) menuid = "vtm.run(" + utf8_xml + ")";
                                                     hall::loadspec(appspec, appspec, item_ptr, menuid);
                                                 }
-                                                config.settings::pop_context();
+                                                //config.settings::pop_context();
                                             }
                                             auto title = appspec.title.empty() && appspec.label.empty() ? appspec.menuid
                                                        : appspec.title.empty() ? appspec.label
@@ -1322,11 +1322,11 @@ namespace netxs::app::vtm
                 utf::replace_all(conf_rec.appcfg.cmd, "$0", current_module_file);
                 utf::replace_all(conf_rec.appcfg.env, "$0", current_module_file);
             };
-            config.settings::push_context(path::taskbar);
+            auto taskbar_context = config.settings::push_context(path::taskbar);
             auto item_ptr_list = config.settings::take_ptr_list_for_name(path::item);
             for (auto item_ptr : item_ptr_list)
             {
-                config.settings::push_context(item_ptr);
+                auto item_context = config.settings::push_context(item_ptr);
                 auto is_splitter = !config.settings::take_value_list_of(item_ptr, attr::splitter).empty();
                 auto menuid = is_splitter ? "splitter_" + std::to_string(splitter_count++)
                                           : config.settings::take_value_from(item_ptr, attr::id, ""s);
@@ -1352,9 +1352,9 @@ namespace netxs::app::vtm
                     if (conf_rec.hidden) temp_list.emplace_back(std::move(conf_rec.menuid), std::move(conf_rec));
                     else                 free_list.emplace_back(std::move(conf_rec.menuid), std::move(conf_rec));
                 }
-                config.settings::pop_context();
+                //config.settings::pop_context();
             }
-            config.settings::pop_context();
+            //config.settings::pop_context();
             for (auto& [menuid, conf_rec] : free_list)
             {
                 apps_list[menuid];
@@ -1694,7 +1694,7 @@ namespace netxs::app::vtm
         void autorun()
         {
             auto what = applink{};
-            config.settings::push_context(path::autorun);
+            auto autorun_context = config.settings::push_context(path::autorun);
             auto apps = config.settings::take_ptr_list_for_name("run");
             auto foci = book{};
             foci.reserve(apps.size());
@@ -1717,7 +1717,7 @@ namespace netxs::app::vtm
                     else log(prompt::hall, "Unexpected empty app id in autorun configuration");
                 }
             }
-            config.settings::pop_context();
+            //config.settings::pop_context();
             auto count = 0;
             for (auto& window_ptr : foci)
             {

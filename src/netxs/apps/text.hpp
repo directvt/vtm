@@ -112,7 +112,7 @@ displaying the requested definition in a popup window or temporary buffer. Some 
                           boss.base::riseup(tier::preview, e2::form::prop::ui::header, title);
                       };
                   });
-            config.settings::push_context("/config/defapp/");
+            auto defapp_context = config.settings::push_context("/config/defapp/");
             auto object = window->attach(ui::fork::ctor(axis::Y))
                 ->colors(whitelt, 0xA0'00'1a'5f);
                 auto menu = object->attach(slot::_1, app::shared::menu::demo(config));
@@ -133,7 +133,7 @@ displaying the requested definition in a popup window or temporary buffer. Some 
                         ->upload(ansi::wrp(wrap::off).mgl(1).mgr(1).jet(bias::right).fgc(whitedk)
                             .add("INS  Sel: 0:0  Col: 26  Ln: 2/148").nil());
                         layers->attach(app::shared::scroll_bars(scroll));
-            config.settings::pop_context();
+            //config.settings::pop_context();
             window->invoke([&](auto& boss)
             {
                 app::shared::base_kb_navigation(config, scroll, boss);

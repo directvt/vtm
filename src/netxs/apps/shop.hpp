@@ -205,7 +205,7 @@ namespace netxs::app::shop
                             boss.base::riseup(tier::release, e2::form::proceed::quit::one, fast);
                         };
                   });
-            config.settings::push_context("/config/defapp/");
+            auto defapp_context = config.settings::push_context("/config/defapp/");
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, 0);
                 auto menu_object = object->attach(slot::_1, ui::fork::ctor(axis::Y));
@@ -230,7 +230,7 @@ namespace netxs::app::shop
                              ->upload(desktopio_body)
                              ->plugin<pro::grade>();
                 layers->attach(app::shared::scroll_bars(scroll));
-            config.settings::pop_context();
+            //config.settings::pop_context();
             window->invoke([&](auto& boss)
             {
                 app::shared::base_kb_navigation(config, scroll, boss);

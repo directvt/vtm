@@ -2049,6 +2049,20 @@ namespace netxs::utf
         utf8.remove_prefix(str.size());
         return str;
     }
+    // utf: Trim utf8 up to and including stopstr, and return the trims.
+    template<bool Lazy = true>
+    auto split_back(qiew utf8, char delim)
+    {
+        auto pos = utf8.rfind(delim, utf8.size());
+        if (pos != text::npos)
+        {
+            return std::pair{ utf8.substr(0, pos), utf8.substr(pos + sizeof(delim)) };
+        }
+        else
+        {
+            return std::pair{ qiew{}, utf8 };
+        }
+    }
     template<bool Lazy = true>
     auto take_front(view& utf8, view delims)
     {

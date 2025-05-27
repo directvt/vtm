@@ -261,7 +261,7 @@ namespace netxs::app::terminal
         auto hz = term_stat_area->attach(slot::_2, ui::grip<axis::X>::ctor(scroll, drawfx))
             ->limits({ -1, 1 }, { -1, 1 });
 
-        config.settings::push_context("/config/terminal/");
+        auto terminal_context = config.settings::push_context("/config/terminal/");
         auto [slot1, cover, menu_data] = app::shared::menu::load(config);
         auto menu = object->attach(slot::_1, slot1)
             ->shader(cell::shaders::fuse(window_clr))
@@ -306,7 +306,7 @@ namespace netxs::app::terminal
                 parent_canvas.fill(full, [&](cell& c){ c.fgc(c.bgc()).bgc(bgc).txt(bar).link(bar); });
             };
         });
-        config.settings::pop_context();
+        //config.settings::pop_context();
         term->invoke([&](auto& boss)
         {
             ui_term_events(boss, appcfg);

@@ -739,9 +739,7 @@ namespace netxs::xml
         auto join(view path, vect const& list)
         {
             utf::trim(path, '/');
-            auto slash_pos = path.rfind('/', path.size());
-            auto parent_path = slash_pos != text::npos ? path.substr(0, slash_pos) : view{} ;
-            auto branch_path = slash_pos != text::npos ? path.substr(slash_pos + sizeof('/')) : path;
+            auto [parent_path, branch_path] = utf::split_back(path, '/');
             auto dest_hosts = take_ptr_list(parent_path);
             auto parent_ptr = dest_hosts.size() ? dest_hosts.front() : root;
             if (parent_ptr->mode == elem::form::pact)
@@ -750,7 +748,7 @@ namespace netxs::xml
                 return;
             }
             auto& hive = parent_ptr->hive;
-            auto iter = hive.find(qiew{ branch_path });
+            auto iter = hive.find(branch_path);
             if (iter == hive.end())
             {
                 iter = hive.emplace(branch_path , vect{}).first;
@@ -1451,18 +1449,56 @@ namespace netxs::xml
             auto context_path = context.size() ? context.back() : document->root;
             return context_path;
         }
-        // settings: Lookup document context for all item_ptrs by reference name.
+        // settings: Pop document context.
+        void pop_context()
+        {
+            if (context.empty())
+            {
+                log("%%Context stack is empty", prompt::xml);
+            }
+            else
+            {
+                context.pop_back();
+            }
+        }
+        // settings: Push document context by name.
+        auto push_context(sptr new_context_ptr)
+        {
+            context.push_back(new_context_ptr);
+            struct pop_ctx
+            {
+                settings& config;
+                pop_ctx(settings& config)
+                    : config{ config }
+                { }
+                ~pop_ctx()
+                {
+                    config.pop_context();
+                }
+            };
+            return pop_ctx{ *this };
+        }
+        auto push_context(qiew context_path)
+        {
+            auto new_context_ptr = settings::_find_name<true>(context_path);
+            return settings::push_context(new_context_ptr);
+        }
+        friend auto& operator << (std::ostream& s, settings const& p)
+        {
+            return s << p.document->page.show();
+        }
         // settings: Lookup document context for item_ptr by its reference name path.
         void _find_namepath(view reference_namepath, sptr& item_ptr)
         {
-            auto item_ptr_list = document->take_ptr_list(reference_namepath);
+            auto item_ptr_list = document->take_ptr_list<true>(reference_namepath);
             if (item_ptr_list.size())
             {
-                item_ptr = item_ptr_list.front();
+                item_ptr = item_ptr_list.back();
             }
         }
         // settings: Lookup document context for item_ptr by its reference name.
-        auto _find_name(view reference_path)
+        template<bool WithTemplate = faux>
+        sptr _find_name(view reference_path)
         {
             auto item_ptr = sptr{};
             auto namepath = text{};
@@ -1472,7 +1508,9 @@ namespace netxs::xml
                 auto context_ptr = settings::get_context();
                 while (context_ptr)
                 {
-                    context_ptr->get_list3(reference_path, item_ptr_list);
+                    //context_ptr->get_list3(reference_path, item_ptr_list);
+                    touched++;
+                    settings::_take_ptr_list_of(context_ptr, reference_path, item_ptr_list);
                     if (item_ptr_list.size() && item_ptr_list.front())
                     {
                         item_ptr = item_ptr_list.front();
@@ -1505,6 +1543,7 @@ namespace netxs::xml
                         value_placeholder->mark = touched;
                         if (auto base_item_ptr = settings::_find_name(reference_name))
                         {
+                            touched++;
                             settings::_take_value(base_item_ptr, value);
                         }
                     }
@@ -1566,8 +1605,11 @@ namespace netxs::xml
         {
             touched++;
             auto item_ptr_list = document::vect{};
-            auto context_ptr = settings::get_context();
-            settings::_take_ptr_list_of(context_ptr, attribute, item_ptr_list);
+            auto absolute = attribute.size() && attribute.front() == '/';
+            if (auto context_ptr = absolute ? settings::_find_name<true>(attribute) : settings::get_context())
+            {
+                settings::_take_ptr_list_of(context_ptr, attribute, item_ptr_list);
+            }
             return item_ptr_list;
         }
         auto take_value_list_of(sptr subsection_ptr, view attribute)
@@ -1622,22 +1664,42 @@ namespace netxs::xml
         auto take(text frompath, T defval = {})
         {
             touched++;
-            if (auto item_ptr = settings::_find_name(frompath))
+            auto absolute = frompath.size() && frompath.front() == '/';
+            auto context_ptr = sptr{};
+            if (absolute)
             {
-                auto crop = settings::take_value(item_ptr);
-                if constexpr (std::is_same_v<std::decay_t<T>, text>)
+                auto [parent_path, branch_path] = utf::split_back(utf::get_trimmed_back(frompath, '/'), '/');
+                context_ptr = parent_path ? settings::_find_name<true>(parent_path) : settings::get_context();
+                frompath = branch_path;
+            }
+            if (!context_ptr)
+            {
+                context_ptr = settings::get_context();
+            }
+            if (context_ptr)
+            {
+                touched++;
+                auto ctx = settings::push_context(context_ptr);
+                auto item_ptr_list = vect{};
+                context_ptr->get_list3(frompath, item_ptr_list);
+                //if (auto item_ptr = settings::_find_name(frompath))
+                if (auto item_ptr = item_ptr_list.size() ? item_ptr_list.back() : sptr{})
                 {
-                    return crop;
-                }
-                else
-                {
-                    if (auto result = xml::take<T>(crop))
+                    auto crop = settings::take_value(item_ptr);
+                    if constexpr (std::is_same_v<std::decay_t<T>, text>)
                     {
-                        return result.value();
+                        return crop;
                     }
                     else
                     {
-                        return defval;
+                        if (auto result = xml::take<T>(crop))
+                        {
+                            return result.value();
+                        }
+                        else
+                        {
+                            return defval;
+                        }
                     }
                 }
             }
@@ -1675,7 +1737,6 @@ namespace netxs::xml
         template<class T>
         auto take(text frompath, T defval, utf::unordered_map<text, T> const& dict)
         {
-            touched++;
             if (frompath.size())
             {
                 auto crop = settings::take(frompath, ""s);
@@ -1696,7 +1757,6 @@ namespace netxs::xml
         }
         auto take(text frompath, cell defval)
         {
-            touched++;
             if (frompath.empty()) return defval;
             auto fgc_path = frompath + '/' + "fgc";
             auto bgc_path = frompath + '/' + "bgc";
@@ -1739,32 +1799,6 @@ namespace netxs::xml
                 log("%%Settings from %file%:\n%config%", prompt::xml, filepath.empty() ? "memory"sv : filepath, tmp_config.page.show());
             }
             document->overlay(tmp_config.root);
-        }
-        // settings: Pop document context.
-        void pop_context()
-        {
-            if (context.empty())
-            {
-                log("%%Context stack is empty", prompt::xml);
-            }
-            else
-            {
-                context.pop_back();
-            }
-        }
-        // settings: Push document context by name.
-        void push_context(sptr new_context_ptr)
-        {
-            context.push_back(new_context_ptr);
-        }
-        void push_context(qiew context_path)
-        {
-            auto new_context_ptr = settings::_find_name(context_path);
-            settings::push_context(new_context_ptr);
-        }
-        friend auto& operator << (std::ostream& s, settings const& p)
-        {
-            return s << p.document->page.show();
         }
     };
     namespace options
