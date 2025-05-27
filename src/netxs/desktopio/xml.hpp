@@ -245,7 +245,7 @@ namespace netxs::xml
             equal,         // '='     ex: name=value
             value_begin,   //         ex: Value begin marker (right after equal)
             value_end,     //         ex: Value end marker (right after value)
-            defaults,      //todo deprecate  '*'     ex: name*
+            new_list,      // '*'     ex: name*
             lua_op_shl,    // '<<'    ex: Lua's shift left operator
             lua_op_less,   // '< '    ex: Lua's less than operator
             lua_op_less_eq,// '<='    ex: Lua's less than or equal operator
@@ -376,7 +376,7 @@ namespace netxs::xml
                 static constexpr auto token_fg     = argb{ 0xFF'83'b8'da };
                 static constexpr auto liter_fg     = argb{ 0xFF'80'80'80 };
                 static constexpr auto comment_fg   = argb{ 0xFF'4e'4e'4e };
-                static constexpr auto defaults_fg  = argb{ 0xFF'9e'9e'9e };
+                static constexpr auto new_list_fg  = argb{ 0xFF'9e'9e'9e };
                 static constexpr auto quotes_fg    = argb{ 0xFF'BB'BB'BB };
                 static constexpr auto value_fg     = argb{ 0xFF'90'96'f0 };
                 static constexpr auto value_bg     = argb{ 0xFF'20'20'20 };
@@ -419,7 +419,7 @@ namespace netxs::xml
                         case type::empty_tag:     fgc = liter_fg;     break;
                         case type::equal:         fgc = liter_fg;     break;
                         case type::quotes:        fgc = quotes_fg;    break;
-                        case type::defaults:      fgc = defaults_fg;  break;
+                        case type::new_list:      fgc = new_list_fg;  break;
                         case type::unknown:       fgc = redlt;        break;
                         case type::tag_joiner:    fgc = liter_fg;     break;
                         case type::tag_reference: fgc = end_token_fg; und = true; break;
@@ -693,7 +693,7 @@ namespace netxs::xml
         static constexpr auto view_quoted_text    = "\""sv;
         static constexpr auto view_quoted_text_2  = "\'"sv;
         static constexpr auto view_equal          = "="sv;
-        static constexpr auto view_defaults       = "*"sv;
+        static constexpr auto view_new_list       = "*"sv;
         static constexpr auto view_lua_op_shl     = "<<"sv;
         static constexpr auto view_lua_op_less    = "< "sv;
         static constexpr auto view_lua_op_less_eq = "<="sv;
@@ -934,7 +934,7 @@ namespace netxs::xml
                     case type::close_inline:    return view_close_inline    ;
                     case type::empty_tag:       return view_empty_tag       ;
                     case type::equal:           return view_equal           ;
-                    case type::defaults:        return view_defaults        ;
+                    case type::new_list:        return view_new_list        ;
                     case type::lua_op_shl:      return view_lua_op_shl      ;
                     case type::lua_op_less:     return view_lua_op_less     ;
                     case type::lua_op_less_eq:  return view_lua_op_less_eq  ;
@@ -969,13 +969,13 @@ namespace netxs::xml
                   && (last == type::quoted_text
                    || last == type::tag_value
                    || last == type::tag_reference))        what = type::tag_joiner;
-            else if (data.starts_with(view_defaults     )
-                  && last == type::token)                  what = type::defaults;
+            else if (data.starts_with(view_new_list     )
+                  && last == type::token)                  what = type::new_list;
             else if (whitespaces.find(data.front()) != view::npos) what = type::spaces;
             else if (last == type::close_tag
                   || last == type::begin_tag
                   || last == type::token
-                  || last == type::defaults
+                  || last == type::new_list
                   || last == type::raw_text
                   || last == type::tag_value
                   || last == type::tag_reference
@@ -996,7 +996,7 @@ namespace netxs::xml
                 case type::close_inline:  data.remove_prefix(view_close_inline .size()); break;
                 case type::quoted_text:   data.remove_prefix(view_quoted_text  .size()); break;
                 case type::equal:         data.remove_prefix(view_equal        .size()); break;
-                case type::defaults:      data.remove_prefix(view_defaults     .size()); break;
+                case type::new_list:      data.remove_prefix(view_new_list     .size()); break;
                 case type::tag_joiner:    data.remove_prefix(view_tag_joiner   .size()); break;
                 case type::compact:       data.remove_prefix(view_compact      .size()); break;
                 case type::token:
@@ -1021,10 +1021,10 @@ namespace netxs::xml
             item_ptr->name = page.append(            kind,         utf::take_front(data, token_delims));
                              page.append_if_nonempty(type::spaces, utf::pop_front_chars(data, whitespaces));
             peek(data, what, last);
-            if (what == type::defaults)
+            if (what == type::new_list)
             {
                 item_ptr->base = true;
-                page.append(            type::defaults, utf::pop_front(data, view_defaults.size()));
+                page.append(            type::new_list, utf::pop_front(data, view_new_list.size()));
                 page.append_if_nonempty(type::spaces,   utf::pop_front_chars(data, whitespaces));
                 peek(data, what, last);
             }
