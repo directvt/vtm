@@ -22,7 +22,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v2025.05.21a";
+    static const auto version = "v2025.05.27";
     static const auto repository = "https://github.com/directvt/vtm";
     static const auto usr_config = "~/.config/vtm/settings.xml"s;
     static const auto sys_config = "/etc/vtm/settings.xml"s;
@@ -108,13 +108,15 @@ namespace netxs::app::shared
             }
         }
     };
-    const auto base_kb_navigation = [](xmls& config, ui::sptr scroll_ptr, base& boss)
+    const auto base_kb_navigation = [](settings& config, ui::sptr scroll_ptr, base& boss)
     {
         auto& scroll_inst = *scroll_ptr;
         boss.base::plugin<pro::keybd>();
         auto& luafx = boss.bell::indexer.luafx;
-        auto script_list = config.list("/config/events/defapp/script");
+        auto defapp_context = config.settings::push_context("/config/events/defapp/");
+        auto script_list = config.settings::take_ptr_list_for_name("script");
         auto bindings = input::bindings::load(config, script_list);
+        //config.settings::pop_context();
         input::bindings::keybind(boss, bindings);
         boss.base::add_methods(basename::defapp,
         {
@@ -167,15 +169,17 @@ namespace netxs::app::shared
                                         }},
         });
     };
-    const auto applet_kb_navigation = [](xmls& config, ui::sptr boss_ptr)
+    const auto applet_kb_navigation = [](settings& config, ui::sptr boss_ptr)
     {
         auto& boss = *boss_ptr;
         boss.base::plugin<pro::focus>();
         boss.base::plugin<pro::keybd>();
         auto& luafx = boss.bell::indexer.luafx;
         auto& bindings = boss.base::property<input::bindings::vector>("applet.bindings");
-        auto script_list = config.list("/config/events/applet/script");
+        auto applet_context = config.settings::push_context("/config/events/applet/");
+        auto script_list = config.settings::take_ptr_list_for_name("script");
         bindings = input::bindings::load(config, script_list);
+        //config.settings::pop_context();
         input::bindings::keybind(boss, bindings);
         boss.base::add_methods(basename::applet,
         {
@@ -299,7 +303,7 @@ namespace netxs::app::shared
         });
     };
 
-    using builder_t = std::function<ui::sptr(eccc, xmls&)>;
+    using builder_t = std::function<ui::sptr(eccc, settings&)>;
 
     namespace win
     {
@@ -508,27 +512,29 @@ namespace netxs::app::shared
 
             return std::tuple{ menuveer, menutent, menucake };
         };
-        const auto create = [](xmls& config, list menu_items)
+        const auto create = [](settings& config, list menu_items)
         {
-            auto autohide = config.take("menu/autohide", faux);
-            auto slimsize = config.take("menu/slim"    , true);
+            auto menu_context = config.settings::push_context("menu/");
+            auto autohide = config.settings::take("autohide", faux);
+            auto slimsize = config.settings::take("slim"    , true);
+            //config.settings::pop_context();
             return mini(autohide, slimsize, 0, menu_items);
         };
-        const auto load = [](xmls& config)
+        const auto load = [](settings& config)
         {
             auto list = menu::list{};
-            auto menudata = config.list("menu/item");
-            for (auto data_ptr : menudata)
+            auto menu_context = config.settings::push_context("menu/");
+            auto menuitem_ptr_list = config.settings::take_ptr_list_for_name("item");
+            for (auto data_ptr : menuitem_ptr_list)
             {
                 auto item = menu::item{};
-                auto& data = *data_ptr;
-                auto script_list = data.list("script");
+                auto script_list = config.settings::take_ptr_list_of(data_ptr, "script");
                 item.alive = script_list.size();
                 item.bindings = input::bindings::load(config, script_list);
-                auto classname_list = config.expand_list(data_ptr, "id");
-                auto label_list = data.list("label");
-                item.label = label_list.size() ? config.expand(label_list.front()) : "empty"s;
-                item.tooltip = data.take("tooltip", ""s);
+                auto classname_list = config.settings::take_value_list_of(data_ptr, "id");
+                auto label_list = config.settings::take_ptr_list_of(data_ptr, "label");
+                item.label = label_list.size() ? config.settings::take_value(label_list.front()) : "empty"s;
+                item.tooltip = config.settings::take_value_from(data_ptr, "tooltip", ""s);
                 auto setup = [classname_list = std::move(classname_list)](ui::item& boss, menu::item& item)
                 {
                     auto& luafx = boss.bell::indexer.luafx;
@@ -579,9 +585,10 @@ namespace netxs::app::shared
                 };
                 list.push_back({ item, setup });
             }
+            //config.settings::pop_context();
             return menu::create(config, list);
         };
-        const auto demo = [](xmls& config)
+        const auto demo = [](settings& config)
         {
             //auto highlight_color = skin::color(tone::highlight);
             //auto c3 = highlight_color;
@@ -608,7 +615,7 @@ namespace netxs::app::shared
     auto& builder(text app_typename)
     {
         static builder_t empty =
-        [&](eccc, xmls&) -> ui::sptr
+        [&](eccc, settings&) -> ui::sptr
         {
             auto window = ui::cake::ctor()
                 ->plugin<pro::focus>()
@@ -665,7 +672,7 @@ namespace netxs::app::shared
         {
             log("%%Loading settings from %path%...", prompt::apps, src_path);
         }
-        auto load_from_file(xml::document& config, qiew file_path)
+        auto load_from_file(xml::document& config_inst, qiew file_path)
         {
             auto [config_path, config_path_str] = os::path::expand(file_path);
             if (!config_path.empty())
@@ -682,7 +689,7 @@ namespace netxs::app::shared
                         auto buff = text((size_t)size, '\0');
                         file.seekg(0, std::ios::beg);
                         file.read(buff.data(), size);
-                        config.load(buff, config_path_str);
+                        config_inst.load(buff, config_path_str);
                         log("%%Loaded %count% bytes", prompt::pads, size);
                         return true;
                     }
@@ -695,11 +702,17 @@ namespace netxs::app::shared
         {
             if (cfg)
             {
-                auto file_list = cfg.take<true>("/file");
+                auto file_list = cfg.take_ptr_list<true>("/include");
                 if (file_list.size())
                 {
                     log("%%Update settings source files from %src%", prompt::apps, cfg.page.file);
-                    for (auto& file : file_list) if (file && !file->base) log("%%%file%", prompt::pads, file->take_value());
+                    for (auto& file : file_list)
+                    {
+                        if (file && !file->base)
+                        {
+                            log("%%%file%", prompt::pads, file->_concat_values());
+                        }
+                    }
                     defcfg.attach("/", file_list);
                 }
             }
@@ -708,7 +721,7 @@ namespace netxs::app::shared
         {
             if (cfg)
             {
-                auto config_data = cfg.take("/config/");
+                auto config_data = cfg.take_ptr_list("/");
                 if (config_data.size())
                 {
                     log(prompt::pads, "Merging settings from ", cfg.page.file);
@@ -771,10 +784,10 @@ namespace netxs::app::shared
             attach_file_list(defcfg, dvtcfg);
             attach_file_list(defcfg, clicfg);
 
-            auto config_sources = defcfg.take("/file");
+            auto config_sources = defcfg.take_ptr_list("/include");
             for (auto& file_rec : config_sources) if (file_rec && !file_rec->base) // Overlay configs from the specified sources if it is.
             {
-                auto src_file = file_rec->take_value();
+                auto src_file = file_rec->_concat_values();
                 auto src_conf = xml::document{};
                 load_from_file(src_conf, src_file);
                 show_cfg(src_conf);
@@ -785,7 +798,7 @@ namespace netxs::app::shared
             overlay_config(defcfg, dvtcfg);
             overlay_config(defcfg, clicfg);
 
-            auto resultant = xmls{ defcfg };
+            auto resultant = xml::settings{ defcfg };
             return resultant;
         }
     }
@@ -809,61 +822,63 @@ namespace netxs::app::shared
         std::list<text> fontlist;
     };
 
-    auto get_gui_config(xmls& config)
+    auto get_gui_config(settings& config)
     {
-        auto gui_config = gui_config_t{ .winstate = config.take("/config/gui/winstate", winstate::normal, app::shared::win::options),
-                                        .aliasing = config.take("/config/gui/antialiasing", faux),
-                                        .blinking = config.take("/config/gui/blinkrate", span{ 400ms }),
-                                        .wincoord = config.take("/config/gui/wincoor", dot_mx),
-                                        .gridsize = config.take("/config/gui/gridsize", dot_mx),
-                                        .cellsize = std::clamp(config.take("/config/gui/cellheight", si32{ 20 }), 0, 256) };
+        auto gui_config = gui_config_t{ .winstate = config.settings::take("/config/gui/winstate", winstate::normal, app::shared::win::options),
+                                        .aliasing = config.settings::take("/config/gui/antialiasing", faux),
+                                        .blinking = config.settings::take("/config/gui/blinkrate", span{ 400ms }),
+                                        .wincoord = config.settings::take("/config/gui/wincoor", dot_mx),
+                                        .gridsize = config.settings::take("/config/gui/gridsize", dot_mx),
+                                        .cellsize = std::clamp(config.settings::take("/config/gui/cellheight", si32{ 20 }), 0, 256) };
         if (gui_config.cellsize == 0) gui_config.cellsize = 20;
         if (gui_config.gridsize.x == 0 || gui_config.gridsize.y == 0) gui_config.gridsize = dot_mx;
-        auto recs = config.list("/config/gui/fonts/font");
-        for (auto& f : recs)
+        auto fonts_context = config.settings::push_context("/config/gui/fonts/");
+        auto font_list = config.settings::take_ptr_list_for_name("font");
+        for (auto& font_ptr : font_list)
         {
             //todo implement 'fonts/font/file' - font file path/url
-            gui_config.fontlist.push_back(config.expand(f));
+            gui_config.fontlist.push_back(config.settings::take_value(font_ptr));
         }
+        //config.settings::pop_context();
         return gui_config;
     }
-    auto get_tui_config(xmls& config, ui::skin& g)
+    auto get_tui_config(settings& config, ui::skin& g)
     {
         using namespace std::chrono;
-        g.window_clr     = config.take("/config/colors/window"     , cell{ whitespace });
-        g.winfocus       = config.take("/config/colors/focus"      , cell{ whitespace });
-        g.brighter       = config.take("/config/colors/brighter"   , cell{ whitespace });
-        g.shadower       = config.take("/config/colors/shadower"   , cell{ whitespace });
-        g.warning        = config.take("/config/colors/warning"    , cell{ whitespace });
-        g.danger         = config.take("/config/colors/danger"     , cell{ whitespace });
-        g.action         = config.take("/config/colors/action"     , cell{ whitespace });
-        g.selected       = config.take("/config/desktop/taskbar/colors/selected"  , cell{ whitespace });
-        g.active         = config.take("/config/desktop/taskbar/colors/active"    , cell{ whitespace });
-        g.focused        = config.take("/config/desktop/taskbar/colors/focused"   , cell{ whitespace });
-        g.inactive       = config.take("/config/desktop/taskbar/colors/inactive"  , cell{ whitespace });
-        g.spd            = config.take("/config/timings/kinetic/spd"      , 10  );
-        g.pls            = config.take("/config/timings/kinetic/pls"      , 167 );
-        g.spd_accel      = config.take("/config/timings/kinetic/spd_accel", 1   );
-        g.spd_max        = config.take("/config/timings/kinetic/spd_max"  , 100 );
-        g.ccl            = config.take("/config/timings/kinetic/ccl"      , 120 );
-        g.ccl_accel      = config.take("/config/timings/kinetic/ccl_accel", 30  );
-        g.ccl_max        = config.take("/config/timings/kinetic/ccl_max"  , 1   );
-        g.switching      = config.take("/config/timings/switching"        , span{ 200ms });
-        g.deceleration   = config.take("/config/timings/deceleration"     , span{ 2s    });
-        g.blink_period   = config.take("/config/cursor/blink"             , span{ 400ms });
-        g.menu_timeout   = config.take("/config/desktop/taskbar/timeout"  , span{ 250ms });
-        g.leave_timeout  = config.take("/config/timings/leave_timeout"    , span{ 1s    });
-        g.repeat_delay   = config.take("/config/timings/repeat_delay"     , span{ 500ms });
-        g.repeat_rate    = config.take("/config/timings/repeat_rate"      , span{ 30ms  });
-        g.maxfps         = config.take("/config/timings/fps"              , 60);
-        g.max_value      = config.take("/config/desktop/windowmax"        , twod{ 3000, 2000  });
-        g.macstyle       = config.take("/config/desktop/macstyle"         , faux);
-        g.menuwide       = config.take("/config/desktop/taskbar/wide"     , faux);
-        g.shadow_enabled = config.take("/config/desktop/shadow/enabled", true);
-        g.shadow_bias    = config.take("/config/desktop/shadow/bias"   , 0.37f);
-        g.shadow_blur    = config.take("/config/desktop/shadow/blur"   , 3);
-        g.shadow_opacity = config.take("/config/desktop/shadow/opacity", 105.5f);
-        g.shadow_offset  = config.take("/config/desktop/shadow/offset" , dot_21);
+        g.window_clr     = config.settings::take("/config/colors/window"     , cell{ whitespace });
+        g.winfocus       = config.settings::take("/config/colors/focus"      , cell{ whitespace });
+        g.brighter       = config.settings::take("/config/colors/brighter"   , cell{ whitespace });
+        g.shadower       = config.settings::take("/config/colors/shadower"   , cell{ whitespace });
+        g.warning        = config.settings::take("/config/colors/warning"    , cell{ whitespace });
+        g.danger         = config.settings::take("/config/colors/danger"     , cell{ whitespace });
+        g.action         = config.settings::take("/config/colors/action"     , cell{ whitespace });
+        g.selected       = config.settings::take("/config/desktop/taskbar/colors/selected"  , cell{ whitespace });
+        g.active         = config.settings::take("/config/desktop/taskbar/colors/active"    , cell{ whitespace });
+        g.focused        = config.settings::take("/config/desktop/taskbar/colors/focused"   , cell{ whitespace });
+        g.inactive       = config.settings::take("/config/desktop/taskbar/colors/inactive"  , cell{ whitespace });
+        g.spd            = config.settings::take("/config/timings/kinetic/spd"      , 10  );
+        g.pls            = config.settings::take("/config/timings/kinetic/pls"      , 167 );
+        g.spd_accel      = config.settings::take("/config/timings/kinetic/spd_accel", 1   );
+        g.spd_max        = config.settings::take("/config/timings/kinetic/spd_max"  , 100 );
+        g.ccl            = config.settings::take("/config/timings/kinetic/ccl"      , 120 );
+        g.ccl_accel      = config.settings::take("/config/timings/kinetic/ccl_accel", 30  );
+        g.ccl_max        = config.settings::take("/config/timings/kinetic/ccl_max"  , 1   );
+        g.switching      = config.settings::take("/config/timings/switching"        , span{ 200ms });
+        g.deceleration   = config.settings::take("/config/timings/deceleration"     , span{ 2s    });
+        g.blink_period   = config.settings::take("/config/cursor/blink"             , span{ 400ms });
+        g.menu_timeout   = config.settings::take("/config/desktop/taskbar/timeout"  , span{ 250ms });
+        g.leave_timeout  = config.settings::take("/config/timings/leave_timeout"    , span{ 1s    });
+        g.repeat_delay   = config.settings::take("/config/timings/repeat_delay"     , span{ 500ms });
+        g.repeat_rate    = config.settings::take("/config/timings/repeat_rate"      , span{ 30ms  });
+        g.maxfps         = config.settings::take("/config/timings/fps"              , 60);
+        g.max_value      = config.settings::take("/config/desktop/windowmax"        , twod{ 3000, 2000  });
+        g.macstyle       = config.settings::take("/config/desktop/macstyle"         , faux);
+        g.menuwide       = config.settings::take("/config/desktop/taskbar/wide"     , faux);
+        g.shadow_enabled = config.settings::take("/config/desktop/shadow/enabled", true);
+        g.shadow_bias    = config.settings::take("/config/desktop/shadow/bias"   , 0.37f);
+        g.shadow_blur    = config.settings::take("/config/desktop/shadow/blur"   , 3);
+        g.shadow_opacity = config.settings::take("/config/desktop/shadow/opacity", 105.5f);
+        g.shadow_offset  = config.settings::take("/config/desktop/shadow/offset" , dot_21);
         if (g.maxfps <= 0) g.maxfps = 60;
     }
     void splice(xipc client, gui_config_t& gc)
@@ -894,7 +909,7 @@ namespace netxs::app::shared
             }
         }
     }
-    void start(text cmd, text aclass, xmls& config)
+    void start(text cmd, text aclass, settings& config)
     {
         //todo revise
         auto [client, server] = os::ipc::xlink();

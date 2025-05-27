@@ -88,7 +88,7 @@ displaying the requested definition in a popup window or temporary buffer. Some 
 )";
         auto topic3 = header("Plain text vs. rich text") + topic3_chars;
 
-        auto build = [](eccc /*appcfg*/, xmls& config)
+        auto build = [](eccc /*appcfg*/, settings& config)
         {
             auto highlight_color = skin::color(tone::winfocus);
             auto c3 = highlight_color;
@@ -112,9 +112,9 @@ displaying the requested definition in a popup window or temporary buffer. Some 
                           boss.base::riseup(tier::preview, e2::form::prop::ui::header, title);
                       };
                   });
+            auto defapp_context = config.settings::push_context("/config/defapp/");
             auto object = window->attach(ui::fork::ctor(axis::Y))
                 ->colors(whitelt, 0xA0'00'1a'5f);
-                config.cd("/config/defapp");
                 auto menu = object->attach(slot::_1, app::shared::menu::demo(config));
                 auto body_area = object->attach(slot::_2, ui::fork::ctor(axis::Y));
                     auto layers = body_area->attach(slot::_1, ui::cake::ctor())
@@ -133,6 +133,7 @@ displaying the requested definition in a popup window or temporary buffer. Some 
                         ->upload(ansi::wrp(wrap::off).mgl(1).mgr(1).jet(bias::right).fgc(whitedk)
                             .add("INS  Sel: 0:0  Col: 26  Ln: 2/148").nil());
                         layers->attach(app::shared::scroll_bars(scroll));
+            //config.settings::pop_context();
             window->invoke([&](auto& boss)
             {
                 app::shared::base_kb_navigation(config, scroll, boss);

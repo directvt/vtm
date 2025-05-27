@@ -745,7 +745,7 @@ namespace netxs::app::tile
             {
                 // add split
                 utf8.remove_prefix(1);
-                utf::trim_front(utf8, " ");
+                utf::trim_front(utf8, ' ');
                 auto s1 = si32{ 1 };
                 auto s2 = si32{ 1 };
                 auto w  = si32{-1 };
@@ -757,14 +757,14 @@ namespace netxs::app::tile
                     if (auto r = utf::to_int(utf8)) // Right side ratio
                     {
                         s2 = std::abs(r.value());
-                        utf::trim_front(utf8, " ");
+                        utf::trim_front(utf8, ' ');
                         if (!utf8.empty() && utf8.front() == ':') // Grip width.
                         {
                             utf8.remove_prefix(1);
                             if (auto g = utf::to_int(utf8))
                             {
                                 w = std::abs(g.value());
-                                utf::trim_front(utf8, " ");
+                                utf::trim_front(utf8, ' ');
                             }
                         }
                     }
@@ -780,7 +780,7 @@ namespace netxs::app::tile
             }
             else  // Add application.
             {
-                utf::trim_front(utf8, " ");
+                utf::trim_front(utf8, ' ');
                 auto menuid = utf::take_front(utf8, " ,)").str();
                 if (menuid.empty()) return slot_ptr;
 
@@ -865,7 +865,7 @@ namespace netxs::app::tile
                 }
             }
         };
-        auto build_inst = [](eccc appcfg, xmls& config) -> sptr
+        auto build_inst = [](eccc appcfg, settings& config) -> sptr
         {
             // tile (ui::fork, f, k)
             //  │ │
@@ -905,9 +905,11 @@ namespace netxs::app::tile
                 ->plugin<pro::focus>()
                 ->plugin<pro::keybd>();
             using namespace app::shared;
-            auto script_list = config.list("/config/events/tile/grip/script");
+            auto grip_context = config.settings::push_context("/config/events/tile/grip/");
+            auto script_list = config.settings::take_ptr_list_for_name("script");
             auto grip_bindings_ptr = ptr::shared(input::bindings::load(config, script_list));
-            config.cd("/config/tile", "/config/defapp");
+            //config.settings::pop_context();
+            auto tile_context = config.settings::push_context("/config/tile/");
             auto [menu_block, cover, menu_data] = menu::load(config);
             object->attach(slot::_1, menu_block)
                 ->invoke([](auto& boss)
@@ -1008,7 +1010,7 @@ namespace netxs::app::tile
                         boss.base::riseup(tier::release, e2::form::proceed::quit::one, true);
                     };
                     auto& luafx = boss.bell::indexer.luafx;
-                    auto script_list = config.list("/config/events/tile/script");
+                    auto script_list = config.settings::take_ptr_list_for_name("script");
                     auto bindings = input::bindings::load(config, script_list);
                     input::bindings::keybind(boss, bindings);
                     boss.base::add_methods(basename::tile,
@@ -1502,6 +1504,7 @@ namespace netxs::app::tile
                         });
                     };
                 });
+            //config.settings::pop_context();
             return object;
         };
     }

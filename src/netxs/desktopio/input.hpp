@@ -510,7 +510,7 @@ namespace netxs::input
                 if (auto anytest = utf::to_lower(chord);
                     anytest.starts_with("any") ||
                    (anytest.starts_with(tier::str[tier::preview])
-                       && utf::trim((view{ anytest }.substr(tier::str[tier::preview].size())), ": ").starts_with("any")))
+                       && utf::get_trimmed((view{ anytest }.substr(tier::str[tier::preview].size())), ": ").starts_with("any")))
                 {
                     crop.push_back(any_key);
                     return crop;
@@ -518,7 +518,7 @@ namespace netxs::input
                 auto take = [](qiew& chord)
                 {
                     auto k = key_t{};
-                    utf::trim(chord);
+                    utf::trim(chord, ' ');
                     if (chord.empty()) return k;
                     if (auto pos = chord.find("::"); pos != text::npos) // Environment event.
                     {
@@ -532,7 +532,7 @@ namespace netxs::input
                         {
                             auto event_str = chord;
                             event_str.remove_prefix(tier::str[event_tier].size());
-                            utf::trim_all(event_str, ": ");
+                            utf::trim(event_str, ": ");
                             auto& rtti = netxs::events::rtti();
                             auto iter = rtti.find(event_str);
                             if (iter != rtti.end())
@@ -561,7 +561,7 @@ namespace netxs::input
                         if (c == '+')
                         {
                             chord.pop_front(); // Pop '+'.
-                            utf::trim(chord);
+                            utf::trim(chord, ' ');
                             if (chord.empty()) return k;
                             c = chord.front();
                         }
@@ -570,11 +570,11 @@ namespace netxs::input
                     {
                         k.sign |= input::key::unpressed_sign;
                         chord.pop_front(); // Pop '-'.
-                        utf::trim(chord);
+                        utf::trim(chord, ' ');
                         if (chord.empty()) return k;
                         c = chord.front();
                     }
-                    utf::trim(chord);
+                    utf::trim(chord, ' ');
                     if (chord.empty()) return k;
                     if (auto isscancode = chord.starts_with("0x") || chord.starts_with("0X"); isscancode)
                     {
@@ -596,7 +596,7 @@ namespace netxs::input
                     {
                         auto name = utf::to_lower(key_name);
                         auto name_shadow = qiew{ name };
-                        auto digits = utf::trim_back(name_shadow, netxs::onlydigits);
+                        auto digits = utf::pop_back_chars(name_shadow, netxs::onlydigits);
                         if (auto iter_m = input::key::mouse_names.find(name_shadow); iter_m != input::key::mouse_names.end()) // Mouse events.
                         {
                             auto [action_index, button_index] = iter_m->second;
@@ -639,7 +639,7 @@ namespace netxs::input
                             k.code2 = n2 ? code + 1 : 0;
                         }
                     }
-                    utf::trim(chord);
+                    utf::trim(chord, ' ');
                     return k;
                 };
                 // Split.
@@ -2128,7 +2128,7 @@ namespace netxs::input
             {
                 auto head = chord_qiew_list.begin();
                 auto tail = chord_qiew_list.end();
-                auto fragment = utf::trim(*head++);
+                auto fragment = utf::get_trimmed(*head++, ' ');
                 auto is_preview = fragment.starts_with(tier::str[tier::preview]);
                 auto binary_chord_list = _get_chord_list(fragment);
                 if (binary_chord_list.size())
@@ -2149,13 +2149,14 @@ namespace netxs::input
         {
             if (reset_handler) // Reset all script bindings for event_id.
             {
+                //log("Erase handlers for event_id:%%", event_id);
                 boss.bell::erase_script_handlers(tier_id, event_id);
             }
             else // Set new handler.
             {
                 if (sources.empty())
                 {
-                    //log("Set handler for script: ", ansi::hi(*(script_ptr->script_body_ptr)));
+                    //log("Set handler for event_id:%% script: %%", event_id, ansi::hi(*(script_ptr->script_body_ptr)));
                     boss.bell::submit_generic(tier_id, event_id, script_ptr);
                 }
                 else //todo revise: too hacky
@@ -2239,27 +2240,28 @@ namespace netxs::input
                 gear.touched = instance_id;
             }
         }
-        auto load(xmls& config, auto& script_list)
+        auto load(settings& config, auto& script_list)
         {
             auto bindings = input::bindings::vector{};
             for (auto script_ptr : script_list)
             {
-                auto script_body_ptr = ptr::shared(config.expand(script_ptr));
-                auto on_ptr_list = script_ptr->list("on");
+                auto script_context = config.settings::push_context(script_ptr);
+                auto script_body_ptr = ptr::shared(config.settings::take_value(script_ptr));
+                auto on_ptr_list = config.settings::take_ptr_list_of(script_ptr, "on");
                 for (auto event_ptr : on_ptr_list)
                 {
-                    auto on_rec = config.expand(event_ptr); // ... on="MouseDown01" ... on="preview:Enter"... .
-                    auto source_list = event_ptr->list("source");
-                    auto sources = txts{};
-                    sources.reserve(source_list.size());
-                    for (auto src_ptr : source_list)
-                    {
-                        auto source = config.expand(src_ptr);
-                        sources.emplace_back(source);
-                        //if constexpr (debugmode) log("chord='%%' \tpreview=%% source='%%' script=%%", on_rec, (si32)preview, source, ansi::hi(*script_body_ptr));
-                    }
+                    auto on_rec = config.settings::take_value(event_ptr); // ... on="MouseDown01" ... on="preview:Enter"... .
+                    auto sources = config.settings::take_value_list_of(event_ptr, "source");
+                    //if constexpr (debugmode)
+                    //{
+                    //    for (auto& sourse : sources)
+                    //    {
+                    //         log("chord='%%' \tpreview=%% source='%%' script=%%", on_rec, (si32)preview, source, ansi::hi(*script_body_ptr));
+                    //    }
+                    //}
                     bindings.push_back({ .chord = on_rec, .sources = std::move(sources), .script_ptr = script_body_ptr });
                 }
+                //config.settings::pop_context();
             }
             return bindings;
         }

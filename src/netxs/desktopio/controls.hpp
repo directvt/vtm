@@ -384,7 +384,7 @@ namespace netxs::events
     }
     void luna::run_ext_script(ui::base& boss, auto& script)
     {
-        auto shadow = utf::trim(script.cmd, " \r\n\t\f");
+        auto shadow = utf::get_trimmed(script.cmd, " \r\n\t\f");
         if (shadow.size() > 2)
         if (auto c = shadow.front(); (c == '"' || c == '\'') && shadow.back() == c)
         {

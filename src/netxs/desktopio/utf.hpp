@@ -1709,7 +1709,7 @@ namespace netxs::utf
         debase437(utf8, buff);
         return buff;
     }
-    // utf: Find char position.
+    // utf: Find char position iterator.
     auto _find_char(auto head, auto tail, auto hittest)
     {
         while (head != tail && !hittest(head))
@@ -1718,7 +1718,7 @@ namespace netxs::utf
         }
         return head;
     }
-    // utf: Find char position ignoring backslashed.
+    // utf: Find char position iterator ignoring backslashed.
     auto _find_char_except_escaped(auto head, auto tail, auto hittest)
     {
         while (head != tail)
@@ -1728,7 +1728,7 @@ namespace netxs::utf
         }
         return head;
     }
-    // utf: Find char position ignoring backslashed.
+    // utf: Find char position iterator ignoring backslashed.
     template<class Iter>
     auto find_char(Iter head, Iter tail, view delims)
     {
@@ -1749,7 +1749,7 @@ namespace netxs::utf
     {
         return test(iter, utf8);
     }
-    // utf: Find char position ignoring skips.
+    // utf: Find char position iterator ignoring skips.
     template<class ...Args>
     auto find_char_except_skips(view utf8, char c, Args&&... skips)
     {
@@ -1774,14 +1774,14 @@ namespace netxs::utf
         });
         return found_iter;
     }
-    // utf: Find substring position ignoring backslashed.
+    // utf: Find substring position iterator ignoring backslashed.
     auto find_substring(view& utf8, auto... delims)
     {
         auto head = utf8.begin();
         auto tail = utf8.end();
         return _find_char_except_escaped(head, tail, [&](auto iter){ return (view{ iter, tail }.starts_with(delims) || ...); });
     }
-    // utf: Find char position ignoring backslashed.
+    // utf: Find char position iterator ignoring backslashed.
     template<class Iter>
     auto find_char(Iter head, Iter tail, char delim)
     {
@@ -1792,6 +1792,7 @@ namespace netxs::utf
         auto p = utf::find_char(shadow.begin(), shadow.end(), delims);
         return p != shadow.end();
     }
+    // utf: Trim the utf8 front if not pred.
     template<class P>
     void trim_front_if(view& utf8, P pred)
     {
@@ -1805,6 +1806,7 @@ namespace netxs::utf
         }
         utf8.remove_prefix(std::distance(utf8.begin(), head));
     }
+    // utf: Trim the utf8 back if not pred.
     template<class P>
     void trim_back_if(view& utf8, P pred)
     {
@@ -1818,13 +1820,8 @@ namespace netxs::utf
         }
         utf8.remove_suffix(std::distance(utf8.rbegin(), head));
     }
-    auto trim_front(view& utf8, view delims)
-    {
-        auto temp = utf8;
-        trim_front_if(utf8, [&](char c){ return delims.find(c) == text::npos; });
-        return temp.substr(0, temp.size() - utf8.size());
-    }
-    auto trim_front(view& utf8, char c = ' ')
+    // utf: Trim the utf8 front.
+    void trim_front(view& utf8, char c = ' ')
     {
         auto head = utf8.begin();
         auto tail = utf8.end();
@@ -1834,32 +1831,88 @@ namespace netxs::utf
         }
         utf8.remove_prefix(std::distance(utf8.begin(), head));
     }
-    auto trim_front(view&& utf8, char c = ' ')
+    // utf: Trim the utf8 back.
+    void trim_back(view& utf8, char c = ' ')
+    {
+        auto head = utf8.rbegin();
+        auto tail = utf8.rend();
+        while (head != tail && *head == c)
+        {
+            ++head;
+        }
+        utf8.remove_suffix(std::distance(utf8.rbegin(), head));
+    }
+    // utf: Trim the utf8 front.
+    void trim_front(view& utf8, view delims)
+    {
+        utf::trim_front_if(utf8, [&](char c){ return delims.find(c) == text::npos; });
+    }
+    // utf: Trim the utf8 back.
+    void trim_back(view& utf8, view delims)
+    {
+        utf::trim_back_if(utf8, [&](char c){ return delims.find(c) == text::npos; });
+    }
+    // utf: Trim the utf8 front and return trims.
+    auto pop_front_chars(view& utf8, view delims)
+    {
+        auto temp = utf8;
+        utf::trim_front(utf8, delims);
+        return temp.substr(0, temp.size() - utf8.size());
+    }
+    // utf: Trim the utf8 back and return trims.
+    auto pop_back_chars(view& utf8, view delims)
+    {
+        auto temp = utf8;
+        utf::trim_back(utf8, delims);
+        return temp.substr(utf8.size());
+    }
+
+    // utf: Return front-trimmed copy of utf8.
+    auto get_trimmed_front(view utf8, char c = ' ')
     {
         utf::trim_front(utf8, c);
         return utf8;
     }
-    auto trim_back(view& utf8, view delims)
+    // utf: Return back-trimmed copy of utf8.
+    auto get_trimmed_back(view utf8, char c = ' ')
     {
-        auto temp = utf8;
-        trim_back_if(utf8, [&](char c){ return delims.find(c) == text::npos; });
-        return temp.substr(utf8.size(), temp.size() - utf8.size());
-    }
-    auto trim(view utf8, char space = ' ')
-    {
-        while (!utf8.empty() && utf8.front() == space) utf8.remove_prefix(1);
-        while (!utf8.empty() && utf8. back() == space) utf8.remove_suffix(1);
+        utf::trim_back(utf8, c);
         return utf8;
     }
-    auto trim_all(view& utf8, view delims)
+    // utf: Trim utf8.
+    void trim(view& utf8, char c = ' ')
     {
-        trim_front(utf8, delims);
-        trim_back (utf8, delims);
+        if (!utf8.empty())
+        {
+            utf::trim_front(utf8, c);
+            if (!utf8.empty())
+            {
+                utf::trim_back(utf8, c);
+            }
+        }
     }
-    auto trim(view utf8, view delims)
+    // utf: Trim utf8.
+    void trim(view& utf8, view delims)
     {
-        trim_front(utf8, delims);
-        trim_back (utf8, delims);
+        if (!utf8.empty())
+        {
+            utf::trim_front(utf8, delims);
+            if (!utf8.empty())
+            {
+                utf::trim_back(utf8, delims);
+            }
+        }
+    }
+    // utf: Return trimmed copy of utf8.
+    auto get_trimmed(view utf8, char c = ' ')
+    {
+        utf::trim(utf8, c);
+        return utf8;
+    }
+    // utf: Return trimmed copy of utf8.
+    auto get_trimmed(view utf8, view delims)
+    {
+        utf::trim(utf8, delims);
         return utf8;
     }
     void _escape(qiew line, auto& iter, auto... x)
@@ -1973,6 +2026,43 @@ namespace netxs::utf
         *iter++ = quote;
         dest.resize(iter - dest.begin());
     }
+    // utf: Trim utf8 up to and including stopstr, and return the trims.
+    template<bool Lazy = true>
+    auto take_front_including(view& utf8, view stopstr)
+    {
+        auto iter = utf::find_substring(utf8, stopstr);
+        if (iter == utf8.end())
+        {
+            if constexpr (Lazy)
+            {
+                utf8 = {};
+                return qiew{ utf8 };
+            }
+            else
+            {
+                auto crop = qiew{ utf8 };
+                utf8 = {};
+                return crop;
+            }
+        }
+        auto str = qiew{ utf8.begin(), iter + stopstr.size() };
+        utf8.remove_prefix(str.size());
+        return str;
+    }
+    // utf: Trim utf8 up to and including stopstr, and return the trims.
+    template<bool Lazy = true>
+    auto split_back(qiew utf8, char delim)
+    {
+        auto pos = utf8.rfind(delim, utf8.size());
+        if (pos != text::npos)
+        {
+            return std::pair{ utf8.substr(0, pos), utf8.substr(pos + sizeof(delim)) };
+        }
+        else
+        {
+            return std::pair{ qiew{}, utf8 };
+        }
+    }
     template<bool Lazy = true>
     auto take_front(view& utf8, view delims)
     {
@@ -2068,7 +2158,7 @@ namespace netxs::utf
     // utf: Split text line into quoted tokens.
     auto tokenize(view utf8, auto&& args)
     {
-        utf8 = utf::trim(utf8);
+        utf::trim(utf8, ' ');
         while (utf8.size())
         {
             auto c = utf8.front();
@@ -2082,9 +2172,16 @@ namespace netxs::utf
     {
         auto head = utf8.begin();
         auto tail = utf8.end();
-        auto stop = find_char(head, tail, delims);
+        auto stop = utf::find_char(head, tail, delims);
         if (stop == tail) utf8 = view{};
         else              utf8.remove_prefix(std::distance(head, stop));
+    }
+    // utf: Remove utf8 tail including delim.
+    auto eat_tail(view& utf8, char delim)
+    {
+        auto stop = utf8.rfind(delim);
+        if (stop == text::npos) utf8 = {};
+        else                    utf8 = utf8.substr(0, stop);
     }
     template<class View>
     auto pop_front(View&& line, auto size)

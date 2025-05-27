@@ -21,7 +21,6 @@ namespace netxs::app::vtm
     namespace attr
     {
         static constexpr auto id       = "id";
-        static constexpr auto alias    = "alias";
         static constexpr auto hidden   = "hidden";
         static constexpr auto label    = "label";
         static constexpr auto tooltip  = "tooltip";
@@ -41,8 +40,9 @@ namespace netxs::app::vtm
     }
     namespace path
     {
-        static constexpr auto item     = "/config/desktop/taskbar/item";
-        static constexpr auto autorun  = "/config/desktop/taskbar/autorun/run";
+        static constexpr auto taskbar  = "/config/desktop/taskbar/";
+        static constexpr auto item     = "item";
+        static constexpr auto autorun  = "/config/desktop/taskbar/autorun/";
         static constexpr auto selected = "/config/desktop/taskbar/selected";
         static constexpr auto viewport = "/config/desktop/viewport/coor";
     }
@@ -629,69 +629,9 @@ namespace netxs::app::vtm
                 base::plugin<pro::light>();
                 base::plugin<pro::focus>();
                 base::plugin<pro::keybd>();
-                auto& luafx = bell::indexer.luafx;
                 base::limits(dot_11);
                 base::kind(base::reflow_root);
                 base::root(true);
-
-                auto& bindings = world.base::property<input::bindings::vector>("window.bindings"); // Shared key bindings across the hall.
-                if (bindings.empty())
-                {
-                    auto script_list = world.config.list("/config/events/window/script");
-                    bindings = input::bindings::load(world.config, script_list);
-                }
-                input::bindings::keybind(*this, bindings);
-                base::add_methods(basename::window,
-                {
-                    { "Warp",               [&]
-                                            {
-                                                auto warp = dent{ luafx.get_args_or(1, 0),   // Args...
-                                                                  luafx.get_args_or(2, 0),   //
-                                                                  luafx.get_args_or(3, 0),   //
-                                                                  luafx.get_args_or(4, 0) }; //
-                                                window_swarp(warp);
-                                                luafx.get_gear().set_handled();
-                                                luafx.set_return(); // No returns.
-                                            }},
-                    //{ "ZOrder",             [&]
-                    //                        {
-                    //                            auto args_count = luafx.args_count();
-                    //                            auto state = window_zorder(args_count, luafx.get_args_or(1, zpos::plain));
-                    //                            luafx.get_gear().set_handled();
-                    //                            luafx.set_return(state);
-                    //                        }},
-                    { "Close",              [&]
-                                            {
-                                                auto gear_id = id_t{};
-                                                auto& gear = luafx.get_gear();
-                                                gear.set_handled();
-                                                gear_id = gear.id;
-                                                window_close(gear_id);
-                                                luafx.set_return();
-                                            }},
-                    { "Minimize",           [&]
-                                            {
-                                                auto& gear = luafx.get_gear();
-                                                gear.set_handled();
-                                                window_state(gear.id, e2::form::size::minimize.id);
-                                                luafx.set_return();
-                                            }},
-                    { "Maximize",           [&]
-                                            {
-                                                auto& gear = luafx.get_gear();
-                                                gear.set_handled();
-                                                window_state(gear.id, e2::form::size::enlarge::maximize.id);
-                                                luafx.set_return();
-                                            }},
-                    { "Fullscreen",         [&]
-                                            {
-                                                auto& gear = luafx.get_gear();
-                                                gear.set_handled();
-                                                window_state(gear.id, e2::form::size::enlarge::fullscreen.id);
-                                                luafx.set_return();
-                                            }},
-                });
-
                 LISTEN(tier::preview, e2::command::gui, gui_cmd)
                 {
                     auto hit = true;
@@ -1018,7 +958,7 @@ namespace netxs::app::vtm
 
         std::list<std::pair<sptr, para>> users; // hall: Desktop users.
         netxs::generics::pool async; // hall: Thread pool for parallel task execution.
-        xmls config; // hall: Resultant settings.
+        settings config; // hall: Resultant settings.
         pro::maker& maker; // hall: Window creator using drag and drop (right drag).
         pro::robot& robot; // hall: Animation controller.
 
@@ -1086,30 +1026,28 @@ namespace netxs::app::vtm
             window_ptr->base::reflow();
             return window_ptr;
         }
-        auto loadspec(auto& conf_rec, auto& fallback, auto& item, text menuid, bool splitter = {}, text alias = {})
+        auto loadspec(auto& conf_rec, auto& fallback, auto& item_ptr, text menuid, bool splitter = {})
         {
             conf_rec.splitter   = splitter;
             conf_rec.menuid     = menuid;
-            conf_rec.alias      = alias;
-            conf_rec.label      = item.take(attr::label,    fallback.label   );
+            conf_rec.label      = config.settings::take_value_from(item_ptr, attr::label,    fallback.label   );
             if (conf_rec.label.empty()) conf_rec.label = conf_rec.menuid;
-            conf_rec.hidden     = item.take(attr::hidden,   fallback.hidden  );
-            conf_rec.tooltip    = item.take(attr::tooltip,  fallback.tooltip );
-            conf_rec.title      = item.take(attr::title,    fallback.title   );
-            conf_rec.footer     = item.take(attr::footer,   fallback.footer  );
-            conf_rec.winsize    = item.take(attr::winsize,  fallback.winsize );
-            conf_rec.wincoor    = item.take(attr::wincoor,  fallback.wincoor );
-            conf_rec.winform    = item.take(attr::winform,  fallback.winform, shared::win::options);
-            conf_rec.appcfg.cwd = item.take(attr::cwd,      fallback.appcfg.cwd);
-            conf_rec.appcfg.cfg = item.take(attr::cfg,      ""s);
-            conf_rec.appcfg.cmd = item.take(attr::cmd,      fallback.appcfg.cmd);
-            conf_rec.type       = item.take(attr::type,     fallback.type    );
+            conf_rec.hidden     = config.settings::take_value_from(item_ptr, attr::hidden,   fallback.hidden  );
+            conf_rec.tooltip    = config.settings::take_value_from(item_ptr, attr::tooltip,  fallback.tooltip );
+            conf_rec.title      = config.settings::take_value_from(item_ptr, attr::title,    fallback.title   );
+            conf_rec.footer     = config.settings::take_value_from(item_ptr, attr::footer,   fallback.footer  );
+            conf_rec.winsize    = config.settings::take_value_from(item_ptr, attr::winsize,  fallback.winsize );
+            conf_rec.wincoor    = config.settings::take_value_from(item_ptr, attr::wincoor,  fallback.wincoor );
+            conf_rec.winform    = config.settings::take_value_from(item_ptr, attr::winform,  fallback.winform, shared::win::options);
+            conf_rec.appcfg.cwd = config.settings::take_value_from(item_ptr, attr::cwd,      fallback.appcfg.cwd);
+            conf_rec.appcfg.cfg = config.settings::take_value_from(item_ptr, attr::cfg,      ""s);
+            conf_rec.appcfg.cmd = config.settings::take_value_from(item_ptr, attr::cmd,      fallback.appcfg.cmd);
+            conf_rec.type       = config.settings::take_value_from(item_ptr, attr::type,     fallback.type    );
             utf::to_lower(conf_rec.type);
-            auto envar          = item.list(attr::env);
+            auto envar          = config.settings::take_value_list_of(item_ptr, attr::env);
             if (envar.empty()) conf_rec.appcfg.env = fallback.appcfg.env;
-            else for (auto& v : envar)
+            else for (auto& value : envar)
             {
-                auto value = v->take_value();
                 if (value.size())
                 {
                     conf_rec.appcfg.env += value + '\0';
@@ -1118,7 +1056,7 @@ namespace netxs::app::vtm
             if (conf_rec.title.empty()) conf_rec.title = conf_rec.menuid + (conf_rec.appcfg.cmd.empty() ? ""s : ": " + conf_rec.appcfg.cmd);
             if (conf_rec.appcfg.cfg.empty())
             {
-                auto patch = item.list(attr::config);
+                auto patch = config.settings::take_ptr_list_of(item_ptr, attr::config);
                 if (patch.size())
                 {
                     if (fallback.appcfg.cfg.empty() && patch.size() == 1)
@@ -1129,14 +1067,14 @@ namespace netxs::app::vtm
                     {
                         auto head = patch.begin();
                         auto tail = patch.end();
-                        auto settings = xml::settings{ fallback.appcfg.cfg.size() ? fallback.appcfg.cfg
-                                                                                  : (*head++)->snapshot() };
+                        auto fragment = settings{ fallback.appcfg.cfg.size() ? fallback.appcfg.cfg
+                                                                             : (*head++)->snapshot() };
                         while (head != tail)
                         {
                             auto& p = *head++;
-                            settings.fuse(p->snapshot());
+                            fragment.settings::fuse(p->snapshot());
                         }
-                        conf_rec.appcfg.cfg = settings.utf8();
+                        conf_rec.appcfg.cfg = fragment.settings::utf8();
                     }
                 }
             }
@@ -1211,7 +1149,7 @@ namespace netxs::app::vtm
 
     public:
         static constexpr auto classname = basename::desktop;
-        hall(xipc server, xmls def_config)
+        hall(xipc server, settings def_config)
             : config{ def_config },
               maker{ base::plugin<pro::maker>() },
               robot{ base::plugin<pro::robot>() }
@@ -1223,8 +1161,10 @@ namespace netxs::app::vtm
             base::plugin<pro::focus>(pro::focus::mode::focusable);
             base::plugin<pro::keybd>();
             auto& luafx = bell::indexer.luafx;
-            auto script_list = config.list("/config/events/desktop/script");
+            auto desktop_context = config.settings::push_context("/config/events/desktop/");
+            auto script_list = config.settings::take_ptr_list_for_name("script");
             auto bindings = input::bindings::load(config, script_list);
+            //config.settings::pop_context();
             input::bindings::keybind(*this, bindings);
             base::add_methods(basename::desktop,
             {
@@ -1301,33 +1241,33 @@ namespace netxs::app::vtm
                                             else
                                             {
                                                 auto utf8_xml = ansi::escx{};
-                                                utf8_xml += "<item>";
                                                 luafx.read_args(1, [&](qiew key, qiew val)
                                                 {
                                                     //log("  %%=%%", key, utf::debase437(val));
                                                     utf8_xml += "<";
+                                                    //todo just use utf::unordered_map for loadspec
                                                     utf::filter_alphanumeric(key, utf8_xml);
                                                     utf8_xml += "=\"";
                                                     utf::escape(val, utf8_xml, '"');
                                                     utf8_xml += "\"/>";
                                                 });
-                                                utf8_xml += "</item>";
                                                 log("%%Run %%", prompt::host, ansi::hi(utf::debase437(utf8_xml)));
-                                                auto appconf = xml::settings{ utf8_xml };
-                                                appconf.cd("item");
-                                                auto itemptr = appconf.homelist.front();
-                                                auto menuid = itemptr->take(attr::id, ""s);
+                                                auto appconf = settings{ utf8_xml };
+                                                auto item_ptr = appconf.document->root;
+                                                auto menuid = config.settings::take_value_from(item_ptr, attr::id, ""s);
+                                                auto taskbar_context = config.settings::push_context(path::taskbar);
                                                 if (menu_list.contains(menuid))
                                                 {
                                                     auto& appbase = menu_list[menuid];
-                                                    if (appbase.fixed) hall::loadspec(appspec, appbase, *itemptr, menuid);
-                                                    else               hall::loadspec(appspec, appspec, *itemptr, menuid);
+                                                    if (appbase.fixed) hall::loadspec(appspec, appbase, item_ptr, menuid);
+                                                    else               hall::loadspec(appspec, appspec, item_ptr, menuid);
                                                 }
                                                 else
                                                 {
                                                     if (menuid.empty()) menuid = "vtm.run(" + utf8_xml + ")";
-                                                    hall::loadspec(appspec, appspec, *itemptr, menuid);
+                                                    hall::loadspec(appspec, appspec, item_ptr, menuid);
                                                 }
+                                                //config.settings::pop_context();
                                             }
                                             auto title = appspec.title.empty() && appspec.label.empty() ? appspec.menuid
                                                        : appspec.title.empty() ? appspec.label
@@ -1382,35 +1322,39 @@ namespace netxs::app::vtm
                 utf::replace_all(conf_rec.appcfg.cmd, "$0", current_module_file);
                 utf::replace_all(conf_rec.appcfg.env, "$0", current_module_file);
             };
-            for (auto item_ptr : config.list(path::item))
+            auto taskbar_context = config.settings::push_context(path::taskbar);
+            auto item_ptr_list = config.settings::take_ptr_list_for_name(path::item);
+            for (auto item_ptr : item_ptr_list)
             {
-                auto& item = *item_ptr;
-                auto splitter = item.take(attr::splitter, faux);
-                auto menuid = splitter ? "splitter_" + std::to_string(splitter_count++)
-                                       : item.take(attr::id, ""s);
-                if (menuid.empty()) menuid = "App" + std::to_string(auto_id++);
-                auto alias = item.take(attr::alias, ""s);
-
+                auto item_context = config.settings::push_context(item_ptr);
+                auto is_splitter = !config.settings::take_value_list_of(item_ptr, attr::splitter).empty();
+                auto menuid = is_splitter ? "splitter_" + std::to_string(splitter_count++)
+                                          : config.settings::take_value_from(item_ptr, attr::id, ""s);
+                if (menuid.empty())
+                {
+                    menuid = "App" + std::to_string(auto_id++);
+                }
                 auto& proto = find(menuid);
                 if (!proto.notfound) // Update existing record.
                 {
                     auto& conf_rec = proto;
                     conf_rec.fixed = true;
-                    hall::loadspec(conf_rec, conf_rec, item, menuid, splitter, alias);
+                    hall::loadspec(conf_rec, conf_rec, item_ptr, menuid, is_splitter);
                     expand(conf_rec);
                 }
                 else // New item.
                 {
                     auto conf_rec = desk::spec{};
                     conf_rec.fixed = true;
-                    auto& dflt = alias.size() ? find(alias) // New based on alias_id.
-                                              : dflt_spec;  // New item.
-                    hall::loadspec(conf_rec, dflt, item, menuid, splitter, alias);
+                    auto& dflt = dflt_spec;  // New item.
+                    hall::loadspec(conf_rec, dflt, item_ptr, menuid, is_splitter);
                     expand(conf_rec);
                     if (conf_rec.hidden) temp_list.emplace_back(std::move(conf_rec.menuid), std::move(conf_rec));
                     else                 free_list.emplace_back(std::move(conf_rec.menuid), std::move(conf_rec));
                 }
+                //config.settings::pop_context();
             }
+            //config.settings::pop_context();
             for (auto& [menuid, conf_rec] : free_list)
             {
                 apps_list[menuid];
@@ -1750,19 +1694,19 @@ namespace netxs::app::vtm
         void autorun()
         {
             auto what = applink{};
-            auto apps = config.list(path::autorun);
+            auto autorun_context = config.settings::push_context(path::autorun);
+            auto apps = config.settings::take_ptr_list_for_name("run");
             auto foci = book{};
             foci.reserve(apps.size());
             for (auto app_ptr : apps)
             {
-                auto& app = *app_ptr;
-                if (!app.fake)
+                if (app_ptr && !app_ptr->base)
                 {
-                    what.menuid =   app.take(attr::id, ""s);
-                    what.square = { app.take(attr::wincoor, dot_00),
-                                    app.take(attr::winsize, twod{ 80,27 }) };
-                    auto winform =  app.take(attr::winform, winstate::normal, shared::win::options);
-                    auto focused =  app.take(attr::focused, faux);
+                    what.menuid =   config.settings::take_value_from(app_ptr, attr::id, ""s);
+                    what.square = { config.settings::take_value_from(app_ptr, attr::wincoor, dot_00),
+                                    config.settings::take_value_from(app_ptr, attr::winsize, twod{ 80,27 }) };
+                    auto winform =  config.settings::take_value_from(app_ptr, attr::winform, winstate::normal, shared::win::options);
+                    auto focused =  config.settings::take_value_from(app_ptr, attr::focused, faux);
                     what.forced = !!what.square.size;
                     if (what.menuid.size())
                     {
@@ -1773,6 +1717,7 @@ namespace netxs::app::vtm
                     else log(prompt::hall, "Unexpected empty app id in autorun configuration");
                 }
             }
+            //config.settings::pop_context();
             auto count = 0;
             for (auto& window_ptr : foci)
             {
@@ -1791,7 +1736,7 @@ namespace netxs::app::vtm
             async.run(process);
         }
         // hall: Create a new user gate.
-        auto invite(xipc client, view userid, si32 vtmode, eccc usrcfg, xmls app_config, si32 session_id)
+        auto invite(xipc client, view userid, si32 vtmode, eccc usrcfg, settings app_config, si32 session_id)
         {
             auto lock = bell::unique_lock();
             auto usergate_ptr = ui::gate::ctor(client, vtmode, app_config, userid, session_id, true);
@@ -1973,8 +1918,14 @@ namespace netxs::app::vtm
             auto& vport = base::property<twod>("desktop.viewport"); // hall: Last user's viewport position.
             auto& selected_item = base::property<text>("desktop.selected"); // hall: Last user's selected menu item.
             auto& usergate_selected_item = usergate.base::property<text>("desktop.selected");
-            if (!vport) vport = config.take(path::viewport, dot_00);
-            if (selected_item.empty()) selected_item = config.take(path::selected, selected_item);
+            if (!vport)
+            {
+                vport = config.settings::take(path::viewport, dot_00);
+            }
+            if (selected_item.empty())
+            {
+                selected_item = config.settings::take(path::selected, selected_item);
+            }
             usergate_selected_item = selected_item;
             //auto& usergate_id = usergate.base::property<id_t>("gate.id");
             //auto& usergate_os_id = usergate.base::property<text>("gate.os_id");

@@ -185,7 +185,7 @@ namespace netxs::app::shop
             return std::tuple{ appstore_head, appstore_body, desktopio_body };
         };
 
-        auto build = [](eccc /*appcfg*/, xmls& config)
+        auto build = [](eccc /*appcfg*/, settings& config)
         {
             auto highlight_color = skin::color(tone::winfocus);
             auto c3 = highlight_color;
@@ -205,10 +205,10 @@ namespace netxs::app::shop
                             boss.base::riseup(tier::release, e2::form::proceed::quit::one, fast);
                         };
                   });
+            auto defapp_context = config.settings::push_context("/config/defapp/");
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, 0);
                 auto menu_object = object->attach(slot::_1, ui::fork::ctor(axis::Y));
-                    config.cd("/config/defapp");
                     auto [menu_block, cover, menu_data] = app::shared::menu::create(config, {});
                     menu_object->attach(slot::_1, menu_block);
                     menu_object->attach(slot::_2, ui::post::ctor())
@@ -230,6 +230,7 @@ namespace netxs::app::shop
                              ->upload(desktopio_body)
                              ->plugin<pro::grade>();
                 layers->attach(app::shared::scroll_bars(scroll));
+            //config.settings::pop_context();
             window->invoke([&](auto& boss)
             {
                 app::shared::base_kb_navigation(config, scroll, boss);

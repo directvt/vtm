@@ -688,7 +688,7 @@ struct impl : consrv
             auto iter = src_map.find(utf::to_lower(crop));
             if (iter == src_map.end()) return;
 
-            auto tail = utf::trim_back(rest, "\r\n");
+            auto tail = utf::pop_back_chars(rest, "\r\n");
             auto args = utf::split<true>(rest, ' ');
             auto data = qiew{ iter->second };
             auto result = text{};

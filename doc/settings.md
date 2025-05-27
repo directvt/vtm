@@ -1,15 +1,15 @@
-# Text-based Desktop Environment settings
+# Text-based desktop environment settings
 
 ```mermaid
 graph TB
     subgraph Settings loading order
     direction LR
-        A1["1"] --- B1("Init hardcoded &lt;file=.../&gt; list")
-        B1 --> C1("Take &lt;file=.../&gt; list from the $VTM_CONFIG value or file it referencing")
-        C1 --> G1("Take &lt;file=.../&gt; list from the received DirectVT packet")
-        G1 --> H1("Take &lt;file=.../&gt; list from the --config' CLI option value or file it referencing")
+        A1["1"] --- B1("Init hardcoded &lt;include=.../&gt; list")
+        B1 --> C1("Take &lt;include=.../&gt; list from the $VTM_CONFIG value or file it referencing")
+        C1 --> G1("Take &lt;include=.../&gt; list from the received DirectVT packet")
+        G1 --> H1("Take &lt;include=.../&gt; list from the --config' CLI option value or file it referencing")
     direction LR
-        A2["2"] --- B2("Overlay &lt;config/&gt; subsections from the resultant &lt;file=.../&gt; list")
+        A2["2"] --- B2("Overlay &lt;config/&gt; subsections from the resultant &lt;include=.../&gt; list")
         B2 --> C2("Overlay &lt;config/&gt; subsection from the $VTM_CONFIG value or file it referencing")
         C2 --> G2("Overlay &lt;config/&gt; subsection from the received DirectVT packet")
         G2 --> H2("Overlay &lt;config/&gt; subsection from the --config' CLI option value or file it referencing")
@@ -18,67 +18,80 @@ graph TB
 
 ## TL;DR
 
-The settings are stored in an XML-like format, forming a hierarchical list of key=value pairs.  
+The settings are stored in a Pure 'XML' which is an XML-like format, storing a hierarchical list of key=value pairs.  
 See [`/src/vtm.xml`](../src/vtm.xml) for reference.
 
 We call the text data in the settings file "plain XML data" even though our file format is not technically XML, but only visually resembles it.
 
 There are two predefined settings source locations and this can be changed as needed:
 ```xml
-<file="/etc/vtm/settings.xml"/>        <!-- Default system-wide settings source. The "/etc/..." path will be auto converted to the "%PROGRAMDATA%\..." on Windows. -->
-<file="~/.config/vtm/settings.xml"/>   <!-- Default user-wise settings source. -->
+<include="/etc/vtm/settings.xml"/>        <!-- Default system-wide settings source. The "/etc/..." path will be auto converted to the "%PROGRAMDATA%\..." on Windows. -->
+<include="~/.config/vtm/settings.xml"/>   <!-- Default user-wise settings source. -->
 ```
 
 The process of loading settings consists of the following steps:
-- Build an ordered list of the setting source files by looking for the root `<file=.../>` subsections.
-- Overlay the `<config/>` subsection from the source files in the specified order.
-- Overlay the `<config/>` subsection from the value of the `$VTM_CONFIG` environment variable or from a settings file it references.
-- Overlay the `<config/>` subsection from the DirectVT config payload received from the parent process.
-- Overlay the `<config/>` subsection from the specified `--config <...>` CLI option value or from a settings file it referencing.
+- Build an ordered list of the setting source files by looking for the root `<include=.../>` subsections.
+- Overlay the XML data from the source files in the specified order.
+- Overlay the XML data from the value of the `$VTM_CONFIG` environment variable or from a settings file it references.
+- Overlay the XML data from the DirectVT config payload received from the parent process.
+- Overlay the XML data from the specified `--config <...>` CLI option value or from a settings file it referencing.
 
 The file list is built in the following order from the following sources:
 - The settings file list from the hardcoded configuration containing a list of two files:
   ```xml
-  <file*/>  <!-- Clear previously defined sources. Start a new list. -->
-  <file="/etc/vtm/settings.xml"/>        <!-- Default system-wide settings source. The "/etc/..." path will be auto converted to the "%PROGRAMDATA%\..." on Windows. -->
-  <file="~/.config/vtm/settings.xml"/>   <!-- Default user-wise settings source. -->
+  <include*/>  <!-- Clear previously defined sources. Start a new list. -->
+  <include="/etc/vtm/settings.xml"/>        <!-- Default system-wide settings source. The "/etc/..." path will be auto converted to the "%PROGRAMDATA%\..." on Windows. -->
+  <include="~/.config/vtm/settings.xml"/>   <!-- Default user-wise settings source. -->
   ...
   ```
 - The settings file list from the `$VTM_CONFIG` environment variable value or from a settings file it referencing.
   - A case with a plain XML-data:
-    - `$VTM_CONFIG=<file*/><file='/path/to/override_defaults.xml'/>...` - Clear the current file list and begin a new file list containing a single file '/path/to/override_defaults.xml'.
-    - `$VTM_CONFIG=<file='/path/to/first.xml'/><file='/path/to/second.xml'/>...` - Append the current file list with the files '/path/to/first.xml' and '/path/to/second.xml'.
+    - `$VTM_CONFIG=<include*/><include='/path/to/override_defaults.xml'/>...` - Clear the current file list and begin a new file list containing a single file '/path/to/override_defaults.xml'.
+    - `$VTM_CONFIG=<include='/path/to/first.xml'/><include='/path/to/second.xml'/>...` - Append the current file list with the files '/path/to/first.xml' and '/path/to/second.xml'.
   - A case with a file reference:
     - `$VTM_CONFIG='/path/to/override_defaults.xml'` - Take the file list from the '/path/to/override_defaults.xml'.
 - The settings file list from the DirectVT config received from the parent process.
 - The settings file list from the specified `--config <...>` CLI option value or from a settings file it referencing.
   - A case with a plain XML-data:
-    - `./vtm --config "<file*/><file='/path/to/override_defaults.xml'/>..."` - Clear the current file list and begin a new file list containing a single file '/path/to/override_defaults.xml/'.
+    - `./vtm --config "<include*/><include='/path/to/override_defaults.xml'/>..."` - Clear the current file list and begin a new file list containing a single file '/path/to/override_defaults.xml/'.
   - A case with a file reference:
     - `./vtm --config "/path/to/override_defaults.xml"` - Take the file list from the '/path/to/override_defaults.xml'.
 
-## Details
+## Pure XML
 
 ### Key differences from XML
 
- - All stored values are UTF-8 strings (the settings target decides on its own side how to interpret the string):
-   - `name=2000` and `name="2000"` have the same meaning.
- - There is no distinction between XML-attribute and XML-subobject, i.e. any attributes are sub-objects:
-   - `<name param=value />` and `<name> <param=value /> </name>` have the same meaning.
- - No spaces are allowed between the opening angle bracket and the name when declaring an XML-subobject.
-   - `... < name ...`, `... <= ...`, `... << ...` are treated as parts of Lua script code.
- - In addition to a set of sub-objects each object can contain its own text value:
-   - E.g. `<name=names_value param=params_value />` - subobject `name` has text value `names_value`.
- - Each object can be defined in any way, either using an XML-attribute or an XML-subobject syntax:
-   - `<... name=value />`, `<...> <name> "value" </name> </...>`, and `<...> <name=value /> </...>` have the same meaning.
- - Compact syntax is allowed.
-   - `<node0><node1><thing name=value/></node1></node0>` and `<node0/node1/thing name=value/>` have the same meaning.
- - Objects can reference values of other objects using absolute references (three levels of indirection allowed).
-   - `thing2` refers to the value `thing1` in `<node1 thing1=value1/><node2 thing2=/node1/thing1 />`.
+ - Document encoding is UTF-8.
  - Any Unicode characters are allowed, including the U+0000 (null) character.
- - Multiple root elements are allowed.
  - There is no support for named XML character entities.
- - Escaped characters with special meaning:
+ - The stored data forms a hierarchical list of `name=value` pairs.
+ - Multiple root elements are allowed.
+ - There is no distinction between XML-attribute and XML-element, i.e. any attributes are sub-elements.
+   - Each element can be defined in any way, either using an XML-attribute or an XML-element syntax:
+     - `<... name="value" />`, `<...> <name> "value" </name> </...>`, and `<...> <name="value" /> </...>` have the same meaning.
+   - The XML-attribute `param` in `<name param="value"/>` and the XML-element `param` in `<name> <param="value"/> </name>` are semantically identical sub-elements of the `name` element.
+ - No spaces are allowed between the opening angle bracket and the element name:
+   - `... < name ...`, `... <= ...`, `... << ...` are treated as parts of the element's value content.
+ - Every element has its own text value.
+   - For example, `<name="names_value" param="params_value"/>` - the `name` element has the text value `names_value`, and its `param` sub-element has the text value `params_value`.
+ - All stored values are strings (the data requester decides on its side how to interpret it):
+   - `name=2000` and `name="2000"` have the same meaning.
+ - All value strings, except those that begin with a decimal digit character (ASCII `0` - `9`), must be quoted with either double or single quotes (`"` U+0022 or `'` U+0027).
+ - The value string can be fragmented. Fragments can be located after the equal sign following the element name, as well as between the opening and closing tags.
+ - The fragments located between the opening and closing tags can be either quoted or in raw form. The quoted form sets strict boundaries for the string value. The raw form pulls all characters between the opening and closing tags, including line breaks.
+ - The following compact syntax for elements is allowed:
+   - `<node0/node1/thing name="value"/>` and `<node0><node1><thing name="value"/></node1></node0>` have the same meaning.
+ - Elements can reference any element using relative and absolute references, in the form of an unquoted name or an XML path to the referenced element.
+   - `thing2` refers to the value `/node1/thing1` in `<node1 thing1="value1"/><node2 thing2=/node1/thing1 />`.
+   - `thing2` refers to the value `thing1` within the scope of `<node1 thing1="value1"><node2 thing2=thing1 /></node1>`.
+   - Circular references are silently ignored.
+ - The element reference includes all of the element's contents, including the element's value and all nested elements.
+ - The element's content may include any number of substrings, as well as references to other elements, combined in the required order using the vertical bar character ASCII 0x7C `|`.
+   - `<thing1="1"/><thing2="2"/><thing21=thing2 | thing1/>` and `<thing1="1"/><thing2="2"/><thing21="21"/>` have the same meaning.
+ - Identical data structures in this format allow overlaying.
+   - The values of single elements of the original structure will be updated to the values of the overlaid structure.
+   - A list of elements with the same name within a scope may start with an empty element with an asterisk at the end of the name, meaning that this list will overwrite the existing one during merging, otherwise the list will be appended to the existing one.
+ - There is a list of escaped characters with special meaning:
    - `\a`  ASCII 0x07 BEL
    - `\t`  ASCII 0x09 TAB
    - `\n`  ASCII 0x0A LF
@@ -86,9 +99,8 @@ The file list is built in the following order from the following sources:
    - `\e`  ASCII 0x1B ESC
    - `\\`  ASCII 0x5C Backslash
    - `\u`  A Unicode escape sequence in the form `\u{XX...}` or `\uXX...`, where `XX...` is the hexadecimal codepoint value.
-   - `$0`  Current module full path (it only expands in cases where it makes sense)
 
-Let's take the following object hierarchy as an example:
+Let's take the following element hierarchy as an example:
 
 - \<document\> - Top-level element
   - \<thing\> - Second level element
@@ -96,62 +108,133 @@ Let's take the following object hierarchy as an example:
 
 The following forms of element declaration are equivalent:
 
-```xml
-<document>
-    <thing name="a">text1</thing>
-    <thing name="b">text2</thing>
-</document>
-```
-
-```xml
-<document>
-    <thing="text1" name="a"/>
-    <thing="text2" name="b"/>
-</document>
-```
-
-```xml
-<document>
-    <thing name="a">
-        "text1"
-    </thing>
-    <thing name="b">
-        "text2"
-    </thing>
-</document>
-```
-
-```xml
-<document>
-    <thing>
-        "text1"
-        <name="a"/>
-    </thing>
-    <thing>
-        <name="b"/>
-        "text2"
-    </thing>
-</document>
-```
-
-```xml
-<document>
-    <thing="t">
-        "ext"
-        <name>
-            "a"
-        </name>
-        "1"
-    </thing>
-    <thing>
-        <name>
-            "b"
-        </name>
-        "text"
-        "2"
-    </thing>
-</document>
-```
+- Standard XML syntax:
+  ```xml
+  <document>
+      <thing name="a">text1</thing>
+      <thing name="b">text2</thing>
+  </document>
+  ```
+- Assigning a content value to an element directly using the equal sign:
+  ```xml
+  <document>
+      <thing="text1" name="a"/>
+      <thing="text2" name="b"/>
+  </document>
+  ```
+- Assigning a value to an element using quoted literals between the opening and closing tags:
+  ```xml
+  <document>
+      <thing name="a">
+          "text1"
+      </thing>
+      <thing name="b">
+          "text2"
+      </thing>
+  </document>
+  ```
+- Assigning values to sub-elements directly using the equal sign:
+  ```xml
+  <document>
+      <thing>
+          "text1"
+          <name="a"/>
+      </thing>
+      <thing>
+          <name="b"/>
+          "text2"
+      </thing>
+  </document>
+  ```
+- Fragmenting the assigned value strings:
+  ```xml
+  <document>
+      <thing="t">
+          "ext"
+          <name>
+              "a"
+          </name>
+          "1"
+      </thing>
+      <thing>
+          <name>
+              "b"
+          </name>
+          "text"
+          "2"
+      </thing>
+  </document>
+  ```
+- Referencing the string value from the independent element:
+  ```xml
+  <document>
+      <basename="a"/>
+      <thing name=basename>text1</thing>
+      <thing name="b">text2</thing>
+  </document>
+  ```
+- Referencing the string value and existing sub-elements from the independent element:
+  ```xml
+  <document>
+      <basething="text1" name="a"/>
+      <thing=basething/>
+      <thing name="b">text2</thing>
+  </document>
+  ```
+- Referencing the string value fragment and sub-elements from the independent element:
+  ```xml
+  <document>
+      <basething="1" name="a"/>
+      <thing="text" | basething/>
+      <thing name="b">text2</thing>
+  </document>
+  ```
+- Referencing the string value fragment and sub-elements from the independent element:
+  ```xml
+  <document>
+      <basething="text" name="a"/>
+      <thing=basething | "1"/>
+      <thing name="b">text2</thing>
+  </document>
+  ```
+- Referencing element from surrounding scope:
+  ```xml
+  <basething name="a"/>
+  <document>
+      <thing=basething | "text1"/>
+      <thing name="b">text2</thing>
+  </document>
+  ```
+- Referencing the string value fragments between opening and closing tags:
+  ```xml
+  <basething="xt" name="a"/>
+  <document>
+      <thing> "te" | basething | "1" </thing>
+      <thing name="b">text2</thing>
+  </document>
+  ```
+- Parameterized templating:
+  ```xml
+  <ThingTemplate = "text" | NumberRef>
+      <name = LetterRef/>
+  </ThingTemplate>
+  <document>
+      <thing=ThingTemplate NumberRef="1" LetterRef="a"/>
+      <thing=ThingTemplate NumberRef="2" LetterRef="b"/>
+  </document>
+  ```
+- Parameterized templating from an external namespace:
+  ```xml
+  <Namespace>
+      <ThingTemplate = "text" | NumberRef>
+          <name = LetterRef/>
+      </ThingTemplate>
+  </Namespace>
+  <document=/Namespace>
+      <thing=ThingTemplate NumberRef="1" LetterRef="a"/>
+      <thing=ThingTemplate NumberRef="2" LetterRef="b"/>
+  </document>
+  ```
 
 ### Compact XML syntax
 
@@ -174,17 +257,17 @@ The following declarations have the same meaning:
 ### Vtm configuration structure
 
 ```xml
-<file= ... />  <!-- Ordered list of references to settings files used to form the resultant configuration. -->
+<!-- Global namespace - Unresolved literals will try to be resolved from here. -->
+<include= ... />  <!-- Ordered list of references to settings files used to form the resultant configuration. -->
+...
+<!-- Set of global variables. -->
+<global_variable_name = variable_value/>  <!-- Globally visible variable. -->
 ...
 <config>  <!-- Global configuration. -->
-    <variables>  <!-- Global namespace - Unresolved literals will try to be resolved from here. -->
-        <variable_name = variable_value/>  <!-- Globally visible variable. -->
-        ...  <!-- Set of global variables. -->
-    </variables>
     ...
-    <object1=variable_name/>      <!-- object1 references the value of /config/variables/variable_name (/config/variables is a default namespace). -->
-    <object2=/config/object1/>    <!-- object2 references the value of /config/object1 using an absolute reference (three levels of indirection allowed). -->
-    <object3="/config/object1"/>  <!-- object3 contains the string value "/config/object1". -->
+    <element1=global_variable_name/>  <!-- element1 references the value of /global_variable_name (three levels of indirection allowed). -->
+    <element2=/config/element1/>       <!-- element2 references the value of /config/element1. -->
+    <element3="/config/element1"/>     <!-- element3 contains the string value "/config/element1". -->
     ...
     <desktop>  <!-- Desktop settings. -->
         <taskbar ... >  <!-- Taskbar menu settings. -->
@@ -201,8 +284,8 @@ The following declarations have the same meaning:
     </terminal>
     <events>  <!-- The required key/mouse combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop. -->
         <gate>  <!-- Native GUI window layer event bindings. -->
-            <script="<script body>" on="Key+Chord" on="Another+Key+Chord" on="SomeMouseEvent" on="SomeGenericEvent"/>
-            <script="<script body>">
+            <script="script body" on="Key+Chord" on="Another+Key+Chord" on="SomeMouseEvent" on="SomeGenericEvent"/>
+            <script="script body">
                 <on="Key+Chord"/>
                 <on="SomeGenericEvent" source="GenericEventSourceId"/>
             </script>
@@ -216,27 +299,27 @@ The following declarations have the same meaning:
             ...
         </gate>
         <desktop>  <!-- Desktop layer event bindings. -->
-            <script="<script body>" on="Key+Chord"/>
+            <script="script body" on="Key+Chord"/>
             ...
         </desktop>
         <applet>  <!-- Application/window layer event bindings. -->
-            <script="<script body>" on="Key+Chord"/>
+            <script="script body" on="Key+Chord"/>
             ...
         </applet>
         <terminal>  <!-- Application specific layer event bindings. -->
-            <script="<script body>" on="Key+Chord"/>
+            <script="script body" on="Key+Chord"/>
             ...
         </terminal>
         <tile>  <!-- Application specific layer event bindings. -->
-            <script="<script body>" on="Key+Chord"/>
+            <script="script body" on="Key+Chord"/>
             ...
             <grip> <!-- Pane's grip event bindings. -->
-                <script="<script body>" on="Key+Chord"/>
+                <script="script body" on="Key+Chord"/>
                 ...
             </grip>
         </tile>
         <defapp>  <!-- Default application event bindings (e.g., Info-Page). -->
-            <script="<script body>" on="Key+Chord"/>
+            <script="script body" on="Key+Chord"/>
             ...
         </defapp>
     </events>
@@ -250,7 +333,7 @@ All value literals containing spaces must be enclosed in double or single quotes
 Value type | Format
 -----------|-----------------
 `RGBA`     | Hex: `#rrggbbaa` \| Hex: `0xaarrggbb` \| Decimal: `r,g,b,a` \| 256-color index: `i`
-`boolean`  | `true` \| `false` \| `yes` \| `no` \| `1` \| `0` \| `on` \| `off` \| `undef`
+`boolean`  | `true` \| `false` \| `yes` \| `no` \| `1` \| `0` \| `on` \| `off`
 `string`   | _UTF-8 text string_
 `2D point` | _integer_ <any_delimeter> _integer_
 `Duration` | _integer_ followed by<br>- `...ms`  for milliseconds<br>- `...us`  for microseconds<br>- `...ns`  for  nanoseconds<br>- `...s`   for      seconds<br>- `...min` for      minutes<br>- `...h`   for        hours<br>- `...d`   for         days<br>- `...w`   for        weeks<br>
@@ -260,7 +343,7 @@ Value type | Format
 Attribute  | Description                                       | Value type | Default value
 -----------|---------------------------------------------------|------------|---------------
 `id`       |  Item id                                          | `string`   |
-`alias`    |  Item template `id` reference                     | `string`   |
+`splitter` |  Non-active menu item                             | presence   | Not present
 `hidden`   |  Item visibility on taskbar                       | `boolean`  | `no`
 `label`    |  Item label text                                  | `string`   | =`id`
 `tooltip`  |  Item tooltip text                                | `string`   | empty
@@ -276,26 +359,26 @@ Attribute  | Description                                       | Value type | De
 `cfg`      |  Configuration patch for dtvt-apps in XML-format  | `string`   | empty
 `config`   |  Configuration patch for dtvt-apps                | `xml-node` | empty
 
-The menu item of DirectVT Gateway type (`type=dtvt`) can be additionally configured using a `<config>` subsection or a `cfg="xml-text-data"` attribute. The `<config>` subsection will be ignored if the `cfg` attribute contains a non-empty value.
+The menu item of DirectVT Gateway type (`type="dtvt"`) can be additionally configured using a `<config>` subsection or a `cfg="xml-text-data"` attribute. The `<config>` subsection will be ignored if the `cfg` attribute contains a non-empty value.
 
 The content of the `cfg` attribute (or `<config>` subsection) is passed to the dtvt-application on launch.
 
-#### Desktop window type `<config/desktop/taskbar/item type=... />`
+#### Desktop window type `<config/desktop/taskbar/item type="..."/>`
 
 Window type<br>(case insensitive) | Parameter `cmd=` | Description
 ----------------------------------|------------------|------------
-`vtty` (default)                  | A CUI application command line with arguments | Run a CUI application inside the `Teletype Console dtvt-bridge`. Usage example `type=vtty cmd="cui_app ..."`. It is the same as `type=dtvt cmd="vtm -r vtty cui_app ..."`.
-`term`                            | A CUI application command line with arguments | Run a CUI application inside the `Terminal Console dtvt-bridge`. Usage example `type=term cmd="cui_app ..."`. It is the same as `type=dtvt cmd="vtm -r term cui_app ..."`.
-`dtvt`                            | A DirectVT-aware application command line with arguments | Run a DirectVT-aware application inside the `DirectVT Gateway`. Usage example `type=dtvt cmd="dtvt_app ..."`.
-`dtty`                            | A DirectVT-aware application command line with arguments | Run a DirectVT-aware application inside the `DirectVT Gateway with TTY` which has additional controlling terminal. Usage example `type=dtty cmd="dtvt_app ..."`.
-`tile`                            | [[ v[`n:m:w`] \| h[`n:m:w`] ] ( id1 \| _nested_block_ , id2 \| _nested_block_ )] | Run tiling window manager with layout specified in `cmd`. Usage example `type=tile cmd="v(h1:1(Term, Term),Term)"`.<br>`n:m` - Ratio between panes (default n:m=1:1).<br>`w` - Resizing grip width (default w=1).
-`site`                            | `cmd=@` or empty | The attribute `title=<view_title>` is used to set region name/title. Setting the value of the `cmd` attribute to `@` adds numbering to the title.
+`vtty` (default)                  | A CUI application command line with arguments | Run a CUI application inside the `Teletype Console dtvt-bridge`. Usage example `type="vtty" cmd="cui_app ..."`. It is the same as `type="dtvt" cmd="vtm -r vtty cui_app ..."`.
+`term`                            | A CUI application command line with arguments | Run a CUI application inside the `Terminal Console dtvt-bridge`. Usage example `type="term" cmd="cui_app ..."`. It is the same as `type="dtvt" cmd="vtm -r term cui_app ..."`.
+`dtvt`                            | A DirectVT-aware application command line with arguments | Run a DirectVT-aware application inside the `DirectVT Gateway`. Usage example `type="dtvt" cmd="dtvt_app ..."`.
+`dtty`                            | A DirectVT-aware application command line with arguments | Run a DirectVT-aware application inside the `DirectVT Gateway with TTY` which has additional controlling terminal. Usage example `type="dtty" cmd="dtvt_app ..."`.
+`tile`                            | [[ v[`n:m:w`] \| h[`n:m:w`] ] ( id1 \| _nested_block_ , id2 \| _nested_block_ )] | Run tiling window manager with layout specified in `cmd`. Usage example `type="tile" cmd="v(h1:1(Term, Term),Term)"`.<br>`n:m` - Ratio between panes (default n:m=1:1).<br>`w` - Resizing grip width (default w=1).
+`site`                            | `cmd=@` or empty | The attribute `title="view_title"` is used to set region name/title. Setting the value of the `cmd` attribute to `@` adds numbering to the title.
 
 The following item declarations are identical:
 ```
-<item ... cmd=mc/>
-<item ... type=vtty cmd=mc/>
-<item ... type=dtvt cmd='vtm -r vtty mc'/>
+<item ... cmd="mc"/>
+<item ... type="vtty" cmd="mc"/>
+<item ... type="dtvt" cmd="vtm -r vtty mc"/>
 ```
 
 ### Event scripting
@@ -321,15 +404,15 @@ The syntax for defining event bindings is:
 
 Tag                 | Belongs to           | Value           | Description
 --------------------|----------------------|-----------------|---------------
-`<dom_element_tag>` |                      | ObjectID        | Visual tree object id.
-`id`                | `<dom_element_tag>`  | UTF-8 string    | Additional id for the visual tree object.
-`script`            | `<dom_element_tag>`  | UTF-8 string    | A Lua script that will be executed when the events specified by the `on` tags occur.
+`<dom_element>`     |                      | ObjectID        | Visual tree object id.
+`id`                | `<dom_element>`      | UTF-8 string    | Additional id for the visual tree object.
+`script`            | `<dom_element>`      | UTF-8 string    | A Lua script that will be executed when the events specified by the `on` tags occur.
 `on`                | `script`             | EventID         | Specific event id text string.
 `source`            | `on`                 | ObjectID        | Visual tree object id.
 
-The `preview:` prefix of the EventID is ​​an indication that event processing should be performed in reverse order - from the container to the nested objects. By default, the visual tree traversal order is from the nested objects to the container.
+The `preview:` prefix of the EventID is an indication that event processing should be performed in reverse order - from the container to the nested objects. By default, the visual tree traversal order is from the nested objects to the container.
 
-Note: Using an empty string in the `script=""` tag with a non-empty event value specified in the `on=EventID` tag resets all subscriptions for that EventID.
+Note: Using an empty string in the `script=""` tag with a non-empty event value specified in the `on="EventID"` tag resets all subscriptions for that EventID.
 
 #### Keyboard events
 
@@ -463,9 +546,9 @@ The following generic event tiers are available for use:
 EventTier | Description
 ----------|------------
 `general:`| Events that fire globally without being tied to any objects.
-`preview:`| Events typically provide previews of object property values ​​for an upcoming `release:` event.
-`release:`| Events typically notify the set values ​​of an object's properties.
-`request:`| Events typically request values ​​of properties of an object.
+`preview:`| Events typically provide previews of object property values for an upcoming `release:` event.
+`release:`| Events typically notify the set values of an object's properties.
+`request:`| Events typically request values of properties of an object.
 `anycast:`| Events firing on a subset of all nested objects on some branch of the visual tree.
 
 The list of available generic event identifiers can be retrieved using the `vtm.desktop.EventList()` script command in the `vtm --monitor` environment monitoring mode or the `Log Monitor` command line applet.
@@ -506,11 +589,6 @@ Standard object names
 |                 |                          | `vtm.desktop.Disconnect()`                         | Disconnect the current desktop user.
 |                 |                          | `vtm.desktop.Run({ lua_table })`                   | Run the specified applet.
 |                 |                          | `vtm.desktop.FocusNextWindow(int n)`               | Set focus to the next (n=1) or previous (n=-1) desktop window.
-|`window`         | Desktop window           | `vtm.window.Warp(int l, int r, int t, int b)`      | Request to deform the desktop window. The parameters specify four deltas for the left, right, top and bottom sides of the desktop window.
-|                 |                          | `vtm.window.Close()`                               | Close desktop window.
-|                 |                          | `vtm.window.Minimize()`                            | Minimize desktop window.
-|                 |                          | `vtm.window.Maximize()`                            | Maximize desktop window.
-|                 |                          | `vtm.window.Fullscreen()`                          | Fullscreen desktop window.
 |`tile`           | Tiling window manager    | `vtm.tile.FocusNextPaneOrGrip(int n)`              | Set focus to the next (n=1) or previous (n=-1) tile's pane or pane splitter.
 |                 |                          | `vtm.tile.FocusNextPane(int n)`                    | Set focus to the next (n=1) or previous (n=-1) tile's pane.
 |                 |                          | `vtm.tile.FocusNextGrip(int n)`                    | Set focus to the next (n=1) or previous (n=-1) pane splitter.
@@ -612,7 +690,7 @@ The value of the `cfg` menu item attribute (or a whole `<config>` subsection) wi
     <desktop>
       <taskbar>
         ...
-        <item ... title="DirectVT-aware Application" type=dtvt ... cfg="plain xml data as alternative to <config> subsection" cmd="dtvt_app...">
+        <item ... title="DirectVT-aware Application" type="dtvt" ... cfg="plain xml data as alternative to <config> subsection" cmd="dtvt_app...">
           <config> <!-- item's `<config>` subsection in case of 'cfg=' is not specified -->
             ...
           </config>
@@ -631,8 +709,8 @@ The value of the `cfg` menu item attribute (or a whole `<config>` subsection) wi
 ```xml
 <config>
     <desktop>
-        <taskbar selected=Term item*>  <!-- Use asterisk to remove previous/existing items from the list. -->
-            <item id=Term/>  <!-- id=Term title="Term" type=SHELL cmd=os_default_shell -->
+        <taskbar selected="Term" item*>  <!-- Use asterisk to remove previous/existing items from the list. -->
+            <item id="Term"/>  <!-- id=Term title="Term" type="vtty" cmd="os_default_shell" -->
         </taskbar>
     </desktop>
 </config>
@@ -647,16 +725,18 @@ Notes
 `$VTM-CONFIG=/path/to/settings.xml`.
 `settings.xml`:
 ```xml
-<file*/>  <!-- Clear previously defined sources. Start a new list. -->
-<file="/etc/vtm/settings.xml"/>        <!-- Default system-wide settings source. The "/etc/..." path will be auto converted to the "%PROGRAMDATA%\..." on Windows. -->
-<file="~/.config/vtm/settings.xml"/>   <!-- Default user-wise settings source. -->
-<config>  <!-- App configuration. -->
+<include*/>  <!-- Clear previously defined sources. Start a new list. -->
+<include="/etc/vtm/settings.xml"/>        <!-- Default system-wide settings source. The "/etc/..." path will be auto converted to the "%PROGRAMDATA%\..." on Windows. -->
+<include="~/.config/vtm/settings.xml"/>   <!-- Default user-wise settings source. -->
+
+<!-- App configuration. -->
+<config=/Colors | /Scripting | /Macro> <!-- Using additional namespaces: "/Colors", "/Scripting" and "/Macro" -->
     <gui>  <!-- GUI mode related settings. (win32 platform only for now) -->
-        <antialiasing=on/>    <!-- Antialiasing of rendered glyphs. Note: Multi-layered color glyphs such as emoji are always antialiased. -->
+        <antialiasing=true/>  <!-- Antialiasing of rendered glyphs. Note: Multi-layered color glyphs such as emoji are always antialiased. -->
         <cellheight=22/>      <!-- Text cell height in physical pixels. Note: The width of the text cell depends on the primary font (the first one in the font list). -->
         <gridsize=""/>        <!-- Window initial grid size "width,height" in text cells. If gridsize="" or gridsize=0,0, then the size of the GUI window is left to the OS window manager. -->
         <wincoor=""/>         <!-- Window initial coordinates "x,y" (top-left corner on the desktop in physical pixels). If wincoor="", then the position of the GUI window is left to the OS window manager. -->
-        <winstate="normal"/>  <!-- Window initial state: normal | maximized | minimized . -->
+        <winstate="normal"/>  <!-- Window initial state: "normal" | "maximized" | "minimized" . -->
         <blinkrate=400ms/>    <!-- SGR5/6 attribute blink rate. Blinking will be disabled when set to zero. -->
         <fonts>  <!-- Font fallback ordered list. The rest of the fonts available in the system will be loaded dynamically. -->
             <font*/>  <!-- Clear previously defined fonts. Start a new list. -->
@@ -670,7 +750,7 @@ Notes
         <style="bar"/>  <!-- Cursor style: "bar" | "block" | "underline" ( |  █  _ ). -->
         <blink=400ms/>  <!-- Cursor blink period. Set to zero for a steady cursor. -->
         <show=true/>
-        <color fgc=color/default bgc=color/default/>  <!-- Cursor cell color. By default, the cursor color (bgc) is set to either black or white depending on the lightness of the underlying text background. -->
+        <color fgc=DefaultColor bgc=DefaultColor/>  <!-- Cursor cell color. By default, the cursor color (bgc) is set to either black or white depending on the lightness of the underlying text background. -->
     </cursor>
     <tooltips>  <!-- Not implemented for GUI mode. -->
         <timeout=400ms/>
@@ -678,12 +758,12 @@ Notes
         <color fgc=pureblack bgc=purewhite/>
     </tooltips>
     <debug>
-        <logs=off/>     <!-- Enable logging. Use the Logs or vtm monitor mode (vtm -m) to see the log output. -->
-        <overlay=off/>  <!-- Show debug overlay. -->
-        <regions=0/>    <!-- Highlight UI objects boundaries. -->
+        <logs=false/>     <!-- Enable logging. Use the Logs or vtm monitor mode (vtm -m) to see the log output. -->
+        <overlay=false/>  <!-- Show debug overlay. -->
+        <regions=false/>      <!-- Highlight UI objects boundaries. -->
     </debug>
     <clipboard>
-        <preview enabled=no size=80x25>  <!-- Not implemented for GUI mode. -->
+        <preview enabled=false size=80,25>  <!-- Not implemented for GUI mode. -->
             <color fgc=whitelt bgc=bluedk/>
             <alpha=0xFF/>  <!-- Preview alpha is applied only to the ansi/rich/html text type. -->
             <timeout=3s/>  <!-- Preview hiding timeout. Set it to zero to disable hiding. -->
@@ -718,159 +798,21 @@ Notes
         <repeat_rate   = 30ms />  <!-- Repeat rate. -->
         <dblclick      = 500ms/>  <!-- Mouse double click threshold. -->
     </timings>
-    <variables>  <!-- Global variables - Unresolved literals will try to be resolved from here. -->
-        <blackdk     = 0xFF101010 />
-        <reddk       = 0xFFc40f1f />
-        <greendk     = 0xFF12a10e />
-        <yellowdk    = 0xFFc09c00 />
-        <bluedk      = 0xFF0037db />
-        <magentadk   = 0xFF871798 />
-        <cyandk      = 0xFF3b96dd />
-        <whitedk     = 0xFFbbbbbb />
-        <blacklt     = 0xFF757575 />
-        <redlt       = 0xFFe64856 />
-        <greenlt     = 0xFF15c60c />
-        <yellowlt    = 0xFFf8f1a5 />
-        <bluelt      = 0xFF3a78ff />
-        <magentalt   = 0xFFb3009e />
-        <cyanlt      = 0xFF60d6d6 />
-        <whitelt     = 0xFFf3f3f3 />
-        <pureblack   = 0xFF000000 />
-        <purewhite   = 0xFFffffff />
-        <purered     = 0xFFff0000 />
-        <puregreen   = 0xFF00ff00 />
-        <pureblue    = 0xFF0000ff />
-        <puremagenta = 0xFFff00ff />
-        <purecyan    = 0xFF00ffff />
-        <pureyellow  = 0xFFff00ff />
-        <nocolor     = 0x00000000 />
-        <color>
-            <default     = 0x00ffffff />
-            <transparent = nocolor    />
-        </color>
-        <menu>
-            <autohide=no/>  <!-- Auto hide window menu items on mouse leave. -->
-            <slim=true/>    <!-- Make the window menu one cell high (slim=true) or three cells high (slim=false). -->
-        </menu>
-        <selection>
-            <mode="text"/>  <!-- Clipboard copy format: "text" | "ansi" | "rich" | "html" | "protected" | "none" . -->
-            <rect=false/>   <!-- Preferred selection form: Rectangular: true, Linear: false. -->
-        </selection>
-        <!-- vtm.* scripting context:
-            - .gate: ...
-            - .applet (standalone app): ...
-                - .gear: ...
-            - .desktop: ...
-                    - .window: ...
-                    - .applet: ...
-                        - .tile: ...
-                            - .grip: ...
-                        - .terminal: ...  -->
-        <TryToQuit             ="vtm.desktop.Shutdown('try')"/>      <!-- Shut down the desktop server if no applications are running. -->
-        <RunApplication        ="vtm.desktop.Run()"/>                <!-- Run default application. -->
-        <RunInfoPage           ="vtm.desktop.Run({ title='Info-page', hidden=true, label='Info', type='info' })"/>  <!-- Run Info-page. -->
-        <FocusPrevWindow       ="vtm.desktop.FocusNextWindow(-1)"/>  <!-- Switch focus to the prev window. -->
-        <FocusNextWindow       ="vtm.desktop.FocusNextWindow( 1)"/>  <!-- Switch focus to the next window. -->
-
-        <AlwaysOnTopApplet     ="vtm.applet.ZOrder(vtm.applet.ZOrder()==1 and 0 or 1)"/>  <!-- Request to toggle z-order window attribute. -1: backmost; 0: plain; 1: topmost. -->
-        <CloseApplet           ="vtm.applet.Close()"/>            <!-- Request to Close window. -->
-        <MinimizeApplet        ="vtm.applet.Minimize()"/>         <!-- Request to Minimize window. -->
-        <MaximizeApplet        ="vtm.applet.Maximize()"/>         <!-- Request to Maximize window. -->
-        <FullscreenApplet      ="vtm.applet.Fullscreen()"/>       <!-- Request to Maximize window to full screen. -->
-        <RestoreApplet         ="vtm.applet.Restore()"/>          <!-- Request to Restore maximized/fullscreen window. -->
-        <MoveAppletLeft        ="vtm.applet.Warp( 1,-1, 0, 0)"/>  <!-- Request to Move window to the left. WarpApplet(l, r, t, b): The parameters specify four deltas for the left, right, top and bottom sides of the window. -->
-        <MoveAppletRight       ="vtm.applet.Warp(-1, 1, 0, 0)"/>  <!-- Request to Move window to the right. -->
-        <MoveAppletUp          ="vtm.applet.Warp( 0, 0, 1,-1)"/>  <!-- Request to Move window up. -->
-        <MoveAppletDown        ="vtm.applet.Warp( 0, 0,-1, 1)"/>  <!-- Request to Move window down. -->
-        <MoveAppletTopLeft     ="vtm.applet.Warp( 2,-2, 1,-1)"/>  <!-- Request to Move window to the top-left. -->
-        <MoveAppletBottomLeft  ="vtm.applet.Warp( 2,-2,-1, 1)"/>  <!-- Request to Move window to the bottom-left. -->
-        <MoveAppletTopRight    ="vtm.applet.Warp(-2, 2, 1,-1)"/>  <!-- Request to Move window to the top-right. -->
-        <MoveAppletBottomRight ="vtm.applet.Warp(-2, 2,-1, 1)"/>  <!-- Request to Move window to the bottom-right. -->
-        <IncreaseAppletWidth   ="vtm.applet.Warp( 0, 1, 0, 0)"/>  <!-- Request to Increase window width. -->
-        <DecreaseAppletWidth   ="vtm.applet.Warp( 0,-1, 0, 0)"/>  <!-- Request to Decrease window width. -->
-        <IncreaseAppletHeight  ="vtm.applet.Warp( 0, 0, 0, 1)"/>  <!-- Request to Increase window height. -->
-        <DecreaseAppletHeight  ="vtm.applet.Warp( 0, 0, 0,-1)"/>  <!-- Request to Decrease window height. -->
-
-        <TileFocusPrev         ="vtm.tile.FocusNextPaneOrGrip(-1)"/>  <!-- Focus the previous pane or the split grip. -->
-        <TileFocusNext         ="vtm.tile.FocusNextPaneOrGrip( 1)"/>  <!-- Focus the next pane or the split grip. -->
-        <TileFocusPrevPane     ="vtm.tile.FocusNextPane(-1)"/>        <!-- Focus the previous pane. -->
-        <TileFocusNextPane     ="vtm.tile.FocusNextPane( 1)"/>        <!-- Focus the next pane. -->
-        <TileRunApplication    ="vtm.tile.RunApplication()"/>         <!-- Launch application instances in active empty slots. The app to run can be set by RightClick on the taskbar. -->
-        <TileSelectAllPanes    ="vtm.tile.SelectAllPanes()"/>         <!-- Select all panes. -->
-        <TileSplitHorizontally ="vtm.tile.SplitPane(0)"/>             <!-- Split active panes horizontally. -->
-        <TileSplitVertically   ="vtm.tile.SplitPane(1)"/>             <!-- Split active panes vertically. -->
-        <TileSplitOrientation  ="vtm.tile.RotateSplit()"/>            <!-- Change split orientation. -->
-        <TileSwapPanes         ="vtm.tile.SwapPanes()"/>              <!-- Swap two or more panes. -->
-        <TileEqualizeSplitRatio="vtm.tile.EqualizeSplitRatio()"/>     <!-- Equalize split ratio. -->
-        <TileSetManagerTitle   ="vtm.tile.SetTitle()"/>               <!-- Set tiling window manager title using clipboard data. -->
-        <TileClosePane         ="vtm.tile.ClosePane()"/>              <!-- Close active application. -->
-        <TileMoveGripLeft      ="vtm.grip.MoveGrip(-1, 0)"/>          <!-- Move the split grip to the left. -->
-        <TileMoveGripRight     ="vtm.grip.MoveGrip( 1, 0)"/>          <!-- Move the split grip to the right. -->
-        <TileMoveGripUp        ="vtm.grip.MoveGrip( 0,-1)"/>          <!-- Move the split grip up. -->
-        <TileMoveGripDown      ="vtm.grip.MoveGrip( 0, 1)"/>          <!-- Move the split grip down. -->
-        <TileDecreaseGripWidth ="vtm.grip.ResizeGrip(-1)"/>           <!-- Decrease the split grip width. -->
-        <TileIncreaseGripWidth ="vtm.grip.ResizeGrip( 1)"/>           <!-- Increase the split grip width. -->
-        <TileFocusPrevGrip     ="vtm.grip.FocusNextGrip(-1)"/>        <!-- Focus the prev split grip. -->
-        <TileFocusNextGrip     ="vtm.grip.FocusNextGrip( 1)"/>        <!-- Focus the next split grip. -->
-
-        <Disconnect            ="vtm.gate.Disconnect()"/>             <!-- Disconnect from the desktop. -->
-        <ToggleDebugOverlay    ="vtm.gate.DebugOverlay()"/>           <!-- Toggle debug overlay. -->
-        <IncreaseCellHeight    ="vtm.gate.IncreaseCellHeight( 1)"/>   <!-- Increase the text cell height by one pixel. -->
-        <DecreaseCellHeight    ="vtm.gate.IncreaseCellHeight(-1)"/>   <!-- Decrease the text cell height by one pixel. -->
-        <ResetWheelAccumulator ="vtm.gate.WheelAccumReset()"/>        <!-- Reset wheel accumulator. -->
-        <ResetCellHeight       ="if (not vtm.gear.IsKeyRepeated()) then vtm.gate.CellHeightReset() end"/>   <!-- Reset text cell height. -->
-        <ToggleAntialiasingMode="if (not vtm.gear.IsKeyRepeated()) then vtm.gate.AntialiasingMode() end"/>  <!-- Toggle text antialiasing mode. -->
-        <RollFontsBackward     ="if (not vtm.gear.IsKeyRepeated()) then vtm.gate.RollFonts(-1) end"/>       <!-- Roll font list backward. -->
-        <RollFontsForward      ="if (not vtm.gear.IsKeyRepeated()) then vtm.gate.RollFonts( 1) end"/>       <!-- Roll font list forward. -->
-
-        <ExclusiveKeyboardMode             ="vtm.terminal.ExclusiveKeyboardMode(vtm.terminal.ExclusiveKeyboardMode()==1 and 0 or 1)"/>  <!-- Toggle exclusive keyboard mode by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
-        <TerminalFindPrev                  ="vtm.terminal.FindNextMatch(-1)"/>            <!-- Highlight prev match of selected text fragment. Clipboard content is used if no active selection. -->
-        <TerminalFindNext                  ="vtm.terminal.FindNextMatch( 1)"/>            <!-- Highlight next match of selected text fragment. Clipboard content is used if no active selection. -->
-        <TerminalScrollViewportOnePageUp   ="vtm.terminal.ScrollViewportByPage( 0, 1)"/>  <!-- Scroll viewport one page up. -->
-        <TerminalScrollViewportOnePageDown ="vtm.terminal.ScrollViewportByPage( 0,-1)"/>  <!-- Scroll viewport one page down. -->
-        <TerminalScrollViewportOnePageLeft ="vtm.terminal.ScrollViewportByPage( 1, 0)"/>  <!-- Scroll viewport one page to the left. -->
-        <TerminalScrollViewportOnePageRight="vtm.terminal.ScrollViewportByPage(-1, 0)"/>  <!-- Scroll viewport one page to the right. -->
-        <TerminalScrollViewportOneLineUp   ="vtm.terminal.ScrollViewportByCell( 0, 1)"/>  <!-- Scroll viewport one line up. -->
-        <TerminalScrollViewportOneLineDown ="vtm.terminal.ScrollViewportByCell( 0,-1)"/>  <!-- Scroll viewport one line down. -->
-        <TerminalScrollViewportOneCellLeft ="vtm.terminal.ScrollViewportByCell( 1, 0)"/>  <!-- Scroll viewport one cell to the left. -->
-        <TerminalScrollViewportOneCellRight="vtm.terminal.ScrollViewportByCell(-1, 0)"/>  <!-- Scroll viewport one cell to the right. -->
-        <TerminalScrollViewportToTop       ="if (not vtm.gear.IsKeyRepeated()) then vtm.terminal.ScrollViewportToTop() end"/>  <!-- Scroll viewport to the scrollback top. -->
-        <TerminalScrollViewportToEnd       ="if (not vtm.gear.IsKeyRepeated()) then vtm.terminal.ScrollViewportToEnd() end"/>  <!-- Scroll viewport to the scrollback top. -->
-        <TerminalSendKey                   ="vtm.terminal.SendKey('test\\r')"/>           <!-- Simulating keypresses using the specified string. -->
-        <TerminalOutput                    ="vtm.terminal.Print('Hello!\\n')"/>           <!-- Direct output the string to the terminal scrollback. -->
-        <TerminalReset                     ="vtm.terminal.Print('\\x1b[!p')"/>            <!-- Clear scrollback and SGR-attributes. -->
-        <TerminalClearScrollback           ="vtm.terminal.ClearScrollback()"/>            <!-- Clear scrollback above current line. -->
-        <TerminalCopyViewport              ="vtm.terminal.CopyViewport()"/>               <!-- Сopy viewport to clipboard. -->
-        <TerminalCopySelection             ="vtm.terminal.CopySelection()"/>              <!-- Сopy selection to clipboard. -->
-        <TerminalClipboardPaste            ="vtm.terminal.PasteClipboard()"/>             <!-- Paste from clipboard. -->
-        <TerminalClipboardWipe             ="vtm.terminal.ClearClipboard()"/>             <!-- Reset clipboard. -->
-        <TerminalClipboardFormat           ="vtm.terminal.ClipboardFormat((vtm.terminal.ClipboardFormat() + 1) % 6)"/>  <!-- Toggle terminal text selection copy format. 0: Disabled; 1: Plain text; 2: ANSI; 3: RTF; 4: HTML; 5: Sensitive plain text. -->
-        <TerminalSelectionForm             ="vtm.terminal.SelectionForm(vtm.terminal.SelectionForm()==1 and 0 or 1)"/>  <!-- Toggle between linear and rectangular selection form. 0: linear form; 1: boxed form. -->
-        <TerminalSelectionCancel           ="vtm.terminal.ClearSelection()"/>             <!-- Deselect a selection. -->
-        <TerminalSelectionOneShot          ="vtm.terminal.OneShotSelection()"/>           <!-- One-shot toggle to copy text while mouse tracking is active. Keep selection if 'Ctrl' key is pressed. -->
-        <TerminalUndo                      ="vtm.terminal.UndoReadline()"/>               <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input. -->
-        <TerminalRedo                      ="vtm.terminal.RedoReadline()"/>               <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command. -->
-        <TerminalCwdSync                   ="vtm.terminal.CwdSync(vtm.terminal.CwdSync()==1 and 0 or 1)"/>            <!-- Toggle the current working directory sync mode. -->
-        <TerminalWrapMode                  ="vtm.terminal.LineWrapMode(vtm.terminal.LineWrapMode()==1 and 0 or 1)"/>  <!-- Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is. 0: line wrapping is off; 1: line wrapping is on. -->
-        <TerminalAlignMode                 ="vtm.terminal.LineAlignMode((vtm.terminal.LineAlignMode() + 1) % 3)"/>    <!-- Toggle terminal scrollback lines aligning mode. Applied to the active selection if it is. 0: left; 1: right; 2: center. -->
-        <TerminalStdioLog                  ="vtm.terminal.LogMode(vtm.terminal.LogMode()==1 and 0 or 1)"/>            <!-- Toggle stdin/stdout logging. -->
-        <TerminalRestart                   ="vtm.terminal.Restart()"/>                    <!-- Terminate runnning console apps and restart current session. -->
-    </variables>
     <desktop>  <!-- Desktop client settings. -->
         <viewport coor=0,0/>  <!-- Viewport position for the first connected user. At runtime, this value is temporarily replaced with the next disconnecting user's viewport coordinates to restore the viewport position on reconnection. -->
         <windowmax=3000x2000/>  <!-- Maximum window cell grid size. -->
-        <macstyle=no/>  <!-- Preferred window control buttons location. no: right corner (like on MS Windows), yes: left side (like on macOS). -->
-        <taskbar wide=off selected="Term">  <!-- Taskbar menu. wide: Set wide/compact menu layout; selected: Set selected taskbar menu item id. -->
+        <macstyle=false/>  <!-- Preferred window control buttons location. no: right corner (like on MS Windows), yes: left side (like on macOS). -->
+        <taskbar wide=false selected="Term">  <!-- Taskbar menu. wide: Set wide/compact menu layout; selected: Set selected taskbar menu item id. -->
             <item*/>  <!-- Clear all previously defined items. Start a new list of items. -->
             <item splitter label="apps">
                 <tooltip>
-                    " Default applications group                         \n"
+                    " \e[1mDefault applications group\e[m                         \n"
                     " It can be configured in ~/.config/vtm/settings.xml "
                 </tooltip>
             </item>
             <item id="Term" label="Terminal Emulator" type="dtvt" title="Terminal" cmd="$0 -r term">
                 <tooltip>
-                    " Terminal Console               \n"
+                    " \e[1mTerminal Console\e[m               \n"
                     "   LeftClick to launch instance \n"
                     "   RightClick to set as default "
                 </tooltip>
@@ -878,95 +820,32 @@ Notes
                     <terminal>
                         <scrollback>
                             <size=100000/>  <!-- Scrollback buffer length. -->
-                            <wrap=on/>      <!-- Lines wrapping mode. -->
+                            <wrap=true/>    <!-- Lines wrapping mode. -->
                         </scrollback>
                         <selection>
-                            <mode=selection/mode/>  <!-- Clipboard copy format: "text" | "ansi" | "rich" | "html" | "protected" | "none" . -->
+                            <mode=/Terminal/selection/mode/>  <!-- Clipboard copy format: "text" | "ansi" | "rich" | "html" | "protected" | "none" . -->
                         </selection>
                     </terminal>
                 </config>
             </item>
-            <item id="Tile" label="Window Manager"  type="tile" title="Window Manager" cmd="h1:1(Term, Term)"      tooltip=" Tiling Window Manager           \n   LeftClick to launch instance  \n   RightClick to set as default  "/>
-            <item id="Site" label="Viewport Marker" type="site" title="Site "          cmd="@" winform="maximized" tooltip=" Desktop Viewport Marker         \n   LeftClick to launch instance  \n   RightClick to set as default  "/>  <!-- "\e[11:3p" for center alignment, cmd="@" for instance numbering -->
-            <item id="Logs" label="Log Monitor"     type="dtvt" title="Log Monitor"    cmd="$0 -q -r term $0 -m"   tooltip=" Log Monitor                     \n   LeftClick to launch instance  \n   RightClick to set as default  ">
+            <item id="Tile" label="Window Manager"  type="tile" title="Window Manager" cmd="h1:1(Term, Term)"      tooltip=" \e[1mTiling Window Manager\e[m           \n   LeftClick to launch instance  \n   RightClick to set as default  "/>
+            <item id="Site" label="Viewport Marker" type="site" title="Site "          cmd="@" winform="maximized" tooltip=" \e[1mDesktop Viewport Marker\e[m         \n   LeftClick to launch instance  \n   RightClick to set as default  "/>  <!-- cmd="@" is a directive for numbering instances. -->
+            <item id="Logs" label="Log Monitor"     type="dtvt" title="Log Monitor"    cmd="$0 -q -r term $0 -m"   tooltip=" \e[1mLog Monitor\e[m                     \n   LeftClick to launch instance  \n   RightClick to set as default  ">
                 <config>
                     <terminal>
                         <scrollback>
                             <size=50000/>
-                            <wrap="off"/>
+                            <wrap=false/>
                         </scrollback>
                         <menu item*>
-                            <autohide=menu/autohide/>
-                            <slim=menu/slim/>
-                            <item label="  " tooltip=" AlwaysOnTop off ">
-                                <script=AlwaysOnTopApplet on="LeftClick"/> <!-- The default event source is the parent object, i.e. source="item" (aka vtm.item). -->
-                                <script>  <!-- A binding to update the menu item label at runtime. -->
-                                    <on="release: e2::form::prop::zorder" source="applet"/>
-                                    local is_topmost=vtm()                   -- Use event arguments to get the current state.
-                                    -- local is_topmost=vtm.applet.ZOrder()  -- or ask the object iteslf for the current state.
-                                    vtm.item.Label(is_topmost==1 and "\\x1b[38:2:0:255:0m▀ \\x1b[m" or "  ")
-                                    vtm.item.Tooltip(is_topmost==1 and " AlwaysOnTop on " or " AlwaysOnTop off ")
-                                    vtm.item.Deface()
-                                </script>
-                            </item>
-                            <item label="  <  ">
-                                <script=TerminalFindPrev on="LeftClick"/>
-                                <tooltip>
-                                    " Previous match                                  \n"
-                                    "   LeftClick to jump to previous match or scroll \n"
-                                    "             one page up if nothing to search    \n"
-                                    "   Match clipboard data if no selection          "
-                                </tooltip>
-                            </item>
-                            <item label="  >  ">
-                                <script=TerminalFindNext on="LeftClick"/>
-                                <tooltip>
-                                    " Next match                                     \n"
-                                    "   LeftClick to jump to next match or scroll    \n"
-                                    "             one page down if nothing to search \n"
-                                    "   Match clipboard data if no selection         "
-                                </tooltip>
-                            </item>
-                            <item label="  Wrap  ">
-                                <tooltip>
-                                    " Wrapping text lines on/off      \n"
-                                    "   Applied to selection if it is "
-                                </tooltip>
-                                <script=TerminalWrapMode on="LeftClick"/>
-                                <script>
-                                    <on="release: terminal::events::layout::wrapln" source="terminal"/>
-                                    local m=vtm()                           -- Use event arguments to get the current state.
-                                    -- local m=vtm.terminal.LineWrapMode()  -- or ask the terminal instance iteslf for the current state.
-                                    vtm.item.Label(m==1 and "\e[38:2:0:255:0m  Wrap  \e[m" or "  Wrap  ")
-                                    vtm.item.Deface()
-                                </script>
-                            </item>
-                            <item label="  Clipboard  " tooltip=" Clipboard format ">
-                                <script=TerminalClipboardFormat on="LeftClick"/>
-                                <script>
-                                    <on="release: terminal::events::selmod" source="terminal"/>
-                                    local m=vtm()                              -- Use event arguments to get the current state.
-                                    -- local m=vtm.terminal.ClipboardFormat()  -- or ask the terminal instance iteslf for the current state.
-                                    vtm.item.Label(m==1 and "\e[38:2:0:255:0m  Plaintext  \e[m"     -- "textonly"
-                                                or m==2 and "\e[38:2:255:255:0m  ANSI-text  \e[m"   -- "ansitext"
-                                                or m==3 and "\e[38:2:109:231:237m  ".."R"..
-                                                            "\e[38:2:109:237:186m"  .."T"..
-                                                            "\e[38:2:60:255:60m"    .."F"..
-                                                            "\e[38:2:189:255:53m"   .."-"..
-                                                            "\e[38:2:255:255:49m"   .."s"..
-                                                            "\e[38:2:255:189:79m"   .."t"..
-                                                            "\e[38:2:255:114:94m"   .."y"..
-                                                            "\e[38:2:255:60:157m"   .."l"..
-                                                            "\e[38:2:255:49:214m"   .."e".."  \e[m" -- "richtext"
-                                                or m==4 and "\e[38:2:0:255:255m  HTML-code  \e[m"   -- "htmltext"
-                                                or m==5 and "\e[38:2:0:255:255m  Protected  \e[m"   -- "safetext" ala protected
-                                                or          "  Clipboard  ")                        -- "disabled"
-                                    vtm.item.Deface()
-                                </script>
-                            </item>
-                            <item label="  Reset  " tooltip=" Clear scrollback and SGR-attributes ">
-                                <script=TerminalReset on="LeftClick"/>
-                            </item>
+                            <autohide=/Menu/Defaults/autohide/>
+                            <slim=/Menu/Defaults/slim/>
+                            <item=/Menu/Buttons/AlwaysOnTop/>
+                            <item=/Menu/Buttons/FindPrev/>
+                            <item=/Menu/Buttons/FindNext/>
+                            <item=/Menu/Buttons/WrapMode/>
+                            <item=/Menu/Buttons/ClipboardFormat/>
+                            <item=/Menu/Buttons/ClearScrollback/>
                         </menu>
                     </terminal>
                 </config>
@@ -984,11 +863,11 @@ Notes
             </width>
             <timeout=250ms/>  <!-- Taskbar collaplse timeout after mouse leave. -->
             <colors>
-                <bground  fgc=whitedk bgc=0xC0202020       />  <!-- Set the bgc color non-transparent (alpha to FF) to disable acrylics in taskbar. -->
-                <focused  fgc=puregreen                    />  <!-- Focused taskbar item color. -->
-                <selected fgc=whitelt                      />  <!-- Default taskbar item color. -->
-                <active   fgc=whitelt                      />  <!-- Running taskbar item color. -->
-                <inactive fgc=blacklt bgc=color.transparent/>  <!-- Blocked taskbar item color (e.g. when the app is maximized by a remote user). -->
+                <bground  fgc=whitedk bgc=0xC0202020 />  <!-- Set the bgc color non-transparent (alpha to FF) to disable acrylics in taskbar. -->
+                <focused  fgc=puregreen              />  <!-- Focused taskbar item color. -->
+                <selected fgc=whitelt                />  <!-- Default taskbar item color. -->
+                <active   fgc=whitelt                />  <!-- Running taskbar item color. -->
+                <inactive fgc=blacklt bgc=Transparent/>  <!-- Blocked taskbar item color (e.g. when the app is maximized by a remote user). -->
             </colors>
         </taskbar>
         <panel>  <!-- Desktop info panel. -->
@@ -1016,9 +895,9 @@ Notes
             <growstep=0    />   <!-- Scrollback buffer grow step. The buffer behaves like a ring in case of zero. -->
             <growlimit=0   />   <!-- Scrollback buffer grow limit. The buffer will behave like a ring when the limit is reached. If set to zero, then the limit is equal to the initial buffer size. -->
             <maxline=65535 />   <!-- Max line length. Line splits if it exceeds the limit. -->
-            <wrap=on       />   <!-- Lines wrapping mode. -->
-            <reset onkey=on onoutput=off/>  <!-- Scrollback viewport position reset triggers. -->
-            <altscroll=on  />   <!-- Alternate scroll mode settings. -->
+            <wrap=true     />   <!-- Lines wrapping mode. -->
+            <reset onkey=true onoutput=false/>  <!-- Scrollback viewport position reset triggers. -->
+            <altscroll=true/>   <!-- Alternate scroll mode settings. -->
             <oversize=0 opacity=0xC0/>  <!-- Scrollback horizontal (left and right) oversize. It is convenient for horizontal scrolling. -->
         </scrollback>
         <colors>  <!-- Terminal colors. -->
@@ -1039,7 +918,7 @@ Notes
             <color14 = cyanlt     />
             <color15 = whitelt    />
             <default fgc=whitedk bgc=pureblack/>  <!-- Default/current colors (SGR49/39). -->
-            <bground = color/default/>  <!-- Independent background color of the scrollback canvas. Set to 0x00ffffff(or =color/default) to sync with SGR49 (default background). -->
+            <bground = DefaultColor/>  <!-- Independent background color of the scrollback canvas. Set to 0x00ffffff(or =DefaultColor) to sync with SGR49 (default background). -->
             <match fx="color" fgc=whitelt bgc=0xFF007F00/>  <!-- Color of the selected text occurrences. Set an fx to use cell::shaders: "xlight" | "color" | "invert" | "reverse". -->
             <selection>
                 <text      fx="color"  fgc=whitelt bgc=bluelt/>  <!-- Highlighting of the selected text in plaintext mode. -->
@@ -1053,107 +932,21 @@ Notes
         <border=0/>  <!-- Width of the left and right border of the terminal window. -->
         <tablen=8/>  <!-- Tab length. -->
         <menu item*>
-            <autohide=menu/autohide/>
-            <slim=menu/slim/>
-            <item label="  " tooltip=" AlwaysOnTop off ">
-                <script=AlwaysOnTopApplet on="LeftClick"/> <!-- The default event source is the parent object, i.e. source="item" (aka vtm.item). -->
-                <script>  <!-- A binding to update the menu item label at runtime. -->
-                    <on="release: e2::form::prop::zorder" source="applet"/>
-                    local is_topmost=vtm()                   -- Use event arguments to get the current state.
-                    -- local is_topmost=vtm.applet.ZOrder()  -- or ask the object iteslf for the current state.
-                    vtm.item.Label(is_topmost==1 and "\\x1b[38:2:0:255:0m▀ \\x1b[m" or "  ")
-                    vtm.item.Tooltip(is_topmost==1 and " AlwaysOnTop on " or " AlwaysOnTop off ")
-                    vtm.item.Deface()
-                </script>
-            </item>
-            <item label="  <  ">
-                <script=TerminalFindPrev on="LeftClick"/>
-                <tooltip>
-                    " Previous match                                  \n"
-                    "   LeftClick to jump to previous match or scroll \n"
-                    "             one page up if nothing to search    \n"
-                    "   Match clipboard data if no selection          "
-                </tooltip>
-            </item>
-            <item label="  >  ">
-                <script=TerminalFindNext on="LeftClick"/>
-                <tooltip>
-                    " Next match                                     \n"
-                    "   LeftClick to jump to next match or scroll    \n"
-                    "             one page down if nothing to search \n"
-                    "   Match clipboard data if no selection         "
-                </tooltip>
-            </item>
-            <item label="   Desktop   ">
-                <tooltip>
-                    " Toggle exclusive keyboard mode              \n"
-                    "   Exclusive keyboard mode allows keystrokes \n"
-                    "   to be passed through without processing   "
-                </tooltip>
-                <script=ExclusiveKeyboardMode on="LeftClick"/>
-                <script>
-                    <on="release: terminal::events::rawkbd" source="terminal"/>
-                    local m=vtm()                                    -- Use event arguments to get the current state.
-                    -- local m=vtm.terminal.ExclusiveKeyboardMode()  -- or ask the terminal instance iteslf for the current state.
-                    vtm.item.Label(m==1 and "\e[48:2:0:128:128;38:2:0:255:0m  Exclusive  \e[m" or "   Desktop   ")
-                    vtm.item.Tooltip(m==1 and " ExclusiveKeyboardMode on " or " ExclusiveKeyboardMode off ")
-                    vtm.item.Deface()
-                </script>
-            </item>
-            <item label="  Wrap  ">
-                <tooltip>
-                    " Wrapping text lines on/off      \n"
-                    "   Applied to selection if it is "
-                </tooltip>
-                <script=TerminalWrapMode on="LeftClick"/>
-                <script>
-                    <on="release: terminal::events::layout::wrapln" source="terminal"/>
-                    local m=vtm()                           -- Use event arguments to get the current state.
-                    -- local m=vtm.terminal.LineWrapMode()  -- or ask the terminal instance iteslf for the current state.
-                    vtm.item.Label(m==1 and "\e[38:2:0:255:0m  Wrap  \e[m" or "  Wrap  ")
-                    vtm.item.Deface()
-                </script>
-            </item>
-            <item label="  Clipboard  " tooltip=" Clipboard format ">
-                <script=TerminalClipboardFormat on="LeftClick"/>
-                <script>
-                    <on="release: terminal::events::selmod" source="terminal"/>
-                    local m=vtm()                              -- Use event arguments to get the current state.
-                    -- local m=vtm.terminal.ClipboardFormat()  -- or ask the terminal instance iteslf for the current state.
-                    vtm.item.Label(m==1 and "\e[38:2:0:255:0m  Plaintext  \e[m"     -- "textonly"
-                                or m==2 and "\e[38:2:255:255:0m  ANSI-text  \e[m"   -- "ansitext"
-                                or m==3 and "\e[38:2:109:231:237m  ".."R"..
-                                            "\e[38:2:109:237:186m"  .."T"..
-                                            "\e[38:2:60:255:60m"    .."F"..
-                                            "\e[38:2:189:255:53m"   .."-"..
-                                            "\e[38:2:255:255:49m"   .."s"..
-                                            "\e[38:2:255:189:79m"   .."t"..
-                                            "\e[38:2:255:114:94m"   .."y"..
-                                            "\e[38:2:255:60:157m"   .."l"..
-                                            "\e[38:2:255:49:214m"   .."e".."  \e[m" -- "richtext"
-                                or m==4 and "\e[38:2:0:255:255m  HTML-code  \e[m"   -- "htmltext"
-                                or m==5 and "\e[38:2:0:255:255m  Protected  \e[m"   -- "safetext" ala protected
-                                or          "  Clipboard  ")                        -- "disabled"
-                    vtm.item.Deface()
-                </script>
-            </item>
-            <item label="  Log  " tooltip=" Console logging        \n Use Logs to see output ">
-                <script=TerminalStdioLog on="LeftClick"/>
-                <script>
-                    <on="release: terminal::events::io_log" source="terminal"/>
-                    local m=vtm()                      -- Use event arguments to get the current state.
-                    -- local m=vtm.terminal.LogMode()  -- or ask the terminal instance iteslf for the current state.
-                    vtm.item.Label(m==1 and "\e[38:2:0:255:0m  Log  \e[m" or "  Log  ")
-                    vtm.item.Deface()
-                </script>
-            </item>
-            <item label="  Clear  " tooltip=" Clear scrollback ">
-                <script=TerminalClearScrollback on="LeftClick"/>
-            </item>
+            <autohide=/Menu/Defaults/autohide/>
+            <slim=/Menu/Defaults/slim/>
+            <item=/Menu/Buttons/AlwaysOnTop/>
+            <item=/Menu/Buttons/FindPrev/>
+            <item=/Menu/Buttons/FindNext/>
+            <item=/Menu/Buttons/ExclusiveKeyboard/>
+            <item=/Menu/Buttons/WrapMode/>
+            <item=/Menu/Buttons/ClipboardFormat/>
+            <item=/Menu/Buttons/StdioLog/>
+            <item=/Menu/Buttons/ClearScrollback/>
+            <item=/Menu/Buttons/Restart/>
         </menu>
         <selection>
-            <mode=selection/mode/>  <!-- Selection clipboard copy format: "text" | "ansi" | "rich" | "html" | "protected" | "none". -->
-            <rect=selection/rect/>  <!-- Preferred selection form: Rectangular: true, Linear: false. -->
+            <mode=/Terminal/selection/mode/>  <!-- Selection clipboard copy format: "text" | "ansi" | "rich" | "html" | "protected" | "none". -->
+            <rect=/Terminal/selection/rect/>  <!-- Preferred selection form: Rectangular: true, Linear: false. -->
         </selection>
         <atexit="auto"/>  <!-- Behavior after the last console process has terminated: "auto" | "ask" | "close" | "restart" | "retry"
                                 auto:    Stay open and ask if exit code != 0. (default)
@@ -1164,44 +957,31 @@ Notes
     </terminal>
     <tile>
         <menu item*>
-            <autohide=menu/autohide/>
-            <slim=menu/slim/>
-            <item label="  " tooltip=" AlwaysOnTop off ">
-                <script=AlwaysOnTopApplet on="LeftClick"/> <!-- The default event source is the parent object, i.e. source="item" (aka vtm.item). -->
-                <script>  <!-- A binding to update the menu item label at runtime. -->
-                    <on="release: e2::form::prop::zorder" source="applet"/>
-                    local is_topmost=vtm()                   -- Use event arguments to get the current state.
-                    -- local is_topmost=vtm.applet.ZOrder()  -- or ask the object iteslf for the current state.
-                    vtm.item.Label(is_topmost==1 and "\\x1b[38:2:0:255:0m▀ \\x1b[m" or "  ")
-                    vtm.item.Tooltip(is_topmost==1 and " AlwaysOnTop on " or " AlwaysOnTop off ")
-                    vtm.item.Deface()
-                </script>
-            </item>
-            <item label="   +   ">
-                <script=TileRunApplication on="LeftClick"/>
+            <autohide=/Menu/Defaults/autohide/>
+            <slim=/Menu/Defaults/slim/>
+            <item=/Menu/Buttons/AlwaysOnTop/>
+            <item label="   +   " script=OnLeftClick|TileRunApplication>
                 <tooltip>
                     " Launch application instances in active empty slots.     \n"
                     " The app to run can be set by RightClick on the taskbar. "
                 </tooltip>
             </item>
-            <item label="  :::  " tooltip=" Select all panes "                                    ><script=TileSelectAllPanes     on="LeftClick"/></item>
-            <item label="   │   " tooltip=" Split active panes horizontally "                     ><script=TileSplitHorizontally  on="LeftClick"/></item>
-            <item label="  ──  "  tooltip=" Split active panes vertically "                       ><script=TileSplitVertically    on="LeftClick"/></item>
-            <item label="  ┌┘  "  tooltip=" Change split orientation "                            ><script=TileSplitOrientation   on="LeftClick"/></item>
-            <item label="  <->  " tooltip=" Swap two or more panes "                              ><script=TileSwapPanes          on="LeftClick"/></item>
-            <item label="  >|<  " tooltip=" Equalize split ratio "                                ><script=TileEqualizeSplitRatio on="LeftClick"/></item>
-            <item label='  "…"  ' tooltip=" Set tiling window manager title using clipboard data "><script=TileSetManagerTitle    on="LeftClick"/></item>
-            <item label="  ×  "   tooltip=" Close active application "                            ><script=TileClosePane          on="LeftClick"/></item>
-            <!-- <item label="  <  "   tooltip=" Focus the previous pane or the split grip "><script=TileFocusPrev      on="LeftClick"/></item> -->
-            <!-- <item label="  >  "   tooltip=" Focus the next pane or the split grip "    ><script=TileFocusNext      on="LeftClick"/></item> -->
-            <!-- <item label="  <-  "  tooltip=" Focus the previous pane "                  ><script=TileFocusPrevPane  on="LeftClick"/></item> -->
-            <!-- <item label="  ->  "  tooltip=" Focus the next pane "                      ><script=TileFocusNextPane  on="LeftClick"/></item> -->
+            <item label="  :::  " tooltip=" Select all panes "                                     script=OnLeftClick|TileSelectAllPanes    />
+            <item label="   │   " tooltip=" Split active panes horizontally "                      script=OnLeftClick|TileSplitHorizontally />
+            <item label="  ──  "  tooltip=" Split active panes vertically "                        script=OnLeftClick|TileSplitVertically   />
+            <item label="  ┌┘  "  tooltip=" Change split orientation "                             script=OnLeftClick|TileSplitOrientation  />
+            <item label="  <->  " tooltip=" Swap two or more panes "                               script=OnLeftClick|TileSwapPanes         />
+            <item label="  >|<  " tooltip=" Equalize split ratio "                                 script=OnLeftClick|TileEqualizeSplitRatio/>
+            <item label='  "…"  ' tooltip=" Set tiling window manager title using clipboard data " script=OnLeftClick|TileSetManagerTitle   />
+            <item label="  ×  "   tooltip=" Close active application "                             script=OnLeftClick|TileClosePane         />
+            <!-- <item label="  <  "   tooltip=" Focus the previous pane or the split grip " script=OnLeftClick|TileFocusPrev    /> -->
+            <!-- <item label="  >  "   tooltip=" Focus the next pane or the split grip "     script=OnLeftClick|TileFocusNext    /> -->
+            <!-- <item label="  <-  "  tooltip=" Focus the previous pane "                   script=OnLeftClick|TileFocusPrevPane/> -->
+            <!-- <item label="  ->  "  tooltip=" Focus the next pane "                       script=OnLeftClick|TileFocusNextPane/> -->
         </menu>
     </tile>
     <defapp>
-        <menu>
-            <autohide=menu/autohide/>
-            <slim=menu/slim/>
+        <menu=/Menu/Defaults>
         </menu>
     </defapp>
     <events>  <!-- The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop. -->
@@ -1296,7 +1076,7 @@ Notes
             <script=TerminalClipboardPaste             on="preview:Shift+Insert" />
             <script=TerminalClipboardWipe              on=""                     />
             <script=TerminalClipboardFormat            on=""                     />
-            <script=TerminalSelectionRect              on=""                     />
+            <script=TerminalSelectionForm              on=""                     />
             <script=TerminalSelectionOneShot           on=""                     />
             <script=TerminalUndo                       on=""                     />
             <script=TerminalRedo                       on=""                     />
@@ -1321,4 +1101,247 @@ Notes
         </defapp>
     </events>
 </config>
+
+<!-- Globals - Unresolved literals will try to be resolved from here. -->
+<Macro>
+    <true  = 1 />
+    <yes   = 1 />
+    <on    = 1 />
+    <false = 0 />
+    <no    = 0 />
+    <off   = 0 />
+</Macro>
+
+<Menu=/Scripting>
+    <Defaults>
+        <autohide=false/>  <!-- Auto hide window menu items on mouse leave. -->
+        <slim=true/>       <!-- Make the window menu one cell high (slim=true) or three cells high (slim=false). -->
+    </Defaults>
+    <Buttons>
+        <AlwaysOnTop label="  " tooltip=" AlwaysOnTop off " script=OnLeftClick|AlwaysOnTopApplet> <!-- The default event source is the parent object, i.e. source="item" (aka vtm.item). -->
+            <script>  <!-- A binding to update the menu item label at runtime. -->
+                <on="release: e2::form::prop::zorder" source="applet"/>
+                local is_topmost=vtm()                   -- Use event arguments to get the current state.
+                -- local is_topmost=vtm.applet.ZOrder()  -- or ask the object iteslf for the current state.
+                vtm.item.Label(is_topmost==1 and "\\x1b[38:2:0:255:0m▀ \\x1b[m" or "  ")
+                vtm.item.Tooltip(is_topmost==1 and " AlwaysOnTop on " or " AlwaysOnTop off ")
+                vtm.item.Deface()
+            </script>
+        </AlwaysOnTop>
+        <FindPrev label="  <  " script=OnLeftClick|TerminalFindPrev>
+            <tooltip>
+                " \e[1mPrevious match           Alt+LeftArrow\e[m  \n"
+                "   Click to jump to the previous match   \n"
+                "   Match clipboard data if no selection  "
+            </tooltip>
+        </FindPrev>
+        <FindNext label="  >  " script=OnLeftClick|TerminalFindNext>
+            <tooltip>
+                " \e[1mNext match              Alt+RightArrow\e[m  \n"
+                "   Click to jump to the next match       \n"
+                "   Match clipboard data if no selection  "
+            </tooltip>
+        </FindNext>
+        <ExclusiveKeyboard label="   Desktop   " script=OnLeftClick|ExclusiveKeyboardMode>
+            <tooltip>
+                " \e[1mToggle exclusive keyboard mode\e[m              \n"
+                "   Exclusive keyboard mode allows keystrokes \n"
+                "   to be passed through without processing   "
+            </tooltip>
+            <script>
+                <on="release: terminal::events::rawkbd" source="terminal"/>
+                local m=vtm()                                    -- Use event arguments to get the current state.
+                -- local m=vtm.terminal.ExclusiveKeyboardMode()  -- or ask the terminal instance iteslf for the current state.
+                vtm.item.Label(m==1 and "\e[48:2:0:128:128;38:2:0:255:0m  Exclusive  \e[m" or "   Desktop   ")
+                vtm.item.Tooltip(m==1 and " ExclusiveKeyboardMode on " or " ExclusiveKeyboardMode off ")
+                vtm.item.Deface()
+            </script>
+        </ExclusiveKeyboard>
+        <WrapMode label="  Wrap  " script=OnLeftClick|TerminalWrapMode>
+            <tooltip>
+                " Wrapping text lines on/off      \n"
+                "   Applied to selection if it is "
+            </tooltip>
+            <script>
+                <on="release: terminal::events::layout::wrapln" source="terminal"/>
+                local m=vtm()                           -- Use event arguments to get the current state.
+                -- local m=vtm.terminal.LineWrapMode()  -- or ask the terminal instance iteslf for the current state.
+                vtm.item.Label(m==1 and "\e[38:2:0:255:0m  Wrap  \e[m" or "  Wrap  ")
+                vtm.item.Deface()
+            </script>
+        </WrapMode>
+        <ClipboardFormat label="  Clipboard  " tooltip=" Clipboard format " script=OnLeftClick|TerminalClipboardFormat>
+            <script>
+                <on="release: terminal::events::selmod" source="terminal"/>
+                local m=vtm()                              -- Use event arguments to get the current state.
+                -- local m=vtm.terminal.ClipboardFormat()  -- or ask the terminal instance iteslf for the current state.
+                vtm.item.Label(m==1 and "\e[38:2:0:255:0m  Plaintext  \e[m"     -- "textonly"
+                            or m==2 and "\e[38:2:255:255:0m  ANSI-text  \e[m"   -- "ansitext"
+                            or m==3 and "\e[38:2:109:231:237m  ".."R"..
+                                        "\e[38:2:109:237:186m"  .."T"..
+                                        "\e[38:2:60:255:60m"    .."F"..
+                                        "\e[38:2:189:255:53m"   .."-"..
+                                        "\e[38:2:255:255:49m"   .."s"..
+                                        "\e[38:2:255:189:79m"   .."t"..
+                                        "\e[38:2:255:114:94m"   .."y"..
+                                        "\e[38:2:255:60:157m"   .."l"..
+                                        "\e[38:2:255:49:214m"   .."e".."  \e[m" -- "richtext"
+                            or m==4 and "\e[38:2:0:255:255m  HTML-code  \e[m"   -- "htmltext"
+                            or m==5 and "\e[38:2:0:255:255m  Protected  \e[m"   -- "safetext" ala protected
+                            or          "  Clipboard  ")                        -- "disabled"
+                vtm.item.Deface()
+            </script>
+        </ClipboardFormat>
+        <StdioLog label="  Log  " tooltip=" \e[1mConsole logging\e[m        \n Use Logs to see output " script=OnLeftClick|TerminalStdioLog>
+            <script>
+                <on="release: terminal::events::io_log" source="terminal"/>
+                local m=vtm()                      -- Use event arguments to get the current state.
+                -- local m=vtm.terminal.LogMode()  -- or ask the terminal instance iteslf for the current state.
+                vtm.item.Label(m==1 and "\e[38:2:0:255:0m  Log  \e[m" or "  Log  ")
+                vtm.item.Deface()
+            </script>
+        </StdioLog>
+        <ClearScrollback label="  Clear  "   tooltip=" Clear scrollback "                 script=OnLeftClick|TerminalClearScrollback/>
+        <Restart         label="  Restart  " tooltip=" Restart current terminal session " script=OnLeftClick|TerminalRestart/>
+    </Buttons>
+</Menu>
+
+<Colors>
+    <DefaultColor = 0x00ffffff />
+    <Transparent  = 0x00000000 />
+    <blackdk      = 0xFF101010 />
+    <reddk        = 0xFFc40f1f />
+    <greendk      = 0xFF12a10e />
+    <yellowdk     = 0xFFc09c00 />
+    <bluedk       = 0xFF0037db />
+    <magentadk    = 0xFF871798 />
+    <cyandk       = 0xFF3b96dd />
+    <whitedk      = 0xFFbbbbbb />
+    <blacklt      = 0xFF757575 />
+    <redlt        = 0xFFe64856 />
+    <greenlt      = 0xFF15c60c />
+    <yellowlt     = 0xFFf8f1a5 />
+    <bluelt       = 0xFF3a78ff />
+    <magentalt    = 0xFFb3009e />
+    <cyanlt       = 0xFF60d6d6 />
+    <whitelt      = 0xFFf3f3f3 />
+    <pureblack    = 0xFF000000 />
+    <purewhite    = 0xFFffffff />
+    <purered      = 0xFFff0000 />
+    <puregreen    = 0xFF00ff00 />
+    <pureblue     = 0xFF0000ff />
+    <puremagenta  = 0xFFff00ff />
+    <purecyan     = 0xFF00ffff />
+    <pureyellow   = 0xFFff00ff />
+</Colors>
+
+<Terminal>
+    <selection>
+        <mode="text"/>  <!-- Clipboard copy format: "text" | "ansi" | "rich" | "html" | "protected" | "none" . -->
+        <rect=false/>   <!-- Preferred selection form: Rectangular: true, Linear: false. -->
+    </selection>
+</Terminal>
+
+<Scripting>
+    <OnLeftClick on="LeftClick"/>
+    <!-- vtm.* scripting context:
+        - .gate: ...
+        - .applet (standalone app): ...
+            - .gear: ...
+        - .desktop: ...
+                - .window: ...
+                - .applet: ...
+                    - .tile: ...
+                        - .grip: ...
+                    - .terminal: ...  -->
+    <TryToQuit             ="vtm.desktop.Shutdown('try');"/>      <!-- Shut down the desktop server if no applications are running. -->
+    <RunApplication        ="vtm.desktop.Run();"/>                <!-- Run default application. -->
+    <RunInfoPage           ="vtm.desktop.Run({ title='Info-page', hidden=true, label='Info', type='info' });"/>  <!-- Run Info-page. -->
+    <FocusPrevWindow       ="vtm.desktop.FocusNextWindow(-1);"/>  <!-- Switch focus to the prev window. -->
+    <FocusNextWindow       ="vtm.desktop.FocusNextWindow( 1);"/>  <!-- Switch focus to the next window. -->
+
+    <AlwaysOnTopApplet     ="vtm.applet.ZOrder(vtm.applet.ZOrder()==1 and 0 or 1);"/>  <!-- Request to toggle z-order window attribute. -1: backmost; 0: plain; 1: topmost. -->
+    <CloseApplet           ="vtm.applet.Close();"/>            <!-- Request to Close window. -->
+    <MinimizeApplet        ="vtm.applet.Minimize();"/>         <!-- Request to Minimize window. -->
+    <MaximizeApplet        ="vtm.applet.Maximize();"/>         <!-- Request to Maximize window. -->
+    <FullscreenApplet      ="vtm.applet.Fullscreen();"/>       <!-- Request to Maximize window to full screen. -->
+    <RestoreApplet         ="vtm.applet.Restore();"/>          <!-- Request to Restore maximized/fullscreen window. -->
+    <MoveAppletLeft        ="vtm.applet.Warp( 1,-1, 0, 0);"/>  <!-- Request to Move window to the left. WarpApplet(l, r, t, b): The parameters specify four deltas for the left, right, top and bottom sides of the window. -->
+    <MoveAppletRight       ="vtm.applet.Warp(-1, 1, 0, 0);"/>  <!-- Request to Move window to the right. -->
+    <MoveAppletUp          ="vtm.applet.Warp( 0, 0, 1,-1);"/>  <!-- Request to Move window up. -->
+    <MoveAppletDown        ="vtm.applet.Warp( 0, 0,-1, 1);"/>  <!-- Request to Move window down. -->
+    <MoveAppletTopLeft     ="vtm.applet.Warp( 2,-2, 1,-1);"/>  <!-- Request to Move window to the top-left. -->
+    <MoveAppletBottomLeft  ="vtm.applet.Warp( 2,-2,-1, 1);"/>  <!-- Request to Move window to the bottom-left. -->
+    <MoveAppletTopRight    ="vtm.applet.Warp(-2, 2, 1,-1);"/>  <!-- Request to Move window to the top-right. -->
+    <MoveAppletBottomRight ="vtm.applet.Warp(-2, 2,-1, 1);"/>  <!-- Request to Move window to the bottom-right. -->
+    <IncreaseAppletWidth   ="vtm.applet.Warp( 0, 1, 0, 0);"/>  <!-- Request to Increase window width. -->
+    <DecreaseAppletWidth   ="vtm.applet.Warp( 0,-1, 0, 0);"/>  <!-- Request to Decrease window width. -->
+    <IncreaseAppletHeight  ="vtm.applet.Warp( 0, 0, 0, 1);"/>  <!-- Request to Increase window height. -->
+    <DecreaseAppletHeight  ="vtm.applet.Warp( 0, 0, 0,-1);"/>  <!-- Request to Decrease window height. -->
+
+    <TileFocusPrev         ="vtm.tile.FocusNextPaneOrGrip(-1);"/>  <!-- Focus the previous pane or the split grip. -->
+    <TileFocusNext         ="vtm.tile.FocusNextPaneOrGrip( 1);"/>  <!-- Focus the next pane or the split grip. -->
+    <TileFocusPrevPane     ="vtm.tile.FocusNextPane(-1);"/>        <!-- Focus the previous pane. -->
+    <TileFocusNextPane     ="vtm.tile.FocusNextPane( 1);"/>        <!-- Focus the next pane. -->
+    <TileRunApplication    ="vtm.tile.RunApplication();"/>         <!-- Launch application instances in active empty slots. The app to run can be set by RightClick on the taskbar. -->
+    <TileSelectAllPanes    ="vtm.tile.SelectAllPanes();"/>         <!-- Select all panes. -->
+    <TileSplitHorizontally ="vtm.tile.SplitPane(0);"/>             <!-- Split active panes horizontally. -->
+    <TileSplitVertically   ="vtm.tile.SplitPane(1);"/>             <!-- Split active panes vertically. -->
+    <TileSplitOrientation  ="vtm.tile.RotateSplit();"/>            <!-- Change split orientation. -->
+    <TileSwapPanes         ="vtm.tile.SwapPanes();"/>              <!-- Swap two or more panes. -->
+    <TileEqualizeSplitRatio="vtm.tile.EqualizeSplitRatio();"/>     <!-- Equalize split ratio. -->
+    <TileSetManagerTitle   ="vtm.tile.SetTitle();"/>               <!-- Set tiling window manager title using clipboard data. -->
+    <TileClosePane         ="vtm.tile.ClosePane();"/>              <!-- Close active application. -->
+    <TileMoveGripLeft      ="vtm.grip.MoveGrip(-1, 0);"/>          <!-- Move the split grip to the left. -->
+    <TileMoveGripRight     ="vtm.grip.MoveGrip( 1, 0);"/>          <!-- Move the split grip to the right. -->
+    <TileMoveGripUp        ="vtm.grip.MoveGrip( 0,-1);"/>          <!-- Move the split grip up. -->
+    <TileMoveGripDown      ="vtm.grip.MoveGrip( 0, 1);"/>          <!-- Move the split grip down. -->
+    <TileDecreaseGripWidth ="vtm.grip.ResizeGrip(-1);"/>           <!-- Decrease the split grip width. -->
+    <TileIncreaseGripWidth ="vtm.grip.ResizeGrip( 1);"/>           <!-- Increase the split grip width. -->
+    <TileFocusPrevGrip     ="vtm.grip.FocusNextGrip(-1);"/>        <!-- Focus the prev split grip. -->
+    <TileFocusNextGrip     ="vtm.grip.FocusNextGrip( 1);"/>        <!-- Focus the next split grip. -->
+
+    <Disconnect            ="vtm.gate.Disconnect();"/>             <!-- Disconnect from the desktop. -->
+    <ToggleDebugOverlay    ="vtm.gate.DebugOverlay();"/>           <!-- Toggle debug overlay. -->
+    <IncreaseCellHeight    ="vtm.gate.IncreaseCellHeight( 1);"/>   <!-- Increase the text cell height by one pixel. -->
+    <DecreaseCellHeight    ="vtm.gate.IncreaseCellHeight(-1);"/>   <!-- Decrease the text cell height by one pixel. -->
+    <ResetWheelAccumulator ="vtm.gate.WheelAccumReset();"/>        <!-- Reset wheel accumulator. -->
+    <ResetCellHeight       ="if (not vtm.gear.IsKeyRepeated()) then vtm.gate.CellHeightReset() end;"/>   <!-- Reset text cell height. -->
+    <ToggleAntialiasingMode="if (not vtm.gear.IsKeyRepeated()) then vtm.gate.AntialiasingMode() end;"/>  <!-- Toggle text antialiasing mode. -->
+    <RollFontsBackward     ="if (not vtm.gear.IsKeyRepeated()) then vtm.gate.RollFonts(-1) end;"/>       <!-- Roll font list backward. -->
+    <RollFontsForward      ="if (not vtm.gear.IsKeyRepeated()) then vtm.gate.RollFonts( 1) end;"/>       <!-- Roll font list forward. -->
+
+    <ExclusiveKeyboardMode             ="vtm.terminal.ExclusiveKeyboardMode(vtm.terminal.ExclusiveKeyboardMode()==1 and 0 or 1);"/>  <!-- Toggle exclusive keyboard mode by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
+    <TerminalFindPrev                  ="vtm.terminal.FindNextMatch(-1);"/>            <!-- Highlight prev match of selected text fragment. Clipboard content is used if no active selection. -->
+    <TerminalFindNext                  ="vtm.terminal.FindNextMatch( 1);"/>            <!-- Highlight next match of selected text fragment. Clipboard content is used if no active selection. -->
+    <TerminalScrollViewportOnePageUp   ="vtm.terminal.ScrollViewportByPage( 0, 1);"/>  <!-- Scroll viewport one page up. -->
+    <TerminalScrollViewportOnePageDown ="vtm.terminal.ScrollViewportByPage( 0,-1);"/>  <!-- Scroll viewport one page down. -->
+    <TerminalScrollViewportOnePageLeft ="vtm.terminal.ScrollViewportByPage( 1, 0);"/>  <!-- Scroll viewport one page to the left. -->
+    <TerminalScrollViewportOnePageRight="vtm.terminal.ScrollViewportByPage(-1, 0);"/>  <!-- Scroll viewport one page to the right. -->
+    <TerminalScrollViewportOneLineUp   ="vtm.terminal.ScrollViewportByCell( 0, 1);"/>  <!-- Scroll viewport one line up. -->
+    <TerminalScrollViewportOneLineDown ="vtm.terminal.ScrollViewportByCell( 0,-1);"/>  <!-- Scroll viewport one line down. -->
+    <TerminalScrollViewportOneCellLeft ="vtm.terminal.ScrollViewportByCell( 1, 0);"/>  <!-- Scroll viewport one cell to the left. -->
+    <TerminalScrollViewportOneCellRight="vtm.terminal.ScrollViewportByCell(-1, 0);"/>  <!-- Scroll viewport one cell to the right. -->
+    <TerminalScrollViewportToTop       ="if (not vtm.gear.IsKeyRepeated()) then vtm.terminal.ScrollViewportToTop() end;"/>  <!-- Scroll viewport to the scrollback top. -->
+    <TerminalScrollViewportToEnd       ="if (not vtm.gear.IsKeyRepeated()) then vtm.terminal.ScrollViewportToEnd() end;"/>  <!-- Scroll viewport to the scrollback top. -->
+    <TerminalSendKey                   ="vtm.terminal.SendKey('test\\r');"/>           <!-- Simulating keypresses using the specified string. -->
+    <TerminalOutput                    ="vtm.terminal.Print('Hello!\\n');"/>           <!-- Direct output the string to the terminal scrollback. -->
+    <TerminalReset                     ="vtm.terminal.Print('\\x1b[!p');"/>            <!-- Clear scrollback and SGR-attributes. -->
+    <TerminalClearScrollback           ="vtm.terminal.ClearScrollback();"/>            <!-- Clear scrollback above current line. -->
+    <TerminalCopyViewport              ="vtm.terminal.CopyViewport();"/>               <!-- Сopy viewport to clipboard. -->
+    <TerminalCopySelection             ="vtm.terminal.CopySelection();"/>              <!-- Сopy selection to clipboard. -->
+    <TerminalClipboardPaste            ="vtm.terminal.PasteClipboard();"/>             <!-- Paste from clipboard. -->
+    <TerminalClipboardWipe             ="vtm.terminal.ClearClipboard();"/>             <!-- Reset clipboard. -->
+    <TerminalClipboardFormat           ="vtm.terminal.ClipboardFormat((vtm.terminal.ClipboardFormat() + 1) % 6);"/>  <!-- Toggle terminal text selection copy format. 0: Disabled; 1: Plain text; 2: ANSI; 3: RTF; 4: HTML; 5: Sensitive plain text. -->
+    <TerminalSelectionForm             ="vtm.terminal.SelectionForm(vtm.terminal.SelectionForm()==1 and 0 or 1);"/>  <!-- Toggle between linear and rectangular selection form. 0: linear form; 1: boxed form. -->
+    <TerminalSelectionCancel           ="vtm.terminal.ClearSelection();"/>             <!-- Deselect a selection. -->
+    <TerminalSelectionOneShot          ="vtm.terminal.OneShotSelection();"/>           <!-- One-shot toggle to copy text while mouse tracking is active. Keep selection if 'Ctrl' key is pressed. -->
+    <TerminalUndo                      ="vtm.terminal.UndoReadline();"/>               <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input. -->
+    <TerminalRedo                      ="vtm.terminal.RedoReadline();"/>               <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command. -->
+    <TerminalCwdSync                   ="vtm.terminal.CwdSync(vtm.terminal.CwdSync()==1 and 0 or 1);"/>            <!-- Toggle the current working directory sync mode. -->
+    <TerminalWrapMode                  ="vtm.terminal.LineWrapMode(vtm.terminal.LineWrapMode()==1 and 0 or 1);"/>  <!-- Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is. 0: line wrapping is off; 1: line wrapping is on. -->
+    <TerminalAlignMode                 ="vtm.terminal.LineAlignMode((vtm.terminal.LineAlignMode() + 1) % 3);"/>    <!-- Toggle terminal scrollback lines aligning mode. Applied to the active selection if it is. 0: left; 1: right; 2: center. -->
+    <TerminalStdioLog                  ="vtm.terminal.LogMode(vtm.terminal.LogMode()==1 and 0 or 1);"/>            <!-- Toggle stdin/stdout logging. -->
+    <TerminalRestart                   ="vtm.terminal.Restart();"/>                    <!-- Terminate runnning console apps and restart current session. -->
+</Scripting>
 ```

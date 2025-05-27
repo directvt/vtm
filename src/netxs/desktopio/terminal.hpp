@@ -245,7 +245,7 @@ namespace netxs::ui
                     def_growmx = std::exchange(def_length, def_growdt);
                 }
             }
-            termconfig(xmls& config)
+            termconfig(settings& config)
             {
                 static auto atexit_options = utf::unordered_map<text, commands::atexit::codes>
                     {{ "auto",    commands::atexit::smart   },
@@ -259,53 +259,53 @@ namespace netxs::ui
                      { "invert",  commands::fx::invert  },
                      { "reverse", commands::fx::reverse }};
 
-                send_input =             config.take("/config/terminal/sendinput",                 text{});
-                def_mxline = std::max(1, config.take("/config/terminal/scrollback/maxline",        si32{ 65535 }));
-                def_length = std::max(1, config.take("/config/terminal/scrollback/size",           si32{ 40000 }));
-                def_growdt = std::max(0, config.take("/config/terminal/scrollback/growstep",       si32{ 0 }    ));
-                def_growmx = std::max(0, config.take("/config/terminal/scrollback/growlimit",      si32{ 0 }    ));
+                send_input =             config.settings::take("/config/terminal/sendinput",                 text{});
+                def_mxline = std::max(1, config.settings::take("/config/terminal/scrollback/maxline",        si32{ 65535 }));
+                def_length = std::max(1, config.settings::take("/config/terminal/scrollback/size",           si32{ 40000 }));
+                def_growdt = std::max(0, config.settings::take("/config/terminal/scrollback/growstep",       si32{ 0 }    ));
+                def_growmx = std::max(0, config.settings::take("/config/terminal/scrollback/growlimit",      si32{ 0 }    ));
                 recalc_buffer_metrics(def_length, def_growdt, def_growmx);
-                def_wrpmod =             config.take("/config/terminal/scrollback/wrap",            deco::defwrp == wrap::on) ? wrap::on : wrap::off;
-                resetonkey =             config.take("/config/terminal/scrollback/reset/onkey",     true);
-                resetonout =             config.take("/config/terminal/scrollback/reset/onoutput",  faux);
-                def_alt_on =             config.take("/config/terminal/scrollback/altscroll",       true);
-                def_lucent = std::max(0, config.take("/config/terminal/scrollback/oversize/opacity",si32{ 0xC0 } ));
-                def_margin = std::max(0, config.take("/config/terminal/scrollback/oversize",        si32{ 0 }    ));
-                def_tablen = std::max(1, config.take("/config/terminal/tablen",                     si32{ 8 }    ));
-                def_border = std::max(0, config.take("/config/terminal/border",                     si32{ 0 }    ));
-                def_selmod =             config.take("/config/terminal/selection/mode",             mime::textonly, xml::options::format);
-                def_selalt =             config.take("/config/terminal/selection/rect",             faux);
-                def_cur_on =             config.take("/config/cursor/show",                     true);
-                def_cursor =             config.take("/config/cursor/style",                    text_cursor::I_bar, xml::options::cursor);
-                def_curclr =             config.take("/config/cursor/color",                    cell{});
-                def_period =             config.take("/config/cursor/blink",                    span{ skin::globals().blink_period });
-                def_io_log =             config.take("/config/debug/logs",        faux);
+                def_wrpmod =             config.settings::take("/config/terminal/scrollback/wrap",            deco::defwrp == wrap::on) ? wrap::on : wrap::off;
+                resetonkey =             config.settings::take("/config/terminal/scrollback/reset/onkey",     true);
+                resetonout =             config.settings::take("/config/terminal/scrollback/reset/onoutput",  faux);
+                def_alt_on =             config.settings::take("/config/terminal/scrollback/altscroll",       true);
+                def_lucent = std::max(0, config.settings::take("/config/terminal/scrollback/oversize/opacity",si32{ 0xC0 } ));
+                def_margin = std::max(0, config.settings::take("/config/terminal/scrollback/oversize",        si32{ 0 }    ));
+                def_tablen = std::max(1, config.settings::take("/config/terminal/tablen",                     si32{ 8 }    ));
+                def_border = std::max(0, config.settings::take("/config/terminal/border",                     si32{ 0 }    ));
+                def_selmod =             config.settings::take("/config/terminal/selection/mode",             mime::textonly, xml::options::format);
+                def_selalt =             config.settings::take("/config/terminal/selection/rect",             faux);
+                def_cur_on =             config.settings::take("/config/cursor/show",                     true);
+                def_cursor =             config.settings::take("/config/cursor/style",                    text_cursor::I_bar, xml::options::cursor);
+                def_curclr =             config.settings::take("/config/cursor/color",                    cell{});
+                def_period =             config.settings::take("/config/cursor/blink",                    span{ skin::globals().blink_period });
+                def_io_log =             config.settings::take("/config/debug/logs",        faux);
                 allow_logs =             true; // Disallowed for dtty.
-                def_atexit =             config.take("/config/terminal/atexit",                     commands::atexit::smart, atexit_options);
-                def_fcolor =             config.take("/config/terminal/colors/default/fgc",         argb{ whitelt });
-                def_bcolor =             config.take("/config/terminal/colors/default/bgc",         argb{ blackdk });
-                def_filler =             config.take("/config/terminal/colors/bground",             argb{ argb::default_color });
+                def_atexit =             config.settings::take("/config/terminal/atexit",                     commands::atexit::smart, atexit_options);
+                def_fcolor =             config.settings::take("/config/terminal/colors/default/fgc",         argb{ whitelt });
+                def_bcolor =             config.settings::take("/config/terminal/colors/default/bgc",         argb{ blackdk });
+                def_filler =             config.settings::take("/config/terminal/colors/bground",             argb{ argb::default_color });
 
-                def_safe_c =             config.take("/config/terminal/colors/selection/protected", cell{}.bgc(bluelt)    .fgc(whitelt));
-                def_ansi_c =             config.take("/config/terminal/colors/selection/ansi",      cell{}.bgc(bluelt)    .fgc(whitelt));
-                def_rich_c =             config.take("/config/terminal/colors/selection/rich",      cell{}.bgc(bluelt)    .fgc(whitelt));
-                def_html_c =             config.take("/config/terminal/colors/selection/html",      cell{}.bgc(bluelt)    .fgc(whitelt));
-                def_text_c =             config.take("/config/terminal/colors/selection/text",      cell{}.bgc(bluelt)    .fgc(whitelt));
-                def_none_c =             config.take("/config/terminal/colors/selection/none",      cell{}.bgc(blacklt)   .fgc(whitedk));
-                def_find_c =             config.take("/config/terminal/colors/match",               cell{}.bgc(0xFF007F00).fgc(whitelt));
+                def_safe_c =             config.settings::take("/config/terminal/colors/selection/protected", cell{}.bgc(bluelt)    .fgc(whitelt));
+                def_ansi_c =             config.settings::take("/config/terminal/colors/selection/ansi",      cell{}.bgc(bluelt)    .fgc(whitelt));
+                def_rich_c =             config.settings::take("/config/terminal/colors/selection/rich",      cell{}.bgc(bluelt)    .fgc(whitelt));
+                def_html_c =             config.settings::take("/config/terminal/colors/selection/html",      cell{}.bgc(bluelt)    .fgc(whitelt));
+                def_text_c =             config.settings::take("/config/terminal/colors/selection/text",      cell{}.bgc(bluelt)    .fgc(whitelt));
+                def_none_c =             config.settings::take("/config/terminal/colors/selection/none",      cell{}.bgc(blacklt)   .fgc(whitedk));
+                def_find_c =             config.settings::take("/config/terminal/colors/match",               cell{}.bgc(0xFF007F00).fgc(whitelt));
 
-                def_safe_f =             config.take("/config/terminal/colors/selection/protected/fx", commands::fx::color,  fx_options);
-                def_ansi_f =             config.take("/config/terminal/colors/selection/ansi/fx",      commands::fx::xlight, fx_options);
-                def_rich_f =             config.take("/config/terminal/colors/selection/rich/fx",      commands::fx::xlight, fx_options);
-                def_html_f =             config.take("/config/terminal/colors/selection/html/fx",      commands::fx::xlight, fx_options);
-                def_text_f =             config.take("/config/terminal/colors/selection/text/fx",      commands::fx::color,  fx_options);
-                def_none_f =             config.take("/config/terminal/colors/selection/none/fx",      commands::fx::color,  fx_options);
-                def_find_f =             config.take("/config/terminal/colors/match/fx",               commands::fx::color,  fx_options);
+                def_safe_f =             config.settings::take("/config/terminal/colors/selection/protected/fx", commands::fx::color,  fx_options);
+                def_ansi_f =             config.settings::take("/config/terminal/colors/selection/ansi/fx",      commands::fx::xlight, fx_options);
+                def_rich_f =             config.settings::take("/config/terminal/colors/selection/rich/fx",      commands::fx::xlight, fx_options);
+                def_html_f =             config.settings::take("/config/terminal/colors/selection/html/fx",      commands::fx::xlight, fx_options);
+                def_text_f =             config.settings::take("/config/terminal/colors/selection/text/fx",      commands::fx::color,  fx_options);
+                def_none_f =             config.settings::take("/config/terminal/colors/selection/none/fx",      commands::fx::color,  fx_options);
+                def_find_f =             config.settings::take("/config/terminal/colors/match/fx",               commands::fx::color,  fx_options);
 
                 std::copy(std::begin(argb::vt256), std::end(argb::vt256), std::begin(def_colors));
                 for (auto i = 0; i < 16; i++)
                 {
-                    def_colors[i] = config.take("/config/terminal/colors/color" + std::to_string(i), def_colors[i]);
+                    def_colors[i] = config.settings::take("/config/terminal/colors/color" + std::to_string(i), def_colors[i]);
                 }
             }
         };
@@ -397,7 +397,7 @@ namespace netxs::ui
                 : owner{ owner                   },
                   encod{ prot::x11               },
                   state{ mode::none              },
-                  smode{ owner.config.def_selmod }
+                  smode{ owner.defcfg.def_selmod }
             { }
 
             operator bool () { return state != mode::none; }
@@ -656,7 +656,7 @@ namespace netxs::ui
 
             void reset()
             {
-                std::copy(std::begin(owner.config.def_colors), std::end(owner.config.def_colors), std::begin(color));
+                std::copy(std::begin(owner.defcfg.def_colors), std::end(owner.defcfg.def_colors), std::begin(color));
             }
             auto to_byte(char c)
             {
@@ -839,7 +839,7 @@ namespace netxs::ui
                 };
                 procs[ansi::osc_reset_crclr] = [&](view /*data*/)
                 {
-                    owner.caret.color(owner.config.def_curclr);
+                    owner.caret.color(owner.defcfg.def_curclr);
                 };
                 procs[ansi::osc_reset_fgclr] = [&](view /*data*/)
                 {
@@ -1388,7 +1388,7 @@ namespace netxs::ui
                 auto changed = faux;
                 if (parser::style.wrp() != old_style.wrp())
                 {
-                    auto w = parser::style.wrp() == wrap::none ? (si32)owner.config.def_wrpmod
+                    auto w = parser::style.wrp() == wrap::none ? (si32)owner.defcfg.def_wrpmod
                                                                : (si32)parser::style.wrp();
                     owner.base::signal(tier::release, terminal::events::layout::wrapln, w);
                     changed = true;
@@ -1648,7 +1648,7 @@ namespace netxs::ui
                 else // Add additional default tabstops.
                 {
                     stops.reserve(new_size);
-                    auto step = owner.config.def_tablen;
+                    auto step = owner.defcfg.def_tablen;
                     auto next = last_stop / step * step;
                     auto add_count = new_size - step;
                     while (next < add_count)
@@ -1666,7 +1666,7 @@ namespace netxs::ui
             void stb()
             {
                 parser::flush();
-                if (coord.x <= 0 || coord.x > owner.config.def_mxline) return;
+                if (coord.x <= 0 || coord.x > owner.defcfg.def_mxline) return;
                 resize_tabstops(coord.x);
                 auto  coor = coord.x - 1;
                 auto  head = stops.begin();
@@ -1753,8 +1753,8 @@ namespace netxs::ui
                     }
                     else
                     {
-                        coord.x += notab ? owner.config.def_tablen
-                                         : owner.config.def_tablen - netxs::grid_mod(coord.x, owner.config.def_tablen);
+                        coord.x += notab ? owner.defcfg.def_tablen
+                                         : owner.defcfg.def_tablen - netxs::grid_mod(coord.x, owner.defcfg.def_tablen);
                     }
                 }
                 else
@@ -1766,8 +1766,8 @@ namespace netxs::ui
                     }
                     else
                     {
-                        coord.x -= notab ? owner.config.def_tablen
-                                         :(owner.config.def_tablen + coord.x - 1) % owner.config.def_tablen + 1;
+                        coord.x -= notab ? owner.defcfg.def_tablen
+                                         :(owner.defcfg.def_tablen + coord.x - 1) % owner.defcfg.def_tablen + 1;
                     }
                 }
             }
@@ -2173,12 +2173,12 @@ namespace netxs::ui
             {
                 switch (owner.ftrack ? mode : mime::disabled)
                 {
-                    case mime::ansitext: _shade(owner.config.def_ansi_f, owner.config.def_ansi_c, work); break;
-                    case mime::richtext: _shade(owner.config.def_rich_f, owner.config.def_rich_c, work); break;
-                    case mime::htmltext: _shade(owner.config.def_html_f, owner.config.def_html_c, work); break;
-                    case mime::textonly: _shade(owner.config.def_text_f, owner.config.def_text_c, work); break;
-                    case mime::safetext: _shade(owner.config.def_safe_f, owner.config.def_safe_c, work); break;
-                    default:             _shade(owner.config.def_none_f, owner.config.def_none_c, work); break;
+                    case mime::ansitext: _shade(owner.defcfg.def_ansi_f, owner.defcfg.def_ansi_c, work); break;
+                    case mime::richtext: _shade(owner.defcfg.def_rich_f, owner.defcfg.def_rich_c, work); break;
+                    case mime::htmltext: _shade(owner.defcfg.def_html_f, owner.defcfg.def_html_c, work); break;
+                    case mime::textonly: _shade(owner.defcfg.def_text_f, owner.defcfg.def_text_c, work); break;
+                    case mime::safetext: _shade(owner.defcfg.def_safe_f, owner.defcfg.def_safe_c, work); break;
+                    default:             _shade(owner.defcfg.def_none_f, owner.defcfg.def_none_c, work); break;
                 }
             }
             // bufferbase: Rasterize selection with grips.
@@ -2662,7 +2662,7 @@ namespace netxs::ui
                                 offset += match.length();
                             }
                         };
-                        _shade(owner.config.def_find_f, owner.config.def_find_c, work);
+                        _shade(owner.defcfg.def_find_f, owner.defcfg.def_find_c, work);
                     }
                     selection_render(dest);
                 }
@@ -3224,17 +3224,17 @@ namespace netxs::ui
 
             scroll_buf(term& boss)
                 : bufferbase{ boss },
-                       batch{ boss.config.def_length, boss.config.def_growdt, boss.config.def_growmx },
+                       batch{ boss.defcfg.def_length, boss.defcfg.def_growdt, boss.defcfg.def_growmx },
                        index{ 1    },
                        place{      },
-                       shore{ boss.config.def_margin }
+                       shore{ boss.defcfg.def_margin }
             {
-                parser::style.wrp(boss.config.def_wrpmod);
-                batch.invite(0, deco{}.wrp(boss.config.def_wrpmod == wrap::on), cell{}); // At least one line must exist.
+                parser::style.wrp(boss.defcfg.def_wrpmod);
+                batch.invite(0, deco{}.wrp(boss.defcfg.def_wrpmod == wrap::on), cell{}); // At least one line must exist.
                 batch.set_width(1);
                 index_rebuild();
 
-                auto c = cell{ '\0' }.fgc(boss.config.def_fcolor).bgc(boss.config.def_bcolor).link(boss.id);
+                auto c = cell{ '\0' }.fgc(boss.defcfg.def_fcolor).bgc(boss.defcfg.def_bcolor).link(boss.id);
                 boss.defclr = c;
                 parser::brush.reset(c);
             }
@@ -3392,7 +3392,7 @@ namespace netxs::ui
             // scroll_buf: Set left/right scrollback additional padding.
             void setpad(si32 new_value) override
             {
-                if (new_value < 0) new_value = owner.config.def_margin;
+                if (new_value < 0) new_value = owner.defcfg.def_margin;
                 shore = std::min(new_value, 255);
             }
             // scroll_buf: Get left/right scrollback additional padding.
@@ -4974,7 +4974,7 @@ namespace netxs::ui
                 batch.clear();
                 reset_scroll_region();
                 bufferbase::clear_all();
-                resize_history(owner.config.def_length, owner.config.def_growdt, owner.config.def_growmx);
+                resize_history(owner.defcfg.def_length, owner.defcfg.def_growdt, owner.defcfg.def_growmx);
             }
             // scroll_buf: Set scrollback limits.
             void resize_history(si32 new_size, si32 grow_by = 0, si32 grow_mx = 0)
@@ -5038,7 +5038,7 @@ namespace netxs::ui
                                 offset += match.length();
                             }
                         };
-                        _shade(owner.config.def_find_f, owner.config.def_find_c, work);
+                        _shade(owner.defcfg.def_find_f, owner.defcfg.def_find_c, work);
                     }
 
                     if (length > 0) // Highlight the lines that are not shown in full.
@@ -5092,8 +5092,8 @@ namespace netxs::ui
                     auto end_coor = twod{ 0, y_end + 1     } + destcoor;
                     upbox.move(top_coor);
                     dnbox.move(end_coor);
-                    dest.plot(upbox, cell::shaders::xlucent(owner.config.def_lucent));
-                    dest.plot(dnbox, cell::shaders::xlucent(owner.config.def_lucent));
+                    dest.plot(upbox, cell::shaders::xlucent(owner.defcfg.def_lucent));
+                    dest.plot(dnbox, cell::shaders::xlucent(owner.defcfg.def_lucent));
                     if (find)
                     {
                         auto draw = [&](auto const& block)
@@ -5114,7 +5114,7 @@ namespace netxs::ui
                                         offset += match.length();
                                     }
                                 };
-                                _shade(owner.config.def_find_f, owner.config.def_find_c, marker);
+                                _shade(owner.defcfg.def_find_f, owner.defcfg.def_find_c, marker);
                             }
                         };
                         draw(upbox);
@@ -6891,7 +6891,7 @@ namespace netxs::ui
         using vtty = os::vt::vtty;
 
         std::array<face, 5> pocket; // term: Buffers for DECCRA.
-        termconfig config; // term: Terminal settings.
+        termconfig defcfg; // term: Terminal settings.
         scroll_buf normal; // term: Normal    screen buffer.
         alt_screen altbuf; // term: Alternate screen buffer.
         buffer_ptr target; // term: Current   screen buffer pointer.
@@ -6925,7 +6925,7 @@ namespace netxs::ui
         para       imebox; // term: IME composition preview render.
         text       imetxt; // term: IME composition preview source.
         flow       imefmt; // term: IME composition preview layout.
-        eccc       appcfg; // term: Application startup config.
+        eccc       appcfg; // term: Application startup inits.
         os::fdrw   fdlink; // term: Optional DirectVT uplink.
         hook       onerun; // term: One-shot token for restart session.
         bool       rawkbd; // term: Exclusive keyboard access.
@@ -7067,7 +7067,7 @@ namespace netxs::ui
             invert = faux;
             decckm = faux;
             bpmode = faux;
-            altscr = config.def_alt_on;
+            altscr = defcfg.def_alt_on;
             normal.brush.reset();
             ipccon.reset();
         }
@@ -7124,7 +7124,7 @@ namespace netxs::ui
                     mtrack.setmode(input::mouse::prot::sgr);
                     break;
                 case 1007: // Enable alternate scroll mode.
-                    altscr = config.def_alt_on;
+                    altscr = defcfg.def_alt_on;
                     break;
                 case 10060:// Enable mouse reporting outside the viewport (outside+negative coordinates).
                     mtrack.enable(input::mouse::mode::negative_args);
@@ -7322,9 +7322,9 @@ namespace netxs::ui
         void sbsize(fifo& q)
         {
             target->flush();
-            auto ring_size = q.subarg(config.def_length);
-            auto grow_step = q.subarg(config.def_growdt);
-            auto grow_mxsz = q.subarg(config.def_growmx);
+            auto ring_size = q.subarg(defcfg.def_length);
+            auto grow_step = q.subarg(defcfg.def_growdt);
+            auto grow_mxsz = q.subarg(defcfg.def_growmx);
             normal.resize_history(ring_size, grow_step, grow_mxsz);
         }
         // term: Check and update scrollback buffer limits.
@@ -7370,7 +7370,7 @@ namespace netxs::ui
         void update(P proc)
         {
             auto lock = bell::sync();
-            if (config.resetonout) follow[axis::Y] = true;
+            if (defcfg.resetonout) follow[axis::Y] = true;
             if (follow[axis::Y])
             {
                 unsync |= proc();
@@ -7419,13 +7419,13 @@ namespace netxs::ui
         void setdef()
         {
             auto& console = *target;
-            defclr.txt('\0').fgc(config.def_fcolor).bgc(config.def_bcolor).link(base::id);
+            defclr.txt('\0').fgc(defcfg.def_fcolor).bgc(defcfg.def_bcolor).link(base::id);
             console.brush.reset(defclr);
             console.style.reset();
-            console.style.wrp(config.def_wrpmod);
-            console.setpad(config.def_margin);
-            selection_selmod(config.def_selmod);
-            caret.style(config.def_cursor);
+            console.style.wrp(defcfg.def_wrpmod);
+            console.setpad(defcfg.def_margin);
+            selection_selmod(defcfg.def_selmod);
+            caret.style(defcfg.def_cursor);
         }
         // term: Set terminal background.
         void setsgr(fifo& q)
@@ -7447,7 +7447,7 @@ namespace netxs::ui
                 q.settop(q.desub(param));
                 parser.table[ansi::csi_sgr].execute(q, ptr);
             }
-            else mark.brush = cell{ '\0' }.fgc(config.def_fcolor).bgc(config.def_bcolor);
+            else mark.brush = cell{ '\0' }.fgc(defcfg.def_fcolor).bgc(defcfg.def_bcolor);
             set_color(mark.brush);
         }
         // term: CCC_LSR: Enable line style reporting.
@@ -7895,7 +7895,7 @@ namespace netxs::ui
         }
         void set_log(bool state)
         {
-            if (config.allow_logs)
+            if (defcfg.allow_logs)
             {
                 io_log = state;
                 base::signal(tier::release, terminal::events::io_log, state);
@@ -7983,7 +7983,7 @@ namespace netxs::ui
                 };
                      if (forced)                close();
                 else if (resume.exchange(faux)) renew();
-                else switch (config.def_atexit)
+                else switch (defcfg.def_atexit)
                 {
                     case commands::atexit::smart: code ? query()
                                                        : close(); break;
@@ -8010,7 +8010,7 @@ namespace netxs::ui
                 {
                     auto& title = wtrack.get(ansi::osc_title);
                     if (title.empty()) wtrack.set(ansi::osc_title); // Set default title if it is empty.
-                    if (config.send_input.size()) ipccon.write<faux>(config.send_input);
+                    if (defcfg.send_input.size()) ipccon.write<faux>(defcfg.send_input);
                     // Sync external listeners with terminal current state.
                     base::signal(tier::release, terminal::events::io_log,         io_log);
                     base::signal(tier::release, terminal::events::selmod,         selmod);
@@ -8109,7 +8109,7 @@ namespace netxs::ui
             switch (gear.payload)
             {
                 case keybd::type::keypress:
-                    if (config.resetonkey && gear.doinput())
+                    if (defcfg.resetonkey && gear.doinput())
                     {
                         base::riseup(tier::release, e2::form::animate::reset, 0); // Reset scroll animation.
                         unsync = true;
@@ -8172,12 +8172,12 @@ namespace netxs::ui
         }
 
     public:
-        term(xmls& xml_config)
-            : config{ xml_config },
+        term(settings& config)
+            : defcfg{ config },
               normal{ *this },
               altbuf{ *this },
               target{ &normal },
-               caret{ base::plugin<pro::caret>(config.def_cur_on, config.def_cursor, dot_00, config.def_period, config.def_curclr) },
+               caret{ base::plugin<pro::caret>(defcfg.def_cur_on, defcfg.def_cursor, dot_00, defcfg.def_period, defcfg.def_curclr) },
                timer{ base::plugin<pro::timer>() },
                robot{ base::plugin<pro::robot>() },
               mtrack{ *this },
@@ -8191,30 +8191,32 @@ namespace netxs::ui
               unsync{ faux },
               invert{ faux },
               styled{ faux },
-              io_log{ config.def_io_log },
-              selalt{ config.def_selalt },
+              io_log{ defcfg.def_io_log },
+              selalt{ defcfg.def_selalt },
               resume{ faux },
               forced{ faux },
-              selmod{ config.def_selmod },
+              selmod{ defcfg.def_selmod },
               onesht{ mime::disabled },
-              altscr{ config.def_alt_on },
+              altscr{ defcfg.def_alt_on },
               kbmode{ prot::vt },
               ime_on{ faux },
               rawkbd{ faux },
               bottom_anchored{ true }
         {
-            set_fg_color(config.def_fcolor);
-            set_bg_color(config.def_bcolor);
+            set_fg_color(defcfg.def_fcolor);
+            set_bg_color(defcfg.def_bcolor);
             selection_submit();
-            selection_selmod(config.def_selmod);
+            selection_selmod(defcfg.def_selmod);
 
             auto& mouse = base::plugin<pro::mouse>();
             mouse.draggable<hids::buttons::left>(selection_passed());
 
             base::plugin<pro::keybd>();
             auto& luafx = bell::indexer.luafx;
-            auto script_list = xml_config.list("/config/events/terminal/script");
-            auto bindings = input::bindings::load(xml_config, script_list);
+            auto terminal_context = config.settings::push_context("/config/events/terminal/");
+            auto script_list = config.settings::take_ptr_list_for_name("script");
+            auto bindings = input::bindings::load(config, script_list);
+            //config.settings::pop_context();
             input::bindings::keybind(*this, bindings);
             base::add_methods(basename::terminal,
             {
@@ -8608,7 +8610,7 @@ namespace netxs::ui
                 auto original_cursor = console.get_coord(origin); // base::coor() and origin are the same.
 
                 auto brush = defclr;
-                if (config.def_filler != argb::default_color) brush.bgc(config.def_filler); // Unsync with SGR default background.
+                if (defcfg.def_filler != argb::default_color) brush.bgc(defcfg.def_filler); // Unsync with SGR default background.
                 parent_canvas.fill(cell::shaders::fusefull(brush));
 
                 if (ime_on) // Draw IME composition overlay.
@@ -8679,8 +8681,8 @@ namespace netxs::ui
                 //    east.coor.x += oversz.r - pads + console.panel.x;
                 //    west = west.trim(clip);
                 //    east = east.trim(clip);
-                //    parent_canvas.fill(west, cell::shaders::xlucent(config.def_lucent));
-                //    parent_canvas.fill(east, cell::shaders::xlucent(config.def_lucent));
+                //    parent_canvas.fill(west, cell::shaders::xlucent(defcfg.def_lucent));
+                //    parent_canvas.fill(east, cell::shaders::xlucent(defcfg.def_lucent));
                 //}
 
                 // Debug: Shade active viewport.

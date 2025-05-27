@@ -314,7 +314,7 @@ namespace netxs::app::calc
             }
             return std::tuple{ cellatix_rows, cellatix_cols, cellatix_text };
         };
-        auto build = [](eccc /*appcfg*/, xmls& config)
+        auto build = [](eccc /*appcfg*/, settings& config)
         {
             auto highlight_color = cell{ skin::globals().winfocus };
             auto label_color     = cell{ whitespace }.fgc(blackdk).bgc(whitedk);
@@ -347,7 +347,7 @@ namespace netxs::app::calc
                   });
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, 0);
-                config.cd("/config/defapp");
+            auto defapp_context = config.settings::push_context("/config/defapp/");
                 auto menu = object->attach(slot::_1, app::shared::menu::demo(config));
                 auto all_rail = object->attach(slot::_2, ui::rail::ctor());
                 auto all_stat = all_rail->attach(ui::fork::ctor(axis::Y))
@@ -418,6 +418,7 @@ namespace netxs::app::calc
                                 auto pad = plus_pad->attach(slot::_2, ui::mock::ctor())
                                                    ->limits({ 1,1 }, { 1,1 });
                     layers->attach(app::shared::scroll_bars(scroll));
+            //config.settings::pop_context();
             window->invoke([&](auto& boss)
             {
                 app::shared::base_kb_navigation(config, scroll, boss);

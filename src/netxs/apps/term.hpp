@@ -43,7 +43,7 @@ namespace netxs::app::terminal
             boss.base::signal(tier::release, e2::form::upon::started, root_ptr);
         };
     };
-    auto build_teletype = [](eccc appcfg, xmls& config)
+    auto build_teletype = [](eccc appcfg, settings& config)
     {
         auto window_clr = skin::color(tone::window_clr);
         auto window = ui::cake::ctor()
@@ -70,10 +70,10 @@ namespace netxs::app::terminal
         layers->attach(app::shared::scroll_bars(scroll));
         return window;
     };
-    auto build_terminal = [](eccc appcfg, xmls& config)
+    auto build_terminal = [](eccc appcfg, settings& config)
     {
         auto window_clr = skin::color(tone::window_clr);
-        auto border = std::max(0, config.take(attr::borders, 0));
+        auto border = std::max(0, config.settings::take(attr::borders, 0));
         auto borders = dent{ border, border, 0, 0 };
         auto menu_height = ptr::shared(0);
         auto gradient = [menu_height, borders, bground = core{}](face& parent_canvas, si32 /*param*/, base& /*boss*/) mutable
@@ -190,7 +190,7 @@ namespace netxs::app::terminal
             ->plugin<pro::focus>(pro::focus::mode::focused)
             ->invoke([&](auto& boss)
             {
-                auto& cwd_commands = boss.base::property("terminal.cwd_commands", config.take(attr::cwdsync, ""s));
+                auto& cwd_commands = boss.base::property("terminal.cwd_commands", config.settings::take(attr::cwdsync, ""s));
                 auto& cwd_sync = boss.base::property("terminal.cwd_sync", 0);
                 auto& cwd_path = boss.base::property("terminal.cwd_path", os::fs::path{});
                 boss.LISTEN(tier::preview, ui::terminal::events::toggle::cwdsync, state)
@@ -261,7 +261,7 @@ namespace netxs::app::terminal
         auto hz = term_stat_area->attach(slot::_2, ui::grip<axis::X>::ctor(scroll, drawfx))
             ->limits({ -1, 1 }, { -1, 1 });
 
-        config.cd("/config/terminal", "/config/defapp");
+        auto terminal_context = config.settings::push_context("/config/terminal/");
         auto [slot1, cover, menu_data] = app::shared::menu::load(config);
         auto menu = object->attach(slot::_1, slot1)
             ->shader(cell::shaders::fuse(window_clr))
@@ -306,10 +306,11 @@ namespace netxs::app::terminal
                 parent_canvas.fill(full, [&](cell& c){ c.fgc(c.bgc()).bgc(bgc).txt(bar).link(bar); });
             };
         });
+        //config.settings::pop_context();
         term->invoke([&](auto& boss)
-            {
-                ui_term_events(boss, appcfg);
-            });
+        {
+            ui_term_events(boss, appcfg);
+        });
         return window;
     };
 
