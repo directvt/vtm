@@ -2245,8 +2245,7 @@ namespace netxs::input
             auto bindings = input::bindings::vector{};
             for (auto script_ptr : script_list)
             {
-                //todo
-                //auto script_context = config.settings::push_context(script_ptr);
+                auto script_context = config.settings::push_context(script_ptr);
                 auto script_body_ptr = ptr::shared(config.settings::take_value(script_ptr));
                 auto on_ptr_list = config.settings::take_ptr_list_of(script_ptr, "on");
                 for (auto event_ptr : on_ptr_list)

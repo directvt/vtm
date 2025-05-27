@@ -1508,8 +1508,6 @@ namespace netxs::xml
                 auto context_ptr = settings::get_context();
                 while (context_ptr)
                 {
-                    //context_ptr->get_list3(reference_path, item_ptr_list);
-                    touched++;
                     settings::_take_ptr_list_of(context_ptr, reference_path, item_ptr_list);
                     if (item_ptr_list.size() && item_ptr_list.front())
                     {
@@ -1576,17 +1574,13 @@ namespace netxs::xml
                  || kind == document::type::raw_reference)
                 {
                     auto& reference_name = value_placeholder->utf8;
-                    if (value_placeholder->mark != touched)
+                    if (value_placeholder->mark != touched) // Silently ignore reference loops.
                     {
                         value_placeholder->mark = touched;
                         if (auto base_ptr = settings::_find_name(reference_name)) // Lookup outside.
                         {
                             settings::_take_ptr_list_of(base_ptr, attribute, item_ptr_list);
                         }
-                    }
-                    else
-                    {
-                        log("%%%red%Reference loop detected for '%ref%'%nil%", prompt::xml, ansi::fgc(redlt), reference_name, ansi::nil());
                     }
                 }
             }

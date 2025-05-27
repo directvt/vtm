@@ -833,11 +833,11 @@ namespace netxs::app::shared
         if (gui_config.cellsize == 0) gui_config.cellsize = 20;
         if (gui_config.gridsize.x == 0 || gui_config.gridsize.y == 0) gui_config.gridsize = dot_mx;
         auto fonts_context = config.settings::push_context("/config/gui/fonts/");
-        auto recs = config.settings::take_ptr_list_for_name("font");
-        for (auto& f : recs)
+        auto font_list = config.settings::take_ptr_list_for_name("font");
+        for (auto& font_ptr : font_list)
         {
             //todo implement 'fonts/font/file' - font file path/url
-            gui_config.fontlist.push_back(config.settings::take_value(f));
+            gui_config.fontlist.push_back(config.settings::take_value(font_ptr));
         }
         //config.settings::pop_context();
         return gui_config;
