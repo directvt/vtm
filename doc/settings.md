@@ -61,27 +61,37 @@ The file list is built in the following order from the following sources:
 
 ### Key differences from XML
 
- - All stored values are UTF-8 strings (the settings target decides on its own side how to interpret the string):
+ - Document encoding is UTF-8.
+ - Any Unicode characters are allowed, including the U+0000 (null) character.
+ - There is no support for named XML character entities.
+ - The stored data forms a hierarchical list of `name=value` pairs.
+ - Multiple root elements are allowed.
+ - There is no distinction between XML-attribute and XML-element, i.e. any attributes are sub-elements.
+   - Each element can be defined in any way, either using an XML-attribute or an XML-element syntax:
+     - `<... name="value" />`, `<...> <name> "value" </name> </...>`, and `<...> <name="value" /> </...>` have the same meaning.
+   - The XML-attribute `param` in `<name param="value"/>` and the XML-element `param` in `<name> <param="value"/> </name>` are semantically identical sub-elements of the `name` element.
+ - No spaces are allowed between the opening angle bracket and the element name:
+   - `... < name ...`, `... <= ...`, `... << ...` are treated as parts of the element's value content.
+ - Every element has its own text value.
+   - For example, `<name="names_value" param="params_value"/>` - the `name` element has the text value `names_value`, and its `param` sub-element has the text value `params_value`.
+ - All stored values are strings (the data requester decides on its side how to interpret it):
    - `name=2000` and `name="2000"` have the same meaning.
- - There is no distinction between XML-attribute and XML-subobject, i.e. any attributes are sub-objects:
-   - `<name param="value" />` and `<name> <param="value" /> </name>` have the same meaning.
- - No spaces are allowed between the opening angle bracket and the name when declaring an XML-subobject.
-   - `... < name ...`, `... <= ...`, `... << ...` are treated as parts of Lua script code.
- - In addition to a set of sub-objects each object can contain its own text value:
-   - E.g. `<name="names_value" param="params_value"/>` - subobject `name` has text value `names_value`.
- - Each object can be defined in any way, either using an XML-attribute or an XML-subobject syntax:
-   - `<... name="value" />`, `<...> <name> "value" </name> </...>`, and `<...> <name="value" /> </...>` have the same meaning.
- - Compact syntax is allowed.
-   - `<node0><node1><thing name="value"/></node1></node0>` and `<node0/node1/thing name="value"/>` have the same meaning.
- - Objects can reference objects using relative and absolute references.
-   - Non-quoted values that do not begin with a decimal digit are references to other objects.
+ - All value strings, except those that begin with a decimal digit character (ASCII `0` - `9`), must be quoted with either double or single quotes (`"` U+0022 or `'` U+0027).
+ - The value string can be fragmented. Fragments can be located after the equal sign following the element name, as well as between the opening and closing tags.
+ - The fragments located between the opening and closing tags can be either quoted or in raw form. The quoted form sets strict boundaries for the string value. The raw form pulls all characters between the opening and closing tags, including line breaks.
+ - The following compact syntax for elements is allowed:
+   - `<node0/node1/thing name="value"/>` and `<node0><node1><thing name="value"/></node1></node0>` have the same meaning.
+ - Elements can reference any element using relative and absolute references, in the form of an unquoted name or an XML path to the referenced element.
    - `thing2` refers to the value `/node1/thing1` in `<node1 thing1="value1"/><node2 thing2=/node1/thing1 />`.
    - `thing2` refers to the value `thing1` within the scope of `<node1 thing1="value1"><node2 thing2=thing1 /></node1>`.
- - The object reference includes all of the object's contents, including the object's value and all nested objects.
- - Any Unicode characters are allowed, including the U+0000 (null) character.
- - Multiple root elements are allowed.
- - There is no support for named XML character entities.
- - Escaped characters with special meaning:
+   - Circular references are silently ignored.
+ - The element reference includes all of the element's contents, including the element's value and all nested elements.
+ - The element's content may include any number of substrings, as well as references to other elements, combined in the required order using the vertical bar character ASCII 0x7C `|`.
+   - `<thing1="1"/><thing2="2"/><thing21=thing2 | thing1/>` and `<thing1="1"/><thing2="2"/><thing21="21"/>` have the same meaning.
+ - Identical data structures in this format allow overlaying.
+   - The values of single elements of the original structure will be updated to the values of the overlaid structure.
+   - A list of elements with the same name within a scope may start with an empty element with an asterisk at the end of the name, meaning that this list will overwrite the existing one during merging, otherwise the list will be appended to the existing one.
+ - There is a list of escaped characters with special meaning:
    - `\a`  ASCII 0x07 BEL
    - `\t`  ASCII 0x09 TAB
    - `\n`  ASCII 0x0A LF
@@ -89,9 +99,8 @@ The file list is built in the following order from the following sources:
    - `\e`  ASCII 0x1B ESC
    - `\\`  ASCII 0x5C Backslash
    - `\u`  A Unicode escape sequence in the form `\u{XX...}` or `\uXX...`, where `XX...` is the hexadecimal codepoint value.
-   - `$0`  Current module full path (it only expands in cases where it makes sense)
 
-Let's take the following object hierarchy as an example:
+Let's take the following element hierarchy as an example:
 
 - \<document\> - Top-level element
   - \<thing\> - Second level element
@@ -99,120 +108,133 @@ Let's take the following object hierarchy as an example:
 
 The following forms of element declaration are equivalent:
 
-```xml
-<document>
-    <thing name="a">text1</thing>
-    <thing name="b">text2</thing>
-</document>
-```
-
-```xml
-<document>
-    <thing="text1" name="a"/>
-    <thing="text2" name="b"/>
-</document>
-```
-
-```xml
-<document>
-    <thing name="a">
-        "text1"
-    </thing>
-    <thing name="b">
-        "text2"
-    </thing>
-</document>
-```
-
-```xml
-<document>
-    <thing>
-        "text1"
-        <name="a"/>
-    </thing>
-    <thing>
-        <name="b"/>
-        "text2"
-    </thing>
-</document>
-```
-
-```xml
-<document>
-    <thing="t">
-        "ext"
-        <name>
-            "a"
-        </name>
-        "1"
-    </thing>
-    <thing>
-        <name>
-            "b"
-        </name>
-        "text"
-        "2"
-    </thing>
-</document>
-```
-
-```xml
-<document>
-    <basename="a"/>
-    <thing name=basename>text1</thing>
-    <thing name="b">text2</thing>
-</document>
-```
-
-```xml
-<document>
-    <basething="text1" name="a"/>
-    <thing=basething/>
-    <thing name="b">text2</thing>
-</document>
-```
-
-```xml
-<document>
-    <basething name="a"/>
-    <thing="text1" | basething/>
-    <thing name="b">text2</thing>
-</document>
-```
-
-```xml
-<document>
-    <basething name="a"/>
-    <thing=basething | "text1"/>
-    <thing name="b">text2</thing>
-</document>
-```
-
-```xml
-<basething name="a"/>
-<document>
-    <thing=basething | "text1"/>
-    <thing name="b">text2</thing>
-</document>
-```
-
-```xml
-<basething name="a"/>
-<document>
-    <thing> "" | basething | "text1" </thing>
-    <thing name="b">text2</thing>
-</document>
-```
-
-```xml
-<ThingTemplate = "text" | NumberRef>
-    <name = LetterRef/>
-</ThingTemplate>
-<document>
-    <thing=ThingTemplate NumberRef="1" LetterRef="a"/>
-    <thing=ThingTemplate NumberRef="2" LetterRef="b"/>
-</document>
-```
+- Standard XML syntax:
+  ```xml
+  <document>
+      <thing name="a">text1</thing>
+      <thing name="b">text2</thing>
+  </document>
+  ```
+- Assigning a content value to an element directly using the equal sign:
+  ```xml
+  <document>
+      <thing="text1" name="a"/>
+      <thing="text2" name="b"/>
+  </document>
+  ```
+- Assigning a value to an element using quoted literals between the opening and closing tags:
+  ```xml
+  <document>
+      <thing name="a">
+          "text1"
+      </thing>
+      <thing name="b">
+          "text2"
+      </thing>
+  </document>
+  ```
+- Assigning values to sub-elements directly using the equal sign:
+  ```xml
+  <document>
+      <thing>
+          "text1"
+          <name="a"/>
+      </thing>
+      <thing>
+          <name="b"/>
+          "text2"
+      </thing>
+  </document>
+  ```
+- Fragmenting the assigned value strings:
+  ```xml
+  <document>
+      <thing="t">
+          "ext"
+          <name>
+              "a"
+          </name>
+          "1"
+      </thing>
+      <thing>
+          <name>
+              "b"
+          </name>
+          "text"
+          "2"
+      </thing>
+  </document>
+  ```
+- Referencing the string value from the independent element:
+  ```xml
+  <document>
+      <basename="a"/>
+      <thing name=basename>text1</thing>
+      <thing name="b">text2</thing>
+  </document>
+  ```
+- Referencing the string value and existing sub-elements from the independent element:
+  ```xml
+  <document>
+      <basething="text1" name="a"/>
+      <thing=basething/>
+      <thing name="b">text2</thing>
+  </document>
+  ```
+- Referencing the string value fragment and sub-elements from the independent element:
+  ```xml
+  <document>
+      <basething="1" name="a"/>
+      <thing="text" | basething/>
+      <thing name="b">text2</thing>
+  </document>
+  ```
+- Referencing the string value fragment and sub-elements from the independent element:
+  ```xml
+  <document>
+      <basething="text" name="a"/>
+      <thing=basething | "1"/>
+      <thing name="b">text2</thing>
+  </document>
+  ```
+- Referencing element from surrounding scope:
+  ```xml
+  <basething name="a"/>
+  <document>
+      <thing=basething | "text1"/>
+      <thing name="b">text2</thing>
+  </document>
+  ```
+- Referencing the string value fragments between opening and closing tags:
+  ```xml
+  <basething="xt" name="a"/>
+  <document>
+      <thing> "te" | basething | "1" </thing>
+      <thing name="b">text2</thing>
+  </document>
+  ```
+- Parameterized templating:
+  ```xml
+  <ThingTemplate = "text" | NumberRef>
+      <name = LetterRef/>
+  </ThingTemplate>
+  <document>
+      <thing=ThingTemplate NumberRef="1" LetterRef="a"/>
+      <thing=ThingTemplate NumberRef="2" LetterRef="b"/>
+  </document>
+  ```
+- Parameterized template from foreign namespace:
+  ```xml
+  <Namespace>
+      <ThingTemplate = "text" | NumberRef>
+          <name = LetterRef/>
+      </ThingTemplate>
+  </Namespace>
+  <document=/Namespace>
+      <thing=ThingTemplate NumberRef="1" LetterRef="a"/>
+      <thing=ThingTemplate NumberRef="2" LetterRef="b"/>
+  </document>
+  ```
 
 ### Compact XML syntax
 
@@ -243,9 +265,9 @@ The following declarations have the same meaning:
 ...
 <config>  <!-- Global configuration. -->
     ...
-    <object1=global_variable_name/>  <!-- object1 references the value of /global_variable_name (three levels of indirection allowed). -->
-    <object2=/config/object1/>       <!-- object2 references the value of /config/object1. -->
-    <object3="/config/object1"/>     <!-- object3 contains the string value "/config/object1". -->
+    <element1=global_variable_name/>  <!-- element1 references the value of /global_variable_name (three levels of indirection allowed). -->
+    <element2=/config/element1/>       <!-- element2 references the value of /config/element1. -->
+    <element3="/config/element1"/>     <!-- element3 contains the string value "/config/element1". -->
     ...
     <desktop>  <!-- Desktop settings. -->
         <taskbar ... >  <!-- Taskbar menu settings. -->
@@ -708,7 +730,7 @@ Notes
 <include="~/.config/vtm/settings.xml"/>   <!-- Default user-wise settings source. -->
 
 <!-- App configuration. -->
-<config>
+<config=/Colors | /Scripting | /Macro> <!-- Using additional namespaces: "/Colors", "/Scripting" and "/Macro" -->
     <gui>  <!-- GUI mode related settings. (win32 platform only for now) -->
         <antialiasing=true/>  <!-- Antialiasing of rendered glyphs. Note: Multi-layered color glyphs such as emoji are always antialiased. -->
         <cellheight=22/>      <!-- Text cell height in physical pixels. Note: The width of the text cell depends on the primary font (the first one in the font list). -->
@@ -728,7 +750,7 @@ Notes
         <style="bar"/>  <!-- Cursor style: "bar" | "block" | "underline" ( |  █  _ ). -->
         <blink=400ms/>  <!-- Cursor blink period. Set to zero for a steady cursor. -->
         <show=true/>
-        <color fgc=/Colors/default bgc=/Colors/default/>  <!-- Cursor cell color. By default, the cursor color (bgc) is set to either black or white depending on the lightness of the underlying text background. -->
+        <color fgc=DefaultColor bgc=DefaultColor/>  <!-- Cursor cell color. By default, the cursor color (bgc) is set to either black or white depending on the lightness of the underlying text background. -->
     </cursor>
     <tooltips>  <!-- Not implemented for GUI mode. -->
         <timeout=400ms/>
@@ -841,11 +863,11 @@ Notes
             </width>
             <timeout=250ms/>  <!-- Taskbar collaplse timeout after mouse leave. -->
             <colors>
-                <bground  fgc=whitedk bgc=0xC0202020        />  <!-- Set the bgc color non-transparent (alpha to FF) to disable acrylics in taskbar. -->
-                <focused  fgc=puregreen                     />  <!-- Focused taskbar item color. -->
-                <selected fgc=whitelt                       />  <!-- Default taskbar item color. -->
-                <active   fgc=whitelt                       />  <!-- Running taskbar item color. -->
-                <inactive fgc=blacklt bgc=/Colors/transparent/>  <!-- Blocked taskbar item color (e.g. when the app is maximized by a remote user). -->
+                <bground  fgc=whitedk bgc=0xC0202020 />  <!-- Set the bgc color non-transparent (alpha to FF) to disable acrylics in taskbar. -->
+                <focused  fgc=puregreen              />  <!-- Focused taskbar item color. -->
+                <selected fgc=whitelt                />  <!-- Default taskbar item color. -->
+                <active   fgc=whitelt                />  <!-- Running taskbar item color. -->
+                <inactive fgc=blacklt bgc=Transparent/>  <!-- Blocked taskbar item color (e.g. when the app is maximized by a remote user). -->
             </colors>
         </taskbar>
         <panel>  <!-- Desktop info panel. -->
@@ -896,7 +918,7 @@ Notes
             <color14 = cyanlt     />
             <color15 = whitelt    />
             <default fgc=whitedk bgc=pureblack/>  <!-- Default/current colors (SGR49/39). -->
-            <bground = /Colors/default/>  <!-- Independent background color of the scrollback canvas. Set to 0x00ffffff(or =/Colors/default) to sync with SGR49 (default background). -->
+            <bground = DefaultColor/>  <!-- Independent background color of the scrollback canvas. Set to 0x00ffffff(or =DefaultColor) to sync with SGR49 (default background). -->
             <match fx="color" fgc=whitelt bgc=0xFF007F00/>  <!-- Color of the selected text occurrences. Set an fx to use cell::shaders: "xlight" | "color" | "invert" | "reverse". -->
             <selection>
                 <text      fx="color"  fgc=whitelt bgc=bluelt/>  <!-- Highlighting of the selected text in plaintext mode. -->
@@ -1081,16 +1103,16 @@ Notes
 </config>
 
 <!-- Globals - Unresolved literals will try to be resolved from here. -->
-<true  = 1 />
-<yes   = 1 />
-<on    = 1 />
-<false = 0 />
-<no    = 0 />
-<off   = 0 />
+<Macro>
+    <true  = 1 />
+    <yes   = 1 />
+    <on    = 1 />
+    <false = 0 />
+    <no    = 0 />
+    <off   = 0 />
+</Macro>
 
-<OnLeftClick on="LeftClick"/>
-
-<Menu>
+<Menu=/Scripting>
     <Defaults>
         <autohide=false/>  <!-- Auto hide window menu items on mouse leave. -->
         <slim=true/>       <!-- Make the window menu one cell high (slim=true) or three cells high (slim=false). -->
@@ -1185,34 +1207,33 @@ Notes
 </Menu>
 
 <Colors>
-    <default     = 0x00ffffff />
-    <transparent = nocolor    />
+    <DefaultColor = 0x00ffffff />
+    <Transparent  = 0x00000000 />
+    <blackdk      = 0xFF101010 />
+    <reddk        = 0xFFc40f1f />
+    <greendk      = 0xFF12a10e />
+    <yellowdk     = 0xFFc09c00 />
+    <bluedk       = 0xFF0037db />
+    <magentadk    = 0xFF871798 />
+    <cyandk       = 0xFF3b96dd />
+    <whitedk      = 0xFFbbbbbb />
+    <blacklt      = 0xFF757575 />
+    <redlt        = 0xFFe64856 />
+    <greenlt      = 0xFF15c60c />
+    <yellowlt     = 0xFFf8f1a5 />
+    <bluelt       = 0xFF3a78ff />
+    <magentalt    = 0xFFb3009e />
+    <cyanlt       = 0xFF60d6d6 />
+    <whitelt      = 0xFFf3f3f3 />
+    <pureblack    = 0xFF000000 />
+    <purewhite    = 0xFFffffff />
+    <purered      = 0xFFff0000 />
+    <puregreen    = 0xFF00ff00 />
+    <pureblue     = 0xFF0000ff />
+    <puremagenta  = 0xFFff00ff />
+    <purecyan     = 0xFF00ffff />
+    <pureyellow   = 0xFFff00ff />
 </Colors>
-<blackdk     = 0xFF101010 />
-<reddk       = 0xFFc40f1f />
-<greendk     = 0xFF12a10e />
-<yellowdk    = 0xFFc09c00 />
-<bluedk      = 0xFF0037db />
-<magentadk   = 0xFF871798 />
-<cyandk      = 0xFF3b96dd />
-<whitedk     = 0xFFbbbbbb />
-<blacklt     = 0xFF757575 />
-<redlt       = 0xFFe64856 />
-<greenlt     = 0xFF15c60c />
-<yellowlt    = 0xFFf8f1a5 />
-<bluelt      = 0xFF3a78ff />
-<magentalt   = 0xFFb3009e />
-<cyanlt      = 0xFF60d6d6 />
-<whitelt     = 0xFFf3f3f3 />
-<pureblack   = 0xFF000000 />
-<purewhite   = 0xFFffffff />
-<purered     = 0xFFff0000 />
-<puregreen   = 0xFF00ff00 />
-<pureblue    = 0xFF0000ff />
-<puremagenta = 0xFFff00ff />
-<purecyan    = 0xFF00ffff />
-<pureyellow  = 0xFFff00ff />
-<nocolor     = 0x00000000 />
 
 <Terminal>
     <selection>
@@ -1221,103 +1242,106 @@ Notes
     </selection>
 </Terminal>
 
-<!-- vtm.* scripting context:
-    - .gate: ...
-    - .applet (standalone app): ...
-        - .gear: ...
-    - .desktop: ...
-            - .window: ...
-            - .applet: ...
-                - .tile: ...
-                    - .grip: ...
-                - .terminal: ...  -->
-<TryToQuit             ="vtm.desktop.Shutdown('try');"/>      <!-- Shut down the desktop server if no applications are running. -->
-<RunApplication        ="vtm.desktop.Run();"/>                <!-- Run default application. -->
-<RunInfoPage           ="vtm.desktop.Run({ title='Info-page', hidden=true, label='Info', type='info' });"/>  <!-- Run Info-page. -->
-<FocusPrevWindow       ="vtm.desktop.FocusNextWindow(-1);"/>  <!-- Switch focus to the prev window. -->
-<FocusNextWindow       ="vtm.desktop.FocusNextWindow( 1);"/>  <!-- Switch focus to the next window. -->
+<Scripting>
+    <OnLeftClick on="LeftClick"/>
+    <!-- vtm.* scripting context:
+        - .gate: ...
+        - .applet (standalone app): ...
+            - .gear: ...
+        - .desktop: ...
+                - .window: ...
+                - .applet: ...
+                    - .tile: ...
+                        - .grip: ...
+                    - .terminal: ...  -->
+    <TryToQuit             ="vtm.desktop.Shutdown('try');"/>      <!-- Shut down the desktop server if no applications are running. -->
+    <RunApplication        ="vtm.desktop.Run();"/>                <!-- Run default application. -->
+    <RunInfoPage           ="vtm.desktop.Run({ title='Info-page', hidden=true, label='Info', type='info' });"/>  <!-- Run Info-page. -->
+    <FocusPrevWindow       ="vtm.desktop.FocusNextWindow(-1);"/>  <!-- Switch focus to the prev window. -->
+    <FocusNextWindow       ="vtm.desktop.FocusNextWindow( 1);"/>  <!-- Switch focus to the next window. -->
 
-<AlwaysOnTopApplet     ="vtm.applet.ZOrder(vtm.applet.ZOrder()==1 and 0 or 1);"/>  <!-- Request to toggle z-order window attribute. -1: backmost; 0: plain; 1: topmost. -->
-<CloseApplet           ="vtm.applet.Close();"/>            <!-- Request to Close window. -->
-<MinimizeApplet        ="vtm.applet.Minimize();"/>         <!-- Request to Minimize window. -->
-<MaximizeApplet        ="vtm.applet.Maximize();"/>         <!-- Request to Maximize window. -->
-<FullscreenApplet      ="vtm.applet.Fullscreen();"/>       <!-- Request to Maximize window to full screen. -->
-<RestoreApplet         ="vtm.applet.Restore();"/>          <!-- Request to Restore maximized/fullscreen window. -->
-<MoveAppletLeft        ="vtm.applet.Warp( 1,-1, 0, 0);"/>  <!-- Request to Move window to the left. WarpApplet(l, r, t, b): The parameters specify four deltas for the left, right, top and bottom sides of the window. -->
-<MoveAppletRight       ="vtm.applet.Warp(-1, 1, 0, 0);"/>  <!-- Request to Move window to the right. -->
-<MoveAppletUp          ="vtm.applet.Warp( 0, 0, 1,-1);"/>  <!-- Request to Move window up. -->
-<MoveAppletDown        ="vtm.applet.Warp( 0, 0,-1, 1);"/>  <!-- Request to Move window down. -->
-<MoveAppletTopLeft     ="vtm.applet.Warp( 2,-2, 1,-1);"/>  <!-- Request to Move window to the top-left. -->
-<MoveAppletBottomLeft  ="vtm.applet.Warp( 2,-2,-1, 1);"/>  <!-- Request to Move window to the bottom-left. -->
-<MoveAppletTopRight    ="vtm.applet.Warp(-2, 2, 1,-1);"/>  <!-- Request to Move window to the top-right. -->
-<MoveAppletBottomRight ="vtm.applet.Warp(-2, 2,-1, 1);"/>  <!-- Request to Move window to the bottom-right. -->
-<IncreaseAppletWidth   ="vtm.applet.Warp( 0, 1, 0, 0);"/>  <!-- Request to Increase window width. -->
-<DecreaseAppletWidth   ="vtm.applet.Warp( 0,-1, 0, 0);"/>  <!-- Request to Decrease window width. -->
-<IncreaseAppletHeight  ="vtm.applet.Warp( 0, 0, 0, 1);"/>  <!-- Request to Increase window height. -->
-<DecreaseAppletHeight  ="vtm.applet.Warp( 0, 0, 0,-1);"/>  <!-- Request to Decrease window height. -->
+    <AlwaysOnTopApplet     ="vtm.applet.ZOrder(vtm.applet.ZOrder()==1 and 0 or 1);"/>  <!-- Request to toggle z-order window attribute. -1: backmost; 0: plain; 1: topmost. -->
+    <CloseApplet           ="vtm.applet.Close();"/>            <!-- Request to Close window. -->
+    <MinimizeApplet        ="vtm.applet.Minimize();"/>         <!-- Request to Minimize window. -->
+    <MaximizeApplet        ="vtm.applet.Maximize();"/>         <!-- Request to Maximize window. -->
+    <FullscreenApplet      ="vtm.applet.Fullscreen();"/>       <!-- Request to Maximize window to full screen. -->
+    <RestoreApplet         ="vtm.applet.Restore();"/>          <!-- Request to Restore maximized/fullscreen window. -->
+    <MoveAppletLeft        ="vtm.applet.Warp( 1,-1, 0, 0);"/>  <!-- Request to Move window to the left. WarpApplet(l, r, t, b): The parameters specify four deltas for the left, right, top and bottom sides of the window. -->
+    <MoveAppletRight       ="vtm.applet.Warp(-1, 1, 0, 0);"/>  <!-- Request to Move window to the right. -->
+    <MoveAppletUp          ="vtm.applet.Warp( 0, 0, 1,-1);"/>  <!-- Request to Move window up. -->
+    <MoveAppletDown        ="vtm.applet.Warp( 0, 0,-1, 1);"/>  <!-- Request to Move window down. -->
+    <MoveAppletTopLeft     ="vtm.applet.Warp( 2,-2, 1,-1);"/>  <!-- Request to Move window to the top-left. -->
+    <MoveAppletBottomLeft  ="vtm.applet.Warp( 2,-2,-1, 1);"/>  <!-- Request to Move window to the bottom-left. -->
+    <MoveAppletTopRight    ="vtm.applet.Warp(-2, 2, 1,-1);"/>  <!-- Request to Move window to the top-right. -->
+    <MoveAppletBottomRight ="vtm.applet.Warp(-2, 2,-1, 1);"/>  <!-- Request to Move window to the bottom-right. -->
+    <IncreaseAppletWidth   ="vtm.applet.Warp( 0, 1, 0, 0);"/>  <!-- Request to Increase window width. -->
+    <DecreaseAppletWidth   ="vtm.applet.Warp( 0,-1, 0, 0);"/>  <!-- Request to Decrease window width. -->
+    <IncreaseAppletHeight  ="vtm.applet.Warp( 0, 0, 0, 1);"/>  <!-- Request to Increase window height. -->
+    <DecreaseAppletHeight  ="vtm.applet.Warp( 0, 0, 0,-1);"/>  <!-- Request to Decrease window height. -->
 
-<TileFocusPrev         ="vtm.tile.FocusNextPaneOrGrip(-1);"/>  <!-- Focus the previous pane or the split grip. -->
-<TileFocusNext         ="vtm.tile.FocusNextPaneOrGrip( 1);"/>  <!-- Focus the next pane or the split grip. -->
-<TileFocusPrevPane     ="vtm.tile.FocusNextPane(-1);"/>        <!-- Focus the previous pane. -->
-<TileFocusNextPane     ="vtm.tile.FocusNextPane( 1);"/>        <!-- Focus the next pane. -->
-<TileRunApplication    ="vtm.tile.RunApplication();"/>         <!-- Launch application instances in active empty slots. The app to run can be set by RightClick on the taskbar. -->
-<TileSelectAllPanes    ="vtm.tile.SelectAllPanes();"/>         <!-- Select all panes. -->
-<TileSplitHorizontally ="vtm.tile.SplitPane(0);"/>             <!-- Split active panes horizontally. -->
-<TileSplitVertically   ="vtm.tile.SplitPane(1);"/>             <!-- Split active panes vertically. -->
-<TileSplitOrientation  ="vtm.tile.RotateSplit();"/>            <!-- Change split orientation. -->
-<TileSwapPanes         ="vtm.tile.SwapPanes();"/>              <!-- Swap two or more panes. -->
-<TileEqualizeSplitRatio="vtm.tile.EqualizeSplitRatio();"/>     <!-- Equalize split ratio. -->
-<TileSetManagerTitle   ="vtm.tile.SetTitle();"/>               <!-- Set tiling window manager title using clipboard data. -->
-<TileClosePane         ="vtm.tile.ClosePane();"/>              <!-- Close active application. -->
-<TileMoveGripLeft      ="vtm.grip.MoveGrip(-1, 0);"/>          <!-- Move the split grip to the left. -->
-<TileMoveGripRight     ="vtm.grip.MoveGrip( 1, 0);"/>          <!-- Move the split grip to the right. -->
-<TileMoveGripUp        ="vtm.grip.MoveGrip( 0,-1);"/>          <!-- Move the split grip up. -->
-<TileMoveGripDown      ="vtm.grip.MoveGrip( 0, 1);"/>          <!-- Move the split grip down. -->
-<TileDecreaseGripWidth ="vtm.grip.ResizeGrip(-1);"/>           <!-- Decrease the split grip width. -->
-<TileIncreaseGripWidth ="vtm.grip.ResizeGrip( 1);"/>           <!-- Increase the split grip width. -->
-<TileFocusPrevGrip     ="vtm.grip.FocusNextGrip(-1);"/>        <!-- Focus the prev split grip. -->
-<TileFocusNextGrip     ="vtm.grip.FocusNextGrip( 1);"/>        <!-- Focus the next split grip. -->
+    <TileFocusPrev         ="vtm.tile.FocusNextPaneOrGrip(-1);"/>  <!-- Focus the previous pane or the split grip. -->
+    <TileFocusNext         ="vtm.tile.FocusNextPaneOrGrip( 1);"/>  <!-- Focus the next pane or the split grip. -->
+    <TileFocusPrevPane     ="vtm.tile.FocusNextPane(-1);"/>        <!-- Focus the previous pane. -->
+    <TileFocusNextPane     ="vtm.tile.FocusNextPane( 1);"/>        <!-- Focus the next pane. -->
+    <TileRunApplication    ="vtm.tile.RunApplication();"/>         <!-- Launch application instances in active empty slots. The app to run can be set by RightClick on the taskbar. -->
+    <TileSelectAllPanes    ="vtm.tile.SelectAllPanes();"/>         <!-- Select all panes. -->
+    <TileSplitHorizontally ="vtm.tile.SplitPane(0);"/>             <!-- Split active panes horizontally. -->
+    <TileSplitVertically   ="vtm.tile.SplitPane(1);"/>             <!-- Split active panes vertically. -->
+    <TileSplitOrientation  ="vtm.tile.RotateSplit();"/>            <!-- Change split orientation. -->
+    <TileSwapPanes         ="vtm.tile.SwapPanes();"/>              <!-- Swap two or more panes. -->
+    <TileEqualizeSplitRatio="vtm.tile.EqualizeSplitRatio();"/>     <!-- Equalize split ratio. -->
+    <TileSetManagerTitle   ="vtm.tile.SetTitle();"/>               <!-- Set tiling window manager title using clipboard data. -->
+    <TileClosePane         ="vtm.tile.ClosePane();"/>              <!-- Close active application. -->
+    <TileMoveGripLeft      ="vtm.grip.MoveGrip(-1, 0);"/>          <!-- Move the split grip to the left. -->
+    <TileMoveGripRight     ="vtm.grip.MoveGrip( 1, 0);"/>          <!-- Move the split grip to the right. -->
+    <TileMoveGripUp        ="vtm.grip.MoveGrip( 0,-1);"/>          <!-- Move the split grip up. -->
+    <TileMoveGripDown      ="vtm.grip.MoveGrip( 0, 1);"/>          <!-- Move the split grip down. -->
+    <TileDecreaseGripWidth ="vtm.grip.ResizeGrip(-1);"/>           <!-- Decrease the split grip width. -->
+    <TileIncreaseGripWidth ="vtm.grip.ResizeGrip( 1);"/>           <!-- Increase the split grip width. -->
+    <TileFocusPrevGrip     ="vtm.grip.FocusNextGrip(-1);"/>        <!-- Focus the prev split grip. -->
+    <TileFocusNextGrip     ="vtm.grip.FocusNextGrip( 1);"/>        <!-- Focus the next split grip. -->
 
-<Disconnect            ="vtm.gate.Disconnect();"/>             <!-- Disconnect from the desktop. -->
-<ToggleDebugOverlay    ="vtm.gate.DebugOverlay();"/>           <!-- Toggle debug overlay. -->
-<IncreaseCellHeight    ="vtm.gate.IncreaseCellHeight( 1);"/>   <!-- Increase the text cell height by one pixel. -->
-<DecreaseCellHeight    ="vtm.gate.IncreaseCellHeight(-1);"/>   <!-- Decrease the text cell height by one pixel. -->
-<ResetWheelAccumulator ="vtm.gate.WheelAccumReset();"/>        <!-- Reset wheel accumulator. -->
-<ResetCellHeight       ="if (not vtm.gear.IsKeyRepeated()) then vtm.gate.CellHeightReset() end;"/>   <!-- Reset text cell height. -->
-<ToggleAntialiasingMode="if (not vtm.gear.IsKeyRepeated()) then vtm.gate.AntialiasingMode() end;"/>  <!-- Toggle text antialiasing mode. -->
-<RollFontsBackward     ="if (not vtm.gear.IsKeyRepeated()) then vtm.gate.RollFonts(-1) end;"/>       <!-- Roll font list backward. -->
-<RollFontsForward      ="if (not vtm.gear.IsKeyRepeated()) then vtm.gate.RollFonts( 1) end;"/>       <!-- Roll font list forward. -->
+    <Disconnect            ="vtm.gate.Disconnect();"/>             <!-- Disconnect from the desktop. -->
+    <ToggleDebugOverlay    ="vtm.gate.DebugOverlay();"/>           <!-- Toggle debug overlay. -->
+    <IncreaseCellHeight    ="vtm.gate.IncreaseCellHeight( 1);"/>   <!-- Increase the text cell height by one pixel. -->
+    <DecreaseCellHeight    ="vtm.gate.IncreaseCellHeight(-1);"/>   <!-- Decrease the text cell height by one pixel. -->
+    <ResetWheelAccumulator ="vtm.gate.WheelAccumReset();"/>        <!-- Reset wheel accumulator. -->
+    <ResetCellHeight       ="if (not vtm.gear.IsKeyRepeated()) then vtm.gate.CellHeightReset() end;"/>   <!-- Reset text cell height. -->
+    <ToggleAntialiasingMode="if (not vtm.gear.IsKeyRepeated()) then vtm.gate.AntialiasingMode() end;"/>  <!-- Toggle text antialiasing mode. -->
+    <RollFontsBackward     ="if (not vtm.gear.IsKeyRepeated()) then vtm.gate.RollFonts(-1) end;"/>       <!-- Roll font list backward. -->
+    <RollFontsForward      ="if (not vtm.gear.IsKeyRepeated()) then vtm.gate.RollFonts( 1) end;"/>       <!-- Roll font list forward. -->
 
-<ExclusiveKeyboardMode             ="vtm.terminal.ExclusiveKeyboardMode(vtm.terminal.ExclusiveKeyboardMode()==1 and 0 or 1);"/>  <!-- Toggle exclusive keyboard mode by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
-<TerminalFindPrev                  ="vtm.terminal.FindNextMatch(-1);"/>            <!-- Highlight prev match of selected text fragment. Clipboard content is used if no active selection. -->
-<TerminalFindNext                  ="vtm.terminal.FindNextMatch( 1);"/>            <!-- Highlight next match of selected text fragment. Clipboard content is used if no active selection. -->
-<TerminalScrollViewportOnePageUp   ="vtm.terminal.ScrollViewportByPage( 0, 1);"/>  <!-- Scroll viewport one page up. -->
-<TerminalScrollViewportOnePageDown ="vtm.terminal.ScrollViewportByPage( 0,-1);"/>  <!-- Scroll viewport one page down. -->
-<TerminalScrollViewportOnePageLeft ="vtm.terminal.ScrollViewportByPage( 1, 0);"/>  <!-- Scroll viewport one page to the left. -->
-<TerminalScrollViewportOnePageRight="vtm.terminal.ScrollViewportByPage(-1, 0);"/>  <!-- Scroll viewport one page to the right. -->
-<TerminalScrollViewportOneLineUp   ="vtm.terminal.ScrollViewportByCell( 0, 1);"/>  <!-- Scroll viewport one line up. -->
-<TerminalScrollViewportOneLineDown ="vtm.terminal.ScrollViewportByCell( 0,-1);"/>  <!-- Scroll viewport one line down. -->
-<TerminalScrollViewportOneCellLeft ="vtm.terminal.ScrollViewportByCell( 1, 0);"/>  <!-- Scroll viewport one cell to the left. -->
-<TerminalScrollViewportOneCellRight="vtm.terminal.ScrollViewportByCell(-1, 0);"/>  <!-- Scroll viewport one cell to the right. -->
-<TerminalScrollViewportToTop       ="if (not vtm.gear.IsKeyRepeated()) then vtm.terminal.ScrollViewportToTop() end;"/>  <!-- Scroll viewport to the scrollback top. -->
-<TerminalScrollViewportToEnd       ="if (not vtm.gear.IsKeyRepeated()) then vtm.terminal.ScrollViewportToEnd() end;"/>  <!-- Scroll viewport to the scrollback top. -->
-<TerminalSendKey                   ="vtm.terminal.SendKey('test\\r');"/>           <!-- Simulating keypresses using the specified string. -->
-<TerminalOutput                    ="vtm.terminal.Print('Hello!\\n');"/>           <!-- Direct output the string to the terminal scrollback. -->
-<TerminalReset                     ="vtm.terminal.Print('\\x1b[!p');"/>            <!-- Clear scrollback and SGR-attributes. -->
-<TerminalClearScrollback           ="vtm.terminal.ClearScrollback();"/>            <!-- Clear scrollback above current line. -->
-<TerminalCopyViewport              ="vtm.terminal.CopyViewport();"/>               <!-- Сopy viewport to clipboard. -->
-<TerminalCopySelection             ="vtm.terminal.CopySelection();"/>              <!-- Сopy selection to clipboard. -->
-<TerminalClipboardPaste            ="vtm.terminal.PasteClipboard();"/>             <!-- Paste from clipboard. -->
-<TerminalClipboardWipe             ="vtm.terminal.ClearClipboard();"/>             <!-- Reset clipboard. -->
-<TerminalClipboardFormat           ="vtm.terminal.ClipboardFormat((vtm.terminal.ClipboardFormat() + 1) % 6);"/>  <!-- Toggle terminal text selection copy format. 0: Disabled; 1: Plain text; 2: ANSI; 3: RTF; 4: HTML; 5: Sensitive plain text. -->
-<TerminalSelectionForm             ="vtm.terminal.SelectionForm(vtm.terminal.SelectionForm()==1 and 0 or 1);"/>  <!-- Toggle between linear and rectangular selection form. 0: linear form; 1: boxed form. -->
-<TerminalSelectionCancel           ="vtm.terminal.ClearSelection();"/>             <!-- Deselect a selection. -->
-<TerminalSelectionOneShot          ="vtm.terminal.OneShotSelection();"/>           <!-- One-shot toggle to copy text while mouse tracking is active. Keep selection if 'Ctrl' key is pressed. -->
-<TerminalUndo                      ="vtm.terminal.UndoReadline();"/>               <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input. -->
-<TerminalRedo                      ="vtm.terminal.RedoReadline();"/>               <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command. -->
-<TerminalCwdSync                   ="vtm.terminal.CwdSync(vtm.terminal.CwdSync()==1 and 0 or 1);"/>            <!-- Toggle the current working directory sync mode. -->
-<TerminalWrapMode                  ="vtm.terminal.LineWrapMode(vtm.terminal.LineWrapMode()==1 and 0 or 1);"/>  <!-- Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is. 0: line wrapping is off; 1: line wrapping is on. -->
-<TerminalAlignMode                 ="vtm.terminal.LineAlignMode((vtm.terminal.LineAlignMode() + 1) % 3);"/>    <!-- Toggle terminal scrollback lines aligning mode. Applied to the active selection if it is. 0: left; 1: right; 2: center. -->
-<TerminalStdioLog                  ="vtm.terminal.LogMode(vtm.terminal.LogMode()==1 and 0 or 1);"/>            <!-- Toggle stdin/stdout logging. -->
-<TerminalRestart                   ="vtm.terminal.Restart();"/>                    <!-- Terminate runnning console apps and restart current session. -->
+    <ExclusiveKeyboardMode             ="vtm.terminal.ExclusiveKeyboardMode(vtm.terminal.ExclusiveKeyboardMode()==1 and 0 or 1);"/>  <!-- Toggle exclusive keyboard mode by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
+    <TerminalFindPrev                  ="vtm.terminal.FindNextMatch(-1);"/>            <!-- Highlight prev match of selected text fragment. Clipboard content is used if no active selection. -->
+    <TerminalFindNext                  ="vtm.terminal.FindNextMatch( 1);"/>            <!-- Highlight next match of selected text fragment. Clipboard content is used if no active selection. -->
+    <TerminalScrollViewportOnePageUp   ="vtm.terminal.ScrollViewportByPage( 0, 1);"/>  <!-- Scroll viewport one page up. -->
+    <TerminalScrollViewportOnePageDown ="vtm.terminal.ScrollViewportByPage( 0,-1);"/>  <!-- Scroll viewport one page down. -->
+    <TerminalScrollViewportOnePageLeft ="vtm.terminal.ScrollViewportByPage( 1, 0);"/>  <!-- Scroll viewport one page to the left. -->
+    <TerminalScrollViewportOnePageRight="vtm.terminal.ScrollViewportByPage(-1, 0);"/>  <!-- Scroll viewport one page to the right. -->
+    <TerminalScrollViewportOneLineUp   ="vtm.terminal.ScrollViewportByCell( 0, 1);"/>  <!-- Scroll viewport one line up. -->
+    <TerminalScrollViewportOneLineDown ="vtm.terminal.ScrollViewportByCell( 0,-1);"/>  <!-- Scroll viewport one line down. -->
+    <TerminalScrollViewportOneCellLeft ="vtm.terminal.ScrollViewportByCell( 1, 0);"/>  <!-- Scroll viewport one cell to the left. -->
+    <TerminalScrollViewportOneCellRight="vtm.terminal.ScrollViewportByCell(-1, 0);"/>  <!-- Scroll viewport one cell to the right. -->
+    <TerminalScrollViewportToTop       ="if (not vtm.gear.IsKeyRepeated()) then vtm.terminal.ScrollViewportToTop() end;"/>  <!-- Scroll viewport to the scrollback top. -->
+    <TerminalScrollViewportToEnd       ="if (not vtm.gear.IsKeyRepeated()) then vtm.terminal.ScrollViewportToEnd() end;"/>  <!-- Scroll viewport to the scrollback top. -->
+    <TerminalSendKey                   ="vtm.terminal.SendKey('test\\r');"/>           <!-- Simulating keypresses using the specified string. -->
+    <TerminalOutput                    ="vtm.terminal.Print('Hello!\\n');"/>           <!-- Direct output the string to the terminal scrollback. -->
+    <TerminalReset                     ="vtm.terminal.Print('\\x1b[!p');"/>            <!-- Clear scrollback and SGR-attributes. -->
+    <TerminalClearScrollback           ="vtm.terminal.ClearScrollback();"/>            <!-- Clear scrollback above current line. -->
+    <TerminalCopyViewport              ="vtm.terminal.CopyViewport();"/>               <!-- Сopy viewport to clipboard. -->
+    <TerminalCopySelection             ="vtm.terminal.CopySelection();"/>              <!-- Сopy selection to clipboard. -->
+    <TerminalClipboardPaste            ="vtm.terminal.PasteClipboard();"/>             <!-- Paste from clipboard. -->
+    <TerminalClipboardWipe             ="vtm.terminal.ClearClipboard();"/>             <!-- Reset clipboard. -->
+    <TerminalClipboardFormat           ="vtm.terminal.ClipboardFormat((vtm.terminal.ClipboardFormat() + 1) % 6);"/>  <!-- Toggle terminal text selection copy format. 0: Disabled; 1: Plain text; 2: ANSI; 3: RTF; 4: HTML; 5: Sensitive plain text. -->
+    <TerminalSelectionForm             ="vtm.terminal.SelectionForm(vtm.terminal.SelectionForm()==1 and 0 or 1);"/>  <!-- Toggle between linear and rectangular selection form. 0: linear form; 1: boxed form. -->
+    <TerminalSelectionCancel           ="vtm.terminal.ClearSelection();"/>             <!-- Deselect a selection. -->
+    <TerminalSelectionOneShot          ="vtm.terminal.OneShotSelection();"/>           <!-- One-shot toggle to copy text while mouse tracking is active. Keep selection if 'Ctrl' key is pressed. -->
+    <TerminalUndo                      ="vtm.terminal.UndoReadline();"/>               <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input. -->
+    <TerminalRedo                      ="vtm.terminal.RedoReadline();"/>               <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command. -->
+    <TerminalCwdSync                   ="vtm.terminal.CwdSync(vtm.terminal.CwdSync()==1 and 0 or 1);"/>            <!-- Toggle the current working directory sync mode. -->
+    <TerminalWrapMode                  ="vtm.terminal.LineWrapMode(vtm.terminal.LineWrapMode()==1 and 0 or 1);"/>  <!-- Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is. 0: line wrapping is off; 1: line wrapping is on. -->
+    <TerminalAlignMode                 ="vtm.terminal.LineAlignMode((vtm.terminal.LineAlignMode() + 1) % 3);"/>    <!-- Toggle terminal scrollback lines aligning mode. Applied to the active selection if it is. 0: left; 1: right; 2: center. -->
+    <TerminalStdioLog                  ="vtm.terminal.LogMode(vtm.terminal.LogMode()==1 and 0 or 1);"/>            <!-- Toggle stdin/stdout logging. -->
+    <TerminalRestart                   ="vtm.terminal.Restart();"/>                    <!-- Terminate runnning console apps and restart current session. -->
+</Scripting>
 ```
