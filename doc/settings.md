@@ -101,7 +101,7 @@ The file list is built in the following order from the following sources:
    - `\\`  ASCII 0x5C Backslash
    - `\u`  A Unicode escape sequence in the form `\u{XX...}` or `\uXX...`, where `XX...` is the hexadecimal codepoint value.
 
-Let's take the following element hierarchy as an example:
+To illustrate possible structural designs, consider the following hierarchy of elements:
 
 - \<document\> - Top-level element
   - \<thing\> - Second level element
