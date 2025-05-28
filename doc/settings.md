@@ -89,9 +89,12 @@ The file list is built in the following order from the following sources:
  - The element reference includes all of the element's contents, including the element's value and all nested elements.
  - The element's content may include any number of substrings, as well as references to other elements, combined in the required order using the vertical bar character ASCII 0x7C `|`.
    - `<thing1="1"/><thing2="2"/><thing21=thing2 | thing1/>` and `<thing1="1"/><thing2="2"/><thing21="21"/>` have the same meaning.
- - Identical data structures in this format allow overlaying.
+ - Documents containing identical data structures allow overlaying.
    - The values of single elements of the original structure will be updated to the values of the overlaid structure.
-   - A list of elements with the same name within a scope may start with an empty element with an asterisk at the end of the name, meaning that this list will overwrite the existing one during merging, otherwise the list will be appended to the existing one.
+   - A list of elements with the same name within a scope may start with an empty element with an asterisk at the end of the name, meaning that this list will always overwrite the existing one during overlaying.
+   - The destination list will be pre-cleared if any of the following conditions are met:
+     - the first element in the overlay list is marked with an asterisk
+     - the first element in the destination list is not marked with an asterisk
  - There is a list of escaped characters with special meaning:
    - `\a`  ASCII 0x07 BEL
    - `\t`  ASCII 0x09 TAB

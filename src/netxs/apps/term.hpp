@@ -72,6 +72,7 @@ namespace netxs::app::terminal
     };
     auto build_terminal = [](eccc appcfg, settings& config)
     {
+        //log(prompt::resultant_settings, "\n", config);
         auto window_clr = skin::color(tone::window_clr);
         auto border = std::max(0, config.settings::take(attr::borders, 0));
         auto borders = dent{ border, border, 0, 0 };
@@ -186,6 +187,7 @@ namespace netxs::app::terminal
             });
 
         if (appcfg.cmd.empty()) appcfg.cmd = os::env::shell();//todo revise + " -i";
+        auto terminal_context = config.settings::push_context("/config/terminal/");
         auto term = scroll->attach(ui::term::ctor(config))
             ->plugin<pro::focus>(pro::focus::mode::focused)
             ->invoke([&](auto& boss)
@@ -261,7 +263,6 @@ namespace netxs::app::terminal
         auto hz = term_stat_area->attach(slot::_2, ui::grip<axis::X>::ctor(scroll, drawfx))
             ->limits({ -1, 1 }, { -1, 1 });
 
-        auto terminal_context = config.settings::push_context("/config/terminal/");
         auto [slot1, cover, menu_data] = app::shared::menu::load(config);
         auto menu = object->attach(slot::_1, slot1)
             ->shader(cell::shaders::fuse(window_clr))

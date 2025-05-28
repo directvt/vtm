@@ -754,6 +754,10 @@ namespace netxs::xml
                 iter = hive.emplace(branch_path , vect{}).first;
             }
             auto& dest_list = iter->second;
+            if (dest_list.size() && dest_list.front()->base == faux) // Start a new list if the existing list was not declared as a list using an asterisk.
+            {
+                dest_list.clear();
+            }
             for (auto& item_ptr : list) if (item_ptr && item_ptr->name->utf8 == branch_path)
             {
                 //todo unify
@@ -1427,10 +1431,11 @@ namespace netxs::xml
     {
         using vect = xml::document::vect;
         using sptr = xml::document::sptr;
+        using list = std::list<xml::document::sptr>;
 
         netxs::sptr<xml::document> document; // settings: XML document.
         vect tmpbuff; // settings: Temp buffer.
-        vect context; // settings: Current working context stack (reference context).
+        list context; // settings: Current working context stack (reference context).
 
         settings() = default;
         settings(settings const&) = default;
@@ -1446,34 +1451,37 @@ namespace netxs::xml
             auto context_path = context.size() ? context.back() : document->root;
             return context_path;
         }
-        // settings: Pop document context.
-        void pop_context()
-        {
-            if (context.empty())
-            {
-                log("%%Context stack is empty", prompt::xml);
-            }
-            else
-            {
-                context.pop_back();
-            }
-        }
         // settings: Push document context by name.
         auto push_context(sptr new_context_ptr)
         {
-            context.push_back(new_context_ptr);
             struct pop_ctx
             {
-                settings& config;
-                pop_ctx(settings& config)
-                    : config{ config }
+                list&          context;
+                list::iterator iterator;
+
+                pop_ctx(list& context, list::iterator iterator)
+                    : context{ context },
+                      iterator{ iterator }
                 { }
+                pop_ctx(pop_ctx&& ctx)
+                    : context{ ctx.context },
+                      iterator{ std::exchange(ctx.iterator, context.end()) }
+                { }
+                void operator = (pop_ctx&& ctx)
+                {
+                    assert(&context == &ctx.context);
+                    iterator = std::exchange(ctx.iterator, context.end());
+                }
                 ~pop_ctx()
                 {
-                    config.pop_context();
+                    if (iterator != context.end())
+                    {
+                        context.erase(iterator);
+                    }
                 }
             };
-            return pop_ctx{ *this };
+            auto iterator = context.emplace(context.end(), new_context_ptr);
+            return pop_ctx(context, iterator);
         }
         auto push_context(qiew context_path)
         {
