@@ -361,10 +361,18 @@ namespace netxs::xml
             auto utf8()
             {
                 auto crop = text{};
+                auto size = arch{};
                 auto next = data;
                 while (next)
                 {
-                    crop+= next->utf8;
+                    size += next->utf8.size();
+                    next = next->next;
+                }
+                crop.reserve(size);
+                next = data;
+                while (next)
+                {
+                    crop += next->utf8;
                     next = next->next;
                 }
                 return crop;
@@ -524,57 +532,33 @@ namespace netxs::xml
             {
                 return boss.lock();
             }
-            auto is_quoted()
-            {
-                if (body.size() == 1)
-                {
-                    auto& value_placeholder = body.front();
-                    if (value_placeholder->kind == type::tag_value) // equal [spaces] quotes tag_value quotes
-                    if (auto quote_placeholder = value_placeholder->prev.lock())
-                    if (quote_placeholder->kind == type::quotes && quote_placeholder->utf8.size())
-                    {
-                        auto c = quote_placeholder->utf8.front();
-                        return c == '\"' || c == '\'';
-                    }
-                }
-                return faux;
-            }
             template<bool WithTemplate = faux>
             auto get_list3(qiew path_str, vect& crop)
             {
-                utf::trim(path_str, '/');
                 auto anchor = this;
-                auto temp = text{};
-                auto path = utf::split(path_str, '/');
-                if (path.size())
+                utf::trim(path_str, '/');
+                utf::split2(path_str, '/', [&](qiew branch, bool is_end)
                 {
-                    auto head = path.begin();
-                    auto tail = path.end();
-                    while (head != tail)
+                    if (auto iter = anchor->hive.find(branch); iter != anchor->hive.end())
                     {
-                        temp = *head++;
-                        if (auto iter = anchor->hive.find(temp);
-                                 iter!= anchor->hive.end())
+                        auto& item_ptr_list = iter->second;
+                        if (is_end)
                         {
-                            auto& i = iter->second;
-                            crop.reserve(i.size());
-                            if (head == tail)
+                            crop.reserve(item_ptr_list.size());
+                            for (auto& item_ptr : item_ptr_list)
                             {
-                                for (auto& item : i)
-                                {
-                                    if constexpr (WithTemplate) crop.push_back(item);
-                                    else       if (!item->base) crop.push_back(item);
-                                }
+                                if constexpr (WithTemplate) crop.push_back(item_ptr);
+                                else   if (!item_ptr->base) crop.push_back(item_ptr);
                             }
-                            else if (i.size() && i.front())
-                            {
-                                anchor = &(*(i.front()));
-                            }
-                            else break;
                         }
-                        else break;
+                        else if (item_ptr_list.size() && item_ptr_list.front())
+                        {
+                            anchor = &(*(item_ptr_list.front()));
+                            return true;
+                        }
                     }
-                }
+                    return faux;
+                });
             }
             auto _concat_values()
             {

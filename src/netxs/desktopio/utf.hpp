@@ -1366,6 +1366,19 @@ namespace netxs::utf
             return crop;
         }
     }
+    auto split2(view utf8, char delimiter, auto proc)
+    {
+        auto cur = 0_sz;
+        auto pos = 0_sz;
+        while ((pos = utf8.find(delimiter, cur)) != text::npos)
+        {
+            auto frag = view{ utf8.data() + cur, pos - cur };
+            if (!proc(frag, faux)) return faux;
+            cur = pos + 1;
+        }
+        auto end = view{ utf8.data() + cur, utf8.size() - cur };
+        return proc(end, true);
+    }
     template<bool SkipEmpty = faux, feed Direction = feed::fwd, class P, bool Plain = std::is_same_v<void, std::invoke_result_t<P, view>>>
     auto split(view utf8, char delimiter, P proc)
     {
