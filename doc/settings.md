@@ -109,7 +109,7 @@ To illustrate possible structural designs, consider the following hierarchy of e
 
 The following forms of element declaration are equivalent:
 
-- Standard XML syntax:
+- Using classical XML syntax:
   ```xml
   <document>
       <thing name="a">text1</thing>
