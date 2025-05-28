@@ -59,7 +59,7 @@ The file list is built in the following order from the following sources:
 
 ## Pure XML
 
-### Key differences from XML
+### Key differences from classical XML
 
  - Document encoding is UTF-8.
  - Any Unicode characters are allowed, including the U+0000 (null) character.
