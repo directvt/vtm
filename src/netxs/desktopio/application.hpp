@@ -22,7 +22,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v2025.05.27";
+    static const auto version = "v2025.05.28";
     static const auto repository = "https://github.com/directvt/vtm";
     static const auto usr_config = "~/.config/vtm/settings.xml"s;
     static const auto sys_config = "/etc/vtm/settings.xml"s;
@@ -525,16 +525,17 @@ namespace netxs::app::shared
             auto list = menu::list{};
             auto menu_context = config.settings::push_context("menu/");
             auto menuitem_ptr_list = config.settings::take_ptr_list_for_name("item");
-            for (auto data_ptr : menuitem_ptr_list)
+            for (auto menuitem_ptr : menuitem_ptr_list)
             {
                 auto item = menu::item{};
-                auto script_list = config.settings::take_ptr_list_of(data_ptr, "script");
+                auto menuitem_context = config.settings::push_context(menuitem_ptr);
+                auto script_list = config.settings::take_ptr_list_of(menuitem_ptr, "script");
                 item.alive = script_list.size();
                 item.bindings = input::bindings::load(config, script_list);
-                auto classname_list = config.settings::take_value_list_of(data_ptr, "id");
-                auto label_list = config.settings::take_ptr_list_of(data_ptr, "label");
+                auto classname_list = config.settings::take_value_list_of(menuitem_ptr, "id");
+                auto label_list = config.settings::take_ptr_list_of(menuitem_ptr, "label");
                 item.label = label_list.size() ? config.settings::take_value(label_list.front()) : "empty"s;
-                item.tooltip = config.settings::take_value_from(data_ptr, "tooltip", ""s);
+                item.tooltip = config.settings::take_value_from(menuitem_ptr, "tooltip", ""s);
                 auto setup = [classname_list = std::move(classname_list)](ui::item& boss, menu::item& item)
                 {
                     auto& luafx = boss.bell::indexer.luafx;

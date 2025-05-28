@@ -59,7 +59,7 @@ The file list is built in the following order from the following sources:
 
 ## Pure XML
 
-### Key differences from XML
+### Key differences from classical XML
 
  - Document encoding is UTF-8.
  - Any Unicode characters are allowed, including the U+0000 (null) character.
@@ -85,12 +85,16 @@ The file list is built in the following order from the following sources:
    - `thing2` refers to the value `/node1/thing1` in `<node1 thing1="value1"/><node2 thing2=/node1/thing1 />`.
    - `thing2` refers to the value `thing1` within the scope of `<node1 thing1="value1"><node2 thing2=thing1 /></node1>`.
    - Circular references are silently ignored.
+   - //todo describe the reference resolution order.
  - The element reference includes all of the element's contents, including the element's value and all nested elements.
  - The element's content may include any number of substrings, as well as references to other elements, combined in the required order using the vertical bar character ASCII 0x7C `|`.
    - `<thing1="1"/><thing2="2"/><thing21=thing2 | thing1/>` and `<thing1="1"/><thing2="2"/><thing21="21"/>` have the same meaning.
- - Identical data structures in this format allow overlaying.
+ - Documents containing identical data structures allow overlaying.
    - The values of single elements of the original structure will be updated to the values of the overlaid structure.
-   - A list of elements with the same name within a scope may start with an empty element with an asterisk at the end of the name, meaning that this list will overwrite the existing one during merging, otherwise the list will be appended to the existing one.
+   - A list of elements with the same name within a scope may start with an empty element with an asterisk at the end of the name, meaning that this list will always overwrite the existing one during overlaying.
+   - The destination list will be pre-cleared if any of the following conditions are met:
+     - the first element in the overlay list is marked with an asterisk
+     - the first element in the destination list is not marked with an asterisk
  - There is a list of escaped characters with special meaning:
    - `\a`  ASCII 0x07 BEL
    - `\t`  ASCII 0x09 TAB
@@ -100,7 +104,7 @@ The file list is built in the following order from the following sources:
    - `\\`  ASCII 0x5C Backslash
    - `\u`  A Unicode escape sequence in the form `\u{XX...}` or `\uXX...`, where `XX...` is the hexadecimal codepoint value.
 
-Let's take the following element hierarchy as an example:
+To illustrate possible structural designs, consider the following hierarchy of elements:
 
 - \<document\> - Top-level element
   - \<thing\> - Second level element
@@ -108,7 +112,7 @@ Let's take the following element hierarchy as an example:
 
 The following forms of element declaration are equivalent:
 
-- Standard XML syntax:
+- Using classical XML syntax:
   ```xml
   <document>
       <thing name="a">text1</thing>
@@ -197,7 +201,7 @@ The following forms of element declaration are equivalent:
       <thing name="b">text2</thing>
   </document>
   ```
-- Referencing element from surrounding scope:
+- Referencing element from outer scope:
   ```xml
   <basething name="a"/>
   <document>
@@ -230,7 +234,7 @@ The following forms of element declaration are equivalent:
           <name = LetterRef/>
       </ThingTemplate>
   </Namespace>
-  <document=/Namespace>
+  <document=Namespace>
       <thing=ThingTemplate NumberRef="1" LetterRef="a"/>
       <thing=ThingTemplate NumberRef="2" LetterRef="b"/>
   </document>
