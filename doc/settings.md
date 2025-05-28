@@ -85,6 +85,7 @@ The file list is built in the following order from the following sources:
    - `thing2` refers to the value `/node1/thing1` in `<node1 thing1="value1"/><node2 thing2=/node1/thing1 />`.
    - `thing2` refers to the value `thing1` within the scope of `<node1 thing1="value1"><node2 thing2=thing1 /></node1>`.
    - Circular references are silently ignored.
+   - //todo describe the link resolution order.
  - The element reference includes all of the element's contents, including the element's value and all nested elements.
  - The element's content may include any number of substrings, as well as references to other elements, combined in the required order using the vertical bar character ASCII 0x7C `|`.
    - `<thing1="1"/><thing2="2"/><thing21=thing2 | thing1/>` and `<thing1="1"/><thing2="2"/><thing21="21"/>` have the same meaning.
