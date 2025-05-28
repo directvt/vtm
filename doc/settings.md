@@ -198,7 +198,7 @@ The following forms of element declaration are equivalent:
       <thing name="b">text2</thing>
   </document>
   ```
-- Referencing element from surrounding scope:
+- Referencing element from outer scope:
   ```xml
   <basething name="a"/>
   <document>
