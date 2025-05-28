@@ -231,7 +231,7 @@ The following forms of element declaration are equivalent:
           <name = LetterRef/>
       </ThingTemplate>
   </Namespace>
-  <document=/Namespace>
+  <document=Namespace>
       <thing=ThingTemplate NumberRef="1" LetterRef="a"/>
       <thing=ThingTemplate NumberRef="2" LetterRef="b"/>
   </document>

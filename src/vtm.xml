@@ -3,7 +3,7 @@ R"==(<include*/>  <!-- Ordered list of <include="/path/to/settings.xml"/>. The s
 <include="~/.config/vtm/settings.xml"/>   <!-- Default user-wise settings source. -->
 
 <!-- App configuration. -->
-<config=/Colors | /Scripting | /Macro> <!-- Using additional namespaces: "/Colors", "/Scripting" and "/Macro" -->
+<config=Colors | Scripting | Macro> <!-- Using additional namespaces: "Colors", "Scripting" and "Macro" -->
     <gui>  <!-- GUI mode related settings. (win32 platform only for now) -->
         <antialiasing=true/>  <!-- Antialiasing of rendered glyphs. Note: Multi-layered color glyphs such as emoji are always antialiased. -->
         <cellheight=22/>      <!-- Text cell height in physical pixels. Note: The width of the text cell depends on the primary font (the first one in the font list). -->
@@ -401,7 +401,7 @@ R"==(
     <off   = 0 />
 </Macro>
 
-<Menu=/Scripting>
+<Menu=Scripting>
     <Defaults>
         <autohide=false/>  <!-- Auto hide window menu items on mouse leave. -->
         <slim=true/>       <!-- Make the window menu one cell high (slim=true) or three cells high (slim=false). -->
