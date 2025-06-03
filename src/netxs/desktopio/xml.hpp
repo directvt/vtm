@@ -382,7 +382,7 @@ namespace netxs::xml
                     auto fgc = argb{};
                     auto bgc = argb{};
                     auto und = faux;
-                    auto ctrl = faux;
+                    //auto ctrl = faux;
                     //test
                     //if (frag.upto == frag_list.end() || tmp != frag.upto)
                     //{
@@ -1029,7 +1029,7 @@ namespace netxs::xml
                             if (what != type::raw_text) // #raw_text
                             {
                                 auto raw_block = data - temp;
-                                auto trailing_spaces = utf::pop_back_chars(raw_block, whitespaces); // Excluding trailing spaces from the raw_text_block.
+                                utf::pop_back_chars(raw_block, whitespaces); // Excluding trailing spaces from the raw_text_block.
                                 auto vbeg_ptr2 = append(type::value_begin);
                                 auto frag_ptr2 = append(type::raw_text, raw_block);
                                 auto vend_ptr2 = append(type::value_end);
@@ -1131,7 +1131,7 @@ namespace netxs::xml
                 }
                 while (data.size());
             }
-            auto read_node(sptr& item_ptr, si32 deep)
+            void read_node(sptr& item_ptr, si32 deep)
             {
                 assert(what == type::begin_tag);
                 auto fire = faux;
