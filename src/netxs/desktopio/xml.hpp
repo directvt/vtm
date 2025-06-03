@@ -691,7 +691,6 @@ namespace netxs::xml
             view  temp;
             type  what;
             type  last;
-            si32  deep;
             vect  compacted;
 
             void fail_msg(text msg)
@@ -1305,8 +1304,7 @@ namespace netxs::xml
                   data{ data },
                   temp{ data },
                   what{ type::na },
-                  last{ type::na },
-                  deep{ 0 }
+                  last{ type::na }
             {
                 root_ptr = ptr::shared<elem>(page.frag_list);
                 page.append(type::spaces);
@@ -1314,16 +1312,14 @@ namespace netxs::xml
                 root_ptr->mode = elem::form::node;
                 root_ptr->name = page.append(type::na);
                 root_ptr->insB = page.append(type::insB);
-
                 if (data.size())
                 {
                     utf::trim_front(temp, whitespaces);
                     peek();
-
+                    auto deep = 0;
                     read_subsections_and_close(root_ptr, deep);
                 }
                 page.append(type::spaces, data - temp); // Prepending spaces.
-
                 root_ptr->seal();
                 if (page.fail)
                 {
@@ -1349,7 +1345,7 @@ namespace netxs::xml
             parser{ root_ptr, page, utf8 };
         }
         template<bool WithTemplate = faux>
-        auto get_ptr_list(sptr node_ptr, qiew path_str, vect& crop)
+        auto take_direct_ptr_list(sptr node_ptr, qiew path_str, vect& crop)
         {
             utf::trim(path_str, '/');
             utf::split2(path_str, '/', [&](qiew branch, bool is_end)
@@ -1388,7 +1384,7 @@ namespace netxs::xml
                 }
                 else
                 {
-                    document::get_ptr_list<WithTemplate>(root_ptr, path, item_ptr_list);
+                    take_direct_ptr_list<WithTemplate>(root_ptr, path, item_ptr_list);
                 }
             }
             return item_ptr_list;
@@ -1687,7 +1683,7 @@ namespace netxs::xml
                 }
             }
             // Take native attribute list.
-            document.get_ptr_list(subsection_ptr, attribute, item_ptr_list);
+            document.take_direct_ptr_list(subsection_ptr, attribute, item_ptr_list);
         }
         auto take_ptr_list_of(sptr subsection_ptr, view attribute)
         {
@@ -1771,7 +1767,7 @@ namespace netxs::xml
             {
                 auto ctx = settings::push_context(context_ptr);
                 auto item_ptr_list = vect{};
-                document.get_ptr_list(context_ptr, frompath, item_ptr_list);
+                document.take_direct_ptr_list(context_ptr, frompath, item_ptr_list);
                 if (auto item_ptr = item_ptr_list.size() ? item_ptr_list.back() : sptr{})
                 {
                     auto crop = settings::take_value(item_ptr);
