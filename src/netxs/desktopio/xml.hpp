@@ -677,21 +677,13 @@ namespace netxs::xml
             type  last;
             vect  compacted;
 
-            void _append(type kind, view utf8)
+            auto append(type kind, view utf8 = {}, bool ignore_if_empty = faux)
             {
-                page.frag_list.push_back({ kind, utf8 });
-            }
-            auto append(type kind, view utf8 = {})
-            {
-                _append(kind, utf8);
-                return std::prev(page.frag_list.end());
-            }
-            void append_if_nonempty(type kind, view utf8)
-            {
-                if (utf8.size())
+                if (!ignore_if_empty || utf8.size())
                 {
-                    _append(kind, utf8);
+                    page.frag_list.push_back({ kind, utf8 });
                 }
+                return std::prev(page.frag_list.end());
             }
             void fail_msg(text msg)
             {
@@ -1123,19 +1115,19 @@ namespace netxs::xml
                             append(type::spaces, prepending_spaces); // Prepending spaces.
                             if (item_name == item_ptr->name->utf8)
                             {
-                                append(            type::close_tag, close_tag);
-                                append_if_nonempty(type::spaces,    trim_frag);
-                                append(            type::end_token, item_name);
-                                append_if_nonempty(type::spaces, utf::pop_front_chars(temp, whitespaces));
-                                append(            type::close_inline, utf::take_front_including<faux>(temp, view_close_inline));
+                                append(type::close_tag,    close_tag);
+                                append(type::spaces,       trim_frag, true);
+                                append(type::end_token,    item_name);
+                                append(type::spaces,       utf::pop_front_chars(temp, whitespaces), true);
+                                append(type::close_inline, utf::take_front_including<faux>(temp, view_close_inline));
                             }
                             else
                             {
                                 what = type::unknown;
-                                append(            what, close_tag);
-                                append_if_nonempty(what, trim_frag);
-                                append(            what, item_name);
-                                append(            what, utf::take_front_including<faux>(temp, view_close_inline));
+                                append(what, close_tag);
+                                append(what, trim_frag, true);
+                                append(what, item_name);
+                                append(what, utf::take_front_including<faux>(temp, view_close_inline));
                                 failed = true;
                                 fail_msg(ansi::add("Unexpected closing tag name '", item_name, "', expected: '", item_ptr->name->utf8, "'"));
                             }
