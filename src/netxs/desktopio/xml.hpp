@@ -909,7 +909,7 @@ namespace netxs::xml
             }
             auto pull_comments()
             {
-                while (true) // Pull inline comments if it is: .../>  <!-- comments --> ... <!-- comments -->
+                while (true) // Pull inline comments if it is: ...  <!-- comment --> ... <!-- comment -->
                 {
                     auto idle = data - temp;
                     if (idle.find('\n') == text::npos && what == type::comment_begin
@@ -933,12 +933,10 @@ namespace netxs::xml
             {
                 do
                 {
-                    //auto p = std::vector{ std::tuple{ 0, what, last, temp }};
                     auto inside_value = faux;
                     auto vbeg_ptr = page.frag_list.end();
                     while (what != type::close_tag && what != type::eof)
                     {
-                        //p.push_back(std::tuple{ 1, what, last, temp });
                         if (what == type::quoted_text) // #quoted_text
                         {
                             if (!inside_value)
@@ -953,7 +951,6 @@ namespace netxs::xml
                                 auto frag_ptr = append(type::raw_quoted, utf::take_quote(temp, delim));
                                                 append(type::quotes, delim_view);
                                 item_ptr->body.push_back(frag_ptr);
-                                //p.push_back(std::tuple{ 2, what, last, temp });
                             peek_forward();
                             if (what != type::tag_joiner)
                             {
@@ -968,18 +965,19 @@ namespace netxs::xml
                             append_prepending_spaces();
                                 append(type::tag_joiner, utf::pop_front(temp, view_tag_joiner.size()));
                             peek_forward();
-                            if (what == type::quoted_text)
+                            if (what != type::quoted_text)
                             {
-                                continue;
-                            }
-                            auto is_reference = what == type::raw_text && netxs::onlydigits.find(temp.front()) == text::npos; // Only literal raw text is allowed as a reference name.
-                            if (is_reference) // #reference
-                            {
+                                auto is_reference = what == type::raw_text && netxs::onlydigits.find(temp.front()) == text::npos; // Only literal raw text is allowed as a reference name.
+                                if (!is_reference)
+                                {
+                                    fail();
+                                    break;
+                                }
+                                // #reference
                                 what = type::tag_reference;
                                 append_prepending_spaces();
                                     auto frag_ptr = append(type::raw_reference, utf::take_front(temp, view_reference_delims));
                                     item_ptr->body.push_back(frag_ptr);
-                                    //p.push_back(std::tuple{ 2, what, last, temp });
                                 peek_forward();
                                 if (what != type::tag_joiner)
                                 {
@@ -987,12 +985,6 @@ namespace netxs::xml
                                     item_ptr->value_segments.push_back({ vbeg_ptr, vend_ptr });
                                     inside_value = faux;
                                 }
-                                continue;
-                            }
-                            else
-                            {
-                                fail();
-                                break;
                             }
                         }
                         else if ((what == type::raw_text || what == type::tag_joiner) && !inside_value)
@@ -1078,7 +1070,6 @@ namespace netxs::xml
                                 append(type::unknown, data - temp);
                             peek_forward();
                         }
-                        //p.push_back(std::tuple{ 2, what, last, temp });
                     }
                     if (what == type::close_tag) // Proceed '</token>'.
                     {
