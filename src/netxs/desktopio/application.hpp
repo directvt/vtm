@@ -22,7 +22,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v2025.05.28";
+    static const auto version = "v2025.06.03";
     static const auto repository = "https://github.com/directvt/vtm";
     static const auto usr_config = "~/.config/vtm/settings.xml"s;
     static const auto sys_config = "/etc/vtm/settings.xml"s;
@@ -699,35 +699,33 @@ namespace netxs::app::shared
             }
             return faux;
         }
-        auto attach_file_list(xml::document& defcfg, xml::document& cfg)
+        auto attach_file_list(txts& file_list, xml::document& src_cfg)
         {
-            if (cfg)
+            auto file_ptr_list = src_cfg.take_ptr_list<true>("/include");
+            if (file_ptr_list.size())
             {
-                auto file_list = cfg.take_ptr_list<true>("/include");
-                if (file_list.size())
+                log("%%Update settings source files from %src%", prompt::apps, src_cfg.page.file);
+                for (auto& file_ptr : file_ptr_list)
                 {
-                    log("%%Update settings source files from %src%", prompt::apps, cfg.page.file);
-                    for (auto& file : file_list)
+                    if (file_ptr->base)
                     {
-                        if (file && !file->base)
-                        {
-                            log("%%%file%", prompt::pads, file->_concat_values());
-                        }
+                        file_list.clear();
                     }
-                    defcfg.attach("/", file_list);
+                    auto file_path = file_ptr->_concat_values();
+                    if (file_path.size())
+                    {
+                        log("%%%file%", prompt::pads, file_path);
+                        file_list.emplace_back(std::move(file_path));
+                    }
                 }
             }
         }
-        auto overlay_config(xml::document& defcfg, xml::document& cfg)
+        auto overlay_config(xml::document& def_cfg, xml::document& src_cfg)
         {
-            if (cfg)
+            if (src_cfg)
             {
-                auto config_data = cfg.take_ptr_list("/");
-                if (config_data.size())
-                {
-                    log(prompt::pads, "Merging settings from ", cfg.page.file);
-                    defcfg.overlay(config_data.front(), "");
-                }
+                log(prompt::pads, "Merging settings from ", src_cfg.page.file);
+                def_cfg.combine_item(src_cfg.root_ptr);
             }
         }
         auto settings(qiew cliopt, bool print = faux)
@@ -740,6 +738,7 @@ namespace netxs::app::shared
             auto envcfg = xml::document{};
             auto dvtcfg = xml::document{};
             auto clicfg = xml::document{};
+            auto file_list = txts{};
 
             auto show_cfg = [&](auto& cfg){ if (print && cfg) log("%source%:\n%config%", cfg.page.file, cfg.page.show()); };
 
@@ -781,16 +780,15 @@ namespace netxs::app::shared
                 show_cfg(clicfg);
             }
 
-            attach_file_list(defcfg, envcfg);
-            attach_file_list(defcfg, dvtcfg);
-            attach_file_list(defcfg, clicfg);
+            attach_file_list(file_list, defcfg);
+            attach_file_list(file_list, envcfg);
+            attach_file_list(file_list, dvtcfg);
+            attach_file_list(file_list, clicfg);
 
-            auto config_sources = defcfg.take_ptr_list("/include");
-            for (auto& file_rec : config_sources) if (file_rec && !file_rec->base) // Overlay configs from the specified sources if it is.
+            for (auto& file_path : file_list) // Overlay configs from the specified sources if it is.
             {
-                auto src_file = file_rec->_concat_values();
                 auto src_conf = xml::document{};
-                load_from_file(src_conf, src_file);
+                load_from_file(src_conf, file_path);
                 show_cfg(src_conf);
                 overlay_config(defcfg, src_conf);
             }
@@ -799,7 +797,7 @@ namespace netxs::app::shared
             overlay_config(defcfg, dvtcfg);
             overlay_config(defcfg, clicfg);
 
-            auto resultant = xml::settings{ defcfg };
+            auto resultant = xml::settings{ std::move(defcfg) };
             return resultant;
         }
     }

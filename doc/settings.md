@@ -5,21 +5,21 @@ graph TB
     subgraph Settings loading order
     direction LR
         A1["1"] --- B1("Init hardcoded &lt;include=.../&gt; list")
-        B1 --> C1("Take &lt;include=.../&gt; list from the $VTM_CONFIG value or file it referencing")
-        C1 --> G1("Take &lt;include=.../&gt; list from the received DirectVT packet")
-        G1 --> H1("Take &lt;include=.../&gt; list from the --config' CLI option value or file it referencing")
+        B1 --> C1("Take &lt;include=.../&gt; file list from the $VTM_CONFIG value or from the file it directly references")
+        C1 --> G1("Take &lt;include=.../&gt; file list from the received DirectVT packet")
+        G1 --> H1("Take &lt;include=.../&gt; file list from the --config' CLI option value or from the file it directly references")
     direction LR
-        A2["2"] --- B2("Overlay &lt;config/&gt; subsections from the resultant &lt;include=.../&gt; list")
-        B2 --> C2("Overlay &lt;config/&gt; subsection from the $VTM_CONFIG value or file it referencing")
-        C2 --> G2("Overlay &lt;config/&gt; subsection from the received DirectVT packet")
-        G2 --> H2("Overlay &lt;config/&gt; subsection from the --config' CLI option value or file it referencing")
+        A2["2"] --- B2("Overlay settings from the resultant &lt;include=.../&gt; file list")
+        B2 --> C2("Overlay settings from the $VTM_CONFIG value or from the file it directly references")
+        C2 --> G2("Overlay settings from the received DirectVT packet")
+        G2 --> H2("Overlay settings from the --config' CLI option value or from the file it directly references")
     end
 ```
 
 ## TL;DR
 
-The settings are stored in a Pure 'XML' which is an XML-like format, storing a hierarchical list of key=value pairs.  
-See [`/src/vtm.xml`](../src/vtm.xml) for reference.
+The settings are stored in the "Pure XML" file format, which looks like classical XML but with dynamic element refrencing and templating.  
+See [`/src/vtm.xml`](../src/vtm.xml) for example.
 
 We call the text data in the settings file "plain XML data" even though our file format is not technically XML, but only visually resembles it.
 
@@ -30,11 +30,11 @@ There are two predefined settings source locations and this can be changed as ne
 ```
 
 The process of loading settings consists of the following steps:
-- Build an ordered list of the setting source files by looking for the root `<include=.../>` subsections.
-- Overlay the XML data from the source files in the specified order.
-- Overlay the XML data from the value of the `$VTM_CONFIG` environment variable or from a settings file it references.
-- Overlay the XML data from the DirectVT config payload received from the parent process.
-- Overlay the XML data from the specified `--config <...>` CLI option value or from a settings file it referencing.
+- Build an ordered list of the setting source files by looking for the root `<include=.../>` elements.
+- Overlay settings from the source files in the specified order.
+- Overlay settings from the value of the `$VTM_CONFIG` environment variable or from a settings file it directly references.
+- Overlay settings from the DirectVT config payload received from the parent process.
+- Overlay settings from the specified `--config <...>` CLI option value or from a settings file it directly references.
 
 The file list is built in the following order from the following sources:
 - The settings file list from the hardcoded configuration containing a list of two files:
@@ -44,14 +44,14 @@ The file list is built in the following order from the following sources:
   <include="~/.config/vtm/settings.xml"/>   <!-- Default user-wise settings source. -->
   ...
   ```
-- The settings file list from the `$VTM_CONFIG` environment variable value or from a settings file it referencing.
+- The settings file list from the `$VTM_CONFIG` environment variable value or from a settings file it directly references.
   - A case with a plain XML-data:
     - `$VTM_CONFIG=<include*/><include='/path/to/override_defaults.xml'/>...` - Clear the current file list and begin a new file list containing a single file '/path/to/override_defaults.xml'.
     - `$VTM_CONFIG=<include='/path/to/first.xml'/><include='/path/to/second.xml'/>...` - Append the current file list with the files '/path/to/first.xml' and '/path/to/second.xml'.
   - A case with a file reference:
     - `$VTM_CONFIG='/path/to/override_defaults.xml'` - Take the file list from the '/path/to/override_defaults.xml'.
 - The settings file list from the DirectVT config received from the parent process.
-- The settings file list from the specified `--config <...>` CLI option value or from a settings file it referencing.
+- The settings file list from the specified `--config <...>` CLI option value or from a settings file it directly references.
   - A case with a plain XML-data:
     - `./vtm --config "<include*/><include='/path/to/override_defaults.xml'/>..."` - Clear the current file list and begin a new file list containing a single file '/path/to/override_defaults.xml/'.
   - A case with a file reference:
@@ -59,9 +59,11 @@ The file list is built in the following order from the following sources:
 
 ## Pure XML
 
-### Key differences from classical XML
+### Differences from classical XML
 
- - Document encoding is UTF-8.
+Pure XML is based on the XML 1.1 standard, with the following exceptions:
+
+ - Document encoding is UTF-8 only.
  - Any Unicode characters are allowed, including the U+0000 (null) character.
  - There is no support for named XML character entities.
  - The stored data forms a hierarchical list of `name=value` pairs.
@@ -71,21 +73,24 @@ The file list is built in the following order from the following sources:
      - `<... name="value" />`, `<...> <name> "value" </name> </...>`, and `<...> <name="value" /> </...>` have the same meaning.
    - The XML-attribute `param` in `<name param="value"/>` and the XML-element `param` in `<name> <param="value"/> </name>` are semantically identical sub-elements of the `name` element.
  - No spaces are allowed between the opening angle bracket and the element name:
-   - `... < name ...`, `... <= ...`, `... << ...` are treated as parts of the element's value content.
+   - `... < name ...` should not be treated as an opening tag.
  - Every element has its own text value.
    - For example, `<name="names_value" param="params_value"/>` - the `name` element has the text value `names_value`, and its `param` sub-element has the text value `params_value`.
  - All stored values are strings (the data requester decides on its side how to interpret it):
    - `name=2000` and `name="2000"` have the same meaning.
  - All value strings, except those that begin with a decimal digit character (ASCII `0` - `9`), must be quoted with either double or single quotes (`"` U+0022 or `'` U+0027).
  - The value string can be fragmented. Fragments can be located after the equal sign following the element name, as well as between the opening and closing tags.
- - The fragments located between the opening and closing tags can be either quoted or in raw form. The quoted form sets strict boundaries for the string value. The raw form pulls all characters between the opening and closing tags, including line breaks.
- - The following compact syntax for elements is allowed:
+ - The fragments located between the opening and closing tags can be either quoted or in raw form. The quoted form sets strict boundaries for the string value. The raw form pulls all characters between the opening and closing tags, excluding trailing whitespaces (whitespaces immediately before a nested opening tag or an element's closing tag).
+ - The following compact syntax for element declaration is allowed:
    - `<node0/node1/thing name="value"/>` and `<node0><node1><thing name="value"/></node1></node0>` have the same meaning.
- - Elements can reference any element using relative and absolute references, in the form of an unquoted name or an XML path to the referenced element.
+ - Elements can reference any other elements using relative and absolute references, in the form of an unquoted name or an XML path to the referenced element.
    - `thing2` refers to the value `/node1/thing1` in `<node1 thing1="value1"/><node2 thing2=/node1/thing1 />`.
    - `thing2` refers to the value `thing1` within the scope of `<node1 thing1="value1"><node2 thing2=thing1 /></node1>`.
+   - Each element forms its own namespace.
+   - The value of an element containing relative references is obtained by traversing the element's namespace and all its surrounding namespaces until the first hit.
+   - A recursive reference is a reference encountered during the resolving of another reference.
+   - All recursive references are resolved starting from the element's namespace, regardless of where the recursive references are encountered.
    - Circular references are silently ignored.
-   - //todo describe the reference resolution order.
  - The element reference includes all of the element's contents, including the element's value and all nested elements.
  - The element's content may include any number of substrings, as well as references to other elements, combined in the required order using the vertical bar character ASCII 0x7C `|`.
    - `<thing1="1"/><thing2="2"/><thing21=thing2 | thing1/>` and `<thing1="1"/><thing2="2"/><thing21="21"/>` have the same meaning.

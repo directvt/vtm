@@ -1253,7 +1253,7 @@ namespace netxs::app::vtm
                                                 });
                                                 log("%%Run %%", prompt::host, ansi::hi(utf::debase437(utf8_xml)));
                                                 auto appconf = settings{ utf8_xml };
-                                                auto item_ptr = appconf.document->root;
+                                                auto item_ptr = appconf.document.root_ptr;
                                                 auto menuid = config.settings::take_value_from(item_ptr, attr::id, ""s);
                                                 auto taskbar_context = config.settings::push_context(path::taskbar);
                                                 if (menu_list.contains(menuid))

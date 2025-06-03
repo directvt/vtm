@@ -18,7 +18,7 @@ namespace netxs
     using txts = std::vector<text>;
     using namespace std::literals;
 
-    static constexpr auto whitespaces = " \n\r\t"sv;
+    static constexpr auto whitespaces = " \t\r\n\v\f"sv;
     static constexpr auto onlydigits  = "0123456789"sv;
     static constexpr auto alphabetic  = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"sv;
     static constexpr auto base64code  = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -1164,6 +1164,21 @@ namespace netxs::utf
         }
         return from.substr(0, s_size);
     }
+    void replace_all(view utf8, view what, view to, text& dest)
+    {
+        auto last = 0_sz;
+        if (!what.empty() && utf8.length() >= what.length())
+        {
+            auto spot = 0_sz;
+            while ((spot = utf8.find(what, last)) != text::npos)
+            {
+                dest += utf8.substr(last, spot - last);
+                dest += to;
+                last = spot + what.size();
+            }
+        }
+        dest += utf8.substr(last);
+    }
     void replace_all(text& utf8, auto const& from, auto const& to)
     {
         auto frag = view{ from };
@@ -1365,6 +1380,19 @@ namespace netxs::utf
             }
             return crop;
         }
+    }
+    auto split2(view utf8, char delimiter, auto proc)
+    {
+        auto cur = 0_sz;
+        auto pos = 0_sz;
+        while ((pos = utf8.find(delimiter, cur)) != text::npos)
+        {
+            auto frag = view{ utf8.data() + cur, pos - cur };
+            if (!proc(frag, faux)) return faux;
+            cur = pos + 1;
+        }
+        auto end = view{ utf8.data() + cur, utf8.size() - cur };
+        return proc(end, true);
     }
     template<bool SkipEmpty = faux, feed Direction = feed::fwd, class P, bool Plain = std::is_same_v<void, std::invoke_result_t<P, view>>>
     auto split(view utf8, char delimiter, P proc)
@@ -1852,18 +1880,28 @@ namespace netxs::utf
     {
         utf::trim_back_if(utf8, [&](char c){ return delims.find(c) == text::npos; });
     }
-    // utf: Trim the utf8 front and return trims.
-    auto pop_front_chars(view& utf8, view delims)
+    // utf: Trim the utf8 while any of delims front and return trims.
+    auto pop_front_chars(view& utf8, view while_any_of)
     {
         auto temp = utf8;
-        utf::trim_front(utf8, delims);
+        utf::trim_front(utf8, while_any_of);
         return temp.substr(0, temp.size() - utf8.size());
     }
-    // utf: Trim the utf8 back and return trims.
-    auto pop_back_chars(view& utf8, view delims)
+    // utf: Trim the utf8 front until any of delims is found.
+    template<bool Lazy = true>
+    void pop_front_until(view& utf8, auto until_any_of)
+    {
+        auto head = utf8.begin();
+        auto tail = utf8.end();
+        auto stop = utf::find_char(head, tail, until_any_of);
+        auto prefix_len = stop - head;
+        utf8.remove_prefix(prefix_len);
+    }
+    // utf: Trim the utf8 back while any of delims and return trims.
+    auto pop_back_chars(view& utf8, view while_any_of)
     {
         auto temp = utf8;
-        utf::trim_back(utf8, delims);
+        utf::trim_back(utf8, while_any_of);
         return temp.substr(utf8.size());
     }
 
@@ -2063,29 +2101,28 @@ namespace netxs::utf
             return std::pair{ qiew{}, utf8 };
         }
     }
+    // utf: Trim utf8 until any of delims is found, and return trims.
     template<bool Lazy = true>
     auto take_front(view& utf8, view delims)
     {
-        auto head = utf8.begin();
-        auto tail = utf8.end();
-        auto stop = find_char(head, tail, delims);
-        if (stop == tail)
+        auto temp = qiew{ utf8 };
+        utf::pop_front_until(utf8, delims);
+        if (utf8.empty()) // If not found.
         {
             if constexpr (Lazy)
             {
-                utf8 = {};
-                return qiew{ utf8 };
+                return qiew{};
             }
             else
             {
-                auto crop = qiew{ utf8 };
-                utf8 = {};
-                return crop;
+                return temp;
             }
         }
-        auto str = qiew{ head, stop };
-        utf8.remove_prefix(str.size());
-        return str;
+        else
+        {
+            auto crop = temp.substr(0, temp.size() - utf8.size());
+            return crop;
+        }
     }
     template<bool Lazy = true, class ...ViewList>
     auto take_front(view& utf8, std::tuple<ViewList...> const& delims)
@@ -2168,6 +2205,7 @@ namespace netxs::utf
         }
         return args;
     }
+    // utf: Remove utf8 tail until any of delims (including delim).
     auto eat_tail(view& utf8, view delims)
     {
         auto head = utf8.begin();
