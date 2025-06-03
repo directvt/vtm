@@ -392,10 +392,10 @@ namespace netxs::xml
 
                     switch (kind)
                     {
-                        case type::insB:
-                        case type::insA:          ctrl = true;
-                                                  fgc = control_fg;
-                                                  bgc = control_bg;   break;
+                        //case type::insB:
+                        //case type::insA:          ctrl = true;
+                        //                          fgc = control_fg;
+                        //                          bgc = control_bg;   break;
                         case type::eof:           fgc = redlt;        break;
                         case type::top_token:     fgc = top_token_fg; break;
                         case type::end_token:     fgc = end_token_fg; break;
