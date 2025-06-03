@@ -800,38 +800,36 @@ namespace netxs::xml
             {
                 append(type::spaces, data - temp); // Prepending spaces.
             }
+            void peek_forward()
+            {
+                data = temp;
+                utf::trim_front(temp, whitespaces);
+                peek();
+            }
             auto take_pair(sptr& item_ptr, type kind)
             {
                 append_prepending_spaces();
                     item_ptr->name = append(kind, utf::take_front(temp, view_token_delims));
-                data = temp;
-                utf::trim_front(temp, whitespaces);
-                peek();
+                peek_forward();
                 if (what == type::new_list)
                 {
                     append_prepending_spaces();
                         item_ptr->base = true;
                         append(type::new_list, utf::pop_front(temp, view_new_list.size()));
-                    data = temp;
-                    utf::trim_front(temp, whitespaces);
-                    peek();
+                    peek_forward();
                 }
                 if (what == type::equal)
                 {
                     append_prepending_spaces();
                         auto vbeg_ptr = append(type::value_begin);
-                                        append(type::equal,  utf::pop_front(temp, view_equal.size()));
-                    data = temp;
-                    utf::trim_front(temp, whitespaces);
-                    peek();
+                                        append(type::equal, utf::pop_front(temp, view_equal.size()));
+                    peek_forward();
                     auto not_empty = true;
                     do
                     {
-                        if (what == type::quoted_text)
+                        if (what == type::quoted_text) // #quoted_text
                         {
                             append_prepending_spaces();
-
-                                // #quoted_text
                                 what = type::tag_value;
                                 auto delim = temp.front();
                                 auto delim_view = view(&delim, 1);
@@ -839,39 +837,32 @@ namespace netxs::xml
                                 auto frag_ptr = append(type::quoted_text, utf::take_quote(temp, delim));
                                                 append(type::quotes, delim_view);
                                 item_ptr->body.push_back(frag_ptr);
-
-                            data = temp;
-                            utf::trim_front(temp, whitespaces);
-                            peek();
+                            peek_forward();
                         }
                         else if (what == type::raw_text) // Expected reference or number.
                         {
                             append_prepending_spaces();
-
-                            what = type::tag_value;
-                            auto is_digit = netxs::onlydigits.find(temp.front()) != text::npos;
-                            if (is_digit) // #number
-                            {
-                                auto frag_ptr = append(type::tag_numvalue, utf::take_front(temp, view_digit_delims));
-                                item_ptr->body.push_back(frag_ptr);
-                            }
-                            else // #reference
-                            {
-                                auto temp2 = temp;
-                                utf::take_front(temp2, view_token_delims);
-                                while (temp2.size() > 1 && temp2[0] == '/' && view_token_first.find(temp2[1]) == view::npos) // Take all reference segments.
+                                what = type::tag_value;
+                                auto is_digit = netxs::onlydigits.find(temp.front()) != text::npos;
+                                if (is_digit) // #number
                                 {
-                                    utf::pop_front(temp2, 2); // Pop '/' and the first valid letter of the name.
-                                    utf::take_front(temp2, view_token_delims); // Pop 'token'.
+                                    auto frag_ptr = append(type::tag_numvalue, utf::take_front(temp, view_digit_delims));
+                                    item_ptr->body.push_back(frag_ptr);
                                 }
-                                auto frag_ptr = append(type::tag_reference, temp - temp2);
-                                item_ptr->body.push_back(frag_ptr);
-                                temp = temp2;
-                            }
-
-                            data = temp;
-                            utf::trim_front(temp, whitespaces);
-                            peek();
+                                else // #reference
+                                {
+                                    auto temp2 = temp;
+                                    utf::take_front(temp2, view_token_delims);
+                                    while (temp2.size() > 1 && temp2[0] == '/' && view_token_first.find(temp2[1]) == view::npos) // Take all reference segments.
+                                    {
+                                        utf::pop_front(temp2, 2); // Pop '/' and the first valid letter of the name.
+                                        utf::take_front(temp2, view_token_delims); // Pop 'token'.
+                                    }
+                                    auto frag_ptr = append(type::tag_reference, temp - temp2);
+                                    item_ptr->body.push_back(frag_ptr);
+                                    temp = temp2;
+                                }
+                            peek_forward();
                         }
                         else
                         {
@@ -883,9 +874,7 @@ namespace netxs::xml
                         {
                             append_prepending_spaces();
                                 append(type::tag_joiner, utf::pop_front(temp, view_tag_joiner.size()));
-                            data = temp;
-                            utf::trim_front(temp, whitespaces);
-                            peek();
+                            peek_forward();
                         }
                     }
                     while (not_empty);
@@ -915,9 +904,7 @@ namespace netxs::xml
                     }
                     append(type::comment, utf::pop_front(temp, size));
                     append(type::comment_close, utf::pop_front(temp, view_comment_close.size()));
-                data = temp;
-                utf::trim_front(temp, whitespaces);
-                peek();
+                peek_forward();
                 return true;
             }
             auto pull_comments()
@@ -926,7 +913,7 @@ namespace netxs::xml
                 {
                     auto idle = data - temp;
                     if (idle.find('\n') == text::npos && what == type::comment_begin
-                    && take_comment())
+                        && take_comment())
                     {
                         continue;
                     }
@@ -967,10 +954,7 @@ namespace netxs::xml
                                                 append(type::quotes, delim_view);
                                 item_ptr->body.push_back(frag_ptr);
                                 //p.push_back(std::tuple{ 2, what, last, temp });
-                            data = temp;
-                            utf::trim_front(temp, whitespaces);
-                            peek();
-
+                            peek_forward();
                             if (what != type::tag_joiner)
                             {
                                 auto vend_ptr = append(type::value_end);
@@ -983,27 +967,20 @@ namespace netxs::xml
                         {
                             append_prepending_spaces();
                                 append(type::tag_joiner, utf::pop_front(temp, view_tag_joiner.size()));
-                            data = temp;
-                            utf::trim_front(temp, whitespaces);
-                            peek();
-
+                            peek_forward();
                             if (what == type::quoted_text)
                             {
                                 continue;
                             }
                             auto is_reference = what == type::raw_text && netxs::onlydigits.find(temp.front()) == text::npos; // Only literal raw text is allowed as a reference name.
-                            if (is_reference)
+                            if (is_reference) // #reference
                             {
                                 what = type::tag_reference;
-                                // #reference
                                 append_prepending_spaces();
                                     auto frag_ptr = append(type::raw_reference, utf::take_front(temp, view_reference_delims));
                                     item_ptr->body.push_back(frag_ptr);
                                     //p.push_back(std::tuple{ 2, what, last, temp });
-                                data = temp;
-                                utf::trim_front(temp, whitespaces);
-                                peek();
-
+                                peek_forward();
                                 if (what != type::tag_joiner)
                                 {
                                     auto vend_ptr = append(type::value_end);
@@ -1099,9 +1076,7 @@ namespace netxs::xml
                                 skip();
                                 last = type::unknown;
                                 append(type::unknown, data - temp);
-                            data = temp;
-                            utf::trim_front(temp, whitespaces);
-                            peek();
+                            peek_forward();
                         }
                         //p.push_back(std::tuple{ 2, what, last, temp });
                     }
@@ -1109,60 +1084,54 @@ namespace netxs::xml
                     {
                         item_ptr->insB = append(type::insB);
                         append_prepending_spaces();
-                        auto close_tag = utf::pop_front(temp, view_close_tag.size());
-                        auto trim_frag = utf::pop_front_chars(temp, whitespaces);
-                        peek();
-                        if (what == type::token)
-                        {
-                            auto item_name = utf::take_front(temp, view_token_delims);
+                            auto close_tag = utf::pop_front(temp, view_close_tag.size());
+                            auto trim_frag = utf::pop_front_chars(temp, whitespaces);
                             auto failed = faux;
-                            if (item_name == item_ptr->name->utf8)
-                            {
-                                append(type::close_tag,    close_tag);
-                                append(type::spaces,       trim_frag, true);
-                                append(type::end_token,    item_name);
-                                append(type::spaces,       utf::pop_front_chars(temp, whitespaces), true);
-                                append(type::close_inline, utf::take_front_including<faux>(temp, view_close_inline));
-                            }
-                            else
-                            {
-                                what = type::unknown;
-                                append(what, close_tag);
-                                append(what, trim_frag, true);
-                                append(what, item_name);
-                                append(what, utf::take_front_including<faux>(temp, view_close_inline));
-                                failed = true;
-                                fail_msg(ansi::add("Unexpected closing tag name '", item_name, "', expected: '", item_ptr->name->utf8, "'"));
-                            }
-                            data = temp;
-                            utf::trim_front(temp, whitespaces);
                             peek();
-                            if (failed)
+                            if (what == type::token)
                             {
+                                auto item_name = utf::take_front(temp, view_token_delims);
+                                if (item_name == item_ptr->name->utf8)
+                                {
+                                    append(type::close_tag,    close_tag);
+                                    append(type::spaces,       trim_frag, true);
+                                    append(type::end_token,    item_name);
+                                    append(type::spaces,       utf::pop_front_chars(temp, whitespaces), true);
+                                    append(type::close_inline, utf::take_front_including<faux>(temp, view_close_inline));
+                                }
+                                else
+                                {
+                                    what = type::unknown;
+                                    append(what, close_tag);
+                                    append(what, trim_frag, true);
+                                    append(what, item_name);
+                                    append(what, utf::take_front_including<faux>(temp, view_close_inline));
+                                    failed = true;
+                                    fail_msg(ansi::add("Unexpected closing tag name '", item_name, "', expected: '", item_ptr->name->utf8, "'"));
+                                }
+                            }
+                            else // Unexpected data.
+                            {
+                                append(type::unknown, data - temp);
+                                peek_forward();
+                                fail();
                                 continue; // Repeat until eof or success.
                             }
-                            else
-                            {
-                                break; // Exit from read_subsections_and_close().
-                            }
-                        }
-                        else // Unexpected data.
+                        peek_forward();
+                        if (failed)
                         {
-                            append(type::unknown, data - temp);
-
-                            data = temp;
-                            utf::trim_front(temp, whitespaces);
-                            peek();
-
-                            fail();
                             continue; // Repeat until eof or success.
+                        }
+                        else
+                        {
+                            break; // Exit from read_subsections_and_close().
                         }
                     }
                     else if (what == type::eof)
                     {
                         item_ptr->insB = append(type::insB);
                         append_prepending_spaces();
-                        data = temp;
+                        peek_forward();
                         if (deep != 0)
                         {
                             fail_msg("Unexpected {EOF}");
@@ -1176,7 +1145,6 @@ namespace netxs::xml
                 assert(what == type::begin_tag);
                 auto fire = faux;
                 append_prepending_spaces();
-                data = temp;
                 item_ptr->open();
                 append(type::begin_tag, utf::pop_front(temp, view_begin_tag.size())); // Append '<' to the page.
                 data = temp;
@@ -1194,19 +1162,13 @@ namespace netxs::xml
                     {
                         append_prepending_spaces();
                             append(what, utf::pop_front(temp, view_compact.size())); // Append '/' to the page.
-                        data = temp;
-                        utf::trim_front(temp, whitespaces);
-                        peek();
-
+                        peek_forward();
                         append_prepending_spaces();
                             item_ptr->mode = elem::form::pact;
                             auto next_ptr = ptr::shared<elem>(page.frag_list);
                             next_ptr->open();
                             append(type::begin_tag); // Add begin_tag placeholder.
-                        data = temp;
-                        utf::trim_front(temp, whitespaces);
-                        peek();
-
+                        peek_forward();
                         take_pair(next_ptr, type::top_token);
                         push(item_ptr, next_ptr);
                         compacted.push_back(item_ptr);
@@ -1218,7 +1180,7 @@ namespace netxs::xml
                         do // Proceed inlined elements in an attribute form.
                         {
                             append_prepending_spaces();
-                            data = temp;
+                                data = temp;
                                 auto next_ptr = ptr::shared<elem>(page.frag_list);
                                 next_ptr->mode = elem::form::attr;
                                 next_ptr->open();
@@ -1236,9 +1198,7 @@ namespace netxs::xml
                             item_ptr->insA = append(type::insA);
                             last = type::spaces;
                             append(type::empty_tag, utf::pop_front(temp, view_empty_tag.size()));
-                        data = temp;
-                        utf::trim_front(temp, whitespaces);
-                        peek();
+                        peek_forward();
                         pull_comments();
                     }
                     else if (compacted.empty() && what == type::close_inline) // Proceed '>' nested subs.
@@ -1246,10 +1206,8 @@ namespace netxs::xml
                         append_prepending_spaces();
                             item_ptr->insA = append(type::insA);
                             append(type::close_inline, utf::pop_front(temp, view_close_inline.size()));
-                        data = temp;
-                        utf::trim_front(temp, whitespaces);
-                        peek();
-                            read_subsections_and_close(item_ptr, deep);
+                        peek_forward();
+                        read_subsections_and_close(item_ptr, deep);
                     }
                     else
                     {
