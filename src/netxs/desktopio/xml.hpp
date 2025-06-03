@@ -515,7 +515,7 @@ namespace netxs::xml
             subs hive; // elem: Map of Subelement lists.
             bool base; // elem: Merge overwrite priority (clear dest list on overlaying if true).
             form mode; // elem: Element storage form.
-            wptr boss; // elem: Weak reference to parent element.
+            wptr parent_wptr; // elem: Weak reference to the parent element.
 
             elem(list& frag_list)
                 : frag_list{ frag_list },
@@ -528,9 +528,13 @@ namespace netxs::xml
                   mode{ node }
             { }
 
-            auto get_parent_ptr()
+            auto open()
             {
-                return boss.lock();
+                from = std::prev(frag_list.end());
+            }
+            auto seal()
+            {
+                upto = std::prev(frag_list.end());
             }
             auto _concat_values()
             {
@@ -554,7 +558,7 @@ namespace netxs::xml
                 {
                     if (value_segments.empty()) // It is possible the target is in a compact form.
                     {
-                        //todo restructurize the element instead of error reporting
+                        // Don't restructurize the element instead of error reporting. The structure of the overlay configuration must be compatible with the destination configuration.
                         log("%%%err%There are no placeholders to store the value; it is possible the target is in a compact form%nil%", prompt::xml, ansi::err(), ansi::nil());
                         for (auto& frag_iter : item.body)
                         {
@@ -584,7 +588,7 @@ namespace netxs::xml
                         {
                             if (src_segment_iter != item.value_segments.end())
                             {
-                                //todo restructurize the element instead of error reporting
+                                // Don't restructurize the element instead of error reporting. The structure of the overlay configuration must be compatible with the destination configuration.
                                 log("%%%err%There is no placeholders for ext value (target item in an inline form)%nil%", prompt::xml, ansi::err(), ansi::nil());
                             }
                             return;
@@ -698,12 +702,12 @@ namespace netxs::xml
             read(data);
         }
         template<bool WithTemplate = faux>
-        auto get_ptr_list(sptr parent_ptr, qiew path_str, vect& crop)
+        auto get_ptr_list(sptr node_ptr, qiew path_str, vect& crop)
         {
             utf::trim(path_str, '/');
             utf::split2(path_str, '/', [&](qiew branch, bool is_end)
             {
-                if (auto iter = parent_ptr->hive.find(branch); iter != parent_ptr->hive.end())
+                if (auto iter = node_ptr->hive.find(branch); iter != node_ptr->hive.end())
                 {
                     auto& item_ptr_list = iter->second;
                     if (is_end)
@@ -717,7 +721,7 @@ namespace netxs::xml
                     }
                     else if (item_ptr_list.size() && item_ptr_list.front())
                     {
-                        parent_ptr = item_ptr_list.front();
+                        node_ptr = item_ptr_list.front();
                         return true;
                     }
                 }
@@ -742,7 +746,7 @@ namespace netxs::xml
             }
             return item_ptr_list;
         }
-        auto combine_list(view path, vect const& list)
+        auto combine_list(vect const& list, view path)
         {
             utf::trim(path, '/');
             auto [parent_path, branch_path] = utf::split_back(path, '/');
@@ -794,7 +798,7 @@ namespace netxs::xml
                 if (upto != item_frag_list.end())
                 {
                     page.frag_list.splice(gate, item_frag_list, from, std::next(upto)); // Move utf8 fragments.
-                    item_ptr->boss = parent_ptr;
+                    item_ptr->parent_wptr = parent_ptr;
                     dest_list.push_back(item_ptr);
                     if (inlined)
                     {
@@ -832,7 +836,7 @@ namespace netxs::xml
                 log("%%Unexpected format for item '%parent_path%/%item->name->utf8%'", prompt::xml, parent_path, item_ptr->name->utf8);
             }
         }
-        void overlay(sptr item_ptr, text path = {})
+        void combine_item(sptr item_ptr, text path = {})
         {
             auto& item = *item_ptr;
             auto& name = item.name->utf8;
@@ -841,7 +845,7 @@ namespace netxs::xml
             auto is_dest_list = (dest_list.size() && dest_list.front()->base) || dest_list.size() > 1;
             if (is_dest_list || dest_list.empty())
             {
-                combine_list(path, { item_ptr });
+                combine_list({ item_ptr }, path);
             }
             else
             {
@@ -852,11 +856,11 @@ namespace netxs::xml
                     auto count = sub_list.size();
                     if (count == 1 && sub_list.front()->base == faux)
                     {
-                        overlay(sub_list.front(), path);
+                        combine_item(sub_list.front(), path);
                     }
                     else if (count) // It is a list.
                     {
-                        combine_list(path + "/" + sub_name, sub_list);
+                        combine_list(sub_list, path + "/" + sub_name);
                     }
                     else
                     {
@@ -1080,18 +1084,6 @@ namespace netxs::xml
                 item_ptr->value_segments.push_back({ vbeg_ptr, vend_ptr });
             }
         }
-        auto open(sptr& item_ptr)
-        {
-            if (page.frag_list.empty() || page.frag_list.back().kind != type::spaces)
-            {
-                page.append(type::spaces); // Prepending spaces always belong to the item.
-            }
-            item_ptr->from = std::prev(page.frag_list.end());
-        }
-        auto seal(sptr& item_ptr)
-        {
-            item_ptr->upto = std::prev(page.frag_list.end());
-        }
         auto take_comment(view& data, view& temp, type& what, type& last)
         {
             page.append(type::spaces, data - temp); // Prepending spaces.
@@ -1133,7 +1125,7 @@ namespace netxs::xml
         {
             auto& nested_name = nested_ptr->name->utf8;
             item_ptr->hive[nested_name].push_back(nested_ptr);
-            nested_ptr->boss = item_ptr;
+            nested_ptr->parent_wptr = item_ptr;
         }
         void read_subsections_and_close(sptr& item_ptr, view& data, view& temp, type& what, type& last, si32& deep)
         {
@@ -1371,7 +1363,7 @@ namespace netxs::xml
             auto fire = faux;
             page.append(type::spaces, data - temp); // Prepending spaces.
             data = temp;
-            open(item_ptr);
+            item_ptr->open();
             page.append(type::begin_tag, utf::pop_front(temp, view_begin_tag.size())); // Append '<' to the page.
             data = temp;
             peek(temp, what, last);
@@ -1395,7 +1387,7 @@ namespace netxs::xml
                     page.append(type::spaces, data - temp); // Prepending spaces.
                         item_ptr->mode = elem::form::pact;
                         auto next_ptr = ptr::shared<elem>(page.frag_list);
-                        open(next_ptr);
+                        next_ptr->open();
                         page.append(type::begin_tag); // Add begin_tag placeholder.
                     data = temp;
                     utf::trim_front(temp, whitespaces);
@@ -1415,9 +1407,9 @@ namespace netxs::xml
                         data = temp;
                             auto next_ptr = ptr::shared<elem>(page.frag_list);
                             next_ptr->mode = elem::form::attr;
-                            open(next_ptr);
+                            next_ptr->open();
                             take_pair(next_ptr, data, temp, what, last, type::token);
-                            seal(next_ptr);
+                            next_ptr->seal();
                             push(item_ptr, next_ptr);
 
                     }
@@ -1478,11 +1470,11 @@ namespace netxs::xml
             {
                 page.append(type::eof);
             }
-            seal(item_ptr);
+            item_ptr->seal();
             while (!compacted.empty()) // Close compact nodes.
             {
                 item_ptr = compacted.back();
-                seal(item_ptr);
+                item_ptr->seal();
                 compacted.pop_back();
             }
         }
@@ -1492,7 +1484,7 @@ namespace netxs::xml
             auto last = type::na;
             auto deep = 0;
             page.append(type::spaces);
-            open(root_ptr);
+            root_ptr->open();
             root_ptr->mode = elem::form::node;
             root_ptr->name = page.append(type::na);
             root_ptr->insB = page.append(type::insB);
@@ -1502,12 +1494,16 @@ namespace netxs::xml
             {
                 utf::trim_front(temp, whitespaces);
                 peek(temp, what, last);
-                    read_subsections_and_close(root_ptr, data, temp, what, last, deep);
+
+                read_subsections_and_close(root_ptr, data, temp, what, last, deep);
             }
             page.append(type::spaces, data - temp); // Prepending spaces.
 
-            seal(root_ptr);
-            if (page.fail) log("%%Inconsistent xml data from %file%:\n%config%\n", prompt::xml, page.file.empty() ? "memory"sv : page.file, page.show());
+            root_ptr->seal();
+            if (page.fail)
+            {
+                log("%%Inconsistent xml data from %file%:\n%config%\n", prompt::xml, page.file.empty() ? "memory"sv : page.file, page.show());
+            }
         }
     };
 
@@ -1605,7 +1601,7 @@ namespace netxs::xml
                         item_ptr = item_ptr_list.front();
                         break;
                     }
-                    context_ptr = context_ptr->get_parent_ptr();
+                    context_ptr = context_ptr->parent_wptr.lock();
                 }
                 if (!context_ptr)
                 {
@@ -1879,7 +1875,7 @@ namespace netxs::xml
             {
                 log("%%Settings from %file%:\n%config%", prompt::xml, filepath.empty() ? "memory"sv : filepath, tmp_config.page.show());
             }
-            document.overlay(tmp_config.root_ptr);
+            document.combine_item(tmp_config.root_ptr);
         }
     };
     namespace options
