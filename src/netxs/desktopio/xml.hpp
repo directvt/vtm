@@ -532,34 +532,6 @@ namespace netxs::xml
             {
                 return boss.lock();
             }
-            template<bool WithTemplate = faux>
-            auto get_list3(qiew path_str, vect& crop)
-            {
-                auto anchor = this;
-                utf::trim(path_str, '/');
-                utf::split2(path_str, '/', [&](qiew branch, bool is_end)
-                {
-                    if (auto iter = anchor->hive.find(branch); iter != anchor->hive.end())
-                    {
-                        auto& item_ptr_list = iter->second;
-                        if (is_end)
-                        {
-                            crop.reserve(item_ptr_list.size());
-                            for (auto& item_ptr : item_ptr_list)
-                            {
-                                if constexpr (WithTemplate) crop.push_back(item_ptr);
-                                else   if (!item_ptr->base) crop.push_back(item_ptr);
-                            }
-                        }
-                        else if (item_ptr_list.size() && item_ptr_list.front())
-                        {
-                            anchor = &(*(item_ptr_list.front()));
-                            return true;
-                        }
-                    }
-                    return faux;
-                });
-            }
             auto _concat_values()
             {
                 auto value = text{};
@@ -726,6 +698,33 @@ namespace netxs::xml
             read(data);
         }
         template<bool WithTemplate = faux>
+        auto get_ptr_list(sptr parent_ptr, qiew path_str, vect& crop)
+        {
+            utf::trim(path_str, '/');
+            utf::split2(path_str, '/', [&](qiew branch, bool is_end)
+            {
+                if (auto iter = parent_ptr->hive.find(branch); iter != parent_ptr->hive.end())
+                {
+                    auto& item_ptr_list = iter->second;
+                    if (is_end)
+                    {
+                        crop.reserve(item_ptr_list.size());
+                        for (auto& item_ptr : item_ptr_list)
+                        {
+                            if constexpr (WithTemplate) crop.push_back(item_ptr);
+                            else   if (!item_ptr->base) crop.push_back(item_ptr);
+                        }
+                    }
+                    else if (item_ptr_list.size() && item_ptr_list.front())
+                    {
+                        parent_ptr = item_ptr_list.front();
+                        return true;
+                    }
+                }
+                return faux;
+            });
+        }
+        template<bool WithTemplate = faux>
         auto take_ptr_list(view path)
         {
             auto item_ptr_list = vect{};
@@ -738,12 +737,12 @@ namespace netxs::xml
                 }
                 else
                 {
-                    root_ptr->get_list3<WithTemplate>(path, item_ptr_list);
+                    document::get_ptr_list<WithTemplate>(root_ptr, path, item_ptr_list);
                 }
             }
             return item_ptr_list;
         }
-        auto join(view path, vect const& list)
+        auto combine_list(view path, vect const& list)
         {
             utf::trim(path, '/');
             auto [parent_path, branch_path] = utf::split_back(path, '/');
@@ -908,7 +907,7 @@ namespace netxs::xml
             auto is_dest_list = (dest_list.size() && dest_list.front()->base) || dest_list.size() > 1;
             if (is_dest_list || dest_list.empty())
             {
-                join(path, { item_ptr });
+                combine_list(path, { item_ptr });
             }
             else
             {
@@ -923,7 +922,7 @@ namespace netxs::xml
                     }
                     else if (count) // It is a list.
                     {
-                        join(path + "/" + sub_name, sub_list);
+                        combine_list(path + "/" + sub_name, sub_list);
                     }
                     else
                     {
@@ -1747,7 +1746,7 @@ namespace netxs::xml
                 }
             }
             // Take native attribute list.
-            subsection_ptr->get_list3(attribute, item_ptr_list);
+            document.get_ptr_list(subsection_ptr, attribute, item_ptr_list);
         }
         auto take_ptr_list_of(sptr subsection_ptr, view attribute)
         {
@@ -1831,7 +1830,7 @@ namespace netxs::xml
             {
                 auto ctx = settings::push_context(context_ptr);
                 auto item_ptr_list = vect{};
-                context_ptr->get_list3(frompath, item_ptr_list);
+                document.get_ptr_list(context_ptr, frompath, item_ptr_list);
                 if (auto item_ptr = item_ptr_list.size() ? item_ptr_list.back() : sptr{})
                 {
                     auto crop = settings::take_value(item_ptr);
