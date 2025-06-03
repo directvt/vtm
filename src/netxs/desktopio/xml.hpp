@@ -1217,10 +1217,12 @@ namespace netxs::xml
                     while (true) // Reverse find a broken open tag and mark all after it as an unknown data.
                     {
                         auto& frag = *head;
-                        auto& kind = frag.kind;
+                        auto  kind = frag.kind;
                         frag.kind = type::unknown;
-                        if (head == page.frag_list.rend() || kind == type::begin_tag) break;
-                        ++head;
+                        if (++head == page.frag_list.rend() || kind == type::begin_tag)
+                        {
+                            break;
+                        }
                     }
                     item_ptr->name = append(type::tag_value);
                     fail_msg("Empty tag name");
