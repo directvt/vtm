@@ -367,8 +367,8 @@ namespace netxs::xml
                 static constexpr auto quotes_fg    = argb{ 0xFF'BB'BB'BB };
                 static constexpr auto value_fg     = argb{ 0xFF'90'96'f0 };
                 static constexpr auto value_bg     = argb{ 0xFF'20'20'20 };
-                static constexpr auto control_fg   = argb{ 0xFF'00'00'00 };
-                static constexpr auto control_bg   = argb{ 0xFF'f0'f0'20 };
+                //static constexpr auto control_fg   = argb{ 0xFF'00'00'00 };
+                //static constexpr auto control_bg   = argb{ 0xFF'f0'f0'20 };
 
                 //test
                 //auto tmp = frag_list.front().upto;
