@@ -331,22 +331,6 @@ namespace netxs::xml
                 fail = faux;
                 file = filename;
             }
-            void _append(type kind, view utf8)
-            {
-                frag_list.push_back(literal{ kind, utf8 });
-            }
-            auto append(type kind, view utf8 = {})
-            {
-                _append(kind, utf8);
-                return std::prev(frag_list.end());
-            }
-            void append_if_nonempty(type kind, view utf8)
-            {
-                if (utf8.size())
-                {
-                    _append(kind, utf8);
-                }
-            }
             auto lines() const
             {
                 auto count = 0_sz;
@@ -693,10 +677,26 @@ namespace netxs::xml
             type  last;
             vect  compacted;
 
+            void _append(type kind, view utf8)
+            {
+                page.frag_list.push_back({ kind, utf8 });
+            }
+            auto append(type kind, view utf8 = {})
+            {
+                _append(kind, utf8);
+                return std::prev(page.frag_list.end());
+            }
+            void append_if_nonempty(type kind, view utf8)
+            {
+                if (utf8.size())
+                {
+                    _append(kind, utf8);
+                }
+            }
             void fail_msg(text msg)
             {
                 page.fail = true;
-                page.append(type::error, msg);
+                append(type::error, msg);
                 log("%%%msg% at %page.file%:%lines%", prompt::xml, msg, page.file, page.lines());
             }
             void fail()
@@ -806,25 +806,25 @@ namespace netxs::xml
             }
             auto take_pair(sptr& item_ptr, type kind)
             {
-                page.append(type::spaces, data - temp); // Prepending spaces.
-                    item_ptr->name = page.append(kind, utf::take_front(temp, view_token_delims));
+                append(type::spaces, data - temp); // Prepending spaces.
+                    item_ptr->name = append(kind, utf::take_front(temp, view_token_delims));
                 data = temp;
                 utf::trim_front(temp, whitespaces);
                 peek();
                 if (what == type::new_list)
                 {
-                    page.append(type::spaces, data - temp); // Prepending spaces.
+                    append(type::spaces, data - temp); // Prepending spaces.
                         item_ptr->base = true;
-                        page.append(type::new_list, utf::pop_front(temp, view_new_list.size()));
+                        append(type::new_list, utf::pop_front(temp, view_new_list.size()));
                     data = temp;
                     utf::trim_front(temp, whitespaces);
                     peek();
                 }
                 if (what == type::equal)
                 {
-                    page.append(type::spaces, data - temp); // Prepending spaces.
-                        auto vbeg_ptr = page.append(type::value_begin);
-                                        page.append(type::equal,  utf::pop_front(temp, view_equal.size()));
+                    append(type::spaces, data - temp); // Prepending spaces.
+                        auto vbeg_ptr = append(type::value_begin);
+                                        append(type::equal,  utf::pop_front(temp, view_equal.size()));
                     data = temp;
                     utf::trim_front(temp, whitespaces);
                     peek();
@@ -833,15 +833,15 @@ namespace netxs::xml
                     {
                         if (what == type::quoted_text)
                         {
-                            page.append(type::spaces, data - temp); // Prepending spaces.
+                            append(type::spaces, data - temp); // Prepending spaces.
 
                                 // #quoted_text
                                 what = type::tag_value;
                                 auto delim = temp.front();
                                 auto delim_view = view(&delim, 1);
-                                                page.append(type::quotes, delim_view);
-                                auto frag_ptr = page.append(type::quoted_text, utf::take_quote(temp, delim));
-                                                page.append(type::quotes, delim_view);
+                                                append(type::quotes, delim_view);
+                                auto frag_ptr = append(type::quoted_text, utf::take_quote(temp, delim));
+                                                append(type::quotes, delim_view);
                                 item_ptr->body.push_back(frag_ptr);
 
                             data = temp;
@@ -850,13 +850,13 @@ namespace netxs::xml
                         }
                         else if (what == type::raw_text) // Expected reference or number.
                         {
-                            page.append(type::spaces, data - temp); // Prepending spaces.
+                            append(type::spaces, data - temp); // Prepending spaces.
 
                             what = type::tag_value;
                             auto is_digit = netxs::onlydigits.find(temp.front()) != text::npos;
                             if (is_digit) // #number
                             {
-                                auto frag_ptr = page.append(type::tag_numvalue, utf::take_front(temp, view_digit_delims));
+                                auto frag_ptr = append(type::tag_numvalue, utf::take_front(temp, view_digit_delims));
                                 item_ptr->body.push_back(frag_ptr);
                             }
                             else // #reference
@@ -868,7 +868,7 @@ namespace netxs::xml
                                     utf::pop_front(temp2, 2); // Pop '/' and the first valid letter of the name.
                                     utf::take_front(temp2, view_token_delims); // Pop 'token'.
                                 }
-                                auto frag_ptr = page.append(type::tag_reference, temp - temp2);
+                                auto frag_ptr = append(type::tag_reference, temp - temp2);
                                 item_ptr->body.push_back(frag_ptr);
                                 temp = temp2;
                             }
@@ -885,40 +885,40 @@ namespace netxs::xml
                         not_empty = what == type::tag_joiner;
                         if (not_empty) // Eat tag_joiner.
                         {
-                            page.append(type::spaces, data - temp); // Prepending spaces.
-                                page.append(type::tag_joiner, utf::pop_front(temp, view_tag_joiner.size()));
+                            append(type::spaces, data - temp); // Prepending spaces.
+                                append(type::tag_joiner, utf::pop_front(temp, view_tag_joiner.size()));
                             data = temp;
                             utf::trim_front(temp, whitespaces);
                             peek();
                         }
                     }
                     while (not_empty);
-                    auto vend_ptr = page.append(type::value_end);
+                    auto vend_ptr = append(type::value_end);
                     item_ptr->value_segments.push_back({ vbeg_ptr, vend_ptr });
                 }
                 else if (what != type::compact) // Add placeholder for absent value.
                 {
-                    auto vbeg_ptr = page.append(type::value_begin);
-                    auto vend_ptr = page.append(type::value_end);
+                    auto vbeg_ptr = append(type::value_begin);
+                    auto vend_ptr = append(type::value_end);
                     item_ptr->value_segments.push_back({ vbeg_ptr, vend_ptr });
                 }
             }
             auto take_comment()
             {
-                page.append(type::spaces, data - temp); // Prepending spaces.
-                    page.append(type::comment_begin, utf::pop_front(temp, view_comment_begin.size()));
+                append(type::spaces, data - temp); // Prepending spaces.
+                    append(type::comment_begin, utf::pop_front(temp, view_comment_begin.size()));
                     auto size = temp.find(view_comment_close);
                     if (size == view::npos)
                     {
-                        page.append(type::unknown, temp);
+                        append(type::unknown, temp);
                         data = {};
                         temp = {};
                         last = what;
                         what = type::eof;
                         return faux;
                     }
-                    page.append(type::comment, utf::pop_front(temp, size));
-                    page.append(type::comment_close, utf::pop_front(temp, view_comment_close.size()));
+                    append(type::comment, utf::pop_front(temp, size));
+                    append(type::comment_close, utf::pop_front(temp, view_comment_close.size()));
                 data = temp;
                 utf::trim_front(temp, whitespaces);
                 peek();
@@ -961,14 +961,14 @@ namespace netxs::xml
                             if (!inside_value)
                             {
                                 inside_value = true;
-                                vbeg_ptr = page.append(type::value_begin);
+                                vbeg_ptr = append(type::value_begin);
                             }
-                            page.append(type::spaces, data - temp); // Prepending spaces.
+                            append(type::spaces, data - temp); // Prepending spaces.
                                 auto delim = temp.front();
                                 auto delim_view = view(&delim, 1);
-                                                page.append(type::quotes, delim_view);
-                                auto frag_ptr = page.append(type::raw_quoted, utf::take_quote(temp, delim));
-                                                page.append(type::quotes, delim_view);
+                                                append(type::quotes, delim_view);
+                                auto frag_ptr = append(type::raw_quoted, utf::take_quote(temp, delim));
+                                                append(type::quotes, delim_view);
                                 item_ptr->body.push_back(frag_ptr);
                                 //p.push_back(std::tuple{ 2, what, last, temp });
                             data = temp;
@@ -977,7 +977,7 @@ namespace netxs::xml
 
                             if (what != type::tag_joiner)
                             {
-                                auto vend_ptr = page.append(type::value_end);
+                                auto vend_ptr = append(type::value_end);
                                 item_ptr->value_segments.push_back({ vbeg_ptr, vend_ptr });
                                 inside_value = faux;
                             }
@@ -985,8 +985,8 @@ namespace netxs::xml
                         }
                         else if (what == type::tag_joiner && inside_value)
                         {
-                            page.append(type::spaces, data - temp); // Prepending spaces.
-                                page.append(type::tag_joiner, utf::pop_front(temp, view_tag_joiner.size()));
+                            append(type::spaces, data - temp); // Prepending spaces.
+                                append(type::tag_joiner, utf::pop_front(temp, view_tag_joiner.size()));
                             data = temp;
                             utf::trim_front(temp, whitespaces);
                             peek();
@@ -1000,8 +1000,8 @@ namespace netxs::xml
                             {
                                 what = type::tag_reference;
                                 // #reference
-                                page.append(type::spaces, data - temp); // Prepending spaces.
-                                    auto frag_ptr = page.append(type::raw_reference, utf::take_front(temp, view_reference_delims));
+                                append(type::spaces, data - temp); // Prepending spaces.
+                                    auto frag_ptr = append(type::raw_reference, utf::take_front(temp, view_reference_delims));
                                     item_ptr->body.push_back(frag_ptr);
                                     //p.push_back(std::tuple{ 2, what, last, temp });
                                 data = temp;
@@ -1010,7 +1010,7 @@ namespace netxs::xml
 
                                 if (what != type::tag_joiner)
                                 {
-                                    auto vend_ptr = page.append(type::value_end);
+                                    auto vend_ptr = append(type::value_end);
                                     item_ptr->value_segments.push_back({ vbeg_ptr, vend_ptr });
                                     inside_value = faux;
                                 }
@@ -1065,16 +1065,16 @@ namespace netxs::xml
                             {
                                 auto raw_block = data - temp;
                                 auto trailing_spaces = utf::pop_back_chars(raw_block, whitespaces); // Excluding trailing spaces from the raw_text_block.
-                                auto vbeg_ptr2 = page.append(type::value_begin);
-                                auto frag_ptr2 = page.append(type::raw_text, raw_block);
-                                auto vend_ptr2 = page.append(type::value_end);
+                                auto vbeg_ptr2 = append(type::value_begin);
+                                auto frag_ptr2 = append(type::raw_text, raw_block);
+                                auto vend_ptr2 = append(type::value_end);
                                 item_ptr->body.push_back(frag_ptr2);
                                 item_ptr->value_segments.push_back({ vbeg_ptr2, vend_ptr2 });
                                 data.remove_prefix(raw_block.size()); // data = temp - trailing_spaces;
                             }
                             else // Unexpected end of data.
                             {
-                                auto frag_ptr = page.append(type::unknown, data);
+                                auto frag_ptr = append(type::unknown, data);
                                 item_ptr->body.push_back(frag_ptr);
                                 temp = {};
                                 data = {};
@@ -1098,11 +1098,11 @@ namespace netxs::xml
                         }
                         else // Unknown/unexpected data.
                         {
-                            page.append(type::spaces, data - temp); // Prepending spaces.
+                            append(type::spaces, data - temp); // Prepending spaces.
                                 fail();
                                 skip();
                                 last = type::unknown;
-                                page.append(type::unknown, data - temp);
+                                append(type::unknown, data - temp);
                             data = temp;
                             utf::trim_front(temp, whitespaces);
                             peek();
@@ -1118,24 +1118,24 @@ namespace netxs::xml
                         if (what == type::token)
                         {
                             auto item_name = utf::take_front(temp, view_token_delims);
-                            item_ptr->insB = page.append(type::insB);
+                            item_ptr->insB = append(type::insB);
                             auto failed = faux;
-                            page.append(type::spaces, prepending_spaces); // Prepending spaces.
+                            append(type::spaces, prepending_spaces); // Prepending spaces.
                             if (item_name == item_ptr->name->utf8)
                             {
-                                page.append(            type::close_tag, close_tag);
-                                page.append_if_nonempty(type::spaces,    trim_frag);
-                                page.append(            type::end_token, item_name);
-                                page.append_if_nonempty(type::spaces, utf::pop_front_chars(temp, whitespaces));
-                                page.append(            type::close_inline, utf::take_front_including<faux>(temp, view_close_inline));
+                                append(            type::close_tag, close_tag);
+                                append_if_nonempty(type::spaces,    trim_frag);
+                                append(            type::end_token, item_name);
+                                append_if_nonempty(type::spaces, utf::pop_front_chars(temp, whitespaces));
+                                append(            type::close_inline, utf::take_front_including<faux>(temp, view_close_inline));
                             }
                             else
                             {
                                 what = type::unknown;
-                                page.append(            what, close_tag);
-                                page.append_if_nonempty(what, trim_frag);
-                                page.append(            what, item_name);
-                                page.append(            what, utf::take_front_including<faux>(temp, view_close_inline));
+                                append(            what, close_tag);
+                                append_if_nonempty(what, trim_frag);
+                                append(            what, item_name);
+                                append(            what, utf::take_front_including<faux>(temp, view_close_inline));
                                 failed = true;
                                 fail_msg(ansi::add("Unexpected closing tag name '", item_name, "', expected: '", item_ptr->name->utf8, "'"));
                             }
@@ -1153,7 +1153,7 @@ namespace netxs::xml
                         }
                         else // Unexpected data.
                         {
-                            page.append(type::unknown, data - temp);
+                            append(type::unknown, data - temp);
 
                             data = temp;
                             utf::trim_front(temp, whitespaces);
@@ -1165,8 +1165,8 @@ namespace netxs::xml
                     }
                     else if (what == type::eof)
                     {
-                        item_ptr->insB = page.append(type::insB);
-                        page.append(type::spaces, data - temp);
+                        item_ptr->insB = append(type::insB);
+                        append(type::spaces, data - temp);
                         data = temp;
                         if (deep != 0)
                         {
@@ -1180,10 +1180,10 @@ namespace netxs::xml
             {
                 assert(what == type::begin_tag);
                 auto fire = faux;
-                page.append(type::spaces, data - temp); // Prepending spaces.
+                append(type::spaces, data - temp); // Prepending spaces.
                 data = temp;
                 item_ptr->open();
-                page.append(type::begin_tag, utf::pop_front(temp, view_begin_tag.size())); // Append '<' to the page.
+                append(type::begin_tag, utf::pop_front(temp, view_begin_tag.size())); // Append '<' to the page.
                 data = temp;
                 peek();
                 if (what == type::spaces)
@@ -1197,17 +1197,17 @@ namespace netxs::xml
                     take_pair(item_ptr, type::top_token);
                     while (what == type::compact)
                     {
-                        page.append(type::spaces, data - temp); // Prepending spaces.
-                            page.append(what, utf::pop_front(temp, view_compact.size())); // Append '/' to the page.
+                        append(type::spaces, data - temp); // Prepending spaces.
+                            append(what, utf::pop_front(temp, view_compact.size())); // Append '/' to the page.
                         data = temp;
                         utf::trim_front(temp, whitespaces);
                         peek();
 
-                        page.append(type::spaces, data - temp); // Prepending spaces.
+                        append(type::spaces, data - temp); // Prepending spaces.
                             item_ptr->mode = elem::form::pact;
                             auto next_ptr = ptr::shared<elem>(page.frag_list);
                             next_ptr->open();
-                            page.append(type::begin_tag); // Add begin_tag placeholder.
+                            append(type::begin_tag); // Add begin_tag placeholder.
                         data = temp;
                         utf::trim_front(temp, whitespaces);
                         peek();
@@ -1222,7 +1222,7 @@ namespace netxs::xml
                     {
                         do // Proceed inlined elements in an attribute form.
                         {
-                            page.append(type::spaces, data - temp); // Prepending spaces.
+                            append(type::spaces, data - temp); // Prepending spaces.
                             data = temp;
                                 auto next_ptr = ptr::shared<elem>(page.frag_list);
                                 next_ptr->mode = elem::form::attr;
@@ -1236,11 +1236,11 @@ namespace netxs::xml
                     }
                     if (what == type::empty_tag) // Proceed '/>'.
                     {
-                        page.append(type::spaces, data - temp); // Prepending spaces.
+                        append(type::spaces, data - temp); // Prepending spaces.
                             item_ptr->mode = elem::form::flat;
-                            item_ptr->insA = page.append(type::insA);
+                            item_ptr->insA = append(type::insA);
                             last = type::spaces;
-                            page.append(type::empty_tag, utf::pop_front(temp, view_empty_tag.size()));
+                            append(type::empty_tag, utf::pop_front(temp, view_empty_tag.size()));
                         data = temp;
                         utf::trim_front(temp, whitespaces);
                         peek();
@@ -1248,9 +1248,9 @@ namespace netxs::xml
                     }
                     else if (compacted.empty() && what == type::close_inline) // Proceed '>' nested subs.
                     {
-                        page.append(type::spaces, data - temp); // Prepending spaces.
-                            item_ptr->insA = page.append(type::insA);
-                            page.append(type::close_inline, utf::pop_front(temp, view_close_inline.size()));
+                        append(type::spaces, data - temp); // Prepending spaces.
+                            item_ptr->insA = append(type::insA);
+                            append(type::close_inline, utf::pop_front(temp, view_close_inline.size()));
                         data = temp;
                         utf::trim_front(temp, whitespaces);
                         peek();
@@ -1278,7 +1278,7 @@ namespace netxs::xml
                         if (head == page.frag_list.rend() || kind == type::begin_tag) break;
                         ++head;
                     }
-                    item_ptr->name = page.append(type::tag_value);
+                    item_ptr->name = append(type::tag_value);
                     fail_msg("Empty tag name");
                 }
                 if (fire)
@@ -1287,7 +1287,7 @@ namespace netxs::xml
                 }
                 if (what == type::eof)
                 {
-                    page.append(type::eof);
+                    append(type::eof);
                 }
                 item_ptr->seal();
                 while (!compacted.empty()) // Close compact nodes.
@@ -1307,11 +1307,11 @@ namespace netxs::xml
                   last{ type::na }
             {
                 root_ptr = ptr::shared<elem>(page.frag_list);
-                page.append(type::spaces);
+                append(type::spaces);
                 root_ptr->open();
                 root_ptr->mode = elem::form::node;
-                root_ptr->name = page.append(type::na);
-                root_ptr->insB = page.append(type::insB);
+                root_ptr->name = append(type::na);
+                root_ptr->insB = append(type::insB);
                 if (data.size())
                 {
                     utf::trim_front(temp, whitespaces);
@@ -1319,7 +1319,7 @@ namespace netxs::xml
                     auto deep = 0;
                     read_subsections_and_close(root_ptr, deep);
                 }
-                page.append(type::spaces, data - temp); // Prepending spaces.
+                append(type::spaces, data - temp); // Prepending spaces.
                 root_ptr->seal();
                 if (page.fail)
                 {
