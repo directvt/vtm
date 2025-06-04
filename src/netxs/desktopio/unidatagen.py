@@ -310,7 +310,7 @@ namespace netxs::unidata
 
         constexpr unidata& operator = (unidata const&) = default;
 
-        auto is_cmd()
+        auto is_cmd() const
         {{
             return control < cntrls::non_control;
         }}

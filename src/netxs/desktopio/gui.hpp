@@ -1036,7 +1036,7 @@ namespace netxs::gui
                     else if (codepoint.cdpoint == utf::vs08_code) img_alignment.y = snap::center;
                     else if (codepoint.cdpoint == utf::vs09_code) img_alignment.y = snap::tail;
                 }
-                else
+                else if (utf::non_control(codepoint.cdpoint))
                 {
                     codepoints.push_back(codepoint);
                 }

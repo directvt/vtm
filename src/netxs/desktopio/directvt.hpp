@@ -1250,7 +1250,7 @@ namespace netxs::directvt
                         c.scan_attr<Mode>(state, stream::block);
                     }
                     else cache.scan_attr<Mode>(state, stream::block);
-                    stream::block += cluster;
+                    utf::filter_non_control(cluster, stream::block); //stream::block += cluster;
                 };
                 auto print_rtl = [&](cell const& cache, view cluster)
                 {

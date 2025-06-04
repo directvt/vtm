@@ -2464,7 +2464,7 @@ namespace netxs::ui
             void el(si32 n) override
             {
                 bufferbase::flush();
-                _el(n, canvas, coord, panel, brush.nul());
+                _el(n, canvas, coord, panel, brush.spc());
             }
             // alt_screen: CSI n @  ICH. Insert n blanks after cursor. No wrap. Existing chars after cursor shifts to the right. Don't change cursor pos.
             void ins(si32 n) override
@@ -2472,13 +2472,13 @@ namespace netxs::ui
                 bufferbase::flush();
                 assert(coord.y < panel.y);
                 assert(coord.x >= 0);
-                canvas.insert(coord, n, brush.nul());
+                canvas.insert(coord, n, brush.spc());
             }
             // alt_screen: CSI n P  Delete (not Erase) letters under the cursor.
             void dch(si32 n) override
             {
                 bufferbase::flush();
-                canvas.cutoff(coord, n, brush.nul());
+                canvas.cutoff(coord, n, brush.spc());
             }
             // alt_screen: '\x7F'  Delete letter backward.
             void del(si32 n) override
@@ -2490,7 +2490,7 @@ namespace netxs::ui
                 {
                     wrapup();
                 }
-                canvas.backsp(coord, n, brush.nul());
+                canvas.backsp(coord, n, brush.spc());
                 if (coord.y < 0) coord = dot_00;
             }
             // alt_screen: Move cursor by n in line.
@@ -4391,7 +4391,7 @@ namespace netxs::ui
                 bufferbase::flush();
                 //todo revise - nul() or dry()
                 //auto blank = brush.dry();
-                auto blank = brush.nul();
+                auto blank = brush.spc();
                 if (auto ctx = get_context(coord))
                 {
                     auto  start = si32{};
@@ -4446,7 +4446,7 @@ namespace netxs::ui
             void ins(si32 n) override
             {
                 bufferbase::flush();
-                auto blank = brush.nul();
+                auto blank = brush.spc();
                 if (auto ctx = get_context(coord))
                 {
                     n = std::min(n, panel.x - coord.x);
@@ -4465,7 +4465,7 @@ namespace netxs::ui
             void dch(si32 n) override
             {
                 bufferbase::flush();
-                auto blank = brush.nul();
+                auto blank = brush.spc();
                 if (auto ctx = get_context(coord))
                 {
                     auto& curln = batch.current();
@@ -4596,7 +4596,7 @@ namespace netxs::ui
                 {
                     _fwd(-n);
                     auto& curln = batch.current();
-                    curln.splice<faux>(batch.caret, n, brush.nul());
+                    curln.splice<faux>(batch.caret, n, brush.spc());
                 }
             }
             // scroll_buf: Move cursor by n in line.
