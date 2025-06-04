@@ -1801,27 +1801,33 @@ namespace netxs::ansi
                 proto_cells.push_back(brush);
                 //debug += (debug.size() ? "_"s : ""s) + text(utf8);
             }
-            else
+            else // Invisible controls: non-controls.
             {
-                auto& marker = get_ansi_marker();
-                if (auto set_prop = marker.setter[attr.control])
-                {
-                    if (proto_cells.size())
-                    {
-                        set_prop(proto_cells.back());
-                    }
-                    else
-                    {
-                        auto empty = brush;
-                        empty.txt(whitespace).wdt(v);
-                        set_prop(empty);
-                        proto_cells.push_back(empty);
-                    }
-                }
-                else
+                // Test :
+                //      echo -e '\U2069+123'; echo -e '+\U2068+123'; echo -e '\e[42m+123\U2068\e[m'; echo -e '123\U202C++';
+
+                //todo implement LRE RLE etc. Now all Cf's are stored within clusters.
+                //auto& marker = get_ansi_marker();
+                //if (auto set_prop = marker.setter[attr.control])
+                //{
+                //    if (proto_cells.size())
+                //    {
+                //        set_prop(proto_cells.back());
+                //    }
+                //    else
+                //    {
+                //        auto empty = brush;
+                //        empty.txt(whitespace).wdt(v);
+                //        set_prop(empty);
+                //        proto_cells.push_back(empty);
+                //        ++proto_count; // Account zero width cells.
+                //    }
+                //}
+                //else
                 {
                     brush.txt(utf8, v);
                     proto_cells.push_back(brush);
+                    ++proto_count; // Account zero width cells.
                 }
                 //auto i = utf::to_hex((size_t)attr.control, 5, true);
                 //debug += (debug.size() ? "_<fn:"s : "<fn:"s) + i + ">"s;
