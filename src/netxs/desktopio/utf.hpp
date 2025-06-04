@@ -868,7 +868,6 @@ namespace netxs::utf
     void reverse_clusters(view utf8, auto& dest)
     {
         auto rest = (si32)utf8.size();
-        auto drop = 0;
         dest.resize(dest.size() + rest);
         auto a = dest.end();
         utf::decode_clusters(utf8, [&](auto cluster)
