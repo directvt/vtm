@@ -2516,10 +2516,14 @@ namespace netxs::gui
         void draw_grid(layer& s, auto& facedata, bool apply_contour = true) //todo just output ui::core
         {
             auto canvas = layer_get_bits(s, true);
-            fill_grid(canvas, facedata, shadow_dent.corner());
             if (apply_contour)
             {
+                fill_grid(canvas, facedata, shadow_dent.corner());
                 netxs::misc::contour(canvas); // 1ms
+            }
+            else
+            {
+                fill_grid(canvas, facedata, dot_00);
             }
             s.strike<true>(canvas.area());
         }
