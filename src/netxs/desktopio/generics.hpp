@@ -1000,7 +1000,6 @@ namespace netxs::generics
     // generics: Waitable object.
     class waitable
     {
-        friend struct access;
         using utex = std::recursive_mutex;
         using cond = std::condition_variable_any;
         using Lock = std::unique_lock<utex>;
