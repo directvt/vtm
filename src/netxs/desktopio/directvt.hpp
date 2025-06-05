@@ -615,8 +615,8 @@ namespace netxs::directvt
             using cond = std::condition_variable_any;
             using Lock = std::unique_lock<utex>;
 
-            utex mutex; // wrapper: Accesss mutex.
-            cond synch; // wrapper: Accesss notificator.
+            utex mutex; // wrapper: Access mutex.
+            cond synch; // wrapper: Access notificator.
             Base thing; // wrapper: Protected object.
             flag alive{ true }; // wrapper: Connection status.
 

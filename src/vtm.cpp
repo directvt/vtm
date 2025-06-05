@@ -215,7 +215,7 @@ int main(int argc, char* argv[])
 
     rungui = rungui && (whoami == type::runapp
                      || whoami == type::client);
-    os::dtvt::initialize(rungui);
+    os::dtvt::initialize(rungui, true);
 
     if (os::dtvt::vtmode & ui::console::redirio && (whoami == type::runapp || whoami == type::client))
     {

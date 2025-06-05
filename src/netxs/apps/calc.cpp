@@ -10,10 +10,9 @@ int main(int argc, char* argv[])
     auto defaults =
     #include "../vtm.xml"
 
-    os::dtvt::initialize();
-    auto syslog = os::tty::logger();
     auto banner = []{ log(app::calc::name, ' ', app::shared::version); };
     auto cfonly = faux;
+    auto rungui = true;
     auto cfpath = text{};
     auto errmsg = text{};
     auto getopt = os::process::args{ argc, argv };
@@ -52,8 +51,9 @@ int main(int argc, char* argv[])
             break;
         }
     }
+    os::dtvt::initialize(rungui, true);
     auto params = getopt.rest();
-
+    auto syslog = os::tty::logger();
     banner();
     if (errmsg.size())
     {
