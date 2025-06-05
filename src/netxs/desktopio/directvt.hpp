@@ -615,8 +615,8 @@ namespace netxs::directvt
             using cond = std::condition_variable_any;
             using Lock = std::unique_lock<utex>;
 
-            utex mutex; // wrapper: Accesss mutex.
-            cond synch; // wrapper: Accesss notificator.
+            utex mutex; // wrapper: Access mutex.
+            cond synch; // wrapper: Access notificator.
             Base thing; // wrapper: Protected object.
             flag alive{ true }; // wrapper: Connection status.
 
@@ -1678,7 +1678,7 @@ namespace netxs::directvt
                                 {
                                     auto utf8 = c.txt<svga::vt_2D>(); // svga::vt_2D: To include STX if it is.
                                     auto [w, h, x, y] = c.whxy();
-                                    if (x == 0 || y == 0) // Stripes are unexpected here.
+                                    if (x == 0 || y == 0 || utf8.empty()) // Skip stripes and nulls.
                                     {
                                         print(c, " "sv);
                                         coord.x++;

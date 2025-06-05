@@ -560,7 +560,7 @@ namespace netxs::ui
                 {
                     case 0:
                     default:
-                        queue.add("\033[?1;2c");
+                        queue.add("\x1b[?1;2;10060c"); // Announce support for \e[?10060h mode.
                         break;
                 }
                 owner.answer(queue);

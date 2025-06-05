@@ -996,6 +996,46 @@ namespace netxs::generics
             return guard{ *this };
         }
     };
+
+    // generics: Waitable object.
+    class waitable
+    {
+        using utex = std::recursive_mutex;
+        using cond = std::condition_variable_any;
+        using Lock = std::unique_lock<utex>;
+
+        utex mutex; // waitable: Access mutex.
+        cond synch; // waitable: Access notificator.
+        Lock guard; // waitable: Access lock.
+        flag ready; // waitable: Connection status.
+
+    public:
+        waitable()
+            : guard{ mutex },
+              ready{       }
+        { }
+
+        void notify()
+        {
+            ready.exchange(true);
+            synch.notify_all();
+        }
+        bool notified()
+        {
+            return ready;
+        }
+        auto wait_for(span timeout)
+        {
+            return synch.wait_for(guard, timeout, [&]{ return !!ready; });
+        }
+        void wait()
+        {
+            if (!ready)
+            {
+                synch.wait(guard);
+            }
+        }
+    };
 }
 
 // generics: Map helpers.

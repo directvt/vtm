@@ -3787,8 +3787,10 @@ namespace netxs::os
             }
             return std::max(dot_11, winsz);
         }
-        auto initialize(bool rungui = faux)
+        auto initialize(bool rungui = faux, bool check_vtm = faux)
         {
+            auto term = text{};
+
             #if defined(_WIN32)
                 os::stdin_fd  = fd_t{ ptr::test(::GetStdHandle(STD_INPUT_HANDLE ), os::invalid_fd) };
                 os::stdout_fd = fd_t{ ptr::test(::GetStdHandle(STD_OUTPUT_HANDLE), os::invalid_fd) };
@@ -3922,156 +3924,180 @@ namespace netxs::os
                         dtvt::vtmode |= ui::console::gui;
                     }
                     #endif
-                }
-                if (dtvt::vtmode & ui::console::gui && os::stdout_fd == os::invalid_fd)
-                {
-                    auto term = "Native GUI console";
-                    log("%%Terminal type: %term%", prompt::os, term);
-                }
-                else if (os::stdout_fd != os::invalid_fd)
-                {
-                    auto vtm_env = os::env::get("VTM");
-                    #if defined(_WIN32)
+                    if (dtvt::vtmode & ui::console::gui)
                     {
-                        //todo revise
-                        auto nt16 = vtm_env.empty() && nt::RtlGetVersion().dwBuildNumber < 19041; // Windows Server 2019's conhost doesn't handle truecolor well enough.
-                        dtvt::vtmode |= nt16 ? ui::console::nt | ui::console::nt16
-                                             : ui::console::nt;
+                        term = "Native GUI console";
                     }
-                    #elif defined(__linux__)
-                        if (os::linux_console) dtvt::vtmode |= ui::console::mouse;
-                    #endif
-                    auto colorterm = os::env::get("COLORTERM");
-                    auto term = text{ dtvt::vtmode & ui::console::nt16 ? "Windows Console" : "" };
-                    if (term.empty()) term = os::env::get("TERM");
-                    if (term.empty()) term = os::env::get("TERM_PROGRAM");
-                    if (term.empty()) term = "xterm-compatible";
-                    if (colorterm != "truecolor" && colorterm != "24bit")
-                    {
-                        auto vt16colors = { // https://github.com//termstandard/colors
-                            "ansi",
-                            "linux",
-                            "xterm-color",
-                            "dvtm", //todo track: https://github.com/martanne/dvtm/issues/10
-                            "fbcon",
-                        };
-                        auto vt256colors = {
-                            "rxvt-unicode-256color",
-                        };
+                }
+            }
+            if (!dtvt::active && !(dtvt::vtmode & ui::console::redirio) && os::stdin_fd  != os::invalid_fd
+                                                                        && os::stdout_fd != os::invalid_fd)
+            {
+                #if defined(_WIN32)
 
-                        if (term.ends_with("16color") || term.ends_with("16colour"))
+                    ok(::GetConsoleMode(os::stdout_fd, &dtvt::backup.omode), "::GetConsoleMode(os::stdout_fd)", os::unexpected);
+                    ok(::GetConsoleMode(os::stdin_fd , &dtvt::backup.imode), "::GetConsoleMode(os::stdin_fd)", os::unexpected);
+                    dtvt::backup.opage = ::GetConsoleOutputCP();
+                    dtvt::backup.ipage = ::GetConsoleCP();
+                    ok(::SetConsoleOutputCP(65001), "::SetConsoleOutputCP()", os::unexpected);
+                    ok(::SetConsoleCP(65001), "::SetConsoleCP()", os::unexpected);
+                    auto inpmode = DWORD{ nt::console::inmode::extended
+                                        | nt::console::inmode::winsize
+                                        | nt::console::inmode::quickedit };
+                    ok(::SetConsoleMode(os::stdin_fd, inpmode), "::SetConsoleMode(os::stdin_fd)", os::unexpected);
+                    auto outmode = dtvt::vtmode & ui::console::nt16 // nt::console::outmode::vt and ::no_auto_cr are not supported in legacy console.
+                                 ? DWORD{ nt::console::outmode::wrap_at_eol
+                                        | nt::console::outmode::preprocess }
+                                 : DWORD{ nt::console::outmode::no_auto_cr
+                                        | nt::console::outmode::wrap_at_eol
+                                        | nt::console::outmode::preprocess
+                                        | nt::console::outmode::vt };
+                    ok(::SetConsoleMode(os::stdout_fd, outmode), "::SetConsoleMode(os::stdout_fd)", os::unexpected);
+                    auto size = DWORD{ os::pipebuf };
+                    auto wstr = wide(size, '\0');
+                    ok(::GetConsoleTitleW(wstr.data(), size), "::GetConsoleTitleW(vtmode)", os::unexpected);
+                    dtvt::backup.title = wstr.data();
+                    ok(::GetConsoleCursorInfo(os::stdout_fd, &dtvt::backup.caret), "::GetConsoleCursorInfo()", os::unexpected);
+                    if (auto cmd_prompt = os::env::get("PROMPT"); cmd_prompt.empty() || cmd_prompt == "$P$G")
+                    {
+                        os::env::set("PROMPT", "$e]133;A$e\\$e]9;9;$P$e\\$e[#{$e[97m$P$G$e[#}$e]133;B$e\\"); // Enable OSC 9;9 notifications for cmd.exe by default.
+                    }
+
+                #else
+
+                    if (ok(::tcgetattr(os::stdin_fd, &dtvt::backup), "::tcgetattr(os::stdin_fd)", os::unexpected))
+                    {
+                        auto raw_mode = dtvt::backup;
+                        ::cfmakeraw(&raw_mode);
+                        ok(::tcsetattr(os::stdin_fd, TCSANOW, &raw_mode), "::tcsetattr(os::stdin_fd, TCSANOW)", os::unexpected);
+                        os::vgafont();
+                        io::send(os::stdout_fd, ansi::save_title());
+                    }
+                    else os::fail("Check you are using the proper tty device");
+
+                #endif
+                auto repair = []
+                {
+                    #if defined(_WIN32)
+                        if (os::signals::leave) return; // Don't restore when closing the console. (deadlock on Windows 8).
+                        ok(::SetConsoleMode(os::stdout_fd,        dtvt::backup.omode), "::SetConsoleMode(omode)", os::unexpected);
+                        ok(::SetConsoleMode(os::stdin_fd,         dtvt::backup.imode), "::SetConsoleMode(imode)", os::unexpected);
+                        ok(::SetConsoleOutputCP(                  dtvt::backup.opage), "::SetConsoleOutputCP(opage)", os::unexpected);
+                        ok(::SetConsoleCP(                        dtvt::backup.ipage), "::SetConsoleCP(ipage)", os::unexpected);
+                        ok(::SetConsoleTitleW(                    dtvt::backup.title.c_str()), "::SetConsoleTitleW()", os::unexpected);
+                        ok(::SetConsoleCursorInfo(os::stdout_fd, &dtvt::backup.caret), "::SetConsoleCursorInfo()", os::unexpected);
+                    #else
+                        ::tcsetattr(os::stdin_fd, TCSANOW, &dtvt::backup);
+                        io::send(os::stdout_fd, ansi::load_title());
+                    #endif
+                };
+                std::atexit(repair);
+
+                auto vtm_env = os::env::get("VTM");
+                #if defined(_WIN32)
+                {
+                    //todo revise
+                    auto nt16 = vtm_env.empty() && nt::RtlGetVersion().dwBuildNumber < 19041; // Windows Server 2019's conhost doesn't handle truecolor well enough.
+                    dtvt::vtmode |= nt16 ? ui::console::nt | ui::console::nt16
+                                         : ui::console::nt;
+                }
+                #elif defined(__linux__)
+                    if (os::linux_console) dtvt::vtmode |= ui::console::mouse;
+                #endif
+                auto colorterm = os::env::get("COLORTERM");
+                term = text{ dtvt::vtmode & ui::console::nt16 ? "Windows Console" : "" };
+                if (term.empty()) term = os::env::get("TERM");
+                if (term.empty()) term = os::env::get("TERM_PROGRAM");
+                if (term.empty()) term = "xterm-compatible";
+                if (colorterm != "truecolor" && colorterm != "24bit")
+                {
+                    auto vt16colors = { // https://github.com//termstandard/colors
+                        "ansi",
+                        "linux",
+                        "xterm-color",
+                        "dvtm", //todo track: https://github.com/martanne/dvtm/issues/10
+                        "fbcon",
+                    };
+                    auto vt256colors = {
+                        "rxvt-unicode-256color",
+                    };
+                    if (term.ends_with("16color") || term.ends_with("16colour"))
+                    {
+                        dtvt::vtmode |= ui::console::vt16;
+                    }
+                    else
+                    {
+                        for (auto& type : vt16colors)
                         {
-                            dtvt::vtmode |= ui::console::vt16;
+                            if (term == type)
+                            {
+                                dtvt::vtmode |= ui::console::vt16;
+                                break;
+                            }
                         }
-                        else
+                        if (!(dtvt::vtmode & ui::console::vt16))
                         {
-                            for (auto& type : vt16colors)
+                            for (auto& type : vt256colors)
                             {
                                 if (term == type)
                                 {
-                                    dtvt::vtmode |= ui::console::vt16;
+                                    dtvt::vtmode |= ui::console::vt256;
                                     break;
                                 }
                             }
-                            if (!(dtvt::vtmode & ui::console::vt16))
-                            {
-                                for (auto& type : vt256colors)
-                                {
-                                    if (term == type)
-                                    {
-                                        dtvt::vtmode |= ui::console::vt256;
-                                        break;
-                                    }
-                                }
-                            }
                         }
-                        #if defined(__APPLE__)
-                            if (!(dtvt::vtmode & ui::console::vt16)) // Apple terminal detection.
-                            {
-                                dtvt::vtmode |= ui::console::vt256;
-                            }
-                        #endif
                     }
-                    if (!(dtvt::vtmode & (ui::console::nt16 | ui::console::vt16 | ui::console::vt256)))
+                    #if defined(__APPLE__)
+                        if (!(dtvt::vtmode & ui::console::vt16)) // Apple terminal detection.
+                        {
+                            dtvt::vtmode |= ui::console::vt256;
+                        }
+                    #endif
+                }
+                if (!(dtvt::vtmode & (ui::console::nt16 | ui::console::vt16 | ui::console::vt256)))
+                {
+                    if (check_vtm && vtm_env.empty()) // Request Primary device attributes (DA1) and wait 1s for reply.
+                    if (os::stdin_fd != os::invalid_fd && os::stdout_fd != os::invalid_fd)
                     {
-
-                        dtvt::vtmode |= vtm_env.empty() ? ui::console::vtrgb
-                                                        : ui::console::vt_2D;
+                        auto lock = netxs::generics::waitable{};
+                        io::send(os::stdout_fd, "\x1b[c"sv); // Send "\e[c" request. Primary device attributes (DA1).
+                        auto reading_thread = std::thread{ [&]
+                        {
+                            auto buffer = std::array<char, os::pipebuf>{};
+                            auto answer = io::recv(os::stdin_fd, buffer);
+                            if (answer.find("10060") != text::npos) // Check the answer for "\x1b[?1;2;10060c".
+                            {
+                                vtm_env = "1";
+                            }
+                            lock.notify();
+                        }};
+                        if (lock.wait_for(1s) == faux)
+                        {
+                            do
+                            {
+                                io::abort(reading_thread);
+                                os::sleep(100ms);
+                            }
+                            while (!lock.notified());
+                        }
+                        reading_thread.join();
                     }
-
-                    log(prompt::os, "Terminal type: ", term);
-                    log(prompt::os, "Color mode: ", dtvt::vtmode & ui::console::vt16  ? "xterm 16-color"
-                                                  : dtvt::vtmode & ui::console::nt16  ? "Win32 Console API 16-color"
-                                                  : dtvt::vtmode & ui::console::vt256 ? "xterm 256-color"
-                                                  : dtvt::vtmode & ui::console::vtrgb ? "xterm truecolor"
-                                                                                      : "xterm VT2D (truecolor with 2D Character Geometry support)");
-                    log(prompt::os, "Mouse mode: ", dtvt::vtmode & ui::console::mouse ? "PS/2"
-                                                  : dtvt::vtmode & ui::console::nt    ? "Win32 Console API"
-                                                                                      : "VT-style");
+                    dtvt::vtmode |= vtm_env.empty() ? ui::console::vtrgb
+                                                    : ui::console::vt_2D;
                 }
             }
-            if (dtvt::active || dtvt::vtmode & ui::console::redirio
-                             || os::stdin_fd == os::invalid_fd
-                             || os::stdout_fd == os::invalid_fd) return;
-            #if defined(_WIN32)
-
-                ok(::GetConsoleMode(os::stdout_fd, &dtvt::backup.omode), "::GetConsoleMode(os::stdout_fd)", os::unexpected);
-                ok(::GetConsoleMode(os::stdin_fd , &dtvt::backup.imode), "::GetConsoleMode(os::stdin_fd)", os::unexpected);
-                dtvt::backup.opage = ::GetConsoleOutputCP();
-                dtvt::backup.ipage = ::GetConsoleCP();
-                ok(::SetConsoleOutputCP(65001), "::SetConsoleOutputCP()", os::unexpected);
-                ok(::SetConsoleCP(65001), "::SetConsoleCP()", os::unexpected);
-                auto inpmode = DWORD{ nt::console::inmode::extended
-                                    | nt::console::inmode::winsize
-                                    | nt::console::inmode::quickedit };
-                ok(::SetConsoleMode(os::stdin_fd, inpmode), "::SetConsoleMode(os::stdin_fd)", os::unexpected);
-                auto outmode = dtvt::vtmode & ui::console::nt16 // nt::console::outmode::vt and ::no_auto_cr are not supported in legacy console.
-                             ? DWORD{ nt::console::outmode::wrap_at_eol
-                                    | nt::console::outmode::preprocess }
-                             : DWORD{ nt::console::outmode::no_auto_cr
-                                    | nt::console::outmode::wrap_at_eol
-                                    | nt::console::outmode::preprocess
-                                    | nt::console::outmode::vt };
-                ok(::SetConsoleMode(os::stdout_fd, outmode), "::SetConsoleMode(os::stdout_fd)", os::unexpected);
-                auto size = DWORD{ os::pipebuf };
-                auto wstr = wide(size, '\0');
-                ok(::GetConsoleTitleW(wstr.data(), size), "::GetConsoleTitleW(vtmode)", os::unexpected);
-                dtvt::backup.title = wstr.data();
-                ok(::GetConsoleCursorInfo(os::stdout_fd, &dtvt::backup.caret), "::GetConsoleCursorInfo()", os::unexpected);
-                if (auto cmd_prompt = os::env::get("PROMPT"); cmd_prompt.empty() || cmd_prompt == "$P$G")
-                {
-                    os::env::set("PROMPT", "$e]133;A$e\\$e]9;9;$P$e\\$e[#{$e[97m$P$G$e[#}$e]133;B$e\\"); // Enable OSC 9;9 notifications for cmd.exe by default.
-                }
-
-            #else
-
-                if (ok(::tcgetattr(os::stdin_fd, &dtvt::backup), "::tcgetattr(os::stdin_fd)", os::unexpected))
-                {
-                    auto raw_mode = dtvt::backup;
-                    ::cfmakeraw(&raw_mode);
-                    ok(::tcsetattr(os::stdin_fd, TCSANOW, &raw_mode), "::tcsetattr(os::stdin_fd, TCSANOW)", os::unexpected);
-                    os::vgafont();
-                    io::send(os::stdout_fd, ansi::save_title());
-                }
-                else os::fail("Check you are using the proper tty device");
-
-            #endif
-            auto repair = []
+            if (term.size())
             {
-                #if defined(_WIN32)
-                    if (os::signals::leave) return; // Don't restore when closing the console. (deadlock on Windows 8).
-                    ok(::SetConsoleMode(os::stdout_fd,        dtvt::backup.omode), "::SetConsoleMode(omode)", os::unexpected);
-                    ok(::SetConsoleMode(os::stdin_fd,         dtvt::backup.imode), "::SetConsoleMode(imode)", os::unexpected);
-                    ok(::SetConsoleOutputCP(                  dtvt::backup.opage), "::SetConsoleOutputCP(opage)", os::unexpected);
-                    ok(::SetConsoleCP(                        dtvt::backup.ipage), "::SetConsoleCP(ipage)", os::unexpected);
-                    ok(::SetConsoleTitleW(                    dtvt::backup.title.c_str()), "::SetConsoleTitleW()", os::unexpected);
-                    ok(::SetConsoleCursorInfo(os::stdout_fd, &dtvt::backup.caret), "::SetConsoleCursorInfo()", os::unexpected);
-                #else
-                    ::tcsetattr(os::stdin_fd, TCSANOW, &dtvt::backup);
-                    io::send(os::stdout_fd, ansi::load_title());
-                #endif
-            };
-            std::atexit(repair);
+                log(prompt::os, "Terminal type: ", term);
+                log(prompt::os, "Color mode: ", dtvt::vtmode & ui::console::vt16  ? "xterm 16-color"
+                                              : dtvt::vtmode & ui::console::nt16  ? "Win32 Console API 16-color"
+                                              : dtvt::vtmode & ui::console::vt256 ? "xterm 256-color"
+                                              : dtvt::vtmode & ui::console::vtrgb ? "xterm truecolor"
+                                                                                  : "xterm VT2D (truecolor with 2D Character Geometry support)");
+                log(prompt::os, "Mouse mode: ", dtvt::vtmode & ui::console::mouse ? "PS/2"
+                                              : dtvt::vtmode & ui::console::nt    ? "Win32 Console API"
+                                                                                  : "VT-style");
+            }
         }
         auto connect(eccc cfg, fdrw fds)
         {
@@ -4355,7 +4381,10 @@ namespace netxs::os
                     std::swap(cache, writebuf);
                     guard.unlock();
                     if (terminal.io_log) log(prompt::cin, "\n\t", utf::replace_all(ansi::hi(utf::debase(cache)), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
-                    if (termlink->send(cache)) cache.clear();
+                    if (termlink->send(cache))
+                    {
+                        cache.clear();
+                    }
                     else
                     {
                         if (terminal.io_log) log(prompt::vtty, "Unexpected disconnection");
