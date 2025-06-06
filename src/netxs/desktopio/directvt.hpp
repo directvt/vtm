@@ -136,7 +136,7 @@ namespace netxs::directvt
                             || std::is_same_v<D, dent>
                             || std::is_same_v<D, rect>)
             {
-                auto le_data = netxs::letoh(data);
+                auto le_data = letoh(data);
                 block += view{ (char*)&le_data, sizeof(le_data) };
             }
             else if constexpr (std::is_same_v<D, argb>)
@@ -291,7 +291,6 @@ namespace netxs::directvt
                 }
                 else if constexpr (std::is_same_v<D, time>)
                 {
-                    using span = decltype(time{}.time_since_epoch());
                     using data_type = decltype(span{}.count());
                     if (data.size() < sizeof(data_type))
                     {
@@ -301,6 +300,23 @@ namespace netxs::directvt
                     }
                     auto temp = netxs::aligned<data_type>(data.data());
                     auto crop = time{ span{ temp }};
+                    if constexpr (!PeekOnly)
+                    {
+                        data.remove_prefix(sizeof(data_type));
+                    }
+                    return crop;
+                }
+                else if constexpr (std::is_same_v<D, span>)
+                {
+                    using data_type = decltype(span{}.count());
+                    if (data.size() < sizeof(data_type))
+                    {
+                        log(prompt::dtvt, "Corrupted datetime duration data");
+                        if constexpr (!PeekOnly) data.remove_prefix(data.size());
+                        return D{};
+                    }
+                    auto temp = netxs::aligned<data_type>(data.data());
+                    auto crop = span{ temp };
                     if constexpr (!PeekOnly)
                     {
                         data.remove_prefix(sizeof(data_type));

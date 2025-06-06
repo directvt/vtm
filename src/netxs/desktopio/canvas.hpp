@@ -839,6 +839,11 @@ namespace netxs
             }();
             return lookup(cache, std::span{ argb::vtm16.data(), 8 });
         }
+        // argb: Change endianness to LE.
+        friend auto letoh(argb r)
+        {
+            return argb{ netxs::letoh(r.token) };
+        }
     };
 
     // canvas: Generic RGBA.

@@ -365,7 +365,7 @@ namespace netxs
         // rect: Change endianness to LE.
         friend auto letoh(rect r)
         {
-            return rect{ netxs::letoh(r.coor), netxs::letoh(r.size) };
+            return rect{ letoh(r.coor), letoh(r.size) };
         }
     };
 
