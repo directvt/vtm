@@ -1263,7 +1263,7 @@ namespace netxs::gui
                     else if (src == 255) dst = fgc;
                     else
                     {
-                        auto f_dst = irgb{ dst }.sRGB2Linear();;
+                        auto f_dst = irgb{ dst }.sRGB2Linear();
                         dst = f_dst.blend_nonpma(f_fgc, src).linear2sRGB();
                     }
                 };

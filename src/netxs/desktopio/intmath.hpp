@@ -166,7 +166,7 @@ namespace netxs
         return value.type() == typeid(T) ? std::any_cast<T>(value)
                                          : fallback;
     }
-    template<ui32 FieldMask>
+    template<ui64 FieldMask>
     static constexpr si32 field_offset()
     {
         auto mask = FieldMask;
@@ -1248,7 +1248,7 @@ namespace netxs
         if (w <= r1) // All pixels on a line have the same average value.
         {
             auto s_end = s_ptr + s_hop;
-            auto d_end = d_ptr + d_hop;;
+            auto d_end = d_ptr + d_hop;
             while (true)
             {
                 auto accum = Accum_t{};

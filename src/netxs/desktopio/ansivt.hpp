@@ -789,7 +789,7 @@ namespace netxs::ansi
         auto& link(si32 i)       { return add("\033[31:", i  , csi_ccc); } // escx: Set object id link.
         auto& styled(si32 b)     { return add("\033[32:", b  , csi_ccc); } // escx: Enable line style reporting (0/1).
         auto& style(si32 i)      { return add("\033[33:", i  , csi_ccc); } // escx: Line style response (deco::format: alignment, wrapping, RTL, etc).
-        auto& cursor0(si32 i)    { return add("\033[34:", i  , csi_ccc); } // escx: Set cursor  0: None, 1: Underline, 2: Block, 3: I-bar. cell::px stores cursor fg/bg if cursor is set.
+        auto& cursor0(si32 i)    { return add("\033[34:", i  , csi_ccc); } // escx: Set cursor  0: None, 1: Underline, 2: Block, 3: I-bar.
         //auto& hplink0(si32 i)    { return add("\033[35:", i  , csi_ccc); } // escx: Set hyperlink cell.
         //auto& bitmap0(si32 i)    { return add("\033[36:", i  , csi_ccc); } // escx: Set bitmap inside the cell.
         //auto& fusion0(si32 i)    { return add("\033[37:", i  , csi_ccc); } // escx: Object outline boundary.

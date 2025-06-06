@@ -673,6 +673,11 @@ namespace netxs::ui
                     data.remove_prefix(1);
                     return { type::request, 0 };
                 }
+                //todo do xorg colornames lookup (store it in xml)
+                else if (data.starts_with("red"))
+                {
+                    return std::pair{ type::rgbcolor, argb::vt256[reddk] };
+                }
                 else if (data.starts_with("rgb:"))
                 {
                     auto get_color = [&](auto n)
