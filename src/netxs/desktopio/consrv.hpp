@@ -1168,6 +1168,15 @@ struct impl : consrv
 
             do
             {
+                if (worker.queue.size() > 1) // Do not interfere with other event waiters.
+                {
+                    cooked.ustr.clear();
+                    //if (cooked.ustr.empty())
+                    //{
+                    //    cooked.ustr.push_back('\0');
+                    //}
+                    break;
+                }
                 auto coor = line.caret;
                 auto last = line.length();
                 auto pops = 0_sz;
