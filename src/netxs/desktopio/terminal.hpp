@@ -233,6 +233,8 @@ namespace netxs::ui
 
             text send_input;
 
+            utf::unordered_map<text, ui32> color_names;
+
             static void recalc_buffer_metrics(si32& def_length, si32& def_growdt, si32& def_growmx)
             {
                 if (def_growdt == 0)
@@ -301,6 +303,17 @@ namespace netxs::ui
                 def_text_f =             config.settings::take("/config/terminal/colors/selection/text/fx",      commands::fx::color,  fx_options);
                 def_none_f =             config.settings::take("/config/terminal/colors/selection/none/fx",      commands::fx::color,  fx_options);
                 def_find_f =             config.settings::take("/config/terminal/colors/match/fx",               commands::fx::color,  fx_options);
+
+                {
+                    auto color_names_context = config.settings::push_context("/config/terminal/colors/names");
+                    auto color_name_ptr_list = config.settings::take_ptr_list_for_name("name");
+                    for (auto& name_ptr : color_name_ptr_list)
+                    {
+                        auto name = utf::name2token(config.take_value(name_ptr));
+                        auto rgba = config.take_value_from(name_ptr, "rgb", argb{});
+                        color_names[name] = rgba.token;
+                    }
+                }
 
                 std::copy(std::begin(argb::vt256), std::end(argb::vt256), std::begin(def_colors));
                 for (auto i = 0; i < 16; i++)
@@ -673,11 +686,6 @@ namespace netxs::ui
                     data.remove_prefix(1);
                     return { type::request, 0 };
                 }
-                //todo do xorg colornames lookup (store it in xml)
-                else if (data.starts_with("red"))
-                {
-                    return std::pair{ type::rgbcolor, argb::vt256[reddk] };
-                }
                 else if (data.starts_with("rgb:"))
                 {
                     auto get_color = [&](auto n)
@@ -705,6 +713,19 @@ namespace netxs::ui
                     else if (data.length() >= 18 && data[8] == '/' && data[13] == '/') // ; rgb:0000/0000/0000
                     {
                         return { type::rgbcolor, get_color(4) };
+                    }
+                }
+                else // Lookup custom color names stored in settings.xml.
+                {
+                    auto shadow = data;
+                    auto color_name = utf::take_front<faux>(shadow, ";");
+                    utf::trim(color_name);
+                    auto name_str = utf::name2token(color_name);
+                    auto iter = owner.defcfg.color_names.find(name_str);
+                    if (iter != owner.defcfg.color_names.end())
+                    {
+                        data = shadow;
+                        return std::pair{ type::rgbcolor, iter->second };
                     }
                 }
                 return { type::invalid, 0 };

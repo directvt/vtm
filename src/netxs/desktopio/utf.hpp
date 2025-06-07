@@ -2461,6 +2461,19 @@ namespace netxs::utf
     {
         return to_upper(utf8);
     }
+    auto name2token(view utf8)
+    {
+        auto name_token = text{};
+        name_token.reserve(utf8.size());
+        for (auto c : utf8)
+        {
+            if (c != ' ' && c != '-')
+            {
+                name_token += utf::to_lower(c);
+            }
+        }
+        return name_token;
+    }
     template<class W, class P>
     void for_each(text& utf8, W const& what, P proc)
     {
