@@ -1064,7 +1064,7 @@ namespace netxs::ui
                 }
                 // Log all unimplemented SGR attributes.
                 auto& vt_csier_table_csi_sgr = vt.csier.table[csi_sgr];
-                for (auto i = 0; i < vt_csier_table_csi_sgr.size(); ++i)
+                for (auto i = 0; i < (si32)vt_csier_table_csi_sgr.size(); ++i)
                 {
                     auto& proc = vt_csier_table_csi_sgr[i];
                     if (!proc)
