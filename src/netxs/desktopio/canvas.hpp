@@ -1200,10 +1200,11 @@ namespace netxs
             static constexpr auto bitmap_mask = (ui64)0b00000000'00000000'00000000'00000000'00000000'00110000'00000000'00000000; // bitmap : 2; // body::pxtype: Cursor losts its colors when it covers bitmap.
             static constexpr auto fusion_mask = (ui64)0b00000000'00000000'00000000'00000000'00000000'11000000'00000000'00000000; // fusion : 2; // todo The outlines of object boundaries must be set when rendering each window (pro::shape).
             static constexpr auto shadow_mask = (ui64)0b00000000'00000000'00000000'00000000'11111111'00000000'00000000'00000000; // shadow : 8; // Shadow bits.
+            static constexpr auto hidden_mask = (ui64)0b00000000'00000000'00000000'00000001'00000000'00000000'00000000'00000000; // shadow : 8; // Hidden character.
             // Unique attributes. From 24th bit.
-            static constexpr auto mosaic_mask = (ui64)0b00000000'00000000'00000000'11111111'00000000'00000000'00000000'00000000; // ui32 mosaic : 8; // High 3 bits -> y-fragment (0-4 utf::matrix::ky), low 5 bits -> x-fragment (0-16 utf::matrix::kx). // Ref:  https://gitlab.freedesktop.org/terminal-wg/specifications/-/issues/23
-            static constexpr auto curbgc_mask = (ui64)0b00000000'00000000'11111111'00000000'00000000'00000000'00000000'00000000; // bgcclr : 8; // Cursor 256-color 6x6x6-cube index. Alpha not used.
-            static constexpr auto curfgc_mask = (ui64)0b00000000'11111111'00000000'00000000'00000000'00000000'00000000'00000000; // fgcclr : 8; // Cursor 256-color 6x6x6-cube index. Alpha not used.
+            static constexpr auto mosaic_mask = (ui64)0b00000000'00000000'11111111'00000000'00000000'00000000'00000000'00000000; // ui32 mosaic : 8; // High 3 bits -> y-fragment (0-4 utf::matrix::ky), low 5 bits -> x-fragment (0-16 utf::matrix::kx). // Ref:  https://gitlab.freedesktop.org/terminal-wg/specifications/-/issues/23
+            static constexpr auto curbgc_mask = (ui64)0b00000000'11111111'00000000'00000000'00000000'00000000'00000000'00000000; // bgcclr : 8; // Cursor 256-color 6x6x6-cube index. Alpha not used.
+            static constexpr auto curfgc_mask = (ui64)0b11111111'00000000'00000000'00000000'00000000'00000000'00000000'00000000; // fgcclr : 8; // Cursor 256-color 6x6x6-cube index. Alpha not used.
 
             static constexpr auto x_bits = utf::matrix::x_bits; // Character geometry x fragment selector bits (for mosaic_mask).
             static constexpr auto y_bits = utf::matrix::y_bits; // Character geometry y fragment selector bits offset (for mosaic_mask).
@@ -1283,6 +1284,7 @@ namespace netxs
                             if (auto overln = token & overln_mask; overln != (base.token & overln_mask)) dest.ovr(!!overln);
                             if (auto strike = token & strike_mask; strike != (base.token & strike_mask)) dest.stk(!!strike);
                             if (auto blinks = token & blinks_mask; blinks != (base.token & blinks_mask)) dest.blk(!!blinks);
+                            if (auto hidden = token & hidden_mask; hidden != (base.token & hidden_mask)) dest.hid(!!hidden);
                             if (auto unline = token & unline_mask; unline != (base.token & unline_mask)) dest.und((si32)(unline >> netxs::field_offset<unline_mask>()));
                             if (auto ucolor = token & ucolor_mask; ucolor != (base.token & ucolor_mask)) dest.unc((si32)(ucolor >> netxs::field_offset<ucolor_mask>()));
                         }
@@ -1309,6 +1311,7 @@ namespace netxs
             void ovr(bool b)         { token &= ~overln_mask; token |= ((ui64)b << netxs::field_offset<overln_mask>()); }
             void stk(bool b)         { token &= ~strike_mask; token |= ((ui64)b << netxs::field_offset<strike_mask>()); }
             void blk(bool b)         { token &= ~blinks_mask; token |= ((ui64)b << netxs::field_offset<blinks_mask>()); }
+            void hid(bool b)         { token &= ~hidden_mask; token |= ((ui64)b << netxs::field_offset<hidden_mask>()); }
             void und(si32 n)         { token &= ~unline_mask; token |= ((ui64)(ui32)n << netxs::field_offset<unline_mask>()); }
             void unc(si32 c)         { token &= ~ucolor_mask; token |= ((ui64)(ui32)c << netxs::field_offset<ucolor_mask>()); }
             void cur(si32 s)         { token &= ~cursor_mask; token |= ((ui64)(ui32)s << netxs::field_offset<cursor_mask>()); }
@@ -1335,6 +1338,7 @@ namespace netxs
             bool ovr()    const { return !!(token & overln_mask); }
             bool stk()    const { return !!(token & strike_mask); }
             bool blk()    const { return !!(token & blinks_mask); }
+            bool hid()    const { return !!(token & hidden_mask); }
             si32 und()    const { return (si32)((token & unline_mask) >> netxs::field_offset<unline_mask>()); }
             si32 unc()    const { return (si32)((token & ucolor_mask) >> netxs::field_offset<ucolor_mask>()); }
             si32 cur()    const { return (si32)((token & cursor_mask) >> netxs::field_offset<cursor_mask>()); }
@@ -1916,6 +1920,7 @@ namespace netxs
         auto& inv(bool b)        { st.inv(b);              return *this; } // cell: Set invert attribute.
         auto& stk(bool b)        { st.stk(b);              return *this; } // cell: Set strikethrough attribute.
         auto& blk(bool b)        { st.blk(b);              return *this; } // cell: Set blink attribute.
+        auto& hid(bool b)        { st.hid(b);              return *this; } // cell: Set hidden attribute.
         auto& rtl(bool b)        { gc.rtl(b);              return *this; } // cell: Set RTL attribute.
         auto& mtx(twod p)        { gc.mtx(p.x, p.y);       return *this; } // cell: Set glyph matrix.
         auto& xy(si32 x, si32 y) { st.xy(x, y);            return *this; } // cell: Set glyph fragment.
@@ -2013,6 +2018,7 @@ namespace netxs
         auto  inv() const  { return st.inv();      } // cell: Return negative attribute.
         auto  stk() const  { return st.stk();      } // cell: Return strikethrough attribute.
         auto  blk() const  { return st.blk();      } // cell: Return blink attribute.
+        auto  hid() const  { return st.hid();      } // cell: Return hidden attribute.
         auto& stl()        { return st.token;      } // cell: Return style token.
         auto& stl() const  { return st.token;      } // cell: Return style token.
         auto link() const  { return id;            } // cell: Return object ID.

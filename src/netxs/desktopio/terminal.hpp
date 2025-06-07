@@ -1069,7 +1069,7 @@ namespace netxs::ui
                     auto& proc = vt_csier_table_csi_sgr[i];
                     if (!proc)
                     {
-                        proc = [i](auto&, auto&){ log("%%SGR %val% attribute is not implemented", prompt::term, i); };
+                        proc = [i](auto&, auto&){ log("%%SGR %val% attribute is not supported", prompt::term, i); };
                     }
                 }
                 auto& esc_lookup = vt.intro[ctrl::esc];

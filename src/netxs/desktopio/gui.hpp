@@ -1287,7 +1287,7 @@ namespace netxs::gui
             }
             else
             {
-                if (c.blk())
+                if (c.blk() && !c.hid())
                 {
                     target_ptr = &blink_canvas;
                     blink_canvas.clip(placeholder);
@@ -1296,6 +1296,7 @@ namespace netxs::gui
                 }
                 else netxs::onrect(canvas, placeholder, cell::shaders::full(bgc));
             }
+            if (c.hid()) return;
             auto& target = *target_ptr;
             if (auto u = c.und())
             {

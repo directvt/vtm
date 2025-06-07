@@ -172,6 +172,8 @@ namespace netxs::ansi
     static const auto sgr_no_blink  = 25;
     static const auto sgr_inv       = 7;
     static const auto sgr_noinv     = 27;
+    static const auto sgr_hidden    = 8;
+    static const auto sgr_nonhidden = 28;
     static const auto sgr_strike    = 9;
     static const auto sgr_nostrike  = 29;
     static const auto sgr_overln    = 53;
@@ -373,6 +375,7 @@ namespace netxs::ansi
             c &= 0xFF;
             return c ? unc(argb{ argb::vt256[c] }) : add("\033[59m");
         }
+        auto& hid(bool b)    { return add(b ? "\033[8m" : "\033[28m"         ); } // basevt: SGR Hidden attribute.
         auto& blk(bool b)    { return add(b ? "\033[5m" : "\033[25m"         ); } // basevt: SGR Blink attribute.
         auto& inv(bool b)    { return add(b ? "\033[7m" : "\033[27m"         ); } // basevt: SGR 𝗡𝗲𝗴𝗮𝘁𝗶𝘃𝗲 attribute.
         auto& itc(bool b)    { return add(b ? "\033[3m" : "\033[23m"         ); } // basevt: SGR 𝑰𝒕𝒂𝒍𝒊𝒄 attribute.
@@ -858,6 +861,7 @@ namespace netxs::ansi
     auto bld(bool b = true)    { return escx{}.bld(b);        } // ansi: SGR 𝗕𝗼𝗹𝗱 attribute.
     auto und(si32 n = 1   )    { return escx{}.und(n);        } // ansi: SGR 𝗨𝗻𝗱𝗲𝗿𝗹𝗶𝗻𝗲 attribute. 0: none, 1: line, 2: biline, 3: wavy, 4: dotted, 5: dashed, 6 - 7: unknown.
     auto unc(argb c)           { return escx{}.unc(c);        } // ansi: SGR SGR 58/59 Underline color. RGB: red, green, blue.
+    auto hid(bool b = true)    { return escx{}.hid(b);        } // ansi: SGR Hidden attribute.
     auto blk(bool b = true)    { return escx{}.blk(b);        } // ansi: SGR Blink attribute.
     auto inv(bool b = true)    { return escx{}.inv(b);        } // ansi: SGR 𝗡𝗲𝗴𝗮𝘁𝗶𝘃𝗲 attribute.
     auto itc(bool b = true)    { return escx{}.itc(b);        } // ansi: SGR 𝑰𝒕𝒂𝒍𝒊𝒄 attribute.
@@ -1298,6 +1302,8 @@ namespace netxs::ansi
                     sgr[sgr_nonitalic] = V{ p->brush.itc(faux); };
                     sgr[sgr_inv      ] = V{ p->brush.inv(true); };
                     sgr[sgr_noinv    ] = V{ p->brush.inv(faux); };
+                    sgr[sgr_hidden   ] = V{ p->brush.hid(true); };
+                    sgr[sgr_nonhidden] = V{ p->brush.hid(faux); };
                     sgr[sgr_und      ] = V{ p->brush.und(q.subarg(unln::line)); };
                     sgr[sgr_doubleund] = V{ p->brush.und(unln::biline        ); };
                     sgr[sgr_nound    ] = V{ p->brush.und(unln::none          ); };
