@@ -1062,6 +1062,16 @@ namespace netxs::ui
                         proc = [i](auto& q, auto& p){ p->not_implemented_CSI(i, q); };
                     }
                 }
+                // Log all unimplemented SGR attributes.
+                auto& vt_csier_table_csi_sgr = vt.csier.table[csi_sgr];
+                for (auto i = 0; i < vt_csier_table_csi_sgr.size(); ++i)
+                {
+                    auto& proc = vt_csier_table_csi_sgr[i];
+                    if (!proc)
+                    {
+                        proc = [i](auto&, auto&){ log("%%SGR %val% attribute is not implemented", prompt::term, i); };
+                    }
+                }
                 auto& esc_lookup = vt.intro[ctrl::esc];
                 // Log all unimplemented ESC+rest.
                 for (auto i = 0; i < 0x100; ++i)
