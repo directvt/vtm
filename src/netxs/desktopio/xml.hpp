@@ -418,7 +418,7 @@ namespace netxs::xml
                         case type::raw_text:      fgc = value_fg;     break;
                         case type::quoted_text:
                         case type::raw_quoted:
-                        case type::tag_numvalue:  if (utf8.size() == 7 && utf8.front() == '#')
+                        case type::tag_numvalue:  if (utf8.size() && utf8.front() == '#')
                                                   if (auto rgb = xml::take<argb>(utf8))
                                                   {
                                                       auto c = rgb.value();

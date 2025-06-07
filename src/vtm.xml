@@ -45,10 +45,10 @@ R"==(<include*/>  <!-- Ordered list of <include="/path/to/settings.xml"/>. The s
         <format="html"/>  <!-- Default clipboard format for screenshots: "text" | "ansi" | "rich" | "html" | "protected" . -->
     </clipboard>
     <colors>  <!-- Along with fgc, bgc and txt, other SGR attributes (boolean) are allowed here: itc: italic, bld: bold, und: underline, inv: reverse, ovr: overline, blk: blink. -->
-        <window   fgc=whitelt   bgc=0x80404040        />  <!-- Base desktop window color. -->
+        <window   fgc=whitelt   bgc=#40404080         />  <!-- Base desktop window color. -->
         <focus    fgc=purewhite bgc=bluelt            />  <!-- Focused item tinting. -->
         <brighter fgc=purewhite bgc=purewhite alpha=60/>  <!-- Brighter. -->
-        <shadower               bgc=0xB4202020        />  <!-- Dimmer. -->
+        <shadower               bgc=#202020B4         />  <!-- Dimmer. -->
         <warning  fgc=whitelt   bgc=yellowdk          />  <!-- "Warning" color. -->
         <danger   fgc=whitelt   bgc=purered           />  <!-- "Danger" color. -->
         <action   fgc=whitelt   bgc=greenlt           />  <!-- "Action" color. -->
@@ -138,7 +138,7 @@ R"==(
             </width>
             <timeout=250ms/>  <!-- Taskbar collaplse timeout after mouse leave. -->
             <colors>
-                <bground  fgc=whitedk bgc=0xC0202020 />  <!-- Set the bgc color non-transparent (alpha to FF) to disable acrylics in taskbar. -->
+                <bground  fgc=whitedk bgc=#202020C0  />  <!-- Set the bgc color non-transparent (alpha to FF) to disable acrylics in taskbar. -->
                 <focused  fgc=puregreen              />  <!-- Focused taskbar item color. -->
                 <selected fgc=whitelt                />  <!-- Default taskbar item color. -->
                 <active   fgc=whitelt                />  <!-- Running taskbar item color. -->
