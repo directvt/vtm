@@ -515,6 +515,14 @@ namespace netxs
             chan.b = chan.b < k ? 0x00 : chan.b - k;
             return *this;
         }
+        // argb: Dim color.
+        auto dim()
+        {
+            chan.r >>= 1;
+            chan.g >>= 1;
+            chan.b >>= 1;
+            return *this;
+        }
         // argb: Lighten the color.
         void bright(si32 factor = 1)
         {
@@ -1836,11 +1844,18 @@ namespace netxs
             st.reverse();
         }
         // cell: Desaturate and dim fg color.
-        void dim()
+        void dim(si32 k = 1)
         {
-            uv.fg.grayscale();
-            uv.fg.shadow(80);
-            uv.fg.chan.a = 0xff;
+            if (k == 1)
+            {
+                uv.fg.grayscale();
+                uv.fg.shadow(78);
+                uv.fg.chan.a = 0xff;
+            }
+            else
+            {
+                uv.fg.dim();
+            }
         }
         // cell: Is the cell not transparent?
         bool is_alpha_blendable() const
@@ -1881,7 +1896,16 @@ namespace netxs
         auto& fga(si32 k)        { uv.fg.chan.a = (byte)k; return *this; } // cell: Set foreground alpha/transparency.
         auto& alpha(si32 k)      { uv.bg.chan.a = (byte)k;
                                    uv.fg.chan.a = (byte)k; return *this; } // cell: Set alpha/transparency (background and foreground).
-        auto& bld(bool b)        { st.bld(b);              return *this; } // cell: Set bold attribute.
+        // cell: Set/Reset bold attribute. //todo ? SGR22: If b=faux and st.bld()=faux then un-dim fg color.
+        auto& bld(bool b)
+        {
+            //if (st.bld() == faux && b == faux) // Un-dim fg color.
+            //{
+            //    uv.fg.bright(2);
+            //}
+            st.bld(b);
+            return *this;
+        }
         auto& itc(bool b)        { st.itc(b);              return *this; } // cell: Set italic attribute.
         auto& und(si32 n)        { st.und(n);              return *this; } // cell: Set underline attribute.
         auto& unc(argb c)        { st.unc(c.to_256cube()); return *this; } // cell: Set underline color.

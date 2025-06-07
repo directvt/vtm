@@ -160,7 +160,8 @@ namespace netxs::ansi
     static const auto sgr_rst       = 0;
     static const auto sgr_sav       = 10;
     static const auto sgr_bold      = 1;
-    static const auto sgr_faint     = 22;
+    static const auto sgr_nonbold   = 22;
+    static const auto sgr_faint     = 2;
     static const auto sgr_italic    = 3;
     static const auto sgr_nonitalic = 23;
     static const auto sgr_und       = 4;
@@ -1290,8 +1291,9 @@ namespace netxs::ansi
                     sgr[sgr_rst      ] = V{ p->brush.nil( );    };
                     sgr[sgr_fg       ] = V{ p->brush.rfg( );    };
                     sgr[sgr_bg       ] = V{ p->brush.rbg( );    };
+                    sgr[sgr_faint    ] = V{ p->brush.dim(2);    };
                     sgr[sgr_bold     ] = V{ p->brush.bld(true); };
-                    sgr[sgr_faint    ] = V{ p->brush.bld(faux); };
+                    sgr[sgr_nonbold  ] = V{ p->brush.bld(faux); };
                     sgr[sgr_italic   ] = V{ p->brush.itc(true); };
                     sgr[sgr_nonitalic] = V{ p->brush.itc(faux); };
                     sgr[sgr_inv      ] = V{ p->brush.inv(true); };
