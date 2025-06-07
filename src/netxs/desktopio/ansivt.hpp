@@ -358,10 +358,10 @@ namespace netxs::ansi
         }
 
         auto& bld(bool b)    { return add(b ? "\033[1m" : "\033[22m"         ); } // basevt: SGR 𝗕𝗼𝗹𝗱 attribute.
-        auto& und(si32 n)    { return n==unln::none   ? add("\033[24m")
-                                    : n==unln::line   ? add("\033[4m")
-                                    : n==unln::biline ? add("\033[21m")
-                                                      : add("\033[4:", n, "m"); } // basevt: SGR 𝗨𝗻𝗱𝗲𝗿𝗹𝗶𝗻𝗲 attribute.
+        auto& und(si32 n)    { return n == unln::none   ? add("\033[24m")
+                                    : n == unln::line   ? add("\033[4m")
+                                    : n == unln::biline ? add("\033[21m")
+                                                        : add("\033[4:", n, "m"); } // basevt: SGR 𝗨𝗻𝗱𝗲𝗿𝗹𝗶𝗻𝗲 attribute.
         auto& unc(argb c) // basevt: SGR 58/59 Underline color. RGB: red, green, blue.
         {
             return c.token == 0 ? add("\033[59m")

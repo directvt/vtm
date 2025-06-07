@@ -523,7 +523,7 @@ R"==(
     <pureblue     = #0000ff />
     <puremagenta  = #ff00ff />
     <purecyan     = #00ffff />
-    <pureyellow   = #ff00ff />
+    <pureyellow   = #ffff00 />
 </Colors>
 
 <X11ColorNames name*>  <!-- Source: https://en.wikipedia.org/wiki/X11_color_names#Color_name_chart -->
@@ -560,9 +560,9 @@ R"==(
     <name = "Yellow Green"        rgb = #9ACD32 />
     <name = "Chartreuse"          rgb = #7FFF00 />
     <name = "Lawn Green"          rgb = #7CFC00 />
-    <name = "Lime Green"          rgb = #32CD32 />
     <name = "Green"               rgb = #00FF00 />
     <name = "Lime"                rgb = #00FF00 />
+    <name = "Lime Green"          rgb = #32CD32 />
     <name = "Sea Green"           rgb = #2E8B57 />
     <name = "Medium Sea Green"    rgb = #3CB371 />
     <name = "Spring Green"        rgb = #00FF7F />
@@ -578,11 +578,11 @@ R"==(
     <name = "Royal Blue"          rgb = #4169E1 />
     <name = "Blue"                rgb = #0000FF />
     <name = "Slate Blue"          rgb = #6A5ACD />
-    <name = "Dark Slate Blue"     rgb = #483D8B />
-    <name = "Rebecca Purple"      rgb = #663399 />
     <name = "Blue Violet"         rgb = #8A2BE2 />
     <name = "Dark Orchid"         rgb = #9932CC />
     <name = "Dark Violet"         rgb = #9400D3 />
+    <name = "Rebecca Purple"      rgb = #663399 />
+    <name = "Dark Slate Blue"     rgb = #483D8B />
     <name = "Web Purple"          rgb = #800080 />
     <name = "Dark Magenta"        rgb = #8B008B />
     <name = "Medium Violet Red"   rgb = #C71585 />
@@ -609,8 +609,8 @@ R"==(
     <name = "Dark Sea Green"      rgb = #8FBC8F />
     <name = "Pale Green"          rgb = #98FB98 />
     <name = "Light Green"         rgb = #90EE90 />
-    <name = "Medium Aquamarine"   rgb = #66CDAA />
     <name = "Aquamarine"          rgb = #7FFFD4 />
+    <name = "Medium Aquamarine"   rgb = #66CDAA />
     <name = "Turquoise"           rgb = #40E0D0 />
     <name = "Medium Turquoise"    rgb = #48D1CC />
     <name = "Aqua"                rgb = #00FFFF />

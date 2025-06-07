@@ -422,7 +422,8 @@ namespace netxs::xml
                                                   if (auto rgb = xml::take<argb>(utf8))
                                                   {
                                                       auto c = rgb.value();
-                                                      yield.fgc(c).add("■"sv).nil();
+                                                      //yield.fgc(c).add("■"sv).nil();
+                                                      yield.bgc(c).unc(pureblack).und(true).add("  "sv).nil().add(" ");
                                                   }
                                                   [[fallthrough]];
                         case type::tag_value:     fgc = value_fg;
