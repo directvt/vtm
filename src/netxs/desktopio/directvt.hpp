@@ -1263,6 +1263,12 @@ namespace netxs::directvt
                     {
                         auto c = cache;
                         c.draw_cursor();
+                        auto& fgc = c.inv() ? c.bgc() : c.fgc();
+                        if (fgc == 0xFF'000000 && cluster == " ")
+                        {
+                            auto [cursor_bgc, cursor_fgc] = c.cursor_color();
+                            fgc = cursor_bgc;
+                        }
                         c.scan_attr<Mode>(state, stream::block);
                     }
                     else cache.scan_attr<Mode>(state, stream::block);
@@ -1274,6 +1280,12 @@ namespace netxs::directvt
                     {
                         auto c = cache;
                         c.draw_cursor();
+                        auto& fgc = c.inv() ? c.bgc() : c.fgc();
+                        if (fgc == 0xFF'000000 && cluster == " ")
+                        {
+                            auto [cursor_bgc, cursor_fgc] = c.cursor_color();
+                            fgc = cursor_bgc;
+                        }
                         c.scan_attr<Mode>(state, stream::block);
                     }
                     else cache.scan_attr<Mode>(state, stream::block);

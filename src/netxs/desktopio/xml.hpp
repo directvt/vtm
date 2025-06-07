@@ -418,7 +418,14 @@ namespace netxs::xml
                         case type::raw_text:      fgc = value_fg;     break;
                         case type::quoted_text:
                         case type::raw_quoted:
-                        case type::tag_numvalue:
+                        case type::tag_numvalue:  if (utf8.size() && utf8.front() == '#')
+                                                  if (auto rgb = xml::take<argb>(utf8))
+                                                  {
+                                                      auto c = rgb.value();
+                                                      //yield.fgc(c).add("■"sv).nil();
+                                                      yield.bgc(c).unc(pureblack).und(true).add("  "sv).nil().add(" ");
+                                                  }
+                                                  [[fallthrough]];
                         case type::tag_value:     fgc = value_fg;
                                                   bgc = value_bg;     break;
                         case type::error:         fgc = whitelt;
@@ -651,7 +658,7 @@ namespace netxs::xml
             static constexpr auto view_token_first      = " \t\r\n\v\f!\"#$%&'()*+<=>?@[\\]^`{|}~;,/-.0123456789"sv; // Element name cannot contain any of [[:whitespaces:]!"#$%&'()*+,/;<=>?@[\]^`{|}~], and cannot begin with "-", ".", or a numeric digit.
             static constexpr auto view_token_delims     = " \t\r\n\v\f!\"#$%&'()*+<=>?@[\\]^`{|}~;,/"sv;
             static constexpr auto view_reference_delims = " \t\r\n\v\f!\"#$%&'()*+<=>?@[\\]^`{|}~;,"sv;
-            static constexpr auto view_digit_delims     = " \t\r\n\v\f!\"#$%&'()*+<=>?@[\\]^`{|}~/"sv; // Allow ';' and ',' between digits: (123;456).
+            static constexpr auto view_digit_delims     = " \t\r\n\v\f!\"$%&'()*+<=>?@[\\]^`{|}~/"sv; // Allow '#' in digits (#rgb). Also allow ';' and ',' between digits: (123;456).
             static constexpr auto view_comment_begin    = "<!--"sv;
             static constexpr auto view_comment_close    = "-->"sv;
             static constexpr auto view_close_tag        = "</"sv;
@@ -784,7 +791,7 @@ namespace netxs::xml
                     case type::top_token:
                     case type::end_token:     utf::take_front(temp, view_reference_delims); break;
                     case type::raw_text:      utf::take_front(temp, view_find_start); break;
-                    case type::tag_numvalue:
+                    case type::tag_numvalue:  utf::take_front(temp, view_digit_delims); break;
                     case type::tag_reference: utf::take_front(temp, view_reference_delims); break;
                     case type::quotes:
                     case type::tag_value:     utf::take_quote(temp, temp.front()); break;
@@ -843,7 +850,7 @@ namespace netxs::xml
                         {
                             append_prepending_spaces();
                                 what = type::tag_value;
-                                auto is_digit = netxs::onlydigits.find(temp.front()) != text::npos;
+                                auto is_digit = netxs::sharpdigit.find(temp.front()) != text::npos;
                                 if (is_digit) // #number
                                 {
                                     auto frag_ptr = append(type::tag_numvalue, utf::take_front(temp, view_digit_delims));
@@ -967,7 +974,7 @@ namespace netxs::xml
                             peek_forward();
                             if (what != type::quoted_text)
                             {
-                                auto is_reference = what == type::raw_text && netxs::onlydigits.find(temp.front()) == text::npos; // Only literal raw text is allowed as a reference name.
+                                auto is_reference = what == type::raw_text && netxs::sharpdigit.find(temp.front()) == text::npos; // Only literal raw text is allowed as a reference name.
                                 if (!is_reference)
                                 {
                                     fail();

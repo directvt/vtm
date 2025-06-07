@@ -2108,6 +2108,7 @@ namespace netxs::ui
             }
             auto ovr(bool) { } // not supported
             auto blk(bool) { } // not supported
+            auto hid(bool) { } // not supported
         };
 
         auto to_rich(text font = {}) const
@@ -2245,6 +2246,7 @@ namespace netxs::ui
             auto stk(bool ) { }
             auto ovr(bool ) { }
             auto blk(bool ) { }
+            auto hid(bool ) { }
             auto cursor0(si32 ) { }
         };
 
@@ -2326,6 +2328,7 @@ namespace netxs::ui
             auto stk(bool ) { }
             auto ovr(bool ) { }
             auto blk(bool ) { }
+            auto hid(bool ) { }
             auto cursor0(si32 ) { }
         };
 

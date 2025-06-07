@@ -224,7 +224,7 @@ int main(int argc, char* argv[])
     auto denied = faux;
     auto syslog = os::tty::logger();
     auto userid = os::env::user();
-    auto prefix = vtpipe.length() ? vtpipe : utf::concat(os::path::ipc_prefix, os::process::elevated ? "!-" : "-", userid.second);;
+    auto prefix = vtpipe.length() ? vtpipe : utf::concat(os::path::ipc_prefix, os::process::elevated ? "!-" : "-", userid.second);
     auto prefix_log = prefix + os::path::log_suffix;
     auto failed = [&](auto cause)
     {

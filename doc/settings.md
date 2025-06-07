@@ -741,7 +741,7 @@ Notes
 <!-- App configuration. -->
 <config=/Colors | /Scripting | /Macro> <!-- Using additional namespaces: "/Colors", "/Scripting" and "/Macro" -->
     <gui>  <!-- GUI mode related settings. (win32 platform only for now) -->
-        <antialiasing=true/>  <!-- Antialiasing of rendered glyphs. Note: Multi-layered color glyphs such as emoji are always antialiased. -->
+        <antialiasing=off/>   <!-- Antialiasing of rendered glyphs. Note: Multi-layered color glyphs such as emoji are always antialiased. -->
         <cellheight=22/>      <!-- Text cell height in physical pixels. Note: The width of the text cell depends on the primary font (the first one in the font list). -->
         <gridsize=""/>        <!-- Window initial grid size "width,height" in text cells. If gridsize="" or gridsize=0,0, then the size of the GUI window is left to the OS window manager. -->
         <wincoor=""/>         <!-- Window initial coordinates "x,y" (top-left corner on the desktop in physical pixels). If wincoor="", then the position of the GUI window is left to the OS window manager. -->
@@ -781,10 +781,10 @@ Notes
         <format="html"/>  <!-- Default clipboard format for screenshots: "text" | "ansi" | "rich" | "html" | "protected" . -->
     </clipboard>
     <colors>  <!-- Along with fgc, bgc and txt, other SGR attributes (boolean) are allowed here: itc: italic, bld: bold, und: underline, inv: reverse, ovr: overline, blk: blink. -->
-        <window   fgc=whitelt   bgc=0x80404040        />  <!-- Base desktop window color. -->
+        <window   fgc=whitelt   bgc=#40404080         />  <!-- Base desktop window color. -->
         <focus    fgc=purewhite bgc=bluelt            />  <!-- Focused item tinting. -->
         <brighter fgc=purewhite bgc=purewhite alpha=60/>  <!-- Brighter. -->
-        <shadower               bgc=0xB4202020        />  <!-- Dimmer. -->
+        <shadower               bgc=#202020B4         />  <!-- Dimmer. -->
         <warning  fgc=whitelt   bgc=yellowdk          />  <!-- "Warning" color. -->
         <danger   fgc=whitelt   bgc=purered           />  <!-- "Danger" color. -->
         <action   fgc=whitelt   bgc=greenlt           />  <!-- "Action" color. -->
@@ -872,7 +872,7 @@ Notes
             </width>
             <timeout=250ms/>  <!-- Taskbar collaplse timeout after mouse leave. -->
             <colors>
-                <bground  fgc=whitedk bgc=0xC0202020 />  <!-- Set the bgc color non-transparent (alpha to FF) to disable acrylics in taskbar. -->
+                <bground  fgc=whitedk bgc=#202020C0  />  <!-- Set the bgc color non-transparent (alpha to FF) to disable acrylics in taskbar. -->
                 <focused  fgc=puregreen              />  <!-- Focused taskbar item color. -->
                 <selected fgc=whitelt                />  <!-- Default taskbar item color. -->
                 <active   fgc=whitelt                />  <!-- Running taskbar item color. -->
@@ -928,7 +928,7 @@ Notes
             <color15 = whitelt    />
             <default fgc=whitedk bgc=pureblack/>  <!-- Default/current colors (SGR49/39). -->
             <bground = DefaultColor/>  <!-- Independent background color of the scrollback canvas. Set to 0x00ffffff(or =DefaultColor) to sync with SGR49 (default background). -->
-            <match fx="color" fgc=whitelt bgc=0xFF007F00/>  <!-- Color of the selected text occurrences. Set an fx to use cell::shaders: "xlight" | "color" | "invert" | "reverse". -->
+            <match fx="color" fgc=whitelt bgc=#007F00/>  <!-- Color of the selected text occurrences. Set an fx to use cell::shaders: "xlight" | "color" | "invert" | "reverse". -->
             <selection>
                 <text      fx="color"  fgc=whitelt bgc=bluelt/>  <!-- Highlighting of the selected text in plaintext mode. -->
                 <protected fx="color"  fgc=whitelt bgc=bluelt/>  <!-- Note: The bgc and fgc attributes only apply to the fx=color shader. -->
@@ -937,6 +937,9 @@ Notes
                 <html      fx="xlight" fgc=whitelt bgc=bluelt/>
                 <none      fx="color"  fgc=whitedk bgc=blacklt/>  <!-- Inactive selection color. -->
             </selection>
+            <names=/X11ColorNames>  <!-- Color names for OSC 4,10-12. -->
+                <!--  <name="New Dark Orange" rgb= #FF8C00 /> -->
+            </names>
         </colors>
         <border=0/>  <!-- Width of the left and right border of the terminal window. -->
         <tablen=8/>  <!-- Tab length. -->
@@ -1218,31 +1221,180 @@ Notes
 <Colors>
     <DefaultColor = 0x00ffffff />
     <Transparent  = 0x00000000 />
-    <blackdk      = 0xFF101010 />
-    <reddk        = 0xFFc40f1f />
-    <greendk      = 0xFF12a10e />
-    <yellowdk     = 0xFFc09c00 />
-    <bluedk       = 0xFF0037db />
-    <magentadk    = 0xFF871798 />
-    <cyandk       = 0xFF3b96dd />
-    <whitedk      = 0xFFbbbbbb />
-    <blacklt      = 0xFF757575 />
-    <redlt        = 0xFFe64856 />
-    <greenlt      = 0xFF15c60c />
-    <yellowlt     = 0xFFf8f1a5 />
-    <bluelt       = 0xFF3a78ff />
-    <magentalt    = 0xFFb3009e />
-    <cyanlt       = 0xFF60d6d6 />
-    <whitelt      = 0xFFf3f3f3 />
-    <pureblack    = 0xFF000000 />
-    <purewhite    = 0xFFffffff />
-    <purered      = 0xFFff0000 />
-    <puregreen    = 0xFF00ff00 />
-    <pureblue     = 0xFF0000ff />
-    <puremagenta  = 0xFFff00ff />
-    <purecyan     = 0xFF00ffff />
-    <pureyellow   = 0xFFff00ff />
+    <blackdk      = #101010 />
+    <reddk        = #c40f1f />
+    <greendk      = #12a10e />
+    <yellowdk     = #c09c00 />
+    <bluedk       = #0037db />
+    <magentadk    = #871798 />
+    <cyandk       = #3b96dd />
+    <whitedk      = #bbbbbb />
+    <blacklt      = #757575 />
+    <redlt        = #e64856 />
+    <greenlt      = #15c60c />
+    <yellowlt     = #f8f1a5 />
+    <bluelt       = #3a78ff />
+    <magentalt    = #b3009e />
+    <cyanlt       = #60d6d6 />
+    <whitelt      = #f3f3f3 />
+    <pureblack    = #000000 />
+    <purewhite    = #ffffff />
+    <purered      = #ff0000 />
+    <puregreen    = #00ff00 />
+    <pureblue     = #0000ff />
+    <puremagenta  = #ff00ff />
+    <purecyan     = #00ffff />
+    <pureyellow   = #ffff00 />
 </Colors>
+
+<X11ColorNames name*>  <!-- Source: https://en.wikipedia.org/wiki/X11_color_names#Color_name_chart -->
+    <name = "Black"               rgb = #000000 />
+    <name = "Brown"               rgb = #A52A2A />
+    <name = "Firebrick"           rgb = #B22222 />
+    <name = "Web Maroon"          rgb = #800000 />
+    <name = "Dark Red"            rgb = #8B0000 />
+    <name = "Saddle brown"        rgb = #8B4513 />
+    <name = "Dark Olive Green"    rgb = #556B2F />
+    <name = "Forest Green"        rgb = #228B22 />
+    <name = "Web Green"           rgb = #008000 />
+    <name = "Dark Green"          rgb = #006400 />
+    <name = "Dark Slate Gray"     rgb = #2F4F4F />
+    <name = "Midnight Blue"       rgb = #191970 />
+    <name = "Navy Blue"           rgb = #000080 />
+    <name = "Dark Blue"           rgb = #00008B />
+    <name = "Medium Blue"         rgb = #0000CD />
+    <name = "Indigo"              rgb = #4B0082 />
+    <name = "Indian Red"          rgb = #CD5C5C />
+    <name = "Red"                 rgb = #FF0000 />
+    <name = "Orange Red"          rgb = #FF4500 />
+    <name = "Sienna"              rgb = #A0522D />
+    <name = "Chocolate"           rgb = #D2691E />
+    <name = "Peru"                rgb = #CD853F />
+    <name = "Dark Orange"         rgb = #FF8C00 />
+    <name = "Orange"              rgb = #FFA500 />
+    <name = "Dark Goldenrod"      rgb = #B8860B />
+    <name = "Goldenrod"           rgb = #DAA520 />
+    <name = "Olive"               rgb = #808000 />
+    <name = "Dim Gray"            rgb = #696969 />
+    <name = "Web Gray"            rgb = #808080 />
+    <name = "Olive Drab"          rgb = #6B8E23 />
+    <name = "Yellow Green"        rgb = #9ACD32 />
+    <name = "Chartreuse"          rgb = #7FFF00 />
+    <name = "Lawn Green"          rgb = #7CFC00 />
+    <name = "Green"               rgb = #00FF00 />
+    <name = "Lime"                rgb = #00FF00 />
+    <name = "Lime Green"          rgb = #32CD32 />
+    <name = "Sea Green"           rgb = #2E8B57 />
+    <name = "Medium Sea Green"    rgb = #3CB371 />
+    <name = "Spring Green"        rgb = #00FF7F />
+    <name = "Medium Spring Green" rgb = #00FA9A />
+    <name = "Dark Turquoise"      rgb = #00CED1 />
+    <name = "Light Sea Green"     rgb = #20B2AA />
+    <name = "Teal"                rgb = #008080 />
+    <name = "Dark Cyan"           rgb = #008B8B />
+    <name = "Steel Blue"          rgb = #4682B4 />
+    <name = "Cadet Blue"          rgb = #5F9EA0 />
+    <name = "Slate Gray"          rgb = #708090 />
+    <name = "Light Slate Gray"    rgb = #778899 />
+    <name = "Royal Blue"          rgb = #4169E1 />
+    <name = "Blue"                rgb = #0000FF />
+    <name = "Slate Blue"          rgb = #6A5ACD />
+    <name = "Blue Violet"         rgb = #8A2BE2 />
+    <name = "Dark Orchid"         rgb = #9932CC />
+    <name = "Dark Violet"         rgb = #9400D3 />
+    <name = "Rebecca Purple"      rgb = #663399 />
+    <name = "Dark Slate Blue"     rgb = #483D8B />
+    <name = "Web Purple"          rgb = #800080 />
+    <name = "Dark Magenta"        rgb = #8B008B />
+    <name = "Medium Violet Red"   rgb = #C71585 />
+    <name = "Deep Pink"           rgb = #FF1493 />
+    <name = "Maroon"              rgb = #B03060 />
+    <name = "Crimson"             rgb = #DC143C />
+    <name = "Rosy Brown"          rgb = #BC8F8F />
+    <name = "Light Coral"         rgb = #F08080 />
+    <name = "Salmon"              rgb = #FA8072 />
+    <name = "Tomato"              rgb = #FF6347 />
+    <name = "Coral"               rgb = #FF7F50 />
+    <name = "Dark Salmon"         rgb = #E9967A />
+    <name = "Light Salmon"        rgb = #FFA07A />
+    <name = "Sandy Brown"         rgb = #F4A460 />
+    <name = "Burlywood"           rgb = #DEB887 />
+    <name = "Tan"                 rgb = #D2B48C />
+    <name = "Dark Khaki"          rgb = #BDB76B />
+    <name = "Gold"                rgb = #FFD700 />
+    <name = "Yellow"              rgb = #FFFF00 />
+    <name = "Green Yellow"        rgb = #ADFF2F />
+    <name = "Dark Gray"           rgb = #A9A9A9 />
+    <name = "Gray"                rgb = #BEBEBE />
+    <name = "Silver"              rgb = #C0C0C0 />
+    <name = "Dark Sea Green"      rgb = #8FBC8F />
+    <name = "Pale Green"          rgb = #98FB98 />
+    <name = "Light Green"         rgb = #90EE90 />
+    <name = "Aquamarine"          rgb = #7FFFD4 />
+    <name = "Medium Aquamarine"   rgb = #66CDAA />
+    <name = "Turquoise"           rgb = #40E0D0 />
+    <name = "Medium Turquoise"    rgb = #48D1CC />
+    <name = "Aqua"                rgb = #00FFFF />
+    <name = "Cyan"                rgb = #00FFFF />
+    <name = "Sky Blue"            rgb = #87CEEB />
+    <name = "Light Steel Blue"    rgb = #B0C4DE />
+    <name = "Light Sky Blue"      rgb = #87CEFA />
+    <name = "Deep Sky Blue"       rgb = #00BFFF />
+    <name = "Dodger Blue"         rgb = #1E90FF />
+    <name = "Cornflower Blue"     rgb = #6495ED />
+    <name = "Medium Slate Blue"   rgb = #7B68EE />
+    <name = "Medium Purple"       rgb = #9370DB />
+    <name = "Purple"              rgb = #A020F0 />
+    <name = "Medium Orchid"       rgb = #BA55D3 />
+    <name = "Fuchsia"             rgb = #FF00FF />
+    <name = "Magenta"             rgb = #FF00FF />
+    <name = "Orchid"              rgb = #DA70D6 />
+    <name = "Hot Pink"            rgb = #FF69B4 />
+    <name = "Pale Violet Red"     rgb = #DB7093 />
+    <name = "Snow"                rgb = #FFFAFA />
+    <name = "Seashell"            rgb = #FFF5EE />
+    <name = "Misty Rose"          rgb = #FFE4E1 />
+    <name = "Peach Puff"          rgb = #FFDAB9 />
+    <name = "Linen"               rgb = #FAF0E6 />
+    <name = "Bisque"              rgb = #FFE4C4 />
+    <name = "Antique White"       rgb = #FAEBD7 />
+    <name = "Navajo White"        rgb = #FFDEAD />
+    <name = "Blanched Almond"     rgb = #FFEBCD />
+    <name = "Papaya Whip"         rgb = #FFEFD5 />
+    <name = "Moccasin"            rgb = #FFE4B5 />
+    <name = "Wheat"               rgb = #F5DEB3 />
+    <name = "Old Lace"            rgb = #FDF5E6 />
+    <name = "Floral White"        rgb = #FFFAF0 />
+    <name = "Cornsilk"            rgb = #FFF8DC />
+    <name = "Lemon Chiffon"       rgb = #FFFACD />
+    <name = "Khaki"               rgb = #F0E68C />
+    <name = "Pale Goldenrod"      rgb = #EEE8AA />
+    <name = "Ivory"               rgb = #FFFFF0 />
+    <name = "Beige"               rgb = #F5F5DC />
+    <name = "Light Yellow"        rgb = #FFFFE0 />
+    <name = "Light Goldenrod"     rgb = #FAFAD2 />
+    <name = "Light Gray"          rgb = #D3D3D3 />
+    <name = "Gainsboro"           rgb = #DCDCDC />
+    <name = "Gainsbora"           rgb = #DCDCDC />
+    <name = "White Smoke"         rgb = #F5F5F5 />
+    <name = "Honeydew"            rgb = #F0FFF0 />
+    <name = "Mint Cream"          rgb = #F5FFFA />
+    <name = "Azure"               rgb = #F0FFFF />
+    <name = "Light Cyan"          rgb = #E0FFFF />
+    <name = "Pale Turquoise"      rgb = #AFEEEE />
+    <name = "Powder Blue"         rgb = #B0E0E6 />
+    <name = "Light Blue"          rgb = #ADD8E6 />
+    <name = "Alice Blue"          rgb = #F0F8FF />
+    <name = "Ghost White"         rgb = #F8F8FF />
+    <name = "Lavender"            rgb = #E6E6FA />
+    <name = "Thistle"             rgb = #D8BFD8 />
+    <name = "Plum"                rgb = #DDA0DD />
+    <name = "Violet"              rgb = #EE82EE />
+    <name = "Pink"                rgb = #FFC0CB />
+    <name = "Light Pink"          rgb = #FFB6C1 />
+    <name = "Lavender Blush"      rgb = #FFF0F5 />
+    <name = "White"               rgb = #FFFFFF />
+</X11ColorNames>
 
 <Terminal>
     <selection>

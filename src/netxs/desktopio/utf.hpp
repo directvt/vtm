@@ -20,6 +20,7 @@ namespace netxs
 
     static constexpr auto whitespaces = " \t\r\n\v\f"sv;
     static constexpr auto onlydigits  = "0123456789"sv;
+    static constexpr auto sharpdigit  = "0123456789#"sv;
     static constexpr auto alphabetic  = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"sv;
     static constexpr auto base64code  = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     static constexpr auto whitespace  = ' '; // '.';
@@ -2459,6 +2460,19 @@ namespace netxs::utf
     auto to_upper(text&& utf8)
     {
         return to_upper(utf8);
+    }
+    auto name2token(view utf8)
+    {
+        auto name_token = text{};
+        name_token.reserve(utf8.size());
+        for (auto c : utf8)
+        {
+            if (c != ' ' && c != '-')
+            {
+                name_token += utf::to_lower(c);
+            }
+        }
+        return name_token;
     }
     template<class W, class P>
     void for_each(text& utf8, W const& what, P proc)
