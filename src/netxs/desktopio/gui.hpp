@@ -949,6 +949,7 @@ namespace netxs::gui
         bool                                   aamode; // glyph: Enable AA.
         gmap                                   glyphs; // glyph: Glyph map.
         std::vector<sprite>                    cgi_glyphs; // glyph: Synthetic glyphs.
+        std::vector<sprite>                    cgi_shadow; // glyph: Synthetic shadow.
         std::vector<utf::prop>                 codepoints; // glyph: .
         std::vector<color_layer>               glyf_masks; // glyph: .
 
@@ -958,8 +959,29 @@ namespace netxs::gui
               aamode{ aamode }
         {
             generate_glyphs();
+            generate_shadow();
         }
 
+        // Generate shadow sprites.
+        void generate_shadow()
+        {
+            auto block = rect{ dot_00, cellsz };
+            cgi_shadow.reserve(256);
+            for (auto i = 0; i < 256; i++)
+            {
+                auto& s = cgi_shadow.emplace_back(buffer_pool);
+                s.area = block;
+                s.type = sprite::alpha;//color;
+                s.bits.resize(s.area.length());
+                auto raster = s.raster<byte>();
+                auto c = byte{ 127 }; // 255: Opaque alpha texture.
+                {
+                    //todo
+                    auto p = block;
+                    netxs::onrect(raster, p, cell::shaders::full(c));
+                }
+            }
+        }
         void generate_glyphs()
         {
             // Generate wavy underline.
@@ -1005,8 +1027,10 @@ namespace netxs::gui
         {
             glyphs.clear();
             cgi_glyphs.clear();
+            cgi_shadow.clear();
             mono_buffer.release();
             generate_glyphs();
+            generate_shadow();
         }
         void rasterize(sprite& glyph_mask, cell const& c)
         {
@@ -1295,6 +1319,13 @@ namespace netxs::gui
                     netxs::onclip(canvas, blink_canvas, [&](auto& dst, auto& src){ dst = bgc; src = bgc; });
                 }
                 else netxs::onrect(canvas, placeholder, cell::shaders::full(bgc));
+            }
+
+            if (auto shadow = c.dim())
+            {
+                auto& shadow_raster = cgi_shadow[shadow];
+                auto offset = placeholder.coor;
+                draw_glyph(canvas, shadow_raster, offset, argb::vt256[shadow]);
             }
             if (c.hid()) return;
             auto& target = *target_ptr;

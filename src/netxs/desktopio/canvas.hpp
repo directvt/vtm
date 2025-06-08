@@ -1264,6 +1264,10 @@ namespace netxs
             {
                 token = (token & (body::mosaic_mask | body::shadow_mask)) | (b.token & ~body::mosaic_mask); // Keep mosaic and OR'ing shadow.
             }
+            void meta_shadow_matrix(body const& b)
+            {
+                token = (token & body::shadow_mask) | b.token; // Update meta with OR'ing shadow.
+            }
             template<svga Mode = svga::vtrgb, bool UseSGR = true, class T>
             void get(body& base, T& dest) const
             {
@@ -1326,6 +1330,7 @@ namespace netxs
             void  xy(ui64 m)         { token &= ~mosaic_mask; token |= m; }
             void raw(ui64 r)         { token &= ~bitmap_mask; token |= r; }
             void  xy(si32 x, si32 y) { mosaic(x + (y << y_bits)); }
+            void fuse_dim(si32 n)    { token |= (ui64)(ui32)n << netxs::field_offset<shadow_mask>(); }
             void cursor0(si32 c)     { token &= ~cursor_mask; token |= ((ui64)(ui32)c << netxs::field_offset<cursor_mask>()); }
             void cursor_color(argb bgc, argb fgc)
             {
@@ -1580,8 +1585,15 @@ namespace netxs
             }
             if (c.st.xy())
             {
-                st = c.st;
                 gc = c.gc;
+                if (c.uv.bg.token == 0) // OR'ing the shadow if bg is completely transparent.
+                {
+                    st.meta_shadow_matrix(c.st);
+                }
+                else
+                {
+                    st = c.st;
+                }
             }
             else
             {
@@ -1871,7 +1883,7 @@ namespace netxs
             uv.fg.shadow(78);
             uv.fg.chan.a = 0xff;
         }
-        void dim(si32 n)
+        auto& dim(si32 n)
         {
             if (n == -1)
             {
@@ -1881,6 +1893,7 @@ namespace netxs
             {
                 st.dim(std::clamp(n, 0, 255));
             }
+            return *this;
         }
         // cell: Is the cell not transparent?
         bool is_alpha_blendable() const
@@ -2040,6 +2053,7 @@ namespace netxs
         auto  stk() const  { return st.stk();      } // cell: Return strikethrough attribute.
         auto  blk() const  { return st.blk();      } // cell: Return blink attribute.
         auto  hid() const  { return st.hid();      } // cell: Return hidden attribute.
+        auto  dim() const  { return st.dim();      } // cell: Return shadow attribute.
         auto& stl()        { return st.token;      } // cell: Return style token.
         auto& stl() const  { return st.token;      } // cell: Return style token.
         auto link() const  { return id;            } // cell: Return object ID.
@@ -2296,6 +2310,15 @@ namespace netxs
                 template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.fuse(src); dst.bga(alpha); }
                 template<class D>           inline void operator () (D& dst)         const { dst.bga(alpha); }
             };
+            struct shadow_t
+            {
+                si32 shadow_index;
+                constexpr shadow_t(si32 shadow_index)
+                    : shadow_index{ std::clamp(shadow_index, 0, 255) }
+                { }
+                template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.fuse(src); dst.st.fuse_dim(shadow_index); }
+                template<class D>           inline void operator () (D& dst)         const { dst.st.fuse_dim(shadow_index); }
+            };
             struct color_t
             {
                 clrs colors;
@@ -2375,6 +2398,7 @@ namespace netxs
             static constexpr auto transparent(si32     a) { return transparent_t{ a     }; }
             static constexpr auto     xlucent(si32     a) { return     xlucent_t{ a     }; }
             static constexpr auto      onlyid(id_t newid) { return      onlyid_t{ newid }; }
+            static constexpr auto      shadow(si32 index) { return      shadow_t{ index }; }
             static constexpr auto   contrast =   contrast_t{};
             static constexpr auto   fusefull =   fusefull_t{};
             static constexpr auto    overlay =    overlay_t{};
@@ -2698,7 +2722,7 @@ namespace netxs
         {
             netxs::onrect(canvas, canvas.area(), fx);
         }
-        void cage(auto&& canvas, rect area, dent border, auto fx) // core: Draw the cage around specified area.
+        void cage(auto&& canvas, rect area, dent border, auto fx) // core: Draw cage inside the specified area.
         {
             auto temp = area;
             temp.size.y = std::max(0, border.t); // Top
