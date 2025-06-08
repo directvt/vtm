@@ -2551,7 +2551,7 @@ namespace netxs
                     }
                 }
             }
-            // shadow: Render rectanguler shadow for window rect.
+            // shadow: Render a rectangular shadow for the window rectangle.
             auto render(auto&& canvas, auto clip, auto window, auto fx)
             {
                 auto dst = rect{ window.coor - over / 2, window.size + over };

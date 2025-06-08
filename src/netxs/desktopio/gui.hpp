@@ -971,7 +971,7 @@ namespace netxs::gui
             {
                 auto& s = cgi_shadow.emplace_back(buffer_pool);
                 s.area = block;
-                s.type = sprite::alpha;//color;
+                s.type = sprite::alpha;
                 s.bits.resize(s.area.length());
                 auto raster = s.raster<byte>();
                 auto c = byte{ 127 }; // 255: Opaque alpha texture.
