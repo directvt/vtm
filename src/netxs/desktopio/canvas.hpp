@@ -515,8 +515,8 @@ namespace netxs
             chan.b = chan.b < k ? 0x00 : chan.b - k;
             return *this;
         }
-        // argb: Dim color.
-        auto dim()
+        // argb: Faint color.
+        auto faint()
         {
             chan.r >>= 1;
             chan.g >>= 1;
@@ -1260,6 +1260,10 @@ namespace netxs
             {
                 token = (token & body::mosaic_mask) | (b.token & ~body::mosaic_mask); // Keep mosaic.
             }
+            void meta_shadow(body const& b)
+            {
+                token = (token & (body::mosaic_mask | body::shadow_mask)) | (b.token & ~body::mosaic_mask); // Keep mosaic and OR'ing shadow.
+            }
             template<svga Mode = svga::vtrgb, bool UseSGR = true, class T>
             void get(body& base, T& dest) const
             {
@@ -1579,7 +1583,17 @@ namespace netxs
                 st = c.st;
                 gc = c.gc;
             }
-            else st.meta(c.st);
+            else
+            {
+                if (c.uv.bg.token == 0) // OR'ing the shadow if bg is completely transparent.
+                {
+                    st.meta_shadow(c.st);
+                }
+                else
+                {
+                    st.meta(c.st);
+                }
+            }
             return *this;
         }
         // cell: Blend two cells if text part != '\0'.
@@ -1851,21 +1865,21 @@ namespace netxs
             st.reverse();
         }
         // cell: Desaturate and dim fg color.
-        void dim(si32 k = -1)
+        void disabled()
         {
-            if (k == -1)
+            uv.fg.grayscale();
+            uv.fg.shadow(78);
+            uv.fg.chan.a = 0xff;
+        }
+        void dim(si32 n)
+        {
+            if (n == -1)
             {
-                uv.fg.grayscale();
-                uv.fg.shadow(78);
-                uv.fg.chan.a = 0xff;
-            }
-            else if (k == -2)
-            {
-                uv.fg.dim();
+                uv.fg.faint();
             }
             else
             {
-                st.dim(std::clamp(k, 0, 255));
+                st.dim(std::clamp(n, 0, 255));
             }
         }
         // cell: Is the cell not transparent?
@@ -2262,7 +2276,7 @@ namespace netxs
                 {
                     return disabled_t{};
                 }
-                template<class D> inline void operator () (D& dst) const { dst.dim(); }
+                template<class D> inline void operator () (D& dst) const { dst.disabled(); }
             };
             struct transparent_t : public brush_t<transparent_t>
             {

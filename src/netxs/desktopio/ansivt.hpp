@@ -864,7 +864,7 @@ namespace netxs::ansi
     auto del()                 { return escx{}.del( );        } // ansi: Delete cell backwards ('\x7F').
     auto bld(bool b = true)    { return escx{}.bld(b);        } // ansi: SGR 𝗕𝗼𝗹𝗱 attribute.
     auto und(si32 n = 1   )    { return escx{}.und(n);        } // ansi: SGR 𝗨𝗻𝗱𝗲𝗿𝗹𝗶𝗻𝗲 attribute. 0: none, 1: line, 2: biline, 3: wavy, 4: dotted, 5: dashed, 6 - 7: unknown.
-    auto dim(si32 n = -1  )    { return escx{}.dim(n);        } // ansi: SGR Shadow/Faint attribute. 0 - 255: 3x3 cube shadow.
+    auto dim(si32 n)           { return escx{}.dim(n);        } // ansi: SGR Shadow attribute. 0 - 255: 3x3 cube shadow.
     auto unc(argb c)           { return escx{}.unc(c);        } // ansi: SGR SGR 58/59 Underline color. RGB: red, green, blue.
     auto hid(bool b = true)    { return escx{}.hid(b);        } // ansi: SGR Hidden attribute.
     auto blk(bool b = true)    { return escx{}.blk(b);        } // ansi: SGR Blink attribute.
@@ -1300,7 +1300,7 @@ namespace netxs::ansi
                     sgr[sgr_rst      ] = V{ p->brush.nil( );    };
                     sgr[sgr_fg       ] = V{ p->brush.rfg( );    };
                     sgr[sgr_bg       ] = V{ p->brush.rbg( );    };
-                    sgr[sgr_faint    ] = V{ p->brush.dim(q.subarg(-2)); };
+                    sgr[sgr_faint    ] = V{ p->brush.dim(q.subarg(-1)); };
                     sgr[sgr_bold     ] = V{ p->brush.bld(true); };
                     sgr[sgr_nonbold  ] = V{ p->brush.bld(faux); };
                     sgr[sgr_italic   ] = V{ p->brush.itc(true); };
