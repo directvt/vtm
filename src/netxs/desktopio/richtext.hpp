@@ -2079,6 +2079,7 @@ namespace netxs::ui
                 data += b ? set : off;
             }
             auto unc(argb ) { }
+            auto dim(si32 ) { }
             auto und(si32 unline)
             {
                 static constexpr auto off = "\\ul0 "sv;
@@ -2240,6 +2241,7 @@ namespace netxs::ui
             auto bgc(argb ) { }
             auto bld(bool ) { }
             auto itc(bool ) { }
+            auto dim(si32 ) { }
             auto und(si32 ) { }
             auto unc(argb ) { }
             auto inv(bool ) { }
@@ -2323,6 +2325,7 @@ namespace netxs::ui
             auto bld(bool ) { }
             auto itc(bool ) { }
             auto und(si32 ) { }
+            auto dim(si32 ) { }
             auto unc(argb ) { }
             auto inv(bool ) { }
             auto stk(bool ) { }

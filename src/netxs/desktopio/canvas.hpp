@@ -1271,6 +1271,7 @@ namespace netxs
                         if constexpr (Mode == svga::vt_2D)
                         {
                             if (auto cursor = token & cursor_mask; cursor != (base.token & cursor_mask)) dest.cursor0((si32)(cursor >> netxs::field_offset<cursor_mask>()));
+                            if (auto shadow = token & shadow_mask; shadow != (base.token & shadow_mask)) dest.dim(    (si32)(shadow >> netxs::field_offset<shadow_mask>()));
                             //if (auto hplink = token & hplink_mask; hplink != (base.token & hplink_mask)) dest.hplink0((si32)(hplink >> netxs::field_offset<hplink_mask>()));
                             //if (auto fusion = token & fusion_mask; fusion != (base.token & fusion_mask)) dest.fusion0((si32)(fusion >> netxs::field_offset<fusion_mask>()));
                             //todo sync px
@@ -1312,6 +1313,7 @@ namespace netxs
             void stk(bool b)         { token &= ~strike_mask; token |= ((ui64)b << netxs::field_offset<strike_mask>()); }
             void blk(bool b)         { token &= ~blinks_mask; token |= ((ui64)b << netxs::field_offset<blinks_mask>()); }
             void hid(bool b)         { token &= ~hidden_mask; token |= ((ui64)b << netxs::field_offset<hidden_mask>()); }
+            void dim(si32 n)         { token &= ~shadow_mask; token |= ((ui64)(ui32)n << netxs::field_offset<shadow_mask>()); }
             void und(si32 n)         { token &= ~unline_mask; token |= ((ui64)(ui32)n << netxs::field_offset<unline_mask>()); }
             void unc(si32 c)         { token &= ~ucolor_mask; token |= ((ui64)(ui32)c << netxs::field_offset<ucolor_mask>()); }
             void cur(si32 s)         { token &= ~cursor_mask; token |= ((ui64)(ui32)s << netxs::field_offset<cursor_mask>()); }
@@ -1340,6 +1342,7 @@ namespace netxs
             bool blk()    const { return !!(token & blinks_mask); }
             bool hid()    const { return !!(token & hidden_mask); }
             si32 und()    const { return (si32)((token & unline_mask) >> netxs::field_offset<unline_mask>()); }
+            si32 dim()    const { return (si32)((token & shadow_mask) >> netxs::field_offset<shadow_mask>()); }
             si32 unc()    const { return (si32)((token & ucolor_mask) >> netxs::field_offset<ucolor_mask>()); }
             si32 cur()    const { return (si32)((token & cursor_mask) >> netxs::field_offset<cursor_mask>()); }
             //si32 cursor0() const { return (token & cursor_mask); }
@@ -1848,17 +1851,21 @@ namespace netxs
             st.reverse();
         }
         // cell: Desaturate and dim fg color.
-        void dim(si32 k = 1)
+        void dim(si32 k = -1)
         {
-            if (k == 1)
+            if (k == -1)
             {
                 uv.fg.grayscale();
                 uv.fg.shadow(78);
                 uv.fg.chan.a = 0xff;
             }
-            else
+            else if (k == -2)
             {
                 uv.fg.dim();
+            }
+            else
+            {
+                st.dim(std::clamp(k, 0, 255));
             }
         }
         // cell: Is the cell not transparent?
