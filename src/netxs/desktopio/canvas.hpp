@@ -225,6 +225,11 @@ namespace netxs
             chan.a = (byte)std::clamp(chan.a + k * 255.f, 0.f, 255.f);
             return *this;
         }
+        // argb: Sum alpha channels.
+        static void alpha_mix(si32 src, byte& dst)
+        {
+            dst = (byte)std::clamp(src + dst, 0, 255);
+        }
         // argb: Return alpha channel.
         auto alpha() const
         {
@@ -2203,6 +2208,11 @@ namespace netxs
                 template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
                 template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.alpha_sum(src); }
             };
+            struct alphamix_t : public brush_t<alphamix_t>
+            {
+                template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
+                template<class D, class S>  inline void operator () (D& dst, S& src) const { argb::alpha_mix(src, dst); }
+            };
             struct full_t : public brush_t<full_t>
             {
                 template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
@@ -2407,6 +2417,7 @@ namespace netxs
             static constexpr auto   blendpma =   blendpma_t{};
             static constexpr auto      blend =      blend_t{};
             static constexpr auto      alpha =      alpha_t{};
+            static constexpr auto   alphamix =   alphamix_t{};
             static constexpr auto       lite =       lite_t{};
             static constexpr auto       fuse =       fuse_t{};
             static constexpr auto       flat =       flat_t{};

@@ -901,6 +901,10 @@ namespace netxs::gui
 
 #endif
 
+    using byts = std::vector<byte>;
+    using gray = netxs::raster<byts, rect>;
+    using shad = netxs::misc::shadow<gray>;
+
     struct glyph
     {
         using irgb = netxs::irgb<fp32>;
@@ -965,8 +969,15 @@ namespace netxs::gui
         // Generate shadow sprites.
         void generate_shadow()
         {
+            using namespace ui::pro;
             auto block = rect{ dot_00, cellsz };
             cgi_shadow.reserve(256);
+            auto width = cellsz.x;
+            auto height = cellsz.y;
+            auto shadow = shad{ 0.44f/*bias*/, 116.5f/*alfa*/, width, dot_00, dot_11, cell::shaders::full };
+            auto l_area_1x1 = rect{{ -width, -height }, dot_00};
+            auto r_area_1x1 = rect{{  width, -height }, dot_00};
+            //todo unify/optimize
             for (auto i = 0; i < 256; i++)
             {
                 auto& s = cgi_shadow.emplace_back(buffer_pool);
@@ -974,11 +985,146 @@ namespace netxs::gui
                 s.type = sprite::alpha;
                 s.bits.resize(s.area.length());
                 auto raster = s.raster<byte>();
-                auto c = byte{ 127 }; // 255: Opaque alpha texture.
+                auto matrix = i;
+                // Left verticals.
+                auto l = l_area_1x1;
+                auto mid_bits = (matrix & ghost::𜺍𜹥) | (matrix & ghost::𜹯𜹥);
+                if ((matrix & ghost::𜹺𜺏) == ghost::𜹺𜺏)
                 {
-                    //todo
-                    auto p = block;
-                    netxs::onrect(raster, p, cell::shaders::full(c));
+                    l.size = { width, height * 3 };
+                    matrix = (matrix & ~ghost::𜹺𜺏) | ((mid_bits & ghost::𜹺𜺏) << 1);
+                }
+                else if ((matrix & ghost::𜺊𜹥) == ghost::𜺊𜹥)
+                {
+                    l.size = { width, height * 2 };
+                    matrix = (matrix & ~ghost::𜺊𜹥) | ((mid_bits & ghost::𜺊𜹥) << 1);
+                }
+                else if ((matrix & ghost::𜹻𜹥) == ghost::𜹻𜹥)
+                {
+                    l.coor.y += height;
+                    l.size = { width, height * 2 };
+                    matrix = (matrix & ~ghost::𜹻𜹥) | ((mid_bits & ghost::𜹻𜹥) << 1);
+                }
+                if (l)
+                {
+                    shadow.render(raster, raster.area(), l, cell::shaders::alphamix);
+                }
+                // Right verticals.
+                auto r = r_area_1x1;
+                if ((matrix & ghost::𜺏𜹥) == ghost::𜺏𜹥)
+                {
+                    r.size = { width, height * 3 };
+                    matrix = (matrix & ~ghost::𜺏𜹥) | ((mid_bits & ghost::𜺏𜹥) >> 1);
+                }
+                else if ((matrix & ghost::𜺏𜹠) == ghost::𜺏𜹠)
+                {
+                    r.size = { width, height * 2 };
+                    matrix = (matrix & ~ghost::𜺏𜹠) | ((mid_bits & ghost::𜺏𜹠) >> 1);
+                }
+                else if ((matrix & ghost::𜺏𜹑) == ghost::𜺏𜹑)
+                {
+                    r.coor.y += height;
+                    r.size = { width, height * 2 };
+                    matrix = (matrix & ~ghost::𜺏𜹑) | ((mid_bits & ghost::𜺏𜹑) >> 1);
+                }
+                if (r)
+                {
+                    shadow.render(raster, raster.area(), r, cell::shaders::alphamix);
+                }
+                // Top horizontals.
+                auto t = l_area_1x1;
+                if ((matrix & ghost::𜺌𜺌) == ghost::𜺌𜺌)
+                {
+                    t.size = { width * 3, height };
+                }
+                else if ((matrix & ghost::𜺌𜹥) == ghost::𜺌𜹥)
+                {
+                    t.size = { width * 2, height };
+                }
+                else if ((matrix & ghost::𜺍𜹤) == ghost::𜺍𜹤)
+                {
+                    t.size = { width * 2, height };
+                    t.coor.x += width;
+                }
+                else if ((matrix & ghost::𜺎𜹤) == ghost::𜺎𜹤)
+                {
+                    t.size = { width, height };
+                    auto t2 = t;
+                    t.coor.x += width * 2;
+                    shadow.render(raster, raster.area(), t2, cell::shaders::alphamix);
+                }
+                else if ((matrix & ghost::𜺎𜹥) == ghost::𜺎𜹥)
+                {
+                    t.size = { width, height };
+                }
+                else if ((matrix & ghost::𜺍𜹥) == ghost::𜺍𜹥)
+                {
+                    t.size = { width, height };
+                    t.coor.x += width;
+                }
+                else if ((matrix & ghost::𜺏𜹤) == ghost::𜺏𜹤)
+                {
+                    t.size = { width, height };
+                    t.coor.x += width * 2;
+                }
+                if (t)
+                {
+                    shadow.render(raster, raster.area(), t, cell::shaders::alphamix);
+                }
+                // Mid horizontals.
+                auto m = l_area_1x1;
+                m.coor.y += height;
+                if ((matrix & ghost::𜺋𜹥) == ghost::𜺋𜹥)
+                {
+                    m.size = { width, height };
+                    shadow.render(raster, raster.area(), m, cell::shaders::alphamix);
+                }
+                else if ((matrix & ghost::𜺏𜹡) == ghost::𜺏𜹡)
+                {
+                    m.size = { width, height };
+                    m.coor.x += width * 2;
+                    shadow.render(raster, raster.area(), m, cell::shaders::alphamix);
+                }
+                // Bottom horizontals.
+                auto b = l_area_1x1;
+                b.coor.y += height * 2;
+                if ((matrix & ghost::𜹟𜹟) == ghost::𜹟𜹟)
+                {
+                    b.size = { width * 3, height };
+                }
+                else if ((matrix & ghost::𜹟𜹥) == ghost::𜹟𜹥)
+                {
+                    b.size = { width * 2, height };
+                }
+                else if ((matrix & ghost::𜹯𜹕) == ghost::𜹯𜹕)
+                {
+                    b.size = { width * 2, height };
+                    b.coor.x += width;
+                }
+                else if ((matrix & ghost::𜹿𜹕) == ghost::𜹿𜹕)
+                {
+                    b.size = { width, height };
+                    auto b2 = b;
+                    b.coor.x += width * 2;
+                    shadow.render(raster, raster.area(), b2, cell::shaders::alphamix);
+                }
+                else if ((matrix & ghost::𜹿𜹥) == ghost::𜹿𜹥)
+                {
+                    b.size = { width, height };
+                }
+                else if ((matrix & ghost::𜹯𜹥) == ghost::𜹯𜹥)
+                {
+                    b.size = { width, height };
+                    b.coor.x += width;
+                }
+                else if ((matrix & ghost::𜺏𜹕) == ghost::𜺏𜹕)
+                {
+                    b.size = { width, height };
+                    b.coor.x += width * 2;
+                }
+                if (b)
+                {
+                    shadow.render(raster, raster.area(), b, cell::shaders::alphamix);
                 }
             }
         }
@@ -1325,7 +1471,7 @@ namespace netxs::gui
             {
                 auto& shadow_raster = cgi_shadow[shadow];
                 auto offset = placeholder.coor;
-                draw_glyph(canvas, shadow_raster, offset, argb::vt256[shadow]);
+                draw_glyph(canvas, shadow_raster, offset, argb{ pureblack });
             }
             if (c.hid()) return;
             auto& target = *target_ptr;
@@ -1448,9 +1594,6 @@ namespace netxs::gui
 
     struct winbase : base
     {
-        using byts = std::vector<byte>;
-        using gray = netxs::raster<byts, rect>;
-        using shad = netxs::misc::shadow<gray>;
         using grip = netxs::misc::szgrips;
         using s11n = netxs::directvt::binary::s11n;
         using b256 = std::array<byte, 256>;

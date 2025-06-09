@@ -2645,7 +2645,7 @@ namespace netxs::ui
         {
             using skill::boss,
                   skill::memo;
-
+        public:
             // Shadow around window.
             //
             // Shadow bits:  0 1 2
@@ -2672,6 +2672,9 @@ namespace netxs::ui
             static constexpr auto 𜺍𜹥 = 64;
             static constexpr auto 𜺏𜹡 = 8;
             static constexpr auto 𜺋𜹥 = 16;
+
+            static constexpr auto 𜺎𜹤 = 160;
+            static constexpr auto 𜹿𜹕 = 5;
 
             // 2x2:
             // 0  0  0   0  0  0   0  0  0   0  0  0 //
@@ -2793,7 +2796,6 @@ namespace netxs::ui
                 }
             }
 
-        public:
             ghost(base&&) = delete;
             ghost(base& boss)
                 : skill{ boss }
