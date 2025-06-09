@@ -155,12 +155,6 @@ R"==(
             <color fgc=whitedk bgc= #00007f80/>  <!-- Desktop background color. -->
             <tile=""/>                           <!-- Truecolor ANSI-art with gradients can be used here. -->
         </background>
-        <shadow enabled=0>  <!-- Desktop window shadows (TUI mode). -->
-            <blur=3/>         <!-- Blur radius (in cells). Default is "3". -->
-            <bias=0.37/>      <!-- Shadow contour bias [0.0 - 1.0]. Default is "0.37". -->
-            <opacity=105.5/>  <!-- Opacity level (alpha) [0.0 - 255.0]. Default is "105.5". -->
-            <offset=2,1/>     <!-- 2D offset relative to the window (in cells). Default is "2,1". -->
-        </shadow>
     </desktop>
 )==" // MSVC2022: C2026 String too big, trailing characters truncated.
 R"==(

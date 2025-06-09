@@ -873,11 +873,6 @@ namespace netxs::app::shared
         g.max_value      = config.settings::take("/config/desktop/windowmax"        , twod{ 3000, 2000  });
         g.macstyle       = config.settings::take("/config/desktop/macstyle"         , faux);
         g.menuwide       = config.settings::take("/config/desktop/taskbar/wide"     , faux);
-        g.shadow_enabled = config.settings::take("/config/desktop/shadow/enabled", true);
-        g.shadow_bias    = config.settings::take("/config/desktop/shadow/bias"   , 0.37f);
-        g.shadow_blur    = config.settings::take("/config/desktop/shadow/blur"   , 3);
-        g.shadow_opacity = config.settings::take("/config/desktop/shadow/opacity", 105.5f);
-        g.shadow_offset  = config.settings::take("/config/desktop/shadow/offset" , dot_21);
         if (g.maxfps <= 0) g.maxfps = 60;
     }
     void splice(xipc client, gui_config_t& gc)

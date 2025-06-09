@@ -2729,17 +2729,6 @@ namespace netxs::ui
 
             static auto draw_shadow(rect area, face& canvas)
             {
-                //if (skin::globals().shadow_enabled)
-                //{
-                //    static auto shadow = netxs::misc::shadow<core>{};
-                //    if (!shadow.sync) shadow.generate(skin::globals().shadow_bias,
-                //                                      skin::globals().shadow_opacity,
-                //                                      skin::globals().shadow_blur * 2,
-                //                                      skin::globals().shadow_offset,
-                //                                      dot_21,
-                //                                      [](cell& c, auto a){ c.alpha(a); });
-                //    shadow.render(canvas, canvas.area(), rect{ .size = boss.base::size() }, cell::shaders::blend);
-                //}
                 if (!area) return;
                 auto lt = rect{ area.coor - dot_11, dot_11 };
                 auto rb = rect{ area.coor + area.size, dot_11 };;

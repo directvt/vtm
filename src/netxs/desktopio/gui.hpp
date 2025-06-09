@@ -1612,7 +1612,7 @@ namespace netxs::gui
         using kmap = input::key::kmap;
 
         static constexpr auto classname = basename::gui_window;
-        static constexpr auto shadow_dent = dent{ 1,1,1,1 } * 3;
+        static constexpr auto shadow_dent = dent{ dot_11 } * 3;
         static constexpr auto wheel_delta_base = 120; // WHEEL_DELTA
 
         struct blink
@@ -2316,7 +2316,7 @@ namespace netxs::gui
             {
                 auto& tooltip_page = *render_sptr;
                 auto  tooltip_clrs = cell{}.bgc(tooltip.default_bgc).fgc(tooltip.default_fgc);
-                auto margins = dent{ 1,1,1,1 }; // Shadow around tooltip.
+                auto margins = dent{ dot_11 }; // Shadow around tooltip.
                 page_to_grid(true, tooltip_grid, tooltip_page, cell::shaders::color(tooltip_clrs), margins);
                 tooltip_layer.area.coor = mcoord + (tooltip_offset - margins.corner()) * cellsz;
                 tooltip_layer.area.size = tooltip_grid.size() * cellsz;
@@ -2434,9 +2434,9 @@ namespace netxs::gui
                 });
             }
         }
-        void fit_to_displays(rect& layer_area)
+        void fit_to_displays(rect& layer_area, dent contour = {})
         {
-            auto fs_area = window_get_fs_area(master.area);
+            auto fs_area = window_get_fs_area(master.area) + contour;
             fs_area.size = std::max(dot_00, fs_area.size - layer_area.size);
             layer_area.coor = fs_area.clamp(layer_area.coor);
         }
@@ -2710,7 +2710,7 @@ namespace netxs::gui
             }
             else
             {
-                auto area = facedata.area() - dent{ 1,1,1,1 };
+                auto area = facedata.area() - dent{ dot_11 };
                 ui::pro::ghost::draw_shadow(area, facedata);
                 fill_grid(canvas, facedata, dot_00);
             }
@@ -2779,7 +2779,8 @@ namespace netxs::gui
                 }
                 if (what & task::tooltip && tooltip_layer.live)
                 {
-                    fit_to_displays(tooltip_layer.area);
+                    auto contour = twod{ 0, cellsz.y / 2 };
+                    fit_to_displays(tooltip_layer.area, dent{ contour });
                     draw_tooltip();
                 }
                 for (auto& l : layers)
@@ -4042,7 +4043,7 @@ namespace netxs::gui
             {
                 // Hilight changes
                 //auto c = layer_get_bits(s);
-                //netxs::misc::cage(c, r, dent{ 1,1,1,1 }, cell::shaders::blend(argb{ (tint)((clr - 1) % 8 + 1) }));
+                //netxs::misc::cage(c, r, dent{ dot_11 }, cell::shaders::blend(argb{ (tint)((clr - 1) % 8 + 1) }));
                 r.coor -= s.area.coor;
                 update_area = { r.coor.x, r.coor.y, r.coor.x + r.size.x, r.coor.y + r.size.y };
                 update_proc();
