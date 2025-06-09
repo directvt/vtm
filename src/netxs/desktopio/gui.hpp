@@ -901,6 +901,10 @@ namespace netxs::gui
 
 #endif
 
+    using byts = std::vector<byte>;
+    using gray = netxs::raster<byts, rect>;
+    using shad = netxs::misc::shadow<gray>;
+
     struct glyph
     {
         using irgb = netxs::irgb<fp32>;
@@ -949,6 +953,7 @@ namespace netxs::gui
         bool                                   aamode; // glyph: Enable AA.
         gmap                                   glyphs; // glyph: Glyph map.
         std::vector<sprite>                    cgi_glyphs; // glyph: Synthetic glyphs.
+        std::vector<sprite>                    cgi_shadow; // glyph: Synthetic shadow.
         std::vector<utf::prop>                 codepoints; // glyph: .
         std::vector<color_layer>               glyf_masks; // glyph: .
 
@@ -958,8 +963,171 @@ namespace netxs::gui
               aamode{ aamode }
         {
             generate_glyphs();
+            generate_shadow();
         }
 
+        // Generate shadow sprites.
+        void generate_shadow()
+        {
+            using namespace ui::pro;
+            auto block = rect{ dot_00, cellsz };
+            cgi_shadow.reserve(256);
+            auto width = cellsz.x;
+            auto height = cellsz.y;
+            auto shadow = shad{ 0.44f/*bias*/, 116.5f/*alfa*/, width, dot_00, dot_11, cell::shaders::full };
+            auto l_area_1x1 = rect{{ -width, -height }, dot_00};
+            auto r_area_1x1 = rect{{  width, -height }, dot_00};
+            //todo unify/optimize
+            for (auto i = 0; i < 256; i++)
+            {
+                auto& s = cgi_shadow.emplace_back(buffer_pool);
+                s.area = block;
+                s.type = sprite::alpha;
+                s.bits.resize(s.area.length());
+                auto raster = s.raster<byte>();
+                auto matrix = i;
+                // Left verticals.
+                auto l = l_area_1x1;
+                auto mid_bits = (matrix & ghost::x2y1) | (matrix & ghost::x2y3);
+                if ((matrix & ghost::x1y1_x1y2_x1y3) == ghost::x1y1_x1y2_x1y3)
+                {
+                    l.size = { width, height * 3 };
+                    matrix = (matrix & ~ghost::x1y1_x1y2_x1y3) | ((mid_bits & ghost::x1y1_x1y2_x1y3) << 1);
+                }
+                else if ((matrix & ghost::x1y1_x1y2) == ghost::x1y1_x1y2)
+                {
+                    l.size = { width, height * 2 };
+                    matrix = (matrix & ~ghost::x1y1_x1y2) | ((mid_bits & ghost::x1y1_x1y2) << 1);
+                }
+                else if ((matrix & ghost::x1y2_x1y3) == ghost::x1y2_x1y3)
+                {
+                    l.coor.y += height;
+                    l.size = { width, height * 2 };
+                    matrix = (matrix & ~ghost::x1y2_x1y3) | ((mid_bits & ghost::x1y2_x1y3) << 1);
+                }
+                if (l)
+                {
+                    shadow.render(raster, raster.area(), l, cell::shaders::alphamix);
+                }
+                // Right verticals.
+                auto r = r_area_1x1;
+                if ((matrix & ghost::x3y1_x3y2_x3y3) == ghost::x3y1_x3y2_x3y3)
+                {
+                    r.size = { width, height * 3 };
+                    matrix = (matrix & ~ghost::x3y1_x3y2_x3y3) | ((mid_bits & ghost::x3y1_x3y2_x3y3) >> 1);
+                }
+                else if ((matrix & ghost::x3y1_x3y2) == ghost::x3y1_x3y2)
+                {
+                    r.size = { width, height * 2 };
+                    matrix = (matrix & ~ghost::x3y1_x3y2) | ((mid_bits & ghost::x3y1_x3y2) >> 1);
+                }
+                else if ((matrix & ghost::x3y2_x3y3) == ghost::x3y2_x3y3)
+                {
+                    r.coor.y += height;
+                    r.size = { width, height * 2 };
+                    matrix = (matrix & ~ghost::x3y2_x3y3) | ((mid_bits & ghost::x3y2_x3y3) >> 1);
+                }
+                if (r)
+                {
+                    shadow.render(raster, raster.area(), r, cell::shaders::alphamix);
+                }
+                // Top horizontals.
+                auto t = l_area_1x1;
+                if ((matrix & ghost::x1y1_x2y1_x3y1) == ghost::x1y1_x2y1_x3y1)
+                {
+                    t.size = { width * 3, height };
+                }
+                else if ((matrix & ghost::x1y1_x2y1) == ghost::x1y1_x2y1)
+                {
+                    t.size = { width * 2, height };
+                }
+                else if ((matrix & ghost::x2y1_x3y1) == ghost::x2y1_x3y1)
+                {
+                    t.size = { width * 2, height };
+                    t.coor.x += width;
+                }
+                else if ((matrix & ghost::x1y1_x3y1) == ghost::x1y1_x3y1)
+                {
+                    t.size = { width, height };
+                    auto t2 = t;
+                    t.coor.x += width * 2;
+                    shadow.render(raster, raster.area(), t2, cell::shaders::alphamix);
+                }
+                else if ((matrix & ghost::x1y1) == ghost::x1y1)
+                {
+                    t.size = { width, height };
+                }
+                else if ((matrix & ghost::x2y1) == ghost::x2y1)
+                {
+                    t.size = { width, height };
+                    t.coor.x += width;
+                }
+                else if ((matrix & ghost::x3y1) == ghost::x3y1)
+                {
+                    t.size = { width, height };
+                    t.coor.x += width * 2;
+                }
+                if (t)
+                {
+                    shadow.render(raster, raster.area(), t, cell::shaders::alphamix);
+                }
+                // Mid horizontals.
+                auto m = l_area_1x1;
+                m.coor.y += height;
+                if ((matrix & ghost::x1y2) == ghost::x1y2)
+                {
+                    m.size = { width, height };
+                    shadow.render(raster, raster.area(), m, cell::shaders::alphamix);
+                }
+                else if ((matrix & ghost::x3y2) == ghost::x3y2)
+                {
+                    m.size = { width, height };
+                    m.coor.x += width * 2;
+                    shadow.render(raster, raster.area(), m, cell::shaders::alphamix);
+                }
+                // Bottom horizontals.
+                auto b = l_area_1x1;
+                b.coor.y += height * 2;
+                if ((matrix & ghost::x1y3_x2y3_x3y3) == ghost::x1y3_x2y3_x3y3)
+                {
+                    b.size = { width * 3, height };
+                }
+                else if ((matrix & ghost::x1y3_x2y3) == ghost::x1y3_x2y3)
+                {
+                    b.size = { width * 2, height };
+                }
+                else if ((matrix & ghost::x2y3_x3y3) == ghost::x2y3_x3y3)
+                {
+                    b.size = { width * 2, height };
+                    b.coor.x += width;
+                }
+                else if ((matrix & ghost::x1y3_x3y3) == ghost::x1y3_x3y3)
+                {
+                    b.size = { width, height };
+                    auto b2 = b;
+                    b.coor.x += width * 2;
+                    shadow.render(raster, raster.area(), b2, cell::shaders::alphamix);
+                }
+                else if ((matrix & ghost::x1y3) == ghost::x1y3)
+                {
+                    b.size = { width, height };
+                }
+                else if ((matrix & ghost::x2y3) == ghost::x2y3)
+                {
+                    b.size = { width, height };
+                    b.coor.x += width;
+                }
+                else if ((matrix & ghost::x3y3) == ghost::x3y3)
+                {
+                    b.size = { width, height };
+                    b.coor.x += width * 2;
+                }
+                if (b)
+                {
+                    shadow.render(raster, raster.area(), b, cell::shaders::alphamix);
+                }
+            }
+        }
         void generate_glyphs()
         {
             // Generate wavy underline.
@@ -1005,8 +1173,10 @@ namespace netxs::gui
         {
             glyphs.clear();
             cgi_glyphs.clear();
+            cgi_shadow.clear();
             mono_buffer.release();
             generate_glyphs();
+            generate_shadow();
         }
         void rasterize(sprite& glyph_mask, cell const& c)
         {
@@ -1296,119 +1466,136 @@ namespace netxs::gui
                 }
                 else netxs::onrect(canvas, placeholder, cell::shaders::full(bgc));
             }
-            if (c.hid()) return;
-            auto& target = *target_ptr;
-            if (auto u = c.und())
+
+            while (!c.hid()) // Render visible glyph.
             {
-                auto index = c.unc();
-                auto color = index ? argb{ argb::vt256[index] }.alpha(fgc.alpha()) : fgc;
-                if (u == unln::line)
+                auto& target = *target_ptr;
+                if (auto u = c.und())
                 {
-                    auto block = fcache.underline;
-                    block.coor += placeholder.coor;
-                    netxs::onrect(target, block, cell::shaders::full(color));
-                }
-                else if (u == unln::dotted)
-                {
-                    auto block = fcache.underline;
-                    block.coor += placeholder.coor;
-                    auto limit = block.coor.x + block.size.x;
-                    block.size.x = std::max(2, block.size.y);
-                    auto stepx = 3 * block.size.x;
-                    block.coor.x -= netxs::grid_mod(placeholder.coor.x, stepx);
-                    while (block.coor.x < limit)
+                    auto index = c.unc();
+                    auto color = index ? argb{ argb::vt256[index] }.alpha(fgc.alpha()) : fgc;
+                    if (u == unln::line)
                     {
-                        netxs::onrect(target, block.trim(placeholder), cell::shaders::full(color));
-                        block.coor.x += stepx;
+                        auto block = fcache.underline;
+                        block.coor += placeholder.coor;
+                        netxs::onrect(target, block, cell::shaders::full(color));
+                    }
+                    else if (u == unln::dotted)
+                    {
+                        auto block = fcache.underline;
+                        block.coor += placeholder.coor;
+                        auto limit = block.coor.x + block.size.x;
+                        block.size.x = std::max(2, block.size.y);
+                        auto stepx = 3 * block.size.x;
+                        block.coor.x -= netxs::grid_mod(placeholder.coor.x, stepx);
+                        while (block.coor.x < limit)
+                        {
+                            netxs::onrect(target, block.trim(placeholder), cell::shaders::full(color));
+                            block.coor.x += stepx;
+                        }
+                    }
+                    else if (u == unln::dashed)
+                    {
+                        auto block = fcache.dashline;
+                        block.coor += placeholder.coor;
+                        netxs::onrect(target, block, cell::shaders::full(color));
+                    }
+                    else if (u == unln::biline)
+                    {
+                        auto b1 = fcache.doubline1;
+                        auto b2 = fcache.doubline2;
+                        auto offset = placeholder.coor;
+                        b1.coor += offset;
+                        b2.coor += offset;
+                        netxs::onrect(target, b1, cell::shaders::full(color));
+                        netxs::onrect(target, b2, cell::shaders::full(color));
+                    }
+                    else if (u == unln::wavy)
+                    {
+                        auto& wavy_raster = cgi_glyphs[synthetic::wavyunderline];
+                        auto offset = placeholder.coor;
+                        auto fract4 = wavy_raster.area.size.x - cellsz.x; // synthetic::wavyunderline has a bump at the beginning to synchronize the texture offset.
+                        offset.x -= netxs::grid_mod(offset.x, fract4);
+                        draw_glyph(target, wavy_raster, offset, color);
+                    }
+                    else
+                    {
+                        auto block = fcache.underline;
+                        block.coor += placeholder.coor;
+                        netxs::onrect(target, block, cell::shaders::full(color));
                     }
                 }
-                else if (u == unln::dashed)
+                if (c.stk())
                 {
-                    auto block = fcache.dashline;
+                    auto block = fcache.strikeout;
                     block.coor += placeholder.coor;
-                    netxs::onrect(target, block, cell::shaders::full(color));
+                    netxs::onrect(target, block, cell::shaders::full(fgc));
                 }
-                else if (u == unln::biline)
+                if (c.ovr())
                 {
-                    auto b1 = fcache.doubline1;
-                    auto b2 = fcache.doubline2;
-                    auto offset = placeholder.coor;
-                    b1.coor += offset;
-                    b2.coor += offset;
-                    netxs::onrect(target, b1, cell::shaders::full(color));
-                    netxs::onrect(target, b2, cell::shaders::full(color));
-                }
-                else if (u == unln::wavy)
-                {
-                    auto& wavy_raster = cgi_glyphs[synthetic::wavyunderline];
-                    auto offset = placeholder.coor;
-                    auto fract4 = wavy_raster.area.size.x - cellsz.x; // synthetic::wavyunderline has a bump at the beginning to synchronize the texture offset.
-                    offset.x -= netxs::grid_mod(offset.x, fract4);
-                    draw_glyph(target, wavy_raster, offset, color);
-                }
-                else
-                {
-                    auto block = fcache.underline;
+                    auto block = fcache.overline;
                     block.coor += placeholder.coor;
-                    netxs::onrect(target, block, cell::shaders::full(color));
+                    netxs::onrect(target, block, cell::shaders::full(fgc));
                 }
-            }
-            if (c.stk())
-            {
-                auto block = fcache.strikeout;
-                block.coor += placeholder.coor;
-                netxs::onrect(target, block, cell::shaders::full(fgc));
-            }
-            if (c.ovr())
-            {
-                auto block = fcache.overline;
-                block.coor += placeholder.coor;
-                netxs::onrect(target, block, cell::shaders::full(fgc));
-            }
-            if (c.xy() == 0) return;
-            auto token = c.tkn();
-            if (c.itc()) token ^= 0xAAAA'AAAA'AAAA'AA00; // Randomize token to differentiate italics (0xb101010...0000'0000 excluding matrix metadata).
-            if (c.bld()) token ^= 0x5555'5555'5555'5500; // Randomize token to differentiate bolds (0xb010101...0000'0000 excluding matrix metadata).
-            auto iter = glyphs.find(token);
-            if (iter == glyphs.end())
-            {
-                if (c.jgc())
+                if (c.xy() == 0)
                 {
-                    iter = glyphs.emplace(token, mono_buffer).first;
+                    break;
                 }
-                else return;
-            }
-            auto& glyph_mask = iter->second;
-            if (glyph_mask.type == sprite::undef)
-            {
-                if (c.jgc()) rasterize(glyph_mask, c);
-                else return;
-            }
-            if (glyph_mask.area)
-            {
-                auto [w, h, x, y] = c.whxy();
-                if (x != 0 && y != 0)
+                auto token = c.tkn();
+                if (c.itc()) token ^= 0xAAAA'AAAA'AAAA'AA00; // Randomize token to differentiate italics (0xb101010...0000'0000 excluding matrix metadata).
+                if (c.bld()) token ^= 0x5555'5555'5555'5500; // Randomize token to differentiate bolds (0xb010101...0000'0000 excluding matrix metadata).
+                auto iter = glyphs.find(token);
+                if (iter == glyphs.end())
                 {
-                    auto offset = placeholder.coor - twod{ cellsz.x * (x - 1), cellsz.y * (y - 1) };
-                    //todo implement a contour or a shadow layer
-                    //if (bgc.alpha() < 2 && fgc == argb{ purewhite })
-                    //{
-                    //    auto blk = argb{ pureblack };
-                    //    draw_glyph(target, glyph_mask, offset - dot_10, blk);
-                    //    draw_glyph(target, glyph_mask, offset + dot_10, blk);
-                    //    draw_glyph(target, glyph_mask, offset - dot_01, blk);
-                    //    draw_glyph(target, glyph_mask, offset + dot_01, blk);
-                    //    draw_glyph(target, glyph_mask, offset - dot_11, blk);
-                    //    draw_glyph(target, glyph_mask, offset + dot_11, blk);
-                    //    draw_glyph(target, glyph_mask, offset - dot_01 + dot_10, blk);
-                    //    draw_glyph(target, glyph_mask, offset + dot_01 - dot_10, blk);
-                    //}
-                    draw_glyph(target, glyph_mask, offset, fgc);
+                    if (c.jgc())
+                    {
+                        iter = glyphs.emplace(token, mono_buffer).first;
+                    }
+                    else break;
                 }
+                auto& glyph_mask = iter->second;
+                if (glyph_mask.type == sprite::undef)
+                {
+                    if (c.jgc())
+                    {
+                        rasterize(glyph_mask, c);
+                    }
+                    else break;
+                }
+                if (glyph_mask.area)
+                {
+                    auto [w, h, x, y] = c.whxy();
+                    if (x != 0 && y != 0)
+                    {
+                        auto offset = placeholder.coor - twod{ cellsz.x * (x - 1), cellsz.y * (y - 1) };
+                        //todo implement a contour or a shadow layer
+                        //if (bgc.alpha() < 2 && fgc == argb{ purewhite })
+                        //{
+                        //    auto blk = argb{ pureblack };
+                        //    draw_glyph(target, glyph_mask, offset - dot_10, blk);
+                        //    draw_glyph(target, glyph_mask, offset + dot_10, blk);
+                        //    draw_glyph(target, glyph_mask, offset - dot_01, blk);
+                        //    draw_glyph(target, glyph_mask, offset + dot_01, blk);
+                        //    draw_glyph(target, glyph_mask, offset - dot_11, blk);
+                        //    draw_glyph(target, glyph_mask, offset + dot_11, blk);
+                        //    draw_glyph(target, glyph_mask, offset - dot_01 + dot_10, blk);
+                        //    draw_glyph(target, glyph_mask, offset + dot_01 - dot_10, blk);
+                        //}
+                        draw_glyph(target, glyph_mask, offset, fgc);
+                    }
+                }
+                if (bgc.alpha()< 2 && fgc == argb{ purewhite })
+                {
+                    //edge
+                }
+                break;
             }
-            if (bgc.alpha()< 2 && fgc == argb{ purewhite })
+
+            if (auto shadow = c.dim()) // Render shadow if it is.
             {
-                //edge
+                auto& shadow_raster = cgi_shadow[shadow];
+                auto offset = placeholder.coor;
+                draw_glyph(canvas, shadow_raster, offset, argb{ pureblack });
             }
         }
     };
@@ -1417,9 +1604,6 @@ namespace netxs::gui
 
     struct winbase : base
     {
-        using byts = std::vector<byte>;
-        using gray = netxs::raster<byts, rect>;
-        using shad = netxs::misc::shadow<gray>;
         using grip = netxs::misc::szgrips;
         using s11n = netxs::directvt::binary::s11n;
         using b256 = std::array<byte, 256>;
@@ -1428,7 +1612,7 @@ namespace netxs::gui
         using kmap = input::key::kmap;
 
         static constexpr auto classname = basename::gui_window;
-        static constexpr auto shadow_dent = dent{ 1,1,1,1 } * 3;
+        static constexpr auto shadow_dent = dent{ dot_11 } * 3;
         static constexpr auto wheel_delta_base = 120; // WHEEL_DELTA
 
         struct blink
@@ -2132,8 +2316,9 @@ namespace netxs::gui
             {
                 auto& tooltip_page = *render_sptr;
                 auto  tooltip_clrs = cell{}.bgc(tooltip.default_bgc).fgc(tooltip.default_fgc);
-                page_to_grid(true, tooltip_grid, tooltip_page, cell::shaders::color(tooltip_clrs));
-                tooltip_layer.area.coor = mcoord + tooltip_offset * cellsz;
+                auto margins = dent{ dot_11 }; // Shadow around tooltip.
+                page_to_grid(true, tooltip_grid, tooltip_page, cell::shaders::color(tooltip_clrs), margins);
+                tooltip_layer.area.coor = mcoord + (tooltip_offset - margins.corner()) * cellsz;
                 tooltip_layer.area.size = tooltip_grid.size() * cellsz;
                 tooltip_layer.show();
             }
@@ -2249,9 +2434,9 @@ namespace netxs::gui
                 });
             }
         }
-        void fit_to_displays(rect& layer_area)
+        void fit_to_displays(rect& layer_area, dent contour = {})
         {
-            auto fs_area = window_get_fs_area(master.area);
+            auto fs_area = window_get_fs_area(master.area) + contour;
             fs_area.size = std::max(dot_00, fs_area.size - layer_area.size);
             layer_area.coor = fs_area.clamp(layer_area.coor);
         }
@@ -2310,12 +2495,13 @@ namespace netxs::gui
                 update_gui();
             });
         }
-        void page_to_grid(bool update_all, ui::face& target_grid, ui::page& source_page, auto fuse)
+        void page_to_grid(bool update_all, ui::face& target_grid, ui::page& source_page, auto fuse, dent margins = {})
         {
             auto grid_size = gridsz;
             target_grid.get_page_size(source_page, grid_size, update_all);
-            target_grid.size(grid_size);
+            target_grid.size(grid_size + margins);
             target_grid.wipe();
+            target_grid.mgn(margins);
             target_grid.cup(dot_00);
             target_grid.output(source_page, fuse);
         }
@@ -2524,6 +2710,8 @@ namespace netxs::gui
             }
             else
             {
+                auto area = facedata.area() - dent{ dot_11 };
+                ui::pro::ghost::draw_shadow(area, facedata);
                 fill_grid(canvas, facedata, dot_00);
             }
             s.strike<true>(canvas.area());
@@ -2591,7 +2779,8 @@ namespace netxs::gui
                 }
                 if (what & task::tooltip && tooltip_layer.live)
                 {
-                    fit_to_displays(tooltip_layer.area);
+                    auto contour = twod{ 0, cellsz.y / 2 };
+                    fit_to_displays(tooltip_layer.area, dent{ contour });
                     draw_tooltip();
                 }
                 for (auto& l : layers)
@@ -3854,7 +4043,7 @@ namespace netxs::gui
             {
                 // Hilight changes
                 //auto c = layer_get_bits(s);
-                //netxs::misc::cage(c, r, dent{ 1,1,1,1 }, cell::shaders::blend(argb{ (tint)((clr - 1) % 8 + 1) }));
+                //netxs::misc::cage(c, r, dent{ dot_11 }, cell::shaders::blend(argb{ (tint)((clr - 1) % 8 + 1) }));
                 r.coor -= s.area.coor;
                 update_area = { r.coor.x, r.coor.y, r.coor.x + r.size.x, r.coor.y + r.size.y };
                 update_proc();

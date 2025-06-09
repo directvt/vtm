@@ -363,9 +363,6 @@ namespace netxs::app::shared
                     auto& parent = *parent_ptr;
                     closing_by_gesture(parent);
 
-                    parent_ptr->unplug<pro::ghost>();
-                    parent_ptr->plugin<pro::notes>().update(" Right click to set title from clipboard. Left+Right to close. ");
-
                     if (cmd.starts_with("@"))
                     {
                         static auto title_map = utf::unordered_map<text, si32>{};
@@ -373,6 +370,9 @@ namespace netxs::app::shared
                         title += std::to_string(++title_map[title]);
                         boss.base::riseup(tier::preview, e2::form::prop::ui::header, title);
                     }
+
+                    parent_ptr->unplug<pro::ghost>();
+                    parent_ptr->plugin<pro::notes>().update(" Right click to set title from clipboard. Left+Right to close. ");
                     boss.base::riseup(tier::release, e2::config::plugins::sizer::outer, dent{  2, 2, 1, 1 });
                     boss.base::riseup(tier::release, e2::config::plugins::sizer::inner, dent{ -4,-4,-2,-2 });
                     boss.base::riseup(tier::release, e2::config::plugins::align, faux);

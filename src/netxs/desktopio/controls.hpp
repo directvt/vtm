@@ -2645,30 +2645,152 @@ namespace netxs::ui
         {
             using skill::boss,
                   skill::memo;
+        public:
+            // Shadow around window.
+            //
+            // Shadow bits:  0 1 2
+            //               3   4
+            //               5 6 7
+            // 1x1:
+            // 0  0  0   0  0  0   0  0  0 //
+            // 0 >1< 0   0 >2< 0   0 >4< 0 //
+            // 0  0  1   0  1  0   1  0  0 //
+            //         ┌─────────┐         //
+            // 0  0  0 │         │ 0  0  0 //
+            // 0 >8< 1 │         │ 1 >16<0 //
+            // 0  0  0 │  Window │ 0  0  0 //
+            //         └─────────┘         //
+            // 0  0  1   0  1  0   1  0  0 //
+            // 0 >32<0   0 >64<0   0>128<0 //
+            // 0  0  0   0  0  0   0  0  0 //
+            static constexpr auto x3y3 = 1;   // 𜺏𜹕 = 1;
+            static constexpr auto x1y3 = 4;   // 𜹿𜹥 = 4;
+            static constexpr auto x3y1 = 32;  // 𜺏𜹤 = 32;
+            static constexpr auto x1y1 = 128; // 𜺎𜹥 = 128;
 
-            auto draw_shadow(face& canvas)
+            static constexpr auto x2y3 = 2;   // 𜹯𜹥 = 2;
+            static constexpr auto x2y1 = 64;  // 𜺍𜹥 = 64;
+            static constexpr auto x3y2 = 8;   // 𜺏𜹡 = 8;
+            static constexpr auto x1y2 = 16;  // 𜺋𜹥 = 16;
+
+            static constexpr auto x1y1_x3y1 = 160; // 𜺎𜹤 = 160;
+            static constexpr auto x1y3_x3y3 = 5;   // 𜹿𜹕 = 5;
+
+            // 2x2:
+            // 0  0  0   0  0  0   0  0  0   0  0  0 //
+            // 0 >1< 0   0 >3< 0   0 >6< 0   0 >4< 0 //
+            // 0  0  1   0  1  1   1  1  0   1  0  0 //
+            //         ┌───────────────────┐         //
+            // 0  0  0 │                   │ 0  0  0 //
+            // 0 >9< 1 │                   │ 1 >20<0 //
+            // 0  0  1 │                   │ 1  0  0 //
+            //         │                   │         //
+            // 0  0  1 │                   │ 1  0  0 //
+            // 0 >40<1 │                   │ 1>144<0 //
+            // 0  0  0 │            Window │ 0  0  0 //
+            //         └───────────────────┘         //
+            // 0  0  1   0  1  1   1  1  0   1  0  0 //
+            // 0 >32<0   0 >96<0   0>192<0   0>128<0 //
+            // 0  0  0   0  0  0   0  0  0   0  0  0 //
+            static constexpr auto x2y3_x3y3 = 3;   // 𜹯𜹕 = 3;
+            static constexpr auto x1y3_x2y3 = 6;   // 𜹟𜹥 = 6;
+            static constexpr auto x2y1_x3y1 = 96;  // 𜺍𜹤 = 96;
+            static constexpr auto x1y1_x2y1 = 192; // 𜺌𜹥 = 192;
+
+            static constexpr auto x3y2_x3y3 = 9;   // 𜺏𜹑 = 9;
+            static constexpr auto x3y1_x3y2 = 40;  // 𜺏𜹠 = 40;
+            static constexpr auto x1y2_x1y3 = 20;  // 𜹻𜹥 = 20;
+            static constexpr auto x1y1_x1y2 = 144; // 𜺊𜹥 = 144;
+
+            // nxm:
+            // 0  0  0   0  0  0    0  0  0    0  0  0   0  0  0 //
+            // 0 >1< 0   0 >3< 0    0 >7< 0    0 >6< 0   0 >4< 0 //
+            // 0  0  1   0  1  1 ...1  1  1... 1  1  0   1  0  0 //
+            //         ┌───────────────────────────────┐         //
+            // 0  0  0 │                               │ 0  0  0 //
+            // 0 >9< 1 │                               │ 1 >20<0 //
+            // 0  0  1 │                               │ 1  0  0 //
+            //     ... │                               │ ...     //
+            // 0  0  1 │                               │ 1  0  0 //
+            // 0 >41<1 │                               │ 1>148<0 //
+            // 0  0  1 │                               │ 1  0  0 //
+            //     ... │                               │ ...     //
+            // 0  0  1 │                               │ 1  0  0 //
+            // 0 >40<1 │                               │ 1>144<0 //
+            // 0  0  0 │                        Window │ 0  0  0 //
+            //         └───────────────────────────────┘         //
+            // 0  0  1   0  1  1 ...1  1  1... 1  1  0   1  0  0 //
+            // 0 >32<0   0 >96<0    0>224<0    0>192<0   0>128<0 //
+            // 0  0  0   0  0  0    0  0  0    0  0  0   0  0  0 //
+            static constexpr auto x1y3_x2y3_x3y3 = 7;    // 𜹟𜹟 = 7;
+            static constexpr auto x1y1_x2y1_x3y1 = 224;  // 𜺌𜺌 = 224;
+            static constexpr auto x3y1_x3y2_x3y3 = 41;   // 𜺏𜹥 = 41; // 𜷂
+            static constexpr auto x1y1_x1y2_x1y3 = 148;  // 𜹺𜺏 = 148; // 𜷖
+
+            static auto draw_shadow(rect area, face& canvas)
             {
-                if (skin::globals().shadow_enabled)
+                if (!area) return;
+                auto lt = rect{ area.coor - dot_11, dot_11 };
+                auto rb = rect{ area.coor + area.size, dot_11 };;
+                auto rt = rect{{ rb.coor.x, lt.coor.y }, dot_11 };
+                auto lb = rect{{ lt.coor.x, rb.coor.y }, dot_11 };
+                canvas.fill(lt, cell::shaders::shadow(x3y3));
+                canvas.fill(rt, cell::shaders::shadow(x1y3));
+                canvas.fill(lb, cell::shaders::shadow(x3y1));
+                canvas.fill(rb, cell::shaders::shadow(x1y1));
+                if (area.size.x == 1)
                 {
-                    static auto shadow = netxs::misc::shadow<core>{};
-                    if (!shadow.sync) shadow.generate(skin::globals().shadow_bias,
-                                                      skin::globals().shadow_opacity,
-                                                      skin::globals().shadow_blur * 2,
-                                                      skin::globals().shadow_offset,
-                                                      dot_21,
-                                                      [](cell& c, auto a){ c.alpha(a); });
-                    shadow.render(canvas, canvas.area(), rect{ .size = boss.base::size() }, cell::shaders::blend);
+                    auto x1_top_mid = rect{{ area.coor.x, area.coor.y - 1 }, dot_11 };
+                    auto x1_bot_mid = rect{{ area.coor.x, area.coor.y + area.size.y }, dot_11 };
+                    canvas.fill(x1_top_mid, cell::shaders::shadow(x2y3));
+                    canvas.fill(x1_bot_mid, cell::shaders::shadow(x2y1));
+                }
+                else
+                {
+                    auto x_top_lef = rect{{ area.coor.x, area.coor.y - 1 }, dot_11 };
+                    auto x_top_rig = rect{{ area.coor.x + area.size.x - 1, x_top_lef.coor.y }, dot_11 };
+                    auto x_bot_lef = rect{{ x_top_lef.coor.x, area.coor.y + area.size.y }, dot_11 };
+                    auto x_bot_rig = rect{{ x_top_rig.coor.x, x_bot_lef.coor.y }, dot_11 };
+                    auto x_top_mid = rect{{ area.coor.x + 1, x_top_lef.coor.y }, { std::max(0, area.size.x - 2), 1 }};
+                    auto x_bot_mid = rect{{ x_top_mid.coor.x, x_bot_lef.coor.y }, x_top_mid.size };
+                    canvas.fill(x_top_lef, cell::shaders::shadow(x2y3_x3y3));
+                    canvas.fill(x_top_rig, cell::shaders::shadow(x1y3_x2y3));
+                    canvas.fill(x_bot_lef, cell::shaders::shadow(x2y1_x3y1));
+                    canvas.fill(x_bot_rig, cell::shaders::shadow(x1y1_x2y1));
+                    canvas.fill(x_top_mid, cell::shaders::shadow(x1y3_x2y3_x3y3));
+                    canvas.fill(x_bot_mid, cell::shaders::shadow(x1y1_x2y1_x3y1));
+                }
+                if (area.size.y == 1)
+                {
+                    auto y1_lef_mid = rect{{ area.coor.x - 1, area.coor.y }, dot_11 };
+                    auto y1_rig_mid = rect{{ area.coor.x + area.size.x, area.coor.y }, dot_11 };
+                    canvas.fill(y1_lef_mid, cell::shaders::shadow(x3y2));
+                    canvas.fill(y1_rig_mid, cell::shaders::shadow(x1y2));
+                }
+                else
+                {
+                    auto y_lef_top = rect{{ area.coor.x - 1, area.coor.y }, dot_11 };
+                    auto y_lef_bot = rect{{ y_lef_top.coor.x, area.coor.y + area.size.y - 1 }, dot_11 };
+                    auto y_rig_top = rect{{ area.coor.x + area.size.x, y_lef_top.coor.y }, dot_11 };
+                    auto y_rig_bot = rect{{ y_rig_top.coor.x, y_lef_bot.coor.y }, dot_11 };
+                    auto y_lef_mid = rect{{ y_lef_top.coor.x, area.coor.y + 1 }, { 1, std::max(0, area.size.y - 2) }};
+                    auto y_rig_mid = rect{{ y_rig_top.coor.x, y_lef_mid.coor.y }, y_lef_mid.size };
+                    canvas.fill(y_lef_top, cell::shaders::shadow(x3y2_x3y3));
+                    canvas.fill(y_lef_bot, cell::shaders::shadow(x3y1_x3y2));
+                    canvas.fill(y_rig_top, cell::shaders::shadow(x1y2_x1y3));
+                    canvas.fill(y_rig_bot, cell::shaders::shadow(x1y1_x1y2));
+                    canvas.fill(y_lef_mid, cell::shaders::shadow(x3y1_x3y2_x3y3));
+                    canvas.fill(y_rig_mid, cell::shaders::shadow(x1y1_x1y2_x1y3));
                 }
             }
 
-        public:
             ghost(base&&) = delete;
             ghost(base& boss)
                 : skill{ boss }
             {
-                boss.LISTEN(tier::release, e2::render::background::prerender, parent_canvas, memo)
+                boss.LISTEN(tier::release, e2::postrender, parent_canvas, memo)
                 {
-                    draw_shadow(parent_canvas);
+                    draw_shadow(rect{ .size = boss.base::size() }, parent_canvas);
                 };
                 //test
                 //boss.on(tier::mouserelease, input::key::MouseWheel, [&](hids& gear)

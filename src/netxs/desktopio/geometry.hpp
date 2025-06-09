@@ -382,6 +382,9 @@ namespace netxs
         constexpr dent(si32 l = 0, si32 r = 0, si32 t = 0, si32 b = 0)
             : l{ l }, r{ r }, t{ t }, b{ b }
         { }
+        constexpr dent(twod p)
+            : l{ p.x }, r{ p.x }, t{ p.y }, b{ p.y }
+        { }
         constexpr dent(dent const&) = default;
         constexpr dent& operator = (dent const&) = default;
         constexpr bool operator == (dent const&) const = default;

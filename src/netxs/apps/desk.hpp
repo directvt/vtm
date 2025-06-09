@@ -545,6 +545,16 @@ namespace netxs::app::desk
                 });
             ground->attach(world_ptr);
             auto taskbar_viewport = ground->attach(ui::fork::ctor(axis::X));
+            auto viewport = taskbar_viewport->attach(slot::_2, ui::mock::ctor())
+                ->invoke([&](auto& boss)
+                {
+                    boss.LISTEN(tier::release, e2::postrender, parent_canvas) // Draw a shadow to the right of the taskbar.
+                    {
+                        auto vert_line = parent_canvas.clip();
+                        vert_line.size.x = 1;
+                        parent_canvas.fill(vert_line, cell::shaders::shadow(ui::pro::ghost::x1y1_x1y2_x1y3));
+                    };
+                });
             auto taskbar_grips = taskbar_viewport->attach(slot::_1, ui::fork::ctor(axis::X))
                 ->limits({ menu_min_size, -1 }, { menu_min_size, -1 })
                 ->plugin<pro::timer>()

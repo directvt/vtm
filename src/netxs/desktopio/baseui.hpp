@@ -566,12 +566,6 @@ namespace netxs::ui
 
         si32 maxfps = 60;
 
-        bool shadow_enabled = true;
-        si32 shadow_blur = 3;
-        fp32 shadow_bias = 0.37f;
-        fp32 shadow_opacity = 105.5f;
-        twod shadow_offset = dot_21;
-
         twod min_value = dot_00;
         twod max_value = twod{ 3000, 2000 }; //todo unify
 

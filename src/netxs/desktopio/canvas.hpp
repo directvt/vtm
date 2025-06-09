@@ -225,6 +225,11 @@ namespace netxs
             chan.a = (byte)std::clamp(chan.a + k * 255.f, 0.f, 255.f);
             return *this;
         }
+        // argb: Sum alpha channels.
+        static void alpha_mix(si32 src, byte& dst)
+        {
+            dst = (byte)std::clamp(src + dst, 0, 255);
+        }
         // argb: Return alpha channel.
         auto alpha() const
         {
@@ -515,8 +520,8 @@ namespace netxs
             chan.b = chan.b < k ? 0x00 : chan.b - k;
             return *this;
         }
-        // argb: Dim color.
-        auto dim()
+        // argb: Faint color.
+        auto faint()
         {
             chan.r >>= 1;
             chan.g >>= 1;
@@ -1260,6 +1265,14 @@ namespace netxs
             {
                 token = (token & body::mosaic_mask) | (b.token & ~body::mosaic_mask); // Keep mosaic.
             }
+            void meta_shadow(body const& b)
+            {
+                token = (token & (body::mosaic_mask | body::shadow_mask)) | (b.token & ~body::mosaic_mask); // Keep mosaic and OR'ing shadow.
+            }
+            void meta_shadow_matrix(body const& b)
+            {
+                token = (token & body::shadow_mask) | b.token; // Update meta with OR'ing shadow.
+            }
             template<svga Mode = svga::vtrgb, bool UseSGR = true, class T>
             void get(body& base, T& dest) const
             {
@@ -1271,6 +1284,7 @@ namespace netxs
                         if constexpr (Mode == svga::vt_2D)
                         {
                             if (auto cursor = token & cursor_mask; cursor != (base.token & cursor_mask)) dest.cursor0((si32)(cursor >> netxs::field_offset<cursor_mask>()));
+                            if (auto shadow = token & shadow_mask; shadow != (base.token & shadow_mask)) dest.dim(    (si32)(shadow >> netxs::field_offset<shadow_mask>()));
                             //if (auto hplink = token & hplink_mask; hplink != (base.token & hplink_mask)) dest.hplink0((si32)(hplink >> netxs::field_offset<hplink_mask>()));
                             //if (auto fusion = token & fusion_mask; fusion != (base.token & fusion_mask)) dest.fusion0((si32)(fusion >> netxs::field_offset<fusion_mask>()));
                             //todo sync px
@@ -1312,6 +1326,7 @@ namespace netxs
             void stk(bool b)         { token &= ~strike_mask; token |= ((ui64)b << netxs::field_offset<strike_mask>()); }
             void blk(bool b)         { token &= ~blinks_mask; token |= ((ui64)b << netxs::field_offset<blinks_mask>()); }
             void hid(bool b)         { token &= ~hidden_mask; token |= ((ui64)b << netxs::field_offset<hidden_mask>()); }
+            void dim(si32 n)         { token &= ~shadow_mask; token |= ((ui64)(ui32)n << netxs::field_offset<shadow_mask>()); }
             void und(si32 n)         { token &= ~unline_mask; token |= ((ui64)(ui32)n << netxs::field_offset<unline_mask>()); }
             void unc(si32 c)         { token &= ~ucolor_mask; token |= ((ui64)(ui32)c << netxs::field_offset<ucolor_mask>()); }
             void cur(si32 s)         { token &= ~cursor_mask; token |= ((ui64)(ui32)s << netxs::field_offset<cursor_mask>()); }
@@ -1320,6 +1335,7 @@ namespace netxs
             void  xy(ui64 m)         { token &= ~mosaic_mask; token |= m; }
             void raw(ui64 r)         { token &= ~bitmap_mask; token |= r; }
             void  xy(si32 x, si32 y) { mosaic(x + (y << y_bits)); }
+            void fuse_dim(si32 n)    { token |= (ui64)(ui32)n << netxs::field_offset<shadow_mask>(); }
             void cursor0(si32 c)     { token &= ~cursor_mask; token |= ((ui64)(ui32)c << netxs::field_offset<cursor_mask>()); }
             void cursor_color(argb bgc, argb fgc)
             {
@@ -1340,6 +1356,7 @@ namespace netxs
             bool blk()    const { return !!(token & blinks_mask); }
             bool hid()    const { return !!(token & hidden_mask); }
             si32 und()    const { return (si32)((token & unline_mask) >> netxs::field_offset<unline_mask>()); }
+            si32 dim()    const { return (si32)((token & shadow_mask) >> netxs::field_offset<shadow_mask>()); }
             si32 unc()    const { return (si32)((token & ucolor_mask) >> netxs::field_offset<ucolor_mask>()); }
             si32 cur()    const { return (si32)((token & cursor_mask) >> netxs::field_offset<cursor_mask>()); }
             //si32 cursor0() const { return (token & cursor_mask); }
@@ -1573,10 +1590,27 @@ namespace netxs
             }
             if (c.st.xy())
             {
-                st = c.st;
                 gc = c.gc;
+                if (c.uv.bg.token == 0) // OR'ing the shadow if bg is completely transparent.
+                {
+                    st.meta_shadow_matrix(c.st);
+                }
+                else
+                {
+                    st = c.st;
+                }
             }
-            else st.meta(c.st);
+            else
+            {
+                if (c.uv.bg.token == 0) // OR'ing the shadow if bg is completely transparent.
+                {
+                    st.meta_shadow(c.st);
+                }
+                else
+                {
+                    st.meta(c.st);
+                }
+            }
             return *this;
         }
         // cell: Blend two cells if text part != '\0'.
@@ -1848,18 +1882,23 @@ namespace netxs
             st.reverse();
         }
         // cell: Desaturate and dim fg color.
-        void dim(si32 k = 1)
+        void disabled()
         {
-            if (k == 1)
+            uv.fg.grayscale();
+            uv.fg.shadow(78);
+            uv.fg.chan.a = 0xff;
+        }
+        auto& dim(si32 n)
+        {
+            if (n == -1)
             {
-                uv.fg.grayscale();
-                uv.fg.shadow(78);
-                uv.fg.chan.a = 0xff;
+                uv.fg.faint();
             }
             else
             {
-                uv.fg.dim();
+                st.dim(std::clamp(n, 0, 255));
             }
+            return *this;
         }
         // cell: Is the cell not transparent?
         bool is_alpha_blendable() const
@@ -2019,6 +2058,7 @@ namespace netxs
         auto  stk() const  { return st.stk();      } // cell: Return strikethrough attribute.
         auto  blk() const  { return st.blk();      } // cell: Return blink attribute.
         auto  hid() const  { return st.hid();      } // cell: Return hidden attribute.
+        auto  dim() const  { return st.dim();      } // cell: Return shadow attribute.
         auto& stl()        { return st.token;      } // cell: Return style token.
         auto& stl() const  { return st.token;      } // cell: Return style token.
         auto link() const  { return id;            } // cell: Return object ID.
@@ -2168,6 +2208,11 @@ namespace netxs
                 template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
                 template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.alpha_sum(src); }
             };
+            struct alphamix_t : public brush_t<alphamix_t>
+            {
+                template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
+                template<class D, class S>  inline void operator () (D& dst, S& src) const { argb::alpha_mix(src, dst); }
+            };
             struct full_t : public brush_t<full_t>
             {
                 template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
@@ -2255,7 +2300,7 @@ namespace netxs
                 {
                     return disabled_t{};
                 }
-                template<class D> inline void operator () (D& dst) const { dst.dim(); }
+                template<class D> inline void operator () (D& dst) const { dst.disabled(); }
             };
             struct transparent_t : public brush_t<transparent_t>
             {
@@ -2274,6 +2319,15 @@ namespace netxs
                 { }
                 template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.fuse(src); dst.bga(alpha); }
                 template<class D>           inline void operator () (D& dst)         const { dst.bga(alpha); }
+            };
+            struct shadow_t
+            {
+                si32 shadow_index;
+                constexpr shadow_t(si32 shadow_index)
+                    : shadow_index{ std::clamp(shadow_index, 0, 255) }
+                { }
+                template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.fuse(src); dst.st.fuse_dim(shadow_index); }
+                template<class D>           inline void operator () (D& dst)         const { dst.st.fuse_dim(shadow_index); }
             };
             struct color_t
             {
@@ -2354,6 +2408,7 @@ namespace netxs
             static constexpr auto transparent(si32     a) { return transparent_t{ a     }; }
             static constexpr auto     xlucent(si32     a) { return     xlucent_t{ a     }; }
             static constexpr auto      onlyid(id_t newid) { return      onlyid_t{ newid }; }
+            static constexpr auto      shadow(si32 index) { return      shadow_t{ index }; }
             static constexpr auto   contrast =   contrast_t{};
             static constexpr auto   fusefull =   fusefull_t{};
             static constexpr auto    overlay =    overlay_t{};
@@ -2362,6 +2417,7 @@ namespace netxs
             static constexpr auto   blendpma =   blendpma_t{};
             static constexpr auto      blend =      blend_t{};
             static constexpr auto      alpha =      alpha_t{};
+            static constexpr auto   alphamix =   alphamix_t{};
             static constexpr auto       lite =       lite_t{};
             static constexpr auto       fuse =       fuse_t{};
             static constexpr auto       flat =       flat_t{};
@@ -2506,7 +2562,7 @@ namespace netxs
                     }
                 }
             }
-            // shadow: Render rectanguler shadow for window rect.
+            // shadow: Render a rectangular shadow for the window rectangle.
             auto render(auto&& canvas, auto clip, auto window, auto fx)
             {
                 auto dst = rect{ window.coor - over / 2, window.size + over };
@@ -2677,7 +2733,7 @@ namespace netxs
         {
             netxs::onrect(canvas, canvas.area(), fx);
         }
-        void cage(auto&& canvas, rect area, dent border, auto fx) // core: Draw the cage around specified area.
+        void cage(auto&& canvas, rect area, dent border, auto fx) // core: Draw cage inside the specified area.
         {
             auto temp = area;
             temp.size.y = std::max(0, border.t); // Top

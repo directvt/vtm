@@ -2079,6 +2079,7 @@ namespace netxs::ui
                 data += b ? set : off;
             }
             auto unc(argb ) { }
+            auto dim(si32 ) { }
             auto und(si32 unline)
             {
                 static constexpr auto off = "\\ul0 "sv;
@@ -2240,6 +2241,7 @@ namespace netxs::ui
             auto bgc(argb ) { }
             auto bld(bool ) { }
             auto itc(bool ) { }
+            auto dim(si32 ) { }
             auto und(si32 ) { }
             auto unc(argb ) { }
             auto inv(bool ) { }
@@ -2323,6 +2325,7 @@ namespace netxs::ui
             auto bld(bool ) { }
             auto itc(bool ) { }
             auto und(si32 ) { }
+            auto dim(si32 ) { }
             auto unc(argb ) { }
             auto inv(bool ) { }
             auto stk(bool ) { }
@@ -2634,6 +2637,14 @@ namespace netxs::ui
         face& cub(si32 n = 1) { flow::dx(-n); return *this; } // face: Cursor backward.
         face& cnl(si32 n = 1) { flow::dy( n); return *this; } // face: Cursor next line.
         face& cpl(si32 n = 1) { flow::dy(-n); return *this; } // face: Cursor previous line.
+        // face: Set margins.
+        face& mgn(dent n)
+        {
+            auto area = core::area();
+            auto cropped_area = rect{ area.coor + std::max(dot_00, n.corner()), area.size - n };
+            flow::full(cropped_area);
+            return *this;
+        }
 
         face& ocp(twod p) { flow::oc( p); return *this; } // face: Cursor 1-based absolute position.
         face& ocx(si32 x) { flow::ox( x); return *this; } // face: Cursor 1-based horizontal absolute.

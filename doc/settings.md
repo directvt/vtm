@@ -781,10 +781,10 @@ Notes
         <format="html"/>  <!-- Default clipboard format for screenshots: "text" | "ansi" | "rich" | "html" | "protected" . -->
     </clipboard>
     <colors>  <!-- Along with fgc, bgc and txt, other SGR attributes (boolean) are allowed here: itc: italic, bld: bold, und: underline, inv: reverse, ovr: overline, blk: blink. -->
-        <window   fgc=whitelt   bgc=#40404080         />  <!-- Base desktop window color. -->
+        <window   fgc=whitelt   bgc= #40404080        />  <!-- Base desktop window color. -->
         <focus    fgc=purewhite bgc=bluelt            />  <!-- Focused item tinting. -->
         <brighter fgc=purewhite bgc=purewhite alpha=60/>  <!-- Brighter. -->
-        <shadower               bgc=#202020B4         />  <!-- Dimmer. -->
+        <shadower               bgc= #202020B4        />  <!-- Dimmer. -->
         <warning  fgc=whitelt   bgc=yellowdk          />  <!-- "Warning" color. -->
         <danger   fgc=whitelt   bgc=purered           />  <!-- "Danger" color. -->
         <action   fgc=whitelt   bgc=greenlt           />  <!-- "Action" color. -->
@@ -872,7 +872,7 @@ Notes
             </width>
             <timeout=250ms/>  <!-- Taskbar collaplse timeout after mouse leave. -->
             <colors>
-                <bground  fgc=whitedk bgc=#202020C0  />  <!-- Set the bgc color non-transparent (alpha to FF) to disable acrylics in taskbar. -->
+                <bground  fgc=whitedk bgc= #202020C0 />  <!-- Set the bgc color non-transparent (alpha to FF) to disable acrylics in taskbar. -->
                 <focused  fgc=puregreen              />  <!-- Focused taskbar item color. -->
                 <selected fgc=whitelt                />  <!-- Default taskbar item color. -->
                 <active   fgc=whitelt                />  <!-- Running taskbar item color. -->
@@ -886,15 +886,9 @@ Notes
             <height=1/>  <!-- Desktop space reserved on top. -->
         </panel>
         <background>  <!-- Desktop background. -->
-            <color fgc=whitedk bgc=0x80000000/>  <!-- Desktop background color. -->
+            <color fgc=whitedk bgc= #00007f80/>  <!-- Desktop background color. -->
             <tile=""/>                           <!-- Truecolor ANSI-art with gradients can be used here. -->
         </background>
-        <shadow enabled=0>  <!-- Desktop window shadows (TUI mode). -->
-            <blur=3/>         <!-- Blur radius (in cells). Default is "3". -->
-            <bias=0.37/>      <!-- Shadow contour bias [0.0 - 1.0]. Default is "0.37". -->
-            <opacity=105.5/>  <!-- Opacity level (alpha) [0.0 - 255.0]. Default is "105.5". -->
-            <offset=2,1/>     <!-- 2D offset relative to the window (in cells). Default is "2,1". -->
-        </shadow>
     </desktop>
     <terminal>  <!-- Base settings for the built-in terminal. It can be partially overridden by the menu item's config subarg. -->
         <sendinput=""/>  <!-- Send input on startup. E.g. sendinput="echo \"test\"\n" -->
@@ -928,7 +922,7 @@ Notes
             <color15 = whitelt    />
             <default fgc=whitedk bgc=pureblack/>  <!-- Default/current colors (SGR49/39). -->
             <bground = DefaultColor/>  <!-- Independent background color of the scrollback canvas. Set to 0x00ffffff(or =DefaultColor) to sync with SGR49 (default background). -->
-            <match fx="color" fgc=whitelt bgc=#007F00/>  <!-- Color of the selected text occurrences. Set an fx to use cell::shaders: "xlight" | "color" | "invert" | "reverse". -->
+            <match fx="color" fgc=whitelt bgc= #007F00/>  <!-- Color of the selected text occurrences. Set an fx to use cell::shaders: "xlight" | "color" | "invert" | "reverse". -->
             <selection>
                 <text      fx="color"  fgc=whitelt bgc=bluelt/>  <!-- Highlighting of the selected text in plaintext mode. -->
                 <protected fx="color"  fgc=whitelt bgc=bluelt/>  <!-- Note: The bgc and fgc attributes only apply to the fx=color shader. -->
