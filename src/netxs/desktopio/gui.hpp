@@ -1467,7 +1467,7 @@ namespace netxs::gui
                 else netxs::onrect(canvas, placeholder, cell::shaders::full(bgc));
             }
 
-            if (!c.hid()) // Render visible glyph.
+            while (!c.hid()) // Render visible glyph.
             {
                 auto& target = *target_ptr;
                 if (auto u = c.und())
@@ -1537,7 +1537,10 @@ namespace netxs::gui
                     block.coor += placeholder.coor;
                     netxs::onrect(target, block, cell::shaders::full(fgc));
                 }
-                if (c.xy() == 0) return;
+                if (c.xy() == 0)
+                {
+                    break;
+                }
                 auto token = c.tkn();
                 if (c.itc()) token ^= 0xAAAA'AAAA'AAAA'AA00; // Randomize token to differentiate italics (0xb101010...0000'0000 excluding matrix metadata).
                 if (c.bld()) token ^= 0x5555'5555'5555'5500; // Randomize token to differentiate bolds (0xb010101...0000'0000 excluding matrix metadata).
@@ -1548,13 +1551,16 @@ namespace netxs::gui
                     {
                         iter = glyphs.emplace(token, mono_buffer).first;
                     }
-                    else return;
+                    else break;
                 }
                 auto& glyph_mask = iter->second;
                 if (glyph_mask.type == sprite::undef)
                 {
-                    if (c.jgc()) rasterize(glyph_mask, c);
-                    else return;
+                    if (c.jgc())
+                    {
+                        rasterize(glyph_mask, c);
+                    }
+                    else break;
                 }
                 if (glyph_mask.area)
                 {
@@ -1582,6 +1588,7 @@ namespace netxs::gui
                 {
                     //edge
                 }
+                break;
             }
 
             if (auto shadow = c.dim()) // Render shadow if it is.
@@ -2309,8 +2316,9 @@ namespace netxs::gui
             {
                 auto& tooltip_page = *render_sptr;
                 auto  tooltip_clrs = cell{}.bgc(tooltip.default_bgc).fgc(tooltip.default_fgc);
-                page_to_grid(true, tooltip_grid, tooltip_page, cell::shaders::color(tooltip_clrs));
-                tooltip_layer.area.coor = mcoord + tooltip_offset * cellsz;
+                auto margins = dent{ 1,1,1,1 }; // Shadow around tooltip.
+                page_to_grid(true, tooltip_grid, tooltip_page, cell::shaders::color(tooltip_clrs), margins);
+                tooltip_layer.area.coor = mcoord + (tooltip_offset - margins.corner()) * cellsz;
                 tooltip_layer.area.size = tooltip_grid.size() * cellsz;
                 tooltip_layer.show();
             }
@@ -2487,12 +2495,13 @@ namespace netxs::gui
                 update_gui();
             });
         }
-        void page_to_grid(bool update_all, ui::face& target_grid, ui::page& source_page, auto fuse)
+        void page_to_grid(bool update_all, ui::face& target_grid, ui::page& source_page, auto fuse, dent margins = {})
         {
             auto grid_size = gridsz;
             target_grid.get_page_size(source_page, grid_size, update_all);
-            target_grid.size(grid_size);
+            target_grid.size(grid_size + margins);
             target_grid.wipe();
+            target_grid.mgn(margins);
             target_grid.cup(dot_00);
             target_grid.output(source_page, fuse);
         }
@@ -2701,6 +2710,8 @@ namespace netxs::gui
             }
             else
             {
+                auto area = facedata.area() - dent{ 1,1,1,1 };
+                ui::pro::ghost::draw_shadow(area, facedata);
                 fill_grid(canvas, facedata, dot_00);
             }
             s.strike<true>(canvas.area());

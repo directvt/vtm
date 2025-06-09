@@ -2727,7 +2727,7 @@ namespace netxs::ui
             static constexpr auto 𜺏𜹥 = 41; // 𜷂
             static constexpr auto 𜹺𜺏 = 148; // 𜷖
 
-            auto draw_shadow(face& canvas)
+            static auto draw_shadow(rect area, face& canvas)
             {
                 //if (skin::globals().shadow_enabled)
                 //{
@@ -2740,7 +2740,6 @@ namespace netxs::ui
                 //                                      [](cell& c, auto a){ c.alpha(a); });
                 //    shadow.render(canvas, canvas.area(), rect{ .size = boss.base::size() }, cell::shaders::blend);
                 //}
-                auto area = rect{ .size = boss.base::size() };
                 if (!area) return;
                 auto lt = rect{ area.coor - dot_11, dot_11 };
                 auto rb = rect{ area.coor + area.size, dot_11 };;
@@ -2802,7 +2801,7 @@ namespace netxs::ui
             {
                 boss.LISTEN(tier::release, e2::postrender, parent_canvas, memo)
                 {
-                    draw_shadow(parent_canvas);
+                    draw_shadow(rect{ .size = boss.base::size() }, parent_canvas);
                 };
                 //test
                 //boss.on(tier::mouserelease, input::key::MouseWheel, [&](hids& gear)

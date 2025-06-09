@@ -2637,6 +2637,14 @@ namespace netxs::ui
         face& cub(si32 n = 1) { flow::dx(-n); return *this; } // face: Cursor backward.
         face& cnl(si32 n = 1) { flow::dy( n); return *this; } // face: Cursor next line.
         face& cpl(si32 n = 1) { flow::dy(-n); return *this; } // face: Cursor previous line.
+        // face: Set margins.
+        face& mgn(dent n)
+        {
+            auto area = core::area();
+            auto cropped_area = rect{ area.coor + std::max(dot_00, n.corner()), area.size - n };
+            flow::full(cropped_area);
+            return *this;
+        }
 
         face& ocp(twod p) { flow::oc( p); return *this; } // face: Cursor 1-based absolute position.
         face& ocx(si32 x) { flow::ox( x); return *this; } // face: Cursor 1-based horizontal absolute.
