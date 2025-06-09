@@ -2663,18 +2663,18 @@ namespace netxs::ui
             // 0  0  1   0  1  0   1  0  0 //
             // 0 >32<0   0 >64<0   0>128<0 //
             // 0  0  0   0  0  0   0  0  0 //
-            static constexpr auto 𜺏𜹕 = 1;
-            static constexpr auto 𜹿𜹥 = 4;
-            static constexpr auto 𜺏𜹤 = 32;
-            static constexpr auto 𜺎𜹥 = 128;
+            static constexpr auto x3y3 = 1;   // 𜺏𜹕 = 1;
+            static constexpr auto x1y3 = 4;   // 𜹿𜹥 = 4;
+            static constexpr auto x3y1 = 32;  // 𜺏𜹤 = 32;
+            static constexpr auto x1y1 = 128; // 𜺎𜹥 = 128;
 
-            static constexpr auto 𜹯𜹥 = 2;
-            static constexpr auto 𜺍𜹥 = 64;
-            static constexpr auto 𜺏𜹡 = 8;
-            static constexpr auto 𜺋𜹥 = 16;
+            static constexpr auto x2y3 = 2;   // 𜹯𜹥 = 2;
+            static constexpr auto x2y1 = 64;  // 𜺍𜹥 = 64;
+            static constexpr auto x3y2 = 8;   // 𜺏𜹡 = 8;
+            static constexpr auto x1y2 = 16;  // 𜺋𜹥 = 16;
 
-            static constexpr auto 𜺎𜹤 = 160;
-            static constexpr auto 𜹿𜹕 = 5;
+            static constexpr auto x1y1_x3y1 = 160; // 𜺎𜹤 = 160;
+            static constexpr auto x1y3_x3y3 = 5;   // 𜹿𜹕 = 5;
 
             // 2x2:
             // 0  0  0   0  0  0   0  0  0   0  0  0 //
@@ -2692,15 +2692,15 @@ namespace netxs::ui
             // 0  0  1   0  1  1   1  1  0   1  0  0 //
             // 0 >32<0   0 >96<0   0>192<0   0>128<0 //
             // 0  0  0   0  0  0   0  0  0   0  0  0 //
-            static constexpr auto 𜹯𜹕 = 3;
-            static constexpr auto 𜹟𜹥 = 6;
-            static constexpr auto 𜺍𜹤 = 96;
-            static constexpr auto 𜺌𜹥 = 192;
+            static constexpr auto x2y3_x3y3 = 3;   // 𜹯𜹕 = 3;
+            static constexpr auto x1y3_x2y3 = 6;   // 𜹟𜹥 = 6;
+            static constexpr auto x2y1_x3y1 = 96;  // 𜺍𜹤 = 96;
+            static constexpr auto x1y1_x2y1 = 192; // 𜺌𜹥 = 192;
 
-            static constexpr auto 𜺏𜹑 = 9;
-            static constexpr auto 𜺏𜹠 = 40;
-            static constexpr auto 𜹻𜹥 = 20;
-            static constexpr auto 𜺊𜹥 = 144;
+            static constexpr auto x3y2_x3y3 = 9;   // 𜺏𜹑 = 9;
+            static constexpr auto x3y1_x3y2 = 40;  // 𜺏𜹠 = 40;
+            static constexpr auto x1y2_x1y3 = 20;  // 𜹻𜹥 = 20;
+            static constexpr auto x1y1_x1y2 = 144; // 𜺊𜹥 = 144;
 
             // nxm:
             // 0  0  0   0  0  0    0  0  0    0  0  0   0  0  0 //
@@ -2722,10 +2722,10 @@ namespace netxs::ui
             // 0  0  1   0  1  1 ...1  1  1... 1  1  0   1  0  0 //
             // 0 >32<0   0 >96<0    0>224<0    0>192<0   0>128<0 //
             // 0  0  0   0  0  0    0  0  0    0  0  0   0  0  0 //
-            static constexpr auto 𜹟𜹟 = 7;
-            static constexpr auto 𜺌𜺌 = 224;
-            static constexpr auto 𜺏𜹥 = 41; // 𜷂
-            static constexpr auto 𜹺𜺏 = 148; // 𜷖
+            static constexpr auto x1y3_x2y3_x3y3 = 7;    // 𜹟𜹟 = 7;
+            static constexpr auto x1y1_x2y1_x3y1 = 224;  // 𜺌𜺌 = 224;
+            static constexpr auto x3y1_x3y2_x3y3 = 41;   // 𜺏𜹥 = 41; // 𜷂
+            static constexpr auto x1y1_x1y2_x1y3 = 148;  // 𜹺𜺏 = 148; // 𜷖
 
             static auto draw_shadow(rect area, face& canvas)
             {
@@ -2734,16 +2734,16 @@ namespace netxs::ui
                 auto rb = rect{ area.coor + area.size, dot_11 };;
                 auto rt = rect{{ rb.coor.x, lt.coor.y }, dot_11 };
                 auto lb = rect{{ lt.coor.x, rb.coor.y }, dot_11 };
-                canvas.fill(lt, cell::shaders::shadow(𜺏𜹕));
-                canvas.fill(rt, cell::shaders::shadow(𜹿𜹥));
-                canvas.fill(lb, cell::shaders::shadow(𜺏𜹤));
-                canvas.fill(rb, cell::shaders::shadow(𜺎𜹥));
+                canvas.fill(lt, cell::shaders::shadow(x3y3));
+                canvas.fill(rt, cell::shaders::shadow(x1y3));
+                canvas.fill(lb, cell::shaders::shadow(x3y1));
+                canvas.fill(rb, cell::shaders::shadow(x1y1));
                 if (area.size.x == 1)
                 {
                     auto x1_top_mid = rect{{ area.coor.x, area.coor.y - 1 }, dot_11 };
                     auto x1_bot_mid = rect{{ area.coor.x, area.coor.y + area.size.y }, dot_11 };
-                    canvas.fill(x1_top_mid, cell::shaders::shadow(𜹯𜹥));
-                    canvas.fill(x1_bot_mid, cell::shaders::shadow(𜺍𜹥));
+                    canvas.fill(x1_top_mid, cell::shaders::shadow(x2y3));
+                    canvas.fill(x1_bot_mid, cell::shaders::shadow(x2y1));
                 }
                 else
                 {
@@ -2753,19 +2753,19 @@ namespace netxs::ui
                     auto x_bot_rig = rect{{ x_top_rig.coor.x, x_bot_lef.coor.y }, dot_11 };
                     auto x_top_mid = rect{{ area.coor.x + 1, x_top_lef.coor.y }, { std::max(0, area.size.x - 2), 1 }};
                     auto x_bot_mid = rect{{ x_top_mid.coor.x, x_bot_lef.coor.y }, x_top_mid.size };
-                    canvas.fill(x_top_lef, cell::shaders::shadow(𜹯𜹕));
-                    canvas.fill(x_top_rig, cell::shaders::shadow(𜹟𜹥));
-                    canvas.fill(x_bot_lef, cell::shaders::shadow(𜺍𜹤));
-                    canvas.fill(x_bot_rig, cell::shaders::shadow(𜺌𜹥));
-                    canvas.fill(x_top_mid, cell::shaders::shadow(𜹟𜹟));
-                    canvas.fill(x_bot_mid, cell::shaders::shadow(𜺌𜺌));
+                    canvas.fill(x_top_lef, cell::shaders::shadow(x2y3_x3y3));
+                    canvas.fill(x_top_rig, cell::shaders::shadow(x1y3_x2y3));
+                    canvas.fill(x_bot_lef, cell::shaders::shadow(x2y1_x3y1));
+                    canvas.fill(x_bot_rig, cell::shaders::shadow(x1y1_x2y1));
+                    canvas.fill(x_top_mid, cell::shaders::shadow(x1y3_x2y3_x3y3));
+                    canvas.fill(x_bot_mid, cell::shaders::shadow(x1y1_x2y1_x3y1));
                 }
                 if (area.size.y == 1)
                 {
                     auto y1_lef_mid = rect{{ area.coor.x - 1, area.coor.y }, dot_11 };
                     auto y1_rig_mid = rect{{ area.coor.x + area.size.x, area.coor.y }, dot_11 };
-                    canvas.fill(y1_lef_mid, cell::shaders::shadow(𜺏𜹡));
-                    canvas.fill(y1_rig_mid, cell::shaders::shadow(𜺋𜹥));
+                    canvas.fill(y1_lef_mid, cell::shaders::shadow(x3y2));
+                    canvas.fill(y1_rig_mid, cell::shaders::shadow(x1y2));
                 }
                 else
                 {
@@ -2775,12 +2775,12 @@ namespace netxs::ui
                     auto y_rig_bot = rect{{ y_rig_top.coor.x, y_lef_bot.coor.y }, dot_11 };
                     auto y_lef_mid = rect{{ y_lef_top.coor.x, area.coor.y + 1 }, { 1, std::max(0, area.size.y - 2) }};
                     auto y_rig_mid = rect{{ y_rig_top.coor.x, y_lef_mid.coor.y }, y_lef_mid.size };
-                    canvas.fill(y_lef_top, cell::shaders::shadow(𜺏𜹑));
-                    canvas.fill(y_lef_bot, cell::shaders::shadow(𜺏𜹠));
-                    canvas.fill(y_rig_top, cell::shaders::shadow(𜹻𜹥));
-                    canvas.fill(y_rig_bot, cell::shaders::shadow(𜺊𜹥));
-                    canvas.fill(y_lef_mid, cell::shaders::shadow(𜺏𜹥));
-                    canvas.fill(y_rig_mid, cell::shaders::shadow(𜹺𜺏));
+                    canvas.fill(y_lef_top, cell::shaders::shadow(x3y2_x3y3));
+                    canvas.fill(y_lef_bot, cell::shaders::shadow(x3y1_x3y2));
+                    canvas.fill(y_rig_top, cell::shaders::shadow(x1y2_x1y3));
+                    canvas.fill(y_rig_bot, cell::shaders::shadow(x1y1_x1y2));
+                    canvas.fill(y_lef_mid, cell::shaders::shadow(x3y1_x3y2_x3y3));
+                    canvas.fill(y_rig_mid, cell::shaders::shadow(x1y1_x1y2_x1y3));
                 }
             }
 

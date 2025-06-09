@@ -988,22 +988,22 @@ namespace netxs::gui
                 auto matrix = i;
                 // Left verticals.
                 auto l = l_area_1x1;
-                auto mid_bits = (matrix & ghost::𜺍𜹥) | (matrix & ghost::𜹯𜹥);
-                if ((matrix & ghost::𜹺𜺏) == ghost::𜹺𜺏)
+                auto mid_bits = (matrix & ghost::x2y1) | (matrix & ghost::x2y3);
+                if ((matrix & ghost::x1y1_x1y2_x1y3) == ghost::x1y1_x1y2_x1y3)
                 {
                     l.size = { width, height * 3 };
-                    matrix = (matrix & ~ghost::𜹺𜺏) | ((mid_bits & ghost::𜹺𜺏) << 1);
+                    matrix = (matrix & ~ghost::x1y1_x1y2_x1y3) | ((mid_bits & ghost::x1y1_x1y2_x1y3) << 1);
                 }
-                else if ((matrix & ghost::𜺊𜹥) == ghost::𜺊𜹥)
+                else if ((matrix & ghost::x1y1_x1y2) == ghost::x1y1_x1y2)
                 {
                     l.size = { width, height * 2 };
-                    matrix = (matrix & ~ghost::𜺊𜹥) | ((mid_bits & ghost::𜺊𜹥) << 1);
+                    matrix = (matrix & ~ghost::x1y1_x1y2) | ((mid_bits & ghost::x1y1_x1y2) << 1);
                 }
-                else if ((matrix & ghost::𜹻𜹥) == ghost::𜹻𜹥)
+                else if ((matrix & ghost::x1y2_x1y3) == ghost::x1y2_x1y3)
                 {
                     l.coor.y += height;
                     l.size = { width, height * 2 };
-                    matrix = (matrix & ~ghost::𜹻𜹥) | ((mid_bits & ghost::𜹻𜹥) << 1);
+                    matrix = (matrix & ~ghost::x1y2_x1y3) | ((mid_bits & ghost::x1y2_x1y3) << 1);
                 }
                 if (l)
                 {
@@ -1011,21 +1011,21 @@ namespace netxs::gui
                 }
                 // Right verticals.
                 auto r = r_area_1x1;
-                if ((matrix & ghost::𜺏𜹥) == ghost::𜺏𜹥)
+                if ((matrix & ghost::x3y1_x3y2_x3y3) == ghost::x3y1_x3y2_x3y3)
                 {
                     r.size = { width, height * 3 };
-                    matrix = (matrix & ~ghost::𜺏𜹥) | ((mid_bits & ghost::𜺏𜹥) >> 1);
+                    matrix = (matrix & ~ghost::x3y1_x3y2_x3y3) | ((mid_bits & ghost::x3y1_x3y2_x3y3) >> 1);
                 }
-                else if ((matrix & ghost::𜺏𜹠) == ghost::𜺏𜹠)
+                else if ((matrix & ghost::x3y1_x3y2) == ghost::x3y1_x3y2)
                 {
                     r.size = { width, height * 2 };
-                    matrix = (matrix & ~ghost::𜺏𜹠) | ((mid_bits & ghost::𜺏𜹠) >> 1);
+                    matrix = (matrix & ~ghost::x3y1_x3y2) | ((mid_bits & ghost::x3y1_x3y2) >> 1);
                 }
-                else if ((matrix & ghost::𜺏𜹑) == ghost::𜺏𜹑)
+                else if ((matrix & ghost::x3y2_x3y3) == ghost::x3y2_x3y3)
                 {
                     r.coor.y += height;
                     r.size = { width, height * 2 };
-                    matrix = (matrix & ~ghost::𜺏𜹑) | ((mid_bits & ghost::𜺏𜹑) >> 1);
+                    matrix = (matrix & ~ghost::x3y2_x3y3) | ((mid_bits & ghost::x3y2_x3y3) >> 1);
                 }
                 if (r)
                 {
@@ -1033,36 +1033,36 @@ namespace netxs::gui
                 }
                 // Top horizontals.
                 auto t = l_area_1x1;
-                if ((matrix & ghost::𜺌𜺌) == ghost::𜺌𜺌)
+                if ((matrix & ghost::x1y1_x2y1_x3y1) == ghost::x1y1_x2y1_x3y1)
                 {
                     t.size = { width * 3, height };
                 }
-                else if ((matrix & ghost::𜺌𜹥) == ghost::𜺌𜹥)
+                else if ((matrix & ghost::x1y1_x2y1) == ghost::x1y1_x2y1)
                 {
                     t.size = { width * 2, height };
                 }
-                else if ((matrix & ghost::𜺍𜹤) == ghost::𜺍𜹤)
+                else if ((matrix & ghost::x2y1_x3y1) == ghost::x2y1_x3y1)
                 {
                     t.size = { width * 2, height };
                     t.coor.x += width;
                 }
-                else if ((matrix & ghost::𜺎𜹤) == ghost::𜺎𜹤)
+                else if ((matrix & ghost::x1y1_x3y1) == ghost::x1y1_x3y1)
                 {
                     t.size = { width, height };
                     auto t2 = t;
                     t.coor.x += width * 2;
                     shadow.render(raster, raster.area(), t2, cell::shaders::alphamix);
                 }
-                else if ((matrix & ghost::𜺎𜹥) == ghost::𜺎𜹥)
+                else if ((matrix & ghost::x1y1) == ghost::x1y1)
                 {
                     t.size = { width, height };
                 }
-                else if ((matrix & ghost::𜺍𜹥) == ghost::𜺍𜹥)
+                else if ((matrix & ghost::x2y1) == ghost::x2y1)
                 {
                     t.size = { width, height };
                     t.coor.x += width;
                 }
-                else if ((matrix & ghost::𜺏𜹤) == ghost::𜺏𜹤)
+                else if ((matrix & ghost::x3y1) == ghost::x3y1)
                 {
                     t.size = { width, height };
                     t.coor.x += width * 2;
@@ -1074,12 +1074,12 @@ namespace netxs::gui
                 // Mid horizontals.
                 auto m = l_area_1x1;
                 m.coor.y += height;
-                if ((matrix & ghost::𜺋𜹥) == ghost::𜺋𜹥)
+                if ((matrix & ghost::x1y2) == ghost::x1y2)
                 {
                     m.size = { width, height };
                     shadow.render(raster, raster.area(), m, cell::shaders::alphamix);
                 }
-                else if ((matrix & ghost::𜺏𜹡) == ghost::𜺏𜹡)
+                else if ((matrix & ghost::x3y2) == ghost::x3y2)
                 {
                     m.size = { width, height };
                     m.coor.x += width * 2;
@@ -1088,36 +1088,36 @@ namespace netxs::gui
                 // Bottom horizontals.
                 auto b = l_area_1x1;
                 b.coor.y += height * 2;
-                if ((matrix & ghost::𜹟𜹟) == ghost::𜹟𜹟)
+                if ((matrix & ghost::x1y3_x2y3_x3y3) == ghost::x1y3_x2y3_x3y3)
                 {
                     b.size = { width * 3, height };
                 }
-                else if ((matrix & ghost::𜹟𜹥) == ghost::𜹟𜹥)
+                else if ((matrix & ghost::x1y3_x2y3) == ghost::x1y3_x2y3)
                 {
                     b.size = { width * 2, height };
                 }
-                else if ((matrix & ghost::𜹯𜹕) == ghost::𜹯𜹕)
+                else if ((matrix & ghost::x2y3_x3y3) == ghost::x2y3_x3y3)
                 {
                     b.size = { width * 2, height };
                     b.coor.x += width;
                 }
-                else if ((matrix & ghost::𜹿𜹕) == ghost::𜹿𜹕)
+                else if ((matrix & ghost::x1y3_x3y3) == ghost::x1y3_x3y3)
                 {
                     b.size = { width, height };
                     auto b2 = b;
                     b.coor.x += width * 2;
                     shadow.render(raster, raster.area(), b2, cell::shaders::alphamix);
                 }
-                else if ((matrix & ghost::𜹿𜹥) == ghost::𜹿𜹥)
+                else if ((matrix & ghost::x1y3) == ghost::x1y3)
                 {
                     b.size = { width, height };
                 }
-                else if ((matrix & ghost::𜹯𜹥) == ghost::𜹯𜹥)
+                else if ((matrix & ghost::x2y3) == ghost::x2y3)
                 {
                     b.size = { width, height };
                     b.coor.x += width;
                 }
-                else if ((matrix & ghost::𜺏𜹕) == ghost::𜺏𜹕)
+                else if ((matrix & ghost::x3y3) == ghost::x3y3)
                 {
                     b.size = { width, height };
                     b.coor.x += width * 2;

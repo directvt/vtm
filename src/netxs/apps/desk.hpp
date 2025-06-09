@@ -552,7 +552,7 @@ namespace netxs::app::desk
                     {
                         auto vert_line = parent_canvas.clip();
                         vert_line.size.x = 1;
-                        parent_canvas.fill(vert_line, cell::shaders::shadow(ui::pro::ghost::𜹺𜺏));
+                        parent_canvas.fill(vert_line, cell::shaders::shadow(ui::pro::ghost::x1y1_x1y2_x1y3));
                     };
                 });
             auto taskbar_grips = taskbar_viewport->attach(slot::_1, ui::fork::ctor(axis::X))
