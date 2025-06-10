@@ -444,14 +444,15 @@ R"==(
         </ExclusiveKeyboard>
         <WrapMode label=" NoWrap " script=OnLeftClick|TerminalWrapMode>
             <tooltip>
-                " Wrapping text lines on/off      \n"
-                "   Applied to selection if it is "
+                " \e[1mText line wrapping mode\e[m  \n"
+                " Text wrapping on         "
             </tooltip>
             <script>
                 <on="release: terminal::events::layout::wrapln" source="terminal"/>
                 local m=vtm()                           -- Use event arguments to get the current state.
                 -- local m=vtm.terminal.LineWrapMode()  -- or ask the terminal instance iteslf for the current state.
                 vtm.item.Label(m~=1 and "\e[2:247m \e[2:231;38:2:0:255:0mNoWrap\e[2:239m \e[m" or " NoWrap ")
+                vtm.item.Tooltip(m~=1 and " \e[1mText line wrapping mode\e[m  \\n Text wrapping off        " or " \e[1mText line wrapping mode\e[m  \\n Text wrapping on         ")
                 vtm.item.Deface()
             </script>
         </WrapMode>
