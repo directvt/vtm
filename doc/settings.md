@@ -887,7 +887,7 @@ Notes
         </panel>
         <background>  <!-- Desktop background. -->
             <color fgc=whitedk bgc= #00007f80/>  <!-- Desktop background color. -->
-            <tile=""/>                           <!-- Truecolor ANSI-art with gradients can be used here. -->
+            <tile=""/>                           <!-- Truecolor ANSI-art can be used here. -->
         </background>
     </desktop>
     <terminal>  <!-- Base settings for the built-in terminal. It can be partially overridden by the menu item's config subarg. -->
@@ -1129,7 +1129,7 @@ Notes
                 <on="release: e2::form::prop::zorder" source="applet"/>
                 local is_topmost=vtm()                   -- Use event arguments to get the current state.
                 -- local is_topmost=vtm.applet.ZOrder()  -- or ask the object iteslf for the current state.
-                vtm.item.Label(is_topmost==1 and "\\x1b[38:2:0:255:0m▀ \\x1b[m" or "  ")
+                vtm.item.Label(is_topmost==1 and "\e[2:247;38:2:0:255:0m▀\e[2:239m \e[m" or "  ")
                 vtm.item.Tooltip(is_topmost==1 and " AlwaysOnTop on " or " AlwaysOnTop off ")
                 vtm.item.Deface()
             </script>
@@ -1148,7 +1148,7 @@ Notes
                 "   Match clipboard data if no selection  "
             </tooltip>
         </FindNext>
-        <ExclusiveKeyboard label="   Desktop   " script=OnLeftClick|ExclusiveKeyboardMode>
+        <ExclusiveKeyboard label="  Exclusive  " script=OnLeftClick|ExclusiveKeyboardMode>
             <tooltip>
                 " \e[1mToggle exclusive keyboard mode\e[m              \n"
                 "   Exclusive keyboard mode allows keystrokes \n"
@@ -1158,21 +1158,22 @@ Notes
                 <on="release: terminal::events::rawkbd" source="terminal"/>
                 local m=vtm()                                    -- Use event arguments to get the current state.
                 -- local m=vtm.terminal.ExclusiveKeyboardMode()  -- or ask the terminal instance iteslf for the current state.
-                vtm.item.Label(m==1 and "\e[48:2:0:128:128;38:2:0:255:0m  Exclusive  \e[m" or "   Desktop   ")
+                vtm.item.Label(m==1 and "\e[2:247m \e[2:231;38:2:0:255:0m Exclusive \e[2:239m \e[m" or "  Exclusive  ")
                 vtm.item.Tooltip(m==1 and " ExclusiveKeyboardMode on " or " ExclusiveKeyboardMode off ")
                 vtm.item.Deface()
             </script>
         </ExclusiveKeyboard>
-        <WrapMode label="  Wrap  " script=OnLeftClick|TerminalWrapMode>
+        <WrapMode label=" NoWrap " script=OnLeftClick|TerminalWrapMode>
             <tooltip>
-                " Wrapping text lines on/off      \n"
-                "   Applied to selection if it is "
+                " \e[1mText line wrapping mode\e[m  \n"
+                " Text wrapping on         "
             </tooltip>
             <script>
                 <on="release: terminal::events::layout::wrapln" source="terminal"/>
                 local m=vtm()                           -- Use event arguments to get the current state.
                 -- local m=vtm.terminal.LineWrapMode()  -- or ask the terminal instance iteslf for the current state.
-                vtm.item.Label(m==1 and "\e[38:2:0:255:0m  Wrap  \e[m" or "  Wrap  ")
+                vtm.item.Label(m~=1 and "\e[2:247m \e[2:231;38:2:0:255:0mNoWrap\e[2:239m \e[m" or " NoWrap ")
+                vtm.item.Tooltip(m~=1 and " \e[1mText line wrapping mode\e[m  \\n Text wrapping off        " or " \e[1mText line wrapping mode\e[m  \\n Text wrapping on         ")
                 vtm.item.Deface()
             </script>
         </WrapMode>
@@ -1203,7 +1204,7 @@ Notes
                 <on="release: terminal::events::io_log" source="terminal"/>
                 local m=vtm()                      -- Use event arguments to get the current state.
                 -- local m=vtm.terminal.LogMode()  -- or ask the terminal instance iteslf for the current state.
-                vtm.item.Label(m==1 and "\e[38:2:0:255:0m  Log  \e[m" or "  Log  ")
+                vtm.item.Label(m==1 and "\e[2:247m \e[2:231;38:2:0:255:0m Log \e[2:239m \e[m" or "  Log  ")
                 vtm.item.Deface()
             </script>
         </StdioLog>

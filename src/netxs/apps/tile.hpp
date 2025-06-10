@@ -287,7 +287,7 @@ namespace netxs::app::tile
         auto build_node = [](auto tag, auto slot1, auto slot2, auto grip_width, auto grip_bindings_ptr)
         {
             auto highlight_color = skin::color(tone::winfocus);
-            auto c3 = highlight_color.bga(0x40);
+            auto c3 = highlight_color;
 
             auto node = tag == 'h' ? ui::fork::ctor(axis::X, grip_width == -1 ? 2 : grip_width, slot1, slot2)
                                    : ui::fork::ctor(axis::Y, grip_width == -1 ? 1 : grip_width, slot1, slot2);
@@ -385,6 +385,7 @@ namespace netxs::app::tile
         auto empty_slot = []
         {
             auto window_clr = skin::color(tone::window_clr);
+            window_clr.bga(0x60);
             auto highlight_color = skin::color(tone::winfocus);
             auto danger_color    = skin::color(tone::danger);
             auto c3 = highlight_color.bga(0x40);
@@ -1010,6 +1011,7 @@ namespace netxs::app::tile
                         boss.base::riseup(tier::release, e2::form::proceed::quit::one, true);
                     };
                     auto& luafx = boss.bell::indexer.luafx;
+                    tile_context = config.settings::push_context("/config/events/tile/");
                     auto script_list = config.settings::take_ptr_list_for_name("script");
                     auto bindings = input::bindings::load(config, script_list);
                     input::bindings::keybind(boss, bindings);
@@ -1504,7 +1506,6 @@ namespace netxs::app::tile
                         });
                     };
                 });
-            //config.settings::pop_context();
             return object;
         };
     }

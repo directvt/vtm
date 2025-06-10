@@ -21,6 +21,8 @@
 - Configurable scrollback buffer size (100k lines by default, limited by `max_int32` and system RAM).
 - Search for text in the scrollback buffer.
 - Linear and rectangular text selection for copying and searching.
+- Full [VT2D](character_geometry.md) support.
+- Shadow SGR attribute. See below for details.
 - Support for several formats of copying the selected text:
   - Plain text
   - RTF
@@ -53,6 +55,93 @@ Name         | Sequence                         | Description
 `CCC_RTL`    | `CSI` 13 : n `p`                 | Set text right-to-left mode, _default is Off_:<br>`n = 0`<br>`n = 1` On<br>`n = 2` Off
 
 Note: It is possible to combine multiple command into a single sequence using a semicolon. For example, the following sequence disables line wrapping, enables text selection, and sets background to blue: `\e[12:2;29:1;28:44p` or `\e[12:2;29:1;28:48:2:0:0:255p`.
+
+### Shadow SGR attribute
+
+Built-in terminal supports a shadow SGR attribute in form of 3x3 shadow cube:
+- `CSI` 2 : n `m`  
+  where n=0-255 is a bit field to specify shadows inside the cell.
+
+```
+Shadow bits:  0  1  2
+              3 >n< 4
+              5  6  7
+```
+Every bit drops the shadow inside the cell.
+
+Shadows persist as an SGR attribute and are visible in GUI mode.
+
+#### Examples
+- The shadow around a 1x1 window:
+  ```
+   0  0  0   0  0  0   0  0  0
+   0 >1< 0   0 >2< 0   0 >4< 0
+   0  0  1   0  1  0   1  0  0
+           ┌─────────┐        
+   0  0  0 │         │ 0  0  0
+   0 >8< 1 │  1x1    │ 1 >16<0
+   0  0  0 │  Window │ 0  0  0
+           └─────────┘        
+   0  0  1   0  1  0   1  0  0
+   0 >32<0   0 >64<0   0>128<0
+   0  0  0   0  0  0   0  0  0
+    ```
+- 3x1 shadow (outer and inner), `pwsh`:
+  ```pwsh
+  "`e[107;30m";`
+  "`e[2:1m `e[2:3m `e[2:7m `e[2:6m `e[2:4m ";`
+  "`e[2:8m `e[2:0m A `e[2:16m ";`
+  "`e[2:32m `e[2:96m `e[2:224m `e[2:192m `e[2:128m ";`
+  " `e[2:247m `e[2:231mA`e[2:239m `e[2:0m ";`
+  "     `e[m"
+  
+  ```
+  ![image](https://github.com/user-attachments/assets/4c485864-7e50-4356-ad77-da65f2a5764e)
+
+### VT2D support
+
+The built-in terminal supports Unicode character geometry modifiers (VT2D). See [Unicode character Geometry Modifiers](character_geometry.md) for details.
+
+Example 1. Output a 3x1 (31_00) character:
+  - `pwsh`
+    ```pwsh
+    "👩‍👩‍👧‍👧`u{D009F}"
+    ```
+  - `bash`
+    ```bash
+    printf "👩‍👩‍👧‍👧\UD009F\n"
+    ```
+Example 2. Output a 6x2 character (by stacking two 6x1 fragments 62_01 and 62_02 on top of each other):
+  - `pwsh`
+    ```pwsh
+    "👩‍👩‍👧‍👧`u{D0279}`n👩‍👩‍👧‍👧`u{D0312}"
+    ```
+  - `bash`
+    ```bash
+    printf "👩‍👩‍👧‍👧\UD0279\n👩‍👩‍👧‍👧\UD0312\n"
+    ```
+Example 3. Output a solid 9x3 character:
+  - `pwsh`
+    ```pwsh
+    "👩‍👩‍👧‍👧`u{D03C3}"
+    ```
+  - `bash`
+    ```bash
+    printf "👩‍👩‍👧‍👧\UD03C3\n"
+    ```
+Example 4. Output the longest word in the Hindi language 16x1 (G1_00):
+  - `pwsh`
+    ```pwsh
+    "`u{2}विश्वविज्ञानकोशनिर्माणसमिति`u{D0121}"
+    ```
+  - `bash`
+    ```bash
+    printf "\U2विश्वविज्ञानकोशनिर्माणसमिति\UD0121\n"
+    ```
+Screenshot:  
+  ![image](images/vtm_character_geometry_modifiers_screenshot.png)
+
+### Window menu
 
 It is possible to create your own terminal window menu from scratch by configuring own menu items in the `<config/terminal/menu/>` subsection of the configuration file. See (`doc/settings.md#event-scripting`)[https://github.com/directvt/vtm/blob/master/doc/settings.md#event-scripting] for details.
 
