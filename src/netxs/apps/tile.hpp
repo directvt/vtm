@@ -1011,6 +1011,7 @@ namespace netxs::app::tile
                         boss.base::riseup(tier::release, e2::form::proceed::quit::one, true);
                     };
                     auto& luafx = boss.bell::indexer.luafx;
+                    tile_context = config.settings::push_context("/config/events/tile/");
                     auto script_list = config.settings::take_ptr_list_for_name("script");
                     auto bindings = input::bindings::load(config, script_list);
                     input::bindings::keybind(boss, bindings);
@@ -1505,7 +1506,6 @@ namespace netxs::app::tile
                         });
                     };
                 });
-            //config.settings::pop_context();
             return object;
         };
     }
