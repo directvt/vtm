@@ -45,8 +45,8 @@ R"==(<include*/>  <!-- Ordered list of <include="/path/to/settings.xml"/>. The s
         <format="html"/>  <!-- Default clipboard format for screenshots: "text" | "ansi" | "rich" | "html" | "protected" . -->
     </clipboard>
     <colors>  <!-- Along with fgc, bgc and txt, other SGR attributes (boolean) are allowed here: itc: italic, bld: bold, und: underline, inv: reverse, ovr: overline, blk: blink. -->
-        <window   fgc=whitelt   bgc= #40404080        />  <!-- Base desktop window color. -->
-        <focus    fgc=purewhite bgc=bluelt            />  <!-- Focused item tinting. -->
+        <window   fgc=whitelt   bgc= #404040          />  <!-- Color of the unfocused desktop window. -->
+        <focus    fgc=purewhite bgc= #3A528E          />  <!-- Color of the focused window. -->
         <brighter fgc=purewhite bgc=purewhite alpha=60/>  <!-- Brighter. -->
         <shadower               bgc= #202020B4        />  <!-- Dimmer. -->
         <warning  fgc=whitelt   bgc=yellowdk          />  <!-- "Warning" color. -->

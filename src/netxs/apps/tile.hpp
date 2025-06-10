@@ -287,7 +287,7 @@ namespace netxs::app::tile
         auto build_node = [](auto tag, auto slot1, auto slot2, auto grip_width, auto grip_bindings_ptr)
         {
             auto highlight_color = skin::color(tone::winfocus);
-            auto c3 = highlight_color.bga(0x40);
+            auto c3 = highlight_color;
 
             auto node = tag == 'h' ? ui::fork::ctor(axis::X, grip_width == -1 ? 2 : grip_width, slot1, slot2)
                                    : ui::fork::ctor(axis::Y, grip_width == -1 ? 1 : grip_width, slot1, slot2);
@@ -385,6 +385,7 @@ namespace netxs::app::tile
         auto empty_slot = []
         {
             auto window_clr = skin::color(tone::window_clr);
+            window_clr.bga(0x60);
             auto highlight_color = skin::color(tone::winfocus);
             auto danger_color    = skin::color(tone::danger);
             auto c3 = highlight_color.bga(0x40);
