@@ -441,7 +441,28 @@ namespace netxs::app::shared
             }
             auto scrlarea = menufork->attach(menuslot, ui::cake::ctor());
             auto scrlrail = scrlarea->attach(ui::rail::ctor(axes::X_only, axes::all));
-            auto scrllist = scrlrail->attach(ui::list::ctor(axis::X));
+            auto scrllist = scrlrail->attach(ui::list::ctor(axis::X))
+                ->invoke([&](auto& boss)
+                {
+                    boss.LISTEN(tier::release, e2::postrender, parent_canvas) // Draw a shadow to split button groups.
+                    {
+                        auto clip = parent_canvas.clip();
+                        auto full = parent_canvas.full();
+                        if (clip.coor.x + clip.size.x < full.coor.x + full.size.x)
+                        {
+                            auto vert_line = clip;
+                            vert_line.coor.x += vert_line.size.x - 1;
+                            vert_line.size.x = 1;
+                            parent_canvas.fill(vert_line, cell::shaders::shadow(ui::pro::ghost::x3y1_x3y2_x3y3));
+                        }
+                        if (clip.coor.x > full.coor.x)
+                        {
+                            auto vert_line = clip;
+                            vert_line.size.x = 1;
+                            parent_canvas.fill(vert_line, cell::shaders::shadow(ui::pro::ghost::x1y1_x1y2_x1y3));
+                        }
+                    };
+                });
 
             auto scrlcake = ui::cake::ctor();
             auto scrlhint = scrlcake->attach(underlined_hz_scrollbar(scrlrail));
