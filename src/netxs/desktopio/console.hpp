@@ -993,7 +993,7 @@ namespace netxs::ui
             LISTEN(tier::preview, e2::form::proceed::create, dest_region)
             {
                 dest_region.coor += base::coor();
-                this->base::riseup(tier::release, e2::form::proceed::create, dest_region);
+                base::riseup(tier::release, e2::form::proceed::create, dest_region);
             };
             LISTEN(tier::release, e2::conio::pointer, pointer)
             {
@@ -1001,7 +1001,7 @@ namespace netxs::ui
             };
             LISTEN(tier::release, e2::form::upon::stopped, fast) // Reading loop ends.
             {
-                this->base::signal(tier::anycast, e2::form::proceed::quit::one, fast);
+                base::signal(tier::anycast, e2::form::proceed::quit::one, fast);
                 disconnect();
                 paint.stop();
                 bell::sensors.clear();
@@ -1018,11 +1018,11 @@ namespace netxs::ui
             {
                 base::update_scripting_context(); // Gate has no parents.
                 if (props.debug_overlay) debug.start();
-                this->base::signal(tier::release, e2::form::prop::name, props.title);
+                base::signal(tier::release, e2::form::prop::name, props.title);
                 //todo revise
                 if (props.title.length())
                 {
-                    this->base::riseup(tier::preview, e2::form::prop::ui::header, props.title);
+                    base::riseup(tier::preview, e2::form::prop::ui::header, props.title);
                 }
             };
             LISTEN(tier::request, e2::form::prop::ui::footer, f)
@@ -1161,7 +1161,10 @@ namespace netxs::ui
                 });
                 LISTEN(tier::release, e2::config::fps, fps)
                 {
-                    if (fps > 0) this->base::signal(tier::general, e2::config::fps, fps);
+                    if (fps > 0)
+                    {
+                        base::signal(tier::general, e2::config::fps, fps);
+                    }
                 };
                 LISTEN(tier::preview, e2::form::prop::cwd, path)
                 {

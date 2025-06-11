@@ -2419,7 +2419,7 @@ namespace netxs::ui
         {
             auto publish = [&](auto& combo)
             {
-                combo.coord = this->flow::print<true, Split>(combo, *this, printfx);
+                combo.coord = flow::print<true, Split>(combo, *this, printfx);
             };
             textpage.stream(publish);
         }

@@ -3536,7 +3536,7 @@ namespace netxs::gui
                 });
                 LISTEN(tier::release, input::events::focus::set::any, seed, -, (treeid = datetime::uniqueid(), digest = ui64{}))
                 {
-                    auto deed = this->bell::protos();
+                    auto deed = bell::protos();
                     auto state = deed == input::events::focus::set::on.id;
                     stream.sysfocus.send(stream.intio, seed.gear_id, state, seed.focus_type, treeid, ++digest);
                 };

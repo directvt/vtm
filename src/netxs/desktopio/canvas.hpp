@@ -1156,7 +1156,7 @@ namespace netxs
                 }
                 return crop;
             }
-            bool is_space() const //todo VS2019 complains on auto
+            auto is_space() const
             {
                 return (token & netxs::letoh((ui64)0xFF00)) <= netxs::letoh((ui64)whitespace << 8); // (byte)(bytes[1]) <= whitespace;
             }

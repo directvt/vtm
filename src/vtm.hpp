@@ -903,7 +903,7 @@ namespace netxs::app::vtm
                 {
                     if (base::holder != std::prev(world.base::subset.end()))
                     {
-                        world.base::subset.push_back(this->This());
+                        world.base::subset.push_back(This());
                         world.base::subset.erase(base::holder);
                         base::holder = std::prev(world.base::subset.end());
                         if (base::hidden) // Restore if window minimized.
@@ -925,7 +925,7 @@ namespace netxs::app::vtm
                             world.base::subset.erase(base::holder);
                             while (++next != world.base::subset.end() && !area.trim((*next)->region))
                             { }
-                            base::holder = world.base::subset.insert(next, this->This());
+                            base::holder = world.base::subset.insert(next, This());
                             base::strike();
                         }
                     }
@@ -1586,7 +1586,7 @@ namespace netxs::app::vtm
             LISTEN(tier::request, e2::form::layout::focus::any, gear_id)
             {
                 auto& counter = switch_counter[gear_id];
-                auto deed = this->bell::protos();
+                auto deed = bell::protos();
                 auto forward = deed == e2::form::layout::focus::next.id;
                 if (forward != (counter > 0)) counter = {}; // Reset if direction has changed.
                 forward ? counter++ : counter--;
@@ -1850,7 +1850,7 @@ namespace netxs::app::vtm
                 robot.actify(usergate.id, func, [&](auto& x)
                 {
                     usergate.base::moveby(-x);
-                    this->base::deface();
+                    base::deface();
                 });
             };
             usergate.LISTEN(tier::release, e2::form::layout::jumpto, window_inst)
@@ -1873,11 +1873,11 @@ namespace netxs::app::vtm
             });
             usergate.LISTEN(tier::release, e2::conio::mouse, m) // Trigger to redraw all gates on mouse activity (to redraw foreign mouse cursor).
             {
-                this->base::deface();
+                base::deface();
             };
             usergate.LISTEN(tier::release, e2::conio::winsz, w) // Trigger to redraw all gates.
             {
-                this->base::deface();
+                base::deface();
             };
             auto& drag_origin = usergate.base::field<fp2d>();
             auto& user_mouse = usergate.base::plugin<pro::mouse>();
@@ -1901,7 +1901,7 @@ namespace netxs::app::vtm
                 {
                     drag_origin = gear.coord;
                     usergate.base::moveby(-delta);
-                    this->base::deface();
+                    base::deface();
                 }
             };
             usergate.LISTEN(tier::release, e2::form::drag::stop::any, gear)
@@ -1911,7 +1911,7 @@ namespace netxs::app::vtm
                 robot.actify(usergate.id, gear.fader<quadratic<twod>>(2s), [&](auto delta)
                 {
                     usergate.base::moveby(-delta);
-                    this->base::deface();
+                    base::deface();
                 });
             };
 

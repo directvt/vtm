@@ -3417,7 +3417,7 @@ namespace netxs::ui
             LISTEN(tier::preview, e2::form::layout::swarp, warp)
             {
                 adaptive = true; // Adjust the grip ratio on coming resize.
-                this->bell::passover();
+                bell::passover();
             };
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
@@ -3533,7 +3533,7 @@ namespace netxs::ui
                     auto split = xpose(griparea.coor + delta).x;
                     auto limit = xpose(base::size() - griparea.size).x;
                     fraction = netxs::divround(max_ratio * split, limit);
-                    this->base::reflow();
+                    base::reflow();
                 };
             }
             item_ptr->base::signal(tier::release, e2::form::upon::vtree::attached, This());
@@ -4058,7 +4058,7 @@ namespace netxs::ui
             }
             base::resize(twod{ initial_width, 0 });
             base::reflow();
-            return this->This();
+            return postfx::This();
         }
         // post: .
         auto& get_source() const
@@ -4115,7 +4115,7 @@ namespace netxs::ui
             return twod{ !!(Axes & axes::X_only), !!(Axes & axes::Y_only) };
         }
         // rail: .
-        bool empty() //todo VS2019 requires bool
+        auto empty()
         {
             return base::subset.empty() || !base::subset.back();
         }
@@ -4149,7 +4149,7 @@ namespace netxs::ui
             LISTEN(tier::preview, e2::form::upon::scroll::any, info) // Receive scroll parameters from external sources.
             {
                 auto delta = dot_00;
-                switch (this->bell::protos())
+                switch (bell::protos())
                 {
                     case e2::form::upon::scroll::bycoor::v.id: delta = { scinfo.window.coor - info.window.coor };        break;
                     case e2::form::upon::scroll::bycoor::x.id: delta = { scinfo.window.coor.x - info.window.coor.x, 0 }; break;
@@ -4300,7 +4300,7 @@ namespace netxs::ui
                 master->LISTEN(tier::release, e2::form::upon::scroll::bycoor::any, master_scinfo, fasten)
                 {
                     auto backup_scinfo = master_scinfo;
-                    this->base::signal(tier::preview, e2::form::upon::scroll::bycoor::_<Axis>, backup_scinfo);
+                    base::signal(tier::preview, e2::form::upon::scroll::bycoor::_<Axis>, backup_scinfo);
                 };
             }
             else fasten.clear();
@@ -4467,7 +4467,7 @@ namespace netxs::ui
                 scinfo.region = block;
                 scinfo.window.coor =-coord; // Viewport.
                 scinfo.window.size = frame; //
-                this->base::signal(tier::release, e2::form::upon::scroll::bycoor::any, scinfo);
+                base::signal(tier::release, e2::form::upon::scroll::bycoor::any, scinfo);
             };
             return object;
         }
@@ -4480,7 +4480,7 @@ namespace netxs::ui
                 base::remove(object);
                 scinfo.region = {};
                 scinfo.window.coor = {};
-                this->base::signal(tier::release, e2::form::upon::scroll::bycoor::any, scinfo); // Reset dependent scrollbars.
+                base::signal(tier::release, e2::form::upon::scroll::bycoor::any, scinfo); // Reset dependent scrollbars.
                 fasten.clear();
             }
             else base::clear();
@@ -4654,7 +4654,7 @@ namespace netxs::ui
         template<auto Event>
         void send()
         {
-            if (auto master = this->boss.lock())
+            if (auto master = boss.lock())
             {
                 master->base::signal(tier::preview, Event, calc.master_inf);
             }
