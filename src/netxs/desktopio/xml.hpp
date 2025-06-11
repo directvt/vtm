@@ -626,14 +626,14 @@ namespace netxs::xml
                 auto size = arch{};
                 auto head = from;
                 auto tail = std::next(upto);
-                while (head == tail)
+                while (head != tail)
                 {
                     auto& frag = *head++;
                     size += frag.utf8.size();
                 }
                 crop.reserve(size);
                 head = from;
-                while (head == tail)
+                while (head != tail)
                 {
                     auto& frag = *head++;
                     crop += frag.utf8;
