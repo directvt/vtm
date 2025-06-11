@@ -2298,13 +2298,13 @@ namespace netxs::gui
         }
         void update_header()
         {
-            page_to_grid(faux, h_grid, titles.head_page, cell::shaders::contrast);
+            page_to_grid(faux, h_grid, titles.head_page, cell::shaders::contrast, { gridsz.x, dot_mx.y });
             sync_pixel_layout();
             netxs::set_flag<task::header>(reload);
         }
         void update_footer()
         {
-            page_to_grid(faux, f_grid, titles.foot_page, cell::shaders::contrast);
+            page_to_grid(faux, f_grid, titles.foot_page, cell::shaders::contrast, { gridsz.x, dot_mx.y });
             sync_pixel_layout();
             netxs::set_flag<task::footer>(reload);
         }
@@ -2317,7 +2317,7 @@ namespace netxs::gui
                 auto& tooltip_page = *render_sptr;
                 auto  tooltip_clrs = cell{}.bgc(tooltip.default_bgc).fgc(tooltip.default_fgc);
                 auto margins = dent{ dot_11 }; // Shadow around tooltip.
-                page_to_grid(true, tooltip_grid, tooltip_page, cell::shaders::color(tooltip_clrs), margins);
+                page_to_grid(true, tooltip_grid, tooltip_page, cell::shaders::color(tooltip_clrs), dot_mx, margins);
                 tooltip_layer.area.coor = mcoord + (tooltip_offset - margins.corner()) * cellsz;
                 tooltip_layer.area.size = tooltip_grid.size() * cellsz;
                 tooltip_layer.show();
@@ -2495,9 +2495,8 @@ namespace netxs::gui
                 update_gui();
             });
         }
-        void page_to_grid(bool update_all, ui::face& target_grid, ui::page& source_page, auto fuse, dent margins = {})
+        void page_to_grid(bool update_all, ui::face& target_grid, ui::page& source_page, auto fuse, twod grid_size, dent margins = {})
         {
-            auto grid_size = gridsz;
             target_grid.get_page_size(source_page, grid_size, update_all);
             target_grid.size(grid_size + margins);
             target_grid.wipe();
@@ -2516,8 +2515,8 @@ namespace netxs::gui
             master.area = blinky.area + border;
             if (fsmode != winstate::maximized)
             {
-                page_to_grid(faux, h_grid, titles.head_page, cell::shaders::contrast);
-                page_to_grid(faux, f_grid, titles.foot_page, cell::shaders::contrast);
+                page_to_grid(faux, h_grid, titles.head_page, cell::shaders::contrast, { gridsz.x, dot_mx.y });
+                page_to_grid(faux, f_grid, titles.foot_page, cell::shaders::contrast, { gridsz.x, dot_mx.y });
                 sync_pixel_layout();
             }
             if (sizechanged)
