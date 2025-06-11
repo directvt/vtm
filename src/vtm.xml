@@ -397,7 +397,7 @@ R"==(
             <script>  <!-- A binding to update the menu item label at runtime. -->
                 <on="release: e2::form::prop::zorder" source="applet"/>
                 local is_topmost=vtm()                   -- Use event arguments to get the current state.
-                -- local is_topmost=vtm.applet.ZOrder()  -- or ask the object iteslf for the current state.
+                -- local is_topmost=vtm.applet.ZOrder()  -- or ask the object itself for the current state.
                 vtm.item.Label(is_topmost==1 and "\e[2:247;38:2:0:255:0m▀\e[2:239m \e[m" or "  ")
                 vtm.item.Tooltip(is_topmost==1 and " AlwaysOnTop on " or " AlwaysOnTop off ")
                 vtm.item.Deface()
@@ -426,7 +426,7 @@ R"==(
             <script>
                 <on="release: terminal::events::rawkbd" source="terminal"/>
                 local m=vtm()                                    -- Use event arguments to get the current state.
-                -- local m=vtm.terminal.ExclusiveKeyboardMode()  -- or ask the terminal instance iteslf for the current state.
+                -- local m=vtm.terminal.ExclusiveKeyboardMode()  -- or ask the terminal instance itself for the current state.
                 vtm.item.Label(m==1 and "\e[2:247m \e[2:231;38:2:0:255:0m Exclusive \e[2:239m \e[m" or "  Exclusive  ")
                 vtm.item.Tooltip(m==1 and " ExclusiveKeyboardMode on " or " ExclusiveKeyboardMode off ")
                 vtm.item.Deface()
@@ -440,7 +440,7 @@ R"==(
             <script>
                 <on="release: terminal::events::layout::wrapln" source="terminal"/>
                 local m=vtm()                           -- Use event arguments to get the current state.
-                -- local m=vtm.terminal.LineWrapMode()  -- or ask the terminal instance iteslf for the current state.
+                -- local m=vtm.terminal.LineWrapMode()  -- or ask the terminal instance itself for the current state.
                 vtm.item.Label(m~=1 and "\e[2:247m \e[2:231;38:2:0:255:0mNoWrap\e[2:239m \e[m" or " NoWrap ")
                 vtm.item.Tooltip(m~=1 and " \e[1mText line wrapping mode\e[m  \\n Text wrapping off        " or " \e[1mText line wrapping mode\e[m  \\n Text wrapping on         ")
                 vtm.item.Deface()
@@ -450,7 +450,7 @@ R"==(
             <script>
                 <on="release: terminal::events::selmod" source="terminal"/>
                 local m=vtm()                              -- Use event arguments to get the current state.
-                -- local m=vtm.terminal.ClipboardFormat()  -- or ask the terminal instance iteslf for the current state.
+                -- local m=vtm.terminal.ClipboardFormat()  -- or ask the terminal instance itself for the current state.
                 vtm.item.Label(m==1 and "\e[38:2:0:255:0m  Plaintext  \e[m"     -- "textonly"
                             or m==2 and "\e[38:2:255:255:0m  ANSI-text  \e[m"   -- "ansitext"
                             or m==3 and "\e[38:2:109:231:237m  ".."R"..
@@ -472,7 +472,7 @@ R"==(
             <script>
                 <on="release: terminal::events::io_log" source="terminal"/>
                 local m=vtm()                      -- Use event arguments to get the current state.
-                -- local m=vtm.terminal.LogMode()  -- or ask the terminal instance iteslf for the current state.
+                -- local m=vtm.terminal.LogMode()  -- or ask the terminal instance itself for the current state.
                 vtm.item.Label(m==1 and "\e[2:247m \e[2:231;38:2:0:255:0m Log \e[2:239m \e[m" or "  Log  ")
                 vtm.item.Deface()
             </script>

@@ -349,7 +349,7 @@ Tiling Window Manager is a window container that organizes the workspace into mu
                 <script>  <!-- A binding to update the menu item label at runtime. -->
                     <on="release: e2::form::prop::zorder" source="applet"/>
                     local is_topmost=vtm()                   -- Use event arguments to get the current state.
-                    -- local is_topmost=vtm.applet.ZOrder()  -- or ask the object iteslf for the current state.
+                    -- local is_topmost=vtm.applet.ZOrder()  -- or ask the object itself for the current state.
                     vtm.item.Label(is_topmost==1 and "\\x1b[38:2:0:255:0m▀ \\x1b[m" or "  ")
                     vtm.item.Tooltip(is_topmost==1 and " AlwaysOnTop on " or " AlwaysOnTop off ")
                     vtm.item.Deface()
