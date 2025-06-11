@@ -773,7 +773,7 @@ namespace netxs::ui
             }
             return parent_ptr;
         }
-        // base: Fire an event for all nested objects (except those with base::master == true).
+        // base: Fire an event for the owner and then for all nested objects (except those with base::master == true).
         void broadcast(si32 Tier, hint event, auto&& param, bool forced = true)
         {
             auto lock = bell::sync();
@@ -806,7 +806,10 @@ namespace netxs::ui
                 auto root_ptr = gettop();
                 root_ptr->broadcast(Tier, event, param, faux);
             }
-            else bell::_signal(Tier, event, param);
+            else
+            {
+                bell::_signal(Tier, event, param);
+            }
         }
         // base: Fire an event.
         // Usage example:

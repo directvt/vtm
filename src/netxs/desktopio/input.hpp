@@ -508,7 +508,7 @@ namespace netxs::input
                 auto crop = std::vector<text>{};
                 //todo reimplement chord_list
                 if (auto anytest = utf::to_lower(chord);
-                    anytest.starts_with("any") ||
+                   (anytest.starts_with("any") && !anytest.starts_with(tier::str[tier::anycast])) ||
                    (anytest.starts_with(tier::str[tier::preview])
                        && utf::get_trimmed((view{ anytest }.substr(tier::str[tier::preview].size())), ": ").starts_with("any")))
                 {
@@ -2259,7 +2259,7 @@ namespace netxs::input
                     //         log("chord='%%' \tpreview=%% source='%%' script=%%", on_rec, (si32)preview, source, ansi::hi(*script_body_ptr));
                     //    }
                     //}
-                    bindings.push_back({ .chord = on_rec, .sources = std::move(sources), .script_ptr = script_body_ptr });
+                    bindings.push_back({ .chord = std::move(on_rec), .sources = std::move(sources), .script_ptr = script_body_ptr });
                 }
                 //config.settings::pop_context();
             }

@@ -1407,8 +1407,7 @@ namespace netxs::app::vtm
             LISTEN(tier::request, vtm::events::newapp, what)
             {
                 auto& setup = menu_list[what.menuid];
-                auto& maker = app::shared::builder(setup.type);
-                what.applet = maker(setup.appcfg, config);
+                what.applet = app::shared::builder(setup.type)(setup.appcfg, config);
                 what.applet->base::property("window.menuid") = what.menuid;
                 what.applet->base::bind_property<tier::preview>("window.header", *what.applet, e2::form::prop::ui::header) = setup.title;
                 what.applet->base::bind_property<tier::preview>("window.footer", *what.applet, e2::form::prop::ui::footer) = setup.footer;

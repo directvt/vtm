@@ -8046,19 +8046,14 @@ namespace netxs::ui
                 base::enqueue([&, backup = This()](auto& /*boss*/) mutable // We can't request the title before conio.run(), so we queue the request.
                 {
                     auto& title = wtrack.get(ansi::osc_title);
-                    if (title.empty()) wtrack.set(ansi::osc_title); // Set default title if it is empty.
-                    if (defcfg.send_input.size()) ipccon.write<faux>(defcfg.send_input);
-                    // Sync external listeners with terminal current state.
-                    base::signal(tier::release, terminal::events::io_log,         io_log);
-                    base::signal(tier::release, terminal::events::selmod,         selmod);
-                    base::signal(tier::release, terminal::events::onesht,         onesht);
-                    base::signal(tier::release, terminal::events::selalt,         selalt);
-                    base::signal(tier::release, terminal::events::rawkbd,         rawkbd);
-                    base::signal(tier::release, terminal::events::colors::bg,     target->brush.bgc());
-                    base::signal(tier::release, terminal::events::colors::fg,     target->brush.fgc());
-                    base::signal(tier::release, terminal::events::layout::wrapln, (si32)target->style.wrp());
-                    base::signal(tier::release, terminal::events::layout::align,  (si32)target->style.jet());
-                    base::signal(tier::release, terminal::events::search::status, target->selection_button());
+                    if (title.empty())
+                    {
+                        wtrack.set(ansi::osc_title); // Set default title if it is empty.
+                    }
+                    if (defcfg.send_input.size())
+                    {
+                        ipccon.write<faux>(defcfg.send_input);
+                    }
                     backup.reset(); // Backup should dtored under the lock.
                 });
                 appcfg.win = target->panel;

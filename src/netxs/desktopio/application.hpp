@@ -554,8 +554,7 @@ namespace netxs::app::shared
                 item.alive = script_list.size();
                 item.bindings = input::bindings::load(config, script_list);
                 auto classname_list = config.settings::take_value_list_of(menuitem_ptr, "id");
-                auto label_list = config.settings::take_ptr_list_of(menuitem_ptr, "label");
-                item.label = label_list.size() ? config.settings::take_value(label_list.front()) : "empty"s;
+                item.label   = config.settings::take_value_from(menuitem_ptr, "label", " "s);
                 item.tooltip = config.settings::take_value_from(menuitem_ptr, "tooltip", ""s);
                 auto setup = [classname_list = std::move(classname_list)](ui::item& boss, menu::item& item)
                 {
@@ -634,60 +633,30 @@ namespace netxs::app::shared
             return creator;
         }
     }
-    auto& builder(text app_typename)
+    auto builder(text app_typename)
     {
-        static builder_t empty =
-        [&](eccc, settings&) -> ui::sptr
-        {
-            auto window = ui::cake::ctor()
-                ->plugin<pro::focus>()
-                //->plugin<pro::track>()
-                ->plugin<pro::acryl>()
-                ->invoke([&](auto& boss)
-                {
-                    closing_on_quit(boss);
-                    closing_by_gesture(boss);
-                    boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
-                    {
-                        auto title = "error"s;
-                        boss.base::riseup(tier::preview, e2::form::prop::ui::header, title);
-                    };
-                });
-            auto msg = ui::post::ctor()
-                ->colors(whitelt, argb{ 0x7F404040 })
-                ->upload(ansi::fgc(yellowlt).mgl(4).mgr(4).wrp(wrap::off) +
-                    "\n"
-                    "\nUnsupported application type"
-                    "\n" + ansi::nil().wrp(wrap::on) +
-                    "\nOnly the following application types are supported:"
-                    "\n" + ansi::nil().wrp(wrap::off).fgc(whitedk) +
-                    "\n   type = vtty"
-                    "\n   type = term"
-                    "\n   type = dtvt"
-                    "\n   type = dtty"
-                    "\n   type = tile"
-                    "\n   type = site"
-                    "\n   type = info"
-                    "\n"
-                    "\n" + ansi::nil().wrp(wrap::on).fgc(whitelt)
-                    .add(prompt::apps, "See logs for details."));
-            auto placeholder = ui::cake::ctor()
-                ->colors(whitelt, argb{ 0x7F404040 })
-                ->attach(msg->alignment({ snap::head, snap::head }));
-            window->attach(ui::rail::ctor())
-                ->attach(placeholder)
-                ->active();
-            return window;
-        };
         auto& map = creator();
-        const auto it = map.find(app_typename);
+        auto it = map.find(app_typename);
         if (it == map.end())
         {
             log("%%Unknown app type - '%app_typename%'", prompt::apps, app_typename);
-            return empty;
+            it = map.find("invalid");
         }
-        else return it->second;
-    };
+        auto& builder_proc = it->second;
+        return  [&](eccc appcfg, settings& config)
+                {
+                    auto applet_ptr = builder_proc(appcfg, config);
+                    auto& applet = *applet_ptr;
+                    applet.LISTEN(tier::anycast, e2::form::upon::started, root_ptr)
+                    {
+                        applet.base::enqueue([&](auto&)
+                        {
+                            applet.base::signal(tier::release, e2::form::upon::started, root_ptr); // Fire a release started event after all initializations.
+                        });
+                    };
+                    return applet_ptr;
+                };
+    }
     namespace load
     {
         auto log_load(view src_path)

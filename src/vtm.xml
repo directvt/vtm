@@ -393,11 +393,11 @@ R"==(
         <slim=true/>       <!-- Make the window menu one cell high (slim=true) or three cells high (slim=false). -->
     </Defaults>
     <Buttons>
-        <AlwaysOnTop label="  " tooltip=" AlwaysOnTop off " script=OnLeftClick|AlwaysOnTopApplet> <!-- The default event source is the parent object, i.e. source="item" (aka vtm.item). -->
+        <AlwaysOnTop script=OnLeftClick|AlwaysOnTopApplet> <!-- The default event source is the parent object, i.e. source="item" (aka vtm.item). -->
             <script>  <!-- A binding to update the menu item label at runtime. -->
-                <on="release: e2::form::prop::zorder" source="applet"/>
-                local is_topmost=vtm()                   -- Use event arguments to get the current state.
-                -- local is_topmost=vtm.applet.ZOrder()  -- or ask the object itself for the current state.
+                <on="release: e2::form::upon::started" source="applet"/>
+                <on="release: e2::form::prop::zorder"  source="applet"/>
+                local is_topmost=vtm.applet.ZOrder()
                 vtm.item.Label(is_topmost==1 and "\e[2:247;38:2:0:255:0m▀\e[2:239m \e[m" or "  ")
                 vtm.item.Tooltip(is_topmost==1 and " AlwaysOnTop on " or " AlwaysOnTop off ")
                 vtm.item.Deface()
@@ -417,40 +417,36 @@ R"==(
                 "   Match clipboard data if no selection  "
             </tooltip>
         </FindNext>
-        <ExclusiveKeyboard label="  Exclusive  " script=OnLeftClick|ExclusiveKeyboardMode>
+        <ExclusiveKeyboard script=OnLeftClick|ExclusiveKeyboardMode>
             <tooltip>
                 " \e[1mToggle exclusive keyboard mode\e[m              \n"
                 "   Exclusive keyboard mode allows keystrokes \n"
                 "   to be passed through without processing   "
             </tooltip>
             <script>
+                <on="release: e2::form::upon::started"  source="applet"/>
                 <on="release: terminal::events::rawkbd" source="terminal"/>
-                local m=vtm()                                    -- Use event arguments to get the current state.
-                -- local m=vtm.terminal.ExclusiveKeyboardMode()  -- or ask the terminal instance itself for the current state.
+                local m=vtm.terminal.ExclusiveKeyboardMode()
                 vtm.item.Label(m==1 and "\e[2:247m \e[2:231;38:2:0:255:0m Exclusive \e[2:239m \e[m" or "  Exclusive  ")
                 vtm.item.Tooltip(m==1 and " ExclusiveKeyboardMode on " or " ExclusiveKeyboardMode off ")
                 vtm.item.Deface()
             </script>
         </ExclusiveKeyboard>
-        <WrapMode label=" NoWrap " script=OnLeftClick|TerminalWrapMode>
-            <tooltip>
-                " \e[1mText line wrapping mode\e[m  \n"
-                " Text wrapping on         "
-            </tooltip>
+        <WrapMode script=OnLeftClick|TerminalWrapMode>
             <script>
+                <on="release: e2::form::upon::started"          source="applet"/>
                 <on="release: terminal::events::layout::wrapln" source="terminal"/>
-                local m=vtm()                           -- Use event arguments to get the current state.
-                -- local m=vtm.terminal.LineWrapMode()  -- or ask the terminal instance itself for the current state.
+                local m=vtm.terminal.LineWrapMode()
                 vtm.item.Label(m~=1 and "\e[2:247m \e[2:231;38:2:0:255:0mNoWrap\e[2:239m \e[m" or " NoWrap ")
                 vtm.item.Tooltip(m~=1 and " \e[1mText line wrapping mode\e[m  \\n Text wrapping off        " or " \e[1mText line wrapping mode\e[m  \\n Text wrapping on         ")
                 vtm.item.Deface()
             </script>
         </WrapMode>
-        <ClipboardFormat label="  Clipboard  " tooltip=" Clipboard format " script=OnLeftClick|TerminalClipboardFormat>
+        <ClipboardFormat tooltip=" Clipboard format " script=OnLeftClick|TerminalClipboardFormat>
             <script>
+                <on="release: e2::form::upon::started"  source="applet"/>
                 <on="release: terminal::events::selmod" source="terminal"/>
-                local m=vtm()                              -- Use event arguments to get the current state.
-                -- local m=vtm.terminal.ClipboardFormat()  -- or ask the terminal instance itself for the current state.
+                local m=vtm.terminal.ClipboardFormat()
                 vtm.item.Label(m==1 and "\e[38:2:0:255:0m  Plaintext  \e[m"     -- "textonly"
                             or m==2 and "\e[38:2:255:255:0m  ANSI-text  \e[m"   -- "ansitext"
                             or m==3 and "\e[38:2:109:231:237m  ".."R"..
@@ -468,11 +464,11 @@ R"==(
                 vtm.item.Deface()
             </script>
         </ClipboardFormat>
-        <StdioLog label="  Log  " tooltip=" \e[1mConsole logging\e[m        \n Use Logs to see output " script=OnLeftClick|TerminalStdioLog>
+        <StdioLog tooltip=" \e[1mConsole logging\e[m        \n Use Logs to see output " script=OnLeftClick|TerminalStdioLog>
             <script>
+                <on="release: e2::form::upon::started"  source="applet"/>
                 <on="release: terminal::events::io_log" source="terminal"/>
-                local m=vtm()                      -- Use event arguments to get the current state.
-                -- local m=vtm.terminal.LogMode()  -- or ask the terminal instance itself for the current state.
+                local m=vtm.terminal.LogMode()
                 vtm.item.Label(m==1 and "\e[2:247m \e[2:231;38:2:0:255:0m Log \e[2:239m \e[m" or "  Log  ")
                 vtm.item.Deface()
             </script>
