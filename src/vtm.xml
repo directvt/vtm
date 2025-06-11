@@ -3,7 +3,7 @@ R"==(<include*/>  <!-- Ordered list of <include="/path/to/settings.xml"/>. The s
 <include="~/.config/vtm/settings.xml"/>   <!-- Default user-wise settings source. -->
 
 <!-- App configuration. -->
-<config=/Colors | /Scripting | /Macro> <!-- Using additional namespaces: "/Colors", "/Scripting" and "/Macro" -->
+<config=/Colors | /Scripting | /Macro | /en-US> <!-- Using additional namespaces: "/Colors", "/Scripting" and "/Macro" -->
     <gui>  <!-- GUI mode related settings. (win32 platform only for now) -->
         <antialiasing=off/>   <!-- Antialiasing of rendered glyphs. Note: Multi-layered color glyphs such as emoji are always antialiased. -->
         <cellheight=22/>      <!-- Text cell height in physical pixels. Note: The width of the text cell depends on the primary font (the first one in the font list). -->
@@ -398,8 +398,14 @@ R"==(
                 <on="release: e2::form::upon::started" source="applet"/>
                 <on="release: e2::form::prop::zorder"  source="applet"/>
                 local is_topmost=vtm.applet.ZOrder()
-                vtm.item.Label(is_topmost==1 and "\e[2:247;38:2:0:255:0m▀\e[2:239m \e[m" or "  ")
-                vtm.item.Tooltip(is_topmost==1 and " AlwaysOnTop on " or " AlwaysOnTop off ")
+                --if (is_topmost==1) vtm.settings.cd("Ns/AlwaysOnTop/on/")
+                --else               vtm.settings.cd("Ns/AlwaysOnTop/off/")
+                --vtm.item.Label(vtm.settings.get("label"))
+                --vtm.item.Tooltip(vtm.settings.get("tooltip"))\n
+                <br/>
+                'vtm.item.Label(is_topmost==1 and "'   | Ns/AlwaysOnTop/on/label   | '" or "' | Ns/AlwaysOnTop/off/label   | '")\n'
+                'vtm.item.Tooltip(is_topmost==1 and "' | Ns/AlwaysOnTop/on/tooltip | '" or "' | Ns/AlwaysOnTop/off/tooltip | '")\n'
+                <br/>
                 vtm.item.Deface()
             </script>
         </AlwaysOnTop>
@@ -473,10 +479,33 @@ R"==(
                 vtm.item.Deface()
             </script>
         </StdioLog>
-        <ClearScrollback label="  Clear  "   tooltip=" Clear scrollback "                 script=OnLeftClick|TerminalClearScrollback/>
-        <Restart         label="  Restart  " tooltip=" Restart current terminal session " script=OnLeftClick|TerminalRestart/>
+        <ClearScrollback label=Ns/ClearScrollback/label tooltip=Ns/ClearScrollback/tooltip script=OnLeftClick|TerminalClearScrollback/>
+        <Restart         label=Ns/Restart/label         tooltip=Ns/Restart/tooltip         script=OnLeftClick|TerminalRestart/>
     </Buttons>
 </Menu>
+
+<!-- Localization. -->
+<Ns=/en-US/>  <!-- Fallback localization is en-US. -->
+<en-US>
+    <Ns>
+        <AlwaysOnTop>
+            <on  label="\e[2:247;38:2:0:255:0m▀\e[2:239m \e[m" tooltip=" AlwaysOnTop on "/>
+            <off label="  "                                    tooltip=" AlwaysOnTop off "/>
+        </AlwaysOnTop>
+        <ClearScrollback label="  Clear  "   tooltip=" Clear scrollback "/>
+        <Restart         label="  Restart  " tooltip=" Restart current terminal session "/>
+    </Ns>
+</en-US>
+<ru-RU>
+    <Ns>
+        <AlwaysOnTop>
+            <on  label=/en-US/Ns/AlwaysOnTop/on/label  tooltip=" Поверх всех окон вкл. "/>
+            <off label=/en-US/Ns/AlwaysOnTop/off/label tooltip=" Поверх всех окон выкл. "/>
+        </AlwaysOnTop>
+        <ClearScrollback label="  Очистить  " tooltip=" Очистить скроллбэк буфер "/>
+        <Restart         label="  Рестарт  "  tooltip=" Перезапустить текущую сессию терминала "/>
+    </Ns>
+</ru-RU>
 
 <Colors>
     <DefaultColor = 0x00ffffff />
