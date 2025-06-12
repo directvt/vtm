@@ -3757,6 +3757,7 @@ namespace netxs::os
         static auto backup = tios{}; // dtvt: Saved console state to restore at exit.
         static auto gridsz = twod{}; // dtvt: Initial window grid size.
         static auto client = xipc{}; // dtvt: Internal IO link.
+        static auto wheelrate = 3;   // dtvt: Lines per mouse wheel step (legacy mode).
 
         auto consize()
         {
@@ -5001,7 +5002,7 @@ namespace netxs::os
                     auto state = si32{ 0 };
                     #if defined(__linux__)
                         auto shift_state = si32{ 6 /*TIOCL_GETSHIFTSTATE*/ };
-                        ok(::ioctl(os::stdin_fd, TIOCLINUX, &shift_state), "::ioctl(os::stdin_fd, TIOCLINUX)", os::unexpected);
+                        ::ioctl(os::stdin_fd, TIOCLINUX, &shift_state);
                         auto lalt   = shift_state & (1 << KG_ALT   );
                         auto ralt   = shift_state & (1 << KG_ALTGR );
                         auto ctrl   = shift_state & (1 << KG_CTRL  );
@@ -5017,7 +5018,7 @@ namespace netxs::os
                         if (lshift) state |= input::hids::LShift;
                         if (rshift) state |= input::hids::RShift;
                         auto led_state = si32{};
-                        ok(::ioctl(os::stdin_fd, KDGKBLED, &led_state), "::ioctl(os::stdin_fd, KDGKBLED)", os::unexpected);
+                        ::ioctl(os::stdin_fd, KDGKBLED, &led_state);
                         // CapsLock can always be 0 due to poorly coded drivers.
                         if (led_state & LED_NUM) state |= input::hids::NumLock;
                         if (led_state & LED_CAP) state |= input::hids::CapsLock;
@@ -5058,9 +5059,7 @@ namespace netxs::os
                     // 0xf6     None    Set defaults
                     // 0xfe     None    Resend
                     // 0xff     None    Reset (after the power-on test the mouse sends its ID) 
-                    auto imps2_string = "\xf3\xc8\xf3\x64\xf3\x50"sv;
-                    auto imps2_reset  = "\xff"sv;
-                    auto imps2_rate80_scale4x4 = "\xf3\x50\xe6\xe8\x02"sv;
+                    auto imps2_wheel = "\xf3\xc8\xf3\x64\xf3\x50"sv; // This magic sequence enables the mouse wheel.
                     auto mouse_device = "/dev/input/mice";
                     auto mouse_shadow = "/dev/input/mice.vtm";
                     auto fd = ::open(mouse_device, O_RDWR);
@@ -5072,7 +5071,7 @@ namespace netxs::os
                     {
                         log("%%Error opening %mouse_device% and %mouse_shadow%, error %code%%desc%", prompt::tty, mouse_device, mouse_shadow, errno, errno == 13 ? " - permission denied" : "");
                     }
-                    else if (io::send(fd, imps2_string))
+                    else if (io::send(fd, imps2_wheel))
                     {
                         auto ack = char{};
                         io::recv(fd, &ack, sizeof(ack));
@@ -5088,10 +5087,6 @@ namespace netxs::os
                         }
                         if (ack == '\xfa')
                         {
-                            io::send(fd, imps2_reset);           // Reset cursor position to the top-left corner.
-                            io::recv(fd, &ack, sizeof(ack));     // Read ID 0x00.
-                            io::send(fd, imps2_rate80_scale4x4); // Set rate 80 and scaling 4x4 count/mm.
-                            io::recv(fd, &ack, sizeof(ack));     // Read ack 0xfe.
                             log(prompt::tty, "ImPS/2 mouse connected");
                         }
                         else
@@ -5549,24 +5544,25 @@ namespace netxs::os
                                     case 2: netxs::set_bit<input::hids::buttons::right >(m.buttons, ispressed); break;
                                     case 64:
                                         m.wheelfp = 1;
-                                        m.wheelsi = 1;
                                         break;
                                     case 65:
                                         m.wheelfp = -1;
-                                        m.wheelsi = -1;
                                         break;
                                     case 66:
                                         m.hzwheel = true;
                                         m.wheelfp = 1;
-                                        m.wheelsi = 1;
                                         break;
                                     case 67:
                                         m.hzwheel = true;
                                         m.wheelfp = -1;
-                                        m.wheelsi = -1;
                                         break;
                                     //todo impl ext mouse buttons 129-131
                                 }
+                                if (!(dtvt::vtmode & ui::console::vt_2D)) // Don't accelerate the mouse wheel if we are already inside the vtm.
+                                {
+                                    m.wheelfp *= dtvt::wheelrate;
+                                }
+                                m.wheelsi = (si32)m.wheelfp;
                                 m.changed++;
                                 m.timecod = timecode;
                                 mouse(m);
@@ -5651,7 +5647,7 @@ namespace netxs::os
                     {
                     #if defined(__linux__)
                         auto vt_state = ::vt_stat{};
-                        ok(::ioctl(os::stdout_fd, VT_GETSTATE, &vt_state), "::ioctl(VT_GETSTATE)", os::unexpected);
+                        ::ioctl(os::stdout_fd, VT_GETSTATE, &vt_state);
                         if (vt_state.v_active == ttynum) // Proceed current active tty only.
                         {
                             auto limit = w.winsize * scale;
@@ -5660,7 +5656,7 @@ namespace netxs::os
                             mcoord.y  -= data[2];
                             mcoord = std::clamp(mcoord, dot_00, limit - dot_11);
                             k.ctlstat = get_kb_state();
-                            m.wheelfp = size == 4 ? -data[3] : 0;
+                            m.wheelfp = size == 4 ? -data[3] * dtvt::wheelrate : 0;
                             m.wheelsi = m.wheelfp;
                             m.coordxy = { mcoord / scale };
                             m.buttons = bttns;
@@ -5901,7 +5897,10 @@ namespace netxs::os
                 auto& extio = *stdio;
                 tty::direct(extio);
             }
-            else tty::legacy();
+            else
+            {
+                tty::legacy();
+            }
         }
 
         struct readline

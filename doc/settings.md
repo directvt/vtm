@@ -806,6 +806,7 @@ Notes
         <repeat_delay  = 500ms/>  <!-- Repeat delay. -->
         <repeat_rate   = 30ms />  <!-- Repeat rate. -->
         <dblclick      = 500ms/>  <!-- Mouse double click threshold. -->
+        <wheelrate     = 3    />  <!-- Lines per mouse wheel step (for Unix-like platforms). -->
     </timings>
     <desktop>  <!-- Desktop client settings. -->
         <viewport coor=0,0/>  <!-- Viewport position for the first connected user. At runtime, this value is temporarily replaced with the next disconnecting user's viewport coordinates to restore the viewport position on reconnection. -->
@@ -825,17 +826,6 @@ Notes
                     "   LeftClick to launch instance \n"
                     "   RightClick to set as default "
                 </tooltip>
-                <config>  <!-- The following config partially overrides the base configuration. It is valid for DirectVT apps only. -->
-                    <terminal>
-                        <scrollback>
-                            <size=100000/>  <!-- Scrollback buffer length. -->
-                            <wrap=true/>    <!-- Lines wrapping mode. -->
-                        </scrollback>
-                        <selection>
-                            <mode=/Terminal/selection/mode/>  <!-- Clipboard copy format: "text" | "ansi" | "rich" | "html" | "protected" | "none" . -->
-                        </selection>
-                    </terminal>
-                </config>
             </item>
             <item id="Tile" label="Window Manager"  type="tile" title="Window Manager" cmd="h1:1(Term, Term)"      tooltip=" \e[1mTiling Window Manager\e[m           \n   LeftClick to launch instance  \n   RightClick to set as default  "/>
             <item id="Site" label="Viewport Marker" type="site" title="Site "          cmd="@" winform="maximized" tooltip=" \e[1mDesktop Viewport Marker\e[m         \n   LeftClick to launch instance  \n   RightClick to set as default  "/>  <!-- cmd="@" is a directive for numbering instances. -->

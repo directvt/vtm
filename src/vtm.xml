@@ -70,6 +70,7 @@ R"==(<include*/>  <!-- Ordered list of <include="/path/to/settings.xml"/>. The s
         <repeat_delay  = 500ms/>  <!-- Repeat delay. -->
         <repeat_rate   = 30ms />  <!-- Repeat rate. -->
         <dblclick      = 500ms/>  <!-- Mouse double click threshold. -->
+        <wheelrate     = 3    />  <!-- Lines per mouse wheel step (for Unix-like platforms). -->
     </timings>
 )=="
 R"==(
@@ -91,17 +92,6 @@ R"==(
                     "   LeftClick to launch instance \n"
                     "   RightClick to set as default "
                 </tooltip>
-                <config>  <!-- The following config partially overrides the base configuration. It is valid for DirectVT apps only. -->
-                    <terminal>
-                        <scrollback>
-                            <size=100000/>  <!-- Scrollback buffer length. -->
-                            <wrap=true/>    <!-- Lines wrapping mode. -->
-                        </scrollback>
-                        <selection>
-                            <mode=/Terminal/selection/mode/>  <!-- Clipboard copy format: "text" | "ansi" | "rich" | "html" | "protected" | "none" . -->
-                        </selection>
-                    </terminal>
-                </config>
             </item>
             <item id="Tile" label="Window Manager"  type="tile" title="Window Manager" cmd="h1:1(Term, Term)"      tooltip=" \e[1mTiling Window Manager\e[m           \n   LeftClick to launch instance  \n   RightClick to set as default  "/>
             <item id="Site" label="Viewport Marker" type="site" title="Site "          cmd="@" winform="maximized" tooltip=" \e[1mDesktop Viewport Marker\e[m         \n   LeftClick to launch instance  \n   RightClick to set as default  "/>  <!-- cmd="@" is a directive for numbering instances. -->

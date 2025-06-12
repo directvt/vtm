@@ -844,6 +844,7 @@ namespace netxs::app::shared
 
     auto get_gui_config(settings& config)
     {
+        os::dtvt::wheelrate = config.settings::take("/config/timings/wheelrate", 3);
         auto gui_config = gui_config_t{ .winstate = config.settings::take("/config/gui/winstate", winstate::normal, app::shared::win::options),
                                         .aliasing = config.settings::take("/config/gui/antialiasing", faux),
                                         .blinking = config.settings::take("/config/gui/blinkrate", span{ 400ms }),
@@ -865,6 +866,7 @@ namespace netxs::app::shared
     auto get_tui_config(settings& config, ui::skin& g)
     {
         using namespace std::chrono;
+        os::dtvt::wheelrate = config.settings::take("/config/timings/wheelrate", 3);
         g.window_clr     = config.settings::take("/config/colors/window"     , cell{ whitespace });
         g.winfocus       = config.settings::take("/config/colors/focus"      , cell{ whitespace });
         g.brighter       = config.settings::take("/config/colors/brighter"   , cell{ whitespace });
