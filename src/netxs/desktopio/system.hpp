@@ -5035,12 +5035,43 @@ namespace netxs::os
                 else // Trying to get direct access to a PS/2 mouse.
                 {
                     log("%%Linux console %tty%", prompt::tty, tty_name);
+                    // PS/2 Mouse Commands (https://wiki.osdev.org/PS/2_Mouse)
+                    // Byte     Data    Desc
+                    // 0xe6     None    Set scaling 1:1
+                    // 0xe7     None    Set scaling 2:1
+                    // 0xe8     Byte    Set resolution
+                    //                  Byte   Resolution
+                    //                  00     1 count/mm
+                    //                  01     2 count/mm
+                    //                  02     4 count/mm
+                    //                  03     8 count/mm
+                    // 0xe9     None    Status request
+                    // 0xea     None    Set Stream Mode
+                    // 0xeb     None    Read data
+                    // 0xec     None    Reset Wrap Mode
+                    // 0xee     None    Set Wrap Mode
+                    // 0xf0     None    Set Remote Mode
+                    // 0xf2     None    Get mouse ID.
+                    // 0xf3     Rate    Set sample rate: 10, 20, 40, 60, 80 (0x50), 100 (0x64), 200 (0xc8).
+                    // 0xf4     None    Data reporting On
+                    // 0xf5     None    Data reporting Off
+                    // 0xf6     None    Set defaults
+                    // 0xfe     None    Resend
+                    // 0xff     None    Reset (after the power-on test the mouse sends its ID) 
                     auto imps2_string = "\xf3\xc8\xf3\x64\xf3\x50"sv;
+                    auto imps2_reset  = "\xff"sv;
+                    auto imps2_rate80_scale4x4 = "\xf3\x50\xe6\xe8\x02"sv;
                     auto mouse_device = "/dev/input/mice";
                     auto mouse_shadow = "/dev/input/mice.vtm";
                     auto fd = ::open(mouse_device, O_RDWR);
-                    if (fd == -1) fd = ::open(mouse_shadow, O_RDWR);
-                    if (fd == -1) log("%%Error opening %mouse_device% and %mouse_shadow%, error %code%%desc%", prompt::tty, mouse_device, mouse_shadow, errno, errno == 13 ? " - permission denied" : "");
+                    if (fd == -1)
+                    {
+                        fd = ::open(mouse_shadow, O_RDWR);
+                    }
+                    if (fd == -1)
+                    {
+                        log("%%Error opening %mouse_device% and %mouse_shadow%, error %code%%desc%", prompt::tty, mouse_device, mouse_shadow, errno, errno == 13 ? " - permission denied" : "");
+                    }
                     else if (io::send(fd, imps2_string))
                     {
                         auto ack = char{};
@@ -5055,8 +5086,18 @@ namespace netxs::os
                                 ttynum = cur_tty.value();
                             }
                         }
-                        if (ack == '\xfa') log(prompt::tty, "ImPS/2 mouse connected");
-                        else               log(prompt::tty, "Unknown PS/2 mouse connected, ack: ", utf::to_hex_0x((int)ack));
+                        if (ack == '\xfa')
+                        {
+                            io::send(fd, imps2_reset);           // Reset cursor position to the top-left corner.
+                            io::recv(fd, &ack, sizeof(ack));     // Read ID 0x00.
+                            io::send(fd, imps2_rate80_scale4x4); // Set rate 80 and scaling 4x4 count/mm.
+                            io::recv(fd, &ack, sizeof(ack));     // Read ack 0xfe.
+                            log(prompt::tty, "ImPS/2 mouse connected");
+                        }
+                        else
+                        {
+                            log(prompt::tty, "Unknown PS/2 mouse connected, ack: ", utf::to_hex_0x((int)ack));
+                        }
                     }
                     else
                     {
@@ -5600,7 +5641,8 @@ namespace netxs::os
                     }
                     else alive = faux;
                 };
-                auto m_proc = [&, mcoord = twod{}]() mutable
+                static constexpr auto scale = twod{ 8, 16 }; // Linux VGA cell size.
+                auto m_proc = [&, mcoord = w.winsize * scale / 2/*centrify mouse coord*/]() mutable
                 {
                     auto data = io::recv(micefd, buffer);
                     auto size = data.size();
@@ -5612,7 +5654,6 @@ namespace netxs::os
                         ok(::ioctl(os::stdout_fd, VT_GETSTATE, &vt_state), "::ioctl(VT_GETSTATE)", os::unexpected);
                         if (vt_state.v_active == ttynum) // Proceed current active tty only.
                         {
-                            auto scale = twod{ 6, 12 }; //todo magic numbers
                             auto limit = w.winsize * scale;
                             auto bttns = data[0] & 7;
                             mcoord.x  += data[1];
