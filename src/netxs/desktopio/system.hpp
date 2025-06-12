@@ -5288,6 +5288,22 @@ namespace netxs::os
                         { "\033[21~"  , { "",     key::F10                               }},
                         { "\033[23~"  , { "",     key::F11                               }},
                         { "\033[24~"  , { "",     key::F12                               }},
+                        // Linux VGA Console special keys.
+                        { "\033[1~"   , { "",     key::KeyHome                           }},
+                        { "\033[4~"   , { "",     key::KeyEnd                            }},
+                        { "\033[[A"   , { "",     key::F1                                }},
+                        { "\033[[B"   , { "",     key::F2                                }},
+                        { "\033[[C"   , { "",     key::F3                                }},
+                        { "\033[[D"   , { "",     key::F4                                }},
+                        { "\033[[E"   , { "",     key::F5                                }},
+                        { "\033[25~"  , { "",     key::F1            | hids::LShift << 8 }},
+                        { "\033[26~"  , { "",     key::F2            | hids::LShift << 8 }},
+                        { "\033[28~"  , { "",     key::F3            | hids::LShift << 8 }},
+                        { "\033[29~"  , { "",     key::F4            | hids::LShift << 8 }},
+                        { "\033[31~"  , { "",     key::F5            | hids::LShift << 8 }},
+                        { "\033[32~"  , { "",     key::F6            | hids::LShift << 8 }},
+                        { "\033[33~"  , { "",     key::F7            | hids::LShift << 8 }},
+                        { "\033[34~"  , { "",     key::F8            | hids::LShift << 8 }},
                     };
 
                     for (auto i = 1; i < 8; i++)
