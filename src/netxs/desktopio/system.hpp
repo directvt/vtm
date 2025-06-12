@@ -5060,6 +5060,7 @@ namespace netxs::os
                     // 0xfe     None    Resend
                     // 0xff     None    Reset (after the power-on test the mouse sends its ID) 
                     auto imps2_wheel = "\xf3\xc8\xf3\x64\xf3\x50"sv; // This magic sequence enables the mouse wheel.
+                    auto imps2_scale8x8_200 = "\xe8\x03\xf3\xc8"sv;
                     auto mouse_device = "/dev/input/mice";
                     auto mouse_shadow = "/dev/input/mice.vtm";
                     auto fd = ::open(mouse_device, O_RDWR);
@@ -5087,6 +5088,8 @@ namespace netxs::os
                         }
                         if (ack == '\xfa')
                         {
+                            io::send(fd, imps2_scale8x8_200); // Set resolution to 8x8 and sample rate to 200.
+                            io::recv(fd, &ack, sizeof(ack)); // Read ack 0xFE.
                             log(prompt::tty, "ImPS/2 mouse connected");
                         }
                         else
@@ -5674,7 +5677,7 @@ namespace netxs::os
                             k.ctlstat = get_kb_state();
                             m.wheelfp = size == 4 ? -data[3] * dtvt::wheelrate : 0;
                             m.wheelsi = m.wheelfp;
-                            m.coordxy = { mcoord / scale };
+                            m.coordxy = fp2d{ mcoord } / scale;
                             m.buttons = bttns;
                             m.ctlstat = k.ctlstat;
                             m.timecod = datetime::now();
