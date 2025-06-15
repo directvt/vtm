@@ -4764,6 +4764,11 @@ namespace netxs::os
             // libinput: Set mouse device access permissions for all users.
             auto set_mouse_access()
             {
+                if (!os::process::elevated)
+                {
+                    log("System-wide operations require elevated privileges.");
+                    return 1;
+                }
                 auto count = 0;
                 enumerate_mouses([&](auto /*device*/, auto dev_path, auto name)
                 {
