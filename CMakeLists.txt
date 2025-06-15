@@ -47,9 +47,14 @@ add_executable(vtm "src/vtm.cpp" ${WIN32_RESOURCES})
 # add_executable(term "src/netxs/apps/term.cpp")
 # add_executable(calc "src/netxs/apps/calc.cpp")
 
-target_link_libraries(vtm lua)
+target_link_libraries(vtm PRIVATE lua)
 # target_link_libraries(term lua)
 # target_link_libraries(calc lua)
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    find_package(Libinput)
+    target_link_libraries(vtm PRIVATE Libinput::Libinput)
+endif()
 
 if(NOT WIN32)
     install(TARGETS vtm DESTINATION bin)
