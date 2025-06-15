@@ -44,17 +44,17 @@ jobs:
             cc: gcc
           - os: ubuntu-latest
             cpu: x86
-            apt: g++-i686-linux-gnu gcc-i686-linux-gnu
+            apt: g++-i686-linux-gnu gcc-i686-linux-gnu libinput-dev
             cxx: /bin/i686-linux-gnu-g++
             cc: /bin/i686-linux-gnu-gcc
           - os: ubuntu-latest
             cpu: arm
-            apt: g++-arm-linux-gnueabihf gcc-arm-linux-gnueabihf
+            apt: g++-arm-linux-gnueabihf gcc-arm-linux-gnueabihf libinput-dev
             cxx: /bin/arm-linux-gnueabihf-g++
             cc: /bin/arm-linux-gnueabihf-gcc
           - os: ubuntu-latest
             cpu: arm64
-            apt: g++-aarch64-linux-gnu gcc-aarch64-linux-gnu
+            apt: g++-aarch64-linux-gnu gcc-aarch64-linux-gnu libinput-dev
             cxx: /bin/aarch64-linux-gnu-g++
             cc: /bin/aarch64-linux-gnu-gcc
 
