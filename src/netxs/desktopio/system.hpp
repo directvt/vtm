@@ -5863,8 +5863,9 @@ namespace netxs::os
                                micefd,       m_proc,
                                alarm,        f_proc);
                 }
-
+                #if defined(__linux__)
                 os::tty::libinput::uninitialize();
+                #endif
 
             #endif
 
