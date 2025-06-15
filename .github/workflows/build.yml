@@ -51,7 +51,7 @@ jobs:
           - os: ubuntu-latest
             cpu: arm
             apt: g++-arm-linux-gnueabihf gcc-arm-linux-gnueabihf
-            target: arm
+            target: armhf
             cxx: /bin/arm-linux-gnueabihf-g++
             cc: /bin/arm-linux-gnueabihf-gcc
           - os: ubuntu-latest
@@ -98,7 +98,7 @@ jobs:
     - name: Install libs
       if: ${{ matrix.target }}
       run: >
-        sudo apt -o APT::Architecture="${{ matrix.target }}" -y update && sudo apt -o APT::Architecture="${{ matrix.target }}" -y upgrade && sudo apt -o APT::Architecture="${{ matrix.target }}" -y install ${{ matrix.libs }}
+        sudo apt -o APT::Architecture="${{ matrix.target }}" -y update && sudo apt -o APT::Architecture="${{ matrix.target }}" -y install ${{ matrix.libs }}
 
     - name: Configure CMake
       run: >
