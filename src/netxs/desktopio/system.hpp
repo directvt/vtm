@@ -5717,6 +5717,7 @@ namespace netxs::os
                                   whlacc = fp2d{},
                                   dev_map = std::unordered_map<arch, si32>{}]() mutable
                 {
+                    #if defined(__linux__)
                     while (true)
                     {
                         if (auto e = os::tty::libinput::next_event())
@@ -5831,6 +5832,7 @@ namespace netxs::os
                             break;
                         }
                     }
+                    #endif
                 };
                 auto s_proc = [&]
                 {
