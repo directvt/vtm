@@ -4767,7 +4767,7 @@ namespace netxs::os
                 if (!os::process::elevated)
                 {
                     log("System-wide operations require elevated privileges.");
-                    return 1;
+                    return true;
                 }
                 auto count = 0;
                 enumerate_mouses([&](auto /*device*/, auto dev_path, auto name)
