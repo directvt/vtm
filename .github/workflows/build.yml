@@ -39,6 +39,7 @@ jobs:
             cxx: cl
           - os: ubuntu-latest
             cpu: x64
+            apt: libinput-dev
             cxx: g++
             cc: gcc
           - os: ubuntu-latest
