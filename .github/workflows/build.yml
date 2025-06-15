@@ -44,22 +44,26 @@ jobs:
             cc: gcc
           - os: ubuntu-latest
             cpu: x86
-            apt: g++-i686-linux-gnu gcc-i686-linux-gnu libinput-dev
+            apt: g++-i686-linux-gnu gcc-i686-linux-gnu
+            target: i386
             cxx: /bin/i686-linux-gnu-g++
             cc: /bin/i686-linux-gnu-gcc
           - os: ubuntu-latest
             cpu: arm
-            apt: g++-arm-linux-gnueabihf gcc-arm-linux-gnueabihf libinput-dev
+            apt: g++-arm-linux-gnueabihf gcc-arm-linux-gnueabihf
+            target: arm
             cxx: /bin/arm-linux-gnueabihf-g++
             cc: /bin/arm-linux-gnueabihf-gcc
           - os: ubuntu-latest
             cpu: arm64
-            apt: g++-aarch64-linux-gnu gcc-aarch64-linux-gnu libinput-dev
+            apt: g++-aarch64-linux-gnu gcc-aarch64-linux-gnu
+            target: aarch64
             cxx: /bin/aarch64-linux-gnu-g++
             cc: /bin/aarch64-linux-gnu-gcc
 
           - os: ubuntu-latest
             flags: '-DCMAKE_C_FLAGS="-O2 " -DCMAKE_CXX_FLAGS_RELEASE=" -s -O2 -DNDEBUG -Wall -Wextra -Wno-missing-field-initializers -Wno-psabi -Werror"'
+            libs: libinput-dev
           - os: windows-latest
             flags: '-DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded" -DCMAKE_EXE_LINKER_FLAGS_RELEASE="/DEBUG /OPT:REF /OPT:ICF" -DCMAKE_C_FLAGS_RELEASE="/MT /O2 /c" -DCMAKE_CXX_FLAGS_RELEASE="/MT /O2 /DNDEBUG /Zi /Zc:preprocessor /W4" -A '
 
@@ -90,6 +94,11 @@ jobs:
       if: ${{ matrix.apt }}
       run: >
         sudo apt -y update && sudo apt -y install ${{ matrix.apt }}
+
+    - name: Install libs
+      if: ${{ matrix.target }}
+      run: >
+        sudo apt -o APT::Architecture="${{ matrix.target }}" -y update && sudo apt -o APT::Architecture="${{ matrix.target }}" -y install -o APT::Architecture="${{ matrix.target }}" ${{ matrix.libs }}
 
     - name: Configure CMake
       run: >
