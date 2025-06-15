@@ -125,6 +125,16 @@ int main(int argc, char* argv[])
                 break;
             }
         }
+        #if defined(__linux__)
+        else if (getopt.match("--SetMouseAccess"))
+        {
+            os::dtvt::initialize();
+            netxs::logger::wipe();
+            auto syslog = os::tty::logger();
+            auto ok = os::tty::libinput::set_mouse_access();
+            return ok;
+        }
+        #endif
         else if (getopt.match("-?", "-h", "--help"))
         {
             os::dtvt::initialize();
@@ -158,6 +168,9 @@ int main(int argc, char* argv[])
                 "\n    -u, --uninstall      Perform system-wide deinstallation."
                 #if defined(WIN32)
                 "\n    -0, --session0       Use Session 0 to run Desktop Server in background."
+                #endif
+                #if defined(__linux__)
+                "\n    --SetMouseAccess     Set mouse device access for all users."
                 #endif
                 "\n    -q, --quiet          Disable logging."
                 "\n    -x, --script <cmds>  Specifies script commands."

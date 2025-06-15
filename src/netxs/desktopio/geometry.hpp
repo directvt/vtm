@@ -101,10 +101,10 @@ namespace netxs
         //xy2d operator << (T i) const { return { x << i, y << i }; }
         //xy2d operator >> (T i) const { return { x >> i, y >> i }; }
 
-        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator +  (D i) const { return xy2d<D>{ x + i, y + i }; }
-        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator -  (D i) const { return xy2d<D>{ x - i, y - i }; }
-        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator *  (D i) const { return xy2d<D>{ x * i, y * i }; }
-        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator /  (D i) const { return xy2d<D>{ x / i, y / i }; }
+        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator +  (D i) const { return xy2d{ x + i, y + i }; }
+        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator -  (D i) const { return xy2d{ x - i, y - i }; }
+        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator *  (D i) const { return xy2d{ x * i, y * i }; }
+        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator /  (D i) const { return xy2d{ x / i, y / i }; }
         template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator +  (xy2d<D> f) const { return xy2d{ x + f.x, y + f.y }; }
         template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator -  (xy2d<D> f) const { return xy2d{ x - f.x, y - f.y }; }
         template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator *  (xy2d<D> f) const { return xy2d{ x * f.x, y * f.y }; }
