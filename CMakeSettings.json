@@ -309,12 +309,12 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_RELEASE",
-          "value": "-O2 -DNDEBUG -static -pthread -s -Wno-psabi -Wall -Wextra -Wno-missing-field-initializers",
+          "value": "-O2 -DNDEBUG -pthread -s -Wno-psabi -Wall -Wextra -Wno-missing-field-initializers",
           "type": "STRING"
         },
         {
           "name": "CMAKE_C_FLAGS_RELEASE",
-          "value": "-O2 -DNDEBUG -static",
+          "value": "-O2 -DNDEBUG",
           "type": "STRING"
         },
         {
@@ -347,12 +347,12 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_RELEASE",
-          "value": "-O2 -DNDEBUG -static -pthread -s -Wall -Wextra -Wno-missing-field-initializers",
+          "value": "-O2 -DNDEBUG -pthread -s -Wall -Wextra -Wno-missing-field-initializers",
           "type": "STRING"
         },
         {
           "name": "CMAKE_C_FLAGS_RELEASE",
-          "value": "-O2 -DNDEBUG -static",
+          "value": "-O2 -DNDEBUG",
           "type": "STRING"
         },
         {
@@ -385,12 +385,12 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_RELEASE",
-          "value": "-O2 -DNDEBUG -static -pthread -s -Wall -Wextra -Wno-missing-field-initializers",
+          "value": "-O2 -DNDEBUG -pthread -s -Wall -Wextra -Wno-missing-field-initializers",
           "type": "STRING"
         },
         {
           "name": "CMAKE_C_FLAGS_RELEASE",
-          "value": "-O2 -DNDEBUG -static",
+          "value": "-O2 -DNDEBUG",
           "type": "STRING"
         },
         {
@@ -422,12 +422,12 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_RELEASE",
-          "value": "-O2 -DNDEBUG -static -pthread -s -Wall -Wextra -Wno-missing-field-initializers",
+          "value": "-O2 -DNDEBUG -pthread -s -Wall -Wextra -Wno-missing-field-initializers",
           "type": "STRING"
         },
         {
           "name": "CMAKE_C_FLAGS_RELEASE",
-          "value": "-O2 -DNDEBUG -static",
+          "value": "-O2 -DNDEBUG",
           "type": "STRING"
         },
         {
