@@ -24,7 +24,8 @@ Option                  | Description
 `-g`, `--gui`           | Force GUI mode.
 `-i`, `--install`       | Perform system-wide installation. Allow Desktop Server to run in user context in Session 0 on Windows.<br>Placing Desktop Server in Session 0 allows console applications to run independently of the user's GUI login session. Note: This prevents GUI applications from running from the vtm desktop environment. See "Session 0 Isolation" on the Web for details.
 `-u`, `--uninstall`     | Perform system-wide deinstallation.
-`-0`, `--session0`      | Use Session 0 to run Desktop Server in background.
+`-0`, `--session0`      | Use Session 0 to run Desktop Server in background. For Windows only.
+`--SetMouseAccess`      | Set mouse device access for all users in Linux VGA Console. Elevated privileges required.
 `-q`, `--quiet`         | Disable logging.
 `-x`, `--script <cmds>` | Specifies script commands to be run by the desktop when ready.
 `-c`, `--config <file>` | Specifies a settings file to load or plain xml-data to merge.
@@ -38,6 +39,8 @@ Option                  | Description
 `--env <var=val>`       | Set environment variable.
 `--cwd <path>`          | Set current working directory.
 
+#### Inline configuration
+
 The plain xml-data could be specified in place of `<file>` in `--config <file>` option:
 - `command-line`:
   ```cmd
@@ -48,6 +51,18 @@ The plain xml-data could be specified in place of `<file>` in `--config <file>` 
   ```cmd
   vtm -c "<config/terminal/scrollback size=1000000/>" -r term
   ```
+
+#### Linux VGA Console
+
+In order to use a mouse or touchpad in Linux VGA Console, you must grant the user access to the mouse device. By default, only privileged users and users of the `input` group have access. To grant temporary access, use the command:
+- ```
+  sudo vtm --SetMouseAccess
+  ```
+To grant permanent access, you must assign the appropriate access rights to the `/dev/input/eventN` files associated with the mouse devices. The device associations could be found using the following command:
+- ```
+  cat /proc/bus/input/devices
+  ```
+Note: The `/dev/input/eventN` files are temporary, created by `udev` each time the system starts.
 
 ### Desktop Applets
 

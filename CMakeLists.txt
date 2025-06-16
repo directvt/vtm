@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.24)
+cmake_minimum_required(VERSION 3.22)
 
 project("vtm")
 # project("term")
@@ -30,12 +30,16 @@ else()
     #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -static -O2 -DLUA_USE_POSIX")
 endif()
 
-# Lua
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    # libinput dependency (libinput-dev)
+    find_package(Libinput)
+endif()
+
+# Lua dependency
 include(FetchContent)
 FetchContent_Declare(lua
                      URL      https://www.lua.org/ftp/lua-5.4.7.tar.gz
-                     URL_HASH SHA256=9fbf5e28ef86c69858f6d3d34eccc32e911c1a28b4120ff3e84aaa70cfbf1e30
-                     DOWNLOAD_EXTRACT_TIMESTAMP true)
+                     URL_HASH SHA256=9fbf5e28ef86c69858f6d3d34eccc32e911c1a28b4120ff3e84aaa70cfbf1e30)
 FetchContent_MakeAvailable(lua)
 file(GLOB lua_src CONFIGURE_DEPENDS ${lua_SOURCE_DIR}/src/*.c)
 list(REMOVE_ITEM lua_src ${lua_SOURCE_DIR}/src/lua.c ${lua_SOURCE_DIR}/src/luac.c)
@@ -47,7 +51,7 @@ add_executable(vtm "src/vtm.cpp" ${WIN32_RESOURCES})
 # add_executable(term "src/netxs/apps/term.cpp")
 # add_executable(calc "src/netxs/apps/calc.cpp")
 
-target_link_libraries(vtm lua)
+target_link_libraries(vtm PRIVATE lua)
 # target_link_libraries(term lua)
 # target_link_libraries(calc lua)
 

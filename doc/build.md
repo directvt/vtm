@@ -8,8 +8,9 @@ Note: As part of the build process, cmake downloads and compiles the Lua source 
 
 Build-time dependencies
  - `git`
- - `cmake`
- - `C++20 compiler` ([GCC 11](https://gcc.gnu.org/projects/cxx-status.html), [Clang 14](https://clang.llvm.org/cxx_status.html))
+ - `cmake v3.22`
+ - `libinput-dev`
+ - `C++20 compiler` ([GCC 12](https://gcc.gnu.org/projects/cxx-status.html), [Clang 14](https://clang.llvm.org/cxx_status.html))
 
 Use any terminal as a build environment
 ```

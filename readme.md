@@ -30,6 +30,14 @@ It can wrap any console application and be nested indefinitely, forming a text-b
 ![Windows](.resources/status/windows.svg) [![Intel 64-bit](.resources/status/arch_x86_64.svg)](https://github.com/directvt/vtm/releases/latest/download/vtm_windows_x86_64.zip)  [![Intel 32-bit](.resources/status/arch_x86.svg)](https://github.com/directvt/vtm/releases/latest/download/vtm_windows_x86.zip)  [![ARM 64-bit](.resources/status/arch_arm64.svg)](https://github.com/directvt/vtm/releases/latest/download/vtm_windows_arm64.zip)  
 ![macOS](.resources/status/macos.svg)     [![Universal](.resources/status/arch_any.svg)](https://github.com/directvt/vtm/releases/latest/download/vtm_macos_any.zip)  
 
+Runtime dependencies for the Linux platform:
+- ```
+  GLIBC 2.34
+  ```
+- ```
+  sudo apt install libinput10
+  ```
+
 # Documentation
 
 - [Architecture](doc/architecture.md)
