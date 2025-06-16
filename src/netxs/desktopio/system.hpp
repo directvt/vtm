@@ -5728,6 +5728,7 @@ namespace netxs::os
                             auto wheelsi = twod{};
                             auto event_type = ::libinput_event_get_type(e);
                             auto p = ::libinput_event_get_pointer_event(e);
+                            log("event type: ", event_type);
                             if (event_type == LIBINPUT_EVENT_POINTER_MOTION)
                             {
                                 mcoord.x += ::libinput_event_pointer_get_dx(p);

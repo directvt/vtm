@@ -116,7 +116,7 @@ jobs:
       run: >
         sudo dpkg --add-architecture ${{ matrix.target }}
         && sudo apt-get -o APT::Architecture=${{ matrix.target }} update
-        && sudo apt-get install -y -o APT::Architecture=${{ matrix.target }} ${{ matrix.libs }}
+        && sudo apt-get install -y ${{ matrix.libs }}:${{ matrix.target }}
 
     - name: Configure CMake
       run: >
