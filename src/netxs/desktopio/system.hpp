@@ -5728,12 +5728,17 @@ namespace netxs::os
                             auto wheelsi = twod{};
                             auto event_type = ::libinput_event_get_type(e);
                             auto p = ::libinput_event_get_pointer_event(e);
-                            log("event type: ", event_type);
-                            if (event_type == LIBINPUT_EVENT_POINTER_MOTION)
+                            if (event_type == LIBINPUT_EVENT_POINTER_MOTION_ABSOLUTE) // Generic PS/2 mouse.
                             {
+                                auto limit = w.winsize * scale;
+                                mcoord.x = ::libinput_event_pointer_get_absolute_x_transformed(p, limit.x);
+                                mcoord.y = ::libinput_event_pointer_get_absolute_y_transformed(p, limit.y);
+                            }
+                            else if (event_type == LIBINPUT_EVENT_POINTER_MOTION) // Touchpads and USB mouses.
+                            {
+                                auto limit = fp2d{ w.winsize * scale };
                                 mcoord.x += ::libinput_event_pointer_get_dx(p);
                                 mcoord.y += ::libinput_event_pointer_get_dy(p);
-                                auto limit = fp2d{ w.winsize * scale };
                                 mcoord = std::clamp(mcoord, fp2d{}, limit - dot_11);
                             }
                             else if (event_type == LIBINPUT_EVENT_POINTER_BUTTON)
