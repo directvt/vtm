@@ -14,7 +14,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ windows-latest, ubuntu-latest ]
-        cpu: [ arm64 ]
+        cpu: [ x64, x86, arm64, arm ]
         exclude:
           - os: windows-latest
             cpu: x86
