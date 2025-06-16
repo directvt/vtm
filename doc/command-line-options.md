@@ -25,7 +25,7 @@ Option                  | Description
 `-i`, `--install`       | Perform system-wide installation. Allow Desktop Server to run in user context in Session 0 on Windows.<br>Placing Desktop Server in Session 0 allows console applications to run independently of the user's GUI login session. Note: This prevents GUI applications from running from the vtm desktop environment. See "Session 0 Isolation" on the Web for details.
 `-u`, `--uninstall`     | Perform system-wide deinstallation.
 `-0`, `--session0`      | Use Session 0 to run Desktop Server in background. For Windows only.
-`--SetMouseAccess`      | Set mouse device access for all users. Elevated privileges required. For Linux only.
+`--SetMouseAccess`      | Set mouse device access for all users in Linux VGA Console. Elevated privileges required.
 `-q`, `--quiet`         | Disable logging.
 `-x`, `--script <cmds>` | Specifies script commands to be run by the desktop when ready.
 `-c`, `--config <file>` | Specifies a settings file to load or plain xml-data to merge.

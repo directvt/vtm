@@ -170,7 +170,7 @@ int main(int argc, char* argv[])
                 "\n    -0, --session0       Use Session 0 to run Desktop Server in background."
                 #endif
                 #if defined(__linux__)
-                "\n    --SetMouseAccess     Set mouse device access for all users. Elevated privileges required."
+                "\n    --SetMouseAccess     Set mouse device access for all users in Linux VGA Console. Elevated privileges required."
                 #endif
                 "\n    -q, --quiet          Disable logging."
                 "\n    -x, --script <cmds>  Specifies script commands."

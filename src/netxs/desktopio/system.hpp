@@ -4770,6 +4770,7 @@ namespace netxs::os
                     return true;
                 }
                 auto count = 0;
+                initialize();
                 enumerate_mouses([&](auto /*device*/, auto dev_path, auto name)
                 {
                     count++;
@@ -4786,6 +4787,7 @@ namespace netxs::os
                 {
                     log("\tNo mouse devices found");
                 }
+                uninitialize();
                 return !count;
             }
         }
