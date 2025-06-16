@@ -309,22 +309,22 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_RELEASE",
-          "value": "-O2 -DNDEBUG -pthread -s -Wno-psabi -Wall -Wextra -Wno-missing-field-initializers",
+          "value": "-O2 -DNDEBUG -pthread -static-libstdc++ -s -Wno-psabi -Wall -Wextra -Wno-missing-field-initializers",
           "type": "STRING"
         },
         {
           "name": "CMAKE_C_FLAGS_RELEASE",
-          "value": "-O2 -DNDEBUG",
+          "value": "-O2 -DNDEBUG -static-libgcc",
           "type": "STRING"
         },
         {
           "name": "CMAKE_CXX_COMPILER",
-          "value": "/bin/arm-linux-gnueabihf-g++",
+          "value": "/usr/bin/arm-linux-gnueabihf-g++-12",
           "type": "STRING"
         },
         {
           "name": "CMAKE_C_COMPILER",
-          "value": "/bin/arm-linux-gnueabihf-gcc",
+          "value": "/usr/bin/arm-linux-gnueabihf-gcc-12",
           "type": "STRING"
         }
       ],
@@ -347,22 +347,22 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_RELEASE",
-          "value": "-O2 -DNDEBUG -pthread -s -Wall -Wextra -Wno-missing-field-initializers",
+          "value": "-O2 -DNDEBUG -pthread -static-libstdc++ -s -Wall -Wextra -Wno-missing-field-initializers",
           "type": "STRING"
         },
         {
           "name": "CMAKE_C_FLAGS_RELEASE",
-          "value": "-O2 -DNDEBUG",
+          "value": "-O2 -DNDEBUG -static-libgcc",
           "type": "STRING"
         },
         {
           "name": "CMAKE_CXX_COMPILER",
-          "value": "/bin/aarch64-linux-gnu-g++",
+          "value": "/usr/bin/aarch64-linux-gnu-g++-12",
           "type": "STRING"
         },
         {
           "name": "CMAKE_C_COMPILER",
-          "value": "/bin/aarch64-linux-gnu-gcc",
+          "value": "/usr/bin/aarch64-linux-gnu-gcc-12",
           "type": "STRING"
         }
       ],
@@ -385,22 +385,22 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_RELEASE",
-          "value": "-O2 -DNDEBUG -pthread -s -Wall -Wextra -Wno-missing-field-initializers",
+          "value": "-O2 -DNDEBUG -pthread -static-libstdc++ -s -Wall -Wextra -Wno-missing-field-initializers",
           "type": "STRING"
         },
         {
           "name": "CMAKE_C_FLAGS_RELEASE",
-          "value": "-O2 -DNDEBUG",
+          "value": "-O2 -DNDEBUG -static-libgcc",
           "type": "STRING"
         },
         {
           "name": "CMAKE_CXX_COMPILER",
-          "value": "/bin/i686-linux-gnu-g++",
+          "value": "/usr/bin/i686-linux-gnu-g++-12",
           "type": "STRING"
         },
         {
           "name": "CMAKE_C_COMPILER",
-          "value": "/bin/i686-linux-gnu-gcc",
+          "value": "/usr/bin/i686-linux-gnu-gcc-12",
           "type": "STRING"
         }
       ],
@@ -422,23 +422,23 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_RELEASE",
-          "value": "-O2 -DNDEBUG -pthread -s -Wall -Wextra -Wno-missing-field-initializers",
+          "value": "-O2 -DNDEBUG -pthread -static-libstdc++ -s -Wall -Wextra -Wno-missing-field-initializers",
           "type": "STRING"
         },
         {
           "name": "CMAKE_C_FLAGS_RELEASE",
-          "value": "-O2 -DNDEBUG",
+          "value": "-O2 -DNDEBUG -static-libgcc",
           "type": "STRING"
         },
         {
           "name": "CMAKE_CXX_COMPILER",
-          "value": "/bin/g++",
+          "value": "/usr/bin/g++-12",
           "_comment": "/bin/clang++",
           "type": "STRING"
         },
         {
           "name": "CMAKE_C_COMPILER",
-          "value": "/bin/gcc",
+          "value": "/usr/bin/gcc-12",
           "_comment": "/bin/clang",
           "type": "STRING"
         }
