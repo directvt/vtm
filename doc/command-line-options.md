@@ -39,6 +39,8 @@ Option                  | Description
 `--env <var=val>`       | Set environment variable.
 `--cwd <path>`          | Set current working directory.
 
+#### Inline configuration
+
 The plain xml-data could be specified in place of `<file>` in `--config <file>` option:
 - `command-line`:
   ```cmd
@@ -49,6 +51,18 @@ The plain xml-data could be specified in place of `<file>` in `--config <file>` 
   ```cmd
   vtm -c "<config/terminal/scrollback size=1000000/>" -r term
   ```
+
+#### Linux VGA Console
+
+In order to use a mouse or touchpad in Linux VGA Console, you must grant the user access to the mouse device. By default, only privileged users and users of the `input` group have access. To grant temporary access, use the command:
+- ```
+  sudo vtm --SetMouseAccess
+  ```
+To grant permanent access, you must assign the appropriate access rights to the `/dev/input/eventN` files associated with the mouse devices. The device associations could be found using the following command:
+- ```
+  cat /proc/bus/input/devices
+  ```
+Note: The `/dev/input/eventN` files are temporary, created by `udev` each time the system starts.
 
 ### Desktop Applets
 
