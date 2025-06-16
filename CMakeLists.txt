@@ -30,7 +30,10 @@ else()
     #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -static -O2 -DLUA_USE_POSIX")
 endif()
 
-# Lua
+# libinput dependency
+find_package(Libinput)
+
+# Lua dependency
 include(FetchContent)
 FetchContent_Declare(lua
                      URL      https://www.lua.org/ftp/lua-5.4.7.tar.gz
@@ -50,11 +53,6 @@ add_executable(vtm "src/vtm.cpp" ${WIN32_RESOURCES})
 target_link_libraries(vtm PRIVATE lua)
 # target_link_libraries(term lua)
 # target_link_libraries(calc lua)
-
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    find_package(Libinput)
-    target_link_libraries(vtm PRIVATE Libinput::Libinput)
-endif()
 
 if(NOT WIN32)
     install(TARGETS vtm DESTINATION bin)

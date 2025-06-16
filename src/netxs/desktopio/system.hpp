@@ -61,6 +61,7 @@
         #include <linux/keyboard.h> // ::keyb_ioctl()
         #include <linux/input.h>    // mouse button codes: BTN_LEFT ...
         #include <libinput.h>       // libinput API
+        #include <dlfcn.h>          // ::dlopen()
     #endif
 
     #if defined(__APPLE__)
@@ -4695,31 +4696,113 @@ namespace netxs::os
         #if defined(__linux__)
         namespace libinput
         {
-            static auto li = (::libinput*)nullptr;
+            struct libinput;
+            struct device;
+            struct event;
+            struct event_pointer;
+            struct fdinterface
+            {
+                using open_fx = si32(*)(char const* path, si32 flags, void* user_data);
+                using close_fx = void(*)(si32 fd, void* user_data);
+                open_fx  open_restricted;
+                close_fx close_restricted;
+            };
+            using log_handler_t = void(*)(libinput* libinput, si32 log_priority, char const* format, va_list args);
+
+            static auto path_create_context                      = (typeof(     libinput*(fdinterface*, void* user_data)             )*){};
+            static auto log_set_handler                          = (typeof(          void(libinput*, log_handler_t proc)             )*){};
+            static auto path_add_device                          = (typeof(       device*(libinput*, char const* path)               )*){};
+            static auto device_has_capability                    = (typeof(          si32(device*, si32 device_capability)           )*){};
+            static auto device_get_name                          = (typeof(   char const*(device*)                                   )*){};
+            static auto path_remove_device                       = (typeof(          void(device*)                                   )*){};
+            static auto device_config_tap_set_enabled            = (typeof(          si32(device*, si32 config_tap_state)            )*){};
+            static auto device_config_scroll_set_method          = (typeof(          si32(device*, si32 config_scroll_method)        )*){};
+            static auto get_fd                                   = (typeof(          si32(libinput*)                                 )*){};
+            static auto dispatch                                 = (typeof(          si32(libinput*)                                 )*){};
+            static auto get_event                                = (typeof(        event*(libinput*)                                 )*){};
+            static auto event_get_type                           = (typeof(          si32(event*)                                    )*){};
+            static auto event_get_pointer_event                  = (typeof(event_pointer*(event*)                                    )*){};
+            static auto event_pointer_get_absolute_x             = (typeof(          fp64(event_pointer*)                            )*){};
+            static auto event_pointer_get_absolute_y             = (typeof(          fp64(event_pointer*)                            )*){};
+            static auto event_pointer_get_dx                     = (typeof(          fp64(event_pointer*)                            )*){};
+            static auto event_pointer_get_dy                     = (typeof(          fp64(event_pointer*)                            )*){};
+            static auto event_pointer_get_button                 = (typeof(          ui32(event_pointer*)                            )*){};
+            static auto event_get_device                         = (typeof(       device*(event*)                                    )*){};
+            static auto event_pointer_get_button_state           = (typeof(          si32(event_pointer*)                            )*){};
+            static auto event_pointer_get_scroll_value           = (typeof(          fp64(event_pointer*, si32 libinput_pointer_axis))*){};
+            static auto event_destroy                            = (typeof(          void(event*)                                    )*){};
+            static auto unref                                    = (typeof(     libinput*(libinput*)                                 )*){};
+            static auto event_pointer_get_absolute_x_transformed = (typeof(          fp64(event_pointer*, ui32 width)                )*){};
+            static auto event_pointer_get_absolute_y_transformed = (typeof(          fp64(event_pointer*, ui32 width)                )*){};
+
+            static auto li = (libinput*)nullptr;
+            static auto li_ref = (void*)nullptr;
+
             // libinput: .
             auto initialize()
             {
-                static auto log_handler_proc = [](auto, auto, auto, auto){ };
-                static auto open_restricted  = [](char const* path, si32 flags, void* /*user_data*/){ return ::open(path, flags); };
-                static auto close_restricted = [](fd_t fd, void* /*user_data*/){ ::close(fd); };
-                static auto fd_interface = ::libinput_interface{ .open_restricted = open_restricted, .close_restricted = close_restricted };
-                li = ::libinput_path_create_context(&fd_interface, nullptr);
-                ::libinput_log_set_handler(li, log_handler_proc);
+                static constexpr auto& libinput_so = "libinput.so.10";
+                li_ref = ::dlopen(libinput_so, RTLD_NOW);
+                if (li_ref)
+                {
+                    *(void**)&path_create_context                      = ::dlsym(li_ref, "libinput_path_create_context");
+                    *(void**)&log_set_handler                          = ::dlsym(li_ref, "libinput_log_set_handler");
+                    *(void**)&path_add_device                          = ::dlsym(li_ref, "libinput_path_add_device");
+                    *(void**)&device_has_capability                    = ::dlsym(li_ref, "libinput_device_has_capability");
+                    *(void**)&device_get_name                          = ::dlsym(li_ref, "libinput_device_get_name");
+                    *(void**)&path_remove_device                       = ::dlsym(li_ref, "libinput_path_remove_device");
+                    *(void**)&device_config_tap_set_enabled            = ::dlsym(li_ref, "libinput_device_config_tap_set_enabled");
+                    *(void**)&device_config_scroll_set_method          = ::dlsym(li_ref, "libinput_device_config_scroll_set_method");
+                    *(void**)&get_fd                                   = ::dlsym(li_ref, "libinput_get_fd");
+                    *(void**)&dispatch                                 = ::dlsym(li_ref, "libinput_dispatch");
+                    *(void**)&get_event                                = ::dlsym(li_ref, "libinput_get_event");
+                    *(void**)&event_get_type                           = ::dlsym(li_ref, "libinput_event_get_type");
+                    *(void**)&event_get_pointer_event                  = ::dlsym(li_ref, "libinput_event_get_pointer_event");
+                    *(void**)&event_pointer_get_absolute_x             = ::dlsym(li_ref, "libinput_event_pointer_get_absolute_x");
+                    *(void**)&event_pointer_get_absolute_y             = ::dlsym(li_ref, "libinput_event_pointer_get_absolute_y");
+                    *(void**)&event_pointer_get_dx                     = ::dlsym(li_ref, "libinput_event_pointer_get_dx");
+                    *(void**)&event_pointer_get_dy                     = ::dlsym(li_ref, "libinput_event_pointer_get_dy");
+                    *(void**)&event_pointer_get_button                 = ::dlsym(li_ref, "libinput_event_pointer_get_button");
+                    *(void**)&event_get_device                         = ::dlsym(li_ref, "libinput_event_get_device");
+                    *(void**)&event_pointer_get_button_state           = ::dlsym(li_ref, "libinput_event_pointer_get_button_state");
+                    *(void**)&event_pointer_get_scroll_value           = ::dlsym(li_ref, "libinput_event_pointer_get_scroll_value");
+                    *(void**)&event_destroy                            = ::dlsym(li_ref, "libinput_event_destroy");
+                    *(void**)&dispatch                                 = ::dlsym(li_ref, "libinput_dispatch");
+                    *(void**)&unref                                    = ::dlsym(li_ref, "libinput_unref");
+                    *(void**)&event_pointer_get_absolute_x_transformed = ::dlsym(li_ref, "libinput_event_pointer_get_absolute_x_transformed");
+                    *(void**)&event_pointer_get_absolute_y_transformed = ::dlsym(li_ref, "libinput_event_pointer_get_absolute_y_transformed");
+
+                    static auto log_handler_proc = [](libinput*, si32 /*priority*/, char const* /*format*/, va_list /*args*/){ };
+                    static auto open_restricted  = [](char const* path, si32 flags, void* /*user_data*/){ return ::open(path, flags); };
+                    static auto close_restricted = [](fd_t fd, [[maybe_unused]]void* user_data){ ::close(fd); };
+                    static auto fd_interface = fdinterface{ .open_restricted = open_restricted, .close_restricted = close_restricted };
+
+                    li = path_create_context(&fd_interface, nullptr);
+                    log_set_handler(li, log_handler_proc);
+                }
+                else
+                {
+                    log("Error loading %libname% (%%)", libinput_so, errno);
+                }
                 return li;
             }
             // libinput: .
             void uninitialize()
             {
-                if (li)
+                if (li_ref)
                 {
-                    ::libinput_unref(li);
-                    li = {};
+                    if (li)
+                    {
+                        tty::libinput::unref(li);
+                    }
+                    ::dlclose(li_ref);
+                    li_ref = {};
                 }
             }
             auto next_event()
             {
-                ::libinput_dispatch(li);
-                auto e = ::libinput_get_event(li);
+                tty::libinput::dispatch(li);
+                auto e = tty::libinput::get_event(li);
                 return e;
             }
             void enumerate_mouses(auto proc)
@@ -4729,17 +4812,17 @@ namespace netxs::os
                     if (entry.path().filename().string().starts_with("event"))
                     {
                         auto dev_path = entry.path().c_str();
-                        if (auto device = ::libinput_path_add_device(li, dev_path))
+                        if (auto device = tty::libinput::path_add_device(li, dev_path))
                         {
-                            if (::libinput_device_has_capability(device, LIBINPUT_DEVICE_CAP_POINTER))
+                            if (tty::libinput::device_has_capability(device, LIBINPUT_DEVICE_CAP_POINTER))
                             {
-                                auto name_ptr = ::libinput_device_get_name(device);
+                                auto name_ptr = tty::libinput::device_get_name(device);
                                 auto name = text{ name_ptr ? name_ptr : "unnamed" };
                                 proc(device, dev_path, name);
                             }
                             else
                             {
-                                ::libinput_path_remove_device(device);
+                                tty::libinput::path_remove_device(device);
                             }
                         }
                     }
@@ -4754,9 +4837,9 @@ namespace netxs::os
                 {
                     count++;
                     log("\tadded device: %% (%%)", dev_path, name);
-                    auto rc = ::libinput_device_config_tap_set_enabled(device, LIBINPUT_CONFIG_TAP_ENABLED);
+                    auto rc = tty::libinput::device_config_tap_set_enabled(device, LIBINPUT_CONFIG_TAP_ENABLED);
                     log("\t  LIBINPUT_CONFIG_TAP_ENABLED: ", rc);
-                    rc = ::libinput_device_config_scroll_set_method(device, LIBINPUT_CONFIG_SCROLL_2FG);// | LIBINPUT_CONFIG_SCROLL_EDGE));
+                    rc = tty::libinput::device_config_scroll_set_method(device, LIBINPUT_CONFIG_SCROLL_2FG);// | LIBINPUT_CONFIG_SCROLL_EDGE));
                     log("\t   LIBINPUT_CONFIG_SCROLL_2FG: ", rc);
                 });
                 return count;
@@ -5143,7 +5226,7 @@ namespace netxs::os
                         auto dev_count = os::tty::libinput::attach_mouse();
                         if (dev_count)
                         {
-                            micefd = ::libinput_get_fd(li);
+                            micefd = libinput::get_fd(li);
                             auto tty_word = tty_name.find("tty", 0);
                             if (tty_word != text::npos)
                             {
@@ -5726,24 +5809,24 @@ namespace netxs::os
                         {
                             auto wheelfp = fp2d{};
                             auto wheelsi = twod{};
-                            auto event_type = ::libinput_event_get_type(e);
-                            auto p = ::libinput_event_get_pointer_event(e);
+                            auto event_type = libinput::event_get_type(e);
+                            auto p = libinput::event_get_pointer_event(e);
                             if (event_type == LIBINPUT_EVENT_POINTER_MOTION_ABSOLUTE) // Generic PS/2 mouse.
                             {
                                 auto limit = w.winsize * scale;
-                                mcoord.x = ::libinput_event_pointer_get_absolute_x_transformed(p, limit.x);
-                                mcoord.y = ::libinput_event_pointer_get_absolute_y_transformed(p, limit.y);
+                                mcoord.x = libinput::event_pointer_get_absolute_x_transformed(p, limit.x);
+                                mcoord.y = libinput::event_pointer_get_absolute_y_transformed(p, limit.y);
                             }
                             else if (event_type == LIBINPUT_EVENT_POINTER_MOTION) // Touchpads and USB mouses.
                             {
                                 auto limit = fp2d{ w.winsize * scale };
-                                mcoord.x += ::libinput_event_pointer_get_dx(p);
-                                mcoord.y += ::libinput_event_pointer_get_dy(p);
+                                mcoord.x += libinput::event_pointer_get_dx(p);
+                                mcoord.y += libinput::event_pointer_get_dy(p);
                                 mcoord = std::clamp(mcoord, fp2d{}, limit - dot_11);
                             }
                             else if (event_type == LIBINPUT_EVENT_POINTER_BUTTON)
                             {
-                                auto button = ::libinput_event_pointer_get_button(p);
+                                auto button = libinput::event_pointer_get_button(p);
                                 auto i = -1;
                                 switch (button)
                                 {
@@ -5758,8 +5841,8 @@ namespace netxs::os
                                 }
                                 if (i != -1)
                                 {
-                                    auto dev_ptr = ::libinput_event_get_device(e);
-                                    auto pressed = ::libinput_event_pointer_get_button_state(p);
+                                    auto dev_ptr = libinput::event_get_device(e);
+                                    auto pressed = libinput::event_pointer_get_button_state(p);
                                     auto& state = dev_map[(arch)dev_ptr];
                                     state = (state & ~(1 << i)) | (pressed << i);
                                 }
@@ -5768,13 +5851,13 @@ namespace netxs::os
                             {
                                 if (event_type == LIBINPUT_EVENT_POINTER_SCROLL_WHEEL)
                                 {
-                                    wheelfp.x = -::libinput_event_pointer_get_scroll_value(p, LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL);
-                                    wheelfp.y = -::libinput_event_pointer_get_scroll_value(p, LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL);
+                                    wheelfp.x = -libinput::event_pointer_get_scroll_value(p, LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL);
+                                    wheelfp.y = -libinput::event_pointer_get_scroll_value(p, LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL);
                                 }
                                 else if (event_type == LIBINPUT_EVENT_POINTER_SCROLL_FINGER)
                                 {
-                                    wheelfp.x = ::libinput_event_pointer_get_scroll_value(p, LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL);
-                                    wheelfp.y = ::libinput_event_pointer_get_scroll_value(p, LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL);
+                                    wheelfp.x = libinput::event_pointer_get_scroll_value(p, LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL);
+                                    wheelfp.y = libinput::event_pointer_get_scroll_value(p, LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL);
                                 }
                                 if (wheelfp)
                                 {
@@ -5833,7 +5916,7 @@ namespace netxs::os
                                     mouse(m);
                                 }
                             }
-                            ::libinput_event_destroy(e);
+                            libinput::event_destroy(e);
                         }
                         else
                         {
