@@ -57,7 +57,7 @@ jobs:
           - os: ubuntu-latest
             cpu: arm64
             apt: g++-aarch64-linux-gnu gcc-aarch64-linux-gnu
-            target: aarch64
+            target: arm64
             cxx: /bin/aarch64-linux-gnu-g++
             cc: /bin/aarch64-linux-gnu-gcc
 
