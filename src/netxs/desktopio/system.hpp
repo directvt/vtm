@@ -4007,7 +4007,13 @@ namespace netxs::os
                     dtvt::vtmode |= nt16 ? ui::console::nt | ui::console::nt16
                                          : ui::console::nt;
                 }
-                #elif defined(__linux__)
+                #endif
+                auto colorterm = os::env::get("COLORTERM");
+                term = text{ dtvt::vtmode & ui::console::nt16 ? "Windows Console" : "" };
+                if (term.empty()) term = os::env::get("TERM");
+                if (term.empty()) term = os::env::get("TERM_PROGRAM");
+                if (term.empty()) term = "xterm-compatible";
+                #if defined(__linux__)
                     auto buffer = text(os::pipebuf, '\0');
                     ok(::ttyname_r(os::stdout_fd, buffer.data(), buffer.size()), "::ttyname_r(os::stdout_fd)", os::unexpected);
                     dtvt::tty_name = buffer.data();
@@ -4027,16 +4033,11 @@ namespace netxs::os
                     {
                         log("%%Pseudoterminal %pts%", prompt::tty, dtvt::tty_name);
                     }
+                    if (term == "linux" || os::linux_console)
+                    {
+                        dtvt::vtmode |= ui::console::mouse;
+                    }
                 #endif
-                auto colorterm = os::env::get("COLORTERM");
-                term = text{ dtvt::vtmode & ui::console::nt16 ? "Windows Console" : "" };
-                if (term.empty()) term = os::env::get("TERM");
-                if (term.empty()) term = os::env::get("TERM_PROGRAM");
-                if (term.empty()) term = "xterm-compatible";
-                if (term == "linux" || os::linux_console)
-                {
-                    dtvt::vtmode |= ui::console::mouse;
-                }
                 if (colorterm != "truecolor" && colorterm != "24bit")
                 {
                     auto vt16colors = { // https://github.com//termstandard/colors
