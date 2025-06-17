@@ -26,6 +26,7 @@ Option                  | Description
 `-u`, `--uninstall`     | Perform system-wide deinstallation.
 `-0`, `--session0`      | Use Session 0 to run Desktop Server in background. For Windows only.
 `--SetMouseAccess`      | Set mouse device access for all users in Linux VGA Console. Elevated privileges required.
+`--mouse`               | Force polling of mouse devices.
 `-q`, `--quiet`         | Disable logging.
 `-x`, `--script <cmds>` | Specifies script commands to be run by the desktop when ready.
 `-c`, `--config <file>` | Specifies a settings file to load or plain xml-data to merge.

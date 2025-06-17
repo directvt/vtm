@@ -134,6 +134,10 @@ int main(int argc, char* argv[])
             auto ok = os::tty::libinput::set_mouse_access();
             return ok;
         }
+        else if (getopt.match("--mouse"))
+        {
+            os::dtvt::vtmode |= ui::console::mouse;
+        }
         #endif
         else if (getopt.match("-?", "-h", "--help"))
         {
@@ -171,6 +175,7 @@ int main(int argc, char* argv[])
                 #endif
                 #if defined(__linux__)
                 "\n    --SetMouseAccess     Set mouse device access for all users in Linux VGA Console. Elevated privileges required."
+                "\n    --mouse              Force polling of mouse devices."
                 #endif
                 "\n    -q, --quiet          Disable logging."
                 "\n    -x, --script <cmds>  Specifies script commands."

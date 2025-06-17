@@ -3761,6 +3761,8 @@ namespace netxs::os
         static auto gridsz = twod{}; // dtvt: Initial window grid size.
         static auto client = xipc{}; // dtvt: Internal IO link.
         static auto wheelrate = 3;   // dtvt: Lines per mouse wheel step (legacy mode).
+        static auto tty_name = text{}; // dtvt: TTY device name.
+        static auto ttynum = 0;        // dtvt: /dev/ttyX index (X).
 
         auto consize()
         {
@@ -4005,14 +4007,37 @@ namespace netxs::os
                     dtvt::vtmode |= nt16 ? ui::console::nt | ui::console::nt16
                                          : ui::console::nt;
                 }
-                #elif defined(__linux__)
-                    if (os::linux_console) dtvt::vtmode |= ui::console::mouse;
                 #endif
                 auto colorterm = os::env::get("COLORTERM");
                 term = text{ dtvt::vtmode & ui::console::nt16 ? "Windows Console" : "" };
                 if (term.empty()) term = os::env::get("TERM");
                 if (term.empty()) term = os::env::get("TERM_PROGRAM");
                 if (term.empty()) term = "xterm-compatible";
+                #if defined(__linux__)
+                    auto buffer = text(os::pipebuf, '\0');
+                    ok(::ttyname_r(os::stdout_fd, buffer.data(), buffer.size()), "::ttyname_r(os::stdout_fd)", os::unexpected);
+                    dtvt::tty_name = buffer.data();
+                    if (dtvt::tty_name.starts_with("/dev/tty"))
+                    {
+                        log("%%Linux console %tty%", prompt::tty, dtvt::tty_name);
+                        dtvt::vtmode |= ui::console::mouse;
+                        auto tty_word = "tty"sv;
+                        auto tty_pos = dtvt::tty_name.find(tty_word, 0);
+                        if (tty_pos != text::npos)
+                        {
+                            auto tty_number = dtvt::tty_name.substr(tty_pos + tty_word.size());
+                            dtvt::ttynum = utf::to_int(tty_number, 0);
+                        }
+                    }
+                    else
+                    {
+                        log("%%Pseudoterminal %pts%", prompt::tty, dtvt::tty_name);
+                    }
+                    if (term == "linux" || os::linux_console)
+                    {
+                        dtvt::vtmode |= ui::console::mouse;
+                    }
+                #endif
                 if (colorterm != "truecolor" && colorterm != "24bit")
                 {
                     auto vt16colors = { // https://github.com//termstandard/colors
@@ -4807,7 +4832,10 @@ namespace netxs::os
             }
             void enumerate_mouses(auto proc)
             {
-                for (auto& entry : fs::directory_iterator("/dev/input/"))
+                auto code = std::error_code{};
+                auto events = fs::directory_iterator("/dev/input/", code);
+                if (!code)
+                for (auto& entry : events)
                 {
                     if (entry.path().filename().string().starts_with("event"))
                     {
@@ -5179,63 +5207,62 @@ namespace netxs::os
                 auto micefd = os::invalid_fd;
                 auto buffer = text(os::pipebuf, '\0');
                 auto sig_fd = os::signals::fd{};
-                #if defined(__linux__)
-                auto ttynum = si32{ 0 };
-                #endif
                 auto get_kb_state = []
                 {
                     auto state = si32{ 0 };
                     #if defined(__linux__)
                         auto shift_state = si32{ 6 /*TIOCL_GETSHIFTSTATE*/ };
-                        ::ioctl(os::stdin_fd, TIOCLINUX, &shift_state);
-                        auto lalt   = shift_state & (1 << KG_ALT   );
-                        auto ralt   = shift_state & (1 << KG_ALTGR );
-                        auto ctrl   = shift_state & (1 << KG_CTRL  );
-                        auto rctrl  = shift_state & (1 << KG_CTRLR );
-                        auto lctrl  = shift_state & (1 << KG_CTRLL ) || (!rctrl && ctrl);
-                        auto shift  = shift_state & (1 << KG_SHIFT );
-                        auto rshift = shift_state & (1 << KG_SHIFTR);
-                        auto lshift = shift_state & (1 << KG_SHIFTL) || (!rshift && shift);
-                        if (lalt  ) state |= input::hids::LAlt;
-                        if (ralt  ) state |= input::hids::RAlt;
-                        if (lctrl ) state |= input::hids::LCtrl;
-                        if (rctrl ) state |= input::hids::RCtrl;
-                        if (lshift) state |= input::hids::LShift;
-                        if (rshift) state |= input::hids::RShift;
-                        auto led_state = si32{};
-                        ::ioctl(os::stdin_fd, KDGKBLED, &led_state);
-                        // CapsLock can always be 0 due to poorly coded drivers.
-                        if (led_state & LED_NUM) state |= input::hids::NumLock;
-                        if (led_state & LED_CAP) state |= input::hids::CapsLock;
-                        if (led_state & LED_SCR) state |= input::hids::ScrlLock;
+                        if (-1 != ::ioctl(os::stdin_fd, TIOCLINUX, &shift_state))
+                        {
+                            _k0 = shift_state;
+                            _k1 = 0;
+                            auto lalt   = shift_state & (1 << KG_ALT   );
+                            auto ralt   = shift_state & (1 << KG_ALTGR );
+                            auto ctrl   = shift_state & (1 << KG_CTRL  );
+                            auto rctrl  = shift_state & (1 << KG_CTRLR );
+                            auto lctrl  = shift_state & (1 << KG_CTRLL ) || (!rctrl && ctrl);
+                            auto shift  = shift_state & (1 << KG_SHIFT );
+                            auto rshift = shift_state & (1 << KG_SHIFTR);
+                            auto lshift = shift_state & (1 << KG_SHIFTL) || (!rshift && shift);
+                            if (lalt  ) state |= input::hids::LAlt;
+                            if (ralt  ) state |= input::hids::RAlt;
+                            if (lctrl ) state |= input::hids::LCtrl;
+                            if (rctrl ) state |= input::hids::RCtrl;
+                            if (lshift) state |= input::hids::LShift;
+                            if (rshift) state |= input::hids::RShift;
+                        }
+                        else
+                        {
+                            _k0 = -1;
+                            _k1 = errno;
+                        }
+                        auto led_state = si32{ 0 };
+                        if (-1 != ::ioctl(os::stdin_fd, KDGKBLED, &led_state))
+                        {
+                            _k2 = led_state;
+                            _k3 = 0;
+                            // CapsLock can always be 0 due to poorly coded drivers.
+                            if (led_state & LED_NUM) state |= input::hids::NumLock;
+                            if (led_state & LED_CAP) state |= input::hids::CapsLock;
+                            if (led_state & LED_SCR) state |= input::hids::ScrlLock;
+                        }
+                        else
+                        {
+                            _k2 = -1;
+                            _k3 = errno;
+                        }
                     #endif
                     return state;
                 };
-                ok(::ttyname_r(os::stdout_fd, buffer.data(), buffer.size()), "::ttyname_r(os::stdout_fd)", os::unexpected);
-                auto tty_name = view(buffer.data());
-                if (!os::linux_console)
-                {
-                    log(prompt::tty, "Pseudoterminal ", tty_name);
-                }
                 #if defined(__linux__)
-                else // Trying to get direct access to mouse devices.
+                if (dtvt::vtmode & ui::console::mouse) // Trying to get direct mouse access.
                 {
-                    log("%%Linux console %tty%", prompt::tty, tty_name);
                     if (auto li = os::tty::libinput::initialize())
                     {
                         auto dev_count = os::tty::libinput::attach_mouse();
                         if (dev_count)
                         {
                             micefd = libinput::get_fd(li);
-                            auto tty_word = tty_name.find("tty", 0);
-                            if (tty_word != text::npos)
-                            {
-                                auto tty_number = tty_name.substr(tty_word + 3/*skip tty letters*/);
-                                if (auto cur_tty = utf::to_int(tty_number))
-                                {
-                                    ttynum = cur_tty.value();
-                                }
-                            }
                         }
                         else
                         {
@@ -5879,9 +5906,14 @@ namespace netxs::os
                             }
                             auto vt_state = ::vt_stat{};
                             ::ioctl(os::stdout_fd, VT_GETSTATE, &vt_state);
-                            if (vt_state.v_active == ttynum) // Proceed only if the current tty is active.
+                            if (vt_state.v_active == dtvt::ttynum) // Proceed only if the current tty is active.
                             {
-                                k.ctlstat = get_kb_state();
+                                auto kbmod = get_kb_state();
+                                if (k.ctlstat != kbmod)
+                                {
+                                    k.ctlstat = kbmod;
+                                    m.ctlstat = kbmod;
+                                }
                                 m.coordxy = mcoord / scale;
                                 m.buttons = bttns;
                                 m.ctlstat = k.ctlstat;
