@@ -15,11 +15,14 @@ jobs:
       matrix:
         os: [ windows-latest, ubuntu-22.04 ]
         cpu: [ x64, x86, arm64, arm ]
+        static: [ "", "_static"]
         exclude:
           - os: windows-latest
             cpu: x86
           - os: windows-latest
             cpu: arm
+          - os: windows-latest
+            static: "_static"
         include:
           - os: macos-latest
             platform: macos
