@@ -528,8 +528,10 @@ namespace netxs::ui
             auto& gear = *gear_ptr;
             gear.set_multihome();
             gear.hids::take(device);
-            //todo should we set default gear here?
-            base::strike();
+            if (props.legacy_mode & ui::console::mouse)
+            {
+                base::deface(); // Unconditional viewport update to redraw mouse cursor.
+            }
         }
         void fire(hint event_id)
         {

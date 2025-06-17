@@ -55,13 +55,13 @@
         },
         {
           "name": "CMAKE_CXX_COMPILER",
-          "value": "/bin/g++",
+          "value": "/usr/bin/g++-12",
           "_comment": "/bin/clang++",
           "type": "STRING"
         },
         {
           "name": "CMAKE_C_COMPILER",
-          "value": "/bin/gcc",
+          "value": "/usr/bin/gcc-12",
           "_comment": "/bin/clang",
           "type": "STRING"
         }

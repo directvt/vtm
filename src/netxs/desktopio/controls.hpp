@@ -2992,13 +2992,10 @@ namespace netxs::ui
                         state = m_buttons[i] ? "pressed" : "idle   ";
                     }
 
-                    if constexpr (debugmode)
-                    {
-                        status[prop::k] = utf::concat(netxs::_k0, " ",
-                                                      netxs::_k1, " ",
-                                                      netxs::_k2, " ",
-                                                      netxs::_k3);
-                    }
+                    status[prop::k] = utf::concat(netxs::_k0, " ",
+                                                  netxs::_k1, " ",
+                                                  netxs::_k2, " ",
+                                                  netxs::_k3);
                     status[prop::mouse_wheeldt] = m.wheelfp ? (m.wheelfp < 0 ? ""s : " "s) + std::to_string(m.wheelfp) : " -- "s;
                     status[prop::mouse_wheelsi] = m.wheelsi ? (m.wheelsi < 0 ? ""s : " "s) + std::to_string(m.wheelsi) : m.wheelfp ? " 0 "s : " -- "s;
                     status[prop::mouse_hzwheel] = m.hzwheel ? "active" : "idle  ";
