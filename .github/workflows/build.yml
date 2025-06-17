@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    name: ${{ matrix.platform }} / ${{ matrix.cpu }}
+    name: ${{ matrix.platform }} / ${{ matrix.cpu }}${{ matrix.static }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -135,13 +135,13 @@ jobs:
 
     - name: Pack (POSIX)
       if: matrix.os != 'windows-latest'
-      run: 7z a -ttar vtm_${{ matrix.platform }}_${{ matrix.arch }}.tar ${{ steps.strings.outputs.bin }}/vtm
+      run: 7z a -ttar vtm_${{ matrix.platform }}_${{ matrix.arch }}${{ matrix.static }}.tar ${{ steps.strings.outputs.bin }}/vtm
 
     - name: Upload Artifact (POSIX)
       if: matrix.os != 'windows-latest'
       uses: actions/upload-artifact@main
       with:
-        name: vtm_${{ matrix.platform }}_${{ matrix.arch }}
+        name: vtm_${{ matrix.platform }}_${{ matrix.arch }}${{ matrix.static }}
         path: vtm_${{ matrix.platform }}_${{ matrix.arch }}${{ matrix.static }}.tar
 
     - name: Upload Symbols (Windows)
