@@ -4033,7 +4033,7 @@ namespace netxs::os
                     {
                         log("%%Pseudoterminal %pts%", prompt::tty, dtvt::tty_name);
                     }
-                    if (term == "linux" || os::linux_console)
+                    if (term == "linux" || os::linux_console || colorterm == "kmscon")
                     {
                         dtvt::vtmode |= ui::console::mouse;
                     }
