@@ -3005,7 +3005,7 @@ namespace netxs::lixx // li++, libinput++.
             }
             source.reset();
         }
-        libinput_source_sptr libinput_add_event_source(si32 fd, libinput_source_dispatch_t dispatch, void* user_data)
+        libinput_source_sptr libinput_add_event_source(si32 fd, libinput_source_dispatch_t dispatch, void* user_data) // libinput_add_fd().
         {
             auto source = ptr::shared<libinput_source_t>();
             source->dispatch  = dispatch;
@@ -3299,7 +3299,7 @@ namespace netxs::lixx // li++, libinput++.
         {
             static auto take_time_snapshot = byte{};
             auto source = (libinput_source_t*)nullptr;
-            auto ep = std::array<epoll_event, 32>{};
+            auto ep = std::array<::epoll_event, 32>{};
             // Every 10 calls to libinput_dispatch() we take the current time so we can check the delay between our current time and the event timestamps.
                  if ((++take_time_snapshot % 10) == 0) dispatch_time = datetime::now();
             else if (dispatch_time != time{})          dispatch_time = {};
@@ -3440,6 +3440,24 @@ namespace netxs::lixx // li++, libinput++.
         virtual void libinput_path_remove_device([[maybe_unused]] libinput_device_sptr li_device)
         {
             log("Mismatching backends");
+        }
+        virtual void libinput_set_seat_id([[maybe_unused]] qiew seat_id)
+        {
+            log("Mismatching backends");
+        }
+        virtual void input_disable()
+        {
+            log("Mismatching backends");
+        }
+        virtual si32 input_enable()
+        {
+            log("Mismatching backends");
+            return -1;
+        }
+        virtual si32 assign_seat(qiew seat_id, qiew devtype = {})
+        {
+            log("Mismatching backends");
+            return -1;
         }
     };
 
@@ -3921,6 +3939,7 @@ namespace netxs::lixx // li++, libinput++.
             if (auto e = ::udev_enumerate_new(_udev_context))
             {
                 ::udev_enumerate_add_match_subsystem(e, subsystem.data());
+                //todo add match devtype
                 ::udev_enumerate_scan_devices(e);
                 auto entry = ::udev_enumerate_get_list_entry(e);
                 while (entry)
@@ -3932,11 +3951,7 @@ namespace netxs::lixx // li++, libinput++.
                         auto sysname = ud_device->udev_device_get_sysname();
                         if (sysname.starts_with("event"))
                         {
-                            if (!proc(ud_device, sysname))
-                            {
-                                rc = false;
-                                break;
-                            }
+                            proc(ud_device, sysname);
                         }
                     }
                     entry = ::udev_list_entry_get_next(entry);
@@ -18011,6 +18026,17 @@ namespace netxs::lixx // li++, libinput++.
             });
             return rc;
         }
+        void udev_input_remove_devices()
+        {
+            for (auto seat : seat_list)
+            {
+                for (auto li_device : seat->devices_list)
+                {
+                    li_device->evdev_device_remove();
+                }
+                seat->devices_list.clear();
+            }
+        }
         si32 libinput_device_change_seat(libinput_device_sptr li_device, qiew seat_name)
         {
             auto ud_device = li_device->ud_device;
@@ -18021,11 +18047,11 @@ namespace netxs::lixx // li++, libinput++.
         si32 libinput_device_added(ud_device_sptr ud_device, qiew seat_name = {})
         {
             auto device_seat = ud_device->udev_device_get_property_value("ID_SEAT");
+            log("device_added: device_seat='%%' our_seat='%%'", device_seat, seat_id);
             if (!device_seat) device_seat = default_seat;
             if (device_seat.data() != seat_id) return 0;
             if (ud_device->ignore_litest_test_suite_device()) return 0;
-            // Search for matching logical seat.
-            if (!seat_name)
+            if (!seat_name) // Search for matching logical seat.
             {
                 seat_name = ud_device->udev_device_get_property_value("WL_SEAT");
                 if (!seat_name) seat_name = default_seat_name;
@@ -18078,6 +18104,62 @@ namespace netxs::lixx // li++, libinput++.
             {
                 std::erase_if(s->devices_list, [&](auto d){ return syspath == d->ud_device->udev_device_get_syspath(); });
             }
+        }
+        virtual void libinput_set_seat_id([[maybe_unused]] qiew new_seat_id)
+        {
+            seat_id = new_seat_id;
+        }
+        virtual void input_disable()
+        {
+            if (!ud_monitor) return;
+            ud_monitor.reset();
+            timers.libinput_remove_event_source(ud_monitor_source);
+            ud_monitor_source.reset();
+            udev_input_remove_devices();
+        }
+        si32 assign_seat(qiew seat_id, qiew devtype = {})
+        {
+            if (!seat_id) return -1;
+            libinput_init_quirks();
+            libinput_set_seat_id(seat_id);
+            if (input_enable(devtype) < 0) return -1;
+            return 0;
+        }
+        virtual si32 input_enable(qiew devtype = {})
+        {
+            if (ud_monitor || seat_id.empty()) return 0;
+            ud_monitor = udev->udev_monitor_new_from_netlink("udev");
+            if (!ud_monitor)
+            {
+                log("udev: failed to create the udev monitor");
+                return -1;
+            }
+            if (ud_monitor->udev_monitor_filter_add_match_subsystem_devtype("input", devtype))
+            {
+                log("udev: failed to set up filter");
+                return -1;
+            }
+            if (ud_monitor->udev_monitor_enable_receiving())
+            {
+                log("udev: failed to bind the udev monitor");
+                ud_monitor.reset();
+                return -1;
+            }
+            auto fd = ud_monitor->udev_monitor_get_fd();
+            ud_monitor_source = timers.libinput_add_event_source(fd, evdev_udev_handler, this);
+            if (!ud_monitor_source)
+            {
+                log("udev: failed to add event source");
+                ud_monitor.reset();
+                return -1;
+            }
+            if (udev_input_add_devices(udev) < 0)
+            {
+                log("udev: failed to add devices");
+                input_disable();
+                return -1;
+            }
+            return 0;
         }
     };
 
@@ -19716,7 +19798,7 @@ namespace netxs::lixx // li++, libinput++.
                     }
                 });
             }
-    libinput_sptr libinput_path_create_context(auto open_restricted, auto close_restricted, void* user_data)
+    libinput_sptr libinput_path_create_context(auto open_restricted, auto close_restricted, void* user_data = nullptr)
     {
         auto li = libinput_sptr{};
         if (auto ud_context = ud_context_t::create())
@@ -19733,34 +19815,30 @@ namespace netxs::lixx // li++, libinput++.
                 void evdev_udev_handler(void* data)
                 {
                     auto ud_input = (udev_input_t*)data;
-                    if (auto ud_device = ud_input->ud_monitor->udev_monitor_receive_device())
+                    auto ud_device = ud_input->ud_monitor->udev_monitor_receive_device();
+                    auto action = ud_device->udev_device_get_action();
+                    if (action && ud_device->udev_device_get_sysname().starts_with("event"))
                     {
-                        auto action = ud_device->udev_device_get_action();
-                        if (action && ud_device->udev_device_get_sysname().starts_with("event"))
+                        if (action == "add")
                         {
-                            if (action == "add")
-                            {
-                                ud_input->libinput_device_added(ud_device);
-                            }
-                            else if (action == "remove")
-                            {
-                                ud_input->libinput_device_removed(ud_device);
-                            }
+                            ud_input->libinput_device_added(ud_device);
+                        }
+                        else if (action == "remove")
+                        {
+                            ud_input->libinput_device_removed(ud_device);
                         }
                     }
                 }
-    libinput_sptr libinput_udev_create_context(auto open_restricted, auto close_restricted, void* user_data, ::udev* ud_context_ptr)
+    libinput_sptr libinput_udev_create_context(auto open_restricted, auto close_restricted, void* user_data = nullptr, ::udev* ud_context_ptr = nullptr)
     {
         auto li = libinput_sptr{};
-        if (ud_context_ptr)
+        auto ud_input = ptr::shared<udev_input_t>();
+        if (ud_input->libinput_init(open_restricted, close_restricted, user_data))
         {
-            auto ud_input = ptr::shared<udev_input_t>();
-            if (ud_input->libinput_init(open_restricted, close_restricted, user_data))
-            {
-                auto ud_context = ptr::shared<ud_context_t>(ud_context_ptr, true);
-                ud_input->udev = ud_context;
-                li = ud_input;
-            }
+            auto ud_context = ud_context_ptr ? ptr::shared<ud_context_t>(ud_context_ptr, true)
+                                             : ud_context_t::create();
+            ud_input->udev = ud_context;
+            li = ud_input;
         }
         return li;
     }
