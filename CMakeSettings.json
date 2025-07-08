@@ -45,12 +45,12 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_DEBUG",
-          "value": "-O0 -DDEBUG -pthread -g -Wall -Wextra -Wno-missing-field-initializers",
+          "value": "-O0 -DDEBUG -static -pthread -g -Wall -Wextra -Wno-missing-field-initializers",
           "type": "STRING"
         },
         {
           "name": "CMAKE_C_FLAGS_DEBUG",
-          "value": "-O0 -DDEBUG",
+          "value": "-O0 -DDEBUG -static",
           "type": "STRING"
         },
         {

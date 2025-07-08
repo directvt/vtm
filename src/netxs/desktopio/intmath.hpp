@@ -41,6 +41,8 @@
 #include <unordered_set>
 #include <utility> // std::cmp_equal
 #include <vector>
+#include <variant>
+#include <ranges>  // std::views::reverse
 
 #ifndef faux
     #define faux (false)
@@ -95,10 +97,10 @@ namespace netxs
         = faux;
         #endif
 
-    static auto _k0 = 0; // LCtrl+Wheel.
-    static auto _k1 = 0; // Alt+Wheel.
-    static auto _k2 = 0; // LCtrl+Alt+Wheel.
-    static auto _k3 = 0; // RCtrl+Wheel.
+    [[maybe_unused]] static auto _k0 = 0; // LCtrl+Wheel.
+    [[maybe_unused]] static auto _k1 = 0; // Alt+Wheel.
+    [[maybe_unused]] static auto _k2 = 0; // LCtrl+Alt+Wheel.
+    [[maybe_unused]] static auto _k3 = 0; // RCtrl+Wheel.
 
     struct noop
     {

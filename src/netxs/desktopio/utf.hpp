@@ -926,6 +926,13 @@ namespace netxs::utf
             view::remove_prefix(1);
             return c;
         }
+        // qiew: Pop back.
+        auto pop_back()
+        {
+            auto c = view::back();
+            view::remove_suffix(1);
+            return c;
+        }
         // qiew: Pop the front sequence of the same control points and return their count + 1.
         auto pop_all(ctrl cmd)
         {
@@ -981,6 +988,10 @@ namespace netxs::utf
     std::optional<A> to_int(View& ascii)
     {
         auto num = A{};
+        if constexpr (Base == 16)
+        {
+            if (ascii.starts_with("0x") || ascii.starts_with("0X")) ascii.remove_prefix(2);
+        }
         auto top = ascii.data();
         auto end = top + ascii.length();
         if constexpr (std::is_floating_point_v<A>)
