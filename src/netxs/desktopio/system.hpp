@@ -4873,30 +4873,66 @@ namespace netxs::os
                 return count;
             }
             // libinput: Set mouse device access permissions for all users.
-            auto set_mouse_access()
+            auto set_mouse_access(bool enabled)
             {
                 if (!os::process::elevated)
                 {
                     log("System-wide operations require elevated privileges.");
                     return true;
                 }
-                auto count = 0;
-                initialize();
-                enumerate_mouses([&](auto /*device*/, auto dev_path, auto name)
+                auto udev_rules_file = os::fs::path{ "/etc/udev/rules.d/85-mouse.vtm.rules" };
+                if (enabled)
                 {
-                    count++;
-                    if (-1 != ::chmod(dev_path, 0666))
+                    auto f = std::ofstream{ udev_rules_file };
+                    if (f.is_open()) // Opens in default write mode, creates if not exists, truncates if exists.
                     {
-                        log("\tSet access bits 0666 for '%%' (%%)", dev_path, name);
+                        auto rules = "# Allow all users direct access to pointing devices\n"
+                                    "ACTION==\"add\", SUBSYSTEM==\"input\", KERNEL==\"event*\" ENV{ID_INPUT_MOUSE}==\"1\",         MODE=\"0666\"\n"
+                                    "ACTION==\"add\", SUBSYSTEM==\"input\", KERNEL==\"event*\" ENV{ID_INPUT_POINTINGSTICK}==\"1\", MODE=\"0666\"\n"
+                                    "ACTION==\"add\", SUBSYSTEM==\"input\", KERNEL==\"event*\" ENV{ID_INPUT_TOUCHPAD}==\"1\",      MODE=\"0666\""s;
+                        f << rules;
+                        f.close();
+                        log("Udev rules successfuly added to: %%", udev_rules_file);
+                        utf::replace_all(rules, "\n", "\n  ");
+                        log("  ", rules);
+                        auto reload_command = "udevadm control --reload-rules";
+                        log("Trigger to reload udev rules:\n  ", reload_command);
+                        if (0 == ::system(reload_command)) log("    Udev rules successfuly reloaded");
+                        else                               log("    Failed to reload udev rules (%%)", errno);
                     }
                     else
                     {
-                        log("\tFailed to set access bits 0666 for '%%' (%%)", dev_path, name);
+                        log("Failed to create file: %%", udev_rules_file);
+                    }
+                }
+                else
+                {
+                    auto code = std::error_code{};
+                    if (fs::exists(udev_rules_file, code))
+                    {
+                        auto done = fs::remove(udev_rules_file, code);
+                        if (done) log("File %file% has been removed.", udev_rules_file);
+                        else      log("Failed to remove file: %%", udev_rules_file);
+                    }
+                }
+                auto count = 0;
+                initialize();
+                auto access = enabled ? 0666 : 0660;
+                enumerate_mouses([&](auto /*device*/, auto dev_path, auto name)
+                {
+                    count++;
+                    if (-1 != ::chmod(dev_path, access))
+                    {
+                        log("    Set access bits %access% for '%%' (%%)", utf::to_oct<4>(access), dev_path, name);
+                    }
+                    else
+                    {
+                        log("    Failed to set access bits %access% for '%%' (%%)", utf::to_oct<4>(access), dev_path, name);
                     }
                 });
                 if (!count)
                 {
-                    log("\tNo mouse devices found");
+                    log("No mouse devices found");
                 }
                 uninitialize();
                 return !count;

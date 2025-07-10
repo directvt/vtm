@@ -980,9 +980,8 @@ namespace netxs::utf
         }
     };
 
-    template<class Key, class Val>
+    template<class Key = text, class Val = text>
     using unordered_map = std::unordered_map<Key, Val, qiew::hash, qiew::equal>;
-
 
     template<class A = si32, si32 Base = 10, class View, class = std::enable_if_t<std::is_base_of_v<view, View>>>
     std::optional<A> to_int(View& ascii)
@@ -1493,6 +1492,21 @@ namespace netxs::utf
     auto to_bin(T n)
     {
         return std::bitset<L>(n).to_string();
+    }
+    template<si32 Size>
+    auto to_oct(si32 n)
+    {
+        static_assert(Size > 0);
+        auto crop = text{};
+        auto i = Size;
+        n = std::abs(n);
+        crop.resize(Size);
+        while (i--)
+        {
+            crop[i] = netxs::onlydigits[n & 7];
+            n >>= 3;
+        }
+        return crop;
     }
     template<bool UpperCase = faux>
     auto _to_hex(auto number, size_t width, auto push)
