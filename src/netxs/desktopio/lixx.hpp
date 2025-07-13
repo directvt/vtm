@@ -30,11 +30,11 @@
 #include <sys/timerfd.h>                    // ::timerfd_create() ::timerfd_settime()
 #include <sys/stat.h>                       // ::fstat()
 #include <libevdev-1.0/libevdev/libevdev.h> // ::libevdev_new_from_fd()
-#include <libudev.h>                        // ::libudev
 #include <fnmatch.h>                        // ::fnmatch()
 #include <mtdev-plumbing.h>                 // ::mtdev*()
 #include <dirent.h>                         // ::dirent
 #include <fcntl.h>                          // O_RDWR | O_NONBLOCK | O_CLOEXEC
+#include <sys/inotify.h>                    // ::inotify
 
 #define CASE_RETURN_STRING(a) case a: return #a
 
@@ -2866,7 +2866,10 @@ namespace netxs::lixx // li++, libinput++.
         {
             active.clear();
             cached.clear();
-            libinput_remove_event_source(source);
+            if (source)
+            {
+                libinput_remove_event_source(source);
+            }
             ::close(fd);
             ::close(epoll_fd);
         }
@@ -3229,6 +3232,498 @@ namespace netxs::lixx // li++, libinput++.
         libinput_event_tablet_tool() = default;
     };
 
+    using ud_monitor_sptr = sptr<struct ud_monitor_t>;
+    using ud_device_sptr = sptr<struct ud_device_t>;
+    struct ud_device_t
+    {
+        utf::unordered_map<text, text> properties;
+        text                           sysname;
+        text                           root;    // E.g. "/sys/class/input/%event%/device/"
+        text                           syspath; // E.g. "/sys/class/input/%event%/"
+        text                           devpath; // E.g. "/dev/input/%event%"
+        ui64                           bustype{};
+        ui64                           vendor{};
+        ui64                           product{};
+        ui64                           version{};
+        bool                           initialized{};
+        std::vector<bool>              ev;
+        std::vector<bool>              abs;
+        std::vector<bool>              rel;
+        std::vector<bool>              key;
+        std::vector<bool>              props;
+
+        ud_device_t(qiew eventX)
+            :    sysname{ eventX },
+                    root{ utf::fprint("/sys/class/input/%event%/device/", eventX) },
+                 syspath{ utf::fprint("/sys/class/input/%event%/",        eventX) },
+                 devpath{ utf::fprint("/dev/input/%event%",               eventX) },
+             initialized{ read_props(eventX) },
+                      ev(        EV_MAX, faux),
+                     abs(       ABS_MAX, faux),
+                     rel(       REL_MAX, faux),
+                     key(       KEY_MAX, faux),
+                   props(INPUT_PROP_MAX, faux)
+        {
+            if (initialized)
+            {
+                bustype = utf::to_int<16>(properties["BUSTYPE"], ui64{});
+                vendor  = utf::to_int<16>(properties["VENDOR" ], ui64{});
+                product = utf::to_int<16>(properties["PRODUCT"], ui64{});
+                version = utf::to_int<16>(properties["VERSION"], ui64{});
+                read_bitset(ev,    properties["EV"        ]);
+                read_bitset(abs,   properties["ABS"       ]);
+                read_bitset(rel,   properties["REL"       ]);
+                read_bitset(key,   properties["KEY"       ]);
+                read_bitset(props, properties["PROPERTIES"]);
+                initialized = set_tags();
+                //if constexpr (debugmode)
+                //{
+                //    log("  Property        Value\n"
+                //        "  ---------------------------------");
+                //    auto mx = 0;
+                //    for (auto& [sysname, value] : properties) if (mx < sysname.size()) mx = sysname.size();
+                //    for (auto& [sysname, value] : properties)
+                //    {
+                //        log("  %sysname%\r\x1b[%mx%C%value%", sysname, mx + 10, value);
+                //    }
+                //}
+            }
+        }
+        bool set_tags()
+        {
+            auto xinfo = input_absinfo{};
+            auto yinfo = input_absinfo{};
+            auto fd = ::open(devpath.data(), O_RDONLY | O_NONBLOCK | O_NOCTTY);
+            if (fd == os::invalid_fd)
+            {
+                return faux;
+            }
+            else
+            {
+                if (::ioctl(fd, EVIOCGABS(ABS_X), &xinfo) >= 0 && ::ioctl(fd, EVIOCGABS(ABS_Y), &yinfo) >= 0
+                    && xinfo.resolution > 0 && yinfo.resolution > 0)
+                {
+                    auto mm = [](auto& xy){ return (xy.maximum - xy.minimum) / xy.resolution; };
+                    properties["ID_INPUT_WIDTH_MM" ] = std::to_string(mm(xinfo));
+                    properties["ID_INPUT_HEIGHT_MM"] = std::to_string(mm(yinfo));
+                }
+                ::close(fd);
+            }
+            auto accum = [](auto head, auto tail) { auto summ = 0; while (head != tail) summ += *head++; return summ; };
+            auto allof = [](auto head, auto tail) { while (head != tail) if (!*head++) return faux; return true; };
+            auto anyof = [](auto head, auto tail) { while (head != tail) if (*head++) return true; return faux; };
+            auto like_accelerometer = props[INPUT_PROP_ACCELEROMETER] || (!ev[EV_KEY] && abs[ABS_X] && abs[ABS_Y] && abs[ABS_Z]);
+            if (like_accelerometer)
+            {
+                properties["ID_INPUT_ACCELEROMETER"] = "1";
+                properties["ID_INPUT_MOUSE"]         = "1";
+            }
+            else
+            {
+                auto have_wheel       = ev[EV_REL] && (rel[REL_WHEEL] || rel[REL_HWHEEL]);
+                auto have_pad_buttons = key[BTN_0] && key[BTN_1] && !key[BTN_TOOL_PEN];
+                auto have_finger      = key[BTN_TOOL_FINGER] && !key[BTN_TOOL_PEN];
+                auto have_touch       = key[BTN_TOUCH];
+                auto have_stylus      = key[BTN_STYLUS];
+                auto have_abs_xy      = abs[ABS_X] && abs[ABS_Y];
+                auto have_mt_coords   = abs[ABS_MT_POSITION_X] && abs[ABS_MT_POSITION_Y] && (!abs[ABS_MT_SLOT] || !abs[ABS_MT_SLOT - 1]);
+                auto joystick_button_count = 0;
+                if (!key[BTN_TASK]) // Exclude a case of mouse with more than 16 buttons, e.g. "Mad Catz M.M.O. TE".
+                {
+                    joystick_button_count += accum(key.begin() + BTN_JOYSTICK,       key.begin() + BTN_THUMBR + 1);
+                    joystick_button_count += accum(key.begin() + BTN_TRIGGER_HAPPY1, key.begin() + BTN_TRIGGER_HAPPY40 + 1);
+                    joystick_button_count += accum(key.begin() + BTN_DPAD_UP,        key.begin() + BTN_DPAD_RIGHT + 1);
+                }
+                auto like_tablet        = faux;
+                auto like_touchpad      = faux;
+                auto like_abs_mouse     = faux;
+                auto like_touchscreen   = faux;
+                auto have_mouse_buttons = anyof(key.begin() + BTN_MOUSE, key.begin() + BTN_TASK + 1);
+                auto have_direct        = props[INPUT_PROP_DIRECT];
+                auto have_pen           = key[BTN_TOOL_PEN];
+                if (have_abs_xy)
+                {
+                   ((have_stylus || have_pen    ) ? like_tablet      :
+                    (have_finger && !have_direct) ? like_touchpad    :
+                    (have_mouse_buttons         ) ? like_abs_mouse   : // VMware's USB mouse has no touch/pressure buttons but it has absolute axes.
+                    (have_touch || have_direct  ) ? like_touchscreen :
+                                                    have_abs_xy) = true;
+                }
+                if (have_mt_coords)
+                {
+                   ((have_stylus || have_pen    ) ? like_tablet      :
+                    (have_finger && !have_direct) ? like_touchpad    :
+                    (have_touch || have_direct  ) ? like_touchscreen :
+                                                    have_mt_coords) = true;
+                }
+                auto like_tablet_pad = like_tablet && have_pad_buttons;
+                auto have_rel_coords = ev[EV_REL] && rel[REL_X] && rel[REL_Y];
+                if (have_pad_buttons && have_wheel && !have_rel_coords)
+                {
+                    like_tablet = true;
+                    like_tablet_pad = true;
+                }
+                auto like_joystick      = faux;
+                auto joystick_axe_count = accum(abs.begin() + ABS_RX, abs.begin() + ABS_HAT3Y + 1);
+                if (joystick_button_count || joystick_axe_count) // Distinguish keyboards/tablet-pads with random joystick buttons.
+                {
+                    static constexpr auto test_key_subset = std::to_array({ KEY_LEFTCTRL, KEY_CAPSLOCK, KEY_NUMLOCK, KEY_INSERT, KEY_MUTE, KEY_CALC, KEY_FILE, KEY_MAIL, KEY_PLAYPAUSE, KEY_BRIGHTNESSDOWN, });
+                    auto count = accum(test_key_subset.begin(), test_key_subset.end());
+                    like_joystick = count <= 3 && joystick_button_count + joystick_axe_count >= 2 // The device has joystick buttons and axes but also a keyboard key subset.
+                                                            && !(have_wheel && have_pad_buttons); // The device with a wheel and pad buttons is not a joystick.
+                }
+                auto like_switch         = ev[EV_SW];
+                auto like_mouse          = have_mouse_buttons && !(like_touchpad || like_tablet || like_joystick);
+                auto like_pointing_stick = props[INPUT_PROP_POINTING_STICK] || (like_mouse && bustype == BUS_I2C);
+                auto is_mouse            = like_tablet || like_mouse || like_abs_mouse || like_touchpad || like_touchscreen || like_joystick || like_pointing_stick;
+                auto like_keyboard       = ev[EV_KEY] && allof(key.begin() + KEY_ESC, key.begin() + KEY_D);
+                auto is_wheel            = have_wheel && !is_mouse;
+                auto like_key            = is_wheel || ev[EV_KEY] && (anyof(key.begin() + KEY_RESERVED,   key.begin() + BTN_MISC)
+                                                                   || anyof(key.begin() + KEY_OK,         key.begin() + BTN_DPAD_UP)
+                                                                   || anyof(key.begin() + KEY_ALS_TOGGLE, key.begin() + BTN_TRIGGER_HAPPY));
+                properties["ID_INPUT_KEY"          ] = (like_key                    ) ? "1" : "0";
+                properties["ID_INPUT_SWITCH"       ] = (like_switch                 ) ? "1" : "0";
+                properties["ID_INPUT_MOUSE"        ] = (like_mouse || like_abs_mouse) ? "1" : "0";
+                properties["ID_INPUT_POINTINGSTICK"] = (like_pointing_stick         ) ? "1" : "0";
+                properties["ID_INPUT_TOUCHPAD"     ] = (like_touchpad               ) ? "1" : "0";
+                properties["ID_INPUT_TABLET"       ] = (like_tablet                 ) ? "1" : "0";
+                properties["ID_INPUT_TABLET_PAD"   ] = (like_tablet_pad             ) ? "1" : "0";
+                properties["ID_INPUT_JOYSTICK"     ] = (like_joystick               ) ? "1" : "0";
+                properties["ID_INPUT_KEYBOARD"     ] = (like_keyboard               ) ? "1" : "0";
+                properties["ID_INPUT_TOUCHSCREEN"  ] = (like_touchscreen            ) ? "1" : "0";
+            }
+            properties["ID_INPUT"] = "1";
+            return true;
+        }
+        void read_bitset(std::vector<bool>& set, qiew str)
+        {
+            auto chunks = utf::split<true>(str, " ");
+            if (set.size() < chunks.size() * 64) set.resize(chunks.size() * 64);
+            auto iter = set.begin();
+            for (auto c : chunks | std::views::reverse)
+            {
+                auto n = utf::to_int<16>(c, ui64{});
+                auto head = iter;
+                while (n)
+                {
+                    *head++ = n & 1;
+                    n >>= 1;
+                }
+                iter += 64;
+            }
+        }
+        static bool read_uevent(qiew filepath, auto proc)
+        {
+            auto buffer = std::array<char, 4096>{};
+            auto f = std::ifstream{ filepath, std::ios::binary };
+            if (f.is_open())
+            {
+                f.read(buffer.data(), buffer.size());
+                auto data = qiew{ buffer.data(), (size_t)f.gcount() };
+                auto lines = utf::split<true>(data, "\n");
+                for (auto l : lines)
+                {
+                    auto p = l.find('=');
+                    if (p != text::npos)
+                    {
+                        auto prop_name  = l.substr(0, p);
+                        auto prop_value = l.substr(p + 1);
+                        proc(utf::to_upper(prop_name), utf::dequote(prop_value));
+                    }
+                }
+                return true;
+            }
+            else
+            {
+                log("Failed to open %syspath%, errno=%%", filepath, errno);
+            }
+            return faux;
+        }
+        bool read_props(qiew name)
+        {
+            auto buffer = std::array<char, 4096>{};
+            root = utf::fprint("/sys/class/input/%event%/device/", name);
+            auto get_prop = [&](auto filename, auto prop)
+            {
+                auto f = std::ifstream{ filename, std::ios::binary };
+                if (f.is_open())
+                {
+                    f.read(buffer.data(), buffer.size());
+                    auto data = qiew{ buffer.data(), (size_t)f.gcount() };
+                    utf::trim(data, netxs::whitespaces);
+                    if (data)
+                    {
+                        properties[prop] = utf::dequote(data);
+                    }
+                }
+            };
+            get_prop(root + "id/bustype", "BUSTYPE");
+            get_prop(root + "id/vendor",  "VENDOR");
+            get_prop(root + "id/product", "PRODUCT");
+            get_prop(root + "id/version", "VERSION");
+            auto ok = read_uevent(root + "uevent", [&](qiew prop_name, qiew prop_value)
+            {
+                properties[prop_name] = prop_value;
+            });
+            return ok;
+        }
+        bool libinput_ud_device_is_virtual()
+        {
+            return syspath.starts_with("/sys/devices/virtual/input/");
+        }
+        auto ignore_litest_test_suite_device()
+        {
+            return !::getenv("LIBINPUT_RUNNING_TEST_SUITE") && properties.find("LIBINPUT_TEST_DEVICE") != properties.end();
+        }
+        qiew libinput_udev_prop(view prop)
+        {
+            auto iter = properties.find(prop);
+            auto value = qiew{};
+            if (iter != properties.end())
+            {
+                value = iter->second;
+            }
+            return value;
+        }
+        void match_fill_dmi_dt(match_sptr m, qiew dmi, qiew dt)
+        {
+            if (dmi)
+            {
+                m->dmi2 = dmi;
+                m->bits |= M_DMI;
+            }
+            if (dt)
+            {
+                m->dt2 = dt;
+                m->bits |= M_DT;
+            }
+        }
+        match_sptr match_new(view dmi, view dt)
+        {
+            auto m = ptr::shared<match_t>();
+            ud_device_t::match_fill_name(       m);
+            ud_device_t::match_fill_uniq(       m);
+            ud_device_t::match_fill_bus_vid_pid(m);
+            ud_device_t::match_fill_dmi_dt(     m, dmi, dt);
+            ud_device_t::match_fill_ud_type(    m);
+            return m;
+        }
+        void match_fill_ud_type(match_sptr m)
+        {
+            static constexpr auto mappings = std::to_array<std::pair<view, ui32>>(
+            {
+                { "ID_INPUT_MOUSE"        , UDEV_MOUSE         },
+                { "ID_INPUT_POINTINGSTICK", UDEV_POINTINGSTICK },
+                { "ID_INPUT_TOUCHPAD"     , UDEV_TOUCHPAD      },
+                { "ID_INPUT_TABLET"       , UDEV_TABLET        },
+                { "ID_INPUT_TABLET_PAD"   , UDEV_TABLET_PAD    },
+                { "ID_INPUT_JOYSTICK"     , UDEV_JOYSTICK      },
+                { "ID_INPUT_KEYBOARD"     , UDEV_KEYBOARD      },
+                { "ID_INPUT_KEY"          , UDEV_KEYBOARD      },
+            });
+            for (auto [prop, flag] : mappings)
+            {
+                if (ud_device_t::libinput_udev_prop(prop))
+                {
+                    m->ud_type |= flag;
+                }
+            }
+            m->bits |= M_UDEV_TYPE;
+        }
+        void match_fill_name(match_sptr m)
+        {
+            if (auto str = ud_device_t::libinput_udev_prop("NAME"))
+            {
+                if (str.size() > 1 && str.front() == '"' && str.back() == '"') // Strip quotes.
+                {
+                    str.pop_front();
+                    str.pop_back();
+                }
+                m->name2 = str;
+                m->bits |= M_NAME;
+            }
+        }
+        void match_fill_uniq(match_sptr m)
+        {
+            if (auto str = ud_device_t::libinput_udev_prop("UNIQ"))
+            {
+                if (str.size() > 1 && str.front() == '"' && str.back() == '"') // Strip quotes.
+                {
+                    str.pop_front();
+                    str.pop_back();
+                }
+                m->uniq2 = str;
+                m->bits |= M_UNIQ;
+            }
+        }
+        void match_fill_bus_vid_pid(match_sptr m)
+        {
+            auto str = ud_device_t::libinput_udev_prop("PRODUCT");
+            if (!str) return;
+            auto product = 0u;
+            auto vendor = 0u;
+            auto bus = 0u;
+            auto version = 0u;
+            if (::sscanf(str.data(), "%x/%x/%x/%x", &bus, &vendor, &product, &version) == 4) // ID_VENDOR_ID/ID_PRODUCT_ID/ID_BUS aren't filled in for virtual devices so we have to resort to PRODUCT.
+            {
+                m->product[0] = product;
+                m->product[1] = 0;
+                m->vendor = vendor;
+                m->version = version;
+                m->bits |= M_PID | M_VID | M_VERSION;
+                switch (bus)
+                {
+                    case BUS_USB:       m->bus = BT_USB;       m->bits |= M_BUS; break;
+                    case BUS_BLUETOOTH: m->bus = BT_BLUETOOTH; m->bits |= M_BUS; break;
+                    case BUS_I8042:     m->bus = BT_PS2;       m->bits |= M_BUS; break;
+                    case BUS_RMI:       m->bus = BT_RMI;       m->bits |= M_BUS; break;
+                    case BUS_I2C:       m->bus = BT_I2C;       m->bits |= M_BUS; break;
+                    case BUS_SPI:       m->bus = BT_SPI;       m->bits |= M_BUS; break;
+                    default: break;
+                }
+            }
+        }
+        auto udev_device_get_devnode()
+        {
+            return qiew{ devpath };
+        }
+        auto udev_device_get_syspath()
+        {
+            return qiew{ syspath };
+        }
+        auto udev_device_get_property_value(view property)
+        {
+            return libinput_udev_prop(property);
+        }
+        auto udev_device_get_is_initialized()
+        {
+            return initialized;
+        }
+        auto udev_device_get_sysname()
+        {
+            return qiew{ sysname };
+        }
+    };
+    struct ud_monitor_t
+    {
+        static constexpr auto monitor_mode = IN_CREATE | IN_ATTRIB/*try again after mode access update*/ | IN_DELETE;
+
+        fd_t                                     fd;
+        fd_t                                     wd;
+        text                                     buffer;
+        text                                     uevent_buffer;
+        libinput_sptr                            li;
+        utf::unordered_map<text, ud_device_sptr> device_list;
+
+        ud_monitor_t(libinput_sptr li)
+            :           fd{ ::inotify_init1(0) },
+                        wd{ os::invalid_fd },
+             uevent_buffer(4096, '\0'),
+                        li{ li }
+        {
+            auto code = std::error_code{};
+            auto events = fs::directory_iterator("/dev/input/", code);
+            if (!code)
+            for (auto& entry : events)
+            {
+                auto sysname = entry.path().filename().string();
+                if (sysname.starts_with("event"))
+                {
+                    auto ud_device = ptr::shared<ud_device_t>(sysname);
+                    device_list[sysname] = ud_device;
+                }
+            }
+        }
+        ~ud_monitor_t()
+        {
+            udev_monitor_disable_receiving();
+        }
+
+        void add_devices(auto proc)
+        {
+            auto length = 0u;
+            ::ioctl(fd, FIONREAD, &length); // Get available events block size.
+            if (length)
+            {
+                buffer.resize(length);
+                length = ::read(fd, buffer.data(), buffer.size()); // Take events block.
+                if (length < 0)
+                {
+                    log("Failed to read events. errno=%%", errno);
+                    return;
+                }
+                auto crop = qiew{ buffer };
+                while (crop)
+                {
+                    auto& event = *(::inotify_event*)crop.data();
+                    auto filename = qiew{ event.name };
+                    if (!(event.mask & IN_ISDIR) && (event.mask & monitor_mode) && filename.starts_with("event"))
+                    {
+                        auto deleted = event.mask & IN_DELETE;
+                        auto iter = device_list.find(filename);
+                        if (deleted)
+                        {
+                            if (iter != device_list.end())
+                            {
+                                auto device_ptr = iter->second;
+                                device_list.erase(iter);
+                                proc("remove", device_ptr);
+                            }
+                        }
+                        else
+                        {
+                            if (iter == device_list.end())
+                            {
+                                auto ud_device = ptr::shared<ud_device_t>(filename);
+                                if (ud_device->initialized)
+                                {
+                                    device_list[filename] = ud_device;
+                                    proc("add", ud_device);
+                                }
+                            }
+                        }
+                    }
+                    crop.remove_prefix(sizeof(::inotify_event) + event.len);
+                }
+            }
+        }
+        bool udev_monitor_enable_receiving()
+        {
+            if (fd != os::invalid_fd)
+            {
+                auto dirpath = "/dev/input"s;
+                wd = ::inotify_add_watch(fd, dirpath.data(), monitor_mode);
+                if (wd != os::invalid_fd)
+                {
+                    //log("Watching:: %s%", dirpath);
+                    return true;
+                }
+                else
+                {
+                    log("Couldn't add watch to %s%", dirpath);
+                }
+            }
+            else
+            {
+                log("Couldn't initialize inotify");
+            }
+            return faux;
+        }
+        void udev_monitor_disable_receiving()
+        {
+            if (auto fd_value = std::exchange(fd, os::invalid_fd))
+            {
+                ::inotify_rm_watch(fd_value, wd);
+                ::close(fd_value);
+                wd = os::invalid_fd;
+            }
+        }
+        auto udev_monitor_get_fd()
+        {
+            return fd;
+        }
+    };
+
     quirks_context_sptr quirks_init_subsystem(view data_path, view override_file, libinput_log_handler log_handler, libinput_sptr li, quirks_log_type log_type);
     struct libinput_t : ptr::enable_shared_from_this<libinput_t>
     {
@@ -3242,32 +3737,53 @@ namespace netxs::lixx // li++, libinput++.
                                             libinput_event_tablet_pad,
                                             libinput_event_tablet_tool>;
 
-        std::list<libinput_seat_sptr>         seat_list;
+        std::list<libinput_seat_sptr>         seat_list; //todo drop
         libinput_timer_host                   timers;
         std::deque<event_variants>            event_queue;
         std::list<libinput_tablet_tool_sptr>  tool_list;
         libinput_log_handler                  log_handler;
         libinput_log_priority                 log_priority;
         void*                                 user_data;
-        std::list<libinput_device_group_sptr> device_group_list;
+        std::list<libinput_device_group_sptr> device_group_list; //todo drop
         time                                  last_event_time;
         time                                  dispatch_time;
         bool                                  quirks_initialized;
         quirks_context_sptr                   quirks;
-        si32                                (*open_restricted_fx)(view path, si32 flags, void* user_data);
-        void                                (*close_restricted_fx)(si32 fd, void* user_data);
+
+        ud_monitor_sptr                       ud_monitor;
+        libinput_source_sptr                  ud_monitor_source;
+        text                                  seat_id;
+        std::list<libinput_device_sptr>       path_list;
 
         libinput_t() = default;
-        virtual ~libinput_t()
+        ~libinput_t()
         {
             event_queue.clear();
             seat_list.clear(); // Call device dtor.
             timers.clear();
         }
 
-        virtual si32 libinput_resume() = 0;
-        virtual void libinput_suspend() = 0;
-        virtual si32 libinput_device_change_seat(libinput_device_sptr li_device, qiew seat_name) = 0;
+        static void evdev_udev_handler(void* data);
+
+        void libinput_device_removed(ud_device_sptr ud_device);
+        si32 libinput_device_added(ud_device_sptr ud_device);
+        void libinput_init_quirks();
+        libinput_device_sptr device_enable(ud_device_sptr ud_device, qiew seat_logical_name_override = {});
+        libinput_seat_sptr path_seat_get_for_device(ud_device_sptr ud_device, qiew seat_logical_name_override);
+        libinput_seat_sptr path_seat_create(view seat_name, view seat_logical_name);
+        libinput_seat_sptr path_seat_get_named(view seat_name_physical, view seat_name_logical);
+        libinput_device_sptr create_device(ud_device_sptr ud_device, qiew seat_name = {});
+        void remove_device(libinput_device_sptr li_device);
+        void libinput_remove_devices();
+        void disable_device(libinput_device_sptr li_device);
+        libinput_device_sptr libinput_add_device(view path);
+        si32 input_enable(qiew devtype = {});
+        si32 assign_seat(qiew seat_id, qiew devtype = {});
+        void input_disable();
+        void libinput_set_seat_id(qiew new_seat_id);
+        bool libinput_add_devices();
+        si32 libinput_resume();
+        void libinput_suspend();
 
         template<class T>
         auto& libinput_emplace_event()
@@ -3316,15 +3832,6 @@ namespace netxs::lixx // li++, libinput++.
             timers.source_destroy_list.clear();
             return 0;
         }
-        si32 open_restricted(view path, si32 flags)
-        {
-            return open_restricted_fx(path, flags, user_data);
-        }
-        void close_restricted(si32 fd)
-        {
-            close_restricted_fx(fd, user_data);
-        }
-
         static void libinput_default_log_func(libinput_log_priority priority, char const* format, va_list args)
         {
             auto prefix = text{};
@@ -3337,7 +3844,7 @@ namespace netxs::lixx // li++, libinput++.
             }
             log("libinput %s%: ", prefix, format, args);
         }
-        bool libinput_init(auto open_restricted, auto close_restricted, void* user_data)
+        bool libinput_init(void* user_data)
         {
             timers.epoll_fd = ::epoll_create1(EPOLL_CLOEXEC);
             if (timers.epoll_fd < 0) return false;
@@ -3346,10 +3853,10 @@ namespace netxs::lixx // li++, libinput++.
             libinput_t::event_queue.emplace_back(empty_event()); // At least one event must be in the event queue (as previous).
             libinput_t::log_handler = libinput_default_log_func;
             libinput_t::log_priority = LIBINPUT_LOG_PRIORITY_ERROR;
-            libinput_t::open_restricted_fx  = open_restricted;
-            libinput_t::close_restricted_fx = close_restricted;
             libinput_t::user_data = user_data;
             auto ok = timers.libinput_timer_subsys_init();
+            //todo drop
+            assign_seat("seat0", "");
             return ok;
         }
         #if HAVE_LIBWACOM
@@ -3403,61 +3910,6 @@ namespace netxs::lixx // li++, libinput++.
         si32 libinput_get_fd()
         {
             return timers.epoll_fd;
-        }
-        void libinput_init_quirks()
-        {
-            if (libinput_t::quirks_initialized) return;
-            libinput_t::quirks_initialized = true; // If we fail, we'll fail next time too.
-            auto quirks_pir_ptr = getenv("LIBINPUT_QUIRKS_DIR");
-            auto data_path = text{};
-            auto override_file = text{};
-            if (!quirks_pir_ptr)
-            {
-                data_path     = ""s;//LIBINPUT_QUIRKS_DIR;
-                override_file = ""s;//LIBINPUT_QUIRKS_OVERRIDE_FILE;
-            }
-            else
-            {
-                data_path = text{ quirks_pir_ptr };
-            }
-            auto log_msg_va = []([[maybe_unused]] libinput_log_priority priority, [[maybe_unused]] char const* format, [[maybe_unused]] va_list args)
-            {
-                //if (log_is_logged(libinput, priority))
-                //    libinput->log_handler(libinput, priority, format, args);
-            };
-            libinput_t::quirks = quirks_init_subsystem(data_path, override_file, log_msg_va, This(), QLOG_LIBINPUT_LOGGING);
-            if (!libinput_t::quirks)
-            {
-                log("Failed to load the device quirks from %s%%s%%s%. This will negatively affect device behavior", data_path, override_file.size() ? " and " : "", override_file.size() ? override_file : "");
-                return;
-            }
-        }
-        virtual libinput_device_sptr libinput_path_add_device([[maybe_unused]] view path)
-        {
-            log("Mismatching backends");
-            return libinput_device_sptr{};
-        }
-        virtual void libinput_path_remove_device([[maybe_unused]] libinput_device_sptr li_device)
-        {
-            log("Mismatching backends");
-        }
-        virtual void libinput_set_seat_id([[maybe_unused]] qiew seat_id)
-        {
-            log("Mismatching backends");
-        }
-        virtual void input_disable()
-        {
-            log("Mismatching backends");
-        }
-        virtual si32 input_enable()
-        {
-            log("Mismatching backends");
-            return -1;
-        }
-        virtual si32 assign_seat(qiew seat_id, qiew devtype = {})
-        {
-            log("Mismatching backends");
-            return -1;
         }
     };
 
@@ -3664,344 +4116,6 @@ namespace netxs::lixx // li++, libinput++.
         virtual                  void            left_handed_toggle([[maybe_unused]] libinput_device_sptr li_device, [[maybe_unused]] bool left_handed_enabled)                                                                                                { }
     };
 
-    using ud_context_sptr = sptr<struct ud_context_t>;
-    using ud_monitor_sptr = sptr<struct ud_monitor_t>;
-    struct ud_device_t
-    {
-        ::udev_device*  _udev_device;
-        ud_context_sptr ud_context;
-
-        ud_device_t(::udev_device* _udev_device, ud_context_sptr ud_context, bool add_ref = true)
-            : _udev_device{ _udev_device },
-                ud_context{ ud_context   }
-        {
-            if (add_ref)
-            {
-                ::udev_device_ref(_udev_device);
-            }
-        }
-        ~ud_device_t()
-        {
-            if (auto ptr = std::exchange(_udev_device, nullptr))
-            {
-                ::udev_device_unref(ptr);
-            }
-        }
-
-        bool libinput_ud_device_should_be_ignored()
-        {
-            auto value_ptr = ::udev_device_get_property_value(_udev_device, "LIBINPUT_IGNORE_DEVICE");
-            if (value_ptr)
-            {
-                auto value = qiew{ value_ptr };
-                return value != "0";
-            }
-            else return false;
-        }
-        bool libinput_ud_device_is_virtual()
-        {
-            if (auto path_ptr = ::udev_device_get_syspath(_udev_device))
-            {
-                auto path = qiew{ path_ptr };
-                return path.starts_with("/sys/devices/virtual/input/");
-            }
-            else return false;
-        }
-        auto ignore_litest_test_suite_device()
-        {
-            auto ok = !getenv("LIBINPUT_RUNNING_TEST_SUITE") && ::udev_device_get_property_value(_udev_device, "LIBINPUT_TEST_DEVICE");
-            return ok;
-        }
-        qiew libinput_udev_prop(view prop)
-        {
-            auto d = _udev_device;
-            auto v = (char const*)nullptr;
-            do
-            {
-                v = ::udev_device_get_property_value(d, prop.data());
-                d = ::udev_device_get_parent(d);
-            }
-            while (v == nullptr && d);
-            return qiew{ v ? v : "" };
-        }
-        void match_fill_dmi_dt(match_sptr m, qiew dmi, qiew dt)
-        {
-            if (dmi)
-            {
-                m->dmi2 = dmi;
-                m->bits |= M_DMI;
-            }
-            if (dt)
-            {
-                m->dt2 = dt;
-                m->bits |= M_DT;
-            }
-        }
-        match_sptr match_new(view dmi, view dt)
-        {
-            auto m = ptr::shared<match_t>();
-            ud_device_t::match_fill_name(       m);
-            ud_device_t::match_fill_uniq(       m);
-            ud_device_t::match_fill_bus_vid_pid(m);
-            ud_device_t::match_fill_dmi_dt(     m, dmi, dt);
-            ud_device_t::match_fill_ud_type(    m);
-            return m;
-        }
-        void match_fill_ud_type(match_sptr m)
-        {
-            static constexpr auto mappings = std::to_array<std::pair<view, ui32>>(
-            {
-                { "ID_INPUT_MOUSE"        , UDEV_MOUSE         },
-                { "ID_INPUT_POINTINGSTICK", UDEV_POINTINGSTICK },
-                { "ID_INPUT_TOUCHPAD"     , UDEV_TOUCHPAD      },
-                { "ID_INPUT_TABLET"       , UDEV_TABLET        },
-                { "ID_INPUT_TABLET_PAD"   , UDEV_TABLET_PAD    },
-                { "ID_INPUT_JOYSTICK"     , UDEV_JOYSTICK      },
-                { "ID_INPUT_KEYBOARD"     , UDEV_KEYBOARD      },
-                { "ID_INPUT_KEY"          , UDEV_KEYBOARD      },
-            });
-            for (auto [prop, flag] : mappings)
-            {
-                if (ud_device_t::libinput_udev_prop(prop))
-                {
-                    m->ud_type |= flag;
-                }
-            }
-            m->bits |= M_UDEV_TYPE;
-        }
-        void match_fill_name(match_sptr m)
-        {
-            if (auto str = ud_device_t::libinput_udev_prop("NAME"))
-            {
-                if (str.size() > 1 && str.front() == '"' && str.back() == '"') // Strip quotes.
-                {
-                    str.pop_front();
-                    str.pop_back();
-                }
-                m->name2 = str;
-                m->bits |= M_NAME;
-            }
-        }
-        void match_fill_uniq(match_sptr m)
-        {
-            if (auto str = ud_device_t::libinput_udev_prop("UNIQ"))
-            {
-                if (str.size() > 1 && str.front() == '"' && str.back() == '"') // Strip quotes.
-                {
-                    str.pop_front();
-                    str.pop_back();
-                }
-                m->uniq2 = str;
-                m->bits |= M_UNIQ;
-            }
-        }
-        void match_fill_bus_vid_pid(match_sptr m)
-        {
-            auto str = ud_device_t::libinput_udev_prop("PRODUCT");
-            if (!str) return;
-            auto product = 0u;
-            auto vendor = 0u;
-            auto bus = 0u;
-            auto version = 0u;
-            if (::sscanf(str.data(), "%x/%x/%x/%x", &bus, &vendor, &product, &version) == 4) // ID_VENDOR_ID/ID_PRODUCT_ID/ID_BUS aren't filled in for virtual devices so we have to resort to PRODUCT.
-            {
-                m->product[0] = product;
-                m->product[1] = 0;
-                m->vendor = vendor;
-                m->version = version;
-                m->bits |= M_PID | M_VID | M_VERSION;
-                switch (bus)
-                {
-                    case BUS_USB:       m->bus = BT_USB;       m->bits |= M_BUS; break;
-                    case BUS_BLUETOOTH: m->bus = BT_BLUETOOTH; m->bits |= M_BUS; break;
-                    case BUS_I8042:     m->bus = BT_PS2;       m->bits |= M_BUS; break;
-                    case BUS_RMI:       m->bus = BT_RMI;       m->bits |= M_BUS; break;
-                    case BUS_I2C:       m->bus = BT_I2C;       m->bits |= M_BUS; break;
-                    case BUS_SPI:       m->bus = BT_SPI;       m->bits |= M_BUS; break;
-                    default: break;
-                }
-            }
-        }
-        bool libinput_device_have_same_syspath(si32 fd)
-        {
-            auto st = (struct ::stat){};
-            auto ud_context = ::udev_device_get_udev(_udev_device);
-            auto rc = false;
-            if (::fstat(fd, &st) >= 0)
-            {
-                auto new_ud_device = ::udev_device_new_from_devnum(ud_context, 'c', st.st_rdev);
-                if (new_ud_device)
-                {
-                    auto path1_ptr = ::udev_device_get_syspath(new_ud_device);
-                    auto path2_ptr = ::udev_device_get_syspath(_udev_device);
-                    if (path1_ptr && path2_ptr)
-                    {
-                        rc = qiew{ path1_ptr } == qiew{ path2_ptr };
-                    }
-                    ::udev_device_unref(new_ud_device);
-                }
-            }
-            return rc;
-        }
-        auto udev_device_get_devnode()
-        {
-            return ::udev_device_get_devnode(_udev_device);
-        }
-        auto udev_device_get_syspath()
-        {
-            auto value_ptr = ::udev_device_get_syspath(_udev_device);
-            return value_ptr ? qiew{ value_ptr } : qiew{};
-        }
-        auto udev_device_get_property_value(view property)
-        {
-            auto value_ptr = ::udev_device_get_property_value(_udev_device, property.data());
-            return value_ptr ? qiew{ value_ptr } : qiew{};
-        }
-        auto udev_device_get_parent()
-        {
-            auto ud_device = ptr::shared<ud_device_t>(::udev_device_get_parent(_udev_device), ud_context);
-            return ud_device;
-        }
-        auto udev_device_get_is_initialized()
-        {
-            return ::udev_device_get_is_initialized(_udev_device);
-        }
-        auto udev_device_get_sysname()
-        {
-            auto value_ptr = ::udev_device_get_sysname(_udev_device);
-            return value_ptr ? qiew{ value_ptr } : qiew{};
-        }
-        auto udev_device_get_action()
-        {
-            auto value_ptr = ::udev_device_get_action(_udev_device);
-            return value_ptr ? qiew{ value_ptr } : qiew{};
-        }
-    };
-    struct ud_context_t : ptr::enable_shared_from_this<ud_context_t>
-    {
-        ::udev* _udev_context;
-
-        ud_context_t(::udev* _udev_context, bool add_ref = false)
-            : _udev_context{ _udev_context }
-        {
-            if (add_ref)
-            {
-                ::udev_ref(_udev_context);
-            }
-        }
-        ~ud_context_t()
-        {
-            if (auto ptr = std::exchange(_udev_context, nullptr))
-            {
-                ::udev_unref(ptr);
-            }
-        }
-
-        static auto create()
-        {
-            auto _ud_context = ::udev_new();
-            return ptr::shared<ud_context_t>(_ud_context);
-        }
-        auto udev_monitor_new_from_netlink(view name)
-        {
-            auto ud_monitor_sptr = ptr::shared<ud_monitor_t>(::udev_monitor_new_from_netlink(_udev_context, name.data()), This());
-            return ud_monitor_sptr;
-        }
-        auto udev_device_new_from_syspath(view syspath)              { return ptr::shared<ud_device_t>(::udev_device_new_from_syspath(_udev_context, syspath.data()), This(), false); }
-        auto udev_device_new_from_devnum(char c, auto device_number) { return ptr::shared<ud_device_t>(::udev_device_new_from_devnum(_udev_context, c, device_number), This(), false); }
-        auto libinput_ud_device_from_devnode(view devnode)
-        {
-            using attributes = struct stat;
-            auto attrs = attributes{};
-            auto ud_device = ud_device_sptr{};
-            if (::stat(devnode.data(), &attrs) >= 0)
-            {
-                auto device_number = attrs.st_rdev;
-                auto count = 0;
-                ud_device = ud_context_t::udev_device_new_from_devnum('c', device_number);
-                while (ud_device && !ud_device->udev_device_get_is_initialized())
-                {
-                    if (count++ > 200)
-                    {
-                        log("udev device never initialized (%s%)", devnode);
-                        ud_device.reset();
-                        break;
-                    }
-                    os::sleep(10ms);
-                    ud_device = ud_context_t::udev_device_new_from_devnum('c', device_number);
-                }
-            }
-            return ud_device;
-        }
-        auto udev_enumerate_event_devices(view subsystem, auto proc)
-        {
-            auto rc = true;
-            if (auto e = ::udev_enumerate_new(_udev_context))
-            {
-                ::udev_enumerate_add_match_subsystem(e, subsystem.data());
-                //todo add match devtype
-                ::udev_enumerate_scan_devices(e);
-                auto entry = ::udev_enumerate_get_list_entry(e);
-                while (entry)
-                {
-                    auto path = ::udev_list_entry_get_name(entry);
-                    auto ud_device = ud_context_t::udev_device_new_from_syspath(path);
-                    if (ud_device)
-                    {
-                        auto sysname = ud_device->udev_device_get_sysname();
-                        if (sysname.starts_with("event"))
-                        {
-                            proc(ud_device, sysname);
-                        }
-                    }
-                    entry = ::udev_list_entry_get_next(entry);
-                }
-                ::udev_enumerate_unref(e);
-            }
-            return rc;
-        }
-    };
-    struct ud_monitor_t
-    {
-        ::udev_monitor* _udev_monitor;
-        ud_context_sptr ud_context;
-
-        ud_monitor_t(::udev_monitor* _udev_monitor, ud_context_sptr ud_context)
-            : _udev_monitor{ _udev_monitor },
-                 ud_context{ ud_context    }
-        { }
-        ~ud_monitor_t()
-        {
-            if (auto ptr = std::exchange(_udev_monitor, nullptr))
-            {
-                ::udev_monitor_unref(ptr);
-            }
-        }
-
-        auto udev_monitor_filter_add_match_subsystem_devtype(view subsystem, qiew devtype = {})
-        {
-            return ::udev_monitor_filter_add_match_subsystem_devtype(_udev_monitor, subsystem.data(), devtype ? devtype.data() : nullptr);
-        }
-        auto udev_monitor_enable_receiving()
-        {
-            return ::udev_monitor_enable_receiving(_udev_monitor);
-        }
-        auto udev_monitor_get_fd()
-        {
-            return ::udev_monitor_get_fd(_udev_monitor);
-        }
-        auto udev_monitor_receive_device()
-        {
-            auto ud_device = ptr::shared<ud_device_t>(::udev_monitor_receive_device(_udev_monitor), ud_context);
-            return ud_device;
-        }
-    };
-
-    struct path_device_t
-    {
-        ud_device_sptr ud_device;
-    };
-    using path_device_sptr = sptr<path_device_t>;
     //todo unify
     auto evdev_libinput_context(auto li_device)
     {
@@ -5087,7 +5201,6 @@ namespace netxs::lixx // li++, libinput++.
         }
         void evdev_device_remove()
         {
-            log("device removed");
             auto self = This();
             if (auto& timer = scroll.timer)       timer->cancel();
             if (auto& timer = middlebutton.timer) timer->cancel();
@@ -5162,13 +5275,8 @@ namespace netxs::lixx // li++, libinput++.
             if (was_removed) return -ENODEV;
             auto devnode = ud_device->udev_device_get_devnode();
             if (!devnode) return -ENODEV;
-            auto new_fd = li->open_restricted(devnode, O_RDWR | O_NONBLOCK | O_CLOEXEC);
+            auto new_fd = ::open(devnode.data(), O_RDWR | O_NONBLOCK | O_CLOEXEC);
             if (new_fd < 0) return -errno;
-            if (!ud_device->libinput_device_have_same_syspath(new_fd))
-            {
-                li->close_restricted(new_fd);
-                return -ENODEV;
-            }
             evdev_drain_fd(new_fd);
             fd = new_fd;
             if (evdev_need_mtdev())
@@ -5210,9 +5318,9 @@ namespace netxs::lixx // li++, libinput++.
                 ::mtdev_close_delete(mtdev);
                 mtdev = nullptr;
             }
-            if (fd != -1)
+            if (fd != os::invalid_fd)
             {
-                li->close_restricted(fd);
+                ::close(fd);
                 fd = os::invalid_fd;
             }
         }
@@ -5595,170 +5703,9 @@ namespace netxs::lixx // li++, libinput++.
         bool enabled;
     };
 
-    using udev_input_sptr = sptr<struct udev_input_t>;
-
-    void path_disable_device(libinput_device_sptr li_device);
-    void evdev_udev_handler(void* data);
     void libinput_seat_init(libinput_seat_sptr seat, libinput_sptr li, view physical_name, view logical_name);
     std::pair<libinput_device_sptr, bool> libinput_device_create(libinput_seat_sptr seat, ud_device_sptr ud_device);
     void evdev_read_calibration_prop(libinput_device_sptr li_device);
-
-    static constexpr auto default_seat = "seat0";
-    static constexpr auto default_seat_name = "default";
-
-    struct path_input_t : libinput_t
-    {
-        ud_context_sptr             ud_context;
-        std::list<path_device_sptr> path_list;
-
-        si32 libinput_resume()
-        {
-            for (auto dev : path_list)
-            {
-                if (!path_device_enable(dev->ud_device))
-                {
-                    libinput_suspend();
-                    return -1;
-                }
-            }
-            return 0;
-        }
-        void libinput_suspend()
-        {
-            for (auto s : seat_list)
-            {
-                for (auto d : s->devices_list)
-                {
-                    path_disable_device(d);
-                }
-            }
-        }
-        si32 libinput_device_change_seat(libinput_device_sptr li_device, qiew seat_name)
-        {
-            auto rc = -1;
-            auto ud_device = li_device->ud_device;
-            libinput_path_remove_device(li_device);
-            if (path_create_device(ud_device, seat_name))
-            {
-                rc = 0;
-            }
-            return rc;
-        }
-        void libinput_path_remove_device(libinput_device_sptr li_device)
-        {
-            std::erase_if(path_list, [&](auto d){ return d->ud_device == li_device->ud_device; });
-            path_disable_device(li_device);
-        }
-        libinput_device_sptr libinput_path_add_device(view path)
-        {
-            auto li_device = libinput_device_sptr{};
-            if (path.size() > PATH_MAX)
-            {
-                log("Unexpected path, limited to %d% characters", PATH_MAX);
-            }
-            else
-            {
-                auto ud_device = ud_context->libinput_ud_device_from_devnode(path);
-                if (!ud_device)
-                {
-                    log("Invalid path %s%", path);
-                }
-                else if (!ud_device->ignore_litest_test_suite_device())
-                {
-                    libinput_init_quirks(); // We cannot do this during path_create_context because the log handler isn't set up there but we really want to log to the right place if the quirks run into parser errors. So we have to do it on the first call to add_device.
-                    li_device = path_create_device(ud_device);
-                }
-            }
-            return li_device;
-        }
-        libinput_device_sptr path_create_device(ud_device_sptr ud_device, qiew seat_name = {})
-        {
-            auto dev = ptr::shared<path_device_t>();
-            dev->ud_device = ud_device;
-            path_list.push_back(dev);
-            auto li_device = path_device_enable(ud_device, seat_name);
-            if (!li_device)
-            {
-                dev->ud_device.reset();
-                path_list.pop_back();
-            }
-            return li_device;
-        }
-        libinput_seat_sptr path_seat_get_named(view seat_name_physical, view seat_name_logical)
-        {
-            for (auto& s : seat_list)
-            {
-                if (s->physical_name == seat_name_physical && s->logical_name == seat_name_logical)
-                {
-                    return std::static_pointer_cast<libinput_seat_t>(s);
-                }
-            }
-            return libinput_seat_sptr{};
-        }
-        libinput_seat_sptr path_seat_create(view seat_name, view seat_logical_name)
-        {
-            auto seat = ptr::shared<libinput_seat_t>();
-            libinput_seat_init(seat, This(), seat_name, seat_logical_name);
-            return seat;
-        }
-        libinput_seat_sptr path_seat_get_for_device(ud_device_sptr ud_device, qiew seat_logical_name_override)
-        {
-            auto seat_logical_name = text{};
-            auto devnode = ud_device->udev_device_get_devnode();
-            auto sysname = ud_device->udev_device_get_sysname();
-            auto seat_prop = ud_device->udev_device_get_property_value("ID_SEAT");
-            auto seat_name = text{ seat_prop ? seat_prop : default_seat };
-            if (seat_logical_name_override)
-            {
-                seat_logical_name = seat_logical_name_override;
-            }
-            else
-            {
-                seat_prop = ud_device->udev_device_get_property_value("WL_SEAT");
-                seat_logical_name = seat_prop ? seat_prop : default_seat_name;
-            }
-            auto seat = libinput_seat_sptr{};
-            if (seat_logical_name.empty())
-            {
-                log("%s%: failed to create seat name for device '%s%'", sysname, devnode);
-            }
-            else
-            {
-                seat = path_seat_get_named(seat_name, seat_logical_name);
-                if (!seat)
-                {
-                    seat = path_seat_create(seat_name, seat_logical_name);
-                    if (!seat)
-                    {
-                        log("%s%: failed to create seat for device '%s%'", sysname, devnode);
-                    }
-                }
-            }
-            return seat;
-        }
-        libinput_device_sptr path_device_enable(ud_device_sptr ud_device, qiew seat_logical_name_override = {})
-        {
-            if (auto seat = path_seat_get_for_device(ud_device, seat_logical_name_override))
-            {
-                auto [li_device, unhandled_device] = libinput_device_create(seat, ud_device);
-                if (!li_device)
-                {
-                    auto sysname = ud_device->udev_device_get_sysname();
-                    auto devnode = ud_device->udev_device_get_devnode();
-                    if (unhandled_device) log("%s% - not using input device '%s%'", sysname, devnode);
-                    else                  log("%s% - failed to create input device '%s%'", sysname, devnode);
-                }
-                else
-                {
-                    evdev_read_calibration_prop(li_device);
-                    li_device->output_name = ud_device->udev_device_get_property_value("WL_OUTPUT");
-                    return li_device;
-                }
-            }
-            return libinput_device_sptr{};
-        }
-    };
-    using path_input_sptr = sptr<path_input_t>;
 
     // Helpers
         void tablet_notify_proximity(libinput_device_sptr li_device, time now, libinput_tablet_tool_sptr tool, libinput_tablet_tool_proximity_state proximity_state, byte* changed_axes, tablet_axes const* axes, ::input_absinfo const* x, ::input_absinfo const* y)
@@ -12759,11 +12706,16 @@ namespace netxs::lixx // li++, libinput++.
         fd_t brightness_fd; // /sys/devices/..../input1235/input1235::wacom-led_0.1/brightness.
         si32 mode_idx;
 
-        pad_mode_led() = default;
+        pad_mode_led()
+            : brightness_fd{ os::invalid_fd },
+              mode_idx{}
+        { }
         ~pad_mode_led()
         {
-            //if (brightness_fd != -1) li->close_restricted(brightness_fd);
-            if (brightness_fd != -1) ::close(brightness_fd);
+            if (brightness_fd != os::invalid_fd)
+            {
+                ::close(brightness_fd);
+            }
         }
     };
     struct pad_mode_toggle_button
@@ -16633,22 +16585,24 @@ namespace netxs::lixx // li++, libinput++.
                             }
                         void fallback_flush_relative_motion(libinput_device_sptr li_device, time stamp)
                         {
-                            if (!(li_device->seat_caps & EVDEV_DEVICE_POINTER)) return;
-                            auto raw = fallback_rotate_relative(li_device);
-                            fallback.rel.x = 0;
-                            fallback.rel.y = 0;
-                            // Use unaccelerated deltas for pointing stick scroll.
-                            if (post_button_scroll(li_device, raw, stamp)) return;
-                            if (li_device->pointer.filter)
+                            if (li_device->seat_caps & EVDEV_DEVICE_POINTER)
                             {
-                                if (auto accel = li_device->pointer.filter->filter_dispatch(raw, li_device.get(), stamp)) // Apply pointer acceleration.
+                                auto raw = fallback_rotate_relative(li_device);
+                                fallback.rel.x = 0;
+                                fallback.rel.y = 0;
+                                // Use unaccelerated deltas for pointing stick scroll.
+                                if (post_button_scroll(li_device, raw, stamp)) return;
+                                if (li_device->pointer.filter)
                                 {
-                                    li_device->pointer_notify_motion(stamp, accel, raw);
+                                    if (auto accel = li_device->pointer.filter->filter_dispatch(raw, li_device.get(), stamp)) // Apply pointer acceleration.
+                                    {
+                                        li_device->pointer_notify_motion(stamp, accel, raw);
+                                    }
                                 }
-                            }
-                            else
-                            {
-                                log("accel filter missing");
+                                else
+                                {
+                                    log("accel filter missing");
+                                }
                             }
                         }
                         void fallback_flush_absolute_motion(libinput_device_sptr li_device, time stamp)
@@ -16991,21 +16945,23 @@ namespace netxs::lixx // li++, libinput++.
                             }
                         void fallback_wheel_handle_state(libinput_device_sptr li_device, time stamp)
                         {
-                            if (!(li_device->seat_caps & EVDEV_DEVICE_POINTER)) return;
-                            if (!fallback.wheel.emulate_hi_res_wheel
-                             && !fallback.wheel.hi_res_event_received
-                             && (fallback.wheel.lo_res.x != 0 || fallback.wheel.lo_res.y != 0))
+                            if (li_device->seat_caps & EVDEV_DEVICE_POINTER)
                             {
-                                log("device supports high-resolution scroll but only low-resolution events have been received");
-                                fallback.wheel.emulate_hi_res_wheel = true;
-                                fallback.wheel.hi_res.x = fallback.wheel.lo_res.x * 120;
-                                fallback.wheel.hi_res.y = fallback.wheel.lo_res.y * 120;
-                            }
-                            switch (fallback.wheel.state)
-                            {
-                                case WHEEL_STATE_NONE:                wheel_handle_state_none(               li_device, stamp); break;
-                                case WHEEL_STATE_ACCUMULATING_SCROLL: wheel_handle_state_accumulating_scroll(li_device, stamp); break;
-                                case WHEEL_STATE_SCROLLING:           wheel_handle_state_scrolling(          li_device, stamp); break;
+                                if (!fallback.wheel.emulate_hi_res_wheel
+                                 && !fallback.wheel.hi_res_event_received
+                                 && (fallback.wheel.lo_res.x != 0 || fallback.wheel.lo_res.y != 0))
+                                {
+                                    log("device supports high-resolution scroll but only low-resolution events have been received");
+                                    fallback.wheel.emulate_hi_res_wheel = true;
+                                    fallback.wheel.hi_res.x = fallback.wheel.lo_res.x * 120;
+                                    fallback.wheel.hi_res.y = fallback.wheel.lo_res.y * 120;
+                                }
+                                switch (fallback.wheel.state)
+                                {
+                                    case WHEEL_STATE_NONE:                wheel_handle_state_none(               li_device, stamp); break;
+                                    case WHEEL_STATE_ACCUMULATING_SCROLL: wheel_handle_state_accumulating_scroll(li_device, stamp); break;
+                                    case WHEEL_STATE_SCROLLING:           wheel_handle_state_scrolling(          li_device, stamp); break;
+                                }
                             }
                         }
                         bool hw_key_has_changed(ui32 usage)
@@ -17789,7 +17745,7 @@ namespace netxs::lixx // li++, libinput++.
                 // We only handle the slotted Protocol B in libinput. Devices with ABS_MT_POSITION_* but not ABS_MT_SLOT require mtdev for conversion.
                 if (li_device->evdev_need_mtdev())
                 {
-                    li_device->mtdev = mtdev_new_open(li_device->fd);
+                    li_device->mtdev = ::mtdev_new_open(li_device->fd);
                     if (!li_device->mtdev) return -1;
                     // Pick 10 slots as default for type A devices.
                     num_slots = 10;
@@ -17942,147 +17898,50 @@ namespace netxs::lixx // li++, libinput++.
     };
     using fallback_dispatch_sptr = sptr<fallback_dispatch>;
 
-    struct udev_seat_t : libinput_seat_t
-    {
-        //
-    };
-    using udev_seat_sptr = sptr<udev_seat_t>;
-
-    struct udev_input_t : libinput_t
-    {
-        ud_context_sptr      udev;
-        ud_monitor_sptr      ud_monitor;
-        libinput_source_sptr ud_monitor_source;
-        text                 seat_id;
-
-        void libinput_suspend()
+        static constexpr auto default_seat = "seat0";
+        static constexpr auto default_seat_name = "default";
+        si32 libinput_t::libinput_device_added(ud_device_sptr ud_device)
         {
-            if (ud_monitor)
-            {
-                ud_monitor.reset();
-                timers.libinput_remove_event_source(ud_monitor_source);
-                for (auto s : seat_list)
-                {
-                    s->devices_list.clear();
-                }
-            }
-        }
-        si32 libinput_resume()
-        {
-            if (ud_monitor || seat_id.empty()) return 0;
-            ud_monitor = udev->udev_monitor_new_from_netlink("udev");
-            if (!ud_monitor)
-            {
-                log("udev: failed to create the udev monitor");
-            }
-            else
-            {
-                if (ud_monitor->udev_monitor_filter_add_match_subsystem_devtype("input"))
-                {
-                    log("udev: failed to set up filter");
-                }
-                else
-                {
-                    if (ud_monitor->udev_monitor_enable_receiving())
-                    {
-                        log("udev: failed to bind the udev monitor");
-                        ud_monitor.reset();
-                    }
-                    else
-                    {
-                        auto fd = ud_monitor->udev_monitor_get_fd();
-                        auto ud_monitor_source = timers.libinput_add_event_source(fd, evdev_udev_handler, this);
-                        if (!ud_monitor_source)
-                        {
-                            ud_monitor.reset();
-                        }
-                        else
-                        {
-                            ud_monitor_source = ud_monitor_source;
-                            if (!udev_input_add_devices(udev))
-                            {
-                                libinput_suspend();
-                            }
-                            else
-                            {
-                                return 0;
-                            }
-                        }
-                    }
-                }
-            }
-            return -1;
-        }
-        bool udev_input_add_devices(ud_context_sptr ud_context)
-        {
-            auto rc = ud_context->udev_enumerate_event_devices("input", [&](ud_device_sptr ud_device, view sysname)
-            {
-                auto is_initialized = ud_device->udev_device_get_is_initialized();
-                if (!is_initialized) // Skip unconfigured device. udev will send an event when device is fully configured.
-                {
-                    log("%-7s% - skip unconfigured input device '%s%'", sysname, ud_device->udev_device_get_devnode());
-                }
-                return is_initialized && libinput_device_added(ud_device);
-            });
-            return rc;
-        }
-        void udev_input_remove_devices()
-        {
-            for (auto seat : seat_list)
-            {
-                for (auto li_device : seat->devices_list)
-                {
-                    li_device->evdev_device_remove();
-                }
-                seat->devices_list.clear();
-            }
-        }
-        si32 libinput_device_change_seat(libinput_device_sptr li_device, qiew seat_name)
-        {
-            auto ud_device = li_device->ud_device;
-            libinput_device_removed(ud_device);
-            auto rc = libinput_device_added(ud_device, seat_name);
-            return rc;
-        }
-        si32 libinput_device_added(ud_device_sptr ud_device, qiew seat_name = {})
-        {
-            auto device_seat = ud_device->udev_device_get_property_value("ID_SEAT");
-            log("device_added: device_seat='%%' our_seat='%%'", device_seat, seat_id);
-            if (!device_seat) device_seat = default_seat;
-            if (device_seat.data() != seat_id) return 0;
-            if (ud_device->ignore_litest_test_suite_device()) return 0;
-            if (!seat_name) // Search for matching logical seat.
-            {
-                seat_name = ud_device->udev_device_get_property_value("WL_SEAT");
-                if (!seat_name) seat_name = default_seat_name;
-            }
-            auto ud_seat = udev_seat_sptr{};
-            for (auto s : seat_list) // Get named.
+            //log("libinput_device_added");
+            //auto device_seat = ud_device->udev_device_get_property_value("ID_SEAT");
+            //log("device_added: device_seat='%%' our_seat='%%'", device_seat, libinput_t::seat_id);
+            //if (!device_seat) device_seat = default_seat;
+            //if (device_seat.data() != libinput_t::seat_id) return 0;
+            //if (ud_device->ignore_litest_test_suite_device()) return 0;
+            //if (!seat_name) // Search for matching logical seat.
+            //{
+            //    seat_name = ud_device->udev_device_get_property_value("WL_SEAT");
+            //    if (!seat_name) seat_name = default_seat_name;
+            //}
+            auto device_seat = default_seat;
+            auto seat_name = default_seat_name;
+            auto ud_seat = libinput_seat_sptr{};
+            for (auto s : libinput_t::seat_list) // Get named.
             {
                 if (s->logical_name == seat_name)
                 {
-                    ud_seat = std::static_pointer_cast<udev_seat_t>(s);
+                    ud_seat = s;
                     break;
                 }
             }
-            if (ud_seat) // There is a race at startup: a device added between setting up the udev monitor and enumerating all current devices may show up in both lists. Filter those out.
-            {
-                if (auto syspath = ud_device->udev_device_get_syspath()) // Filter_duplicates.
-                {
-                    for (auto d : ud_seat->devices_list)
-                    {
-                        if (d->ud_device && syspath == d->ud_device->udev_device_get_syspath())
-                        {
-                            return 0;
-                        }
-                    }
-                }
-            }
-            else
-            {
-                ud_seat = ptr::shared<udev_seat_t>();
-                libinput_seat_init(ud_seat, This(), device_seat, seat_name);
-            }
+            //if (ud_seat) // There is a race at startup: a device added between setting up the udev monitor and enumerating all current devices may show up in both lists. Filter those out.
+            //{
+            //    if (auto syspath = ud_device->udev_device_get_syspath()) // Filter_duplicates.
+            //    {
+            //        for (auto d : ud_seat->devices_list)
+            //        {
+            //            if (d->ud_device && syspath == d->ud_device->udev_device_get_syspath())
+            //            {
+            //                return 0;
+            //            }
+            //        }
+            //    }
+            //}
+            //else
+            //{
+                ud_seat = ptr::shared<libinput_seat_t>();
+                libinput_seat_init(ud_seat, libinput_t::This(), device_seat, seat_name);
+            //}
             auto [li_device, unhandled_device] = libinput_device_create(ud_seat, ud_device);
             if (!li_device)
             {
@@ -18092,32 +17951,115 @@ namespace netxs::lixx // li++, libinput++.
                 else                  log("%-7s% - failed to create input device '%s%'", sysname, devnode);
                 return 0;
             }
+            //todo drop seat
+            path_list.push_back(li_device);
             evdev_read_calibration_prop(li_device);
             auto output_name = ud_device->udev_device_get_property_value("WL_OUTPUT");
             li_device->output_name = output_name;
             return 0;
         }
-        void libinput_device_removed(ud_device_sptr ud_device)
+        void libinput_t::libinput_device_removed(ud_device_sptr ud_device)
         {
             auto syspath = ud_device->udev_device_get_syspath();
-            for (auto s : seat_list)
+            //todo drop seat
+            for (auto s : libinput_t::seat_list)
             {
                 std::erase_if(s->devices_list, [&](auto d){ return syspath == d->ud_device->udev_device_get_syspath(); });
             }
+            std::erase_if(path_list, [&](auto d){ return syspath == d->ud_device->udev_device_get_syspath(); });
+
         }
-        virtual void libinput_set_seat_id([[maybe_unused]] qiew new_seat_id)
+        void libinput_t::libinput_suspend()
+        {
+            if (ud_monitor)
+            {
+                ud_monitor.reset();
+                timers.libinput_remove_event_source(ud_monitor_source);
+                for (auto s : seat_list)
+                {
+                    for (auto d : s->devices_list)
+                    {
+                        disable_device(d);
+                    }
+                    s->devices_list.clear();
+                }
+            }
+        }
+        void libinput_t::evdev_udev_handler(void* data)
+        {
+            auto li = (libinput_t*)data;
+            li->ud_monitor->add_devices([&](auto action, auto ud_device)
+            {
+                if (action == "add")
+                {
+                    li->libinput_device_added(ud_device);
+                }
+                else if (action == "remove")
+                {
+                    li->libinput_device_removed(ud_device);
+                }
+            });
+        }
+        si32 libinput_t::libinput_resume()
+        {
+            if (ud_monitor) return 0;
+            ud_monitor = ptr::shared<ud_monitor_t>(This());
+            if (!ud_monitor->udev_monitor_enable_receiving())
+            {
+                log("udev: failed to bind the udev monitor");
+                ud_monitor.reset();
+            }
+            else
+            {
+                auto fd = ud_monitor->udev_monitor_get_fd();
+                auto ud_monitor_source = timers.libinput_add_event_source(fd, evdev_udev_handler, this);
+                if (!ud_monitor_source)
+                {
+                    ud_monitor.reset();
+                }
+                else
+                {
+                    this->ud_monitor_source = ud_monitor_source;
+                    if (!libinput_add_devices())
+                    {
+                        libinput_suspend();
+                    }
+                    else
+                    {
+                        return 0;
+                    }
+                }
+            }
+            return -1;
+        }
+        bool libinput_t::libinput_add_devices()
+        {
+            for (auto [sysname, ud_device] : ud_monitor->device_list)
+            {
+                if (ud_device->initialized)
+                {
+                    libinput_device_added(ud_device);
+                }
+                else
+                {
+                    log("%-7s% - skip unconfigured input device '%s%'", sysname, ud_device->udev_device_get_devnode());
+                }
+            }
+            return true;
+        }
+        void libinput_t::libinput_set_seat_id(qiew new_seat_id)
         {
             seat_id = new_seat_id;
         }
-        virtual void input_disable()
+        void libinput_t::input_disable()
         {
             if (!ud_monitor) return;
             ud_monitor.reset();
             timers.libinput_remove_event_source(ud_monitor_source);
             ud_monitor_source.reset();
-            udev_input_remove_devices();
+            libinput_remove_devices();
         }
-        si32 assign_seat(qiew seat_id, qiew devtype = {})
+        si32 libinput_t::assign_seat(qiew seat_id, qiew devtype)
         {
             if (!seat_id) return -1;
             libinput_init_quirks();
@@ -18125,21 +18067,11 @@ namespace netxs::lixx // li++, libinput++.
             if (input_enable(devtype) < 0) return -1;
             return 0;
         }
-        virtual si32 input_enable(qiew devtype = {})
+        si32 libinput_t::input_enable(qiew devtype)
         {
             if (ud_monitor || seat_id.empty()) return 0;
-            ud_monitor = udev->udev_monitor_new_from_netlink("udev");
-            if (!ud_monitor)
-            {
-                log("udev: failed to create the udev monitor");
-                return -1;
-            }
-            if (ud_monitor->udev_monitor_filter_add_match_subsystem_devtype("input", devtype))
-            {
-                log("udev: failed to set up filter");
-                return -1;
-            }
-            if (ud_monitor->udev_monitor_enable_receiving())
+            ud_monitor = ptr::shared<ud_monitor_t>(This());
+            if (!ud_monitor->udev_monitor_enable_receiving())
             {
                 log("udev: failed to bind the udev monitor");
                 ud_monitor.reset();
@@ -18153,44 +18085,171 @@ namespace netxs::lixx // li++, libinput++.
                 ud_monitor.reset();
                 return -1;
             }
-            if (udev_input_add_devices(udev) < 0)
-            {
-                log("udev: failed to add devices");
-                input_disable();
-                return -1;
-            }
+            libinput_add_devices();
             return 0;
         }
-    };
-
+        libinput_device_sptr libinput_t::libinput_add_device(view path)
+        {
+            auto li_device = libinput_device_sptr{};
+            auto [devpath, sysname] = utf::split_back(path, '/');
+            auto ud_device = ptr::shared<ud_device_t>(sysname);
+            if (!ud_device->ignore_litest_test_suite_device())
+            {
+                libinput_init_quirks();
+                li_device = create_device(ud_device);
+            }
+            return li_device;
+        }
+        void libinput_t::disable_device(libinput_device_sptr li_device)
+        {
+            auto seat = li_device->seat;
+            std::erase_if(seat->devices_list, [&](auto d)
+            {
+                if (d == li_device)
+                {
+                    li_device->evdev_device_remove();
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            });
+        }
+        void libinput_t::remove_device(libinput_device_sptr li_device)
+        {
+            std::erase_if(path_list, [&](auto d){ return d->ud_device == li_device->ud_device; });
+            disable_device(li_device);
+        }
+        void libinput_t::libinput_remove_devices()
+        {
+            for (auto seat : seat_list)
+            {
+                for (auto li_device : seat->devices_list)
+                {
+                    li_device->evdev_device_remove();
+                }
+                seat->devices_list.clear();
+            }
+        }
+        libinput_device_sptr libinput_t::create_device(ud_device_sptr ud_device, qiew seat_name)
+        {
+            auto dev = ptr::shared<libinput_device_t>();
+            dev->ud_device = ud_device;
+            auto li_device = device_enable(ud_device, seat_name);
+            if (!li_device)
+            {
+                dev->ud_device.reset();
+            }
+            return li_device;
+        }
+        libinput_seat_sptr libinput_t::path_seat_get_named(view seat_name_physical, view seat_name_logical)
+        {
+            for (auto& s : seat_list)
+            {
+                if (s->physical_name == seat_name_physical && s->logical_name == seat_name_logical)
+                {
+                    return std::static_pointer_cast<libinput_seat_t>(s);
+                }
+            }
+            return libinput_seat_sptr{};
+        }
+        libinput_seat_sptr libinput_t::path_seat_create(view seat_name, view seat_logical_name)
+        {
+            auto seat = ptr::shared<libinput_seat_t>();
+            libinput_seat_init(seat, This(), seat_name, seat_logical_name);
+            return seat;
+        }
+        libinput_seat_sptr libinput_t::path_seat_get_for_device(ud_device_sptr ud_device, qiew seat_logical_name_override)
+        {
+            auto seat_logical_name = text{};
+            auto devnode = ud_device->udev_device_get_devnode();
+            auto sysname = ud_device->udev_device_get_sysname();
+            auto seat_prop = ud_device->udev_device_get_property_value("ID_SEAT");
+            auto seat_name = text{ seat_prop ? seat_prop : default_seat };
+            if (seat_logical_name_override)
+            {
+                seat_logical_name = seat_logical_name_override;
+            }
+            else
+            {
+                seat_prop = ud_device->udev_device_get_property_value("WL_SEAT");
+                seat_logical_name = seat_prop ? seat_prop : default_seat_name;
+            }
+            auto seat = libinput_seat_sptr{};
+            if (seat_logical_name.empty())
+            {
+                log("%s%: failed to create seat name for device '%s%'", sysname, devnode);
+            }
+            else
+            {
+                seat = path_seat_get_named(seat_name, seat_logical_name);
+                if (!seat)
+                {
+                    seat = path_seat_create(seat_name, seat_logical_name);
+                    if (!seat)
+                    {
+                        log("%s%: failed to create seat for device '%s%'", sysname, devnode);
+                    }
+                }
+            }
+            return seat;
+        }
+        libinput_device_sptr libinput_t::device_enable(ud_device_sptr ud_device, qiew seat_logical_name_override)
+        {
+            if (auto seat = path_seat_get_for_device(ud_device, seat_logical_name_override))
+            {
+                auto [li_device, unhandled_device] = libinput_device_create(seat, ud_device);
+                if (!li_device)
+                {
+                    auto sysname = ud_device->udev_device_get_sysname();
+                    auto devnode = ud_device->udev_device_get_devnode();
+                    if (unhandled_device) log("%s% - not using input device '%s%'", sysname, devnode);
+                    else                  log("%s% - failed to create input device '%s%'", sysname, devnode);
+                }
+                else
+                {
+                    evdev_read_calibration_prop(li_device);
+                    li_device->output_name = ud_device->udev_device_get_property_value("WL_OUTPUT");
+                    return li_device;
+                }
+            }
+            return libinput_device_sptr{};
+        }
+        void libinput_t::libinput_init_quirks()
+        {
+            if (libinput_t::quirks_initialized) return;
+            libinput_t::quirks_initialized = true; // If we fail, we'll fail next time too.
+            auto quirks_pir_ptr = ::getenv("LIBINPUT_QUIRKS_DIR");
+            auto data_path = text{};
+            auto override_file = text{};
+            if (!quirks_pir_ptr)
+            {
+                data_path     = ""s;//LIBINPUT_QUIRKS_DIR;
+                override_file = ""s;//LIBINPUT_QUIRKS_OVERRIDE_FILE;
+            }
+            else
+            {
+                data_path = text{ quirks_pir_ptr };
+            }
+            auto log_msg_va = []([[maybe_unused]] libinput_log_priority priority, [[maybe_unused]] char const* format, [[maybe_unused]] va_list args)
+            {
+                //if (log_is_logged(libinput, priority))
+                //    libinput->log_handler(libinput, priority, format, args);
+            };
+            libinput_t::quirks = quirks_init_subsystem(data_path, override_file, log_msg_va, This(), QLOG_LIBINPUT_LOGGING);
+            if (!libinput_t::quirks)
+            {
+                //log("Failed to load the device quirks from %s%%s%%s%. This will negatively affect device behavior", data_path, override_file.size() ? " and " : "", override_file.size() ? override_file : "");
+                return;
+            }
+        }
     void libinput_seat_init(libinput_seat_sptr seat, libinput_sptr li, view physical_name, view logical_name)
     {
         seat->libinput      = li;
         seat->physical_name = physical_name;
         seat->logical_name  = logical_name;
         li->seat_list.push_back(seat);
-    }
-    text str_sanitize(qiew str)
-    {
-        auto sanitized = text{};
-        if (str.find('%') == text::npos)
-        {
-            sanitized = str;
-        }
-        else
-        {
-            if (str.size() > 512u) str = str.substr(0, 512u);
-            sanitized.reserve(2 * str.size() + 1);
-            for (auto c : str)
-            {
-                if (c == '%')
-                {
-                    sanitized += '%';
-                }
-                sanitized += c;
-            }
-        }
-        return sanitized;
     }
     void libinput_libevdev_log_func([[maybe_unused]] ::libevdev const* evdev, ::libevdev_log_priority priority, [[maybe_unused]] void* data, [[maybe_unused]] char const* file, [[maybe_unused]] si32 line, [[maybe_unused]] char const* func, char const*format, va_list args)
     {
@@ -18304,16 +18363,12 @@ namespace netxs::lixx // li++, libinput++.
             { "ID_INPUT_SWITCH",        EVDEV_UDEV_TAG_SWITCH        },
         });
         auto tags = EVDEV_UDEV_TAG_NONE;
-        for (auto i = 0; i < 2 && ud_device; i++)
+        for (auto [name, tag] : evdev_udev_tag_matches)
         {
-            for (auto [name, tag] : evdev_udev_tag_matches)
+            if (parse_udev_flag(ud_device, name))
             {
-                if (parse_udev_flag(ud_device, name))
-                {
-                    tags = (evdev_ud_device_tags)(tags | tag);
-                }
+                tags = (evdev_ud_device_tags)(tags | tag);
             }
-            ud_device = ud_device->udev_device_get_parent();
         }
         return tags;
     }
@@ -18487,7 +18542,7 @@ namespace netxs::lixx // li++, libinput++.
         }
         if (!quirks_get_bool(q, QUIRK_ATTR_IS_VIRTUAL, is_virtual))
         {
-            is_virtual = !getenv("LIBINPUT_RUNNING_TEST_SUITE") && li_device->ud_device->libinput_ud_device_is_virtual();
+            is_virtual = !::getenv("LIBINPUT_RUNNING_TEST_SUITE") && li_device->ud_device->libinput_ud_device_is_virtual();
         }
         if (is_virtual)
         {
@@ -18877,7 +18932,7 @@ namespace netxs::lixx // li++, libinput++.
         }
     }
 
-                bool evdev_init_accel(libinput_device_sptr li_device, libinput_config_accel_profile which)
+                void evdev_init_accel(libinput_device_sptr li_device, libinput_config_accel_profile which)
                 {
                     auto filter = motion_filter_sptr{};
                     if (which == LIBINPUT_CONFIG_ACCEL_PROFILE_CUSTOM)
@@ -18905,13 +18960,12 @@ namespace netxs::lixx // li++, libinput++.
                         {
                             filter = ptr::shared<pointer_accelerator_low_dpi>(li_device->dpi, li_device->use_velocity_averaging);
                         }
-                    }
-                    if (!filter)
-                    {
-                        filter = ptr::shared<pointer_accelerator>(li_device->dpi, li_device->use_velocity_averaging);
+                        else
+                        {
+                            filter = ptr::shared<pointer_accelerator>(li_device->dpi, li_device->use_velocity_averaging);
+                        }
                     }
                     evdev_device_init_pointer_acceleration(li_device, filter);
-                    return true;
                 }
             static libinput_config_status evdev_accel_config_set_speed(libinput_device_sptr li_device, fp64 speed)
             {
@@ -18924,14 +18978,8 @@ namespace netxs::lixx // li++, libinput++.
                 if (filter->filter_get_type() != profile)
                 {
                     auto speed = filter->filter_get_speed();
-                    if (evdev_init_accel(li_device, profile))
-                    {
-                        evdev_accel_config_set_speed(li_device, speed);
-                    }
-                    else
-                    {
-                        return LIBINPUT_CONFIG_STATUS_UNSUPPORTED;
-                    }
+                    evdev_init_accel(li_device, profile);
+                    evdev_accel_config_set_speed(li_device, speed);
                 }
                 return LIBINPUT_CONFIG_STATUS_SUCCESS;
             }
@@ -19072,7 +19120,7 @@ namespace netxs::lixx // li++, libinput++.
             #if HAVE_LIBWACOM
             li->libinput_libwacom_ref();
             #endif
-            if (getenv("LIBINPUT_RUNNING_TEST_SUITE"))
+            if (::getenv("LIBINPUT_RUNNING_TEST_SUITE"))
             {
                 lixx::forced_proxout_timeout = 150ms; // Stop false positives caused by the forced proximity code.
             }
@@ -19082,10 +19130,6 @@ namespace netxs::lixx // li++, libinput++.
                 tablet_ptr.reset();
             }
             return tablet_ptr;
-        }
-        void evdev_tag_tablet_touchpad(libinput_device_sptr li_device)
-        {
-            li_device->tags = (libinput_device_tags)(li_device->tags | EVDEV_TAG_TABLET_TOUCHPAD);
         }
         bool evdev_need_velocity_averaging(libinput_device_sptr li_device)
         {
@@ -19451,14 +19495,13 @@ namespace netxs::lixx // li++, libinput++.
     evdev_dispatch_sptr evdev_configure_device(libinput_device_sptr li_device)
     {
         auto evdev = li_device->evdev;
-        auto tablet_tags = 0u;
         auto udev_tags = evdev_device_get_udev_tags(li_device->ud_device);
         if ((udev_tags & EVDEV_UDEV_TAG_INPUT) == 0 || (udev_tags & ~EVDEV_UDEV_TAG_INPUT) == 0)
         {
-            log("not tagged as supported input device");
+            log("not tagged as supported input device: ", li_device->ud_device->properties["NAME"]);
             return nullptr;
         }
-        log("is tagged by udev as:%s%%s%%s%%s%%s%%s%%s%%s%%s%%s%%s%",
+        log("Device is tagged by udev as:%s%%s%%s%%s%%s%%s%%s%%s%%s%%s%%s%",
             udev_tags & EVDEV_UDEV_TAG_KEYBOARD      ? " Keyboard"      : "",
             udev_tags & EVDEV_UDEV_TAG_MOUSE         ? " Mouse"         : "",
             udev_tags & EVDEV_UDEV_TAG_TOUCHPAD      ? " Touchpad"      : "",
@@ -19472,21 +19515,22 @@ namespace netxs::lixx // li++, libinput++.
             udev_tags & EVDEV_UDEV_TAG_SWITCH        ? " Switch"        : "");
         if (udev_tags == (EVDEV_UDEV_TAG_INPUT | EVDEV_UDEV_TAG_ACCELEROMETER)) // Ignore pure accelerometers, but accept devices that are accelerometers with other axes.
         {
-            log("device is an accelerometer, ignoring");
+            log("Device is an accelerometer, ignoring: ", li_device->ud_device->properties["NAME"]);
             return nullptr;
         }
         if (udev_tags & EVDEV_UDEV_TAG_ACCELEROMETER)
         {
             evdev_disable_accelerometer_axes(li_device);
         }
+        //todo interferencing with ud_device tags
         if (evdev_device_is_joystick_or_gamepad(li_device))
         {
-            log("device is a joystick or a gamepad, ignoring");
+            log("Device is a joystick or a gamepad, ignoring: ", li_device->ud_device->properties["NAME"]);
             return nullptr;
         }
         if (evdev_reject_device(li_device))
         {
-            log("was rejected");
+            log("Device was rejected: ", li_device->ud_device->properties["NAME"]);
             return nullptr;
         }
         if (!li_device->evdev_is_fake_mt_device())
@@ -19506,34 +19550,34 @@ namespace netxs::lixx // li++, libinput++.
         {
             dispatch = evdev_totem_create(li_device);
             li_device->seat_caps = (libinput_device_seat_capability)(li_device->seat_caps | EVDEV_DEVICE_TABLET);
-            log("device is a totem");
+            log("Device is a totem: ", li_device->ud_device->properties["NAME"]);
             return dispatch;
         }
         // Libwacom assigns touchpad (or touchscreen) _and_ tablet to the tablet touch bits, so make sure we don't initialize the tablet interface for the touch device.
-        tablet_tags = EVDEV_UDEV_TAG_TABLET | EVDEV_UDEV_TAG_TOUCHPAD | EVDEV_UDEV_TAG_TOUCHSCREEN;
+        auto tablet_tags = EVDEV_UDEV_TAG_TABLET | EVDEV_UDEV_TAG_TOUCHPAD | EVDEV_UDEV_TAG_TOUCHSCREEN;
         if (udev_tags & EVDEV_UDEV_TAG_TABLET_PAD) // Libwacom assigns tablet _and_ tablet_pad to the pad devices.
         {
             dispatch = evdev_tablet_pad_create(li_device);
             li_device->seat_caps = (libinput_device_seat_capability)(li_device->seat_caps | EVDEV_DEVICE_TABLET_PAD);
-            log("device is a tablet pad");
+            log("Device is a tablet pad: ", li_device->ud_device->properties["NAME"]);
             return dispatch;
         }
         if ((udev_tags & tablet_tags) == EVDEV_UDEV_TAG_TABLET)
         {
             dispatch = evdev_tablet_create(li_device);
             li_device->seat_caps = (libinput_device_seat_capability)(li_device->seat_caps | EVDEV_DEVICE_TABLET);
-            log("device is a tablet");
+            log("Device is a tablet: ", li_device->ud_device->properties["NAME"]);
             return dispatch;
         }
         if (udev_tags & EVDEV_UDEV_TAG_TOUCHPAD)
         {
             if (udev_tags & EVDEV_UDEV_TAG_TABLET)
             {
-                evdev_tag_tablet_touchpad(li_device);
+                li_device->tags = (libinput_device_tags)(li_device->tags | EVDEV_TAG_TABLET_TOUCHPAD);
             }
             li_device->use_velocity_averaging = evdev_need_velocity_averaging(li_device); // Whether velocity should be averaged, false by default.
             dispatch = evdev_mt_touchpad_create(li_device);
-            log("device is a touchpad");
+            log("Device is a touchpad: ", li_device->ud_device->properties["NAME"]);
             return dispatch;
         }
         if (udev_tags & EVDEV_UDEV_TAG_MOUSE || udev_tags & EVDEV_UDEV_TAG_POINTINGSTICK)
@@ -19550,7 +19594,7 @@ namespace netxs::lixx // li++, libinput++.
             }
             li_device->use_velocity_averaging = evdev_need_velocity_averaging(li_device); // Whether velocity should be averaged, false by default.
             li_device->seat_caps = (libinput_device_seat_capability)(li_device->seat_caps | EVDEV_DEVICE_POINTER);
-            log("device is a pointer");
+            log("Device is a pointer: ", li_device->ud_device->properties["NAME"]);
             li_device->left_handed.want_enabled = true; // Want left-handed config option.
             li_device->scroll.natural_scrolling_enabled = true; // Want natural-scroll config option.
             if (::libevdev_has_event_code(evdev, EV_REL, REL_X) || ::libevdev_has_event_code(evdev, EV_REL, REL_Y)) // Want button scrolling config option.
@@ -19561,7 +19605,7 @@ namespace netxs::lixx // li++, libinput++.
         if (udev_tags & EVDEV_UDEV_TAG_KEYBOARD)
         {
             li_device->seat_caps = (libinput_device_seat_capability)(li_device->seat_caps | EVDEV_DEVICE_KEYBOARD);
-            log("device is a keyboard");
+            log("Device is a keyboard: ", li_device->ud_device->properties["NAME"]);
             if (::libevdev_has_event_code(evdev, EV_REL, REL_WHEEL) || ::libevdev_has_event_code(evdev, EV_REL, REL_HWHEEL)) // Want natural-scroll config option.
             {
                 li_device->scroll.natural_scrolling_enabled = true;
@@ -19572,7 +19616,7 @@ namespace netxs::lixx // li++, libinput++.
         if (udev_tags & EVDEV_UDEV_TAG_TOUCHSCREEN)
         {
             li_device->seat_caps = (libinput_device_seat_capability)(li_device->seat_caps | EVDEV_DEVICE_TOUCH);
-            log("device is a touch device");
+            log("Device is a touch device: ", li_device->ud_device->properties["NAME"]);
         }
         if (udev_tags & EVDEV_UDEV_TAG_SWITCH)
         {
@@ -19585,7 +19629,7 @@ namespace netxs::lixx // li++, libinput++.
             {
                 if (li_device->evdev_device_has_model_quirk(QUIRK_MODEL_TABLET_MODE_SWITCH_UNRELIABLE))
                 {
-                    log("device is an unreliable tablet mode switch, filtering events");
+                    log("Device is an unreliable tablet mode switch, filtering events");
                     ::libevdev_disable_event_code(li_device->evdev, EV_SW, SW_TABLET_MODE);
                 }
                 else
@@ -19596,16 +19640,14 @@ namespace netxs::lixx // li++, libinput++.
             }
             if (li_device->seat_caps & EVDEV_DEVICE_SWITCH)
             {
-                log("device is a switch device");
+                log("Device is a switch device: ", li_device->ud_device->properties["NAME"]);
             }
         }
-        if (li_device->seat_caps & EVDEV_DEVICE_POINTER &&
-            ::libevdev_has_event_code(evdev, EV_REL, REL_X) &&
-            ::libevdev_has_event_code(evdev, EV_REL, REL_Y) &&
-            !evdev_init_accel(li_device, LIBINPUT_CONFIG_ACCEL_PROFILE_ADAPTIVE))
+        if (li_device->seat_caps & EVDEV_DEVICE_POINTER
+         && ::libevdev_has_event_code(evdev, EV_REL, REL_X)
+         && ::libevdev_has_event_code(evdev, EV_REL, REL_Y))
         {
-            log("failed to initialize pointer acceleration");
-            return nullptr;
+            evdev_init_accel(li_device, LIBINPUT_CONFIG_ACCEL_PROFILE_ADAPTIVE);
         }
         if (li_device->evdev_device_has_model_quirk(QUIRK_MODEL_INVERT_HORIZONTAL_SCROLLING))
         {
@@ -19652,7 +19694,7 @@ namespace netxs::lixx // li++, libinput++.
         auto fd = -1;
         auto unhandled_device = false;
         auto devnode = ud_device->udev_device_get_devnode();
-        auto sysname = str_sanitize(ud_device->udev_device_get_sysname());
+        auto sysname = ud_device->udev_device_get_sysname();
         auto li_device = libinput_device_sptr{};
         if (!devnode)
         {
@@ -19660,69 +19702,67 @@ namespace netxs::lixx // li++, libinput++.
         }
         else
         {
-            if (ud_device->libinput_ud_device_should_be_ignored())
+            fd = ::open(devnode.data(), O_RDWR | O_NONBLOCK | O_CLOEXEC); // Use non-blocking mode so that we can loop on read on evdev_device_data() until all events on the fd are read.  mtdev_get() also expects this.
+            if (fd < 0)
             {
-                log("%s%: device is ignored", sysname);
+                log("%s%: opening input device '%s%' failed (%s%)", sysname, devnode, ::strerror(-fd));
             }
             else
             {
-                fd = li->open_restricted(devnode, O_RDWR | O_NONBLOCK | O_CLOEXEC); // Use non-blocking mode so that we can loop on read on evdev_device_data() until all events on the fd are read.  mtdev_get() also expects this.
-                if (fd < 0)
+                li_device = ptr::shared<libinput_device_t>();
+                li_device->sysname = sysname;
+                li_device->seat = seat;
+                evdev_drain_fd(fd);
+                rc = ::libevdev_new_from_fd(fd, &li_device->evdev);
+                if (rc == 0)
                 {
-                    log("%s%: opening input device '%s%' failed (%s%)", sysname, devnode, ::strerror(-fd));
+                    ::libevdev_set_clock_id(li_device->evdev, CLOCK_MONOTONIC);
+                    ::libevdev_set_device_log_function(li_device->evdev, libinput_libevdev_log_func, LIBEVDEV_LOG_ERROR, li.get());
+                    li_device->seat_caps = EVDEV_DEVICE_NO_CAPABILITIES;
+                    li_device->is_mt = 0;
+                    li_device->mtdev = nullptr;
+                    li_device->ud_device = ud_device;
+                    li_device->dispatch = nullptr;
+                    li_device->fd = fd;
+                    li_device->devname = ::libevdev_get_name(li_device->evdev);
+                    // The log_prefix_name is used as part of a printf format string and must not contain % directives, see evdev_log_msg.
+                    li_device->log_prefix_name = li_device->devname;
+                    li_device->scroll.threshold = 5.0; // Default may be overridden.
+                    li_device->scroll.direction_lock_threshold = 5.0; // Default may be overridden.
+                    li_device->scroll.direction = 0;
+                    li_device->scroll.wheel_click_angle = evdev_read_wheel_click_props(li_device);
+                    li_device->model_flags = evdev_read_model_flags(li_device);
+                    li_device->dpi = lixx::default_mouse_dpi;
+                    matrix_init_identity(&li_device->abs.calibration);
+                    matrix_init_identity(&li_device->abs.usermatrix);
+                    matrix_init_identity(&li_device->abs.default_calibration);
+                    evdev_pre_configure_model_quirks(li_device);
+                    li_device->dispatch = evdev_configure_device(li_device);
+                    if (li_device->dispatch && li_device->seat_caps != EVDEV_DEVICE_NO_CAPABILITIES)
+                    {
+                        li_device->source = li->timers.libinput_add_event_source(fd, libinput_device_t::evdev_device_dispatch, li_device.get());
+                        if (li_device->source)
+                        {
+                            evdev_set_device_group(li_device, ud_device);
+                            seat->devices_list.push_back(li_device);
+                            evdev_notify_added_device(li_device);
+                            return std::pair{ li_device, unhandled_device };
+                        }
+                    }
+                    else
+                    {
+                        log("FAILED li_device->seat_caps = ", li_device->seat_caps);
+                    }
                 }
                 else
                 {
-                    if (ud_device->libinput_device_have_same_syspath(fd))
-                    {
-                        li_device = ptr::shared<libinput_device_t>();
-                        li_device->sysname = sysname;
-                        li_device->seat = seat;
-                        evdev_drain_fd(fd);
-                        rc = ::libevdev_new_from_fd(fd, &li_device->evdev);
-                        if (rc == 0)
-                        {
-                            ::libevdev_set_clock_id(li_device->evdev, CLOCK_MONOTONIC);
-                            ::libevdev_set_device_log_function(li_device->evdev, libinput_libevdev_log_func, LIBEVDEV_LOG_ERROR, li.get());
-                            li_device->seat_caps = EVDEV_DEVICE_NO_CAPABILITIES;
-                            li_device->is_mt = 0;
-                            li_device->mtdev = nullptr;
-                            li_device->ud_device = ud_device;
-                            li_device->dispatch = nullptr;
-                            li_device->fd = fd;
-                            li_device->devname = ::libevdev_get_name(li_device->evdev);
-                            // The log_prefix_name is used as part of a printf format string and must not contain % directives, see evdev_log_msg.
-                            li_device->log_prefix_name = str_sanitize(li_device->devname);
-                            li_device->scroll.threshold = 5.0; // Default may be overridden.
-                            li_device->scroll.direction_lock_threshold = 5.0; // Default may be overridden.
-                            li_device->scroll.direction = 0;
-                            li_device->scroll.wheel_click_angle = evdev_read_wheel_click_props(li_device);
-                            li_device->model_flags = evdev_read_model_flags(li_device);
-                            li_device->dpi = lixx::default_mouse_dpi;
-                            matrix_init_identity(&li_device->abs.calibration);
-                            matrix_init_identity(&li_device->abs.usermatrix);
-                            matrix_init_identity(&li_device->abs.default_calibration);
-                            evdev_pre_configure_model_quirks(li_device);
-                            li_device->dispatch = evdev_configure_device(li_device);
-                            if (li_device->dispatch && li_device->seat_caps != EVDEV_DEVICE_NO_CAPABILITIES)
-                            {
-                                li_device->source = li->timers.libinput_add_event_source(fd, libinput_device_t::evdev_device_dispatch, li_device.get());
-                                if (li_device->source)
-                                {
-                                    evdev_set_device_group(li_device, ud_device);
-                                    seat->devices_list.push_back(li_device);
-                                    evdev_notify_added_device(li_device);
-                                    return std::pair{ li_device, unhandled_device };
-                                }
-                            }
-                        }
-                    }
+                    log("FAILED libevdev_new_from_fd failed");
                 }
             }
         }
         if (fd >= 0)
         {
-            li->close_restricted(fd);
+            ::close(fd);
             if (li_device)
             {
                 unhandled_device = li_device->seat_caps == EVDEV_DEVICE_NO_CAPABILITIES;
@@ -19782,64 +19822,10 @@ namespace netxs::lixx // li++, libinput++.
                 }
             }
         }
-            void path_disable_device(libinput_device_sptr li_device)
-            {
-                auto seat = li_device->seat;
-                std::erase_if(seat->devices_list, [&](auto d)
-                {
-                    if (d == li_device)
-                    {
-                        li_device->evdev_device_remove();
-                        return true;
-                    }
-                    else
-                    {
-                        return false;
-                    }
-                });
-            }
-    libinput_sptr libinput_path_create_context(auto open_restricted, auto close_restricted, void* user_data = nullptr)
+    libinput_sptr libinput_create_context(void* user_data = nullptr)
     {
-        auto li = libinput_sptr{};
-        if (auto ud_context = ud_context_t::create())
-        {
-            auto input = ptr::shared<path_input_t>();
-            if (input->libinput_init(open_restricted, close_restricted, user_data))
-            {
-                input->ud_context = ud_context;
-                li = input;
-            }
-        }
-        return li;
-    }
-                void evdev_udev_handler(void* data)
-                {
-                    auto ud_input = (udev_input_t*)data;
-                    auto ud_device = ud_input->ud_monitor->udev_monitor_receive_device();
-                    auto action = ud_device->udev_device_get_action();
-                    if (action && ud_device->udev_device_get_sysname().starts_with("event"))
-                    {
-                        if (action == "add")
-                        {
-                            ud_input->libinput_device_added(ud_device);
-                        }
-                        else if (action == "remove")
-                        {
-                            ud_input->libinput_device_removed(ud_device);
-                        }
-                    }
-                }
-    libinput_sptr libinput_udev_create_context(auto open_restricted, auto close_restricted, void* user_data = nullptr, ::udev* ud_context_ptr = nullptr)
-    {
-        auto li = libinput_sptr{};
-        auto ud_input = ptr::shared<udev_input_t>();
-        if (ud_input->libinput_init(open_restricted, close_restricted, user_data))
-        {
-            auto ud_context = ud_context_ptr ? ptr::shared<ud_context_t>(ud_context_ptr, true)
-                                             : ud_context_t::create();
-            ud_input->udev = ud_context;
-            li = ud_input;
-        }
+        auto li = ptr::shared<libinput_t>();
+        li->libinput_init(user_data);
         return li;
     }
     si32 libinput_device_config_rotation_is_available(libinput_device_sptr li_device)
@@ -19867,12 +19853,17 @@ namespace netxs::lixx // li++, libinput++.
                 {
                     if (::getenv("LIBINPUT_RUNNING_TEST_SUITE")) return "dmi:";
                     #if defined(__linux__)
-                        if (auto ud_context = ud_context_t::create())
+                        if (auto li = ptr::shared<libinput_t>())
                         {
-                            auto syspath = "/sys/devices/virtual/dmi/id";
-                            auto ud_device = ud_context->udev_device_new_from_syspath(syspath);
-                            auto modalias = ud_device ? ud_device->udev_device_get_property_value("MODALIAS") // Record from ModAlias. ModAlias is used to look things up based on a device table.
-                                                      : "dmi:*";
+                            auto dmi_uevent_file = "/sys/devices/virtual/dmi/id/uevent";
+                            auto modalias = "dmi:*"s;
+                            auto ok = ud_device_t::read_uevent(dmi_uevent_file, [&](qiew prop_name, qiew prop_value)
+                            {
+                                if (prop_name == "MODALIAS")
+                                {
+                                    modalias = prop_value;
+                                }
+                            });
                             return modalias;
                         }
                         return nullptr;
@@ -19916,7 +19907,7 @@ namespace netxs::lixx // li++, libinput++.
                     char compatible[1024];
                     auto copy = text{};
                     auto syspath = "/sys/firmware/devicetree/base/compatible";
-                    if (getenv("LIBINPUT_RUNNING_TEST_SUITE")) return {};
+                    if (::getenv("LIBINPUT_RUNNING_TEST_SUITE")) return {};
                     auto fp = ::fopen(syspath, "r");
                     if (fp) // devicetree/base/compatible has multiple null-terminated entries but we only care about the first one here.
                     {
@@ -20628,7 +20619,7 @@ namespace netxs::lixx // li++, libinput++.
                         auto section = ptr::shared<section_t>();
                         auto lineno = -1;
                         log("%s%", path);
-                        auto fp = ::fopen(path.data(), "r"); // Not using open_restricted here, if we can't access our own data files, our installation is screwed up.
+                        auto fp = ::fopen(path.data(), "r");
                         if (!fp) // If the file doesn't exist that's fine. Only way this can happen is for the custom override file, all others are provided by scandir so they do exist. Short of races we don't care about.
                         {
                             if (errno == ENOENT) return true;
@@ -20780,7 +20771,7 @@ namespace netxs::lixx // li++, libinput++.
                     auto ndev = ::scandir(data_path.data(), &namelist, is_data_file, versionsort);
                     if (ndev <= 0)
                     {
-                        log("%s%: failed to find data files", data_path ? data_path : "empty path");
+                        //log("%s%: failed to find data files", data_path ? data_path : "empty path");
                         return false;
                     }
                     auto idx = 0;
@@ -20799,7 +20790,7 @@ namespace netxs::lixx // li++, libinput++.
                 }
             quirks_context_sptr quirks_init_subsystem(view data_path, view override_file, libinput_log_handler log_handler, libinput_sptr li, quirks_log_type log_type)
             {
-                log("%s% is data root", data_path);
+                //log("%s% is data root", data_path);
                 auto ctx = ptr::shared<quirks_context_t>();
                 ctx->log_handler = log_handler;
                 ctx->log_type    = log_type;

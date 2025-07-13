@@ -2408,6 +2408,18 @@ namespace netxs::utf
     {
         return take_front<faux>(utf8, delims);
     }
+    auto dequote(qiew utf8)
+    {
+        if (utf8.size() > 2)
+        {
+            auto c = utf8.front();
+            if ((c == '\'' || c == '\"') && c == utf8.back())
+            {
+                utf8 = utf8.substr(1, utf8.size() - 2);
+            }
+        }
+        return utf8;
+    }
     // utf: Split text line into quoted tokens.
     auto tokenize(view utf8, auto&& args)
     {
