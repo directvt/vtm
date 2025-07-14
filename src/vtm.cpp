@@ -232,9 +232,8 @@ int main(int argc, char* argv[])
         }
     }
 
-    rungui = rungui && (whoami == type::runapp
-                     || whoami == type::client);
-    os::dtvt::initialize(rungui, true);
+    auto interactive = whoami == type::runapp || whoami == type::client;
+    os::dtvt::initialize(rungui, true, interactive);
 
     if (os::dtvt::vtmode & ui::console::redirio && (whoami == type::runapp || whoami == type::client))
     {

@@ -3611,18 +3611,25 @@ namespace netxs::lixx // li++, libinput++.
     };
     struct ud_monitor_t
     {
-        static constexpr auto monitor_mode = IN_CREATE | IN_ATTRIB/*try again after mode access update*/ | IN_DELETE;
+        static constexpr auto& active_tty_file = "/sys/devices/virtual/tty/tty0/active";
+        static constexpr auto& dev_input_path = "/dev/input";
+        static constexpr auto dev_monitor_mode = IN_CREATE | IN_ATTRIB/*try again after mode access update*/ | IN_DELETE;
+        static constexpr auto tty_monitor_mode = IN_MODIFY;
 
         fd_t                                     fd;
-        fd_t                                     wd;
+        fd_t                                     wd_tty;
+        fd_t                                     wd_dev;
         text                                     buffer;
         text                                     uevent_buffer;
         libinput_sptr                            li;
         utf::unordered_map<text, ud_device_sptr> device_list;
+        text                                     initial_tty;
+        text                                     current_tty;
 
         ud_monitor_t(libinput_sptr li)
             :           fd{ os::invalid_fd },
-                        wd{ os::invalid_fd },
+                    wd_tty{ os::invalid_fd },
+                    wd_dev{ os::invalid_fd },
              uevent_buffer(4096, '\0'),
                         li{ li }
         {
@@ -3643,6 +3650,10 @@ namespace netxs::lixx // li++, libinput++.
                 fd = tmp2;
             }
             ::close(tmp1);
+            initial_tty = get_active_tty();
+            current_tty = initial_tty;
+            wd_tty = ::inotify_add_watch(fd, active_tty_file, tty_monitor_mode);
+            // Take active devices.
             auto code = std::error_code{};
             auto events = os::fs::directory_iterator("/dev/input/", code);
             if (!code)
@@ -3661,6 +3672,21 @@ namespace netxs::lixx // li++, libinput++.
             udev_monitor_disable_receiving();
         }
 
+        text get_active_tty()
+        {
+            auto buffer = std::array<char, 10>{};
+            auto f = std::ifstream{ active_tty_file };
+            if (f.is_open())
+            {
+                f.read(buffer.data(), buffer.size());
+                f.close();
+                auto ttynum = qiew{ buffer.data() };
+                utf::trim_back(ttynum, whitespaces);
+                if (ttynum.size()) log("Active tty changed to '%tty%'", ttynum);
+                return ttynum;
+            }
+            else return {};
+        }
         void add_devices(auto proc)
         {
             auto length = 0u;
@@ -3678,29 +3704,36 @@ namespace netxs::lixx // li++, libinput++.
                 while (crop)
                 {
                     auto& event = *(::inotify_event*)crop.data();
-                    auto filename = qiew{ event.name };
-                    if (!(event.mask & IN_ISDIR) && (event.mask & monitor_mode) && filename.starts_with("event"))
+                    if (event.wd == wd_tty)
                     {
-                        auto deleted = event.mask & IN_DELETE;
-                        auto iter = device_list.find(filename);
-                        if (deleted)
+                        current_tty = get_active_tty();
+                    }
+                    else if (event.wd == wd_dev)
+                    {
+                        auto filename = qiew{ event.name };
+                        if (!(event.mask & IN_ISDIR) && (event.mask & dev_monitor_mode) && filename.starts_with("event"))
                         {
-                            if (iter != device_list.end())
+                            auto deleted = event.mask & IN_DELETE;
+                            auto iter = device_list.find(filename);
+                            if (deleted)
                             {
-                                auto device_ptr = iter->second;
-                                device_list.erase(iter);
-                                proc("remove", device_ptr);
-                            }
-                        }
-                        else
-                        {
-                            if (iter == device_list.end())
-                            {
-                                auto ud_device = ptr::shared<ud_device_t>(filename);
-                                if (ud_device->initialized)
+                                if (iter != device_list.end())
                                 {
-                                    device_list[filename] = ud_device;
-                                    proc("add", ud_device);
+                                    auto device_ptr = iter->second;
+                                    device_list.erase(iter);
+                                    proc("remove", device_ptr);
+                                }
+                            }
+                            else
+                            {
+                                if (iter == device_list.end())
+                                {
+                                    auto ud_device = ptr::shared<ud_device_t>(filename);
+                                    if (ud_device->initialized)
+                                    {
+                                        device_list[filename] = ud_device;
+                                        proc("add", ud_device);
+                                    }
                                 }
                             }
                         }
@@ -3713,16 +3746,15 @@ namespace netxs::lixx // li++, libinput++.
         {
             if (fd != os::invalid_fd)
             {
-                auto dirpath = "/dev/input"s;
-                wd = ::inotify_add_watch(fd, dirpath.data(), monitor_mode);
-                if (wd != os::invalid_fd)
+                wd_dev = ::inotify_add_watch(fd, dev_input_path, dev_monitor_mode);
+                if (wd_dev != os::invalid_fd)
                 {
-                    //log("Watching:: %s%", dirpath);
+                    //log("Watching:: %s%", dev_input_path);
                     return true;
                 }
                 else
                 {
-                    log("Couldn't add watch to %s%", dirpath);
+                    log("Couldn't add watch to %s%", dev_input_path);
                 }
             }
             else
@@ -3735,9 +3767,9 @@ namespace netxs::lixx // li++, libinput++.
         {
             if (auto fd_value = std::exchange(fd, os::invalid_fd); fd_value != os::invalid_fd)
             {
-                ::inotify_rm_watch(fd_value, wd);
                 ::close(fd_value);
-                wd = os::invalid_fd;
+                wd_dev = os::invalid_fd;
+                wd_tty = os::invalid_fd;
             }
         }
         auto udev_monitor_get_fd()
@@ -3807,6 +3839,10 @@ namespace netxs::lixx // li++, libinput++.
         si32 libinput_resume();
         void libinput_suspend();
 
+        bool current_tty_is_active()
+        {
+            return ud_monitor && ud_monitor->initial_tty.size() && ud_monitor->initial_tty == ud_monitor->current_tty;
+        }
         template<class T>
         auto& libinput_emplace_event()
         {

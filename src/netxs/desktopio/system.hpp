@@ -3759,8 +3759,6 @@ namespace netxs::os
         static auto gridsz = twod{}; // dtvt: Initial window grid size.
         static auto client = xipc{}; // dtvt: Internal IO link.
         static auto wheelrate = 3;   // dtvt: Lines per mouse wheel step (legacy mode).
-        static auto tty_name = text{}; // dtvt: TTY device name.
-        static auto ttynum = 0;        // dtvt: /dev/ttyX index (X).
 
         auto consize()
         {
@@ -3791,8 +3789,9 @@ namespace netxs::os
             }
             return std::max(dot_11, winsz);
         }
-        auto initialize(bool rungui = faux, bool check_vtm = faux)
+        auto initialize(bool rungui = faux, bool check_vtm = faux, bool interactive = faux)
         {
+            rungui &= interactive;
             auto term = text{};
 
             #if defined(_WIN32)
@@ -4012,26 +4011,10 @@ namespace netxs::os
                 if (term.empty()) term = os::env::get("TERM_PROGRAM");
                 if (term.empty()) term = "xterm-compatible";
                 #if defined(__linux__)
-                    auto buffer = text(os::pipebuf, '\0');
-                    ok(::ttyname_r(os::stdout_fd, buffer.data(), buffer.size()), "::ttyname_r(os::stdout_fd)", os::unexpected);
-                    dtvt::tty_name = buffer.data();
-                    if (dtvt::tty_name.starts_with("/dev/tty"))
-                    {
-                        log("%%Linux console %tty%", prompt::tty, dtvt::tty_name);
-                        dtvt::vtmode |= ui::console::mouse;
-                        auto tty_word = "tty"sv;
-                        auto tty_pos = dtvt::tty_name.find(tty_word, 0);
-                        if (tty_pos != text::npos)
-                        {
-                            auto tty_number = dtvt::tty_name.substr(tty_pos + tty_word.size());
-                            dtvt::ttynum = utf::to_int(tty_number, 0);
-                        }
-                    }
-                    else
-                    {
-                        log("%%Pseudoterminal %pts%", prompt::tty, dtvt::tty_name);
-                    }
-                    if (term == "linux" || os::linux_console || colorterm == "kmscon")
+                    auto tty_name = text(os::pipebuf, '\0');
+                    ok(::ttyname_r(os::stdout_fd, tty_name.data(), tty_name.size()), "::ttyname_r(os::stdout_fd)", os::unexpected);
+                    log("%%Pseudoterminal %pts%", prompt::tty, tty_name.data());
+                    if (interactive && (term == "linux" || os::linux_console || colorterm == "kmscon"))
                     {
                         dtvt::vtmode |= ui::console::mouse;
                     }
@@ -5848,9 +5831,7 @@ namespace netxs::os
                             {
                                 bttns |= state;
                             }
-                            auto vt_state = ::vt_stat{};
-                            ::ioctl(os::stdout_fd, VT_GETSTATE, &vt_state);
-                            if (vt_state.v_active == dtvt::ttynum) // Proceed only if the current tty is active.
+                            if (lixx::li && lixx::li->current_tty_is_active()) // Proceed only if the current tty is active.
                             {
                                 auto kbmod = get_kb_state();
                                 if (k.ctlstat != kbmod)
