@@ -20563,7 +20563,7 @@ namespace netxs::lixx // li++, libinput++.
                                 else if (key == quirk_get_name(QUIRK_ATTR_INPUT_PROP))
                                 {
                                     auto props = std::array<input_prop, INPUT_PROP_CNT>{};
-                                    auto nprops = props.size();
+                                    auto nprops = (ui64)props.size();
                                     p->id = QUIRK_ATTR_INPUT_PROP;
                                     if (parse_input_prop_property(value, props, nprops) && nprops != 0)
                                     {
