@@ -18278,7 +18278,7 @@ namespace netxs::lixx // li++, libinput++.
         seat->logical_name  = logical_name;
         li->seat_list.push_back(seat);
     }
-    void libinput_libevdev_log_func([[maybe_unused]] ::libevdev const* evdev, ::libevdev_log_priority priority, [[maybe_unused]] void* data, [[maybe_unused]] char const* file, [[maybe_unused]] si32 line, [[maybe_unused]] char const* func, char const*format, va_list args)
+    void libinput_libevdev_log_func([[maybe_unused]] ::libevdev const* evdev, ::libevdev_log_priority priority, [[maybe_unused]] void* data, [[maybe_unused]] char const* file, [[maybe_unused]] si32 line, [[maybe_unused]] char const* func, char const*format, [[maybe_unused]] va_list args)
     {
         auto pri = LIBINPUT_LOG_PRIORITY_ERROR;
         auto prefix = "libevdev: ";
@@ -18291,7 +18291,7 @@ namespace netxs::lixx // li++, libinput++.
             case LIBEVDEV_LOG_DEBUG: pri = LIBINPUT_LOG_PRIORITY_DEBUG; break;
         }
         ::snprintf(fmt.data(), size, "%s%s", prefix, format);
-        log(utf::concat(pri, ' ', fmt), args);
+        log(utf::concat(pri, ' ', fmt));
     }
     si32 parse_mouse_wheel_click_angle_property(qiew prop)
     {
