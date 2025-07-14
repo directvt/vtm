@@ -3279,13 +3279,17 @@ namespace netxs::lixx // li++, libinput++.
                 initialized = set_tags();
                 //if constexpr (debugmode)
                 //{
-                //    log("  Property        Value\n"
-                //        "  ---------------------------------");
-                //    auto mx = 0;
-                //    for (auto& [sysname, value] : properties) if (mx < sysname.size()) mx = sysname.size();
-                //    for (auto& [sysname, value] : properties)
+                //    if (initialized)
                 //    {
-                //        log("  %sysname%\r\x1b[%mx%C%value%", sysname, mx + 10, value);
+                //        auto mx = 0u;
+                //        for (auto& [sysname, value] : properties) if (mx < sysname.size()) mx = sysname.size();
+                //        mx += 10;
+                //        log("  Property\r\x1b[%mx%CValue", mx);
+                //        log("  ---------------------------------");
+                //        for (auto& [sysname, value] : properties)
+                //        {
+                //            log("  %sysname%\r\x1b[%mx%C%value%", sysname, mx, value);
+                //        }
                 //    }
                 //}
             }
@@ -17949,6 +17953,7 @@ namespace netxs::lixx // li++, libinput++.
         void libinput_t::libinput_device_removed(ud_device_sptr ud_device)
         {
             auto syspath = ud_device->udev_device_get_syspath();
+            log("Device removed: '%s%'", ud_device->properties["NAME"]);
             //todo drop seat
             for (auto s : libinput_t::seat_list)
             {
