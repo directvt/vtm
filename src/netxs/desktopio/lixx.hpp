@@ -31,7 +31,6 @@
 #include <sys/stat.h>                       // ::fstat()
 #include <libevdev-1.0/libevdev/libevdev.h> // ::libevdev_new_from_fd()
 #include <fnmatch.h>                        // ::fnmatch()
-#include <mtdev-plumbing.h>                 // ::mtdev*()
 #include <dirent.h>                         // ::dirent
 #include <fcntl.h>                          // O_RDWR | O_NONBLOCK | O_CLOEXEC
 #include <sys/inotify.h>                    // ::inotify
@@ -4447,7 +4446,6 @@ namespace netxs::lixx // li++, libinput++.
         fp64                                    trackpoint_multiplier;  // Trackpoint constant multiplier.
         bool                                    use_velocity_averaging; // Whether averaging should be applied on velocity calculation.
         ui32                                    model_flags;
-        ::mtdev*                                mtdev;
         evdev_abs_t                             abs;
         evdev_scroll_t                          scroll;
         evdev_pointer_t                         pointer;
@@ -5129,26 +5127,7 @@ namespace netxs::lixx // li++, libinput++.
         }
         void evdev_device_dispatch_one(evdev_event& ev, time now)
         {
-            if (!mtdev)
-            {
-                evdev_process_event(ev, now);
-            }
-            else
-            {
-                auto event = evdev_event_to_input_event(ev, now);
-                ::mtdev_put_event(mtdev, &event);
-                if (ev.usage == EVDEV_SYN_REPORT)
-                {
-                    while (!::mtdev_empty(mtdev))
-                    {
-                        auto e2 = ::input_event{};
-                        auto now = time{};
-                        ::mtdev_get_event(mtdev, &e2);
-                        auto ev2 = evdev_event_from_input_event(e2, now);
-                        evdev_process_event(ev2, now);
-                    }
-                }
-            }
+            evdev_process_event(ev, now);
         }
         void evdev_device_dispatch_frame(evdev_frame& frame)
         {
@@ -5279,11 +5258,6 @@ namespace netxs::lixx // li++, libinput++.
             if (new_fd < 0) return -errno;
             evdev_drain_fd(new_fd);
             fd = new_fd;
-            if (evdev_need_mtdev())
-            {
-                mtdev = ::mtdev_new_open(fd);
-                if (!mtdev) return -ENODEV;
-            }
             ::libevdev_change_fd(evdev, fd);
             ::libevdev_set_clock_id(evdev, CLOCK_MONOTONIC);
             // Re-sync libevdev's view of the device, but discard the actual events. Our device is in a neutral state already.
@@ -5298,7 +5272,6 @@ namespace netxs::lixx // li++, libinput++.
             source = li->timers.libinput_add_event_source(fd, evdev_device_dispatch, this);
             if (!source)
             {
-                mtdev_close_delete(mtdev);
                 return -ENOMEM;
             }
             evdev_notify_resumed_device();
@@ -5312,11 +5285,6 @@ namespace netxs::lixx // li++, libinput++.
             if (source)
             {
                 li->timers.libinput_remove_event_source(source);
-            }
-            if (mtdev)
-            {
-                ::mtdev_close_delete(mtdev);
-                mtdev = nullptr;
             }
             if (fd != os::invalid_fd)
             {
@@ -17743,13 +17711,12 @@ namespace netxs::lixx // li++, libinput++.
                     return 0;
                 }
                 // We only handle the slotted Protocol B in libinput. Devices with ABS_MT_POSITION_* but not ABS_MT_SLOT require mtdev for conversion.
-                if (li_device->evdev_need_mtdev())
+                auto need_mtdev = li_device->evdev_need_mtdev();
+                if (need_mtdev)
                 {
-                    li_device->mtdev = ::mtdev_new_open(li_device->fd);
-                    if (!li_device->mtdev) return -1;
-                    // Pick 10 slots as default for type A devices.
-                    num_slots = 10;
-                    active_slot = li_device->mtdev->caps.slot.value;
+                    log("Device requires mtdev plumbing: ", li_device->ud_device->properties["NAME"]);
+                    num_slots = 10; // Pick 10 slots as default for type A devices.
+                    active_slot = 0;
                 }
                 else
                 {
@@ -17761,7 +17728,7 @@ namespace netxs::lixx // li++, libinput++.
                 for (auto& slot : fallback.mt.slots)
                 {
                     slot.seat_slot = -1;
-                    if (!li_device->evdev_need_mtdev())
+                    if (!need_mtdev)
                     {
                         slot.point.x = ::libevdev_get_slot_value(evdev, i, ABS_MT_POSITION_X);
                         slot.point.y = ::libevdev_get_slot_value(evdev, i, ABS_MT_POSITION_Y);
@@ -19720,7 +19687,6 @@ namespace netxs::lixx // li++, libinput++.
                     ::libevdev_set_device_log_function(li_device->evdev, libinput_libevdev_log_func, LIBEVDEV_LOG_ERROR, li.get());
                     li_device->seat_caps = EVDEV_DEVICE_NO_CAPABILITIES;
                     li_device->is_mt = 0;
-                    li_device->mtdev = nullptr;
                     li_device->ud_device = ud_device;
                     li_device->dispatch = nullptr;
                     li_device->fd = fd;
