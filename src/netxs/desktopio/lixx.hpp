@@ -128,11 +128,11 @@ namespace netxs::lixx // li++, libinput++.
 
     static constexpr fp64 v_us2ms(fp64 units_per_us) { return units_per_us * 1000.0; }
     static constexpr fp64 v_us2s(fp64 units_per_us)  { return units_per_us * 1000000.0; }
-    static constexpr timeval time2tv(time t)
+    static constexpr ::timeval time2tv(time t)
     {
         auto sec  = datetime::round<si64, std::chrono::seconds>(t);
         auto usec = datetime::round<si64, std::chrono::microseconds>(t - std::chrono::seconds{ sec });
-        auto tv = timeval{ .tv_sec = sec, .tv_usec = usec };
+        auto tv = ::timeval{ .tv_sec = (decltype(timeval::tv_sec))sec, .tv_usec = (decltype(timeval::tv_usec))usec };
         return tv;
     }
 
@@ -2059,7 +2059,7 @@ namespace netxs::lixx // li++, libinput++.
         fp64 custom_accel_function_profile(fp64 speed_in)
         {
             auto i = (ui64)(speed_in / step); // Calculate the index of the first point used for interpolation.
-            i = std::min(i, points.size() - 2); // If speed is greater than custom curve's max speed, use last 2 points for linear extrapolation (same calculation as linear interpolation).
+            i = std::min<ui64>(i, points.size() - 2); // If speed is greater than custom curve's max speed, use last 2 points for linear extrapolation (same calculation as linear interpolation).
             auto x0 = step * i; // The 2 points used for linear interpolation.
             auto x1 = step * (i + 1);
             auto y0 = points[i];
@@ -18827,8 +18827,8 @@ namespace netxs::lixx // li++, libinput++.
     {
         static constexpr auto EVDEV_FAKE_RESOLUTION = 1ul;
         auto evdev = li_device->evdev;
-        auto widthmm = 0ul;
-        auto heightmm = 0ul;
+        auto widthmm  = ui64{};
+        auto heightmm = ui64{};
         auto xres = (ui64)EVDEV_FAKE_RESOLUTION;
         auto yres = (ui64)EVDEV_FAKE_RESOLUTION;
         if (!(xcode == ABS_X && ycode == ABS_Y)
@@ -20256,7 +20256,7 @@ namespace netxs::lixx // li++, libinput++.
                                     auto rc = true;
                                     auto evs = std::array<::input_event, 32>{}; // A randomly chosen max so we avoid crazy quirks.
                                     auto strv = utf::split(prop, ";");
-                                    auto ncodes = strv.size();
+                                    auto ncodes = (ui64)strv.size();
                                     if (strv.empty() || ncodes > evs.size())
                                     {
                                         rc = false;
@@ -20326,7 +20326,7 @@ namespace netxs::lixx // li++, libinput++.
                                     // On success, props contains nprops elements.
                                     auto props = std::array<input_prop, INPUT_PROP_CNT>{}; // Doubling up on quirks is a bug.
                                     auto strv = utf::split(prop_str, ";");
-                                    auto count = strv.size();
+                                    auto count = (ui64)strv.size();
                                     auto rc = strv.size() && count != 0 && count <= props.size();
                                     if (rc)
                                     {
@@ -20545,7 +20545,7 @@ namespace netxs::lixx // li++, libinput++.
                                 else if (key == quirk_get_name(QUIRK_ATTR_EVENT_CODE))
                                 {
                                     auto events = std::array<::input_event, 32>{};
-                                    auto nevents = events.size();
+                                    auto nevents = (ui64)events.size();
                                     p->id = QUIRK_ATTR_EVENT_CODE;
                                     if (parse_evcode_property(value, events.data(), nevents) && nevents != 0)
                                     {
