@@ -3890,7 +3890,7 @@ namespace netxs::lixx // li++, libinput++.
             timers.source_destroy_list.clear();
             return 0;
         }
-        static void libinput_default_log_func(libinput_log_priority priority, char const* format, va_list args)
+        static void libinput_default_log_func(libinput_log_priority priority, char const* format, [[maybe_unused]] va_list args)
         {
             auto prefix = text{};
             switch(priority)
