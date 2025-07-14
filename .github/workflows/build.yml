@@ -89,6 +89,22 @@ jobs:
       run: |
         echo "bin=${{ github.workspace }}/bin" >> "$GITHUB_OUTPUT"
 
+    - name: Update URL sources
+      if: ${{ matrix.aptarch }}
+      run: |
+        sudo bash -c 'cat > /etc/apt/sources.list.d/ubuntu.sources <<EOF
+        Types: deb
+        URIs: http://ports.ubuntu.com/ubuntu-ports/
+        Suites: noble noble-updates noble-backports
+        Components: main restricted universe multiverse
+        Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+        Types: deb
+        URIs: http://ports.ubuntu.com/ubuntu-ports/
+        Suites: noble-security
+        Components: main restricted universe multiverse
+        Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+        EOF'
+
     - name: Install architecture
       if: ${{ matrix.aptarch }}
       run: >
