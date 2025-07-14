@@ -31,8 +31,8 @@ else()
 endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    # libinput dependency (libinput-dev)
-    find_package(Libinput)
+    # libevdev dependency (libevdev-dev)
+    find_package(Libevdev)
 endif()
 
 # Lua dependency
@@ -52,9 +52,13 @@ add_executable(vtm "src/vtm.cpp" ${WIN32_RESOURCES})
 # add_executable(calc "src/netxs/apps/calc.cpp")
 
 target_link_libraries(vtm PRIVATE lua)
-target_link_libraries(vtm PRIVATE evdev)
-# target_link_libraries(term lua)
-# target_link_libraries(calc lua)
+# target_link_libraries(term PRIVATE lua)
+# target_link_libraries(calc PRIVATE lua)
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    target_link_libraries(vtm PRIVATE evdev)
+    # target_link_libraries(term PRIVATE evdev)
+    # target_link_libraries(calc PRIVATE evdev)
+endif()
 
 if(NOT WIN32)
     install(TARGETS vtm DESTINATION bin)
