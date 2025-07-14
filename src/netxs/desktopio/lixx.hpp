@@ -2726,7 +2726,7 @@ namespace netxs::lixx // li++, libinput++.
     {
         libinput_source_dispatch_t dispatch;
         void*                      user_data;
-        fd_t                       fd = os::invalid_fd;
+        fd_t                       fd{ os::invalid_fd };
     };
     using libinput_source_sptr = sptr<libinput_source_t>;
             struct match_t
@@ -2858,8 +2858,8 @@ namespace netxs::lixx // li++, libinput++.
         timer_list                      active;
         timer_list                      cached;
         libinput_source_sptr            source;
-        fd_t                            fd;
-        fd_t                            epoll_fd;
+        fd_t                            fd{ os::invalid_fd };
+        fd_t                            epoll_fd{ os::invalid_fd };
         time                            next_expiry;
         std::list<libinput_source_sptr> source_destroy_list;
 
@@ -3617,11 +3617,28 @@ namespace netxs::lixx // li++, libinput++.
         utf::unordered_map<text, ud_device_sptr> device_list;
 
         ud_monitor_t(libinput_sptr li)
-            :           fd{ ::inotify_init1(0) },
+            :           fd{ os::invalid_fd },
                         wd{ os::invalid_fd },
              uevent_buffer(4096, '\0'),
                         li{ li }
         {
+            auto tmp1 = ::dup(STDIN_FILENO);
+            auto tmp2 = ::inotify_init1(IN_CLOEXEC | IN_NONBLOCK); //todo Revise: ::inotify_init1() returns STDIN_FILENO for unknown reason despite the STDIN_FILENO is not closed.
+            if (tmp2 == os::invalid_fd)
+            {
+                log("Failed to initialize inotify context");
+            }
+            else if (tmp2 == STDIN_FILENO)
+            {
+                fd = ::dup(tmp2);
+                ::close(tmp2);
+                ::dup2(tmp1, STDIN_FILENO);
+            }
+            else
+            {
+                fd = tmp2;
+            }
+            ::close(tmp1);
             auto code = std::error_code{};
             auto events = os::fs::directory_iterator("/dev/input/", code);
             if (!code)
@@ -3712,7 +3729,7 @@ namespace netxs::lixx // li++, libinput++.
         }
         void udev_monitor_disable_receiving()
         {
-            if (auto fd_value = std::exchange(fd, os::invalid_fd))
+            if (auto fd_value = std::exchange(fd, os::invalid_fd); fd_value != os::invalid_fd)
             {
                 ::inotify_rm_watch(fd_value, wd);
                 ::close(fd_value);
@@ -19352,8 +19369,8 @@ namespace netxs::lixx // li++, libinput++.
                     // While we don't do anything with the rate right now we will validate that, if it's present, it is non-zero and positive.
                     rate = 1;
                     nread = 0;
-                    sscanf(prop, "%d@%d%n", &dpi, &rate, &nread);
-                    if (!nread) sscanf(prop, "%d%n", &dpi, &nread);
+                    ::sscanf(prop, "%d@%d%n", &dpi, &rate, &nread);
+                    if (!nread) ::sscanf(prop, "%d%n", &dpi, &nread);
                     if (!nread || dpi <= 0 || rate <= 0 || prop[nread] == '@') return 0;
                     if (is_default) break;
                     prop += nread;
@@ -20117,7 +20134,7 @@ namespace netxs::lixx // li++, libinput++.
                                 {
                                     auto x = 0;
                                     auto y = 0;
-                                    auto ok = prop.empty() || sscanf(prop.data(), "%dx%d", &x, &y) != 2 || x <= 0 || y <= 0;
+                                    auto ok = prop.empty() || ::sscanf(prop.data(), "%dx%d", &x, &y) != 2 || x <= 0 || y <= 0;
                                     if (ok)
                                     {
                                         w = (ui64)x;
@@ -20129,7 +20146,7 @@ namespace netxs::lixx // li++, libinput++.
                                 {
                                     auto first = 0;
                                     auto second = 0;
-                                    auto ok = prop.size() && (prop == "none" || (sscanf(prop.data(), "%d:%d", &first, &second) == 2 && second < first));
+                                    auto ok = prop.size() && (prop == "none" || (::sscanf(prop.data(), "%d:%d", &first, &second) == 2 && second < first));
                                     if (ok)
                                     {
                                         hi = first;
