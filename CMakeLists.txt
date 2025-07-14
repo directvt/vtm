@@ -52,6 +52,7 @@ add_executable(vtm "src/vtm.cpp" ${WIN32_RESOURCES})
 # add_executable(calc "src/netxs/apps/calc.cpp")
 
 target_link_libraries(vtm PRIVATE lua)
+target_link_libraries(vtm PRIVATE evdev)
 # target_link_libraries(term lua)
 # target_link_libraries(calc lua)
 

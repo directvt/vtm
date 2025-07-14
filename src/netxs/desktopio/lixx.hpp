@@ -169,6 +169,8 @@ namespace netxs::lixx // li++, libinput++.
     using device_coords       = discrete_coords;
     using wheel_v120          = discrete_coords;
 
+    using fd_t = os::fd_t;
+
     struct normalized_range
     {
         fp64 min;
@@ -3621,7 +3623,7 @@ namespace netxs::lixx // li++, libinput++.
                         li{ li }
         {
             auto code = std::error_code{};
-            auto events = fs::directory_iterator("/dev/input/", code);
+            auto events = os::fs::directory_iterator("/dev/input/", code);
             if (!code)
             for (auto& entry : events)
             {
@@ -17915,10 +17917,9 @@ namespace netxs::lixx // li++, libinput++.
             auto [li_device, unhandled_device] = libinput_device_create(ud_seat, ud_device);
             if (!li_device)
             {
-                auto devnode = ud_device->udev_device_get_devnode();
                 auto sysname = ud_device->udev_device_get_sysname();
-                if (unhandled_device) log("%-7s% - not using input device '%s%'", sysname, devnode);
-                else                  log("%-7s% - failed to create input device '%s%'", sysname, devnode);
+                if (unhandled_device) log("Not using input device '%s%'", sysname);
+                else                  log("Failed to create input device '%s%'", sysname);
                 return 0;
             }
             //todo drop seat
@@ -18012,7 +18013,7 @@ namespace netxs::lixx // li++, libinput++.
                 }
                 else
                 {
-                    log("%-7s% - skip unconfigured input device '%s%'", sysname, ud_device->udev_device_get_devnode());
+                    log("Skip unconfigured input device '%s%'", sysname);
                 }
             }
             return true;
@@ -18133,7 +18134,6 @@ namespace netxs::lixx // li++, libinput++.
         libinput_seat_sptr libinput_t::path_seat_get_for_device(ud_device_sptr ud_device, qiew seat_logical_name_override)
         {
             auto seat_logical_name = text{};
-            auto devnode = ud_device->udev_device_get_devnode();
             auto sysname = ud_device->udev_device_get_sysname();
             auto seat_prop = ud_device->udev_device_get_property_value("ID_SEAT");
             auto seat_name = text{ seat_prop ? seat_prop : default_seat };
@@ -18149,7 +18149,7 @@ namespace netxs::lixx // li++, libinput++.
             auto seat = libinput_seat_sptr{};
             if (seat_logical_name.empty())
             {
-                log("%s%: failed to create seat name for device '%s%'", sysname, devnode);
+                log("Failed to create seat name for device '%s%'", sysname);
             }
             else
             {
@@ -18159,7 +18159,7 @@ namespace netxs::lixx // li++, libinput++.
                     seat = path_seat_create(seat_name, seat_logical_name);
                     if (!seat)
                     {
-                        log("%s%: failed to create seat for device '%s%'", sysname, devnode);
+                        log("Failed to create seat for device '%s%'", sysname);
                     }
                 }
             }
@@ -18173,9 +18173,8 @@ namespace netxs::lixx // li++, libinput++.
                 if (!li_device)
                 {
                     auto sysname = ud_device->udev_device_get_sysname();
-                    auto devnode = ud_device->udev_device_get_devnode();
-                    if (unhandled_device) log("%s% - not using input device '%s%'", sysname, devnode);
-                    else                  log("%s% - failed to create input device '%s%'", sysname, devnode);
+                    if (unhandled_device) log("Not using input device '%s%'", sysname);
+                    else                  log("Failed to create input device '%s%'", sysname);
                 }
                 else
                 {
@@ -19776,11 +19775,11 @@ namespace netxs::lixx // li++, libinput++.
             {
                 if (li_device->abs.absinfo_x && li_device->abs.absinfo_y)
                 {
-                    fp32 calibration[6];
-                    if (parse_calibration_property(prop, calibration))
+                    auto calibration = std::array<fp32, 6>{};
+                    if (parse_calibration_property(prop, calibration.data()))
                     {
-                        evdev_device_set_default_calibration(li_device, calibration);
-                        log("applying calibration: %f% %f% %f% %f% %f% %f%",
+                        evdev_device_set_default_calibration(li_device, calibration.data());
+                        log("Apply calibration: %f% %f% %f% %f% %f% %f%",
                                 calibration[0],
                                 calibration[1],
                                 calibration[2],

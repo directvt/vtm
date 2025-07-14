@@ -132,7 +132,7 @@ int main(int argc, char* argv[])
             os::dtvt::initialize();
             netxs::logger::wipe();
             auto syslog = os::tty::logger();
-            auto ok = os::tty::libinput::set_mouse_access(enabled);
+            auto ok = lixx::set_mouse_access(enabled);
             return ok;
         }
         #endif
