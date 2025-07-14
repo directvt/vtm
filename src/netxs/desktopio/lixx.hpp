@@ -3377,9 +3377,9 @@ namespace netxs::lixx // li++, libinput++.
                 auto is_mouse            = like_tablet || like_mouse || like_abs_mouse || like_touchpad || like_touchscreen || like_joystick || like_pointing_stick;
                 auto like_keyboard       = ev[EV_KEY] && allof(key.begin() + KEY_ESC, key.begin() + KEY_D);
                 auto is_wheel            = have_wheel && !is_mouse;
-                auto like_key            = is_wheel || ev[EV_KEY] && (anyof(key.begin() + KEY_RESERVED,   key.begin() + BTN_MISC)
-                                                                   || anyof(key.begin() + KEY_OK,         key.begin() + BTN_DPAD_UP)
-                                                                   || anyof(key.begin() + KEY_ALS_TOGGLE, key.begin() + BTN_TRIGGER_HAPPY));
+                auto like_key            = is_wheel || (ev[EV_KEY] && (anyof(key.begin() + KEY_RESERVED,   key.begin() + BTN_MISC)
+                                                                    || anyof(key.begin() + KEY_OK,         key.begin() + BTN_DPAD_UP)
+                                                                    || anyof(key.begin() + KEY_ALS_TOGGLE, key.begin() + BTN_TRIGGER_HAPPY)));
                 properties["ID_INPUT_KEY"          ] = (like_key                    ) ? "1" : "0";
                 properties["ID_INPUT_SWITCH"       ] = (like_switch                 ) ? "1" : "0";
                 properties["ID_INPUT_MOUSE"        ] = (like_mouse || like_abs_mouse) ? "1" : "0";
@@ -3646,7 +3646,7 @@ namespace netxs::lixx // li++, libinput++.
             {
                 buffer.resize(length);
                 length = ::read(fd, buffer.data(), buffer.size()); // Take events block.
-                if (length < 0)
+                if (!length)
                 {
                     log("Failed to read events. errno=%%", errno);
                     return;
@@ -3776,8 +3776,8 @@ namespace netxs::lixx // li++, libinput++.
         void libinput_remove_devices();
         void disable_device(libinput_device_sptr li_device);
         libinput_device_sptr libinput_add_device(view path);
-        si32 input_enable(qiew devtype = {});
-        si32 assign_seat(qiew seat_id, qiew devtype = {});
+        si32 input_enable();
+        si32 assign_seat(qiew seat_id);
         void input_disable();
         void libinput_set_seat_id(qiew new_seat_id);
         bool libinput_add_devices();
@@ -3855,7 +3855,7 @@ namespace netxs::lixx // li++, libinput++.
             libinput_t::user_data = user_data;
             auto ok = timers.libinput_timer_subsys_init();
             //todo drop
-            assign_seat("seat0", "");
+            assign_seat("seat0");
             return ok;
         }
         #if HAVE_LIBWACOM
@@ -9578,7 +9578,9 @@ namespace netxs::lixx // li++, libinput++.
                                                         TAP_STATE_3FGTAP_DRAGGING,
                                                     };
                                                     assert(nfingers_tapped >= 1 && nfingers_tapped <= 3);
-                                                    tp.tap.state = dest[nfingers_tapped - 1]; } // Noop.
+                                                    tp.tap.state = dest[nfingers_tapped - 1];
+                                                    break;
+                                                }
                                                 case TAP_EVENT_BUTTON:
                                                     tp.tap.state = TAP_STATE_DEAD;
                                                     tp_tap_notify(stamp, nfingers_tapped, LIBINPUT_BUTTON_STATE_RELEASED);
@@ -9589,7 +9591,8 @@ namespace netxs::lixx // li++, libinput++.
                                                     tp_tap_state dest[3] =
                                                     {
                                                         TAP_STATE_1FGTAP_DRAGGING_WAIT,
-                                                        TAP_STATE_2FGTAP_DRAGGING_WAIT, }; // Noop.
+                                                        TAP_STATE_2FGTAP_DRAGGING_WAIT,
+                                                    };
                                                     assert(nfingers_tapped >= 1 && nfingers_tapped <= 3);
                                                     tp.tap.state = dest[nfingers_tapped - 1];
                                                     break;
@@ -18026,15 +18029,15 @@ namespace netxs::lixx // li++, libinput++.
             ud_monitor_source.reset();
             libinput_remove_devices();
         }
-        si32 libinput_t::assign_seat(qiew seat_id, qiew devtype)
+        si32 libinput_t::assign_seat(qiew seat_id)
         {
             if (!seat_id) return -1;
             libinput_init_quirks();
             libinput_set_seat_id(seat_id);
-            if (input_enable(devtype) < 0) return -1;
+            if (input_enable() < 0) return -1;
             return 0;
         }
-        si32 libinput_t::input_enable(qiew devtype)
+        si32 libinput_t::input_enable()
         {
             if (ud_monitor || seat_id.empty()) return 0;
             ud_monitor = ptr::shared<ud_monitor_t>(This());
@@ -19823,7 +19826,7 @@ namespace netxs::lixx // li++, libinput++.
                         {
                             auto dmi_uevent_file = "/sys/devices/virtual/dmi/id/uevent";
                             auto modalias = "dmi:*"s;
-                            auto ok = ud_device_t::read_uevent(dmi_uevent_file, [&](qiew prop_name, qiew prop_value)
+                            ud_device_t::read_uevent(dmi_uevent_file, [&](qiew prop_name, qiew prop_value)
                             {
                                 if (prop_name == "MODALIAS")
                                 {
