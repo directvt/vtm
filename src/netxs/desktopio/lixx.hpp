@@ -3900,7 +3900,7 @@ namespace netxs::lixx // li++, libinput++.
                 case LIBINPUT_LOG_PRIORITY_ERROR: prefix = "error"; break;
                 default: prefix="<invalid priority>"; break;
             }
-            log("libinput %s%: ", prefix, format, args);
+            log("libinput %s%: ", prefix, format);
         }
         bool libinput_init(void* user_data)
         {
