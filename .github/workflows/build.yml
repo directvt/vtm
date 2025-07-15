@@ -50,8 +50,8 @@ jobs:
             cc: /usr/bin/i686-linux-gnu-gcc-12
           - os: ubuntu-22.04
             cpu: arm
-            aptarch: arm
-            apt: g++-12-arm-linux-gnueabihf gcc-12-arm-linux-gnueabihf libevdev-dev:arm
+            aptarch: armhf
+            apt: g++-12-arm-linux-gnueabihf gcc-12-arm-linux-gnueabihf libevdev-dev:armhf
             cxx: /usr/bin/arm-linux-gnueabihf-g++-12
             cc: /usr/bin/arm-linux-gnueabihf-gcc-12
           - os: ubuntu-22.04
@@ -94,14 +94,16 @@ jobs:
       run: |
         sudo bash -c 'cat > /etc/apt/sources.list.d/ubuntu.sources <<EOF
         Types: deb
-        URIs: http://ports.ubuntu.com/ubuntu-ports/
-        Suites: noble noble-updates noble-backports
-        Components: main restricted universe multiverse
+        URIs: http://archive.ubuntu.com/ubuntu/
+        Suites: jammy jammy-updates jammy-backports jammy-security
+        Components: main universe restricted multiverse
+        Architectures: amd64
         Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
         Types: deb
         URIs: http://ports.ubuntu.com/ubuntu-ports/
-        Suites: noble-security
-        Components: main restricted universe multiverse
+        Suites: jammy jammy-updates jammy-backports jammy-security
+        Components: main universe restricted multiverse
+        Architectures: arm64 armhf i686
         Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
         EOF'
 
