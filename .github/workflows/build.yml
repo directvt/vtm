@@ -45,7 +45,7 @@ jobs:
           - os: ubuntu-22.04
             cpu: x86
             aptarch: i386
-            apt: g++-12-i686-linux-gnu gcc-12-i686-linux-gnu libevdev-dev:i386
+            apt: g++-12-i686-linux-gnu gcc-12-i686-linux-gnu libinput-dev:i386
             cxx: /usr/bin/i686-linux-gnu-g++-12
             cc: /usr/bin/i686-linux-gnu-gcc-12
           - os: ubuntu-22.04
@@ -88,6 +88,11 @@ jobs:
       shell: bash
       run: |
         echo "bin=${{ github.workspace }}/bin" >> "$GITHUB_OUTPUT"
+
+    - name: Add architecture
+      if: ${{ matrix.aptarch }}
+      run: |
+        sudo dpkg --add-architecture ${{ matrix.aptarch }}
 
     - name: Install compiler
       if: ${{ matrix.apt }}
