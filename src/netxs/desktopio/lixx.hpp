@@ -13508,7 +13508,7 @@ namespace netxs::lixx // li++, libinput++.
                 pad.changed_axes  = PAD_AXIS_NONE;
                 // We expect the kernel to either give us both axes as hires or neither. Getting one is a kernel bug we don't need to care about.
                 pad.dials.has_hires_dial = ::libevdev_has_event_code(li_device->evdev, EV_REL, REL_WHEEL_HI_RES)
-                                         || ::libevdev_has_event_code(li_device->evdev, EV_REL, REL_HWHEEL_HI_RES);
+                                        || ::libevdev_has_event_code(li_device->evdev, EV_REL, REL_HWHEEL_HI_RES);
                 if (::libevdev_has_event_code(li_device->evdev, EV_REL, REL_WHEEL)
                  && ::libevdev_has_event_code(li_device->evdev, EV_REL, REL_DIAL))
                 {

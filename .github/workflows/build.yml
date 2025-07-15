@@ -51,13 +51,13 @@ jobs:
           - os: ubuntu-22.04
             cpu: arm
             aptarch: armhf
-            apt: g++-12-arm-linux-gnueabihf gcc-12-arm-linux-gnueabihf libevdev-dev:armhf
+            apt: g++-12-arm-linux-gnueabihf gcc-12-arm-linux-gnueabihf libinput-dev:armhf
             cxx: /usr/bin/arm-linux-gnueabihf-g++-12
             cc: /usr/bin/arm-linux-gnueabihf-gcc-12
           - os: ubuntu-22.04
             cpu: arm64
             aptarch: arm64
-            apt: g++-12-aarch64-linux-gnu gcc-12-aarch64-linux-gnu libevdev-dev:arm64
+            apt: g++-12-aarch64-linux-gnu gcc-12-aarch64-linux-gnu libinput-dev:arm64
             cxx: /usr/bin/aarch64-linux-gnu-g++-12
             cc: /usr/bin/aarch64-linux-gnu-gcc-12
 
@@ -92,8 +92,6 @@ jobs:
     - name: Update URL sources
       if: ${{ matrix.aptarch }}
       run: |
-        sudo rm /etc/apt/apt-mirrors.txt
-        echo -----------------
         sudo bash -c 'cat > /etc/apt/sources.list.d/ubuntu.sources <<EOF
         Types: deb
         URIs: http://archive.ubuntu.com/ubuntu/
