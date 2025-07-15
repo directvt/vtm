@@ -92,7 +92,7 @@ jobs:
     - name: Update URL sources
       if: ${{ matrix.aptarch }}
       run: |
-        cat /etc/apt/apt-mirrors.txt
+        sudo rm /etc/apt/apt-mirrors.txt
         echo -----------------
         sudo bash -c 'cat > /etc/apt/sources.list.d/ubuntu.sources <<EOF
         Types: deb
