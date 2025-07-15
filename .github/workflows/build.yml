@@ -89,6 +89,34 @@ jobs:
       run: |
         echo "bin=${{ github.workspace }}/bin" >> "$GITHUB_OUTPUT"
 
+    - name: Update URL sources
+      if: ${{ matrix.aptarch }}
+      run: |
+        rm /etc/apt/sources.list.d/azure-cli.sources
+        echo -----------------
+        rm /etc/apt/sources.list.d/microsoft-prod.list
+        echo -----------------
+        sudo bash -c 'cat > /etc/apt/sources.list.d/ubuntu.sources <<EOF
+        Types: deb
+        URIs: http://archive.ubuntu.com/ubuntu/
+        Suites: jammy jammy-updates jammy-backports jammy-security
+        Components: main universe restricted multiverse
+        Architectures: amd64 i386
+        Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+        Types: deb
+        URIs: http://ports.ubuntu.com/ubuntu-ports/
+        Suites: jammy jammy-updates jammy-backports jammy-security
+        Components: main universe restricted multiverse
+        Architectures: arm64 armhf
+        Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+        EOF'
+
+    - name: Install architecture
+      if: ${{ matrix.aptarch }}
+      run: |
+        sudo dpkg --add-architecture ${{ matrix.aptarch }}
+        dpkg --print-foreign-architectures
+
     - name: Install compiler
       if: ${{ matrix.apt }}
       run: |
