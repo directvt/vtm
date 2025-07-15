@@ -92,7 +92,10 @@ jobs:
     - name: Update URL sources
       if: ${{ matrix.aptarch }}
       run: |
-        ls /etc/apt/sources.list.d
+        cat /etc/apt/sources.list.d/azure-cli.sources
+        echo -----------------
+        cat /etc/apt/sources.list.d/microsoft-prod.list
+        echo -----------------
         sudo bash -c 'cat > /etc/apt/sources.list.d/ubuntu.sources <<EOF
         Types: deb
         URIs: http://archive.ubuntu.com/ubuntu/
