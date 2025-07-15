@@ -95,13 +95,13 @@ jobs:
         sudo bash -c 'cat > /etc/apt/sources.list.d/ubuntu.sources <<EOF
         Types: deb
         URIs: http://archive.ubuntu.com/ubuntu/
-        Suites: jammy jammy-updates jammy-backports jammy-security
+        Suites: jammy jammy-updates jammy-backports
         Components: main universe restricted multiverse
         Architectures: amd64 i386
         Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
         Types: deb
         URIs: http://ports.ubuntu.com/ubuntu-ports/
-        Suites: jammy jammy-updates jammy-backports jammy-security
+        Suites: jammy jammy-updates jammy-backports
         Components: main universe restricted multiverse
         Architectures: arm64 armhf
         Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
