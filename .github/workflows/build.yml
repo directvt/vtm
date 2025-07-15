@@ -92,9 +92,7 @@ jobs:
     - name: Update URL sources
       if: ${{ matrix.aptarch }}
       run: |
-        sudo rm /etc/apt/sources.list.d/azure-cli.sources
-        echo -----------------
-        sudo rm /etc/apt/sources.list.d/microsoft-prod.list
+        cat /etc/apt/apt-mirrors.txt
         echo -----------------
         sudo bash -c 'cat > /etc/apt/sources.list.d/ubuntu.sources <<EOF
         Types: deb
