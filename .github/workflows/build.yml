@@ -44,20 +44,17 @@ jobs:
             cc: /usr/bin/gcc-12
           - os: ubuntu-22.04
             cpu: x86
-            aptarch: i386
-            apt: g++-12-i686-linux-gnu gcc-12-i686-linux-gnu libinput-dev:i386
+            apt: g++-12-i686-linux-gnu gcc-12-i686-linux-gnu
             cxx: /usr/bin/i686-linux-gnu-g++-12
             cc: /usr/bin/i686-linux-gnu-gcc-12
           - os: ubuntu-22.04
             cpu: arm
-            aptarch: armhf
-            apt: g++-12-arm-linux-gnueabihf gcc-12-arm-linux-gnueabihf libinput-dev:armhf
+            apt: g++-12-arm-linux-gnueabihf gcc-12-arm-linux-gnueabihf
             cxx: /usr/bin/arm-linux-gnueabihf-g++-12
             cc: /usr/bin/arm-linux-gnueabihf-gcc-12
           - os: ubuntu-22.04
             cpu: arm64
-            aptarch: arm64
-            apt: g++-12-aarch64-linux-gnu gcc-12-aarch64-linux-gnu libinput-dev:arm64
+            apt: g++-12-aarch64-linux-gnu gcc-12-aarch64-linux-gnu
             cxx: /usr/bin/aarch64-linux-gnu-g++-12
             cc: /usr/bin/aarch64-linux-gnu-gcc-12
 
@@ -88,11 +85,6 @@ jobs:
       shell: bash
       run: |
         echo "bin=${{ github.workspace }}/bin" >> "$GITHUB_OUTPUT"
-
-    - name: Add architecture
-      if: ${{ matrix.aptarch }}
-      run: |
-        sudo dpkg --add-architecture ${{ matrix.aptarch }}
 
     - name: Install compiler
       if: ${{ matrix.apt }}

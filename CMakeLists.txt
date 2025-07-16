@@ -30,11 +30,6 @@ else()
     #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -static -O2 -DLUA_USE_POSIX")
 endif()
 
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    # libevdev dependency (libevdev-dev)
-    find_package(Libevdev)
-endif()
-
 # Lua dependency
 include(FetchContent)
 FetchContent_Declare(lua
@@ -54,11 +49,6 @@ add_executable(vtm "src/vtm.cpp" ${WIN32_RESOURCES})
 target_link_libraries(vtm PRIVATE lua)
 # target_link_libraries(term PRIVATE lua)
 # target_link_libraries(calc PRIVATE lua)
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    target_link_libraries(vtm PRIVATE evdev)
-    # target_link_libraries(term PRIVATE evdev)
-    # target_link_libraries(calc PRIVATE evdev)
-endif()
 
 if(NOT WIN32)
     install(TARGETS vtm DESTINATION bin)
