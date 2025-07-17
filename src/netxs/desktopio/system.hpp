@@ -5757,6 +5757,7 @@ namespace netxs::os
                 static constexpr auto scale = twod{ 8, 16 }; // Linux VGA cell size.
                 auto m_proc = [&, mcoord = fp2d{ w.winsize * scale / 2 }/*centrify mouse coord*/,
                                   whlacc = fp2d{},
+                                  timecod = time{},
                                   dev_map = std::unordered_map<arch, si32>{}]() mutable
                 {
                     #if defined(__linux__)
@@ -5849,7 +5850,7 @@ namespace netxs::os
                                         m.wheelfp = wheelfp.x;
                                         m.wheelsi = wheelsi.x;
                                         m.hzwheel = true;
-                                        m.timecod = datetime::now();
+                                        m.timecod = e.stamp;
                                         m.changed++;
                                         mouse(m);
                                     }
@@ -5858,7 +5859,7 @@ namespace netxs::os
                                         m.wheelfp = wheelfp.y;
                                         m.wheelsi = wheelsi.y;
                                         m.hzwheel = faux;
-                                        m.timecod = datetime::now();
+                                        m.timecod = e.stamp;
                                         m.changed++;
                                         mouse(m);
                                     }
@@ -5868,7 +5869,7 @@ namespace netxs::os
                                     m.wheelfp = {};
                                     m.wheelsi = {};
                                     m.hzwheel = {};
-                                    m.timecod = datetime::now();
+                                    m.timecod = e.stamp;
                                     m.changed++;
                                     mouse(m);
                                 }
