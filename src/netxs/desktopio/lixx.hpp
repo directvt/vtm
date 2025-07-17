@@ -2915,7 +2915,7 @@ namespace netxs::lixx // li++, libinput++.
             if (timer.expire != time{})
             {
                 timer.expire = {};
-                libinput_timer_rearm();
+                libinput_timer_handler();
             }
         }
         void libinput_timer_set(libinput_timer_t& timer, time expire, [[maybe_unused]] ui32 flags = TIMER_FLAG_NONE)
@@ -2940,25 +2940,33 @@ namespace netxs::lixx // li++, libinput++.
                 active.push_back(timer.This());
             }
             timer.expire = expire;
-            libinput_timer_rearm();
+            libinput_timer_handler();
         }
-        void libinput_timer_rearm()
+        void libinput_timer_handler(time now = {})
         {
-            auto its = ::itimerspec{{ 0, 0 }, { 0, 0 }};
             auto earliest_expire = netxs::maxtime;
             std::swap(active, cached);
             active.clear(); // Get ready to start new timers.
-            for (auto& timer : cached) // Filter canceled timers and find smallest timeout.
+            for (auto timer : cached) // Filter canceled timers and find smallest timeout.
             {
-                if (timer->expire < earliest_expire)
-                {
-                    earliest_expire = timer->expire;
-                }
                 if (timer->expire != time{})
                 {
-                    active.push_back(timer);
+                    if (timer->expire <= now)
+                    {
+                        timer->expire = {};
+                        timer->timer_func(now, timer->timer_func_data); // The func may re-arm timers or trigger another unrelated timer to be cancelled and removed.
+                    }
+                    else // Keep not expired timers active.
+                    {
+                        if (timer->expire < earliest_expire)
+                        {
+                            earliest_expire = timer->expire;
+                        }
+                        active.push_back(timer);
+                    }
                 }
             }
+            auto its = ::itimerspec{};
             if (earliest_expire != netxs::maxtime)
             {
                 auto sec = datetime::round<ui64, std::chrono::seconds>(earliest_expire);
@@ -2971,26 +2979,6 @@ namespace netxs::lixx // li++, libinput++.
                 log("timer: timerfd_settime error: %s%", ::strerror(errno));
             }
             next_expiry = earliest_expire;
-        }
-        void libinput_timer_handler(time now)
-        {
-            std::swap(active, cached);
-            active.clear(); // Get ready to start new timers.
-            for (auto timer : cached)
-            {
-                if (timer->expire != time{})
-                {
-                    if (timer->expire <= now)
-                    {
-                        timer->expire = {};
-                        timer->timer_func(now, timer->timer_func_data); // The func may re-arm timers or trigger another unrelated timer to be cancelled and removed.
-                    }
-                    else // Keep not expired timers active.
-                    {
-                        active.push_back(timer);
-                    }
-                }
-            }
         }
         void libinput_timer_flush(time now)
         {
