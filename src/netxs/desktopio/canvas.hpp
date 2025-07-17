@@ -1557,6 +1557,10 @@ namespace netxs
 
         operator bool () const { return st.xy(); } // cell: Return true if cell contains printable character.
 
+        auto is_empty() const // cell: Return true if cell is absolutely empty.
+        {
+            return uv.bg.token == 0 && uv.fg.token == 0 && gc.token == 0 && st.token == 0 && id == 0 && px.token == 0;
+        }
         auto same_txt(cell const& c) const // cell: Compare clusters.
         {
             return gc == c.gc;

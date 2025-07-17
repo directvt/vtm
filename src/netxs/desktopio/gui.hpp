@@ -2311,13 +2311,13 @@ namespace netxs::gui
         void update_tooltip()
         {
             auto& tooltip = stream.gears->tooltip;
-            auto [render_sptr, tooltip_offset] = tooltip.get_render_sptr_and_offset();
+            auto  tooltip_clrs = cell{}.bgc(tooltip.default_bgc).fgc(tooltip.default_fgc);
+            auto [render_sptr, tooltip_offset] = tooltip.get_render_sptr_and_offset(tooltip_clrs);
             if (render_sptr)
             {
                 auto& tooltip_page = *render_sptr;
-                auto  tooltip_clrs = cell{}.bgc(tooltip.default_bgc).fgc(tooltip.default_fgc);
                 auto margins = dent{ dot_11 }; // Shadow around tooltip.
-                page_to_grid(true, tooltip_grid, tooltip_page, cell::shaders::color(tooltip_clrs), dot_mx, margins);
+                page_to_grid(true, tooltip_grid, tooltip_page, cell::shaders::fuse, dot_mx, margins);
                 tooltip_layer.area.coor = mcoord + (tooltip_offset - margins.corner()) * cellsz;
                 tooltip_layer.area.size = tooltip_grid.size() * cellsz;
                 tooltip_layer.show();

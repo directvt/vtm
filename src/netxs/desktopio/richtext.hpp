@@ -1793,6 +1793,13 @@ namespace netxs::ui
         auto& operator  = (view utf8) { clear(); ansi::parse(utf8, this); reindex(); return *this; }
         auto& operator += (view utf8) {          ansi::parse(utf8, this); reindex(); return *this; }
         page(view utf8)               {          ansi::parse(utf8, this); reindex();               }
+        page(view utf8, cell c)
+        {
+            parser::brush.reset(c);
+            batch.front()->parser::brush.reset(c);
+            ansi::parse(utf8, this);
+            reindex();
+        }
         page() = default;
         page(page&& p)
             : parser{        },

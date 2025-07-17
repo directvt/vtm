@@ -1284,11 +1284,11 @@ namespace netxs::input
             string = utf8;
             page_sptr.reset();
         }
-        auto get_render_sptr()
+        auto get_render_sptr(cell const& tooltip_colors)
         {
             if (!page_sptr)
             {
-                page_sptr = ptr::shared(page{ string });
+                page_sptr = ptr::shared(page{ string, tooltip_colors });
             }
             return page_sptr;
         }
@@ -1471,11 +1471,11 @@ namespace netxs::input
                     changed_visibility = true;
                 }
             }
-            auto get_render_sptr_and_offset()
+            auto get_render_sptr_and_offset(cell const& tooltip_colors = {})
             {
                 if (visible && current_sptr)
                 {
-                    auto render_sptr = current_sptr->get_render_sptr();
+                    auto render_sptr = current_sptr->get_render_sptr(tooltip_colors);
                     auto page_offset = -twod{ 4, render_sptr->size() + 1 };
                     return std::pair{ render_sptr, page_offset };
                 }

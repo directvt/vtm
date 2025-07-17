@@ -608,7 +608,7 @@ namespace netxs::ui
             {
                 auto& gear = *gear_ptr;
                 if (gear.mouse_disabled) continue;
-                auto [tooltip_page_sptr, tooltip_offset] = gear.tooltip.get_render_sptr_and_offset();
+                auto [tooltip_page_sptr, tooltip_offset] = gear.tooltip.get_render_sptr_and_offset(props.tooltip_colors);
                 if (tooltip_page_sptr)
                 {
                     auto& tooltip_page = *tooltip_page_sptr;
@@ -621,7 +621,7 @@ namespace netxs::ui
                     page_area.size.x = dot_mx.x; // Prevent line wrapping.
                     canvas.full(page_area);
                     canvas.cup(dot_00);
-                    canvas.output(tooltip_page, cell::shaders::color(props.tooltip_colors));
+                    canvas.output(tooltip_page, cell::shaders::fuse);
                 }
             }
             canvas.area(area);
