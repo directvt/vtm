@@ -1,12 +1,13 @@
 // Licensed under the MIT license.
+//
 // Copyright © 2006-2009 Simon Thum
 // Copyright © 2008-2012 Kristian Høgsberg
 // Copyright © 2010-2012 Intel Corporation
 // Copyright © 2010-2011 Benjamin Franzke
 // Copyright © 2011-2012 Collabora, Ltd.
 // Copyright © 2013-2014 Jonas Ådahl
-// Copyright © 2013-2015 Red Hat, Inc.
-// Copyright © 2013 David Herrmann <dh.herrmann@gmail.com>
+// Copyright © 2013-2015 David Herrmann <dh.herrmann@gmail.com>
+// Copyright © 2013-2025 Red Hat, Inc.
 // Copyright © 2025 Dmitry Sapozhnikov
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -49,12 +50,16 @@ namespace netxs::lixx // li++, libinput++.
     template<auto x>
     static constexpr auto nlongs = (x + lixx::long_bits - 1) / lixx::long_bits;
 
+    #if defined(DEBUG)
     template<class ...Args>
     void log(auto format, Args... args)
     {
         auto f = "lixx: "s + format;
         netxs::log(f, std::forward<Args>(args)...);
     }
+    #else
+        #define log(...) noop()
+    #endif
 
     // For the Lenovo X230 custom accel. do not touch.
     static constexpr auto x230_threshold                        = datetime::round<fp64, std::chrono::microseconds>(400us); // In units/us.
@@ -438,13 +443,6 @@ namespace netxs::lixx // li++, libinput++.
         LIBINPUT_CONFIG_SEND_EVENTS_DISABLED                   = (1 << 0),// Do not send events through this device. Depending on the device, this may close all file descriptors on the device or it may leave the file descriptors open and route events through a different device.
         LIBINPUT_CONFIG_SEND_EVENTS_DISABLED_ON_EXTERNAL_MOUSE = (1 << 1),// If an external pointer device is plugged in, do not send events, from this device. This option may be available on built-in touchpads.
     };
-    enum libinput_log_priority
-    {
-        LIBINPUT_LOG_PRIORITY_DEBUG = 10,
-        LIBINPUT_LOG_PRIORITY_INFO  = 20,
-        LIBINPUT_LOG_PRIORITY_ERROR = 30,
-    };
-    using libinput_log_handler = void(*)(libinput_log_priority, char const*, va_list);
     enum wheel_event
     {
         WHEEL_EVENT_SCROLL_ACCUMULATED,
@@ -1005,11 +1003,6 @@ namespace netxs::lixx // li++, libinput++.
         M_VERSION   = 1ul << 7,
         M_UNIQ      = 1ul << 8,
         M_LAST      = M_UNIQ,
-    };
-    enum quirks_log_type
-    {
-        QLOG_LIBINPUT_LOGGING,
-        QLOG_CUSTOM_LOG_PRIORITIES,
     };
     enum quirk
     {
@@ -1595,10 +1588,9 @@ namespace netxs::lixx // li++, libinput++.
         }
         return nullptr;
     }
-    void bad_event_type(view function_name, libinput_event_type type_in)
+    void bad_event_type([[maybe_unused]] view function_name, [[maybe_unused]] libinput_event_type type_in)
     {
-        auto name = event_type_to_str(type_in);
-        log("Invalid event type %s% (%d%) used to call %s%()", name, type_in, function_name);
+        log("Invalid event type %s% (%d%) used to call %s%()", event_type_to_str(type_in), type_in, function_name);
     }
 
         using libinput_tablet_tool_sptr = sptr<struct libinput_tablet_tool>;
@@ -2847,8 +2839,6 @@ namespace netxs::lixx // li++, libinput++.
         using section_sptr = sptr<section_t>;
     struct quirks_context_t
     {
-        libinput_log_handler    log_handler;
-        quirks_log_type         log_type;
         libinput_sptr           libinput; // For logging.
         text                    dmi2;
         text                    dt2;
@@ -3083,22 +3073,22 @@ namespace netxs::lixx // li++, libinput++.
         {
             return li_device;
         }
-        virtual ui32                  libinput_event_keyboard_get_key()                                              { bad_event_type(__func__, type); return {}; }
-        virtual libinput_key_state    libinput_event_keyboard_get_key_state()                                        { bad_event_type(__func__, type); return {}; }
-        virtual libinput_switch       libinput_event_switch_get_switch()                                             { bad_event_type(__func__, type); return {}; }
-        virtual libinput_switch_state libinput_event_switch_get_switch_state()                                       { bad_event_type(__func__, type); return {}; }
-        virtual si32                  libinput_event_gesture_get_finger_count()                                      { bad_event_type(__func__, type); return {}; }
-        virtual si32                  libinput_event_gesture_get_cancelled()                                         { bad_event_type(__func__, type); return {}; }
-        virtual normalized_coords     libinput_event_gesture_get_ds()                                                { bad_event_type(__func__, type); return {}; }
-        virtual normalized_coords     libinput_event_gesture_get_ds_unaccelerated()                                  { bad_event_type(__func__, type); return {}; }
-        virtual fp64                  libinput_event_gesture_get_scale()                                             { bad_event_type(__func__, type); return {}; }
-        virtual fp64                  libinput_event_gesture_get_angle_delta()                                       { bad_event_type(__func__, type); return {}; }
-        virtual normalized_coords     libinput_event_pointer_get_absolute_xy_transformed(normalized_coords /*size*/) { bad_event_type(__func__, type); return {}; }
-        virtual normalized_coords     libinput_event_pointer_get_ds()                                                { bad_event_type(__func__, type); return {}; }
-        virtual ui32                  libinput_event_pointer_get_button()                                            { bad_event_type(__func__, type); return {}; }
-        virtual libinput_button_state libinput_event_pointer_get_button_state()                                      { bad_event_type(__func__, type); return {}; }
-        virtual si32                  libinput_event_pointer_has_axis(libinput_pointer_axis /*axis*/)                { bad_event_type(__func__, type); return {}; }
-        virtual normalized_coords     libinput_event_pointer_get_scroll_value()                                      { bad_event_type(__func__, type); return {}; }
+        virtual ui32                  libinput_event_keyboard_get_key()                                              { if constexpr (debugmode) bad_event_type(__func__, type); return {}; }
+        virtual libinput_key_state    libinput_event_keyboard_get_key_state()                                        { if constexpr (debugmode) bad_event_type(__func__, type); return {}; }
+        virtual libinput_switch       libinput_event_switch_get_switch()                                             { if constexpr (debugmode) bad_event_type(__func__, type); return {}; }
+        virtual libinput_switch_state libinput_event_switch_get_switch_state()                                       { if constexpr (debugmode) bad_event_type(__func__, type); return {}; }
+        virtual si32                  libinput_event_gesture_get_finger_count()                                      { if constexpr (debugmode) bad_event_type(__func__, type); return {}; }
+        virtual si32                  libinput_event_gesture_get_cancelled()                                         { if constexpr (debugmode) bad_event_type(__func__, type); return {}; }
+        virtual normalized_coords     libinput_event_gesture_get_ds()                                                { if constexpr (debugmode) bad_event_type(__func__, type); return {}; }
+        virtual normalized_coords     libinput_event_gesture_get_ds_unaccelerated()                                  { if constexpr (debugmode) bad_event_type(__func__, type); return {}; }
+        virtual fp64                  libinput_event_gesture_get_scale()                                             { if constexpr (debugmode) bad_event_type(__func__, type); return {}; }
+        virtual fp64                  libinput_event_gesture_get_angle_delta()                                       { if constexpr (debugmode) bad_event_type(__func__, type); return {}; }
+        virtual normalized_coords     libinput_event_pointer_get_absolute_xy_transformed(normalized_coords /*size*/) { if constexpr (debugmode) bad_event_type(__func__, type); return {}; }
+        virtual normalized_coords     libinput_event_pointer_get_ds()                                                { if constexpr (debugmode) bad_event_type(__func__, type); return {}; }
+        virtual ui32                  libinput_event_pointer_get_button()                                            { if constexpr (debugmode) bad_event_type(__func__, type); return {}; }
+        virtual libinput_button_state libinput_event_pointer_get_button_state()                                      { if constexpr (debugmode) bad_event_type(__func__, type); return {}; }
+        virtual si32                  libinput_event_pointer_has_axis(libinput_pointer_axis /*axis*/)                { if constexpr (debugmode) bad_event_type(__func__, type); return {}; }
+        virtual normalized_coords     libinput_event_pointer_get_scroll_value()                                      { if constexpr (debugmode) bad_event_type(__func__, type); return {}; }
     };
 
     using notify_func_t = void(*)(time stamp, libinput_event& event, void* notify_func_data);
@@ -3820,7 +3810,7 @@ namespace netxs::lixx // li++, libinput++.
         }
     };
 
-    quirks_context_sptr quirks_init_subsystem(view data_path, view override_file, libinput_log_handler log_handler, libinput_sptr li, quirks_log_type log_type);
+    quirks_context_sptr quirks_init_subsystem(view data_path, view override_file, libinput_sptr li);
     struct libinput_t : ptr::enable_shared_from_this<libinput_t>
     {
         using event_variants = std::variant<libinput_event_empty,
@@ -3837,8 +3827,6 @@ namespace netxs::lixx // li++, libinput++.
         libinput_timer_host                   timers;
         std::deque<event_variants>            event_queue;
         std::list<libinput_tablet_tool_sptr>  tool_list;
-        libinput_log_handler                  log_handler;
-        libinput_log_priority                 log_priority;
         void*                                 user_data;
         std::list<libinput_device_group_sptr> device_group_list; //todo drop
         time                                  last_event_time;
@@ -3932,18 +3920,6 @@ namespace netxs::lixx // li++, libinput++.
             timers.source_destroy_list.clear();
             return 0;
         }
-        static void libinput_default_log_func(libinput_log_priority priority, char const* format, [[maybe_unused]] va_list args)
-        {
-            auto prefix = text{};
-            switch(priority)
-            {
-                case LIBINPUT_LOG_PRIORITY_DEBUG: prefix = "debug"; break;
-                case LIBINPUT_LOG_PRIORITY_INFO:  prefix = "info"; break;
-                case LIBINPUT_LOG_PRIORITY_ERROR: prefix = "error"; break;
-                default: prefix="<invalid priority>"; break;
-            }
-            log("libinput %s%: ", prefix, format);
-        }
         bool libinput_init(void* user_data)
         {
             timers.epoll_fd = ::epoll_create1(EPOLL_CLOEXEC);
@@ -3951,8 +3927,6 @@ namespace netxs::lixx // li++, libinput++.
             libinput_t::event_queue.resize(4);
             libinput_t::event_queue.clear();
             libinput_t::event_queue.emplace_back(empty_event()); // At least one event must be in the event queue (as previous).
-            libinput_t::log_handler = libinput_default_log_func;
-            libinput_t::log_priority = LIBINPUT_LOG_PRIORITY_ERROR;
             libinput_t::user_data = user_data;
             auto ok = timers.libinput_timer_subsys_init();
             //todo drop
@@ -4002,10 +3976,6 @@ namespace netxs::lixx // li++, libinput++.
                 }
             }
             return libinput_device_group_sptr{};
-        }
-        void libinput_log_set_handler(libinput_log_handler log_handler)
-        {
-            libinput_t::log_handler = log_handler;
         }
         si32 libinput_get_fd()
         {
@@ -5604,7 +5574,6 @@ namespace netxs::lixx // li++, libinput++.
         ud_device_sptr                          ud_device;
         text                                    output_name;
         text                                    devname;
-        text                                    log_prefix_name;
         text                                    sysname;
         bool                                    was_removed;
         si32                                    fd;
@@ -5664,18 +5633,21 @@ namespace netxs::lixx // li++, libinput++.
         {
             auto capability = view{};
             if (libinput_device_has_capability(cap)) return true;
-            switch (cap)
+            if constexpr (debugmode)
             {
-                case LIBINPUT_DEVICE_CAP_POINTER:     capability = "CAP_POINTER";     break;
-                case LIBINPUT_DEVICE_CAP_KEYBOARD:    capability = "CAP_KEYBOARD";    break;
-                case LIBINPUT_DEVICE_CAP_TOUCH:       capability = "CAP_TOUCH";       break;
-                case LIBINPUT_DEVICE_CAP_GESTURE:     capability = "CAP_GESTURE";     break;
-                case LIBINPUT_DEVICE_CAP_TABLET_TOOL: capability = "CAP_TABLET_TOOL"; break;
-                case LIBINPUT_DEVICE_CAP_TABLET_PAD:  capability = "CAP_TABLET_PAD";  break;
-                case LIBINPUT_DEVICE_CAP_SWITCH:      capability = "CAP_SWITCH";      break;
-                default:                              capability = "CAP_UNKNOWN";     break;
+                switch (cap)
+                {
+                    case LIBINPUT_DEVICE_CAP_POINTER:     capability = "CAP_POINTER";     break;
+                    case LIBINPUT_DEVICE_CAP_KEYBOARD:    capability = "CAP_KEYBOARD";    break;
+                    case LIBINPUT_DEVICE_CAP_TOUCH:       capability = "CAP_TOUCH";       break;
+                    case LIBINPUT_DEVICE_CAP_GESTURE:     capability = "CAP_GESTURE";     break;
+                    case LIBINPUT_DEVICE_CAP_TABLET_TOOL: capability = "CAP_TABLET_TOOL"; break;
+                    case LIBINPUT_DEVICE_CAP_TABLET_PAD:  capability = "CAP_TABLET_PAD";  break;
+                    case LIBINPUT_DEVICE_CAP_SWITCH:      capability = "CAP_SWITCH";      break;
+                    default:                              capability = "CAP_UNKNOWN";     break;
+                }
+                log("Event for missing capability %s% on device \"%s%\"", capability, devname);
             }
-            log("Event for missing capability %s% on device \"%s%\"", capability, devname);
             return false;
         }
         void pointer_notify_motion(time stamp, normalized_coords delta, device_float_coords raw)
@@ -5879,7 +5851,7 @@ namespace netxs::lixx // li++, libinput++.
             }
             return button;
         }
-                        void middlebutton_state_error(evdev_middlebutton_event event)
+                        void middlebutton_state_error([[maybe_unused]] evdev_middlebutton_event event)
                         {
                             log("Invalid event %s% in middle button state %s%", middlebutton_event_to_str(event), middlebutton_state_to_str(middlebutton.state));
                         }
@@ -6142,28 +6114,11 @@ namespace netxs::lixx // li++, libinput++.
                 // Where the button lock is enabled, we wrap the buttons into their own little state machine and filter out the events.
                 switch (scroll.lock_state)
                 {
-                    case BUTTONSCROLL_LOCK_DISABLED:
-                        break;
-                    case BUTTONSCROLL_LOCK_IDLE:
-                        assert(is_press);
-                        scroll.lock_state = BUTTONSCROLL_LOCK_FIRSTDOWN;
-                        log("scroll lock: first down");
-                        break; // Handle event.
-                    case BUTTONSCROLL_LOCK_FIRSTDOWN:
-                        assert(!is_press);
-                        scroll.lock_state = BUTTONSCROLL_LOCK_FIRSTUP;
-                        log("scroll lock: first up");
-                        return; // Filter release event.
-                    case BUTTONSCROLL_LOCK_FIRSTUP:
-                        assert(is_press);
-                        scroll.lock_state = BUTTONSCROLL_LOCK_SECONDDOWN;
-                        log("scroll lock: second down");
-                        return; // Filter press event.
-                    case BUTTONSCROLL_LOCK_SECONDDOWN:
-                        assert(!is_press);
-                        scroll.lock_state = BUTTONSCROLL_LOCK_IDLE;
-                        log("scroll lock: idle");
-                        break; // Handle event.
+                    case BUTTONSCROLL_LOCK_DISABLED: break;
+                    case BUTTONSCROLL_LOCK_IDLE:       assert(is_press);  scroll.lock_state = BUTTONSCROLL_LOCK_FIRSTDOWN;  log("scroll lock: first down");  break;  // Handle event.
+                    case BUTTONSCROLL_LOCK_FIRSTDOWN:  assert(!is_press); scroll.lock_state = BUTTONSCROLL_LOCK_FIRSTUP;    log("scroll lock: first up");    return; // Filter release event.
+                    case BUTTONSCROLL_LOCK_FIRSTUP:    assert(is_press);  scroll.lock_state = BUTTONSCROLL_LOCK_SECONDDOWN; log("scroll lock: second down"); return; // Filter press event.
+                    case BUTTONSCROLL_LOCK_SECONDDOWN: assert(!is_press); scroll.lock_state = BUTTONSCROLL_LOCK_IDLE;       log("scroll lock: idle");        break;  // Handle event.
                 }
                 if (is_press)
                 {
@@ -8381,22 +8336,25 @@ namespace netxs::lixx // li++, libinput++.
                                                  || tp_palm_detect_edge(                 t, stamp)
                                                  || tp_palm_detect_pressure_triggered(   t, stamp);
                                                  // Pressure is highest priority because it cannot be released and overrides all other checks. So we check once before anything else in case pressure triggers on a non-palm touch. And again after everything in case one of the others released but we have a pressure trigger now.
-                                    if (detected && oldstate != t.palm.state)
+                                    if constexpr (debugmode)
                                     {
-                                        auto palm_state = (char const*)nullptr;
-                                        switch (t.palm.state)
+                                        if (detected && oldstate != t.palm.state)
                                         {
-                                            case TOUCH_PALM_EDGE:        palm_state = "edge";        break;
-                                            case TOUCH_PALM_TYPING:      palm_state = "typing";      break;
-                                            case TOUCH_PALM_TRACKPOINT:  palm_state = "trackpoint";  break;
-                                            case TOUCH_PALM_TOOL_PALM:   palm_state = "tool-palm";   break;
-                                            case TOUCH_PALM_PRESSURE:    palm_state = "pressure";    break;
-                                            case TOUCH_PALM_TOUCH_SIZE:  palm_state = "touch size";  break;
-                                            case TOUCH_PALM_ARBITRATION: palm_state = "arbitration"; break;
-                                            case TOUCH_PALM_NONE:
-                                            default: ::abort();
+                                            [[maybe_unused]] auto palm_state = (char const*)nullptr;
+                                            switch (t.palm.state)
+                                            {
+                                                case TOUCH_PALM_EDGE:        palm_state = "edge";        break;
+                                                case TOUCH_PALM_TYPING:      palm_state = "typing";      break;
+                                                case TOUCH_PALM_TRACKPOINT:  palm_state = "trackpoint";  break;
+                                                case TOUCH_PALM_TOOL_PALM:   palm_state = "tool-palm";   break;
+                                                case TOUCH_PALM_PRESSURE:    palm_state = "pressure";    break;
+                                                case TOUCH_PALM_TOUCH_SIZE:  palm_state = "touch size";  break;
+                                                case TOUCH_PALM_ARBITRATION: palm_state = "arbitration"; break;
+                                                case TOUCH_PALM_NONE:
+                                                default: ::abort();
+                                            }
+                                            log("palm: touch %d% (%s%), palm detected (%s%)", t.index, touch_state_to_str(t.state), palm_state);
                                         }
-                                        log("palm: touch %d% (%s%), palm detected (%s%)", t.index, touch_state_to_str(t.state), palm_state);
                                     }
                                 }
                                 void tp_detect_wobbling(tp_touch& t, time stamp)
@@ -10914,8 +10872,7 @@ namespace netxs::lixx // li++, libinput++.
                                         }
                                         if (current != tp.tap.state)
                                         {
-                                            auto real_touch = !!t.tp;
-                                            log("tap: touch %d% (%s%), tap state %s% → %s% → %s%", real_touch ? (si32)t.index : -1, real_touch ? touch_state_to_str(t.state) : "", tap_state_to_str(current), tap_event_to_str(event), tap_state_to_str(tp.tap.state));
+                                            log("tap: touch %d% (%s%), tap state %s% → %s% → %s%", t.tp ? (si32)t.index : -1, real_touch ? touch_state_to_str(t.state) : "", tap_state_to_str(current), tap_event_to_str(event), tap_state_to_str(tp.tap.state));
                                         }
                                     }
                                     bool tp_thumb_ignored_for_tap(tp_touch& t)
@@ -18646,7 +18603,7 @@ namespace netxs::lixx // li++, libinput++.
                 void fallback_interface_toggle_touch(libinput_device_sptr li_device, libinput_arbitration_state which, phys_rect const* phys_rect, time stamp)
                 {
                     auto rect = device_coord_rect{};
-                    auto state = (char const*)nullptr;
+                    [[maybe_unused]] auto state = (char const*)nullptr;
                     if (which == fallback.arbitration.state) return;
                     switch (which)
                     {
@@ -19079,9 +19036,11 @@ namespace netxs::lixx // li++, libinput++.
             auto [li_device, unhandled_device] = libinput_device_create(ud_seat, ud_device);
             if (!li_device)
             {
-                auto sysname = ud_device->udev_device_get_sysname();
-                if (unhandled_device) log("Not using input device '%s%'", sysname);
-                else                  log("Failed to create input device '%s%'", sysname);
+                if constexpr (debugmode)
+                {
+                    if (unhandled_device) log("Not using input device '%s%'",        ud_device->udev_device_get_sysname());
+                    else                  log("Failed to create input device '%s%'", ud_device->udev_device_get_sysname());
+                }
                 return 0;
             }
             //todo drop seat
@@ -19297,7 +19256,6 @@ namespace netxs::lixx // li++, libinput++.
         libinput_seat_sptr libinput_t::path_seat_get_for_device(ud_device_sptr ud_device, qiew seat_logical_name_override)
         {
             auto seat_logical_name = text{};
-            auto sysname = ud_device->udev_device_get_sysname();
             auto seat_prop = ud_device->udev_device_get_property_value("ID_SEAT");
             auto seat_name = text{ seat_prop ? seat_prop : default_seat };
             if (seat_logical_name_override)
@@ -19312,7 +19270,7 @@ namespace netxs::lixx // li++, libinput++.
             auto seat = libinput_seat_sptr{};
             if (seat_logical_name.empty())
             {
-                log("Failed to create seat name for device '%s%'", sysname);
+                log("Failed to create seat name for device '%s%'", ud_device->udev_device_get_sysname());
             }
             else
             {
@@ -19322,7 +19280,7 @@ namespace netxs::lixx // li++, libinput++.
                     seat = path_seat_create(seat_name, seat_logical_name);
                     if (!seat)
                     {
-                        log("Failed to create seat for device '%s%'", sysname);
+                        log("Failed to create seat for device '%s%'", ud_device->udev_device_get_sysname());
                     }
                 }
             }
@@ -19335,9 +19293,8 @@ namespace netxs::lixx // li++, libinput++.
                 auto [li_device, unhandled_device] = libinput_device_create(seat, ud_device);
                 if (!li_device)
                 {
-                    auto sysname = ud_device->udev_device_get_sysname();
-                    if (unhandled_device) log("Not using input device '%s%'", sysname);
-                    else                  log("Failed to create input device '%s%'", sysname);
+                    if (unhandled_device) log("Not using input device '%s%'",        ud_device->udev_device_get_sysname());
+                    else                  log("Failed to create input device '%s%'", ud_device->udev_device_get_sysname());
                 }
                 else
                 {
@@ -19364,12 +19321,7 @@ namespace netxs::lixx // li++, libinput++.
             {
                 data_path = text{ quirks_pir_ptr };
             }
-            auto log_msg_va = []([[maybe_unused]] libinput_log_priority priority, [[maybe_unused]] char const* format, [[maybe_unused]] va_list args)
-            {
-                //if (log_is_logged(libinput, priority))
-                //    libinput->log_handler(libinput, priority, format, args);
-            };
-            libinput_t::quirks = quirks_init_subsystem(data_path, override_file, log_msg_va, This(), QLOG_LIBINPUT_LOGGING);
+            libinput_t::quirks = quirks_init_subsystem(data_path, override_file, This());
             if (!libinput_t::quirks)
             {
                 //log("Failed to load the device quirks from %s%%s%%s%. This will negatively affect device behavior", data_path, override_file.size() ? " and " : "", override_file.size() ? override_file : "");
@@ -20839,8 +20791,6 @@ namespace netxs::lixx // li++, libinput++.
                     li_device->dispatch = nullptr;
                     li_device->fd = fd;
                     li_device->devname = li_device->evdev->libevdev_get_name();
-                    // The log_prefix_name is used as part of a printf format string and must not contain % directives, see evdev_log_msg.
-                    li_device->log_prefix_name = li_device->devname;
                     li_device->scroll.threshold = 5.0; // Default may be overridden.
                     li_device->scroll.direction_lock_threshold = 5.0; // Default may be overridden.
                     li_device->scroll.direction = 0;
@@ -21889,12 +21839,10 @@ namespace netxs::lixx // li++, libinput++.
                     ::free(namelist);
                     return idx == ndev;
                 }
-            quirks_context_sptr quirks_init_subsystem(view data_path, view override_file, libinput_log_handler log_handler, libinput_sptr li, quirks_log_type log_type)
+            quirks_context_sptr quirks_init_subsystem(view data_path, view override_file, libinput_sptr li)
             {
                 //log("%s% is data root", data_path);
                 auto ctx = ptr::shared<quirks_context_t>();
-                ctx->log_handler = log_handler;
-                ctx->log_type    = log_type;
                 ctx->libinput    = li;
                 ctx->dmi2        = init_dmi();
                 ctx->dt2         = init_dt();
@@ -21944,3 +21892,6 @@ namespace netxs::lixx // li++, libinput++.
         return rc;
     }
 }
+#if not defined(DEBUG)
+    #undef log
+#endif
