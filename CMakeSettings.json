@@ -284,7 +284,7 @@
           "type": "STRING"
         },
         {
-          "name": "DCMAKE_EXE_LINKER_FLAGS_RELEASE",
+          "name": "CMAKE_EXE_LINKER_FLAGS_RELEASE",
           "value": "/DEBUG /OPT:REF /OPT:ICF",
           "type": "STRING"
         },

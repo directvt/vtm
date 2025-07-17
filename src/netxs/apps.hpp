@@ -835,12 +835,54 @@ namespace netxs::app::shared
             layers->attach(app::shared::scroll_bars(scroll));
             return window_ptr;
         };
-
+        auto build_invalid = [](eccc, settings&)
+        {
+            auto window = ui::cake::ctor()
+                ->plugin<pro::focus>()
+                //->plugin<pro::track>()
+                ->plugin<pro::acryl>()
+                ->invoke([&](auto& boss)
+                {
+                    closing_on_quit(boss);
+                    closing_by_gesture(boss);
+                    boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
+                    {
+                        auto title = "error"s;
+                        boss.base::riseup(tier::preview, e2::form::prop::ui::header, title);
+                    };
+                });
+            auto msg = ui::post::ctor()
+                ->colors(whitelt, argb{ 0x7F404040 })
+                ->upload(ansi::fgc(yellowlt).mgl(4).mgr(4).wrp(wrap::off) +
+                    "\n"
+                    "\nUnsupported application type"
+                    "\n" + ansi::nil().wrp(wrap::on) +
+                    "\nOnly the following application types are supported:"
+                    "\n" + ansi::nil().wrp(wrap::off).fgc(whitedk) +
+                    "\n   type = vtty"
+                    "\n   type = term"
+                    "\n   type = dtvt"
+                    "\n   type = dtty"
+                    "\n   type = tile"
+                    "\n   type = site"
+                    "\n   type = info"
+                    "\n"
+                    "\n" + ansi::nil().wrp(wrap::on).fgc(whitelt)
+                    .add(prompt::apps, "See logs for details."));
+            auto placeholder = ui::cake::ctor()
+                ->colors(whitelt, argb{ 0x7F404040 })
+                ->attach(msg->alignment({ snap::head, snap::head }));
+            window->attach(ui::rail::ctor())
+                ->attach(placeholder)
+                ->active();
+            return window;
+        };
         app::shared::initialize site_builder{ app::site::id, build_site };
         app::shared::initialize vtty_builder{ app::vtty::id, build_vtty };
         app::shared::initialize term_builder{ app::term::id, build_term };
         app::shared::initialize dtvt_builder{ app::dtvt::id, build_dtvt };
         app::shared::initialize dtty_builder{ app::dtty::id, build_dtty };
         app::shared::initialize info_builder{ app::info::id, build_info };
+        app::shared::initialize invalid_builder{ "invalid", build_invalid };
     }
 }

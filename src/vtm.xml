@@ -3,7 +3,7 @@ R"==(<include*/>  <!-- Ordered list of <include="/path/to/settings.xml"/>. The s
 <include="~/.config/vtm/settings.xml"/>   <!-- Default user-wise settings source. -->
 
 <!-- App configuration. -->
-<config=/Colors | /Scripting | /Macro> <!-- Using additional namespaces: "/Colors", "/Scripting" and "/Macro" -->
+<config=/Colors | /Scripting | /Macro | /en-US> <!-- Using additional namespaces: "/Colors", "/Scripting" and "/Macro" -->
     <gui>  <!-- GUI mode related settings. (win32 platform only for now) -->
         <antialiasing=off/>   <!-- Antialiasing of rendered glyphs. Note: Multi-layered color glyphs such as emoji are always antialiased. -->
         <cellheight=22/>      <!-- Text cell height in physical pixels. Note: The width of the text cell depends on the primary font (the first one in the font list). -->
@@ -393,13 +393,19 @@ R"==(
         <slim=true/>       <!-- Make the window menu one cell high (slim=true) or three cells high (slim=false). -->
     </Defaults>
     <Buttons>
-        <AlwaysOnTop label="  " tooltip=" AlwaysOnTop off " script=OnLeftClick|AlwaysOnTopApplet> <!-- The default event source is the parent object, i.e. source="item" (aka vtm.item). -->
+        <AlwaysOnTop script=OnLeftClick|AlwaysOnTopApplet> <!-- The default event source is the parent object, i.e. source="item" (aka vtm.item). -->
             <script>  <!-- A binding to update the menu item label at runtime. -->
-                <on="release: e2::form::prop::zorder" source="applet"/>
-                local is_topmost=vtm()                   -- Use event arguments to get the current state.
-                -- local is_topmost=vtm.applet.ZOrder()  -- or ask the object iteslf for the current state.
-                vtm.item.Label(is_topmost==1 and "\e[2:247;38:2:0:255:0m▀\e[2:239m \e[m" or "  ")
-                vtm.item.Tooltip(is_topmost==1 and " AlwaysOnTop on " or " AlwaysOnTop off ")
+                <on="release: e2::form::upon::started" source="applet"/>
+                <on="release: e2::form::prop::zorder"  source="applet"/>
+                local is_topmost=vtm.applet.ZOrder()
+                --if (is_topmost==1) vtm.settings.cd("Ns/AlwaysOnTop/on/")
+                --else               vtm.settings.cd("Ns/AlwaysOnTop/off/")
+                --vtm.item.Label(vtm.settings.get("label"))
+                --vtm.item.Tooltip(vtm.settings.get("tooltip"))\n
+                <br/>
+                'vtm.item.Label(is_topmost==1 and "'   | Ns/AlwaysOnTop/on/label   | '" or "' | Ns/AlwaysOnTop/off/label   | '")\n'
+                'vtm.item.Tooltip(is_topmost==1 and "' | Ns/AlwaysOnTop/on/tooltip | '" or "' | Ns/AlwaysOnTop/off/tooltip | '")\n'
+                <br/>
                 vtm.item.Deface()
             </script>
         </AlwaysOnTop>
@@ -417,40 +423,36 @@ R"==(
                 "   Match clipboard data if no selection  "
             </tooltip>
         </FindNext>
-        <ExclusiveKeyboard label="  Exclusive  " script=OnLeftClick|ExclusiveKeyboardMode>
+        <ExclusiveKeyboard script=OnLeftClick|ExclusiveKeyboardMode>
             <tooltip>
                 " \e[1mToggle exclusive keyboard mode\e[m              \n"
                 "   Exclusive keyboard mode allows keystrokes \n"
                 "   to be passed through without processing   "
             </tooltip>
             <script>
+                <on="release: e2::form::upon::started"  source="applet"/>
                 <on="release: terminal::events::rawkbd" source="terminal"/>
-                local m=vtm()                                    -- Use event arguments to get the current state.
-                -- local m=vtm.terminal.ExclusiveKeyboardMode()  -- or ask the terminal instance iteslf for the current state.
+                local m=vtm.terminal.ExclusiveKeyboardMode()
                 vtm.item.Label(m==1 and "\e[2:247m \e[2:231;38:2:0:255:0m Exclusive \e[2:239m \e[m" or "  Exclusive  ")
                 vtm.item.Tooltip(m==1 and " ExclusiveKeyboardMode on " or " ExclusiveKeyboardMode off ")
                 vtm.item.Deface()
             </script>
         </ExclusiveKeyboard>
-        <WrapMode label=" NoWrap " script=OnLeftClick|TerminalWrapMode>
-            <tooltip>
-                " \e[1mText line wrapping mode\e[m  \n"
-                " Text wrapping on         "
-            </tooltip>
+        <WrapMode script=OnLeftClick|TerminalWrapMode>
             <script>
+                <on="release: e2::form::upon::started"          source="applet"/>
                 <on="release: terminal::events::layout::wrapln" source="terminal"/>
-                local m=vtm()                           -- Use event arguments to get the current state.
-                -- local m=vtm.terminal.LineWrapMode()  -- or ask the terminal instance iteslf for the current state.
+                local m=vtm.terminal.LineWrapMode()
                 vtm.item.Label(m~=1 and "\e[2:247m \e[2:231;38:2:0:255:0mNoWrap\e[2:239m \e[m" or " NoWrap ")
                 vtm.item.Tooltip(m~=1 and " \e[1mText line wrapping mode\e[m  \\n Text wrapping off        " or " \e[1mText line wrapping mode\e[m  \\n Text wrapping on         ")
                 vtm.item.Deface()
             </script>
         </WrapMode>
-        <ClipboardFormat label="  Clipboard  " tooltip=" Clipboard format " script=OnLeftClick|TerminalClipboardFormat>
+        <ClipboardFormat tooltip=" Clipboard format " script=OnLeftClick|TerminalClipboardFormat>
             <script>
+                <on="release: e2::form::upon::started"  source="applet"/>
                 <on="release: terminal::events::selmod" source="terminal"/>
-                local m=vtm()                              -- Use event arguments to get the current state.
-                -- local m=vtm.terminal.ClipboardFormat()  -- or ask the terminal instance iteslf for the current state.
+                local m=vtm.terminal.ClipboardFormat()
                 vtm.item.Label(m==1 and "\e[38:2:0:255:0m  Plaintext  \e[m"     -- "textonly"
                             or m==2 and "\e[38:2:255:255:0m  ANSI-text  \e[m"   -- "ansitext"
                             or m==3 and "\e[38:2:109:231:237m  ".."R"..
@@ -468,19 +470,42 @@ R"==(
                 vtm.item.Deface()
             </script>
         </ClipboardFormat>
-        <StdioLog label="  Log  " tooltip=" \e[1mConsole logging\e[m        \n Use Logs to see output " script=OnLeftClick|TerminalStdioLog>
+        <StdioLog tooltip=" \e[1mConsole logging\e[m        \n Use Logs to see output " script=OnLeftClick|TerminalStdioLog>
             <script>
+                <on="release: e2::form::upon::started"  source="applet"/>
                 <on="release: terminal::events::io_log" source="terminal"/>
-                local m=vtm()                      -- Use event arguments to get the current state.
-                -- local m=vtm.terminal.LogMode()  -- or ask the terminal instance iteslf for the current state.
+                local m=vtm.terminal.LogMode()
                 vtm.item.Label(m==1 and "\e[2:247m \e[2:231;38:2:0:255:0m Log \e[2:239m \e[m" or "  Log  ")
                 vtm.item.Deface()
             </script>
         </StdioLog>
-        <ClearScrollback label="  Clear  "   tooltip=" Clear scrollback "                 script=OnLeftClick|TerminalClearScrollback/>
-        <Restart         label="  Restart  " tooltip=" Restart current terminal session " script=OnLeftClick|TerminalRestart/>
+        <ClearScrollback label=Ns/ClearScrollback/label tooltip=Ns/ClearScrollback/tooltip script=OnLeftClick|TerminalClearScrollback/>
+        <Restart         label=Ns/Restart/label         tooltip=Ns/Restart/tooltip         script=OnLeftClick|TerminalRestart/>
     </Buttons>
 </Menu>
+
+<!-- Localization. -->
+<Ns=/en-US/>  <!-- Fallback localization is en-US. -->
+<en-US>
+    <Ns>
+        <AlwaysOnTop>
+            <on  label="\e[2:247;38:2:0:255:0m▀\e[2:239m \e[m" tooltip=" AlwaysOnTop on "/>
+            <off label="  "                                    tooltip=" AlwaysOnTop off "/>
+        </AlwaysOnTop>
+        <ClearScrollback label="  Clear  "   tooltip=" Clear scrollback "/>
+        <Restart         label="  Restart  " tooltip=" Restart current terminal session "/>
+    </Ns>
+</en-US>
+<ru-RU>
+    <Ns>
+        <AlwaysOnTop>
+            <on  label=/en-US/Ns/AlwaysOnTop/on/label  tooltip=" Поверх всех окон вкл. "/>
+            <off label=/en-US/Ns/AlwaysOnTop/off/label tooltip=" Поверх всех окон выкл. "/>
+        </AlwaysOnTop>
+        <ClearScrollback label="  Очистить  " tooltip=" Очистить скроллбэк буфер "/>
+        <Restart         label="  Рестарт  "  tooltip=" Перезапустить текущую сессию терминала "/>
+    </Ns>
+</ru-RU>
 
 <Colors>
     <DefaultColor = 0x00ffffff />

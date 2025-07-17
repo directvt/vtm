@@ -1156,7 +1156,7 @@ namespace netxs
                 }
                 return crop;
             }
-            bool is_space() const //todo VS2019 complains on auto
+            auto is_space() const
             {
                 return (token & netxs::letoh((ui64)0xFF00)) <= netxs::letoh((ui64)whitespace << 8); // (byte)(bytes[1]) <= whitespace;
             }
@@ -1557,6 +1557,10 @@ namespace netxs
 
         operator bool () const { return st.xy(); } // cell: Return true if cell contains printable character.
 
+        auto is_empty() const // cell: Return true if cell is absolutely empty.
+        {
+            return uv.bg.token == 0 && uv.fg.token == 0 && gc.token == 0 && st.token == 0 && id == 0 && px.token == 0;
+        }
         auto same_txt(cell const& c) const // cell: Compare clusters.
         {
             return gc == c.gc;
