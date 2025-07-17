@@ -126,12 +126,13 @@ int main(int argc, char* argv[])
             }
         }
         #if defined(__linux__)
-        else if (getopt.match("--SetMouseAccess"))
+        else if (getopt.match("-a", "--mouse"))
         {
+            auto enabled = xml::take_or(getopt.next(), true);
             os::dtvt::initialize();
             netxs::logger::wipe();
             auto syslog = os::tty::logger();
-            auto ok = os::tty::libinput::set_mouse_access();
+            auto ok = lixx::set_mouse_access(enabled);
             return ok;
         }
         #endif
@@ -143,18 +144,22 @@ int main(int argc, char* argv[])
             log("\nText-based Desktop Environment " + text{ app::shared::version } +
                 "\n(virtual terminal multiplexer)"
                 "\n"
-                "\n  Syntax:"
+                "\n  Command-line options syntax:"
                 "\n"
                 "\n    vtm [ -c <file> ][ -q ][ -p <id> ][ -s | -d | -m ][ -x <cmds> ]"
                 "\n    vtm [ -c <file> ][ -q ][ -t | -g ][ -r [ <type> ]][ <args...> ]"
                 "\n    vtm [ -c <file> ]  -l"
+                #if defined(__linux__)
+                "\n    vtm -i | -u | -a [mode] | -v | -?"
+                #else
                 "\n    vtm -i | -u | -v | -?"
+                #endif
                 "\n"
                 "\n    <script relay via piped redirection> | vtm [ -p <id> ]"
                 "\n"
                 "\n  Options:"
                 "\n"
-                "\n    By default, vtm runs Desktop Client and Desktop Server."
+                "\n    Without options, vtm runs Desktop Server and Desktop Client."
                 "\n"
                 "\n    -h, -?, --help       Print command-line options."
                 "\n    -v, --version        Print version."
@@ -170,7 +175,8 @@ int main(int argc, char* argv[])
                 "\n    -0, --session0       Use Session 0 to run Desktop Server in background."
                 #endif
                 #if defined(__linux__)
-                "\n    --SetMouseAccess     Set mouse device access for all users in Linux. Elevated privileges required."
+                "\n    -a, --mouse [mode]   Set/reset persistent access to mouse devices for all users."
+                "\n                         Run 'sudo vtm --mouse 0' to reset access."
                 #endif
                 "\n    -q, --quiet          Disable logging."
                 "\n    -x, --script <cmds>  Specifies script commands."
@@ -226,9 +232,8 @@ int main(int argc, char* argv[])
         }
     }
 
-    rungui = rungui && (whoami == type::runapp
-                     || whoami == type::client);
-    os::dtvt::initialize(rungui, true);
+    auto interactive = whoami == type::runapp || whoami == type::client;
+    os::dtvt::initialize(rungui, true, interactive);
 
     if (os::dtvt::vtmode & ui::console::redirio && (whoami == type::runapp || whoami == type::client))
     {

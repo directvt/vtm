@@ -8,21 +8,18 @@ on:
 
 jobs:
   build:
-    name: ${{ matrix.platform }} / ${{ matrix.cpu }}${{ matrix.static }}
+    name: ${{ matrix.platform }} / ${{ matrix.cpu }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ windows-latest, ubuntu-22.04 ]
         cpu: [ x64, x86, arm64, arm ]
-        static: [ "", "_static"]
         exclude:
           - os: windows-latest
             cpu: x86
           - os: windows-latest
             cpu: arm
-          - os: windows-latest
-            static: "_static"
         include:
           - os: macos-latest
             platform: macos
@@ -42,54 +39,27 @@ jobs:
             cxx: cl
           - os: ubuntu-22.04
             cpu: x64
-            apt: g++-12 gcc-12 libinput-dev
+            apt: g++-12 gcc-12 libevdev-dev
             cxx: /usr/bin/g++-12
             cc: /usr/bin/gcc-12
           - os: ubuntu-22.04
             cpu: x86
-            apt: g++-12-i686-linux-gnu gcc-12-i686-linux-gnu libinput-dev
+            apt: g++-12-i686-linux-gnu gcc-12-i686-linux-gnu
             cxx: /usr/bin/i686-linux-gnu-g++-12
             cc: /usr/bin/i686-linux-gnu-gcc-12
           - os: ubuntu-22.04
             cpu: arm
-            apt: g++-12-arm-linux-gnueabihf gcc-12-arm-linux-gnueabihf libinput-dev
+            apt: g++-12-arm-linux-gnueabihf gcc-12-arm-linux-gnueabihf
             cxx: /usr/bin/arm-linux-gnueabihf-g++-12
             cc: /usr/bin/arm-linux-gnueabihf-gcc-12
           - os: ubuntu-22.04
             cpu: arm64
-            apt: g++-12-aarch64-linux-gnu gcc-12-aarch64-linux-gnu libinput-dev
+            apt: g++-12-aarch64-linux-gnu gcc-12-aarch64-linux-gnu
             cxx: /usr/bin/aarch64-linux-gnu-g++-12
             cc: /usr/bin/aarch64-linux-gnu-gcc-12
-          - os: ubuntu-22.04
-            cpu: x64
-            apt: g++-12 gcc-12 libinput-dev
-            cxx: /usr/bin/g++-12
-            cc: /usr/bin/gcc-12
-            static: "_static"
-          - os: ubuntu-22.04
-            cpu: x86
-            apt: g++-12-i686-linux-gnu gcc-12-i686-linux-gnu libinput-dev
-            cxx: /usr/bin/i686-linux-gnu-g++-12
-            cc: /usr/bin/i686-linux-gnu-gcc-12
-            static: "_static"
-          - os: ubuntu-22.04
-            cpu: arm
-            apt: g++-12-arm-linux-gnueabihf gcc-12-arm-linux-gnueabihf libinput-dev
-            cxx: /usr/bin/arm-linux-gnueabihf-g++-12
-            cc: /usr/bin/arm-linux-gnueabihf-gcc-12
-            static: "_static"
-          - os: ubuntu-22.04
-            cpu: arm64
-            apt: g++-12-aarch64-linux-gnu gcc-12-aarch64-linux-gnu libinput-dev
-            cxx: /usr/bin/aarch64-linux-gnu-g++-12
-            cc: /usr/bin/aarch64-linux-gnu-gcc-12
-            static: "_static"
 
           - os: ubuntu-22.04
-            flags: '-DCMAKE_C_FLAGS="-O2 -static-libgcc " -DCMAKE_CXX_FLAGS_RELEASE=" -static-libstdc++ -s -O2 -DNDEBUG -Wall -Wextra -Wno-missing-field-initializers -Wno-psabi -Werror"'
-          - os: ubuntu-22.04
             flags: '-DCMAKE_C_FLAGS="-O2 -static " -DCMAKE_CXX_FLAGS_RELEASE=" -static -s -O2 -DNDEBUG -Wall -Wextra -Wno-missing-field-initializers -Wno-psabi -Werror"'
-            static: "_static"
           - os: windows-latest
             flags: '-DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded" -DCMAKE_EXE_LINKER_FLAGS_RELEASE="/DEBUG /OPT:REF /OPT:ICF" -DCMAKE_C_FLAGS_RELEASE="/MT /O2 /c" -DCMAKE_CXX_FLAGS_RELEASE="/MT /O2 /DNDEBUG /Zi /Zc:preprocessor /W4" -A '
 
@@ -118,8 +88,9 @@ jobs:
 
     - name: Install compiler
       if: ${{ matrix.apt }}
-      run: >
-        sudo apt -y update && sudo apt -y install ${{ matrix.apt }}
+      run: |
+        sudo apt -y update
+        sudo apt -y install ${{ matrix.apt }}
 
     - name: Configure CMake
       run: >
@@ -135,14 +106,14 @@ jobs:
 
     - name: Pack (POSIX)
       if: matrix.os != 'windows-latest'
-      run: 7z a -ttar vtm_${{ matrix.platform }}_${{ matrix.arch }}${{ matrix.static }}.tar ${{ steps.strings.outputs.bin }}/vtm
+      run: 7z a -ttar vtm_${{ matrix.platform }}_${{ matrix.arch }}.tar ${{ steps.strings.outputs.bin }}/vtm
 
     - name: Upload Artifact (POSIX)
       if: matrix.os != 'windows-latest'
       uses: actions/upload-artifact@main
       with:
-        name: vtm_${{ matrix.platform }}_${{ matrix.arch }}${{ matrix.static }}
-        path: vtm_${{ matrix.platform }}_${{ matrix.arch }}${{ matrix.static }}.tar
+        name: vtm_${{ matrix.platform }}_${{ matrix.arch }}
+        path: vtm_${{ matrix.platform }}_${{ matrix.arch }}.tar
 
     - name: Upload Symbols (Windows)
       if: matrix.os == 'windows-latest'

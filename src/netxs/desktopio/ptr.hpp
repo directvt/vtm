@@ -12,6 +12,23 @@ namespace netxs
     // Due to the fact that alias templates are never deduced by template argument deduction (C++20).
     namespace ptr
     {
+        template<class... Ts>
+        struct overloaded : Ts... { using Ts::operator()...; };
+
+        template<class T>
+        struct enable_shared_from_this : std::enable_shared_from_this<T>
+        {
+            template<class D = T>
+            auto This()
+            {
+                return std::static_pointer_cast<D>(std::enable_shared_from_this<T>::shared_from_this());
+            }
+            template<class D>
+            auto IsThis()
+            {
+                return std::dynamic_pointer_cast<D>(std::enable_shared_from_this<T>::shared_from_this());
+            }
+        };
         // Compare sptr/wptr.
         bool is_equal(auto const& w1, auto const& w2)
         {

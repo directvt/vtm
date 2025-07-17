@@ -926,6 +926,13 @@ namespace netxs::utf
             view::remove_prefix(1);
             return c;
         }
+        // qiew: Pop back.
+        auto pop_back()
+        {
+            auto c = view::back();
+            view::remove_suffix(1);
+            return c;
+        }
         // qiew: Pop the front sequence of the same control points and return their count + 1.
         auto pop_all(ctrl cmd)
         {
@@ -973,14 +980,17 @@ namespace netxs::utf
         }
     };
 
-    template<class Key, class Val>
+    template<class Key = text, class Val = text>
     using unordered_map = std::unordered_map<Key, Val, qiew::hash, qiew::equal>;
-
 
     template<class A = si32, si32 Base = 10, class View, class = std::enable_if_t<std::is_base_of_v<view, View>>>
     std::optional<A> to_int(View& ascii)
     {
         auto num = A{};
+        if constexpr (Base == 16)
+        {
+            if (ascii.starts_with("0x") || ascii.starts_with("0X")) ascii.remove_prefix(2);
+        }
         auto top = ascii.data();
         auto end = top + ascii.length();
         if constexpr (std::is_floating_point_v<A>)
@@ -1482,6 +1492,21 @@ namespace netxs::utf
     auto to_bin(T n)
     {
         return std::bitset<L>(n).to_string();
+    }
+    template<si32 Size>
+    auto to_oct(si32 n)
+    {
+        static_assert(Size > 0);
+        auto crop = text{};
+        auto i = Size;
+        n = std::abs(n);
+        crop.resize(Size);
+        while (i--)
+        {
+            crop[i] = netxs::onlydigits[n & 7];
+            n >>= 3;
+        }
+        return crop;
     }
     template<bool UpperCase = faux>
     auto _to_hex(auto number, size_t width, auto push)
@@ -2382,6 +2407,18 @@ namespace netxs::utf
     auto get_word(view& utf8, view delims = " ")
     {
         return take_front<faux>(utf8, delims);
+    }
+    auto dequote(qiew utf8)
+    {
+        if (utf8.size() > 2)
+        {
+            auto c = utf8.front();
+            if ((c == '\'' || c == '\"') && c == utf8.back())
+            {
+                utf8 = utf8.substr(1, utf8.size() - 2);
+            }
+        }
+        return utf8;
     }
     // utf: Split text line into quoted tokens.
     auto tokenize(view utf8, auto&& args)
