@@ -10872,7 +10872,7 @@ namespace netxs::lixx // li++, libinput++.
                                         }
                                         if (current != tp.tap.state)
                                         {
-                                            log("tap: touch %d% (%s%), tap state %s% → %s% → %s%", t.tp ? (si32)t.index : -1, real_touch ? touch_state_to_str(t.state) : "", tap_state_to_str(current), tap_event_to_str(event), tap_state_to_str(tp.tap.state));
+                                            log("tap: touch %d% (%s%), tap state %s% → %s% → %s%", t.tp ? (si32)t.index : -1, t.tp ? touch_state_to_str(t.state) : "", tap_state_to_str(current), tap_event_to_str(event), tap_state_to_str(tp.tap.state));
                                         }
                                     }
                                     bool tp_thumb_ignored_for_tap(tp_touch& t)
