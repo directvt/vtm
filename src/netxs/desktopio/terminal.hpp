@@ -502,7 +502,6 @@ namespace netxs::ui
                         owner.ipccon.focus(focused, encod);
                         if (!focused && owner.ime_on) owner.ime_on = faux;
                     }
-                    owner.base::strike();
                 };
                 state = owner.base::signal(tier::request, e2::form::state::focus::count);
             }

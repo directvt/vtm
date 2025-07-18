@@ -87,6 +87,7 @@ namespace netxs::app::terminal
                 {
                     if (std::exchange(is_focused, !!count) != is_focused)
                     {
+                        boss.base::deface(); // Trigger to update pro::cache.
                         window_clr = is_focused ? skin::color(tone::winfocus)
                                                 : skin::color(tone::window_clr);
                     }
