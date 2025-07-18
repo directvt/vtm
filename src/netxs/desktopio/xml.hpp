@@ -579,7 +579,7 @@ namespace netxs::xml
                         {
                             if (src_segment_iter != item.value_segments.end())
                             {
-                                // Don't restructurize the element instead of error reporting. The structure of the overlay configuration must be compatible with the destination configuration.
+                                // Don't restructurize the element, report an error instead. The structure of the overlay configuration must be compatible with the destination configuration.
                                 log("%%%err%There is no placeholders for ext value (target item in an inline form)%nil%", prompt::xml, ansi::err(), ansi::nil());
                             }
                             return;
@@ -813,6 +813,12 @@ namespace netxs::xml
                 utf::trim_front(temp, whitespaces);
                 peek();
             }
+            void add_placeholder_for_absent_value(sptr& item_ptr)
+            {
+                auto vbeg_ptr = append(type::value_begin);
+                auto vend_ptr = append(type::value_end);
+                item_ptr->value_segments.push_back({ vbeg_ptr, vend_ptr });
+            }
             auto take_pair(sptr& item_ptr, type kind)
             {
                 append_prepending_spaces();
@@ -888,11 +894,9 @@ namespace netxs::xml
                     auto vend_ptr = append(type::value_end);
                     item_ptr->value_segments.push_back({ vbeg_ptr, vend_ptr });
                 }
-                else if (what != type::compact) // Add placeholder for absent value.
+                else if (what != type::compact)
                 {
-                    auto vbeg_ptr = append(type::value_begin);
-                    auto vend_ptr = append(type::value_end);
-                    item_ptr->value_segments.push_back({ vbeg_ptr, vend_ptr });
+                    add_placeholder_for_absent_value(item_ptr);
                 }
             }
             auto take_comment()
@@ -1264,6 +1268,8 @@ namespace netxs::xml
                 root_ptr->open();
                 root_ptr->mode = elem::form::node;
                 root_ptr->name = append(type::na);
+                add_placeholder_for_absent_value(root_ptr); // Inline values placeholder.
+                add_placeholder_for_absent_value(root_ptr); // Extra raw text values placeholder. All raw text between subsections (e.g., things like C++ inserts ')=="') will accumulate here. It will be filtered out during synchronization.
                 root_ptr->insB = append(type::insB);
                 if (data.size())
                 {
