@@ -259,6 +259,7 @@ namespace netxs::app::desk
                 if (conf.splitter)
                 {
                     auto item_area = apps->attach(ui::item::ctor(obj_desc))
+                        ->active() // Set active to enable tooltips.
                         ->flexible()
                         ->accented()
                         ->colors(cA)

@@ -3,7 +3,8 @@ R"==(<include*/>  <!-- Ordered list of <include="/path/to/settings.xml"/>. The s
 <include="~/.config/vtm/settings.xml"/>   <!-- Default user-wise settings source. -->
 
 <!-- App configuration. -->
-<config=/Colors | /Scripting | /Macro | /en-US> <!-- Using additional namespaces: "/Colors", "/Scripting" and "/Macro" -->
+<config=/Colors | /Scripting | /Macro>  <!-- Using additional namespaces: "/Colors", "/Scripting" and "/Macro". -->
+    <Ns=/Ns/en-GB | /Ns/en-US/>  <!-- Use localized strings for "en-GB" with fallback to "en-US". -->
     <gui>  <!-- GUI mode related settings. (win32 platform only for now) -->
         <antialiasing=off/>   <!-- Antialiasing of rendered glyphs. Note: Multi-layered color glyphs such as emoji are always antialiased. -->
         <cellheight=22/>      <!-- Text cell height in physical pixels. Note: The width of the text cell depends on the primary font (the first one in the font list). -->
@@ -80,12 +81,7 @@ R"==(
         <macstyle=false/>  <!-- Preferred window control buttons location. no: right corner (like on MS Windows), yes: left side (like on macOS). -->
         <taskbar wide=false selected="Term">  <!-- Taskbar menu. wide: Set wide/compact menu layout; selected: Set selected taskbar menu item id. -->
             <item*/>  <!-- Clear all previously defined items. Start a new list of items. -->
-            <item splitter label="apps">
-                <tooltip>
-                    " \e[1mDefault applications group\e[m                         \n"
-                    " It can be configured in ~/.config/vtm/settings.xml "
-                </tooltip>
-            </item>
+            <item splitter label=Ns/Taskbar/Apps/label tooltip=Ns/Taskbar/Apps/tooltip/>
             <item id="Term" label="Terminal Emulator" type="dtvt" title="Terminal" cmd="$0 -r term">
                 <tooltip>
                     " \e[1mTerminal Console\e[m               \n"
@@ -377,7 +373,7 @@ R"==(
 </config>
 )=="
 R"==(
-<!-- Globals - Unresolved literals will try to be resolved from here. -->
+
 <Macro>
     <true  = 1 />
     <yes   = 1 />
@@ -479,33 +475,50 @@ R"==(
                 vtm.item.Deface()
             </script>
         </StdioLog>
-        <ClearScrollback label=Ns/ClearScrollback/label tooltip=Ns/ClearScrollback/tooltip script=OnLeftClick|TerminalClearScrollback/>
-        <Restart         label=Ns/Restart/label         tooltip=Ns/Restart/tooltip         script=OnLeftClick|TerminalRestart/>
+        <ClearScrollback=Ns/ClearScrollback script=OnLeftClick|TerminalClearScrollback/>
+        <Restart        =Ns/Restart         script=OnLeftClick|TerminalRestart/>
     </Buttons>
 </Menu>
 
-<!-- Localization. -->
-<Ns=/en-US/>  <!-- Fallback localization is en-US. -->
-<en-US>
-    <Ns>
+<Ns>  <!-- Localization. -->
+    <en-US>
         <AlwaysOnTop>
             <on  label="\e[2:247;38:2:0:255:0m▀\e[2:239m \e[m" tooltip=" AlwaysOnTop on "/>
             <off label="  "                                    tooltip=" AlwaysOnTop off "/>
         </AlwaysOnTop>
         <ClearScrollback label="  Clear  "   tooltip=" Clear scrollback "/>
         <Restart         label="  Restart  " tooltip=" Restart current terminal session "/>
-    </Ns>
-</en-US>
-<ru-RU>
-    <Ns>
+        <Taskbar>
+            <Apps label="apps">
+                <tooltip>
+                    "\e[1m"" Default applications group                         ""\e[m\n"
+                           " It can be configured in ~/.config/vtm/settings.xml "
+                </tooltip>
+            </Apps>
+        </Taskbar>
+    </en-US>
+    <en-GB>
+        <Taskbar>
+            <Apps label="applets"/>
+        </Taskbar>
+    </en-GB>
+    <ru-RU>
         <AlwaysOnTop>
-            <on  label=/en-US/Ns/AlwaysOnTop/on/label  tooltip=" Поверх всех окон вкл. "/>
-            <off label=/en-US/Ns/AlwaysOnTop/off/label tooltip=" Поверх всех окон выкл. "/>
+            <on  tooltip=" Поверх всех окон вкл. "/>
+            <off tooltip=" Поверх всех окон выкл. "/>
         </AlwaysOnTop>
         <ClearScrollback label="  Очистить  " tooltip=" Очистить скроллбэк буфер "/>
         <Restart         label="  Рестарт  "  tooltip=" Перезапустить текущую сессию терминала "/>
-    </Ns>
-</ru-RU>
+        <Taskbar>
+            <Apps label="проги">
+                <tooltip>
+                    "\e[1m"" Группа приложений по-умолчанию                    ""\e[m\n"
+                           " Список настраивается в ~/.config/vtm/settings.xml "
+                </tooltip>
+            </Apps>
+        </Taskbar>
+    </ru-RU>
+</Ns>
 
 <Colors>
     <DefaultColor = 0x00ffffff />
