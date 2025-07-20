@@ -4,7 +4,6 @@ R"==(<include*/>  <!-- Ordered list of <include="/path/to/settings.xml"/>. The s
 
 <!-- App configuration. -->
 <config=/Colors | /Scripting | /Macro>  <!-- Using additional namespaces: "/Colors", "/Scripting" and "/Macro". -->
-    <Ns=/Ns/en-GB | /Ns/en-US/>  <!-- Use localized strings for "en-GB" with fallback to "en-US". -->
     <gui>  <!-- GUI mode related settings. (win32 platform only for now) -->
         <antialiasing=off/>   <!-- Antialiasing of rendered glyphs. Note: Multi-layered color glyphs such as emoji are always antialiased. -->
         <cellheight=22/>      <!-- Text cell height in physical pixels. Note: The width of the text cell depends on the primary font (the first one in the font list). -->
@@ -81,7 +80,7 @@ R"==(
         <macstyle=false/>  <!-- Preferred window control buttons location. no: right corner (like on MS Windows), yes: left side (like on macOS). -->
         <taskbar wide=false selected="Term">  <!-- Taskbar menu. wide: Set wide/compact menu layout; selected: Set selected taskbar menu item id. -->
             <item*/>  <!-- Clear all previously defined items. Start a new list of items. -->
-            <item splitter label=Ns/Taskbar/Apps/label tooltip=Ns/Taskbar/Apps/tooltip/>
+            <item splitter label=/Ns/Taskbar/Apps/label tooltip=/Ns/Taskbar/Apps/tooltip/>
             <item id="Term" label="Terminal Emulator" type="dtvt" title="Terminal" cmd="$0 -r term">
                 <tooltip>
                     " \e[1mTerminal Console\e[m               \n"
@@ -394,13 +393,13 @@ R"==(
                 <on="release: e2::form::upon::started" source="applet"/>
                 <on="release: e2::form::prop::zorder"  source="applet"/>
                 local is_topmost=vtm.applet.ZOrder()
-                --if (is_topmost==1) vtm.settings.cd("Ns/AlwaysOnTop/on/")
-                --else               vtm.settings.cd("Ns/AlwaysOnTop/off/")
+                --if (is_topmost==1) vtm.settings.cd("/Ns/AlwaysOnTop/on/")
+                --else               vtm.settings.cd("/Ns/AlwaysOnTop/off/")
                 --vtm.item.Label(vtm.settings.get("label"))
                 --vtm.item.Tooltip(vtm.settings.get("tooltip"))\n
                 <br/>
-                'vtm.item.Label(is_topmost==1 and "'   | Ns/AlwaysOnTop/on/label   | '" or "' | Ns/AlwaysOnTop/off/label   | '")\n'
-                'vtm.item.Tooltip(is_topmost==1 and "' | Ns/AlwaysOnTop/on/tooltip | '" or "' | Ns/AlwaysOnTop/off/tooltip | '")\n'
+                'vtm.item.Label(is_topmost==1 and "'   | /Ns/AlwaysOnTop/on/label   | '" or "' | /Ns/AlwaysOnTop/off/label   | '")\n'
+                'vtm.item.Tooltip(is_topmost==1 and "' | /Ns/AlwaysOnTop/on/tooltip | '" or "' | /Ns/AlwaysOnTop/off/tooltip | '")\n'
                 <br/>
                 vtm.item.Deface()
             </script>
@@ -475,12 +474,12 @@ R"==(
                 vtm.item.Deface()
             </script>
         </StdioLog>
-        <ClearScrollback=Ns/ClearScrollback script=OnLeftClick|TerminalClearScrollback/>
-        <Restart        =Ns/Restart         script=OnLeftClick|TerminalRestart/>
+        <ClearScrollback=/Ns/ClearScrollback script=OnLeftClick|TerminalClearScrollback/>
+        <Restart        =/Ns/Restart         script=OnLeftClick|TerminalRestart/>
     </Buttons>
 </Menu>
 
-<Ns>  <!-- Localization. -->
+<Ns=en-US|en-GB>  <!-- Localization for "en-GB" with fallback to "en-US". -->
     <en-US>
         <AlwaysOnTop>
             <on  label="\e[2:247;38:2:0:255:0m▀\e[2:239m \e[m" tooltip=" AlwaysOnTop on "/>
@@ -499,13 +498,18 @@ R"==(
     </en-US>
     <en-GB>
         <Taskbar>
-            <Apps label="applets"/>
+            <Apps label="applets">
+                <tooltip>
+                    "\e[1m"" Default applications group                         ""\e[m\n"
+                           " It can be configured in ~/.config/vtm/settings.xml "
+                </tooltip>
+            </Apps>
         </Taskbar>
     </en-GB>
     <ru-RU>
         <AlwaysOnTop>
-            <on  tooltip=" Поверх всех окон вкл. "/>
-            <off tooltip=" Поверх всех окон выкл. "/>
+            <on  label="\e[2:247;38:2:0:255:0m▀\e[2:239m \e[m" tooltip=" Поверх всех окон вкл. "/>
+            <off label="  "                                    tooltip=" Поверх всех окон выкл. "/>
         </AlwaysOnTop>
         <ClearScrollback label="  Очистить  " tooltip=" Очистить скроллбэк буфер "/>
         <Restart         label="  Рестарт  "  tooltip=" Перезапустить текущую сессию терминала "/>
@@ -548,7 +552,8 @@ R"==(
     <purecyan     = #00ffff />
     <pureyellow   = #ffff00 />
 </Colors>
-
+)==" // MSVC2022: C2026 String too big, trailing characters truncated.
+R"==(
 <X11ColorNames name*>  <!-- Source: https://en.wikipedia.org/wiki/X11_color_names#Color_name_chart -->
     <name = "Black"               rgb = #000000 />
     <name = "Brown"               rgb = #A52A2A />
@@ -704,7 +709,6 @@ R"==(
         <rect=false/>   <!-- Preferred selection form: Rectangular: true, Linear: false. -->
     </selection>
 </Terminal>
-
 )==" // MSVC2022: C2026 String too big, trailing characters truncated.
 R"==(
 <Scripting>

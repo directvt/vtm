@@ -1314,7 +1314,7 @@ namespace netxs::xml
                     auto& item_ptr_list = iter->second;
                     if (is_end)
                     {
-                        crop.reserve(item_ptr_list.size());
+                        crop.reserve(crop.size() + item_ptr_list.size());
                         for (auto& item_ptr : item_ptr_list)
                         {
                             if constexpr (WithTemplate) crop.push_back(item_ptr);
@@ -1482,6 +1482,7 @@ namespace netxs::xml
         xml::document document; // settings: XML document.
         vect tmpbuff; // settings: Temp buffer.
         list context; // settings: Current working context stack (reference context).
+        std::deque<qiew> reference_path_array; // settings: Temp buffer for path segments.
 
         settings() = default;
         settings(view utf8_xml)
@@ -1541,12 +1542,97 @@ namespace netxs::xml
             return s << p.document.page.show();
         }
         // settings: Lookup document context for item_ptr by its reference name path.
-        void _find_namepath(view reference_namepath, sptr& item_ptr)
+        void _find_namepath(view path_str, sptr& item_ptr)
         {
-            auto item_ptr_list = document.take_ptr_list<true>(reference_namepath);
-            if (item_ptr_list.size())
+            auto crop = sptr{};
+            auto node_ptr = document.root_ptr;
+            utf::trim(path_str, '/');
+            utf::split2(path_str, '/', [&](qiew branch, bool is_end)
             {
-                item_ptr = item_ptr_list.back();
+                if (auto iter = node_ptr->hive.find(branch); iter != node_ptr->hive.end())
+                {
+                    auto& item_ptr_list = iter->second;
+                    if (is_end)
+                    {
+                        if (item_ptr_list.size())
+                        {
+                            item_ptr = item_ptr_list.back();
+                        }
+                    }
+                    else if (item_ptr_list.size() && item_ptr_list.back())
+                    {
+                        node_ptr = item_ptr_list.back();
+                        return true;
+                    }
+                }
+                else
+                {
+                    for (auto& value_placeholder : node_ptr->body | std::views::reverse) // Recursively lookup all base lists for "attribute" items.
+                    {
+                        auto kind = value_placeholder->kind;
+                        if (kind == document::type::tag_reference || kind == document::type::raw_reference)
+                        {
+                            if (!value_placeholder->busy) // Silently ignore reference loops.
+                            {
+                                value_placeholder->busy = 1;
+                                auto& reference_name = value_placeholder->utf8;
+                                auto item_ptr_list = document::vect{};
+                                auto ctx = push_context(node_ptr);
+                                if (auto base_ptr = settings::_find_name(reference_name)) // Lookup outside.
+                                {
+                                    //todo branch must be local
+                                    //todo no need to fill the whole list, just take the last item
+                                    settings::_take_ptr_list_of(base_ptr, branch, item_ptr_list);
+                                }
+                                value_placeholder->busy = 0;
+                                if (item_ptr_list.size())
+                                {
+                                    auto next_ptr = item_ptr_list.back();
+                                    if (is_end)
+                                    {
+                                        item_ptr = next_ptr;
+                                    }
+                                    else
+                                    {
+                                        node_ptr = next_ptr;
+                                    }
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                }
+                return faux;
+            });
+
+        }
+        // settings: Looking for item_ptr by its name specified in reference_path_array.
+        void _find_last_ptr_in(sptr context_ptr, std::deque<qiew>& reference_path_array, sptr& item_ptr)
+        {
+            //1. reverse lookup inside native context
+            // ...
+            //2. reverse lookup inside base lists
+            // ...
+        }
+        // settings: Looking for item_ptr by its name.
+        void _find_local_name_ptr_in(sptr context_ptr, qiew name, sptr& item_ptr)
+        {
+            //1. reverse lookup inside native context
+            // ...
+            //2. reverse lookup inside base lists
+            // ...
+        }
+        // settings: Looking for item_ptr by its name specified in reference_path_array.
+        void _find_last_ptr(std::deque<qiew>& reference_path_array, sptr& item_ptr)
+        {
+            for (auto context_ptr : context | std::views::reverse) // Iterate contexts.
+            {
+                while (context_ptr) // Iterate parents.
+                {
+                    settings::_find_last_ptr_in(context_ptr, reference_path_array, item_ptr);
+                    if (item_ptr) return;
+                    context_ptr = context_ptr->parent_wptr.lock();
+                }
             }
         }
         // settings: Lookup document context for item_ptr by its reference name.
@@ -1569,10 +1655,13 @@ namespace netxs::xml
                     }
                     context_ptr = context_ptr->parent_wptr.lock();
                 }
-                if (!context_ptr)
+                //utf::split<true>(reference_path, '/', [&](auto folder){ reference_path_array.push_back(folder); });
+                //settings::_find_last_ptr(reference_path_array, item_ptr);
+                if (!item_ptr)
                 {
                     log("%%Settings reference '%ref%' not found", prompt::xml, reference_path);
                 }
+                reference_path_array.clear();
             }
             else // Absolute reference.
             {
@@ -1585,8 +1674,7 @@ namespace netxs::xml
             for (auto& value_placeholder : item_ptr->body)
             {
                 auto kind = value_placeholder->kind;
-                if (kind == document::type::tag_reference
-                 || kind == document::type::raw_reference)
+                if (kind == document::type::tag_reference || kind == document::type::raw_reference)
                 {
                     auto& reference_name = value_placeholder->utf8;
                     if (!value_placeholder->busy)
@@ -1616,18 +1704,17 @@ namespace netxs::xml
         text take_value(sptr item_ptr)
         {
             auto value = text{};
+            settings::push_context(item_ptr); // The element itself is a first-order context.
             settings::_take_value(item_ptr, value);
             utf::unescape(value);
             return value;
         }
         void _take_ptr_list_of(sptr subsection_ptr, view attribute, vect& item_ptr_list)
         {
-            // Recursively take all base lists.
-            for (auto& value_placeholder : subsection_ptr->body)
+            for (auto& value_placeholder : subsection_ptr->body) // Recursively lookup all base lists for "attribute" items.
             {
                 auto kind = value_placeholder->kind;
-                if (kind == document::type::tag_reference
-                 || kind == document::type::raw_reference)
+                if (kind == document::type::tag_reference || kind == document::type::raw_reference)
                 {
                     auto& reference_name = value_placeholder->utf8;
                     if (!value_placeholder->busy) // Silently ignore reference loops.
@@ -1641,7 +1728,7 @@ namespace netxs::xml
                     }
                 }
             }
-            // Take native attribute list.
+            // After all take a first-level nested (native) attribute list.
             document.take_direct_ptr_list(subsection_ptr, attribute, item_ptr_list);
         }
         auto take_ptr_list_of(sptr subsection_ptr, view attribute)
@@ -1677,10 +1764,10 @@ namespace netxs::xml
         auto take_value_from(sptr subsection_ptr, view attribute, T defval = {})
         {
             auto crop = text{};
-            settings::_take_ptr_list_of(subsection_ptr, attribute, tmpbuff);
+            settings::_take_ptr_list_of(subsection_ptr, attribute, tmpbuff); // Select all first-level nested elements by name "attribute".
             if (tmpbuff.size())
             {
-                crop = settings::take_value(tmpbuff.back());
+                crop = settings::take_value(tmpbuff.back()); // Take value from the last of the list.
             }
             else
             {
