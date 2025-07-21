@@ -1,4 +1,4 @@
-name: Build binaries
+name: Build VTM
 
 on:
   push:
@@ -8,123 +8,116 @@ on:
 
 jobs:
   build:
-    name: ${{ matrix.platform }} / ${{ matrix.cpu }}
+    name: ${{ matrix.platform }} / ${{ matrix.arch }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ windows-latest, ubuntu-22.04 ]
-        cpu: [ x64, x86, arm64, arm ]
-        exclude:
-          - os: windows-latest
-            cpu: x86
-          - os: windows-latest
-            cpu: arm
         include:
-          - os: macos-latest
-            platform: macos
-            cpu: universal
-            arch: any
-            cxx: c++
-            cc: cc
-            flags: '-DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 -DCMAKE_CXX_FLAGS_RELEASE="-O2 -DNDEBUG -Wall -Wextra -Wno-missing-field-initializers -Werror"'
-          - os: windows-latest
-            platform: windows
-            cpu: Win32
-            arch: x86
-            cxx: cl
-            cc: cl
-            flags: '-DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded" -DCMAKE_EXE_LINKER_FLAGS_RELEASE="/DEBUG /OPT:REF /OPT:ICF" -DCMAKE_C_FLAGS_RELEASE="/MT /O2 /c" -DCMAKE_CXX_FLAGS_RELEASE="/MT /O2 /DNDEBUG /Zi /Zc:preprocessor /W4" -A '
-          - os: windows-latest
-            cxx: cl
-          - os: ubuntu-22.04
-            cpu: x64
-            apt: g++-12 gcc-12 libevdev-dev
-            cxx: /usr/bin/g++-12
-            cc: /usr/bin/gcc-12
-          - os: ubuntu-22.04
-            cpu: x86
-            apt: g++-12-i686-linux-gnu gcc-12-i686-linux-gnu
-            cxx: /usr/bin/i686-linux-gnu-g++-12
-            cc: /usr/bin/i686-linux-gnu-gcc-12
-          - os: ubuntu-22.04
-            cpu: arm
-            apt: g++-12-arm-linux-gnueabihf gcc-12-arm-linux-gnueabihf
-            cxx: /usr/bin/arm-linux-gnueabihf-g++-12
-            cc: /usr/bin/arm-linux-gnueabihf-gcc-12
-          - os: ubuntu-22.04
-            cpu: arm64
-            apt: g++-12-aarch64-linux-gnu gcc-12-aarch64-linux-gnu
-            cxx: /usr/bin/aarch64-linux-gnu-g++-12
-            cc: /usr/bin/aarch64-linux-gnu-gcc-12
-
-          - os: ubuntu-22.04
-            flags: '-DCMAKE_C_FLAGS="-O2 -static " -DCMAKE_CXX_FLAGS_RELEASE=" -static -s -O2 -DNDEBUG -Wall -Wextra -Wno-missing-field-initializers -Wno-psabi -Werror"'
-          - os: windows-latest
-            flags: '-DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded" -DCMAKE_EXE_LINKER_FLAGS_RELEASE="/DEBUG /OPT:REF /OPT:ICF" -DCMAKE_C_FLAGS_RELEASE="/MT /O2 /c" -DCMAKE_CXX_FLAGS_RELEASE="/MT /O2 /DNDEBUG /Zi /Zc:preprocessor /W4" -A '
-
+          # Linux builds
           - os: ubuntu-22.04
             platform: linux
+            arch: x86_64
+            apt: g++-12 gcc-12 libncurses-dev
+            cxx: /usr/bin/g++-12
+            cc: /usr/bin/gcc-12
+            flags: '-DCMAKE_CXX_FLAGS_RELEASE="-O2 -DNDEBUG -Wall -Wextra -Werror"'
+          
+          - os: ubuntu-22.04
+            platform: linux
+            arch: x86
+            apt: g++-12-i686-linux-gnu gcc-12-i686-linux-gnu libncurses-dev:i386
+            cxx: /usr/bin/i686-linux-gnu-g++-12
+            cc: /usr/bin/i686-linux-gnu-gcc-12
+            flags: '-DCMAKE_CXX_FLAGS_RELEASE="-O2 -DNDEBUG -Wall -Wextra -Werror"'
+          
+          - os: ubuntu-22.04
+            platform: linux
+            arch: arm64
+            apt: g++-12-aarch64-linux-gnu gcc-12-aarch64-linux-gnu libncurses-dev:arm64
+            cxx: /usr/bin/aarch64-linux-gnu-g++-12
+            cc: /usr/bin/aarch64-linux-gnu-gcc-12
+            flags: '-DCMAKE_CXX_FLAGS_RELEASE="-O2 -DNDEBUG -Wall -Wextra -Werror"'
+          
+          - os: ubuntu-22.04
+            platform: linux
+            arch: arm32
+            apt: g++-12-arm-linux-gnueabihf gcc-12-arm-linux-gnueabihf libncurses-dev:armhf
+            cxx: /usr/bin/arm-linux-gnueabihf-g++-12
+            cc: /usr/bin/arm-linux-gnueabihf-gcc-12
+            flags: '-DCMAKE_CXX_FLAGS_RELEASE="-O2 -DNDEBUG -Wall -Wextra -Werror"'
+          
+          # RISC-V build (emulated via QEMU)
+          - os: ubuntu-22.04
+            platform: linux
+            arch: riscv64
+            apt: g++-riscv64-linux-gnu gcc-riscv64-linux-gnu libncurses-dev:riscv64 qemu-user-static
+            cxx: riscv64-linux-gnu-g++
+            cc: riscv64-linux-gnu-gcc
+            flags: '-DCMAKE_CXX_FLAGS_RELEASE="-O2 -DNDEBUG -Wall -Wextra -Werror"'
+          
+          # Windows builds
           - os: windows-latest
             platform: windows
-
-          - cpu: x64
             arch: x86_64
-          - cpu: x86
-            arch: x86
-          - cpu: arm64
-            arch: arm64
-          - cpu: arm
-            arch: arm32
+            cxx: cl
+            cc: cl
+            flags: '-DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded" -DCMAKE_CXX_FLAGS_RELEASE="/MT /O2 /DNDEBUG /Zi /W4" -A x64'
+          
+          # macOS builds
+          - os: macos-latest
+            platform: macos
+            arch: universal
+            cxx: clang++
+            cc: clang
+            flags: '-DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0'
 
     steps:
-    - uses: actions/checkout@main
+    - uses: actions/checkout@v3
 
-    - name: Set reusable strings
-      id: strings
-      shell: bash
-      run: |
-        echo "bin=${{ github.workspace }}/bin" >> "$GITHUB_OUTPUT"
+    - name: Set up QEMU (RISC-V)
+      if: matrix.arch == 'riscv64'
+      uses: docker/setup-qemu-action@v2
+      with:
+        platforms: riscv64
 
-    - name: Install compiler
-      if: ${{ matrix.apt }}
+    - name: Install dependencies
+      if: matrix.apt
       run: |
-        sudo apt -y update
-        sudo apt -y install ${{ matrix.apt }}
+        sudo apt-get update
+        sudo apt-get install -y ${{ matrix.apt }}
+        if [ "${{ matrix.arch }}" = "riscv64" ]; then
+          sudo apt-get install -y qemu-user-static
+        fi
 
     - name: Configure CMake
-      run: >
-        cmake -B ${{ steps.strings.outputs.bin }}
-        -DCMAKE_CXX_COMPILER=${{ matrix.cxx }}
-        -DCMAKE_C_COMPILER=${{ matrix.cc }}
-        ${{ matrix.flags }} ${{ matrix.os == 'windows-latest' && matrix.cpu || '' }}
-        -DCMAKE_BUILD_TYPE=Release
-        -S ${{ github.workspace }}
+      run: |
+        mkdir -p build
+        cd build
+        cmake .. \
+          -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
+          -DCMAKE_C_COMPILER=${{ matrix.cc }} \
+          ${{ matrix.flags }} \
+          -DCMAKE_BUILD_TYPE=Release
 
     - name: Build
-      run: cmake --build ${{ steps.strings.outputs.bin }} --config Release
+      run: |
+        cd build
+        make -j$(nproc)
 
-    - name: Pack (POSIX)
-      if: matrix.os != 'windows-latest'
-      run: 7z a -ttar vtm_${{ matrix.platform }}_${{ matrix.arch }}.tar ${{ steps.strings.outputs.bin }}/vtm
+    - name: Package artifact
+      run: |
+        mkdir -p dist
+        if [ "${{ runner.os }}" = "Windows" ]; then
+          cp build/Release/vtm.exe dist/vtm-${{ matrix.platform }}-${{ matrix.arch }}.exe
+        else
+          cp build/vtm dist/vtm-${{ matrix.platform }}-${{ matrix.arch }}
+          strip dist/vtm-${{ matrix.platform }}-${{ matrix.arch }}
+          tar -czvf dist/vtm-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz -C dist vtm-${{ matrix.platform }}-${{ matrix.arch }}
+        fi
 
-    - name: Upload Artifact (POSIX)
-      if: matrix.os != 'windows-latest'
-      uses: actions/upload-artifact@main
+    - name: Upload artifact
+      uses: actions/upload-artifact@v3
       with:
-        name: vtm_${{ matrix.platform }}_${{ matrix.arch }}
-        path: vtm_${{ matrix.platform }}_${{ matrix.arch }}.tar
-
-    - name: Upload Symbols (Windows)
-      if: matrix.os == 'windows-latest'
-      uses: actions/upload-artifact@main
-      with:
-        name: vtm_pdb_${{ matrix.platform }}_${{ matrix.arch }}
-        path: ${{ steps.strings.outputs.bin }}/Release/vtm.pdb
-
-    - name: Upload Artifact (Windows)
-      if: matrix.os == 'windows-latest'
-      uses: actions/upload-artifact@main
-      with:
-        name: vtm_${{ matrix.platform }}_${{ matrix.arch }}
-        path: ${{ steps.strings.outputs.bin }}/Release/vtm.exe
+        name: vtm-${{ matrix.platform }}-${{ matrix.arch }}
+        path: dist/vtm-${{ matrix.platform }}-${{ matrix.arch }}*
