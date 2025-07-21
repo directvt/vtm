@@ -39,7 +39,7 @@ jobs:
             cxx: cl
           - os: ubuntu-22.04
             cpu: x64
-            apt: g++-12 gcc-12 libevdev-dev
+            apt: g++-12 gcc-12
             cxx: /usr/bin/g++-12
             cc: /usr/bin/gcc-12
           - os: ubuntu-22.04

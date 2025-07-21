@@ -4104,7 +4104,7 @@ namespace netxs::os
                                               : dtvt::vtmode & ui::console::vt256 ? "xterm 256-color"
                                               : dtvt::vtmode & ui::console::vtrgb ? "xterm truecolor"
                                                                                   : "xterm VT2D (truecolor with 2D Character Geometry support)");
-                log(prompt::os, "Mouse mode: ", dtvt::vtmode & ui::console::mouse ? "PS/2"
+                log(prompt::os, "Mouse mode: ", dtvt::vtmode & ui::console::mouse ? "Kernel input device"
                                               : dtvt::vtmode & ui::console::nt    ? "Win32 Console API"
                                                                                   : "VT-style");
             }
