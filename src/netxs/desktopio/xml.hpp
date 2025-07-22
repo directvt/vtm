@@ -1606,35 +1606,35 @@ namespace netxs::xml
             });
 
         }
-        // settings: Looking for item_ptr by its name specified in reference_path_array.
-        void _find_last_ptr_in(sptr context_ptr, std::deque<qiew>& reference_path_array, sptr& item_ptr)
-        {
-            //1. reverse lookup inside native context
-            // ...
-            //2. reverse lookup inside base lists
-            // ...
-        }
-        // settings: Looking for item_ptr by its name.
-        void _find_local_name_ptr_in(sptr context_ptr, qiew name, sptr& item_ptr)
-        {
-            //1. reverse lookup inside native context
-            // ...
-            //2. reverse lookup inside base lists
-            // ...
-        }
-        // settings: Looking for item_ptr by its name specified in reference_path_array.
-        void _find_last_ptr(std::deque<qiew>& reference_path_array, sptr& item_ptr)
-        {
-            for (auto context_ptr : context | std::views::reverse) // Iterate contexts.
-            {
-                while (context_ptr) // Iterate parents.
-                {
-                    settings::_find_last_ptr_in(context_ptr, reference_path_array, item_ptr);
-                    if (item_ptr) return;
-                    context_ptr = context_ptr->parent_wptr.lock();
-                }
-            }
-        }
+        //// settings: Looking for item_ptr by its name specified in reference_path_array.
+        //void _find_last_ptr_in(sptr context_ptr, std::deque<qiew>& reference_path_array, sptr& item_ptr)
+        //{
+        //    //1. reverse lookup inside native context
+        //    // ...
+        //    //2. reverse lookup inside base lists
+        //    // ...
+        //}
+        //// settings: Looking for item_ptr by its name.
+        //void _find_local_name_ptr_in(sptr context_ptr, qiew name, sptr& item_ptr)
+        //{
+        //    //1. reverse lookup inside native context
+        //    // ...
+        //    //2. reverse lookup inside base lists
+        //    // ...
+        //}
+        //// settings: Looking for item_ptr by its name specified in reference_path_array.
+        //void _find_last_ptr(std::deque<qiew>& reference_path_array, sptr& item_ptr)
+        //{
+        //    for (auto context_ptr : context | std::views::reverse) // Iterate contexts.
+        //    {
+        //        while (context_ptr) // Iterate parents.
+        //        {
+        //            settings::_find_last_ptr_in(context_ptr, reference_path_array, item_ptr);
+        //            if (item_ptr) return;
+        //            context_ptr = context_ptr->parent_wptr.lock();
+        //        }
+        //    }
+        //}
         // settings: Lookup document context for item_ptr by its reference name.
         template<bool WithTemplate = faux>
         sptr _find_name(view reference_path)
