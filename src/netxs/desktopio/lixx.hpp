@@ -86,7 +86,7 @@ namespace netxs::lixx // li++, libinput++.
     static constexpr auto default_draglock_timeout_period       = 300ms;
     static constexpr auto default_drag_timeout_period_base      = 160ms;
     static constexpr auto default_drag_timeout_period_perfinger = 20ms;
-    static constexpr auto default_tap_timeout_period            = 180ms;
+    static constexpr auto default_tap_timeout_period            = 300ms; // Old laptops can't handle double taps with an interval of <200ms.
     static constexpr auto timer_warning_limit                   = 20ms; // We only warn if we're more than 20ms behind.
     static constexpr auto motion_timeout                        = 1000ms;
     static constexpr auto first_motion_time_interval            = 7ms;  // Random but good enough interval for very first event.
@@ -3316,8 +3316,6 @@ namespace netxs::lixx // li++, libinput++.
         }
         bool set_tags()
         {
-            auto xinfo = ::input_absinfo{};
-            auto yinfo = ::input_absinfo{};
             auto fd = ::open(devpath.data(), O_RDONLY | O_NONBLOCK | O_NOCTTY);
             if (fd == os::invalid_fd)
             {
@@ -3325,12 +3323,23 @@ namespace netxs::lixx // li++, libinput++.
             }
             else
             {
-                if (::ioctl(fd, EVIOCGABS(ABS_X), &xinfo) >= 0 && ::ioctl(fd, EVIOCGABS(ABS_Y), &yinfo) >= 0
-                    && xinfo.resolution > 0 && yinfo.resolution > 0)
+                auto xinfo = ::input_absinfo{};
+                auto yinfo = ::input_absinfo{};
+                if (::ioctl(fd, EVIOCGABS(ABS_X), &xinfo) >= 0 && ::ioctl(fd, EVIOCGABS(ABS_Y), &yinfo) >= 0)
                 {
-                    auto mm = [](auto& xy){ return (xy.maximum - xy.minimum) / xy.resolution; };
-                    properties["ID_INPUT_WIDTH_MM" ] = std::to_string(mm(xinfo));
-                    properties["ID_INPUT_HEIGHT_MM"] = std::to_string(mm(yinfo));
+                    //todo See tp_init_default_resolution
+                    if (std::abs(xinfo.maximum - xinfo.minimum) || std::abs(yinfo.maximum - yinfo.minimum))
+                    {
+                        if (xinfo.resolution == 0) xinfo.resolution = (xinfo.maximum - xinfo.minimum) / 70; // Fallback to 70x50mm touchpad size.
+                        if (yinfo.resolution == 0) yinfo.resolution = xinfo.resolution;                     //
+                        auto mm = [](auto& xy){ return (xy.maximum - xy.minimum) / xy.resolution; };
+                        properties["ID_INPUT_WIDTH_MM" ] = std::to_string(mm(xinfo));
+                        properties["ID_INPUT_HEIGHT_MM"] = std::to_string(mm(yinfo));
+                    }
+                    else
+                    {
+                        log("Device '%%' has no resolution info", sysname);
+                    }
                 }
                 ::close(fd);
             }
@@ -6029,7 +6038,7 @@ namespace netxs::lixx // li++, libinput++.
                         case MIDDLEBUTTON_IGNORE_R:         rc = evdev_middlebutton_ignore_r_handle_event(   stamp, event); break;
                         default: log("Invalid middle button state %d%", current); break;
                     }
-                    log("middlebutton state: %s% → %s% → %s%, rc %d%", middlebutton_state_to_str(current), middlebutton_event_to_str(event), middlebutton_state_to_str(middlebutton.state), rc);
+                    log("middlebutton state0: %s% → %s% → %s%, rc %d%", middlebutton_state_to_str(current), middlebutton_event_to_str(event), middlebutton_state_to_str(middlebutton.state), rc);
                     return rc;
                 }
                 void evdev_middlebutton_apply_config()
@@ -8265,9 +8274,11 @@ namespace netxs::lixx // li++, libinput++.
                                         ui32 tp_touch_get_edge(tp_touch& t)
                                         {
                                             auto edge = (ui32)EDGE_NONE;
-                                            if (tp.scroll.method != LIBINPUT_CONFIG_SCROLL_EDGE) return EDGE_NONE;
-                                            if (t.point.x > tp.scroll.right_edge)  edge |= EDGE_RIGHT;
-                                            if (t.point.y > tp.scroll.bottom_edge) edge |= EDGE_BOTTOM;
+                                            if (tp.scroll.method == LIBINPUT_CONFIG_SCROLL_EDGE)
+                                            {
+                                                if (t.point.x > tp.scroll.right_edge)  edge |= EDGE_RIGHT;
+                                                if (t.point.y > tp.scroll.bottom_edge) edge |= EDGE_BOTTOM;
+                                            }
                                             return edge;
                                         }
                                     bool tp_palm_detect_edge(tp_touch& t, time stamp)
@@ -8750,7 +8761,7 @@ namespace netxs::lixx // li++, libinput++.
                                     void tp_button_handle_event(tp_touch& t, button_event event, time stamp)
                                     {
                                         auto current = t.button.state;
-                                        switch(t.button.state)
+                                        switch(current)
                                         {
                                             case BUTTON_STATE_NONE:           tp_button_none_handle_event(         t, event, stamp); break;
                                             case BUTTON_STATE_AREA:           tp_button_area_handle_event(         t, event, stamp); break;
@@ -8762,7 +8773,7 @@ namespace netxs::lixx // li++, libinput++.
                                         }
                                         if (current != t.button.state)
                                         {
-                                            log("button state: touch %d% from %-20s% event %-24s% to %-20s%", t.index, button_state_to_str(current), button_event_to_str(event), button_state_to_str(t.button.state));
+                                            log("button state1: touch %d% from %-20s% event %-24s% to %-20s%", t.index, button_state_to_str(current), button_event_to_str(event), button_state_to_str(t.button.state));
                                         }
                                     }
                                     bool is_inside_bottom_button_area(tp_touch& t)
@@ -9729,7 +9740,7 @@ namespace netxs::lixx // li++, libinput++.
                                             }
                                             if (oldstate != tp.gesture.state)
                                             {
-                                                log("gesture: [%dfg%] event %s% → %s% → %s%", tp.gesture.finger_count, gesture_state_to_str(oldstate), gesture_event_to_str(event), gesture_state_to_str(tp.gesture.state));
+                                                log("gesture0: [%d%fg] event %s% → %s% → %s%", tp.gesture.finger_count, gesture_state_to_str(oldstate), gesture_event_to_str(event), gesture_state_to_str(tp.gesture.state));
                                             }
                                         }
                                     void tp_gesture_stop(time stamp)
@@ -10822,7 +10833,7 @@ namespace netxs::lixx // li++, libinput++.
                                     void tp_tap_handle_event(tp_touch& t, tap_event event, time stamp)
                                     {
                                         auto current = tp.tap.state;
-                                        switch(tp.tap.state)
+                                        switch(current)
                                         {
                                             case TAP_STATE_IDLE:                         tp_tap_idle_handle_event(                 t, event, stamp); break;
                                             case TAP_STATE_TOUCH:                        tp_tap_touch_handle_event(                t, event, stamp); break;
@@ -10860,7 +10871,7 @@ namespace netxs::lixx // li++, libinput++.
                                         }
                                         if (current != tp.tap.state)
                                         {
-                                            log("tap: touch %d% (%s%), tap state %s% → %s% → %s%", t.tp ? (si32)t.index : -1, t.tp ? touch_state_to_str(t.state) : "", tap_state_to_str(current), tap_event_to_str(event), tap_state_to_str(tp.tap.state));
+                                            log("tap: touch %d% (%s%), tap state %s% → %s% → %s%", t.tp ? (si32)t.index : -1, t.tp ? touch_state_to_str(t.state) : "TOUCH_UNKNOWN", tap_state_to_str(current), tap_event_to_str(event), tap_state_to_str(tp.tap.state));
                                         }
                                     }
                                     bool tp_thumb_ignored_for_tap(tp_touch& t)
@@ -11671,7 +11682,7 @@ namespace netxs::lixx // li++, libinput++.
                                                     states += " → ";
                                                 }
                                                 states += gesture_state_to_str(tp.gesture.state);
-                                                log("gesture: [%d%fg] state %s%", tp.gesture.finger_count, states);
+                                                log("gesture1: [%d%fg] state %s%", tp.gesture.finger_count, states);
                                             }
                                         }
                                     }
@@ -13307,7 +13318,7 @@ namespace netxs::lixx // li++, libinput++.
                     // - the udev hwdb didn't override the resolution
                     // - no ATTR_SIZE_HINT is set
                     // The majority of touchpads that triggers all these conditions are old ones, so let's assume a small touchpad size and assume that.
-                    log("no resolution or size hints, assuming a size of %d%x%d%mm", touchpad_width_mm, touchpad_height_mm);
+                    log("Device size is mx=%% my=%%. No resolution or size hints, assuming a size of %d%x%d%mm", li_device->abs.dimensions.x, li_device->abs.dimensions.y, touchpad_width_mm, touchpad_height_mm);
                     auto xres = li_device->abs.dimensions.x / touchpad_width_mm;
                     auto yres = li_device->abs.dimensions.y / touchpad_height_mm;
                     li_device->evdev->libevdev_set_abs_resolution(ABS_X, xres);
