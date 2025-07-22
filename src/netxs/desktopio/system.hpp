@@ -4019,7 +4019,7 @@ namespace netxs::os
                         dtvt::vtmode |= ui::console::mouse;
                     }
                 #endif
-                if (colorterm != "truecolor" && colorterm != "24bit")
+                if (colorterm != "truecolor" && colorterm != "24bit" &&  colorterm != "kmscon")
                 {
                     auto vt16colors = { // https://github.com//termstandard/colors
                         "ansi",
