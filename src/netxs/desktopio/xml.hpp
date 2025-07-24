@@ -1644,6 +1644,7 @@ namespace netxs::xml
                     auto& reference_name = value_placeholder->utf8;
                     if (!value_placeholder->busy)
                     {
+                        auto ctx = push_context(item_ptr);
                         value_placeholder->busy = 1;
                         if (auto base_item_ptr = settings::find_context_ptr(reference_name))
                         {

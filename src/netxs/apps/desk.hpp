@@ -405,10 +405,22 @@ namespace netxs::app::desk
             auto cA = inactive_color;
             auto c1 = danger_color;
 
+            auto NsTaskbar_tooltip      = config.settings::take("/Ns/Taskbar/taskbar_tooltip"        , ""s);
+            auto NsTaskbarGrips_tooltip = config.settings::take("/Ns/Taskbar/Grips/tooltip"          , ""s);
+            auto NsUserList_tooltip     = config.settings::take("/Ns/Taskbar/UserList/tooltip"       , ""s);
+            auto NsAdmins_label         = config.settings::take("/Ns/Taskbar/UserList/Admins/label"  , "admins"s);
+            auto NsUsers_label          = config.settings::take("/Ns/Taskbar/UserList/Users/label"   , "users"s);
+            auto NsUser_tooltip         = config.settings::take("/Ns/Taskbar/UserList/User/tooltip"  , ""s);
+            auto NsToggle_tooltip       = config.settings::take("/Ns/Taskbar/UserList/Toggle/tooltip", ""s);
+            auto NsDisconnect_label     = config.settings::take("/Ns/Taskbar/Disconnect/label"       , "Disconnect"s);
+            auto NsShutdown_label       = config.settings::take("/Ns/Taskbar/Shutdown/label"         , "Shutdown"s);
+            auto NsDisconnect_tooltip   = config.settings::take("/Ns/Taskbar/Disconnect/tooltip"     , ""s);
+            auto NsShutdown_tooltip     = config.settings::take("/Ns/Taskbar/Shutdown/tooltip"       , ""s);
+
             auto menu_bg_color = config.settings::take("/config/desktop/taskbar/colors/bground", cell{}.fgc(whitedk).bgc(0x60202020));
             auto menu_min_conf = config.settings::take("/config/desktop/taskbar/width/folded",   si32{ 5  });
             auto menu_max_conf = config.settings::take("/config/desktop/taskbar/width/expanded", si32{ 32 });
-            auto bttn_min_size = twod{ 31, 1 + tall * 2 };
+            auto bttn_min_size = twod{ 35, 1 + tall * 2 };
             auto bttn_max_size = twod{ -1, 1 + tall * 2 };
 
             auto window = ui::fork::ctor(axis::Y, 0, 0, 1);
@@ -454,7 +466,7 @@ namespace netxs::app::desk
                     ->setpad({ 1, 0, tall, tall }, { 0, 0, -tall, 0 })
                     ->active()
                     ->shader(cell::shaders::xlight, e2::form::state::hover)
-                    ->template plugin<pro::notes>(" Connected user ");
+                    ;//todo ->template plugin<pro::notes>(NsUser_tooltip);
                 return user;
             };
             auto branch_template = [user_template](auto& /*data_src*/, auto& usr_list)
@@ -602,7 +614,7 @@ namespace netxs::app::desk
                 });
             auto grips = taskbar_grips->attach(slot::_2, ui::mock::ctor())
                 ->limits({ 1, -1 }, { 1, -1 })
-                ->template plugin<pro::notes>(" LeftDrag to adjust taskbar width ")
+                ->template plugin<pro::notes>(NsTaskbarGrips_tooltip)
                 ->active()
                 //->template plugin<pro::focus>(pro::focus::mode::focusable)
                 //->shader(c3, e2::form::state::focus::count)
@@ -653,9 +665,7 @@ namespace netxs::app::desk
                 ->setpad({}, { 0, 0, 0, -tall }); // To place above Disconnect button.
             auto applist_area = apps_users->attach(slot::_1, ui::cake::ctor());
             auto tasks_scrl = applist_area->attach(ui::rail::ctor(axes::Y_only))
-                ->plugin<pro::notes>(" Desktop Taskbar                     \n"
-                                     "   RightDrag to scroll menu up/down  \n"
-                                     "   LeftDrag to move desktop viewport ")
+                ->plugin<pro::notes>(NsTaskbar_tooltip)
                 ->active()
                 ->invoke([&](auto& boss)
                 {
@@ -667,8 +677,8 @@ namespace netxs::app::desk
                 });
             auto users_area = apps_users->attach(slot::_2, ui::list::ctor());
             auto label_bttn = users_area->attach(ui::fork::ctor(axis::X))
-                                        ->plugin<pro::notes>(" List of active connections ");
-            auto label = label_bttn->attach(slot::_1, ui::item::ctor(os::process::elevated ? "admins" : "users"))
+                                        ->plugin<pro::notes>(NsUserList_tooltip);
+            auto label = label_bttn->attach(slot::_1, ui::item::ctor(os::process::elevated ? NsAdmins_label : NsUsers_label))
                 ->flexible()
                 ->accented()
                 ->colors(cA)
@@ -678,7 +688,7 @@ namespace netxs::app::desk
             auto bttn = label_bttn->attach(slot::_2, ui::item::ctor(userlist_hidden ? "…" : "<"))
                 ->active()
                 ->shader(cell::shaders::xlight, e2::form::state::hover)
-                ->plugin<pro::notes>(" Show/hide user list ")
+                ->plugin<pro::notes>(NsToggle_tooltip)
                 ->setpad({ 2, 2, tall, tall });
             auto userlist_area = users_area->attach(ui::cake::ctor())
                 ->setpad({}, { 0, 0, -tall, 0 }) // To place above the admins/users label.
@@ -727,7 +737,7 @@ namespace netxs::app::desk
             auto disconnect_park = bttns->attach(slot::_1, ui::cake::ctor())
                 ->active()
                 ->shader(cell::shaders::xlight, e2::form::state::hover)
-                ->plugin<pro::notes>(" Leave current session ")
+                ->plugin<pro::notes>(NsDisconnect_tooltip)
                 ->invoke([&, name = text{ username_view }](auto& boss)
                 {
                     boss.on(tier::mouserelease, input::key::LeftClick, [&, name](hids& gear)
@@ -737,13 +747,13 @@ namespace netxs::app::desk
                         gear.dismiss(true);
                     });
                 });
-            auto disconnect = disconnect_park->attach(ui::item::ctor("× Disconnect"))
+            auto disconnect = disconnect_park->attach(ui::item::ctor(NsDisconnect_label))
                 ->setpad({ 1 + tall, 1 + tall, tall, tall })
                 ->alignment({ snap::head, snap::center });
             auto shutdown_park = bttns->attach(slot::_2, ui::cake::ctor())
                 ->active()
                 ->shader(c1, e2::form::state::hover)
-                ->plugin<pro::notes>(" Disconnect all users and shutdown ")
+                ->plugin<pro::notes>(NsShutdown_tooltip)
                 ->invoke([&](auto& boss)
                 {
                     boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
@@ -752,7 +762,7 @@ namespace netxs::app::desk
                         gear.dismiss(true);
                     });
                 });
-            auto shutdown = shutdown_park->attach(ui::item::ctor("× Shutdown"))
+            auto shutdown = shutdown_park->attach(ui::item::ctor(NsShutdown_label))
                 ->setpad({ 1 + tall, 1 + tall, tall, tall })
                 ->alignment({ snap::tail, snap::center });
             return window;
