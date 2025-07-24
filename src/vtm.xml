@@ -185,6 +185,7 @@ R"==(
                 <none      fx="color"  fgc=whitedk bgc=blacklt/>  <!-- Inactive selection color. -->
             </selection>
             <names=/X11ColorNames>  <!-- Color names for OSC 4,10-12. -->
+                <!--  <name="New Dark Orange" rgb= #FF8C00 /> -->
             </names>
         </colors>
         <border=0/>  <!-- Width of the left and right border of the terminal window. -->

@@ -739,7 +739,7 @@ Notes
 <include="~/.config/vtm/settings.xml"/>   <!-- Default user-wise settings source. -->
 
 <!-- App configuration. -->
-<config=/Colors | /Scripting | /Macro> <!-- Using additional namespaces: "/Colors", "/Scripting" and "/Macro" -->
+<config=/Colors | /Scripting | /Macro>  <!-- Using additional namespaces: "/Colors", "/Scripting" and "/Macro". -->
     <gui>  <!-- GUI mode related settings. (win32 platform only for now) -->
         <antialiasing=off/>   <!-- Antialiasing of rendered glyphs. Note: Multi-layered color glyphs such as emoji are always antialiased. -->
         <cellheight=22/>      <!-- Text cell height in physical pixels. Note: The width of the text cell depends on the primary font (the first one in the font list). -->
@@ -781,8 +781,8 @@ Notes
         <format="html"/>  <!-- Default clipboard format for screenshots: "text" | "ansi" | "rich" | "html" | "protected" . -->
     </clipboard>
     <colors>  <!-- Along with fgc, bgc and txt, other SGR attributes (boolean) are allowed here: itc: italic, bld: bold, und: underline, inv: reverse, ovr: overline, blk: blink. -->
-        <window   fgc=whitelt   bgc= #40404080        />  <!-- Base desktop window color. -->
-        <focus    fgc=purewhite bgc=bluelt            />  <!-- Focused item tinting. -->
+        <window   fgc=whitelt   bgc= #404040          />  <!-- Color of the unfocused desktop window. -->
+        <focus    fgc=purewhite bgc= #3A528E          />  <!-- Color of the focused window. -->
         <brighter fgc=purewhite bgc=purewhite alpha=60/>  <!-- Brighter. -->
         <shadower               bgc= #202020B4        />  <!-- Dimmer. -->
         <warning  fgc=whitelt   bgc=yellowdk          />  <!-- "Warning" color. -->
@@ -814,12 +814,7 @@ Notes
         <macstyle=false/>  <!-- Preferred window control buttons location. no: right corner (like on MS Windows), yes: left side (like on macOS). -->
         <taskbar wide=false selected="Term">  <!-- Taskbar menu. wide: Set wide/compact menu layout; selected: Set selected taskbar menu item id. -->
             <item*/>  <!-- Clear all previously defined items. Start a new list of items. -->
-            <item splitter label="apps">
-                <tooltip>
-                    " \e[1mDefault applications group\e[m                         \n"
-                    " It can be configured in ~/.config/vtm/settings.xml "
-                </tooltip>
-            </item>
+            <item splitter label=/Ns/Taskbar/Apps/label tooltip=/Ns/Taskbar/Apps/tooltip/>
             <item id="Term" label="Terminal Emulator" type="dtvt" title="Terminal" cmd="$0 -r term">
                 <tooltip>
                     " \e[1mTerminal Console\e[m               \n"
@@ -1098,7 +1093,6 @@ Notes
     </events>
 </config>
 
-<!-- Globals - Unresolved literals will try to be resolved from here. -->
 <Macro>
     <true  = 1 />
     <yes   = 1 />
@@ -1119,8 +1113,10 @@ Notes
                 <on="release: e2::form::upon::started" source="applet"/>
                 <on="release: e2::form::prop::zorder"  source="applet"/>
                 local is_topmost=vtm.applet.ZOrder()
-                vtm.item.Label(is_topmost==1 and "\e[2:247;38:2:0:255:0m▀\e[2:239m \e[m" or "  ")
-                vtm.item.Tooltip(is_topmost==1 and " AlwaysOnTop on " or " AlwaysOnTop off ")
+                <br/>
+                'vtm.item.Label(is_topmost==1 and "'   | /Ns/AlwaysOnTop/on/label   | '" or "' | /Ns/AlwaysOnTop/off/label   | '")\n'
+                'vtm.item.Tooltip(is_topmost==1 and "' | /Ns/AlwaysOnTop/on/tooltip | '" or "' | /Ns/AlwaysOnTop/off/tooltip | '")\n'
+                <br/>
                 vtm.item.Deface()
             </script>
         </AlwaysOnTop>
@@ -1194,10 +1190,50 @@ Notes
                 vtm.item.Deface()
             </script>
         </StdioLog>
-        <ClearScrollback label="  Clear  "   tooltip=" Clear scrollback "                 script=OnLeftClick|TerminalClearScrollback/>
-        <Restart         label="  Restart  " tooltip=" Restart current terminal session " script=OnLeftClick|TerminalRestart/>
+        <ClearScrollback=/Ns/ClearScrollback script=OnLeftClick|TerminalClearScrollback/>
+        <Restart        =/Ns/Restart         script=OnLeftClick|TerminalRestart/>
     </Buttons>
 </Menu>
+
+<Ns=en-US>  <!-- Localization. Set it to 'Ns=en-US|en-GB' for "en-GB" locale with fallback to "en-US". -->
+    <en-US>
+        <AlwaysOnTop>
+            <on  label="\e[2:247;38:2:0:255:0m▀\e[2:239m \e[m" tooltip=" AlwaysOnTop on "/>
+            <off label="  "                                    tooltip=" AlwaysOnTop off "/>
+        </AlwaysOnTop>
+        <ClearScrollback label="  Clear  "   tooltip=" Clear scrollback "/>
+        <Restart         label="  Restart  " tooltip=" Restart current terminal session "/>
+        <Taskbar>
+            <Apps label="apps">
+                <tooltip>
+                    "\e[1m"" Default applications group                         ""\e[m\n"
+                           " It can be configured in ~/.config/vtm/settings.xml "
+                </tooltip>
+            </Apps>
+        </Taskbar>
+    </en-US>
+    <en-GB>
+        <Taskbar>
+            <Apps label="applets"/>
+        </Taskbar>
+    </en-GB>
+    <ru-RU>
+        <AlwaysOnTop>
+            <on  tooltip=" Поверх всех окон вкл. "/>
+            <off tooltip=" Поверх всех окон выкл. "/>
+        </AlwaysOnTop>
+        <ClearScrollback label="  Очистить  " tooltip=" Очистить скроллбэк буфер "/>
+        <Restart         label="  Рестарт  "  tooltip=" Перезапустить текущую сессию терминала "/>
+        <Taskbar>
+            <Apps label="проги">
+                <tooltip>
+                    "\e[1m"" Группа приложений по-умолчанию                    ""\e[m\n"
+                           " Список настраивается в ~/.config/vtm/settings.xml "
+                </tooltip>
+            </Apps>
+        </Taskbar>
+    </ru-RU>
+</Ns>
 
 <Colors>
     <DefaultColor = 0x00ffffff />
