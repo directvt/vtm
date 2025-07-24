@@ -97,7 +97,7 @@ R"==(
                             <item=/Menu/Buttons/AlwaysOnTop/>
                             <item=/Menu/Buttons/FindPrev/>
                             <item=/Menu/Buttons/FindNext/>
-                            <item=/Menu/Buttons/WrapMode/>
+                            <item=/Menu/Buttons/NoWrapMode/>
                             <item=/Menu/Buttons/ClipboardFormat/>
                             <item=/Menu/Buttons/ClearScrollback/>
                         </menu>
@@ -191,7 +191,7 @@ R"==(
             <item=/Menu/Buttons/FindPrev/>
             <item=/Menu/Buttons/FindNext/>
             <item=/Menu/Buttons/ExclusiveKeyboard/>
-            <item=/Menu/Buttons/WrapMode/>
+            <item=/Menu/Buttons/NoWrapMode/>
             <item=/Menu/Buttons/ClipboardFormat/>
             <item=/Menu/Buttons/StdioLog/>
             <item=/Menu/Buttons/ClearScrollback/>
@@ -221,14 +221,14 @@ R"==(
                     " The app to run can be set by RightClick on the taskbar. "
                 </tooltip>
             </item>
-            <item label="  :::  " tooltip=" Select all panes "                                     script=OnLeftClick|TileSelectAllPanes    />
-            <item label="   │   " tooltip=" Split active panes horizontally "                      script=OnLeftClick|TileSplitHorizontally />
-            <item label="  ──  "  tooltip=" Split active panes vertically "                        script=OnLeftClick|TileSplitVertically   />
-            <item label="  ┌┘  "  tooltip=" Change split orientation "                             script=OnLeftClick|TileSplitOrientation  />
-            <item label="  <->  " tooltip=" Swap two or more panes "                               script=OnLeftClick|TileSwapPanes         />
-            <item label="  >|<  " tooltip=" Equalize split ratio "                                 script=OnLeftClick|TileEqualizeSplitRatio/>
-            <item label='  "…"  ' tooltip=" Set tiling window manager title using clipboard data " script=OnLeftClick|TileSetManagerTitle   />
-            <item label="  ×  "   tooltip=" Close active application "                             script=OnLeftClick|TileClosePane         />
+            <item label="  :::  " tooltip=/Ns/Tile/SelectAllPanes/tooltip     script=OnLeftClick|TileSelectAllPanes    />
+            <item label="   │   " tooltip=/Ns/Tile/SplitHorizontally/tooltip  script=OnLeftClick|TileSplitHorizontally />
+            <item label="  ──  "  tooltip=/Ns/Tile/SplitVertically/tooltip    script=OnLeftClick|TileSplitVertically   />
+            <item label="  ┌┘  "  tooltip=/Ns/Tile/SplitOrientation/tooltip   script=OnLeftClick|TileSplitOrientation  />
+            <item label="  <->  " tooltip=/Ns/Tile/SwapPanes/tooltip          script=OnLeftClick|TileSwapPanes         />
+            <item label="  >|<  " tooltip=/Ns/Tile/EqualizeSplitRatio/tooltip script=OnLeftClick|TileEqualizeSplitRatio/>
+            <item label='  "…"  ' tooltip=/Ns/Tile/SetManagerTitle/tooltip    script=OnLeftClick|TileSetManagerTitle   />
+            <item label="  ×  "   tooltip=/Ns/Tile/ClosePane/tooltip          script=OnLeftClick|TileClosePane         />
             <!-- <item label="  <  "   tooltip=" Focus the previous pane or the split grip " script=OnLeftClick|TileFocusPrev    /> -->
             <!-- <item label="  >  "   tooltip=" Focus the next pane or the split grip "     script=OnLeftClick|TileFocusNext    /> -->
             <!-- <item label="  <-  "  tooltip=" Focus the previous pane "                   script=OnLeftClick|TileFocusPrevPane/> -->
@@ -388,10 +388,6 @@ R"==(
                 <on="release: e2::form::upon::started" source="applet"/>
                 <on="release: e2::form::prop::zorder"  source="applet"/>
                 local is_topmost=vtm.applet.ZOrder()
-                --if (is_topmost==1) vtm.settings.cd("/Ns/AlwaysOnTop/on/")
-                --else               vtm.settings.cd("/Ns/AlwaysOnTop/off/")
-                --vtm.item.Label(vtm.settings.get("label"))
-                --vtm.item.Tooltip(vtm.settings.get("tooltip"))\n
                 <br/>
                 'vtm.item.Label(is_topmost==1 and "'   | /Ns/AlwaysOnTop/on/label   | '" or "' | /Ns/AlwaysOnTop/off/label   | '")\n'
                 'vtm.item.Tooltip(is_topmost==1 and "' | /Ns/AlwaysOnTop/on/tooltip | '" or "' | /Ns/AlwaysOnTop/off/tooltip | '")\n'
@@ -399,73 +395,56 @@ R"==(
                 vtm.item.Deface()
             </script>
         </AlwaysOnTop>
-        <FindPrev label="  <  " script=OnLeftClick|TerminalFindPrev>
-            <tooltip>
-                " \e[1mPrevious match           Alt+LeftArrow\e[m  \n"
-                "   Click to jump to the previous match   \n"
-                "   Match clipboard data if no selection  "
-            </tooltip>
-        </FindPrev>
-        <FindNext label="  >  " script=OnLeftClick|TerminalFindNext>
-            <tooltip>
-                " \e[1mNext match              Alt+RightArrow\e[m  \n"
-                "   Click to jump to the next match       \n"
-                "   Match clipboard data if no selection  "
-            </tooltip>
-        </FindNext>
+        <FindPrev label="  <  " script=OnLeftClick|TerminalFindPrev tooltip=/Ns/FindPrev/tooltip/>
+        <FindNext label="  >  " script=OnLeftClick|TerminalFindNext tooltip=/Ns/FindNext/tooltip/>
         <ExclusiveKeyboard script=OnLeftClick|ExclusiveKeyboardMode>
-            <tooltip>
-                " \e[1mToggle exclusive keyboard mode\e[m              \n"
-                "   Exclusive keyboard mode allows keystrokes \n"
-                "   to be passed through without processing   "
-            </tooltip>
             <script>
                 <on="release: e2::form::upon::started"  source="applet"/>
                 <on="release: terminal::events::rawkbd" source="terminal"/>
                 local m=vtm.terminal.ExclusiveKeyboardMode()
-                vtm.item.Label(m==1 and "\e[2:247m \e[2:231;38:2:0:255:0m Exclusive \e[2:239m \e[m" or "  Exclusive  ")
-                vtm.item.Tooltip(m==1 and " ExclusiveKeyboardMode on " or " ExclusiveKeyboardMode off ")
+                <br/>
+                'vtm.item.Label(m==1 and "'   | /Ns/ExclusiveKeyboard/on/label   | '" or "' | /Ns/ExclusiveKeyboard/off/label   | '")\n'
+                'vtm.item.Tooltip(m==1 and "' | /Ns/ExclusiveKeyboard/on/tooltip | '" or "' | /Ns/ExclusiveKeyboard/off/tooltip | '")\n'
+                <br/>
                 vtm.item.Deface()
             </script>
         </ExclusiveKeyboard>
-        <WrapMode script=OnLeftClick|TerminalWrapMode>
+        <NoWrapMode script=OnLeftClick|TerminalWrapMode>
             <script>
                 <on="release: e2::form::upon::started"          source="applet"/>
                 <on="release: terminal::events::layout::wrapln" source="terminal"/>
                 local m=vtm.terminal.LineWrapMode()
-                vtm.item.Label(m~=1 and "\e[2:247m \e[2:231;38:2:0:255:0mNoWrap\e[2:239m \e[m" or " NoWrap ")
-                vtm.item.Tooltip(m~=1 and " \e[1mText line wrapping mode\e[m  \\n Text wrapping off        " or " \e[1mText line wrapping mode\e[m  \\n Text wrapping on         ")
+                <br/>
+                'vtm.item.Label(m~=1 and "'   | /Ns/NoWrapMode/on/label   | '" or "' | /Ns/NoWrapMode/off/label   | '")\n'
+                'vtm.item.Tooltip(m~=1 and "' | /Ns/NoWrapMode/on/tooltip | '" or "' | /Ns/NoWrapMode/off/tooltip | '")\n'
+                <br/>
                 vtm.item.Deface()
             </script>
-        </WrapMode>
-        <ClipboardFormat tooltip=" Clipboard format " script=OnLeftClick|TerminalClipboardFormat>
+        </NoWrapMode>
+        <ClipboardFormat tooltip=/Ns/ClipboardFormat/tooltip script=OnLeftClick|TerminalClipboardFormat>
             <script>
                 <on="release: e2::form::upon::started"  source="applet"/>
                 <on="release: terminal::events::selmod" source="terminal"/>
                 local m=vtm.terminal.ClipboardFormat()
-                vtm.item.Label(m==1 and "\e[38:2:0:255:0m  Plaintext  \e[m"     -- "textonly"
-                            or m==2 and "\e[38:2:255:255:0m  ANSI-text  \e[m"   -- "ansitext"
-                            or m==3 and "\e[38:2:109:231:237m  ".."R"..
-                                        "\e[38:2:109:237:186m"  .."T"..
-                                        "\e[38:2:60:255:60m"    .."F"..
-                                        "\e[38:2:189:255:53m"   .."-"..
-                                        "\e[38:2:255:255:49m"   .."s"..
-                                        "\e[38:2:255:189:79m"   .."t"..
-                                        "\e[38:2:255:114:94m"   .."y"..
-                                        "\e[38:2:255:60:157m"   .."l"..
-                                        "\e[38:2:255:49:214m"   .."e".."  \e[m" -- "richtext"
-                            or m==4 and "\e[38:2:0:255:255m  HTML-code  \e[m"   -- "htmltext"
-                            or m==5 and "\e[38:2:0:255:255m  Protected  \e[m"   -- "safetext" ala protected
-                            or          "  Clipboard  ")                        -- "disabled"
+                <br/>
+                'vtm.item.Label(m==1 and "' | /Ns/ClipboardFormat/textonly/label | '"'
+                '            or m==2 and "' | /Ns/ClipboardFormat/ansitext/label | '"'
+                '            or m==3 and "' | /Ns/ClipboardFormat/richtext/label | '"'
+                '            or m==4 and "' | /Ns/ClipboardFormat/htmltext/label | '"'
+                '            or m==5 and "' | /Ns/ClipboardFormat/safetext/label | '"'
+                '            or          "' | /Ns/ClipboardFormat/disabled/label | '")'
+                <br/>
                 vtm.item.Deface()
             </script>
         </ClipboardFormat>
-        <StdioLog tooltip=" \e[1mConsole logging\e[m        \n Use Logs to see output " script=OnLeftClick|TerminalStdioLog>
+        <StdioLog tooltip=/Ns/StdioLog/tooltip script=OnLeftClick|TerminalStdioLog>
             <script>
                 <on="release: e2::form::upon::started"  source="applet"/>
                 <on="release: terminal::events::io_log" source="terminal"/>
                 local m=vtm.terminal.LogMode()
-                vtm.item.Label(m==1 and "\e[2:247m \e[2:231;38:2:0:255:0m Log \e[2:239m \e[m" or "  Log  ")
+                <br/>
+                'vtm.item.Label(m==1 and "' | /Ns/StdioLog/on/label | '" or "' | /Ns/StdioLog/off/label | '")'
+                <br/>
                 vtm.item.Deface()
             </script>
         </StdioLog>
@@ -493,11 +472,81 @@ R"==(
                 "\e[m\n""   LeftClick to launch instance ""\n"
                         "   RightClick to set as default "
             </tooltip_footer>
-            <Terminal label="Terminal Emulator" title="Terminal"       tooltip="\e[1m Terminal Console                \e[m\n"|tooltip_footer/>
-            <Tile     label="Window Manager"    title="Window Manager" tooltip="\e[1m Tiling Window Manager           \e[m\n"|tooltip_footer/>
-            <Site     label="Viewport Marker"   title="Site "          tooltip="\e[1m Desktop Viewport Marker         \e[m\n"|tooltip_footer/>
-            <Logs     label="Log Monitor"       title="Log Monitor"    tooltip="\e[1m Log Monitor                     \e[m\n"|tooltip_footer/>
+            <Terminal    label="Terminal Emulator" title="Terminal"       tooltip="\e[1m Terminal Console                \e[m\n"|tooltip_footer/>
+            <Tile        label="Window Manager"    title="Window Manager" tooltip="\e[1m Tiling Window Manager           \e[m\n"|tooltip_footer/>
+            <Site        label="Viewport Marker"   title="Site "          tooltip="\e[1m Desktop Viewport Marker         \e[m\n"|tooltip_footer/>
+            <Logs        label="Log Monitor"       title="Log Monitor"    tooltip="\e[1m Log Monitor                     \e[m\n"|tooltip_footer/>
+            <Grips    tooltip=" LeftDrag to adjust taskbar width "/>
+            <UserList tooltip=" List of active connections ">
+                <Admins label="admins"/>
+                <Users  label="users"/>
+                <User   tooltip=" Connected user "/>
+                <Toggle tooltip=" Show/hide user list "/>
+            </UserList>
+            <Disconnect  label="× Disconnect" tooltip=" Leave current session "/>
+            <Shutdown    label="× Shutdown"   tooltip=" Disconnect all users and shutdown "/>
         </Taskbar>
+        <Tile>
+            <SelectAllPanes     tooltip=" Select all panes "                                    />
+            <SplitHorizontally  tooltip=" Split active panes horizontally "                     />
+            <SplitVertically    tooltip=" Split active panes vertically "                       />
+            <SplitOrientation   tooltip=" Change split orientation "                            />
+            <SwapPanes          tooltip=" Swap two or more panes "                              />
+            <EqualizeSplitRatio tooltip=" Equalize split ratio "                                />
+            <SetManagerTitle    tooltip=" Set tiling window manager title using clipboard data "/>
+            <ClosePane          tooltip=" Close active application "                            />
+        </Tile>
+        <FindPrev>
+            <tooltip>
+                "\e[1m"" Previous match           Alt+LeftArrow  ""\e[m\n"
+                       "   Click to jump to the previous match   ""\n"
+                       "   Match clipboard data if no selection  "
+            </tooltip>
+        </FindPrev>
+        <FindNext>
+            <tooltip>
+                "\e[1m"" Next match              Alt+RightArrow  ""\e[m\n"
+                       "   Click to jump to the next match       ""\n"
+                       "   Match clipboard data if no selection  "
+            </tooltip>
+        </FindNext>
+        <ExclusiveKeyboard>
+            <tooltip_body>
+                "\e[1m"" Toggle exclusive keyboard mode          "|state|" \e[m\\n"
+                       "   Exclusive keyboard mode allows keystrokes ""\\n"
+                       "   to be passed through without processing   "
+            </tooltip_body>
+            <on  label="\e[2:247m \e[2:231;38:2:0:255:0m Exclusive \e[2:239m \e[m" state=" ON" tooltip=tooltip_body/>
+            <off label="  Exclusive  "                                             state="OFF" tooltip=tooltip_body/>
+        </ExclusiveKeyboard>
+        <NoWrapMode>
+            <on  label="\e[2:247m \e[2:231;38:2:0:255:0mNoWrap\e[2:239m \e[m" tooltip=" \e[1mText line wrapping mode\e[m  \\n Text wrapping off        "/>
+            <off label=                               " NoWrap "              tooltip=" \e[1mText line wrapping mode\e[m  \\n Text wrapping on         "/>
+        </NoWrapMode>
+        <ClipboardFormat tooltip=" Clipboard format ">
+                <textonly label=  "\e[38:2:0:255:0m  Plaintext  \e[m"/>
+                <ansitext label="\e[38:2:255:255:0m  ANSI-text  \e[m"/>
+                <htmltext label="\e[38:2:0:255:255m  HTML-code  \e[m"/>
+                <safetext label="\e[38:2:0:255:255m  Protected  \e[m"/>
+                <disabled label=                  "  Clipboard  "/>
+                <richtext>
+                    <label>
+                        "\e[38:2:109:231:237m  ""R"
+                        "\e[38:2:109:237:186m"  "T"
+                        "\e[38:2:60:255:60m"    "F"
+                        "\e[38:2:189:255:53m"   "-"
+                        "\e[38:2:255:255:49m"   "s"
+                        "\e[38:2:255:189:79m"   "t"
+                        "\e[38:2:255:114:94m"   "y"
+                        "\e[38:2:255:60:157m"   "l"
+                        "\e[38:2:255:49:214m"   "e""  \e[m"
+                    </label>
+                </richtext>
+        </ClipboardFormat>
+        <StdioLog tooltip=" \e[1mConsole logging\e[m        \n Use Logs to see output ">
+            <on  label="\e[2:247m \e[2:231;38:2:0:255:0m Log \e[2:239m \e[m"/>
+            <off label="  Log  "/>
+        </StdioLog>
     </en-US>
     <en-GB>
         <Taskbar>
@@ -512,6 +561,11 @@ R"==(
         <ClearScrollback label="  Очистить  " tooltip=" Очистить скроллбэк буфер "/>
         <Restart         label="  Рестарт  "  tooltip=" Перезапустить текущую сессию терминала "/>
         <Taskbar>
+            <taskbar_tooltip>
+                "\e[1m"" Desktop Taskbar                     ""\e[m\n"
+                       "   RightDrag to scroll menu up/down  ""\n"
+                       "   LeftDrag to move desktop viewport "
+            </taskbar_tooltip>
             <Apps label="программы">
                 <tooltip>
                     "\e[1m"" Группа приложений по-умолчанию                    ""\e[m\n"
@@ -526,7 +580,82 @@ R"==(
             <Tile     label="Тайловый менеджер"      title="Тайловый оконный менеджер" tooltip="\e[1m Тайловый оконный менеджер                      \e[m\n"|tooltip_footer/>
             <Site     label="Маркер рабочей области" title=label                       tooltip="\e[1m Маркер рабочей области                         \e[m\n"|tooltip_footer/>
             <Logs     label="Монитор сообщений"      title=label                       tooltip="\e[1m Монитор сообщений среды                        \e[m\n"|tooltip_footer/>
+            <Grips    tooltip=" Потяните мышью для изменения ширины панели задач "/>
+            <UserList tooltip=" Список подключенных пользователей ">
+                <Admins label="админы"/>
+                <Users  label="пользователи"/>
+                <User   tooltip=" Подключенный пользователь "/>
+                <Toggle tooltip=" Показать/скрыть список пользователей "/>
+            </UserList>
+            <Disconnect  label="× Отключиться"      tooltip=" Отключиться и оставить текущий сеанс работающим "/>
+            <Shutdown    label="× Завершить работу" tooltip=" Отключить всех пользователей и завершить работу рабочего стола "/>
         </Taskbar>
+        <Tile>
+            <SelectAllPanes     tooltip=" Установить фокус на все слоты (активировать) "                    />
+            <SplitHorizontally  tooltip=" Разделить активные слоты горизонтально "                          />
+            <SplitVertically    tooltip=" Разделить активные слоты вертикально "                            />
+            <SplitOrientation   tooltip=" Повернуть разделение на 90 градусов "                             />
+            <SwapPanes          tooltip=" Поменять слоты местами по кругу "                                 />
+            <EqualizeSplitRatio tooltip=" Выровнять соотношение разделения слотов "                         />
+            <SetManagerTitle    tooltip=" Установить заголовок менеджера, используя текст из буфера обмена "/>
+            <ClosePane          tooltip=" Закрыть приложения в активных слотах "                            />
+        </Tile>
+        <FindPrev>
+            <tooltip>
+                "\e[1m"" Предыдущее совпадение                     Alt+LeftArrow  ""\e[m\n"
+                       "   Переход к предыдущему совпадению по клику              ""\n"
+                       "   Поиск текста из буфера обмена, если ничего не выделено "
+            </tooltip>
+        </FindPrev>
+        <FindNext>
+            <tooltip>
+                "\e[1m"" Следующее совпадение                      Alt+RightArrow  ""\e[m\n"
+                       "   Переход к следующему совпадению по клику                ""\n"
+                       "   Поиск текста из буфера обмена, если ничего не выделено  "
+            </tooltip>
+        </FindNext>
+        <ExclusiveKeyboard>
+            <tooltip_body>
+                "\e[1m"" Переключатель эксклюзивного режима клавиатуры   "|state|" \e[m\\n"
+                       "   Эксклюзивный режим позволяет напрявлять приложению ""\\n"
+                       "   нажатия клавиш напрямую, без перехвата и обработки "
+            </tooltip_body>
+            <on  state=" ВКЛ" tooltip=tooltip_body/>
+            <off state="ВЫКЛ" tooltip=tooltip_body/>
+        </ExclusiveKeyboard>
+)==" // MSVC2022: C2026 String too big, trailing characters truncated.
+R"==(
+        <NoWrapMode>
+            <on  label="\e[2:247m \e[2:231;38:2:0:255:0mРазвернуть\e[2:239m \e[m" tooltip=" \e[1mАвтоперенос строк текста\e[m  \\n  Автоперенос ВЫКЛ        "/>
+            <off label=                               " Завернуть  "              tooltip=" \e[1mАвтоперенос строк текста\e[m  \\n  Автоперенос  ВКЛ        "/>
+        </NoWrapMode>
+        <ClipboardFormat tooltip=" Формат буфера обмена ">
+            <textonly label=  "\e[38:2:0:255:0m  Только текст  \e[m"/>
+            <ansitext label="\e[38:2:255:255:0m  ANSI-графика  \e[m"/>
+            <htmltext label="\e[38:2:0:255:255m  HTML-сниппет  \e[m"/>
+            <safetext label="\e[38:2:0:255:255m  Скрытый блок  \e[m"/>
+            <disabled label=                  "  Без выделения "/>
+            <richtext>
+                <label>
+                    "\e[38:2:109:231:237m  ""R"
+                    "\e[38:2:109:237:186m"  "T"
+                    "\e[38:2:60:255:60m"    "F"
+                    "\e[38:2:189:255:53m"   "-"
+                    "\e[38:2:255:255:49m"   "р"
+                    "\e[38:2:255:189:79m"   "а"
+                    "\e[38:2:255:189:79m"   "з"
+                    "\e[38:2:255:114:94m"   "м"
+                    "\e[38:2:255:114:94m"   "е"
+                    "\e[38:2:255:60:157m"   "т"
+                    "\e[38:2:255:60:157m"   "к"
+                    "\e[38:2:255:49:214m"   "а""  \e[m"
+                </label>
+            </richtext>
+        </ClipboardFormat>
+        <StdioLog tooltip=" \e[1mСистемные сообщения                           \e[m\n Используйте Монитор сообщений для мониторинга ">
+            <on  label="\e[2:247m \e[2:231;38:2:0:255:0m Логи \e[2:239m \e[m"/>
+            <off label="  Логи  "/>
+        </StdioLog>
     </ru-RU>
 </Ns>
 
