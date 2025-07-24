@@ -1501,7 +1501,7 @@ namespace netxs::xml
             return context_path;
         }
         // settings: Push document context by name.
-        auto push_context(sptr new_context_ptr)
+        [[nodiscard]] auto push_context(sptr new_context_ptr)
         {
             struct pop_ctx
             {
@@ -1532,142 +1532,107 @@ namespace netxs::xml
             auto iterator = context.emplace(context.end(), new_context_ptr);
             return pop_ctx(context, iterator);
         }
-        auto push_context(qiew context_path)
+        [[nodiscard]] auto push_context(qiew context_path)
         {
-            auto new_context_ptr = settings::_find_name<true>(context_path);
+            auto new_context_ptr = settings::find_context_ptr(context_path);
             return settings::push_context(new_context_ptr);
         }
         friend auto& operator << (std::ostream& s, settings const& p)
         {
             return s << p.document.page.show();
         }
-        // settings: Lookup document context for item_ptr by its reference name path.
-        void _find_namepath(view path_str, sptr& item_ptr)
+        //Configuration requests:
+        //sptr item_ptr = conf.take_ptr(ctx_ptr, "/path/to/item");  // Take item_ptr by absolute path.
+        //text item_str = conf.take_str("/path/to/item");           // Take value of item_ptr by absolute path.
+        //conf.push_context(item_ptr);                              // Make item_ptr the current context.
+                                                                    // Element namespace includes:
+                                                                    //  - Namespaces of nested elements inside the base lists (<item_ptr=ref1|ref2/>).
+                                                                    //  - Namespaces of nested elements (<item_ptr obj1 obj2/>).
+        //sptr item_ptr = conf.take_ptr(ctx_ptr, "rel/path/name");  // Take item_ptr by relative path inside the specified element.
+        //sptr item_ptr = conf.take_ptr(ctx_ptr, "itemname");       // Take item_ptr by name inside the specified element.
+        //sptr item_ptr = conf.find_ptr("itemname");                // Take item_ptr by name with lookup inside the nested contexts.
+        //text item_str = conf.take_str();                          // The value of an element is the sum of the values of the assigned references and the sum of its own values. (<item_ptr="text0"|ref1|ref2|"text3">"text4"|ref5</item_ptr>).
+        sptr find_context_ptr(qiew path)
         {
-            auto crop = sptr{};
-            auto node_ptr = document.root_ptr;
-            utf::trim(path_str, '/');
-            utf::split2(path_str, '/', [&](qiew branch, bool is_end)
+            auto is_absolute_path = context.empty() || (path && path.front() == '/');
+            if (is_absolute_path) return _take_ptr(document.root_ptr, path);
+            else
             {
-                if (auto iter = node_ptr->hive.find(branch); iter != node_ptr->hive.end())
+                for (auto parent_ptr : context | std::views::reverse)
                 {
-                    auto& item_ptr_list = iter->second;
-                    if (is_end)
+                    while (parent_ptr)
                     {
-                        if (item_ptr_list.size())
-                        {
-                            item_ptr = item_ptr_list.back();
-                        }
-                    }
-                    else if (item_ptr_list.size() && item_ptr_list.back())
-                    {
-                        node_ptr = item_ptr_list.back();
-                        return true;
+                        auto found_ptr = take_ptr(parent_ptr, path);
+                        if (found_ptr) return found_ptr;
+                        parent_ptr = parent_ptr->parent_wptr.lock();
                     }
                 }
-                else
+            }
+            return sptr{};
+        }
+        // settings: Take item_ptr by path strictly within the specified context.
+        sptr _take_ptr(sptr ctx_ptr, qiew sub_path)
+        {
+            utf::trim_front(sub_path, '/');
+            auto next_name = utf::take_front<faux>(sub_path, "/");
+            utf::trim_front(sub_path, '/');
+            if (auto iter = ctx_ptr->hive.find(next_name); iter != ctx_ptr->hive.end()) // Lookup among immediately nested objects.
+            {
+                auto& next_list = iter->second;
+                if (!sub_path)
                 {
-                    for (auto& value_placeholder : node_ptr->body | std::views::reverse) // Recursively lookup all base lists for "attribute" items.
+                    return next_list.size() ? next_list.back() : sptr{};
+                }
+                else for (auto next_ptr : next_list | std::views::reverse)
+                {
+                    if (auto found_ptr = take_ptr(next_ptr, sub_path))
                     {
-                        auto kind = value_placeholder->kind;
-                        if (kind == document::type::tag_reference || kind == document::type::raw_reference)
+                        return found_ptr;
+                    }
+                }
+            }
+            auto ctx = push_context(ctx_ptr);
+            for (auto& value_placeholder : ctx_ptr->body | std::views::reverse) // Reverse iterate over base lists.
+            {
+                auto kind = value_placeholder->kind;
+                if (kind == document::type::tag_reference || kind == document::type::raw_reference)
+                {
+                    if (auto& busy = value_placeholder->busy; !busy) // Silently ignore reference loops.
+                    {
+                        busy = 1;
+                        auto& reference_path = value_placeholder->utf8;
+                        auto next_ptr = find_context_ptr(reference_path); // Lookup outside.
+                        if (next_ptr)
                         {
-                            if (!value_placeholder->busy) // Silently ignore reference loops.
+                            if (auto found_next_ptr = take_ptr(next_ptr, next_name))
                             {
-                                value_placeholder->busy = 1;
-                                auto& reference_name = value_placeholder->utf8;
-                                auto item_ptr_list = document::vect{};
-                                auto ctx = push_context(node_ptr);
-                                if (auto base_ptr = settings::_find_name(reference_name)) // Lookup outside.
+                                if (!sub_path)
                                 {
-                                    //todo branch must be local
-                                    //todo no need to fill the whole list, just take the last item
-                                    settings::_take_ptr_list_of(base_ptr, branch, item_ptr_list);
+                                    busy = 0;
+                                    return found_next_ptr;
                                 }
-                                value_placeholder->busy = 0;
-                                if (item_ptr_list.size())
+                                else if (auto found_ptr = take_ptr(found_next_ptr, sub_path))
                                 {
-                                    auto next_ptr = item_ptr_list.back();
-                                    if (is_end)
-                                    {
-                                        item_ptr = next_ptr;
-                                    }
-                                    else
-                                    {
-                                        node_ptr = next_ptr;
-                                    }
-                                    return true;
+                                    busy = 0;
+                                    return found_ptr;
                                 }
                             }
                         }
+                        busy = 0;
                     }
                 }
-                return faux;
-            });
-
+            }
+            return sptr{};
         }
-        //// settings: Looking for item_ptr by its name specified in reference_path_array.
-        //void _find_last_ptr_in(sptr context_ptr, std::deque<qiew>& reference_path_array, sptr& item_ptr)
-        //{
-        //    //1. reverse lookup inside native context
-        //    // ...
-        //    //2. reverse lookup inside base lists
-        //    // ...
-        //}
-        //// settings: Looking for item_ptr by its name.
-        //void _find_local_name_ptr_in(sptr context_ptr, qiew name, sptr& item_ptr)
-        //{
-        //    //1. reverse lookup inside native context
-        //    // ...
-        //    //2. reverse lookup inside base lists
-        //    // ...
-        //}
-        //// settings: Looking for item_ptr by its name specified in reference_path_array.
-        //void _find_last_ptr(std::deque<qiew>& reference_path_array, sptr& item_ptr)
-        //{
-        //    for (auto context_ptr : context | std::views::reverse) // Iterate contexts.
-        //    {
-        //        while (context_ptr) // Iterate parents.
-        //        {
-        //            settings::_find_last_ptr_in(context_ptr, reference_path_array, item_ptr);
-        //            if (item_ptr) return;
-        //            context_ptr = context_ptr->parent_wptr.lock();
-        //        }
-        //    }
-        //}
-        // settings: Lookup document context for item_ptr by its reference name.
-        template<bool WithTemplate = faux>
-        sptr _find_name(view reference_path)
+        // settings: Take item_ptr by path strictly within the specified context.
+        sptr take_ptr(sptr ctx_ptr, qiew sub_path)
         {
-            auto item_ptr = sptr{};
-            auto namepath = text{};
-            if (reference_path.empty() || reference_path.front() != '/') // Relative reference. Iterate over nested contexts.
+            auto is_absolute_path = sub_path && sub_path.front() == '/';
+            if (is_absolute_path)
             {
-                auto item_ptr_list = vect{};
-                auto context_ptr = settings::get_context();
-                while (context_ptr)
-                {
-                    settings::_take_ptr_list_of(context_ptr, reference_path, item_ptr_list);
-                    if (item_ptr_list.size() && item_ptr_list.front())
-                    {
-                        item_ptr = item_ptr_list.front();
-                        break;
-                    }
-                    context_ptr = context_ptr->parent_wptr.lock();
-                }
-                //utf::split<true>(reference_path, '/', [&](auto folder){ reference_path_array.push_back(folder); });
-                //settings::_find_last_ptr(reference_path_array, item_ptr);
-                if (!item_ptr)
-                {
-                    log("%%Settings reference '%ref%' not found", prompt::xml, reference_path);
-                }
-                reference_path_array.clear();
+                ctx_ptr = document.root_ptr;
             }
-            else // Absolute reference.
-            {
-                settings::_find_namepath(reference_path, item_ptr);
-            }
-            return item_ptr;
+            return _take_ptr(ctx_ptr, sub_path);
         }
         void _take_value(sptr item_ptr, text& value)
         {
@@ -1680,7 +1645,7 @@ namespace netxs::xml
                     if (!value_placeholder->busy)
                     {
                         value_placeholder->busy = 1;
-                        if (auto base_item_ptr = settings::_find_name(reference_name))
+                        if (auto base_item_ptr = settings::find_context_ptr(reference_name))
                         {
                             settings::_take_value(base_item_ptr, value);
                         }
@@ -1704,7 +1669,7 @@ namespace netxs::xml
         text take_value(sptr item_ptr)
         {
             auto value = text{};
-            settings::push_context(item_ptr); // The element itself is a first-order context.
+            auto ctx = settings::push_context(item_ptr); // The element itself is a first-order context.
             settings::_take_value(item_ptr, value);
             utf::unescape(value);
             return value;
@@ -1720,7 +1685,7 @@ namespace netxs::xml
                     if (!value_placeholder->busy) // Silently ignore reference loops.
                     {
                         value_placeholder->busy = 1;
-                        if (auto base_ptr = settings::_find_name(reference_name)) // Lookup outside.
+                        if (auto base_ptr = settings::find_context_ptr(reference_name)) // Lookup outside.
                         {
                             settings::_take_ptr_list_of(base_ptr, attribute, item_ptr_list);
                         }
@@ -1742,7 +1707,7 @@ namespace netxs::xml
         {
             auto item_ptr_list = document::vect{};
             auto absolute = attribute.size() && attribute.front() == '/';
-            if (auto context_ptr = absolute ? settings::_find_name<true>(attribute) : settings::get_context())
+            if (auto context_ptr = absolute ? settings::find_context_ptr(attribute) : settings::get_context())
             {
                 settings::_take_ptr_list_of(context_ptr, attribute, item_ptr_list);
             }
@@ -1761,13 +1726,12 @@ namespace netxs::xml
             return strings;
         }
         template<bool Quiet = true, class T = si32>
-        auto take_value_from(sptr subsection_ptr, view attribute, T defval = {})
+        auto _take_value_from(sptr item_ptr, qiew attribute, T defval = {})
         {
             auto crop = text{};
-            settings::_take_ptr_list_of(subsection_ptr, attribute, tmpbuff); // Select all first-level nested elements by name "attribute".
-            if (tmpbuff.size())
+            if (item_ptr)
             {
-                crop = settings::take_value(tmpbuff.back()); // Take value from the last of the list.
+                crop = settings::take_value(item_ptr);
             }
             else
             {
@@ -1777,7 +1741,6 @@ namespace netxs::xml
                 }
                 return defval;
             }
-            tmpbuff.clear();
             if constexpr (std::is_same_v<std::decay_t<T>, text>)
             {
                 return crop;
@@ -1795,50 +1758,16 @@ namespace netxs::xml
             }
         }
         template<bool Quiet = true, class T = si32>
-        auto take(text frompath, T defval = {})
+        auto take_value_from(sptr subsection_ptr, view attribute, T defval = {})
         {
-            auto absolute = frompath.size() && frompath.front() == '/';
-            auto context_ptr = sptr{};
-            if (absolute)
-            {
-                auto [parent_path, branch_path] = utf::split_back(utf::get_trimmed_back(frompath, '/'), '/');
-                context_ptr = parent_path ? settings::_find_name<true>(parent_path) : settings::get_context();
-                frompath = branch_path;
-            }
-            if (!context_ptr)
-            {
-                context_ptr = settings::get_context();
-            }
-            if (context_ptr)
-            {
-                auto ctx = settings::push_context(context_ptr);
-                auto item_ptr_list = vect{};
-                document.take_direct_ptr_list(context_ptr, frompath, item_ptr_list);
-                if (auto item_ptr = item_ptr_list.size() ? item_ptr_list.back() : sptr{})
-                {
-                    auto crop = settings::take_value(item_ptr);
-                    if constexpr (std::is_same_v<std::decay_t<T>, text>)
-                    {
-                        return crop;
-                    }
-                    else
-                    {
-                        if (auto result = xml::take<T>(crop))
-                        {
-                            return result.value();
-                        }
-                        else
-                        {
-                            return defval;
-                        }
-                    }
-                }
-            }
-            if constexpr (!Quiet)
-            {
-                log("%%%red% xml path not found: %nil%%path%", prompt::xml, ansi::fgc(redlt), ansi::nil(), frompath);
-            }
-            return defval;
+            auto item_ptr = settings::take_ptr(subsection_ptr, attribute);
+            return _take_value_from<Quiet>(item_ptr, attribute, defval);
+        }
+        template<bool Quiet = true, class T = si32>
+        auto take(qiew frompath, T defval = {})
+        {
+            auto item_ptr = find_context_ptr(frompath);
+            return _take_value_from<Quiet>(item_ptr, frompath, defval);
         }
         template<bool Quiet = true, class T>
         auto take_value_from(sptr subsection_ptr, view attribute, T defval, utf::unordered_map<text, T> const& dict)
@@ -1885,30 +1814,21 @@ namespace netxs::xml
             }
             return defval;
         }
-        auto take(text frompath, cell defval)
+        auto take(qiew frompath, cell defval)
         {
             if (frompath.empty()) return defval;
-            auto fgc_path = frompath + '/' + "fgc";
-            auto bgc_path = frompath + '/' + "bgc";
-            auto itc_path = frompath + '/' + "itc";
-            auto bld_path = frompath + '/' + "bld";
-            auto und_path = frompath + '/' + "und";
-            auto inv_path = frompath + '/' + "inv";
-            auto ovr_path = frompath + '/' + "ovr";
-            auto blk_path = frompath + '/' + "blk";
-            auto txt_path = frompath + '/' + "txt";
-            auto fba_path = frompath + '/' + "alpha";
+            auto path = text{};
             auto crop = cell{ defval.txt() };
-            crop.fgc(settings::take(fgc_path, defval.fgc()));
-            crop.bgc(settings::take(bgc_path, defval.bgc()));
-            crop.itc(settings::take(itc_path, defval.itc()));
-            crop.bld(settings::take(bld_path, defval.bld()));
-            crop.und(settings::take(und_path, defval.und()));
-            crop.inv(settings::take(inv_path, defval.inv()));
-            crop.ovr(settings::take(ovr_path, defval.ovr()));
-            crop.blk(settings::take(blk_path, defval.blk()));
-            auto t = settings::take(txt_path, ""s);
-            auto a = settings::take(fba_path, -1);
+            path = frompath; path += "/fgc";   crop.fgc(settings::take(path, defval.fgc()));
+            path = frompath; path += "/bgc";   crop.bgc(settings::take(path, defval.bgc()));
+            path = frompath; path += "/itc";   crop.itc(settings::take(path, defval.itc()));
+            path = frompath; path += "/bld";   crop.bld(settings::take(path, defval.bld()));
+            path = frompath; path += "/und";   crop.und(settings::take(path, defval.und()));
+            path = frompath; path += "/inv";   crop.inv(settings::take(path, defval.inv()));
+            path = frompath; path += "/ovr";   crop.ovr(settings::take(path, defval.ovr()));
+            path = frompath; path += "/blk";   crop.blk(settings::take(path, defval.blk()));
+            path = frompath; path += "/txt";   auto t = settings::take(path, ""s);
+            path = frompath; path += "/alpha"; auto a = settings::take(path, -1);
             if (t.size()) crop.txt(t);
             if (a != -1)  crop.alpha((byte)std::clamp(a, 0, 255));
             return crop;

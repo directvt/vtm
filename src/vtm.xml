@@ -185,6 +185,7 @@ R"==(
                 <none      fx="color"  fgc=whitedk bgc=blacklt/>  <!-- Inactive selection color. -->
             </selection>
             <names=/X11ColorNames>  <!-- Color names for OSC 4,10-12. -->
+                <!--  <name="New Dark Orange" rgb= #FF8C00 /> -->
             </names>
         </colors>
         <border=0/>  <!-- Width of the left and right border of the terminal window. -->
@@ -479,7 +480,7 @@ R"==(
     </Buttons>
 </Menu>
 
-<Ns=en-US|en-GB>  <!-- Localization for "en-GB" with fallback to "en-US". -->
+<Ns=en-US>  <!-- Localization. Set it to 'Ns=en-US|en-GB' for "en-GB" locale with fallback to "en-US". -->
     <en-US>
         <AlwaysOnTop>
             <on  label="\e[2:247;38:2:0:255:0m▀\e[2:239m \e[m" tooltip=" AlwaysOnTop on "/>
@@ -498,18 +499,13 @@ R"==(
     </en-US>
     <en-GB>
         <Taskbar>
-            <Apps label="applets">
-                <tooltip>
-                    "\e[1m"" Default applications group                         ""\e[m\n"
-                           " It can be configured in ~/.config/vtm/settings.xml "
-                </tooltip>
-            </Apps>
+            <Apps label="applets"/>
         </Taskbar>
     </en-GB>
     <ru-RU>
         <AlwaysOnTop>
-            <on  label="\e[2:247;38:2:0:255:0m▀\e[2:239m \e[m" tooltip=" Поверх всех окон вкл. "/>
-            <off label="  "                                    tooltip=" Поверх всех окон выкл. "/>
+            <on  tooltip=" Поверх всех окон вкл. "/>
+            <off tooltip=" Поверх всех окон выкл. "/>
         </AlwaysOnTop>
         <ClearScrollback label="  Очистить  " tooltip=" Очистить скроллбэк буфер "/>
         <Restart         label="  Рестарт  "  tooltip=" Перезапустить текущую сессию терминала "/>
