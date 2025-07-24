@@ -4079,6 +4079,10 @@ namespace netxs::os
                             {
                                 vtm_env = "1";
                             }
+                            else if (answer && answer.back() == 'u' && colorterm == "kmscon") // Detect an old kmscon which is limited to 256 colors (It replies: "60;1;6;9;15cu").
+                            {
+                                dtvt::vtmode |= ui::console::vt256;
+                            }
                             lock.notify();
                         }};
                         if (lock.wait_for(1s) == faux)
@@ -4092,8 +4096,14 @@ namespace netxs::os
                         }
                         reading_thread.join();
                     }
-                    dtvt::vtmode |= vtm_env.empty() ? ui::console::vtrgb
-                                                    : ui::console::vt_2D;
+                    if (vtm_env.size())
+                    {
+                        dtvt::vtmode |= ui::console::vt_2D;
+                    }
+                    else if (!(dtvt::vtmode & (ui::console::nt16 | ui::console::vt16 | ui::console::vt256))) // Fallback to vtrgb mode.
+                    {
+                        dtvt::vtmode |= ui::console::vtrgb;
+                    }
                 }
             }
             if (term.size())
