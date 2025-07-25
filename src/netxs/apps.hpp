@@ -574,14 +574,14 @@ namespace netxs::app::shared
                 });
             auto object = window_ptr->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, 0);
-            auto ver = ansi::fgc(b1).add("  ▀▄").fgc().add("  Text-based Desktop Environment  ");
+            auto ver = ansi::fgc(b1).add("  ▀▄").fgc().add(skin::globals().NsTextbasedDesktopEnvironment);
             auto [menu_block, cover, menu_data] = menu::mini(faux, faux, 1,
             menu::list
             {
                 { menu::item{ .alive = faux, .label = ver },
                 [](auto& /*boss*/, auto& /*item*/)
                 { }},
-                { menu::item{ .alive = true, .label = "  ×  ", .tooltip = " Close ", .hover = c1 },
+                { menu::item{ .alive = true, .label = "  ×  ", .tooltip = skin::globals().NsCloseWindow_tooltip, .hover = c1 },
                 [c1](auto& boss, auto& /*item*/)
                 {
                     boss.template shader<tier::anycast>(cell::shaders::color(c1), e2::form::state::keybd::command::close, boss.This());
@@ -602,40 +602,26 @@ namespace netxs::app::shared
             static const auto data = []
             {
                 auto [days, hours, mins, secs, msecs] = datetime::breakdown(datetime::now() - os::process::id.second);
-                auto uptime = (days  ? std::to_string(days)  + "d " : ""s)
-                            + (hours ? std::to_string(hours) + "h " : ""s)
-                            + (mins  ? std::to_string(mins)  + "m " : ""s)
-                            + (        std::to_string(secs)  + "s");
+                auto uptime = (days  ? std::to_string(days)  + skin::globals().NsInfoUptime_d + " " : ""s)
+                            + (hours ? std::to_string(hours) + skin::globals().NsInfoUptime_h + " " : ""s)
+                            + (mins  ? std::to_string(mins)  + skin::globals().NsInfoUptime_m + " " : ""s)
+                            + (        std::to_string(secs)  + skin::globals().NsInfoUptime_s);
                 return std::list<text>
                 {
-                    utf::fprint("%%"
-                        "\nStatus"
-                        "\n"
-                        "\n     Owner: %user@host%"
-                        "\n   Session: %pipe%"
-                        "\n     Users: %count%"
-                        "\n  Monitors: %count%"
-                        "\n    Uptime: %uptime%",
+                    utf::fprint(skin::globals().NsInfoStatus,
                         ansi::wrp(wrap::off),
                         os::env::user().first,
                         utf::debase<faux, faux>(os::ipc::prefix),
                         os::ipc::users,
                         os::ipc::monitors,
                         uptime),
-                    utf::fprint("%%"
-                        "\nSystem"
-                        "\n"
-                        "\n        OS: %os%"
-                        "\n       CPU: %arch%"
-                        "\n   Process: %binary%"
-                        "\n       PID: %pid%"
-                        "\n  Elevated: %level%",
+                    utf::fprint(skin::globals().NsInfoSystem,
                         ansi::wrp(wrap::off),
                         os::platform.first,
                         os::platform.second,
                         os::process::binary(),
                         os::process::id.first,
-                        os::process::elevated ? "Yes" : "No"),
+                        os::process::elevated ? skin::globals().NsInfoYes : skin::globals().NsInfoNo),
                     app::test::test_page(purewhite, whitelt),
                 };
             };
@@ -644,16 +630,16 @@ namespace netxs::app::shared
 
             // Keybd test subsection.
             auto title_grid_state = items->attach(ui::list::ctor(axis::Y)->setpad({ 0, 0, 0, 2}));
-            auto title_block = title_grid_state->attach(ui::item::ctor("Keyboard Test")->setpad({ 2, 0, 1, 0 }));
+            auto title_block = title_grid_state->attach(ui::item::ctor(skin::globals().NsInfoKeybdTest)->setpad({ 2, 0, 1, 0 }));
             auto chord_block = title_grid_state->attach(ui::grid::ctor())
                 ->setpad({ 4, 5, 0, 1})
                 ->active()
                 //->template plugin<pro::focus>()
                 ->template plugin<pro::grade>();
             auto state_block = title_grid_state->attach(ui::fork::ctor());
-            auto state_label = state_block->attach(slot::_1, ui::item::ctor("Exclusive keyboard mode:")->setpad({ 2, 1, 0, 0 }));
+            auto state_label = state_block->attach(slot::_1, ui::item::ctor(skin::globals().NsInfoKeybdMode)->setpad({ 2, 1, 0, 0 }));
             auto& rawkbd = window_ptr->base::field(faux);
-            auto state_state = state_block->attach(slot::_2, ui::item::ctor(ansi::bgc(reddk).fgx(0).add("█off ")))
+            auto state_state = state_block->attach(slot::_2, ui::item::ctor(ansi::bgc(reddk).fgx(0).add(skin::globals().NsInfoKeybdToggle_off)))
                 ->setpad({ 1, 1, 0, 0 })
                 ->active()
                 ->shader(cell::shaders::xlight, e2::form::state::hover)
@@ -662,8 +648,8 @@ namespace netxs::app::shared
                     boss.LISTEN(tier::release, ui::terminal::events::rawkbd, state)
                     {
                         rawkbd = !rawkbd;
-                        boss.set(rawkbd ? ansi::bgc(greendk).fgc(whitelt).add(" on █")
-                                        : ansi::bgc(reddk).fgx(0)        .add("█off "));
+                        boss.set(rawkbd ? ansi::bgc(greendk).fgc(whitelt).add(skin::globals().NsInfoKeybdToggle_on)
+                                        : ansi::bgc(reddk).fgx(0)        .add(skin::globals().NsInfoKeybdToggle_off));
                         boss.base::reflow();
                     };
                     boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
@@ -691,7 +677,7 @@ namespace netxs::app::shared
                                     gear.capture(boss.bell::id);
                                     backup = boss.get_source();
                                     gear.set_clipboard({ (si32)backup.length(), 1 }, backup, mime::textonly);
-                                    boss.set("<copied>");
+                                    boss.set(skin::globals().NsInfo_copied);
                                 }
                             }
                             else if (backup.size() && gear.pressed_count == 0)
@@ -713,9 +699,9 @@ namespace netxs::app::shared
             };
             auto pressed  = std::to_array({ field(), field(), field(), field() });
             auto released = std::to_array({ field(), field(), field(), field() });
-            auto pressed_label  = label( "pressed:")->alignment({ snap::tail, snap::both });
-            auto released_label = label("released:");
-            chord_block->attach_cells({ 5, 3 }, {           {}, label("Generic"), label("Literal"), label("Specific"), label("Scancodes"),
+            auto pressed_label  = label(skin::globals().NsInfo_pressed)->alignment({ snap::tail, snap::both });
+            auto released_label = label(skin::globals().NsInfo_released);
+            chord_block->attach_cells({ 5, 3 }, {           {}, label(skin::globals().NsInfoGeneric), label(skin::globals().NsInfoLiteral), label(skin::globals().NsInfoSpecific), label(skin::globals().NsInfoScancodes),
                                                  pressed_label, pressed[0],       pressed[1],       pressed[2],        pressed[3],
                                                 released_label, released[0],      released[1],      released[2],       released[3] });
             released[0]->set("<Press any keys>")->hidden = faux;

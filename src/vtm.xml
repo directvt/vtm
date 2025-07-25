@@ -82,6 +82,7 @@ R"==(
             <item*/>  <!-- Clear all previously defined items. Start a new list of items. -->
             <item splitter  label=/Ns/Taskbar/Apps/label tooltip=/Ns/Taskbar/Apps/tooltip/>
             <item id="Term" label=/Ns/Taskbar/Terminal/label type="dtvt" title=/Ns/Taskbar/Terminal/title cmd="$0 -r term"            tooltip=/Ns/Taskbar/Terminal/tooltip/>
+        <item id="Term0" label="Term0" type="terminal" tooltip="\e[44;37mColored tooltip"/>
             <item id="Tile" label=/Ns/Taskbar/Tile/label     type="tile" title=/Ns/Taskbar/Tile/title     cmd="h1:1(Term, Term)"      tooltip=/Ns/Taskbar/Tile/tooltip/>
             <item id="Site" label=/Ns/Taskbar/Site/label     type="site" title=/Ns/Taskbar/Site/title     cmd="@" winform="maximized" tooltip=/Ns/Taskbar/Site/tooltip/>  <!-- cmd="@" is a directive for numbering instances. -->
             <item id="Logs" label=/Ns/Taskbar/Logs/label     type="dtvt" title=/Ns/Taskbar/Logs/title     cmd="$0 -q -r term $0 -m"   tooltip=/Ns/Taskbar/Logs/tooltip>
@@ -215,12 +216,7 @@ R"==(
             <autohide=/Menu/Defaults/autohide/>
             <slim=/Menu/Defaults/slim/>
             <item=/Menu/Buttons/AlwaysOnTop/>
-            <item label="   +   " script=OnLeftClick|TileRunApplication>
-                <tooltip>
-                    " Launch application instances in active empty slots.     \n"
-                    " The app to run can be set by RightClick on the taskbar. "
-                </tooltip>
-            </item>
+            <item label="   +   " tooltip=/Ns/Tile/RunApplication/tooltip     script=OnLeftClick|TileRunApplication    />
             <item label="  :::  " tooltip=/Ns/Tile/SelectAllPanes/tooltip     script=OnLeftClick|TileSelectAllPanes    />
             <item label="   │   " tooltip=/Ns/Tile/SplitHorizontally/tooltip  script=OnLeftClick|TileSplitHorizontally />
             <item label="  ──  "  tooltip=/Ns/Tile/SplitVertically/tooltip    script=OnLeftClick|TileSplitVertically   />
@@ -455,6 +451,82 @@ R"==(
 
 <Ns=en-US>  <!-- Localization. Set it to 'Ns=en-US|en-GB' for "en-GB" locale with fallback to "en-US". -->
     <en-US>
+        <TextbasedDesktopEnvironment="  Text-based Desktop Environment  "/>
+        <Info label="Info" title=label tooltip=" Info ">
+            <KeybdTest="Keyboard Test"/>
+            <KeybdMode="Exclusive keyboard mode:"/>
+            <KeybdToggle on=" on █" off="█off "/>
+            <pressed="pressed"/>
+            <released="released"/>
+            <pressanykeys="<Press any keys>"/>
+            <Generic="Generic"/>
+            <Literal="Literal"/>
+            <Specific="Specific"/>
+            <Scancodes="Scancodes"/>
+            <copied="<copied>"/>
+            <Status>
+                "%%"
+                "\nStatus"
+                "\n"
+                "\n     Owner: %user@host%"
+                "\n   Session: %pipe%"
+                "\n     Users: %count%"
+                "\n  Monitors: %count%"
+                "\n    Uptime: %uptime%"
+            </Status>
+            <System>
+                "%%"
+                "\nSystem"
+                "\n"
+                "\n        OS: %os%"
+                "\n       CPU: %arch%"
+                "\n   Process: %binary%"
+                "\n       PID: %pid%"
+                "\n  Elevated: %level%"
+            </System>
+            <Yes="Yes"/>
+            <No="No"/>
+            <Uptime d="d" h="h" m="m" s="s"/>
+            <SF="Supported Features">
+                <SubcellSize="Subcell Size"/>
+                <Latin="Latin"/>
+                <CJK="CJK"/>
+                <Thai="Thai"/>
+                <Georgian="Georgian"/>
+                <Devanagari="Devanagari"/>
+                <Arabic="Arabic"/>
+                <Hebrew="Hebrew"/>
+                <Emoji="Emoji"/>
+                <BoxDrawing="Box Drawing"/>
+                <LargeTypePieces="Large Type Pieces"/>
+                <Style="Styled Underline">
+                    <SingleOverline="Single Overline"/>
+                    <DoubleUnderline="Double Underline"/>
+                    <SingleUnderline="Single Underline"/>
+                    <DashedUnderline="Dashed Underline"/>
+                    <DottedUnderline="Dotted Underline"/>
+                    <WavyUnderline="Wavy Underline"/>
+                    <WhiteSingleUnderline="White Single Underline"/>
+                    <WhiteWavyUnderline="White Wavy Underline"/>
+                    <RedSingleUnderline="Red Single Underline"/>
+                    <RedWavyUnderline="Red Wavy Underline"/>
+                </Style>
+                <FontStyle="Font Style">
+                    <Normal="Normal"/>
+                    <Blinking="Blinking"/>
+                    <Bold="Bold"/>
+                    <Italic="Italic"/>
+                </FontStyle>
+                <CharacterWidth="Character Width"/>
+                <VariationSelectors="Variation Selectors"/>
+                <LongestWord="The longest word in the Hindi language"/>
+                <RotationFlipandMirror="Rotation, Flip, and Mirror"/>
+                <CharacterMatrix="Character Matrix"/>
+                <CharacterHalves="Character Halves"/>
+                <sRGBBlending="sRGB Gamma-correct Blending"/>
+                <PressCtrlCaps="Press Ctrl+CapsLock to toggle antialiasing mode on to check results."/>
+            </SF>
+        </Info>
         <AlwaysOnTop>
             <on  label="\e[2:247;38:2:0:255:0m▀\e[2:239m \e[m" tooltip=" AlwaysOnTop on "/>
             <off label="  "                                    tooltip=" AlwaysOnTop off "/>
@@ -462,11 +534,36 @@ R"==(
         <ClearScrollback label="  Clear  "   tooltip=" Clear scrollback "/>
         <Restart         label="  Restart  " tooltip=" Restart current terminal session "/>
         <Taskbar>
+            <taskbar_tooltip>
+                "\e[1m"" Desktop Taskbar                     ""\e[m\n"
+                       "   RightDrag to scroll menu up/down  ""\n"
+                       "   LeftDrag to move desktop viewport "
+            </taskbar_tooltip>
             <Apps label="apps">
                 <tooltip>
                     "\e[1m"" Default applications group                         ""\e[m\n"
                            " It can be configured in ~/.config/vtm/settings.xml "
                 </tooltip>
+                <deftooltip>
+                    " Application:                                  \n"
+                    "   LeftClick to start the application instance \n"
+                    "   RightClick to set it as default             \n"
+                    "   LeftDrag to move desktop viewport           "
+                </deftooltip>
+                <toggletooltip>
+                    " Window list disclosure toggle                  \n"
+                    "   LeftClick to expand/collapse the window list \n"
+                    "   MouseWheel to switch to list closing mode    "
+                </toggletooltip>
+                <groupclosetooltip=" Close all open windows in the group "/>
+                <Close tooltip=" Close application window "/>
+                <App>
+                   <tooltip>
+                        " Running application          \n"
+                        "   LeftClick to activate      \n"
+                        "   DoubleLeftClick to fly to  "
+                   </tooltip>
+                </App>
             </Apps>
             <tooltip_footer>
                 "\e[m\n""   LeftClick to launch instance ""\n"
@@ -487,6 +584,12 @@ R"==(
             <Shutdown    label="× Shutdown"   tooltip=" Disconnect all users and shutdown "/>
         </Taskbar>
         <Tile>
+            <RunApplication>
+                <tooltip>
+                    " Launch application instances in active empty slots.     \n"
+                    " The app to run can be set by RightClick on the taskbar. "
+                </tooltip>
+            </RunApplication>
             <SelectAllPanes     tooltip=" Select all panes "                                    />
             <SplitHorizontally  tooltip=" Split active panes horizontally "                     />
             <SplitVertically    tooltip=" Split active panes vertically "                       />
@@ -547,13 +650,94 @@ R"==(
             <on  label="\e[2:247m \e[2:231;38:2:0:255:0m Log \e[2:239m \e[m"/>
             <off label="  Log  "/>
         </StdioLog>
+        <MinimizeWindow tooltip=" Minimize "/>
+        <MaximizeWindow tooltip=" Maximize "/>
+        <CloseWindow    tooltip=" Close "/>
     </en-US>
     <en-GB>
         <Taskbar>
             <Apps label="applets"/>
         </Taskbar>
     </en-GB>
+)==" // MSVC2022: C2026 String too big, trailing characters truncated.
+R"==(
     <ru-RU>
+        <TextbasedDesktopEnvironment="  Текстовая Среда Рабочего Стола  "/>
+        <Info label="Информация" title=label tooltip=" Информация ">
+            <KeybdTest="Тест клавиатуры"/>
+            <KeybdMode="Монопольный режим клавиатуры:"/>
+            <KeybdToggle on=" вкл █" off="█откл "/>
+            <pressed="нажатие:"/>
+            <released="отпускание:"/>
+            <pressanykeys="<Нажмите любые клавиши>"/>
+            <Generic="Обобщенный"/>
+            <Literal="Цифробуквы"/>
+            <Specific="Точный"/>
+            <Scancodes="Сканкоды"/>
+            <copied="<скопировано>"/>
+            <Status>
+                "%%"
+                "\nСтатус"
+                "\n"
+                "\n                Пользователь: %user@host%"
+                "\n        Идентификатор сеанса: %pipe%"
+                "\n  Подключенных пользователей: %count%"
+                "\n   Подключенных мониторингов: %count%"
+                "\n                Время работы: %uptime%"
+            </Status>
+            <System>
+                "%%"
+                "\nСистема"
+                "\n"
+                "\n                      ОС: %os%"
+                "\n                     ЦПУ: %arch%"
+                "\n           Файл процесса: %binary%"
+                "\n  Идентификатор процесса: %pid%"
+                "\n           Администратор: %level%"
+            </System>
+            <Yes="Да"/>
+            <No="Нет"/>
+            <Uptime d="д" h="ч" m="м" s="с"/>
+            <SF="Поддерживаемые возможности">
+                <SubcellSize="Текст внутри ячейки"/>
+                <Latin="Латиница"/>
+                <CJK="Иероглифы"/>
+                <Thai="Тайское письменность"/>
+                <Georgian="Грузинское письменность"/>
+                <Devanagari="Деванагари"/>
+                <Arabic="Арабское письменность"/>
+                <Hebrew="Иврит"/>
+                <Emoji="Эмодзи"/>
+                <BoxDrawing="Псевдографика"/>
+                <LargeTypePieces="Составная типографика (Large Type Pieces)"/>
+                <Style="Стилизованные подчеркивания">
+                    <SingleOverline="Черта поверху"/>
+                    <DoubleUnderline="Двойное подчеркивание"/>
+                    <SingleUnderline="Одинарное подчеркивание"/>
+                    <DashedUnderline="Подчеркивание пунктиром"/>
+                    <DottedUnderline="Подчеркивание точками"/>
+                    <WavyUnderline="Волнистое подчеркивание"/>
+                    <WhiteSingleUnderline="Белое одиночное подчеркивание"/>
+                    <WhiteWavyUnderline="Белое волнистое подчеркивание"/>
+                    <RedSingleUnderline="Красное одиночное подчеркивание"/>
+                    <RedWavyUnderline="Красное волнистое подчеркивание"/>
+                </Style>
+                <FontStyle="Стили шрифтов">
+                    <Normal="Обычный"/>
+                    <Blinking="Моргающий"/>
+                    <Bold="Жирный"/>
+                    <Italic="Курсив"/>
+                </FontStyle>
+                <CharacterWidth="Символы произвольной ширины"/>
+                <VariationSelectors="Цветное и монохромное отображение"/>
+                <LongestWord="Самое длинное индийское слово"/>
+                <RotationFlipandMirror="Вращение, переворот и отражение"/>
+                <CharacterMatrix="Матрица символов"/>
+                <CharacterHalves="Половинки символов"/>
+                <sRGBBlending="Гамма-корректное sRGB наложение"/>
+                <PressCtrlCaps="Чтобы посмотреть работу наложения, переключите режим антиалиасинга нажатием Ctrl+CapsLock."/>
+            </SF>
+        </Info>
         <AlwaysOnTop>
             <on  tooltip=" Поверх всех окон вкл. "/>
             <off tooltip=" Поверх всех окон выкл. "/>
@@ -562,15 +746,35 @@ R"==(
         <Restart         label="  Рестарт  "  tooltip=" Перезапустить текущую сессию терминала "/>
         <Taskbar>
             <taskbar_tooltip>
-                "\e[1m"" Desktop Taskbar                     ""\e[m\n"
-                       "   RightDrag to scroll menu up/down  ""\n"
-                       "   LeftDrag to move desktop viewport "
+                "\e[1m"" Панель задач                                                   ""\e[m\n"
+                       "   С помощью правой кнопки мыши можно прокручивать список задач ""\n"
+                       "   С помощью левой кнопки мыши можно двигать рабочий стол       "
             </taskbar_tooltip>
             <Apps label="программы">
                 <tooltip>
                     "\e[1m"" Группа приложений по-умолчанию                    ""\e[m\n"
                            " Список настраивается в ~/.config/vtm/settings.xml "
                 </tooltip>
+                <deftooltip>
+                    " Приложение:                                              \n"
+                    "   Левый клик запускает приложение                        \n"
+                    "   Правый клик устанавливает приложение по-умолчанию      \n"
+                    "   Перетаскивание левой кнопкой мыши двигает рабочий стол "
+                </deftooltip>
+                <toggletooltip>
+                    " Кнопка скрытия списка окон                                    \n"
+                    "   Левый клик скрывает/раскрывает список окон                  \n"
+                    "   Колесо мыши переключает данную кнопку в режим закрытия окон "
+                </toggletooltip>
+                <groupclosetooltip=" Закрыть все приложения в этом списке "/>
+                <Close tooltip=" Закрыть окно приложения "/>
+                <App>
+                   <tooltip>
+                        " Запущенное приложение                       \n"
+                        "   Одинарный клик устанавливает фокус        \n"
+                        "   Двойной клик перемещает к окну приложения "
+                   </tooltip>
+                </App>
             </Apps>
             <tooltip_footer>
                         "   Левый клик мыши запустит это приложение      ""\n"
@@ -587,10 +791,16 @@ R"==(
                 <User   tooltip=" Подключенный пользователь "/>
                 <Toggle tooltip=" Показать/скрыть список пользователей "/>
             </UserList>
-            <Disconnect  label="× Отключиться"      tooltip=" Отключиться и оставить текущий сеанс работающим "/>
+            <Disconnect  label="× Отключить"        tooltip=" Отключиться и оставить текущий сеанс работающим "/>
             <Shutdown    label="× Завершить работу" tooltip=" Отключить всех пользователей и завершить работу рабочего стола "/>
         </Taskbar>
         <Tile>
+            <RunApplication>
+                <tooltip>
+                    " Запустить приложение по-умолчанию в активных незадействованных слотах.  \n"
+                    " Приложение по-умолчанию выбирается с помощью правого клика на таскбаре. "
+                </tooltip>
+            </RunApplication>
             <SelectAllPanes     tooltip=" Установить фокус на все слоты (активировать) "                    />
             <SplitHorizontally  tooltip=" Разделить активные слоты горизонтально "                          />
             <SplitVertically    tooltip=" Разделить активные слоты вертикально "                            />
@@ -602,32 +812,30 @@ R"==(
         </Tile>
         <FindPrev>
             <tooltip>
-                "\e[1m"" Предыдущее совпадение                     Alt+LeftArrow  ""\e[m\n"
-                       "   Переход к предыдущему совпадению по клику              ""\n"
-                       "   Поиск текста из буфера обмена, если ничего не выделено "
+                "\e[1m"" Предыдущее совпадение                                Alt+LeftArrow ""\e[m\n"
+                       "   Переход к предыдущему совпадению по клику                        ""\n"
+                       "   При отсутствии выделенного текста, ищется текст из буфера обмена "
             </tooltip>
         </FindPrev>
         <FindNext>
             <tooltip>
-                "\e[1m"" Следующее совпадение                      Alt+RightArrow  ""\e[m\n"
-                       "   Переход к следующему совпадению по клику                ""\n"
-                       "   Поиск текста из буфера обмена, если ничего не выделено  "
+                "\e[1m"" Следующее совпадение                                Alt+RightArrow ""\e[m\n"
+                       "   Переход к следующему совпадению по клику                         ""\n"
+                       "   При отсутствии выделенного текста, ищется текст из буфера обмена "
             </tooltip>
         </FindNext>
         <ExclusiveKeyboard>
             <tooltip_body>
-                "\e[1m"" Переключатель эксклюзивного режима клавиатуры   "|state|" \e[m\\n"
-                       "   Эксклюзивный режим позволяет напрявлять приложению ""\\n"
+                "\e[1m"" Переключатель монопольного режима клавиатуры    "|state|" \e[m\\n"
+                       "   Монопольный режим позволяет напрявлять приложению  ""\\n"
                        "   нажатия клавиш напрямую, без перехвата и обработки "
             </tooltip_body>
-            <on  state=" ВКЛ" tooltip=tooltip_body/>
-            <off state="ВЫКЛ" tooltip=tooltip_body/>
+            <on  label="\e[2:247m \e[2:231;38:2:0:255:0m Монопольно \e[2:239m \e[m" state=" ВКЛ" tooltip=tooltip_body/>
+            <off label=                               "  Монопольно  "              state="ВЫКЛ" tooltip=tooltip_body/>
         </ExclusiveKeyboard>
-)==" // MSVC2022: C2026 String too big, trailing characters truncated.
-R"==(
         <NoWrapMode>
-            <on  label="\e[2:247m \e[2:231;38:2:0:255:0mРазвернуть\e[2:239m \e[m" tooltip=" \e[1mАвтоперенос строк текста\e[m  \\n  Автоперенос ВЫКЛ        "/>
-            <off label=                               " Завернуть  "              tooltip=" \e[1mАвтоперенос строк текста\e[m  \\n  Автоперенос  ВКЛ        "/>
+            <on  label="\e[2:247m \e[2:231;38:2:0:255:0mРазвернуть\e[2:239m \e[m" tooltip=" \e[1mАвтоперенос строк текста\e[m  \\n          Автоперенос ВЫКЛ "/>
+            <off label=                               " Развернуть "              tooltip=" \e[1mАвтоперенос строк текста\e[m  \\n          Автоперенос  ВКЛ "/>
         </NoWrapMode>
         <ClipboardFormat tooltip=" Формат буфера обмена ">
             <textonly label=  "\e[38:2:0:255:0m  Только текст  \e[m"/>
@@ -653,9 +861,12 @@ R"==(
             </richtext>
         </ClipboardFormat>
         <StdioLog tooltip=" \e[1mСистемные сообщения                           \e[m\n Используйте Монитор сообщений для мониторинга ">
-            <on  label="\e[2:247m \e[2:231;38:2:0:255:0m Логи \e[2:239m \e[m"/>
-            <off label="  Логи  "/>
+            <on  label="\e[2:247m \e[2:231;38:2:0:255:0m Лог \e[2:239m \e[m"/>
+            <off label="  Лог  "/>
         </StdioLog>
+        <MinimizeWindow tooltip=" Свернуть "/>
+        <MaximizeWindow tooltip=" Максимизировать "/>
+        <CloseWindow    tooltip=" Закрыть "/>
     </ru-RU>
 </Ns>
 

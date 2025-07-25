@@ -396,7 +396,7 @@ namespace netxs::app::shared
             {
                 auto control = std::vector<link>
                 {
-                    { menu::item{ .alive = true, .label = "  —  ", .tooltip = " Minimize " },//, .hover = c2 }, //todo too funky
+                    { menu::item{ .alive = true, .label = "  —  ", .tooltip = skin::globals().NsMinimizeWindow_tooltip },//, .hover = c2 }, //todo too funky
                     [](auto& boss, auto& /*item*/)
                     {
                         boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
@@ -405,7 +405,7 @@ namespace netxs::app::shared
                             gear.dismiss();
                         });
                     }},
-                    { menu::item{ .alive = true, .label = "  □  ", .tooltip = " Maximize " },//, .hover = c6 },
+                    { menu::item{ .alive = true, .label = "  □  ", .tooltip = skin::globals().NsMaximizeWindow_tooltip },//, .hover = c6 },
                     [](auto& boss, auto& /*item*/)
                     {
                         boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
@@ -414,7 +414,7 @@ namespace netxs::app::shared
                             gear.dismiss();
                         });
                     }},
-                    { menu::item{ .alive = true, .label = "  ×  ", .tooltip = " Close ", .hover = c1 },
+                    { menu::item{ .alive = true, .label = "  ×  ", .tooltip = skin::globals().NsCloseWindow_tooltip, .hover = c1 },
                     [c1](auto& boss, auto& /*item*/)
                     {
                         boss.template shader<tier::anycast>(cell::shaders::color(c1), e2::form::state::keybd::command::close);
@@ -866,6 +866,90 @@ namespace netxs::app::shared
         g.macstyle       = config.settings::take("/config/desktop/macstyle"         , faux);
         g.menuwide       = config.settings::take("/config/desktop/taskbar/wide"     , faux);
         if (g.maxfps <= 0) g.maxfps = 60;
+
+        g.NsTextbasedDesktopEnvironment   = config.settings::take("/Ns/TextbasedDesktopEnvironment"    , ""s);
+        g.NsInfo_label                    = config.settings::take("/Ns/Info/label"                     , ""s);
+        g.NsInfo_tooltip                  = config.settings::take("/Ns/Info/tooltip"                   , ""s);
+        g.NsInfo_title                    = config.settings::take("/Ns/Info/title"                     , ""s);
+        g.NsInfoKeybdTest                 = config.settings::take("/Ns/Info/KeybdTest"                 , ""s);
+        g.NsInfoKeybdMode                 = config.settings::take("/Ns/Info/KeybdMode"                 , ""s);
+        g.NsInfoKeybdToggle_on            = config.settings::take("/Ns/Info/KeybdToggle/on"            , ""s);
+        g.NsInfoKeybdToggle_off           = config.settings::take("/Ns/Info/KeybdToggle/off"           , ""s);
+        g.NsInfo_pressed                  = config.settings::take("/Ns/Info/pressed"                   , ""s);
+        g.NsInfo_released                 = config.settings::take("/Ns/Info/released"                  , ""s);
+        g.NsInfo_pressanykeys             = config.settings::take("/Ns/Info/pressanykeys"              , ""s);
+        g.NsInfoGeneric                   = config.settings::take("/Ns/Info/Generic"                   , ""s);
+        g.NsInfoLiteral                   = config.settings::take("/Ns/Info/Literal"                   , ""s);
+        g.NsInfoSpecific                  = config.settings::take("/Ns/Info/Specific"                  , ""s);
+        g.NsInfoScancodes                 = config.settings::take("/Ns/Info/Scancodes"                 , ""s);
+        g.NsInfo_copied                   = config.settings::take("/Ns/Info/copied"                    , ""s);
+        g.NsInfoStatus                    = config.settings::take("/Ns/Info/Status"                    , ""s);
+        g.NsInfoSystem                    = config.settings::take("/Ns/Info/System"                    , ""s);
+        g.NsInfoYes                       = config.settings::take("/Ns/Info/Yes"                       , ""s);
+        g.NsInfoNo                        = config.settings::take("/Ns/Info/No"                        , ""s);
+        g.NsInfoUptime_d                  = config.settings::take("/Ns/Info/Uptime/d"                  , ""s);
+        g.NsInfoUptime_h                  = config.settings::take("/Ns/Info/Uptime/h"                  , ""s);
+        g.NsInfoUptime_m                  = config.settings::take("/Ns/Info/Uptime/m"                  , ""s);
+        g.NsInfoUptime_s                  = config.settings::take("/Ns/Info/Uptime/s"                  , ""s);
+
+        g.NsInfoSF                        = config.settings::take("/Ns/Info/SF"                           , ""s);
+        g.NsInfoSubcellSize               = config.settings::take("/Ns/Info/SF/SubcellSize"               , ""s);
+        g.NsInfoLatin                     = config.settings::take("/Ns/Info/SF/Latin"                     , ""s);
+        g.NsInfoCJK                       = config.settings::take("/Ns/Info/SF/CJK"                       , ""s);
+        g.NsInfoThai                      = config.settings::take("/Ns/Info/SF/Thai"                      , ""s);
+        g.NsInfoGeorgian                  = config.settings::take("/Ns/Info/SF/Georgian"                  , ""s);
+        g.NsInfoDevanagari                = config.settings::take("/Ns/Info/SF/Devanagari"                , ""s);
+        g.NsInfoArabic                    = config.settings::take("/Ns/Info/SF/Arabic"                    , ""s);
+        g.NsInfoHebrew                    = config.settings::take("/Ns/Info/SF/Hebrew"                    , ""s);
+        g.NsInfoEmoji                     = config.settings::take("/Ns/Info/SF/Emoji"                     , ""s);
+        g.NsInfoBoxDrawing                = config.settings::take("/Ns/Info/SF/BoxDrawing"                , ""s);
+        g.NsInfoLargeTypePieces           = config.settings::take("/Ns/Info/SF/LargeTypePieces"           , ""s);
+        g.NsInfoStyledUnderline           = config.settings::take("/Ns/Info/SF/Style"                     , ""s);
+        g.NsInfoSingleOverline            = config.settings::take("/Ns/Info/SF/Style/SingleOverline"      , ""s);
+        g.NsInfoDoubleUnderline           = config.settings::take("/Ns/Info/SF/Style/DoubleUnderline"     , ""s);
+        g.NsInfoSingleUnderline           = config.settings::take("/Ns/Info/SF/Style/SingleUnderline"     , ""s);
+        g.NsInfoDashedUnderline           = config.settings::take("/Ns/Info/SF/Style/DashedUnderline"     , ""s);
+        g.NsInfoDottedUnderline           = config.settings::take("/Ns/Info/SF/Style/DottedUnderline"     , ""s);
+        g.NsInfoWavyUnderline             = config.settings::take("/Ns/Info/SF/Style/WavyUnderline"       , ""s);
+        g.NsInfoWhiteSingleUnderline      = config.settings::take("/Ns/Info/SF/Style/WhiteSingleUnderline", ""s);
+        g.NsInfoWhiteWavyUnderline        = config.settings::take("/Ns/Info/SF/Style/WhiteWavyUnderline"  , ""s);
+        g.NsInfoRedSingleUnderline        = config.settings::take("/Ns/Info/SF/Style/RedSingleUnderline"  , ""s);
+        g.NsInfoRedWavyUnderline          = config.settings::take("/Ns/Info/SF/Style/RedWavyUnderline"    , ""s);
+        g.NsInfoFontStyle                 = config.settings::take("/Ns/Info/SF/FontStyle"                 , ""s);
+        g.NsInfoNormal                    = config.settings::take("/Ns/Info/SF/FontStyle/Normal"          , ""s);
+        g.NsInfoBlinking                  = config.settings::take("/Ns/Info/SF/FontStyle/Blinking"        , ""s);
+        g.NsInfoBold                      = config.settings::take("/Ns/Info/SF/FontStyle/Bold"            , ""s);
+        g.NsInfoItalic                    = config.settings::take("/Ns/Info/SF/FontStyle/Italic"          , ""s);
+        g.NsInfoCharacterWidth            = config.settings::take("/Ns/Info/SF/CharacterWidth"            , ""s);
+        g.NsInfoVariationSelectors        = config.settings::take("/Ns/Info/SF/VariationSelectors"        , ""s);
+        g.NsInfoLongestWord               = config.settings::take("/Ns/Info/SF/LongestWord"               , ""s);
+        g.NsInfoRotationFlipandMirror     = config.settings::take("/Ns/Info/SF/RotationFlipandMirror"     , ""s);
+        g.NsInfoCharacterMatrix           = config.settings::take("/Ns/Info/SF/CharacterMatrix"           , ""s);
+        g.NsInfoCharacterHalves           = config.settings::take("/Ns/Info/SF/CharacterHalves"           , ""s);
+        g.NsInfosRGBBlending              = config.settings::take("/Ns/Info/SF/sRGBBlending"              , ""s);
+        g.NsInfoPressCtrlCaps             = config.settings::take("/Ns/Info/SF/PressCtrlCaps"             , ""s);
+
+        g.NsTaskbar_tooltip               = config.settings::take("/Ns/Taskbar/taskbar_tooltip"        , ""s);
+        g.NsTaskbarGrips_tooltip          = config.settings::take("/Ns/Taskbar/Grips/tooltip"          , ""s);
+        g.NsUserList_tooltip              = config.settings::take("/Ns/Taskbar/UserList/tooltip"       , ""s);
+        g.NsAdmins_label                  = config.settings::take("/Ns/Taskbar/UserList/Admins/label"  , "admins"s);
+        g.NsUsers_label                   = config.settings::take("/Ns/Taskbar/UserList/Users/label"   , "users"s);
+        g.NsUser_tooltip                  = config.settings::take("/Ns/Taskbar/UserList/User/tooltip"  , ""s);
+        g.NsToggle_tooltip                = config.settings::take("/Ns/Taskbar/UserList/Toggle/tooltip", ""s);
+        g.NsDisconnect_label              = config.settings::take("/Ns/Taskbar/Disconnect/label"       , "Disconnect"s);
+        g.NsShutdown_label                = config.settings::take("/Ns/Taskbar/Shutdown/label"         , "Shutdown"s);
+        g.NsDisconnect_tooltip            = config.settings::take("/Ns/Taskbar/Disconnect/tooltip"     , ""s);
+        g.NsShutdown_tooltip              = config.settings::take("/Ns/Taskbar/Shutdown/tooltip"       , ""s);
+
+        g.NsTaskbarAppsClose_tooltip      = config.settings::take("/Ns/Taskbar/Apps/Close/tooltip"    , ""s);
+        g.NsTaskbarAppsApp_tooltip        = config.settings::take("/Ns/Taskbar/Apps/App/tooltip"      , ""s);
+        g.NsTaskbarApps_deftooltip        = config.settings::take("/Ns/Taskbar/Apps/deftooltip"       , ""s);
+        g.NsTaskbarApps_toggletooltip     = config.settings::take("/Ns/Taskbar/Apps/toggletooltip"    , ""s);
+        g.NsTaskbarApps_groupclosetooltip = config.settings::take("/Ns/Taskbar/Apps/groupclosetooltip", ""s);
+
+        g.NsMinimizeWindow_tooltip        = config.settings::take("/Ns/MinimizeWindow/tooltip"         , ""s);
+        g.NsMaximizeWindow_tooltip        = config.settings::take("/Ns/MaximizeWindow/tooltip"         , ""s);
+        g.NsCloseWindow_tooltip           = config.settings::take("/Ns/CloseWindow/tooltip"            , ""s);
     }
     void splice(xipc client, gui_config_t& gc)
     {
