@@ -82,7 +82,6 @@ R"==(
             <item*/>  <!-- Clear all previously defined items. Start a new list of items. -->
             <item splitter  label=/Ns/Taskbar/Apps/label tooltip=/Ns/Taskbar/Apps/tooltip/>
             <item id="Term" label=/Ns/Taskbar/Terminal/label type="dtvt" title=/Ns/Taskbar/Terminal/title cmd="$0 -r term"            tooltip=/Ns/Taskbar/Terminal/tooltip/>
-        <item id="Term0" label="Term0" type="terminal" tooltip="\e[44;37mColored tooltip"/>
             <item id="Tile" label=/Ns/Taskbar/Tile/label     type="tile" title=/Ns/Taskbar/Tile/title     cmd="h1:1(Term, Term)"      tooltip=/Ns/Taskbar/Tile/tooltip/>
             <item id="Site" label=/Ns/Taskbar/Site/label     type="site" title=/Ns/Taskbar/Site/title     cmd="@" winform="maximized" tooltip=/Ns/Taskbar/Site/tooltip/>  <!-- cmd="@" is a directive for numbering instances. -->
             <item id="Logs" label=/Ns/Taskbar/Logs/label     type="dtvt" title=/Ns/Taskbar/Logs/title     cmd="$0 -q -r term $0 -m"   tooltip=/Ns/Taskbar/Logs/tooltip>
@@ -105,7 +104,7 @@ R"==(
                     </terminal>
                 </config>
             </item>
-            <autorun run*>  <!-- Autorun specified menu items:     -->
+            <autorun run*>  <!-- Autorun of the specified menu items: -->
                 <!-- //todo use scripting. init_script()? on="anycast:Start"?-->
                 <!--  <run*/>             -->
                 <!--  <run id="Term" winsize=80,25  wincoor=92,31 winform=minimized />      -->  <!-- Autorun supports minimized winform only. -->
@@ -146,8 +145,8 @@ R"==(
             <growstep=0    />   <!-- Scrollback buffer grow step. The buffer behaves like a ring in case of zero. -->
             <growlimit=0   />   <!-- Scrollback buffer grow limit. The buffer will behave like a ring when the limit is reached. If set to zero, then the limit is equal to the initial buffer size. -->
             <maxline=65535 />   <!-- Max line length. Line splits if it exceeds the limit. -->
-            <wrap=true     />   <!-- Lines wrapping mode. -->
-            <reset onkey=true onoutput=false/>  <!-- Scrollback viewport position reset triggers. -->
+            <wrap=true     />   <!-- Line wrapping mode. -->
+            <reset onkey=true onoutput=false/>  <!-- Triggers to reset scrollback viewport position. -->
             <altscroll=true/>   <!-- Alternate scroll mode settings. -->
             <oversize=0 opacity=0xC0/>  <!-- Scrollback horizontal (left and right) oversize. It is convenient for horizontal scrolling. -->
         </scrollback>
@@ -199,7 +198,7 @@ R"==(
             <item=/Menu/Buttons/Restart/>
         </menu>
         <selection>
-            <mode=/Terminal/selection/mode/>  <!-- Selection clipboard copy format: "text" | "ansi" | "rich" | "html" | "protected" | "none". -->
+            <mode=/Terminal/selection/mode/>  <!-- Clipboard copy format: "text" | "ansi" | "rich" | "html" | "protected" | "none". -->
             <rect=/Terminal/selection/rect/>  <!-- Preferred selection form: Rectangular: true, Linear: false. -->
         </selection>
         <atexit="auto"/>  <!-- Behavior after the last console process has terminated: "auto" | "ask" | "close" | "restart" | "retry"
@@ -698,7 +697,7 @@ R"==(
             <Yes="Да"/>
             <No="Нет"/>
             <Uptime d="д" h="ч" m="м" s="с"/>
-            <SF="Поддерживаемые возможности">
+            <SF="Возможности">
                 <SubcellSize="Текст внутри ячейки"/>
                 <Latin="Латиница"/>
                 <CJK="Иероглифы"/>
@@ -797,8 +796,8 @@ R"==(
         <Tile>
             <RunApplication>
                 <tooltip>
-                    " Запустить приложение по-умолчанию в активных незадействованных слотах.  \n"
-                    " Приложение по-умолчанию выбирается с помощью правого клика на таскбаре. "
+                    " Запустить приложение по-умолчанию в активных незадействованных слотах  \n"
+                    " Приложение по-умолчанию выбирается с помощью правого клика на таскбаре "
                 </tooltip>
             </RunApplication>
             <SelectAllPanes     tooltip=" Установить фокус на все слоты (активировать) "                    />
