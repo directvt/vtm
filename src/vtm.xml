@@ -662,7 +662,7 @@ R"==(
 )==" // MSVC2022: C2026 String too big, trailing characters truncated.
 R"==(
     <ru-RU>
-        <TextbasedDesktopEnvironment="  Текстовая Среда Рабочего Стола  "/>
+        <TextbasedDesktopEnvironment="  Текстовая среда рабочего стола  "/>
         <Info label="Информация" title=label tooltip=" Информация ">
             <KeybdTest="Тест клавиатуры"/>
             <KeybdMode="Монопольный режим клавиатуры:"/>
@@ -702,10 +702,10 @@ R"==(
                 <SubcellSize="Текст внутри ячейки"/>
                 <Latin="Латиница"/>
                 <CJK="Иероглифы"/>
-                <Thai="Тайское письменность"/>
-                <Georgian="Грузинское письменность"/>
+                <Thai="Тайская письменность"/>
+                <Georgian="Грузинская письменность"/>
                 <Devanagari="Деванагари"/>
-                <Arabic="Арабское письменность"/>
+                <Arabic="Арабская вязь"/>
                 <Hebrew="Иврит"/>
                 <Emoji="Эмодзи"/>
                 <BoxDrawing="Псевдографика"/>
