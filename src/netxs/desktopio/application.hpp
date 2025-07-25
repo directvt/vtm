@@ -116,7 +116,6 @@ namespace netxs::app::shared
         auto defapp_context = config.settings::push_context("/config/events/defapp/");
         auto script_list = config.settings::take_ptr_list_for_name("script");
         auto bindings = input::bindings::load(config, script_list);
-        //config.settings::pop_context();
         input::bindings::keybind(boss, bindings);
         boss.base::add_methods(basename::defapp,
         {
@@ -179,7 +178,6 @@ namespace netxs::app::shared
         auto applet_context = config.settings::push_context("/config/events/applet/");
         auto script_list = config.settings::take_ptr_list_for_name("script");
         bindings = input::bindings::load(config, script_list);
-        //config.settings::pop_context();
         input::bindings::keybind(boss, bindings);
         boss.base::add_methods(basename::applet,
         {
@@ -538,7 +536,6 @@ namespace netxs::app::shared
             auto menu_context = config.settings::push_context("menu/");
             auto autohide = config.settings::take("autohide", faux);
             auto slimsize = config.settings::take("slim"    , true);
-            //config.settings::pop_context();
             return mini(autohide, slimsize, 0, menu_items);
         };
         const auto load = [](settings& config)
@@ -606,7 +603,6 @@ namespace netxs::app::shared
                 };
                 list.push_back({ item, setup });
             }
-            //config.settings::pop_context();
             return menu::create(config, list);
         };
         const auto demo = [](settings& config)
@@ -829,7 +825,6 @@ namespace netxs::app::shared
             //todo implement 'fonts/font/file' - font file path/url
             gui_config.fontlist.push_back(config.settings::take_value(font_ptr));
         }
-        //config.settings::pop_context();
         return gui_config;
     }
     auto get_tui_config(settings& config, ui::skin& g)

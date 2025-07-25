@@ -2262,7 +2262,6 @@ namespace netxs::input
                     //}
                     bindings.push_back({ .chord = std::move(on_rec), .sources = std::move(sources), .script_ptr = script_body_ptr });
                 }
-                //config.settings::pop_context();
             }
             return bindings;
         }

@@ -263,7 +263,6 @@ namespace netxs::app::terminal
                 parent_canvas.fill(full, [&](cell& c){ c.fgc(c.bgc()).bgc(bgc).txt(bar).link(bar); });
             };
         });
-        //config.settings::pop_context();
         term->invoke([&](auto& boss)
         {
             ui_term_events(boss, appcfg);

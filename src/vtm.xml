@@ -383,10 +383,8 @@ R"==(
                 <on="release: e2::form::upon::started" source="applet"/>
                 <on="release: e2::form::prop::zorder"  source="applet"/>
                 local is_topmost=vtm.applet.ZOrder()
-                <br/>
-                'vtm.item.Label(is_topmost==1 and "'   | /Ns/AlwaysOnTop/on/label   | '" or "' | /Ns/AlwaysOnTop/off/label   | '")\n'
-                'vtm.item.Tooltip(is_topmost==1 and "' | /Ns/AlwaysOnTop/on/tooltip | '" or "' | /Ns/AlwaysOnTop/off/tooltip | '")\n'
-                <br/>
+                vtm.item.Label(  is_topmost==1 and vtm.config["/Ns/AlwaysOnTop/on/label"]   or vtm.config["/Ns/AlwaysOnTop/off/label"]  )
+                vtm.item.Tooltip(is_topmost==1 and vtm.config["/Ns/AlwaysOnTop/on/tooltip"] or vtm.config["/Ns/AlwaysOnTop/off/tooltip"])
                 vtm.item.Deface()
             </script>
         </AlwaysOnTop>
