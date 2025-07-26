@@ -984,7 +984,7 @@ namespace netxs::directvt
         STRUCT_macro(mousebar,          (bool, mode)) // CCC_SMS/* 26:1p */
         STRUCT_macro(unknown_gc,        (ui64, token))
         STRUCT_macro(fps,               (si32, frame_rate))
-        STRUCT_macro(init,              (text, user) (si32, mode) (text, env) (text, cwd) (text, cmd) (text, cfg) (twod, win))
+        STRUCT_macro(init,              (text, user) (si32, mode) (text, env) (text, cwd) (text, cmd) (twod, win))
         STRUCT_macro(cwd,               (text, path))
         STRUCT_macro(restored,          (id_t, gear_id))
         STRUCT_macro(req_input_fields,  (id_t, gear_id) (si32, acpStart) (si32, acpEnd))

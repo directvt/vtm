@@ -418,10 +418,9 @@ int main(int argc, char* argv[])
                 auto env = os::env::add();
                 auto cwd = os::env::cwd();
                 auto cmd = script;
-                auto cfg = config.settings::utf8();
                 auto win = os::dtvt::gridsz;
                 auto gui = app::shared::get_gui_config(config);
-                userinit.send(client, userid.first, os::dtvt::vtmode, env, cwd, cmd, cfg, win);
+                userinit.send(client, userid.first, os::dtvt::vtmode, env, cwd, cmd, win);
                 app::shared::splice(client, gui);
                 return 0;
             }
@@ -467,7 +466,6 @@ int main(int argc, char* argv[])
         auto config_lock = ui::tui_domain().unique_lock(); // Sync multithreaded access to config.
         auto desktop = app::vtm::hall::ctor(server, config);
         desktop->autorun();
-        auto config_utf8 = config.settings::utf8();
         config_lock.unlock();
 
         log("%%Session started"
@@ -526,7 +524,7 @@ int main(int argc, char* argv[])
         {
             if (user->auth(userid.second))
             {
-                desktop->run([&, user, config_utf8](auto session_id)
+                desktop->run([&, user](auto session_id)
                 {
                     auto userinit = directvt::binary::init{};
                     if (auto packet = userinit.recv(user))
@@ -534,10 +532,8 @@ int main(int argc, char* argv[])
                         auto id = utf::concat(*user);
                         if constexpr (debugmode) log("%%Client connected %id%", prompt::user, id);
                         auto usrcfg = eccc{ .env = packet.env, .cwd = packet.cwd, .cmd = packet.cmd, .win = packet.win };
-                        auto config = settings{ config_utf8 };
-                        config.settings::fuse(packet.cfg);
                         os::ipc::users++;
-                        desktop->invite(user, packet.user, packet.mode, usrcfg, config, session_id);
+                        desktop->invite(user, packet.user, packet.mode, usrcfg, session_id);
                         os::ipc::users--;
                         if constexpr (debugmode) log("%%Client disconnected %id%", prompt::user, id);
                     }
