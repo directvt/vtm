@@ -909,7 +909,6 @@ namespace netxs::app::tile
             auto tile_context = config.settings::push_context("/config/events/tile/grip/");
             auto script_list = config.settings::take_ptr_list_for_name("script");
             auto grip_bindings_ptr = ptr::shared(input::bindings::load(config, script_list));
-            //config.settings::pop_context();
             tile_context = config.settings::push_context("/config/tile/");
             auto [menu_block, cover, menu_data] = menu::load(config);
             object->attach(slot::_1, menu_block)

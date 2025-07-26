@@ -264,7 +264,9 @@ int main(int argc, char* argv[])
     }
     else if (whoami == type::config)
     {
-        log(prompt::resultant_settings, "\n", app::shared::load::settings(cliopt, true));
+        auto config = xml::settings{};
+        app::shared::load::settings(config, cliopt, true);
+        log(prompt::resultant_settings, "\n", config);
     }
     else if (whoami == type::logmon)
     {
@@ -348,7 +350,8 @@ int main(int argc, char* argv[])
     }
     else if (whoami == type::runapp)
     {
-        auto config = app::shared::load::settings(cliopt);
+        auto& indexer = ui::tui_domain();
+        app::shared::load::settings(indexer.config, cliopt);
         auto shadow = params;
         auto apname = view{};
         auto aptype = text{};
@@ -383,11 +386,12 @@ int main(int argc, char* argv[])
         log("%appname% %version%", apname, app::shared::version);
         auto coor = params.find(' ') + 1; // npos+1=0
         params = params.substr(coor ? coor : params.size());
-        app::shared::start(params, aptype, config);
+        app::shared::start(params, aptype);
     }
     else
     {
-        auto config = app::shared::load::settings(cliopt);
+        auto& indexer = ui::tui_domain();
+        app::shared::load::settings(indexer.config, cliopt);
         auto client = os::ipc::socket::open<os::role::client, faux>(prefix, denied);
         auto signal = ptr::shared<os::fire>(os::process::started(prefix)); // Signaling that the server is ready for incoming connections.
 
@@ -396,7 +400,7 @@ int main(int argc, char* argv[])
         else if (whoami == type::client && !client)
         {
             log("%%New desktop session for [%userid%]", prompt::main, userid.first);
-            auto [success, successor] = os::process::fork(system, prefix, config.settings::utf8());
+            auto [success, successor] = os::process::fork(system, prefix, indexer.config.settings::utf8());
             if (successor)
             {
                 whoami = type::server;
@@ -418,10 +422,9 @@ int main(int argc, char* argv[])
                 auto env = os::env::add();
                 auto cwd = os::env::cwd();
                 auto cmd = script;
-                auto cfg = config.settings::utf8();
                 auto win = os::dtvt::gridsz;
-                auto gui = app::shared::get_gui_config(config);
-                userinit.send(client, userid.first, os::dtvt::vtmode, env, cwd, cmd, cfg, win);
+                auto gui = app::shared::get_gui_config(indexer.config);
+                userinit.send(client, userid.first, os::dtvt::vtmode, env, cwd, cmd, win);
                 app::shared::splice(client, gui);
                 return 0;
             }
@@ -430,7 +433,7 @@ int main(int argc, char* argv[])
 
         if (whoami == type::daemon)
         {
-            auto [success, successor] = os::process::fork(system, prefix, config.settings::utf8(), script);
+            auto [success, successor] = os::process::fork(system, prefix, indexer.config.settings::utf8(), script);
             if (successor)
             {
                 whoami = type::server;
@@ -464,11 +467,10 @@ int main(int argc, char* argv[])
         signal.reset();
 
         namespace e2 = ui::e2;
-        auto config_lock = ui::tui_domain().unique_lock(); // Sync multithreaded access to config.
-        auto desktop = app::vtm::hall::ctor(server, config);
+        auto lock = indexer.unique_lock();
+        auto desktop = app::vtm::hall::ctor(server);
         desktop->autorun();
-        auto config_utf8 = config.settings::utf8();
-        config_lock.unlock();
+        lock.unlock();
 
         log("%%Session started"
             "\n      user: %userid%"
@@ -526,18 +528,15 @@ int main(int argc, char* argv[])
         {
             if (user->auth(userid.second))
             {
-                desktop->run([&, user, config_utf8](auto session_id)
+                desktop->run([&, user](auto session_id)
                 {
                     auto userinit = directvt::binary::init{};
                     if (auto packet = userinit.recv(user))
                     {
                         auto id = utf::concat(*user);
                         if constexpr (debugmode) log("%%Client connected %id%", prompt::user, id);
-                        auto usrcfg = eccc{ .env = packet.env, .cwd = packet.cwd, .cmd = packet.cmd, .win = packet.win };
-                        auto config = settings{ config_utf8 };
-                        config.settings::fuse(packet.cfg);
                         os::ipc::users++;
-                        desktop->invite(user, packet.user, packet.mode, usrcfg, config, session_id);
+                        desktop->invite(user, packet.user, packet.mode, packet, session_id);
                         os::ipc::users--;
                         if constexpr (debugmode) log("%%Client disconnected %id%", prompt::user, id);
                     }

@@ -958,7 +958,6 @@ namespace netxs::app::vtm
 
         std::list<std::pair<sptr, para>> users; // hall: Desktop users.
         netxs::generics::pool async; // hall: Thread pool for parallel task execution.
-        settings config; // hall: Resultant settings.
         pro::maker& maker; // hall: Window creator using drag and drop (right drag).
         pro::robot& robot; // hall: Animation controller.
 
@@ -1028,6 +1027,7 @@ namespace netxs::app::vtm
         }
         auto loadspec(auto& conf_rec, auto& fallback, auto& item_ptr, text menuid, bool splitter = {})
         {
+            auto& config = bell::indexer.config;
             conf_rec.splitter   = splitter;
             conf_rec.menuid     = menuid;
             conf_rec.label      = config.settings::take_value_from(item_ptr, attr::label,    fallback.label   );
@@ -1149,13 +1149,13 @@ namespace netxs::app::vtm
 
     public:
         static constexpr auto classname = basename::desktop;
-        hall(xipc server, settings def_config)
-            : config{ def_config },
-              maker{ base::plugin<pro::maker>() },
+        hall(xipc server)
+            : maker{ base::plugin<pro::maker>() },
               robot{ base::plugin<pro::robot>() }
         {
             auto& canal = *server;
 
+            auto& config = bell::indexer.config;
             app::shared::get_tui_config(config, ui::skin::globals());
 
             base::plugin<pro::focus>(pro::focus::mode::focusable);
@@ -1164,7 +1164,6 @@ namespace netxs::app::vtm
             auto desktop_context = config.settings::push_context("/config/events/desktop/");
             auto script_list = config.settings::take_ptr_list_for_name("script");
             auto bindings = input::bindings::load(config, script_list);
-            //config.settings::pop_context();
             input::bindings::keybind(*this, bindings);
             base::add_methods(basename::desktop,
             {
@@ -1267,7 +1266,6 @@ namespace netxs::app::vtm
                                                     if (menuid.empty()) menuid = "vtm.run(" + utf8_xml + ")";
                                                     hall::loadspec(appspec, appspec, item_ptr, menuid);
                                                 }
-                                                //config.settings::pop_context();
                                             }
                                             auto title = appspec.title.empty() && appspec.label.empty() ? appspec.menuid
                                                        : appspec.title.empty() ? appspec.label
@@ -1352,9 +1350,7 @@ namespace netxs::app::vtm
                     if (conf_rec.hidden) temp_list.emplace_back(std::move(conf_rec.menuid), std::move(conf_rec));
                     else                 free_list.emplace_back(std::move(conf_rec.menuid), std::move(conf_rec));
                 }
-                //config.settings::pop_context();
             }
-            //config.settings::pop_context();
             for (auto& [menuid, conf_rec] : free_list)
             {
                 apps_list[menuid];
@@ -1692,6 +1688,7 @@ namespace netxs::app::vtm
         // hall: Autorun apps from config.
         void autorun()
         {
+            auto& config = bell::indexer.config;
             auto what = applink{};
             auto autorun_context = config.settings::push_context(path::autorun);
             auto apps = config.settings::take_ptr_list_for_name("run");
@@ -1716,7 +1713,6 @@ namespace netxs::app::vtm
                     else log(prompt::hall, "Unexpected empty app id in autorun configuration");
                 }
             }
-            //config.settings::pop_context();
             auto count = 0;
             for (auto& window_ptr : foci)
             {
@@ -1735,10 +1731,10 @@ namespace netxs::app::vtm
             async.run(process);
         }
         // hall: Create a new user gate.
-        auto invite(xipc client, view userid, si32 vtmode, eccc usrcfg, settings app_config, si32 session_id)
+        auto invite(xipc client, view userid, si32 vtmode, auto& packet, si32 session_id)
         {
             auto lock = bell::unique_lock();
-            auto usergate_ptr = ui::gate::ctor(client, vtmode, app_config, userid, session_id, true);
+            auto usergate_ptr = ui::gate::ctor(client, vtmode, userid, session_id, true);
             auto& usergate = *usergate_ptr;
 
             auto& [user_ptr, uname] = users.emplace_back(usergate_ptr, para{});
@@ -1917,6 +1913,7 @@ namespace netxs::app::vtm
             auto& vport = base::property<twod>("desktop.viewport"); // hall: Last user's viewport position.
             auto& selected_item = base::property<text>("desktop.selected"); // hall: Last user's selected menu item.
             auto& usergate_selected_item = usergate.base::property<text>("desktop.selected");
+            auto& config = bell::indexer.config;
             if (!vport)
             {
                 vport = config.settings::take(path::viewport, dot_00);
@@ -1928,8 +1925,12 @@ namespace netxs::app::vtm
             usergate_selected_item = selected_item;
             //auto& usergate_id = usergate.base::property<id_t>("gate.id");
             //auto& usergate_os_id = usergate.base::property<text>("gate.os_id");
-            usrcfg.cfg = utf::concat(usergate.id, ";", usergate.props.os_user_id);
-            auto deskmenu_ptr = app::shared::builder(app::desk::id)(usrcfg, app_config);
+            auto usrcfg = eccc{ .env = packet.env,
+                                .cwd = packet.cwd,
+                                .cmd = packet.cmd,
+                                .cfg = utf::concat(usergate.id, ";", usergate.props.os_user_id),
+                                .win = packet.win };
+            auto deskmenu_ptr = app::shared::builder(app::desk::id)(usrcfg, config);
             deskmenu_ptr->base::plugin<pro::keybd>();
             //todo
             //deskmenu_ptr->base::add_methods(basename::taskbar)...

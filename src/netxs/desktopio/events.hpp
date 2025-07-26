@@ -5,6 +5,7 @@
 
 #include "geometry.hpp"
 #include "lua.hpp"
+#include "xml.hpp"
 
 //todo Workaround for i386 linux targets, https://sourceware.org/bugzilla/show_bug.cgi?id=31775
 #if defined(__i386__) && defined(__linux__)
@@ -144,15 +145,16 @@ namespace netxs::events
         auth&      indexer; // luna: .
         lua_State* lua; // luna: .
 
-        static text vtmlua_torawstring(lua_State* lua, si32 idx, bool extended = faux);
-        static si32 vtmlua_object2string(lua_State* lua);
-        static si32 vtmlua_log(lua_State* lua);
-        static si32 vtmlua_call_method(lua_State* lua);
+        static text vtmlua_torawstring(     lua_State* lua, si32 idx, bool extended = faux);
+        static si32 vtmlua_object2string(   lua_State* lua);
+        static si32 vtmlua_log(             lua_State* lua);
+        static si32 vtmlua_call_method(     lua_State* lua);
         static si32 vtmlua_run_with_indexer(lua_State* lua, auto proc);
-        static si32 vtmlua_vtm_call(lua_State* lua);
-        static si32 vtmlua_vtm_index(lua_State* lua);
-        static si32 vtmlua_vtm_subindex(lua_State* lua);
-        static si32 vtmlua_push_value(lua_State* lua, auto&& v);
+        static si32 vtmlua_vtm_call(        lua_State* lua);
+        static si32 vtmlua_vtm_index(       lua_State* lua);
+        static si32 vtmlua_vtm_subindex(    lua_State* lua);
+        static si32 vtmlua_cfg_subindex(    lua_State* lua);
+        static si32 vtmlua_push_value(      lua_State* lua, auto&& v);
         si32 push_value(auto&& v);
         void set_return(auto... args);
         si32 args_count();
@@ -298,6 +300,7 @@ namespace netxs::events
         utf::unordered_map<text, hint>            keybd_chords; // auth: Registered keyboard chords.
         hint                                      chord_index{}; // auth: Next available keybd chord index.
         hint                                      anykey_event{};
+        settings                                  config; // auth: Global settings.
 
         auto get_kbchord_hint(qiew chord)
         {

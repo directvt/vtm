@@ -230,7 +230,6 @@ namespace netxs::app::shop
                              ->upload(desktopio_body)
                              ->plugin<pro::grade>();
                 layers->attach(app::shared::scroll_bars(scroll));
-            //config.settings::pop_context();
             window->invoke([&](auto& boss)
             {
                 app::shared::base_kb_navigation(config, scroll, boss);

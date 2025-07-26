@@ -22,7 +22,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v2025.07.25";
+    static const auto version = "v2025.07.26";
     static const auto repository = "https://github.com/directvt/vtm";
     static const auto usr_config = "~/.config/vtm/settings.xml"s;
     static const auto sys_config = "/etc/vtm/settings.xml"s;
@@ -116,7 +116,6 @@ namespace netxs::app::shared
         auto defapp_context = config.settings::push_context("/config/events/defapp/");
         auto script_list = config.settings::take_ptr_list_for_name("script");
         auto bindings = input::bindings::load(config, script_list);
-        //config.settings::pop_context();
         input::bindings::keybind(boss, bindings);
         boss.base::add_methods(basename::defapp,
         {
@@ -179,7 +178,6 @@ namespace netxs::app::shared
         auto applet_context = config.settings::push_context("/config/events/applet/");
         auto script_list = config.settings::take_ptr_list_for_name("script");
         bindings = input::bindings::load(config, script_list);
-        //config.settings::pop_context();
         input::bindings::keybind(boss, bindings);
         boss.base::add_methods(basename::applet,
         {
@@ -396,7 +394,7 @@ namespace netxs::app::shared
             {
                 auto control = std::vector<link>
                 {
-                    { menu::item{ .alive = true, .label = "  —  ", .tooltip = " Minimize " },//, .hover = c2 }, //todo too funky
+                    { menu::item{ .alive = true, .label = "  —  ", .tooltip = skin::globals().NsMinimizeWindow_tooltip },//, .hover = c2 }, //todo too funky
                     [](auto& boss, auto& /*item*/)
                     {
                         boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
@@ -405,7 +403,7 @@ namespace netxs::app::shared
                             gear.dismiss();
                         });
                     }},
-                    { menu::item{ .alive = true, .label = "  □  ", .tooltip = " Maximize " },//, .hover = c6 },
+                    { menu::item{ .alive = true, .label = "  □  ", .tooltip = skin::globals().NsMaximizeWindow_tooltip },//, .hover = c6 },
                     [](auto& boss, auto& /*item*/)
                     {
                         boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
@@ -414,7 +412,7 @@ namespace netxs::app::shared
                             gear.dismiss();
                         });
                     }},
-                    { menu::item{ .alive = true, .label = "  ×  ", .tooltip = " Close ", .hover = c1 },
+                    { menu::item{ .alive = true, .label = "  ×  ", .tooltip = skin::globals().NsCloseWindow_tooltip, .hover = c1 },
                     [c1](auto& boss, auto& /*item*/)
                     {
                         boss.template shader<tier::anycast>(cell::shaders::color(c1), e2::form::state::keybd::command::close);
@@ -538,7 +536,6 @@ namespace netxs::app::shared
             auto menu_context = config.settings::push_context("menu/");
             auto autohide = config.settings::take("autohide", faux);
             auto slimsize = config.settings::take("slim"    , true);
-            //config.settings::pop_context();
             return mini(autohide, slimsize, 0, menu_items);
         };
         const auto load = [](settings& config)
@@ -606,7 +603,6 @@ namespace netxs::app::shared
                 };
                 list.push_back({ item, setup });
             }
-            //config.settings::pop_context();
             return menu::create(config, list);
         };
         const auto demo = [](settings& config)
@@ -718,7 +714,7 @@ namespace netxs::app::shared
                 def_cfg.combine_item(src_cfg.root_ptr);
             }
         }
-        auto settings(qiew cliopt, bool print = faux)
+        void settings(xml::settings& resultant, qiew cliopt, bool print = faux)
         {
             static auto defaults = utf::replace_all(
                 #include "../../vtm.xml"
@@ -787,8 +783,7 @@ namespace netxs::app::shared
             overlay_config(defcfg, dvtcfg);
             overlay_config(defcfg, clicfg);
 
-            auto resultant = xml::settings{ std::move(defcfg) };
-            return resultant;
+            resultant.document.swap(defcfg);
         }
     }
 
@@ -829,7 +824,6 @@ namespace netxs::app::shared
             //todo implement 'fonts/font/file' - font file path/url
             gui_config.fontlist.push_back(config.settings::take_value(font_ptr));
         }
-        //config.settings::pop_context();
         return gui_config;
     }
     auto get_tui_config(settings& config, ui::skin& g)
@@ -866,6 +860,90 @@ namespace netxs::app::shared
         g.macstyle       = config.settings::take("/config/desktop/macstyle"         , faux);
         g.menuwide       = config.settings::take("/config/desktop/taskbar/wide"     , faux);
         if (g.maxfps <= 0) g.maxfps = 60;
+
+        g.NsTextbasedDesktopEnvironment   = config.settings::take("/Ns/TextbasedDesktopEnvironment"    , ""s);
+        g.NsInfo_label                    = config.settings::take("/Ns/Info/label"                     , ""s);
+        g.NsInfo_tooltip                  = config.settings::take("/Ns/Info/tooltip"                   , ""s);
+        g.NsInfo_title                    = config.settings::take("/Ns/Info/title"                     , ""s);
+        g.NsInfoKeybdTest                 = config.settings::take("/Ns/Info/KeybdTest"                 , ""s);
+        g.NsInfoKeybdMode                 = config.settings::take("/Ns/Info/KeybdMode"                 , ""s);
+        g.NsInfoKeybdToggle_on            = config.settings::take("/Ns/Info/KeybdToggle/on"            , ""s);
+        g.NsInfoKeybdToggle_off           = config.settings::take("/Ns/Info/KeybdToggle/off"           , ""s);
+        g.NsInfo_pressed                  = config.settings::take("/Ns/Info/pressed"                   , ""s);
+        g.NsInfo_released                 = config.settings::take("/Ns/Info/released"                  , ""s);
+        g.NsInfo_pressanykeys             = config.settings::take("/Ns/Info/pressanykeys"              , ""s);
+        g.NsInfoGeneric                   = config.settings::take("/Ns/Info/Generic"                   , ""s);
+        g.NsInfoLiteral                   = config.settings::take("/Ns/Info/Literal"                   , ""s);
+        g.NsInfoSpecific                  = config.settings::take("/Ns/Info/Specific"                  , ""s);
+        g.NsInfoScancodes                 = config.settings::take("/Ns/Info/Scancodes"                 , ""s);
+        g.NsInfo_copied                   = config.settings::take("/Ns/Info/copied"                    , ""s);
+        g.NsInfoStatus                    = config.settings::take("/Ns/Info/Status"                    , ""s);
+        g.NsInfoSystem                    = config.settings::take("/Ns/Info/System"                    , ""s);
+        g.NsInfoYes                       = config.settings::take("/Ns/Info/Yes"                       , ""s);
+        g.NsInfoNo                        = config.settings::take("/Ns/Info/No"                        , ""s);
+        g.NsInfoUptime_d                  = config.settings::take("/Ns/Info/Uptime/d"                  , ""s);
+        g.NsInfoUptime_h                  = config.settings::take("/Ns/Info/Uptime/h"                  , ""s);
+        g.NsInfoUptime_m                  = config.settings::take("/Ns/Info/Uptime/m"                  , ""s);
+        g.NsInfoUptime_s                  = config.settings::take("/Ns/Info/Uptime/s"                  , ""s);
+
+        g.NsInfoSF                        = config.settings::take("/Ns/Info/SF"                           , ""s);
+        g.NsInfoSubcellSize               = config.settings::take("/Ns/Info/SF/SubcellSize"               , ""s);
+        g.NsInfoLatin                     = config.settings::take("/Ns/Info/SF/Latin"                     , ""s);
+        g.NsInfoCJK                       = config.settings::take("/Ns/Info/SF/CJK"                       , ""s);
+        g.NsInfoThai                      = config.settings::take("/Ns/Info/SF/Thai"                      , ""s);
+        g.NsInfoGeorgian                  = config.settings::take("/Ns/Info/SF/Georgian"                  , ""s);
+        g.NsInfoDevanagari                = config.settings::take("/Ns/Info/SF/Devanagari"                , ""s);
+        g.NsInfoArabic                    = config.settings::take("/Ns/Info/SF/Arabic"                    , ""s);
+        g.NsInfoHebrew                    = config.settings::take("/Ns/Info/SF/Hebrew"                    , ""s);
+        g.NsInfoEmoji                     = config.settings::take("/Ns/Info/SF/Emoji"                     , ""s);
+        g.NsInfoBoxDrawing                = config.settings::take("/Ns/Info/SF/BoxDrawing"                , ""s);
+        g.NsInfoLargeTypePieces           = config.settings::take("/Ns/Info/SF/LargeTypePieces"           , ""s);
+        g.NsInfoStyledUnderline           = config.settings::take("/Ns/Info/SF/Style"                     , ""s);
+        g.NsInfoSingleOverline            = config.settings::take("/Ns/Info/SF/Style/SingleOverline"      , ""s);
+        g.NsInfoDoubleUnderline           = config.settings::take("/Ns/Info/SF/Style/DoubleUnderline"     , ""s);
+        g.NsInfoSingleUnderline           = config.settings::take("/Ns/Info/SF/Style/SingleUnderline"     , ""s);
+        g.NsInfoDashedUnderline           = config.settings::take("/Ns/Info/SF/Style/DashedUnderline"     , ""s);
+        g.NsInfoDottedUnderline           = config.settings::take("/Ns/Info/SF/Style/DottedUnderline"     , ""s);
+        g.NsInfoWavyUnderline             = config.settings::take("/Ns/Info/SF/Style/WavyUnderline"       , ""s);
+        g.NsInfoWhiteSingleUnderline      = config.settings::take("/Ns/Info/SF/Style/WhiteSingleUnderline", ""s);
+        g.NsInfoWhiteWavyUnderline        = config.settings::take("/Ns/Info/SF/Style/WhiteWavyUnderline"  , ""s);
+        g.NsInfoRedSingleUnderline        = config.settings::take("/Ns/Info/SF/Style/RedSingleUnderline"  , ""s);
+        g.NsInfoRedWavyUnderline          = config.settings::take("/Ns/Info/SF/Style/RedWavyUnderline"    , ""s);
+        g.NsInfoFontStyle                 = config.settings::take("/Ns/Info/SF/FontStyle"                 , ""s);
+        g.NsInfoNormal                    = config.settings::take("/Ns/Info/SF/FontStyle/Normal"          , ""s);
+        g.NsInfoBlinking                  = config.settings::take("/Ns/Info/SF/FontStyle/Blinking"        , ""s);
+        g.NsInfoBold                      = config.settings::take("/Ns/Info/SF/FontStyle/Bold"            , ""s);
+        g.NsInfoItalic                    = config.settings::take("/Ns/Info/SF/FontStyle/Italic"          , ""s);
+        g.NsInfoCharacterWidth            = config.settings::take("/Ns/Info/SF/CharacterWidth"            , ""s);
+        g.NsInfoVariationSelectors        = config.settings::take("/Ns/Info/SF/VariationSelectors"        , ""s);
+        g.NsInfoLongestWord               = config.settings::take("/Ns/Info/SF/LongestWord"               , ""s);
+        g.NsInfoRotationFlipandMirror     = config.settings::take("/Ns/Info/SF/RotationFlipandMirror"     , ""s);
+        g.NsInfoCharacterMatrix           = config.settings::take("/Ns/Info/SF/CharacterMatrix"           , ""s);
+        g.NsInfoCharacterHalves           = config.settings::take("/Ns/Info/SF/CharacterHalves"           , ""s);
+        g.NsInfosRGBBlending              = config.settings::take("/Ns/Info/SF/sRGBBlending"              , ""s);
+        g.NsInfoPressCtrlCaps             = config.settings::take("/Ns/Info/SF/PressCtrlCaps"             , ""s);
+
+        g.NsTaskbar_tooltip               = config.settings::take("/Ns/Taskbar/taskbar_tooltip"        , ""s);
+        g.NsTaskbarGrips_tooltip          = config.settings::take("/Ns/Taskbar/Grips/tooltip"          , ""s);
+        g.NsUserList_tooltip              = config.settings::take("/Ns/Taskbar/UserList/tooltip"       , ""s);
+        g.NsAdmins_label                  = config.settings::take("/Ns/Taskbar/UserList/Admins/label"  , "admins"s);
+        g.NsUsers_label                   = config.settings::take("/Ns/Taskbar/UserList/Users/label"   , "users"s);
+        g.NsUser_tooltip                  = config.settings::take("/Ns/Taskbar/UserList/User/tooltip"  , ""s);
+        g.NsToggle_tooltip                = config.settings::take("/Ns/Taskbar/UserList/Toggle/tooltip", ""s);
+        g.NsDisconnect_label              = config.settings::take("/Ns/Taskbar/Disconnect/label"       , "Disconnect"s);
+        g.NsShutdown_label                = config.settings::take("/Ns/Taskbar/Shutdown/label"         , "Shutdown"s);
+        g.NsDisconnect_tooltip            = config.settings::take("/Ns/Taskbar/Disconnect/tooltip"     , ""s);
+        g.NsShutdown_tooltip              = config.settings::take("/Ns/Taskbar/Shutdown/tooltip"       , ""s);
+
+        g.NsTaskbarAppsClose_tooltip      = config.settings::take("/Ns/Taskbar/Apps/Close/tooltip"    , ""s);
+        g.NsTaskbarAppsApp_tooltip        = config.settings::take("/Ns/Taskbar/Apps/App/tooltip"      , ""s);
+        g.NsTaskbarApps_deftooltip        = config.settings::take("/Ns/Taskbar/Apps/deftooltip"       , ""s);
+        g.NsTaskbarApps_toggletooltip     = config.settings::take("/Ns/Taskbar/Apps/toggletooltip"    , ""s);
+        g.NsTaskbarApps_groupclosetooltip = config.settings::take("/Ns/Taskbar/Apps/groupclosetooltip", ""s);
+
+        g.NsMinimizeWindow_tooltip        = config.settings::take("/Ns/MinimizeWindow/tooltip"         , ""s);
+        g.NsMaximizeWindow_tooltip        = config.settings::take("/Ns/MaximizeWindow/tooltip"         , ""s);
+        g.NsCloseWindow_tooltip           = config.settings::take("/Ns/CloseWindow/tooltip"            , ""s);
     }
     void splice(xipc client, gui_config_t& gc)
     {
@@ -878,6 +956,7 @@ namespace netxs::app::shared
             os::dtvt::client = client;
             auto connect = [&]
             {
+                //todo sync settings with tui_domain (auth::config)
                 auto gui_event_domain = netxs::events::auth{};
                 auto window = gui_event_domain.create<gui::window>(gui_event_domain, gc.fontlist, gc.cellsize, gc.aliasing, gc.blinking, dot_21);
                 window->connect(gc.winstate, gc.wincoord, gc.gridsize);
@@ -895,19 +974,20 @@ namespace netxs::app::shared
             }
         }
     }
-    void start(text cmd, text aclass, settings& config)
+    void start(text cmd, text aclass)
     {
         //todo revise
         auto [client, server] = os::ipc::xlink();
         auto& indexer = ui::tui_domain();
-        auto config_lock = indexer.unique_lock(); // Sync multithreaded access to config.
+        auto& config = indexer.config;
+        auto ui_lock = indexer.unique_lock();
         auto gui_config = app::shared::get_gui_config(config);
         app::shared::get_tui_config(config, ui::skin::globals());
         auto thread = std::thread{ [&, &client = client] //todo clang 15.0.0 still disallows capturing structured bindings (wait for clang 16.0.0)
         {
             app::shared::splice(client, gui_config);
         }};
-        auto gate_ptr = ui::gate::ctor(server, os::dtvt::vtmode, config);
+        auto gate_ptr = ui::gate::ctor(server, os::dtvt::vtmode);
         auto& gate = *gate_ptr;
         gate.base::resize(os::dtvt::gridsz);
         gate.base::signal(tier::general, e2::config::fps, ui::skin::globals().maxfps);
@@ -917,10 +997,10 @@ namespace netxs::app::shared
         applet.base::kind(base::reflow_root);
         app::shared::applet_kb_navigation(config, applet_ptr);
         gate.attach(std::move(applet_ptr));
-        config_lock.unlock();
+        ui_lock.unlock();
         gate.launch();
         gate.base::dequeue();
-        config_lock.lock();
+        ui_lock.lock();
         gate_ptr.reset();
         server->shut();
         client->shut();

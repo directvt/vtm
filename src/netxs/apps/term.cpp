@@ -7,13 +7,10 @@ using namespace netxs;
 
 int main(int argc, char* argv[])
 {
-    auto defaults =
-    #include "../vtm.xml"
-
     auto banner = []{ log(app::terminal::name, ' ', app::shared::version); };
     auto cfonly = faux;
     auto rungui = true;
-    auto cfpath = text{};
+    auto cliopt = text{};
     auto errmsg = text{};
     auto getopt = os::process::args{ argc, argv };
     while (getopt)
@@ -24,8 +21,8 @@ int main(int argc, char* argv[])
         }
         else if (getopt.match("-c", "--config"))
         {
-            cfpath = getopt.next();
-            if (cfpath.empty())
+            cliopt = getopt.next();
+            if (cliopt.empty())
             {
                 errmsg = "Config file path not specified";
                 break;
@@ -72,11 +69,14 @@ int main(int argc, char* argv[])
     }
     else if (cfonly)
     {
-        log(prompt::resultant_settings, "\n", app::shared::load::settings<true>(defaults, cfpath, os::dtvt::config));
+        auto config = xml::settigs{};
+        app::shared::load::settings<true>(config, cliopt)
+        log(prompt::resultant_settings, "\n", config);
     }
     else
     {
-        auto config = app::shared::load::settings(defaults, cfpath, os::dtvt::config);
-        app::shared::start(params, app::terminal::id, config);
+        auto& indexer = ui::tui_domain();
+        app::shared::load::settings(indexer.config, cliopt);
+        app::shared::start(params, app::terminal::id);
     }
 }
