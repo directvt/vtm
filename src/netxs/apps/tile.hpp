@@ -893,7 +893,6 @@ namespace netxs::app::tile
             //            └─ maximized node_veer...
 
             auto param = view{ appcfg.cmd };
-            auto window_clr = skin::color(tone::window_clr);
             //auto highlight_color = skin::color(tone::highlight);
             //auto danger_color    = skin::color(tone::danger);
             //auto warning_color   = skin::color(tone::warning);
@@ -905,6 +904,20 @@ namespace netxs::app::tile
                 ->plugin<items>()
                 ->plugin<pro::focus>()
                 ->plugin<pro::keybd>();
+            auto& window_clr = object->base::field(skin::color(tone::window_clr));
+            auto& is_focused = object->base::field(faux);
+            object ->invoke([&](auto& boss)
+            {
+                boss.LISTEN(tier::release, e2::form::state::focus::count, count)
+                {
+                    if (std::exchange(is_focused, !!count) != is_focused)
+                    {
+                        boss.base::deface(); // Trigger to update pro::cache.
+                        window_clr = is_focused ? skin::color(tone::winfocus)
+                                                : skin::color(tone::window_clr);
+                    }
+                };
+            });
             using namespace app::shared;
             auto tile_context = config.settings::push_context("/config/events/tile/grip/");
             auto script_list = config.settings::take_ptr_list_for_name("script");
@@ -919,16 +932,15 @@ namespace netxs::app::tile
                         boss.base::riseup(tier::release, e2::form::proceed::quit::one, fast);
                     };
                 });
-            menu_data->active(window_clr)
-                     //->plugin<pro::track>()
-                     ->plugin<pro::acryl>();
+            menu_data->active()
+                ->shader(window_clr)
+                ->plugin<pro::acryl>();
             auto menu_id = menu_block->id;
             cover->invoke([&](auto& boss)
             {
                 auto bar = cell{ "▀"sv }.link(menu_id);
                 boss.LISTEN(tier::release, e2::render::any, parent_canvas, -, (bar))
                 {
-                    auto window_clr = skin::color(tone::window_clr);
                     auto fgc = window_clr.bgc();
                     parent_canvas.fill([&](cell& c){ c.fgc(fgc).txt(bar).link(bar); });
                 };
