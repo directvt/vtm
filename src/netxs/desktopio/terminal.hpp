@@ -8206,8 +8206,8 @@ namespace netxs::ui
         }
 
     public:
-        term(settings& config)
-            : defcfg{ config },
+        term()
+            : defcfg{ bell::indexer.config },
               normal{ *this },
               altbuf{ *this },
               target{ &normal },
@@ -8247,6 +8247,7 @@ namespace netxs::ui
 
             base::plugin<pro::keybd>();
             auto& luafx = bell::indexer.luafx;
+            auto& config = bell::indexer.config;
             auto terminal_context = config.settings::push_context("/config/events/terminal/");
             auto script_list = config.settings::take_ptr_list_for_name("script");
             auto bindings = input::bindings::load(config, script_list);

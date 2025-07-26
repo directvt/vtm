@@ -324,6 +324,12 @@ namespace netxs::xml
                   file{ file }
             { }
 
+            void swap(suit& d)
+            {
+                std::swap(frag_list, d.frag_list);
+                std::swap(fail, d.fail);
+                std::swap(file, d.file);
+            }
             void init(view filename = {})
             {
                 frag_list.clear();
@@ -1298,6 +1304,11 @@ namespace netxs::xml
         }
         operator bool () const { return root_ptr ? !root_ptr->hive.empty() : faux; }
 
+        void swap(document& d)
+        {
+            page.swap(d.page);
+            std::swap(root_ptr, d.root_ptr);
+        }
         void load(view utf8, view file = {})
         {
             page.init(file);

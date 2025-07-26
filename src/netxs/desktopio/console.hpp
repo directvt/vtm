@@ -752,9 +752,9 @@ namespace netxs::ui
         }
 
         //todo revise
-        gate(xipc uplink, si32 vtmode, settings& config, view userid = {}, si32 session_id = 0, bool isvtm = faux)
+        gate(xipc uplink, si32 vtmode, view userid = {}, si32 session_id = 0, bool isvtm = faux)
             : canal{ *uplink },
-              props{ canal, userid, vtmode, isvtm, session_id, config },
+              props{ canal, userid, vtmode, isvtm, session_id, bell::indexer.config },
               paint{ canal, props.vtmode },
               conio{ canal, *this  },
               alive{ true },
@@ -767,6 +767,7 @@ namespace netxs::ui
             base::plugin<pro::focus>();
             base::plugin<pro::keybd>();
             auto& luafx = bell::indexer.luafx;
+            auto& config = bell::indexer.config;
             auto gate_context = config.settings::push_context("/config/events/gate/");
             auto script_list = config.settings::take_ptr_list_for_name("script");
             auto bindings = input::bindings::load(config, script_list);

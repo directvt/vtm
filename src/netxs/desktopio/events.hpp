@@ -5,6 +5,7 @@
 
 #include "geometry.hpp"
 #include "lua.hpp"
+#include "xml.hpp"
 
 //todo Workaround for i386 linux targets, https://sourceware.org/bugzilla/show_bug.cgi?id=31775
 #if defined(__i386__) && defined(__linux__)
@@ -298,6 +299,7 @@ namespace netxs::events
         utf::unordered_map<text, hint>            keybd_chords; // auth: Registered keyboard chords.
         hint                                      chord_index{}; // auth: Next available keybd chord index.
         hint                                      anykey_event{};
+        settings                                  config; // auth: Global settings.
 
         auto get_kbchord_hint(qiew chord)
         {

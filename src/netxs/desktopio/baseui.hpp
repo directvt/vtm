@@ -5,7 +5,6 @@
 
 #include "richtext.hpp"
 #include "events.hpp"
-#include "xml.hpp"
 
 namespace netxs
 {

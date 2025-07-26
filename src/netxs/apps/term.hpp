@@ -43,7 +43,7 @@ namespace netxs::app::terminal
             boss.base::signal(tier::release, e2::form::upon::started, root_ptr);
         };
     };
-    auto build_teletype = [](eccc appcfg, settings& config)
+    auto build_teletype = [](eccc appcfg, settings& /*config*/)
     {
         auto window_clr = skin::color(tone::window_clr);
         auto window = ui::cake::ctor()
@@ -61,7 +61,7 @@ namespace netxs::app::terminal
         auto scroll = layers->attach(ui::rail::ctor())
                             ->limits({ 10,1 }); // mc crashes when window is too small
         if (appcfg.cmd.empty()) appcfg.cmd = os::env::shell();//todo revise + " -i";
-        auto term = scroll->attach(ui::term::ctor(config))
+        auto term = scroll->attach(ui::term::ctor())
             ->plugin<pro::focus>(pro::focus::mode::focused)
             ->invoke([&](auto& boss)
             {
@@ -151,7 +151,7 @@ namespace netxs::app::terminal
 
         if (appcfg.cmd.empty()) appcfg.cmd = os::env::shell();//todo revise + " -i";
         auto terminal_context = config.settings::push_context("/config/terminal/");
-        auto term = scroll->attach(ui::term::ctor(config))
+        auto term = scroll->attach(ui::term::ctor())
             ->plugin<pro::focus>(pro::focus::mode::focused)
             ->invoke([&](auto& boss)
             {

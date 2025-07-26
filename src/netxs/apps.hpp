@@ -428,7 +428,7 @@ namespace netxs::app::shared
                     };
                 });
         };
-        auto build_dtty = [](eccc appcfg, settings& config)
+        auto build_dtty = [](eccc appcfg, settings& /*config*/)
         {
             auto window_clr = skin::color(tone::window_clr);
             auto window_ptr = ui::veer::ctor()
@@ -441,7 +441,7 @@ namespace netxs::app::shared
                 ->plugin<pro::focus>(pro::focus::mode::relay, faux/*no default focus*/)
                 ->limits(dot_11);
             auto scrl = term_cake->attach(ui::rail::ctor());
-            auto term = scrl->attach(ui::term::ctor(config))
+            auto term = scrl->attach(ui::term::ctor())
                 ->plugin<pro::focus>(pro::focus::mode::focused)
                 ->invoke([&](auto& boss)
                 {

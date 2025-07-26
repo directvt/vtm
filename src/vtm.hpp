@@ -958,7 +958,6 @@ namespace netxs::app::vtm
 
         std::list<std::pair<sptr, para>> users; // hall: Desktop users.
         netxs::generics::pool async; // hall: Thread pool for parallel task execution.
-        settings config; // hall: Resultant settings.
         pro::maker& maker; // hall: Window creator using drag and drop (right drag).
         pro::robot& robot; // hall: Animation controller.
 
@@ -1028,6 +1027,7 @@ namespace netxs::app::vtm
         }
         auto loadspec(auto& conf_rec, auto& fallback, auto& item_ptr, text menuid, bool splitter = {})
         {
+            auto& config = bell::indexer.config;
             conf_rec.splitter   = splitter;
             conf_rec.menuid     = menuid;
             conf_rec.label      = config.settings::take_value_from(item_ptr, attr::label,    fallback.label   );
@@ -1149,13 +1149,13 @@ namespace netxs::app::vtm
 
     public:
         static constexpr auto classname = basename::desktop;
-        hall(xipc server, settings def_config)
-            : config{ def_config },
-              maker{ base::plugin<pro::maker>() },
+        hall(xipc server)
+            : maker{ base::plugin<pro::maker>() },
               robot{ base::plugin<pro::robot>() }
         {
             auto& canal = *server;
 
+            auto& config = bell::indexer.config;
             app::shared::get_tui_config(config, ui::skin::globals());
 
             base::plugin<pro::focus>(pro::focus::mode::focusable);
@@ -1688,6 +1688,7 @@ namespace netxs::app::vtm
         // hall: Autorun apps from config.
         void autorun()
         {
+            auto& config = bell::indexer.config;
             auto what = applink{};
             auto autorun_context = config.settings::push_context(path::autorun);
             auto apps = config.settings::take_ptr_list_for_name("run");
@@ -1733,7 +1734,7 @@ namespace netxs::app::vtm
         auto invite(xipc client, view userid, si32 vtmode, auto& packet, si32 session_id)
         {
             auto lock = bell::unique_lock();
-            auto usergate_ptr = ui::gate::ctor(client, vtmode, config, userid, session_id, true);
+            auto usergate_ptr = ui::gate::ctor(client, vtmode, userid, session_id, true);
             auto& usergate = *usergate_ptr;
 
             auto& [user_ptr, uname] = users.emplace_back(usergate_ptr, para{});
@@ -1912,6 +1913,7 @@ namespace netxs::app::vtm
             auto& vport = base::property<twod>("desktop.viewport"); // hall: Last user's viewport position.
             auto& selected_item = base::property<text>("desktop.selected"); // hall: Last user's selected menu item.
             auto& usergate_selected_item = usergate.base::property<text>("desktop.selected");
+            auto& config = bell::indexer.config;
             if (!vport)
             {
                 vport = config.settings::take(path::viewport, dot_00);

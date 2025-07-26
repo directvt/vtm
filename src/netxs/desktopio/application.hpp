@@ -714,7 +714,7 @@ namespace netxs::app::shared
                 def_cfg.combine_item(src_cfg.root_ptr);
             }
         }
-        auto settings(qiew cliopt, bool print = faux)
+        void settings(xml::settings& resultant, qiew cliopt, bool print = faux)
         {
             static auto defaults = utf::replace_all(
                 #include "../../vtm.xml"
@@ -783,8 +783,7 @@ namespace netxs::app::shared
             overlay_config(defcfg, dvtcfg);
             overlay_config(defcfg, clicfg);
 
-            auto resultant = xml::settings{ std::move(defcfg) };
-            return resultant;
+            resultant.document.swap(defcfg);
         }
     }
 
@@ -957,6 +956,7 @@ namespace netxs::app::shared
             os::dtvt::client = client;
             auto connect = [&]
             {
+                //todo sync settings with tui_domain (auth::config)
                 auto gui_event_domain = netxs::events::auth{};
                 auto window = gui_event_domain.create<gui::window>(gui_event_domain, gc.fontlist, gc.cellsize, gc.aliasing, gc.blinking, dot_21);
                 window->connect(gc.winstate, gc.wincoord, gc.gridsize);
@@ -974,19 +974,20 @@ namespace netxs::app::shared
             }
         }
     }
-    void start(text cmd, text aclass, settings& config)
+    void start(text cmd, text aclass)
     {
         //todo revise
         auto [client, server] = os::ipc::xlink();
         auto& indexer = ui::tui_domain();
-        auto config_lock = indexer.unique_lock(); // Sync multithreaded access to config.
+        auto& config = indexer.config;
+        auto ui_lock = indexer.unique_lock();
         auto gui_config = app::shared::get_gui_config(config);
         app::shared::get_tui_config(config, ui::skin::globals());
         auto thread = std::thread{ [&, &client = client] //todo clang 15.0.0 still disallows capturing structured bindings (wait for clang 16.0.0)
         {
             app::shared::splice(client, gui_config);
         }};
-        auto gate_ptr = ui::gate::ctor(server, os::dtvt::vtmode, config);
+        auto gate_ptr = ui::gate::ctor(server, os::dtvt::vtmode);
         auto& gate = *gate_ptr;
         gate.base::resize(os::dtvt::gridsz);
         gate.base::signal(tier::general, e2::config::fps, ui::skin::globals().maxfps);
@@ -996,10 +997,10 @@ namespace netxs::app::shared
         applet.base::kind(base::reflow_root);
         app::shared::applet_kb_navigation(config, applet_ptr);
         gate.attach(std::move(applet_ptr));
-        config_lock.unlock();
+        ui_lock.unlock();
         gate.launch();
         gate.base::dequeue();
-        config_lock.lock();
+        ui_lock.lock();
         gate_ptr.reset();
         server->shut();
         client->shut();
