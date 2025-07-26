@@ -400,8 +400,8 @@ namespace netxs::app::desk
 
             auto menu_bg_color = config.settings::take("/config/desktop/taskbar/colors/bground", cell{}.fgc(whitedk).bgc(0x60202020));
             auto menu_min_conf = config.settings::take("/config/desktop/taskbar/width/folded",   si32{ 5  });
-            auto menu_max_conf = config.settings::take("/config/desktop/taskbar/width/expanded", si32{ 32 });
-            auto bttn_min_size = twod{ 35, 1 + tall * 2 };
+            auto menu_max_conf = config.settings::take("/config/desktop/taskbar/width/expanded", si32{ 40 });
+            auto bttn_min_size = twod{ 40, 1 + tall * 2 };
             auto bttn_max_size = twod{ -1, 1 + tall * 2 };
 
             auto window = ui::fork::ctor(axis::Y, 0, 0, 1);
