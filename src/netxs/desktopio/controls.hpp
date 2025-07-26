@@ -128,10 +128,30 @@ namespace netxs::events
     si32 luna::vtmlua_vtm_subindex(lua_State* lua)
     {
         // Stack:
-        //      1. object_ptr.
+        //      1. lua's object_ptr.
         //      2. fx name.
         ::lua_pushcclosure(lua, luna::vtmlua_call_method, 2);
         return 1;
+    }
+    si32 luna::vtmlua_cfg_subindex(lua_State* lua)
+    {
+        // Stack:
+        //      1. ptr to settings&.
+        //      2. settings path.
+        auto v = text{};
+        if (auto config_ptr = (settings*)::lua_touserdata(lua, 1))
+        {
+            auto len = size_t{};
+            auto ptr = ::lua_tolstring(lua, 2, &len);
+            auto frompath = qiew{ ptr, len };
+            if (auto item_ptr = config_ptr->find_context_ptr(frompath))
+            {
+                v = config_ptr->take_value(item_ptr);
+                ::lua_pushlstring(lua, v.data(), v.size());
+                return 1;
+            }
+        }
+        return 0;
     }
     si32 luna::vtmlua_run_with_indexer(lua_State* lua, auto proc)
     {
@@ -234,7 +254,14 @@ namespace netxs::events
         {
             auto object_name = luna::vtmlua_torawstring(lua, 2);
             auto& source_ctx = indexer.context_ref.get();
-            if (auto target_ptr = indexer.get_target(source_ctx, object_name))
+            if (object_name == "config")
+            {
+                log("object_name=", object_name);
+                ::lua_pushlightuserdata(lua, &indexer.config); // Push address of the config instance.
+                ::luaL_setmetatable(lua, "cfg_submetaindex"); // Set the cfg_submetaindex for table at -1.
+                return 1;
+            }
+            else if (auto target_ptr = indexer.get_target(source_ctx, object_name))
             {
                 //if constexpr (debugmode) log("       selected: ", netxs::events::script_ref::to_string(target_ptr->scripting_context));
                 ::lua_pushlightuserdata(lua, target_ptr); // Push object ptr.
@@ -434,6 +461,12 @@ namespace netxs::events
                                                                 { nullptr, nullptr }});
         ::luaL_newmetatable(lua, "vtm_submetaindex"); // Create a new metatable in registry and push it to the stack.
         ::luaL_setfuncs(lua, vtm_submetaindex.data(), 0); // Assign metamethods for the table which at the top of the stack.
+
+        // Define sub-vtm.config.* redirecting metatable.
+        static auto cfg_submetaindex = std::to_array<luaL_Reg>({{ "__index", luna::vtmlua_cfg_subindex },
+                                                                { nullptr, nullptr }});
+        ::luaL_newmetatable(lua, "cfg_submetaindex"); // Create a new metatable in registry and push it to the stack.
+        ::luaL_setfuncs(lua, cfg_submetaindex.data(), 0); // Assign metamethods for the table which at the top of the stack.
     }
     luna::~luna()
     {

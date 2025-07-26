@@ -383,7 +383,7 @@ R"==(
                 <on="release: e2::form::upon::started" source="applet"/>
                 <on="release: e2::form::prop::zorder"  source="applet"/>
                 local is_topmost=vtm.applet.ZOrder()
-                vtm.item.Label(  is_topmost==1 and vtm.config["/Ns/AlwaysOnTop/on/label"]   or vtm.config["/Ns/AlwaysOnTop/off/label"]  )
+                vtm.item.Label(  is_topmost==1 and vtm.config["/Ns/AlwaysOnTop/on/label"  ] or vtm.config["/Ns/AlwaysOnTop/off/label"  ])
                 vtm.item.Tooltip(is_topmost==1 and vtm.config["/Ns/AlwaysOnTop/on/tooltip"] or vtm.config["/Ns/AlwaysOnTop/off/tooltip"])
                 vtm.item.Deface()
             </script>
@@ -395,10 +395,8 @@ R"==(
                 <on="release: e2::form::upon::started"  source="applet"/>
                 <on="release: terminal::events::rawkbd" source="terminal"/>
                 local m=vtm.terminal.ExclusiveKeyboardMode()
-                <br/>
-                'vtm.item.Label(m==1 and "'   | /Ns/ExclusiveKeyboard/on/label   | '" or "' | /Ns/ExclusiveKeyboard/off/label   | '")\n'
-                'vtm.item.Tooltip(m==1 and "' | /Ns/ExclusiveKeyboard/on/tooltip | '" or "' | /Ns/ExclusiveKeyboard/off/tooltip | '")\n'
-                <br/>
+                vtm.item.Label(  m==1 and vtm.config["/Ns/ExclusiveKeyboard/on/label"  ] or vtm.config["/Ns/ExclusiveKeyboard/off/label"  ])
+                vtm.item.Tooltip(m==1 and vtm.config["/Ns/ExclusiveKeyboard/on/tooltip"] or vtm.config["/Ns/ExclusiveKeyboard/off/tooltip"])
                 vtm.item.Deface()
             </script>
         </ExclusiveKeyboard>
@@ -407,10 +405,8 @@ R"==(
                 <on="release: e2::form::upon::started"          source="applet"/>
                 <on="release: terminal::events::layout::wrapln" source="terminal"/>
                 local m=vtm.terminal.LineWrapMode()
-                <br/>
-                'vtm.item.Label(m~=1 and "'   | /Ns/NoWrapMode/on/label   | '" or "' | /Ns/NoWrapMode/off/label   | '")\n'
-                'vtm.item.Tooltip(m~=1 and "' | /Ns/NoWrapMode/on/tooltip | '" or "' | /Ns/NoWrapMode/off/tooltip | '")\n'
-                <br/>
+                vtm.item.Label(  m~=1 and vtm.config["/Ns/NoWrapMode/on/label"  ] or vtm.config["/Ns/NoWrapMode/off/label"  ])
+                vtm.item.Tooltip(m~=1 and vtm.config["/Ns/NoWrapMode/on/tooltip"] or vtm.config["/Ns/NoWrapMode/off/tooltip"])
                 vtm.item.Deface()
             </script>
         </NoWrapMode>
@@ -419,14 +415,12 @@ R"==(
                 <on="release: e2::form::upon::started"  source="applet"/>
                 <on="release: terminal::events::selmod" source="terminal"/>
                 local m=vtm.terminal.ClipboardFormat()
-                <br/>
-                'vtm.item.Label(m==1 and "' | /Ns/ClipboardFormat/textonly/label | '"'
-                '            or m==2 and "' | /Ns/ClipboardFormat/ansitext/label | '"'
-                '            or m==3 and "' | /Ns/ClipboardFormat/richtext/label | '"'
-                '            or m==4 and "' | /Ns/ClipboardFormat/htmltext/label | '"'
-                '            or m==5 and "' | /Ns/ClipboardFormat/safetext/label | '"'
-                '            or          "' | /Ns/ClipboardFormat/disabled/label | '")'
-                <br/>
+                vtm.item.Label(m==1 and vtm.config["/Ns/ClipboardFormat/textonly/label"]
+                            or m==2 and vtm.config["/Ns/ClipboardFormat/ansitext/label"]
+                            or m==3 and vtm.config["/Ns/ClipboardFormat/richtext/label"]
+                            or m==4 and vtm.config["/Ns/ClipboardFormat/htmltext/label"]
+                            or m==5 and vtm.config["/Ns/ClipboardFormat/safetext/label"]
+                            or          vtm.config["/Ns/ClipboardFormat/disabled/label"])
                 vtm.item.Deface()
             </script>
         </ClipboardFormat>
@@ -435,9 +429,7 @@ R"==(
                 <on="release: e2::form::upon::started"  source="applet"/>
                 <on="release: terminal::events::io_log" source="terminal"/>
                 local m=vtm.terminal.LogMode()
-                <br/>
-                'vtm.item.Label(m==1 and "' | /Ns/StdioLog/on/label | '" or "' | /Ns/StdioLog/off/label | '")'
-                <br/>
+                vtm.item.Label(m==1 and vtm.config["/Ns/StdioLog/on/label"] or vtm.config["/Ns/StdioLog/off/label"])
                 vtm.item.Deface()
             </script>
         </StdioLog>
@@ -542,22 +534,22 @@ R"==(
                            " It can be configured in ~/.config/vtm/settings.xml "
                 </tooltip>
                 <deftooltip>
-                    " Application:                                  \n"
-                    "   LeftClick to start the application instance \n"
-                    "   RightClick to set it as default             \n"
+                    " Application:                                  ""\n"
+                    "   LeftClick to start the application instance ""\n"
+                    "   RightClick to set it as default             ""\n"
                     "   LeftDrag to move desktop viewport           "
                 </deftooltip>
                 <toggletooltip>
-                    " Window list disclosure toggle                  \n"
-                    "   LeftClick to expand/collapse the window list \n"
+                    " Window list disclosure toggle                  ""\n"
+                    "   LeftClick to expand/collapse the window list ""\n"
                     "   MouseWheel to switch to list closing mode    "
                 </toggletooltip>
                 <groupclosetooltip=" Close all open windows in the group "/>
                 <Close tooltip=" Close application window "/>
                 <App>
                    <tooltip>
-                        " Running application          \n"
-                        "   LeftClick to activate      \n"
+                        " Running application          ""\n"
+                        "   LeftClick to activate      ""\n"
                         "   DoubleLeftClick to fly to  "
                    </tooltip>
                 </App>
@@ -583,7 +575,7 @@ R"==(
         <Tile>
             <RunApplication>
                 <tooltip>
-                    " Launch application instances in active empty slots.     \n"
+                    " Launch application instances in active empty slots.     ""\n"
                     " The app to run can be set by RightClick on the taskbar. "
                 </tooltip>
             </RunApplication>
@@ -612,16 +604,16 @@ R"==(
         </FindNext>
         <ExclusiveKeyboard>
             <tooltip_body>
-                "\e[1m"" Toggle exclusive keyboard mode          "|state|" \e[m\\n"
-                       "   Exclusive keyboard mode allows keystrokes ""\\n"
+                "\e[1m"" Toggle exclusive keyboard mode      "|state|" \e[m\n"
+                       "   Exclusive keyboard mode allows keystrokes ""\n"
                        "   to be passed through without processing   "
             </tooltip_body>
-            <on  label="\e[2:247m \e[2:231;38:2:0:255:0m Exclusive \e[2:239m \e[m" state=" ON" tooltip=tooltip_body/>
-            <off label="  Exclusive  "                                             state="OFF" tooltip=tooltip_body/>
+            <on  label="\e[2:247m \e[2:231;38:2:0:255:0m Exclusive \e[2:239m \e[m" state="     ON" tooltip=tooltip_body/>
+            <off label="  Exclusive  "                                             state="    OFF" tooltip=tooltip_body/>
         </ExclusiveKeyboard>
         <NoWrapMode>
-            <on  label="\e[2:247m \e[2:231;38:2:0:255:0mNoWrap\e[2:239m \e[m" tooltip=" \e[1mText line wrapping mode\e[m  \\n Text wrapping off        "/>
-            <off label=                               " NoWrap "              tooltip=" \e[1mText line wrapping mode\e[m  \\n Text wrapping on         "/>
+            <on  label="\e[2:247m \e[2:231;38:2:0:255:0mNoWrap\e[2:239m \e[m" tooltip=" \e[1mText line wrapping mode\e[m  \n Text wrapping off        "/>
+            <off label=                               " NoWrap "              tooltip=" \e[1mText line wrapping mode\e[m  \n Text wrapping on         "/>
         </NoWrapMode>
         <ClipboardFormat tooltip=" Clipboard format ">
                 <textonly label=  "\e[38:2:0:255:0m  Plaintext  \e[m"/>
@@ -643,7 +635,11 @@ R"==(
                     </label>
                 </richtext>
         </ClipboardFormat>
-        <StdioLog tooltip=" \e[1mConsole logging\e[m        \n Use Logs to see output ">
+        <StdioLog>
+            <tooltip>
+                "\e[1m"" Console logging        ""\e[m\n"
+                       " Use Logs to see output "
+            </tooltip>
             <on  label="\e[2:247m \e[2:231;38:2:0:255:0m Log \e[2:239m \e[m"/>
             <off label="  Log  "/>
         </StdioLog>
@@ -753,22 +749,22 @@ R"==(
                            " Список настраивается в ~/.config/vtm/settings.xml "
                 </tooltip>
                 <deftooltip>
-                    " Приложение:                                              \n"
-                    "   Левый клик запускает приложение                        \n"
-                    "   Правый клик устанавливает приложение по-умолчанию      \n"
+                    " Приложение:                                              ""\n"
+                    "   Левый клик запускает приложение                        ""\n"
+                    "   Правый клик устанавливает приложение по-умолчанию      ""\n"
                     "   Перетаскивание левой кнопкой мыши двигает рабочий стол "
                 </deftooltip>
                 <toggletooltip>
-                    " Кнопка скрытия списка окон                                    \n"
-                    "   Левый клик скрывает/раскрывает список окон                  \n"
+                    " Кнопка скрытия списка окон                                    ""\n"
+                    "   Левый клик скрывает/раскрывает список окон                  ""\n"
                     "   Колесо мыши переключает данную кнопку в режим закрытия окон "
                 </toggletooltip>
                 <groupclosetooltip=" Закрыть все приложения в этом списке "/>
                 <Close tooltip=" Закрыть окно приложения "/>
                 <App>
                    <tooltip>
-                        " Запущенное приложение                       \n"
-                        "   Одинарный клик устанавливает фокус        \n"
+                        " Запущенное приложение                       ""\n"
+                        "   Одинарный клик устанавливает фокус        ""\n"
                         "   Двойной клик перемещает к окну приложения "
                    </tooltip>
                 </App>
@@ -823,16 +819,16 @@ R"==(
         </FindNext>
         <ExclusiveKeyboard>
             <tooltip_body>
-                "\e[1m"" Переключатель монопольного режима клавиатуры    "|state|" \e[m\\n"
-                       "   Монопольный режим позволяет напрявлять приложению  ""\\n"
+                "\e[1m"" Переключатель монопольного режима клавиатуры "|state|" \e[m\n"
+                       "   Монопольный режим позволяет напрявлять приложению  ""\n"
                        "   нажатия клавиш напрямую, без перехвата и обработки "
             </tooltip_body>
-            <on  label="\e[2:247m \e[2:231;38:2:0:255:0m Монопольно \e[2:239m \e[m" state=" ВКЛ" tooltip=tooltip_body/>
-            <off label=                               "  Монопольно  "              state="ВЫКЛ" tooltip=tooltip_body/>
+            <on  label="\e[2:247m \e[2:231;38:2:0:255:0m Монопольно \e[2:239m \e[m" state="    ВКЛ" tooltip=tooltip_body/>
+            <off label=                               "  Монопольно  "              state="   ВЫКЛ" tooltip=tooltip_body/>
         </ExclusiveKeyboard>
         <NoWrapMode>
-            <on  label="\e[2:247m \e[2:231;38:2:0:255:0mРазвернуть\e[2:239m \e[m" tooltip=" \e[1mАвтоперенос строк текста\e[m  \\n          Автоперенос ВЫКЛ "/>
-            <off label=                               " Развернуть "              tooltip=" \e[1mАвтоперенос строк текста\e[m  \\n          Автоперенос  ВКЛ "/>
+            <on  label="\e[2:247m \e[2:231;38:2:0:255:0mРазвернуть\e[2:239m \e[m" tooltip=" \e[1mАвтоперенос строк текста\e[m  \n          Автоперенос ВЫКЛ "/>
+            <off label=                               " Развернуть "              tooltip=" \e[1mАвтоперенос строк текста\e[m  \n          Автоперенос  ВКЛ "/>
         </NoWrapMode>
         <ClipboardFormat tooltip=" Формат буфера обмена ">
             <textonly label=  "\e[38:2:0:255:0m  Только текст  \e[m"/>
@@ -857,7 +853,11 @@ R"==(
                 </label>
             </richtext>
         </ClipboardFormat>
-        <StdioLog tooltip=" \e[1mСистемные сообщения                           \e[m\n Используйте Монитор сообщений для мониторинга ">
+        <StdioLog>
+            <tooltip>
+                "\e[1m"" Системные сообщения                           ""\e[m\n"
+                       " Используйте Монитор сообщений для мониторинга "
+            </tooltip>
             <on  label="\e[2:247m \e[2:231;38:2:0:255:0m Лог \e[2:239m \e[m"/>
             <off label="  Лог  "/>
         </StdioLog>
