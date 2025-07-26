@@ -531,9 +531,8 @@ int main(int argc, char* argv[])
                     {
                         auto id = utf::concat(*user);
                         if constexpr (debugmode) log("%%Client connected %id%", prompt::user, id);
-                        auto usrcfg = eccc{ .env = packet.env, .cwd = packet.cwd, .cmd = packet.cmd, .win = packet.win };
                         os::ipc::users++;
-                        desktop->invite(user, packet.user, packet.mode, usrcfg, session_id);
+                        desktop->invite(user, packet.user, packet.mode, packet, session_id);
                         os::ipc::users--;
                         if constexpr (debugmode) log("%%Client disconnected %id%", prompt::user, id);
                     }

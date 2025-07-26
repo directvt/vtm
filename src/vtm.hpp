@@ -1730,7 +1730,7 @@ namespace netxs::app::vtm
             async.run(process);
         }
         // hall: Create a new user gate.
-        auto invite(xipc client, view userid, si32 vtmode, eccc usrcfg, si32 session_id)
+        auto invite(xipc client, view userid, si32 vtmode, auto& packet, si32 session_id)
         {
             auto lock = bell::unique_lock();
             auto usergate_ptr = ui::gate::ctor(client, vtmode, config, userid, session_id, true);
@@ -1923,7 +1923,11 @@ namespace netxs::app::vtm
             usergate_selected_item = selected_item;
             //auto& usergate_id = usergate.base::property<id_t>("gate.id");
             //auto& usergate_os_id = usergate.base::property<text>("gate.os_id");
-            usrcfg.cfg = utf::concat(usergate.id, ";", usergate.props.os_user_id);
+            auto usrcfg = eccc{ .env = packet.env,
+                                .cwd = packet.cwd,
+                                .cmd = packet.cmd,
+                                .cfg = utf::concat(usergate.id, ";", usergate.props.os_user_id),
+                                .win = packet.win };
             auto deskmenu_ptr = app::shared::builder(app::desk::id)(usrcfg, config);
             deskmenu_ptr->base::plugin<pro::keybd>();
             //todo
