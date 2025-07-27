@@ -644,6 +644,7 @@ namespace netxs
             return "{ reg:" + region.str() + " win:" + window.str() +
                     " ovr:" + beyond.str() + " }";
         }
+        constexpr bool operator == (rack const&) const = default;
         friend auto& operator << (std::ostream& s, rack const& p)
         {
             return s << p.str();

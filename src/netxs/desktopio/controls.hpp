@@ -4582,26 +4582,33 @@ namespace netxs::ui
             si32& master_len = master_inf.region     [Axis]; // math: Master len.
             si32& master_pos = master_inf.window.coor[Axis]; // math: Master viewport pos.
             si32& master_box = master_inf.window.size[Axis]; // math: Master viewport len.
-            si32  scroll_len = 0; // math: Scrollbar len.
-            si32  scroll_pos = 0; // math: Scrollbar grip pos.
-            si32  scroll_box = 0; // math: Scrollbar grip len.
-            si32  m          = 0; // math: Master max pos.
-            si32  s          = 0; // math: Scroll max pos.
-            fp64  r          = 1; // math: Scroll/master len ratio.
+            si32  scroll_len = 1; // math: Scrollbar cellular len.
+            si32  scroll_pos = 0; // math: Scrollbar grip cellular position.
+            si32  scroll_box = 0; // math: Scrollbar grip cellular len.
+            fp64  scroll_air = 0; // math: Scrollbar grip exact position.
+            si32  m          = 0; // math: Master max cellular pos.
+            si32  s          = 0; // math: Scroll max cellular pos.
+            fp64  r          = 1; // math: Scroll/master length ratio.
 
             si32  cursor_pos = 0; // math: Mouse cursor position.
+            bool  captured = faux; // math: .
+            fp64  grip_origin = 0;
 
+            // math: Adjust the scroll grip cellular position.
+            void sync_grip_cellular_pos()
+            {
+                scroll_pos = std::min((si32)std::round(master_pos * r), scroll_len - 1); // Don't place the grip behind the scrollbar.
+                     if (scroll_pos == 0 && master_pos > 0) scroll_pos = std::min(1, s);
+                else if (scroll_pos == s && master_pos < m) scroll_pos = std::max(0, s - 1);
+            }
             // math: Calc scroll to master metrics.
             void s_to_m()
             {
-                auto scroll_center = scroll_pos + scroll_box / 2.0;
-                auto master_center = scroll_len ? scroll_center / r
-                                                : 0;
-                master_pos = (si32)std::round(master_center - master_box / 2.0);
-
+                master_pos = (si32)std::round(scroll_air / r);
                 // Reset to extreme positions.
-                if (scroll_pos == 0 && master_pos > 0) master_pos = 0;
-                if (scroll_pos == s && master_pos < m) master_pos = m;
+                     if (scroll_air == 0 && master_pos > 0) master_pos = 0;
+                else if (scroll_air == s && master_pos < m) master_pos = m;
+                sync_grip_cellular_pos();
             }
             // math: Calc master to scroll metrics.
             void m_to_s()
@@ -4609,37 +4616,29 @@ namespace netxs::ui
                 if (master_box == 0) return;
                 if (master_len == 0) master_len = master_box;
                 r = (fp64)scroll_len / master_len;
-                auto master_middle = master_pos + master_box / 2.0;
-                auto scroll_middle = master_middle * r;
                 scroll_box = std::max(1, (si32)(master_box * r));
-                scroll_pos = (si32)std::round(scroll_middle - scroll_box / 2.0);
-
-                // Don't place the grip behind the scrollbar.
-                if (scroll_pos >= scroll_len) scroll_pos = scroll_len - 1;
-
-                // Extreme positions are always closed last.
                 s = scroll_len - scroll_box;
                 m = master_len - master_box;
-
-                if (scroll_len > 2) // Two-row hight is not suitable for this type of aligning.
-                {
-                    if (scroll_pos == 0 && master_pos > 0) scroll_pos = 1;
-                    if (scroll_pos == s && master_pos < m) scroll_pos = s - 1;
-                }
+                r = m ? (fp64)std::max(1, s) / m : 1; // Recalc the ratio because the box sizes are not proportional due to std::max().
+                if (!captured) scroll_air = master_pos * r;
+                sync_grip_cellular_pos();
             }
             void update(rack const& scinfo)
             {
-                master_inf = scinfo;
-                m_to_s();
+                if (master_inf != scinfo)
+                {
+                    master_inf = scinfo;
+                    m_to_s();
+                }
             }
             void resize(twod new_size)
             {
-                scroll_len = new_size[Axis];
+                scroll_len = std::max(1, new_size[Axis]);
                 m_to_s();
             }
-            void stepby(si32 delta)
+            void stepby(fp32 delta)
             {
-                scroll_pos = std::clamp(scroll_pos + delta, 0, s);
+                scroll_air = grip_origin + delta;
                 s_to_m();
             }
             void commit(rect& handle)
@@ -4823,7 +4822,10 @@ namespace netxs::ui
                 {
                     if (gear.capture(bell::id))
                     {
+                        calc.captured = true;
                         drag_origin = gear.coord;
+                        calc.m_to_s();
+                        calc.grip_origin = calc.scroll_air;
                         gear.dismiss();
                     }
                 }
@@ -4838,9 +4840,8 @@ namespace netxs::ui
                 {
                     if (gear.captured(bell::id))
                     {
-                        if (auto delta = (twod{ gear.coord } - twod{ drag_origin })[Axis])
+                        if (auto delta = (gear.coord - drag_origin)[Axis])
                         {
-                            drag_origin = gear.coord;
                             calc.stepby(delta);
                             send<e2::form::upon::scroll::bycoor::_<Axis>>();
                             gear.dismiss();
@@ -4850,11 +4851,13 @@ namespace netxs::ui
             });
             base::on(tier::mouserelease, input::key::MouseDragCancel, [&](hids& gear)
             {
+                calc.captured = faux;
                 giveup(gear);
             });
             bell::dup_handler(tier::general, input::events::halt.id);
             base::on(tier::mouserelease, input::key::MouseDragStop, [&](hids& gear)
             {
+                calc.captured = faux;
                 if (on_pager)
                 {
                     gear.dismiss();
