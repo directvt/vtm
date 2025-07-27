@@ -113,7 +113,7 @@ R"==(
             </autorun>
             <width>  <!-- Taskbar menu width. -->
                 <folded=18/>
-                <expanded=32/>
+                <expanded=40/>
             </width>
             <timeout=250ms/>  <!-- Taskbar collaplse timeout after mouse leave. -->
             <colors>
