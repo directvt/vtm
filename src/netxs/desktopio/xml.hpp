@@ -1506,6 +1506,10 @@ namespace netxs::xml
             : document{ std::move(document) }
         { }
 
+        void swap(settings& s)
+        {
+            document.swap(s.document);
+        }
         sptr get_context()
         {
             auto context_path = context.size() ? context.back() : document.root_ptr;
