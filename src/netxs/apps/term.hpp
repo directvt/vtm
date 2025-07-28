@@ -203,11 +203,11 @@ namespace netxs::app::terminal
         auto sb = layers->attach(ui::fork::ctor());
         auto vt = sb->attach(slot::_2, ui::grip<axis::Y>::ctor(scroll));
         auto& term_bgc = term->get_color().bgc();
-        auto& drawfx = term->base::field([&](auto& boss, auto& canvas, auto handle, auto /*object_len*/, auto handle_len, auto region_len, auto wide)
+        auto& drawfx = term->base::field([&](auto& boss, auto& canvas, auto handle, auto object_len, auto handle_len, auto region_len, auto wide, auto master_len)
         {
             static auto box1 = "▄"sv;
             static auto box2 = ' ';
-            if (handle_len != region_len) // Show only if it is oversized.
+            if (ui::drawfx::visible(object_len, handle_len, region_len, master_len))
             {
                 if (wide) // Draw full scrollbar on mouse hover.
                 {
