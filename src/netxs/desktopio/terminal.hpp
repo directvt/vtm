@@ -715,6 +715,42 @@ namespace netxs::ui
                         return { type::rgbcolor, get_color(4) };
                     }
                 }
+                else if (data.starts_with("0x")) // ; 0xbbggrr
+                {
+                    if (data.length() >= 8)
+                    {
+                        auto b1 = to_byte(data[2]);
+                        auto b2 = to_byte(data[3]);
+                        auto g1 = to_byte(data[4]);
+                        auto g2 = to_byte(data[5]);
+                        auto r1 = to_byte(data[6]);
+                        auto r2 = to_byte(data[7]);
+                        data.remove_prefix(8); // sizeof 0xbbggrr
+                        auto c = (b1 << 4 ) + (b2      )
+                               + (g1 << 12) + (g2 << 8 )
+                               + (r1 << 20) + (r2 << 16)
+                               + 0xFF000000;
+                        return { type::rgbcolor, c };
+                    }
+                }
+                else if (data.starts_with("#")) // ; #rrggbb
+                {
+                    if (data.length() >= 7)
+                    {
+                        auto r1 = to_byte(data[1]);
+                        auto r2 = to_byte(data[2]);
+                        auto g1 = to_byte(data[3]);
+                        auto g2 = to_byte(data[4]);
+                        auto b1 = to_byte(data[5]);
+                        auto b2 = to_byte(data[6]);
+                        data.remove_prefix(7); // sizeof #rrggbb
+                        auto c = (b1 << 4 ) + (b2      )
+                               + (g1 << 12) + (g2 << 8 )
+                               + (r1 << 20) + (r2 << 16)
+                               + 0xFF000000;
+                        return { type::rgbcolor, c };
+                    }
+                }
                 else // Lookup custom color names stored in settings.xml.
                 {
                     auto shadow = data;
