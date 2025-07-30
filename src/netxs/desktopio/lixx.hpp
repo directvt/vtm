@@ -4873,9 +4873,10 @@ namespace netxs::lixx // li++, libinput++.
                                             libinput_event_tablet_pad,
                                             libinput_event_tablet_tool>;
 
-        std::list<libinput_seat_sptr>         seat_list; //todo drop
         libinput_timer_host                   timers;
+        std::list<libinput_seat_sptr>         seat_list;
         std::deque<event_variants>            event_queue;
+
         std::list<libinput_tablet_tool_sptr>  tool_list;
         void*                                 user_data;
         std::list<libinput_device_group_sptr> device_group_list; //todo drop
@@ -4888,14 +4889,6 @@ namespace netxs::lixx // li++, libinput++.
         libinput_source_sptr                  ud_monitor_source;
         text                                  seat_id;
         std::list<libinput_device_sptr>       path_list;
-
-        libinput_t() = default;
-        ~libinput_t()
-        {
-            event_queue.clear();
-            seat_list.clear(); // Call device dtor.
-            timers.clear();
-        }
 
         static void evdev_udev_handler(void* data);
 
@@ -4962,7 +4955,7 @@ namespace netxs::lixx // li++, libinput++.
             for (auto i = 0; i < count; ++i)
             {
                 source = (libinput_source_t*)ep[i].data.ptr;
-                if (source->fd != -1)
+                if (source->fd != os::invalid_fd)
                 {
                     source->dispatch(source->user_data);
                 }
@@ -6729,7 +6722,7 @@ namespace netxs::lixx // li++, libinput++.
     };
 
     void libinput_seat_init(libinput_seat_sptr seat, libinput_sptr li, view physical_name, view logical_name);
-    std::pair<libinput_device_sptr, bool> libinput_device_create(libinput_seat_sptr seat, ud_device_sptr ud_device);
+    libinput_device_sptr libinput_device_create(libinput_seat_sptr seat, ud_device_sptr ud_device);
     void evdev_read_calibration_prop(libinput_device_sptr li_device);
 
     // Helpers
@@ -18946,13 +18939,12 @@ namespace netxs::lixx // li++, libinput++.
             }
             ud_seat = ptr::shared<libinput_seat_t>();
             libinput_seat_init(ud_seat, libinput_t::This(), device_seat, seat_name);
-            auto [li_device, unhandled_device] = libinput_device_create(ud_seat, ud_device);
+            auto li_device = libinput_device_create(ud_seat, ud_device);
             if (!li_device)
             {
                 if constexpr (debugmode)
                 {
-                    if (unhandled_device) log("Not using input device '%s%'",        ud_device->udev_device_get_sysname());
-                    else                  log("Failed to create input device '%s%'", ud_device->udev_device_get_sysname());
+                    log("Not using input device '%s%'", ud_device->udev_device_get_sysname());
                 }
                 return 0;
             }
@@ -19203,13 +19195,7 @@ namespace netxs::lixx // li++, libinput++.
         {
             if (auto seat = path_seat_get_for_device(ud_device, seat_logical_name_override))
             {
-                auto [li_device, unhandled_device] = libinput_device_create(seat, ud_device);
-                if (!li_device)
-                {
-                    if (unhandled_device) log("Not using input device '%s%'",        ud_device->udev_device_get_sysname());
-                    else                  log("Failed to create input device '%s%'", ud_device->udev_device_get_sysname());
-                }
-                else
+                if (auto li_device = libinput_device_create(seat, ud_device))
                 {
                     evdev_read_calibration_prop(li_device);
                     li_device->output_name = ud_device->udev_device_get_property_value("WL_OUTPUT");
@@ -20671,74 +20657,45 @@ namespace netxs::lixx // li++, libinput++.
             li_device->notify_added_device();
             li_device->dispatch->post_added(li_device);
         }
-    std::pair<libinput_device_sptr, bool> libinput_device_create(libinput_seat_sptr seat, ud_device_sptr ud_device)
+    libinput_device_sptr libinput_device_create(libinput_seat_sptr seat, ud_device_sptr ud_device)
     {
-        auto li = seat->libinput;
-        auto fd = -1;
-        auto unhandled_device = faux;
-        auto devnode = ud_device->udev_device_get_devnode();
-        auto sysname = ud_device->udev_device_get_sysname();
-        auto li_device = libinput_device_sptr{};
-        if (!devnode)
+        auto li_device = ptr::shared<libinput_device_t>();
+        li_device->sysname = ud_device->udev_device_get_sysname();
+        li_device->seat = seat;
+        li_device->seat_caps = EVDEV_DEVICE_NO_CAPABILITIES;
+        li_device->is_mt = 0;
+        li_device->ud_device = ud_device;
+        li_device->dispatch = nullptr;
+        li_device->fd = ud_device->fd;
+        li_device->devname = li_device->evdev->libevdev_get_name();
+        li_device->scroll.threshold = 5.0; // Default may be overridden.
+        li_device->scroll.direction_lock_threshold = 5.0; // Default may be overridden.
+        li_device->scroll.direction = 0;
+        li_device->scroll.wheel_click_angle = evdev_read_wheel_click_props(li_device);
+        li_device->model_flags = evdev_read_model_flags(li_device);
+        li_device->dpi = lixx::default_mouse_dpi;
+        matrix_init_identity(&li_device->abs.calibration);
+        matrix_init_identity(&li_device->abs.usermatrix);
+        matrix_init_identity(&li_device->abs.default_calibration);
+        evdev_pre_configure_model_quirks(li_device);
+        li_device->dispatch = evdev_configure_device(li_device);
+        if (li_device->dispatch && li_device->seat_caps != EVDEV_DEVICE_NO_CAPABILITIES)
         {
-            log("%s%: no device node associated", sysname);
+            auto li = seat->libinput;
+            li_device->source = li->timers.libinput_add_event_source(ud_device->fd, libinput_device_t::evdev_device_dispatch, li_device.get());
+            evdev_set_device_group(li_device, ud_device);
+            seat->devices_list.push_back(li_device);
+            evdev_notify_added_device(li_device);
         }
         else
         {
-            fd = ::open(devnode.data(), O_RDWR | O_NONBLOCK | O_CLOEXEC); // Use non-blocking mode so that we can loop on read on evdev_device_data() until all events on the fd are read.  mtdev_get() also expects this.
-            if (fd < 0)
+            if constexpr (debugmode)
             {
-                log("%s%: opening input device '%s%' failed (%s%)", sysname, devnode, ::strerror(-fd));
+                log("Ignore input device '%s%', seat_caps=%%", li_device->sysname, li_device->seat_caps);
             }
-            else
-            {
-                li_device = ptr::shared<libinput_device_t>();
-                li_device->sysname = sysname;
-                li_device->seat = seat;
-                li_device->seat_caps = EVDEV_DEVICE_NO_CAPABILITIES;
-                li_device->is_mt = 0;
-                li_device->ud_device = ud_device;
-                li_device->dispatch = nullptr;
-                li_device->fd = fd;
-                li_device->devname = li_device->evdev->libevdev_get_name();
-                li_device->scroll.threshold = 5.0; // Default may be overridden.
-                li_device->scroll.direction_lock_threshold = 5.0; // Default may be overridden.
-                li_device->scroll.direction = 0;
-                li_device->scroll.wheel_click_angle = evdev_read_wheel_click_props(li_device);
-                li_device->model_flags = evdev_read_model_flags(li_device);
-                li_device->dpi = lixx::default_mouse_dpi;
-                matrix_init_identity(&li_device->abs.calibration);
-                matrix_init_identity(&li_device->abs.usermatrix);
-                matrix_init_identity(&li_device->abs.default_calibration);
-                evdev_pre_configure_model_quirks(li_device);
-                li_device->dispatch = evdev_configure_device(li_device);
-                if (li_device->dispatch && li_device->seat_caps != EVDEV_DEVICE_NO_CAPABILITIES)
-                {
-                    li_device->source = li->timers.libinput_add_event_source(fd, libinput_device_t::evdev_device_dispatch, li_device.get());
-                    if (li_device->source)
-                    {
-                        evdev_set_device_group(li_device, ud_device);
-                        seat->devices_list.push_back(li_device);
-                        evdev_notify_added_device(li_device);
-                        return std::pair{ li_device, unhandled_device };
-                    }
-                }
-                else
-                {
-                    log("FAILED li_device->seat_caps = ", li_device->seat_caps);
-                }
-            }
+            li_device.reset();
         }
-        if (fd >= 0)
-        {
-            ::close(fd);
-            if (li_device)
-            {
-                unhandled_device = li_device->seat_caps == EVDEV_DEVICE_NO_CAPABILITIES;
-                li_device.reset();
-            }
-        }
-        return std::pair{ li_device, unhandled_device };
+        return li_device;
     }
             bool parse_calibration_property(qiew prop, fp32 calibration_out[6])
             {
