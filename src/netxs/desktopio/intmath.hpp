@@ -43,6 +43,7 @@
 #include <vector>
 #include <variant>
 #include <ranges>  // std::views::reverse
+#include <regex>
 
 #ifndef faux
     #define faux (false)
