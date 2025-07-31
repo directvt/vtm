@@ -20145,9 +20145,9 @@ namespace netxs::lixx // li++, libinput++.
                     li_device->tags = (libinput_device_tags)(li_device->tags | EVDEV_TAG_EXTERNAL_TOUCHPAD);
                     li_device->tags = (libinput_device_tags)(li_device->tags & ~EVDEV_TAG_INTERNAL_TOUCHPAD);
                 }
-            void evdev_tag_touchpad(libinput_device_sptr li_device, ud_device_sptr ud_device)
+            void evdev_tag_touchpad(libinput_device_sptr li_device)
             {
-                auto prop = ud_device->udev_device_get_property_value("ID_INPUT_TOUCHPAD_INTEGRATION");
+                auto prop = li_device->udev_device_get_property_value("ID_INPUT_TOUCHPAD_INTEGRATION");
                 if (prop)
                 {
                     if (prop == "internal")
@@ -20246,7 +20246,7 @@ namespace netxs::lixx // li++, libinput++.
             }
         evdev_dispatch_sptr evdev_mt_touchpad_create(libinput_device_sptr li_device)
         {
-            evdev_tag_touchpad(li_device, li_device->ud_device);
+            evdev_tag_touchpad(li_device);
             auto tp = ptr::shared<tp_dispatch>();
             if (!tp->tp_impl.tp_init(li_device))
             {
@@ -20264,7 +20264,7 @@ namespace netxs::lixx // li++, libinput++.
             }
             return tp;
         }
-        void evdev_tag_external_mouse(libinput_device_sptr li_device, [[maybe_unused]] ud_device_sptr ud_device)
+        void evdev_tag_external_mouse(libinput_device_sptr li_device)
         {
             auto bustype = li_device->libevdev_get_id_bustype();
             if (bustype == BUS_USB || bustype == BUS_BLUETOOTH)
@@ -20272,10 +20272,10 @@ namespace netxs::lixx // li++, libinput++.
                 li_device->tags = (libinput_device_tags)(li_device->tags | EVDEV_TAG_EXTERNAL_MOUSE);
             }
         }
-        void evdev_tag_trackpoint(libinput_device_sptr li_device, ud_device_sptr ud_device)
+        void evdev_tag_trackpoint(libinput_device_sptr li_device)
         {
             if (!li_device->libevdev_has_property(INPUT_PROP_POINTING_STICK)
-             && !ud_device->parse_udev_flag("ID_INPUT_POINTINGSTICK"))
+             && !li_device->parse_udev_flag("ID_INPUT_POINTINGSTICK"))
             {
                 return;
             }
@@ -20409,7 +20409,7 @@ namespace netxs::lixx // li++, libinput++.
                 li_device->tags = (libinput_device_tags)(li_device->tags | EVDEV_TAG_EXTERNAL_KEYBOARD);
                 li_device->tags = (libinput_device_tags)(li_device->tags & ~EVDEV_TAG_INTERNAL_KEYBOARD);
             }
-        void evdev_tag_keyboard(libinput_device_sptr li_device, [[maybe_unused]] ud_device_sptr ud_device)
+        void evdev_tag_keyboard(libinput_device_sptr li_device)
         {
             if (li_device->libevdev_has_event_type(EV_KEY))
             {
@@ -20574,8 +20574,8 @@ namespace netxs::lixx // li++, libinput++.
         }
         if (udev_tags & EVDEV_UDEV_TAG_MOUSE || udev_tags & EVDEV_UDEV_TAG_POINTINGSTICK)
         {
-            evdev_tag_external_mouse(li_device, li_device->ud_device);
-            evdev_tag_trackpoint(li_device, li_device->ud_device);
+            evdev_tag_external_mouse(li_device);
+            evdev_tag_trackpoint(li_device);
             if (li_device->tags & EVDEV_TAG_TRACKPOINT)
             {
                 li_device->trackpoint_multiplier = evdev_get_trackpoint_multiplier(li_device);
@@ -20603,7 +20603,7 @@ namespace netxs::lixx // li++, libinput++.
                 li_device->scroll.natural_scrolling_enabled = true;
                 li_device->device_caps = (libinput_device_caps)(li_device->device_caps | EVDEV_DEVICE_POINTER);
             }
-            evdev_tag_keyboard(li_device, li_device->ud_device);
+            evdev_tag_keyboard(li_device);
         }
         if (udev_tags & EVDEV_UDEV_TAG_TOUCHSCREEN)
         {
