@@ -4894,8 +4894,6 @@ namespace netxs::lixx // li++, libinput++.
         void input_enable();
         void input_disable();
         bool libinput_add_devices();
-        si32 libinput_resume();
-        void libinput_suspend();
 
         bool current_tty_is_active()
         {
@@ -18987,22 +18985,6 @@ namespace netxs::lixx // li++, libinput++.
                 libinput_remove_devices();
             }
         }
-        void libinput_t::libinput_suspend()
-        {
-            if (ud_monitor)
-            {
-                ud_monitor.reset();
-                timers.libinput_remove_event_source(ud_monitor_source);
-                for (auto s : seat_list)
-                {
-                    for (auto d : s->devices_list)
-                    {
-                        disable_device(d);
-                    }
-                    s->devices_list.clear();
-                }
-            }
-        }
         void libinput_t::input_enable()
         {
             if (!ud_monitor && seat_id.size())
@@ -19020,33 +19002,6 @@ namespace netxs::lixx // li++, libinput++.
                     libinput_add_devices();
                 }
             }
-        }
-        si32 libinput_t::libinput_resume()
-        {
-            if (!ud_monitor && seat_id.size())
-            {
-                ud_monitor = ptr::shared<ud_monitor_t>(This());
-                if (!ud_monitor->udev_monitor_enable_receiving())
-                {
-                    log("Failed to bind the device monitor");
-                    ud_monitor.reset();
-                }
-                else
-                {
-                    auto fd = ud_monitor->udev_monitor_get_fd();
-                    auto ud_monitor_source = timers.libinput_add_event_source(fd, evdev_udev_handler, this);
-                    this->ud_monitor_source = ud_monitor_source;
-                    if (!libinput_add_devices())
-                    {
-                        libinput_suspend();
-                    }
-                    else
-                    {
-                        return 0;
-                    }
-                }
-            }
-            return -1;
         }
         libinput_device_sptr libinput_t::libinput_add_device(view path)
         {
