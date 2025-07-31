@@ -1177,12 +1177,6 @@ namespace netxs::lixx // li++, libinput++.
         libinput_config_middle_emulation_state(*get)        (libinput_device_sptr li_device);
         libinput_config_middle_emulation_state(*get_default)(libinput_device_sptr li_device);
     };
-    struct libinput_device_group
-    {
-        void* user_data{};
-        text  identifier; // Unique identifier or nullptr for singletons.
-    };
-    using libinput_device_group_sptr = sptr<libinput_device_group>;
         struct libinput_device_config_calibration
         {
             si32                  (*has_matrix)        (libinput_device_sptr li_device);
@@ -4879,7 +4873,6 @@ namespace netxs::lixx // li++, libinput++.
 
         std::list<libinput_tablet_tool_sptr>  tool_list;
         void*                                 user_data;
-        std::list<libinput_device_group_sptr> device_group_list; //todo drop
         time                                  last_event_time;
         time                                  dispatch_time;
         bool                                  quirks_initialized;
@@ -5007,18 +5000,6 @@ namespace netxs::lixx // li++, libinput++.
                 libwacom.db = {};
             }
             #endif
-        }
-        libinput_device_group_sptr libinput_device_group_find_group(qiew identifier)
-        {
-            if (identifier)
-            for (auto& g : libinput_t::device_group_list)
-            {
-                if (g->identifier == identifier)
-                {
-                    return g;
-                }
-            }
-            return libinput_device_group_sptr{};
         }
         si32 libinput_get_fd()
         {
@@ -5496,7 +5477,7 @@ namespace netxs::lixx // li++, libinput++.
         };
 
         libinput_seat_sptr                      seat;
-        libinput_device_group_sptr              group;
+        text                                    device_group; //todo Property for tablet touch arbitration. Set LIBINPUT_DEVICE_GROUP somewhere in settings (or in quirks) for devices intended to be in a group (e.g. tablet+stylus).
         std::list<libinput_event_listener_sptr> event_listeners;
         void*                                   user_data;
         libinput_device_config                  config;
@@ -12331,16 +12312,17 @@ namespace netxs::lixx // li++, libinput++.
                             }
                         void tp_pair_tablet(libinput_device_sptr touchpad_li_device, libinput_device_sptr tablet_li_device)
                         {
-                            if (!tp.left_handed.must_rotate) return;
-                            if ((tablet_li_device->seat_caps & EVDEV_DEVICE_TABLET) == 0) return;
-                            if (touchpad_li_device->group != tablet_li_device->group) return;
-                            tp.left_handed.tablet_li_device = tablet_li_device;
-                            log("touchpad-rotation: %s% will rotate %s%", touchpad_li_device->devname, tablet_li_device->devname);
-                            if (tablet_li_device->libinput_device_config_left_handed_get())
+                            if (tp.left_handed.must_rotate && (tablet_li_device->seat_caps & EVDEV_DEVICE_TABLET) != 0)
+                            if (touchpad_li_device->device_group.size() && touchpad_li_device->device_group == tablet_li_device->device_group)
                             {
-                                tp.left_handed.want_rotate = true;
-                                tp.left_handed.tablet_left_handed_state = true;
-                                tp_change_rotation(touchpad_li_device, DONT_NOTIFY);
+                                tp.left_handed.tablet_li_device = tablet_li_device;
+                                log("touchpad-rotation: %s% will rotate %s%", touchpad_li_device->devname, tablet_li_device->devname);
+                                if (tablet_li_device->libinput_device_config_left_handed_get())
+                                {
+                                    tp.left_handed.want_rotate = true;
+                                    tp.left_handed.tablet_left_handed_state = true;
+                                    tp_change_rotation(touchpad_li_device, DONT_NOTIFY);
+                                }
                             }
                         }
             void tp_interface_device_added(libinput_device_sptr li_device, libinput_device_sptr added_li_device)
@@ -14856,9 +14838,9 @@ namespace netxs::lixx // li++, libinput++.
                     return;
                 }
                 // Virtual devices don't have device groups, so check for that libinput replay.
-                auto g1 = li_device->group;
-                auto g2 = added_li_device->group;
-                if (g1 && g2 && g1->identifier != g2->identifier)
+                auto& g1 = li_device->device_group;
+                auto& g2 = added_li_device->device_group;
+                if (g1.size() && g2.size() && g1 != g2)
                 {
                     return;
                 }
@@ -16510,23 +16492,29 @@ namespace netxs::lixx // li++, libinput++.
                     // We enable touch arbitration with the first touch screen/external touchpad we see. This may be wrong in some cases, so we have some heuristics in case we find a "better" device.
                     if (tablet.touch_li_device)
                     {
-                        auto group1 = li_device->group;
-                        auto group2 = new_li_device->group;
+                        auto& group1 = li_device->device_group;
+                        auto& group2 = new_li_device->device_group;
                         // Same phsical device? -> better, otherwise keep the one we have.
-                        if (group1 != group2) return;
-                        // We found a better device, let's swap it out.
-                        auto li = evdev_libinput_context(tablet.li_device);
-                        tablet_set_touch_device_enabled(ARBITRATION_NOT_ACTIVE, nullptr, datetime::now());
-                        log("touch-arbitration: removing pairing for %s%<->%s%", li_device->devname, tablet.touch_li_device->devname);
+                        if (group1.size() && group1 == group2)
+                        {
+                            // We found a better device, let's swap it out.
+                            auto li = evdev_libinput_context(tablet.li_device);
+                            tablet_set_touch_device_enabled(ARBITRATION_NOT_ACTIVE, nullptr, datetime::now());
+                            log("touch-arbitration: removing pairing for %s%<->%s%", li_device->devname, tablet.touch_li_device->devname);
+                        }
+                        else
+                        {
+                            return;
+                        }
                     }
                     log("touch-arbitration: activated for %s%<->%s%", li_device->devname, new_li_device->devname);
                     tablet.touch_li_device = new_li_device;
                 }
                 void tablet_setup_rotation(libinput_device_sptr li_device, libinput_device_sptr new_li_device)
                 {
-                    auto group1 = li_device->group;
-                    auto group2 = new_li_device->group;
-                    if (!tablet.rotation.touch_li_device && (group1 == group2))
+                    auto& group1 = li_device->device_group;
+                    auto& group2 = new_li_device->device_group;
+                    if (!tablet.rotation.touch_li_device && group1.size() && group1 == group2)
                     {
                         log("tablet-rotation: %s% will rotate %s%", li_device->devname, new_li_device->devname);
                         tablet.rotation.touch_li_device = new_li_device;
@@ -20625,21 +20613,6 @@ namespace netxs::lixx // li++, libinput++.
         }
         return fallback_dispatch_create(li_device);
     }
-        void evdev_set_device_group(libinput_device_sptr li_device, ud_device_sptr ud_device)
-        {
-            auto li = evdev_libinput_context(li_device);
-            auto& group = li_device->group;
-            auto udev_group = ud_device->udev_device_get_property_value("LIBINPUT_DEVICE_GROUP");
-            if (udev_group)
-            {
-                group = li->libinput_device_group_find_group(udev_group);
-            }
-            if (!group)
-            {
-                group = li->device_group_list.emplace_back(ptr::shared<libinput_device_group>());
-                group->identifier = udev_group;
-            }
-        }
         void evdev_notify_added_device(libinput_device_sptr li_device)
         {
             for (auto d : li_device->seat->devices_list)
@@ -20683,7 +20656,7 @@ namespace netxs::lixx // li++, libinput++.
         {
             auto li = seat->libinput;
             li_device->source = li->timers.libinput_add_event_source(ud_device->fd, libinput_device_t::evdev_device_dispatch, li_device.get());
-            evdev_set_device_group(li_device, ud_device);
+            li_device->device_group = ud_device->udev_device_get_property_value("LIBINPUT_DEVICE_GROUP");
             seat->devices_list.push_back(li_device);
             evdev_notify_added_device(li_device);
         }
