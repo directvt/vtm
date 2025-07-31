@@ -6181,8 +6181,7 @@ namespace netxs::lixx // li++, libinput++.
         }
         si32 evdev_need_mtdev()
         {
-            return (libevdev_has_event_code(EV_ABS, ABS_MT_POSITION_X)
-                 && libevdev_has_event_code(EV_ABS, ABS_MT_POSITION_Y)
+            return (libevdev_has_event_code(EV_ABS, ABS_MT_POSITION_X) && libevdev_has_event_code(EV_ABS, ABS_MT_POSITION_Y)
                 && !libevdev_has_event_code(EV_ABS, ABS_MT_SLOT));
         }
         void evdev_process_event(evdev_event& ev, time now)
@@ -19258,7 +19257,7 @@ namespace netxs::lixx // li++, libinput++.
                 if (auto li_device = libinput_device_create(seat, ud_device))
                 {
                     evdev_read_calibration_prop(li_device);
-                    li_device->output_name = ud_device->udev_device_get_property_value("WL_OUTPUT");
+                    li_device->output_name = li_device->udev_device_get_property_value("WL_OUTPUT");
                     return li_device;
                 }
             }
@@ -20673,7 +20672,7 @@ namespace netxs::lixx // li++, libinput++.
         {
             auto li = seat->libinput;
             li_device->source = li->timers.libinput_add_event_source(ud_device->fd, libinput_device_t::evdev_device_dispatch, li_device.get());
-            li_device->device_group = ud_device->udev_device_get_property_value("LIBINPUT_DEVICE_GROUP");
+            li_device->device_group = li_device->udev_device_get_property_value("LIBINPUT_DEVICE_GROUP");
             seat->devices_list.push_back(li_device);
             evdev_notify_added_device(li_device);
         }
