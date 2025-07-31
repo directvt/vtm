@@ -4103,7 +4103,7 @@ namespace netxs::lixx // li++, libinput++.
         si32 libevdev_fetch_slot_value(ui32 slot, ui32 code, si32& value)
         {
             auto ok = libevdev_has_event_type(EV_ABS) && libevdev_has_event_code(EV_ABS, code)
-                        && num_slots >= 0 && slot < (ui32)num_slots;
+                      && num_slots >= 0 && slot < (ui32)num_slots;
             if (ok)
             {
                 value = libevdev_get_slot_value(slot, code);
@@ -4920,22 +4920,19 @@ namespace netxs::lixx // li++, libinput++.
 
         ud_monitor_sptr                       ud_monitor;
         libinput_source_sptr                  ud_monitor_source;
-        text                                  seat_id;
         std::list<libinput_device_sptr>       path_list;
 
         static void evdev_udev_handler(void* data);
 
         void libinput_device_removed(ud_device_sptr ud_device);
-        si32 libinput_device_added(ud_device_sptr ud_device);
+        void libinput_device_added(ud_device_sptr ud_device);
         void libinput_init_quirks();
         libinput_device_sptr device_enable(ud_device_sptr ud_device, qiew seat_logical_name_override = {});
         libinput_seat_sptr path_seat_get_for_device(ud_device_sptr ud_device, qiew seat_logical_name_override);
         libinput_seat_sptr path_seat_create(view seat_name, view seat_logical_name);
         libinput_seat_sptr path_seat_get_named(view seat_name_physical, view seat_name_logical);
-        libinput_device_sptr create_device(ud_device_sptr ud_device, qiew seat_name = {});
         void remove_device(libinput_device_sptr li_device);
         void libinput_remove_devices();
-        void disable_device(libinput_device_sptr li_device);
         libinput_device_sptr libinput_add_device(view path);
         void input_enable();
         void input_disable();
@@ -5001,7 +4998,6 @@ namespace netxs::lixx // li++, libinput++.
             libinput_t::user_data = user_data;
             auto ok = timers.libinput_timer_subsys_init();
             libinput_init_quirks();
-            seat_id = "seat0"; //todo unify: seat0 is always for all devices
             input_enable();
             return ok;
         }
@@ -6428,6 +6424,10 @@ namespace netxs::lixx // li++, libinput++.
             quirks_get_bool(q, model_quirk, result);
             return result;
         }
+        si32 libevdev_fetch_slot_value(ui32 slot, ui32 code, si32& value)
+        {
+            return ud_device->libevdev_fetch_slot_value(slot, code, value);
+        }
         bool parse_udev_flag(view property)
         {
             return ud_device->parse_udev_flag(property);
@@ -6494,7 +6494,7 @@ namespace netxs::lixx // li++, libinput++.
         }
         si32 libevdev_get_event_value(ui32 type, ui32 code)
         {
-            return libevdev_get_event_value(type, code);
+            return ud_device->libevdev_get_event_value(type, code);
         }
         auto udev_device_get_property_value(view property)
         {
@@ -6852,7 +6852,7 @@ namespace netxs::lixx // li++, libinput++.
         }
         bool evdev_is_fake_mt_device()
         {
-            return libevdev_has_event_code(EV_ABS, ABS_MT_SLOT) && ud_device->libevdev_get_num_slots() == -1;
+            return libevdev_has_event_code(EV_ABS, ABS_MT_SLOT) && libevdev_get_num_slots() == -1;
         }
     };
 
@@ -12308,23 +12308,22 @@ namespace netxs::lixx // li++, libinput++.
                                     }
                                         void tp_sync_touch(libinput_device_sptr li_device, tp_touch& t, si32 slot)
                                         {
-                                            auto ud_device = li_device->ud_device;
                                             auto tracking_id = 0;
-                                            if (!ud_device->libevdev_fetch_slot_value(slot, ABS_MT_POSITION_X, t.point.x))
+                                            if (!li_device->libevdev_fetch_slot_value(slot, ABS_MT_POSITION_X, t.point.x))
                                             {
-                                                t.point.x = ud_device->libevdev_get_event_value(EV_ABS, ABS_X);
+                                                t.point.x = li_device->libevdev_get_event_value(EV_ABS, ABS_X);
                                             }
-                                            if (!ud_device->libevdev_fetch_slot_value(slot, ABS_MT_POSITION_Y, t.point.y))
+                                            if (!li_device->libevdev_fetch_slot_value(slot, ABS_MT_POSITION_Y, t.point.y))
                                             {
-                                                t.point.y = ud_device->libevdev_get_event_value(EV_ABS, ABS_Y);
+                                                t.point.y = li_device->libevdev_get_event_value(EV_ABS, ABS_Y);
                                             }
-                                            if (!ud_device->libevdev_fetch_slot_value(slot, ABS_MT_PRESSURE, t.pressure))
+                                            if (!li_device->libevdev_fetch_slot_value(slot, ABS_MT_PRESSURE, t.pressure))
                                             {
-                                                t.pressure = ud_device->libevdev_get_event_value(EV_ABS, ABS_PRESSURE);
+                                                t.pressure = li_device->libevdev_get_event_value(EV_ABS, ABS_PRESSURE);
                                             }
-                                            ud_device->libevdev_fetch_slot_value(slot, ABS_MT_TOUCH_MAJOR, t.major);
-                                            ud_device->libevdev_fetch_slot_value(slot, ABS_MT_TOUCH_MINOR, t.minor);
-                                            if (ud_device->libevdev_fetch_slot_value(slot, ABS_MT_TRACKING_ID, tracking_id) && tracking_id != -1)
+                                            li_device->libevdev_fetch_slot_value(slot, ABS_MT_TOUCH_MAJOR, t.major);
+                                            li_device->libevdev_fetch_slot_value(slot, ABS_MT_TOUCH_MINOR, t.minor);
+                                            if (li_device->libevdev_fetch_slot_value(slot, ABS_MT_TRACKING_ID, tracking_id) && tracking_id != -1)
                                             {
                                                 tp.nactive_slots++;
                                             }
@@ -19068,7 +19067,7 @@ namespace netxs::lixx // li++, libinput++.
 
         static constexpr auto default_seat = "seat0";
         static constexpr auto default_seat_name = "default";
-        si32 libinput_t::libinput_device_added(ud_device_sptr ud_device)
+        void libinput_t::libinput_device_added(ud_device_sptr ud_device)
         {
             auto device_seat = default_seat;
             auto seat_name = default_seat_name;
@@ -19090,14 +19089,13 @@ namespace netxs::lixx // li++, libinput++.
                 {
                     log("Not using input device '%s%'", ud_device->udev_device_get_sysname());
                 }
-                return 0;
             }
-            //todo drop seat
-            path_list.push_back(li_device);
-            evdev_read_calibration_prop(li_device);
-            auto output_name = ud_device->udev_device_get_property_value("WL_OUTPUT");
-            li_device->output_name = output_name;
-            return 0;
+            else
+            {
+                path_list.push_back(li_device);
+                evdev_read_calibration_prop(li_device);
+                li_device->output_name = li_device->udev_device_get_property_value("WL_OUTPUT");
+            }
         }
         void libinput_t::libinput_device_removed(ud_device_sptr ud_device)
         {
@@ -19137,7 +19135,7 @@ namespace netxs::lixx // li++, libinput++.
         }
         void libinput_t::input_enable()
         {
-            if (!ud_monitor && seat_id.size())
+            if (!ud_monitor)
             {
                 ud_monitor = ptr::shared<ud_monitor_t>(This());
                 if (!ud_monitor->udev_monitor_enable_receiving())
@@ -19171,12 +19169,13 @@ namespace netxs::lixx // li++, libinput++.
             if (!ud_device->ignore_litest_test_suite_device())
             {
                 libinput_init_quirks();
-                li_device = create_device(ud_device);
+                li_device = device_enable(ud_device);
             }
             return li_device;
         }
-        void libinput_t::disable_device(libinput_device_sptr li_device)
+        void libinput_t::remove_device(libinput_device_sptr li_device)
         {
+            std::erase_if(path_list, [&](auto d){ return d == li_device; });
             auto seat = li_device->seat;
             std::erase_if(seat->devices_list, [&](auto d)
             {
@@ -19191,11 +19190,6 @@ namespace netxs::lixx // li++, libinput++.
                 }
             });
         }
-        void libinput_t::remove_device(libinput_device_sptr li_device)
-        {
-            std::erase_if(path_list, [&](auto d){ return d == li_device; });
-            disable_device(li_device);
-        }
         void libinput_t::libinput_remove_devices()
         {
             for (auto seat : seat_list)
@@ -19206,17 +19200,6 @@ namespace netxs::lixx // li++, libinput++.
                 }
                 seat->devices_list.clear();
             }
-        }
-        libinput_device_sptr libinput_t::create_device(ud_device_sptr ud_device, qiew seat_name)
-        {
-            auto dev = ptr::shared<libinput_device_t>();
-            dev->ud_device = ud_device;
-            auto li_device = device_enable(ud_device, seat_name);
-            if (!li_device)
-            {
-                dev->ud_device.reset();
-            }
-            return li_device;
         }
         libinput_seat_sptr libinput_t::path_seat_get_named(view seat_name_physical, view seat_name_logical)
         {
