@@ -4893,7 +4893,6 @@ namespace netxs::lixx // li++, libinput++.
         libinput_device_sptr libinput_add_device(view path);
         void input_enable();
         void input_disable();
-        bool libinput_add_devices();
 
         bool current_tty_is_active()
         {
@@ -5158,12 +5157,6 @@ namespace netxs::lixx // li++, libinput++.
         virtual libinput_switch_state              get_switch_state([[maybe_unused]] libinput_switch which)                                                                                                                                                    { return libinput_switch_state{}; } // Return the state of the given switch.
         virtual                  void            left_handed_toggle([[maybe_unused]] libinput_device_sptr li_device, [[maybe_unused]] bool left_handed_enabled)                                                                                                { }
     };
-
-    //todo unify
-    auto evdev_libinput_context(auto li_device)
-    {
-        return li_device->seat->libinput;
-    }
 
     // Helpers
         property_sptr quirk_find_prop(quirks_sptr q, quirk which)
@@ -5497,6 +5490,10 @@ namespace netxs::lixx // li++, libinput++.
         evdev_middlebutton_t                    middlebutton;
         evdev_frame                             frame;
 
+        auto li_context()
+        {
+            return seat->libinput;
+        }
         void libinput_device_add_event_listener(libinput_event_listener_sptr listener)
         {
             event_listeners.push_back(listener);
@@ -12498,7 +12495,7 @@ namespace netxs::lixx // li++, libinput++.
                     {
                         return faux;
                     }
-                    auto quirks = evdev_libinput_context(li_device)->quirks;
+                    auto quirks = li_device->li_context()->quirks;
                     auto q = quirks_fetch_for_device(quirks, li_device->ud_device);
                     auto r = quirk_range{};
                     if (q && quirks_get_range(q, QUIRK_ATTR_TOUCH_SIZE_RANGE, &r))
@@ -12537,7 +12534,7 @@ namespace netxs::lixx // li++, libinput++.
                     }
                     auto abs = li_device->evdev->libevdev_get_abs_info(code);
                     assert(abs);
-                    auto quirks = evdev_libinput_context(li_device)->quirks;
+                    auto quirks = li_device->li_context()->quirks;
                     auto q = quirks_fetch_for_device(quirks, li_device->ud_device);
                     auto r = quirk_range{};
                     auto hi = 0;
@@ -12759,7 +12756,7 @@ namespace netxs::lixx // li++, libinput++.
                     tp.tap.drag_enabled = tp_drag_default(tp.li_device);
                     tp.tap.drag_lock = tp_drag_lock_default(tp.li_device);
                     auto timer_name = utf::fprint("%s% tap", tp.li_device->evdev_device_get_sysname());
-                    auto li = evdev_libinput_context(tp.li_device);
+                    auto li = tp.li_device->li_context();
                     tp.tap.timer = li->timers.create(timer_name, tp_tap_handle_timeout, &tp);
                 }
                     bool tp_guess_clickpad(libinput_device_sptr li_device)
@@ -12923,7 +12920,7 @@ namespace netxs::lixx // li++, libinput++.
                     tp_switch_click_method();
                     tp_init_top_softbuttons(li_device, 1.0);
                     tp_init_middlebutton_emulation(li_device);
-                    auto li = evdev_libinput_context(tp.li_device);
+                    auto li = tp.li_device->li_context();
                     auto i = 0;
                     for (auto& t : tp.touches)
                     {
@@ -12969,7 +12966,7 @@ namespace netxs::lixx // li++, libinput++.
                         auto prop = (char*)nullptr;
                         auto layout = TPKBCOMBO_LAYOUT_UNKNOWN;
                         auto rc = faux;
-                        auto quirks = evdev_libinput_context(li_device)->quirks;
+                        auto quirks = li_device->li_context()->quirks;
                         auto q = quirks_fetch_for_device(quirks, li_device->ud_device);
                         if (!q) return faux;
                         if (quirks_get_string(q, QUIRK_ATTR_TPKBCOMBO_LAYOUT, &prop))
@@ -13046,7 +13043,7 @@ namespace netxs::lixx // li++, libinput++.
                     void tp_init_palmdetect_arbitration(libinput_device_sptr li_device)
                     {
                         auto timer_name = utf::fprint("%s% arbitration", li_device->evdev_device_get_sysname());
-                        auto li = evdev_libinput_context(tp.li_device);
+                        auto li = tp.li_device->li_context();
                         tp.arbitration.arbitration_timer = li->timers.create(timer_name, tp_arbitration_timeout, &tp);
                         tp.arbitration.state = ARBITRATION_NOT_ACTIVE;
                     }
@@ -13078,7 +13075,7 @@ namespace netxs::lixx // li++, libinput++.
                         {
                             static constexpr auto default_palm_threshold = 130u;
                             auto threshold = default_palm_threshold;
-                            auto quirks = evdev_libinput_context(li_device)->quirks;
+                            auto quirks = li_device->li_context()->quirks;
                             if (auto q = quirks_fetch_for_device(quirks, li_device->ud_device))
                             {
                                 quirks_get_uint32(q, QUIRK_ATTR_PALM_PRESSURE_THRESHOLD, &threshold);
@@ -13101,7 +13098,7 @@ namespace netxs::lixx // li++, libinput++.
                     }
                     void tp_init_palmdetect_size(libinput_device_sptr li_device)
                     {
-                        auto quirks = evdev_libinput_context(li_device)->quirks;
+                        auto quirks = li_device->li_context()->quirks;
                         if (auto q = quirks_fetch_for_device(quirks, li_device->ud_device))
                         {
                             auto threshold = 0u;
@@ -13164,7 +13161,7 @@ namespace netxs::lixx // li++, libinput++.
                     }
                 void tp_init_sendevents(libinput_device_sptr li_device)
                 {
-                    auto li = evdev_libinput_context(tp.li_device);
+                    auto li = tp.li_device->li_context();
                     auto sysname = li_device->evdev_device_get_sysname();
                     auto tp_timer_name = utf::fprint("%s% trackpoint", sysname);
                     auto kb_timer_name = utf::fprint("%s% keyboard", sysname);
@@ -13193,7 +13190,7 @@ namespace netxs::lixx // li++, libinput++.
                         auto i = 0;
                         for (auto& t : tp.touches)
                         {
-                            auto li = evdev_libinput_context(tp.li_device);
+                            auto li = tp.li_device->li_context();
                             auto timer_name = utf::fprint("%s% (%d%) edgescroll", li_device->evdev_device_get_sysname(), i++);
                             t.scroll.direction = -1;
                             t.scroll.timer = li->timers.create(timer_name, tp_edge_scroll_handle_timeout, &t);
@@ -13503,7 +13500,7 @@ namespace netxs::lixx // li++, libinput++.
                 tp.gesture.state        = GESTURE_STATE_NONE;
                 tp.gesture.enabled      = tp_gesture_are_gestures_enabled();
                 tp.gesture.hold_enabled = tp_gesture_are_gestures_enabled();
-                auto li = evdev_libinput_context(tp.li_device);
+                auto li = tp.li_device->li_context();
                 auto sysname = tp.li_device->evdev_device_get_sysname();
                 auto gestures_timer_name = utf::fprint("%s% gestures", sysname);
                 auto hold_timer_name     = utf::fprint("%s% hold", sysname);
@@ -13533,7 +13530,7 @@ namespace netxs::lixx // li++, libinput++.
                 mm.y = h * 0.92;
                 edges = li_device->evdev_device_mm_to_units(mm);
                 tp.thumb.lower_thumb_line = edges.y;
-                auto quirks = evdev_libinput_context(li_device)->quirks;
+                auto quirks = li_device->li_context()->quirks;
                 auto q = quirks_fetch_for_device(quirks, li_device->ud_device);
                 if (li_device->evdev->libevdev_has_event_code(EV_ABS, ABS_MT_PRESSURE))
                 {
@@ -13620,7 +13617,7 @@ namespace netxs::lixx // li++, libinput++.
                     #if HAVE_LIBWACOM
                     if ((li_device->tags & EVDEV_TAG_TABLET_TOUCHPAD) != 0)
                     {
-                        auto li = evdev_libinput_context(tp.li_device);
+                        auto li = tp.li_device->li_context();
                         auto db = li->libinput_libwacom_ref();
                         if (db)
                         {
@@ -14330,7 +14327,7 @@ namespace netxs::lixx // li++, libinput++.
                         }
                     void pad_suspend(libinput_device_sptr li_device)
                     {
-                        auto li = evdev_libinput_context(pad.li_device);
+                        auto li = pad.li_device->li_context();
                         for (auto usage = evdev_usage_from(EVDEV_KEY_ESC); usage <= EVDEV_KEY_MAX; usage = evdev_usage_next(usage))
                         {
                             if (pad_button_is_down(evdev_usage_code(usage)))
@@ -14468,7 +14465,7 @@ namespace netxs::lixx // li++, libinput++.
                 }
             si32 pad_init(libinput_device_sptr li_device)
             {
-                [[maybe_unused]] auto li = evdev_libinput_context(li_device);
+                [[maybe_unused]] auto li = li_device->li_context();
                 pad.dispatch_type = DISPATCH_TABLET_PAD;
                 pad.li_device     = li_device;
                 pad.status        = PAD_NONE;
@@ -14522,7 +14519,7 @@ namespace netxs::lixx // li++, libinput++.
             totem_dispatch& totem;
             libinput_tablet_tool_sptr totem_new_tool()
             {
-                auto li = evdev_libinput_context(totem.li_device);
+                auto li = totem.li_device->li_context();
                 auto tool = ptr::shared<libinput_tablet_tool>();
                 tool->serial = 0;
                 tool->tool_id = 0;
@@ -15351,7 +15348,7 @@ namespace netxs::lixx // li++, libinput++.
                                     {
                                         auto rc = faux;
                                         #if HAVE_LIBWACOM
-                                        auto db = evdev_libinput_context(tablet.li_device)->libwacom.db;
+                                        auto db = tablet.li_device->li_context()->libwacom.db;
                                         if (!db) return rc;
                                         #pragma GCC diagnostic push
                                         #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
@@ -15466,7 +15463,7 @@ namespace netxs::lixx // li++, libinput++.
                             }
                         libinput_tablet_tool_sptr tablet_get_tool(libinput_tablet_tool_type type, ui32 tool_id, ui32 serial)
                         {
-                            auto li = evdev_libinput_context(tablet.li_device);
+                            auto li = tablet.li_device->li_context();
                             auto tool = libinput_tablet_tool_sptr{};
                             if (serial)
                             {
@@ -15566,7 +15563,7 @@ namespace netxs::lixx // li++, libinput++.
                         {
                             auto status = faux;
                             auto device = tablet.li_device;
-                            auto quirks = evdev_libinput_context(device)->quirks;
+                            auto quirks = device->li_context()->quirks;
                             auto q = quirks_fetch_for_device(quirks, device->ud_device);
                             // Note: the quirk term "range" refers to the hi/lo settings, not the full available range for the pressure axis.
                             auto r = quirk_range{};
@@ -16468,7 +16465,7 @@ namespace netxs::lixx // li++, libinput++.
             }
             void tablet_suspend(libinput_device_sptr li_device)
             {
-                auto li = evdev_libinput_context(tablet.li_device);
+                auto li = tablet.li_device->li_context();
                 auto now = datetime::now();
                 tablet_set_touch_device_enabled(ARBITRATION_NOT_ACTIVE, nullptr, now);
                 if (!(tablet.status & TABLET_TOOL_OUT_OF_PROXIMITY))
@@ -16488,7 +16485,7 @@ namespace netxs::lixx // li++, libinput++.
                         if (group1.size() && group1 == group2)
                         {
                             // We found a better device, let's swap it out.
-                            auto li = evdev_libinput_context(tablet.li_device);
+                            auto li = tablet.li_device->li_context();
                             tablet_set_touch_device_enabled(ARBITRATION_NOT_ACTIVE, nullptr, datetime::now());
                             log("touch-arbitration: removing pairing for %s%<->%s%", li_device->devname, tablet.touch_li_device->devname);
                         }
@@ -16549,7 +16546,7 @@ namespace netxs::lixx // li++, libinput++.
                 }
             void tablet_check_initial_proximity(libinput_device_sptr li_device)
             {
-                auto li = evdev_libinput_context(tablet.li_device);
+                auto li = tablet.li_device->li_context();
                 auto state = 0;
                 auto tool = libinput_tablet_tool_type{};
                 for (tool = LIBINPUT_TABLET_TOOL_TYPE_PEN; tool <= LIBINPUT_TABLET_TOOL_TYPE_MAX; tool = (libinput_tablet_tool_type)(tool + 1))
@@ -16776,7 +16773,7 @@ namespace netxs::lixx // li++, libinput++.
                 {
                     auto history_size = std::size(tablet.history.samples);
                     auto use_smoothing = true;
-                    auto quirks = evdev_libinput_context(li_device)->quirks;
+                    auto quirks = li_device->li_context()->quirks;
                     auto q = quirks_fetch_for_device(quirks, li_device->ud_device);
                     // By default, always enable smoothing except on AES or uinput devices. AttrTabletSmoothing can override this, if necessary.
                     if (!q || !quirks_get_bool(q, QUIRK_ATTR_TABLET_SMOOTHING, use_smoothing))
@@ -16856,7 +16853,7 @@ namespace netxs::lixx // li++, libinput++.
             si32 tablet_init(libinput_device_sptr li_device)
             {
                 static auto tablet_ids = 0u;
-                auto li = evdev_libinput_context(li_device);
+                auto li = li_device->li_context();
                 auto evdev = li_device->evdev;
                 auto rc = -1;
                 auto wacom = (WacomDevice*)nullptr;
@@ -18439,7 +18436,7 @@ namespace netxs::lixx // li++, libinput++.
                         }
                     void fallback_return_to_neutral_state(libinput_device_sptr li_device)
                     {
-                        auto li = evdev_libinput_context(li_device);
+                        auto li = li_device->li_context();
                         auto stamp = datetime::now();
                         if (stamp != time{})
                         {
@@ -18705,7 +18702,7 @@ namespace netxs::lixx // li++, libinput++.
                 {
                     auto r = switch_reliability{};
                     auto prop = (char*)nullptr;
-                    auto quirks = evdev_libinput_context(li_device)->quirks;
+                    auto quirks = li_device->li_context()->quirks;
                     auto q = quirks_fetch_for_device(quirks, li_device->ud_device);
                     if (!q || !quirks_get_string(q, QUIRK_ATTR_LID_SWITCH_RELIABILITY, &prop))
                     {
@@ -18834,7 +18831,7 @@ namespace netxs::lixx // li++, libinput++.
                 fallback.wheel.ignore_small_hi_res_movements = !fallback.li_device->evdev_device_is_virtual();
                 if (fallback.wheel.ignore_small_hi_res_movements)
                 {
-                    auto li = evdev_libinput_context(li_device);
+                    auto li = li_device->li_context();
                     auto timer_name = utf::fprint("%s% wheel scroll", li_device->evdev_device_get_sysname());
                     fallback.wheel.scroll_timer = li->timers.create(timer_name, wheel_init_scroll_timer, li_device.get());
                 }
@@ -18859,7 +18856,7 @@ namespace netxs::lixx // li++, libinput++.
                     fallback.debounce.state = DEBOUNCE_STATE_DISABLED;
                     return;
                 }
-                auto li = evdev_libinput_context(li_device);
+                auto li = li_device->li_context();
                 auto sysname = li_device->evdev_device_get_sysname();
                 auto ds_timer_name = utf::fprint("%s% debounce short", sysname);
                 auto db_timer_name = utf::fprint("%s% debounce", sysname);
@@ -18878,7 +18875,7 @@ namespace netxs::lixx // li++, libinput++.
                 }
             void fallback_init_arbitration(libinput_device_sptr li_device)
             {
-                auto li = evdev_libinput_context(li_device);
+                auto li = li_device->li_context();
                 auto timer_name = utf::fprint("%s% arbitration", li_device->evdev_device_get_sysname());
                 fallback.arbitration.arbitration_timer = li->timers.create(timer_name, fallback_arbitration_timeout, &fallback);
                 fallback.arbitration.in_arbitration = faux;
@@ -18960,21 +18957,6 @@ namespace netxs::lixx // li++, libinput++.
                 }
             });
         }
-        bool libinput_t::libinput_add_devices()
-        {
-            for (auto [sysname, ud_device] : ud_monitor->device_list)
-            {
-                if (ud_device->initialized)
-                {
-                    libinput_device_added(ud_device);
-                }
-                else
-                {
-                    log("Skip unconfigured input device '%s%'", sysname);
-                }
-            }
-            return true;
-        }
         void libinput_t::input_disable()
         {
             if (ud_monitor)
@@ -18999,7 +18981,17 @@ namespace netxs::lixx // li++, libinput++.
                 {
                     auto fd = ud_monitor->udev_monitor_get_fd();
                     ud_monitor_source = timers.libinput_add_event_source(fd, evdev_udev_handler, this);
-                    libinput_add_devices();
+                    for (auto [sysname, ud_device] : ud_monitor->device_list) // Add all devices.
+                    {
+                        if (ud_device->initialized)
+                        {
+                            libinput_device_added(ud_device);
+                        }
+                        else
+                        {
+                            log("Skip unconfigured input device '%s%'", sysname);
+                        }
+                    }
                 }
             }
         }
@@ -19273,7 +19265,7 @@ namespace netxs::lixx // li++, libinput++.
         #undef X
         auto model_flags = 0u;
         auto all_model_flags = 0u;
-        auto quirks_v = evdev_libinput_context(li_device)->quirks;
+        auto quirks_v = li_device->li_context()->quirks;
         if (auto q = quirks_fetch_for_device(quirks_v, li_device->ud_device))
         {
             for (auto [quirk, model] : model_map)
@@ -19364,7 +19356,7 @@ namespace netxs::lixx // li++, libinput++.
             li_device->evdev->libevdev_set_abs_maximum(ABS_MT_SLOT, 1);
         }
         // Generally we don't care about MSC_TIMESTAMP and it can cause unnecessary wakeups but on some devices we need to watch it for pointer jumps.
-        auto quirks_v = evdev_libinput_context(li_device)->quirks;
+        auto quirks_v = li_device->li_context()->quirks;
         auto q = quirks_fetch_for_device(quirks_v, li_device->ud_device);
         if (!q || !quirks_get_string(q, QUIRK_ATTR_MSC_TIMESTAMP, &prop) || "watch"sv != prop)
         {
@@ -19649,7 +19641,7 @@ namespace netxs::lixx // li++, libinput++.
     }
     bool evdev_read_attr_res_prop(libinput_device_sptr li_device, ui64* xres, ui64* yres)
     {
-        auto quirks_v = evdev_libinput_context(li_device)->quirks;
+        auto quirks_v = li_device->li_context()->quirks;
         auto q = quirks_fetch_for_device(quirks_v, li_device->ud_device);
         if (!q)
         {
@@ -19666,7 +19658,7 @@ namespace netxs::lixx // li++, libinput++.
     }
     bool evdev_read_attr_size_prop(libinput_device_sptr li_device, ui64* size_x, ui64* size_y)
     {
-        auto quirks = evdev_libinput_context(li_device)->quirks;
+        auto quirks = li_device->li_context()->quirks;
         auto q = quirks_fetch_for_device(quirks, li_device->ud_device);
         if (!q)
         {
@@ -20001,7 +19993,7 @@ namespace netxs::lixx // li++, libinput++.
         }
         evdev_dispatch_sptr evdev_tablet_create(libinput_device_sptr li_device)
         {
-            auto li = evdev_libinput_context(li_device);
+            auto li = li_device->li_context();
             #if HAVE_LIBWACOM
             li->libinput_libwacom_ref();
             #endif
@@ -20019,7 +20011,7 @@ namespace netxs::lixx // li++, libinput++.
         bool evdev_need_velocity_averaging(libinput_device_sptr li_device)
         {
             auto use_velocity_averaging = faux; // Default off unless we have quirk.
-            auto quirks = evdev_libinput_context(li_device)->quirks;
+            auto quirks = li_device->li_context()->quirks;
             auto q = quirks_fetch_for_device(quirks, li_device->ud_device);
             if (q)
             {
@@ -20176,7 +20168,7 @@ namespace netxs::lixx // li++, libinput++.
                 return;
             }
             li_device->tags = (libinput_device_tags)(li_device->tags | EVDEV_TAG_TRACKPOINT);
-            auto quirks = evdev_libinput_context(li_device)->quirks;
+            auto quirks = li_device->li_context()->quirks;
             auto q = quirks_fetch_for_device(quirks, li_device->ud_device);
             auto prop = (char*)nullptr;
             if (q && quirks_get_string(q, QUIRK_ATTR_TRACKPOINT_INTEGRATION, &prop))
@@ -20212,7 +20204,7 @@ namespace netxs::lixx // li++, libinput++.
             auto multiplier = 1.0;
             if (li_device->tags & EVDEV_TAG_TRACKPOINT)
             {
-                auto quirks = evdev_libinput_context(li_device)->quirks;
+                auto quirks = li_device->li_context()->quirks;
                 auto q = quirks_fetch_for_device(quirks, li_device->ud_device);
                 if (q)
                 {
@@ -20315,7 +20307,7 @@ namespace netxs::lixx // li++, libinput++.
                     return;
                 }
             }
-            auto quirks = evdev_libinput_context(li_device)->quirks;
+            auto quirks = li_device->li_context()->quirks;
             auto q = quirks_fetch_for_device(quirks, li_device->ud_device);
             auto prop = (char*)nullptr;
             if (q && quirks_get_string(q, QUIRK_ATTR_KEYBOARD_INTEGRATION, &prop))
@@ -20728,18 +20720,17 @@ namespace netxs::lixx // li++, libinput++.
                 }
                 text init_dt() // Device Tree.
                 {
-                    char compatible[1024];
                     auto copy = text{};
-                    auto path = "/sys/firmware/devicetree/base/compatible";
-                    if (::getenv("LIBINPUT_RUNNING_TEST_SUITE")) return {};
-                    auto fp = ::fopen(path, "r");
-                    if (fp) // devicetree/base/compatible has multiple null-terminated entries but we only care about the first one here.
+                    if (!::getenv("LIBINPUT_RUNNING_TEST_SUITE"))
                     {
-                        if (::fgets(compatible, sizeof(compatible), fp))
+                        auto filepath = "/sys/firmware/devicetree/base/compatible";
+                        auto buffer = std::array<char, 4096>{};
+                        auto f = std::ifstream{ filepath, std::ios::binary };
+                        if (f.is_open())
                         {
-                            copy = compatible;
+                            f.read(buffer.data(), buffer.size());
+                            copy = buffer.data(); // devicetree/base/compatible has multiple null-terminated entries but we only care about the first one here.
                         }
-                        ::fclose(fp);
                     }
                     return copy;
                 }
