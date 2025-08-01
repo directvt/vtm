@@ -7132,8 +7132,8 @@ namespace netxs::lixx // li++, libinput++.
             libinput_device_config_dwt               config;
             bool                                     dwt_enabled;
             std::list<libinput_paired_keyboard_sptr> paired_keyboard_list;
-            ui64                                     key_mask[lixx::nlongs<KEY_CNT>];
-            ui64                                     mod_mask[lixx::nlongs<KEY_CNT>];
+            std::bitset<KEY_CNT>                     key_mask;
+            std::bitset<KEY_CNT>                     mod_mask;
             bool                                     keyboard_active;
             libinput_timer_sptr                      keyboard_timer;
             time                                     keyboard_last_press_time;
@@ -12152,8 +12152,8 @@ namespace netxs::lixx // li++, libinput++.
                                 // Only trigger the timer on key down.
                                 if (event.libinput_event_keyboard_get_key_state() != LIBINPUT_KEY_STATE_PRESSED)
                                 {
-                                    long_clear_bit(tp.dwt.key_mask, key);
-                                    long_clear_bit(tp.dwt.mod_mask, key);
+                                    tp.dwt.key_mask.reset(key);
+                                    tp.dwt.mod_mask.reset(key);
                                     return;
                                 }
                                 if (!tp.dwt.dwt_enabled) return;
@@ -12165,7 +12165,7 @@ namespace netxs::lixx // li++, libinput++.
                                 {
                                     if (!tp.tp_impl.tp_key_is_shift(key))
                                     {
-                                        long_set_bit(tp.dwt.mod_mask, key);
+                                        tp.dwt.mod_mask.set(key);
                                     }
                                 }
                                 else
@@ -12173,7 +12173,7 @@ namespace netxs::lixx // li++, libinput++.
                                     if (!tp.dwt.keyboard_active)
                                     {
                                         // This is the first non-modifier key press. Check if the modifier mask is set. If any modifier is down we don't trigger dwt because it's likely to be combination like Ctrl+S or similar.
-                                        if (long_any_bit_set(tp.dwt.mod_mask, std::size(tp.dwt.mod_mask))) return;
+                                        if (tp.dwt.mod_mask.any()) return;
                                         tp.tp_impl.tp_stop_actions(stamp);
                                         tp.dwt.keyboard_active = true;
                                         timeout = lixx::default_keyboard_activity_timeout_1;
@@ -12183,7 +12183,7 @@ namespace netxs::lixx // li++, libinput++.
                                         timeout = lixx::default_keyboard_activity_timeout_2;
                                     }
                                     tp.dwt.keyboard_last_press_time = stamp;
-                                    long_set_bit(tp.dwt.key_mask, key);
+                                    tp.dwt.key_mask.set(key);
                                     tp.dwt.keyboard_timer->start(stamp + timeout);
                                 }
                             }
@@ -13238,7 +13238,7 @@ namespace netxs::lixx // li++, libinput++.
                     static void tp_keyboard_timeout(time now, void* data)
                     {
                         auto& tp = *(tp_dispatch*)data;
-                        if (tp.dwt.dwt_enabled && long_any_bit_set(tp.dwt.key_mask, std::size(tp.dwt.key_mask)))
+                        if (tp.dwt.dwt_enabled && tp.dwt.key_mask.any())
                         {
                             tp.dwt.keyboard_timer->start(now + lixx::default_keyboard_activity_timeout_2);
                             tp.dwt.keyboard_last_press_time = now;
@@ -17107,8 +17107,8 @@ namespace netxs::lixx // li++, libinput++.
         si32_coor                          rel;
         fb_wheel_t                         wheel;
         fb_tablet_mode_t                   tablet_mode;
-        ui64                               hw_key_mask[lixx::nlongs<KEY_CNT>]; // Bitmask of pressed keys used to ignore initial release events from the kernel.
-        ui64                               last_hw_key_mask[lixx::nlongs<KEY_CNT>];
+        std::bitset<KEY_CNT>               hw_key_mask; // Bitmask of pressed keys used to ignore initial release events from the kernel.
+        std::bitset<KEY_CNT>               last_hw_key_mask;
         evdev_event_type                   pending_event;
         fb_debounce_t                      debounce;
         fb_lid_t                           lid;
@@ -17434,7 +17434,7 @@ namespace netxs::lixx // li++, libinput++.
                         {
                             assert(evdev_usage_type(usage) == EV_KEY);
                             auto code = evdev_usage_code(usage);
-                            return long_bit_is_set(fallback.hw_key_mask, code);
+                            return fallback.hw_key_mask[code];
                         }
                             void long_set_bit_state(ui64* array, si32 bit, si32 state)
                             {
@@ -17459,7 +17459,7 @@ namespace netxs::lixx // li++, libinput++.
                         {
                             assert(evdev_usage_type(usage) == EV_KEY);
                             auto code = evdev_usage_code(usage);
-                            long_set_bit_state(fallback.hw_key_mask, code, pressed);
+                            fallback.hw_key_mask.set(code, pressed);
                         }
                             void keyboard_notify_key(libinput_device_sptr li_device, time stamp, keycode_t keycode, libinput_key_state state)
                             {
@@ -18046,7 +18046,7 @@ namespace netxs::lixx // li++, libinput++.
                         {
                             assert(evdev_usage_type(usage) == EV_KEY);
                             auto code = evdev_usage_code(usage);
-                            return long_bit_is_set(fallback.hw_key_mask, code) != long_bit_is_set(fallback.last_hw_key_mask, code);
+                            return fallback.hw_key_mask[code] != fallback.last_hw_key_mask[code];
                         }
                                 void debounce_cancel_timer()
                                 {
@@ -18365,8 +18365,7 @@ namespace netxs::lixx // li++, libinput++.
                         }
                         void hw_key_update_last_state()
                         {
-                            static_assert(sizeof(fallback.hw_key_mask) == sizeof(fallback.last_hw_key_mask), "Mismatching key mask size");
-                            ::memcpy(fallback.last_hw_key_mask, fallback.hw_key_mask, sizeof(fallback.hw_key_mask));
+                            fallback.last_hw_key_mask = fallback.hw_key_mask;
                         }
                         void touch_notify_frame(libinput_device_sptr li_device, time stamp)
                         {
@@ -18520,8 +18519,8 @@ namespace netxs::lixx // li++, libinput++.
                         {
                             cancel_touches(li_device, si32_rect{}, stamp);
                             release_pressed_keys(li_device, stamp);
-                            memset(fallback.hw_key_mask, 0, sizeof(fallback.hw_key_mask));
-                            memset(fallback.hw_key_mask, 0, sizeof(fallback.last_hw_key_mask));
+                            fallback.hw_key_mask.reset();
+                            fallback.hw_key_mask.reset();
                         }
                     }
                 void fallback_interface_suspend(libinput_device_sptr li_device)
