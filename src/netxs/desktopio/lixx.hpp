@@ -6900,11 +6900,6 @@ namespace netxs::lixx // li++, libinput++.
                 si32_coor center;
                 byte      x_motion_history;
             };
-            struct tp_pinned_t
-            {
-                bool      is_pinned; // A pinned touchpoint is the one that pressed the physical button on a clickpad. After the release, it won't move until the center moves more than a threshold away from the original coordinates.
-                si32_coor center;
-            };
             struct tp_button_t
             {
                 button_state_enum   state;
@@ -6948,11 +6943,12 @@ namespace netxs::lixx // li++, libinput++.
             tp_history_t     history;
             tp_jumps_t       jumps;
             tp_hysteresis_t  hysteresis;
-            tp_pinned_t      pinned;
+            bool             pinned_state;  // A pinned touchpoint is the one that pressed the physical button on a clickpad. After the release, it won't move until the center moves more than a threshold away from the original coordinates.
+            si32_coor        pinned_center; //
             tp_button_t      button; // Software-button state and timeout if applicable.
             tp_tap_t         tap;
             tp_scroll_t      scroll;
-            touch_palm_state palm_state;
+            touch_palm_state palm_state; // Palm state.
             si32_coor        palm_first; // Palm detected there.
             time             palm_stamp; // Palm detection time.
             fp64             speed_last; // Speed in mm/s at last sample.
@@ -7267,7 +7263,7 @@ namespace netxs::lixx // li++, libinput++.
                                 t.was_down                    = faux;
                                 t.palm_state                  = TOUCH_PALM_NONE;
                                 t.state                       = TOUCH_HOVERING;
-                                t.pinned.is_pinned            = faux;
+                                t.pinned_state            = faux;
                                 t.speed_last                  = 0;
                                 t.speed_exceeded_count        = 0;
                                 t.hysteresis.x_motion_history = 0;
@@ -7851,7 +7847,7 @@ namespace netxs::lixx // li++, libinput++.
                                     t.dirty                = true;
                                     t.palm_state           = TOUCH_PALM_NONE;
                                     t.state                = TOUCH_END;
-                                    t.pinned.is_pinned     = faux;
+                                    t.pinned_state     = faux;
                                     t.palm_stamp           = {};
                                     t.speed_exceeded_count = 0;
                                     tp.queued = (touchpad_event)(tp.queued | TOUCHPAD_EVENT_MOTION);
@@ -8216,7 +8212,7 @@ namespace netxs::lixx // li++, libinput++.
                                             {
                                                 return (t.state == TOUCH_BEGIN || t.state == TOUCH_UPDATE)
                                                      && t.palm_state == TOUCH_PALM_NONE
-                                                     && !t.pinned.is_pinned
+                                                     && !t.pinned_state
                                                      && !tp_thumb_ignored(t)
                                                      && tp_button_touch_active(t)
                                                      && tp_edge_scroll_touch_active(t);
@@ -8447,13 +8443,13 @@ namespace netxs::lixx // li++, libinput++.
                                 }
                                 void tp_unpin_finger(tp_touch& t)
                                 {
-                                    if (t.pinned.is_pinned)
+                                    if (t.pinned_state)
                                     {
-                                        auto delta = std::abs(t.point - t.pinned.center);
+                                        auto delta = std::abs(t.point - t.pinned_center);
                                         auto mm = evdev_device_unit_delta_to_mm(tp.li_device, delta);
                                         if (hypot(mm.x, mm.y) >= 1.5) // 1.5mm movement -> unpin.
                                         {
-                                            t.pinned.is_pinned = faux;
+                                            t.pinned_state = faux;
                                         }
                                     }
                                 }
@@ -9039,8 +9035,8 @@ namespace netxs::lixx // li++, libinput++.
                                 {
                                     for (auto& t : tp.touches)
                                     {
-                                        t.pinned.is_pinned = true;
-                                        t.pinned.center = t.point;
+                                        t.pinned_state = true;
+                                        t.pinned_center = t.point;
                                     }
                                 }
                                         bool tp_thumb_ignored_for_gesture(tp_touch& t)
@@ -9055,7 +9051,7 @@ namespace netxs::lixx // li++, libinput++.
                                     {
                                         return (t.state == TOUCH_BEGIN || t.state == TOUCH_UPDATE)
                                              && t.palm_state == TOUCH_PALM_NONE
-                                             && !t.pinned.is_pinned
+                                             && !t.pinned_state
                                              && !tp_thumb_ignored_for_gesture(t)
                                              && tp_button_touch_active(t)
                                              && tp_edge_scroll_touch_active(t);
