@@ -6929,12 +6929,6 @@ namespace netxs::lixx // li++, libinput++.
                 libinput_timer_sptr        timer;
                 si32_coor                  initial;
             };
-            struct tp_palm_t
-            {
-                touch_palm_state state;
-                si32_coor        first; // Palm detected there.
-                time             stamp; // Palm detection time.
-            };
             using tp_dispatch_sptr = sptr<struct tp_dispatch>;
         struct tp_touch
         {
@@ -6958,7 +6952,9 @@ namespace netxs::lixx // li++, libinput++.
             tp_button_t      button; // Software-button state and timeout if applicable.
             tp_tap_t         tap;
             tp_scroll_t      scroll;
-            tp_palm_t        palm;
+            touch_palm_state palm_state;
+            si32_coor        palm_first; // Palm detected there.
+            time             palm_stamp; // Palm detection time.
             fp64             speed_last; // Speed in mm/s at last sample.
             ui32             speed_exceeded_count;
         };
@@ -7269,7 +7265,7 @@ namespace netxs::lixx // li++, libinput++.
                                 t.dirty                       = true;
                                 t.has_ended                   = faux;
                                 t.was_down                    = faux;
-                                t.palm.state                  = TOUCH_PALM_NONE;
+                                t.palm_state                  = TOUCH_PALM_NONE;
                                 t.state                       = TOUCH_HOVERING;
                                 t.pinned.is_pinned            = faux;
                                 t.speed_last                  = 0;
@@ -7676,7 +7672,7 @@ namespace netxs::lixx // li++, libinput++.
                                             t.state                = TOUCH_BEGIN;
                                             t.initial_time         = stamp;
                                             t.was_down             = true;
-                                            t.palm.stamp           = stamp;
+                                            t.palm_stamp           = stamp;
                                             t.tap.is_thumb         = faux;
                                             t.tap.is_palm          = faux;
                                             t.speed_exceeded_count = 0;
@@ -7853,10 +7849,10 @@ namespace netxs::lixx // li++, libinput++.
                                         return;
                                     }
                                     t.dirty                = true;
-                                    t.palm.state           = TOUCH_PALM_NONE;
+                                    t.palm_state           = TOUCH_PALM_NONE;
                                     t.state                = TOUCH_END;
                                     t.pinned.is_pinned     = faux;
-                                    t.palm.stamp           = {};
+                                    t.palm_stamp           = {};
                                     t.speed_exceeded_count = 0;
                                     tp.queued = (touchpad_event)(tp.queued | TOUCHPAD_EVENT_MOTION);
                                 }
@@ -8129,30 +8125,30 @@ namespace netxs::lixx // li++, libinput++.
                                     bool tp_palm_detect_pressure_triggered(tp_touch& t, [[maybe_unused]] time now)
                                     {
                                         if (!tp.palm.use_pressure) return faux;
-                                        if (t.palm.state != TOUCH_PALM_NONE && t.palm.state != TOUCH_PALM_PRESSURE) return faux;
-                                        if (t.pressure > tp.palm.pressure_threshold) t.palm.state = TOUCH_PALM_PRESSURE;
-                                        return t.palm.state == TOUCH_PALM_PRESSURE;
+                                        if (t.palm_state != TOUCH_PALM_NONE && t.palm_state != TOUCH_PALM_PRESSURE) return faux;
+                                        if (t.pressure > tp.palm.pressure_threshold) t.palm_state = TOUCH_PALM_PRESSURE;
+                                        return t.palm_state == TOUCH_PALM_PRESSURE;
                                     }
                                     bool tp_palm_detect_arbitration_triggered(tp_touch& t, [[maybe_unused]] time now)
                                     {
                                         if (tp.arbitration.state == ARBITRATION_NOT_ACTIVE) return faux;
-                                        t.palm.state = TOUCH_PALM_ARBITRATION;
+                                        t.palm_state = TOUCH_PALM_ARBITRATION;
                                         return true;
                                     }
                                     bool tp_palm_detect_dwt_triggered(tp_touch& t, [[maybe_unused]] time now)
                                     {
                                         if (tp.dwt.dwt_enabled && tp.dwt.keyboard_active && t.state == TOUCH_BEGIN)
                                         {
-                                            t.palm.state = TOUCH_PALM_TYPING;
-                                            t.palm.first = t.point;
+                                            t.palm_state = TOUCH_PALM_TYPING;
+                                            t.palm_first = t.point;
                                             return true;
                                         }
-                                        if (!tp.dwt.keyboard_active && t.state == TOUCH_UPDATE && t.palm.state == TOUCH_PALM_TYPING)
+                                        if (!tp.dwt.keyboard_active && t.state == TOUCH_UPDATE && t.palm_state == TOUCH_PALM_TYPING)
                                         {
                                             // If a touch has started before the first or after the last key press, release it on timeout. Benefit: a palm rested while typing on the touchpad will be ignored, but a touch started once we stop typing will be able to control the pointer (alas not tap, etc).
-                                            if (t.palm.stamp == time{} || t.palm.stamp > tp.dwt.keyboard_last_press_time)
+                                            if (t.palm_stamp == time{} || t.palm_stamp > tp.dwt.keyboard_last_press_time)
                                             {
-                                                t.palm.state = TOUCH_PALM_NONE;
+                                                t.palm_state = TOUCH_PALM_NONE;
                                                 log("palm: touch %d% released, timeout after typing", t.index);
                                             }
                                         }
@@ -8162,16 +8158,16 @@ namespace netxs::lixx // li++, libinput++.
                                     {
                                         if (tp.palm.monitor_trackpoint)
                                         {
-                                            if (t.palm.state == TOUCH_PALM_NONE && t.state == TOUCH_BEGIN && tp.palm.trackpoint_active)
+                                            if (t.palm_state == TOUCH_PALM_NONE && t.state == TOUCH_BEGIN && tp.palm.trackpoint_active)
                                             {
-                                                t.palm.state = TOUCH_PALM_TRACKPOINT;
+                                                t.palm_state = TOUCH_PALM_TRACKPOINT;
                                                 return true;
                                             }
-                                            if (t.palm.state == TOUCH_PALM_TRACKPOINT && t.state == TOUCH_UPDATE && !tp.palm.trackpoint_active)
+                                            if (t.palm_state == TOUCH_PALM_TRACKPOINT && t.state == TOUCH_UPDATE && !tp.palm.trackpoint_active)
                                             {
-                                                if (t.palm.stamp == time{} || t.palm.stamp > tp.palm.trackpoint_last_event_time)
+                                                if (t.palm_stamp == time{} || t.palm_stamp > tp.palm.trackpoint_last_event_time)
                                                 {
-                                                    t.palm.state = TOUCH_PALM_NONE;
+                                                    t.palm_state = TOUCH_PALM_NONE;
                                                     log("palm: touch %d% released, timeout after trackpoint", t.index);
                                                 }
                                             }
@@ -8181,20 +8177,20 @@ namespace netxs::lixx // li++, libinput++.
                                     bool tp_palm_detect_tool_triggered(tp_touch& t, [[maybe_unused]] time now)
                                     {
                                         if (!tp.palm.use_mt_tool) return faux;
-                                        if (t.palm.state != TOUCH_PALM_NONE && t.palm.state != TOUCH_PALM_TOOL_PALM) return faux;
-                                             if (t.palm.state == TOUCH_PALM_NONE      && t.is_tool_palm)  t.palm.state = TOUCH_PALM_TOOL_PALM;
-                                        else if (t.palm.state == TOUCH_PALM_TOOL_PALM && !t.is_tool_palm) t.palm.state = TOUCH_PALM_NONE;
-                                        return t.palm.state == TOUCH_PALM_TOOL_PALM;
+                                        if (t.palm_state != TOUCH_PALM_NONE && t.palm_state != TOUCH_PALM_TOOL_PALM) return faux;
+                                             if (t.palm_state == TOUCH_PALM_NONE      && t.is_tool_palm)  t.palm_state = TOUCH_PALM_TOOL_PALM;
+                                        else if (t.palm_state == TOUCH_PALM_TOOL_PALM && !t.is_tool_palm) t.palm_state = TOUCH_PALM_NONE;
+                                        return t.palm_state == TOUCH_PALM_TOOL_PALM;
                                     }
                                     bool tp_palm_detect_touch_size_triggered(tp_touch& t, [[maybe_unused]] time now)
                                     {
                                         if (!tp.palm.use_size) return faux;
                                         // If a finger size is large enough for palm, we stick with that and force the user to release and reset the finger.
-                                        if (t.palm.state != TOUCH_PALM_NONE && t.palm.state != TOUCH_PALM_TOUCH_SIZE) return faux;
+                                        if (t.palm_state != TOUCH_PALM_NONE && t.palm_state != TOUCH_PALM_TOUCH_SIZE) return faux;
                                         if (t.touch_limits.max > tp.palm.size_threshold || t.touch_limits.min > tp.palm.size_threshold)
                                         {
-                                            if (t.palm.state != TOUCH_PALM_TOUCH_SIZE) log("palm: touch %d% size exceeded", t.index);
-                                            t.palm.state = TOUCH_PALM_TOUCH_SIZE;
+                                            if (t.palm_state != TOUCH_PALM_TOUCH_SIZE) log("palm: touch %d% size exceeded", t.index);
+                                            t.palm_state = TOUCH_PALM_TOUCH_SIZE;
                                             return true;
                                         }
                                         return faux;
@@ -8219,7 +8215,7 @@ namespace netxs::lixx // li++, libinput++.
                                             bool tp_touch_active(tp_touch& t)
                                             {
                                                 return (t.state == TOUCH_BEGIN || t.state == TOUCH_UPDATE)
-                                                     && t.palm.state == TOUCH_PALM_NONE
+                                                     && t.palm_state == TOUCH_PALM_NONE
                                                      && !t.pinned.is_pinned
                                                      && !tp_thumb_ignored(t)
                                                      && tp_button_touch_active(t)
@@ -8232,7 +8228,7 @@ namespace netxs::lixx // li++, libinput++.
                                             // Note: if both touches start in the palm zone within the same frame the second touch will still be TOUCH_PALM_NONE and thus detected here as non-palm touch. This is too niche to worry about for now.
                                             for (auto& other : tp.touches)
                                             {
-                                                if (&other != &t && tp_touch_active(other) && other.palm.state == TOUCH_PALM_NONE)
+                                                if (&other != &t && tp_touch_active(other) && other.palm_state == TOUCH_PALM_NONE)
                                                 {
                                                     return true;
                                                 }
@@ -8253,11 +8249,11 @@ namespace netxs::lixx // li++, libinput++.
                                             }
                                             bool tp_palm_was_in_side_edge(tp_touch& t)
                                             {
-                                                return t.palm.first.x < tp.palm.left_edge || t.palm.first.x > tp.palm.right_edge;
+                                                return t.palm_first.x < tp.palm.left_edge || t.palm_first.x > tp.palm.right_edge;
                                             }
                                             bool tp_palm_was_in_top_edge(tp_touch& t)
                                             {
-                                                return t.palm.first.y < tp.palm.upper_edge;
+                                                return t.palm_first.y < tp.palm.upper_edge;
                                             }
                                             fp64_coor tp_phys_delta(fp64_coor delta)
                                             {
@@ -8266,7 +8262,7 @@ namespace netxs::lixx // li++, libinput++.
                                             }
                                         bool tp_palm_detect_move_out_of_edge(tp_touch& t, time stamp)
                                         {
-                                            if (stamp < t.palm.stamp + lixx::palm_timeout && !tp_palm_in_edge(t))
+                                            if (stamp < t.palm_stamp + lixx::palm_timeout && !tp_palm_in_edge(t))
                                             {
                                                 auto directions = 0;
                                                 if (tp_palm_was_in_side_edge(t))
@@ -8279,7 +8275,7 @@ namespace netxs::lixx // li++, libinput++.
                                                 }
                                                 if (directions)
                                                 {
-                                                    auto delta = t.point - t.palm.first;
+                                                    auto delta = t.point - t.palm_first;
                                                     auto mm = tp_phys_delta(delta);
                                                     auto dirs = xy_get_direction(mm);
                                                     if ((dirs & directions) && !(dirs & ~directions))
@@ -8302,17 +8298,17 @@ namespace netxs::lixx // li++, libinput++.
                                         }
                                     bool tp_palm_detect_edge(tp_touch& t, time stamp)
                                     {
-                                        if (t.palm.state == TOUCH_PALM_EDGE)
+                                        if (t.palm_state == TOUCH_PALM_EDGE)
                                         {
                                             if (tp_palm_detect_multifinger(t, stamp))
                                             {
-                                                t.palm.state = TOUCH_PALM_NONE;
+                                                t.palm_state = TOUCH_PALM_NONE;
                                                 log("palm: touch %d% released, multiple fingers", t.index);
                                                 // If labelled a touch as palm, we unlabel as palm when we move out of the palm edge zone within the timeout, provided the direction is within 45 degrees of the horizontal.
                                             }
                                             else if (tp_palm_detect_move_out_of_edge(t, stamp))
                                             {
-                                                t.palm.state = TOUCH_PALM_NONE;
+                                                t.palm_state = TOUCH_PALM_NONE;
                                                 log("palm: touch %d% released, out of edge zone", t.index);
                                             }
                                             return faux;
@@ -8324,9 +8320,9 @@ namespace netxs::lixx // li++, libinput++.
                                         // Palm must start in exclusion zone, it's ok to move into the zone without being a palm.
                                         if (t.state != TOUCH_BEGIN || !tp_palm_in_edge(t)) return faux;
                                         if (tp_touch_get_edge(t) & EDGE_RIGHT) return faux;
-                                        t.palm.state = TOUCH_PALM_EDGE;
-                                        t.palm.stamp = stamp;
-                                        t.palm.first = t.point;
+                                        t.palm_state = TOUCH_PALM_EDGE;
+                                        t.palm_stamp = stamp;
+                                        t.palm_first = t.point;
                                         return true;
                                     }
                                     char const* touch_state_to_str(touch_state state)
@@ -8344,7 +8340,7 @@ namespace netxs::lixx // li++, libinput++.
                                     }
                                 void tp_palm_detect(tp_touch& t, time stamp)
                                 {
-                                    auto oldstate = t.palm.state;
+                                    auto oldstate = t.palm_state;
                                     auto detected = tp_palm_detect_pressure_triggered(   t, stamp)
                                                  || tp_palm_detect_arbitration_triggered(t, stamp)
                                                  || tp_palm_detect_dwt_triggered(        t, stamp)
@@ -8356,10 +8352,10 @@ namespace netxs::lixx // li++, libinput++.
                                                  // Pressure is highest priority because it cannot be released and overrides all other checks. So we check once before anything else in case pressure triggers on a non-palm touch. And again after everything in case one of the others released but we have a pressure trigger now.
                                     if constexpr (debugmode)
                                     {
-                                        if (detected && oldstate != t.palm.state)
+                                        if (detected && oldstate != t.palm_state)
                                         {
                                             [[maybe_unused]] auto palm_state = (char const*)nullptr;
-                                            switch (t.palm.state)
+                                            switch (t.palm_state)
                                             {
                                                 case TOUCH_PALM_EDGE:        palm_state = "edge";        break;
                                                 case TOUCH_PALM_TYPING:      palm_state = "typing";      break;
@@ -9058,7 +9054,7 @@ namespace netxs::lixx // li++, libinput++.
                                     bool tp_touch_active_for_gesture(tp_touch& t)
                                     {
                                         return (t.state == TOUCH_BEGIN || t.state == TOUCH_UPDATE)
-                                             && t.palm.state == TOUCH_PALM_NONE
+                                             && t.palm_state == TOUCH_PALM_NONE
                                              && !t.pinned.is_pinned
                                              && !tp_thumb_ignored_for_gesture(t)
                                              && tp_button_touch_active(t)
@@ -10005,7 +10001,7 @@ namespace netxs::lixx // li++, libinput++.
                                                 {
                                                     if (t.state != TOUCH_BEGIN && t.state != TOUCH_UPDATE) continue;
                                                     if (tp_thumb_ignored(t)) continue;
-                                                    if (t.palm.state != TOUCH_PALM_NONE) continue;
+                                                    if (t.palm_state != TOUCH_PALM_NONE) continue;
                                                     nfingers++;
                                                          if (!first)  first  = &t;
                                                     else if (!second) second = &t;
@@ -10920,7 +10916,7 @@ namespace netxs::lixx // li++, libinput++.
                                             continue;
                                         }
                                         if (t.state == TOUCH_HOVERING) continue;
-                                        if (t.palm.state != TOUCH_PALM_NONE)
+                                        if (t.palm_state != TOUCH_PALM_NONE)
                                         {
                                             assert(!t.tap.is_palm);
                                             t.tap.is_palm = true;
@@ -11708,7 +11704,7 @@ namespace netxs::lixx // li++, libinput++.
                                     for (auto& t : tp.touches)
                                     {
                                         if (!t.dirty) continue;
-                                        if (t.palm.state != TOUCH_PALM_NONE || tp_thumb_ignored(t)) continue;
+                                        if (t.palm_state != TOUCH_PALM_NONE || tp_thumb_ignored(t)) continue;
                                         // Only scroll with the finger in the previous edge.
                                         if (t.scroll.edge && (tp_touch_get_edge(t) & t.scroll.edge) == 0) continue;
                                         switch (t.scroll.edge)
