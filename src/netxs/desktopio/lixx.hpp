@@ -5381,11 +5381,6 @@ namespace netxs::lixx // li++, libinput++.
             bool                                  want_lock_enabled;
             bool                                  lock_enabled;
         };
-        struct evdev_pointer_t
-        {
-            libinput_device_config_accel config;
-            motion_filter_sptr           filter;
-        };
         struct evdev_left_handed_t
         {
             libinput_device_config_left_handed config;
@@ -5428,7 +5423,8 @@ namespace netxs::lixx // li++, libinput++.
         ui32                                    model_flags;
         evdev_abs_t                             abs;
         evdev_scroll_t                          scroll;
-        evdev_pointer_t                         pointer;
+        libinput_device_config_accel            pointer_config;
+        motion_filter_sptr                      pointer_filter;
         byte                                    key_count[KEY_CNT]; // Key counter used for multiplexing button events internally in libinput.
         evdev_left_handed_t                     left_handed;
         evdev_middlebutton_t                    middlebutton;
@@ -7508,7 +7504,7 @@ namespace netxs::lixx // li++, libinput++.
                                                 }
                                                 m.state = JUMP_STATE_IGNORE;
                                                 // We need to restart the acceleration filter to forget its history. * The current point becomes the first point in the history there * (including timestamp) and that accelerates correctly. * This has a potential to be incorrect but since we only ever see * those jumps over the first three events it doesn't matter.
-                                                filter_restart(tp.li_device->pointer.filter, &tp, stamp - tdelta);
+                                                filter_restart(tp.li_device->pointer_filter, &tp, stamp - tdelta);
                                             }
                                             break;
                                         case JUMP_STATE_IGNORE:
@@ -9810,7 +9806,7 @@ namespace netxs::lixx // li++, libinput++.
                                 {
                                     tp_thumb_update_multifinger();
                                 }
-                                if (restart_filter) filter_restart(tp.li_device->pointer.filter, &tp, stamp);
+                                if (restart_filter) filter_restart(tp.li_device->pointer_filter, &tp, stamp);
                                 tp_button_handle_state(stamp);
                                 tp_edge_scroll_handle_state(stamp);
                                 // We have a physical button down event on a clickpad. To avoid spurious pointer moves by the clicking finger we pin all fingers.
@@ -11266,7 +11262,7 @@ namespace netxs::lixx // li++, libinput++.
                                                 {
                                                     if (!unaccelerated) return fp64_coor{};
                                                     auto raw = tp_scale_to_xaxis(unaccelerated); // Convert to device units with x/y in the same resolution.
-                                                    return tp.li_device->pointer.filter->filter_dispatch(raw, &tp, stamp);
+                                                    return tp.li_device->pointer_filter->filter_dispatch(raw, &tp, stamp);
                                                 }
                                             void tp_gesture_post_pointer_motion(time stamp)
                                             {
@@ -11315,7 +11311,7 @@ namespace netxs::lixx // li++, libinput++.
                                             {
                                                 if (!unaccelerated) return fp64_coor{};
                                                 auto raw = tp_scale_to_xaxis(unaccelerated); // Convert to device units with x/y in the same resolution.
-                                                return tp.li_device->pointer.filter->filter_dispatch_scroll(raw, &tp, stamp);
+                                                return tp.li_device->pointer_filter->filter_dispatch_scroll(raw, &tp, stamp);
                                             }
                                             void tp_gesture_init_scroll()
                                             {
@@ -11464,7 +11460,7 @@ namespace netxs::lixx // li++, libinput++.
                                                 if (!unaccelerated) return fp64_coor{};
                                                 // Convert to device units with x/y in the same resolution.
                                                 auto raw = tp_scale_to_xaxis(unaccelerated);
-                                                return filter_dispatch_constant(tp.li_device->pointer.filter, raw, &tp, stamp);
+                                                return filter_dispatch_constant(tp.li_device->pointer_filter, raw, &tp, stamp);
                                             }
                                         void tp_gesture_handle_state_swipe(time stamp)
                                         {
@@ -12578,13 +12574,13 @@ namespace netxs::lixx // li++, libinput++.
                 }
                         libinput_config_status tp_accel_config_set_speed(libinput_device_sptr li_device, fp64 speed)
                         {
-                            auto ok = li_device->pointer.filter->filter_set_speed(speed);
+                            auto ok = li_device->pointer_filter->filter_set_speed(speed);
                             return ok ? LIBINPUT_CONFIG_STATUS_SUCCESS : LIBINPUT_CONFIG_STATUS_INVALID;
                         }
                     static libinput_config_status tp_accel_config_set_profile(libinput_device_sptr li_device, libinput_config_accel_profile profile)
                     {
                         auto& tp = *std::static_pointer_cast<tp_dispatch>(li_device->dispatch);
-                        auto& filter = li_device->pointer.filter;
+                        auto& filter = li_device->pointer_filter;
                         if (filter->filter_get_type() != profile)
                         {
                             auto speed = filter->filter_get_speed();
@@ -12638,7 +12634,7 @@ namespace netxs::lixx // li++, libinput++.
                     }
                     if (!filter) return faux;
                     evdev_device_init_pointer_acceleration(tp.li_device, filter);
-                    li_device->pointer.config.set_profile = tp_accel_config_set_profile;
+                    li_device->pointer_config.set_profile = tp_accel_config_set_profile;
                     return true;
                 }
                     static si32 tp_tap_config_count(libinput_device_sptr li_device)
@@ -14533,7 +14529,7 @@ namespace netxs::lixx // li++, libinput++.
                     axes.point       = slot.axes.point;
                     axes.rotation    = slot.axes.rotation;
                     axes.size_limits = slot.axes.size_limits;
-                    axes.delta       = device->pointer.filter->filter_dispatch(delta, tool.get(), now);
+                    axes.delta       = device->pointer_filter->filter_dispatch(delta, tool.get(), now);
                     rc = true;
                 }
                 axes_out = axes;
@@ -14832,10 +14828,10 @@ namespace netxs::lixx // li++, libinput++.
                 auto filter = ptr::shared<tablet_accelerator_flat>(resolution); // Same filter as the tablet.
                 evdev_device_init_pointer_acceleration(li_device, filter);
                 // We override the profile hooks for accel configuration with hooks that don't allow selection of profiles.
-                li_device->pointer.config.get_profiles        = totem_accel_config_get_profiles;
-                li_device->pointer.config.set_profile         = totem_accel_config_set_profile;
-                li_device->pointer.config.get_profile         = totem_accel_config_get_profile;
-                li_device->pointer.config.get_default_profile = totem_accel_config_get_default_profile;
+                li_device->pointer_config.get_profiles        = totem_accel_config_get_profiles;
+                li_device->pointer_config.set_profile         = totem_accel_config_set_profile;
+                li_device->pointer_config.get_profile         = totem_accel_config_get_profile;
+                li_device->pointer_config.get_default_profile = totem_accel_config_get_default_profile;
                 return 0;
             }
         };
@@ -15739,7 +15735,7 @@ namespace netxs::lixx // li++, libinput++.
                                 tablet.last_smooth_point = axes.point;
                                 auto accel = fp64_coor{ delta };
                                 if (!accel) return {};
-                                else        return li_device->pointer.filter->filter_dispatch(accel, tool.get(), stamp);
+                                else        return li_device->pointer_filter->filter_dispatch(accel, tool.get(), stamp);
                             }
                                 fp64 normalize_pressure(libinput_tablet_tool_pressure_threshold* threshold, si32 abs_value)
                                 {
@@ -16659,10 +16655,10 @@ namespace netxs::lixx // li++, libinput++.
                     auto filter = ptr::shared<tablet_accelerator_flat>(resolution);
                     evdev_device_init_pointer_acceleration(li_device, filter);
                     // We override the profile hooks for accel configuration with hooks that don't allow selection of profiles.
-                    li_device->pointer.config.get_profiles        = tablet_accel_config_get_profiles;
-                    li_device->pointer.config.set_profile         = tablet_accel_config_set_profile;
-                    li_device->pointer.config.get_profile         = tablet_accel_config_get_profile;
-                    li_device->pointer.config.get_default_profile = tablet_accel_config_get_default_profile;
+                    li_device->pointer_config.get_profiles        = tablet_accel_config_get_profiles;
+                    li_device->pointer_config.set_profile         = tablet_accel_config_set_profile;
+                    li_device->pointer_config.get_profile         = tablet_accel_config_get_profile;
+                    li_device->pointer_config.get_default_profile = tablet_accel_config_get_default_profile;
                     return 0;
                 }
                 void tablet_init_left_handed(libinput_device_sptr li_device, [[maybe_unused]] WacomDevice* wacom)
@@ -17476,7 +17472,7 @@ namespace netxs::lixx // li++, libinput++.
                                         [[fallthrough]];
                                     case BUTTONSCROLL_SCROLLING:
                                     {
-                                        auto normalized = li_device->pointer.filter->filter_dispatch_scroll(raw, li_device.get(), stamp);
+                                        auto normalized = li_device->pointer_filter->filter_dispatch_scroll(raw, li_device.get(), stamp);
                                         li_device->evdev_post_scroll(stamp, LIBINPUT_POINTER_AXIS_SOURCE_CONTINUOUS, normalized);
                                         return true;
                                     }
@@ -17493,9 +17489,9 @@ namespace netxs::lixx // li++, libinput++.
                                 fallback.rel.y = 0;
                                 // Use unaccelerated deltas for pointing stick scroll.
                                 if (post_button_scroll(li_device, raw, stamp)) return;
-                                if (li_device->pointer.filter)
+                                if (li_device->pointer_filter)
                                 {
-                                    if (auto accel = li_device->pointer.filter->filter_dispatch(raw, li_device.get(), stamp)) // Apply pointer acceleration.
+                                    if (auto accel = li_device->pointer_filter->filter_dispatch(raw, li_device.get(), stamp)) // Apply pointer acceleration.
                                     {
                                         li_device->pointer_notify_motion(stamp, accel, raw);
                                     }
@@ -17782,7 +17778,7 @@ namespace netxs::lixx // li++, libinput++.
                                     if (li_device->model_flags & EVDEV_MODEL_LENOVO_SCROLLPOINT)
                                     {
                                         auto raw = fp64_coor{ (fp64)fallback.wheel.lo_res.x, (fp64)fallback.wheel.lo_res.y * -1 };
-                                        auto normalized = li_device->pointer.filter->filter_dispatch_scroll(raw, li_device.get(), stamp);
+                                        auto normalized = li_device->pointer_filter->filter_dispatch_scroll(raw, li_device.get(), stamp);
                                         li_device->evdev_post_scroll(stamp, LIBINPUT_POINTER_AXIS_SOURCE_CONTINUOUS, normalized);
                                         fallback.wheel.hi_res.x = 0;
                                         fallback.wheel.hi_res.y = 0;
@@ -19664,12 +19660,12 @@ namespace netxs::lixx // li++, libinput++.
                 }
             static libinput_config_status evdev_accel_config_set_speed(libinput_device_sptr li_device, fp64 speed)
             {
-                auto ok = li_device->pointer.filter->filter_set_speed(speed);
+                auto ok = li_device->pointer_filter->filter_set_speed(speed);
                 return ok ? LIBINPUT_CONFIG_STATUS_SUCCESS : LIBINPUT_CONFIG_STATUS_INVALID;
             }
             static libinput_config_status evdev_accel_config_set_profile(libinput_device_sptr li_device, libinput_config_accel_profile profile)
             {
-                auto& filter = li_device->pointer.filter;
+                auto& filter = li_device->pointer_filter;
                 if (filter->filter_get_type() != profile)
                 {
                     auto speed = filter->filter_get_speed();
@@ -19680,11 +19676,11 @@ namespace netxs::lixx // li++, libinput++.
             }
             static libinput_config_accel_profile evdev_accel_config_get_profile(libinput_device_sptr li_device)
             {
-                return li_device->pointer.filter->filter_get_type();
+                return li_device->pointer_filter->filter_get_type();
             }
             static libinput_config_accel_profile evdev_accel_config_get_default_profile(libinput_device_sptr li_device)
             {
-                if (!li_device->pointer.filter)
+                if (!li_device->pointer_filter)
                 {
                     return LIBINPUT_CONFIG_ACCEL_PROFILE_NONE;
                 }
@@ -19696,7 +19692,7 @@ namespace netxs::lixx // li++, libinput++.
             static libinput_config_status evdev_set_accel_config(libinput_device_sptr li_device, libinput_config_accel& accel_config)
             {
                 assert(evdev_accel_config_get_profile(li_device) == accel_config.profile);
-                auto ok = li_device->pointer.filter->filter_set_accel_config(accel_config);
+                auto ok = li_device->pointer_filter->filter_set_accel_config(accel_config);
                 return ok ? LIBINPUT_CONFIG_STATUS_SUCCESS : LIBINPUT_CONFIG_STATUS_INVALID;
             }
             static si32 evdev_accel_config_available([[maybe_unused]] libinput_device_sptr li_device) // This function is only called if we set up ptraccel, so we can reply with a resounding "Yes".
@@ -19705,7 +19701,7 @@ namespace netxs::lixx // li++, libinput++.
             }
             static fp64 evdev_accel_config_get_speed(libinput_device_sptr li_device)
             {
-                return li_device->pointer.filter->filter_get_speed();
+                return li_device->pointer_filter->filter_get_speed();
             }
             static fp64 evdev_accel_config_get_default_speed([[maybe_unused]] libinput_device_sptr li_device)
             {
@@ -19713,25 +19709,25 @@ namespace netxs::lixx // li++, libinput++.
             }
             static ui32 evdev_accel_config_get_profiles(libinput_device_sptr li_device)
             {
-                auto filter_ptr = li_device->pointer.filter;
+                auto filter_ptr = li_device->pointer_filter;
                 return filter_ptr ? LIBINPUT_CONFIG_ACCEL_PROFILE_ADAPTIVE | LIBINPUT_CONFIG_ACCEL_PROFILE_FLAT | LIBINPUT_CONFIG_ACCEL_PROFILE_CUSTOM
                                 : LIBINPUT_CONFIG_ACCEL_PROFILE_NONE;
             }
         void evdev_device_init_pointer_acceleration(libinput_device_sptr li_device, motion_filter_sptr filter)
         {
-            li_device->pointer.filter = filter;
+            li_device->pointer_filter = filter;
             if (li_device->config.accel == nullptr)
             {
-                li_device->pointer.config.available           = evdev_accel_config_available;
-                li_device->pointer.config.set_speed           = evdev_accel_config_set_speed;
-                li_device->pointer.config.get_speed           = evdev_accel_config_get_speed;
-                li_device->pointer.config.get_default_speed   = evdev_accel_config_get_default_speed;
-                li_device->pointer.config.get_profiles        = evdev_accel_config_get_profiles;
-                li_device->pointer.config.set_profile         = evdev_accel_config_set_profile;
-                li_device->pointer.config.get_profile         = evdev_accel_config_get_profile;
-                li_device->pointer.config.get_default_profile = evdev_accel_config_get_default_profile;
-                li_device->pointer.config.set_accel_config    = evdev_set_accel_config;
-                li_device->config.accel                  = &li_device->pointer.config;
+                li_device->pointer_config.available           = evdev_accel_config_available;
+                li_device->pointer_config.set_speed           = evdev_accel_config_set_speed;
+                li_device->pointer_config.get_speed           = evdev_accel_config_get_speed;
+                li_device->pointer_config.get_default_speed   = evdev_accel_config_get_default_speed;
+                li_device->pointer_config.get_profiles        = evdev_accel_config_get_profiles;
+                li_device->pointer_config.set_profile         = evdev_accel_config_set_profile;
+                li_device->pointer_config.get_profile         = evdev_accel_config_get_profile;
+                li_device->pointer_config.get_default_profile = evdev_accel_config_get_default_profile;
+                li_device->pointer_config.set_accel_config    = evdev_set_accel_config;
+                li_device->config.accel                       = &li_device->pointer_config;
                 auto default_speed = evdev_accel_config_get_default_speed(li_device);
                 evdev_accel_config_set_speed(li_device, default_speed);
             }
