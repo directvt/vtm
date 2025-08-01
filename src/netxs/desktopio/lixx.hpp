@@ -6124,7 +6124,6 @@ namespace netxs::lixx // li++, libinput++.
                 auto self = This();
                 for (auto d : seat->devices_list)
                 {
-                    //todo bug? fires on all but specified. evdec.c:3018, 3018
                     if (d != self)
                     {
                         d->dispatch->device_resumed(d, self);
@@ -6936,10 +6935,6 @@ namespace netxs::lixx // li++, libinput++.
                 si32_coor        first; // Palm detected there.
                 time             stamp; // Palm detection time.
             };
-            struct tp_gesture_t //todo make it flat
-            {
-                si32_coor initial;
-            };
             struct tp_speed_t
             {
                 fp64 last_speed; // Speed in mm/s at last sample.
@@ -6968,7 +6963,7 @@ namespace netxs::lixx // li++, libinput++.
             tp_tap_t         tap;
             tp_scroll_t      scroll;
             tp_palm_t        palm;
-            tp_gesture_t     gesture;
+            si32_coor        gesture_origin;
             tp_speed_t       speed;
         };
         struct tp_dispatch_arbitration_t
@@ -9171,8 +9166,8 @@ namespace netxs::lixx // li++, libinput++.
                                                     {
                                                         auto first = tp.gesture.two_touches[0];
                                                         auto second = tp.gesture.two_touches[1];
-                                                        auto d0 = first->point - first->gesture.initial;
-                                                        auto d1 = second->point - second->gesture.initial;
+                                                        auto d0 = first->point - first->gesture_origin;
+                                                        auto d1 = second->point - second->gesture_origin;
                                                         auto average = device_float_average(d0, d1);
                                                         tp.li_device->scroll.buildup = tp_normalize_delta(average);
                                                     }
@@ -9361,7 +9356,7 @@ namespace netxs::lixx // li++, libinput++.
                                                 }
                                                     fp64_coor tp_gesture_mm_moved(tp_touch& t)
                                                     {
-                                                        auto delta = std::abs(t.point - t.gesture.initial);
+                                                        auto delta = std::abs(t.point - t.gesture_origin);
                                                         return evdev_device_unit_delta_to_mm(tp.li_device, delta);
                                                     }
                                                 void tp_gesture_handle_event_on_state_pointer_motion(gesture_event event, time stamp)
@@ -11098,7 +11093,7 @@ namespace netxs::lixx // li++, libinput++.
                                             auto second = touch_ptrs[1];
                                             if (ntouches == 1)
                                             {
-                                                first->gesture.initial = first->point;
+                                                first->gesture_origin = first->point;
                                                 tp.gesture.two_touches[0] = first;
                                                 tp_gesture_handle_event(GESTURE_EVENT_FINGER_DETECTED, stamp);
                                                 return;
@@ -11134,8 +11129,8 @@ namespace netxs::lixx // li++, libinput++.
                                                 if (first == second) return;
                                             }
                                             tp.gesture.initial_time = stamp;
-                                            first->gesture.initial = first->point;
-                                            second->gesture.initial = second->point;
+                                            first->gesture_origin = first->point;
+                                            second->gesture_origin = second->point;
                                             tp.gesture.two_touches[0] = first;
                                             tp.gesture.two_touches[1] = second;
                                             tp_gesture_handle_event(GESTURE_EVENT_FINGER_DETECTED, stamp);
@@ -11199,7 +11194,7 @@ namespace netxs::lixx // li++, libinput++.
                                                 }
                                                 ui32 tp_gesture_get_direction(tp_touch& touch)
                                                 {
-                                                    auto delta = touch.point - touch.gesture.initial;
+                                                    auto delta = touch.point - touch.gesture_origin;
                                                     auto mm = tp_phys_delta(delta);
                                                     return xy_get_direction(mm);
                                                 }
