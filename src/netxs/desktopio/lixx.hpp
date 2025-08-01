@@ -55,78 +55,6 @@ namespace netxs::lixx // li++, libinput++.
         #define log(...) noop()
     #endif
 
-    // For the Lenovo X230 custom accel. do not touch.
-    static constexpr auto x230_threshold                        = datetime::round<fp64, std::chrono::microseconds>(400us); // In units/us.
-    static constexpr auto x230_acceleration                     = 2.0; // Unitless factor.
-    static constexpr auto x230_incline                          = 1.1; // Unitless factor.
-    static constexpr auto x230_magic_slowdown                   = 0.4; // Unitless.
-    static constexpr auto x230_tp_magic_low_res_factor          = 4.0; // Unitless.
-
-    static constexpr auto libinput_accel_npoints_min            = 2;
-    static constexpr auto libinput_accel_npoints_max            = 64; // Custom acceleration function max number of points an arbitrary limit of sample points it should be more than enough for everyone.
-    static constexpr auto libinput_accel_step_max               = 10000;
-    static constexpr auto libinput_accel_point_min_value        = 0;
-    static constexpr auto libinput_accel_point_max_value        = 10000;
-
-    static constexpr auto max_velocity_diff                     = datetime::round<fp64, std::chrono::microseconds>(1ms); // Units/us.
-    static constexpr auto middlebutton_timeout                  = 50ms;
-    static constexpr auto debounce_timeout_bounce               = 25ms;
-    static constexpr auto debounce_timeout_spurious             = 12ms;
-    static constexpr auto wheel_scroll_timeout                  = 500ms;
-    static constexpr auto default_keyboard_activity_timeout_1   = 200ms;
-    static constexpr auto default_keyboard_activity_timeout_2   = 500ms;
-    static constexpr auto default_trackpoint_event_timeout      = 40ms;
-    static constexpr auto default_trackpoint_activity_timeout   = 300ms;
-    static constexpr auto default_draglock_timeout_period       = 300ms;
-    static constexpr auto default_drag_timeout_period_base      = 160ms;
-    static constexpr auto default_drag_timeout_period_perfinger = 20ms;
-    static constexpr auto default_tap_timeout_period            = 300ms; // Old laptops can't handle double taps with an interval of <200ms.
-    static constexpr auto timer_warning_limit                   = 20ms; // We only warn if we're more than 20ms behind.
-    static constexpr auto motion_timeout                        = 1000ms;
-    static constexpr auto first_motion_time_interval            = 7ms;  // Random but good enough interval for very first event.
-    static auto           forced_proxout_timeout                = 50ms; // The tablet sends events every ~2ms , 50ms should be plenty enough to detect out-of-range. This value is higher during test suite runs.
-    static constexpr auto palm_timeout                          = 200ms;
-    static constexpr auto thumb_timeout                         = 100ms;
-    static constexpr auto default_button_enter_timeout          = 100ms;
-    static constexpr auto default_button_leave_timeout          = 300ms;
-    static constexpr auto default_button_scroll_timeout         = 200ms;
-    static constexpr auto default_scroll_lock_timeout           = 300ms;
-    static constexpr auto default_gesture_hold_timeout          = 180ms;
-    static constexpr auto default_gesture_switch_timeout        = 100ms;
-    static constexpr auto default_gesture_swipe_timeout         = 150ms;
-    static constexpr auto default_gesture_pinch_timeout         = 300ms;
-    static constexpr auto quick_gesture_hold_timeout            = 40ms;
-    static constexpr auto active_threshold                      = 100ms;
-    static constexpr auto inactive_threshold                    = 50ms;
-    static constexpr auto default_scroll_event_timeout          = 100ms;
-    static constexpr auto minimum_acceleration_threshold        = datetime::round<fp64, std::chrono::microseconds>(200us); // In units/us.
-    static constexpr auto default_acceleration_threshold        = datetime::round<fp64, std::chrono::microseconds>(400us); // In units/us.
-    static constexpr auto default_acceleration                  = 2.0; // Unitless factor.
-    static constexpr auto default_incline                       = 1.1; // Unitless factor.
-    static constexpr auto fake_finger_overflow                  = 1ul << 7;
-    static constexpr auto touchpad_history_length               = 4;
-    static constexpr auto default_mouse_dpi                     = 1000;
-    static constexpr auto vendor_id_apple                       = 0x5ac;
-    static constexpr auto vendor_id_chicony                     = 0x4f2;
-    static constexpr auto vendor_id_logitech                    = 0x46d;
-    static constexpr auto vendor_id_wacom                       = 0x56a;
-    static constexpr auto vendor_id_synaptics_serial            = 0x002;
-    static constexpr auto product_id_apple_kbd_touchpad         = 0x273;
-    static constexpr auto product_id_apple_appletouch           = 0x21a;
-    static constexpr auto product_id_synaptics_serial           = 0x007;
-    static constexpr auto product_id_wacom_ekr                  = 0x0331;
-    consteval auto mm_to_dpi_normalized(auto mm) { return lixx::default_mouse_dpi / 25.4 * mm; }
-    static constexpr auto default_scroll_threshold              = lixx::mm_to_dpi_normalized(3);
-    static constexpr auto default_wheel_click_angle             = 15;
-    static constexpr auto event_code_undefined                  = 0xffff;
-    static constexpr auto thumb_ignore_speed_threshold          = 20; // mm/s.
-    static constexpr auto default_tap_move_threshold            = 1.3; // mm.
-    static constexpr auto pinch_disambiguation_move_threshold   = 1.5; // mm.
-    static constexpr auto tp_magic_slowdown_flat                = 0.2968;
-    static constexpr auto tp_magic_slowdown                     = 0.2968; // Unitless factor.
-    static constexpr auto hold_and_motion_threshold             = 0.5; // mm.
-    static constexpr auto tablet_history_length                 = 4;
-
     enum read_flags
     {
         LIBEVDEV_READ_FLAG_SYNC       = 1 << 0,
@@ -159,25 +87,6 @@ namespace netxs::lixx // li++, libinput++.
         LIBEVDEV_READ_STATUS_SUCCESS,
         LIBEVDEV_READ_STATUS_SYNC,
     };
-
-    static constexpr auto clock_type     = CLOCK_MONOTONIC;
-    static constexpr auto max_slots      = 0x100;
-    static constexpr auto min_queue_size = 0x100;
-    static constexpr auto abs_mt_min     = ABS_MT_SLOT;
-    static constexpr auto abs_mt_max     = ABS_MT_TOOL_Y;
-    static constexpr auto abs_mt_cnt     = lixx::abs_mt_max - lixx::abs_mt_min + 1;
-    static constexpr auto valid_flags    = LIBEVDEV_READ_FLAG_NORMAL | LIBEVDEV_READ_FLAG_SYNC | LIBEVDEV_READ_FLAG_FORCE_SYNC | LIBEVDEV_READ_FLAG_BLOCKING;
-
-    static constexpr fp64 v_us2ms(fp64 units_per_us) { return units_per_us * 1000.0; }
-    static constexpr fp64 v_us2s(fp64 units_per_us)  { return units_per_us * 1000000.0; }
-    static constexpr ::timeval time2tv(time t)
-    {
-        auto sec  = datetime::round<si64, std::chrono::seconds>(t);
-        auto usec = datetime::round<si64, std::chrono::microseconds>(t - std::chrono::seconds{ sec });
-        auto tv = ::timeval{ .tv_sec = (decltype(timeval::tv_sec))sec, .tv_usec = (decltype(timeval::tv_usec))usec };
-        return tv;
-    }
-
     enum libinput_dispatch_type
     {
         DISPATCH_FALLBACK,
@@ -808,9 +717,6 @@ namespace netxs::lixx // li++, libinput++.
 
     template<auto t, auto c>
     static constexpr auto _evbit = (t << 16) | c;
-    using button_code_t = ui32;
-    using keycode_t     = ui32;
-
     enum evdev_usage : ui32 // This is an enum to have the compiler help us a bit. The enum doesn't need to contain all event codes, only the ones we use in libinput - add to here as required.      * The order doesn't matter either since each enum value is just the type | code value anyway, keep it in somewhat logical groups where possible.
     {
         EVDEV_SYN_REPORT          = _evbit<EV_SYN, SYN_REPORT>,
@@ -907,7 +813,6 @@ namespace netxs::lixx // li++, libinput++.
         LIBINPUT_TABLET_TOOL_TYPE_LENS,     // A mouse tool with a lens.
         LIBINPUT_TABLET_TOOL_TYPE_TOTEM,    // A rotary device with positional and rotation data.
     };
-    static constexpr auto LIBINPUT_TABLET_TOOL_TYPE_MAX = LIBINPUT_TABLET_TOOL_TYPE_LENS;
     enum libinput_tablet_tool_axis
     {
         LIBINPUT_TABLET_TOOL_AXIS_NONE       = 0,
@@ -923,7 +828,6 @@ namespace netxs::lixx // li++, libinput++.
         LIBINPUT_TABLET_TOOL_AXIS_SIZE_MAJOR = 10,
         LIBINPUT_TABLET_TOOL_AXIS_SIZE_MINOR = 11,
     };
-    static constexpr auto LIBINPUT_TABLET_TOOL_AXIS_MAX = LIBINPUT_TABLET_TOOL_AXIS_SIZE_MINOR;
     enum pressure_heuristic_state
     {
         PRESSURE_HEURISTIC_STATE_PROXIN1, // First proximity in event.
@@ -1044,6 +948,103 @@ namespace netxs::lixx // li++, libinput++.
         BUTTON_STATE_IGNORE,
     };
 
+    static constexpr auto libinput_tablet_tool_type_min = LIBINPUT_TABLET_TOOL_TYPE_PEN;
+    static constexpr auto libinput_tablet_tool_type_max = LIBINPUT_TABLET_TOOL_TYPE_LENS;
+    static constexpr auto libinput_tablet_tool_axis_cnt = LIBINPUT_TABLET_TOOL_AXIS_SIZE_MINOR + 1;
+
+    // For the Lenovo X230 custom accel. do not touch.
+    static constexpr auto x230_threshold                        = datetime::round<fp64, std::chrono::microseconds>(400us); // In units/us.
+    static constexpr auto x230_acceleration                     = 2.0; // Unitless factor.
+    static constexpr auto x230_incline                          = 1.1; // Unitless factor.
+    static constexpr auto x230_magic_slowdown                   = 0.4; // Unitless.
+    static constexpr auto x230_tp_magic_low_res_factor          = 4.0; // Unitless.
+
+    static constexpr auto libinput_accel_npoints_min            = 2;
+    static constexpr auto libinput_accel_npoints_max            = 64; // Custom acceleration function max number of points an arbitrary limit of sample points it should be more than enough for everyone.
+    static constexpr auto libinput_accel_step_max               = 10000;
+    static constexpr auto libinput_accel_point_min_value        = 0;
+    static constexpr auto libinput_accel_point_max_value        = 10000;
+
+    static constexpr auto max_velocity_diff                     = datetime::round<fp64, std::chrono::microseconds>(1ms); // Units/us.
+    static constexpr auto middlebutton_timeout                  = 50ms;
+    static constexpr auto debounce_timeout_bounce               = 25ms;
+    static constexpr auto debounce_timeout_spurious             = 12ms;
+    static constexpr auto wheel_scroll_timeout                  = 500ms;
+    static constexpr auto default_keyboard_activity_timeout_1   = 200ms;
+    static constexpr auto default_keyboard_activity_timeout_2   = 500ms;
+    static constexpr auto default_trackpoint_event_timeout      = 40ms;
+    static constexpr auto default_trackpoint_activity_timeout   = 300ms;
+    static constexpr auto default_draglock_timeout_period       = 300ms;
+    static constexpr auto default_drag_timeout_period_base      = 160ms;
+    static constexpr auto default_drag_timeout_period_perfinger = 20ms;
+    static constexpr auto default_tap_timeout_period            = 300ms; // Old laptops can't handle double taps with an interval of <200ms.
+    static constexpr auto timer_warning_limit                   = 20ms; // We only warn if we're more than 20ms behind.
+    static constexpr auto motion_timeout                        = 1000ms;
+    static constexpr auto first_motion_time_interval            = 7ms;  // Random but good enough interval for very first event.
+    static auto           forced_proxout_timeout                = 50ms; // The tablet sends events every ~2ms , 50ms should be plenty enough to detect out-of-range. This value is higher during test suite runs.
+    static constexpr auto palm_timeout                          = 200ms;
+    static constexpr auto thumb_timeout                         = 100ms;
+    static constexpr auto default_button_enter_timeout          = 100ms;
+    static constexpr auto default_button_leave_timeout          = 300ms;
+    static constexpr auto default_button_scroll_timeout         = 200ms;
+    static constexpr auto default_scroll_lock_timeout           = 300ms;
+    static constexpr auto default_gesture_hold_timeout          = 180ms;
+    static constexpr auto default_gesture_switch_timeout        = 100ms;
+    static constexpr auto default_gesture_swipe_timeout         = 150ms;
+    static constexpr auto default_gesture_pinch_timeout         = 300ms;
+    static constexpr auto quick_gesture_hold_timeout            = 40ms;
+    static constexpr auto active_threshold                      = 100ms;
+    static constexpr auto inactive_threshold                    = 50ms;
+    static constexpr auto default_scroll_event_timeout          = 100ms;
+    static constexpr auto minimum_acceleration_threshold        = datetime::round<fp64, std::chrono::microseconds>(200us); // In units/us.
+    static constexpr auto default_acceleration_threshold        = datetime::round<fp64, std::chrono::microseconds>(400us); // In units/us.
+    static constexpr auto default_acceleration                  = 2.0; // Unitless factor.
+    static constexpr auto default_incline                       = 1.1; // Unitless factor.
+    static constexpr auto fake_finger_overflow                  = 1ul << 7;
+    static constexpr auto touchpad_history_length               = 4;
+    static constexpr auto default_mouse_dpi                     = 1000;
+    static constexpr auto vendor_id_apple                       = 0x5ac;
+    static constexpr auto vendor_id_chicony                     = 0x4f2;
+    static constexpr auto vendor_id_logitech                    = 0x46d;
+    static constexpr auto vendor_id_wacom                       = 0x56a;
+    static constexpr auto vendor_id_synaptics_serial            = 0x002;
+    static constexpr auto product_id_apple_kbd_touchpad         = 0x273;
+    static constexpr auto product_id_apple_appletouch           = 0x21a;
+    static constexpr auto product_id_synaptics_serial           = 0x007;
+    static constexpr auto product_id_wacom_ekr                  = 0x0331;
+    consteval auto mm_to_dpi_normalized(auto mm) { return lixx::default_mouse_dpi / 25.4 * mm; }
+    static constexpr auto default_scroll_threshold              = lixx::mm_to_dpi_normalized(3);
+    static constexpr auto default_wheel_click_angle             = 15;
+    static constexpr auto event_code_undefined                  = 0xffff;
+    static constexpr auto thumb_ignore_speed_threshold          = 20; // mm/s.
+    static constexpr auto default_tap_move_threshold            = 1.3; // mm.
+    static constexpr auto pinch_disambiguation_move_threshold   = 1.5; // mm.
+    static constexpr auto tp_magic_slowdown_flat                = 0.2968;
+    static constexpr auto tp_magic_slowdown                     = 0.2968; // Unitless factor.
+    static constexpr auto hold_and_motion_threshold             = 0.5; // mm.
+    static constexpr auto tablet_history_length                 = 4;
+
+    static constexpr auto clock_type     = CLOCK_MONOTONIC;
+    static constexpr auto max_slots      = 0x100;
+    static constexpr auto min_queue_size = 0x100;
+    static constexpr auto abs_mt_min     = ABS_MT_SLOT;
+    static constexpr auto abs_mt_max     = ABS_MT_TOOL_Y;
+    static constexpr auto abs_mt_cnt     = lixx::abs_mt_max - lixx::abs_mt_min + 1;
+    static constexpr auto valid_flags    = LIBEVDEV_READ_FLAG_NORMAL | LIBEVDEV_READ_FLAG_SYNC | LIBEVDEV_READ_FLAG_FORCE_SYNC | LIBEVDEV_READ_FLAG_BLOCKING;
+
+    static constexpr fp64 v_us2ms(fp64 units_per_us) { return units_per_us * 1000.0; }
+    static constexpr fp64 v_us2s(fp64 units_per_us)  { return units_per_us * 1000000.0; }
+    static constexpr ::timeval time2tv(time t)
+    {
+        auto sec  = datetime::round<si64, std::chrono::seconds>(t);
+        auto usec = datetime::round<si64, std::chrono::microseconds>(t - std::chrono::seconds{ sec });
+        auto tv = ::timeval{ .tv_sec = (decltype(timeval::tv_sec))sec, .tv_usec = (decltype(timeval::tv_usec))usec };
+        return tv;
+    }
+
+    using button_code_t = ui32;
+    using keycode_t     = ui32;
+
     using fp64_range = netxs::limits<fp64>;
     using si32_range = netxs::limits<si32>;
     using fp64_rect  = netxs::xysz<fp64>;
@@ -1058,7 +1059,7 @@ namespace netxs::lixx // li++, libinput++.
     using libinput_device_sptr = sptr<struct libinput_device_t>;
 
     using button_state_t = std::bitset<KEY_CNT>;
-    using tablet_axes_bitset = std::bitset<LIBINPUT_TABLET_TOOL_AXIS_MAX + 1>;
+    using tablet_axes_bitset = std::bitset<lixx::libinput_tablet_tool_axis_cnt>;
 
     struct matrix
     {
@@ -14926,8 +14927,8 @@ namespace netxs::lixx // li++, libinput++.
         si32_coor                            last_smooth_point;
         history_t                            history;
         tablet_axes_bitset                   axis_caps_bits;
-        si32                                 current_value[LIBINPUT_TABLET_TOOL_AXIS_MAX + 1];
-        si32                                 prev_value[LIBINPUT_TABLET_TOOL_AXIS_MAX + 1];
+        si32                                 current_value[lixx::libinput_tablet_tool_axis_cnt];
+        si32                                 prev_value[lixx::libinput_tablet_tool_axis_cnt];
         std::list<libinput_tablet_tool_sptr> tool_list; // Only used for tablets that don't report serial numbers.
         button_state_t                       next_button_state;
         button_state_t                       prev_button_state;
@@ -16482,7 +16483,7 @@ namespace netxs::lixx // li++, libinput++.
                 auto li = tablet.li_device->li_context();
                 auto state = 0;
                 auto tool = libinput_tablet_tool_type{};
-                for (tool = LIBINPUT_TABLET_TOOL_TYPE_PEN; tool <= LIBINPUT_TABLET_TOOL_TYPE_MAX; tool = (libinput_tablet_tool_type)(tool + 1))
+                for (tool = lixx::libinput_tablet_tool_type_min; tool <= lixx::libinput_tablet_tool_type_max; tool = (libinput_tablet_tool_type)(tool + 1))
                 {
                     auto code = tablet_tool_to_evcode(tool);
                     // We only expect one tool to be in proximity at a time.
