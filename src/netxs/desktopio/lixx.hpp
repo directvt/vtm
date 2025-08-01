@@ -6754,6 +6754,52 @@ namespace netxs::lixx // li++, libinput++.
         {
             return libevdev_has_event_code(EV_ABS, ABS_MT_SLOT) && libevdev_get_num_slots() == -1;
         }
+        void tablet_notify_proximity(time now, libinput_tablet_tool_sptr tool, libinput_tablet_tool_proximity_state proximity_state, tablet_axes_bitset& changed_axes, tablet_axes const& axes, ::input_absinfo const* x, ::input_absinfo const* y)
+        {
+            auto& proximity_event = seat->libinput->libinput_emplace_event<libinput_event_tablet_tool>();
+            proximity_event.axes              = axes;
+            proximity_event.tool              = tool;
+            proximity_event.proximity_state   = proximity_state;
+            proximity_event.tip_state         = LIBINPUT_TABLET_TOOL_TIP_UP;
+            proximity_event.abs               = { *x, *y };
+            proximity_event.changed_axes_bits = changed_axes;
+            post_device_event(now, LIBINPUT_EVENT_TABLET_TOOL_PROXIMITY, proximity_event);
+        }
+        void tablet_notify_tip(time now, libinput_tablet_tool_sptr tool, libinput_tablet_tool_tip_state tip_state, tablet_axes_bitset& changed_axes, tablet_axes const& axes, ::input_absinfo const* x, ::input_absinfo const* y)
+        {
+            auto& tip_event = seat->libinput->libinput_emplace_event<libinput_event_tablet_tool>();
+            tip_event.axes              = axes;
+            tip_event.tool              = tool;
+            tip_event.proximity_state   = LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_IN;
+            tip_event.tip_state         = tip_state;
+            tip_event.abs               = { *x, *y };
+            tip_event.changed_axes_bits = changed_axes;
+            post_device_event(now, LIBINPUT_EVENT_TABLET_TOOL_TIP, tip_event);
+        }
+        void tablet_notify_axis(time now, libinput_tablet_tool_sptr tool, libinput_tablet_tool_tip_state tip_state, tablet_axes_bitset& changed_axes, tablet_axes const& axes, ::input_absinfo const* x, ::input_absinfo const* y)
+        {
+            auto& axis_event = seat->libinput->libinput_emplace_event<libinput_event_tablet_tool>();
+            axis_event.axes              = axes;
+            axis_event.tool              = tool;
+            axis_event.proximity_state   = LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_IN;
+            axis_event.tip_state         = tip_state;
+            axis_event.abs               = { *x, *y };
+            axis_event.changed_axes_bits = changed_axes;
+            post_device_event(now, LIBINPUT_EVENT_TABLET_TOOL_AXIS, axis_event);
+        }
+        void tablet_notify_button(time now, libinput_tablet_tool_sptr tool, libinput_tablet_tool_tip_state tip_state, tablet_axes const& axes, button_code_t button, libinput_button_state state, ::input_absinfo const* x, ::input_absinfo const* y)
+        {
+            auto& button_event = seat->libinput->libinput_emplace_event<libinput_event_tablet_tool>();
+            button_event.button            = (ui32)button;
+            button_event.state             = state;
+            button_event.seat_button_count = update_seat_button_count(seat, button, state);
+            button_event.axes              = axes;
+            button_event.tool              = tool;
+            button_event.proximity_state   = LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_IN;
+            button_event.tip_state         = tip_state;
+            button_event.abs               = { *x, *y };
+            post_device_event(now, LIBINPUT_EVENT_TABLET_TOOL_BUTTON, button_event);
+        }
     };
 
     struct input_prop
@@ -6765,56 +6811,6 @@ namespace netxs::lixx // li++, libinput++.
     void libinput_seat_init(libinput_seat_sptr seat, libinput_sptr li, view physical_name, view logical_name);
     libinput_device_sptr libinput_device_create(libinput_seat_sptr seat, ud_device_sptr ud_device);
     void evdev_read_calibration_prop(libinput_device_sptr li_device);
-
-    // Helpers
-    //todo move to libinput_device_t
-        void tablet_notify_proximity(libinput_device_sptr li_device, time now, libinput_tablet_tool_sptr tool, libinput_tablet_tool_proximity_state proximity_state, tablet_axes_bitset& changed_axes, tablet_axes const& axes, ::input_absinfo const* x, ::input_absinfo const* y)
-        {
-            auto& proximity_event = li_device->seat->libinput->libinput_emplace_event<libinput_event_tablet_tool>();
-            proximity_event.axes              = axes;
-            proximity_event.tool              = tool;
-            proximity_event.proximity_state   = proximity_state;
-            proximity_event.tip_state         = LIBINPUT_TABLET_TOOL_TIP_UP;
-            proximity_event.abs               = { *x, *y };
-            proximity_event.changed_axes_bits = changed_axes;
-            li_device->post_device_event(now, LIBINPUT_EVENT_TABLET_TOOL_PROXIMITY, proximity_event);
-        }
-        void tablet_notify_tip(libinput_device_sptr li_device, time now, libinput_tablet_tool_sptr tool, libinput_tablet_tool_tip_state tip_state, tablet_axes_bitset& changed_axes, tablet_axes const& axes, ::input_absinfo const* x, ::input_absinfo const* y)
-        {
-            auto& tip_event = li_device->seat->libinput->libinput_emplace_event<libinput_event_tablet_tool>();
-            tip_event.axes              = axes;
-            tip_event.tool              = tool;
-            tip_event.proximity_state   = LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_IN;
-            tip_event.tip_state         = tip_state;
-            tip_event.abs               = { *x, *y };
-            tip_event.changed_axes_bits = changed_axes;
-            li_device->post_device_event(now, LIBINPUT_EVENT_TABLET_TOOL_TIP, tip_event);
-        }
-        void tablet_notify_axis(libinput_device_sptr li_device, time now, libinput_tablet_tool_sptr tool, libinput_tablet_tool_tip_state tip_state, tablet_axes_bitset& changed_axes, tablet_axes const& axes, ::input_absinfo const* x, ::input_absinfo const* y)
-        {
-            auto& axis_event             = li_device->seat->libinput->libinput_emplace_event<libinput_event_tablet_tool>();
-            axis_event.axes              = axes;
-            axis_event.tool              = tool;
-            axis_event.proximity_state   = LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_IN;
-            axis_event.tip_state         = tip_state;
-            axis_event.abs               = { *x, *y };
-            axis_event.changed_axes_bits = changed_axes;
-            li_device->post_device_event(now, LIBINPUT_EVENT_TABLET_TOOL_AXIS, axis_event);
-        }
-        void tablet_notify_button(libinput_device_sptr li_device, time now, libinput_tablet_tool_sptr tool, libinput_tablet_tool_tip_state tip_state, tablet_axes const& axes, button_code_t button, libinput_button_state state, ::input_absinfo const* x, ::input_absinfo const* y)
-        {
-            auto seat_press_count = update_seat_button_count(li_device->seat, button, state);
-            auto& button_event = li_device->seat->libinput->libinput_emplace_event<libinput_event_tablet_tool>();
-            button_event.button            = (ui32)button;
-            button_event.state             = state;
-            button_event.seat_button_count = seat_press_count;
-            button_event.axes              = axes;
-            button_event.tool              = tool;
-            button_event.proximity_state   = LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_IN;
-            button_event.tip_state         = tip_state;
-            button_event.abs               = { *x, *y };
-            li_device->post_device_event(now, LIBINPUT_EVENT_TABLET_TOOL_BUTTON, button_event);
-        }
 
     struct libinput_paired_keyboard
     {
@@ -14581,16 +14577,16 @@ namespace netxs::lixx // li++, libinput++.
                 {
                     case SLOT_STATE_BEGIN:
                         tip_state = LIBINPUT_TABLET_TOOL_TIP_DOWN;
-                        tablet_notify_proximity(li_device, now, slot.tool, LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_IN, slot.changed_axes_bits, axes, li_device->abs.absinfo_x, li_device->abs.absinfo_y);
+                        li_device->tablet_notify_proximity(now, slot.tool, LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_IN, slot.changed_axes_bits, axes, li_device->abs.absinfo_x, li_device->abs.absinfo_y);
                         totem_slot_reset_changed_axes(slot);
-                        tablet_notify_tip(li_device, now, slot.tool, tip_state, slot.changed_axes_bits, axes, li_device->abs.absinfo_x, li_device->abs.absinfo_y);
+                        li_device->tablet_notify_tip(now, slot.tool, tip_state, slot.changed_axes_bits, axes, li_device->abs.absinfo_x, li_device->abs.absinfo_y);
                         slot.state = SLOT_STATE_UPDATE;
                         break;
                     case SLOT_STATE_UPDATE:
                         tip_state = LIBINPUT_TABLET_TOOL_TIP_DOWN;
                         if (updated)
                         {
-                            tablet_notify_axis(li_device, now, slot.tool, tip_state, slot.changed_axes_bits, axes, li_device->abs.absinfo_x, li_device->abs.absinfo_y);
+                            li_device->tablet_notify_axis(now, slot.tool, tip_state, slot.changed_axes_bits, axes, li_device->abs.absinfo_x, li_device->abs.absinfo_y);
                         }
                         break;
                     case SLOT_STATE_END: /* prox out is handled after button events */ break;
@@ -14616,7 +14612,7 @@ namespace netxs::lixx // li++, libinput++.
                     {
                         btn_state = LIBINPUT_BUTTON_STATE_RELEASED;
                     }
-                    tablet_notify_button(li_device, now, slot.tool, tip_state, axes, BTN_0, btn_state, li_device->abs.absinfo_x, li_device->abs.absinfo_y);
+                    li_device->tablet_notify_button(now, slot.tool, tip_state, axes, BTN_0, btn_state, li_device->abs.absinfo_x, li_device->abs.absinfo_y);
                     totem.button_state_previous = totem.button_state_now;
                 }
                 switch(slot.state)
@@ -14625,9 +14621,9 @@ namespace netxs::lixx // li++, libinput++.
                     case SLOT_STATE_UPDATE: break;
                     case SLOT_STATE_END:
                         tip_state = LIBINPUT_TABLET_TOOL_TIP_UP;
-                        tablet_notify_tip(li_device, now, slot.tool, tip_state, slot.changed_axes_bits, axes, li_device->abs.absinfo_x, li_device->abs.absinfo_y);
+                        li_device->tablet_notify_tip(now, slot.tool, tip_state, slot.changed_axes_bits, axes, li_device->abs.absinfo_x, li_device->abs.absinfo_y);
                         totem_slot_reset_changed_axes(slot);
-                        tablet_notify_proximity(li_device, now, slot.tool, LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_OUT, slot.changed_axes_bits, axes, li_device->abs.absinfo_x, li_device->abs.absinfo_y);
+                        li_device->tablet_notify_proximity(now, slot.tool, LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_OUT, slot.changed_axes_bits, axes, li_device->abs.absinfo_x, li_device->abs.absinfo_y);
                         slot.state = SLOT_STATE_NONE;
                         break;
                     case SLOT_STATE_NONE: ::abort(); break;
@@ -14759,15 +14755,15 @@ namespace netxs::lixx // li++, libinput++.
                         tip_state = slot.state == SLOT_STATE_NONE ? LIBINPUT_TABLET_TOOL_TIP_UP : LIBINPUT_TABLET_TOOL_TIP_DOWN;
                         if (totem.button_state_now)
                         {
-                            tablet_notify_button(li_device, now, slot.tool, tip_state, axes, BTN_0, LIBINPUT_BUTTON_STATE_RELEASED, li_device->abs.absinfo_x, li_device->abs.absinfo_y);
+                            li_device->tablet_notify_button(now, slot.tool, tip_state, axes, BTN_0, LIBINPUT_BUTTON_STATE_RELEASED, li_device->abs.absinfo_x, li_device->abs.absinfo_y);
                             totem.button_state_now = faux;
                             totem.button_state_previous = faux;
                         }
                         if (slot.state != SLOT_STATE_NONE)
                         {
-                            tablet_notify_tip(li_device, now, slot.tool, LIBINPUT_TABLET_TOOL_TIP_UP, slot.changed_axes_bits, axes, li_device->abs.absinfo_x, li_device->abs.absinfo_y);
+                            li_device->tablet_notify_tip(now, slot.tool, LIBINPUT_TABLET_TOOL_TIP_UP, slot.changed_axes_bits, axes, li_device->abs.absinfo_x, li_device->abs.absinfo_y);
                         }
-                        tablet_notify_proximity(li_device, now, slot.tool, LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_OUT, slot.changed_axes_bits, axes, li_device->abs.absinfo_x, li_device->abs.absinfo_y);
+                        li_device->tablet_notify_proximity(now, slot.tool, LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_OUT, slot.changed_axes_bits, axes, li_device->abs.absinfo_x, li_device->abs.absinfo_y);
                     }
                 }
                 totem_set_touch_device_enabled(true, now);
@@ -14815,9 +14811,9 @@ namespace netxs::lixx // li++, libinput++.
                         slot_axes_initialize(slot);
                         totem_slot_mark_all_axes_changed(slot, slot.tool);
                         totem_slot_fetch_axes(slot, slot.tool, axes, now);
-                        tablet_notify_proximity(li_device, now, slot.tool, LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_IN, slot.changed_axes_bits, axes, li_device->abs.absinfo_x, li_device->abs.absinfo_y);
+                        li_device->tablet_notify_proximity(now, slot.tool, LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_IN, slot.changed_axes_bits, axes, li_device->abs.absinfo_x, li_device->abs.absinfo_y);
                         totem_slot_reset_changed_axes(slot);
-                        tablet_notify_tip(li_device, now, slot.tool, LIBINPUT_TABLET_TOOL_TIP_DOWN, slot.changed_axes_bits, axes, li_device->abs.absinfo_x, li_device->abs.absinfo_y);
+                        li_device->tablet_notify_tip(now, slot.tool, LIBINPUT_TABLET_TOOL_TIP_DOWN, slot.changed_axes_bits, axes, li_device->abs.absinfo_x, li_device->abs.absinfo_y);
                         slot.state = SLOT_STATE_UPDATE;
                         enable_touch = faux;
                     }
@@ -16036,7 +16032,7 @@ namespace netxs::lixx // li++, libinput++.
                         {
                             if (tablet.status & TABLET_TOOL_ENTERING_PROXIMITY)
                             {
-                                tablet_notify_proximity(li_device, stamp, tool, LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_IN, tablet.changed_axes_bits, axes, &tablet.area.x, &tablet.area.y);
+                                li_device->tablet_notify_proximity(stamp, tool, LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_IN, tablet.changed_axes_bits, axes, &tablet.area.x, &tablet.area.y);
                                 tablet.status &= ~TABLET_TOOL_ENTERING_PROXIMITY;
                                 tablet.status &= ~TABLET_AXES_UPDATED;
                                 tablet_reset_changed_axes();
@@ -16053,14 +16049,14 @@ namespace netxs::lixx // li++, libinput++.
                         {
                             if ((tablet.status & TABLET_TOOL_LEAVING_PROXIMITY) && !(tablet.status & TABLET_TOOL_OUTSIDE_AREA))
                             {
-                                tablet_notify_proximity(li_device, stamp, tool, LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_OUT, tablet.changed_axes_bits, axes, &tablet.area.x, &tablet.area.y);
+                                li_device->tablet_notify_proximity(stamp, tool, LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_OUT, tablet.changed_axes_bits, axes, &tablet.area.x, &tablet.area.y);
                             }
                         }
                         bool tablet_send_tip(libinput_tablet_tool_sptr tool, libinput_device_sptr li_device, tablet_axes& axes, time stamp)
                         {
                             if (tablet.status & TABLET_TOOL_ENTERING_CONTACT)
                             {
-                                tablet_notify_tip(li_device, stamp, tool, LIBINPUT_TABLET_TOOL_TIP_DOWN, tablet.changed_axes_bits, axes, &tablet.area.x, &tablet.area.y);
+                                li_device->tablet_notify_tip(stamp, tool, LIBINPUT_TABLET_TOOL_TIP_DOWN, tablet.changed_axes_bits, axes, &tablet.area.x, &tablet.area.y);
                                 tablet.status &= ~TABLET_AXES_UPDATED;
                                 tablet.status &= ~TABLET_TOOL_ENTERING_CONTACT;
                                 tablet.status |= TABLET_TOOL_IN_CONTACT;
@@ -16071,7 +16067,7 @@ namespace netxs::lixx // li++, libinput++.
                             }
                             if (tablet.status & TABLET_TOOL_LEAVING_CONTACT)
                             {
-                                tablet_notify_tip(li_device, stamp, tool, LIBINPUT_TABLET_TOOL_TIP_UP, tablet.changed_axes_bits, axes, &tablet.area.x, &tablet.area.y);
+                                li_device->tablet_notify_tip(stamp, tool, LIBINPUT_TABLET_TOOL_TIP_UP, tablet.changed_axes_bits, axes, &tablet.area.x, &tablet.area.y);
                                 tablet.status &= ~TABLET_AXES_UPDATED;
                                 tablet.status &= ~TABLET_TOOL_LEAVING_CONTACT;
                                 tablet.status &= ~TABLET_TOOL_IN_CONTACT;
@@ -16087,7 +16083,7 @@ namespace netxs::lixx // li++, libinput++.
                             if (!(tablet.status & TABLET_AXES_UPDATED)) return;
                             auto tip_state = (tablet.status & TABLET_TOOL_IN_CONTACT) ? LIBINPUT_TABLET_TOOL_TIP_DOWN
                                                                                       : LIBINPUT_TABLET_TOOL_TIP_UP;
-                            tablet_notify_axis(li_device, stamp, tool, tip_state, tablet.changed_axes_bits, axes, &tablet.area.x, &tablet.area.y);
+                            li_device->tablet_notify_axis(stamp, tool, tip_state, tablet.changed_axes_bits, axes, &tablet.area.x, &tablet.area.y);
                             tablet.status &= ~TABLET_AXES_UPDATED;
                             tablet_reset_changed_axes();
                             axes.delta.x = 0;
@@ -16101,7 +16097,7 @@ namespace netxs::lixx // li++, libinput++.
                                     {
                                         if (buttons[code])
                                         {
-                                            tablet_notify_button(li_device, stamp, tool, tip_state, tablet.axes, code, state, &tablet.area.x, &tablet.area.y);
+                                            li_device->tablet_notify_button(stamp, tool, tip_state, tablet.axes, code, state, &tablet.area.x, &tablet.area.y);
                                         }
                                     }
                                 }
