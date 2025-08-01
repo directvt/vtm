@@ -7477,10 +7477,10 @@ namespace netxs::lixx // li++, libinput++.
                                 default: break;
                             }
                         }
-                                tp_history_point* tp_motion_history_offset(tp_touch& t, si32 offset)
+                                tp_history_point& tp_motion_history_offset(tp_touch& t, si32 offset)
                                 {
                                     auto offset_index = (t.history.index - offset + lixx::touchpad_history_length) % lixx::touchpad_history_length;
-                                    return &t.history.samples[offset_index];
+                                    return t.history.samples[offset_index];
                                 }
                             void tp_motion_history_fix_last(tp_touch& t, span jumping_interval, span normal_interval, time stamp)
                             {
@@ -7493,8 +7493,8 @@ namespace netxs::lixx // li++, libinput++.
                                 // the pointer accel code should do the right thing.
                                 for (auto i = 0; i < (si32)t.history.count; i++)
                                 {
-                                    auto p = tp_motion_history_offset(t, i);
-                                    p->stamp = stamp - jumping_interval - normal_interval * i;
+                                    auto& p = tp_motion_history_offset(t, i);
+                                    p.stamp = stamp - jumping_interval - normal_interval * i;
                                 }
                             }
                         void tp_process_msc(evdev_event const& ev, [[maybe_unused]] time now)
@@ -7859,7 +7859,7 @@ namespace netxs::lixx // li++, libinput++.
                                     // Ignore motion when pressure/touch size fell below the threshold, thus ending the touch.
                                     if (t.state == TOUCH_END && t.history.count > 0)
                                     {
-                                        t.point = tp_motion_history_offset(t, 0)->point;
+                                        t.point = tp_motion_history_offset(t, 0).point;
                                     }
                                 }
                             }
@@ -7973,8 +7973,8 @@ namespace netxs::lixx // li++, libinput++.
                                         return faux;
                                     }
                                     // Called before tp_motion_history_push, so offset 0 is the most recent coordinate.
-                                    auto last = tp_motion_history_offset(t, 0);
-                                    auto tdelta = stamp - last->stamp;
+                                    auto& last = tp_motion_history_offset(t, 0);
+                                    auto tdelta = stamp - last.stamp;
                                     // For test devices we always force the time delta to 12, at least until the test suite actually does proper intervals.
                                     if (tp.li_device->model_flags & EVDEV_MODEL_TEST_DEVICE)
                                     {
@@ -7986,7 +7986,7 @@ namespace netxs::lixx // li++, libinput++.
                                         return faux;
                                     }
                                     // We historically expected ~12ms frame intervals, so the numbers below are normalized to that (and that's also where the measured data came from).
-                                    auto delta = std::abs(t.point - last->point);
+                                    auto delta = std::abs(t.point - last.point);
                                     auto mm = evdev_device_unit_delta_to_mm(tp.li_device, delta);
                                     auto abs_distance = hypot(mm.x, mm.y) * reference_interval / tdelta;
                                     auto rel_distance = abs_distance - t.jumps_last_delta_mm;
@@ -8382,7 +8382,7 @@ namespace netxs::lixx // li++, libinput++.
                                         t.hysteresis.x_motion_history = 0;
                                         return;
                                     }
-                                    auto prev_point = tp_motion_history_offset(t, 0)->point;
+                                    auto prev_point = tp_motion_history_offset(t, 0).point;
                                     auto d = prev_point - t.point;
                                     auto dtime = stamp - tp.hysteresis.last_motion_time;
                                     tp.hysteresis.last_motion_time = stamp;
@@ -8429,8 +8429,8 @@ namespace netxs::lixx // li++, libinput++.
                                     // speed and failing.
                                     if (t.history.count < 4) return;
                                     //todo: we probably need a speed history here so we can average across a few events
-                                    auto last = tp_motion_history_offset(t, 1);
-                                    auto delta = std::abs(t.point - last->point);
+                                    auto& last = tp_motion_history_offset(t, 1);
+                                    auto delta = std::abs(t.point - last.point);
                                     auto mm = evdev_device_unit_delta_to_mm(tp.li_device, delta);
                                     auto distance = hypot(mm.x, mm.y);
                                     auto speed = distance / datetime::round<si64, std::chrono::microseconds>(stamp - last->stamp); // mm/us.
@@ -11122,9 +11122,9 @@ namespace netxs::lixx // li++, libinput++.
                                                                 si32_coor tp_get_delta(tp_touch& t)
                                                                 {
                                                                     if (t.history.count <= 1) return {};
-                                                                    auto t0 = tp_motion_history_offset(t, 0);
-                                                                    auto t1 = tp_motion_history_offset(t, 1);
-                                                                    auto delta = t0->point - t1->point;
+                                                                    auto& t0 = tp_motion_history_offset(t, 0);
+                                                                    auto& t1 = tp_motion_history_offset(t, 1);
+                                                                    auto delta = t0.point - t1.point;
                                                                     return delta;
                                                                 }
                                                             fp64_coor tp_get_touches_delta(bool average)
