@@ -264,6 +264,16 @@ namespace netxs::lixx // li++, libinput++.
         EVDEV_DEVICE_TABLET_PAD      = 1ul << 5,
         EVDEV_DEVICE_TABLET          = 1ul << 6,
     };
+    enum ud_type_enum
+    {
+        UDEV_MOUSE         = 1ul << 1,
+        UDEV_POINTINGSTICK = 1ul << 2,
+        UDEV_TOUCHPAD      = 1ul << 3,
+        UDEV_TABLET        = 1ul << 4,
+        UDEV_TABLET_PAD    = 1ul << 5,
+        UDEV_JOYSTICK      = 1ul << 6,
+        UDEV_KEYBOARD      = 1ul << 7,
+    };
     enum libinput_device_tags
     {
         EVDEV_TAG_NONE               = 0ul,
@@ -278,6 +288,23 @@ namespace netxs::lixx // li++, libinput++.
         EVDEV_TAG_TABLET_MODE_SWITCH = 1ul << 8,
         EVDEV_TAG_TABLET_TOUCHPAD    = 1ul << 9,
         EVDEV_TAG_VIRTUAL            = 1ul << 10,
+    };
+    //todo unify, combine with ud_type_enum and rename to ID_INPUT_*
+    enum evdev_ud_device_tags
+    {
+        EVDEV_UDEV_TAG_NONE          = 0,
+        EVDEV_UDEV_TAG_INPUT         = 1ul << 0,
+        EVDEV_UDEV_TAG_KEYBOARD      = 1ul << 1,
+        EVDEV_UDEV_TAG_MOUSE         = 1ul << 2,
+        EVDEV_UDEV_TAG_TOUCHPAD      = 1ul << 3,
+        EVDEV_UDEV_TAG_TOUCHSCREEN   = 1ul << 4,
+        EVDEV_UDEV_TAG_TABLET        = 1ul << 5,
+        EVDEV_UDEV_TAG_JOYSTICK      = 1ul << 6,
+        EVDEV_UDEV_TAG_ACCELEROMETER = 1ul << 7,
+        EVDEV_UDEV_TAG_TABLET_PAD    = 1ul << 8,
+        EVDEV_UDEV_TAG_POINTINGSTICK = 1ul << 9,
+        EVDEV_UDEV_TAG_TRACKBALL     = 1ul << 10,
+        EVDEV_UDEV_TAG_SWITCH        = 1ul << 11,
     };
     enum evdev_button_scroll_state
     {
@@ -965,33 +992,6 @@ namespace netxs::lixx // li++, libinput++.
         PRESSURE_HEURISTIC_STATE_PROXIN2, // Second proximity in event.
         PRESSURE_HEURISTIC_STATE_DECIDE,  // Decide on offset now.
         PRESSURE_HEURISTIC_STATE_DONE,    // Decision's been made, live with it.
-    };
-    //todo unify, combine with ud_type_enum and rename to ID_INPUT_*
-    enum evdev_ud_device_tags
-    {
-        EVDEV_UDEV_TAG_NONE          = 0,
-        EVDEV_UDEV_TAG_INPUT         = 1ul << 0,
-        EVDEV_UDEV_TAG_KEYBOARD      = 1ul << 1,
-        EVDEV_UDEV_TAG_MOUSE         = 1ul << 2,
-        EVDEV_UDEV_TAG_TOUCHPAD      = 1ul << 3,
-        EVDEV_UDEV_TAG_TOUCHSCREEN   = 1ul << 4,
-        EVDEV_UDEV_TAG_TABLET        = 1ul << 5,
-        EVDEV_UDEV_TAG_JOYSTICK      = 1ul << 6,
-        EVDEV_UDEV_TAG_ACCELEROMETER = 1ul << 7,
-        EVDEV_UDEV_TAG_TABLET_PAD    = 1ul << 8,
-        EVDEV_UDEV_TAG_POINTINGSTICK = 1ul << 9,
-        EVDEV_UDEV_TAG_TRACKBALL     = 1ul << 10,
-        EVDEV_UDEV_TAG_SWITCH        = 1ul << 11,
-    };
-    enum ud_type_enum
-    {
-        UDEV_MOUSE         = 1ul << 1,
-        UDEV_POINTINGSTICK = 1ul << 2,
-        UDEV_TOUCHPAD      = 1ul << 3,
-        UDEV_TABLET        = 1ul << 4,
-        UDEV_TABLET_PAD    = 1ul << 5,
-        UDEV_JOYSTICK      = 1ul << 6,
-        UDEV_KEYBOARD      = 1ul << 7,
     };
     enum bustype
     {
@@ -5194,8 +5194,8 @@ namespace netxs::lixx // li++, libinput++.
         virtual                  void              device_suspended([[maybe_unused]] libinput_device_sptr li_device, [[maybe_unused]] libinput_device_sptr suspended_li_device)                                                                                { } // A device was suspended.
         virtual                  void                device_resumed([[maybe_unused]] libinput_device_sptr li_device, [[maybe_unused]] libinput_device_sptr resumed_li_device)                                                                                  { } // A device was resumed.
         virtual                  void                    post_added([[maybe_unused]] libinput_device_sptr li_device)                                                                                                                                           { } // Called immediately after the LIBINPUT_EVENT_DEVICE_ADDED event was sent.
-        virtual                  void      touch_arbitration_toggle([[maybe_unused]] libinput_device_sptr li_device, [[maybe_unused]] libinput_arbitration_state which, [[maybe_unused]] phys_rect const* rect/* may be nullptr */, [[maybe_unused]] time now) { } // For touch arbitration, called on the device that should enable/disable touch capabilities.
-        virtual                  void touch_arbitration_update_rect([[maybe_unused]] libinput_device_sptr li_device, [[maybe_unused]] phys_rect const*rect, [[maybe_unused]] time now)                                                                         { } // Called when touch arbitration is on, updates the area where touch arbitration should apply.
+        virtual                  void      touch_arbitration_toggle([[maybe_unused]] libinput_device_sptr li_device, [[maybe_unused]] libinput_arbitration_state which, [[maybe_unused]] phys_rect const* area/* may be nullptr */, [[maybe_unused]] time now) { } // For touch arbitration, called on the device that should enable/disable touch capabilities.
+        virtual                  void touch_arbitration_update_rect([[maybe_unused]] libinput_device_sptr li_device, [[maybe_unused]] phys_rect const* area, [[maybe_unused]] time now)                                                                        { } // Called when touch arbitration is on, updates the area where touch arbitration should apply.
         virtual libinput_switch_state              get_switch_state([[maybe_unused]] libinput_switch which)                                                                                                                                                    { return libinput_switch_state{}; } // Return the state of the given switch.
         virtual                  void            left_handed_toggle([[maybe_unused]] libinput_device_sptr li_device, [[maybe_unused]] bool left_handed_enabled)                                                                                                { }
     };
@@ -12556,7 +12556,7 @@ namespace netxs::lixx // li++, libinput++.
                     tp_change_rotation(li_device, DO_NOTIFY);
                 }
             }
-            void tp_interface_toggle_touch([[maybe_unused]] libinput_device_sptr li_device, libinput_arbitration_state which, [[maybe_unused]] phys_rect const* rect, time stamp)
+            void tp_interface_toggle_touch([[maybe_unused]] libinput_device_sptr li_device, libinput_arbitration_state which, [[maybe_unused]] phys_rect const* area, time stamp)
             {
                 if (which == tp.arbitration.state) return;
                 switch (which)
@@ -13859,7 +13859,7 @@ namespace netxs::lixx // li++, libinput++.
         void             device_added(libinput_device_sptr li_device, libinput_device_sptr added_li_device)                              { tp_impl.   tp_interface_device_added(li_device, added_li_device); }
         void           device_removed(libinput_device_sptr li_device, libinput_device_sptr removed_li_device)                            { tp_impl. tp_interface_device_removed(li_device, removed_li_device); }
         void       left_handed_toggle(libinput_device_sptr li_device, bool left_handed_enabled)                                          { tp_impl.touchpad_left_handed_toggled(li_device, left_handed_enabled); }
-        void touch_arbitration_toggle(libinput_device_sptr li_device, libinput_arbitration_state which, phys_rect const* rect, time now) { tp_impl.   tp_interface_toggle_touch(li_device, which, rect, now); }
+        void touch_arbitration_toggle(libinput_device_sptr li_device, libinput_arbitration_state which, phys_rect const* area, time now) { tp_impl.   tp_interface_toggle_touch(li_device, which, area, now); }
         void         device_suspended(libinput_device_sptr li_device, libinput_device_sptr suspended_li_device)                          { device_removed(li_device, suspended_li_device); }
         void           device_resumed(libinput_device_sptr li_device, libinput_device_sptr resumed_li_device)                            { device_added(li_device, resumed_li_device); }
     };
@@ -14867,7 +14867,6 @@ namespace netxs::lixx // li++, libinput++.
                 auto touch_device = totem.touch_li_device;
                 if (!touch_device) return;
                 auto r = phys_rect{};
-                auto rect = (phys_rect*)nullptr;
                 auto state = ARBITRATION_NOT_ACTIVE;
                 // We just pick the coordinates of the first touch we find. The totem only does one tool right now despite being nominally an MT device, so let's not go too hard on ourselves.
                 for (auto i = 0u; !enable_touch_device && i < totem.slots.size(); i++)
@@ -14880,7 +14879,6 @@ namespace netxs::lixx // li++, libinput++.
                         r.y = mm.y - 30;
                         r.w = 100;
                         r.h = 100;
-                        rect = &r;
                         state = ARBITRATION_IGNORE_RECT;
                         break;
                     }
@@ -14888,15 +14886,15 @@ namespace netxs::lixx // li++, libinput++.
                 auto dispatch = touch_device->dispatch;
                 if (enable_touch_device)
                 {
-                    dispatch->touch_arbitration_toggle(touch_device, state, rect, now);
+                    dispatch->touch_arbitration_toggle(touch_device, state, &r, now);
                 }
                 else
                 {
                     switch (totem.arbitration_state)
                     {
                         case ARBITRATION_IGNORE_ALL: ::abort();
-                        case ARBITRATION_NOT_ACTIVE:  dispatch->touch_arbitration_toggle(touch_device, state, rect, now); break;
-                        case ARBITRATION_IGNORE_RECT: dispatch->touch_arbitration_update_rect(touch_device, rect, now); break;
+                        case ARBITRATION_NOT_ACTIVE:  dispatch->touch_arbitration_toggle(touch_device, state, &r, now); break;
+                        case ARBITRATION_IGNORE_RECT: dispatch->touch_arbitration_update_rect(touch_device, &r, now); break;
                     }
                 }
                 totem.arbitration_state = state;
@@ -15100,8 +15098,8 @@ namespace netxs::lixx // li++, libinput++.
         struct area_t
         {
             libinput_device_config_area    config;
-            libinput_config_area_rectangle rect;
-            libinput_config_area_rectangle want_rect;
+            libinput_config_area_rectangle have_area;
+            libinput_config_area_rectangle want_area;
             ::input_absinfo                x;
             ::input_absinfo                y;
         };
@@ -15713,8 +15711,8 @@ namespace netxs::lixx // li++, libinput++.
                     }
                     bool is_inside_area(device_coords point, fp64 normalized_margin)
                     {
-                        if (tablet.area.rect.x1 == 0.0 && tablet.area.rect.x2 == 1.0
-                         && tablet.area.rect.y1 == 0.0 && tablet.area.rect.y2 == 1.0)
+                        if (tablet.area.have_area.x1 == 0.0 && tablet.area.have_area.x2 == 1.0
+                         && tablet.area.have_area.y1 == 0.0 && tablet.area.have_area.y2 == 1.0)
                         {
                             return true;
                         }
@@ -15931,8 +15929,8 @@ namespace netxs::lixx // li++, libinput++.
                     }
                                 void apply_tablet_area([[maybe_unused]] libinput_device_sptr li_device, device_coords& point)
                                 {
-                                    if (tablet.area.rect.x1 == 0.0 && tablet.area.rect.x2 == 1.0
-                                     && tablet.area.rect.y1 == 0.0 && tablet.area.rect.y2 == 1.0)
+                                    if (tablet.area.have_area.x1 == 0.0 && tablet.area.have_area.x2 == 1.0
+                                     && tablet.area.have_area.y1 == 0.0 && tablet.area.have_area.y2 == 1.0)
                                     {
                                         return;
                                     }
@@ -16478,19 +16476,19 @@ namespace netxs::lixx // li++, libinput++.
                     }
                     void tablet_change_area(libinput_device_sptr li_device)
                     {
-                        if (::memcmp(&tablet.area.rect, &tablet.area.want_rect, sizeof(tablet.area.rect)) == 0
+                        if (::memcmp(&tablet.area.have_area, &tablet.area.want_area, sizeof(tablet.area.have_area)) == 0
                          || !(tablet.status & TABLET_TOOL_OUT_OF_PROXIMITY))
                         {
                             return;
                         }
-                        tablet.area.rect = tablet.area.want_rect;
-                        log("tablet-area: area is %.2f%/%.2f% - %.2f%/%.2f%", tablet.area.rect.x1, tablet.area.rect.y1, tablet.area.rect.x2, tablet.area.rect.y2);
+                        tablet.area.have_area = tablet.area.want_area;
+                        log("tablet-area: area is %.2f%/%.2f% - %.2f%/%.2f%", tablet.area.have_area.x1, tablet.area.have_area.y1, tablet.area.have_area.x2, tablet.area.have_area.y2);
                         auto absx = li_device->abs.absinfo_x;
                         auto absy = li_device->abs.absinfo_y;
-                        tablet.area.x.minimum = axis_range_percentage(absx, tablet.area.rect.x1 * 100);
-                        tablet.area.x.maximum = axis_range_percentage(absx, tablet.area.rect.x2 * 100);
-                        tablet.area.y.minimum = axis_range_percentage(absy, tablet.area.rect.y1 * 100);
-                        tablet.area.y.maximum = axis_range_percentage(absy, tablet.area.rect.y2 * 100);
+                        tablet.area.x.minimum = axis_range_percentage(absx, tablet.area.have_area.x1 * 100);
+                        tablet.area.x.maximum = axis_range_percentage(absx, tablet.area.have_area.x2 * 100);
+                        tablet.area.y.minimum = axis_range_percentage(absy, tablet.area.have_area.y1 * 100);
+                        tablet.area.y.maximum = axis_range_percentage(absy, tablet.area.have_area.y2 * 100);
                     }
                 void tablet_flush(libinput_device_sptr li_device, time stamp)
                 {
@@ -16572,20 +16570,19 @@ namespace netxs::lixx // li++, libinput++.
                         if (!process_tool_twice) break;
                     }
                 }
-                    void tablet_set_touch_device_enabled(libinput_arbitration_state which, phys_rect const* rect, time stamp)
+                    void tablet_set_touch_device_enabled(libinput_arbitration_state which, phys_rect const* area, time stamp)
                     {
                         if (auto touch_li_device = tablet.touch_li_device)
                         {
                             tablet.arbitration = which;
                             auto dispatch = touch_li_device->dispatch;
-                            dispatch->touch_arbitration_toggle(touch_li_device, which, rect, stamp);
+                            dispatch->touch_arbitration_toggle(touch_li_device, which, area, stamp);
                         }
                     }
                 void tablet_toggle_touch_device([[maybe_unused]] libinput_device_sptr tablet_li_device, time stamp)
                 {
                     auto which = libinput_arbitration_state{};
                     auto r = phys_rect{};
-                    auto rect = (phys_rect*)nullptr;
                     if (tablet.status & (TABLET_TOOL_OUT_OF_RANGE | TABLET_NONE | TABLET_TOOL_LEAVING_PROXIMITY | TABLET_TOOL_OUT_OF_PROXIMITY))
                     {
                         which = ARBITRATION_NOT_ACTIVE;
@@ -16597,14 +16594,13 @@ namespace netxs::lixx // li++, libinput++.
                     else if (tablet.arbitration != ARBITRATION_IGNORE_RECT)
                     {
                         r = tablet_calculate_arbitration_rect(); // This enables rect-based arbitration, updates are sent elsewhere.
-                        rect = &r;
                         which = ARBITRATION_IGNORE_RECT;
                     }
                     else
                     {
                         return;
                     }
-                    tablet_set_touch_device_enabled(which, rect, stamp);
+                    tablet_set_touch_device_enabled(which, &r, stamp);
                 }
                 void tablet_reset_state()
                 {
@@ -16859,14 +16855,14 @@ namespace netxs::lixx // li++, libinput++.
                         {
                             return LIBINPUT_CONFIG_STATUS_INVALID;
                         }
-                        tablet.area.want_rect = *rectangle;
+                        tablet.area.want_area = *rectangle;
                         tablet.tablet_impl.tablet_change_area(li_device);
                         return LIBINPUT_CONFIG_STATUS_SUCCESS;
                     }
                     static libinput_config_area_rectangle tablet_area_get_rectangle(libinput_device_sptr li_device)
                     {
                         auto& tablet = *std::static_pointer_cast<tablet_dispatch>(li_device->dispatch);
-                        return tablet.area.rect;
+                        return tablet.area.have_area;
                     }
                     static libinput_config_area_rectangle tablet_area_get_default_rectangle([[maybe_unused]] libinput_device_sptr li_device)
                     {
@@ -16875,8 +16871,8 @@ namespace netxs::lixx // li++, libinput++.
                     }
                 void tablet_init_area(libinput_device_sptr li_device)
                 {
-                    tablet.area.rect = libinput_config_area_rectangle{ 0.0, 0.0, 1.0, 1.0, };
-                    tablet.area.want_rect = tablet.area.rect;
+                    tablet.area.have_area = libinput_config_area_rectangle{ 0.0, 0.0, 1.0, 1.0, };
+                    tablet.area.want_area = tablet.area.have_area;
                     tablet.area.x = *li_device->abs.absinfo_x;
                     tablet.area.y = *li_device->abs.absinfo_y;
                     if (!li_device->libevdev_has_property(INPUT_PROP_DIRECT))
@@ -17181,7 +17177,7 @@ namespace netxs::lixx // li++, libinput++.
         {
             libinput_arbitration_state state;
             bool                       in_arbitration;
-            device_coord_rect          rect;
+            device_coord_rect          area;
             libinput_timer_sptr        arbitration_timer;
         };
 
@@ -17875,17 +17871,17 @@ namespace netxs::lixx // li++, libinput++.
                                 touch_notify_touch_cancel(li_device, stamp, slot_idx, seat_slot);
                                 return true;
                             }
-                                bool point_in_rect(device_coords point, device_coord_rect const* rect)
+                                bool point_in_rect(device_coords point, device_coord_rect const* area)
                                 {
-                                    return (point.x >= rect->x && point.x < rect->x + rect->w
-                                         && point.y >= rect->y && point.y < rect->y + rect->h);
+                                    return (point.x >= area->x && point.x < area->x + area->w
+                                         && point.y >= area->y && point.y < area->y + area->h);
                                 }
                             bool fallback_arbitrate_touch(mt_slot& slot)
                             {
                                 auto discard = faux;
                                 auto point = slot.point;
                                 fallback.li_device->evdev_transform_absolute(point);
-                                if (fallback.arbitration.state == ARBITRATION_IGNORE_RECT && point_in_rect(point, &fallback.arbitration.rect))
+                                if (fallback.arbitration.state == ARBITRATION_IGNORE_RECT && point_in_rect(point, &fallback.arbitration.area))
                                 {
                                     slot.palm_state = MT_PALM_IS_PALM;
                                     discard = true;
@@ -18553,18 +18549,18 @@ namespace netxs::lixx // li++, libinput++.
                                 touch_notify_touch_cancel(li_device, stamp, -1, seat_slot);
                                 return true;
                             }
-                        void cancel_touches(libinput_device_sptr li_device, device_coord_rect const* rect, time stamp)
+                        void cancel_touches(libinput_device_sptr li_device, device_coord_rect const* area, time stamp)
                         {
                             auto need_frame = faux;
                             auto point = fallback.abs.point;
                             li_device->evdev_transform_absolute(point);
-                            if (!rect || point_in_rect(point, rect)) need_frame = fallback_flush_st_cancel(li_device, stamp);
+                            if (!area || point_in_rect(point, area)) need_frame = fallback_flush_st_cancel(li_device, stamp);
                             auto i = 0;
                             for (auto& slot : fallback.mt.slots)
                             {
                                 point = slot.point;
                                 li_device->evdev_transform_absolute(point);
-                                if (slot.seat_slot != -1 && (!rect || point_in_rect(point, rect)) && fallback_flush_mt_cancel(li_device, i, stamp))
+                                if (slot.seat_slot != -1 && (!area || point_in_rect(point, area)) && fallback_flush_mt_cancel(li_device, i, stamp))
                                 {
                                     need_frame = true;
                                 }
@@ -18669,16 +18665,16 @@ namespace netxs::lixx // li++, libinput++.
                         units.h = mm->h * absy->resolution;
                         return units;
                     }
-                void fallback_interface_update_rect(libinput_device_sptr li_device, phys_rect const* phys_rect, [[maybe_unused]] time now)
+                void fallback_interface_update_rect(libinput_device_sptr li_device, phys_rect const* phys_area, [[maybe_unused]] time now)
                 {
-                    assert(phys_rect);
+                    assert(phys_area);
                     // Existing touches do not change, we just update the rect and only new touches in these areas will be ignored. If you want to paint over your finger, be my guest.
-                    auto rect = evdev_phys_rect_to_units(li_device, phys_rect);
-                    fallback.arbitration.rect = rect;
+                    auto area = evdev_phys_rect_to_units(li_device, phys_area);
+                    fallback.arbitration.area = area;
                 }
-                void fallback_interface_toggle_touch(libinput_device_sptr li_device, libinput_arbitration_state which, phys_rect const* phys_rect, time stamp)
+                void fallback_interface_toggle_touch(libinput_device_sptr li_device, libinput_arbitration_state which, phys_rect const* phys_area, time stamp)
                 {
-                    auto rect = device_coord_rect{};
+                    auto area = device_coord_rect{};
                     [[maybe_unused]] auto state = (char const*)nullptr;
                     if (which == fallback.arbitration.state) return;
                     switch (which)
@@ -18689,10 +18685,10 @@ namespace netxs::lixx // li++, libinput++.
                             state = "not-active";
                             break;
                         case ARBITRATION_IGNORE_RECT:
-                            assert(phys_rect);
-                            rect = evdev_phys_rect_to_units(li_device, phys_rect);
-                            cancel_touches(li_device, &rect, stamp);
-                            fallback.arbitration.rect = rect;
+                            assert(phys_area);
+                            area = evdev_phys_rect_to_units(li_device, phys_area);
+                            cancel_touches(li_device, &area, stamp);
+                            fallback.arbitration.area = area;
                             state = "ignore-rect";
                             break;
                         case ARBITRATION_IGNORE_ALL:
@@ -19058,8 +19054,8 @@ namespace netxs::lixx // li++, libinput++.
         void                  device_suspended(libinput_device_sptr li_device, libinput_device_sptr suspended_li_device)                                              { fallback_impl.         fallback_interface_device_removed(li_device, suspended_li_device); }
         void                    device_resumed(libinput_device_sptr li_device, libinput_device_sptr resumed_li_device)                                                { fallback_impl.           fallback_interface_device_added(li_device, resumed_li_device); }
         void                        post_added(libinput_device_sptr li_device)                                                                                        { fallback_impl.     fallback_interface_sync_initial_state(li_device); }
-        void          touch_arbitration_toggle(libinput_device_sptr li_device, libinput_arbitration_state which, phys_rect const* rect/* may be nullptr */, time now) { fallback_impl.           fallback_interface_toggle_touch(li_device, which, rect, now) ; }
-        void     touch_arbitration_update_rect(libinput_device_sptr li_device, phys_rect const*rect, time now)                                                        { fallback_impl.            fallback_interface_update_rect(li_device, rect, now); }
+        void          touch_arbitration_toggle(libinput_device_sptr li_device, libinput_arbitration_state which, phys_rect const* area/* may be nullptr */, time now) { fallback_impl.           fallback_interface_toggle_touch(li_device, which, area, now) ; }
+        void     touch_arbitration_update_rect(libinput_device_sptr li_device, phys_rect const* area, time now)                                                       { fallback_impl.            fallback_interface_update_rect(li_device, area, now); }
         libinput_switch_state get_switch_state(libinput_switch which)                                                                                                 { return fallback_impl.fallback_interface_get_switch_state(which); }
     };
     using fallback_dispatch_sptr = sptr<fallback_dispatch>;
