@@ -1883,7 +1883,6 @@ namespace netxs::lixx // li++, libinput++.
 
     struct trackpoint_flat_accelerator : pointer_accelerator_flat
     {
-        //fp64 speed_factor; //todo unused?
         fp64 multiplier;
 
         trackpoint_flat_accelerator(fp64 multiplier)
@@ -1896,11 +1895,9 @@ namespace netxs::lixx // li++, libinput++.
 
     struct tablet_accelerator_flat : motion_filter
     {
-        fp64 factor;
-        si32 xres; //todo unify, use si32_coor
-        si32 yres;
-        fp64 xres_scale; //todo unify, use fp64_coor  1000dpi : tablet res.
-        fp64 yres_scale; // 1000dpi : tablet res.
+        fp64      factor;
+        si32_coor resolution;
+        fp64_coor resolution_scale; // 1000dpi : tablet res.
 
         struct tablet_accelerator_flat_impl_t
         {
@@ -1910,15 +1907,10 @@ namespace netxs::lixx // li++, libinput++.
                     // Tablets are high res (Intuos 4 is 5080 dpi) and unmodified deltas are way too high.
                     // Slow it down to the equivalent of a 1000dpi mouse. The ratio of that is:
                     // ratio = 1000 / (resolution_per_mm * 25.4) i.e. on the Intuos4 it's a ratio of ~1/5.
-                    auto accelerated = fp64_coor{};
-                    accelerated.x = units.x * accel.xres_scale;
-                    accelerated.y = units.y * accel.yres_scale;
-                    accelerated *= accel.factor;
-                    return accelerated;
+                    return units * accel.resolution_scale * accel.factor;
                 }
                 fp64_coor tablet_accelerator_filter_flat_pen(fp64_coor units)
                 {
-                    auto accelerated = fp64_coor{};
                     // Tablet input is in device units, output is supposed to be in
                     // logical pixels roughly equivalent to a mouse/touchpad.
                     // This is a magical constant found by trial and error. On a 96dpi
@@ -1926,11 +1918,8 @@ namespace netxs::lixx // li++, libinput++.
                     // is almost identical to the tablet mapped to screen in absolute
                     // mode. Tested on a Intuos5, other tablets may vary.
                     static constexpr auto dpi_conversion = 96.0 / 25.4 * 2.5; // Unitless factor.
-                    auto mm = fp64_coor{};
-                    mm.x = 1.0 * units.x / accel.xres;
-                    mm.y = 1.0 * units.y / accel.yres;
-                    accelerated.x = mm.x * accel.factor * dpi_conversion;
-                    accelerated.y = mm.y * accel.factor * dpi_conversion;
+                    auto mm = units / accel.resolution;
+                    auto accelerated = mm * accel.factor * dpi_conversion;
                     return accelerated;
                 }
             fp64_coor tablet_accelerator_filter_flat(fp64_coor units, void* data, [[maybe_unused]] time now)
@@ -1950,12 +1939,10 @@ namespace netxs::lixx // li++, libinput++.
             }
         };
 
-        tablet_accelerator_flat(si32 xres, si32 yres)
-            :   factor{ 1.0 },
-                  xres{ xres },
-                  yres{ yres },
-            xres_scale{ lixx::default_mouse_dpi / (25.4 * xres) },
-            yres_scale{ lixx::default_mouse_dpi / (25.4 * yres) }
+        tablet_accelerator_flat(si32_coor resolution)
+            :         factor{ 1.0 },
+                  resolution{ resolution },
+            resolution_scale{ lixx::default_mouse_dpi / (25.4 * resolution.x), lixx::default_mouse_dpi / (25.4 * resolution.y) }
         {
             type = LIBINPUT_CONFIG_ACCEL_PROFILE_FLAT;
         }
@@ -12594,13 +12581,13 @@ namespace netxs::lixx // li++, libinput++.
                 {
                     auto xmargin = 0;
                     auto ymargin = 0;
-                    auto ax = tp.li_device->abs.absinfo_x;
-                    auto ay = tp.li_device->abs.absinfo_y;
-                    xmargin = ax->fuzz ? ax->fuzz : ax->resolution / 4;
-                    ymargin = ay->fuzz ? ay->fuzz : ay->resolution / 4;
+                    auto& ax = *tp.li_device->abs.absinfo_x;
+                    auto& ay = *tp.li_device->abs.absinfo_y;
+                    xmargin = ax.fuzz ? ax.fuzz : ax.resolution / 4;
+                    ymargin = ay.fuzz ? ay.fuzz : ay.resolution / 4;
                     tp.hysteresis.margin.x = xmargin;
                     tp.hysteresis.margin.y = ymargin;
-                    tp.hysteresis.enabled = (ax->fuzz || ay->fuzz);
+                    tp.hysteresis.enabled = (ax.fuzz || ay.fuzz);
                     if (tp.hysteresis.enabled) log("hysteresis enabled");
                 }
                         libinput_config_status tp_accel_config_set_speed(libinput_device_sptr li_device, fp64 speed)
@@ -14855,9 +14842,8 @@ namespace netxs::lixx // li++, libinput++.
                 }
             si32 totem_init_accel(libinput_device_sptr li_device)
             {
-                auto x = li_device->abs.absinfo_x;
-                auto y = li_device->abs.absinfo_y;
-                auto filter = ptr::shared<tablet_accelerator_flat>(x->resolution, y->resolution); // Same filter as the tablet.
+                auto resolution = si32_coor{ li_device->abs.absinfo_x->resolution, li_device->abs.absinfo_y->resolution };
+                auto filter = ptr::shared<tablet_accelerator_flat>(resolution); // Same filter as the tablet.
                 evdev_device_init_pointer_acceleration(li_device, filter);
                 // We override the profile hooks for accel configuration with hooks that don't allow selection of profiles.
                 li_device->pointer.config.get_profiles        = totem_accel_config_get_profiles;
@@ -16683,9 +16669,8 @@ namespace netxs::lixx // li++, libinput++.
                     }
                 si32 tablet_init_accel(libinput_device_sptr li_device)
                 {
-                    auto x = li_device->abs.absinfo_x;
-                    auto y = li_device->abs.absinfo_y;
-                    auto filter = ptr::shared<tablet_accelerator_flat>(x->resolution, y->resolution);
+                    auto resolution = si32_coor{ li_device->abs.absinfo_x->resolution, li_device->abs.absinfo_y->resolution };
+                    auto filter = ptr::shared<tablet_accelerator_flat>(resolution);
                     evdev_device_init_pointer_acceleration(li_device, filter);
                     // We override the profile hooks for accel configuration with hooks that don't allow selection of profiles.
                     li_device->pointer.config.get_profiles        = tablet_accel_config_get_profiles;
