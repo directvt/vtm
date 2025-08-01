@@ -1051,6 +1051,7 @@ namespace netxs::lixx // li++, libinput++.
     using fp64_coor  = netxs::xy2d<fp64>;
     using si32_rect  = netxs::xysz<si32>;
     using si32_coor  = netxs::xy2d<si32>;
+    static constexpr auto zero_coor = fp64_coor{};
 
     using fd_t = os::fd_t;
 
@@ -9071,8 +9072,7 @@ namespace netxs::lixx // li++, libinput++.
                                                         }
                                                     void gesture_notify_hold_begin(libinput_device_sptr li_device, time stamp, si32 finger_count)
                                                     {
-                                                        static constexpr auto zero = fp64_coor{};
-                                                        gesture_notify(li_device, stamp, LIBINPUT_EVENT_GESTURE_HOLD_BEGIN, finger_count, 0, zero, zero, 0.0, 0.0);
+                                                        gesture_notify(li_device, stamp, LIBINPUT_EVENT_GESTURE_HOLD_BEGIN, finger_count, 0, lixx::zero_coor, lixx::zero_coor, 0.0, 0.0);
                                                     }
                                                         fp64_coor device_float_average(fp64_coor a, fp64_coor b)
                                                         {
@@ -9159,8 +9159,7 @@ namespace netxs::lixx // li++, libinput++.
                                                 }
                                                     void gesture_notify_hold_end(libinput_device_sptr li_device, time stamp, si32 finger_count, bool cancelled)
                                                     {
-                                                        static constexpr const auto zero = fp64_coor{}; //todo make it static global
-                                                        gesture_notify(li_device, stamp, LIBINPUT_EVENT_GESTURE_HOLD_END, finger_count, cancelled, zero, zero, 0, 0.0);
+                                                        gesture_notify(li_device, stamp, LIBINPUT_EVENT_GESTURE_HOLD_END, finger_count, cancelled, lixx::zero_coor, lixx::zero_coor, 0, 0.0);
                                                     }
                                                         void tp_gesture_end(time stamp, gesture_cancelled cancelled)
                                                         {
@@ -9401,8 +9400,7 @@ namespace netxs::lixx // li++, libinput++.
                                                 }
                                                     void gesture_notify_pinch_end(libinput_device_sptr li_device, time stamp, si32 finger_count, fp64 scale, bool cancelled)
                                                     {
-                                                        const auto zero = fp64_coor{};
-                                                        gesture_notify(li_device, stamp, LIBINPUT_EVENT_GESTURE_PINCH_END, finger_count, cancelled, zero, zero, scale, 0.0);
+                                                        gesture_notify(li_device, stamp, LIBINPUT_EVENT_GESTURE_PINCH_END, finger_count, cancelled, lixx::zero_coor, lixx::zero_coor, scale, 0.0);
                                                     }
                                                 void tp_gesture_handle_event_on_state_pinch(gesture_event event, time stamp)
                                                 {
@@ -9456,8 +9454,7 @@ namespace netxs::lixx // li++, libinput++.
                                                 }
                                                     void gesture_notify_swipe_end(libinput_device_sptr li_device, time stamp, si32 finger_count, bool cancelled)
                                                     {
-                                                        const auto zero = fp64_coor{};
-                                                        gesture_notify(li_device, stamp, LIBINPUT_EVENT_GESTURE_SWIPE_END, finger_count, cancelled, zero, zero, 0.0, 0.0);
+                                                        gesture_notify(li_device, stamp, LIBINPUT_EVENT_GESTURE_SWIPE_END, finger_count, cancelled, lixx::zero_coor, lixx::zero_coor, 0.0, 0.0);
                                                     }
                                                 void tp_gesture_handle_event_on_state_swipe(gesture_event event, time stamp)
                                                 {
@@ -9875,12 +9872,11 @@ namespace netxs::lixx // li++, libinput++.
                                             void tp_edge_scroll_stop_events(time stamp)
                                             {
                                                 auto li_device = tp.li_device;
-                                                const auto zero = fp64_coor{};
                                                 for (auto& t : tp.touches)
                                                 {
                                                     if (t.scroll.direction != -1)
                                                     {
-                                                        li_device->evdev_notify_axis_finger(stamp, 1ul << t.scroll.direction, zero);
+                                                        li_device->evdev_notify_axis_finger(stamp, 1ul << t.scroll.direction, lixx::zero_coor);
                                                         t.scroll.direction = -1;
                                                         t.scroll.edge = EDGE_NONE; // Reset touch to area state, avoids loading the state machine with special case handling.
                                                         t.scroll.edge_state = EDGE_SCROLL_TOUCH_STATE_AREA;
@@ -11458,8 +11454,7 @@ namespace netxs::lixx // li++, libinput++.
                                             auto delta = tp_filter_motion(raw, stamp);
                                             if (delta || raw)
                                             {
-                                                const auto zero = fp64_coor{};
-                                                gesture_notify_swipe(tp.li_device, stamp, LIBINPUT_EVENT_GESTURE_SWIPE_BEGIN, tp.gesture.finger_count, zero, zero);
+                                                gesture_notify_swipe(tp.li_device, stamp, LIBINPUT_EVENT_GESTURE_SWIPE_BEGIN, tp.gesture.finger_count, lixx::zero_coor, lixx::zero_coor);
                                                 tp.gesture.state = GESTURE_STATE_SWIPE;
                                             }
                                         }
@@ -11494,7 +11489,6 @@ namespace netxs::lixx // li++, libinput++.
                                             }
                                         void tp_gesture_handle_state_pinch_start(time stamp)
                                         {
-                                            const auto zero = fp64_coor{};
                                             auto angle = 0.0;
                                             auto distance = 0.0;
                                             auto center = fp64_coor{};
@@ -11509,7 +11503,7 @@ namespace netxs::lixx // li++, libinput++.
                                             auto delta = tp_filter_motion(fdelta, stamp);
                                             if (delta || fdelta || scale != tp.gesture.prev_scale || angle_delta != 0.0)
                                             {
-                                                gesture_notify_pinch(tp.li_device, stamp, LIBINPUT_EVENT_GESTURE_PINCH_BEGIN, tp.gesture.finger_count, zero, zero, 1.0, 0.0);
+                                                gesture_notify_pinch(tp.li_device, stamp, LIBINPUT_EVENT_GESTURE_PINCH_BEGIN, tp.gesture.finger_count, lixx::zero_coor, lixx::zero_coor, 1.0, 0.0);
                                                 tp.gesture.prev_scale = scale;
                                                 tp.gesture.state = GESTURE_STATE_PINCH;
                                             }
@@ -11628,7 +11622,6 @@ namespace netxs::lixx // li++, libinput++.
                                     auto delta = (fp64*)nullptr;
                                     auto normalized = fp64_coor{};
                                     auto tmp = fp64_coor{};
-                                    const auto zero = fp64_coor{};
                                     for (auto& t : tp.touches)
                                     {
                                         if (!t.dirty) continue;
@@ -11641,7 +11634,7 @@ namespace netxs::lixx // li++, libinput++.
                                                 if (t.scroll.direction != -1)
                                                 {
                                                     // Send stop scroll event.
-                                                    device->evdev_notify_axis_finger(stamp, (1ul << t.scroll.direction), zero);
+                                                    device->evdev_notify_axis_finger(stamp, (1ul << t.scroll.direction), lixx::zero_coor);
                                                     t.scroll.direction = -1;
                                                 }
                                                 continue;
@@ -11669,7 +11662,7 @@ namespace netxs::lixx // li++, libinput++.
                                                 normalized = tp_normalize_delta(t.point - t.scroll.initial);
                                                 // Use a reasonably large threshold until locked into scrolling mode, to avoid accidentally locking in scrolling mode when trying to use the entire touchpad to move the pointer. The user can wait for the timeout to trigger to do a small scroll.
                                                 // Convert mm to a distance normalized to lixx::default_mouse_dpi.
-                                                if (::fabs(*delta) < lixx::default_scroll_threshold) normalized = zero;
+                                                if (::fabs(*delta) < lixx::default_scroll_threshold) normalized = lixx::zero_coor;
                                                 else                                                 normalized = tmp;
                                                 break;
                                             case EDGE_SCROLL_TOUCH_STATE_EDGE: break;
