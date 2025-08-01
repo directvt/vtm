@@ -1444,6 +1444,7 @@ namespace netxs::lixx // li++, libinput++.
         result.y = d.y >= 0 ? in.y - lag_y : in.y + lag_y;
         return result;
     }
+
     fp64 absinfo_range(::input_absinfo const* abs)
     {
         return (fp64)(abs->maximum - abs->minimum + 1);
@@ -1473,6 +1474,7 @@ namespace netxs::lixx // li++, libinput++.
         auto value = v - absinfo->minimum;
         return value / absinfo->resolution;
     }
+
     char const* event_type_to_str(libinput_event_type type)
     {
         switch(type)
@@ -3666,7 +3668,7 @@ namespace netxs::lixx // li++, libinput++.
         si32 libevdev_get_event_value(ui32 type, ui32 code)
         {
             auto value = 0;
-            if (libevdev_has_event_type(type) && libevdev_has_event_code(type, code))
+            if (libevdev_has_event_code(type, code))
             {
                      if (type == EV_ABS) value = abs_values[code].value;
                 else if (type == EV_KEY) value = key_values[code];
@@ -3986,15 +3988,6 @@ namespace netxs::lixx // li++, libinput++.
                 return 0;
             }
             return -1;
-        }
-        si32 libevdev_fetch_event_value(ui32 type, ui32 code, si32& value)
-        {
-            if (libevdev_has_event_type(type) && libevdev_has_event_code(type, code))
-            {
-                value = libevdev_get_event_value(type, code);
-                return 1;
-            }
-            return 0;
         }
         si32 libevdev_fetch_slot_value(ui32 slot, ui32 code, si32& value)
         {
@@ -6325,10 +6318,6 @@ namespace netxs::lixx // li++, libinput++.
         bool parse_udev_flag(view property)
         {
             return ud_device->parse_udev_flag(property);
-        }
-        si32 libevdev_fetch_event_value(ui32 type, ui32 code, si32& value)
-        {
-            return ud_device->libevdev_fetch_event_value(type, code, value);
         }
         si32 libevdev_next_event(ui32 flags, ::input_event& ev)
         {
@@ -16447,8 +16436,8 @@ namespace netxs::lixx // li++, libinput++.
                 for (tool = lixx::libinput_tablet_tool_type_min; tool <= lixx::libinput_tablet_tool_type_max; tool = (libinput_tablet_tool_type)(tool + 1))
                 {
                     auto code = tablet_tool_to_evcode(tool);
-                    // We only expect one tool to be in proximity at a time.
-                    if (li_device->libevdev_fetch_event_value(EV_KEY, code, state) && state)
+                    state = li_device->libevdev_get_event_value(EV_KEY, code);
+                    if (state) // We only expect one tool to be in proximity at a time.
                     {
                         tablet.tool_state = (1ul << tool);
                         tablet.prev_tool_state = (1ul << tool);
