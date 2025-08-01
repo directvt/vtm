@@ -184,7 +184,6 @@ namespace netxs::lixx // li++, libinput++.
         return tv;
     }
 
-
     struct phys_ellipsis
     {
         fp64 major;
@@ -197,19 +196,10 @@ namespace netxs::lixx // li++, libinput++.
         fp32 val[row][col];
     };
 
-    using fp64_rect = xysz<fp64>;
-    using si32_rect = xysz<si32>;
-
-    using float_coords        = netxs::xy2d<fp64>;
-    using normalized_coords   = float_coords;
-    using device_float_coords = float_coords;
-    using phys_coords         = float_coords;
-    using wheel_angle         = float_coords;
-    using tilt_degrees        = float_coords;
-    
-    using discrete_coords     = netxs::xy2d<si32>;
-    using device_coords       = discrete_coords;
-    using wheel_v120          = discrete_coords;
+    using fp64_rect = netxs::xysz<fp64>;
+    using fp64_coor = netxs::xy2d<fp64>;
+    using si32_rect = netxs::xysz<si32>;
+    using si32_coor = netxs::xy2d<si32>;
 
     using fd_t = os::fd_t;
 
@@ -1317,16 +1307,16 @@ namespace netxs::lixx // li++, libinput++.
         }
         return faux;
     }
-    normalized_coords normalize_for_dpi(device_float_coords coords, si32 dpi)
+    fp64_coor normalize_for_dpi(fp64_coor coor, si32 dpi)
     {
-        auto norm = normalized_coords{ coords * lixx::default_mouse_dpi / dpi };
+        auto norm = coor * lixx::default_mouse_dpi / dpi;
         return norm;
     }
     fp64 rad2deg(fp64 rad)
     {
         return 180.0 / M_PI * rad;
     }
-    ui32 xy_get_direction(device_float_coords coords)
+    ui32 xy_get_direction(fp64_coor coords)
     {
         auto dir = (ui32)UNDEFINED_DIRECTION;
         auto x = coords.x;
@@ -1358,7 +1348,7 @@ namespace netxs::lixx // li++, libinput++.
         }
         return dir;
     }
-    device_coords evdev_hysteresis(device_coords in, device_coords center, device_coords margin)
+    si32_coor evdev_hysteresis(si32_coor in, si32_coor center, si32_coor margin)
     {
         // Apply a hysteresis filtering to the coordinate in, based on the current
         // hysteresis center and the margin. If 'in' is within 'margin' of center,
@@ -1415,7 +1405,7 @@ namespace netxs::lixx // li++, libinput++.
             lag_y = margin_distance;
         }
         // The 'result' is the centre of an ellipse (radii a,b) which has been dragged by the finger moving inside it to 'in'. The finger is now touching the margin ellipse at some point: (±lag_x,±lag_y).
-        auto result = device_coords{};
+        auto result = si32_coor{};
         result.x = d.x >= 0 ? in.x - lag_x : in.x + lag_x;
         result.y = d.y >= 0 ? in.y - lag_y : in.y + lag_y;
         return result;
@@ -1494,7 +1484,7 @@ namespace netxs::lixx // li++, libinput++.
         out[4] = m->val[1][1];
         out[5] = m->val[1][2];
     }
-    void matrix_mult_vec_double(matrix const& m, device_float_coords& rel)
+    void matrix_mult_vec_double(matrix const& m, fp64_coor& rel)
     {
         auto tx = rel.x * m.val[0][0] + rel.y * m.val[0][1] + m.val[0][2];
         auto ty = rel.x * m.val[1][0] + rel.y * m.val[1][1] + m.val[1][2];
@@ -1644,12 +1634,12 @@ namespace netxs::lixx // li++, libinput++.
         virtual ~motion_filter()
         { }
 
-        virtual normalized_coords filter(         [[maybe_unused]] device_float_coords unaccelerated, [[maybe_unused]] void* data, [[maybe_unused]] time now) { return {}; }
-        virtual normalized_coords filter_constant([[maybe_unused]] device_float_coords unaccelerated, [[maybe_unused]] void* data, [[maybe_unused]] time now) { return {}; }
-        virtual normalized_coords filter_scroll(  [[maybe_unused]] device_float_coords unaccelerated, [[maybe_unused]] void* data, [[maybe_unused]] time now) { return {}; }
-        virtual bool              set_speed([[maybe_unused]] fp64 speed_adjustment)                                                                           { return {}; }
-        virtual bool              set_accel_config([[maybe_unused]] libinput_config_accel& accel_config)                                                      { return {}; }
-        virtual void              restart([[maybe_unused]] void* data, [[maybe_unused]] time now)                                                             { }
+        virtual fp64_coor filter(         [[maybe_unused]] fp64_coor unaccelerated, [[maybe_unused]] void* data, [[maybe_unused]] time now) { return {}; }
+        virtual fp64_coor filter_constant([[maybe_unused]] fp64_coor unaccelerated, [[maybe_unused]] void* data, [[maybe_unused]] time now) { return {}; }
+        virtual fp64_coor filter_scroll(  [[maybe_unused]] fp64_coor unaccelerated, [[maybe_unused]] void* data, [[maybe_unused]] time now) { return {}; }
+        virtual bool      set_speed([[maybe_unused]] fp64 speed_adjustment)                                                                 { return {}; }
+        virtual bool      set_accel_config([[maybe_unused]] libinput_config_accel& accel_config)                                            { return {}; }
+        virtual void      restart([[maybe_unused]] void* data, [[maybe_unused]] time now)                                                   { }
 
         bool filter_set_speed(fp64 speed_adjustment)
         {
@@ -1668,11 +1658,11 @@ namespace netxs::lixx // li++, libinput++.
             assert(type == accel_config.profile);
             return set_accel_config(accel_config);
         }
-        normalized_coords filter_dispatch_scroll(device_float_coords unaccelerated, void* data, time stamp)
+        fp64_coor filter_dispatch_scroll(fp64_coor unaccelerated, void* data, time stamp)
         {
             return filter_scroll(unaccelerated, data, stamp);
         }
-        normalized_coords filter_dispatch(device_float_coords unaccelerated, void* data, time now)
+        fp64_coor filter_dispatch(fp64_coor unaccelerated, void* data, time now)
         {
             return filter(unaccelerated, data, now);
         }
@@ -1703,9 +1693,9 @@ namespace netxs::lixx // li++, libinput++.
             };
             struct pointer_tracker
             {
-                device_float_coords delta; // Delta to most recent event.
-                time                now;   // us.
-                ui32                dir;
+                fp64_coor delta; // Delta to most recent event.
+                time      now;   // us.
+                ui32      dir;
 
                 fp64 calculate_trackers_velocity(time new_now, pointer_delta_smoothener_sptr smoothener)
                 {
@@ -1754,19 +1744,17 @@ namespace netxs::lixx // li++, libinput++.
                 cur_tracker = 0;
                 smoothener  = nullptr;
             }
-            void trackers_feed(device_float_coords delta, time now)
+            void trackers_feed(fp64_coor delta, time now)
             {
                 assert(!trackers.empty());
                 for (auto& ts : trackers)
                 {
-                    ts.delta.x += delta.x;
-                    ts.delta.y += delta.y;
+                    ts.delta += delta;
                 }
                 cur_tracker = (cur_tracker + 1) % trackers.size();
-                trackers[cur_tracker].delta.x = 0.0;
-                trackers[cur_tracker].delta.y = 0.0;
-                trackers[cur_tracker].now     = now;
-                trackers[cur_tracker].dir     = xy_get_direction(delta);
+                trackers[cur_tracker].delta = {};
+                trackers[cur_tracker].now   = now;
+                trackers[cur_tracker].dir   = xy_get_direction(delta);
             }
             fp64 trackers_velocity(time now)
             {
@@ -1831,19 +1819,18 @@ namespace netxs::lixx // li++, libinput++.
                     factor *= accel.speed_factor;
                     return factor;
                 }
-            normalized_coords trackpoint_accelerator_filter(device_float_coords unaccelerated, [[maybe_unused]] void* data, time now)
+            fp64_coor trackpoint_accelerator_filter(fp64_coor unaccelerated, [[maybe_unused]] void* data, time now)
             {
                 auto multiplied = unaccelerated * accel.multiplier;
                 accel.trackers.trackers_feed(multiplied, now);
                 auto velocity = accel.trackers.trackers_velocity(now);
                 auto f = trackpoint_accel_profile(velocity);
-                auto coords = normalized_coords{ multiplied * f };
+                auto coords = multiplied * f;
                 return coords;
             }
-            normalized_coords trackpoint_accelerator_filter_noop(device_float_coords unaccelerated, [[maybe_unused]] void* data, [[maybe_unused]] time now)
+            fp64_coor trackpoint_accelerator_filter_noop(fp64_coor unaccelerated, [[maybe_unused]] void* data, [[maybe_unused]] time now)
             {
-                auto coords = normalized_coords{ unaccelerated * accel.multiplier };
-                return coords;
+                return unaccelerated * accel.multiplier;
             }
                 fp64 speed_factor1(fp64 s)
                 {
@@ -1898,11 +1885,11 @@ namespace netxs::lixx // li++, libinput++.
         }
 
         trackpoint_accelerator_impl_t impl{ *this };
-        virtual normalized_coords filter(         device_float_coords unaccelerated, void* data, time now) { return impl.trackpoint_accelerator_filter(unaccelerated, data, now); }
-        virtual normalized_coords filter_constant(device_float_coords unaccelerated, void* data, time now) { return impl.trackpoint_accelerator_filter_noop(unaccelerated, data, now); }
-        virtual normalized_coords filter_scroll(  device_float_coords unaccelerated, void* data, time now) { return impl.trackpoint_accelerator_filter_noop(unaccelerated, data, now); }
-        virtual bool              set_speed(fp64 speed_adjustment)                                         { return impl.trackpoint_accelerator_set_speed(speed_adjustment); }
-        virtual void              restart(void* data, time now)                                            {        impl.trackpoint_accelerator_restart(data, now); }
+        virtual fp64_coor filter(         fp64_coor unaccelerated, void* data, time now) { return impl.trackpoint_accelerator_filter(unaccelerated, data, now); }
+        virtual fp64_coor filter_constant(fp64_coor unaccelerated, void* data, time now) { return impl.trackpoint_accelerator_filter_noop(unaccelerated, data, now); }
+        virtual fp64_coor filter_scroll(  fp64_coor unaccelerated, void* data, time now) { return impl.trackpoint_accelerator_filter_noop(unaccelerated, data, now); }
+        virtual bool      set_speed(fp64 speed_adjustment)                               { return impl.trackpoint_accelerator_set_speed(speed_adjustment); }
+        virtual void      restart(void* data, time now)                                  {        impl.trackpoint_accelerator_restart(data, now); }
     };
     using trackpoint_accelerator_sptr = sptr<trackpoint_accelerator>;
 
@@ -1914,15 +1901,11 @@ namespace netxs::lixx // li++, libinput++.
         struct pointer_accelerator_flat_impl_t
         {
             pointer_accelerator_flat& accel;
-            normalized_coords accelerator_filter_flat(device_float_coords unaccelerated, [[maybe_unused]] void* data, [[maybe_unused]] time now)
+            fp64_coor accelerator_filter_flat(fp64_coor unaccelerated, [[maybe_unused]] void* data, [[maybe_unused]] time now)
             {
-                auto factor = 0.0; // Unitless factor.
-                auto accelerated = normalized_coords{};
-                factor = accel.factor; // You want flat acceleration, you get flat acceleration for the device.
-                accelerated = unaccelerated * factor;
-                return accelerated;
+                return unaccelerated * accel.factor;
             }
-            normalized_coords accelerator_filter_noop_flat(device_float_coords unaccelerated, void* data, time now)
+            fp64_coor accelerator_filter_noop_flat(fp64_coor unaccelerated, void* data, time now)
             {
                 // We map the unaccelerated flat filter to have the same behavior as the "accelerated" flat filter.
                 // The filter by definition is flat, i.e. it does not actually
@@ -1950,10 +1933,10 @@ namespace netxs::lixx // li++, libinput++.
         }
 
         pointer_accelerator_flat_impl_t impl{ *this };
-        virtual normalized_coords filter(         device_float_coords unaccelerated, void* data, time now) { return impl.accelerator_filter_flat(unaccelerated, data, now); }
-        virtual normalized_coords filter_constant(device_float_coords unaccelerated, void* data, time now) { return impl.accelerator_filter_noop_flat(unaccelerated, data, now); }
-        virtual normalized_coords filter_scroll(  device_float_coords unaccelerated, void* data, time now) { return impl.accelerator_filter_noop_flat(unaccelerated, data, now); }
-        virtual bool              set_speed(fp64 speed_adjustment)                                         { return impl.accelerator_set_speed_flat(speed_adjustment); }
+        virtual fp64_coor filter(         fp64_coor unaccelerated, void* data, time now) { return impl.accelerator_filter_flat(unaccelerated, data, now); }
+        virtual fp64_coor filter_constant(fp64_coor unaccelerated, void* data, time now) { return impl.accelerator_filter_noop_flat(unaccelerated, data, now); }
+        virtual fp64_coor filter_scroll(  fp64_coor unaccelerated, void* data, time now) { return impl.accelerator_filter_noop_flat(unaccelerated, data, now); }
+        virtual bool      set_speed(fp64 speed_adjustment)                               { return impl.accelerator_set_speed_flat(speed_adjustment); }
     };
     using pointer_accelerator_flat_sptr = sptr<pointer_accelerator_flat>;
 
@@ -1973,43 +1956,43 @@ namespace netxs::lixx // li++, libinput++.
     struct tablet_accelerator_flat : motion_filter
     {
         fp64 factor;
-        si32 xres;
+        si32 xres; //todo unify, use si32_coor
         si32 yres;
-        fp64 xres_scale; // 1000dpi : tablet res.
+        fp64 xres_scale; //todo unify, use fp64_coor  1000dpi : tablet res.
         fp64 yres_scale; // 1000dpi : tablet res.
 
         struct tablet_accelerator_flat_impl_t
         {
             tablet_accelerator_flat& accel;
-                normalized_coords tablet_accelerator_filter_flat_mouse(device_float_coords units)
+                fp64_coor tablet_accelerator_filter_flat_mouse(fp64_coor units)
                 {
                     // Tablets are high res (Intuos 4 is 5080 dpi) and unmodified deltas are way too high.
                     // Slow it down to the equivalent of a 1000dpi mouse. The ratio of that is:
                     // ratio = 1000 / (resolution_per_mm * 25.4) i.e. on the Intuos4 it's a ratio of ~1/5.
-                    auto accelerated = normalized_coords{};
+                    auto accelerated = fp64_coor{};
                     accelerated.x = units.x * accel.xres_scale;
                     accelerated.y = units.y * accel.yres_scale;
                     accelerated *= accel.factor;
                     return accelerated;
                 }
-                normalized_coords tablet_accelerator_filter_flat_pen(device_float_coords units)
+                fp64_coor tablet_accelerator_filter_flat_pen(fp64_coor units)
                 {
-                    auto accelerated = normalized_coords{};
+                    auto accelerated = fp64_coor{};
                     // Tablet input is in device units, output is supposed to be in
                     // logical pixels roughly equivalent to a mouse/touchpad.
                     // This is a magical constant found by trial and error. On a 96dpi
                     // screen 0.4mm of movement correspond to 1px logical pixel which
                     // is almost identical to the tablet mapped to screen in absolute
                     // mode. Tested on a Intuos5, other tablets may vary.
-                    const auto DPI_CONVERSION = 96.0 / 25.4 * 2.5; // Unitless factor.
-                    auto mm = normalized_coords{};
+                    static constexpr auto dpi_conversion = 96.0 / 25.4 * 2.5; // Unitless factor.
+                    auto mm = fp64_coor{};
                     mm.x = 1.0 * units.x / accel.xres;
                     mm.y = 1.0 * units.y / accel.yres;
-                    accelerated.x = mm.x * accel.factor * DPI_CONVERSION;
-                    accelerated.y = mm.y * accel.factor * DPI_CONVERSION;
+                    accelerated.x = mm.x * accel.factor * dpi_conversion;
+                    accelerated.y = mm.y * accel.factor * dpi_conversion;
                     return accelerated;
                 }
-            normalized_coords tablet_accelerator_filter_flat(device_float_coords units, void* data, [[maybe_unused]] time now)
+            fp64_coor tablet_accelerator_filter_flat(fp64_coor units, void* data, [[maybe_unused]] time now)
             {
                 auto tool = (libinput_tablet_tool*)data;
                 auto type = tool->type;
@@ -2037,8 +2020,8 @@ namespace netxs::lixx // li++, libinput++.
         }
 
         tablet_accelerator_flat_impl_t impl{ *this };
-        virtual normalized_coords filter(         device_float_coords unaccelerated, void* data, time now) { return impl.tablet_accelerator_filter_flat(unaccelerated, data, now); }
-        virtual bool              set_speed(fp64 speed_adjustment)                                         { return impl.tablet_accelerator_set_speed(speed_adjustment); }
+        virtual fp64_coor filter(fp64_coor unaccelerated, void* data, time now) { return impl.tablet_accelerator_filter_flat(unaccelerated, data, now); }
+        virtual bool      set_speed(fp64 speed_adjustment)                      { return impl.tablet_accelerator_set_speed(speed_adjustment); }
     };
     using tablet_accelerator_flat_sptr = sptr<tablet_accelerator_flat>;
 
@@ -2049,7 +2032,7 @@ namespace netxs::lixx // li++, libinput++.
         fp64              step;
         std::vector<fp64> points;
 
-        fp64 custom_accel_function_calculate_speed(device_float_coords unaccelerated, time now)
+        fp64 custom_accel_function_calculate_speed(fp64_coor unaccelerated, time now)
         {
             // Although most devices have a constant polling rate, and for fast
             // movements these distances do represent the actual speed,
@@ -2126,11 +2109,11 @@ namespace netxs::lixx // li++, libinput++.
             auto accel_factor = speed_out / speed_in; // Calculate the acceleration factor based on the user desired speed out.
             return accel_factor;
         }
-        normalized_coords custom_accel_function_filter(device_float_coords unaccelerated, time now)
+        fp64_coor custom_accel_function_filter(fp64_coor unaccelerated, time now)
         {
             auto speed = custom_accel_function_calculate_speed(unaccelerated, now);
             auto accel_factor = custom_accel_function_profile(speed);
-            auto accelerated = normalized_coords{ unaccelerated * accel_factor };
+            auto accelerated = unaccelerated * accel_factor;
             return accelerated;
         }
         static custom_accel_function_sptr create_custom_accel_function(fp64 step, auto const& points)
@@ -2172,22 +2155,22 @@ namespace netxs::lixx // li++, libinput++.
         struct custom_accelerator_impl_t
         {
             custom_accelerator& accel;
-                normalized_coords custom_accelerator_filter(libinput_config_accel_type accel_type, device_float_coords unaccelerated, time now)
+                fp64_coor custom_accelerator_filter(libinput_config_accel_type accel_type, fp64_coor unaccelerated, time now)
                 {
                     auto cf = accel.funcs.motion && accel_type == LIBINPUT_ACCEL_TYPE_MOTION ? accel.funcs.motion
                             : accel.funcs.scroll && accel_type == LIBINPUT_ACCEL_TYPE_SCROLL ? accel.funcs.scroll
                                                                                              : accel.funcs.fallback;
                     return cf->custom_accel_function_filter(unaccelerated, now);
                 }
-            normalized_coords custom_accelerator_filter_motion(device_float_coords unaccelerated, [[maybe_unused]] void* data, time now)
+            fp64_coor custom_accelerator_filter_motion(fp64_coor unaccelerated, [[maybe_unused]] void* data, time now)
             {
                 return custom_accelerator_filter(LIBINPUT_ACCEL_TYPE_MOTION, unaccelerated, now);
             }
-            normalized_coords custom_accelerator_filter_fallback(device_float_coords unaccelerated, [[maybe_unused]] void* data, time now)
+            fp64_coor custom_accelerator_filter_fallback(fp64_coor unaccelerated, [[maybe_unused]] void* data, time now)
             {
                 return custom_accelerator_filter(LIBINPUT_ACCEL_TYPE_FALLBACK, unaccelerated, now);
             }
-            normalized_coords custom_accelerator_filter_scroll(device_float_coords unaccelerated, [[maybe_unused]] void* data, time now)
+            fp64_coor custom_accelerator_filter_scroll(fp64_coor unaccelerated, [[maybe_unused]] void* data, time now)
             {
                 return custom_accelerator_filter(LIBINPUT_ACCEL_TYPE_SCROLL, unaccelerated, now);
             }
@@ -2243,12 +2226,12 @@ namespace netxs::lixx // li++, libinput++.
         }
 
         custom_accelerator_impl_t impl{ *this };
-        virtual normalized_coords filter(         device_float_coords unaccelerated, void* data, time now) { return impl.custom_accelerator_filter_motion(unaccelerated, data, now); }
-        virtual normalized_coords filter_constant(device_float_coords unaccelerated, void* data, time now) { return impl.custom_accelerator_filter_fallback(unaccelerated, data, now); }
-        virtual normalized_coords filter_scroll(  device_float_coords unaccelerated, void* data, time now) { return impl.custom_accelerator_filter_scroll(unaccelerated, data, now); }
-        virtual bool              set_speed(fp64 speed_adjustment)                                         { return impl.custom_accelerator_set_speed(speed_adjustment); }
-        virtual bool              set_accel_config(libinput_config_accel& accel_config)                    { return impl.custom_accelerator_set_accel_config(accel_config); }
-        virtual void              restart(void* data, time now)                                            {        impl.custom_accelerator_restart(data, now); }
+        virtual fp64_coor filter(         fp64_coor unaccelerated, void* data, time now) { return impl.custom_accelerator_filter_motion(unaccelerated, data, now); }
+        virtual fp64_coor filter_constant(fp64_coor unaccelerated, void* data, time now) { return impl.custom_accelerator_filter_fallback(unaccelerated, data, now); }
+        virtual fp64_coor filter_scroll(  fp64_coor unaccelerated, void* data, time now) { return impl.custom_accelerator_filter_scroll(unaccelerated, data, now); }
+        virtual bool      set_speed(fp64 speed_adjustment)                               { return impl.custom_accelerator_set_speed(speed_adjustment); }
+        virtual bool      set_accel_config(libinput_config_accel& accel_config)          { return impl.custom_accelerator_set_accel_config(accel_config); }
+        virtual void      restart(void* data, time now)                                  {        impl.custom_accelerator_restart(data, now); }
     };
     using custom_accelerator_sptr = sptr<custom_accelerator>;
 
@@ -2266,26 +2249,24 @@ namespace netxs::lixx // li++, libinput++.
         struct pointer_accelerator_impl_t
         {
             pointer_accelerator& accel;
-                fp64 calculate_acceleration_factor_pointer(normalized_coords unaccelerated, void* data, time stamp)
+                fp64 calculate_acceleration_factor_pointer(fp64_coor unaccelerated, void* data, time stamp)
                 {
-                    // The trackers API need device_float_coords, but note that we have normalized coordinates.
-                    auto unaccel = device_float_coords{ unaccelerated };
-                    accel.trackers.trackers_feed(unaccel, stamp);
+                    accel.trackers.trackers_feed(unaccelerated, stamp);
                     auto velocity = accel.trackers.trackers_velocity(stamp); // Units/us in normalized 1000dpi units.
                     // This will call into our pointer_accel_profile_linear() profile func.
                     auto accel_factor = accel.calculate_acceleration_simpsons(accel.profile, data, velocity/* normalized coords */, accel.last_velocity/* normalized coords */, stamp);
                     accel.last_velocity = velocity;
                     return accel_factor;
                 }
-            normalized_coords accelerator_filter_linear(device_float_coords unaccelerated, void* data, time stamp)
+            fp64_coor accelerator_filter_linear(fp64_coor unaccelerated, void* data, time stamp)
             {
                 // Accelerate for normalized units and return normalized units.
                 auto normalized = normalize_for_dpi(unaccelerated, accel.dpi);
                 auto accel_factor = calculate_acceleration_factor_pointer(normalized, data, stamp);
-                auto accelerated = normalized_coords{ normalized * accel_factor };
+                auto accelerated = normalized * accel_factor;
                 return accelerated;
             }
-            normalized_coords accelerator_filter_noop(device_float_coords unaccelerated, [[maybe_unused]] void* data, [[maybe_unused]] time now)
+            fp64_coor accelerator_filter_noop(fp64_coor unaccelerated, [[maybe_unused]] void* data, [[maybe_unused]] time now)
             {
                 return normalize_for_dpi(unaccelerated, accel.dpi);
             }
@@ -2379,11 +2360,11 @@ namespace netxs::lixx // li++, libinput++.
         }
 
         pointer_accelerator_impl_t impl{ *this };
-        virtual normalized_coords filter(         device_float_coords unaccelerated, void* data, time now) { return impl.accelerator_filter_linear(unaccelerated, data, now); }
-        virtual normalized_coords filter_constant(device_float_coords unaccelerated, void* data, time now) { return impl.accelerator_filter_noop(unaccelerated, data, now); }
-        virtual normalized_coords filter_scroll(  device_float_coords unaccelerated, void* data, time now) { return impl.accelerator_filter_noop(unaccelerated, data, now); }
-        virtual bool              set_speed(fp64 speed_adjustment)                                         { return impl.accelerator_set_speed(speed_adjustment); }
-        virtual void              restart(void* data, time now)                                            { impl.accelerator_restart(data, now); }
+        virtual fp64_coor filter(         fp64_coor unaccelerated, void* data, time now) { return impl.accelerator_filter_linear(unaccelerated, data, now); }
+        virtual fp64_coor filter_constant(fp64_coor unaccelerated, void* data, time now) { return impl.accelerator_filter_noop(unaccelerated, data, now); }
+        virtual fp64_coor filter_scroll(  fp64_coor unaccelerated, void* data, time now) { return impl.accelerator_filter_noop(unaccelerated, data, now); }
+        virtual bool      set_speed(fp64 speed_adjustment)                               { return impl.accelerator_set_speed(speed_adjustment); }
+        virtual void      restart(void* data, time now)                                  { impl.accelerator_restart(data, now); }
     };
     using pointer_accelerator_sptr = sptr<pointer_accelerator>;
 
@@ -2417,7 +2398,7 @@ namespace netxs::lixx // li++, libinput++.
                 factor = std::min(max_accel, factor);
                 return factor;
             }
-                fp64 calculate_acceleration_factor(device_float_coords unaccelerated, void* data, time now)
+                fp64 calculate_acceleration_factor(fp64_coor unaccelerated, void* data, time now)
                 {
                     accel.trackers.trackers_feed(unaccelerated, now);
                     auto velocity = accel.trackers.trackers_velocity(now); // Units/us in device-native dpi.
@@ -2425,10 +2406,10 @@ namespace netxs::lixx // li++, libinput++.
                     accel.last_velocity = velocity;
                     return accel_factor;
                 }
-            normalized_coords accelerator_filter_low_dpi(device_float_coords unaccelerated, void* data, time now)
+            fp64_coor accelerator_filter_low_dpi(fp64_coor unaccelerated, void* data, time now)
             {
                 auto accel_factor = calculate_acceleration_factor(unaccelerated, data, now);
-                auto normalized = normalized_coords{ unaccelerated * accel_factor };
+                auto normalized = unaccelerated * accel_factor;
                 return normalized;
             }
         };
@@ -2440,7 +2421,7 @@ namespace netxs::lixx // li++, libinput++.
         }
 
         pointer_accelerator_low_dpi_impl_t impl_low{ *this };
-        virtual normalized_coords filter(         device_float_coords unaccelerated, void* data, time now) { return impl_low.accelerator_filter_low_dpi(unaccelerated, data, now); }
+        virtual fp64_coor filter(fp64_coor unaccelerated, void* data, time now) { return impl_low.accelerator_filter_low_dpi(unaccelerated, data, now); }
     };
     using pointer_accelerator_low_dpi_sptr = sptr<pointer_accelerator_low_dpi>;
 
@@ -2452,7 +2433,7 @@ namespace netxs::lixx // li++, libinput++.
         struct touchpad_accelerator_flat_impl_t
         {
             touchpad_accelerator_flat& accel;
-                normalized_coords accelerator_filter_touchpad_flat(device_float_coords unaccelerated, [[maybe_unused]] void* data, [[maybe_unused]] time now)
+                fp64_coor accelerator_filter_touchpad_flat(fp64_coor unaccelerated, [[maybe_unused]] void* data, [[maybe_unused]] time now)
                 {
                     auto factor = accel.factor; // You want flat acceleration, you get flat acceleration for the device.
                     auto normalized = normalize_for_dpi(unaccelerated, accel.dpi);
@@ -2460,7 +2441,7 @@ namespace netxs::lixx // li++, libinput++.
                     normalized.y = lixx::tp_magic_slowdown_flat * factor * normalized.y;
                     return normalized;
                 }
-            normalized_coords accelerator_filter_noop_touchpad_flat(device_float_coords unaccelerated, void* data, time stamp)
+            fp64_coor accelerator_filter_noop_touchpad_flat(fp64_coor unaccelerated, void* data, time stamp)
             {
                 // We map the unaccelerated flat filter to have the same behavior as
                 // the "accelerated" flat filter.
@@ -2491,10 +2472,10 @@ namespace netxs::lixx // li++, libinput++.
         }
 
         touchpad_accelerator_flat_impl_t impl{ *this };
-        virtual normalized_coords filter(         device_float_coords unaccelerated, void* data, time now) { return impl.accelerator_filter_touchpad_flat(unaccelerated, data, now); }
-        virtual normalized_coords filter_constant(device_float_coords unaccelerated, void* data, time now) { return impl.accelerator_filter_noop_touchpad_flat(unaccelerated, data, now); }
-        virtual normalized_coords filter_scroll(  device_float_coords unaccelerated, void* data, time now) { return impl.accelerator_filter_noop_touchpad_flat(unaccelerated, data, now); }
-        virtual bool              set_speed(fp64 speed_adjustment)                                         { return impl.accelerator_set_speed_touchpad_flat(speed_adjustment); }
+        virtual fp64_coor filter(         fp64_coor unaccelerated, void* data, time now) { return impl.accelerator_filter_touchpad_flat(unaccelerated, data, now); }
+        virtual fp64_coor filter_constant(fp64_coor unaccelerated, void* data, time now) { return impl.accelerator_filter_noop_touchpad_flat(unaccelerated, data, now); }
+        virtual fp64_coor filter_scroll(  fp64_coor unaccelerated, void* data, time now) { return impl.accelerator_filter_noop_touchpad_flat(unaccelerated, data, now); }
+        virtual bool      set_speed(fp64 speed_adjustment)                               { return impl.accelerator_set_speed_touchpad_flat(speed_adjustment); }
     };
 
     struct pointer_accelerator_x230 : motion_filter
@@ -2524,7 +2505,7 @@ namespace netxs::lixx // li++, libinput++.
                     factor = factor / 6.0;
                     return factor; // Unitless factor.
                 }
-            normalized_coords accelerator_filter_x230(device_float_coords raw, void* data, time stamp)
+            fp64_coor accelerator_filter_x230(fp64_coor raw, void* data, time stamp)
             {
                 // This filter is a "do not touch me" filter. So the hack here is
                 // just to replicate the old behavior before filters switched to
@@ -2533,19 +2514,14 @@ namespace netxs::lixx // li++, libinput++.
                 // 2) Run all calculation on 1000dpi-normalized data.
                 // 3) Apply accel factor no normalized data.
                 auto unaccelerated = normalize_for_dpi(raw, accel.dpi);
-                auto delta_normalized = device_float_coords{};
-                delta_normalized.x = unaccelerated.x;
-                delta_normalized.y = unaccelerated.y;
-                accel.trackers.trackers_feed(delta_normalized, stamp);
+                accel.trackers.trackers_feed(unaccelerated, stamp);
                 auto velocity = accel.trackers.trackers_velocity(stamp);
                 auto accel_factor = calculate_acceleration(data, velocity, accel.last_velocity, stamp);
                 accel.last_velocity = velocity;
-                auto accelerated = normalized_coords{};
-                accelerated.x = accel_factor * delta_normalized.x;
-                accelerated.y = accel_factor * delta_normalized.y;
+                auto accelerated = unaccelerated * accel_factor;
                 return accelerated;
             }
-            normalized_coords accelerator_filter_constant_x230(device_float_coords unaccelerated, [[maybe_unused]] void* data, [[maybe_unused]] time now)
+            fp64_coor accelerator_filter_constant_x230(fp64_coor unaccelerated, [[maybe_unused]] void* data, [[maybe_unused]] time now)
             {
                 const auto factor = lixx::x230_magic_slowdown / lixx::x230_tp_magic_low_res_factor;
                 auto normalized = normalize_for_dpi(unaccelerated, accel.dpi) * factor;
@@ -2602,11 +2578,11 @@ namespace netxs::lixx // li++, libinput++.
         }
 
         pointer_accelerator_x230_impl_t impl{ *this };
-        virtual normalized_coords filter(         device_float_coords unaccelerated, void* data, time now) { return impl.accelerator_filter_x230(unaccelerated, data, now); }
-        virtual normalized_coords filter_constant(device_float_coords unaccelerated, void* data, time now) { return impl.accelerator_filter_constant_x230(unaccelerated, data, now); }
-        virtual normalized_coords filter_scroll(  device_float_coords unaccelerated, void* data, time now) { return impl.accelerator_filter_constant_x230(unaccelerated, data, now); }
-        virtual bool              set_speed(fp64 speed_adjustment)                                         { return impl.accelerator_set_speed_x230(speed_adjustment); }
-        virtual void              restart(void* data, time now)                                            {        impl.accelerator_restart_x230(data, now); }
+        virtual fp64_coor filter(         fp64_coor unaccelerated, void* data, time now) { return impl.accelerator_filter_x230(unaccelerated, data, now); }
+        virtual fp64_coor filter_constant(fp64_coor unaccelerated, void* data, time now) { return impl.accelerator_filter_constant_x230(unaccelerated, data, now); }
+        virtual fp64_coor filter_scroll(  fp64_coor unaccelerated, void* data, time now) { return impl.accelerator_filter_constant_x230(unaccelerated, data, now); }
+        virtual bool      set_speed(fp64 speed_adjustment)                               { return impl.accelerator_set_speed_x230(speed_adjustment); }
+        virtual void      restart(void* data, time now)                                  {        impl.accelerator_restart_x230(data, now); }
     };
 
     struct touchpad_accelerator : motion_filter
@@ -2623,7 +2599,7 @@ namespace netxs::lixx // li++, libinput++.
         struct touchpad_accelerator_impl_t
         {
             touchpad_accelerator& accel;
-                fp64 calculate_acceleration_factor_tp(device_float_coords unaccelerated, void* data, time stamp)
+                fp64 calculate_acceleration_factor_tp(fp64_coor unaccelerated, void* data, time stamp)
                 {
                     accel.trackers.trackers_feed(unaccelerated, stamp);
                     auto velocity = accel.trackers.trackers_velocity(stamp); // Units/us in device-native dpi.
@@ -2631,13 +2607,13 @@ namespace netxs::lixx // li++, libinput++.
                     accel.last_velocity = velocity;
                     return accel_factor;
                 }
-            normalized_coords accelerator_filter_touchpad(device_float_coords unaccelerated, void* data, time stamp)
+            fp64_coor accelerator_filter_touchpad(fp64_coor unaccelerated, void* data, time stamp)
             {
                 auto accel_factor = calculate_acceleration_factor_tp(unaccelerated, data, stamp);
                 auto accelerated = unaccelerated * accel_factor;
                 return normalize_for_dpi(accelerated, accel.dpi);
             }
-            normalized_coords touchpad_constant_filter(device_float_coords unaccelerated, [[maybe_unused]] void* data, [[maybe_unused]] time now)
+            fp64_coor touchpad_constant_filter(fp64_coor unaccelerated, [[maybe_unused]] void* data, [[maybe_unused]] time now)
             {
                 // We need to use the same baseline here as the accelerated code,
                 // otherwise our unaccelerated speed is different to the accelerated
@@ -2646,7 +2622,7 @@ namespace netxs::lixx // li++, libinput++.
                 // This is a hack, the baseline should be incorporated into the
                 // lixx::tp_magic_slowdown so we only have one number here but meanwhile
                 // this will do.
-                const auto baseline = 0.9;
+                static constexpr auto baseline = 0.9;
                 auto normalized = normalize_for_dpi(unaccelerated, accel.dpi) * baseline * lixx::tp_magic_slowdown;
                 return normalized;
             }
@@ -2746,11 +2722,11 @@ namespace netxs::lixx // li++, libinput++.
         }
 
         touchpad_accelerator_impl_t impl{ *this };
-        virtual normalized_coords filter(         device_float_coords unaccelerated, void* data, time now) { return impl.accelerator_filter_touchpad(unaccelerated, data, now); }
-        virtual normalized_coords filter_constant(device_float_coords unaccelerated, void* data, time now) { return impl.touchpad_constant_filter(unaccelerated, data, now); }
-        virtual normalized_coords filter_scroll(  device_float_coords unaccelerated, void* data, time now) { return impl.touchpad_constant_filter(unaccelerated, data, now); }
-        virtual bool              set_speed(fp64 speed_adjustment)                                         { return impl.touchpad_accelerator_set_speed(speed_adjustment); }
-        virtual void              restart(void* data, time now)                                            {        impl.touchpad_accelerator_restart(data, now); }
+        virtual fp64_coor filter(         fp64_coor unaccelerated, void* data, time now) { return impl.accelerator_filter_touchpad(unaccelerated, data, now); }
+        virtual fp64_coor filter_constant(fp64_coor unaccelerated, void* data, time now) { return impl.touchpad_constant_filter(unaccelerated, data, now); }
+        virtual fp64_coor filter_scroll(  fp64_coor unaccelerated, void* data, time now) { return impl.touchpad_constant_filter(unaccelerated, data, now); }
+        virtual bool      set_speed(fp64 speed_adjustment)                               { return impl.touchpad_accelerator_set_speed(speed_adjustment); }
+        virtual void      restart(void* data, time now)                                  {        impl.touchpad_accelerator_restart(data, now); }
     };
 
     using libinput_source_dispatch_t = void(*)(void* data);
@@ -3059,16 +3035,16 @@ namespace netxs::lixx // li++, libinput++.
         virtual libinput_switch_state libinput_event_switch_get_switch_state()                                       { if constexpr (debugmode) bad_event_type(__func__, type); return {}; }
         virtual si32                  libinput_event_gesture_get_finger_count()                                      { if constexpr (debugmode) bad_event_type(__func__, type); return {}; }
         virtual si32                  libinput_event_gesture_get_cancelled()                                         { if constexpr (debugmode) bad_event_type(__func__, type); return {}; }
-        virtual normalized_coords     libinput_event_gesture_get_ds()                                                { if constexpr (debugmode) bad_event_type(__func__, type); return {}; }
-        virtual normalized_coords     libinput_event_gesture_get_ds_unaccelerated()                                  { if constexpr (debugmode) bad_event_type(__func__, type); return {}; }
+        virtual fp64_coor             libinput_event_gesture_get_ds()                                                { if constexpr (debugmode) bad_event_type(__func__, type); return {}; }
+        virtual fp64_coor             libinput_event_gesture_get_ds_unaccelerated()                                  { if constexpr (debugmode) bad_event_type(__func__, type); return {}; }
         virtual fp64                  libinput_event_gesture_get_scale()                                             { if constexpr (debugmode) bad_event_type(__func__, type); return {}; }
         virtual fp64                  libinput_event_gesture_get_angle_delta()                                       { if constexpr (debugmode) bad_event_type(__func__, type); return {}; }
-        virtual normalized_coords     libinput_event_pointer_get_absolute_xy_transformed(normalized_coords /*size*/) { if constexpr (debugmode) bad_event_type(__func__, type); return {}; }
-        virtual normalized_coords     libinput_event_pointer_get_ds()                                                { if constexpr (debugmode) bad_event_type(__func__, type); return {}; }
+        virtual fp64_coor             libinput_event_pointer_get_absolute_xy_transformed(fp64_coor /*size*/)         { if constexpr (debugmode) bad_event_type(__func__, type); return {}; }
+        virtual fp64_coor             libinput_event_pointer_get_ds()                                                { if constexpr (debugmode) bad_event_type(__func__, type); return {}; }
         virtual ui32                  libinput_event_pointer_get_button()                                            { if constexpr (debugmode) bad_event_type(__func__, type); return {}; }
         virtual libinput_button_state libinput_event_pointer_get_button_state()                                      { if constexpr (debugmode) bad_event_type(__func__, type); return {}; }
         virtual si32                  libinput_event_pointer_has_axis(libinput_pointer_axis /*axis*/)                { if constexpr (debugmode) bad_event_type(__func__, type); return {}; }
-        virtual normalized_coords     libinput_event_pointer_get_scroll_value()                                      { if constexpr (debugmode) bad_event_type(__func__, type); return {}; }
+        virtual fp64_coor             libinput_event_pointer_get_scroll_value()                                      { if constexpr (debugmode) bad_event_type(__func__, type); return {}; }
     };
 
     using notify_func_t = void(*)(time stamp, libinput_event& event, void* notify_func_data);
@@ -3101,11 +3077,11 @@ namespace netxs::lixx // li++, libinput++.
     };
     struct libinput_event_pointer : libinput_event
     {
-        normalized_coords            delta;
-        device_float_coords          delta_raw;
-        device_coords                absolute;
-        discrete_coords              discrete;
-        wheel_v120                   v120;
+        fp64_coor                    delta;
+        fp64_coor                    delta_raw;
+        si32_coor                    absolute;
+        si32_coor                    discrete;
+        si32_coor                    v120;
         ui32                         button;
         ui32                         seat_button_count;
         libinput_button_state        state;
@@ -3114,39 +3090,39 @@ namespace netxs::lixx // li++, libinput++.
         ::input_absinfo const*       absinfo_x;
         ::input_absinfo const*       absinfo_y;
 
-        virtual normalized_coords libinput_event_pointer_get_absolute_xy_transformed(normalized_coords size) override
+        virtual fp64_coor libinput_event_pointer_get_absolute_xy_transformed(fp64_coor size) override
         {
-            auto xy = normalized_coords{ absinfo_scale_axis(absinfo_x, absolute.x, size.x),
-                                         absinfo_scale_axis(absinfo_y, absolute.y, size.y) };
+            auto xy = fp64_coor{ absinfo_scale_axis(absinfo_x, absolute.x, size.x),
+                                 absinfo_scale_axis(absinfo_y, absolute.y, size.y) };
             return xy;
         }
-        virtual normalized_coords     libinput_event_pointer_get_ds()                             override { return delta; }
+        virtual fp64_coor             libinput_event_pointer_get_ds()                             override { return delta; }
         virtual ui32                  libinput_event_pointer_get_button()                         override { return button; }
         virtual libinput_button_state libinput_event_pointer_get_button_state()                   override { return state; }
         virtual si32                  libinput_event_pointer_has_axis(libinput_pointer_axis axis) override { return !!(active_axes & (1ul << axis)); }
-        virtual normalized_coords     libinput_event_pointer_get_scroll_value()                   override { return delta; }
+        virtual fp64_coor             libinput_event_pointer_get_scroll_value()                   override { return delta; }
     };
     struct libinput_event_gesture : libinput_event
     {
-        si32              finger_count;
-        si32              cancelled;
-        normalized_coords delta;
-        normalized_coords delta_unaccel;
-        fp64              scale;
-        fp64              angle;
+        si32      finger_count;
+        si32      cancelled;
+        fp64_coor delta;
+        fp64_coor delta_unaccel;
+        fp64      scale;
+        fp64      angle;
 
-        virtual si32              libinput_event_gesture_get_finger_count()     override { return finger_count; }
-        virtual si32              libinput_event_gesture_get_cancelled()        override { return cancelled; }
-        virtual normalized_coords libinput_event_gesture_get_ds()               override { return delta; }
-        virtual normalized_coords libinput_event_gesture_get_ds_unaccelerated() override { return delta_unaccel; }
-        virtual fp64              libinput_event_gesture_get_scale()            override { return scale; }
-        virtual fp64              libinput_event_gesture_get_angle_delta()      override { return angle; }
+        virtual si32      libinput_event_gesture_get_finger_count()     override { return finger_count; }
+        virtual si32      libinput_event_gesture_get_cancelled()        override { return cancelled; }
+        virtual fp64_coor libinput_event_gesture_get_ds()               override { return delta; }
+        virtual fp64_coor libinput_event_gesture_get_ds_unaccelerated() override { return delta_unaccel; }
+        virtual fp64      libinput_event_gesture_get_scale()            override { return scale; }
+        virtual fp64      libinput_event_gesture_get_angle_delta()      override { return angle; }
     };
     struct libinput_event_touch : libinput_event
     {
-        si32           slot;
-        si32           seat_slot;
-        device_coords  point;
+        si32      slot;
+        si32      seat_slot;
+        si32_coor point;
     };
     struct libinput_event_switch : libinput_event
     {
@@ -3213,16 +3189,16 @@ namespace netxs::lixx // li++, libinput++.
     };
         struct tablet_axes
         {
-            device_coords     point;
-            normalized_coords delta;
-            fp64              distance;
-            fp64              pressure;
-            tilt_degrees      tilt;
-            fp64              rotation;
-            fp64              slider;
-            fp64              wheel;
-            si32              wheel_discrete;
-            phys_ellipsis     size;
+            si32_coor     point;
+            fp64_coor     delta;
+            fp64          distance;
+            fp64          pressure;
+            fp64_coor     tilt;
+            fp64          rotation;
+            fp64          slider;
+            fp64          wheel;
+            si32          wheel_discrete;
+            phys_ellipsis size;
         };
     struct libinput_event_tablet_tool : libinput_event
     {
@@ -5435,8 +5411,8 @@ namespace netxs::lixx // li++, libinput++.
         {
             struct warning_range_t
             {
-                device_coords min;
-                device_coords max;
+                si32_coor min;
+                si32_coor max;
             };
 
             ::input_absinfo const* absinfo_x;
@@ -5446,7 +5422,7 @@ namespace netxs::lixx // li++, libinput++.
             matrix                 calibration;
             matrix                 default_calibration; // From LIBINPUT_CALIBRATION_MATRIX.
             matrix                 usermatrix; // As supplied by the caller.
-            device_coords          dimensions;
+            si32_coor              dimensions;
             warning_range_t        warning_range;
         };
         struct evdev_scroll_t
@@ -5463,11 +5439,11 @@ namespace netxs::lixx // li++, libinput++.
             fp64                                  threshold;
             fp64                                  direction_lock_threshold;
             ui32                                  direction;
-            normalized_coords                     buildup;
+            fp64_coor                             buildup;
             libinput_device_config_natural_scroll config_natural;
             bool                                  natural_scrolling_enabled; // Set during device init if we want natural scrolling, used at runtime to enable/disable the feature.
             bool                                  invert_horizontal_scrolling; // Set during device init to invert direction of horizontal scrolling.
-            wheel_angle                           wheel_click_angle; // Angle per REL_WHEEL click in degrees.
+            fp64_coor                             wheel_click_angle; // Angle per REL_WHEEL click in degrees.
             evdev_button_scroll_lock_state        lock_state;
             bool                                  want_lock_enabled;
             bool                                  lock_enabled;
@@ -5586,7 +5562,7 @@ namespace netxs::lixx // li++, libinput++.
             }
             return faux;
         }
-        void pointer_notify_motion(time stamp, normalized_coords delta, device_float_coords raw)
+        void pointer_notify_motion(time stamp, fp64_coor delta, fp64_coor raw)
         {
             if (device_has_cap(LIBINPUT_DEVICE_CAP_POINTER))
             {
@@ -5596,12 +5572,12 @@ namespace netxs::lixx // li++, libinput++.
                 post_device_event(stamp, LIBINPUT_EVENT_POINTER_MOTION, motion_event);
             }
         }
-        void pointer_notify_motion_absolute(time stamp, device_coords point)
+        void pointer_notify_motion_absolute(time stamp, si32_coor point)
         {
             if (device_has_cap(LIBINPUT_DEVICE_CAP_POINTER))
             {
                 auto& motion_absolute_event = seat->libinput->libinput_emplace_event<libinput_event_pointer>();
-                motion_absolute_event.absolute = point;
+                motion_absolute_event.absolute  = point;
                 motion_absolute_event.absinfo_x = abs.absinfo_x;
                 motion_absolute_event.absinfo_y = abs.absinfo_y;
                 post_device_event(stamp, LIBINPUT_EVENT_POINTER_MOTION_ABSOLUTE, motion_absolute_event);
@@ -5632,9 +5608,9 @@ namespace netxs::lixx // li++, libinput++.
             auto lh = libinput_device_config_left_handed_is_available();
             return lh ? config.left_handed->get(This()) : 0;
         }
-        phys_coords evdev_device_units_to_mm(device_coords units)
+        fp64_coor evdev_device_units_to_mm(si32_coor units)
         {
-            auto mm = phys_coords{};
+            auto mm = fp64_coor{};
             if (abs.absinfo_x == nullptr || abs.absinfo_y == nullptr)
             {
                 log("%s%: is not an abs device", devname);
@@ -5689,7 +5665,7 @@ namespace netxs::lixx // li++, libinput++.
             }
             return count;
         }
-        void pointer_notify_axis_finger(time stamp, ui32 active_axes, normalized_coords delta)
+        void pointer_notify_axis_finger(time stamp, ui32 active_axes, fp64_coor delta)
         {
             if (device_has_cap(LIBINPUT_DEVICE_CAP_POINTER))
             {
@@ -5705,7 +5681,7 @@ namespace netxs::lixx // li++, libinput++.
                 post_device_event(stamp, LIBINPUT_EVENT_POINTER_AXIS, axis_event_legacy);
             }
         }
-        void pointer_notify_axis_continuous(time stamp, ui32 active_axes, normalized_coords delta)
+        void pointer_notify_axis_continuous(time stamp, ui32 active_axes, fp64_coor delta)
         {
             if (device_has_cap(LIBINPUT_DEVICE_CAP_POINTER))
             {
@@ -5731,7 +5707,7 @@ namespace netxs::lixx // li++, libinput++.
                 assert(axis == LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL || axis == LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL);
                 scroll.direction |= (1ul << axis);
             }
-        void evdev_notify_axis_continous(time stamp, ui32 active_axes, normalized_coords delta)
+        void evdev_notify_axis_continous(time stamp, ui32 active_axes, fp64_coor delta)
         {
             if (scroll.natural_scrolling_enabled)
             {
@@ -5739,7 +5715,7 @@ namespace netxs::lixx // li++, libinput++.
             }
             pointer_notify_axis_continuous(stamp, active_axes, delta);
         }
-        void evdev_notify_axis_finger(time stamp, ui32 active_axes, normalized_coords delta)
+        void evdev_notify_axis_finger(time stamp, ui32 active_axes, fp64_coor delta)
         {
             if (scroll.natural_scrolling_enabled)
             {
@@ -5747,7 +5723,7 @@ namespace netxs::lixx // li++, libinput++.
             }
             pointer_notify_axis_finger(stamp, active_axes, delta);
         }
-        void evdev_post_scroll(time stamp, libinput_pointer_axis_source source, normalized_coords delta)
+        void evdev_post_scroll(time stamp, libinput_pointer_axis_source source, fp64_coor delta)
         {
             if (!evdev_is_scrolling(LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL))   scroll.buildup.y += delta.y;
             if (!evdev_is_scrolling(LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL)) scroll.buildup.x += delta.x;
@@ -5781,10 +5757,12 @@ namespace netxs::lixx // li++, libinput++.
                 else log("Posting invalid scroll source %d%", source);
             }
         }
-        void evdev_transform_absolute(device_coords& point)
+        void evdev_transform_absolute(si32_coor& point)
         {
-            if (!abs.apply_calibration) return;
-            matrix_mult_vec(&abs.calibration, &point.x, &point.y);
+            if (abs.apply_calibration)
+            {
+                matrix_mult_vec(&abs.calibration, &point.x, &point.y);
+            }
         }
         ui32 evdev_to_left_handed(ui32 button)
         {
@@ -6393,19 +6371,21 @@ namespace netxs::lixx // li++, libinput++.
         {
             return dispatch->get_switch_state(sw);
         }
-        device_coords evdev_device_mm_to_units(phys_coords mm)
+        si32_coor evdev_device_mm_to_units(fp64_coor mm)
         {
             // Convert the pair of coordinates in mm to device units. This takes the axis min into account, i.e. 0 mm  is equivalent to the min.
-            auto units = device_coords{};
+            auto units = si32_coor{};
             if (abs.absinfo_x == nullptr || abs.absinfo_y == nullptr)
             {
                 log("%s%: is not an abs device", devname);
-                return units;
             }
-            auto absx = abs.absinfo_x;
-            auto absy = abs.absinfo_y;
-            units.x = mm.x * absx->resolution + absx->minimum;
-            units.y = mm.y * absy->resolution + absy->minimum;
+            else
+            {
+                auto absx = abs.absinfo_x;
+                auto absy = abs.absinfo_y;
+                units.x = mm.x * absx->resolution + absx->minimum;
+                units.y = mm.y * absy->resolution + absy->minimum;
+            }
             return units;
         }
         bool evdev_device_has_model_quirk(quirk model_quirk)
@@ -6921,8 +6901,8 @@ namespace netxs::lixx // li++, libinput++.
             };
                 struct tp_history_point
                 {
-                    time          stamp;
-                    device_coords point;
+                    time      stamp;
+                    si32_coor point;
                 };
             struct tp_history_t
             {
@@ -6936,27 +6916,27 @@ namespace netxs::lixx // li++, libinput++.
             };
             struct tp_hysteresis_t
             {
-                device_coords center;
-                byte          x_motion_history;
+                si32_coor center;
+                byte      x_motion_history;
             };
             struct tp_pinned_t
             {
-                bool          is_pinned; // A pinned touchpoint is the one that pressed the physical button on a clickpad. After the release, it won't move until the center moves more than a threshold away from the original coordinates.
-                device_coords center;
+                bool      is_pinned; // A pinned touchpoint is the one that pressed the physical button on a clickpad. After the release, it won't move until the center moves more than a threshold away from the original coordinates.
+                si32_coor center;
             };
             struct tp_button_t
             {
                 button_state_enum   state;
                 button_event        current; // We use button_event here so we can use == on events.
                 libinput_timer_sptr timer;
-                device_coords       initial;
+                si32_coor           initial;
                 bool                has_moved; // Has moved more than threshold.
                 time                initial_time;
             };
             struct tp_tap_t
             {
                 tp_tap_touch_state state;
-                device_coords      initial;
+                si32_coor          initial;
                 bool               is_thumb;
                 bool               is_palm;
             };
@@ -6966,17 +6946,17 @@ namespace netxs::lixx // li++, libinput++.
                 ui32                       edge;
                 si32                       direction;
                 libinput_timer_sptr        timer;
-                device_coords              initial;
+                si32_coor                  initial;
             };
             struct tp_palm_t
             {
                 touch_palm_state state;
-                device_coords    first; // Palm detected there.
+                si32_coor        first; // Palm detected there.
                 time             stamp; // Palm detection time.
             };
-            struct tp_gesture_t
+            struct tp_gesture_t //todo make it flat
             {
-                device_coords initial;
+                si32_coor initial;
             };
             struct tp_speed_t
             {
@@ -6991,7 +6971,7 @@ namespace netxs::lixx // li++, libinput++.
             touch_state      state;
             bool             has_ended; // TRACKING_ID == -1.
             bool             dirty;
-            device_coords    point;
+            si32_coor        point;
             time             initial_time;
             si32             pressure;
             bool             is_tool_palm; // MT_TOOL_PALM.
@@ -7033,10 +7013,10 @@ namespace netxs::lixx // li++, libinput++.
         };
         struct tp_dispatch_hysteresis_t
         {
-            bool          enabled;
-            device_coords margin;
-            ui32          other_event_count;
-            time          last_motion_time;
+            bool      enabled;
+            si32_coor margin;
+            ui32      other_event_count;
+            time      last_motion_time;
         };
         struct tp_dispatch_accel_t
         {
@@ -7057,7 +7037,7 @@ namespace netxs::lixx // li++, libinput++.
             fp64                           initial_distance;
             fp64                           prev_scale;
             fp64                           angle;
-            device_float_coords            center;
+            fp64_coor                      center;
             libinput_timer_sptr            hold_timer;
             bool                           hold_enabled;
             libinput_timer_sptr            drag_3fg_timer;
@@ -7116,7 +7096,7 @@ namespace netxs::lixx // li++, libinput++.
             si32                                 right_edge;  // In device coordinates.
             si32                                 bottom_edge; // In device coordinates.
             tp_dispatch_active_t                 active;
-            phys_coords                          vector;
+            fp64_coor                            vector;
             time                                 stamp;
             tp_dispatch_duration_t               duration;
         };
@@ -7990,18 +7970,18 @@ namespace netxs::lixx // li++, libinput++.
                                     t.history.samples[motion_index].stamp = stamp;
                                     t.history.index = motion_index;
                                 }
-                                    phys_coords evdev_device_unit_delta_to_mm(libinput_device_sptr li_device, device_coords units)
+                                    fp64_coor evdev_device_unit_delta_to_mm(libinput_device_sptr li_device, si32_coor units)
                                     {
-                                        auto mm = phys_coords{};
+                                        auto mm = fp64_coor{};
                                         if (li_device->abs.absinfo_x == nullptr || li_device->abs.absinfo_y == nullptr)
                                         {
                                             log("%s%: is not an abs device", li_device->devname);
                                             return mm;
                                         }
-                                        auto absx = li_device->abs.absinfo_x;
-                                        auto absy = li_device->abs.absinfo_y;
-                                        mm.x = 1.0 * units.x / absx->resolution;
-                                        mm.y = 1.0 * units.y / absy->resolution;
+                                        auto& absx = *li_device->abs.absinfo_x;
+                                        auto& absy = *li_device->abs.absinfo_y;
+                                        mm.x = 1.0 * units.x / absx.resolution;
+                                        mm.y = 1.0 * units.y / absy.resolution;
                                         return mm;
                                     }
                                     char const* thumb_state_to_str(tp_thumb_state state)
@@ -8045,9 +8025,7 @@ namespace netxs::lixx // li++, libinput++.
                                         return faux;
                                     }
                                     // We historically expected ~12ms frame intervals, so the numbers below are normalized to that (and that's also where the measured data came from).
-                                    auto delta = device_coords{};
-                                    delta.x = std::abs(t.point.x - last->point.x);
-                                    delta.y = std::abs(t.point.y - last->point.y);
+                                    auto delta = std::abs(t.point - last->point);
                                     auto mm = evdev_device_unit_delta_to_mm(tp.li_device, delta);
                                     auto abs_distance = hypot(mm.x, mm.y) * reference_interval / tdelta;
                                     auto rel_distance = abs_distance - t.jumps.last_delta_mm;
@@ -8308,9 +8286,9 @@ namespace netxs::lixx // li++, libinput++.
                                             {
                                                 return t.palm.first.y < tp.palm.upper_edge;
                                             }
-                                            phys_coords tp_phys_delta(device_float_coords delta)
+                                            fp64_coor tp_phys_delta(fp64_coor delta)
                                             {
-                                                auto mm = phys_coords{ delta / tp.li_device->abs.absinfo_x->resolution };
+                                                auto mm = delta / tp.li_device->abs.absinfo_x->resolution;
                                                 return mm;
                                             }
                                         bool tp_palm_detect_move_out_of_edge(tp_touch& t, time stamp)
@@ -8475,10 +8453,6 @@ namespace netxs::lixx // li++, libinput++.
                                         t.hysteresis.center = t.point;
                                     }
                                 }
-                                    fp64 length_in_mm(phys_coords mm)
-                                    {
-                                        return hypot(mm.x, mm.y);
-                                    }
                                 void tp_calculate_motion_speed(tp_touch& t, time stamp)
                                 {
                                     // Don't do this on single-touch or semi-mt devices.
@@ -8495,9 +8469,9 @@ namespace netxs::lixx // li++, libinput++.
                                     if (t.history.count < 4) return;
                                     //todo: we probably need a speed history here so we can average across a few events
                                     auto last = tp_motion_history_offset(t, 1);
-                                    auto delta = std::abs(device_coords{ t.point - last->point });
+                                    auto delta = std::abs(t.point - last->point);
                                     auto mm = evdev_device_unit_delta_to_mm(tp.li_device, delta);
-                                    auto distance = length_in_mm(mm);
+                                    auto distance = hypot(mm.x, mm.y);
                                     auto speed = distance / datetime::round<si64, std::chrono::microseconds>(stamp - last->stamp); // mm/us.
                                     speed *= 1000000; // mm/s.
                                     t.speed.last_speed = speed;
@@ -8506,8 +8480,7 @@ namespace netxs::lixx // li++, libinput++.
                                 {
                                     if (t.pinned.is_pinned)
                                     {
-                                        auto delta = device_coords{ std::abs(t.point.x - t.pinned.center.x),
-                                                                    std::abs(t.point.y - t.pinned.center.y) };
+                                        auto delta = std::abs(t.point - t.pinned.center);
                                         auto mm = evdev_device_unit_delta_to_mm(tp.li_device, delta);
                                         if (hypot(mm.x, mm.y) >= 1.5) // 1.5mm movement -> unpin.
                                         {
@@ -8579,7 +8552,7 @@ namespace netxs::lixx // li++, libinput++.
                                         }
                                     }
                                     if (!first || !second) return;
-                                    auto distance = device_coords{ std::abs(first->point - second->point) };
+                                    auto distance = std::abs(first->point - second->point);
                                     auto mm = evdev_device_unit_delta_to_mm(tp.li_device, distance);
                                     // Speed-based thumb detection: if an existing finger is moving, and a new touch arrives, mark it as a thumb if it doesn't qualify as a 2-finger scroll. Also account for a thumb dropping onto the touchpad while scrolling or swiping.
                                     // distance between fingers to assume it is not a scroll.
@@ -8887,9 +8860,7 @@ namespace netxs::lixx // li++, libinput++.
                                             case BUTTON_STATE_BOTTOM:
                                                 break;
                                         }
-                                        auto delta = device_coords{};
-                                        delta.x = t.point.x - t.button.initial.x;
-                                        delta.y = t.point.y - t.button.initial.y;
+                                        auto delta = t.point - t.button.initial;
                                         auto mm = evdev_device_unit_delta_to_mm(tp.li_device, delta);
                                         auto vector_length = hypot(mm.x, mm.y);
                                         if (vector_length > 5.0) // mm.
@@ -9187,7 +9158,7 @@ namespace netxs::lixx // li++, libinput++.
                                                         case GESTURE_EVENT_3FG_DRAG_RELEASE_TIMEOUT: log("log gesture bug: tp ", (ui32)event); break;
                                                     }
                                                 }
-                                                        void gesture_notify(libinput_device_sptr li_device, time stamp, libinput_event_type type, si32 finger_count, bool cancelled, normalized_coords delta, normalized_coords unaccel, fp64 scale, fp64 angle)
+                                                        void gesture_notify(libinput_device_sptr li_device, time stamp, libinput_event_type type, si32 finger_count, bool cancelled, fp64_coor delta, fp64_coor unaccel, fp64 scale, fp64 angle)
                                                         {
                                                             if (li_device->device_has_cap(LIBINPUT_DEVICE_CAP_GESTURE))
                                                             {
@@ -9203,18 +9174,16 @@ namespace netxs::lixx // li++, libinput++.
                                                         }
                                                     void gesture_notify_hold_begin(libinput_device_sptr li_device, time stamp, si32 finger_count)
                                                     {
-                                                        const auto zero = normalized_coords{};
+                                                        static constexpr auto zero = fp64_coor{};
                                                         gesture_notify(li_device, stamp, LIBINPUT_EVENT_GESTURE_HOLD_BEGIN, finger_count, 0, zero, zero, 0.0, 0.0);
                                                     }
-                                                        device_float_coords device_float_average(device_float_coords a, device_float_coords b)
+                                                        fp64_coor device_float_average(fp64_coor a, fp64_coor b)
                                                         {
-                                                            auto average = device_float_coords{ (a.x + b.x) / 2.0, (a.y + b.y) / 2.0 };
-                                                            return average;
+                                                            return (a + b) / 2.0;
                                                         }
-                                                        normalized_coords tp_normalize_delta(device_float_coords delta)
+                                                        fp64_coor tp_normalize_delta(fp64_coor delta)
                                                         {
-                                                            auto normalized = normalized_coords{ delta * tp.accel.x_scale_coeff };
-                                                            return normalized;
+                                                            return delta * tp.accel.x_scale_coeff;
                                                         }
                                                     void tp_gesture_set_scroll_buildup()
                                                     {
@@ -9225,24 +9194,15 @@ namespace netxs::lixx // li++, libinput++.
                                                         auto average = device_float_average(d0, d1);
                                                         tp.li_device->scroll.buildup = tp_normalize_delta(average);
                                                     }
-                                                            fp64 normalized_length(normalized_coords norm)
-                                                            {
-                                                                return hypot(norm.x, norm.y);
-                                                            }
-                                                            device_float_coords device_average(device_coords a, device_coords b)
-                                                            {
-                                                                auto average = device_float_coords{ (a.x + b.x) / 2.0, (a.y + b.y) / 2.0 };
-                                                                return average;
-                                                            }
-                                                        void tp_gesture_get_pinch_info(fp64& distance, fp64& angle, device_float_coords& center)
+                                                        void tp_gesture_get_pinch_info(fp64& distance, fp64& angle, fp64_coor& center)
                                                         {
                                                             auto first = tp.gesture.two_touches[0];
                                                             auto second = tp.gesture.two_touches[1];
                                                             auto delta = first->point - second->point;
                                                             auto normalized = tp_normalize_delta(delta);
-                                                            distance = normalized_length(normalized);
+                                                            distance = hypot(normalized.x, normalized.y);
                                                             angle = rad2deg(atan2(normalized.y, normalized.x));
-                                                            center = device_average(first->point, second->point);
+                                                            center = fp64_coor{ first->point + second->point } / 2.0;
                                                         }
                                                     void tp_gesture_init_pinch()
                                                     {
@@ -9302,7 +9262,7 @@ namespace netxs::lixx // li++, libinput++.
                                                 }
                                                     void gesture_notify_hold_end(libinput_device_sptr li_device, time stamp, si32 finger_count, bool cancelled)
                                                     {
-                                                        const auto zero = normalized_coords{};
+                                                        static constexpr const auto zero = fp64_coor{}; //todo make it static global
                                                         gesture_notify(li_device, stamp, LIBINPUT_EVENT_GESTURE_HOLD_END, finger_count, cancelled, zero, zero, 0, 0.0);
                                                     }
                                                         void tp_gesture_end(time stamp, gesture_cancelled cancelled)
@@ -9417,11 +9377,9 @@ namespace netxs::lixx // li++, libinput++.
                                                         case GESTURE_EVENT_3FG_DRAG_RELEASE_TIMEOUT: log("log_gesture_bug: tp", (ui32)event); break;
                                                     }
                                                 }
-                                                    phys_coords tp_gesture_mm_moved(tp_touch& t)
+                                                    fp64_coor tp_gesture_mm_moved(tp_touch& t)
                                                     {
-                                                        auto delta = device_coords{};
-                                                        delta.x = abs(t.point.x - t.gesture.initial.x);
-                                                        delta.y = abs(t.point.y - t.gesture.initial.y);
+                                                        auto delta = std::abs(t.point - t.gesture.initial);
                                                         return evdev_device_unit_delta_to_mm(tp.li_device, delta);
                                                     }
                                                 void tp_gesture_handle_event_on_state_pointer_motion(gesture_event event, time stamp)
@@ -9546,7 +9504,7 @@ namespace netxs::lixx // li++, libinput++.
                                                 }
                                                     void gesture_notify_pinch_end(libinput_device_sptr li_device, time stamp, si32 finger_count, fp64 scale, bool cancelled)
                                                     {
-                                                        const auto zero = normalized_coords{};
+                                                        const auto zero = fp64_coor{};
                                                         gesture_notify(li_device, stamp, LIBINPUT_EVENT_GESTURE_PINCH_END, finger_count, cancelled, zero, zero, scale, 0.0);
                                                     }
                                                 void tp_gesture_handle_event_on_state_pinch(gesture_event event, time stamp)
@@ -9601,7 +9559,7 @@ namespace netxs::lixx // li++, libinput++.
                                                 }
                                                     void gesture_notify_swipe_end(libinput_device_sptr li_device, time stamp, si32 finger_count, bool cancelled)
                                                     {
-                                                        const auto zero = normalized_coords{};
+                                                        const auto zero = fp64_coor{};
                                                         gesture_notify(li_device, stamp, LIBINPUT_EVENT_GESTURE_SWIPE_END, finger_count, cancelled, zero, zero, 0.0, 0.0);
                                                     }
                                                 void tp_gesture_handle_event_on_state_swipe(gesture_event event, time stamp)
@@ -10020,7 +9978,7 @@ namespace netxs::lixx // li++, libinput++.
                                             void tp_edge_scroll_stop_events(time stamp)
                                             {
                                                 auto li_device = tp.li_device;
-                                                const auto zero = normalized_coords{};
+                                                const auto zero = fp64_coor{};
                                                 for (auto& t : tp.touches)
                                                 {
                                                     if (t.scroll.direction != -1)
@@ -10962,7 +10920,7 @@ namespace netxs::lixx // li++, libinput++.
                                         }
                                         // Semi-mt devices will give us large movements on finger release, depending which touch is released. Make sure we ignore any movement in the same frame as a finger change.
                                         if (tp.semi_mt && tp.nfingers_down != tp.old_nfingers_down) return faux;
-                                        else                                                        return length_in_mm(mm) > lixx::default_tap_move_threshold;
+                                        else                                                        return hypot(mm.x, mm.y) > lixx::default_tap_move_threshold;
                                     }
                                 si32 tp_tap_handle_state(time stamp)
                                 {
@@ -11200,18 +11158,18 @@ namespace netxs::lixx // li++, libinput++.
                                             tp.gesture.two_touches[1] = second;
                                             tp_gesture_handle_event(GESTURE_EVENT_FINGER_DETECTED, stamp);
                                         }
-                                                                device_coords tp_get_delta(tp_touch& t)
+                                                                si32_coor tp_get_delta(tp_touch& t)
                                                                 {
                                                                     if (t.history.count <= 1) return {};
-                                                                    auto delta = device_coords{};
-                                                                    delta.x = tp_motion_history_offset(t, 0)->point.x - tp_motion_history_offset(t, 1)->point.x;
-                                                                    delta.y = tp_motion_history_offset(t, 0)->point.y - tp_motion_history_offset(t, 1)->point.y;
+                                                                    auto t0 = tp_motion_history_offset(t, 0);
+                                                                    auto t1 = tp_motion_history_offset(t, 1);
+                                                                    auto delta = t0->point - t1->point;
                                                                     return delta;
                                                                 }
-                                                            device_float_coords tp_get_touches_delta(bool average)
+                                                            fp64_coor tp_get_touches_delta(bool average)
                                                             {
                                                                 auto nactive = 0u;
-                                                                auto delta = device_float_coords{};
+                                                                auto delta = fp64_coor{};
                                                                 for (auto i = 0u; i < tp.num_slots; i++)
                                                                 {
                                                                     auto& t = tp.touches[i];
@@ -11220,28 +11178,25 @@ namespace netxs::lixx // li++, libinput++.
                                                                         nactive++;
                                                                         if (t.dirty)
                                                                         {
-                                                                            auto d = tp_get_delta(t);
-                                                                            delta.x += d.x;
-                                                                            delta.y += d.y;
+                                                                            delta += tp_get_delta(t);
                                                                         }
                                                                     }
                                                                 }
                                                                 if (average && nactive != 0)
                                                                 {
-                                                                    delta.x /= nactive;
-                                                                    delta.y /= nactive;
+                                                                    delta /= nactive;
                                                                 }
                                                                 return delta;
                                                             }
-                                                        device_float_coords tp_get_combined_touches_delta()
+                                                        fp64_coor tp_get_combined_touches_delta()
                                                         {
                                                             return tp_get_touches_delta(faux);
                                                         }
-                                                        device_float_coords tp_get_average_touches_delta()
+                                                        fp64_coor tp_get_average_touches_delta()
                                                         {
                                                             return tp_get_touches_delta(true);
                                                         }
-                                                    device_float_coords tp_get_raw_pointer_motion()
+                                                    fp64_coor tp_get_raw_pointer_motion()
                                                     {
                                                         // When a clickpad is clicked, combine motion of all active touches.
                                                         auto clicked = tp.buttons.is_clickpad && tp.buttons.state;
@@ -11314,8 +11269,7 @@ namespace netxs::lixx // li++, libinput++.
                                                 min_move += 0.5 * (tp.gesture.finger_count - 2);
                                                 auto second_moved = tp_gesture_mm_moved(*second);
                                                 auto second_mm = hypot(second_moved.x, second_moved.y); // Movement since gesture start in mm.
-                                                auto delta = device_coords{ std::abs(first->point.x - second->point.x),
-                                                                            std::abs(first->point.y - second->point.y) };
+                                                auto delta = std::abs(first->point - second->point);
                                                 auto distance_mm = evdev_device_unit_delta_to_mm(tp.li_device, delta);
                                                 // If both touches moved less than a mm, we cannot decide yet.
                                                 if (first_mm < 1 && second_mm < 1) return;
@@ -11413,14 +11367,14 @@ namespace netxs::lixx // li++, libinput++.
                                         {
                                             if (!ignore_motion) tp_gesture_detect_motion_gestures(stamp);
                                         }
-                                                    device_float_coords tp_scale_to_xaxis(device_float_coords delta)
+                                                    fp64_coor tp_scale_to_xaxis(fp64_coor delta)
                                                     {
-                                                        auto raw = device_float_coords{ delta.x, delta.y * tp.accel.xy_scale_coeff };
-                                                        return raw;
+                                                        delta.y *= tp.accel.xy_scale_coeff;
+                                                        return delta;
                                                     }
-                                                normalized_coords tp_filter_motion(device_float_coords unaccelerated, time stamp)
+                                                fp64_coor tp_filter_motion(fp64_coor unaccelerated, time stamp)
                                                 {
-                                                    if (!unaccelerated) return normalized_coords{};
+                                                    if (!unaccelerated) return fp64_coor{};
                                                     auto raw = tp_scale_to_xaxis(unaccelerated); // Convert to device units with x/y in the same resolution.
                                                     return tp.li_device->pointer.filter->filter_dispatch(raw, &tp, stamp);
                                                 }
@@ -11467,21 +11421,18 @@ namespace netxs::lixx // li++, libinput++.
                                                 }
                                                 return true;
                                             }
-                                            normalized_coords tp_filter_scroll(device_float_coords unaccelerated, time stamp)
+                                            fp64_coor tp_filter_scroll(fp64_coor unaccelerated, time stamp)
                                             {
-                                                if (!unaccelerated) return normalized_coords{};
+                                                if (!unaccelerated) return fp64_coor{};
                                                 auto raw = tp_scale_to_xaxis(unaccelerated); // Convert to device units with x/y in the same resolution.
                                                 return tp.li_device->pointer.filter->filter_dispatch_scroll(raw, &tp, stamp);
                                             }
                                             void tp_gesture_init_scroll()
                                             {
-                                                auto zero = phys_coords{};
-                                                tp.scroll.active.h = faux;
-                                                tp.scroll.active.v = faux;
-                                                tp.scroll.duration.h = {};
-                                                tp.scroll.duration.v = {};
-                                                tp.scroll.vector = zero;
-                                                tp.scroll.stamp = {};
+                                                tp.scroll.active   = {};
+                                                tp.scroll.duration = {};
+                                                tp.scroll.vector   = {};
+                                                tp.scroll.stamp    = {};
                                             }
                                         void tp_gesture_handle_state_scroll_start(time stamp)
                                         {
@@ -11501,7 +11452,7 @@ namespace netxs::lixx // li++, libinput++.
                                                 }
                                             }
                                         }
-                                            void tp_gesture_apply_scroll_constraints(device_float_coords& raw, normalized_coords& delta, time stamp)
+                                            void tp_gesture_apply_scroll_constraints(fp64_coor& raw, fp64_coor& delta, time stamp)
                                             {
                                                 if (tp.scroll.active.h && tp.scroll.active.v) // Both axes active == true means free scrolling is enabled.
                                                 {
@@ -11516,20 +11467,14 @@ namespace netxs::lixx // li++, libinput++.
                                                 // Old vector data "fades" over time. This is a two-part linear approximation of an exponential function - for example, for lixx::default_scroll_event_timeout of 100, vector_decay = (0.97)^tdelta. This linear approximation allows easier tweaking of lixx::default_scroll_event_timeout and is faster.
                                                 auto vector_decay = 0.0;
                                                 //if (std::chrono::is_negative(tdelta))
-                                                if (tdelta <= span{})
-                                                {
-                                                    vector_decay = 0.0;
-                                                }
-                                                else
+                                                if (tdelta > span{})
                                                 {
                                                     auto recent = ((lixx::default_scroll_event_timeout / 2.0) - tdelta) / (lixx::default_scroll_event_timeout / 2.0);
                                                     auto later = (lixx::default_scroll_event_timeout - tdelta) / (lixx::default_scroll_event_timeout * 2.0);
                                                     vector_decay = tdelta <= (0.33 * lixx::default_scroll_event_timeout) ? recent : later;
                                                 }
                                                 // Calculate windowed vector from delta + weighted historic data.
-                                                auto vector = phys_coords{};
-                                                vector.x = (tp.scroll.vector.x * vector_decay) + delta_mm.x;
-                                                vector.y = (tp.scroll.vector.y * vector_decay) + delta_mm.y;
+                                                auto vector = (tp.scroll.vector * vector_decay) + delta_mm;
                                                 auto vector_length = hypot(vector.x, vector.y);
                                                 tp.scroll.vector = vector;
                                                 // We care somewhat about distance and speed, but more about consistency of direction over time. Keep track of the time spent primarily along each axis. If one axis is active, time spent NOT moving much in the other axis is subtracted, allowing a switch of axes in a single scroll + ability to "break out" and go diagonal.
@@ -11606,7 +11551,7 @@ namespace netxs::lixx // li++, libinput++.
                                                 }
                                             }
                                         }
-                                            void gesture_notify_swipe(libinput_device_sptr li_device, time stamp, libinput_event_type type, si32 finger_count, normalized_coords delta, normalized_coords unaccel)
+                                            void gesture_notify_swipe(libinput_device_sptr li_device, time stamp, libinput_event_type type, si32 finger_count, fp64_coor delta, fp64_coor unaccel)
                                             {
                                                 gesture_notify(li_device, stamp, type, finger_count, 0, delta, unaccel, 0.0, 0.0);
                                             }
@@ -11616,18 +11561,18 @@ namespace netxs::lixx // li++, libinput++.
                                             auto delta = tp_filter_motion(raw, stamp);
                                             if (delta || raw)
                                             {
-                                                const auto zero = normalized_coords{};
+                                                const auto zero = fp64_coor{};
                                                 gesture_notify_swipe(tp.li_device, stamp, LIBINPUT_EVENT_GESTURE_SWIPE_BEGIN, tp.gesture.finger_count, zero, zero);
                                                 tp.gesture.state = GESTURE_STATE_SWIPE;
                                             }
                                         }
-                                                normalized_coords filter_dispatch_constant(motion_filter_sptr filter, device_float_coords unaccelerated, void* data, time stamp)
+                                                fp64_coor filter_dispatch_constant(motion_filter_sptr filter, fp64_coor unaccelerated, void* data, time stamp)
                                                 {
                                                     return filter->filter_constant(unaccelerated, data, stamp);
                                                 }
-                                            normalized_coords tp_filter_motion_unaccelerated(device_float_coords unaccelerated, time stamp)
+                                            fp64_coor tp_filter_motion_unaccelerated(fp64_coor unaccelerated, time stamp)
                                             {
-                                                if (!unaccelerated) return normalized_coords{};
+                                                if (!unaccelerated) return fp64_coor{};
                                                 // Convert to device units with x/y in the same resolution.
                                                 auto raw = tp_scale_to_xaxis(unaccelerated);
                                                 return filter_dispatch_constant(tp.li_device->pointer.filter, raw, &tp, stamp);
@@ -11642,21 +11587,20 @@ namespace netxs::lixx // li++, libinput++.
                                                 gesture_notify_swipe(tp.li_device, stamp, LIBINPUT_EVENT_GESTURE_SWIPE_UPDATE, tp.gesture.finger_count, delta, unaccel);
                                             }
                                         }
-                                            device_float_coords device_float_delta(device_float_coords a, device_float_coords b)
+                                            fp64_coor device_float_delta(fp64_coor a, fp64_coor b)
                                             {
-                                                auto delta = device_float_coords{ a.x - b.x, a.y - b.y };
-                                                return delta;
+                                                return a - b;
                                             }
-                                            void gesture_notify_pinch(libinput_device_sptr li_device, time stamp, libinput_event_type type, si32 finger_count, normalized_coords delta, normalized_coords unaccel, fp64 scale, fp64 angle)
+                                            void gesture_notify_pinch(libinput_device_sptr li_device, time stamp, libinput_event_type type, si32 finger_count, fp64_coor delta, fp64_coor unaccel, fp64 scale, fp64 angle)
                                             {
                                                 gesture_notify(li_device, stamp, type, finger_count, 0, delta, unaccel, scale, angle);
                                             }
                                         void tp_gesture_handle_state_pinch_start(time stamp)
                                         {
-                                            const auto zero = normalized_coords{};
+                                            const auto zero = fp64_coor{};
                                             auto angle = 0.0;
                                             auto distance = 0.0;
-                                            auto center = device_float_coords{};
+                                            auto center = fp64_coor{};
                                             tp_gesture_get_pinch_info(distance, angle, center);
                                             auto scale = distance / tp.gesture.initial_distance;
                                             auto angle_delta = angle - tp.gesture.angle;
@@ -11677,7 +11621,7 @@ namespace netxs::lixx // li++, libinput++.
                                         {
                                             auto angle = 0.0;
                                             auto distance = 0.0;
-                                            auto center = device_float_coords{};
+                                            auto center = fp64_coor{};
                                             tp_gesture_get_pinch_info(distance, angle, center);
                                             auto scale = distance / tp.gesture.initial_distance;
                                             auto angle_delta = angle - tp.gesture.angle;
@@ -11785,9 +11729,9 @@ namespace netxs::lixx // li++, libinput++.
                                     auto device = tp.li_device;
                                     auto axis = libinput_pointer_axis{};
                                     auto delta = (fp64*)nullptr;
-                                    auto normalized = normalized_coords{};
-                                    auto tmp = normalized_coords{};
-                                    const auto zero = normalized_coords{};
+                                    auto normalized = fp64_coor{};
+                                    auto tmp = fp64_coor{};
+                                    const auto zero = fp64_coor{};
                                     for (auto& t : tp.touches)
                                     {
                                         if (!t.dirty) continue;
@@ -11816,7 +11760,7 @@ namespace netxs::lixx // li++, libinput++.
                                                 continue; // Don't know direction yet, skip.
                                         }
                                         auto raw = tp_get_delta(t);
-                                        auto fraw = device_float_coords{ (fp64)raw.x, (fp64)raw.y };
+                                        auto fraw = fp64_coor{ raw };
                                         // Scroll is not accelerated.
                                         normalized = tp_filter_motion_unaccelerated(fraw, stamp);
                                         switch (t.scroll.edge_state)
@@ -11883,7 +11827,7 @@ namespace netxs::lixx // li++, libinput++.
                                 {
                                     auto mb_le = 0; // Middle button left/right edge.
                                     auto mb_re = 0;
-                                    auto mm = phys_coords{};
+                                    auto mm = fp64_coor{};
                                     auto [w, h] = li_device->evdev_device_get_size();
                                     // Button height: 10mm or 15% or the touchpad height, whichever is smaller.
                                     if (h * 0.15 > 10) mm.y = h - 10;
@@ -12284,7 +12228,7 @@ namespace netxs::lixx // li++, libinput++.
                                             // T440s has the top button line 5mm from the top, event analysis has shown events to start down to ~10mm from the top - which maps to 15%.  We allow the caller to enlarge the area using a multiplier for the touchpad disabled case.
                                             auto topsize_mm = 10 * topbutton_size_mult;
                                             auto [w, h] = li_device->evdev_device_get_size();
-                                            auto mm = phys_coords{};
+                                            auto mm = fp64_coor{};
                                             mm.x = w * 0.60;
                                             mm.y = topsize_mm;
                                             auto edges = li_device->evdev_device_mm_to_units(mm);
@@ -13221,7 +13165,7 @@ namespace netxs::lixx // li++, libinput++.
                         // Enable edge palm detection on touchpads >= 70 mm. Anything smaller probably won't need it, until we find out it does.
                         if (w < 70.0) return;
                         // Palm edges are 8% of the width on each side.
-                        auto mm = phys_coords{};
+                        auto mm = fp64_coor{};
                         mm.x = std::min(8.0, w * 0.08);
                         auto edges = li_device->evdev_device_mm_to_units(mm);
                         tp.palm.left_edge = edges.x;
@@ -13345,7 +13289,7 @@ namespace netxs::lixx // li++, libinput++.
                         auto [w, h] = li_device->evdev_device_get_size();
                         auto want_horiz_scroll = true;
                         if (!tp.buttons.is_clickpad) want_horiz_scroll = (h >= 40);
-                        auto mm = phys_coords{};
+                        auto mm = fp64_coor{};
                         mm.x = w - 7; // 7mm edge size.
                         mm.y = h - 7;
                         auto edges = li_device->evdev_device_mm_to_units(mm);
@@ -13676,9 +13620,6 @@ namespace netxs::lixx // li++, libinput++.
             void tp_init_thumb()
             {
                 auto li_device = tp.li_device;
-                auto edges = device_coords{};
-                auto mm = phys_coords{};
-                auto threshold = 0u;
                 tp.thumb.detect_thumbs = faux;
                 if (!tp.buttons.is_clickpad) return;
                 // If the touchpad is less than 50mm high, skip thumb detection. It's too small to meaningfully interact with a thumb on the touchpad.
@@ -13688,14 +13629,16 @@ namespace netxs::lixx // li++, libinput++.
                 tp.thumb.use_pressure       = faux;
                 tp.thumb.pressure_threshold = si32max;
                 tp.thumb.size_threshold     = si32max;
+                auto mm = fp64_coor{};
                 mm.y = h * 0.85; // Detect thumbs by pressure in the bottom 15mm, detect thumbs by lingering in the bottom 8mm.
-                edges = li_device->evdev_device_mm_to_units(mm);
+                auto edges = li_device->evdev_device_mm_to_units(mm);
                 tp.thumb.upper_thumb_line = edges.y;
                 mm.y = h * 0.92;
                 edges = li_device->evdev_device_mm_to_units(mm);
                 tp.thumb.lower_thumb_line = edges.y;
                 auto quirks = li_device->li_context()->quirks;
                 auto q = quirks_fetch_for_device(quirks, li_device->ud_device);
+                auto threshold = 0u;
                 if (li_device->libevdev_has_event_code(EV_ABS, ABS_MT_PRESSURE))
                 {
                     if (quirks_get_uint32(q, QUIRK_ATTR_THUMB_PRESSURE_THRESHOLD, &threshold))
@@ -14664,7 +14607,7 @@ namespace netxs::lixx // li++, libinput++.
             libinput_tablet_tool_sptr tool;
             tablet_axes               axes;
             byte                      changed_axes[lixx::nchars<LIBINPUT_TABLET_TOOL_AXIS_MAX + 1>];
-            device_coords             last_point;
+            si32_coor                 last_point;
         };
     struct totem_dispatch;
     using totem_dispatch_sptr = sptr<totem_dispatch>;
@@ -14751,9 +14694,7 @@ namespace netxs::lixx // li++, libinput++.
                     axes.point = slot.axes.point;
                     axes.rotation = slot.axes.rotation;
                     axes.size = slot.axes.size;
-                    auto delta = device_float_coords{};
-                    delta.x = slot.axes.point.x - slot.last_point.x;
-                    delta.y = slot.axes.point.y - slot.last_point.y;
+                    auto delta = fp64_coor{ slot.axes.point - slot.last_point };
                     axes.delta = device->pointer.filter->filter_dispatch(delta, tool.get(), now);
                     rc = true;
                 }
@@ -15118,7 +15059,7 @@ namespace netxs::lixx // li++, libinput++.
         ui32                                 status;
         byte                                 changed_axes[lixx::nchars<LIBINPUT_TABLET_TOOL_AXIS_MAX + 1>];
         tablet_axes                          axes; // For assembling the current state.
-        device_coords                        last_smooth_point;
+        si32_coor                            last_smooth_point;
         history_t                            history;
         byte                                 axis_caps[lixx::nchars<LIBINPUT_TABLET_TOOL_AXIS_MAX + 1>];
         si32                                 current_value[LIBINPUT_TABLET_TOOL_AXIS_MAX + 1];
@@ -15703,7 +15644,7 @@ namespace netxs::lixx // li++, libinput++.
                             }
                         }
                     }
-                    bool is_inside_area(device_coords point, fp64 normalized_margin)
+                    bool is_inside_area(si32_coor point, fp64 normalized_margin)
                     {
                         if (tablet.area.have_area.x1 == 0.0 && tablet.area.have_area.x2 == 1.0
                          && tablet.area.have_area.y1 == 0.0 && tablet.area.have_area.y2 == 1.0)
@@ -15921,7 +15862,7 @@ namespace netxs::lixx // li++, libinput++.
                             }
                         }
                     }
-                                void apply_tablet_area([[maybe_unused]] libinput_device_sptr li_device, device_coords& point)
+                                void apply_tablet_area([[maybe_unused]] libinput_device_sptr li_device, si32_coor& point)
                                 {
                                     if (tablet.area.have_area.x1 == 0.0 && tablet.area.have_area.x2 == 1.0
                                      && tablet.area.have_area.y1 == 0.0 && tablet.area.have_area.y2 == 1.0)
@@ -15959,22 +15900,21 @@ namespace netxs::lixx // li++, libinput++.
                                     }
                                 }
                             }
-                            normalized_coords tablet_tool_process_delta(libinput_tablet_tool_sptr tool, libinput_device_sptr li_device, tablet_axes* axes, time stamp)
+                            fp64_coor tablet_tool_process_delta(libinput_tablet_tool_sptr tool, libinput_device_sptr li_device, tablet_axes* axes, time stamp)
                             {
-                                auto delta = device_coords{};
+                                auto delta = si32_coor{};
                                 // When tool contact changes, we probably got a cursor jump. Don't try to calculate a delta for that event.
                                 if (!(tablet.status & TABLET_TOOL_ENTERING_PROXIMITY)
                                  && !(tablet.status & TABLET_TOOL_ENTERING_CONTACT)
                                  && !(tablet.status & TABLET_TOOL_LEAVING_CONTACT)
                                  && (bit_is_set(tablet.changed_axes, LIBINPUT_TABLET_TOOL_AXIS_X) || bit_is_set(tablet.changed_axes, LIBINPUT_TABLET_TOOL_AXIS_Y)))
                                 {
-                                    delta.x = axes->point.x - tablet.last_smooth_point.x;
-                                    delta.y = axes->point.y - tablet.last_smooth_point.y;
+                                    delta = axes->point - tablet.last_smooth_point;
                                 }
                                 if (axes->point.x != tablet.last_smooth_point.x) set_bit(tablet.changed_axes, LIBINPUT_TABLET_TOOL_AXIS_X);
                                 if (axes->point.y != tablet.last_smooth_point.y) set_bit(tablet.changed_axes, LIBINPUT_TABLET_TOOL_AXIS_Y);
                                 tablet.last_smooth_point = axes->point;
-                                auto accel = device_float_coords{ 1.0 * delta.x, 1.0 * delta.y };
+                                auto accel = fp64_coor{ delta };
                                 if (!accel) return {};
                                 else        return li_device->pointer.filter->filter_dispatch(accel, tool.get(), stamp);
                             }
@@ -16522,7 +16462,7 @@ namespace netxs::lixx // li++, libinput++.
                                 // We allow a margin of 3% (6mm on a 200mm tablet) to be "within"
                                 // the area - there we clip to the area but do not ignore the
                                 // sequence.
-                                const auto point = device_coords{ li_device->abs.absinfo_x->value, li_device->abs.absinfo_y->value, };
+                                const auto point = si32_coor{ li_device->abs.absinfo_x->value, li_device->abs.absinfo_y->value };
                                 const auto margin = 0.03;
                                 if (is_inside_area(point, margin))
                                 {
@@ -17100,8 +17040,8 @@ namespace netxs::lixx // li++, libinput++.
         bool            dirty;
         slot_state_enum state;
         si32            seat_slot;
-        device_coords   point;
-        device_coords   hysteresis_center;
+        si32_coor       point;
+        si32_coor       hysteresis_center;
         mt_palm_state   palm_state;
     };
     using fallback_dispatch_sptr = sptr<struct fallback_dispatch>;
@@ -17115,22 +17055,22 @@ namespace netxs::lixx // li++, libinput++.
         };
         struct fb_abs_t
         {
-            device_coords point;
-            si32          seat_slot;
+            si32_coor point;
+            si32      seat_slot;
         };
         struct fb_mt_t
         {
             si32                 slot;
             std::vector<mt_slot> slots;
             bool                 want_hysteresis;
-            device_coords        hysteresis_margin;
+            si32_coor            hysteresis_margin;
             bool                 has_palm;
         };
         struct fb_wheel_t
         {
             wheel_state         state;
-            device_coords       lo_res;
-            device_coords       hi_res;
+            si32_coor           lo_res;
+            si32_coor           hi_res;
             bool                emulate_hi_res_wheel;
             bool                hi_res_event_received;
             libinput_timer_sptr scroll_timer;
@@ -17180,7 +17120,7 @@ namespace netxs::lixx // li++, libinput++.
         fb_rotation_t                      rotation;
         fb_abs_t                           abs;
         fb_mt_t                            mt;
-        device_coords                      rel;
+        si32_coor                          rel;
         fb_wheel_t                         wheel;
         fb_tablet_mode_t                   tablet_mode;
         ui64                               hw_key_mask[lixx::nlongs<KEY_CNT>]; // Bitmask of pressed keys used to ignore initial release events from the kernel.
@@ -17710,16 +17650,16 @@ namespace netxs::lixx // li++, libinput++.
                                 default: break;
                             }
                         }
-                            device_float_coords fallback_rotate_relative(libinput_device_sptr li_device)
+                            fp64_coor fallback_rotate_relative(libinput_device_sptr li_device)
                             {
-                                auto rel = device_float_coords{ fallback.rel };
+                                auto rel = fp64_coor{ fallback.rel };
                                 if (li_device->config.rotation)
                                 {
                                     matrix_mult_vec_double(fallback.rotation.matrix, rel);
                                 }
                                 return rel;
                             }
-                            bool post_button_scroll(libinput_device_sptr li_device, device_float_coords raw, time stamp)
+                            bool post_button_scroll(libinput_device_sptr li_device, fp64_coor raw, time stamp)
                             {
                                 if (li_device->scroll.method != LIBINPUT_CONFIG_SCROLL_ON_BUTTON_DOWN) return faux;
                                 switch(li_device->scroll.button_scroll_state)
@@ -17773,7 +17713,7 @@ namespace netxs::lixx // li++, libinput++.
                                 li_device->pointer_notify_motion_absolute(stamp, point);
                             }
                         }
-                            void touch_notify_touch_down(libinput_device_sptr li_device, time stamp, si32 slot, si32 seat_slot, device_coords point)
+                            void touch_notify_touch_down(libinput_device_sptr li_device, time stamp, si32 slot, si32 seat_slot, si32_coor point)
                             {
                                 if (li_device->device_has_cap(LIBINPUT_DEVICE_CAP_TOUCH))
                                 {
@@ -17802,7 +17742,7 @@ namespace netxs::lixx // li++, libinput++.
                             touch_notify_touch_down(li_device, stamp, -1, seat_slot, point);
                             return true;
                         }
-                            void touch_notify_touch_motion(libinput_device_sptr li_device, time stamp, si32 slot, si32 seat_slot, device_coords point)
+                            void touch_notify_touch_motion(libinput_device_sptr li_device, time stamp, si32 slot, si32 seat_slot, si32_coor point)
                             {
                                 if (li_device->device_has_cap(LIBINPUT_DEVICE_CAP_TOUCH))
                                 {
@@ -17985,7 +17925,7 @@ namespace netxs::lixx // li++, libinput++.
                             }
                             return sent;
                         }
-                                    void evdev_notify_axis_wheel(libinput_device_sptr li_device, time stamp, ui32 active_axes, normalized_coords delta, wheel_v120 v120)
+                                    void evdev_notify_axis_wheel(libinput_device_sptr li_device, time stamp, ui32 active_axes, fp64_coor delta, si32_coor v120)
                                     {
                                         if (li_device->scroll.invert_horizontal_scrolling)
                                         {
@@ -18008,7 +17948,7 @@ namespace netxs::lixx // li++, libinput++.
                                             li_device->post_device_event(stamp, LIBINPUT_EVENT_POINTER_SCROLL_WHEEL, axis_event); // Legacy wheel events are sent separately.
                                         }
                                     }
-                                    void evdev_notify_axis_legacy_wheel(libinput_device_sptr li_device, time stamp, ui32 active_axes, normalized_coords delta, discrete_coords discrete)
+                                    void evdev_notify_axis_legacy_wheel(libinput_device_sptr li_device, time stamp, ui32 active_axes, fp64_coor delta, si32_coor discrete)
                                     {
                                         if (li_device->scroll.invert_horizontal_scrolling)
                                         {
@@ -18033,13 +17973,13 @@ namespace netxs::lixx // li++, libinput++.
                                     }
                                 void wheel_flush_scroll(libinput_device_sptr li_device, time stamp)
                                 {
-                                    auto wheel_degrees = normalized_coords{};
-                                    auto discrete = discrete_coords{};
-                                    auto v120 = wheel_v120{};
+                                    auto wheel_degrees = fp64_coor{};
+                                    auto discrete = si32_coor{};
+                                    auto v120 = si32_coor{};
                                     // This mouse has a trackstick instead of a mouse wheel and sends trackstick data via REL_WHEEL. Normalize it like normal x/y coordinates.
                                     if (li_device->model_flags & EVDEV_MODEL_LENOVO_SCROLLPOINT)
                                     {
-                                        auto raw = device_float_coords{ (fp64)fallback.wheel.lo_res.x, (fp64)fallback.wheel.lo_res.y * -1 };
+                                        auto raw = fp64_coor{ (fp64)fallback.wheel.lo_res.x, (fp64)fallback.wheel.lo_res.y * -1 };
                                         auto normalized = li_device->pointer.filter->filter_dispatch_scroll(raw, li_device.get(), stamp);
                                         li_device->evdev_post_scroll(stamp, LIBINPUT_POINTER_AXIS_SOURCE_CONTINUOUS, normalized);
                                         fallback.wheel.hi_res.x = 0;
@@ -19314,9 +19254,9 @@ namespace netxs::lixx // li++, libinput++.
         }
         return faux;
     }
-    wheel_angle evdev_read_wheel_click_props(libinput_device_sptr li_device)
+    fp64_coor evdev_read_wheel_click_props(libinput_device_sptr li_device)
     {
-        auto angles = wheel_angle{};
+        auto angles = fp64_coor{};
         auto wheel_count = "MOUSE_WHEEL_CLICK_COUNT";
         auto wheel_angle = "MOUSE_WHEEL_CLICK_ANGLE";
         auto hwheel_count = "MOUSE_WHEEL_CLICK_COUNT_HORIZONTAL";
