@@ -1023,6 +1023,8 @@ namespace netxs::lixx // li++, libinput++.
     static constexpr auto tp_magic_slowdown                     = 0.2968; // Unitless factor.
     static constexpr auto hold_and_motion_threshold             = 0.5; // mm.
     static constexpr auto tablet_history_length                 = 4;
+    static constexpr auto default_seat                          = "seat0";
+    static constexpr auto default_seat_name                     = "default";
 
     static constexpr auto clock_type     = CLOCK_MONOTONIC;
     static constexpr auto max_slots      = 0x100;
@@ -1068,9 +1070,95 @@ namespace netxs::lixx // li++, libinput++.
 
     struct matrix
     {
-        static constexpr auto row = 3;
-        static constexpr auto col = 3;
-        fp32 val[row][col];
+        fp32 val[3][3]; // row/col
+
+        void matrix_mult_vec(si32_coor& p) const
+        {
+            p.x = (si32)(p.x * val[0][0] + p.y * val[0][1] + val[0][2]);
+            p.y = (si32)(p.x * val[1][0] + p.y * val[1][1] + val[1][2]);
+        }
+        void matrix_mult_vec_double(fp64_coor& p)
+        {
+            p.x = p.x * val[0][0] + p.y * val[0][1] + val[0][2];
+            p.y = p.x * val[1][0] + p.y * val[1][1] + val[1][2];
+        }
+        bool matrix_is_identity() const
+        {
+            return (val[0][0] == 1
+                 && val[0][1] == 0
+                 && val[0][2] == 0
+                 && val[1][0] == 0
+                 && val[1][1] == 1
+                 && val[1][2] == 0
+                 && val[2][0] == 0
+                 && val[2][1] == 0
+                 && val[2][2] == 1);
+        }
+        void matrix_init_identity()
+        {
+            ::memset(val, 0, sizeof(val));
+            val[0][0] = 1;
+            val[1][1] = 1;
+            val[2][2] = 1;
+        }
+        void matrix_from_farray6(std::array<fp32, 6> const& values)
+        {
+            matrix_init_identity();
+            val[0][0] = values[0];
+            val[0][1] = values[1];
+            val[0][2] = values[2];
+            val[1][0] = values[3];
+            val[1][1] = values[4];
+            val[1][2] = values[5];
+        }
+        void matrix_to_farray6(auto& values) const
+        {
+            values[0] = val[0][0];
+            values[1] = val[0][1];
+            values[2] = val[0][2];
+            values[3] = val[1][0];
+            values[4] = val[1][1];
+            values[5] = val[1][2];
+        }
+        void matrix_init_translate(fp32 x, fp32 y)
+        {
+            matrix_init_identity();
+            val[0][2] = x;
+            val[1][2] = y;
+        }
+        void matrix_init_scale(fp32 sx, fp32 sy)
+        {
+            matrix_init_identity();
+            val[0][0] = sx;
+            val[1][1] = sy;
+        }
+        void matrix_mult(matrix const& m1, matrix const& m2)
+        {
+            auto m = matrix{}; // Allow for dest == m1 or dest == m2.
+            for (auto row = 0; row < 3; row++)
+            {
+                for (auto col = 0; col < 3; col++)
+                {
+                    auto v = 0.0;
+                    for (auto i = 0; i < 3; i++)
+                    {
+                        v += m1.val[row][i] * m2.val[i][col];
+                    }
+                    m.val[row][col] = v;
+                }
+            }
+            ::memcpy(val, m.val, sizeof(m));
+        }
+        void matrix_init_rotate(si32 degrees)
+        {
+            auto s = ::sin(M_PI * degrees / 180.0);
+            auto c = ::cos(M_PI * degrees / 180.0);
+            matrix_init_identity();
+            val[0][0] = c;
+            val[0][1] = -s;
+            val[1][0] = s;
+            val[1][1] = c;
+        }
     };
     struct libinput_config_accel
     {
@@ -1146,9 +1234,9 @@ namespace netxs::lixx // li++, libinput++.
         struct libinput_device_config_calibration
         {
             si32                  (*has_matrix)        (libinput_device_sptr li_device);
-            libinput_config_status(*set_matrix)        (libinput_device_sptr li_device, fp32 const matrix[6]);
-            si32                  (*get_matrix)        (libinput_device_sptr li_device, fp32 matrix[6]);
-            si32                  (*get_default_matrix)(libinput_device_sptr li_device, fp32 matrix[6]);
+            libinput_config_status(*set_matrix)        (libinput_device_sptr li_device, std::array<fp32, 6> const& matrix);
+            si32                  (*get_matrix)        (libinput_device_sptr li_device, std::array<fp32, 6>& matrix);
+            si32                  (*get_default_matrix)(libinput_device_sptr li_device, std::array<fp32, 6>& matrix);
         };
         struct libinput_device_config_tap
         {
@@ -1355,101 +1443,6 @@ namespace netxs::lixx // li++, libinput++.
         result.x = d.x >= 0 ? in.x - lag_x : in.x + lag_x;
         result.y = d.y >= 0 ? in.y - lag_y : in.y + lag_y;
         return result;
-    }
-    void matrix_mult_vec(matrix const* m, si32* x, si32* y)
-    {
-        auto tx = *x * m->val[0][0] + *y * m->val[0][1] + m->val[0][2];
-        auto ty = *x * m->val[1][0] + *y * m->val[1][1] + m->val[1][2];
-        *x = (si32)tx;
-        *y = (si32)ty;
-    }
-    bool matrix_is_identity(matrix const* m)
-    {
-        return (m->val[0][0] == 1 &&
-                m->val[0][1] == 0 &&
-                m->val[0][2] == 0 &&
-                m->val[1][0] == 0 &&
-                m->val[1][1] == 1 &&
-                m->val[1][2] == 0 &&
-                m->val[2][0] == 0 &&
-                m->val[2][1] == 0 &&
-                m->val[2][2] == 1);
-    }
-    void matrix_init_identity(matrix* m)
-    {
-        ::memset(m, 0, sizeof(*m));
-        m->val[0][0] = 1;
-        m->val[1][1] = 1;
-        m->val[2][2] = 1;
-    }
-    void matrix_from_farray6(matrix* m, const fp32 values[6])
-    {
-        matrix_init_identity(m);
-        m->val[0][0] = values[0];
-        m->val[0][1] = values[1];
-        m->val[0][2] = values[2];
-        m->val[1][0] = values[3];
-        m->val[1][1] = values[4];
-        m->val[1][2] = values[5];
-    }
-    void matrix_init_translate(matrix* m, fp32 x, fp32 y)
-    {
-        matrix_init_identity(m);
-        m->val[0][2] = x;
-        m->val[1][2] = y;
-    }
-    void matrix_init_scale(matrix* m, fp32 sx, fp32 sy)
-    {
-        matrix_init_identity(m);
-        m->val[0][0] = sx;
-        m->val[1][1] = sy;
-    }
-    void matrix_mult(matrix* dest, matrix const* m1, matrix const* m2)
-    {
-        auto m = matrix{}; // Allow for dest == m1 or dest == m2.
-        for (auto row = 0; row < 3; row++)
-        {
-            for (auto col = 0; col < 3; col++)
-            {
-                auto v = 0.0;
-                for (auto i = 0; i < 3; i++)
-                {
-                    v += m1->val[row][i] * m2->val[i][col];
-                }
-                m.val[row][col] = v;
-            }
-        }
-        ::memcpy(dest, &m, sizeof(m));
-    }
-    void matrix_to_farray6(matrix const* m, fp32 out[6])
-    {
-        out[0] = m->val[0][0];
-        out[1] = m->val[0][1];
-        out[2] = m->val[0][2];
-        out[3] = m->val[1][0];
-        out[4] = m->val[1][1];
-        out[5] = m->val[1][2];
-    }
-    void matrix_mult_vec_double(matrix const& m, fp64_coor& rel)
-    {
-        auto tx = rel.x * m.val[0][0] + rel.y * m.val[0][1] + m.val[0][2];
-        auto ty = rel.x * m.val[1][0] + rel.y * m.val[1][1] + m.val[1][2];
-        rel.x = tx;
-        rel.y = ty;
-    }
-    fp64 deg2rad(si32 degree)
-    {
-        return M_PI * degree / 180.0;
-    }
-    void matrix_init_rotate(matrix* m, si32 degrees)
-    {
-        auto s = ::sin(deg2rad(degrees));
-        auto c = ::cos(deg2rad(degrees));
-        matrix_init_identity(m);
-        m->val[0][0] = c;
-        m->val[0][1] = -s;
-        m->val[1][0] = s;
-        m->val[1][1] = c;
     }
     fp64 absinfo_range(::input_absinfo const* abs)
     {
@@ -5690,7 +5683,7 @@ namespace netxs::lixx // li++, libinput++.
         {
             if (abs.apply_calibration)
             {
-                matrix_mult_vec(&abs.calibration, &point.x, &point.y);
+                abs.calibration.matrix_mult_vec(point);
             }
         }
         ui32 evdev_to_left_handed(ui32 button)
@@ -6580,17 +6573,17 @@ namespace netxs::lixx // li++, libinput++.
             left_handed.want_enabled       = faux;
             left_handed.change_to_enabled  = change_to_left_handed;
         }
-                void evdev_device_calibrate(fp32 const calibration[6])
+                void evdev_device_calibrate(std::array<fp32, 6> const& calibration)
                 {
                     auto scale = matrix{};
                     auto translate = matrix{};
                     auto transform = matrix{};
-                    matrix_from_farray6(&transform, calibration);
-                    abs.apply_calibration = !matrix_is_identity(&transform);
-                    matrix_from_farray6(&abs.usermatrix, calibration); // Back up the user matrix so we can return it on request.
+                    transform.matrix_from_farray6(calibration);
+                    abs.apply_calibration = !transform.matrix_is_identity();
+                    abs.usermatrix.matrix_from_farray6(calibration); // Back up the user matrix so we can return it on request.
                     if (!abs.apply_calibration)
                     {
-                        matrix_init_identity(&abs.calibration);
+                        abs.calibration.matrix_init_identity();
                         return;
                     }
                     auto sx = absinfo_range(abs.absinfo_x);
@@ -6614,36 +6607,36 @@ namespace netxs::lixx // li++, libinput++.
                     // Matrix maths requires the normalize/un-normalize in reverse order.
                     //
                     // - Un-Normalize.
-                    matrix_init_translate(&translate, abs.absinfo_x->minimum, abs.absinfo_y->minimum);
-                    matrix_init_scale(&scale, sx, sy);
-                    matrix_mult(&scale, &translate, &scale);
+                    translate.matrix_init_translate(abs.absinfo_x->minimum, abs.absinfo_y->minimum);
+                    scale.matrix_init_scale(sx, sy);
+                    scale.matrix_mult(translate, scale);
                     // - Calibrate.
-                    matrix_mult(&transform, &scale, &transform);
+                    transform.matrix_mult(scale, transform);
                     // - Normalize.
-                    matrix_init_translate(&translate, -abs.absinfo_x->minimum / sx, -abs.absinfo_y->minimum / sy);
-                    matrix_init_scale(&scale, 1.0 / sx, 1.0 / sy);
-                    matrix_mult(&scale, &translate, &scale);
+                    translate.matrix_init_translate(-abs.absinfo_x->minimum / sx, -abs.absinfo_y->minimum / sy);
+                    scale.matrix_init_scale(1.0 / sx, 1.0 / sy);
+                    scale.matrix_mult(translate, scale);
                     // - Store final matrix in device.
-                    matrix_mult(&abs.calibration, &transform, &scale);
+                    abs.calibration.matrix_mult(transform, scale);
                 }
             static si32 evdev_calibration_has_matrix(libinput_device_sptr li_device)
             {
                 return li_device->abs.absinfo_x && li_device->abs.absinfo_y;
             }
-            static libinput_config_status evdev_calibration_set_matrix(libinput_device_sptr li_device, fp32 const matrix[6])
+            static libinput_config_status evdev_calibration_set_matrix(libinput_device_sptr li_device, std::array<fp32, 6> const& matrix_data)
             {
-                li_device->evdev_device_calibrate(matrix);
+                li_device->evdev_device_calibrate(matrix_data);
                 return LIBINPUT_CONFIG_STATUS_SUCCESS;
             }
-            static si32 evdev_calibration_get_matrix(libinput_device_sptr li_device, fp32 matrix[6])
+            static si32 evdev_calibration_get_matrix(libinput_device_sptr li_device, std::array<fp32, 6>& matrix_data)
             {
-                matrix_to_farray6(&li_device->abs.usermatrix, matrix);
-                return !matrix_is_identity(&li_device->abs.usermatrix);
+                li_device->abs.usermatrix.matrix_to_farray6(matrix_data);
+                return !li_device->abs.usermatrix.matrix_is_identity();
             }
-            static si32 evdev_calibration_get_default_matrix(libinput_device_sptr li_device, fp32 matrix[6])
+            static si32 evdev_calibration_get_default_matrix(libinput_device_sptr li_device, std::array<fp32, 6>& matrix_data)
             {
-                matrix_to_farray6(&li_device->abs.default_calibration, matrix);
-                return !matrix_is_identity(&li_device->abs.default_calibration);
+                li_device->abs.default_calibration.matrix_to_farray6(matrix_data);
+                return !li_device->abs.default_calibration.matrix_is_identity();
             }
         void evdev_init_calibration(libinput_device_config_calibration& calibration)
         {
@@ -17453,7 +17446,7 @@ namespace netxs::lixx // li++, libinput++.
                                 auto rel = fp64_coor{ fallback.rel };
                                 if (li_device->config.rotation)
                                 {
-                                    matrix_mult_vec_double(fallback.rotation.matrix, rel);
+                                    fallback.rotation.matrix.matrix_mult_vec_double(rel);
                                 }
                                 return rel;
                             }
@@ -18538,7 +18531,7 @@ namespace netxs::lixx // li++, libinput++.
                 {
                     auto& fallback = *li_device->dispatch->This<fallback_dispatch>();
                     fallback.rotation.angle = degrees_cw;
-                    matrix_init_rotate(&fallback.rotation.matrix, degrees_cw);
+                    fallback.rotation.matrix.matrix_init_rotate(degrees_cw);
                     return LIBINPUT_CONFIG_STATUS_SUCCESS;
                 }
                 static ui32 fallback_rotation_config_get_angle(libinput_device_sptr li_device)
@@ -18557,7 +18550,7 @@ namespace netxs::lixx // li++, libinput++.
                 fallback.rotation.config.set_angle         = fallback_rotation_config_set_angle;
                 fallback.rotation.config.get_angle         = fallback_rotation_config_get_angle;
                 fallback.rotation.config.get_default_angle = fallback_rotation_config_get_default_angle;
-                matrix_init_identity(&fallback.rotation.matrix);
+                fallback.rotation.matrix.matrix_init_identity();
                 li_device->config.rotation = &fallback.rotation.config;
             }
             void fallback_dispatch_init_rel([[maybe_unused]] libinput_device_sptr li_device)
@@ -18784,8 +18777,6 @@ namespace netxs::lixx // li++, libinput++.
     };
     using fallback_dispatch_sptr = sptr<fallback_dispatch>;
 
-        static constexpr auto default_seat = "seat0";
-        static constexpr auto default_seat_name = "default";
         void libinput_t::libinput_device_added(ud_device_sptr ud_device)
         {
             auto device_seat = default_seat;
@@ -20383,9 +20374,9 @@ namespace netxs::lixx // li++, libinput++.
         li_device->scroll.wheel_click_angle = evdev_read_wheel_click_props(li_device);
         li_device->model_flags = evdev_read_model_flags(li_device);
         li_device->dpi = lixx::default_mouse_dpi;
-        matrix_init_identity(&li_device->abs.calibration);
-        matrix_init_identity(&li_device->abs.usermatrix);
-        matrix_init_identity(&li_device->abs.default_calibration);
+        li_device->abs.calibration.matrix_init_identity();
+        li_device->abs.usermatrix.matrix_init_identity();
+        li_device->abs.default_calibration.matrix_init_identity();
         evdev_pre_configure_model_quirks(li_device);
         li_device->dispatch = evdev_configure_device(li_device);
         if (li_device->dispatch && li_device->device_caps != EVDEV_DEVICE_NO_CAPABILITIES)
@@ -20406,7 +20397,7 @@ namespace netxs::lixx // li++, libinput++.
         }
         return li_device;
     }
-            bool parse_calibration_property(qiew prop, fp32 calibration_out[6])
+            bool parse_calibration_property(qiew prop, std::array<fp32, 6>& calibration_out)
             {
                 // Parses a set of 6 space-separated floats.
                 if (!prop) return faux;
@@ -20426,14 +20417,14 @@ namespace netxs::lixx // li++, libinput++.
                         }
                         else return faux;
                     }
-                    ::memcpy(calibration_out, calibration.data(), sizeof(calibration));
+                    calibration_out = calibration;
                     rc = true;
                 }
                 return rc;
             }
-            void evdev_device_set_default_calibration(libinput_device_sptr li_device, fp32 const calibration[6])
+            void evdev_device_set_default_calibration(libinput_device_sptr li_device, std::array<fp32, 6> const& calibration)
             {
-                matrix_from_farray6(&li_device->abs.default_calibration, calibration);
+                li_device->abs.default_calibration.matrix_from_farray6(calibration);
                 li_device->evdev_device_calibrate(calibration);
             }
         void evdev_read_calibration_prop(libinput_device_sptr li_device)
@@ -20443,9 +20434,9 @@ namespace netxs::lixx // li++, libinput++.
                 if (li_device->abs.absinfo_x && li_device->abs.absinfo_y)
                 {
                     auto calibration = std::array<fp32, 6>{};
-                    if (parse_calibration_property(prop, calibration.data()))
+                    if (parse_calibration_property(prop, calibration))
                     {
-                        evdev_device_set_default_calibration(li_device, calibration.data());
+                        evdev_device_set_default_calibration(li_device, calibration);
                         log("Apply calibration: %f% %f% %f% %f% %f% %f%",
                                 calibration[0],
                                 calibration[1],
