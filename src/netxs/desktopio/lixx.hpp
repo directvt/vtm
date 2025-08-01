@@ -6952,7 +6952,7 @@ namespace netxs::lixx // li++, libinput++.
             time             initial_time;
             si32             pressure;
             bool             is_tool_palm; // MT_TOOL_PALM.
-            si32             major, minor;
+            si32_range       touch_limits;
             bool             was_down; // If distance == 0, false for pure hovering touches.
             tp_quirks_t      quirks;
             tp_history_t     history;
@@ -7354,12 +7354,12 @@ namespace netxs::lixx // li++, libinput++.
                                     tp.queued = (touchpad_event)(tp.queued | TOUCHPAD_EVENT_OTHERAXIS);
                                     break;
                                 case EVDEV_ABS_MT_TOUCH_MAJOR:
-                                    t.major = ev.value;
+                                    t.touch_limits.max = ev.value;
                                     t.dirty = true;
                                     tp.queued = (touchpad_event)(tp.queued | TOUCHPAD_EVENT_OTHERAXIS);
                                     break;
                                 case EVDEV_ABS_MT_TOUCH_MINOR:
-                                    t.minor = ev.value;
+                                    t.touch_limits.min = ev.value;
                                     t.dirty = true;
                                     tp.queued = (touchpad_event)(tp.queued | TOUCHPAD_EVENT_OTHERAXIS);
                                     break;
@@ -7773,7 +7773,7 @@ namespace netxs::lixx // li++, libinput++.
                                             if (t.state == TOUCH_NONE || !t.dirty) continue;
                                             if (t.state == TOUCH_HOVERING)
                                             {
-                                                if ((t.major > high && t.minor > low) || (t.major > low && t.minor > high))
+                                                if ((t.touch_limits.max > high && t.touch_limits.min > low) || (t.touch_limits.max > low && t.touch_limits.min > high))
                                                 {
                                                     log("touch-size: begin touch %d%", t.index);
                                                     tp_motion_history_reset(t); // Avoid jumps when landing a finger.
@@ -7782,7 +7782,7 @@ namespace netxs::lixx // li++, libinput++.
                                             }
                                             else
                                             {
-                                                if (t.major < low || t.minor < low)
+                                                if (t.touch_limits.max < low || t.touch_limits.min < low)
                                                 {
                                                     log("touch-size: end touch %d%", t.index);
                                                     tp_maybe_end_touch(t, stamp);
@@ -8049,7 +8049,7 @@ namespace netxs::lixx // li++, libinput++.
                                                 {
                                                     is_thumb = true;
                                                 }
-                                                if (tp.thumb.use_size && (t.major > tp.thumb.size_threshold) && (t.minor < (tp.thumb.size_threshold * 0.6)))
+                                                if (tp.thumb.use_size && (t.touch_limits.max > tp.thumb.size_threshold) && (t.touch_limits.min < (tp.thumb.size_threshold * 0.6)))
                                                 {
                                                     is_thumb = true;
                                                 }
@@ -8195,7 +8195,7 @@ namespace netxs::lixx // li++, libinput++.
                                         if (!tp.palm.use_size) return faux;
                                         // If a finger size is large enough for palm, we stick with that and force the user to release and reset the finger.
                                         if (t.palm.state != TOUCH_PALM_NONE && t.palm.state != TOUCH_PALM_TOUCH_SIZE) return faux;
-                                        if (t.major > tp.palm.size_threshold || t.minor > tp.palm.size_threshold)
+                                        if (t.touch_limits.max > tp.palm.size_threshold || t.touch_limits.min > tp.palm.size_threshold)
                                         {
                                             if (t.palm.state != TOUCH_PALM_TOUCH_SIZE) log("palm: touch %d% size exceeded", t.index);
                                             t.palm.state = TOUCH_PALM_TOUCH_SIZE;
@@ -12235,8 +12235,8 @@ namespace netxs::lixx // li++, libinput++.
                                             {
                                                 t.pressure = li_device->libevdev_get_event_value(EV_ABS, ABS_PRESSURE);
                                             }
-                                            li_device->libevdev_fetch_slot_value(slot, ABS_MT_TOUCH_MAJOR, t.major);
-                                            li_device->libevdev_fetch_slot_value(slot, ABS_MT_TOUCH_MINOR, t.minor);
+                                            li_device->libevdev_fetch_slot_value(slot, ABS_MT_TOUCH_MAJOR, t.touch_limits.max);
+                                            li_device->libevdev_fetch_slot_value(slot, ABS_MT_TOUCH_MINOR, t.touch_limits.min);
                                             if (li_device->libevdev_fetch_slot_value(slot, ABS_MT_TRACKING_ID, tracking_id) && tracking_id != -1)
                                             {
                                                 tp.nactive_slots++;
