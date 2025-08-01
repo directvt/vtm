@@ -13834,7 +13834,7 @@ namespace netxs::lixx // li++, libinput++.
         libinput_device_sptr li_device;
         byte                 status;
         ui32                 changed_axes;
-        button_state_t       button_state_v; //todo rename next_button_state + prev_button_state
+        button_state_t       next_button_state;
         button_state_t       prev_button_state;
         ui32                 button_map[KEY_CNT];
         ui32                 nbuttons;
@@ -13935,12 +13935,12 @@ namespace netxs::lixx // li++, libinput++.
                                 auto code = evdev_usage_code(button);
                                 if (is_down)
                                 {
-                                    pad.button_state_v.set(code);
+                                    pad.next_button_state.set(code);
                                     pad_set_status(PAD_BUTTONS_PRESSED);
                                 }
                                 else
                                 {
-                                    pad.button_state_v.reset(code);
+                                    pad.next_button_state.reset(code);
                                     pad_set_status(PAD_BUTTONS_RELEASED);
                                 }
                             }
@@ -14315,14 +14315,14 @@ namespace netxs::lixx // li++, libinput++.
                                 }
                             void pad_notify_buttons(libinput_device_sptr li_device, time stamp, libinput_button_state state)
                             {
-                                auto buttons = state == LIBINPUT_BUTTON_STATE_PRESSED ? pad.button_state_v & ~pad.prev_button_state  // pad_get_buttons_pressed()
-                                                                                      : pad.prev_button_state & ~pad.button_state_v; // pad_get_buttons_released();
+                                auto buttons = state == LIBINPUT_BUTTON_STATE_PRESSED ? pad.next_button_state & ~pad.prev_button_state  // pad_get_buttons_pressed()
+                                                                                      : pad.prev_button_state & ~pad.next_button_state; // pad_get_buttons_released();
                                 pad_notify_button_mask(li_device, stamp, buttons, state);
                             }
                             static void pad_change_to_left_handed(libinput_device_sptr li_device)
                             {
                                 auto& pad = *std::static_pointer_cast<pad_dispatch>(li_device->dispatch);
-                                if (li_device->left_handed.enabled != li_device->left_handed.want_enabled && !pad.button_state_v.any()) // If not pad_any_button_down.
+                                if (li_device->left_handed.enabled != li_device->left_handed.want_enabled && !pad.next_button_state.any()) // If not pad_any_button_down.
                                 {
                                     li_device->left_handed.enabled = li_device->left_handed.want_enabled;
                                 }
@@ -14345,7 +14345,7 @@ namespace netxs::lixx // li++, libinput++.
                                 pad_notify_buttons(li_device, stamp, LIBINPUT_BUTTON_STATE_PRESSED);
                                 pad_unset_status(PAD_BUTTONS_PRESSED);
                             }
-                            ::memcpy(&pad.prev_button_state, &pad.button_state_v, sizeof(pad.button_state_v)); // Update state.
+                            pad.prev_button_state = pad.next_button_state;
                             pad.dials.dial1 = 0;
                             pad.dials.dial2 = 0;
                         }
@@ -14370,7 +14370,7 @@ namespace netxs::lixx // li++, libinput++.
                         for (auto usage = evdev_usage_from(EVDEV_KEY_ESC); usage <= EVDEV_KEY_MAX; usage = evdev_usage_next(usage))
                         {
                             auto button = evdev_usage_code(usage);
-                            if (pad.button_state_v[button])
+                            if (pad.next_button_state[button])
                             {
                                 pad_button_set_down(usage, faux);
                             }
@@ -15000,8 +15000,8 @@ namespace netxs::lixx // li++, libinput++.
         si32                                 current_value[LIBINPUT_TABLET_TOOL_AXIS_MAX + 1];
         si32                                 prev_value[LIBINPUT_TABLET_TOOL_AXIS_MAX + 1];
         std::list<libinput_tablet_tool_sptr> tool_list; // Only used for tablets that don't report serial numbers.
-        button_state_t                       button_state_v;   //todo rename next_.. and prev_...
-        button_state_t                       prev_button_state;//
+        button_state_t                       next_button_state;
+        button_state_t                       prev_button_state;
         ui32                                 tool_state;
         ui32                                 prev_tool_state;
         current_tool_t                       current_tool;
@@ -15158,12 +15158,12 @@ namespace netxs::lixx // li++, libinput++.
                         case EVDEV_BTN_STYLUS3:
                             if (ev.value)
                             {
-                                tablet.button_state_v.set(evdev_usage_code(usage));
+                                tablet.next_button_state.set(evdev_usage_code(usage));
                                 tablet.status |= TABLET_BUTTONS_PRESSED;
                             }
                             else
                             {
-                                tablet.button_state_v.reset(evdev_usage_code(usage));
+                                tablet.next_button_state.reset(evdev_usage_code(usage));
                                 tablet.status |= TABLET_BUTTONS_RELEASED;
                             }
                             break;
@@ -15557,7 +15557,7 @@ namespace netxs::lixx // li++, libinput++.
                             tablet.status |= TABLET_TOOL_ENTERING_PROXIMITY;
                             tablet_mark_all_axes_changed(tool);
                             tablet.status |= TABLET_BUTTONS_PRESSED;
-                            tablet.button_state_v |= tablet.prev_button_state; // tablet_force_button_presses
+                            tablet.next_button_state |= tablet.prev_button_state; // tablet_force_button_presses
                             tablet.prev_button_state.reset();                  //
                         }
                         else if (dist >= dist_max && !(tablet.status & TABLET_TOOL_OUT_OF_RANGE) && !(tablet.status & TABLET_TOOL_OUT_OF_PROXIMITY))
@@ -16194,8 +16194,8 @@ namespace netxs::lixx // li++, libinput++.
                                 }
                             void tablet_notify_buttons(libinput_device_sptr li_device, time stamp, libinput_tablet_tool_sptr tool, libinput_button_state state)
                             {
-                                auto buttons = state == LIBINPUT_BUTTON_STATE_PRESSED ? tablet.button_state_v & ~tablet.prev_button_state
-                                                                                      : tablet.prev_button_state & ~tablet.button_state_v;
+                                auto buttons = state == LIBINPUT_BUTTON_STATE_PRESSED ? tablet.next_button_state & ~tablet.prev_button_state
+                                                                                      : tablet.prev_button_state & ~tablet.next_button_state;
                                 tablet_notify_button_mask(li_device, stamp, tool, buttons, state);
                             }
                         void tablet_send_buttons(libinput_tablet_tool_sptr tool, libinput_device_sptr li_device, time stamp)
@@ -16351,7 +16351,7 @@ namespace netxs::lixx // li++, libinput++.
                         }
                         if (tablet.status & TABLET_TOOL_LEAVING_PROXIMITY) // Release all stylus buttons.
                         {
-                            tablet.button_state_v.reset();
+                            tablet.next_button_state.reset();
                             tablet.status |= TABLET_BUTTONS_RELEASED;
                             if (tablet.status & TABLET_TOOL_IN_CONTACT)
                             {
@@ -16448,10 +16448,10 @@ namespace netxs::lixx // li++, libinput++.
                 }
                 void tablet_reset_state()
                 {
-                    tablet.prev_button_state = tablet.button_state_v;
+                    tablet.prev_button_state = tablet.next_button_state;
                     tablet.status &= ~TABLET_TOOL_UPDATED;
-                    if (tablet.button_state_v.any()) tablet.status |= TABLET_BUTTONS_DOWN;
-                    else                             tablet.status &= ~TABLET_BUTTONS_DOWN;
+                    if (tablet.next_button_state.any()) tablet.status |= TABLET_BUTTONS_DOWN;
+                    else                                tablet.status &= ~TABLET_BUTTONS_DOWN;
                 }
             void tablet_process(libinput_device_sptr li_device, evdev_event& ev, time stamp)
             {
@@ -17032,8 +17032,8 @@ namespace netxs::lixx // li++, libinput++.
         si32_coor                          rel;
         fb_wheel_t                         wheel;
         fb_tablet_mode_t                   tablet_mode;
-        button_state_t                     hw_key_mask; // Bitmask of pressed keys used to ignore initial release events from the kernel.
-        button_state_t                     last_hw_key_mask;
+        button_state_t                     next_hw_key_mask; // Bitmask of pressed keys used to ignore initial release events from the kernel.
+        button_state_t                     prev_hw_key_mask;
         evdev_event_type                   pending_event;
         fb_debounce_t                      debounce;
         fb_lid_t                           lid;
@@ -17359,7 +17359,7 @@ namespace netxs::lixx // li++, libinput++.
                         {
                             assert(evdev_usage_type(usage) == EV_KEY);
                             auto code = evdev_usage_code(usage);
-                            return fallback.hw_key_mask[code];
+                            return fallback.next_hw_key_mask[code];
                         }
                             void long_set_bit_state(ui64* array, si32 bit, si32 state)
                             {
@@ -17384,7 +17384,7 @@ namespace netxs::lixx // li++, libinput++.
                         {
                             assert(evdev_usage_type(usage) == EV_KEY);
                             auto code = evdev_usage_code(usage);
-                            fallback.hw_key_mask.set(code, pressed);
+                            fallback.next_hw_key_mask.set(code, pressed);
                         }
                             void keyboard_notify_key(libinput_device_sptr li_device, time stamp, keycode_t keycode, libinput_key_state state)
                             {
@@ -17971,7 +17971,7 @@ namespace netxs::lixx // li++, libinput++.
                         {
                             assert(evdev_usage_type(usage) == EV_KEY);
                             auto code = evdev_usage_code(usage);
-                            return fallback.hw_key_mask[code] != fallback.last_hw_key_mask[code];
+                            return fallback.next_hw_key_mask[code] != fallback.prev_hw_key_mask[code];
                         }
                                 void debounce_cancel_timer()
                                 {
@@ -18290,7 +18290,7 @@ namespace netxs::lixx // li++, libinput++.
                         }
                         void hw_key_update_last_state()
                         {
-                            fallback.last_hw_key_mask = fallback.hw_key_mask;
+                            fallback.prev_hw_key_mask = fallback.next_hw_key_mask;
                         }
                         void touch_notify_frame(libinput_device_sptr li_device, time stamp)
                         {
@@ -18444,8 +18444,8 @@ namespace netxs::lixx // li++, libinput++.
                         {
                             cancel_touches(li_device, si32_rect{}, stamp);
                             release_pressed_keys(li_device, stamp);
-                            fallback.hw_key_mask.reset();
-                            fallback.hw_key_mask.reset();
+                            fallback.next_hw_key_mask.reset();
+                            fallback.prev_hw_key_mask.reset();
                         }
                     }
                 void fallback_interface_suspend(libinput_device_sptr li_device)
