@@ -6935,25 +6935,21 @@ namespace netxs::lixx // li++, libinput++.
                 si32_coor        first; // Palm detected there.
                 time             stamp; // Palm detection time.
             };
-            struct tp_speed_t
-            {
-                fp64 last_speed; // Speed in mm/s at last sample.
-                ui32 exceeded_count;
-            };
             using tp_dispatch_sptr = sptr<struct tp_dispatch>;
         struct tp_touch
         {
             tp_dispatch_sptr tp;
             ui32             index;
+            si32             pressure;
             touch_state      state;
             bool             has_ended; // TRACKING_ID == -1.
             bool             dirty;
-            si32_coor        point;
-            time             initial_time;
-            si32             pressure;
             bool             is_tool_palm; // MT_TOOL_PALM.
-            si32_range       touch_limits;
             bool             was_down; // If distance == 0, false for pure hovering touches.
+            time             initial_time;
+            si32_coor        gesture_origin;
+            si32_coor        point;
+            si32_range       touch_limits;
             tp_quirks_t      quirks;
             tp_history_t     history;
             tp_jumps_t       jumps;
@@ -6963,8 +6959,8 @@ namespace netxs::lixx // li++, libinput++.
             tp_tap_t         tap;
             tp_scroll_t      scroll;
             tp_palm_t        palm;
-            si32_coor        gesture_origin;
-            tp_speed_t       speed;
+            fp64             speed_last; // Speed in mm/s at last sample.
+            ui32             speed_exceeded_count;
         };
         struct tp_dispatch_arbitration_t
         {
@@ -7276,8 +7272,8 @@ namespace netxs::lixx // li++, libinput++.
                                 t.palm.state                  = TOUCH_PALM_NONE;
                                 t.state                       = TOUCH_HOVERING;
                                 t.pinned.is_pinned            = faux;
-                                t.speed.last_speed            = 0;
-                                t.speed.exceeded_count        = 0;
+                                t.speed_last                  = 0;
+                                t.speed_exceeded_count        = 0;
                                 t.hysteresis.x_motion_history = 0;
                                 tp.queued = (touchpad_event)(tp.queued | TOUCHPAD_EVENT_MOTION);
                             }
@@ -7676,15 +7672,15 @@ namespace netxs::lixx // li++, libinput++.
                                 }
                                         void tp_begin_touch(tp_touch& t, time stamp)
                                         {
-                                            t.dirty        = true;
-                                            t.state        = TOUCH_BEGIN;
-                                            t.initial_time = stamp;
-                                            t.was_down     = true;
+                                            t.dirty                = true;
+                                            t.state                = TOUCH_BEGIN;
+                                            t.initial_time         = stamp;
+                                            t.was_down             = true;
+                                            t.palm.stamp           = stamp;
+                                            t.tap.is_thumb         = faux;
+                                            t.tap.is_palm          = faux;
+                                            t.speed_exceeded_count = 0;
                                             tp.nfingers_down++;
-                                            t.palm.stamp   = stamp;
-                                            t.tap.is_thumb = faux;
-                                            t.tap.is_palm  = faux;
-                                            t.speed.exceeded_count = 0;
                                             assert(tp.nfingers_down >= 1);
                                             tp.hysteresis.last_motion_time = stamp;
                                         }
@@ -7861,7 +7857,7 @@ namespace netxs::lixx // li++, libinput++.
                                     t.state                = TOUCH_END;
                                     t.pinned.is_pinned     = faux;
                                     t.palm.stamp           = {};
-                                    t.speed.exceeded_count = 0;
+                                    t.speed_exceeded_count = 0;
                                     tp.queued = (touchpad_event)(tp.queued | TOUCHPAD_EVENT_MOTION);
                                 }
                             void tp_pre_process_state(time stamp)
@@ -8065,7 +8061,7 @@ namespace netxs::lixx // li++, libinput++.
                                             {
                                                 return faux;
                                             }
-                                            if (t.speed.exceeded_count >= 10)
+                                            if (t.speed_exceeded_count >= 10)
                                             {
                                                 return faux;
                                             }
@@ -8088,7 +8084,7 @@ namespace netxs::lixx // li++, libinput++.
                                 {
                                     if (!tp.thumb.detect_thumbs) return;
                                     // Once any active touch exceeds the speed threshold, don't try to detect pinches until all touches lift.
-                                    if (t.speed.exceeded_count >= 10 && tp.thumb.pinch_eligible && tp.gesture.state == GESTURE_STATE_NONE)
+                                    if (t.speed_exceeded_count >= 10 && tp.thumb.pinch_eligible && tp.gesture.state == GESTURE_STATE_NONE)
                                     {
                                         tp.thumb.pinch_eligible = faux;
                                         if(tp.thumb.state == THUMB_STATE_PINCH)
@@ -8451,7 +8447,7 @@ namespace netxs::lixx // li++, libinput++.
                                     auto distance = hypot(mm.x, mm.y);
                                     auto speed = distance / datetime::round<si64, std::chrono::microseconds>(stamp - last->stamp); // mm/us.
                                     speed *= 1000000; // mm/s.
-                                    t.speed.last_speed = speed;
+                                    t.speed_last = speed;
                                 }
                                 void tp_unpin_finger(tp_touch& t)
                                 {
@@ -8508,7 +8504,7 @@ namespace netxs::lixx // li++, libinput++.
                                             {
                                                 newest = &t;
                                             }
-                                            speed_exceeded_count = std::max(speed_exceeded_count, t.speed.exceeded_count);
+                                            speed_exceeded_count = std::max(speed_exceeded_count, t.speed_exceeded_count);
                                             if (!oldest || t.initial_time < oldest->initial_time)
                                             {
                                                 oldest = &t;
@@ -9838,8 +9834,8 @@ namespace netxs::lixx // li++, libinput++.
                                     if (!t.dirty)
                                     {
                                         // A non-dirty touch must be below the speed limit.
-                                        if (t.speed.exceeded_count > 0) t.speed.exceeded_count--;
-                                        speed_exceeded_count = std::max(speed_exceeded_count, t.speed.exceeded_count);
+                                        if (t.speed_exceeded_count > 0) t.speed_exceeded_count--;
+                                        speed_exceeded_count = std::max(speed_exceeded_count, t.speed_exceeded_count);
                                         // A touch that hasn't moved must be in the same position, so let's add this to the motion history.
                                         tp_motion_history_push(t, stamp);
                                         continue;
@@ -9865,18 +9861,18 @@ namespace netxs::lixx // li++, libinput++.
                                     // Yes, this relies on the touchpad to keep sending us
                                     // events even if the finger doesn't move, otherwise we
                                     // never count down. Let's see how far we get with that.
-                                    if (t.speed.last_speed > lixx::thumb_ignore_speed_threshold)
+                                    if (t.speed_last > lixx::thumb_ignore_speed_threshold)
                                     {
-                                        if (t.speed.exceeded_count < 15)
+                                        if (t.speed_exceeded_count < 15)
                                         {
-                                            t.speed.exceeded_count++;
+                                            t.speed_exceeded_count++;
                                         }
                                     }
-                                    else if (t.speed.exceeded_count > 0)
+                                    else if (t.speed_exceeded_count > 0)
                                     {
-                                        t.speed.exceeded_count--;
+                                        t.speed_exceeded_count--;
                                     }
-                                    speed_exceeded_count = std::max(speed_exceeded_count, t.speed.exceeded_count);
+                                    speed_exceeded_count = std::max(speed_exceeded_count, t.speed_exceeded_count);
                                     tp_calculate_motion_speed(t, stamp);
                                     tp_unpin_finger(t);
                                     if (t.state == TOUCH_BEGIN)
