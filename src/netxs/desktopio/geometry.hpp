@@ -13,11 +13,20 @@ namespace netxs
 
     // geometry: Generic 2D point.
     template<class T>
+    struct limits
+    {
+        using type = T;
+        T min;
+        T max;
+    };
+    // geometry: Generic 2D point.
+    template<class T>
     struct xy2d
     {
         using type = T;
 
-        T x, y;
+        T x;
+        T y;
 
         template<class D>
         constexpr static auto cast(D x) requires(std::is_floating_point_v<T> || (std::is_integral_v<T> == std::is_integral_v<D>))

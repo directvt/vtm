@@ -184,11 +184,6 @@ namespace netxs::lixx // li++, libinput++.
         return tv;
     }
 
-    struct phys_ellipsis
-    {
-        fp64 major;
-        fp64 minor;
-    };
     struct matrix
     {
         static constexpr auto row = 3;
@@ -196,28 +191,14 @@ namespace netxs::lixx // li++, libinput++.
         fp32 val[row][col];
     };
 
-    using fp64_rect = netxs::xysz<fp64>;
-    using fp64_coor = netxs::xy2d<fp64>;
-    using si32_rect = netxs::xysz<si32>;
-    using si32_coor = netxs::xy2d<si32>;
+    using fp64_range = netxs::limits<fp64>;
+    using si32_range = netxs::limits<si32>;
+    using fp64_rect  = netxs::xysz<fp64>;
+    using fp64_coor  = netxs::xy2d<fp64>;
+    using si32_rect  = netxs::xysz<si32>;
+    using si32_coor  = netxs::xy2d<si32>;
 
     using fd_t = os::fd_t;
-
-    struct normalized_range
-    {
-        fp64 min;
-        fp64 max;
-    };
-    struct discrete_range
-    {
-        si32 min;
-        si32 max;
-    };
-    struct threshold
-    {
-        si32 upper;
-        si32 lower;
-    };
 
     using libinput_sptr        = sptr<struct libinput_t>;
     using libinput_seat_sptr   = sptr<struct libinput_seat_t>;
@@ -1585,16 +1566,16 @@ namespace netxs::lixx // li++, libinput++.
         struct libinput_tablet_tool_config_pressure_range
         {
             si32                  (*is_available)(libinput_tablet_tool_sptr tool);
-            libinput_config_status(*set)         (libinput_tablet_tool_sptr tool, normalized_range range);
-            void                  (*get)         (libinput_tablet_tool_sptr tool, normalized_range& range);
-            void                  (*get_default) (libinput_tablet_tool_sptr tool, normalized_range& range);
+            libinput_config_status(*set)         (libinput_tablet_tool_sptr tool, fp64_range range);
+            void                  (*get)         (libinput_tablet_tool_sptr tool, fp64_range& range);
+            void                  (*get_default) (libinput_tablet_tool_sptr tool, fp64_range& range);
         };
         using pressure_offset_t = fp64;
         struct libinput_tablet_tool_pressure_threshold
         {
             ui32                     tablet_id;
             ::input_absinfo          abs_pressure; // The configured axis we actually work with.
-            lixx::threshold          threshold;   // In device coordinates.
+            si32_range               threshold;   // In device coordinates.
             pressure_offset_t        offset;
             bool                     has_offset;
             pressure_heuristic_state heuristic_state; // This gives us per-tablet heuristic state which is arguably wrong but >99% of users have one tablet and it's easier to implement it this way.
@@ -1603,8 +1584,8 @@ namespace netxs::lixx // li++, libinput++.
     {
         struct pressure_t
         {
-            normalized_range                        range; // We're assuming that the *configured* pressure range is per tool, not per tablet. The *adjusted* thresholds are then per-tablet.
-            normalized_range                        wanted_range;
+            fp64_range                              range; // We're assuming that the *configured* pressure range is per tool, not per tablet. The *adjusted* thresholds are then per-tablet.
+            fp64_range                              wanted_range;
             bool                                    has_configured_range;
             libinput_tablet_tool_pressure_threshold threshold;
         };
@@ -3189,16 +3170,16 @@ namespace netxs::lixx // li++, libinput++.
     };
         struct tablet_axes
         {
-            si32_coor     point;
-            fp64_coor     delta;
-            fp64          distance;
-            fp64          pressure;
-            fp64_coor     tilt;
-            fp64          rotation;
-            fp64          slider;
-            fp64          wheel;
-            si32          wheel_discrete;
-            phys_ellipsis size;
+            si32_coor  point;
+            fp64_coor  delta;
+            fp64_range size_limits;
+            fp64       distance;
+            fp64       pressure;
+            fp64_coor  tilt;
+            fp64       rotation;
+            fp64       slider;
+            fp64       wheel;
+            si32       wheel_discrete;
         };
     struct libinput_event_tablet_tool : libinput_event
     {
@@ -14634,8 +14615,8 @@ namespace netxs::lixx // li++, libinput++.
                 tool->pressure.threshold.tablet_id = 0;
                 tool->pressure.threshold.offset = 0.0;
                 tool->pressure.threshold.has_offset = faux;
-                tool->pressure.threshold.threshold.lower = 0;
-                tool->pressure.threshold.threshold.upper = 1;
+                tool->pressure.threshold.threshold.min = 0;
+                tool->pressure.threshold.threshold.max = 1;
                 set_bit(tool->axis_caps, LIBINPUT_TABLET_TOOL_AXIS_X);
                 set_bit(tool->axis_caps, LIBINPUT_TABLET_TOOL_AXIS_Y);
                 set_bit(tool->axis_caps, LIBINPUT_TABLET_TOOL_AXIS_ROTATION_Z);
@@ -14684,18 +14665,18 @@ namespace netxs::lixx // li++, libinput++.
                     if (bit_is_set(slot.changed_axes, LIBINPUT_TABLET_TOOL_AXIS_SIZE_MAJOR)
                      || bit_is_set(slot.changed_axes, LIBINPUT_TABLET_TOOL_AXIS_SIZE_MINOR))
                     {
-                        auto major = device->libevdev_get_slot_value(slot.index, ABS_MT_TOUCH_MAJOR);
-                        auto minor = device->libevdev_get_slot_value(slot.index, ABS_MT_TOUCH_MINOR);
-                        auto rmajor = (ui32)device->libevdev_get_abs_resolution(ABS_MT_TOUCH_MAJOR);
-                        auto rminor = (ui32)device->libevdev_get_abs_resolution(ABS_MT_TOUCH_MINOR);
-                        slot.axes.size.major = (fp64)major / rmajor;
-                        slot.axes.size.minor = (fp64)minor / rminor;
+                        auto smin = device->libevdev_get_slot_value(slot.index, ABS_MT_TOUCH_MINOR);
+                        auto smax = device->libevdev_get_slot_value(slot.index, ABS_MT_TOUCH_MAJOR);
+                        auto rmin = device->libevdev_get_abs_resolution(ABS_MT_TOUCH_MINOR);
+                        auto rmax = device->libevdev_get_abs_resolution(ABS_MT_TOUCH_MAJOR);
+                        slot.axes.size_limits.min = (fp64)smin / rmin;
+                        slot.axes.size_limits.max = (fp64)smax / rmax;
                     }
-                    axes.point = slot.axes.point;
-                    axes.rotation = slot.axes.rotation;
-                    axes.size = slot.axes.size;
                     auto delta = fp64_coor{ slot.axes.point - slot.last_point };
-                    axes.delta = device->pointer.filter->filter_dispatch(delta, tool.get(), now);
+                    axes.point       = slot.axes.point;
+                    axes.rotation    = slot.axes.rotation;
+                    axes.size_limits = slot.axes.size_limits;
+                    axes.delta       = device->pointer.filter->filter_dispatch(delta, tool.get(), now);
                     rc = true;
                 }
                 *axes_out = axes;
@@ -15378,21 +15359,24 @@ namespace netxs::lixx // li++, libinput++.
                                 {
                                     return bit_is_set(tool->axis_caps, LIBINPUT_TABLET_TOOL_AXIS_PRESSURE);
                                 }
-                                static libinput_config_status pressure_range_set(libinput_tablet_tool_sptr tool, normalized_range range)
+                                static libinput_config_status pressure_range_set(libinput_tablet_tool_sptr tool, fp64_range range)
                                 {
                                     if (range.min < 0.0 || range.min >= 1.0 || range.max <= 0.0 || range.max > 1.0 || range.max <= range.min)
                                     {
                                         return LIBINPUT_CONFIG_STATUS_INVALID;
                                     }
-                                    tool->pressure.wanted_range = range;
-                                    tool->pressure.has_configured_range = true;
-                                    return LIBINPUT_CONFIG_STATUS_SUCCESS;
+                                    else
+                                    {
+                                        tool->pressure.wanted_range = range;
+                                        tool->pressure.has_configured_range = true;
+                                        return LIBINPUT_CONFIG_STATUS_SUCCESS;
+                                    }
                                 }
-                                static void pressure_range_get(libinput_tablet_tool_sptr tool, normalized_range& range)
+                                static void pressure_range_get(libinput_tablet_tool_sptr tool, fp64_range& range)
                                 {
                                     range = tool->pressure.wanted_range;
                                 }
-                                static void pressure_range_get_default([[maybe_unused]] libinput_tablet_tool_sptr tool, normalized_range& range)
+                                static void pressure_range_get_default([[maybe_unused]] libinput_tablet_tool_sptr tool, fp64_range& range)
                                 {
                                     range.min = 0.0;
                                     range.max = 1.0;
@@ -15410,11 +15394,11 @@ namespace netxs::lixx // li++, libinput++.
                                 void tool_init_pressure_thresholds(libinput_tablet_tool_sptr tool, libinput_tablet_tool_pressure_threshold* threshold)
                                 {
                                     auto li_device = tablet.li_device;
-                                    threshold->tablet_id       = tablet.tablet_id;
-                                    threshold->offset          = pressure_offset_t(0.0);
-                                    threshold->has_offset      = faux;
-                                    threshold->threshold.upper = 1;
-                                    threshold->threshold.lower = 0;
+                                    threshold->tablet_id     = tablet.tablet_id;
+                                    threshold->offset        = pressure_offset_t(0.0);
+                                    threshold->has_offset    = faux;
+                                    threshold->threshold.min = 0;
+                                    threshold->threshold.max = 1;
                                     auto pressure = li_device->libevdev_get_abs_info(ABS_PRESSURE);
                                     if (!pressure) return;
                                     threshold->abs_pressure = *pressure;
@@ -15697,9 +15681,9 @@ namespace netxs::lixx // li++, libinput++.
                             threshold->has_offset = true;
                             // Adjust the tresholds accordingly - we use the same gap (4% in device coordinates) between upper and lower as before which isn't technically correct (our range shrunk) but it's easy to calculate.
                             auto units = pressure_offset_to_absinfo(offset_in_percent, &threshold->abs_pressure);
-                            auto gap = threshold->threshold.upper - threshold->threshold.lower;
-                            threshold->threshold.lower = units;
-                            threshold->threshold.upper = units + gap;
+                            auto gap = threshold->threshold.max - threshold->threshold.min;
+                            threshold->threshold.min = units;
+                            threshold->threshold.max = units + gap;
                         }
                     void update_pressure_range(libinput_device_sptr li_device, libinput_tablet_tool_sptr tool)
                     {
@@ -15722,8 +15706,8 @@ namespace netxs::lixx // li++, libinput++.
                         }
                         auto threshold = tablet_tool_get_threshold(tool);
                         threshold->abs_pressure = abs;
-                        threshold->threshold.upper = hi;
-                        threshold->threshold.lower = lo;
+                        threshold->threshold.min = lo;
+                        threshold->threshold.max = hi;
                         if (threshold->has_offset) set_pressure_offset(threshold, threshold->offset);
                         if (tool->pressure.has_configured_range) // Disable any heuristics.
                         {
@@ -15847,11 +15831,11 @@ namespace netxs::lixx // li++, libinput++.
                             {
                                 auto pressure = p->value;
                                 auto threshold = tablet_tool_get_threshold(tool);
-                                if (pressure <= threshold->threshold.lower && (tablet.status & TABLET_TOOL_IN_CONTACT))
+                                if (pressure <= threshold->threshold.min && (tablet.status & TABLET_TOOL_IN_CONTACT))
                                 {
                                     tablet.status |= TABLET_TOOL_LEAVING_CONTACT;
                                 }
-                                else if (pressure >= threshold->threshold.upper && !(tablet.status & TABLET_TOOL_IN_CONTACT))
+                                else if (pressure >= threshold->threshold.max && !(tablet.status & TABLET_TOOL_IN_CONTACT))
                                 {
                                     tablet.status |= TABLET_TOOL_ENTERING_CONTACT;
                                 }
@@ -15929,7 +15913,7 @@ namespace netxs::lixx // li++, libinput++.
                                     //
                                     // The axis is scaled into the range [lower, max] so that the lower threshold is 0 pressure.
                                     auto abs = threshold->abs_pressure;
-                                    abs.minimum = threshold->threshold.lower;
+                                    abs.minimum = threshold->threshold.min;
                                     return absinfo_normalize_value(&abs, abs_value);
                                 }
                             void tablet_update_pressure(libinput_device_sptr li_device, libinput_tablet_tool_sptr tool)
@@ -16339,7 +16323,7 @@ namespace netxs::lixx // li++, libinput++.
                             if (!pressure_changed && !distance_changed) return;
                             // Note: this is an arbitrary "in contact" decision rather than "tip down". We use the lower threshold as minimum pressure value, anything less than that gets filtered away.
                             auto threshold = tablet_tool_get_threshold(tool);
-                            auto tool_in_contact = pressure->value > threshold->threshold.lower;
+                            auto tool_in_contact = pressure->value > threshold->threshold.min;
                             if (distance && distance->value > distance->minimum // Keep distance and pressure mutually exclusive.
                                          && pressure->value > pressure->minimum)
                             {
