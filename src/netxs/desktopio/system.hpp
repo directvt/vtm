@@ -51,6 +51,10 @@
     #include <sys/stat.h>   // ::chmod()
     #include <fcntl.h>      // ::splice()
 
+    #if __has_include(<features.h>)
+        #include <features.h> // __GLIBC__
+    #endif
+
     #if defined(__linux__)
         #include <sys/vt.h> // ::console_ioctl()
         #if defined(__ANDROID__)
@@ -1256,7 +1260,9 @@ namespace netxs::os
             auto platform = "Linux"s;
             if constexpr (!debugmode)
             {
+                #ifdef __GLIBC__
                 ::fedisableexcept(FE_ALL_EXCEPT);
+                #endif
             }
             #elif defined(__BSD__)
             auto platform = "BSD"s;
