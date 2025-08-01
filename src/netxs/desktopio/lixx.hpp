@@ -44,12 +44,6 @@ using WacomDevice = void*;
 
 namespace netxs::lixx // li++, libinput++.
 {
-    static constexpr auto long_bits = sizeof(ui64) * 8;
-    template<auto x>
-    static constexpr auto nchars = (ui64)((x + 7) / 8);
-    template<auto x>
-    static constexpr auto nlongs = (x + lixx::long_bits - 1) / lixx::long_bits;
-
     #if defined(DEBUG)
     template<class ...Args>
     void log(auto format, Args... args)
@@ -1252,42 +1246,6 @@ namespace netxs::lixx // li++, libinput++.
         else if (prop == "0") b = faux;
         else return faux;
         return true;
-    }
-    void set_bit(byte* array, si32 bit)
-    {
-        array[bit / 8] |= (1 << (bit % 8));
-    }
-    bool bit_is_set(byte const* array, si32 bit)
-    {
-        return !!(array[bit / 8] & (1 << (bit % 8)));
-    }
-    void clear_bit(byte* array, si32 bit)
-    {
-        array[bit / 8] &= ~(1 << (bit % 8));
-    }
-    void long_clear_bit(ui64* array, si32 bit)
-    {
-        array[bit / lixx::long_bits] &= ~(1ull << (bit % lixx::long_bits));
-    }
-    void long_set_bit(ui64* array, si32 bit)
-    {
-        array[bit / lixx::long_bits] |= (1ull << (bit % lixx::long_bits));
-    }
-    bool long_bit_is_set(ui64 const* array, si32 bit)
-    {
-        return !!(array[bit / lixx::long_bits] & (1ull << (bit % lixx::long_bits)));
-    }
-    bool long_any_bit_set(ui64* array, ui64 size)
-    {
-        assert(size > 0);
-        for (auto i = 0u; i < size; i++)
-        {
-            if (array[i] != 0)
-            {
-                return true;
-            }
-        }
-        return faux;
     }
     fp64_coor normalize_for_dpi(fp64_coor coor, si32 dpi)
     {
@@ -6821,6 +6779,7 @@ namespace netxs::lixx // li++, libinput++.
     void evdev_read_calibration_prop(libinput_device_sptr li_device);
 
     // Helpers
+    //todo move to libinput_device_t
         void tablet_notify_proximity(libinput_device_sptr li_device, time now, libinput_tablet_tool_sptr tool, libinput_tablet_tool_proximity_state proximity_state, tablet_axes_bitset& changed_axes, tablet_axes const& axes, ::input_absinfo const* x, ::input_absinfo const* y)
         {
             auto& proximity_event = li_device->seat->libinput->libinput_emplace_event<libinput_event_tablet_tool>();
@@ -17328,11 +17287,6 @@ namespace netxs::lixx // li++, libinput++.
                             auto code = evdev_usage_code(usage);
                             return fallback.next_hw_key_mask[code];
                         }
-                            void long_set_bit_state(ui64* array, si32 bit, si32 state)
-                            {
-                                if (state) long_set_bit(array, bit);
-                                else       long_clear_bit(array, bit);
-                            }
                             ui32 update_seat_key_count(libinput_seat_sptr seat, keycode_t keycode, libinput_key_state state)
                             {
                                 assert(keycode <= KEY_MAX);
