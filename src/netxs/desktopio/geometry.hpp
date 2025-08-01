@@ -221,9 +221,14 @@ namespace std
 namespace netxs
 {
     // geometry: Rectangle.
-    struct rect
+    template<class T>
+    struct xysz
     {
-        twod coor, size;
+        using twod = xy2d<T>;
+        using rect = xysz<T>;
+
+        twod coor;
+        twod size;
 
         bool operator == (rect const&) const = default;
         explicit operator bool ()       const { return size.x != 0 && size.y != 0;            }
@@ -282,18 +287,33 @@ namespace netxs
             return test;
         }
         // rect: Return rect with specified orientation.
-        constexpr rect rotate(twod dir) const
+        constexpr rect rotate(twod dir) const requires(std::is_integral_v<T>)
         {
             auto sx = (dir.x ^ size.x) < 0;
             auto sy = (dir.y ^ size.y) < 0;
             return {{ sx ?  coor.x + size.x : coor.x, sy ?  coor.y + size.y : coor.y },
                     { sx ? -size.x          : size.x, sy ? -size.y          : size.y }};
         }
+        // rect: Return rect with specified orientation.
+        constexpr rect rotate(twod dir) const requires(std::is_floating_point_v<T>)
+        {
+            auto sx = std::signbit(dir.x) != std::signbit(size.x);
+            auto sy = std::signbit(dir.y) != std::signbit(size.y);
+            return {{ sx ?  coor.x + size.x : coor.x, sy ?  coor.y + size.y : coor.y },
+                    { sx ? -size.x          : size.x, sy ? -size.y          : size.y }};
+        }
         // rect: Change orientation.
-        constexpr auto& rotate_itself(twod dir)
+        constexpr auto& rotate_itself(twod dir) requires(std::is_integral_v<T>)
         {
             if ((dir.x ^ size.x) < 0) { coor.x += size.x; size.x = -size.x; }
             if ((dir.y ^ size.y) < 0) { coor.y += size.y; size.y = -size.y; }
+            return *this;
+        }
+        // rect: Change orientation.
+        constexpr auto& rotate_itself(twod dir) requires(std::is_floating_point_v<T>)
+        {
+            if (std::signbit(dir.x) != std::signbit(size.x)) { coor.x += size.x; size.x = -size.x; }
+            if (std::signbit(dir.y) != std::signbit(size.y)) { coor.y += size.y; size.y = -size.y; }
             return *this;
         }
         // rect: Return rect with top-left orientation.
@@ -315,7 +335,7 @@ namespace netxs
         constexpr rect trunc(twod edge) const
         {
             auto r = rect{};
-            r.coor = std::clamp(coor, dot_00, edge);
+            r.coor = std::clamp(coor, r.coor, edge);
             r.size = std::clamp(size, -coor, edge - coor) + coor - r.coor;
             return r;
         }
@@ -369,10 +389,11 @@ namespace netxs
         }
     };
 
+    using rect = xysz<si32>;
     using regs = std::vector<rect>;
 
-    static constexpr auto rect_00 = rect{ dot_00,dot_00 };
-    static constexpr auto rect_11 = rect{ dot_00,dot_11 };
+    static constexpr auto rect_00 = rect{ dot_00, dot_00 };
+    static constexpr auto rect_11 = rect{ dot_00, dot_11 };
 
     // geometry: Padding around the rect.
     struct dent
