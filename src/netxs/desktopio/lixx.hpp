@@ -6891,10 +6891,6 @@ namespace netxs::lixx // li++, libinput++.
                 ui32             index;
                 ui32             count;
             };
-            struct tp_jumps_t
-            {
-                fp64 last_delta_mm;
-            };
             struct tp_hysteresis_t
             {
                 si32_coor center;
@@ -6941,7 +6937,7 @@ namespace netxs::lixx // li++, libinput++.
             si32_range       touch_limits;
             tp_quirks_t      quirks;
             tp_history_t     history;
-            tp_jumps_t       jumps;
+            fp64             jumps_last_delta_mm;
             tp_hysteresis_t  hysteresis;
             bool             pinned_state;  // A pinned touchpoint is the one that pressed the physical button on a clickpad. After the release, it won't move until the center moves more than a threshold away from the original coordinates.
             si32_coor        pinned_center; //
@@ -7973,7 +7969,7 @@ namespace netxs::lixx // li++, libinput++.
                                     if (tp.li_device->model_flags & EVDEV_MODEL_WACOM_TOUCHPAD) return faux;
                                     if (t.history.count == 0)
                                     {
-                                        t.jumps.last_delta_mm = 0.0;
+                                        t.jumps_last_delta_mm = 0.0;
                                         return faux;
                                     }
                                     // Called before tp_motion_history_push, so offset 0 is the most recent coordinate.
@@ -7993,7 +7989,7 @@ namespace netxs::lixx // li++, libinput++.
                                     auto delta = std::abs(t.point - last->point);
                                     auto mm = evdev_device_unit_delta_to_mm(tp.li_device, delta);
                                     auto abs_distance = hypot(mm.x, mm.y) * reference_interval / tdelta;
-                                    auto rel_distance = abs_distance - t.jumps.last_delta_mm;
+                                    auto rel_distance = abs_distance - t.jumps_last_delta_mm;
                                     // Special case for the ALPS devices in the Lenovo ThinkPad E465, E550. These devices send occasional 4095/0 events on two fingers before snapping back to the correct position.
                                     // https://gitlab.freedesktop.org/libinput/libinput/-/issues/492.
                                     // The specific values are hardcoded here, if this ever happens on any other device we can make it absmax/absmin instead.
@@ -8007,7 +8003,7 @@ namespace netxs::lixx // li++, libinput++.
                                     // - current single-event delta is >20mm, or
                                     // - we increased the delta by over 7mm within a 12ms frame (12ms simply because that's what I measured).
                                     auto is_jump = abs_distance > 20.0 || rel_distance > 7;
-                                    t.jumps.last_delta_mm = abs_distance;
+                                    t.jumps_last_delta_mm = abs_distance;
                                     return is_jump;
                                 }
                                     void tp_thumb_set_state(tp_touch& t, tp_thumb_state state)
