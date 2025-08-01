@@ -6876,25 +6876,17 @@ namespace netxs::lixx // li++, libinput++.
     };
     using libinput_paired_keyboard_sptr = sptr<libinput_paired_keyboard>;
 
-            struct tp_quirks_t // A quirk mostly used on Synaptics touchpads. In a transition to/from fake touches > num_slots, the current event data is likely garbage and the subsequent event is likely too. This marker tells us to reset the motion history again -> this effectively swallows any motion.
+            struct tp_history_t
             {
-                bool reset_motion_history;
-            };
                 struct tp_history_point
                 {
                     time      stamp;
                     si32_coor point;
                 };
-            struct tp_history_t
-            {
+
                 tp_history_point samples[lixx::touchpad_history_length];
                 ui32             index;
                 ui32             count;
-            };
-            struct tp_hysteresis_t
-            {
-                si32_coor center;
-                byte      x_motion_history;
             };
             struct tp_button_t
             {
@@ -6935,10 +6927,11 @@ namespace netxs::lixx // li++, libinput++.
             si32_coor        gesture_origin;
             si32_coor        point;
             si32_range       touch_limits;
-            tp_quirks_t      quirks;
+            bool             quirks_reset_motion_history; // A quirk mostly used on Synaptics touchpads. In a transition to/from fake touches > num_slots, the current event data is likely garbage and the subsequent event is likely too. This marker tells us to reset the motion history again -> this effectively swallows any motion.
             tp_history_t     history;
             fp64             jumps_last_delta_mm;
-            tp_hysteresis_t  hysteresis;
+            si32_coor        hysteresis_center;
+            byte             hysteresis_x_motion_history;
             bool             pinned_state;  // A pinned touchpoint is the one that pressed the physical button on a clickpad. After the release, it won't move until the center moves more than a threshold away from the original coordinates.
             si32_coor        pinned_center; //
             tp_button_t      button; // Software-button state and timeout if applicable.
@@ -7259,10 +7252,10 @@ namespace netxs::lixx // li++, libinput++.
                                 t.was_down                    = faux;
                                 t.palm_state                  = TOUCH_PALM_NONE;
                                 t.state                       = TOUCH_HOVERING;
-                                t.pinned_state            = faux;
+                                t.pinned_state                = faux;
                                 t.speed_last                  = 0;
                                 t.speed_exceeded_count        = 0;
-                                t.hysteresis.x_motion_history = 0;
+                                t.hysteresis_x_motion_history = 0;
                                 tp.queued = (touchpad_event)(tp.queued | TOUCHPAD_EVENT_MOTION);
                             }
                                 void tp_maybe_end_touch(tp_touch& t, [[maybe_unused]] time now)
@@ -7477,7 +7470,7 @@ namespace netxs::lixx // li++, libinput++.
                                 default: break;
                             }
                         }
-                                tp_history_point& tp_motion_history_offset(tp_touch& t, si32 offset)
+                                auto& tp_motion_history_offset(tp_touch& t, si32 offset)
                                 {
                                     auto offset_index = (t.history.index - offset + lixx::touchpad_history_length) % lixx::touchpad_history_length;
                                     return t.history.samples[offset_index];
@@ -7996,7 +7989,7 @@ namespace netxs::lixx // li++, libinput++.
                                     if (tp.li_device->model_flags & EVDEV_MODEL_ALPS_SERIAL_TOUCHPAD
                                      && t.point.x == 4095 && t.point.y == 0)
                                     {
-                                        t.point = last->point;
+                                        t.point = last.point;
                                         return true;
                                     }
                                     // Cursor jump if:
@@ -8379,7 +8372,7 @@ namespace netxs::lixx // li++, libinput++.
                                     if (tp.hysteresis.enabled || t.history.count == 0) return;
                                     if (!(tp.queued & TOUCHPAD_EVENT_MOTION))
                                     {
-                                        t.hysteresis.x_motion_history = 0;
+                                        t.hysteresis_x_motion_history = 0;
                                         return;
                                     }
                                     auto prev_point = tp_motion_history_offset(t, 0).point;
@@ -8388,15 +8381,15 @@ namespace netxs::lixx // li++, libinput++.
                                     tp.hysteresis.last_motion_time = stamp;
                                     if ((d.x == 0 && d.y != 0) || dtime > 40ms)
                                     {
-                                        t.hysteresis.x_motion_history = 0;
+                                        t.hysteresis_x_motion_history = 0;
                                         return;
                                     }
-                                    t.hysteresis.x_motion_history >>= 1;
+                                    t.hysteresis_x_motion_history >>= 1;
                                     if (d.x > 0) // Right move.
                                     {
                                         static const auto r_l_r = (byte)0x5; // {Right, Left, Right}.
-                                        t.hysteresis.x_motion_history |= (1ul << 2);
-                                        if (t.hysteresis.x_motion_history == r_l_r)
+                                        t.hysteresis_x_motion_history |= (1ul << 2);
+                                        if (t.hysteresis_x_motion_history == r_l_r)
                                         {
                                             tp.hysteresis.enabled = true;
                                             log("hysteresis enabled");
@@ -8409,9 +8402,9 @@ namespace netxs::lixx // li++, libinput++.
                                     {
                                         if (t.history.count > 0)
                                         {
-                                            t.point = evdev_hysteresis(t.point, t.hysteresis.center, tp.hysteresis.margin);
+                                            t.point = evdev_hysteresis(t.point, t.hysteresis_center, tp.hysteresis.margin);
                                         }
-                                        t.hysteresis.center = t.point;
+                                        t.hysteresis_center = t.point;
                                     }
                                 }
                                 void tp_calculate_motion_speed(tp_touch& t, time stamp)
@@ -8433,7 +8426,7 @@ namespace netxs::lixx // li++, libinput++.
                                     auto delta = std::abs(t.point - last.point);
                                     auto mm = evdev_device_unit_delta_to_mm(tp.li_device, delta);
                                     auto distance = hypot(mm.x, mm.y);
-                                    auto speed = distance / datetime::round<si64, std::chrono::microseconds>(stamp - last->stamp); // mm/us.
+                                    auto speed = distance / datetime::round<si64, std::chrono::microseconds>(stamp - last.stamp); // mm/us.
                                     speed *= 1000000; // mm/s.
                                     t.speed_last = speed;
                                 }
@@ -9812,12 +9805,12 @@ namespace netxs::lixx // li++, libinput++.
                                     if (want_motion_reset)
                                     {
                                         tp_motion_history_reset(t);
-                                        t.quirks.reset_motion_history = true;
+                                        t.quirks_reset_motion_history = true;
                                     }
-                                    else if (t.quirks.reset_motion_history)
+                                    else if (t.quirks_reset_motion_history)
                                     {
                                         tp_motion_history_reset(t);
-                                        t.quirks.reset_motion_history = faux;
+                                        t.quirks_reset_motion_history = faux;
                                     }
                                     if (!t.dirty)
                                     {
