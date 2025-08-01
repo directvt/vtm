@@ -1031,7 +1031,11 @@ namespace netxs::lixx // li++, libinput++.
     static constexpr auto abs_mt_max     = ABS_MT_TOOL_Y;
     static constexpr auto abs_mt_cnt     = lixx::abs_mt_max - lixx::abs_mt_min + 1;
     static constexpr auto valid_flags    = LIBEVDEV_READ_FLAG_NORMAL | LIBEVDEV_READ_FLAG_SYNC | LIBEVDEV_READ_FLAG_FORCE_SYNC | LIBEVDEV_READ_FLAG_BLOCKING;
-
+    static constexpr auto tap_button_map = std::to_array<std::array<ui32, 3>>(
+    {
+        { EVDEV_BTN_LEFT, EVDEV_BTN_RIGHT, EVDEV_BTN_MIDDLE },
+        { EVDEV_BTN_LEFT, EVDEV_BTN_MIDDLE, EVDEV_BTN_RIGHT },
+    });
     static constexpr fp64 v_us2ms(fp64 units_per_us) { return units_per_us * 1000.0; }
     static constexpr fp64 v_us2s(fp64 units_per_us)  { return units_per_us * 1000000.0; }
     static constexpr ::timeval time2tv(time t)
@@ -9919,8 +9923,6 @@ namespace netxs::lixx // li++, libinput++.
                                                 auto nfingers = 0u;
                                                 auto first = (tp_touch*)nullptr;
                                                 auto second = (tp_touch*)nullptr;
-                                                ui32 button_map[2][3] = {{ EVDEV_BTN_LEFT, EVDEV_BTN_RIGHT, EVDEV_BTN_MIDDLE },
-                                                                         { EVDEV_BTN_LEFT, EVDEV_BTN_MIDDLE, EVDEV_BTN_RIGHT }};
                                                 for (auto& t : tp.touches)
                                                 {
                                                     if (t.state != TOUCH_BEGIN && t.state != TOUCH_UPDATE) continue;
@@ -9943,7 +9945,7 @@ namespace netxs::lixx // li++, libinput++.
                                                     case 1:
                                                     case 2:
                                                     case 3:
-                                                        button = button_map[tp.buttons.map][nfingers-1];
+                                                        button = lixx::tap_button_map[tp.buttons.map][nfingers-1];
                                                         break;
                                                     default:
                                                         button = 0;
@@ -10105,15 +10107,10 @@ namespace netxs::lixx // li++, libinput++.
                                         }
                                             void tp_tap_notify(time stamp, si32 nfingers, libinput_button_state state)
                                             {
-                                                ui32 button_map[2][3] =//todo unify, see tp_clickfinger_set_button
-                                                {
-                                                    { EVDEV_BTN_LEFT, EVDEV_BTN_RIGHT, EVDEV_BTN_MIDDLE },
-                                                    { EVDEV_BTN_LEFT, EVDEV_BTN_MIDDLE, EVDEV_BTN_RIGHT },
-                                                };
-                                                assert(tp.tap.map < std::size(button_map));
+                                                assert(tp.tap.map < std::size(lixx::tap_button_map));
                                                 if (nfingers < 1 || nfingers > 3) return;
                                                 tp_gesture_cancel(stamp);
-                                                auto button = button_map[tp.tap.map][nfingers - 1];
+                                                auto button = lixx::tap_button_map[tp.tap.map][nfingers - 1];
                                                 if (state == LIBINPUT_BUTTON_STATE_PRESSED) tp.tap.buttons_pressed |= (1ul << nfingers);
                                                 else                                        tp.tap.buttons_pressed &= ~(1ul << nfingers);
                                                 tp.li_device->evdev_pointer_notify_button(stamp, button, state);
