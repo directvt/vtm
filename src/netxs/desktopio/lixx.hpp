@@ -5185,19 +5185,19 @@ namespace netxs::lixx // li++, libinput++.
         virtual ~evdev_dispatch_t()
         { }
 
-        virtual                  void                       process([[maybe_unused]] libinput_device_sptr li_device, [[maybe_unused]] evdev_event& event, [[maybe_unused]] time now)                                                                           { } // Process an evdev input event.
-        virtual                  void                       suspend([[maybe_unused]] libinput_device_sptr li_device)                                                                                                                                           { } // Device is being suspended.
-        virtual                  void                        remove()                                                                                                                                                                                          { } // Device is being removed (may be nullptr).
-        virtual                  void                       destroy()                                                                                                                                                                                          { } // Destroy an event dispatch handler and free all its resources.
-        virtual                  void                  device_added([[maybe_unused]] libinput_device_sptr li_device, [[maybe_unused]] libinput_device_sptr added_li_device)                                                                                    { } // A new device was added.
-        virtual                  void                device_removed([[maybe_unused]] libinput_device_sptr li_device, [[maybe_unused]] libinput_device_sptr removed_li_device)                                                                                  { } // A device was removed.
-        virtual                  void              device_suspended([[maybe_unused]] libinput_device_sptr li_device, [[maybe_unused]] libinput_device_sptr suspended_li_device)                                                                                { } // A device was suspended.
-        virtual                  void                device_resumed([[maybe_unused]] libinput_device_sptr li_device, [[maybe_unused]] libinput_device_sptr resumed_li_device)                                                                                  { } // A device was resumed.
-        virtual                  void                    post_added([[maybe_unused]] libinput_device_sptr li_device)                                                                                                                                           { } // Called immediately after the LIBINPUT_EVENT_DEVICE_ADDED event was sent.
-        virtual                  void      touch_arbitration_toggle([[maybe_unused]] libinput_device_sptr li_device, [[maybe_unused]] libinput_arbitration_state which, [[maybe_unused]] phys_rect const* area/* may be nullptr */, [[maybe_unused]] time now) { } // For touch arbitration, called on the device that should enable/disable touch capabilities.
-        virtual                  void touch_arbitration_update_rect([[maybe_unused]] libinput_device_sptr li_device, [[maybe_unused]] phys_rect const* area, [[maybe_unused]] time now)                                                                        { } // Called when touch arbitration is on, updates the area where touch arbitration should apply.
-        virtual libinput_switch_state              get_switch_state([[maybe_unused]] libinput_switch which)                                                                                                                                                    { return libinput_switch_state{}; } // Return the state of the given switch.
-        virtual                  void            left_handed_toggle([[maybe_unused]] libinput_device_sptr li_device, [[maybe_unused]] bool left_handed_enabled)                                                                                                { }
+        virtual                  void                       process([[maybe_unused]] libinput_device_sptr li_device, [[maybe_unused]] evdev_event& event, [[maybe_unused]] time now)                                                { } // Process an evdev input event.
+        virtual                  void                       suspend([[maybe_unused]] libinput_device_sptr li_device)                                                                                                                { } // Device is being suspended.
+        virtual                  void                        remove()                                                                                                                                                               { } // Device is being removed (may be nullptr).
+        virtual                  void                       destroy()                                                                                                                                                               { } // Destroy an event dispatch handler and free all its resources.
+        virtual                  void                  device_added([[maybe_unused]] libinput_device_sptr li_device, [[maybe_unused]] libinput_device_sptr added_li_device)                                                         { } // A new device was added.
+        virtual                  void                device_removed([[maybe_unused]] libinput_device_sptr li_device, [[maybe_unused]] libinput_device_sptr removed_li_device)                                                       { } // A device was removed.
+        virtual                  void              device_suspended([[maybe_unused]] libinput_device_sptr li_device, [[maybe_unused]] libinput_device_sptr suspended_li_device)                                                     { } // A device was suspended.
+        virtual                  void                device_resumed([[maybe_unused]] libinput_device_sptr li_device, [[maybe_unused]] libinput_device_sptr resumed_li_device)                                                       { } // A device was resumed.
+        virtual                  void                    post_added([[maybe_unused]] libinput_device_sptr li_device)                                                                                                                { } // Called immediately after the LIBINPUT_EVENT_DEVICE_ADDED event was sent.
+        virtual                  void      touch_arbitration_toggle([[maybe_unused]] libinput_device_sptr li_device, [[maybe_unused]] libinput_arbitration_state which, [[maybe_unused]] phys_rect area, [[maybe_unused]] time now) { } // For touch arbitration, called on the device that should enable/disable touch capabilities.
+        virtual                  void touch_arbitration_update_rect([[maybe_unused]] libinput_device_sptr li_device, [[maybe_unused]] phys_rect area, [[maybe_unused]] time now)                                                    { } // Called when touch arbitration is on, updates the area where touch arbitration should apply.
+        virtual libinput_switch_state              get_switch_state([[maybe_unused]] libinput_switch which)                                                                                                                         { return libinput_switch_state{}; } // Return the state of the given switch.
+        virtual                  void            left_handed_toggle([[maybe_unused]] libinput_device_sptr li_device, [[maybe_unused]] bool left_handed_enabled)                                                                     { }
     };
 
     // Helpers
@@ -12556,7 +12556,7 @@ namespace netxs::lixx // li++, libinput++.
                     tp_change_rotation(li_device, DO_NOTIFY);
                 }
             }
-            void tp_interface_toggle_touch([[maybe_unused]] libinput_device_sptr li_device, libinput_arbitration_state which, [[maybe_unused]] phys_rect const* area, time stamp)
+            void tp_interface_toggle_touch([[maybe_unused]] libinput_device_sptr li_device, libinput_arbitration_state which, [[maybe_unused]] phys_rect area, time stamp)
             {
                 if (which == tp.arbitration.state) return;
                 switch (which)
@@ -13853,15 +13853,15 @@ namespace netxs::lixx // li++, libinput++.
         };
 
         tp_impl_t tp_impl{ *this };
-        void                  process(libinput_device_sptr li_device, evdev_event& ev, time stamp)                                       { tp_impl.        tp_interface_process(li_device, ev, stamp); }
-        void                  suspend(libinput_device_sptr li_device)                                                                    { tp_impl.        tp_interface_suspend(li_device); }
-        void                   remove()                                                                                                  { tp_impl.         tp_interface_remove(); }
-        void             device_added(libinput_device_sptr li_device, libinput_device_sptr added_li_device)                              { tp_impl.   tp_interface_device_added(li_device, added_li_device); }
-        void           device_removed(libinput_device_sptr li_device, libinput_device_sptr removed_li_device)                            { tp_impl. tp_interface_device_removed(li_device, removed_li_device); }
-        void       left_handed_toggle(libinput_device_sptr li_device, bool left_handed_enabled)                                          { tp_impl.touchpad_left_handed_toggled(li_device, left_handed_enabled); }
-        void touch_arbitration_toggle(libinput_device_sptr li_device, libinput_arbitration_state which, phys_rect const* area, time now) { tp_impl.   tp_interface_toggle_touch(li_device, which, area, now); }
-        void         device_suspended(libinput_device_sptr li_device, libinput_device_sptr suspended_li_device)                          { device_removed(li_device, suspended_li_device); }
-        void           device_resumed(libinput_device_sptr li_device, libinput_device_sptr resumed_li_device)                            { device_added(li_device, resumed_li_device); }
+        void                  process(libinput_device_sptr li_device, evdev_event& ev, time stamp)                                { tp_impl.        tp_interface_process(li_device, ev, stamp); }
+        void                  suspend(libinput_device_sptr li_device)                                                             { tp_impl.        tp_interface_suspend(li_device); }
+        void                   remove()                                                                                           { tp_impl.         tp_interface_remove(); }
+        void             device_added(libinput_device_sptr li_device, libinput_device_sptr added_li_device)                       { tp_impl.   tp_interface_device_added(li_device, added_li_device); }
+        void           device_removed(libinput_device_sptr li_device, libinput_device_sptr removed_li_device)                     { tp_impl. tp_interface_device_removed(li_device, removed_li_device); }
+        void       left_handed_toggle(libinput_device_sptr li_device, bool left_handed_enabled)                                   { tp_impl.touchpad_left_handed_toggled(li_device, left_handed_enabled); }
+        void touch_arbitration_toggle(libinput_device_sptr li_device, libinput_arbitration_state which, phys_rect area, time now) { tp_impl.   tp_interface_toggle_touch(li_device, which, area, now); }
+        void         device_suspended(libinput_device_sptr li_device, libinput_device_sptr suspended_li_device)                   { device_removed(li_device, suspended_li_device); }
+        void           device_resumed(libinput_device_sptr li_device, libinput_device_sptr resumed_li_device)                     { device_added(li_device, resumed_li_device); }
     };
     using tp_dispatch_sptr = sptr<tp_dispatch>;
 
@@ -14886,15 +14886,15 @@ namespace netxs::lixx // li++, libinput++.
                 auto dispatch = touch_device->dispatch;
                 if (enable_touch_device)
                 {
-                    dispatch->touch_arbitration_toggle(touch_device, state, &r, now);
+                    dispatch->touch_arbitration_toggle(touch_device, state, r, now);
                 }
                 else
                 {
                     switch (totem.arbitration_state)
                     {
                         case ARBITRATION_IGNORE_ALL: ::abort();
-                        case ARBITRATION_NOT_ACTIVE:  dispatch->touch_arbitration_toggle(touch_device, state, &r, now); break;
-                        case ARBITRATION_IGNORE_RECT: dispatch->touch_arbitration_update_rect(touch_device, &r, now); break;
+                        case ARBITRATION_NOT_ACTIVE:  dispatch->touch_arbitration_toggle(touch_device, state, r, now); break;
+                        case ARBITRATION_IGNORE_RECT: dispatch->touch_arbitration_update_rect(touch_device, r, now); break;
                     }
                 }
                 totem.arbitration_state = state;
@@ -16253,9 +16253,9 @@ namespace netxs::lixx // li++, libinput++.
                         {
                             if (tablet.touch_li_device && tablet.arbitration == ARBITRATION_IGNORE_RECT)
                             {
-                                auto rect = tablet_calculate_arbitration_rect();
+                                auto area = tablet_calculate_arbitration_rect();
                                 auto dispatch = tablet.touch_li_device->dispatch;
-                                dispatch->touch_arbitration_update_rect(tablet.touch_li_device, &rect, stamp);
+                                dispatch->touch_arbitration_update_rect(tablet.touch_li_device, area, stamp);
                             }
                         }
                             void tablet_reset_changed_axes()
@@ -16570,7 +16570,7 @@ namespace netxs::lixx // li++, libinput++.
                         if (!process_tool_twice) break;
                     }
                 }
-                    void tablet_set_touch_device_enabled(libinput_arbitration_state which, phys_rect const* area, time stamp)
+                    void tablet_set_touch_device_enabled(libinput_arbitration_state which, phys_rect area, time stamp)
                     {
                         if (auto touch_li_device = tablet.touch_li_device)
                         {
@@ -16600,7 +16600,7 @@ namespace netxs::lixx // li++, libinput++.
                     {
                         return;
                     }
-                    tablet_set_touch_device_enabled(which, &r, stamp);
+                    tablet_set_touch_device_enabled(which, r, stamp);
                 }
                 void tablet_reset_state()
                 {
@@ -16631,7 +16631,7 @@ namespace netxs::lixx // li++, libinput++.
             {
                 auto li = tablet.li_device->li_context();
                 auto now = datetime::now();
-                tablet_set_touch_device_enabled(ARBITRATION_NOT_ACTIVE, nullptr, now);
+                tablet_set_touch_device_enabled(ARBITRATION_NOT_ACTIVE, phys_rect{}, now);
                 if (!(tablet.status & TABLET_TOOL_OUT_OF_PROXIMITY))
                 {
                     tablet.status |= TABLET_TOOL_LEAVING_PROXIMITY;
@@ -16650,7 +16650,7 @@ namespace netxs::lixx // li++, libinput++.
                         {
                             // We found a better device, let's swap it out.
                             auto li = tablet.li_device->li_context();
-                            tablet_set_touch_device_enabled(ARBITRATION_NOT_ACTIVE, nullptr, datetime::now());
+                            tablet_set_touch_device_enabled(ARBITRATION_NOT_ACTIVE, phys_rect{}, datetime::now());
                             log("touch-arbitration: removing pairing for %s%<->%s%", li_device->devname, tablet.touch_li_device->devname);
                         }
                         else
@@ -18649,7 +18649,7 @@ namespace netxs::lixx // li++, libinput++.
                         switch_notify_toggle(li_device, stamp, LIBINPUT_SWITCH_TABLET_MODE, LIBINPUT_SWITCH_STATE_ON);
                     }
                 }
-                    device_coord_rect evdev_phys_rect_to_units(libinput_device_sptr li_device, phys_rect const* mm)
+                    device_coord_rect evdev_phys_rect_to_units(libinput_device_sptr li_device, phys_rect mm)
                     {
                         auto units = device_coord_rect{};
                         if (li_device->abs.absinfo_x == nullptr || li_device->abs.absinfo_y == nullptr)
@@ -18659,20 +18659,19 @@ namespace netxs::lixx // li++, libinput++.
                         }
                         auto absx = li_device->abs.absinfo_x;
                         auto absy = li_device->abs.absinfo_y;
-                        units.x = mm->x * absx->resolution + absx->minimum;
-                        units.y = mm->y * absy->resolution + absy->minimum;
-                        units.w = mm->w * absx->resolution;
-                        units.h = mm->h * absy->resolution;
+                        units.x = mm.x * absx->resolution + absx->minimum;
+                        units.y = mm.y * absy->resolution + absy->minimum;
+                        units.w = mm.w * absx->resolution;
+                        units.h = mm.h * absy->resolution;
                         return units;
                     }
-                void fallback_interface_update_rect(libinput_device_sptr li_device, phys_rect const* phys_area, [[maybe_unused]] time now)
+                void fallback_interface_update_rect(libinput_device_sptr li_device, phys_rect phys_area, [[maybe_unused]] time now)
                 {
-                    assert(phys_area);
                     // Existing touches do not change, we just update the rect and only new touches in these areas will be ignored. If you want to paint over your finger, be my guest.
                     auto area = evdev_phys_rect_to_units(li_device, phys_area);
                     fallback.arbitration.area = area;
                 }
-                void fallback_interface_toggle_touch(libinput_device_sptr li_device, libinput_arbitration_state which, phys_rect const* phys_area, time stamp)
+                void fallback_interface_toggle_touch(libinput_device_sptr li_device, libinput_arbitration_state which, phys_rect phys_area, time stamp)
                 {
                     auto area = device_coord_rect{};
                     [[maybe_unused]] auto state = (char const*)nullptr;
@@ -18685,7 +18684,6 @@ namespace netxs::lixx // li++, libinput++.
                             state = "not-active";
                             break;
                         case ARBITRATION_IGNORE_RECT:
-                            assert(phys_area);
                             area = evdev_phys_rect_to_units(li_device, phys_area);
                             cancel_touches(li_device, &area, stamp);
                             fallback.arbitration.area = area;
@@ -19046,17 +19044,17 @@ namespace netxs::lixx // li++, libinput++.
         };
 
         fallback_impl_t fallback_impl{ *this };
-        void                           process(libinput_device_sptr li_device, evdev_event& ev, time now)                                                             { fallback_impl.                fallback_interface_process(li_device, ev, now); }
-        void                           suspend(libinput_device_sptr li_device)                                                                                        { fallback_impl.                fallback_interface_suspend(li_device); }
-        void                            remove()                                                                                                                      { fallback_impl.                 fallback_interface_remove(); }
-        void                      device_added(libinput_device_sptr li_device, libinput_device_sptr added_li_device)                                                  { fallback_impl.           fallback_interface_device_added(li_device, added_li_device); }
-        void                    device_removed(libinput_device_sptr li_device, libinput_device_sptr removed_li_device)                                                { fallback_impl.         fallback_interface_device_removed(li_device, removed_li_device); }
-        void                  device_suspended(libinput_device_sptr li_device, libinput_device_sptr suspended_li_device)                                              { fallback_impl.         fallback_interface_device_removed(li_device, suspended_li_device); }
-        void                    device_resumed(libinput_device_sptr li_device, libinput_device_sptr resumed_li_device)                                                { fallback_impl.           fallback_interface_device_added(li_device, resumed_li_device); }
-        void                        post_added(libinput_device_sptr li_device)                                                                                        { fallback_impl.     fallback_interface_sync_initial_state(li_device); }
-        void          touch_arbitration_toggle(libinput_device_sptr li_device, libinput_arbitration_state which, phys_rect const* area/* may be nullptr */, time now) { fallback_impl.           fallback_interface_toggle_touch(li_device, which, area, now) ; }
-        void     touch_arbitration_update_rect(libinput_device_sptr li_device, phys_rect const* area, time now)                                                       { fallback_impl.            fallback_interface_update_rect(li_device, area, now); }
-        libinput_switch_state get_switch_state(libinput_switch which)                                                                                                 { return fallback_impl.fallback_interface_get_switch_state(which); }
+        void                           process(libinput_device_sptr li_device, evdev_event& ev, time now)                                  { fallback_impl.                fallback_interface_process(li_device, ev, now); }
+        void                           suspend(libinput_device_sptr li_device)                                                             { fallback_impl.                fallback_interface_suspend(li_device); }
+        void                            remove()                                                                                           { fallback_impl.                 fallback_interface_remove(); }
+        void                      device_added(libinput_device_sptr li_device, libinput_device_sptr added_li_device)                       { fallback_impl.           fallback_interface_device_added(li_device, added_li_device); }
+        void                    device_removed(libinput_device_sptr li_device, libinput_device_sptr removed_li_device)                     { fallback_impl.         fallback_interface_device_removed(li_device, removed_li_device); }
+        void                  device_suspended(libinput_device_sptr li_device, libinput_device_sptr suspended_li_device)                   { fallback_impl.         fallback_interface_device_removed(li_device, suspended_li_device); }
+        void                    device_resumed(libinput_device_sptr li_device, libinput_device_sptr resumed_li_device)                     { fallback_impl.           fallback_interface_device_added(li_device, resumed_li_device); }
+        void                        post_added(libinput_device_sptr li_device)                                                             { fallback_impl.     fallback_interface_sync_initial_state(li_device); }
+        void          touch_arbitration_toggle(libinput_device_sptr li_device, libinput_arbitration_state which, phys_rect area, time now) { fallback_impl.           fallback_interface_toggle_touch(li_device, which, area, now) ; }
+        void     touch_arbitration_update_rect(libinput_device_sptr li_device, phys_rect area, time now)                                   { fallback_impl.            fallback_interface_update_rect(li_device, area, now); }
+        libinput_switch_state get_switch_state(libinput_switch which)                                                                      { return fallback_impl.fallback_interface_get_switch_state(which); }
     };
     using fallback_dispatch_sptr = sptr<fallback_dispatch>;
 
