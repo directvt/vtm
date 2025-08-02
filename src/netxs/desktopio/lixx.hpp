@@ -2599,6 +2599,15 @@ namespace netxs::lixx // li++, libinput++.
         text                            logical_name;
         ui32                            slot_map;
         ui32                            button_count[KEY_CNT];
+
+        ui32 update_seat_button_count(ui32 button_code, libinput_button_state state)
+        {
+            assert(button_code <= KEY_MAX);
+            auto& press_count = button_count[button_code];
+                 if (state == LIBINPUT_BUTTON_STATE_PRESSED) press_count++;
+            else if (press_count)                            press_count--; // We might not have received the first PRESSED event.
+            return press_count;
+        }
     };
 
     struct libinput_timer_host
@@ -4810,56 +4819,6 @@ namespace netxs::lixx // li++, libinput++.
 
     using evdev_dispatch_sptr = sptr<struct evdev_dispatch_t>;
 
-    // Helpers
-        bool parse_tpkbcombo_layout_property(qiew prop, tpkbcombo_layout& layout)
-        {
-            auto ok = prop == "below";
-            if (ok)
-            {
-                layout = TPKBCOMBO_LAYOUT_BELOW;
-            }
-            return ok;
-        }
-        view middlebutton_state_to_str(evdev_middlebutton_state state)
-        {
-            switch (state)
-            {
-                CASE_RETURN_STRING(MIDDLEBUTTON_IDLE);
-                CASE_RETURN_STRING(MIDDLEBUTTON_LEFT_DOWN);
-                CASE_RETURN_STRING(MIDDLEBUTTON_RIGHT_DOWN);
-                CASE_RETURN_STRING(MIDDLEBUTTON_MIDDLE);
-                CASE_RETURN_STRING(MIDDLEBUTTON_LEFT_UP_PENDING);
-                CASE_RETURN_STRING(MIDDLEBUTTON_RIGHT_UP_PENDING);
-                CASE_RETURN_STRING(MIDDLEBUTTON_PASSTHROUGH);
-                CASE_RETURN_STRING(MIDDLEBUTTON_IGNORE_LR);
-                CASE_RETURN_STRING(MIDDLEBUTTON_IGNORE_L);
-                CASE_RETURN_STRING(MIDDLEBUTTON_IGNORE_R);
-            }
-            return view{};
-        }
-        view middlebutton_event_to_str(evdev_middlebutton_event event)
-        {
-            switch (event)
-            {
-                CASE_RETURN_STRING(MIDDLEBUTTON_EVENT_L_DOWN);
-                CASE_RETURN_STRING(MIDDLEBUTTON_EVENT_R_DOWN);
-                CASE_RETURN_STRING(MIDDLEBUTTON_EVENT_OTHER);
-                CASE_RETURN_STRING(MIDDLEBUTTON_EVENT_L_UP);
-                CASE_RETURN_STRING(MIDDLEBUTTON_EVENT_R_UP);
-                CASE_RETURN_STRING(MIDDLEBUTTON_EVENT_TIMEOUT);
-                CASE_RETURN_STRING(MIDDLEBUTTON_EVENT_ALL_UP);
-            }
-            return view{};
-        }
-        ui32 update_seat_button_count(libinput_seat_sptr seat, ui32 button_code, libinput_button_state state)
-        {
-            assert(button_code <= KEY_MAX);
-            auto& press_count = seat->button_count[button_code];
-                 if (state == LIBINPUT_BUTTON_STATE_PRESSED) press_count++;
-            else if (press_count)                            press_count--; // We might not have received the first PRESSED event.
-            return press_count;
-        }
-
     struct evdev_dispatch_t : ptr::enable_shared_from_this<evdev_dispatch_t>
     {
         struct evdev_sendevents_t
@@ -5280,6 +5239,37 @@ namespace netxs::lixx // li++, libinput++.
         evdev_middlebutton_t                    middlebutton;
         evdev_frame                             frame;
 
+        view middlebutton_state_to_str(evdev_middlebutton_state state)
+        {
+            switch (state)
+            {
+                CASE_RETURN_STRING(MIDDLEBUTTON_IDLE);
+                CASE_RETURN_STRING(MIDDLEBUTTON_LEFT_DOWN);
+                CASE_RETURN_STRING(MIDDLEBUTTON_RIGHT_DOWN);
+                CASE_RETURN_STRING(MIDDLEBUTTON_MIDDLE);
+                CASE_RETURN_STRING(MIDDLEBUTTON_LEFT_UP_PENDING);
+                CASE_RETURN_STRING(MIDDLEBUTTON_RIGHT_UP_PENDING);
+                CASE_RETURN_STRING(MIDDLEBUTTON_PASSTHROUGH);
+                CASE_RETURN_STRING(MIDDLEBUTTON_IGNORE_LR);
+                CASE_RETURN_STRING(MIDDLEBUTTON_IGNORE_L);
+                CASE_RETURN_STRING(MIDDLEBUTTON_IGNORE_R);
+            }
+            return view{};
+        }
+        view middlebutton_event_to_str(evdev_middlebutton_event event)
+        {
+            switch (event)
+            {
+                CASE_RETURN_STRING(MIDDLEBUTTON_EVENT_L_DOWN);
+                CASE_RETURN_STRING(MIDDLEBUTTON_EVENT_R_DOWN);
+                CASE_RETURN_STRING(MIDDLEBUTTON_EVENT_OTHER);
+                CASE_RETURN_STRING(MIDDLEBUTTON_EVENT_L_UP);
+                CASE_RETURN_STRING(MIDDLEBUTTON_EVENT_R_UP);
+                CASE_RETURN_STRING(MIDDLEBUTTON_EVENT_TIMEOUT);
+                CASE_RETURN_STRING(MIDDLEBUTTON_EVENT_ALL_UP);
+            }
+            return view{};
+        }
         auto li_context()
         {
             return seat->libinput;
@@ -5878,7 +5868,7 @@ namespace netxs::lixx // li++, libinput++.
             {
                 if (device_has_cap(LIBINPUT_DEVICE_CAP_POINTER))
                 {
-                    auto seat_button_count = update_seat_button_count(seat, button, state);
+                    auto seat_button_count = seat->update_seat_button_count(button, state);
                     auto& button_event = seat->libinput->libinput_emplace_event<libinput_event_pointer>();
                     button_event.button            = button;
                     button_event.seat_button_count = seat_button_count;
@@ -6663,7 +6653,7 @@ namespace netxs::lixx // li++, libinput++.
             auto& button_event = seat->libinput->libinput_emplace_event<libinput_event_tablet_tool>();
             button_event.button            = button;
             button_event.state             = state;
-            button_event.seat_button_count = update_seat_button_count(seat, button, state);
+            button_event.seat_button_count = seat->update_seat_button_count(button, state);
             button_event.axes              = axes;
             button_event.tool              = tool;
             button_event.proximity_state   = LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_IN;
@@ -12816,11 +12806,10 @@ namespace netxs::lixx // li++, libinput++.
                         auto layout = TPKBCOMBO_LAYOUT_UNKNOWN;
                         auto rc = faux;
                         auto quirks = li_device->li_context()->quirks;
-                        auto q = quirks_fetch_for_device(quirks, li_device->ud_device);
-                        if (!q) return faux;
-                        if (quirks_get_string(q, QUIRK_ATTR_TPKBCOMBO_LAYOUT, &prop))
+                        if (auto q = quirks_fetch_for_device(quirks, li_device->ud_device); quirks_get_string(q, QUIRK_ATTR_TPKBCOMBO_LAYOUT, &prop))
                         {
-                            rc = parse_tpkbcombo_layout_property(prop, layout) && layout == TPKBCOMBO_LAYOUT_BELOW;
+                            rc = prop == "below";
+                            if (rc) layout = TPKBCOMBO_LAYOUT_BELOW;
                         }
                         return rc;
                     }
