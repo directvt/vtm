@@ -1335,54 +1335,6 @@ namespace netxs::lixx // li++, libinput++.
             libinput_device_config_3fg_drag*         drag_3fg;
         };
 
-    // Helpers
-    char const* event_type_to_str(libinput_event_type type)
-    {
-        switch(type)
-        {
-            CASE_RETURN_STRING(LIBINPUT_EVENT_DEVICE_ADDED);
-            CASE_RETURN_STRING(LIBINPUT_EVENT_DEVICE_REMOVED);
-            CASE_RETURN_STRING(LIBINPUT_EVENT_KEYBOARD_KEY);
-            CASE_RETURN_STRING(LIBINPUT_EVENT_POINTER_MOTION);
-            CASE_RETURN_STRING(LIBINPUT_EVENT_POINTER_MOTION_ABSOLUTE);
-            CASE_RETURN_STRING(LIBINPUT_EVENT_POINTER_BUTTON);
-            CASE_RETURN_STRING(LIBINPUT_EVENT_POINTER_AXIS);
-            CASE_RETURN_STRING(LIBINPUT_EVENT_POINTER_SCROLL_WHEEL);
-            CASE_RETURN_STRING(LIBINPUT_EVENT_POINTER_SCROLL_FINGER);
-            CASE_RETURN_STRING(LIBINPUT_EVENT_POINTER_SCROLL_CONTINUOUS);
-            CASE_RETURN_STRING(LIBINPUT_EVENT_TOUCH_DOWN);
-            CASE_RETURN_STRING(LIBINPUT_EVENT_TOUCH_UP);
-            CASE_RETURN_STRING(LIBINPUT_EVENT_TOUCH_MOTION);
-            CASE_RETURN_STRING(LIBINPUT_EVENT_TOUCH_CANCEL);
-            CASE_RETURN_STRING(LIBINPUT_EVENT_TOUCH_FRAME);
-            CASE_RETURN_STRING(LIBINPUT_EVENT_TABLET_TOOL_AXIS);
-            CASE_RETURN_STRING(LIBINPUT_EVENT_TABLET_TOOL_PROXIMITY);
-            CASE_RETURN_STRING(LIBINPUT_EVENT_TABLET_TOOL_TIP);
-            CASE_RETURN_STRING(LIBINPUT_EVENT_TABLET_TOOL_BUTTON);
-            CASE_RETURN_STRING(LIBINPUT_EVENT_TABLET_PAD_BUTTON);
-            CASE_RETURN_STRING(LIBINPUT_EVENT_TABLET_PAD_RING);
-            CASE_RETURN_STRING(LIBINPUT_EVENT_TABLET_PAD_STRIP);
-            CASE_RETURN_STRING(LIBINPUT_EVENT_TABLET_PAD_KEY);
-            CASE_RETURN_STRING(LIBINPUT_EVENT_TABLET_PAD_DIAL);
-            CASE_RETURN_STRING(LIBINPUT_EVENT_GESTURE_SWIPE_BEGIN);
-            CASE_RETURN_STRING(LIBINPUT_EVENT_GESTURE_SWIPE_UPDATE);
-            CASE_RETURN_STRING(LIBINPUT_EVENT_GESTURE_SWIPE_END);
-            CASE_RETURN_STRING(LIBINPUT_EVENT_GESTURE_PINCH_BEGIN);
-            CASE_RETURN_STRING(LIBINPUT_EVENT_GESTURE_PINCH_UPDATE);
-            CASE_RETURN_STRING(LIBINPUT_EVENT_GESTURE_PINCH_END);
-            CASE_RETURN_STRING(LIBINPUT_EVENT_GESTURE_HOLD_BEGIN);
-            CASE_RETURN_STRING(LIBINPUT_EVENT_GESTURE_HOLD_END);
-            CASE_RETURN_STRING(LIBINPUT_EVENT_SWITCH_TOGGLE);
-            case LIBINPUT_EVENT_NONE:
-                ::abort();
-        }
-        return nullptr;
-    }
-    void bad_event_type([[maybe_unused]] view function_name, [[maybe_unused]] libinput_event_type type_in)
-    {
-        log("Invalid event type %s% (%d%) used to call %s%()", event_type_to_str(type_in), type_in, function_name);
-    }
-
         using libinput_tablet_tool_sptr = sptr<struct libinput_tablet_tool>;
         struct libinput_tablet_tool_config_pressure_range
         {
@@ -2847,22 +2799,69 @@ namespace netxs::lixx // li++, libinput++.
         {
             return li_device;
         }
-        virtual ui32                  libinput_event_keyboard_get_key()                                              { if constexpr (debugmode) bad_event_type(__func__, type); return {}; }
-        virtual libinput_key_state    libinput_event_keyboard_get_key_state()                                        { if constexpr (debugmode) bad_event_type(__func__, type); return {}; }
-        virtual libinput_switch       libinput_event_switch_get_switch()                                             { if constexpr (debugmode) bad_event_type(__func__, type); return {}; }
-        virtual libinput_switch_state libinput_event_switch_get_switch_state()                                       { if constexpr (debugmode) bad_event_type(__func__, type); return {}; }
-        virtual si32                  libinput_event_gesture_get_finger_count()                                      { if constexpr (debugmode) bad_event_type(__func__, type); return {}; }
-        virtual si32                  libinput_event_gesture_get_cancelled()                                         { if constexpr (debugmode) bad_event_type(__func__, type); return {}; }
-        virtual fp64_coor             libinput_event_gesture_get_ds()                                                { if constexpr (debugmode) bad_event_type(__func__, type); return {}; }
-        virtual fp64_coor             libinput_event_gesture_get_ds_unaccelerated()                                  { if constexpr (debugmode) bad_event_type(__func__, type); return {}; }
-        virtual fp64                  libinput_event_gesture_get_scale()                                             { if constexpr (debugmode) bad_event_type(__func__, type); return {}; }
-        virtual fp64                  libinput_event_gesture_get_angle_delta()                                       { if constexpr (debugmode) bad_event_type(__func__, type); return {}; }
-        virtual fp64_coor             libinput_event_pointer_get_absolute_xy_transformed(fp64_coor /*size*/)         { if constexpr (debugmode) bad_event_type(__func__, type); return {}; }
-        virtual fp64_coor             libinput_event_pointer_get_ds()                                                { if constexpr (debugmode) bad_event_type(__func__, type); return {}; }
-        virtual ui32                  libinput_event_pointer_get_button()                                            { if constexpr (debugmode) bad_event_type(__func__, type); return {}; }
-        virtual libinput_button_state libinput_event_pointer_get_button_state()                                      { if constexpr (debugmode) bad_event_type(__func__, type); return {}; }
-        virtual si32                  libinput_event_pointer_has_axis(libinput_pointer_axis /*axis*/)                { if constexpr (debugmode) bad_event_type(__func__, type); return {}; }
-        virtual fp64_coor             libinput_event_pointer_get_scroll_value()                                      { if constexpr (debugmode) bad_event_type(__func__, type); return {}; }
+        virtual ui32                  libinput_event_keyboard_get_key()                                              { if constexpr (debugmode) bad_event_type(__func__); return {}; }
+        virtual libinput_key_state    libinput_event_keyboard_get_key_state()                                        { if constexpr (debugmode) bad_event_type(__func__); return {}; }
+        virtual libinput_switch       libinput_event_switch_get_switch()                                             { if constexpr (debugmode) bad_event_type(__func__); return {}; }
+        virtual libinput_switch_state libinput_event_switch_get_switch_state()                                       { if constexpr (debugmode) bad_event_type(__func__); return {}; }
+        virtual si32                  libinput_event_gesture_get_finger_count()                                      { if constexpr (debugmode) bad_event_type(__func__); return {}; }
+        virtual si32                  libinput_event_gesture_get_cancelled()                                         { if constexpr (debugmode) bad_event_type(__func__); return {}; }
+        virtual fp64_coor             libinput_event_gesture_get_ds()                                                { if constexpr (debugmode) bad_event_type(__func__); return {}; }
+        virtual fp64_coor             libinput_event_gesture_get_ds_unaccelerated()                                  { if constexpr (debugmode) bad_event_type(__func__); return {}; }
+        virtual fp64                  libinput_event_gesture_get_scale()                                             { if constexpr (debugmode) bad_event_type(__func__); return {}; }
+        virtual fp64                  libinput_event_gesture_get_angle_delta()                                       { if constexpr (debugmode) bad_event_type(__func__); return {}; }
+        virtual fp64_coor             libinput_event_pointer_get_absolute_xy_transformed(fp64_coor /*size*/)         { if constexpr (debugmode) bad_event_type(__func__); return {}; }
+        virtual fp64_coor             libinput_event_pointer_get_ds()                                                { if constexpr (debugmode) bad_event_type(__func__); return {}; }
+        virtual ui32                  libinput_event_pointer_get_button()                                            { if constexpr (debugmode) bad_event_type(__func__); return {}; }
+        virtual libinput_button_state libinput_event_pointer_get_button_state()                                      { if constexpr (debugmode) bad_event_type(__func__); return {}; }
+        virtual si32                  libinput_event_pointer_has_axis(libinput_pointer_axis /*axis*/)                { if constexpr (debugmode) bad_event_type(__func__); return {}; }
+        virtual fp64_coor             libinput_event_pointer_get_scroll_value()                                      { if constexpr (debugmode) bad_event_type(__func__); return {}; }
+
+        view event_type_to_str()
+        {
+            if constexpr (debugmode)
+            switch(type)
+            {
+                CASE_RETURN_STRING(LIBINPUT_EVENT_DEVICE_ADDED);
+                CASE_RETURN_STRING(LIBINPUT_EVENT_DEVICE_REMOVED);
+                CASE_RETURN_STRING(LIBINPUT_EVENT_KEYBOARD_KEY);
+                CASE_RETURN_STRING(LIBINPUT_EVENT_POINTER_MOTION);
+                CASE_RETURN_STRING(LIBINPUT_EVENT_POINTER_MOTION_ABSOLUTE);
+                CASE_RETURN_STRING(LIBINPUT_EVENT_POINTER_BUTTON);
+                CASE_RETURN_STRING(LIBINPUT_EVENT_POINTER_AXIS);
+                CASE_RETURN_STRING(LIBINPUT_EVENT_POINTER_SCROLL_WHEEL);
+                CASE_RETURN_STRING(LIBINPUT_EVENT_POINTER_SCROLL_FINGER);
+                CASE_RETURN_STRING(LIBINPUT_EVENT_POINTER_SCROLL_CONTINUOUS);
+                CASE_RETURN_STRING(LIBINPUT_EVENT_TOUCH_DOWN);
+                CASE_RETURN_STRING(LIBINPUT_EVENT_TOUCH_UP);
+                CASE_RETURN_STRING(LIBINPUT_EVENT_TOUCH_MOTION);
+                CASE_RETURN_STRING(LIBINPUT_EVENT_TOUCH_CANCEL);
+                CASE_RETURN_STRING(LIBINPUT_EVENT_TOUCH_FRAME);
+                CASE_RETURN_STRING(LIBINPUT_EVENT_TABLET_TOOL_AXIS);
+                CASE_RETURN_STRING(LIBINPUT_EVENT_TABLET_TOOL_PROXIMITY);
+                CASE_RETURN_STRING(LIBINPUT_EVENT_TABLET_TOOL_TIP);
+                CASE_RETURN_STRING(LIBINPUT_EVENT_TABLET_TOOL_BUTTON);
+                CASE_RETURN_STRING(LIBINPUT_EVENT_TABLET_PAD_BUTTON);
+                CASE_RETURN_STRING(LIBINPUT_EVENT_TABLET_PAD_RING);
+                CASE_RETURN_STRING(LIBINPUT_EVENT_TABLET_PAD_STRIP);
+                CASE_RETURN_STRING(LIBINPUT_EVENT_TABLET_PAD_KEY);
+                CASE_RETURN_STRING(LIBINPUT_EVENT_TABLET_PAD_DIAL);
+                CASE_RETURN_STRING(LIBINPUT_EVENT_GESTURE_SWIPE_BEGIN);
+                CASE_RETURN_STRING(LIBINPUT_EVENT_GESTURE_SWIPE_UPDATE);
+                CASE_RETURN_STRING(LIBINPUT_EVENT_GESTURE_SWIPE_END);
+                CASE_RETURN_STRING(LIBINPUT_EVENT_GESTURE_PINCH_BEGIN);
+                CASE_RETURN_STRING(LIBINPUT_EVENT_GESTURE_PINCH_UPDATE);
+                CASE_RETURN_STRING(LIBINPUT_EVENT_GESTURE_PINCH_END);
+                CASE_RETURN_STRING(LIBINPUT_EVENT_GESTURE_HOLD_BEGIN);
+                CASE_RETURN_STRING(LIBINPUT_EVENT_GESTURE_HOLD_END);
+                CASE_RETURN_STRING(LIBINPUT_EVENT_SWITCH_TOGGLE);
+                default: ::abort();
+            }
+            return {};
+        }
+        void bad_event_type([[maybe_unused]] view function_name)
+        {
+            log("Invalid event type %s% (%d%) used to call %s%()", event_type_to_str(), type, function_name);
+        }
     };
 
     using notify_func_t = void(*)(time stamp, libinput_event& event, void* notify_func_data);
