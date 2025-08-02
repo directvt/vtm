@@ -1336,68 +1336,6 @@ namespace netxs::lixx // li++, libinput++.
         };
 
     // Helpers
-    si32_coor evdev_hysteresis(si32_coor in, si32_coor center, si32_coor margin)
-    {
-        // Apply a hysteresis filtering to the coordinate in, based on the current
-        // hysteresis center and the margin. If 'in' is within 'margin' of center,
-        // return the center (and thus filter the motion). If 'in' is outside,
-        // return a point on the edge of the new margin (which is an ellipse, usually
-        // a circle). So for a point x in the space outside c + margin we return r:
-        // ,---.       ,---.
-        // | c |  x →  | r x
-        // `---'       `---'
-        //
-        // The effect of this is that initial small motions are filtered. Once we
-        // move into one direction we lag the real coordinates by 'margin' but any
-        // movement that continues into that direction will always be just outside
-        // margin - we get responsive movement. Once we move back into the other
-        // direction, the first movements are filtered again.
-        //
-        // Returning the edge rather than the point avoids cursor jumps, as the
-        // first reachable coordinate is the point next to the center (center + 1).
-        // Otherwise, the center has a dead zone of size margin around it and the
-        // first reachable point is the margin edge.
-        //
-        // @param in The input coordinate
-        // @param center Current center of the hysteresis
-        // @param margin Hysteresis width (on each side)
-        // @return The new center of the hysteresis
-        auto d = in - center;
-        auto d2 = d * d;
-        auto a = margin.x;
-        auto b = margin.y;
-        auto lag_x = 0.0;
-        auto lag_y = 0.0;
-        if (!a || !b) return in;
-        // Basic equation for an ellipse of radii a,b:
-        //   x²/a² + y²/b² = 1
-        // But we start by making a scaled ellipse passing through the
-        // relative finger location (dx,dy). So the scale of this ellipse is
-        // the ratio of finger_distance to margin_distance:
-        //   dx²/a² + dy²/b² = normalized_finger_distance²
-        auto normalized_finger_distance = std::sqrt((fp64)d2.x / (a * a) + (fp64)d2.y / (b * b));
-        // Which means anything less than 1 is within the elliptical margin.
-        if (normalized_finger_distance < 1.0) return center;
-        auto finger_distance = std::sqrt(d2.x + d2.y);
-        auto margin_distance = finger_distance / normalized_finger_distance;
-        // Now calculate the x,y coordinates on the edge of the margin ellipse where it intersects the finger vector. Shortcut: We achieve this by finding the point with the same gradient as dy/dx.
-        if (d.x)
-        {
-            auto gradient = (fp64)d.y / d.x;
-            lag_x = margin_distance / std::sqrt(gradient * gradient + 1);
-            lag_y = std::sqrt((margin_distance + lag_x) * (margin_distance - lag_x));
-        }
-        else // Infinite gradient.
-        {
-            lag_x = 0.0;
-            lag_y = margin_distance;
-        }
-        // The 'result' is the centre of an ellipse (radii a,b) which has been dragged by the finger moving inside it to 'in'. The finger is now touching the margin ellipse at some point: (±lag_x,±lag_y).
-        auto result = si32_coor{};
-        result.x = d.x >= 0 ? in.x - lag_x : in.x + lag_x;
-        result.y = d.y >= 0 ? in.y - lag_y : in.y + lag_y;
-        return result;
-    }
     char const* event_type_to_str(libinput_event_type type)
     {
         switch(type)
@@ -5009,8 +4947,8 @@ namespace netxs::lixx // li++, libinput++.
             libinput_config_send_events_mode   current_mode;
         };
 
-        libinput_dispatch_type    dispatch_type;
-        evdev_sendevents_t        sendevents;
+        libinput_dispatch_type dispatch_type;
+        evdev_sendevents_t     sendevents;
 
         evdev_dispatch_t() = default;
         virtual ~evdev_dispatch_t()
@@ -5029,6 +4967,69 @@ namespace netxs::lixx // li++, libinput++.
         virtual                  void touch_arbitration_update_rect([[maybe_unused]] libinput_device_sptr li_device, [[maybe_unused]] fp64_rect area, [[maybe_unused]] time now)                                                    { } // Called when touch arbitration is on, updates the area where touch arbitration should apply.
         virtual libinput_switch_state              get_switch_state([[maybe_unused]] libinput_switch which)                                                                                                                         { return libinput_switch_state{}; } // Return the state of the given switch.
         virtual                  void            left_handed_toggle([[maybe_unused]] libinput_device_sptr li_device, [[maybe_unused]] bool left_handed_enabled)                                                                     { }
+
+        static si32_coor apply_hysteresis(si32_coor in, si32_coor center, si32_coor margin)
+        {
+            // Apply a hysteresis filtering to the coordinate in, based on the current
+            // hysteresis center and the margin. If 'in' is within 'margin' of center,
+            // return the center (and thus filter the motion). If 'in' is outside,
+            // return a point on the edge of the new margin (which is an ellipse, usually
+            // a circle). So for a point x in the space outside c + margin we return r:
+            // ,---.       ,---.
+            // | c |  x →  | r x
+            // `---'       `---'
+            //
+            // The effect of this is that initial small motions are filtered. Once we
+            // move into one direction we lag the real coordinates by 'margin' but any
+            // movement that continues into that direction will always be just outside
+            // margin - we get responsive movement. Once we move back into the other
+            // direction, the first movements are filtered again.
+            //
+            // Returning the edge rather than the point avoids cursor jumps, as the
+            // first reachable coordinate is the point next to the center (center + 1).
+            // Otherwise, the center has a dead zone of size margin around it and the
+            // first reachable point is the margin edge.
+            //
+            // @param in The input coordinate
+            // @param center Current center of the hysteresis
+            // @param margin Hysteresis width (on each side)
+            // @return The new center of the hysteresis
+            auto d = in - center;
+            auto d2 = d * d;
+            auto a = margin.x;
+            auto b = margin.y;
+            auto lag_x = 0.0;
+            auto lag_y = 0.0;
+            if (!a || !b) return in;
+            // Basic equation for an ellipse of radii a,b:
+            //   x²/a² + y²/b² = 1
+            // But we start by making a scaled ellipse passing through the
+            // relative finger location (dx,dy). So the scale of this ellipse is
+            // the ratio of finger_distance to margin_distance:
+            //   dx²/a² + dy²/b² = normalized_finger_distance²
+            auto normalized_finger_distance = std::sqrt((fp64)d2.x / (a * a) + (fp64)d2.y / (b * b));
+            // Which means anything less than 1 is within the elliptical margin.
+            if (normalized_finger_distance < 1.0) return center;
+            auto finger_distance = std::sqrt(d2.x + d2.y);
+            auto margin_distance = finger_distance / normalized_finger_distance;
+            // Now calculate the x,y coordinates on the edge of the margin ellipse where it intersects the finger vector. Shortcut: We achieve this by finding the point with the same gradient as dy/dx.
+            if (d.x)
+            {
+                auto gradient = (fp64)d.y / d.x;
+                lag_x = margin_distance / std::sqrt(gradient * gradient + 1);
+                lag_y = std::sqrt((margin_distance + lag_x) * (margin_distance - lag_x));
+            }
+            else // Infinite gradient.
+            {
+                lag_x = 0.0;
+                lag_y = margin_distance;
+            }
+            // The 'result' is the centre of an ellipse (radii a,b) which has been dragged by the finger moving inside it to 'in'. The finger is now touching the margin ellipse at some point: (±lag_x,±lag_y).
+            auto result = si32_coor{};
+            result.x = d.x >= 0 ? in.x - lag_x : in.x + lag_x;
+            result.y = d.y >= 0 ? in.y - lag_y : in.y + lag_y;
+            return result;
+        }
     };
 
     // Helpers
@@ -8264,7 +8265,7 @@ namespace netxs::lixx // li++, libinput++.
                                     {
                                         if (t.history.count > 0)
                                         {
-                                            t.point = evdev_hysteresis(t.point, t.hysteresis_center, tp.hysteresis.margin);
+                                            t.point = evdev_dispatch_t::apply_hysteresis(t.point, t.hysteresis_center, tp.hysteresis.margin);
                                         }
                                         t.hysteresis_center = t.point;
                                     }
@@ -17550,18 +17551,20 @@ namespace netxs::lixx // li++, libinput++.
                             }
                                 bool fallback_filter_defuzz_touch([[maybe_unused]] libinput_device_sptr li_device, mt_slot& slot)
                                 {
-                                    if (!fallback.mt.want_hysteresis) return faux;
-                                    auto point = evdev_hysteresis(slot.point, slot.hysteresis_center, fallback.mt.hysteresis_margin);
-                                    slot.point = point;
-                                    if (point.x == slot.hysteresis_center.x && point.y == slot.hysteresis_center.y)
+                                    if (fallback.mt.want_hysteresis)
                                     {
-                                        return true;
+                                        auto point = evdev_dispatch_t::apply_hysteresis(slot.point, slot.hysteresis_center, fallback.mt.hysteresis_margin);
+                                        slot.point = point;
+                                        if (point.x == slot.hysteresis_center.x && point.y == slot.hysteresis_center.y)
+                                        {
+                                            return true;
+                                        }
+                                        else
+                                        {
+                                            slot.hysteresis_center = point;
+                                        }
                                     }
-                                    else
-                                    {
-                                        slot.hysteresis_center = point;
-                                        return faux;
-                                    }
+                                    return faux;
                                 }
                             bool fallback_flush_mt_motion(libinput_device_sptr li_device, si32 slot_idx, time stamp)
                             {
