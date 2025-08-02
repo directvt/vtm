@@ -12847,13 +12847,11 @@ namespace netxs::lixx // li++, libinput++.
                     bool tp_is_tpkb_combo_below(libinput_device_sptr li_device)
                     {
                         auto prop = (char*)nullptr;
-                        auto layout = TPKBCOMBO_LAYOUT_UNKNOWN;
                         auto rc = faux;
                         auto quirks = li_device->li_context()->quirks;
                         if (auto q = li_device->ud_device->quirks_fetch_for_device(quirks); q->quirks_get_string(QUIRK_ATTR_TPKBCOMBO_LAYOUT, &prop))
                         {
-                            rc = prop == "below";
-                            if (rc) layout = TPKBCOMBO_LAYOUT_BELOW;
+                            rc = prop == "below"sv;
                         }
                         return rc;
                     }
