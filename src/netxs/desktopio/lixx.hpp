@@ -3679,22 +3679,22 @@ namespace netxs::lixx // li++, libinput++.
 
         quirks_sptr quirks_fetch_for_device(quirks_context_sptr ctx)
         {
-            log("%s%: fetching quirks", devpath);
-            auto m = match_new(ctx->dmi2, ctx->dt2);
-            auto q = ptr::shared<quirks_t>();
-            for (auto s : ctx->sections)
+            if (ctx)
             {
-                q->quirk_match_section(s, m);
+                log("%s%: fetching quirks", devpath);
+                auto m = match_new(ctx->dmi2, ctx->dt2);
+                auto q = ptr::shared<quirks_t>();
+                for (auto s : ctx->sections)
+                {
+                    q->quirk_match_section(s, m);
+                }
+                if (q->properties.size())
+                {
+                    ctx->quirks.push_back(q);
+                    return q;
+                }
             }
-            if (q->properties.empty())
-            {
-                return {};
-            }
-            else
-            {
-                ctx->quirks.push_back(q);
-                return q;
-            }
+            return {};
         }
         bool libinput_ud_device_is_virtual()
         {
