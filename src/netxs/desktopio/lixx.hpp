@@ -1336,14 +1336,6 @@ namespace netxs::lixx // li++, libinput++.
         };
 
     // Helpers
-    bool parse_boolean_property(view prop, bool& b)
-    {
-        if (prop.empty()) return faux;
-        else if (prop == "1") b = true;
-        else if (prop == "0") b = faux;
-        else return faux;
-        return true;
-    }
     fp64_coor normalize_for_dpi(fp64_coor coor, si32 dpi)
     {
         auto norm = coor * lixx::default_mouse_dpi / dpi;
@@ -3734,13 +3726,7 @@ namespace netxs::lixx // li++, libinput++.
         }
         bool parse_udev_flag(view property)
         {
-            auto b = faux;
-            if (auto val = udev_device_get_property_value(property))
-            if (!parse_boolean_property(val, b))
-            {
-                log("property %s% has invalid value '%s%'", property, val);
-            }
-            return b;
+            return udev_device_get_property_value(property) == "1";
         }
         evdev_ud_device_tags evdev_device_get_udev_tags()
         {
@@ -20686,10 +20672,9 @@ namespace netxs::lixx // li++, libinput++.
                             }
                             bool parse_model(section_sptr s, view key, view value)
                             {
-                                auto b = faux;
+                                auto b = value == "1";
                                 auto q = QUIRK_MODEL_ALPS_SERIAL_TOUCHPAD;
                                 assert(key.starts_with("Model"));
-                                if (!parse_boolean_property(value.data(), b)) return faux;
                                 do
                                 {
                                     if (key == quirk_get_name(q))
@@ -21032,22 +21017,16 @@ namespace netxs::lixx // li++, libinput++.
                                 else if (key == quirk_get_name(QUIRK_ATTR_USE_VELOCITY_AVERAGING))
                                 {
                                     p->id = QUIRK_ATTR_USE_VELOCITY_AVERAGING;
-                                    if (parse_boolean_property(value, b))
-                                    {
-                                        p->type = PT_BOOL;
-                                        p->value.b = b;
-                                        rc = true;
-                                    }
+                                    p->type = PT_BOOL;
+                                    p->value.b = value == "1";
+                                    rc = true;
                                 }
                                 else if (key == quirk_get_name(QUIRK_ATTR_TABLET_SMOOTHING))
                                 {
                                     p->id = QUIRK_ATTR_TABLET_SMOOTHING;
-                                    if (parse_boolean_property(value, b))
-                                    {
-                                        p->type = PT_BOOL;
-                                        p->value.b = b;
-                                        rc = true;
-                                    }
+                                    p->type = PT_BOOL;
+                                    p->value.b = value == "1";
+                                    rc = true;
                                 }
                                 else if (key == quirk_get_name(QUIRK_ATTR_THUMB_PRESSURE_THRESHOLD))
                                 {
@@ -21117,12 +21096,9 @@ namespace netxs::lixx // li++, libinput++.
                                 else if (key == quirk_get_name(QUIRK_ATTR_IS_VIRTUAL))
                                 {
                                     p->id = QUIRK_ATTR_IS_VIRTUAL;
-                                    if (parse_boolean_property(value, b))
-                                    {
-                                        p->type = PT_BOOL;
-                                        p->value.b = b;
-                                        rc = true;
-                                    }
+                                    p->type = PT_BOOL;
+                                    p->value.b = value == "1";
+                                    rc = true;
                                 }
                                 else
                                 {
