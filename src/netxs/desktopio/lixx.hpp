@@ -1161,8 +1161,8 @@ namespace netxs::lixx // li++, libinput++.
         }
         void matrix_init_rotate(si32 degrees)
         {
-            auto s = ::sin(M_PI * degrees / 180.0);
-            auto c = ::cos(M_PI * degrees / 180.0);
+            auto s = std::sin(M_PI * degrees / 180.0);
+            auto c = std::cos(M_PI * degrees / 180.0);
             matrix_init_identity();
             val[0][0] = c;
             val[0][1] = -s;
@@ -1388,17 +1388,17 @@ namespace netxs::lixx // li++, libinput++.
         // relative finger location (dx,dy). So the scale of this ellipse is
         // the ratio of finger_distance to margin_distance:
         //   dx²/a² + dy²/b² = normalized_finger_distance²
-        auto normalized_finger_distance = ::sqrt((fp64)d2.x / (a * a) + (fp64)d2.y / (b * b));
+        auto normalized_finger_distance = std::sqrt((fp64)d2.x / (a * a) + (fp64)d2.y / (b * b));
         // Which means anything less than 1 is within the elliptical margin.
         if (normalized_finger_distance < 1.0) return center;
-        auto finger_distance = ::sqrt(d2.x + d2.y);
+        auto finger_distance = std::sqrt(d2.x + d2.y);
         auto margin_distance = finger_distance / normalized_finger_distance;
         // Now calculate the x,y coordinates on the edge of the margin ellipse where it intersects the finger vector. Shortcut: We achieve this by finding the point with the same gradient as dy/dx.
         if (d.x)
         {
             auto gradient = (fp64)d.y / d.x;
-            lag_x = margin_distance / ::sqrt(gradient * gradient + 1);
-            lag_y = ::sqrt((margin_distance + lag_x) * (margin_distance - lag_x));
+            lag_x = margin_distance / std::sqrt(gradient * gradient + 1);
+            lag_y = std::sqrt((margin_distance + lag_x) * (margin_distance - lag_x));
         }
         else // Infinite gradient.
         {
@@ -1581,7 +1581,7 @@ namespace netxs::lixx // li++, libinput++.
                     {
                         tdelta = smoothener->value;
                     }
-                    return ::hypot(delta.x, delta.y) / datetime::round<fp64, std::chrono::microseconds>(tdelta); // Units/us.
+                    return delta.hypot() / datetime::round<fp64, std::chrono::microseconds>(tdelta); // Units/us.
                 }
                 fp64 trackers_velocity_after_timeout(pointer_delta_smoothener_sptr smoothener)
                 {
@@ -1955,7 +1955,7 @@ namespace netxs::lixx // li++, libinput++.
             //   Move 1 unit over 21ms
             //
             // which should give us better speed estimation.
-            auto distance = hypot(unaccelerated.x, unaccelerated.y); // Calculate speed based on time passed since last event.
+            auto distance = unaccelerated.hypot(); // Calculate speed based on time passed since last event.
             if (now - last_time > lixx::motion_timeout) // Handle first event in a motion.
             {
                 last_time = now - lixx::first_motion_time_interval;
@@ -2771,8 +2771,8 @@ namespace netxs::lixx // li++, libinput++.
             {
                 libinput_remove_event_source(source);
             }
-            ::close(fd);
-            ::close(epoll_fd);
+            os::close(fd);
+            os::close(epoll_fd);
         }
         auto create(text name, void(*func)(time now, void* func_data), void* func_data)
         {
@@ -2872,7 +2872,7 @@ namespace netxs::lixx // li++, libinput++.
             fd = ::timerfd_create(lixx::clock_type, TFD_CLOEXEC | TFD_NONBLOCK);
             if (fd < 0)
             {
-                ::close(epoll_fd);
+                os::close(epoll_fd);
                 return faux;
             }
             else
@@ -4609,14 +4609,14 @@ namespace netxs::lixx // li++, libinput++.
             else if (tmp2 == STDIN_FILENO)
             {
                 fd = ::dup(tmp2);
-                ::close(tmp2);
+                os::close(tmp2);
                 ::dup2(tmp1, STDIN_FILENO);
             }
             else
             {
                 fd = tmp2;
             }
-            ::close(tmp1);
+            os::close(tmp1);
             initial_tty = get_active_tty();
             current_tty = initial_tty;
             wd_tty = ::inotify_add_watch(fd, active_tty_file, tty_monitor_mode);
@@ -4734,7 +4734,7 @@ namespace netxs::lixx // li++, libinput++.
         {
             if (auto fd_value = std::exchange(fd, os::invalid_fd); fd_value != os::invalid_fd)
             {
-                ::close(fd_value);
+                os::close(fd_value);
                 wd_dev = os::invalid_fd;
                 wd_tty = os::invalid_fd;
             }
@@ -6202,7 +6202,7 @@ namespace netxs::lixx // li++, libinput++.
             }
             if (fd != os::invalid_fd)
             {
-                ::close(fd);
+                os::close(fd);
                 fd = os::invalid_fd;
             }
         }
@@ -7863,7 +7863,7 @@ namespace netxs::lixx // li++, libinput++.
                                     // We historically expected ~12ms frame intervals, so the numbers below are normalized to that (and that's also where the measured data came from).
                                     auto delta = std::abs(t.point - last.point);
                                     auto mm = evdev_device_unit_delta_to_mm(tp.li_device, delta);
-                                    auto abs_distance = hypot(mm.x, mm.y) * reference_interval / tdelta;
+                                    auto abs_distance = mm.hypot() * reference_interval / tdelta;
                                     auto rel_distance = abs_distance - t.jumps_last_delta_mm;
                                     // Special case for the ALPS devices in the Lenovo ThinkPad E465, E550. These devices send occasional 4095/0 events on two fingers before snapping back to the correct position.
                                     // https://gitlab.freedesktop.org/libinput/libinput/-/issues/492.
@@ -8307,7 +8307,7 @@ namespace netxs::lixx // li++, libinput++.
                                     auto& last = tp_motion_history_offset(t, 1);
                                     auto delta = std::abs(t.point - last.point);
                                     auto mm = evdev_device_unit_delta_to_mm(tp.li_device, delta);
-                                    auto distance = hypot(mm.x, mm.y);
+                                    auto distance = mm.hypot();
                                     auto speed = distance / datetime::round<si64, std::chrono::microseconds>(stamp - last.stamp); // mm/us.
                                     speed *= 1000000; // mm/s.
                                     t.speed_last = speed;
@@ -8318,7 +8318,7 @@ namespace netxs::lixx // li++, libinput++.
                                     {
                                         auto delta = std::abs(t.point - t.pinned_center);
                                         auto mm = evdev_device_unit_delta_to_mm(tp.li_device, delta);
-                                        if (hypot(mm.x, mm.y) >= 1.5) // 1.5mm movement -> unpin.
+                                        if (mm.hypot() >= 1.5) // 1.5mm movement -> unpin.
                                         {
                                             t.pinned_state = faux;
                                         }
@@ -8698,7 +8698,7 @@ namespace netxs::lixx // li++, libinput++.
                                         }
                                         auto delta = t.point - t.button.initial;
                                         auto mm = evdev_device_unit_delta_to_mm(tp.li_device, delta);
-                                        auto vector_length = hypot(mm.x, mm.y);
+                                        auto vector_length = mm.hypot();
                                         if (vector_length > 5.0) // mm.
                                         {
                                             t.button.has_moved = true;
@@ -9035,7 +9035,7 @@ namespace netxs::lixx // li++, libinput++.
                                                             auto second = tp.gesture.two_touches[1];
                                                             auto delta = first->point - second->point;
                                                             auto normalized = tp_normalize_delta(delta);
-                                                            distance = hypot(normalized.x, normalized.y);
+                                                            distance = normalized.hypot();
                                                             angle = netxs::rad2deg(std::atan2(normalized.y, normalized.x));
                                                             center = fp64_coor{ first->point + second->point } / 2.0;
                                                         }
@@ -9232,7 +9232,7 @@ namespace netxs::lixx // li++, libinput++.
                                                             {
                                                                 auto first = tp.gesture.two_touches[0];
                                                                 auto first_moved = tp_gesture_mm_moved(*first);
-                                                                auto first_mm = hypot(first_moved.x, first_moved.y);
+                                                                auto first_mm = first_moved.hypot();
                                                                 if (first_mm < lixx::hold_and_motion_threshold)
                                                                 {
                                                                     tp.gesture.state = GESTURE_STATE_HOLD_AND_MOTION;
@@ -10744,7 +10744,7 @@ namespace netxs::lixx // li++, libinput++.
                                         }
                                         // Semi-mt devices will give us large movements on finger release, depending which touch is released. Make sure we ignore any movement in the same frame as a finger change.
                                         if (tp.semi_mt && tp.nfingers_down != tp.old_nfingers_down) return faux;
-                                        else                                                        return hypot(mm.x, mm.y) > lixx::default_tap_move_threshold;
+                                        else                                                        return mm.hypot() > lixx::default_tap_move_threshold;
                                     }
                                 si32 tp_tap_handle_state(time stamp)
                                 {
@@ -10909,7 +10909,7 @@ namespace netxs::lixx // li++, libinput++.
                                                     else
                                                     {
                                                         auto thumb_moved = tp_gesture_mm_moved(thumb);
-                                                        auto thumb_mm = hypot(thumb_moved.x, thumb_moved.y);
+                                                        auto thumb_mm = thumb_moved.hypot();
                                                         return thumb_mm >= lixx::pinch_disambiguation_move_threshold;
                                                     }
                                                 }
@@ -11061,7 +11061,7 @@ namespace netxs::lixx // li++, libinput++.
                                                 auto thumb = (tp_touch*)nullptr;
                                                 auto is_hold_and_motion = faux;
                                                 auto first_moved = tp_gesture_mm_moved(*first);
-                                                auto first_mm = hypot(first_moved.x, first_moved.y);
+                                                auto first_mm = first_moved.hypot();
                                                 if (tp.gesture.finger_count == 1)
                                                 {
                                                     if (!tp_has_pending_pointer_motion(stamp)) return;
@@ -11092,7 +11092,7 @@ namespace netxs::lixx // li++, libinput++.
                                                 max_move += 2.0 * (tp.gesture.finger_count - 2);
                                                 min_move += 0.5 * (tp.gesture.finger_count - 2);
                                                 auto second_moved = tp_gesture_mm_moved(*second);
-                                                auto second_mm = hypot(second_moved.x, second_moved.y); // Movement since gesture start in mm.
+                                                auto second_mm = second_moved.hypot(); // Movement since gesture start in mm.
                                                 auto delta = std::abs(first->point - second->point);
                                                 auto distance_mm = evdev_device_unit_delta_to_mm(tp.li_device, delta);
                                                 // If both touches moved less than a mm, we cannot decide yet.
@@ -11231,14 +11231,12 @@ namespace netxs::lixx // li++, libinput++.
                                                 {
                                                     return faux;
                                                 }
-                                                auto first_moved = tp_gesture_mm_moved(*first);
-                                                auto first_mm = hypot(first_moved.x, first_moved.y);
+                                                auto first_mm = tp_gesture_mm_moved(*first).hypot();
                                                 if (first_mm < lixx::pinch_disambiguation_move_threshold)
                                                 {
                                                     return faux;
                                                 }
-                                                auto second_moved = tp_gesture_mm_moved(*second);
-                                                auto second_mm = hypot(second_moved.x, second_moved.y);
+                                                auto second_mm = tp_gesture_mm_moved(*second).hypot();
                                                 if (second_mm < lixx::pinch_disambiguation_move_threshold)
                                                 {
                                                     return faux;
@@ -11299,7 +11297,7 @@ namespace netxs::lixx // li++, libinput++.
                                                 }
                                                 // Calculate windowed vector from delta + weighted historic data.
                                                 auto vector = (tp.scroll.vector * vector_decay) + delta_mm;
-                                                auto vector_length = hypot(vector.x, vector.y);
+                                                auto vector_length = vector.hypot();
                                                 tp.scroll.vector = vector;
                                                 // We care somewhat about distance and speed, but more about consistency of direction over time. Keep track of the time spent primarily along each axis. If one axis is active, time spent NOT moving much in the other axis is subtracted, allowing a switch of axes in a single scroll + ability to "break out" and go diagonal.
                                                 // Slope to degree conversions (infinity = 90°, 0 = 0°):
@@ -13634,7 +13632,7 @@ namespace netxs::lixx // li++, libinput++.
         {
             if (brightness_fd != os::invalid_fd)
             {
-                ::close(brightness_fd);
+                os::close(brightness_fd);
             }
         }
     };
@@ -14066,6 +14064,7 @@ namespace netxs::lixx // li++, libinput++.
                                             char buf[4] = {};
                                             auto rc = 0;
                                             auto brightness = 0u;
+                                            //todo use os::fs
                                             for (auto& led : group->led_list)
                                             {
                                                 rc = ::lseek(led.brightness_fd, 0, SEEK_SET);

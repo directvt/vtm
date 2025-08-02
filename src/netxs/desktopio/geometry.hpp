@@ -123,6 +123,10 @@ namespace netxs
         template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator *= (xy2d<D> f)       { x = cast(x * f.x); y = cast(y * f.y); return *this; }
         template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator /= (xy2d<D> f)       { x = cast(x / f.x); y = cast(y / f.y); return *this; }
 
+        auto hypot() const
+        {
+            return std::hypot(x, y);
+        }
         xy2d   less(xy2d what, xy2d if_yes, xy2d if_no) const
         {
             return { x < what.x ? if_yes.x : if_no.x,
