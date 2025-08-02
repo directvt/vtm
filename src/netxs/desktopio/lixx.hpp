@@ -3360,7 +3360,7 @@ namespace netxs::lixx // li++, libinput++.
             //        auto filename = entry.path().filename().string();
             //        if (std::regex_match(filename, touchpad_regex))
             //        {
-            //            set ID_INPUT_TOUCHPAD_INTEGRATION=internal|external
+            //            set ID_INPUT_TOUCHPAD_INTEGRATION=internal | external
             //        }
             //        if (std::regex_match(filename, mouse_regex))
             //        {
@@ -7829,7 +7829,7 @@ namespace netxs::lixx // li++, libinput++.
                                             }
                                             tp.quirks.nonmotion_event_count = 0;
                                         }
-                                        if ((tp.queued & (TOUCHPAD_EVENT_OTHERAXIS|TOUCHPAD_EVENT_MOTION)) == TOUCHPAD_EVENT_OTHERAXIS)
+                                        if ((tp.queued & (TOUCHPAD_EVENT_OTHERAXIS | TOUCHPAD_EVENT_MOTION)) == TOUCHPAD_EVENT_OTHERAXIS)
                                         {
                                             tp.quirks.nonmotion_event_count++;
                                         }
@@ -9917,7 +9917,7 @@ namespace netxs::lixx // li++, libinput++.
                                                     case 1:
                                                     case 2:
                                                     case 3:
-                                                        button = lixx::tap_button_map[tp.buttons.map][nfingers-1];
+                                                        button = lixx::tap_button_map[tp.buttons.map][nfingers - 1];
                                                         break;
                                                     default:
                                                         button = 0;
@@ -13629,7 +13629,7 @@ namespace netxs::lixx // li++, libinput++.
                     {
                         return;
                     }
-                    if (tp.buttons.state & 0x3) // BTN_LEFT|BTN_RIGHT.
+                    if (tp.buttons.state & 0x3) // BTN_LEFT | BTN_RIGHT.
                     {
                         return;
                     }
@@ -16499,7 +16499,7 @@ namespace netxs::lixx // li++, libinput++.
                 bool tablet_is_display_tablet([[maybe_unused]] WacomDevice* wacom)
                 {
                     #if HAVE_LIBWACOM
-                    return !wacom || (::libwacom_get_integration_flags(wacom) & (WACOM_DEVICE_INTEGRATED_SYSTEM|WACOM_DEVICE_INTEGRATED_DISPLAY));
+                    return !wacom || (::libwacom_get_integration_flags(wacom) & (WACOM_DEVICE_INTEGRATED_SYSTEM | WACOM_DEVICE_INTEGRATED_DISPLAY));
                     #else
                     return true;
                     #endif
