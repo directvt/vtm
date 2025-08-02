@@ -2506,80 +2506,336 @@ namespace netxs::lixx // li++, libinput++.
         fd_t                       fd{ os::invalid_fd };
     };
     using libinput_source_sptr = sptr<libinput_source_t>;
-            struct match_t
-            {
-                ui32     bits;
-                text     name2;
-                text     uniq2;
-                bustype  bus;
-                ui32     vendor;
-                ui32     product[64]; // Zero-terminated.
-                ui32     version;
-                text     dmi2; // DMI modalias with preceding "dmi:".
-                ui32     ud_type; // We can have more than one type set, so this is a bitfield.
-                text     dt2; // Device tree compatible (first) string.
-            };
-            using match_sptr = sptr<match_t>;
-            struct quirk_dimensions
-            {
-                ui64 x, y;
-            };
-            struct quirk_range
-            {
-                si32 lower, upper;
-            };
-            struct quirk_tuples
-            {
-                struct tuples_t
-                {
-                    si32 first;
-                    si32 second;
-                    si32 third;
-                };
-                std::array<tuples_t, 32> tuples;
-                ui64                     ntuples;
-            };
-            struct quirk_array
-            {
-                union
-                {
-                    ui32 u[32];
-                } data;
-                ui64 nelements;
-            };
-            struct property_t
-            {
-                quirk         id{};
-                property_type type{};
-                text          value_s;
-                union
-                {
-                    bool             b;
-                    ui32             u;
-                    si32             i;
-                    fp64             d;
-                    quirk_dimensions dim;
-                    quirk_range      range;
-                    quirk_tuples     tuples;
-                    quirk_array      array;
-                } value{};
-            };
-            using property_sptr = sptr<property_t>;
-            struct quirks_t
-            {
-                std::list<property_sptr> properties;          // These are not ref'd, just a collection of pointers.
-                std::list<property_sptr> floating_properties; // Special properties for AttrEventCode and AttrInputCode, these are owned by us, not the section.
-            };
-            using quirks_sptr = sptr<quirks_t>;
-        struct section_t
+
+    struct match_t
+    {
+        ui32     bits;
+        text     name2;
+        text     uniq2;
+        bustype  bus;
+        ui32     vendor;
+        ui32     product[64]; // Zero-terminated.
+        ui32     version;
+        text     dmi2; // DMI modalias with preceding "dmi:".
+        ui32     ud_type; // We can have more than one type set, so this is a bitfield.
+        text     dt2; // Device tree compatible (first) string.
+    };
+    using match_sptr = sptr<match_t>;
+    struct quirk_dimensions //todo use ui64_coor
+    {
+        ui64 x, y;
+    };
+    struct quirk_range //todo use si32_range
+    {
+        si32 lower, upper;
+    };
+    struct quirk_tuples
+    {
+        struct tuples_t
         {
-            bool                     has_match;    // To check for empty sections.
-            bool                     has_property; // To check for empty sections.
-            text                     name2;        // The [Section Name].
-            match_sptr               match;
-            std::list<property_sptr> properties;
+            si32 first;
+            si32 second;
+            si32 third;
         };
-        using section_sptr = sptr<section_t>;
+        std::array<tuples_t, 32> tuples;
+        ui64                     ntuples;
+    };
+    struct quirk_array
+    {
+        union
+        {
+            ui32 u[32];
+        } data;
+        ui64 nelements;
+    };
+    struct property_t
+    {
+        quirk         id{};
+        property_type type{};
+        text          value_s;
+        union
+        {
+            bool             b;
+            ui32             u;
+            si32             i;
+            fp64             d;
+            quirk_dimensions dim;
+            quirk_range      range;
+            quirk_tuples     tuples;
+            quirk_array      array;
+        } value{};
+    };
+    using property_sptr = sptr<property_t>;
+    struct section_t
+    {
+        bool                     has_match;    // To check for empty sections.
+        bool                     has_property; // To check for empty sections.
+        text                     name2;        // The [Section Name].
+        match_sptr               match;
+        std::list<property_sptr> properties;
+    };
+    using section_sptr = sptr<section_t>;
+    struct quirks_t
+    {
+        std::list<property_sptr> properties;          // These are not ref'd, just a collection of pointers.
+        std::list<property_sptr> floating_properties; // Special properties for AttrEventCode and AttrInputCode, these are owned by us, not the section.
+
+        void _quirk_merge_event_codes(property_sptr prop)
+        {
+            for (auto& p : properties)
+            {
+                if (p->id == prop->id) // We have a duplicated property, merge in with ours.
+                {
+                    auto offset = p->value.tuples.ntuples;
+                    auto max = p->value.tuples.tuples.size();
+                    for (auto j = 0ul; j < prop->value.tuples.ntuples; j++)
+                    {
+                        if (offset + j >= max) break;
+                        p->value.tuples.tuples[offset + j] = prop->value.tuples.tuples[j];
+                        p->value.tuples.ntuples++;
+                    }
+                    return;
+                }
+            }
+            // First time we add AttrEventCode: create a new property.
+            // Unlike the other properties, this one isn't part of a section, it belongs to the quirks.
+            auto newprop = ptr::shared<property_t>();
+            newprop->id           = prop->id;
+            newprop->type         = prop->type;
+            newprop->value.tuples = prop->value.tuples;
+            properties.emplace_back(newprop);
+            floating_properties.emplace_back(newprop);
+        }
+        void _quirk_apply_section(section_sptr s)
+        {
+            for (auto p : s->properties)
+            {
+                log("property added: %s% from %s%", quirks_t::quirk_get_name(p->id), s->name2);
+                // All quirks but AttrEventCode and AttrInputProp
+                // simply overwrite each other, so we can just append the
+                // matching property and, later when checking the quirk, pick
+                // the last one in the array.
+                //
+                // The event codes/input props are special because they're lists
+                // that may *partially* override each other, e.g. a section may
+                // enable BTN_LEFT and BTN_RIGHT but a later section may disable
+                // only BTN_RIGHT. This should result in BTN_LEFT force-enabled
+                // and BTN_RIGHT force-disabled.
+                //
+                // To hack around this, those are the only ones where only ever
+                // have one struct property in the list (not owned by a section)
+                // and we simply merge any extra sections onto that.
+                if (p->id == QUIRK_ATTR_EVENT_CODE || p->id == QUIRK_ATTR_INPUT_PROP)
+                {
+                    _quirk_merge_event_codes(p);
+                }
+                else
+                {
+                    properties.push_back(p);
+                }
+            }
+        }
+        void quirk_match_section(section_sptr s, match_sptr m)
+        {
+            auto matched_flags = 0u;
+            for (auto flag = 1u; flag <= M_LAST; flag <<= 1)
+            {
+                auto prev_matched_flags = matched_flags;
+                if (!(s->match->bits & flag)) continue; // Section doesn't have this bit set, continue.
+                if (!(m->bits & flag)) // Couldn't fill in this bit for the match, so we do not match on it.
+                {
+                    log("%s% wants %s% but we don't have that", s->name2, quirks_t::matchflagname((match_flags)flag));
+                    continue;
+                }
+                switch (flag)
+                {
+                    case M_NAME:        if (::fnmatch(s->match->name2.data(), m->name2.data(), 0) == 0) matched_flags |= flag; break;
+                    case M_UNIQ:        if (::fnmatch(s->match->uniq2.data(), m->uniq2.data(), 0) == 0) matched_flags |= flag; break;
+                    case M_BUS:         if (m->bus == s->match->bus)                                    matched_flags |= flag; break;
+                    case M_VID:         if (m->vendor == s->match->vendor)                              matched_flags |= flag; break;
+                    case M_PID:         for (auto mi : m->product)
+                                        {
+                                            if (mi == 0 || matched_flags & flag) break;
+                                            for (auto si : s->match->product)
+                                            {
+                                                if (si == 0) break;
+                                                if (mi == si)
+                                                {
+                                                    matched_flags |= flag;
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                        break;
+                    case M_VERSION:     if (m->version == s->match->version)                            matched_flags |= flag; break;
+                    case M_DMI:         if (::fnmatch(s->match->dmi2.data(), m->dmi2.data(), 0) == 0)   matched_flags |= flag; break;
+                    case M_DT:          if (::fnmatch(s->match->dt2.data(), m->dt2.data(), 0) == 0)     matched_flags |= flag; break;
+                    case M_UDEV_TYPE:   if (s->match->ud_type & m->ud_type)                             matched_flags |= flag; break;
+                    default: ::abort();
+                }
+                if (prev_matched_flags != matched_flags)
+                {
+                    log("%s% matches for %s%", s->name2, quirks_t::matchflagname((match_flags)flag));
+                }
+            }
+            if (s->match->bits == matched_flags)
+            {
+                log("%s% is full match", s->name2);
+                _quirk_apply_section(s);
+            }
+        }
+        property_sptr _quirk_find_prop(quirk which)
+        {
+            for (auto p : properties | std::views::reverse) // Run backwards to only handle the last one assigned.
+            {
+                if (p->id == which)
+                {
+                    return p;
+                }
+            }
+            return property_sptr{};
+        }
+        bool quirks_get_bool(quirk which, bool& val)
+        {
+            if (auto p = _quirk_find_prop(which))
+            {
+                assert(p->type == PT_BOOL);
+                val = p->value.b;
+                return true;
+            }
+            return faux;
+        }
+        bool quirks_get_range(quirk which, quirk_range* val)
+        {
+            if (auto p = _quirk_find_prop(which))
+            {
+                assert(p->type == PT_RANGE);
+                *val = p->value.range;
+                return true;
+            }
+            return faux;
+        }
+        bool quirks_get_uint32(quirk which, ui32* val)
+        {
+            if (auto p = _quirk_find_prop(which))
+            {
+                assert(p->type == PT_UINT);
+                *val = p->value.u;
+                return true;
+            }
+            return faux;
+        }
+        bool quirks_get_string(quirk which, char** val)
+        {
+            if (auto p = _quirk_find_prop(which))
+            {
+                assert(p->type == PT_STRING);
+                *val = p->value_s.data();
+                return true;
+            }
+            return faux;
+        }
+        bool quirks_get_tuples(quirk which, const quirk_tuples** tuples)
+        {
+            if (auto p = _quirk_find_prop(which))
+            {
+                assert(p->type == PT_TUPLES);
+                *tuples = &p->value.tuples;
+                return true;
+            }
+            return faux;
+        }
+        bool quirks_get_dimensions(quirk which, quirk_dimensions* val)
+        {
+            if (auto p = _quirk_find_prop(which))
+            {
+                assert(p->type == PT_DIMENSION);
+                *val = p->value.dim;
+                return true;
+            }
+            return faux;
+        }
+        bool quirks_get_double(quirk which, fp64& val)
+        {
+            if (auto p = _quirk_find_prop(which))
+            {
+                assert(p->type == PT_DOUBLE);
+                val = p->value.d;
+                return true;
+            }
+            return faux;
+        }
+
+        static char const* quirk_get_name(quirk q)
+        {
+            switch(q)
+            {
+                case QUIRK_MODEL_ALPS_SERIAL_TOUCHPAD:          return "ModelALPSSerialTouchpad";
+                case QUIRK_MODEL_APPLE_TOUCHPAD:                return "ModelAppleTouchpad";
+                case QUIRK_MODEL_APPLE_TOUCHPAD_ONEBUTTON:      return "ModelAppleTouchpadOneButton";
+                case QUIRK_MODEL_BOUNCING_KEYS:                 return "ModelBouncingKeys";
+                case QUIRK_MODEL_CHROMEBOOK:                    return "ModelChromebook";
+                case QUIRK_MODEL_CLEVO_W740SU:                  return "ModelClevoW740SU";
+                case QUIRK_MODEL_DELL_CANVAS_TOTEM:             return "ModelDellCanvasTotem";
+                case QUIRK_MODEL_HP_PAVILION_DM4_TOUCHPAD:      return "ModelHPPavilionDM4Touchpad";
+                case QUIRK_MODEL_HP_ZBOOK_STUDIO_G3:            return "ModelHPZBookStudioG3";
+                case QUIRK_MODEL_INVERT_HORIZONTAL_SCROLLING:   return "ModelInvertHorizontalScrolling";
+                case QUIRK_MODEL_LENOVO_SCROLLPOINT:            return "ModelLenovoScrollPoint";
+                case QUIRK_MODEL_LENOVO_T450_TOUCHPAD:          return "ModelLenovoT450Touchpad";
+                case QUIRK_MODEL_LENOVO_X1GEN6_TOUCHPAD:        return "ModelLenovoX1Gen6Touchpad";
+                case QUIRK_MODEL_LENOVO_X230:                   return "ModelLenovoX230";
+                case QUIRK_MODEL_SYNAPTICS_SERIAL_TOUCHPAD:     return "ModelSynapticsSerialTouchpad";
+                case QUIRK_MODEL_SYSTEM76_BONOBO:               return "ModelSystem76Bonobo";
+                case QUIRK_MODEL_SYSTEM76_GALAGO:               return "ModelSystem76Galago";
+                case QUIRK_MODEL_SYSTEM76_KUDU:                 return "ModelSystem76Kudu";
+                case QUIRK_MODEL_TABLET_MODE_NO_SUSPEND:        return "ModelTabletModeNoSuspend";
+                case QUIRK_MODEL_TABLET_MODE_SWITCH_UNRELIABLE: return "ModelTabletModeSwitchUnreliable";
+                case QUIRK_MODEL_TOUCHPAD_VISIBLE_MARKER:       return "ModelTouchpadVisibleMarker";
+                case QUIRK_MODEL_TOUCHPAD_PHANTOM_CLICKS:       return "ModelTouchpadPhantomClicks";
+                case QUIRK_MODEL_TRACKBALL:                     return "ModelTrackball";
+                case QUIRK_MODEL_WACOM_TOUCHPAD:                return "ModelWacomTouchpad";
+                case QUIRK_MODEL_PRESSURE_PAD:                  return "ModelPressurePad";
+                case QUIRK_ATTR_SIZE_HINT:                      return "AttrSizeHint";
+                case QUIRK_ATTR_TOUCH_SIZE_RANGE:               return "AttrTouchSizeRange";
+                case QUIRK_ATTR_PALM_SIZE_THRESHOLD:            return "AttrPalmSizeThreshold";
+                case QUIRK_ATTR_LID_SWITCH_RELIABILITY:         return "AttrLidSwitchReliability";
+                case QUIRK_ATTR_KEYBOARD_INTEGRATION:           return "AttrKeyboardIntegration";
+                case QUIRK_ATTR_TRACKPOINT_INTEGRATION:         return "AttrPointingStickIntegration";
+                case QUIRK_ATTR_TPKBCOMBO_LAYOUT:               return "AttrTPKComboLayout";
+                case QUIRK_ATTR_PRESSURE_RANGE:                 return "AttrPressureRange";
+                case QUIRK_ATTR_PALM_PRESSURE_THRESHOLD:        return "AttrPalmPressureThreshold";
+                case QUIRK_ATTR_RESOLUTION_HINT:                return "AttrResolutionHint";
+                case QUIRK_ATTR_TRACKPOINT_MULTIPLIER:          return "AttrTrackpointMultiplier";
+                case QUIRK_ATTR_THUMB_PRESSURE_THRESHOLD:       return "AttrThumbPressureThreshold";
+                case QUIRK_ATTR_USE_VELOCITY_AVERAGING:         return "AttrUseVelocityAveraging";
+                case QUIRK_ATTR_TABLET_SMOOTHING:               return "AttrTabletSmoothing";
+                case QUIRK_ATTR_THUMB_SIZE_THRESHOLD:           return "AttrThumbSizeThreshold";
+                case QUIRK_ATTR_MSC_TIMESTAMP:                  return "AttrMscTimestamp";
+                case QUIRK_ATTR_EVENT_CODE:                     return "AttrEventCode";
+                case QUIRK_ATTR_INPUT_PROP:                     return "AttrInputProp";
+                case QUIRK_ATTR_IS_VIRTUAL:                     return "AttrIsVirtual";
+                default:
+                    ::abort();
+            }
+        }
+        static char const* matchflagname(match_flags f)
+        {
+            switch(f)
+            {
+                case M_NAME:      return "MatchName";        break;
+                case M_BUS:       return "MatchBus";         break;
+                case M_VID:       return "MatchVendor";      break;
+                case M_PID:       return "MatchProduct";     break;
+                case M_VERSION:   return "MatchVersion";     break;
+                case M_DMI:       return "MatchDMIModalias"; break;
+                case M_UDEV_TYPE: return "MatchUdevType";    break;
+                case M_DT:        return "MatchDeviceTree";  break;
+                case M_UNIQ:      return "MatchUniq";        break;
+                default: ::abort();
+            }
+        }
+    };
+    using quirks_sptr = sptr<quirks_t>;
     struct quirks_context_t
     {
         libinput_sptr           libinput; // For logging.
@@ -3419,6 +3675,26 @@ namespace netxs::lixx // li++, libinput++.
                 log("Failed to open %filepath%, errno=%%", filepath, errno);
             }
             return faux;
+        }
+
+        quirks_sptr quirks_fetch_for_device(quirks_context_sptr ctx)
+        {
+            log("%s%: fetching quirks", devpath);
+            auto m = match_new(ctx->dmi2, ctx->dt2);
+            auto q = ptr::shared<quirks_t>();
+            for (auto s : ctx->sections)
+            {
+                q->quirk_match_section(s, m);
+            }
+            if (q->properties.empty())
+            {
+                return {};
+            }
+            else
+            {
+                ctx->quirks.push_back(q);
+                return q;
+            }
         }
         bool libinput_ud_device_is_virtual()
         {
@@ -4912,241 +5188,6 @@ namespace netxs::lixx // li++, libinput++.
         }
     };
 
-    // Helpers
-        property_sptr quirk_find_prop(quirks_sptr q, quirk which)
-        {
-            for (auto p : q->properties | std::views::reverse) // Run backwards to only handle the last one assigned.
-            {
-                if (p->id == which)
-                {
-                    return p;
-                }
-            }
-            return property_sptr{};
-        }
-        bool quirks_get_bool(quirks_sptr q, quirk which, bool& val)
-        {
-            if (q)
-            if (auto p = quirk_find_prop(q, which))
-            {
-                assert(p->type == PT_BOOL);
-                val = p->value.b;
-                return true;
-            }
-            return faux;
-        }
-        bool quirks_get_range(quirks_sptr q, quirk which, quirk_range* val)
-        {
-            if (q)
-            if (auto p = quirk_find_prop(q, which))
-            {
-                assert(p->type == PT_RANGE);
-                *val = p->value.range;
-                return true;
-            }
-            return faux;
-        }
-        char const* quirk_get_name(quirk q)
-        {
-            switch(q)
-            {
-                case QUIRK_MODEL_ALPS_SERIAL_TOUCHPAD:          return "ModelALPSSerialTouchpad";
-                case QUIRK_MODEL_APPLE_TOUCHPAD:                return "ModelAppleTouchpad";
-                case QUIRK_MODEL_APPLE_TOUCHPAD_ONEBUTTON:      return "ModelAppleTouchpadOneButton";
-                case QUIRK_MODEL_BOUNCING_KEYS:                 return "ModelBouncingKeys";
-                case QUIRK_MODEL_CHROMEBOOK:                    return "ModelChromebook";
-                case QUIRK_MODEL_CLEVO_W740SU:                  return "ModelClevoW740SU";
-                case QUIRK_MODEL_DELL_CANVAS_TOTEM:             return "ModelDellCanvasTotem";
-                case QUIRK_MODEL_HP_PAVILION_DM4_TOUCHPAD:      return "ModelHPPavilionDM4Touchpad";
-                case QUIRK_MODEL_HP_ZBOOK_STUDIO_G3:            return "ModelHPZBookStudioG3";
-                case QUIRK_MODEL_INVERT_HORIZONTAL_SCROLLING:   return "ModelInvertHorizontalScrolling";
-                case QUIRK_MODEL_LENOVO_SCROLLPOINT:            return "ModelLenovoScrollPoint";
-                case QUIRK_MODEL_LENOVO_T450_TOUCHPAD:          return "ModelLenovoT450Touchpad";
-                case QUIRK_MODEL_LENOVO_X1GEN6_TOUCHPAD:        return "ModelLenovoX1Gen6Touchpad";
-                case QUIRK_MODEL_LENOVO_X230:                   return "ModelLenovoX230";
-                case QUIRK_MODEL_SYNAPTICS_SERIAL_TOUCHPAD:     return "ModelSynapticsSerialTouchpad";
-                case QUIRK_MODEL_SYSTEM76_BONOBO:               return "ModelSystem76Bonobo";
-                case QUIRK_MODEL_SYSTEM76_GALAGO:               return "ModelSystem76Galago";
-                case QUIRK_MODEL_SYSTEM76_KUDU:                 return "ModelSystem76Kudu";
-                case QUIRK_MODEL_TABLET_MODE_NO_SUSPEND:        return "ModelTabletModeNoSuspend";
-                case QUIRK_MODEL_TABLET_MODE_SWITCH_UNRELIABLE: return "ModelTabletModeSwitchUnreliable";
-                case QUIRK_MODEL_TOUCHPAD_VISIBLE_MARKER:       return "ModelTouchpadVisibleMarker";
-                case QUIRK_MODEL_TOUCHPAD_PHANTOM_CLICKS:       return "ModelTouchpadPhantomClicks";
-                case QUIRK_MODEL_TRACKBALL:                     return "ModelTrackball";
-                case QUIRK_MODEL_WACOM_TOUCHPAD:                return "ModelWacomTouchpad";
-                case QUIRK_MODEL_PRESSURE_PAD:                  return "ModelPressurePad";
-                case QUIRK_ATTR_SIZE_HINT:                      return "AttrSizeHint";
-                case QUIRK_ATTR_TOUCH_SIZE_RANGE:               return "AttrTouchSizeRange";
-                case QUIRK_ATTR_PALM_SIZE_THRESHOLD:            return "AttrPalmSizeThreshold";
-                case QUIRK_ATTR_LID_SWITCH_RELIABILITY:         return "AttrLidSwitchReliability";
-                case QUIRK_ATTR_KEYBOARD_INTEGRATION:           return "AttrKeyboardIntegration";
-                case QUIRK_ATTR_TRACKPOINT_INTEGRATION:         return "AttrPointingStickIntegration";
-                case QUIRK_ATTR_TPKBCOMBO_LAYOUT:               return "AttrTPKComboLayout";
-                case QUIRK_ATTR_PRESSURE_RANGE:                 return "AttrPressureRange";
-                case QUIRK_ATTR_PALM_PRESSURE_THRESHOLD:        return "AttrPalmPressureThreshold";
-                case QUIRK_ATTR_RESOLUTION_HINT:                return "AttrResolutionHint";
-                case QUIRK_ATTR_TRACKPOINT_MULTIPLIER:          return "AttrTrackpointMultiplier";
-                case QUIRK_ATTR_THUMB_PRESSURE_THRESHOLD:       return "AttrThumbPressureThreshold";
-                case QUIRK_ATTR_USE_VELOCITY_AVERAGING:         return "AttrUseVelocityAveraging";
-                case QUIRK_ATTR_TABLET_SMOOTHING:               return "AttrTabletSmoothing";
-                case QUIRK_ATTR_THUMB_SIZE_THRESHOLD:           return "AttrThumbSizeThreshold";
-                case QUIRK_ATTR_MSC_TIMESTAMP:                  return "AttrMscTimestamp";
-                case QUIRK_ATTR_EVENT_CODE:                     return "AttrEventCode";
-                case QUIRK_ATTR_INPUT_PROP:                     return "AttrInputProp";
-                case QUIRK_ATTR_IS_VIRTUAL:                     return "AttrIsVirtual";
-                default:
-                    ::abort();
-            }
-        }
-        char const* matchflagname(match_flags f)
-        {
-            switch(f)
-            {
-                case M_NAME:      return "MatchName";        break;
-                case M_BUS:       return "MatchBus";         break;
-                case M_VID:       return "MatchVendor";      break;
-                case M_PID:       return "MatchProduct";     break;
-                case M_VERSION:   return "MatchVersion";     break;
-                case M_DMI:       return "MatchDMIModalias"; break;
-                case M_UDEV_TYPE: return "MatchUdevType";    break;
-                case M_DT:        return "MatchDeviceTree";  break;
-                case M_UNIQ:      return "MatchUniq";        break;
-                default: ::abort();
-            }
-        }
-        void quirk_merge_event_codes(quirks_sptr q, property_sptr prop)
-        {
-            for (auto& p : q->properties)
-            {
-                if (p->id == prop->id) // We have a duplicated property, merge in with ours.
-                {
-                    auto offset = p->value.tuples.ntuples;
-                    auto max = p->value.tuples.tuples.size();
-                    for (auto j = 0ul; j < prop->value.tuples.ntuples; j++)
-                    {
-                        if (offset + j >= max) break;
-                        p->value.tuples.tuples[offset + j] = prop->value.tuples.tuples[j];
-                        p->value.tuples.ntuples++;
-                    }
-                    return;
-                }
-            }
-            // First time we add AttrEventCode: create a new property.
-            // Unlike the other properties, this one isn't part of a section, it belongs to the quirks.
-            auto newprop = ptr::shared<property_t>();
-            newprop->id           = prop->id;
-            newprop->type         = prop->type;
-            newprop->value.tuples = prop->value.tuples;
-            q->properties.emplace_back(newprop);
-            q->floating_properties.emplace_back(newprop);
-        }
-        void quirk_apply_section(quirks_sptr q, section_sptr s)
-        {
-            for (auto p : s->properties)
-            {
-                log("property added: %s% from %s%", quirk_get_name(p->id), s->name2);
-                // All quirks but AttrEventCode and AttrInputProp
-                // simply overwrite each other, so we can just append the
-                // matching property and, later when checking the quirk, pick
-                // the last one in the array.
-                //
-                // The event codes/input props are special because they're lists
-                // that may *partially* override each other, e.g. a section may
-                // enable BTN_LEFT and BTN_RIGHT but a later section may disable
-                // only BTN_RIGHT. This should result in BTN_LEFT force-enabled
-                // and BTN_RIGHT force-disabled.
-                //
-                // To hack around this, those are the only ones where only ever
-                // have one struct property in the list (not owned by a section)
-                // and we simply merge any extra sections onto that.
-                if (p->id == QUIRK_ATTR_EVENT_CODE || p->id == QUIRK_ATTR_INPUT_PROP)
-                {
-                    quirk_merge_event_codes(q, p);
-                }
-                else
-                {
-                    q->properties.push_back(p);
-                }
-            }
-        }
-        void quirk_match_section(quirks_sptr q, section_sptr s, match_sptr m)
-        {
-            auto matched_flags = 0u;
-            for (auto flag = 1u; flag <= M_LAST; flag <<= 1)
-            {
-                auto prev_matched_flags = matched_flags;
-                if (!(s->match->bits & flag))  continue; // Section doesn't have this bit set, continue.
-                if (!(m->bits & flag)) // Couldn't fill in this bit for the match, so we do not match on it.
-                {
-                    log("%s% wants %s% but we don't have that", s->name2, matchflagname((match_flags)flag));
-                    continue;
-                }
-                switch (flag)
-                {
-                    case M_NAME:        if (::fnmatch(s->match->name2.data(), m->name2.data(), 0) == 0) matched_flags |= flag; break;
-                    case M_UNIQ:        if (::fnmatch(s->match->uniq2.data(), m->uniq2.data(), 0) == 0) matched_flags |= flag; break;
-                    case M_BUS:         if (m->bus == s->match->bus)                                    matched_flags |= flag; break;
-                    case M_VID:         if (m->vendor == s->match->vendor)                              matched_flags |= flag; break;
-                    case M_PID:         for (auto mi : m->product)
-                                        {
-                                            if (mi == 0 || matched_flags & flag) break;
-                                            for (auto si : s->match->product)
-                                            {
-                                                if (si == 0) break;
-                                                if (mi == si)
-                                                {
-                                                    matched_flags |= flag;
-                                                    break;
-                                                }
-                                            }
-                                        }
-                                        break;
-                    case M_VERSION:     if (m->version == s->match->version)                            matched_flags |= flag; break;
-                    case M_DMI:         if (::fnmatch(s->match->dmi2.data(), m->dmi2.data(), 0) == 0)   matched_flags |= flag; break;
-                    case M_DT:          if (::fnmatch(s->match->dt2.data(), m->dt2.data(), 0) == 0)     matched_flags |= flag; break;
-                    case M_UDEV_TYPE:   if (s->match->ud_type & m->ud_type)                             matched_flags |= flag; break;
-                    default: ::abort();
-                }
-                if (prev_matched_flags != matched_flags)
-                {
-                    log("%s% matches for %s%", s->name2, matchflagname((match_flags)flag));
-                }
-            }
-            if (s->match->bits == matched_flags)
-            {
-                log("%s% is full match", s->name2);
-                quirk_apply_section(q, s);
-            }
-        }
-        quirks_sptr quirks_fetch_for_device(quirks_context_sptr ctx, ud_device_sptr ud_device)
-        {
-            if (!ctx) return {};
-            log("%s%: fetching quirks", ud_device->udev_device_get_devnode());
-            auto m = ud_device->match_new(ctx->dmi2, ctx->dt2);
-            auto q = ptr::shared<quirks_t>();
-            for (auto s : ctx->sections)
-            {
-                quirk_match_section(q, s, m);
-            }
-            if (q->properties.empty())
-            {
-                return {};
-            }
-            ctx->quirks.push_back(q);
-            return q;
-        }
-        bool quirks_get_uint32(quirks_sptr q, quirk which, ui32* val)
-        {
-            if (q)
-            if (auto p = quirk_find_prop(q, which))
-            {
-                assert(p->type == PT_UINT);
-                *val = p->value.u;
-                return true;
-            }
-            return faux;
-        }
-
     struct libinput_device_t : ptr::enable_shared_from_this<libinput_device_t>
     {
         struct evdev_abs_t
@@ -6159,10 +6200,12 @@ namespace netxs::lixx // li++, libinput++.
         bool evdev_device_has_model_quirk(quirk model_quirk)
         {
             auto result = faux;
-            assert(quirk_get_name(model_quirk) != nullptr);
+            assert(quirks_t::quirk_get_name(model_quirk) != nullptr);
             auto quirks_v = seat->libinput->quirks;
-            auto q = quirks_fetch_for_device(quirks_v, ud_device);
-            quirks_get_bool(q, model_quirk, result);
+            if (auto q = ud_device->quirks_fetch_for_device(quirks_v))
+            {
+                q->quirks_get_bool(model_quirk, result);
+            }
             return result;
         }
         si32 libevdev_fetch_slot_value(ui32 slot, ui32 code, si32& value)
@@ -6949,7 +6992,6 @@ namespace netxs::lixx // li++, libinput++.
         };
 
     void evdev_device_init_pointer_acceleration(libinput_device_sptr li_device, motion_filter_sptr filter);
-    bool quirks_get_string(quirks_sptr q, quirk which, char** val);
     void evdev_device_init_abs_range_warnings(libinput_device_sptr li_device);
 
     struct tp_dispatch : evdev_dispatch_t
@@ -12337,29 +12379,31 @@ namespace netxs::lixx // li++, libinput++.
                         return faux;
                     }
                     auto quirks = li_device->li_context()->quirks;
-                    auto q = quirks_fetch_for_device(quirks, li_device->ud_device);
-                    auto r = quirk_range{};
-                    if (q && quirks_get_range(q, QUIRK_ATTR_TOUCH_SIZE_RANGE, &r))
+                    if (auto q = li_device->ud_device->quirks_fetch_for_device(quirks))
                     {
-                        auto hi = r.upper;
-                        auto lo = r.lower;
-                        if (li_device->libevdev_get_num_slots() < 5)
+                        auto r = quirk_range{};
+                        if (q->quirks_get_range(QUIRK_ATTR_TOUCH_SIZE_RANGE, &r))
                         {
-                            log("Expected 5+ slots for touch size detection");
-                        }
-                        else
-                        {
-                            if (hi == 0 && lo == 0)
+                            auto hi = r.upper;
+                            auto lo = r.lower;
+                            if (li_device->libevdev_get_num_slots() < 5)
                             {
-                                log("touch size based touch detection disabled");
+                                log("Expected 5+ slots for touch size detection");
                             }
-                            else // Thresholds apply for both major or minor.
+                            else
                             {
-                                tp.touch_size.low = lo;
-                                tp.touch_size.high = hi;
-                                tp.touch_size.use_touch_size = true;
-                                log("using size-based touch detection (%d%:%d%)", hi, lo);
-                                rc = true;
+                                if (hi == 0 && lo == 0)
+                                {
+                                    log("touch size based touch detection disabled");
+                                }
+                                else // Thresholds apply for both major or minor.
+                                {
+                                    tp.touch_size.low = lo;
+                                    tp.touch_size.high = hi;
+                                    tp.touch_size.use_touch_size = true;
+                                    log("using size-based touch detection (%d%:%d%)", hi, lo);
+                                    rc = true;
+                                }
                             }
                         }
                     }
@@ -12376,11 +12420,11 @@ namespace netxs::lixx // li++, libinput++.
                     auto abs = li_device->libevdev_get_abs_info(code);
                     assert(abs);
                     auto quirks = li_device->li_context()->quirks;
-                    auto q = quirks_fetch_for_device(quirks, li_device->ud_device);
+                    auto q = li_device->ud_device->quirks_fetch_for_device(quirks);
                     auto r = quirk_range{};
                     auto hi = 0;
                     auto lo = 0;
-                    if (q && quirks_get_range(q, QUIRK_ATTR_PRESSURE_RANGE, &r))
+                    if (q && q->quirks_get_range(QUIRK_ATTR_PRESSURE_RANGE, &r))
                     {
                         hi = r.upper;
                         lo = r.lower;
@@ -12806,7 +12850,7 @@ namespace netxs::lixx // li++, libinput++.
                         auto layout = TPKBCOMBO_LAYOUT_UNKNOWN;
                         auto rc = faux;
                         auto quirks = li_device->li_context()->quirks;
-                        if (auto q = quirks_fetch_for_device(quirks, li_device->ud_device); quirks_get_string(q, QUIRK_ATTR_TPKBCOMBO_LAYOUT, &prop))
+                        if (auto q = li_device->ud_device->quirks_fetch_for_device(quirks); q->quirks_get_string(QUIRK_ATTR_TPKBCOMBO_LAYOUT, &prop))
                         {
                             rc = prop == "below";
                             if (rc) layout = TPKBCOMBO_LAYOUT_BELOW;
@@ -12914,9 +12958,9 @@ namespace netxs::lixx // li++, libinput++.
                             static constexpr auto default_palm_threshold = 130u;
                             auto threshold = default_palm_threshold;
                             auto quirks = li_device->li_context()->quirks;
-                            if (auto q = quirks_fetch_for_device(quirks, li_device->ud_device))
+                            if (auto q = li_device->ud_device->quirks_fetch_for_device(quirks))
                             {
-                                quirks_get_uint32(q, QUIRK_ATTR_PALM_PRESSURE_THRESHOLD, &threshold);
+                                q->quirks_get_uint32(QUIRK_ATTR_PALM_PRESSURE_THRESHOLD, &threshold);
                             }
                             return threshold;
                         }
@@ -12937,10 +12981,10 @@ namespace netxs::lixx // li++, libinput++.
                     void tp_init_palmdetect_size(libinput_device_sptr li_device)
                     {
                         auto quirks = li_device->li_context()->quirks;
-                        if (auto q = quirks_fetch_for_device(quirks, li_device->ud_device))
+                        if (auto q = li_device->ud_device->quirks_fetch_for_device(quirks))
                         {
                             auto threshold = 0u;
-                            if (quirks_get_uint32(q, QUIRK_ATTR_PALM_SIZE_THRESHOLD, &threshold) && threshold != 0)
+                            if (q->quirks_get_uint32(QUIRK_ATTR_PALM_SIZE_THRESHOLD, &threshold) && threshold != 0)
                             {
                                 tp.palm.use_size = true;
                                 tp.palm.size_threshold = threshold;
@@ -13366,22 +13410,24 @@ namespace netxs::lixx // li++, libinput++.
                 edges = li_device->evdev_device_mm_to_units(mm);
                 tp.thumb.lower_thumb_line = edges.y;
                 auto quirks = li_device->li_context()->quirks;
-                auto q = quirks_fetch_for_device(quirks, li_device->ud_device);
-                auto threshold = 0u;
-                if (li_device->libevdev_has_event_code<EV_ABS>(ABS_MT_PRESSURE))
+                if (auto q = li_device->ud_device->quirks_fetch_for_device(quirks))
                 {
-                    if (quirks_get_uint32(q, QUIRK_ATTR_THUMB_PRESSURE_THRESHOLD, &threshold))
+                    auto threshold = 0u;
+                    if (li_device->libevdev_has_event_code<EV_ABS>(ABS_MT_PRESSURE))
                     {
-                        tp.thumb.use_pressure = true;
-                        tp.thumb.pressure_threshold = threshold;
+                        if (q->quirks_get_uint32(QUIRK_ATTR_THUMB_PRESSURE_THRESHOLD, &threshold))
+                        {
+                            tp.thumb.use_pressure = true;
+                            tp.thumb.pressure_threshold = threshold;
+                        }
                     }
-                }
-                if (li_device->libevdev_has_event_code<EV_ABS>(ABS_MT_TOUCH_MAJOR))
-                {
-                    if (quirks_get_uint32(q, QUIRK_ATTR_THUMB_SIZE_THRESHOLD, &threshold))
+                    if (li_device->libevdev_has_event_code<EV_ABS>(ABS_MT_TOUCH_MAJOR))
                     {
-                        tp.thumb.use_size = true;
-                        tp.thumb.size_threshold = threshold;
+                        if (q->quirks_get_uint32(QUIRK_ATTR_THUMB_SIZE_THRESHOLD, &threshold))
+                        {
+                            tp.thumb.use_size = true;
+                            tp.thumb.size_threshold = threshold;
+                        }
                     }
                 }
                 tp.tp_impl.tp_thumb_reset();
@@ -15338,20 +15384,22 @@ namespace netxs::lixx // li++, libinput++.
                             auto status = faux;
                             auto device = tablet.li_device;
                             auto quirks = device->li_context()->quirks;
-                            auto q = quirks_fetch_for_device(quirks, device->ud_device);
-                            // Note: the quirk term "range" refers to the hi/lo settings, not the full available range for the pressure axis.
-                            auto r = quirk_range{};
-                            if (q && quirks_get_range(q, QUIRK_ATTR_PRESSURE_RANGE, &r))
+                            if (auto q = device->ud_device->quirks_fetch_for_device(quirks))
                             {
-                                if (r.lower < r.upper)
+                                // Note: the quirk term "range" refers to the hi/lo settings, not the full available range for the pressure axis.
+                                auto r = quirk_range{};
+                                if (q->quirks_get_range(QUIRK_ATTR_PRESSURE_RANGE, &r))
                                 {
-                                    *hi = r.lower;
-                                    *lo = r.upper;
-                                    status = true;
-                                }
-                                else
-                                {
-                                    log("Invalid pressure range, using defaults");
+                                    if (r.lower < r.upper)
+                                    {
+                                        *hi = r.lower;
+                                        *lo = r.upper;
+                                        status = true;
+                                    }
+                                    else
+                                    {
+                                        log("Invalid pressure range, using defaults");
+                                    }
                                 }
                             }
                             return status;
@@ -16522,13 +16570,15 @@ namespace netxs::lixx // li++, libinput++.
                     auto history_size = std::size(tablet.history.samples);
                     auto use_smoothing = true;
                     auto quirks = li_device->li_context()->quirks;
-                    auto q = quirks_fetch_for_device(quirks, li_device->ud_device);
-                    // By default, always enable smoothing except on AES or uinput devices. AttrTabletSmoothing can override this, if necessary.
-                    if (!q || !quirks_get_bool(q, QUIRK_ATTR_TABLET_SMOOTHING, use_smoothing))
+                    if (auto q = li_device->ud_device->quirks_fetch_for_device(quirks))
                     {
-                        use_smoothing = !is_aes && !is_virtual;
+                        // By default, always enable smoothing except on AES or uinput devices. AttrTabletSmoothing can override this, if necessary.
+                        if (!q || !q->quirks_get_bool(QUIRK_ATTR_TABLET_SMOOTHING, use_smoothing))
+                        {
+                            use_smoothing = !is_aes && !is_virtual;
+                        }
+                        if (!use_smoothing) history_size = 1; // Setting the history size to 1 means we never do any actual smoothing.
                     }
-                    if (!use_smoothing) history_size = 1; // Setting the history size to 1 means we never do any actual smoothing.
                     tablet.history.size = history_size;
                 }
                     ui32 axis_to_evcode(libinput_tablet_tool_axis const axis)
@@ -18430,8 +18480,8 @@ namespace netxs::lixx // li++, libinput++.
                     auto r = switch_reliability{};
                     auto prop = (char*)nullptr;
                     auto quirks = li_device->li_context()->quirks;
-                    auto q = quirks_fetch_for_device(quirks, li_device->ud_device);
-                    if (!q || !quirks_get_string(q, QUIRK_ATTR_LID_SWITCH_RELIABILITY, &prop))
+                    auto q = li_device->ud_device->quirks_fetch_for_device(quirks);
+                    if (!q || !q->quirks_get_string(QUIRK_ATTR_LID_SWITCH_RELIABILITY, &prop))
                     {
                         r = RELIABILITY_RELIABLE;
                     }
@@ -18927,23 +18977,23 @@ namespace netxs::lixx // li++, libinput++.
         auto model_flags = 0u;
         auto all_model_flags = 0u;
         auto quirks_v = li_device->li_context()->quirks;
-        if (auto q = quirks_fetch_for_device(quirks_v, li_device->ud_device))
+        if (auto q = li_device->ud_device->quirks_fetch_for_device(quirks_v))
         {
             for (auto [quirk, model] : model_map)
             {
                 auto is_set = faux;
                 assert((all_model_flags & model) == 0); // Check for flag re-use.
                 all_model_flags |= model;
-                if (quirks_get_bool(q, quirk, is_set))
+                if (q->quirks_get_bool(quirk, is_set))
                 {
                     if (is_set)
                     {
-                        log("tagged as %s%", quirk_get_name(quirk));
+                        log("tagged as %s%", quirks_t::quirk_get_name(quirk));
                         model_flags |= model;
                     }
                     else
                     {
-                        log("untagged as %s%", quirk_get_name(quirk));
+                        log("untagged as %s%", quirks_t::quirk_get_name(quirk));
                         model_flags &= ~model;
                     }
                 }
@@ -18966,28 +19016,6 @@ namespace netxs::lixx // li++, libinput++.
             model_flags |= EVDEV_MODEL_TEST_DEVICE;
         }
         return model_flags;
-    }
-    bool quirks_get_string(quirks_sptr q, quirk which, char** val)
-    {
-        if (q)
-        if (auto p = quirk_find_prop(q, which))
-        {
-            assert(p->type == PT_STRING);
-            *val = p->value_s.data();
-            return true;
-        }
-        return faux;
-    }
-    bool quirks_get_tuples(quirks_sptr q, quirk which, const quirk_tuples** tuples)
-    {
-        if (q)
-        if (auto p = quirk_find_prop(q, which))
-        {
-            assert(p->type == PT_TUPLES);
-            *tuples = &p->value.tuples;
-            return true;
-        }
-        return faux;
     }
     bool strneq(char const* str1, char const* str2, si32 n)
     {
@@ -19018,62 +19046,65 @@ namespace netxs::lixx // li++, libinput++.
         }
         // Generally we don't care about MSC_TIMESTAMP and it can cause unnecessary wakeups but on some devices we need to watch it for pointer jumps.
         auto quirks_v = li_device->li_context()->quirks;
-        auto q = quirks_fetch_for_device(quirks_v, li_device->ud_device);
-        if (!q || !quirks_get_string(q, QUIRK_ATTR_MSC_TIMESTAMP, &prop) || "watch"sv != prop)
+        auto q = li_device->ud_device->quirks_fetch_for_device(quirks_v);
+        if (!q || !q->quirks_get_string(QUIRK_ATTR_MSC_TIMESTAMP, &prop) || "watch"sv != prop)
         {
             li_device->libevdev_disable_event_code<EV_MSC>(MSC_TIMESTAMP);
         }
-        auto t = (quirk_tuples const*)nullptr;
-        if (quirks_get_tuples(q, QUIRK_ATTR_EVENT_CODE, &t))
+        if (q)
         {
-            for (auto i = 0u; i < t->ntuples; i++)
+            auto t = (quirk_tuples const*)nullptr;
+            if (q->quirks_get_tuples(QUIRK_ATTR_EVENT_CODE, &t))
             {
-                auto absinfo = abs_info_t{};
-                absinfo.minimum = 0;
-                absinfo.maximum = 1;
-                auto type = t->tuples[i].first;
-                auto code = t->tuples[i].second;
-                auto stat = t->tuples[i].third;
-                     if (type == EV_ABS) li_device->set_event_type_code<EV_ABS>(stat, code, &absinfo);
-                else if (type == EV_REL) li_device->set_event_type_code<EV_REL>(stat, code);
-                else if (type == EV_KEY) li_device->set_event_type_code<EV_KEY>(stat, code);
-                else if (type == EV_REP) li_device->set_event_type_code<EV_REP>(stat, code);
-                else if (type == EV_MSC) li_device->set_event_type_code<EV_MSC>(stat, code);
-                else if (type == EV_LED) li_device->set_event_type_code<EV_LED>(stat, code);
-                else if (type == EV_SND) li_device->set_event_type_code<EV_SND>(stat, code);
-                else if (type == EV_SW ) li_device->set_event_type_code<EV_SW >(stat, code);
-                else if (type == EV_FF ) li_device->set_event_type_code<EV_FF >(stat, code);
-                log("quirks: %s% %s% ('type=%% code=%%')", stat ? "enabling" : "disabling", libevdev_event_type_get_name(type), type, code);
+                for (auto i = 0u; i < t->ntuples; i++)
+                {
+                    auto absinfo = abs_info_t{};
+                    absinfo.minimum = 0;
+                    absinfo.maximum = 1;
+                    auto type = t->tuples[i].first;
+                    auto code = t->tuples[i].second;
+                    auto stat = t->tuples[i].third;
+                         if (type == EV_ABS) li_device->set_event_type_code<EV_ABS>(stat, code, &absinfo);
+                    else if (type == EV_REL) li_device->set_event_type_code<EV_REL>(stat, code);
+                    else if (type == EV_KEY) li_device->set_event_type_code<EV_KEY>(stat, code);
+                    else if (type == EV_REP) li_device->set_event_type_code<EV_REP>(stat, code);
+                    else if (type == EV_MSC) li_device->set_event_type_code<EV_MSC>(stat, code);
+                    else if (type == EV_LED) li_device->set_event_type_code<EV_LED>(stat, code);
+                    else if (type == EV_SND) li_device->set_event_type_code<EV_SND>(stat, code);
+                    else if (type == EV_SW ) li_device->set_event_type_code<EV_SW >(stat, code);
+                    else if (type == EV_FF ) li_device->set_event_type_code<EV_FF >(stat, code);
+                    log("quirks: %s% %s% ('type=%% code=%%')", stat ? "enabling" : "disabling", libevdev_event_type_get_name(type), type, code);
+                }
             }
-        }
-        if (quirks_get_tuples(q, QUIRK_ATTR_INPUT_PROP, &t))
-        {
-            for (auto i = 0u; i < t->ntuples; i++)
+            if (q->quirks_get_tuples(QUIRK_ATTR_INPUT_PROP, &t))
             {
-                auto p = (ui32)t->tuples[i].first;
-                auto enable = t->tuples[i].second;
-                if (enable)
+                for (auto i = 0u; i < t->ntuples; i++)
                 {
-                    li_device->libevdev_enable_property(p);
+                    auto p = (ui32)t->tuples[i].first;
+                    auto enable = t->tuples[i].second;
+                    if (enable)
+                    {
+                        li_device->libevdev_enable_property(p);
+                    }
+                    else
+                    {
+                        #if HAVE_LIBEVDEV_DISABLE_PROPERTY
+                        li_device->libevdev_disable_property(p);
+                        #else
+                        log("quirks: a quirk for this device requires newer libevdev than installed");
+                        #endif
+                    }
+                    log("quirks: %s% %s% (%#x%)", enable ? "enabling" : "disabling", libevdev_property_get_name(p), p);
                 }
-                else
-                {
-                    #if HAVE_LIBEVDEV_DISABLE_PROPERTY
-                    li_device->libevdev_disable_property(p);
-                    #else
-                    log("quirks: a quirk for this device requires newer libevdev than installed");
-                    #endif
-                }
-                log("quirks: %s% %s% (%#x%)", enable ? "enabling" : "disabling", libevdev_property_get_name(p), p);
             }
-        }
-        if (!quirks_get_bool(q, QUIRK_ATTR_IS_VIRTUAL, is_virtual))
-        {
-            is_virtual = !::getenv("LIBINPUT_RUNNING_TEST_SUITE") && li_device->libinput_ud_device_is_virtual();
-        }
-        if (is_virtual)
-        {
-            li_device->tags = (libinput_device_tags)(li_device->tags | EVDEV_TAG_VIRTUAL);
+            if (!q->quirks_get_bool(QUIRK_ATTR_IS_VIRTUAL, is_virtual))
+            {
+                is_virtual = !::getenv("LIBINPUT_RUNNING_TEST_SUITE") && li_device->libinput_ud_device_is_virtual();
+            }
+            if (is_virtual)
+            {
+                li_device->tags = (libinput_device_tags)(li_device->tags | EVDEV_TAG_VIRTUAL);
+            }
         }
     }
     void evdev_disable_accelerometer_axes(libinput_device_sptr li_device)
@@ -19272,50 +19303,35 @@ namespace netxs::lixx // li++, libinput++.
         li_device->libevdev_enable_event_code<EV_ABS>(ABS_X, li_device->libevdev_get_abs_info(ABS_MT_POSITION_X));
         li_device->libevdev_enable_event_code<EV_ABS>(ABS_Y, li_device->libevdev_get_abs_info(ABS_MT_POSITION_Y));
     }
-    bool quirks_get_dimensions(quirks_sptr q, quirk which, quirk_dimensions* val)
-    {
-        if (q)
-        if (auto p = quirk_find_prop(q, which))
-        {
-            assert(p->type == PT_DIMENSION);
-            *val = p->value.dim;
-            return true;
-        }
-        return faux;
-    }
     bool evdev_read_attr_res_prop(libinput_device_sptr li_device, ui64* xres, ui64* yres)
     {
         auto quirks_v = li_device->li_context()->quirks;
-        auto q = quirks_fetch_for_device(quirks_v, li_device->ud_device);
-        if (!q)
+        if (auto q = li_device->ud_device->quirks_fetch_for_device(quirks_v))
         {
-            return faux;
+            auto dim = quirk_dimensions{};
+            if (q->quirks_get_dimensions(QUIRK_ATTR_RESOLUTION_HINT, &dim))
+            {
+                *xres = dim.x;
+                *yres = dim.y;
+                return true;
+            }
         }
-        auto dim = quirk_dimensions{};
-        auto rc = quirks_get_dimensions(q, QUIRK_ATTR_RESOLUTION_HINT, &dim);
-        if (rc)
-        {
-            *xres = dim.x;
-            *yres = dim.y;
-        }
-        return rc;
+        return faux;
     }
     bool evdev_read_attr_size_prop(libinput_device_sptr li_device, ui64* size_x, ui64* size_y)
     {
         auto quirks = li_device->li_context()->quirks;
-        auto q = quirks_fetch_for_device(quirks, li_device->ud_device);
-        if (!q)
+        if (auto q = li_device->ud_device->quirks_fetch_for_device(quirks))
         {
-            return faux;
+            auto dim = quirk_dimensions{};
+            if (q->quirks_get_dimensions(QUIRK_ATTR_SIZE_HINT, &dim))
+            {
+                *size_x = dim.x;
+                *size_y = dim.y;
+                return true;
+            }
         }
-        auto dim = quirk_dimensions{};
-        auto rc = quirks_get_dimensions(q, QUIRK_ATTR_SIZE_HINT, &dim);
-        if (rc)
-        {
-            *size_x = dim.x;
-            *size_y = dim.y;
-        }
-        return rc;
+        return faux;
     }
     si32 evdev_fix_abs_resolution(libinput_device_sptr li_device, ui32 xcode, ui32 ycode)
     {
@@ -19652,10 +19668,9 @@ namespace netxs::lixx // li++, libinput++.
         {
             auto use_velocity_averaging = faux; // Default off unless we have quirk.
             auto quirks = li_device->li_context()->quirks;
-            auto q = quirks_fetch_for_device(quirks, li_device->ud_device);
-            if (q)
+            if (auto q = li_device->ud_device->quirks_fetch_for_device(quirks))
             {
-                quirks_get_bool(q, QUIRK_ATTR_USE_VELOCITY_AVERAGING, use_velocity_averaging);
+                q->quirks_get_bool(QUIRK_ATTR_USE_VELOCITY_AVERAGING, use_velocity_averaging);
                 if (use_velocity_averaging)
                 {
                     log("velocity averaging is turned on");
@@ -19809,46 +19824,36 @@ namespace netxs::lixx // li++, libinput++.
             }
             li_device->tags = (libinput_device_tags)(li_device->tags | EVDEV_TAG_TRACKPOINT);
             auto quirks = li_device->li_context()->quirks;
-            auto q = quirks_fetch_for_device(quirks, li_device->ud_device);
-            auto prop = (char*)nullptr;
-            if (q && quirks_get_string(q, QUIRK_ATTR_TRACKPOINT_INTEGRATION, &prop))
+            if (auto q = li_device->ud_device->quirks_fetch_for_device(quirks))
             {
-                if ("internal"sv == prop)
+                auto prop = (char*)nullptr;
+                if (q->quirks_get_string(QUIRK_ATTR_TRACKPOINT_INTEGRATION, &prop))
                 {
-                    // Noop, this is the default anyway.
-                }
-                else if ("external"sv == prop)
-                {
-                    li_device->tags = (libinput_device_tags)(li_device->tags | EVDEV_TAG_EXTERNAL_MOUSE);
-                    log("is an external pointing stick");
-                }
-                else
-                {
-                    log("tagged with unknown value %s%", prop);
+                    if ("internal"sv == prop)
+                    {
+                        // Noop, this is the default anyway.
+                    }
+                    else if ("external"sv == prop)
+                    {
+                        li_device->tags = (libinput_device_tags)(li_device->tags | EVDEV_TAG_EXTERNAL_MOUSE);
+                        log("is an external pointing stick");
+                    }
+                    else
+                    {
+                        log("tagged with unknown value %s%", prop);
+                    }
                 }
             }
         }
-            bool quirks_get_double(quirks_sptr q, quirk which, fp64& val)
-            {
-                if (q)
-                if (auto p = quirk_find_prop(q, which))
-                {
-                    assert(p->type == PT_DOUBLE);
-                    val = p->value.d;
-                    return true;
-                }
-                return faux;
-            }
         fp64 evdev_get_trackpoint_multiplier(libinput_device_sptr li_device)
         {
             auto multiplier = 1.0;
             if (li_device->tags & EVDEV_TAG_TRACKPOINT)
             {
                 auto quirks = li_device->li_context()->quirks;
-                auto q = quirks_fetch_for_device(quirks, li_device->ud_device);
-                if (q)
+                if (auto q = li_device->ud_device->quirks_fetch_for_device(quirks))
                 {
-                    quirks_get_double(q, QUIRK_ATTR_TRACKPOINT_MULTIPLIER, multiplier);
+                    q->quirks_get_double(QUIRK_ATTR_TRACKPOINT_MULTIPLIER, multiplier);
                 }
                 if (multiplier <= 0.0)
                 {
@@ -19949,21 +19954,23 @@ namespace netxs::lixx // li++, libinput++.
                     }
                 }
                 auto quirks = li_device->li_context()->quirks;
-                auto q = quirks_fetch_for_device(quirks, li_device->ud_device);
-                auto prop = (char*)nullptr;
-                if (q && quirks_get_string(q, QUIRK_ATTR_KEYBOARD_INTEGRATION, &prop))
+                if (auto q = li_device->ud_device->quirks_fetch_for_device(quirks))
                 {
-                    if ("internal"sv == prop)
+                    auto prop = (char*)nullptr;
+                    if (q->quirks_get_string(QUIRK_ATTR_KEYBOARD_INTEGRATION, &prop))
                     {
-                        evdev_tag_keyboard_internal(li_device);
-                    }
-                    else if ("external"sv == prop)
-                    {
-                        evdev_tag_keyboard_external(li_device);
-                    }
-                    else
-                    {
-                        log("tagged with unknown value %s%", prop);
+                        if ("internal"sv == prop)
+                        {
+                            evdev_tag_keyboard_internal(li_device);
+                        }
+                        else if ("external"sv == prop)
+                        {
+                            evdev_tag_keyboard_external(li_device);
+                        }
+                        else
+                        {
+                            log("tagged with unknown value %s%", prop);
+                        }
                     }
                 }
                 li_device->tags = (libinput_device_tags)(li_device->tags | EVDEV_TAG_KEYBOARD);
@@ -20584,7 +20591,7 @@ namespace netxs::lixx // li++, libinput++.
                                 assert(key.starts_with("Model"));
                                 do
                                 {
-                                    if (key == quirk_get_name(q))
+                                    if (key == quirks_t::quirk_get_name(q))
                                     {
                                         auto p = ptr::shared<property_t>();
                                         p->id = q;
@@ -20810,7 +20817,7 @@ namespace netxs::lixx // li++, libinput++.
                                 auto rc = faux;
                                 auto dim = quirk_dimensions{};
                                 auto range = quirk_range{};
-                                if (key == quirk_get_name(QUIRK_ATTR_SIZE_HINT))
+                                if (key == quirks_t::quirk_get_name(QUIRK_ATTR_SIZE_HINT))
                                 {
                                     p->id = QUIRK_ATTR_SIZE_HINT;
                                     if (parse_dimension_property(value, dim.x, dim.y))
@@ -20820,7 +20827,7 @@ namespace netxs::lixx // li++, libinput++.
                                         rc = true;
                                     }
                                 }
-                                else if (key == quirk_get_name(QUIRK_ATTR_TOUCH_SIZE_RANGE))
+                                else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_TOUCH_SIZE_RANGE))
                                 {
                                     p->id = QUIRK_ATTR_TOUCH_SIZE_RANGE;
                                     if (parse_range_property(value, range.upper, range.lower))
@@ -20830,7 +20837,7 @@ namespace netxs::lixx // li++, libinput++.
                                         rc = true;
                                     }
                                 }
-                                else if (key == quirk_get_name(QUIRK_ATTR_PALM_SIZE_THRESHOLD))
+                                else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_PALM_SIZE_THRESHOLD))
                                 {
                                     p->id = QUIRK_ATTR_PALM_SIZE_THRESHOLD;
                                     if (auto v = utf::to_int<ui32>(value))
@@ -20840,7 +20847,7 @@ namespace netxs::lixx // li++, libinput++.
                                         rc = true;
                                     }
                                 }
-                                else if (key == quirk_get_name(QUIRK_ATTR_LID_SWITCH_RELIABILITY))
+                                else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_LID_SWITCH_RELIABILITY))
                                 {
                                     p->id = QUIRK_ATTR_LID_SWITCH_RELIABILITY;
                                     if (value == "reliable" || value == "write_open" || value == "unreliable")
@@ -20850,7 +20857,7 @@ namespace netxs::lixx // li++, libinput++.
                                         rc = true;
                                     }
                                 }
-                                else if (key == quirk_get_name(QUIRK_ATTR_KEYBOARD_INTEGRATION))
+                                else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_KEYBOARD_INTEGRATION))
                                 {
                                     p->id = QUIRK_ATTR_KEYBOARD_INTEGRATION;
                                     if (value == "internal" && value != "external")
@@ -20860,7 +20867,7 @@ namespace netxs::lixx // li++, libinput++.
                                         rc = true;
                                     }
                                 }
-                                else if (key == quirk_get_name(QUIRK_ATTR_TRACKPOINT_INTEGRATION))
+                                else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_TRACKPOINT_INTEGRATION))
                                 {
                                     p->id = QUIRK_ATTR_TRACKPOINT_INTEGRATION;
                                     if (value == "internal" && value != "external")
@@ -20870,7 +20877,7 @@ namespace netxs::lixx // li++, libinput++.
                                         rc = true;
                                     }
                                 }
-                                else if (key == quirk_get_name(QUIRK_ATTR_TPKBCOMBO_LAYOUT))
+                                else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_TPKBCOMBO_LAYOUT))
                                 {
                                     p->id = QUIRK_ATTR_TPKBCOMBO_LAYOUT;
                                     if (value == "below")
@@ -20880,7 +20887,7 @@ namespace netxs::lixx // li++, libinput++.
                                         rc = true;
                                     }
                                 }
-                                else if (key == quirk_get_name(QUIRK_ATTR_PRESSURE_RANGE))
+                                else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_PRESSURE_RANGE))
                                 {
                                     p->id = QUIRK_ATTR_PRESSURE_RANGE;
                                     if (parse_range_property(value, range.upper, range.lower))
@@ -20890,7 +20897,7 @@ namespace netxs::lixx // li++, libinput++.
                                         rc = true;
                                     }
                                 }
-                                else if (key == quirk_get_name(QUIRK_ATTR_PALM_PRESSURE_THRESHOLD))
+                                else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_PALM_PRESSURE_THRESHOLD))
                                 {
                                     p->id = QUIRK_ATTR_PALM_PRESSURE_THRESHOLD;
                                     if (auto v = utf::to_int<ui32>(value))
@@ -20900,7 +20907,7 @@ namespace netxs::lixx // li++, libinput++.
                                         rc = true;
                                     }
                                 }
-                                else if (key == quirk_get_name(QUIRK_ATTR_RESOLUTION_HINT))
+                                else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_RESOLUTION_HINT))
                                 {
                                     p->id = QUIRK_ATTR_RESOLUTION_HINT;
                                     if (parse_dimension_property(value, dim.x, dim.y))
@@ -20910,7 +20917,7 @@ namespace netxs::lixx // li++, libinput++.
                                         rc = true;
                                     }
                                 }
-                                else if (key == quirk_get_name(QUIRK_ATTR_TRACKPOINT_MULTIPLIER))
+                                else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_TRACKPOINT_MULTIPLIER))
                                 {
                                     p->id = QUIRK_ATTR_TRACKPOINT_MULTIPLIER;
                                     if (auto v = utf::to_int<fp64>(value))
@@ -20920,21 +20927,21 @@ namespace netxs::lixx // li++, libinput++.
                                         rc = true;
                                     }
                                 }
-                                else if (key == quirk_get_name(QUIRK_ATTR_USE_VELOCITY_AVERAGING))
+                                else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_USE_VELOCITY_AVERAGING))
                                 {
                                     p->id = QUIRK_ATTR_USE_VELOCITY_AVERAGING;
                                     p->type = PT_BOOL;
                                     p->value.b = value == "1";
                                     rc = true;
                                 }
-                                else if (key == quirk_get_name(QUIRK_ATTR_TABLET_SMOOTHING))
+                                else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_TABLET_SMOOTHING))
                                 {
                                     p->id = QUIRK_ATTR_TABLET_SMOOTHING;
                                     p->type = PT_BOOL;
                                     p->value.b = value == "1";
                                     rc = true;
                                 }
-                                else if (key == quirk_get_name(QUIRK_ATTR_THUMB_PRESSURE_THRESHOLD))
+                                else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_THUMB_PRESSURE_THRESHOLD))
                                 {
                                     p->id = QUIRK_ATTR_THUMB_PRESSURE_THRESHOLD;
                                     if (auto v = utf::to_int<ui32>(value))
@@ -20944,7 +20951,7 @@ namespace netxs::lixx // li++, libinput++.
                                         rc = true;
                                     }
                                 }
-                                else if (key == quirk_get_name(QUIRK_ATTR_THUMB_SIZE_THRESHOLD))
+                                else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_THUMB_SIZE_THRESHOLD))
                                 {
                                     p->id = QUIRK_ATTR_THUMB_SIZE_THRESHOLD;
                                     if (auto v = utf::to_int<ui32>(value))
@@ -20954,7 +20961,7 @@ namespace netxs::lixx // li++, libinput++.
                                         rc = true;
                                     }
                                 }
-                                else if (key == quirk_get_name(QUIRK_ATTR_MSC_TIMESTAMP))
+                                else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_MSC_TIMESTAMP))
                                 {
                                     p->id = QUIRK_ATTR_MSC_TIMESTAMP;
                                     if (value == "watch")
@@ -20964,7 +20971,7 @@ namespace netxs::lixx // li++, libinput++.
                                         rc = true;
                                     }
                                 }
-                                else if (key == quirk_get_name(QUIRK_ATTR_EVENT_CODE))
+                                else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_EVENT_CODE))
                                 {
                                     auto events = std::array<input_event_t, 32>{};
                                     auto nevents = (ui64)events.size();
@@ -20982,7 +20989,7 @@ namespace netxs::lixx // li++, libinput++.
                                         rc = true;
                                     }
                                 }
-                                else if (key == quirk_get_name(QUIRK_ATTR_INPUT_PROP))
+                                else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_INPUT_PROP))
                                 {
                                     auto props = std::array<input_prop, INPUT_PROP_CNT>{};
                                     auto nprops = (ui64)props.size();
@@ -20999,7 +21006,7 @@ namespace netxs::lixx // li++, libinput++.
                                         rc = true;
                                     }
                                 }
-                                else if (key == quirk_get_name(QUIRK_ATTR_IS_VIRTUAL))
+                                else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_IS_VIRTUAL))
                                 {
                                     p->id = QUIRK_ATTR_IS_VIRTUAL;
                                     p->type = PT_BOOL;
