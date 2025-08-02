@@ -861,20 +861,9 @@ namespace netxs::lixx // li++, libinput++.
         BUTTON_STATE_IGNORE,
     };
 
-    constexpr ui32 evdev_usage_from_code(ui32 type, ui32 code)
-    {
-        return (type << 16) | code;
-    }
-    constexpr ui16 evdev_usage_type(ui32 usage)
-    {
-        return (ui16)(usage >> 16);
-    }
-    constexpr ui16 evdev_usage_code(ui32 usage)
-    {
-        return (ui16)usage & 0xFFFF;
-    }
-    //template<ui32 t, ui32 c>
-    //static constexpr auto _evbit = (t << 16) | c;
+    constexpr ui32 evdev_usage_from_code(ui32 type, ui32 code) { return (type << 16) | code;  }
+    constexpr ui16 evdev_usage_type(ui32 usage)                { return (ui16)(usage >> 16);  }
+    constexpr ui16 evdev_usage_code(ui32 usage)                { return (ui16)usage & 0xFFFF; }
     struct evdev // The enum doesn't need to contain all event codes, only the ones we use in libinput - add to here as required.      * The order doesn't matter either since each enum value is just the type | code value anyway, keep it in somewhat logical groups where possible.
     {
         static constexpr auto syn_report          = evdev_usage_from_code(EV_SYN, SYN_REPORT);
@@ -926,7 +915,6 @@ namespace netxs::lixx // li++, libinput++.
         static constexpr auto rel_hwheel          = evdev_usage_from_code(EV_REL, REL_HWHEEL);
         static constexpr auto rel_hwheel_hi_res   = evdev_usage_from_code(EV_REL, REL_HWHEEL_HI_RES);
         static constexpr auto rel_dial            = evdev_usage_from_code(EV_REL, REL_DIAL);
-        static constexpr auto rel_max             = evdev_usage_from_code(EV_REL, REL_MAX); // not used
         static constexpr auto abs_x               = evdev_usage_from_code(EV_ABS, ABS_X);
         static constexpr auto abs_y               = evdev_usage_from_code(EV_ABS, ABS_Y);
         static constexpr auto abs_z               = evdev_usage_from_code(EV_ABS, ABS_Z);
@@ -936,7 +924,6 @@ namespace netxs::lixx // li++, libinput++.
         static constexpr auto abs_pressure        = evdev_usage_from_code(EV_ABS, ABS_PRESSURE);
         static constexpr auto abs_distance        = evdev_usage_from_code(EV_ABS, ABS_DISTANCE);
         static constexpr auto abs_throttle        = evdev_usage_from_code(EV_ABS, ABS_THROTTLE);
-        static constexpr auto abs_rudder          = evdev_usage_from_code(EV_ABS, ABS_RUDDER); // not used
         static constexpr auto abs_wheel           = evdev_usage_from_code(EV_ABS, ABS_WHEEL);
         static constexpr auto abs_misc            = evdev_usage_from_code(EV_ABS, ABS_MISC);
         static constexpr auto abs_tilt_x          = evdev_usage_from_code(EV_ABS, ABS_TILT_X);
@@ -950,11 +937,8 @@ namespace netxs::lixx // li++, libinput++.
         static constexpr auto abs_mt_touch_minor  = evdev_usage_from_code(EV_ABS, ABS_MT_TOUCH_MINOR);
         static constexpr auto abs_mt_orientation  = evdev_usage_from_code(EV_ABS, ABS_MT_ORIENTATION);
         static constexpr auto abs_mt_pressure     = evdev_usage_from_code(EV_ABS, ABS_MT_PRESSURE);
-        static constexpr auto abs_mt_distance     = evdev_usage_from_code(EV_ABS, ABS_MT_DISTANCE); // not used
-        static constexpr auto abs_max             = evdev_usage_from_code(EV_ABS, ABS_MAX); // not used
         static constexpr auto sw_lid              = evdev_usage_from_code(EV_SW, SW_LID);
         static constexpr auto sw_tablet_mode      = evdev_usage_from_code(EV_SW, SW_TABLET_MODE);
-        static constexpr auto sw_max              = evdev_usage_from_code(EV_SW, SW_MAX); // not used
         static constexpr auto msc_scan            = evdev_usage_from_code(EV_MSC, MSC_SCAN);
         static constexpr auto msc_serial          = evdev_usage_from_code(EV_MSC, MSC_SERIAL);
         static constexpr auto msc_timestamp       = evdev_usage_from_code(EV_MSC, MSC_TIMESTAMP);
