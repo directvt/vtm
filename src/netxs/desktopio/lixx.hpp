@@ -1343,13 +1343,12 @@ namespace netxs::lixx // li++, libinput++.
             void                  (*get)         (libinput_tablet_tool_sptr tool, fp64_range& range);
             void                  (*get_default) (libinput_tablet_tool_sptr tool, fp64_range& range);
         };
-        using pressure_offset_t = fp64;
         struct libinput_tablet_tool_pressure_threshold
         {
             ui32                     tablet_id;
             abs_info_t               abs_pressure; // The configured axis we actually work with.
             si32_range               threshold;   // In device coordinates.
-            pressure_offset_t        offset;
+            fp64                     offset;
             bool                     has_offset;
             pressure_heuristic_state heuristic_state; // This gives us per-tablet heuristic state which is arguably wrong but >99% of users have one tablet and it's easier to implement it this way.
         };
@@ -15162,7 +15161,7 @@ namespace netxs::lixx // li++, libinput++.
                                 {
                                     auto li_device = tablet.li_device;
                                     threshold->tablet_id     = tablet.tablet_id;
-                                    threshold->offset        = pressure_offset_t(0.0);
+                                    threshold->offset        = 0.0;
                                     threshold->has_offset    = faux;
                                     threshold->threshold.min = 0;
                                     threshold->threshold.max = 1;
@@ -15172,12 +15171,12 @@ namespace netxs::lixx // li++, libinput++.
                                     auto distance = li_device->libevdev_get_abs_info(ABS_DISTANCE);
                                     if (distance)
                                     {
-                                        threshold->offset = pressure_offset_t(0.0);
+                                        threshold->offset = 0.0;
                                         threshold->heuristic_state = PRESSURE_HEURISTIC_STATE_DONE;
                                     }
                                     else
                                     {
-                                        threshold->offset = pressure_offset_t(1.0);
+                                        threshold->offset = 1.0;
                                         threshold->heuristic_state = PRESSURE_HEURISTIC_STATE_PROXIN1;
                                     }
                                     apply_pressure_range_configuration(tool, true);
@@ -15428,11 +15427,11 @@ namespace netxs::lixx // li++, libinput++.
                         {
                             return &tool->pressure.threshold;
                         }
-                            si32 pressure_offset_to_absinfo(pressure_offset_t pressure_offset, abs_info_t const* abs)
+                            si32 pressure_offset_to_absinfo(fp64 pressure_offset, abs_info_t const* abs)
                             {
-                                return (abs->maximum - abs->minimum) * (fp64)pressure_offset + abs->minimum;
+                                return (abs->maximum - abs->minimum) * pressure_offset + abs->minimum;
                             }
-                        void set_pressure_offset(libinput_tablet_tool_pressure_threshold* threshold, pressure_offset_t offset_in_percent)
+                        void set_pressure_offset(libinput_tablet_tool_pressure_threshold* threshold, fp64 offset_in_percent)
                         {
                             threshold->offset = offset_in_percent;
                             threshold->has_offset = true;
@@ -15472,11 +15471,11 @@ namespace netxs::lixx // li++, libinput++.
                             threshold->heuristic_state = PRESSURE_HEURISTIC_STATE_DONE;
                         }
                     }
-                            pressure_offset_t pressure_offset_from_range(fp64 min, fp64 max, fp64 value)
+                            fp64 pressure_offset_from_range(fp64 min, fp64 max, fp64 value)
                             {
-                                return pressure_offset_t((value - min) / (max - min));
+                                return (value - min) / (max - min);
                             }
-                        pressure_offset_t pressure_offset_from_absinfo(abs_info_t const* abs, si32 value)
+                        fp64 pressure_offset_from_absinfo(abs_info_t const* abs, si32 value)
                         {
                             return pressure_offset_from_range(abs->minimum, abs->maximum, value);
                         }
