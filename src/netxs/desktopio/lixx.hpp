@@ -1254,19 +1254,12 @@ namespace netxs::lixx // li++, libinput++.
             libinput_config_drag_lock_state(*get_draglock_enabled)        (libinput_device_sptr li_device);
             libinput_config_drag_lock_state(*get_default_draglock_enabled)(libinput_device_sptr li_device);
         };
-            struct libinput_config_area_rectangle
-            {
-                fp64 x1;
-                fp64 y1;
-                fp64 x2;
-                fp64 y2;
-            };
         struct libinput_device_config_area
         {
-            si32                          (*has_rectangle)        (libinput_device_sptr li_device);
-            libinput_config_status        (*set_rectangle)        (libinput_device_sptr li_device, libinput_config_area_rectangle const* rectangle);
-            libinput_config_area_rectangle(*get_rectangle)        (libinput_device_sptr li_device);
-            libinput_config_area_rectangle(*get_default_rectangle)(libinput_device_sptr li_device);
+            si32                  (*has_rectangle)        (libinput_device_sptr li_device);
+            libinput_config_status(*set_rectangle)        (libinput_device_sptr li_device, fp64_rect rectangle);
+            fp64_rect             (*get_rectangle)        (libinput_device_sptr li_device);
+            fp64_rect             (*get_default_rectangle)(libinput_device_sptr li_device);
         };
         struct libinput_device_config_click_method
         {
@@ -3665,6 +3658,7 @@ namespace netxs::lixx // li++, libinput++.
             return qiew{ sysname };
         }
 
+        //todo template it
         si32 libevdev_get_event_value(ui32 type, ui32 code)
         {
             auto value = 0;
@@ -14847,11 +14841,11 @@ namespace netxs::lixx // li++, libinput++.
         };
         struct area_t
         {
-            libinput_device_config_area    config;
-            libinput_config_area_rectangle have_area;
-            libinput_config_area_rectangle want_area;
-            ::input_absinfo                x;
-            ::input_absinfo                y;
+            libinput_device_config_area config;
+            fp64_rect                   have_area;
+            fp64_rect                   want_area;
+            ::input_absinfo             x;
+            ::input_absinfo             y;
         };
         struct rotation_t
         {
@@ -15454,8 +15448,8 @@ namespace netxs::lixx // li++, libinput++.
                     }
                     bool is_inside_area(si32_coor point, fp64 normalized_margin)
                     {
-                        if (tablet.area.have_area.x1 == 0.0 && tablet.area.have_area.x2 == 1.0
-                         && tablet.area.have_area.y1 == 0.0 && tablet.area.have_area.y2 == 1.0)
+                        if (tablet.area.have_area.coor.x == 0.0 && tablet.area.have_area.size.x == 1.0
+                         && tablet.area.have_area.coor.y == 0.0 && tablet.area.have_area.size.y == 1.0)
                         {
                             return true;
                         }
@@ -15464,9 +15458,9 @@ namespace netxs::lixx // li++, libinput++.
                         auto xmargin = (si32)((tablet.area.x.maximum - tablet.area.x.minimum) * normalized_margin);
                         auto ymargin = (si32)((tablet.area.y.maximum - tablet.area.y.minimum) * normalized_margin);
                         return (point.x >= tablet.area.x.minimum - xmargin
-                                && point.x <= tablet.area.x.maximum + xmargin
-                                && point.y >= tablet.area.y.minimum - ymargin
-                                && point.y <= tablet.area.y.maximum + ymargin);
+                             && point.x <= tablet.area.x.maximum + xmargin
+                             && point.y >= tablet.area.y.minimum - ymargin
+                             && point.y <= tablet.area.y.maximum + ymargin);
                     }
                         bool tablet_get_quirked_pressure_thresholds(si32* hi, si32* lo)
                         {
@@ -15665,8 +15659,8 @@ namespace netxs::lixx // li++, libinput++.
                     }
                                 void apply_tablet_area([[maybe_unused]] libinput_device_sptr li_device, si32_coor& point)
                                 {
-                                    if (tablet.area.have_area.x1 == 0.0 && tablet.area.have_area.x2 == 1.0
-                                     && tablet.area.have_area.y1 == 0.0 && tablet.area.have_area.y2 == 1.0)
+                                    if (tablet.area.have_area.coor.x == 0.0 && tablet.area.have_area.size.x == 1.0
+                                     && tablet.area.have_area.coor.y == 0.0 && tablet.area.have_area.size.y == 1.0)
                                     {
                                         return;
                                     }
@@ -16197,19 +16191,17 @@ namespace netxs::lixx // li++, libinput++.
                     }
                     void tablet_change_area(libinput_device_sptr li_device)
                     {
-                        if (::memcmp(&tablet.area.have_area, &tablet.area.want_area, sizeof(tablet.area.have_area)) == 0
-                         || !(tablet.status & TABLET_TOOL_OUT_OF_PROXIMITY))
+                        if (tablet.area.have_area != tablet.area.want_area && tablet.status & TABLET_TOOL_OUT_OF_PROXIMITY)
                         {
-                            return;
+                            tablet.area.have_area = tablet.area.want_area;
+                            log("tablet-area: area is %area%", tablet.area.have_area);
+                            auto absx = li_device->abs.absinfo_x;
+                            auto absy = li_device->abs.absinfo_y;
+                            tablet.area.x.minimum = axis_range_percentage(absx, 100 * (tablet.area.have_area.coor.x));
+                            tablet.area.x.maximum = axis_range_percentage(absx, 100 * (tablet.area.have_area.coor.x + tablet.area.have_area.size.x));
+                            tablet.area.y.minimum = axis_range_percentage(absy, 100 * (tablet.area.have_area.coor.y));
+                            tablet.area.y.maximum = axis_range_percentage(absy, 100 * (tablet.area.have_area.coor.y + tablet.area.have_area.size.y));
                         }
-                        tablet.area.have_area = tablet.area.want_area;
-                        log("tablet-area: area is %.2f%/%.2f% - %.2f%/%.2f%", tablet.area.have_area.x1, tablet.area.have_area.y1, tablet.area.have_area.x2, tablet.area.have_area.y2);
-                        auto absx = li_device->abs.absinfo_x;
-                        auto absy = li_device->abs.absinfo_y;
-                        tablet.area.x.minimum = axis_range_percentage(absx, tablet.area.have_area.x1 * 100);
-                        tablet.area.x.maximum = axis_range_percentage(absx, tablet.area.have_area.x2 * 100);
-                        tablet.area.y.minimum = axis_range_percentage(absy, tablet.area.have_area.y1 * 100);
-                        tablet.area.y.maximum = axis_range_percentage(absy, tablet.area.have_area.y2 * 100);
                     }
                 void tablet_flush(libinput_device_sptr li_device, time stamp)
                 {
@@ -16563,35 +16555,35 @@ namespace netxs::lixx // li++, libinput++.
                     {
                         return 1;
                     }
-                    static libinput_config_status tablet_area_set_rectangle(libinput_device_sptr li_device, libinput_config_area_rectangle const* rectangle)
+                    static libinput_config_status tablet_area_set_rectangle(libinput_device_sptr li_device, fp64_rect rectangle)
                     {
                         auto& tablet = *std::static_pointer_cast<tablet_dispatch>(li_device->dispatch);
-                        if (rectangle->x1 >= rectangle->x2 || rectangle->y1 >= rectangle->y2)
+                        if (rectangle.size.x <= 0 || rectangle.size.y <= 0
+                         || rectangle.coor.x < 0.0 || rectangle.coor.x + rectangle.size.x > 1.0
+                         || rectangle.coor.y < 0.0 || rectangle.coor.y + rectangle.size.y > 1.0)
                         {
                             return LIBINPUT_CONFIG_STATUS_INVALID;
                         }
-                        if (rectangle->x1 < 0.0 || rectangle->x2 > 1.0
-                         || rectangle->y1 < 0.0 || rectangle->y2 > 1.0)
+                        else
                         {
-                            return LIBINPUT_CONFIG_STATUS_INVALID;
+                            tablet.area.want_area = rectangle;
+                            tablet.tablet_impl.tablet_change_area(li_device);
+                            return LIBINPUT_CONFIG_STATUS_SUCCESS;
                         }
-                        tablet.area.want_area = *rectangle;
-                        tablet.tablet_impl.tablet_change_area(li_device);
-                        return LIBINPUT_CONFIG_STATUS_SUCCESS;
                     }
-                    static libinput_config_area_rectangle tablet_area_get_rectangle(libinput_device_sptr li_device)
+                    static fp64_rect tablet_area_get_rectangle(libinput_device_sptr li_device)
                     {
                         auto& tablet = *std::static_pointer_cast<tablet_dispatch>(li_device->dispatch);
                         return tablet.area.have_area;
                     }
-                    static libinput_config_area_rectangle tablet_area_get_default_rectangle([[maybe_unused]] libinput_device_sptr li_device)
+                    static fp64_rect tablet_area_get_default_rectangle([[maybe_unused]] libinput_device_sptr li_device)
                     {
-                        auto rect = libinput_config_area_rectangle{ 0.0, 0.0, 1.0, 1.0 };
+                        auto rect = fp64_rect{{ 0.0, 0.0 }, { 1.0, 1.0 }};
                         return rect;
                     }
                 void tablet_init_area(libinput_device_sptr li_device)
                 {
-                    tablet.area.have_area = libinput_config_area_rectangle{ 0.0, 0.0, 1.0, 1.0, };
+                    tablet.area.have_area = fp64_rect{{ 0.0, 0.0 }, { 1.0, 1.0 }};
                     tablet.area.want_area = tablet.area.have_area;
                     tablet.area.x = *li_device->abs.absinfo_x;
                     tablet.area.y = *li_device->abs.absinfo_y;
