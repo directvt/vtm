@@ -3096,12 +3096,6 @@ namespace netxs::lixx // li++, libinput++.
         };
     struct libinput_event_tablet_tool : libinput_event
     {
-        struct abs_t//todo unify
-        {
-            abs_info_t x;
-            abs_info_t y;
-        };
-
         ui32                                 button;
         libinput_button_state                state;
         ui32                                 seat_button_count;
@@ -3110,7 +3104,8 @@ namespace netxs::lixx // li++, libinput++.
         libinput_tablet_tool_sptr            tool;
         libinput_tablet_tool_proximity_state proximity_state;
         libinput_tablet_tool_tip_state       tip_state;
-        abs_t                                abs;
+        abs_info_t                           abs_info_x2; //todo not used?
+        abs_info_t                           abs_info_y2; //
 
         libinput_event_tablet_tool() = default;
     };
@@ -6711,7 +6706,8 @@ namespace netxs::lixx // li++, libinput++.
             proximity_event.tool              = tool;
             proximity_event.proximity_state   = proximity_state;
             proximity_event.tip_state         = LIBINPUT_TABLET_TOOL_TIP_UP;
-            proximity_event.abs               = { *x, *y };
+            proximity_event.abs_info_x2       = *x;
+            proximity_event.abs_info_y2       = *y;
             proximity_event.changed_axes_bits = changed_axes;
             post_device_event(now, LIBINPUT_EVENT_TABLET_TOOL_PROXIMITY, proximity_event);
         }
@@ -6722,7 +6718,8 @@ namespace netxs::lixx // li++, libinput++.
             tip_event.tool              = tool;
             tip_event.proximity_state   = LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_IN;
             tip_event.tip_state         = tip_state;
-            tip_event.abs               = { *x, *y };
+            tip_event.abs_info_x2       = *x;
+            tip_event.abs_info_y2       = *y;
             tip_event.changed_axes_bits = changed_axes;
             post_device_event(now, LIBINPUT_EVENT_TABLET_TOOL_TIP, tip_event);
         }
@@ -6733,7 +6730,8 @@ namespace netxs::lixx // li++, libinput++.
             axis_event.tool              = tool;
             axis_event.proximity_state   = LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_IN;
             axis_event.tip_state         = tip_state;
-            axis_event.abs               = { *x, *y };
+            axis_event.abs_info_x2       = *x;
+            axis_event.abs_info_y2       = *y;
             axis_event.changed_axes_bits = changed_axes;
             post_device_event(now, LIBINPUT_EVENT_TABLET_TOOL_AXIS, axis_event);
         }
@@ -6747,7 +6745,8 @@ namespace netxs::lixx // li++, libinput++.
             button_event.tool              = tool;
             button_event.proximity_state   = LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_IN;
             button_event.tip_state         = tip_state;
-            button_event.abs               = { *x, *y };
+            button_event.abs_info_x2       = *x;
+            button_event.abs_info_y2       = *y;
             post_device_event(now, LIBINPUT_EVENT_TABLET_TOOL_BUTTON, button_event);
         }
     };
