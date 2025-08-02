@@ -6892,12 +6892,6 @@ namespace netxs::lixx // li++, libinput++.
             ui32      other_event_count;
             time      last_motion_time;
         };
-        struct tp_dispatch_accel_t
-        {
-            fp64 x_scale_coeff;
-            fp64 y_scale_coeff;
-            fp64 xy_scale_coeff;
-        };
         struct tp_dispatch_gesture_t
         {
             libinput_device_config_gesture config;
@@ -6917,11 +6911,6 @@ namespace netxs::lixx // li++, libinput++.
             libinput_timer_sptr            drag_3fg_timer;
             time                           drag_3fg_release_time;
         };
-            struct motion_dist_t
-            {
-                fp64 x_scale_coeff;
-                fp64 y_scale_coeff;
-            };
             struct tp_dispatch_bottom_area_t // Only used for clickpads. The software button areas are always 2 horizontal stripes across the touchpad. The buttons are split according to the edge settings.
             {
                 si32 top_edge;               // In device coordinates.
@@ -6942,7 +6931,7 @@ namespace netxs::lixx // li++, libinput++.
             bool                                   click_pending;
             ui32                                   state;
             ui32                                   old_state;
-            motion_dist_t                          motion_dist; // For pinned touches.
+            fp64_coor                              motion_dist_scale_coeff; // For pinned touches.
             ui32                                   active;  // evdev_usage_t  Currently active button, for release event.
             bool                                   active_is_topbutton; // Is active a top button?
             tp_dispatch_bottom_area_t              bottom_area;
@@ -7097,7 +7086,8 @@ namespace netxs::lixx // li++, libinput++.
         tp_dispatch_pressure_t           pressure;
         tp_dispatch_touch_size_t         touch_size;
         tp_dispatch_hysteresis_t         hysteresis;
-        tp_dispatch_accel_t              accel;
+        fp64_coor                        accel_scale_coeff;
+        fp64                             accel_xy_scale_coeff;
         tp_dispatch_gesture_t            gesture;
         tp_dispatch_buttons_t            buttons;
         tp_dispatch_scroll_t             scroll;
@@ -9056,7 +9046,7 @@ namespace netxs::lixx // li++, libinput++.
                                                         }
                                                         fp64_coor tp_normalize_delta(fp64_coor delta)
                                                         {
-                                                            return delta * tp.accel.x_scale_coeff;
+                                                            return delta * tp.accel_scale_coeff.x;
                                                         }
                                                     void tp_gesture_set_scroll_buildup()
                                                     {
@@ -11231,7 +11221,7 @@ namespace netxs::lixx // li++, libinput++.
                                         }
                                                     fp64_coor tp_scale_to_xaxis(fp64_coor delta)
                                                     {
-                                                        delta.y *= tp.accel.xy_scale_coeff;
+                                                        delta.y *= tp.accel_xy_scale_coeff;
                                                         return delta;
                                                     }
                                                 fp64_coor tp_filter_motion(fp64_coor unaccelerated, time stamp)
@@ -12581,9 +12571,8 @@ namespace netxs::lixx // li++, libinput++.
                     auto res_y = tp.li_device->abs.absinfo_y->resolution;
                     // Not all touchpads report the same amount of units/mm (resolution).
                     // Normalize motion events to the default mouse DPI as base (unaccelerated) speed. This also evens out any differences in x and y resolution, so that a circle on the touchpad does not turn into an ellipse on the screen.
-                    tp.accel.x_scale_coeff = (lixx::default_mouse_dpi / 25.4) / res_x;
-                    tp.accel.y_scale_coeff = (lixx::default_mouse_dpi / 25.4) / res_y;
-                    tp.accel.xy_scale_coeff = 1.0 * res_x / res_y;
+                    tp.accel_scale_coeff = { (lixx::default_mouse_dpi / 25.4) / res_x, (lixx::default_mouse_dpi / 25.4) / res_y };
+                    tp.accel_xy_scale_coeff = 1.0 * res_x / res_y;
                     if (which == LIBINPUT_CONFIG_ACCEL_PROFILE_FLAT)
                     {
                         filter = ptr::shared<touchpad_accelerator_flat>(dpi);
@@ -12872,8 +12861,7 @@ namespace netxs::lixx // li++, libinput++.
                     auto absinfo_x = li_device->abs.absinfo_x;
                     auto absinfo_y = li_device->abs.absinfo_y;
                     // Pinned-finger motion threshold, see tp_unpin_finger.
-                    tp.buttons.motion_dist.x_scale_coeff = 1.0 / absinfo_x->resolution;
-                    tp.buttons.motion_dist.y_scale_coeff = 1.0 / absinfo_y->resolution;
+                    tp.buttons.motion_dist_scale_coeff                   = { 1.0 / absinfo_x->resolution, 1.0 / absinfo_y->resolution };
                     tp.buttons.config_method.get_methods                 = tp_button_config_click_get_methods;
                     tp.buttons.config_method.set_method                  = tp_button_config_click_set_method;
                     tp.buttons.config_method.get_method                  = tp_button_config_click_get_method;
