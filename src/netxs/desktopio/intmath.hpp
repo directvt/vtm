@@ -284,6 +284,12 @@ namespace netxs
         { }
     };
 
+    // intmath: Converting from radians to degrees.
+    template<class T>
+    T rad2deg(T rad)
+    {
+        return rad * (180.0 / M_PI);
+    }
     // intmath: Summ and return TRUE in case of unsigned integer overflow and store result in accum.
     template<class T1, class T2>
     constexpr bool sum_overflow(T1& accum, T2 delta)
