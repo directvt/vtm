@@ -1336,11 +1336,6 @@ namespace netxs::lixx // li++, libinput++.
         };
 
     // Helpers
-    fp64_coor normalize_for_dpi(fp64_coor coor, si32 dpi)
-    {
-        auto norm = coor * lixx::default_mouse_dpi / dpi;
-        return norm;
-    }
     si32_coor evdev_hysteresis(si32_coor in, si32_coor center, si32_coor margin)
     {
         // Apply a hysteresis filtering to the coordinate in, based on the current
@@ -1498,8 +1493,11 @@ namespace netxs::lixx // li++, libinput++.
     {
         fp64                          speed_adjustment; // Normalized [-1, 1].
         libinput_config_accel_profile type;
+        si32                          dpi;
 
-        motion_filter() = default;
+        motion_filter(si32 dpi = 1)
+            : dpi{ dpi }
+        { }
         virtual ~motion_filter()
         { }
 
@@ -1543,6 +1541,10 @@ namespace netxs::lixx // li++, libinput++.
                         + profile(This(), data, (last_velocity + velocity) / 2.0, now) * 4.0;
             factor /= 6.0;
             return factor; // Unitless factor.
+        }
+        fp64_coor normalize_for_dpi(fp64_coor coor)
+        {
+            return coor * lixx::default_mouse_dpi / dpi;
         }
     };
 
@@ -1794,7 +1796,6 @@ namespace netxs::lixx // li++, libinput++.
 
     struct pointer_accelerator_flat : motion_filter
     {
-        si32 dpi;
         fp64 factor;
 
         struct pointer_accelerator_flat_impl_t
@@ -1825,8 +1826,8 @@ namespace netxs::lixx // li++, libinput++.
         };
 
         pointer_accelerator_flat(si32 dpi = 0)
-            :    dpi{ dpi },
-              factor{ 0.0 }
+            : motion_filter{ dpi },
+                     factor{ 0.0 }
         {
             type = LIBINPUT_CONFIG_ACCEL_PROFILE_FLAT;
         }
@@ -2128,7 +2129,6 @@ namespace netxs::lixx // li++, libinput++.
         fp64                 threshold;     // 1000dpi units/us.
         fp64                 accel;         // Unitless factor.
         fp64                 incline;       // Incline of the function.
-        si32                 dpi;           //
         accel_profile_func_t profile;       //
         pointer_trackers     trackers;      //
 
@@ -2147,14 +2147,14 @@ namespace netxs::lixx // li++, libinput++.
             fp64_coor accelerator_filter_linear(fp64_coor unaccelerated, void* data, time stamp)
             {
                 // Accelerate for normalized units and return normalized units.
-                auto normalized = normalize_for_dpi(unaccelerated, accel.dpi);
+                auto normalized = accel.normalize_for_dpi(unaccelerated);
                 auto accel_factor = calculate_acceleration_factor_pointer(normalized, data, stamp);
                 auto accelerated = normalized * accel_factor;
                 return accelerated;
             }
             fp64_coor accelerator_filter_noop(fp64_coor unaccelerated, [[maybe_unused]] void* data, [[maybe_unused]] time now)
             {
-                return normalize_for_dpi(unaccelerated, accel.dpi);
+                return accel.normalize_for_dpi(unaccelerated);
             }
             void accelerator_restart([[maybe_unused]] void* data, time now)
             {
@@ -2233,13 +2233,13 @@ namespace netxs::lixx // li++, libinput++.
         };
 
         pointer_accelerator(si32 dpi, bool use_velocity_averaging)
-            :     velocity{ 0.0 },
-             last_velocity{ 0.0 },
-                 threshold{ lixx::default_acceleration_threshold },
-                     accel{ lixx::default_acceleration },
-                   incline{ lixx::default_incline },
-                       dpi{ dpi },
-                   profile{ pointer_accelerator_impl_t::pointer_accel_profile_linear }
+            : motion_filter{ dpi },
+                   velocity{ 0.0 },
+              last_velocity{ 0.0 },
+                  threshold{ lixx::default_acceleration_threshold },
+                      accel{ lixx::default_acceleration },
+                    incline{ lixx::default_incline },
+                    profile{ pointer_accelerator_impl_t::pointer_accel_profile_linear }
         {
             trackers.trackers_init(use_velocity_averaging ? 16 : 2);
             type = LIBINPUT_CONFIG_ACCEL_PROFILE_ADAPTIVE;
@@ -2313,18 +2313,14 @@ namespace netxs::lixx // li++, libinput++.
 
     struct touchpad_accelerator_flat : motion_filter
     {
-        fp64          factor;
-        si32          dpi;
+        fp64 factor;
 
         struct touchpad_accelerator_flat_impl_t
         {
             touchpad_accelerator_flat& accel;
                 fp64_coor accelerator_filter_touchpad_flat(fp64_coor unaccelerated, [[maybe_unused]] void* data, [[maybe_unused]] time now)
                 {
-                    auto factor = accel.factor; // You want flat acceleration, you get flat acceleration for the device.
-                    auto normalized = normalize_for_dpi(unaccelerated, accel.dpi);
-                    normalized.x = lixx::tp_magic_slowdown_flat * factor * normalized.x;
-                    normalized.y = lixx::tp_magic_slowdown_flat * factor * normalized.y;
+                    auto normalized = accel.normalize_for_dpi(unaccelerated) * lixx::tp_magic_slowdown_flat * accel.factor; // You want flat acceleration, you get flat acceleration for the device.
                     return normalized;
                 }
             fp64_coor accelerator_filter_noop_touchpad_flat(fp64_coor unaccelerated, void* data, time stamp)
@@ -2351,8 +2347,8 @@ namespace netxs::lixx // li++, libinput++.
         };
 
         touchpad_accelerator_flat(si32 dpi)
-            : factor{ 0.0 },
-                 dpi{ dpi }
+            : motion_filter{ dpi },
+                     factor{ 0.0 }
         {
             type = LIBINPUT_CONFIG_ACCEL_PROFILE_FLAT;
         }
@@ -2371,7 +2367,6 @@ namespace netxs::lixx // li++, libinput++.
         fp64                 threshold;    // Units/us.
         fp64                 accel;        // Unitless factor.
         fp64                 incline;      // Incline of the function.
-        si32                 dpi;          //
         accel_profile_func_t profile;      //
         pointer_trackers     trackers;     //
 
@@ -2399,7 +2394,7 @@ namespace netxs::lixx // li++, libinput++.
                 // 1) Convert from device-native to 1000dpi normalized.
                 // 2) Run all calculation on 1000dpi-normalized data.
                 // 3) Apply accel factor no normalized data.
-                auto unaccelerated = normalize_for_dpi(raw, accel.dpi);
+                auto unaccelerated = accel.normalize_for_dpi(raw);
                 accel.trackers.trackers_feed(unaccelerated, stamp);
                 auto velocity = accel.trackers.trackers_velocity(stamp);
                 auto accel_factor = calculate_acceleration(data, velocity, accel.last_velocity, stamp);
@@ -2410,7 +2405,7 @@ namespace netxs::lixx // li++, libinput++.
             fp64_coor accelerator_filter_constant_x230(fp64_coor unaccelerated, [[maybe_unused]] void* data, [[maybe_unused]] time now)
             {
                 const auto factor = lixx::x230_magic_slowdown / lixx::x230_tp_magic_low_res_factor;
-                auto normalized = normalize_for_dpi(unaccelerated, accel.dpi) * factor;
+                auto normalized = accel.normalize_for_dpi(unaccelerated) * factor;
                 return normalized;
             }
             void accelerator_restart_x230([[maybe_unused]] void* data, time stamp)
@@ -2449,13 +2444,13 @@ namespace netxs::lixx // li++, libinput++.
         };
 
         pointer_accelerator_x230(si32 dpi, bool use_velocity_averaging)
-            :    velocity{ 0.0 },
-            last_velocity{ 0.0 },
-                threshold{ lixx::x230_threshold },
-                    accel{ lixx::x230_acceleration }, // Unitless factor.
-                  incline{ lixx::x230_incline }, // Incline of the acceleration function.
-                      dpi{ dpi },
-                  profile{ pointer_accelerator_x230_impl_t::touchpad_lenovo_x230_accel_profile }
+            : motion_filter{ dpi },
+                   velocity{ 0.0 },
+              last_velocity{ 0.0 },
+                  threshold{ lixx::x230_threshold },
+                      accel{ lixx::x230_acceleration }, // Unitless factor.
+                    incline{ lixx::x230_incline }, // Incline of the acceleration function.
+                    profile{ pointer_accelerator_x230_impl_t::touchpad_lenovo_x230_accel_profile }
         {
             // The Lenovo x230 has a bad touchpad. This accel method has been trial-and-error'd, any changes to it will require re-testing everything.
             // Don't touch this.
@@ -2477,7 +2472,6 @@ namespace netxs::lixx // li++, libinput++.
         fp64                 last_velocity; // Units/us.
         fp64                 threshold;     // mm/s.
         fp64                 accel;         // Unitless factor.
-        si32                 dpi;           //
         pointer_trackers     trackers;      //
         accel_profile_func_t profile;
         fp64                 speed_factor;  // Factor based on speed setting.
@@ -2497,7 +2491,7 @@ namespace netxs::lixx // li++, libinput++.
             {
                 auto accel_factor = calculate_acceleration_factor_tp(unaccelerated, data, stamp);
                 auto accelerated = unaccelerated * accel_factor;
-                return normalize_for_dpi(accelerated, accel.dpi);
+                return accel.normalize_for_dpi(accelerated);
             }
             fp64_coor touchpad_constant_filter(fp64_coor unaccelerated, [[maybe_unused]] void* data, [[maybe_unused]] time now)
             {
@@ -2509,7 +2503,7 @@ namespace netxs::lixx // li++, libinput++.
                 // lixx::tp_magic_slowdown so we only have one number here but meanwhile
                 // this will do.
                 static constexpr auto baseline = 0.9;
-                auto normalized = normalize_for_dpi(unaccelerated, accel.dpi) * baseline * lixx::tp_magic_slowdown;
+                auto normalized = accel.normalize_for_dpi(unaccelerated) * baseline * lixx::tp_magic_slowdown;
                 return normalized;
             }
             void touchpad_accelerator_restart([[maybe_unused]] void* data, time stamp)
@@ -2595,12 +2589,12 @@ namespace netxs::lixx // li++, libinput++.
         };
 
         touchpad_accelerator(si32 dpi, span event_delta_smooth_threshold, span event_delta_smooth_value, bool use_velocity_averaging)
-            :    velocity{ 0.0 },
-            last_velocity{ 0.0 },
-                threshold{ 130 },
-                    accel{ 0.0 },
-                      dpi{ dpi },
-                  profile{ touchpad_accelerator_impl_t::touchpad_accel_profile_linear }
+            : motion_filter{ dpi },
+                   velocity{ 0.0 },
+              last_velocity{ 0.0 },
+                  threshold{ 130 },
+                      accel{ 0.0 },
+                    profile{ touchpad_accelerator_impl_t::touchpad_accel_profile_linear }
         {
             type = LIBINPUT_CONFIG_ACCEL_PROFILE_ADAPTIVE;
             trackers.trackers_init(use_velocity_averaging ? 16 : 2);
