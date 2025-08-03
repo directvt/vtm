@@ -1036,13 +1036,6 @@ namespace netxs::lixx // li++, libinput++.
     });
     static constexpr fp64 v_us2ms(fp64 units_per_us) { return units_per_us * 1000.0; }
     static constexpr fp64 v_us2s(fp64 units_per_us)  { return units_per_us * 1000000.0; }
-    static constexpr ::timeval time2tv(time t)
-    {
-        auto sec  = datetime::round<si64, std::chrono::seconds>(t);
-        auto usec = datetime::round<si64, std::chrono::microseconds>(t - std::chrono::seconds{ sec });
-        auto tv = ::timeval{ .tv_sec = (decltype(timeval::tv_sec))sec, .tv_usec = (decltype(timeval::tv_usec))usec };
-        return tv;
-    }
 
     using fp64_range = netxs::limits<fp64>;
     using si32_range = netxs::limits<si32>;
@@ -17226,7 +17219,9 @@ namespace netxs::lixx // li++, libinput++.
                     }
                                         input_event_t input_event_init(time stamp, ui32 type, ui32 code, si32 value)
                                         {
-                                            auto tval = time2tv(stamp);
+                                            auto sec  = datetime::round<si64, std::chrono::seconds>(stamp);
+                                            auto usec = datetime::round<si64, std::chrono::microseconds>(stamp - std::chrono::seconds{ sec });
+                                            auto tval = ::timeval{ .tv_sec = (decltype(timeval::tv_sec))sec, .tv_usec = (decltype(timeval::tv_usec))usec };
                                             auto event = input_event_t{};
                                             event.type             = (ui16)type;
                                             event.code             = (ui16)code;
