@@ -1046,7 +1046,8 @@ namespace netxs::lixx // li++, libinput++.
     static constexpr auto zero_coor = fp64_coor{};
 
     using fd_t = os::fd_t;
-
+    template<class T>//todo simplify
+    struct libinput_timer_t;
     using libinput_sptr                       = sptr<struct libinput_t>;
     using libinput_seat_sptr                  = sptr<struct libinput_seat_t>;
     using libinput_timer_sptr                 = sptr<struct libinput_timer_t<struct libinput_timer_host>>;
