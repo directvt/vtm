@@ -4706,26 +4706,6 @@ namespace netxs::ui
                                         : twod{ width, -1 };
             base::limits(lims, lims);
         }
-        void giveup(hids& gear)
-        {
-            if (on_pager)
-            {
-                gear.dismiss();
-            }
-            else
-            {
-                if (gear.captured(bell::id))
-                {
-                    if (gear.cause == input::key::RightDragCancel)
-                    {
-                        send<e2::form::upon::scroll::cancel::_<Axis>>();
-                    }
-                    base::deface();
-                    gear.setfree();
-                    gear.dismiss();
-                }
-            }
-        }
         void pager(si32 dir)
         {
             calc.setdir(dir);
@@ -4767,7 +4747,22 @@ namespace netxs::ui
             });
             base::on(tier::mouserelease, input::key::MouseMove, [&](hids& gear)
             {
-                calc.cursor_pos = twod{ gear.coord }[Axis];
+                if (gear.captured(bell::id))
+                {
+                    if (on_pager)
+                    {
+                        calc.cursor_pos = twod{ gear.coord }[Axis];
+                    }
+                    else
+                    {
+                        if (auto delta = (gear.coord - drag_origin)[Axis])
+                        {
+                            calc.stepby(delta);
+                            send<e2::form::upon::scroll::bycoor::_<Axis>>();
+                        }
+                    }
+                    gear.dismiss();
+                }
             });
             base::on(tier::mouserelease, input::key::LeftDoubleClick, [&](hids& gear)
             {
@@ -4775,15 +4770,21 @@ namespace netxs::ui
             });
             base::on(tier::mouserelease, input::key::MouseDown, [&](hids& gear)
             {
-                if (!on_pager)
-                if (gear.cause == input::key::LeftDown || gear.cause == input::key::RightDown)
-                if (auto dir = calc.inside(twod{ gear.coord }[Axis]))
+                if (!gear.captured(bell::id) && gear.capture(bell::id))
                 {
-                    if (gear.capture(bell::id))
+                    auto dir = calc.inside(twod{ gear.coord }[Axis]);
+                    if (dir == 0) // Inside the grip.
+                    {
+                        calc.captured = true;
+                        drag_origin = gear.coord;
+                        calc.m_to_s();
+                        calc.grip_origin = calc.scroll_air;
+                    }
+                    else // Outside the grip.
                     {
                         on_pager = true;
+                        calc.cursor_pos = twod{ gear.coord }[Axis];
                         pager_repeat();
-                        gear.dismiss();
                         timer.actify(activity::pager_first, skin::globals().repeat_delay, [&](auto)
                         {
                             if (pager_repeat())
@@ -4797,93 +4798,35 @@ namespace netxs::ui
                         });
                     }
                 }
+                gear.dismiss();
             });
             base::on(tier::mouserelease, input::key::MouseUp, [&](hids& gear)
             {
-                if (on_pager && gear.captured(bell::id))
+                if (gear.captured(bell::id) && gear.pressed_count == 0)
                 {
-                    if (gear.cause == input::key::LeftUp || gear.cause == input::key::RightUp)
+                    if (on_pager)
                     {
-                        gear.setfree();
-                        gear.dismiss();
                         on_pager = faux;
                         timer.pacify(activity::pager_first);
                         timer.pacify(activity::pager_next);
                     }
+                    calc.captured = faux;
+                    gear.setfree();
+                    gear.dismiss();
+                    base::deface();
                 }
             });
-            base::on(tier::mouserelease, input::key::RightUp, [&](hids& gear)
+            LISTEN(tier::general, input::events::halt, gear)
             {
-                //if (!gear.captured(bell::id)) //todo why?
+                if (gear.captured(bell::id))
                 {
-                    send<e2::form::upon::scroll::cancel::_<Axis>>();
+                    calc.captured = faux;
+                    on_pager = faux;
+                    base::deface();
+                    gear.setfree();
                     gear.dismiss();
                 }
-            });
-            base::on(tier::mouserelease, input::key::MouseDragStart, [&](hids& gear)
-            {
-                if (on_pager)
-                {
-                    gear.dismiss();
-                }
-                else
-                {
-                    if (gear.capture(bell::id))
-                    {
-                        calc.captured = true;
-                        drag_origin = gear.coord;
-                        calc.m_to_s();
-                        calc.grip_origin = calc.scroll_air;
-                        gear.dismiss();
-                    }
-                }
-            });
-            base::on(tier::mouserelease, input::key::MouseDragPull, [&](hids& gear)
-            {
-                if (on_pager)
-                {
-                    gear.dismiss();
-                }
-                else
-                {
-                    if (gear.captured(bell::id))
-                    {
-                        if (auto delta = (gear.coord - drag_origin)[Axis])
-                        {
-                            calc.stepby(delta);
-                            send<e2::form::upon::scroll::bycoor::_<Axis>>();
-                            gear.dismiss();
-                        }
-                    }
-                }
-            });
-            base::on(tier::mouserelease, input::key::MouseDragCancel, [&](hids& gear)
-            {
-                calc.captured = faux;
-                giveup(gear);
-            });
-            bell::dup_handler(tier::general, input::events::halt.id);
-            base::on(tier::mouserelease, input::key::MouseDragStop, [&](hids& gear)
-            {
-                calc.captured = faux;
-                if (on_pager)
-                {
-                    gear.dismiss();
-                }
-                else
-                {
-                    if (gear.captured(bell::id))
-                    {
-                        if (gear.cause == input::key::RightDragStop)
-                        {
-                            send<e2::form::upon::scroll::cancel::_<Axis>>();
-                        }
-                        base::deface();
-                        gear.setfree();
-                        gear.dismiss();
-                    }
-                }
-            });
+            };
             LISTEN(tier::release, e2::form::state::mouse, hovered)
             {
                 auto apply = [&](auto active)
