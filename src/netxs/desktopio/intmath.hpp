@@ -43,6 +43,7 @@
 #include <vector>
 #include <variant>
 #include <ranges>  // std::views::reverse
+#include <regex>
 
 #ifndef faux
     #define faux (false)
@@ -68,6 +69,7 @@ namespace netxs
     using many = std::vector<std::any>;
 
     constexpr size_t operator ""_sz (unsigned long long i) { return static_cast<size_t>(i); }
+    static constexpr auto pi = 3.14159265358979323846;
     static constexpr auto bytemin = std::numeric_limits<byte>::min();
     static constexpr auto bytemax = std::numeric_limits<byte>::max();
     static constexpr auto int8min = std::numeric_limits<int8>::min();
@@ -283,6 +285,12 @@ namespace netxs
         { }
     };
 
+    // intmath: Converting from radians to degrees.
+    template<class T>
+    T rad2deg(T rad)
+    {
+        return rad * (180.0 / netxs::pi);
+    }
     // intmath: Summ and return TRUE in case of unsigned integer overflow and store result in accum.
     template<class T1, class T2>
     constexpr bool sum_overflow(T1& accum, T2 delta)

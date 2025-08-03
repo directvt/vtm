@@ -4538,9 +4538,13 @@ namespace netxs::ui
 
     namespace drawfx
     {
-        static constexpr auto xlight = [](auto& boss, auto& canvas, auto handle, auto object_len, auto handle_len, auto region_len, auto wide)
+        static constexpr auto visible = [](auto object_len, auto handle_len, auto region_len, auto master_len)
         {
-            if (object_len && handle_len != region_len) // Show only if it is oversized.
+            return object_len && (handle_len != region_len || object_len < master_len); // Show only if it is oversized. object_len < master_len works when 1=handle_len=region_len.
+        };
+        static constexpr auto xlight = [](auto& boss, auto& canvas, auto handle, auto object_len, auto handle_len, auto region_len, auto wide, auto master_len)
+        {
+            if (ui::drawfx::visible(object_len, handle_len, region_len, master_len))
             {
                 if (wide) // Draw full scrollbar on mouse hover
                 {
@@ -4549,9 +4553,9 @@ namespace netxs::ui
                 canvas.fill(handle, [&](cell& c){ c.link(boss.bell::id).xlight(); });
             }
         };
-        static constexpr auto underline = [](auto& /*boss*/, auto& canvas, auto handle, auto object_len, auto handle_len, auto region_len, auto /*wide*/)
+        static constexpr auto underline = [](auto& /*boss*/, auto& canvas, auto handle, auto object_len, auto handle_len, auto region_len, auto /*wide*/, auto master_len)
         {
-            if (object_len && handle_len != region_len) // Show only if it is oversized.
+            if (ui::drawfx::visible(object_len, handle_len, region_len, master_len))
             {
                 canvas.fill(handle, cell::shaders::underlight);
             }
@@ -4598,8 +4602,8 @@ namespace netxs::ui
             void sync_grip_cellular_pos()
             {
                 scroll_pos = std::min((si32)std::round(master_pos * r), scroll_len - 1); // Don't place the grip behind the scrollbar.
-                     if (scroll_pos == 0 && master_pos > 0) scroll_pos = std::min(1, s);
-                else if (scroll_pos == s && master_pos < m) scroll_pos = std::max(0, s - 1);
+                if (scroll_pos == s && master_pos < m) scroll_pos = std::max(0, s - 1); // Place the grip one step back from the bottom unless master_pos is at the bottom.
+                if (scroll_pos == 0 && master_pos > 0) scroll_pos = std::min(1, s); // Never place the grip on top unless master_pos is on top.
             }
             // math: Calc scroll to master metrics.
             void s_to_m()
@@ -4616,10 +4620,14 @@ namespace netxs::ui
                 if (master_box == 0) return;
                 if (master_len == 0) master_len = master_box;
                 r = (fp64)scroll_len / master_len;
-                scroll_box = std::max(1, (si32)(master_box * r));
+                scroll_box = std::min(scroll_len, (si32)std::ceil(master_box * r)); // Do std::ceil(master_box) to eliminate gaps between consecutive grip positions when paging.
+                if (scroll_box == scroll_len && scroll_len < master_len)            //
+                {
+                    scroll_box = std::max(1, scroll_box - 1);
+                }
                 s = scroll_len - scroll_box;
                 m = master_len - master_box;
-                r = m ? (fp64)std::max(1, s) / m : 1; // Recalc the ratio because the box sizes are not proportional due to std::max().
+                r = m ? (fp64)std::max(1, s) / m : 1; // Recalc the ratio because the box sizes are not proportional due to std::max(std::ceil()).
                 if (!captured) scroll_air = master_pos * r;
                 sync_grip_cellular_pos();
             }
@@ -4923,7 +4931,7 @@ namespace netxs::ui
                 auto& object_len = object.size[Axis];
                 handle.trimby(region);
                 handle_len = std::max(1, handle_len);
-                drawfx(*this, parent_canvas, handle, object_len, handle_len, region_len, wide);
+                drawfx(*this, parent_canvas, handle, object_len, handle_len, region_len, wide, calc.master_len);
             };
         }
         grip(sptr boss_ptr)

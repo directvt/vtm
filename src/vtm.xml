@@ -555,13 +555,13 @@ R"==(
                 </App>
             </Apps>
             <tooltip_footer>
-                "\e[m\n""   LeftClick to launch instance ""\n"
-                        "   RightClick to set as default "
+                "   LeftClick to launch instance ""\n"
+                "   RightClick to set as default "
             </tooltip_footer>
-            <Terminal    label="Terminal Emulator" title="Terminal"       tooltip="\e[1m Terminal Console                \e[m\n"|tooltip_footer/>
-            <Tile        label="Window Manager"    title="Window Manager" tooltip="\e[1m Tiling Window Manager           \e[m\n"|tooltip_footer/>
-            <Site        label="Viewport Marker"   title="Site "          tooltip="\e[1m Desktop Viewport Marker         \e[m\n"|tooltip_footer/>
-            <Logs        label="Log Monitor"       title="Log Monitor"    tooltip="\e[1m Log Monitor                     \e[m\n"|tooltip_footer/>
+            <Terminal    label="Terminal Emulator" title="Terminal"       tooltip="\e[1m Terminal Console               \e[m\n"|tooltip_footer/>
+            <Tile        label="Window Manager"    title="Window Manager" tooltip="\e[1m Tiling Window Manager          \e[m\n"|tooltip_footer/>
+            <Site        label="Viewport Marker"   title="Site "          tooltip="\e[1m Desktop Viewport Marker        \e[m\n"|tooltip_footer/>
+            <Logs        label="Log Monitor"       title="Log Monitor"    tooltip="\e[1m Log Monitor                    \e[m\n"|tooltip_footer/>
             <Grips    tooltip=" LeftDrag to adjust taskbar width "/>
             <UserList tooltip=" List of active connections ">
                 <Admins label="admins"/>
