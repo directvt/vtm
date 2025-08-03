@@ -1047,12 +1047,38 @@ namespace netxs::lixx // li++, libinput++.
 
     using fd_t = os::fd_t;
 
-    using libinput_sptr        = sptr<struct libinput_t>;
-    using libinput_seat_sptr   = sptr<struct libinput_seat_t>;
-    using libinput_device_sptr = sptr<struct libinput_device_t>;
+    using libinput_sptr                       = sptr<struct libinput_t>;
+    using libinput_seat_sptr                  = sptr<struct libinput_seat_t>;
+    using libinput_timer_sptr                 = sptr<struct libinput_timer_t<struct libinput_timer_host>>;
+    using libinput_device_sptr                = sptr<struct libinput_device_t>;
+    using libinput_source_sptr                = sptr<struct libinput_source_t>;
+    using libinput_tablet_tool_sptr           = sptr<struct libinput_tablet_tool>;
+    using libinput_event_listener_sptr        = sptr<struct libinput_event_listener>;
+    using libinput_paired_keyboard_sptr       = sptr<struct libinput_paired_keyboard>;
+    using libinput_tablet_pad_mode_group_sptr = sptr<struct libinput_tablet_pad_mode_group>;
+    using match_sptr                          = sptr<struct match_t>;
+    using quirks_sptr                         = sptr<struct quirks_t>;
+    using section_sptr                        = sptr<struct section_t>;
+    using property_sptr                       = sptr<struct property_t>;
+    using ud_device_sptr                      = sptr<struct ud_device_t>;
+    using ud_monitor_sptr                     = sptr<struct ud_monitor_t>;
+    using tp_dispatch_sptr                    = sptr<struct tp_dispatch>;
+    using pad_dispatch_sptr                   = sptr<struct pad_dispatch>;
+    using motion_filter_sptr                  = sptr<struct motion_filter>;
+    using pad_led_group_sptr                  = sptr<struct pad_led_group>;
+    using evdev_dispatch_sptr                 = sptr<struct evdev_dispatch_t>;
+    using quirks_context_sptr                 = sptr<struct quirks_context_t>;
+    using totem_dispatch_sptr                 = sptr<struct totem_dispatch>;
+    using tablet_dispatch_sptr                = sptr<struct tablet_dispatch>;
+    using fallback_dispatch_sptr              = sptr<struct fallback_dispatch>;
+    using custom_accel_function_sptr          = sptr<struct custom_accel_function>;
+    using pointer_delta_smoothener_sptr       = sptr<struct pointer_delta_smoothener>;
 
     using button_state_t = std::bitset<KEY_CNT>;
     using tablet_axes_bitset = std::bitset<lixx::libinput_tablet_tool_axis_cnt>;
+
+    using accel_profile_func_t = fp64(*)(motion_filter_sptr filter, void* data, fp64 velocity, time now);
+    using libinput_source_dispatch_t = void(*)(void* data);
 
     struct input_event_t : ::input_event
     {
@@ -1167,18 +1193,17 @@ namespace netxs::lixx // li++, libinput++.
     {
         struct libinput_config_accel_custom_func
         {
-            fp64              step;
+            fp64              step{};
             std::vector<fp64> points;
         };
-        using libinput_config_accel_custom_func_sptr = sptr<libinput_config_accel_custom_func>;
         struct custom_t
         {
-            libinput_config_accel_custom_func_sptr fallback;
-            libinput_config_accel_custom_func_sptr motion;
-            libinput_config_accel_custom_func_sptr scroll;
+            libinput_config_accel_custom_func fallback;
+            libinput_config_accel_custom_func motion;
+            libinput_config_accel_custom_func scroll;
         };
 
-        libinput_config_accel_profile profile;
+        libinput_config_accel_profile profile = LIBINPUT_CONFIG_ACCEL_PROFILE_NONE;
         custom_t                      custom;
     };
     struct libinput_device_config_send_events
@@ -1328,7 +1353,6 @@ namespace netxs::lixx // li++, libinput++.
             libinput_device_config_3fg_drag*         drag_3fg;
         };
 
-        using libinput_tablet_tool_sptr = sptr<struct libinput_tablet_tool>;
         struct libinput_tablet_tool_config_pressure_range
         {
             si32                  (*is_available)(libinput_tablet_tool_sptr tool);
@@ -1369,8 +1393,6 @@ namespace netxs::lixx // li++, libinput++.
         config_t                  config;
     };
 
-    using motion_filter_sptr = sptr<struct motion_filter>;
-    using accel_profile_func_t = fp64(*)(motion_filter_sptr filter, void* data, fp64 velocity, time now);
     struct motion_filter : ptr::enable_shared_from_this<motion_filter>
     {
         fp64                          speed_adjustment; // Normalized [-1, 1].
@@ -1430,7 +1452,6 @@ namespace netxs::lixx // li++, libinput++.
         }
     };
 
-            using pointer_delta_smoothener_sptr = sptr<struct pointer_delta_smoothener>;
             struct pointer_delta_smoothener
             {
                 span threshold;
@@ -1674,7 +1695,6 @@ namespace netxs::lixx // li++, libinput++.
         virtual bool      set_speed(fp64 speed_adjustment)                               { return impl.trackpoint_accelerator_set_speed(speed_adjustment); }
         virtual void      restart(void* data, time now)                                  {        impl.trackpoint_accelerator_restart(data, now); }
     };
-    using trackpoint_accelerator_sptr = sptr<trackpoint_accelerator>;
 
     struct pointer_accelerator_flat : motion_filter
     {
@@ -1720,7 +1740,6 @@ namespace netxs::lixx // li++, libinput++.
         virtual fp64_coor filter_scroll(  fp64_coor unaccelerated, void* data, time now) { return impl.accelerator_filter_noop_flat(unaccelerated, data, now); }
         virtual bool      set_speed(fp64 speed_adjustment)                               { return impl.accelerator_set_speed_flat(speed_adjustment); }
     };
-    using pointer_accelerator_flat_sptr = sptr<pointer_accelerator_flat>;
 
     struct trackpoint_flat_accelerator : pointer_accelerator_flat
     {
@@ -1732,7 +1751,6 @@ namespace netxs::lixx // li++, libinput++.
             type = LIBINPUT_CONFIG_ACCEL_PROFILE_FLAT;
         }
     };
-    using trackpoint_flat_accelerator_sptr = sptr<trackpoint_flat_accelerator>;
 
     struct tablet_accelerator_flat : motion_filter
     {
@@ -1792,9 +1810,7 @@ namespace netxs::lixx // li++, libinput++.
         virtual fp64_coor filter(fp64_coor unaccelerated, void* data, time now) { return impl.tablet_accelerator_filter_flat(unaccelerated, data, now); }
         virtual bool      set_speed(fp64 speed_adjustment)                      { return impl.tablet_accelerator_set_speed(speed_adjustment); }
     };
-    using tablet_accelerator_flat_sptr = sptr<tablet_accelerator_flat>;
 
-    using custom_accel_function_sptr = sptr<struct custom_accel_function>;
     struct custom_accel_function
     {
         time              last_time;
@@ -1958,19 +1974,19 @@ namespace netxs::lixx // li++, libinput++.
                 auto motion   = custom_accel_function_sptr{};
                 auto scroll   = custom_accel_function_sptr{};
                 auto ok = true;
-                if (ok && config.custom.fallback)
+                if (ok && config.custom.fallback.step)
                 {
-                    fallback = custom_accel_function::create_custom_accel_function(config.custom.fallback->step, config.custom.fallback->points);
+                    fallback = custom_accel_function::create_custom_accel_function(config.custom.fallback.step, config.custom.fallback.points);
                     ok = !!fallback;
                 }
-                if (ok && config.custom.motion)
+                if (ok && config.custom.motion.step)
                 {
-                    motion = custom_accel_function::create_custom_accel_function(config.custom.motion->step, config.custom.motion->points);
+                    motion = custom_accel_function::create_custom_accel_function(config.custom.motion.step, config.custom.motion.points);
                     ok = !!motion;
                 }
-                if (ok && config.custom.scroll)
+                if (ok && config.custom.scroll.step)
                 {
-                    scroll = custom_accel_function::create_custom_accel_function(config.custom.scroll->step, config.custom.scroll->points);
+                    scroll = custom_accel_function::create_custom_accel_function(config.custom.scroll.step, config.custom.scroll.points);
                     ok = !!scroll;
                 }
                 if (ok)
@@ -2002,7 +2018,6 @@ namespace netxs::lixx // li++, libinput++.
         virtual bool      set_accel_config(libinput_config_accel& accel_config)          { return impl.custom_accelerator_set_accel_config(accel_config); }
         virtual void      restart(void* data, time now)                                  {        impl.custom_accelerator_restart(data, now); }
     };
-    using custom_accelerator_sptr = sptr<custom_accelerator>;
 
     struct pointer_accelerator : motion_filter
     {
@@ -2134,7 +2149,6 @@ namespace netxs::lixx // li++, libinput++.
         virtual bool      set_speed(fp64 speed_adjustment)                               { return impl.accelerator_set_speed(speed_adjustment); }
         virtual void      restart(void* data, time now)                                  { impl.accelerator_restart(data, now); }
     };
-    using pointer_accelerator_sptr = sptr<pointer_accelerator>;
 
     struct pointer_accelerator_low_dpi : pointer_accelerator
     {
@@ -2191,7 +2205,6 @@ namespace netxs::lixx // li++, libinput++.
         pointer_accelerator_low_dpi_impl_t impl_low{ *this };
         virtual fp64_coor filter(fp64_coor unaccelerated, void* data, time now) { return impl_low.accelerator_filter_low_dpi(unaccelerated, data, now); }
     };
-    using pointer_accelerator_low_dpi_sptr = sptr<pointer_accelerator_low_dpi>;
 
     struct touchpad_accelerator_flat : motion_filter
     {
@@ -2491,14 +2504,12 @@ namespace netxs::lixx // li++, libinput++.
         virtual void      restart(void* data, time now)                                  {        impl.touchpad_accelerator_restart(data, now); }
     };
 
-    using libinput_source_dispatch_t = void(*)(void* data);
     struct libinput_source_t
     {
         libinput_source_dispatch_t dispatch;
         void*                      dispatch_arg;
         fd_t                       fd{ os::invalid_fd };
     };
-    using libinput_source_sptr = sptr<libinput_source_t>;
 
     struct match_t
     {
@@ -2513,7 +2524,6 @@ namespace netxs::lixx // li++, libinput++.
         ui32     ud_type; // We can have more than one type set, so this is a bitfield.
         text     dt2; // Device tree compatible (first) string.
     };
-    using match_sptr = sptr<match_t>;
     struct quirk_dimensions //todo use ui64_coor
     {
         ui64 x, y;
@@ -2558,7 +2568,6 @@ namespace netxs::lixx // li++, libinput++.
             quirk_array      array;
         } value{};
     };
-    using property_sptr = sptr<property_t>;
     struct section_t
     {
         bool                     has_match;    // To check for empty sections.
@@ -2567,7 +2576,6 @@ namespace netxs::lixx // li++, libinput++.
         match_sptr               match;
         std::list<property_sptr> properties;
     };
-    using section_sptr = sptr<section_t>;
     struct quirks_t
     {
         std::list<property_sptr> properties;          // These are not ref'd, just a collection of pointers.
@@ -2828,7 +2836,6 @@ namespace netxs::lixx // li++, libinput++.
             }
         }
     };
-    using quirks_sptr = sptr<quirks_t>;
     struct quirks_context_t
     {
         libinput_sptr           libinput; // For logging.
@@ -2837,7 +2844,6 @@ namespace netxs::lixx // li++, libinput++.
         std::list<section_sptr> sections;
         std::list<quirks_sptr>  quirks; // List of quirks handed to libinput, just for bookkeeping.
     };
-    using quirks_context_sptr = sptr<quirks_context_t>;
 
     struct libinput_seat_t
     {
@@ -2859,42 +2865,42 @@ namespace netxs::lixx // li++, libinput++.
         }
     };
 
+    template<class T>
+    struct libinput_timer_t : ptr::enable_shared_from_this<libinput_timer_t<T>>
+    {
+        T&     owner;
+        text   timer_name;
+        time   expire;
+        void*  timer_func_data;
+        void (*timer_func)(time now, void* timer_func_data);
+
+        libinput_timer_t(T& owner, text&& name, auto func, auto func_data)
+            :         owner{ owner           },
+                 timer_name{ std::move(name) },
+                     expire{                 },
+            timer_func_data{ func_data       },
+                 timer_func{ func            }
+        { }
+        void cancel()
+        {
+            owner.libinput_timer_cancel(*this);
+        }
+        void start(time expire, ui32 flags = TIMER_FLAG_NONE)
+        {
+            owner.libinput_timer_set(*this, expire, flags);
+        }
+    };
     struct libinput_timer_host
     {
-        struct libinput_timer_t : ptr::enable_shared_from_this<libinput_timer_t>
-        {
-            libinput_timer_host& owner;
-            text                 timer_name;
-            void               (*timer_func)(time now, void* timer_func_data);
-            void*                timer_func_data;
-            time                 expire;
+        using libinput_timer_t = lixx::libinput_timer_t<libinput_timer_host>;
 
-            libinput_timer_t(libinput_timer_host& owner, text&& name, auto func, auto func_data)
-                :          owner{ owner },
-                      timer_name{ std::move(name) },
-                      timer_func{ func },
-                 timer_func_data{ func_data },
-                          expire{}
-            { }
-            void cancel()
-            {
-                owner.libinput_timer_cancel(*this);
-            }
-            void start(time expire, ui32 flags = TIMER_FLAG_NONE)
-            {
-                owner.libinput_timer_set(*this, expire, flags);
-            }
-        };
-        using libinput_timer_sptr = sptr<libinput_timer_t>;
-        using timer_list = std::vector<libinput_timer_sptr>;
-
-        timer_list                      active;
-        timer_list                      cached;
-        libinput_source_sptr            source;
-        fd_t                            fd{ os::invalid_fd };
-        fd_t                            epoll_fd{ os::invalid_fd };
-        time                            next_expiry;
-        std::list<libinput_source_sptr> source_destroy_list;
+        std::vector<libinput_timer_sptr> active;
+        std::vector<libinput_timer_sptr> cached;
+        libinput_source_sptr             source;
+        fd_t                             fd{ os::invalid_fd };
+        fd_t                             epoll_fd{ os::invalid_fd };
+        time                             next_expiry;
+        std::list<libinput_source_sptr>  source_destroy_list;
 
         void clear()
         {
@@ -3040,7 +3046,6 @@ namespace netxs::lixx // li++, libinput++.
             return source;
         }
     };
-    using libinput_timer_sptr = libinput_timer_host::libinput_timer_sptr;
 
     struct libinput_event
     {
@@ -3122,13 +3127,11 @@ namespace netxs::lixx // li++, libinput++.
     };
 
     using notify_func_t = void(*)(time stamp, libinput_event& event, void* notify_func_data);
-    using libinput_event_listener_sptr = sptr<struct libinput_event_listener>;
     struct libinput_event_listener
     {
         notify_func_t notify_func;
         void*         notify_func_data;
     };
-
     struct libinput_event_keyboard : libinput_event
     {
         ui32               key;
@@ -3222,7 +3225,6 @@ namespace netxs::lixx // li++, libinput++.
             libinput_tablet_pad_mode_group() = default;
             virtual ~libinput_tablet_pad_mode_group() { }
         };
-        using libinput_tablet_pad_mode_group_sptr = sptr<libinput_tablet_pad_mode_group>;
     struct libinput_event_tablet_pad : libinput_event
     {
         struct button_t
@@ -3400,8 +3402,6 @@ namespace netxs::lixx // li++, libinput++.
         else                                          return -1;
     }
 
-    using ud_monitor_sptr = sptr<struct ud_monitor_t>;
-    using ud_device_sptr = sptr<struct ud_device_t>;
     struct ud_device_t
     {
         struct slot_change_state
@@ -5086,8 +5086,6 @@ namespace netxs::lixx // li++, libinput++.
         }
     };
 
-    using evdev_dispatch_sptr = sptr<struct evdev_dispatch_t>;
-
     struct evdev_dispatch_t : ptr::enable_shared_from_this<evdev_dispatch_t>
     {
         struct evdev_sendevents_t
@@ -6715,8 +6713,6 @@ namespace netxs::lixx // li++, libinput++.
         libinput_device_sptr         li_device;
         libinput_event_listener_sptr listener;
     };
-    using libinput_paired_keyboard_sptr = sptr<libinput_paired_keyboard>;
-
             struct tp_history_t
             {
                 struct tp_history_point
@@ -6753,7 +6749,6 @@ namespace netxs::lixx // li++, libinput++.
                 libinput_timer_sptr        timer;
                 si32_coor                  initial;
             };
-            using tp_dispatch_sptr = sptr<struct tp_dispatch>;
         struct tp_touch
         {
             tp_dispatch_sptr tp;
@@ -13566,7 +13561,6 @@ namespace netxs::lixx // li++, libinput++.
         void         device_suspended(libinput_device_sptr li_device, libinput_device_sptr suspended_li_device)                   { device_removed(li_device, suspended_li_device); }
         void           device_resumed(libinput_device_sptr li_device, libinput_device_sptr resumed_li_device)                     { device_added(li_device, resumed_li_device); }
     };
-    using tp_dispatch_sptr = sptr<tp_dispatch>;
 
     struct pad_mode_led
     {
@@ -13595,8 +13589,6 @@ namespace netxs::lixx // li++, libinput++.
         std::list<pad_mode_led>           led_list;
         std::list<pad_mode_toggle_button> toggle_button_list;
     };
-    using pad_led_group_sptr = sptr<pad_led_group>;
-    using pad_dispatch_sptr = sptr<struct pad_dispatch>;
     struct pad_dispatch : evdev_dispatch_t
     {
         struct dials_t
@@ -14317,7 +14309,6 @@ namespace netxs::lixx // li++, libinput++.
         void process(libinput_device_sptr li_device, evdev_event& ev, time stamp) { pad_impl.pad_process(li_device, ev, stamp); }
         void suspend(libinput_device_sptr li_device)                              { pad_impl.pad_suspend(li_device); }
     };
-    using pad_dispatch_sptr = sptr<pad_dispatch>;
 
         struct totem_slot
         {
@@ -14330,7 +14321,6 @@ namespace netxs::lixx // li++, libinput++.
             si32_coor                 last_point;
         };
     struct totem_dispatch;
-    using totem_dispatch_sptr = sptr<totem_dispatch>;
     struct totem_dispatch : evdev_dispatch_t
     {
         libinput_device_sptr    li_device;
@@ -14728,10 +14718,7 @@ namespace netxs::lixx // li++, libinput++.
         void device_suspended(libinput_device_sptr li_device, libinput_device_sptr suspended_li_device) { device_removed(li_device, suspended_li_device); }
         void   device_resumed(libinput_device_sptr li_device, libinput_device_sptr resumed_li_device)   { device_added(li_device, resumed_li_device); }
     };
-    using totem_dispatch_sptr = sptr<totem_dispatch>;
 
-    struct tablet_dispatch;
-    using tablet_dispatch_sptr = sptr<tablet_dispatch>;
     struct tablet_dispatch : evdev_dispatch_t
     {
         struct history_t
@@ -16722,7 +16709,6 @@ namespace netxs::lixx // li++, libinput++.
         void         post_added(libinput_device_sptr li_device)                                           { tablet_impl.tablet_check_initial_proximity(li_device); }
         void left_handed_toggle(libinput_device_sptr li_device, bool left_handed_enabled)                 { tablet_impl.tablet_left_handed_toggled(li_device, left_handed_enabled); }
     };
-    using tablet_dispatch_sptr = sptr<tablet_dispatch>;
 
     struct mt_slot
     {
@@ -16733,7 +16719,6 @@ namespace netxs::lixx // li++, libinput++.
         si32_coor       hysteresis_center;
         mt_palm_state   palm_state;
     };
-    using fallback_dispatch_sptr = sptr<struct fallback_dispatch>;
     struct fallback_dispatch : evdev_dispatch_t
     {
         struct fb_rotation_t
@@ -18664,7 +18649,6 @@ namespace netxs::lixx // li++, libinput++.
         void     touch_arbitration_update_rect(libinput_device_sptr li_device, fp64_rect area, time now)                                   { fallback_impl.            fallback_interface_update_rect(li_device, area, now); }
         libinput_switch_state get_switch_state(libinput_switch which)                                                                      { return fallback_impl.fallback_interface_get_switch_state(which); }
     };
-    using fallback_dispatch_sptr = sptr<fallback_dispatch>;
 
         void libinput_t::libinput_device_added(ud_device_sptr ud_device)
         {
