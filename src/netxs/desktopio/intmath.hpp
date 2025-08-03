@@ -289,7 +289,7 @@ namespace netxs
     template<class T>
     T rad2deg(T rad)
     {
-        return rad * (180.0 / M_PI);
+        return rad * (180.0 / netxs::pi);
     }
     // intmath: Summ and return TRUE in case of unsigned integer overflow and store result in accum.
     template<class T1, class T2>
