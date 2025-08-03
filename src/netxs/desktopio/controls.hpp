@@ -4538,26 +4538,26 @@ namespace netxs::ui
 
     namespace drawfx
     {
-        static constexpr auto visible = [](auto object_len, auto handle_len, auto region_len, auto master_len)
+        static constexpr auto visible = [](auto master_len, auto master_box, auto master_pos)
         {
-            return object_len && (handle_len != region_len || object_len < master_len); // Show only if it is oversized. object_len < master_len works when 1=handle_len=region_len.
+            return master_pos || master_box < master_len; // Show scrollbars only if the master is larger than the viewport or is not at the origin.
         };
-        static constexpr auto xlight = [](auto& boss, auto& canvas, auto handle, auto object_len, auto handle_len, auto region_len, auto wide, auto master_len)
+        static constexpr auto xlight = [](auto& boss, auto& canvas, auto scrollbar_grip, auto master_len, auto master_box, auto master_pos, auto wide)
         {
-            if (ui::drawfx::visible(object_len, handle_len, region_len, master_len))
+            if (ui::drawfx::visible(master_len, master_box, master_pos))
             {
                 if (wide) // Draw full scrollbar on mouse hover
                 {
                     canvas.fill([&](cell& c){ c.link(boss.bell::id).xlight(); });
                 }
-                canvas.fill(handle, [&](cell& c){ c.link(boss.bell::id).xlight(); });
+                canvas.fill(scrollbar_grip, [&](cell& c){ c.link(boss.bell::id).xlight(); });
             }
         };
-        static constexpr auto underline = [](auto& /*boss*/, auto& canvas, auto handle, auto object_len, auto handle_len, auto region_len, auto /*wide*/, auto master_len)
+        static constexpr auto underline = [](auto& /*boss*/, auto& canvas, auto scrollbar_grip, auto master_len, auto master_box, auto master_pos, auto /*wide*/)
         {
-            if (ui::drawfx::visible(object_len, handle_len, region_len, master_len))
+            if (ui::drawfx::visible(master_len, master_box, master_pos))
             {
-                canvas.fill(handle, cell::shaders::underlight);
+                canvas.fill(scrollbar_grip, cell::shaders::underlight);
             }
         };
     }
@@ -4922,16 +4922,12 @@ namespace netxs::ui
             //});
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
-                auto region = parent_canvas.clip();
-                auto object = parent_canvas.full();
-                auto handle = region;
-                calc.commit(handle);
-                auto& handle_len = handle.size[Axis];
-                auto& region_len = region.size[Axis];
-                auto& object_len = object.size[Axis];
-                handle.trimby(region);
-                handle_len = std::max(1, handle_len);
-                drawfx(*this, parent_canvas, handle, object_len, handle_len, region_len, wide, calc.master_len);
+                auto visible_region = parent_canvas.clip();
+                auto scrollbar_rect = parent_canvas.full();
+                auto scrollbar_grip = scrollbar_rect;
+                calc.commit(scrollbar_grip);
+                scrollbar_grip.trimby(visible_region);
+                drawfx(*this, parent_canvas, scrollbar_grip, calc.master_len, calc.master_box, calc.master_pos, wide);
             };
         }
         grip(sptr boss_ptr)

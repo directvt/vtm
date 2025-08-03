@@ -203,21 +203,21 @@ namespace netxs::app::terminal
         auto sb = layers->attach(ui::fork::ctor());
         auto vt = sb->attach(slot::_2, ui::grip<axis::Y>::ctor(scroll));
         auto& term_bgc = term->get_color().bgc();
-        auto& drawfx = term->base::field([&](auto& boss, auto& canvas, auto handle, auto object_len, auto handle_len, auto region_len, auto wide, auto master_len)
+        auto& drawfx = term->base::field([&](auto& boss, auto& canvas, auto scrollbar_grip, auto master_len, auto master_box, auto master_pos, auto wide)
         {
             static auto box1 = "▄"sv;
             static auto box2 = ' ';
-            if (ui::drawfx::visible(object_len, handle_len, region_len, master_len))
+            if (ui::drawfx::visible(master_len, master_box, master_pos))
             {
                 if (wide) // Draw full scrollbar on mouse hover.
                 {
                     canvas.fill([&](cell& c){ c.txt(box2).link(boss.bell::id).xlight().bgc().mix(window_clr.bgc()); });
-                    canvas.fill(handle, [&](cell& c){ c.bgc().xlight(2); });
+                    canvas.fill(scrollbar_grip, [&](cell& c){ c.bgc().xlight(2); });
                 }
                 else
                 {
                     canvas.fill([&](cell& c){ c.txt(box1).fgc(c.bgc()).bgc(term_bgc).fgc().mix(window_clr.bgc()); });
-                    canvas.fill(handle, [&](cell& c){ c.link(boss.bell::id).fgc().xlight(2); });
+                    canvas.fill(scrollbar_grip, [&](cell& c){ c.link(boss.bell::id).fgc().xlight(2); });
                 }
             }
             else canvas.fill([&](cell& c){ c.txt(box1).fgc(c.bgc()).bgc(term_bgc).fgc().mix(window_clr.bgc()); });
