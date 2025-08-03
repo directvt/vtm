@@ -4644,9 +4644,13 @@ namespace netxs::ui
                 scroll_len = std::max(1, new_size[Axis]);
                 m_to_s();
             }
-            void stepby(fp32 delta)
+            void stepby(fp2d delta)
             {
-                scroll_air = grip_origin + delta;
+                static constexpr auto Sixa = !Axis; // Orthogonal axis.
+                auto d1 = std::abs(delta[Axis]);
+                auto d2 = std::abs(delta[Sixa]);
+                if (d1 > d2) scroll_air = grip_origin + delta[Axis];
+                else         scroll_air = grip_origin + delta[Sixa] * r; // Allows precise (1:1) scrolling using the orthogonal axis.
                 s_to_m();
             }
             void commit(rect& handle)
@@ -4755,7 +4759,7 @@ namespace netxs::ui
                     }
                     else
                     {
-                        if (auto delta = (gear.coord - drag_origin)[Axis])
+                        if (auto delta = gear.coord - drag_origin)
                         {
                             calc.stepby(delta);
                             send<e2::form::upon::scroll::bycoor::_<Axis>>();
@@ -4775,10 +4779,10 @@ namespace netxs::ui
                     auto dir = calc.inside(twod{ gear.coord }[Axis]);
                     if (dir == 0) // Inside the grip.
                     {
-                        calc.captured = true;
                         drag_origin = gear.coord;
                         calc.m_to_s();
                         calc.grip_origin = calc.scroll_air;
+                        calc.captured = true;
                     }
                     else // Outside the grip.
                     {
