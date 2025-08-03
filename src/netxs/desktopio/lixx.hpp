@@ -1181,8 +1181,8 @@ namespace netxs::lixx // li++, libinput++.
         }
         void matrix_init_rotate(si32 degrees)
         {
-            auto s = std::sin(M_PI * degrees / 180.0);
-            auto c = std::cos(M_PI * degrees / 180.0);
+            auto s = std::sin(netxs::pi * degrees / 180.0);
+            auto c = std::cos(netxs::pi * degrees / 180.0);
             matrix_init_identity();
             val[0][0] = c;
             val[0][1] = -s;
@@ -1508,7 +1508,7 @@ namespace netxs::lixx // li++, libinput++.
                         //   d_f = r / 2π  ([0 .. 1))
                         //   d_8 = 8 * d_f
                         auto r = std::atan2(p.y, p.x);
-                        r = std::fmod(r + 2.5 * M_PI, 2 * M_PI);
+                        r = std::fmod(r + 2.5 * netxs::pi, 2 * netxs::pi);
                         r *= 4 * M_1_PI;
                         // Mark one or two close enough octants.
                         auto d1 = (si32)(r + 0.9) % 8;

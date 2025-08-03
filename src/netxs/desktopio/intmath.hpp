@@ -69,6 +69,7 @@ namespace netxs
     using many = std::vector<std::any>;
 
     constexpr size_t operator ""_sz (unsigned long long i) { return static_cast<size_t>(i); }
+    static constexpr auto pi = 3.14159265358979323846;
     static constexpr auto bytemin = std::numeric_limits<byte>::min();
     static constexpr auto bytemax = std::numeric_limits<byte>::max();
     static constexpr auto int8min = std::numeric_limits<int8>::min();
