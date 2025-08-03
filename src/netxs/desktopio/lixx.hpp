@@ -2669,10 +2669,10 @@ namespace netxs::lixx // li++, libinput++.
                                             }
                                         }
                                         break;
-                    case M_VERSION:     if (m->version == s->match->version)                            matched_flags |= flag; break;
-                    case M_DMI:         if (::fnmatch(s->match->dmi2.data(), m->dmi2.data(), 0) == 0)   matched_flags |= flag; break;
-                    case M_DT:          if (::fnmatch(s->match->dt2.data(), m->dt2.data(), 0) == 0)     matched_flags |= flag; break;
-                    case M_UDEV_TYPE:   if (s->match->ud_type & m->ud_type)                             matched_flags |= flag; break;
+                    case M_VERSION:     if (m->version == s->match->version)                          { matched_flags |= flag; } break;
+                    case M_DMI:         if (::fnmatch(s->match->dmi2.data(), m->dmi2.data(), 0) == 0) { matched_flags |= flag; } break;
+                    case M_DT:          if (::fnmatch(s->match->dt2.data(), m->dt2.data(), 0) == 0)   { matched_flags |= flag; } break;
+                    case M_UDEV_TYPE:   if (s->match->ud_type & m->ud_type)                           { matched_flags |= flag; } break;
                     default: ::abort();
                 }
                 if (prev_matched_flags != matched_flags)
