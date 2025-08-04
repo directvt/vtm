@@ -5819,8 +5819,8 @@ namespace netxs::os
                             }
                             if (wheelfp)
                             {
-                                if (wheelfp.x != -0.0 && whlacc.x != -0.0 && whlacc.x * wheelfp.x < 0) whlacc.x = {}; // Reset accum if direction has changed.
-                                if (wheelfp.y != -0.0 && whlacc.y != -0.0 && whlacc.y * wheelfp.y < 0) whlacc.y = {};
+                                if (whlacc.x * wheelfp.x < 0) whlacc.x = {}; // Reset accum if direction has changed.
+                                if (whlacc.y * wheelfp.y < 0) whlacc.y = {};
                                 whlacc += wheelfp;
                                 wheelsi = whlacc;
                                 whlacc -= wheelsi;
