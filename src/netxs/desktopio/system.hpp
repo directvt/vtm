@@ -4741,44 +4741,27 @@ namespace netxs::os
                 return event;
             }
             // lixx: .
-            void enumerate_mouses(auto proc)
-            {
-                auto code = std::error_code{};
-                auto events = os::fs::directory_iterator("/dev/input/", code);
-                if (!code)
-                for (auto& entry : events)
-                {
-                    if (entry.path().filename().string().starts_with("event"))
-                    {
-                        auto dev_path = entry.path().string();
-                        if (auto device = li->libinput_add_device(dev_path))
-                        {
-                            if (device->libinput_device_has_capability(LIBINPUT_DEVICE_CAP_POINTER))
-                            {
-                                auto& name = device->devname;
-                                proc(device, dev_path, name.size() ? name : "unnamed"s);
-                            }
-                            else
-                            {
-                                li->remove_device(device);
-                            }
-                        }
-                    }
-                }
-            }
             // lixx: Attach mouse devices to the lixx context.
             auto attach_mouse()
             {
                 log("%%Attaching mouse devices", prompt::os);
                 auto count = 0;
-                enumerate_mouses([&](auto device, auto dev_path, auto name)
+                lixx::li->enumerate_active_devices([&](auto device)
                 {
-                    count++;
-                    log("\tadded device: %% (%%)", dev_path, name);
-                    auto rc = lixx::libinput_device_config_tap_set_enabled(device, LIBINPUT_CONFIG_TAP_ENABLED);
-                    log("\t  LIBINPUT_CONFIG_TAP_ENABLED: ", rc);
-                    rc = lixx::libinput_device_config_scroll_set_method(device, LIBINPUT_CONFIG_SCROLL_2FG);// | lixx::LIBINPUT_CONFIG_SCROLL_EDGE));
-                    log("\t   LIBINPUT_CONFIG_SCROLL_2FG: ", rc);
+                    if (device->libinput_device_has_capability(LIBINPUT_DEVICE_CAP_POINTER))
+                    {
+                        count++;
+                        log("\tadded device: %% (%%)", device->devname, device->sysname);
+                        auto rc = lixx::libinput_device_config_tap_set_enabled(device, LIBINPUT_CONFIG_TAP_ENABLED);
+                        log("\t  LIBINPUT_CONFIG_TAP_ENABLED: ", rc);
+                        rc = lixx::libinput_device_config_scroll_set_method(device, LIBINPUT_CONFIG_SCROLL_2FG);// | lixx::LIBINPUT_CONFIG_SCROLL_EDGE));
+                        log("\t   LIBINPUT_CONFIG_SCROLL_2FG: ", rc);
+                    }
+                    else
+                    {
+                        lixx::li->remove_device(device);
+                    }
+                    return true;
                 });
                 return count;
             }
@@ -4828,17 +4811,23 @@ namespace netxs::os
                 auto count = 0;
                 initialize();
                 auto access = enabled ? 0666 : 0660;
-                enumerate_mouses([&](auto /*device*/, auto dev_path, auto name)
+                lixx::li->enumerate_active_devices([&](auto device)
                 {
-                    count++;
-                    if (-1 != ::chmod(dev_path.data(), access))
+                    if (device->libinput_device_has_capability(LIBINPUT_DEVICE_CAP_POINTER))
                     {
-                        log("    Set access bits %access% for '%%' (%%)", utf::to_oct<4>(access), dev_path, name);
+                        count++;
+                        auto& dev_path = device->devname;
+                        auto& dev_name = device->sysname;
+                        if (-1 != ::chmod(dev_path.data(), access))
+                        {
+                            log("    Set access bits %access% for '%%' (%%)", utf::to_oct<4>(access), dev_path, dev_name);
+                        }
+                        else
+                        {
+                            log("    Failed to set access bits %access% for '%%' (%%)", utf::to_oct<4>(access), dev_path, dev_name);
+                        }
                     }
-                    else
-                    {
-                        log("    Failed to set access bits %access% for '%%' (%%)", utf::to_oct<4>(access), dev_path, name);
-                    }
+                    return true;
                 });
                 if (!count)
                 {
@@ -5778,122 +5767,116 @@ namespace netxs::os
                 {
                     #if defined(__linux__)
                     using namespace netxs::lixx;
+                    lixx::li->libinput_dispatch();
                     while (true)
                     {
-                        auto& e = lixx::next_event();
-                        auto event_type = e.type;
-                        if (event_type != LIBINPUT_EVENT_NONE)
+                        auto& e = lixx::li->libinput_get_event();
+                        if (e.type == LIBINPUT_EVENT_NONE) break;
+                        auto wheelfp = fp2d{};
+                        auto wheelsi = twod{};
+                        auto device = e.li_device;
+                        if (e.type == LIBINPUT_EVENT_POINTER_MOTION_ABSOLUTE) // Generic PS/2 mouse.
                         {
-                            auto wheelfp = fp2d{};
-                            auto wheelsi = twod{};
-                            auto device = e.li_device;
-                            if (event_type == LIBINPUT_EVENT_POINTER_MOTION_ABSOLUTE) // Generic PS/2 mouse.
+                            auto limit = w.winsize * scale;
+                            mcoord = e.libinput_event_pointer_get_absolute_xy_transformed(limit);
+                        }
+                        else if (e.type == LIBINPUT_EVENT_POINTER_MOTION) // Touchpads and USB mouses.
+                        {
+                            auto limit = fp2d{ w.winsize * scale };
+                            mcoord += e.libinput_event_pointer_get_ds();
+                            mcoord = std::clamp(mcoord, fp2d{}, limit - dot_11);
+                        }
+                        else if (e.type == LIBINPUT_EVENT_POINTER_BUTTON)
+                        {
+                            auto button = e.libinput_event_pointer_get_button();
+                            auto i = -1;
+                            switch (button)
                             {
-                                auto limit = w.winsize * scale;
-                                mcoord = e.libinput_event_pointer_get_absolute_xy_transformed(limit);
+                                case BTN_LEFT:    i = 0; break;
+                                case BTN_RIGHT:   i = 1; break;
+                                case BTN_MIDDLE:  i = 2; break;
+                                case BTN_SIDE:    i = 3; break;
+                                case BTN_EXTRA:   i = 4; break;
+                                case BTN_FORWARD: i = 5; break;
+                                case BTN_BACK:    i = 6; break;
+                                case BTN_TASK:    i = 7; break;
                             }
-                            else if (event_type == LIBINPUT_EVENT_POINTER_MOTION) // Touchpads and USB mouses.
+                            if (i != -1)
                             {
-                                auto limit = fp2d{ w.winsize * scale };
-                                mcoord += e.libinput_event_pointer_get_ds();
-                                mcoord = std::clamp(mcoord, fp2d{}, limit - dot_11);
+                                auto dev_ptr = e.libinput_event_get_device();
+                                auto pressed = e.libinput_event_pointer_get_button_state();
+                                auto& state = dev_map[(arch)dev_ptr.get()];
+                                state = (state & ~(1 << i)) | (pressed << i);
                             }
-                            else if (event_type == LIBINPUT_EVENT_POINTER_BUTTON)
+                        }
+                        else
+                        {
+                            if (e.type == LIBINPUT_EVENT_POINTER_SCROLL_WHEEL)
                             {
-                                auto button = e.libinput_event_pointer_get_button();
-                                auto i = -1;
-                                switch (button)
-                                {
-                                    case BTN_LEFT:    i = 0; break;
-                                    case BTN_RIGHT:   i = 1; break;
-                                    case BTN_MIDDLE:  i = 2; break;
-                                    case BTN_SIDE:    i = 3; break;
-                                    case BTN_EXTRA:   i = 4; break;
-                                    case BTN_FORWARD: i = 5; break;
-                                    case BTN_BACK:    i = 6; break;
-                                    case BTN_TASK:    i = 7; break;
-                                }
-                                if (i != -1)
-                                {
-                                    auto dev_ptr = e.libinput_event_get_device();
-                                    auto pressed = e.libinput_event_pointer_get_button_state();
-                                    auto& state = dev_map[(arch)dev_ptr.get()];
-                                    state = (state & ~(1 << i)) | (pressed << i);
-                                }
+                                wheelfp = -e.libinput_event_pointer_get_scroll_value();
                             }
-                            else
+                            else if (e.type == LIBINPUT_EVENT_POINTER_SCROLL_FINGER)
                             {
-                                if (event_type == LIBINPUT_EVENT_POINTER_SCROLL_WHEEL)
-                                {
-                                    wheelfp = -e.libinput_event_pointer_get_scroll_value();
-                                }
-                                else if (event_type == LIBINPUT_EVENT_POINTER_SCROLL_FINGER)
-                                {
-                                    wheelfp = e.libinput_event_pointer_get_scroll_value();
-                                }
-                                if (wheelfp)
-                                {
-                                    if (dtvt::wheelrate) wheelfp /= dtvt::wheelrate;
-                                    if (whlacc.x * wheelfp.x < 0 || whlacc.y * wheelfp.y < 0) // Reset accum if direction has changed.
-                                    {
-                                        whlacc = {};
-                                    }
-                                    whlacc += wheelfp;
-                                    wheelsi = whlacc ;
-                                    whlacc -= wheelsi;
-                                }
+                                wheelfp = e.libinput_event_pointer_get_scroll_value();
                             }
-                            auto bttns = 0;
-                            for (auto& [id, state] : dev_map)
+                            if (wheelfp)
                             {
-                                bttns |= state;
+                                if (dtvt::wheelrate) wheelfp /= dtvt::wheelrate;
+                                if (whlacc.x * wheelfp.x < 0 || whlacc.y * wheelfp.y < 0) // Reset accum if direction has changed.
+                                {
+                                    whlacc = {};
+                                }
+                                whlacc += wheelfp;
+                                wheelsi = whlacc ;
+                                whlacc -= wheelsi;
                             }
-                            if (lixx::li && lixx::li->current_tty_is_active()) // Proceed only if the current tty is active.
+                        }
+                        auto bttns = 0;
+                        for (auto& [id, state] : dev_map)
+                        {
+                            bttns |= state;
+                        }
+                        if (lixx::li->current_tty_is_active()) // Proceed only if the current tty is active.
+                        {
+                            auto kbmod = get_kb_state();
+                            if (k.ctlstat != kbmod)
                             {
-                                auto kbmod = get_kb_state();
-                                if (k.ctlstat != kbmod)
+                                k.ctlstat = kbmod;
+                                m.ctlstat = kbmod;
+                            }
+                            m.coordxy = mcoord / scale;
+                            m.buttons = bttns;
+                            m.ctlstat = k.ctlstat;
+                            if (wheelfp)
+                            {
+                                if (wheelfp.x)
                                 {
-                                    k.ctlstat = kbmod;
-                                    m.ctlstat = kbmod;
+                                    m.wheelfp = wheelfp.x;
+                                    m.wheelsi = wheelsi.x;
+                                    m.hzwheel = true;
+                                    m.timecod = e.stamp;
+                                    m.changed++;
+                                    mouse(m);
                                 }
-                                m.coordxy = mcoord / scale;
-                                m.buttons = bttns;
-                                m.ctlstat = k.ctlstat;
-                                if (wheelfp)
+                                if (wheelfp.y)
                                 {
-                                    if (wheelfp.x)
-                                    {
-                                        m.wheelfp = wheelfp.x;
-                                        m.wheelsi = wheelsi.x;
-                                        m.hzwheel = true;
-                                        m.timecod = e.stamp;
-                                        m.changed++;
-                                        mouse(m);
-                                    }
-                                    if (wheelfp.y)
-                                    {
-                                        m.wheelfp = wheelfp.y;
-                                        m.wheelsi = wheelsi.y;
-                                        m.hzwheel = faux;
-                                        m.timecod = e.stamp;
-                                        m.changed++;
-                                        mouse(m);
-                                    }
-                                }
-                                else
-                                {
-                                    m.wheelfp = {};
-                                    m.wheelsi = {};
-                                    m.hzwheel = {};
+                                    m.wheelfp = wheelfp.y;
+                                    m.wheelsi = wheelsi.y;
+                                    m.hzwheel = faux;
                                     m.timecod = e.stamp;
                                     m.changed++;
                                     mouse(m);
                                 }
                             }
-                        }
-                        else
-                        {
-                            break;
+                            else
+                            {
+                                m.wheelfp = {};
+                                m.wheelsi = {};
+                                m.hzwheel = {};
+                                m.timecod = e.stamp;
+                                m.changed++;
+                                mouse(m);
+                            }
                         }
                     }
                     #endif

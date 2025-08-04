@@ -3470,25 +3470,23 @@ namespace netxs::lixx // li++, libinput++.
                 _set_properties();
                 _sync_with_hwdb();
             }
-            if (initialized)
+            if (!initialized)
+            {
+                log("  Device %% is not initialized", devpath);
+                os::close(new_fd);
+            }
+            else
             {
                 if constexpr (debugmode)
                 {
-                    if (initialized)
+                    auto mx = 0u;
+                    for (auto& [propname, value] : properties) if (mx < propname.size()) mx = propname.size();
+                    mx += 10;
+                    log("  Property\r\x1b[%mx%CValue", mx);
+                    log("  ---------------------------------");
+                    for ([[maybe_unused]] auto& [propname, value] : properties)
                     {
-                        auto mx = 0u;
-                        for (auto& [propname, value] : properties) if (mx < propname.size()) mx = propname.size();
-                        mx += 10;
-                        log("  Property\r\x1b[%mx%CValue", mx);
-                        log("  ---------------------------------");
-                        for ([[maybe_unused]] auto& [propname, value] : properties)
-                        {
-                            log("  %propname%\r\x1b[%mx%C%value%", propname, mx, value);
-                        }
-                    }
-                    else
-                    {
-                        log("  Device %% is uninitialized", devpath);
+                        log("  %propname%\r\x1b[%mx%C%value%", propname, mx, value);
                     }
                 }
             }
@@ -4985,6 +4983,13 @@ namespace netxs::lixx // li++, libinput++.
         void input_enable();
         void input_disable();
 
+        void enumerate_active_devices(auto proc)
+        {
+            for (auto d : path_list)
+            {
+                if (!proc(d)) break;
+            }
+        }
         bool current_tty_is_active()
         {
             return ud_monitor && ud_monitor->initial_tty.size() && ud_monitor->initial_tty == ud_monitor->current_tty;
