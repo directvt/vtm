@@ -4657,7 +4657,7 @@ namespace netxs::ui
             {
                 auto step = delta * r;
                 auto prev_scroll_air = scroll_air;
-                scroll_air = std::clamp(scroll_air + step, 0, (fp64)s);
+                scroll_air = std::clamp(scroll_air + step, 0.0, (fp64)s);
                 grip_origin += scroll_air - prev_scroll_air;
                 s_to_m();
             }
