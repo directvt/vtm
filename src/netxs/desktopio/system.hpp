@@ -4751,10 +4751,10 @@ namespace netxs::os
                     if (device->libinput_device_has_capability(LIBINPUT_DEVICE_CAP_POINTER))
                     {
                         count++;
-                        log("\tadded device: %% (%%)", device->devname, device->sysname);
+                        log("\tadded device: %% (%%)", device->ud_device->devpath, device->devname);
                         auto rc = lixx::libinput_device_config_tap_set_enabled(device, LIBINPUT_CONFIG_TAP_ENABLED);
                         log("\t  LIBINPUT_CONFIG_TAP_ENABLED: ", rc);
-                        rc = lixx::libinput_device_config_scroll_set_method(device, LIBINPUT_CONFIG_SCROLL_2FG);// | lixx::LIBINPUT_CONFIG_SCROLL_EDGE));
+                        rc = lixx::libinput_device_config_scroll_set_method(device, LIBINPUT_CONFIG_SCROLL_2FG); // | lixx::LIBINPUT_CONFIG_SCROLL_EDGE)); // SCROLL_EDGE is auto enabled for one finger touchpads.
                         log("\t   LIBINPUT_CONFIG_SCROLL_2FG: ", rc);
                     }
                     else
@@ -4780,9 +4780,9 @@ namespace netxs::os
                     if (f.is_open()) // Opens in default write mode, creates if not exists, truncates if exists.
                     {
                         auto rules = "# Allow all users direct access to pointing devices\n"
-                                    "ACTION==\"add\", SUBSYSTEM==\"input\", KERNEL==\"event*\" ENV{ID_INPUT_MOUSE}==\"1\",         MODE=\"0666\"\n"
-                                    "ACTION==\"add\", SUBSYSTEM==\"input\", KERNEL==\"event*\" ENV{ID_INPUT_POINTINGSTICK}==\"1\", MODE=\"0666\"\n"
-                                    "ACTION==\"add\", SUBSYSTEM==\"input\", KERNEL==\"event*\" ENV{ID_INPUT_TOUCHPAD}==\"1\",      MODE=\"0666\""s;
+                                     "ACTION==\"add\", SUBSYSTEM==\"input\", KERNEL==\"event*\" ENV{ID_INPUT_MOUSE}==\"1\",         MODE=\"0666\"\n"
+                                     "ACTION==\"add\", SUBSYSTEM==\"input\", KERNEL==\"event*\" ENV{ID_INPUT_POINTINGSTICK}==\"1\", MODE=\"0666\"\n"
+                                     "ACTION==\"add\", SUBSYSTEM==\"input\", KERNEL==\"event*\" ENV{ID_INPUT_TOUCHPAD}==\"1\",      MODE=\"0666\""s;
                         f << rules;
                         f.close();
                         log("Udev rules successfuly added to: %%", udev_rules_file);
@@ -4816,8 +4816,8 @@ namespace netxs::os
                     if (device->libinput_device_has_capability(LIBINPUT_DEVICE_CAP_POINTER))
                     {
                         count++;
-                        auto& dev_path = device->devname;
-                        auto& dev_name = device->sysname;
+                        auto& dev_path = device->ud_device->devpath;
+                        auto& dev_name = device->devname;
                         if (-1 != ::chmod(dev_path.data(), access))
                         {
                             log("    Set access bits %access% for '%%' (%%)", utf::to_oct<4>(access), dev_path, dev_name);
