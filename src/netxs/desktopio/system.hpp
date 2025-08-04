@@ -4744,10 +4744,15 @@ namespace netxs::os
                     {
                         count++;
                         log("\tadded device: %% (%%)", device->ud_device->devpath, device->devname);
-                        auto rc = lixx::libinput_device_config_tap_set_enabled(device, LIBINPUT_CONFIG_TAP_ENABLED);
+                        auto rc = device->libinput_device_config_tap_set_enabled(LIBINPUT_CONFIG_TAP_ENABLED) == LIBINPUT_CONFIG_STATUS_SUCCESS;
                         log("\t  LIBINPUT_CONFIG_TAP_ENABLED: ", rc);
-                        rc = lixx::libinput_device_config_scroll_set_method(device, LIBINPUT_CONFIG_SCROLL_2FG); // | lixx::LIBINPUT_CONFIG_SCROLL_EDGE)); // SCROLL_EDGE is auto enabled for one finger touchpads.
+                        rc = device->libinput_device_config_scroll_set_method(LIBINPUT_CONFIG_SCROLL_2FG) == LIBINPUT_CONFIG_STATUS_SUCCESS;// | LIBINPUT_CONFIG_SCROLL_EDGE));
                         log("\t   LIBINPUT_CONFIG_SCROLL_2FG: ", rc);
+                        //rc = device->libinput_device_config_accel_set_profile(LIBINPUT_CONFIG_ACCEL_PROFILE_ADAPTIVE);
+                        //log("\t    SET_ACCELLERATION_PROFILE: ", rc);
+                        rc = device->libinput_device_config_accel_set_speed(0.5) == LIBINPUT_CONFIG_STATUS_SUCCESS; // Pointer acceleration [-1.0, 1.0].
+                        log("\t    SET_POINTER_ACCELLERATION: ", rc);
+                        log("\t                          DPI: ", device->dpi);
                     }
                     else
                     {

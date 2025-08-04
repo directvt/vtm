@@ -6704,6 +6704,78 @@ namespace netxs::lixx // li++, libinput++.
             button_event.abs_info_y2       = *y;
             post_device_event(now, LIBINPUT_EVENT_TABLET_TOOL_BUTTON, button_event);
         }
+        si32 libinput_device_config_tap_get_finger_count()
+        {
+            return config.tap ? config.tap->count(This()) : 0;
+        }
+        libinput_config_status libinput_device_config_tap_set_enabled(libinput_config_tap_state enable)
+        {
+            auto rc = LIBINPUT_CONFIG_STATUS_INVALID;
+            if (enable == LIBINPUT_CONFIG_TAP_ENABLED || enable == LIBINPUT_CONFIG_TAP_DISABLED)
+            {
+                auto fn = libinput_device_config_tap_get_finger_count();
+                rc = fn ? config.tap->set_enabled(This(), enable)
+                        : enable ? LIBINPUT_CONFIG_STATUS_UNSUPPORTED
+                                 : LIBINPUT_CONFIG_STATUS_SUCCESS;
+            }
+            return rc;
+        }
+            ui32 libinput_device_config_scroll_get_methods()
+            {
+                return config.scroll_method ? config.scroll_method->get_methods(This()) : 0u;
+            }
+        libinput_config_status libinput_device_config_scroll_set_method(libinput_config_scroll_method method)
+        {
+            auto rc = LIBINPUT_CONFIG_STATUS_INVALID;
+            if (method == LIBINPUT_CONFIG_SCROLL_NO_SCROLL // Check method is a single valid method.
+             || method == LIBINPUT_CONFIG_SCROLL_2FG
+             || method == LIBINPUT_CONFIG_SCROLL_EDGE
+             || method == LIBINPUT_CONFIG_SCROLL_ON_BUTTON_DOWN)
+            {
+                if ((libinput_device_config_scroll_get_methods() & method) != method) rc = LIBINPUT_CONFIG_STATUS_UNSUPPORTED;
+                else if (config.scroll_method)                                        rc = config.scroll_method->set_method(This(), method);
+                else /* method must be _NO_SCROLL to get here */                      rc = LIBINPUT_CONFIG_STATUS_SUCCESS;
+            }
+            return rc;
+        }
+        bool libinput_device_config_accel_is_available()
+        {
+            return config.accel && config.accel->available(This());
+        }
+        libinput_config_status libinput_device_config_accel_set_speed(fp64 speed)
+        {
+            if (speed >= -1.0 && speed <= 1.0)
+            {
+                if (!libinput_device_config_accel_is_available()) return LIBINPUT_CONFIG_STATUS_UNSUPPORTED;
+                else                                              return config.accel->set_speed(This(), speed);
+            }
+            else return LIBINPUT_CONFIG_STATUS_INVALID;
+        }
+        fp64 libinput_device_config_accel_get_speed()
+        {
+            if (!libinput_device_config_accel_is_available()) return 0;
+            else                                              return config.accel->get_speed(This());
+        }
+        ui32 libinput_device_config_accel_get_profiles()
+        {
+            if (!libinput_device_config_accel_is_available()) return 0;
+            return config.accel->get_profiles(This());
+        }
+        libinput_config_status libinput_device_config_accel_set_profile(libinput_config_accel_profile profile)
+        {
+            switch (profile)
+            {
+                case LIBINPUT_CONFIG_ACCEL_PROFILE_FLAT:
+                case LIBINPUT_CONFIG_ACCEL_PROFILE_ADAPTIVE:
+                case LIBINPUT_CONFIG_ACCEL_PROFILE_CUSTOM: break;
+                default: return LIBINPUT_CONFIG_STATUS_INVALID;
+            }
+            if (libinput_device_config_accel_is_available() && (libinput_device_config_accel_get_profiles() & profile))
+            {
+                return config.accel->set_profile(This(), profile);
+            }
+            else return LIBINPUT_CONFIG_STATUS_UNSUPPORTED;
+        }
     };
 
     struct input_prop
@@ -21229,40 +21301,6 @@ namespace netxs::lixx // li++, libinput++.
                     return ctx;
                 }
             }
-        si32 libinput_device_config_tap_get_finger_count(libinput_device_sptr li_device)
-        {
-            return li_device->config.tap ? li_device->config.tap->count(li_device) : 0;
-        }
-    libinput_config_status libinput_device_config_tap_set_enabled(libinput_device_sptr li_device, libinput_config_tap_state enable)
-    {
-        auto rc = LIBINPUT_CONFIG_STATUS_INVALID;
-        if (enable == LIBINPUT_CONFIG_TAP_ENABLED || enable == LIBINPUT_CONFIG_TAP_DISABLED)
-        {
-            auto fn = libinput_device_config_tap_get_finger_count(li_device);
-            rc = fn ? li_device->config.tap->set_enabled(li_device, enable)
-                    : enable ? LIBINPUT_CONFIG_STATUS_UNSUPPORTED
-                             : LIBINPUT_CONFIG_STATUS_SUCCESS;
-        }
-        return rc;
-    }
-        ui32 libinput_device_config_scroll_get_methods(libinput_device_sptr li_device)
-        {
-            return li_device->config.scroll_method ? li_device->config.scroll_method->get_methods(li_device) : 0u;
-        }
-    libinput_config_status libinput_device_config_scroll_set_method(libinput_device_sptr li_device, libinput_config_scroll_method method)
-    {
-        auto rc = LIBINPUT_CONFIG_STATUS_INVALID;
-        if (method == LIBINPUT_CONFIG_SCROLL_NO_SCROLL // Check method is a single valid method.
-         || method == LIBINPUT_CONFIG_SCROLL_2FG
-         || method == LIBINPUT_CONFIG_SCROLL_EDGE
-         || method == LIBINPUT_CONFIG_SCROLL_ON_BUTTON_DOWN)
-        {
-            if ((libinput_device_config_scroll_get_methods(li_device) & method) != method) rc = LIBINPUT_CONFIG_STATUS_UNSUPPORTED;
-            else if (li_device->config.scroll_method)                                      rc = li_device->config.scroll_method->set_method(li_device, method);
-            else /* method must be _NO_SCROLL to get here */                               rc = LIBINPUT_CONFIG_STATUS_SUCCESS;
-        }
-        return rc;
-    }
 }
 #if not defined(DEBUG)
     #undef log
