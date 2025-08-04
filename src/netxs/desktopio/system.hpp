@@ -4740,7 +4740,6 @@ namespace netxs::os
                 auto& event = li->libinput_get_event();
                 return event;
             }
-            // lixx: .
             // lixx: Attach mouse devices to the lixx context.
             auto attach_mouse()
             {
