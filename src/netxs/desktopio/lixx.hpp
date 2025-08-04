@@ -3078,6 +3078,7 @@ namespace netxs::lixx // li++, libinput++.
         virtual libinput_button_state libinput_event_pointer_get_button_state()                                      { if constexpr (debugmode) bad_event_type(__func__); return {}; }
         virtual si32                  libinput_event_pointer_has_axis(libinput_pointer_axis /*axis*/)                { if constexpr (debugmode) bad_event_type(__func__); return {}; }
         virtual fp64_coor             libinput_event_pointer_get_scroll_value()                                      { if constexpr (debugmode) bad_event_type(__func__); return {}; }
+        virtual fp64_coor             libinput_event_pointer_get_scroll_value_v120()                                 { if constexpr (debugmode) bad_event_type(__func__); return {}; }
 
         view event_type_to_str()
         {
@@ -3179,6 +3180,7 @@ namespace netxs::lixx // li++, libinput++.
         virtual libinput_button_state libinput_event_pointer_get_button_state()                   override { return state; }
         virtual si32                  libinput_event_pointer_has_axis(libinput_pointer_axis axis) override { return !!(active_axes & (1ul << axis)); }
         virtual fp64_coor             libinput_event_pointer_get_scroll_value()                   override { return delta; }
+        virtual fp64_coor             libinput_event_pointer_get_scroll_value_v120()              override { return v120; }
     };
     struct libinput_event_gesture : libinput_event
     {

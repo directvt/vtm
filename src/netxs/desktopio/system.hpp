@@ -4733,13 +4733,6 @@ namespace netxs::os
             {
                 li.reset();
             }
-            // lixx: .
-            auto& next_event()
-            {
-                li->libinput_dispatch();
-                auto& event = li->libinput_get_event();
-                return event;
-            }
             // lixx: Attach mouse devices to the lixx context.
             auto attach_mouse()
             {
@@ -5679,7 +5672,7 @@ namespace netxs::os
                                         break;
                                     //todo impl ext mouse buttons 129-131
                                 }
-                                if (!(dtvt::vtmode & ui::console::vt_2D)) // Don't accelerate the mouse wheel if we are already inside the vtm.
+                                if (!(dtvt::vtmode & ui::console::vt_2D) && dtvt::wheelrate) // Don't accelerate the mouse wheel if we are already inside the vtm.
                                 {
                                     m.wheelfp *= dtvt::wheelrate;
                                 }
@@ -5812,7 +5805,8 @@ namespace netxs::os
                         {
                             if (e.type == LIBINPUT_EVENT_POINTER_SCROLL_WHEEL)
                             {
-                                wheelfp = -e.libinput_event_pointer_get_scroll_value();
+                                wheelfp = -e.libinput_event_pointer_get_scroll_value_v120() / 120.0;
+                                if (dtvt::wheelrate) wheelfp *= dtvt::wheelrate;
                             }
                             else if (e.type == LIBINPUT_EVENT_POINTER_SCROLL_FINGER)
                             {
@@ -5820,13 +5814,10 @@ namespace netxs::os
                             }
                             if (wheelfp)
                             {
-                                if (dtvt::wheelrate) wheelfp /= dtvt::wheelrate;
-                                if (whlacc.x * wheelfp.x < 0 || whlacc.y * wheelfp.y < 0) // Reset accum if direction has changed.
-                                {
-                                    whlacc = {};
-                                }
+                                if (wheelfp.x != -0.0 && whlacc.x != -0.0 && whlacc.x * wheelfp.x < 0) whlacc.x = {}; // Reset accum if direction has changed.
+                                if (wheelfp.y != -0.0 && whlacc.y != -0.0 && whlacc.y * wheelfp.y < 0) whlacc.y = {};
                                 whlacc += wheelfp;
-                                wheelsi = whlacc ;
+                                wheelsi = whlacc;
                                 whlacc -= wheelsi;
                             }
                         }
