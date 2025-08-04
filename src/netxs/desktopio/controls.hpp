@@ -4653,6 +4653,14 @@ namespace netxs::ui
                 else          scroll_air = grip_origin + delta[Sixa] * r; // Allows precise (1:1) scrolling using the orthogonal axis.
                 s_to_m();
             }
+            void stepbyline(si32 delta)
+            {
+                auto step = delta * r;
+                auto prev_scroll_air = scroll_air;
+                scroll_air = std::clamp(scroll_air + step, 0, (fp64)s);
+                grip_origin += scroll_air - prev_scroll_air;
+                s_to_m();
+            }
             void commit(rect& handle)
             {
                 handle.coor[Axis]+= scroll_pos;
@@ -4694,6 +4702,7 @@ namespace netxs::ui
         math calc; // grip: Scrollbar calculator.
         bool on_pager = faux; // grip: .
         fp2d drag_origin; // grip: Drag origin.
+        fp2d gear_coord; // grip: Gear coord tracker.
 
         template<auto Event>
         void send()
@@ -4746,7 +4755,19 @@ namespace netxs::ui
             base::on(tier::mouserelease, input::key::MouseWheel, [&](hids& gear)
             {
                 if (gear.meta(hids::anyCtrl)) return; // Ctrl+Wheel is reserved for zooming.
-                if (gear.whlsi) pager(gear.whlsi > 0 ? 1 : -1);
+                if (gear.whlsi)
+                {
+                    auto delta = gear.whlsi > 0 ? 1 : -1;
+                    if (gear.captured(bell::id)) // Allow precise scrolling of text line by line using the mouse wheel while holding down the mouse button.
+                    {
+                        calc.stepbyline(-delta);
+                        send<e2::form::upon::scroll::bycoor::_<Axis>>();
+                    }
+                    else
+                    {
+                        pager(delta);
+                    }
+                }
                 gear.dismiss();
             });
             base::on(tier::mouserelease, input::key::MouseMove, [&](hids& gear)
@@ -4757,9 +4778,8 @@ namespace netxs::ui
                     {
                         calc.cursor_pos = twod{ gear.coord }[Axis];
                     }
-                    else
+                    else if (gear_coord(gear.coord))
                     {
-                        log("mouse move now=%% coor=%%", datetime::now(), gear.coord);
                         auto delta = gear.coord - drag_origin;
                         calc.stepby(delta);
                         send<e2::form::upon::scroll::bycoor::_<Axis>>();
@@ -4779,6 +4799,7 @@ namespace netxs::ui
                     if (dir == 0) // Inside the grip.
                     {
                         drag_origin = gear.coord;
+                        gear_coord = gear.coord;
                         calc.m_to_s();
                         calc.grip_origin = calc.scroll_air;
                         calc.captured = true;
