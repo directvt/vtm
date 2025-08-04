@@ -4649,8 +4649,8 @@ namespace netxs::ui
                 static constexpr auto Sixa = !Axis; // Orthogonal axis.
                 auto d1 = std::abs(delta[Axis]);
                 auto d2 = std::abs(delta[Sixa]);
-                if (d1 > d2) scroll_air = grip_origin + delta[Axis];
-                else         scroll_air = grip_origin + delta[Sixa] * r; // Allows precise (1:1) scrolling using the orthogonal axis.
+                if (d1 >= d2) scroll_air = grip_origin + delta[Axis];
+                else          scroll_air = grip_origin + delta[Sixa] * r; // Allows precise (1:1) scrolling using the orthogonal axis.
                 s_to_m();
             }
             void commit(rect& handle)
@@ -4759,11 +4759,10 @@ namespace netxs::ui
                     }
                     else
                     {
-                        if (auto delta = gear.coord - drag_origin)
-                        {
-                            calc.stepby(delta);
-                            send<e2::form::upon::scroll::bycoor::_<Axis>>();
-                        }
+                        log("mouse move now=%% coor=%%", datetime::now(), gear.coord);
+                        auto delta = gear.coord - drag_origin;
+                        calc.stepby(delta);
+                        send<e2::form::upon::scroll::bycoor::_<Axis>>();
                     }
                     gear.dismiss();
                 }
