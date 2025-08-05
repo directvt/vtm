@@ -838,18 +838,6 @@ namespace netxs::lixx // li++, libinput++.
         EVDEV_MODEL_TRACKBALL                 = 1ul << 21,
         EVDEV_MODEL_LENOVO_X220_TOUCHPAD_FW81 = 1ul << 22,
     };
-    enum property_type
-    {
-        PT_UINT,
-        PT_INT,
-        PT_STRING,
-        PT_BOOL,
-        PT_DIMENSION,
-        PT_RANGE,
-        PT_DOUBLE,
-        PT_TUPLES,
-        PT_UINT_ARRAY,
-    };
     enum button_state_enum
     {
         BUTTON_STATE_NONE,
@@ -2537,30 +2525,18 @@ namespace netxs::lixx // li++, libinput++.
         std::array<tuples_t, 32> tuples;
         ui64                     ntuples;
     };
-    struct quirk_array
-    {
-        union
-        {
-            ui32 u[32];
-        } data;
-        ui64 nelements;
-    };
     struct property_t
     {
+        using prop_variants = std::variant<bool,
+                                           ui32,
+                                           si32,
+                                           fp64,
+                                           text,
+                                           si32_coor,
+                                           si32_range,
+                                           quirk_tuples>;
         quirk         id{};
-        property_type type{};
-        text          value_s;
-        union
-        {
-            bool             b;
-            ui32             u;
-            si32             i;
-            fp64             d;
-            si32_coor        dim;
-            si32_range       range;
-            quirk_tuples     tuples;
-            quirk_array      array;
-        } value{};
+        prop_variants value;
     };
     struct section_t
     {
@@ -2577,17 +2553,18 @@ namespace netxs::lixx // li++, libinput++.
 
         void _quirk_merge_event_codes(property_sptr prop)
         {
+            auto& prop_tuples = std::get<quirk_tuples>(prop->value);
             for (auto& p : properties)
             {
                 if (p->id == prop->id) // We have a duplicated property, merge in with ours.
                 {
-                    auto offset = p->value.tuples.ntuples;
-                    auto max = p->value.tuples.tuples.size();
-                    for (auto j = 0ul; j < prop->value.tuples.ntuples; j++)
+                    auto& p_tuples = std::get<quirk_tuples>(p->value);
+                    auto offset = p_tuples.ntuples;
+                    for (auto j = 0ul; j < prop_tuples.ntuples; j++)
                     {
-                        if (offset + j >= max) break;
-                        p->value.tuples.tuples[offset + j] = prop->value.tuples.tuples[j];
-                        p->value.tuples.ntuples++;
+                        if (offset + j >= p_tuples.tuples.size()) break;
+                        p_tuples.tuples[offset + j] = prop_tuples.tuples[j];
+                        p_tuples.ntuples++;
                     }
                     return;
                 }
@@ -2595,9 +2572,8 @@ namespace netxs::lixx // li++, libinput++.
             // First time we add AttrEventCode: create a new property.
             // Unlike the other properties, this one isn't part of a section, it belongs to the quirks.
             auto newprop = ptr::shared<property_t>();
-            newprop->id           = prop->id;
-            newprop->type         = prop->type;
-            newprop->value.tuples = prop->value.tuples;
+            newprop->id    = prop->id;
+            newprop->value = prop_tuples;
             properties.emplace_back(newprop);
             floating_properties.emplace_back(newprop);
         }
@@ -2690,77 +2666,17 @@ namespace netxs::lixx // li++, libinput++.
             }
             return property_sptr{};
         }
-        bool quirks_get_bool(quirk which, bool& val)
+        template<class T>
+        bool quirks_get(quirk which, T& val)
         {
             if (auto p = _quirk_find_prop(which))
             {
-                assert(p->type == PT_BOOL);
-                val = p->value.b;
+                assert(std::holds_alternative<T>(p->value));
+                val = std::get<T>(p->value);
                 return true;
             }
             return faux;
         }
-        bool quirks_get_range(quirk which, si32_range& val)
-        {
-            if (auto p = _quirk_find_prop(which))
-            {
-                assert(p->type == PT_RANGE);
-                val = p->value.range;
-                return true;
-            }
-            return faux;
-        }
-        bool quirks_get_uint32(quirk which, ui32* val)
-        {
-            if (auto p = _quirk_find_prop(which))
-            {
-                assert(p->type == PT_UINT);
-                *val = p->value.u;
-                return true;
-            }
-            return faux;
-        }
-        bool quirks_get_string(quirk which, char** val)
-        {
-            if (auto p = _quirk_find_prop(which))
-            {
-                assert(p->type == PT_STRING);
-                *val = p->value_s.data();
-                return true;
-            }
-            return faux;
-        }
-        bool quirks_get_tuples(quirk which, const quirk_tuples** tuples)
-        {
-            if (auto p = _quirk_find_prop(which))
-            {
-                assert(p->type == PT_TUPLES);
-                *tuples = &p->value.tuples;
-                return true;
-            }
-            return faux;
-        }
-        bool quirks_get_dimensions(quirk which, si32_coor& val)
-        {
-            if (auto p = _quirk_find_prop(which))
-            {
-                assert(p->type == PT_DIMENSION);
-                val = p->value.dim;
-                return true;
-            }
-            return faux;
-        }
-        bool quirks_get_double(quirk which, fp64& val)
-        {
-            if (auto p = _quirk_find_prop(which))
-            {
-                assert(p->type == PT_DOUBLE);
-                val = p->value.d;
-                return true;
-            }
-            return faux;
-        }
-
         static char const* quirk_get_name(quirk q)
         {
             switch(q)
@@ -6196,7 +6112,7 @@ namespace netxs::lixx // li++, libinput++.
             auto quirks_v = seat->libinput->quirks;
             if (auto q = ud_device->quirks_fetch_for_device(quirks_v))
             {
-                q->quirks_get_bool(model_quirk, result);
+                q->quirks_get(model_quirk, result);
             }
             return result;
         }
@@ -12443,7 +12359,7 @@ namespace netxs::lixx // li++, libinput++.
                     if (auto q = li_device->ud_device->quirks_fetch_for_device(quirks))
                     {
                         auto r = si32_range{};
-                        if (q->quirks_get_range(QUIRK_ATTR_TOUCH_SIZE_RANGE, r))
+                        if (q->quirks_get(QUIRK_ATTR_TOUCH_SIZE_RANGE, r))
                         {
                             auto hi = r.max;
                             auto lo = r.min;
@@ -12485,7 +12401,7 @@ namespace netxs::lixx // li++, libinput++.
                     auto r = si32_range{};
                     auto hi = 0;
                     auto lo = 0;
-                    if (q && q->quirks_get_range(QUIRK_ATTR_PRESSURE_RANGE, r))
+                    if (q && q->quirks_get(QUIRK_ATTR_PRESSURE_RANGE, r))
                     {
                         hi = r.max;
                         lo = r.min;
@@ -12907,10 +12823,10 @@ namespace netxs::lixx // li++, libinput++.
                     }
                     bool tp_is_tpkb_combo_below(libinput_device_sptr li_device)
                     {
-                        auto prop = (char*)nullptr;
                         auto rc = faux;
+                        auto prop = text{};
                         auto quirks = li_device->li_context()->quirks;
-                        if (auto q = li_device->ud_device->quirks_fetch_for_device(quirks); q->quirks_get_string(QUIRK_ATTR_TPKBCOMBO_LAYOUT, &prop))
+                        if (auto q = li_device->ud_device->quirks_fetch_for_device(quirks); q->quirks_get(QUIRK_ATTR_TPKBCOMBO_LAYOUT, prop))
                         {
                             rc = prop == "below"sv;
                         }
@@ -13014,12 +12930,12 @@ namespace netxs::lixx // li++, libinput++.
                     }
                         si32 tp_read_palm_pressure_prop(libinput_device_sptr li_device)
                         {
-                            static constexpr auto default_palm_threshold = 130u;
+                            static constexpr auto default_palm_threshold = ui32{ 130 };
                             auto threshold = default_palm_threshold;
                             auto quirks = li_device->li_context()->quirks;
                             if (auto q = li_device->ud_device->quirks_fetch_for_device(quirks))
                             {
-                                q->quirks_get_uint32(QUIRK_ATTR_PALM_PRESSURE_THRESHOLD, &threshold);
+                                q->quirks_get(QUIRK_ATTR_PALM_PRESSURE_THRESHOLD, threshold);
                             }
                             return threshold;
                         }
@@ -13042,8 +12958,8 @@ namespace netxs::lixx // li++, libinput++.
                         auto quirks = li_device->li_context()->quirks;
                         if (auto q = li_device->ud_device->quirks_fetch_for_device(quirks))
                         {
-                            auto threshold = 0u;
-                            if (q->quirks_get_uint32(QUIRK_ATTR_PALM_SIZE_THRESHOLD, &threshold) && threshold != 0)
+                            auto threshold = ui32{};
+                            if (q->quirks_get(QUIRK_ATTR_PALM_SIZE_THRESHOLD, threshold) && threshold != 0)
                             {
                                 tp.palm.use_size = true;
                                 tp.palm.size_threshold = threshold;
@@ -13471,10 +13387,10 @@ namespace netxs::lixx // li++, libinput++.
                 auto quirks = li_device->li_context()->quirks;
                 if (auto q = li_device->ud_device->quirks_fetch_for_device(quirks))
                 {
-                    auto threshold = 0u;
+                    auto threshold = ui32{};
                     if (li_device->libevdev_has_event_code<EV_ABS>(ABS_MT_PRESSURE))
                     {
-                        if (q->quirks_get_uint32(QUIRK_ATTR_THUMB_PRESSURE_THRESHOLD, &threshold))
+                        if (q->quirks_get(QUIRK_ATTR_THUMB_PRESSURE_THRESHOLD, threshold))
                         {
                             tp.thumb.use_pressure = true;
                             tp.thumb.pressure_threshold = threshold;
@@ -13482,7 +13398,7 @@ namespace netxs::lixx // li++, libinput++.
                     }
                     if (li_device->libevdev_has_event_code<EV_ABS>(ABS_MT_TOUCH_MAJOR))
                     {
-                        if (q->quirks_get_uint32(QUIRK_ATTR_THUMB_SIZE_THRESHOLD, &threshold))
+                        if (q->quirks_get(QUIRK_ATTR_THUMB_SIZE_THRESHOLD, threshold))
                         {
                             tp.thumb.use_size = true;
                             tp.thumb.size_threshold = threshold;
@@ -15439,7 +15355,7 @@ namespace netxs::lixx // li++, libinput++.
                             {
                                 // Note: the quirk term "range" refers to the hi/lo settings, not the full available range for the pressure axis.
                                 auto r = si32_range{};
-                                if (q->quirks_get_range(QUIRK_ATTR_PRESSURE_RANGE, r))
+                                if (q->quirks_get(QUIRK_ATTR_PRESSURE_RANGE, r))
                                 {
                                     if (r.min < r.max)
                                     {
@@ -16624,7 +16540,7 @@ namespace netxs::lixx // li++, libinput++.
                     if (auto q = li_device->ud_device->quirks_fetch_for_device(quirks))
                     {
                         // By default, always enable smoothing except on AES or uinput devices. AttrTabletSmoothing can override this, if necessary.
-                        if (!q || !q->quirks_get_bool(QUIRK_ATTR_TABLET_SMOOTHING, use_smoothing))
+                        if (!q || !q->quirks_get(QUIRK_ATTR_TABLET_SMOOTHING, use_smoothing))
                         {
                             use_smoothing = !is_aes && !is_virtual;
                         }
@@ -18513,30 +18429,30 @@ namespace netxs::lixx // li++, libinput++.
                 fallback.abs.seat_slot = -1;
                 evdev_device_init_abs_range_warnings(li_device);
             }
-                    bool parse_switch_reliability_property(char const* prop, switch_reliability* reliability)
+                    bool parse_switch_reliability_property(view prop, switch_reliability& reliability)
                     {
-                        if (!prop)
+                        if (prop.empty())
                         {
-                            *reliability = RELIABILITY_RELIABLE;
+                            reliability = RELIABILITY_RELIABLE;
                             return true;
                         }
-                             if ("reliable"sv   == prop) *reliability = RELIABILITY_RELIABLE;
-                        else if ("unreliable"sv == prop) *reliability = RELIABILITY_UNRELIABLE;
-                        else if ("write_open"sv == prop) *reliability = RELIABILITY_WRITE_OPEN;
+                             if ("reliable"sv   == prop) reliability = RELIABILITY_RELIABLE;
+                        else if ("unreliable"sv == prop) reliability = RELIABILITY_UNRELIABLE;
+                        else if ("write_open"sv == prop) reliability = RELIABILITY_WRITE_OPEN;
                         else                             return faux;
                         return true;
                     }
                 switch_reliability evdev_read_switch_reliability_prop(libinput_device_sptr li_device)
                 {
                     auto r = switch_reliability{};
-                    auto prop = (char*)nullptr;
+                    auto prop = text{};
                     auto quirks = li_device->li_context()->quirks;
                     auto q = li_device->ud_device->quirks_fetch_for_device(quirks);
-                    if (!q || !q->quirks_get_string(QUIRK_ATTR_LID_SWITCH_RELIABILITY, &prop))
+                    if (!q || !q->quirks_get(QUIRK_ATTR_LID_SWITCH_RELIABILITY, prop))
                     {
                         r = RELIABILITY_RELIABLE;
                     }
-                    else if (!parse_switch_reliability_property(prop, &r))
+                    else if (!parse_switch_reliability_property(prop, r))
                     {
                         log("%s%: switch reliability set to unknown value '%s%'", li_device->devname, prop);
                         r = RELIABILITY_RELIABLE;
@@ -19034,7 +18950,7 @@ namespace netxs::lixx // li++, libinput++.
                 auto is_set = faux;
                 assert((all_model_flags & model) == 0); // Check for flag re-use.
                 all_model_flags |= model;
-                if (q->quirks_get_bool(quirk, is_set))
+                if (q->quirks_get(quirk, is_set))
                 {
                     if (is_set)
                     {
@@ -19087,7 +19003,7 @@ namespace netxs::lixx // li++, libinput++.
     }
     void evdev_pre_configure_model_quirks(libinput_device_sptr li_device)
     {
-        auto prop = (char*)nullptr;
+        auto prop = text{};
         auto is_virtual = faux;
         // Touchpad claims to have 4 slots but only ever sends 2.   https://bugs.freedesktop.org/show_bug.cgi?id=98100
         if (li_device->evdev_device_has_model_quirk(QUIRK_MODEL_HP_ZBOOK_STUDIO_G3))
@@ -19097,23 +19013,23 @@ namespace netxs::lixx // li++, libinput++.
         // Generally we don't care about MSC_TIMESTAMP and it can cause unnecessary wakeups but on some devices we need to watch it for pointer jumps.
         auto quirks_v = li_device->li_context()->quirks;
         auto q = li_device->ud_device->quirks_fetch_for_device(quirks_v);
-        if (!q || !q->quirks_get_string(QUIRK_ATTR_MSC_TIMESTAMP, &prop) || "watch"sv != prop)
+        if (!q || !q->quirks_get(QUIRK_ATTR_MSC_TIMESTAMP, prop) || "watch"sv != prop)
         {
             li_device->libevdev_disable_event_code<EV_MSC>(MSC_TIMESTAMP);
         }
         if (q)
         {
-            auto t = (quirk_tuples const*)nullptr;
-            if (q->quirks_get_tuples(QUIRK_ATTR_EVENT_CODE, &t))
+            auto t = quirk_tuples{};
+            if (q->quirks_get(QUIRK_ATTR_EVENT_CODE, t))
             {
-                for (auto i = 0u; i < t->ntuples; i++)
+                for (auto i = 0u; i < t.ntuples; i++)
                 {
                     auto absinfo = abs_info_t{};
                     absinfo.minimum = 0;
                     absinfo.maximum = 1;
-                    auto type = t->tuples[i].first;
-                    auto code = t->tuples[i].second;
-                    auto stat = t->tuples[i].third;
+                    auto type = t.tuples[i].first;
+                    auto code = t.tuples[i].second;
+                    auto stat = t.tuples[i].third;
                          if (type == EV_ABS) li_device->set_event_type_code<EV_ABS>(stat, code, &absinfo);
                     else if (type == EV_REL) li_device->set_event_type_code<EV_REL>(stat, code);
                     else if (type == EV_KEY) li_device->set_event_type_code<EV_KEY>(stat, code);
@@ -19126,12 +19042,12 @@ namespace netxs::lixx // li++, libinput++.
                     log("quirks: %s% %s% ('type=%% code=%%')", stat ? "enabling" : "disabling", libevdev_event_type_get_name(type), type, code);
                 }
             }
-            if (q->quirks_get_tuples(QUIRK_ATTR_INPUT_PROP, &t))
+            if (q->quirks_get(QUIRK_ATTR_INPUT_PROP, t))
             {
-                for (auto i = 0u; i < t->ntuples; i++)
+                for (auto i = 0u; i < t.ntuples; i++)
                 {
-                    auto p = (ui32)t->tuples[i].first;
-                    auto enable = t->tuples[i].second;
+                    auto p = (ui32)t.tuples[i].first;
+                    auto enable = t.tuples[i].second;
                     if (enable)
                     {
                         li_device->libevdev_enable_property(p);
@@ -19147,7 +19063,7 @@ namespace netxs::lixx // li++, libinput++.
                     log("quirks: %s% %s% (%#x%)", enable ? "enabling" : "disabling", libevdev_property_get_name(p), p);
                 }
             }
-            if (!q->quirks_get_bool(QUIRK_ATTR_IS_VIRTUAL, is_virtual))
+            if (!q->quirks_get(QUIRK_ATTR_IS_VIRTUAL, is_virtual))
             {
                 is_virtual = !::getenv("LIBINPUT_RUNNING_TEST_SUITE") && li_device->libinput_ud_device_is_virtual();
             }
@@ -19359,7 +19275,7 @@ namespace netxs::lixx // li++, libinput++.
         if (auto q = li_device->ud_device->quirks_fetch_for_device(quirks_v))
         {
             auto dim = si32_coor{};
-            if (q->quirks_get_dimensions(QUIRK_ATTR_RESOLUTION_HINT, dim))
+            if (q->quirks_get(QUIRK_ATTR_RESOLUTION_HINT, dim))
             {
                 res = dim;
                 return true;
@@ -19373,7 +19289,7 @@ namespace netxs::lixx // li++, libinput++.
         if (auto q = li_device->ud_device->quirks_fetch_for_device(quirks))
         {
             auto dim = si32_coor{};
-            if (q->quirks_get_dimensions(QUIRK_ATTR_SIZE_HINT, dim))
+            if (q->quirks_get(QUIRK_ATTR_SIZE_HINT, dim))
             {
                 size = dim;
                 return true;
@@ -19716,7 +19632,7 @@ namespace netxs::lixx // li++, libinput++.
             auto quirks = li_device->li_context()->quirks;
             if (auto q = li_device->ud_device->quirks_fetch_for_device(quirks))
             {
-                q->quirks_get_bool(QUIRK_ATTR_USE_VELOCITY_AVERAGING, use_velocity_averaging);
+                q->quirks_get(QUIRK_ATTR_USE_VELOCITY_AVERAGING, use_velocity_averaging);
                 if (use_velocity_averaging)
                 {
                     log("velocity averaging is turned on");
@@ -19872,8 +19788,8 @@ namespace netxs::lixx // li++, libinput++.
             auto quirks = li_device->li_context()->quirks;
             if (auto q = li_device->ud_device->quirks_fetch_for_device(quirks))
             {
-                auto prop = (char*)nullptr;
-                if (q->quirks_get_string(QUIRK_ATTR_TRACKPOINT_INTEGRATION, &prop))
+                auto prop = text{};
+                if (q->quirks_get(QUIRK_ATTR_TRACKPOINT_INTEGRATION, prop))
                 {
                     if ("internal"sv == prop)
                     {
@@ -19899,7 +19815,7 @@ namespace netxs::lixx // li++, libinput++.
                 auto quirks = li_device->li_context()->quirks;
                 if (auto q = li_device->ud_device->quirks_fetch_for_device(quirks))
                 {
-                    q->quirks_get_double(QUIRK_ATTR_TRACKPOINT_MULTIPLIER, multiplier);
+                    q->quirks_get(QUIRK_ATTR_TRACKPOINT_MULTIPLIER, multiplier);
                 }
                 if (multiplier <= 0.0)
                 {
@@ -20002,8 +19918,8 @@ namespace netxs::lixx // li++, libinput++.
                 auto quirks = li_device->li_context()->quirks;
                 if (auto q = li_device->ud_device->quirks_fetch_for_device(quirks))
                 {
-                    auto prop = (char*)nullptr;
-                    if (q->quirks_get_string(QUIRK_ATTR_KEYBOARD_INTEGRATION, &prop))
+                    auto prop = text{};
+                    if (q->quirks_get(QUIRK_ATTR_KEYBOARD_INTEGRATION, prop))
                     {
                         if ("internal"sv == prop)
                         {
@@ -20641,8 +20557,7 @@ namespace netxs::lixx // li++, libinput++.
                                     {
                                         auto p = ptr::shared<property_t>();
                                         p->id = q;
-                                        p->type = PT_BOOL;
-                                        p->value.b = b;
+                                        p->value = b;
                                         s->properties.push_back(p);
                                         s->has_property = true;
                                         return true;
@@ -20864,8 +20779,7 @@ namespace netxs::lixx // li++, libinput++.
                                     p->id = QUIRK_ATTR_SIZE_HINT;
                                     if (parse_dimension_property(value, dim))
                                     {
-                                        p->type = PT_DIMENSION;
-                                        p->value.dim = dim;
+                                        p->value = dim;
                                         rc = true;
                                     }
                                 }
@@ -20874,8 +20788,7 @@ namespace netxs::lixx // li++, libinput++.
                                     p->id = QUIRK_ATTR_TOUCH_SIZE_RANGE;
                                     if (parse_range_property(value, range))
                                     {
-                                        p->type = PT_RANGE;
-                                        p->value.range = range;
+                                        p->value = range;
                                         rc = true;
                                     }
                                 }
@@ -20884,8 +20797,7 @@ namespace netxs::lixx // li++, libinput++.
                                     p->id = QUIRK_ATTR_PALM_SIZE_THRESHOLD;
                                     if (auto v = utf::to_int<ui32>(value))
                                     {
-                                        p->type = PT_UINT;
-                                        p->value.u = v.value();
+                                        p->value = v.value();
                                         rc = true;
                                     }
                                 }
@@ -20894,8 +20806,7 @@ namespace netxs::lixx // li++, libinput++.
                                     p->id = QUIRK_ATTR_LID_SWITCH_RELIABILITY;
                                     if (value == "reliable" || value == "write_open" || value == "unreliable")
                                     {
-                                        p->type = PT_STRING;
-                                        p->value_s = value;
+                                        p->value = text{ value };
                                         rc = true;
                                     }
                                 }
@@ -20904,8 +20815,7 @@ namespace netxs::lixx // li++, libinput++.
                                     p->id = QUIRK_ATTR_KEYBOARD_INTEGRATION;
                                     if (value == "internal" && value != "external")
                                     {
-                                        p->type = PT_STRING;
-                                        p->value_s = value;
+                                        p->value = text{ value };
                                         rc = true;
                                     }
                                 }
@@ -20914,8 +20824,7 @@ namespace netxs::lixx // li++, libinput++.
                                     p->id = QUIRK_ATTR_TRACKPOINT_INTEGRATION;
                                     if (value == "internal" && value != "external")
                                     {
-                                        p->type = PT_STRING;
-                                        p->value_s = value;
+                                        p->value = text{ value };
                                         rc = true;
                                     }
                                 }
@@ -20924,8 +20833,7 @@ namespace netxs::lixx // li++, libinput++.
                                     p->id = QUIRK_ATTR_TPKBCOMBO_LAYOUT;
                                     if (value == "below")
                                     {
-                                        p->type = PT_STRING;
-                                        p->value_s = value;
+                                        p->value = text{ value };
                                         rc = true;
                                     }
                                 }
@@ -20934,8 +20842,7 @@ namespace netxs::lixx // li++, libinput++.
                                     p->id = QUIRK_ATTR_PRESSURE_RANGE;
                                     if (parse_range_property(value, range))
                                     {
-                                        p->type = PT_RANGE;
-                                        p->value.range = range;
+                                        p->value = range;
                                         rc = true;
                                     }
                                 }
@@ -20944,8 +20851,7 @@ namespace netxs::lixx // li++, libinput++.
                                     p->id = QUIRK_ATTR_PALM_PRESSURE_THRESHOLD;
                                     if (auto v = utf::to_int<ui32>(value))
                                     {
-                                        p->type = PT_UINT;
-                                        p->value.u = v.value();
+                                        p->value = v.value();
                                         rc = true;
                                     }
                                 }
@@ -20954,8 +20860,7 @@ namespace netxs::lixx // li++, libinput++.
                                     p->id = QUIRK_ATTR_RESOLUTION_HINT;
                                     if (parse_dimension_property(value, dim))
                                     {
-                                        p->type = PT_DIMENSION;
-                                        p->value.dim = dim;
+                                        p->value = dim;
                                         rc = true;
                                     }
                                 }
@@ -20964,23 +20869,20 @@ namespace netxs::lixx // li++, libinput++.
                                     p->id = QUIRK_ATTR_TRACKPOINT_MULTIPLIER;
                                     if (auto v = utf::to_int<fp64>(value))
                                     {
-                                        p->type = PT_DOUBLE;
-                                        p->value.d = v.value();
+                                        p->value = v.value();
                                         rc = true;
                                     }
                                 }
                                 else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_USE_VELOCITY_AVERAGING))
                                 {
                                     p->id = QUIRK_ATTR_USE_VELOCITY_AVERAGING;
-                                    p->type = PT_BOOL;
-                                    p->value.b = value == "1";
+                                    p->value = value == "1";
                                     rc = true;
                                 }
                                 else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_TABLET_SMOOTHING))
                                 {
                                     p->id = QUIRK_ATTR_TABLET_SMOOTHING;
-                                    p->type = PT_BOOL;
-                                    p->value.b = value == "1";
+                                    p->value = value == "1";
                                     rc = true;
                                 }
                                 else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_THUMB_PRESSURE_THRESHOLD))
@@ -20988,8 +20890,7 @@ namespace netxs::lixx // li++, libinput++.
                                     p->id = QUIRK_ATTR_THUMB_PRESSURE_THRESHOLD;
                                     if (auto v = utf::to_int<ui32>(value))
                                     {
-                                        p->type = PT_UINT;
-                                        p->value.u = v.value();
+                                        p->value = v.value();
                                         rc = true;
                                     }
                                 }
@@ -20998,8 +20899,7 @@ namespace netxs::lixx // li++, libinput++.
                                     p->id = QUIRK_ATTR_THUMB_SIZE_THRESHOLD;
                                     if (auto v = utf::to_int<ui32>(value))
                                     {
-                                        p->type = PT_UINT;
-                                        p->value.u = v.value();
+                                        p->value = v.value();
                                         rc = true;
                                     }
                                 }
@@ -21008,8 +20908,7 @@ namespace netxs::lixx // li++, libinput++.
                                     p->id = QUIRK_ATTR_MSC_TIMESTAMP;
                                     if (value == "watch")
                                     {
-                                        p->type = PT_STRING;
-                                        p->value_s = value;
+                                        p->value = text{ value };
                                         rc = true;
                                     }
                                 }
@@ -21020,14 +20919,15 @@ namespace netxs::lixx // li++, libinput++.
                                     p->id = QUIRK_ATTR_EVENT_CODE;
                                     if (parse_evcode_property(value, events.data(), nevents) && nevents != 0)
                                     {
+                                        auto value_tuples = quirk_tuples{};
                                         for (auto i = 0u; i < nevents; i++)
                                         {
-                                            p->value.tuples.tuples[i].first = events[i].type;
-                                            p->value.tuples.tuples[i].second = events[i].code;
-                                            p->value.tuples.tuples[i].third = events[i].value;
+                                            value_tuples.tuples[i].first = events[i].type;
+                                            value_tuples.tuples[i].second = events[i].code;
+                                            value_tuples.tuples[i].third = events[i].value;
                                         }
-                                        p->value.tuples.ntuples = nevents;
-                                        p->type = PT_TUPLES;
+                                        value_tuples.ntuples = nevents;
+                                        p->value = value_tuples;
                                         rc = true;
                                     }
                                 }
@@ -21038,21 +20938,21 @@ namespace netxs::lixx // li++, libinput++.
                                     p->id = QUIRK_ATTR_INPUT_PROP;
                                     if (parse_input_prop_property(value, props, nprops) && nprops != 0)
                                     {
+                                        auto value_tuples = quirk_tuples{};
                                         for (auto i = 0u; i < nprops; i++)
                                         {
-                                            p->value.tuples.tuples[i].first  = props[i].prop;
-                                            p->value.tuples.tuples[i].second = props[i].enabled;
+                                            value_tuples.tuples[i].first  = props[i].prop;
+                                            value_tuples.tuples[i].second = props[i].enabled;
                                         }
-                                        p->value.tuples.ntuples = nprops;
-                                        p->type = PT_TUPLES;
+                                        value_tuples.ntuples = nprops;
+                                        p->value = value_tuples;
                                         rc = true;
                                     }
                                 }
                                 else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_IS_VIRTUAL))
                                 {
                                     p->id = QUIRK_ATTR_IS_VIRTUAL;
-                                    p->type = PT_BOOL;
-                                    p->value.b = value == "1";
+                                    p->value = value == "1";
                                     rc = true;
                                 }
                                 else
