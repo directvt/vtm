@@ -1052,7 +1052,7 @@ namespace netxs::lixx // li++, libinput++.
     using libinput_seat_sptr                  = sptr<struct libinput_seat_t>;
     using libinput_timer_sptr                 = sptr<struct libinput_timer_t<struct libinput_timer_host>>;
     using libinput_device_sptr                = sptr<struct libinput_device_t>;
-    using libinput_source_sptr                = sptr<struct libinput_source_t>;
+    using libinput_source_sptr                = sptr<struct libinput_event_source_t>;
     using libinput_tablet_tool_sptr           = sptr<struct libinput_tablet_tool>;
     using libinput_event_listener_sptr        = sptr<struct libinput_event_listener>;
     using libinput_paired_keyboard_sptr       = sptr<struct libinput_paired_keyboard>;
@@ -2505,7 +2505,7 @@ namespace netxs::lixx // li++, libinput++.
         virtual void      restart(void* data, time now)                                  {        impl.touchpad_accelerator_restart(data, now); }
     };
 
-    struct libinput_source_t
+    struct libinput_event_source_t
     {
         libinput_source_dispatch_t dispatch;
         void*                      dispatch_arg;
@@ -2528,10 +2528,6 @@ namespace netxs::lixx // li++, libinput++.
     struct quirk_dimensions //todo use ui64_coor
     {
         ui64 x, y;
-    };
-    struct quirk_range //todo use si32_range
-    {
-        si32 lower, upper;
     };
     struct quirk_tuples
     {
@@ -2564,7 +2560,7 @@ namespace netxs::lixx // li++, libinput++.
             si32             i;
             fp64             d;
             quirk_dimensions dim;
-            quirk_range      range;
+            si32_range       range;
             quirk_tuples     tuples;
             quirk_array      array;
         } value{};
@@ -2707,12 +2703,12 @@ namespace netxs::lixx // li++, libinput++.
             }
             return faux;
         }
-        bool quirks_get_range(quirk which, quirk_range* val)
+        bool quirks_get_range(quirk which, si32_range& val)
         {
             if (auto p = _quirk_find_prop(which))
             {
                 assert(p->type == PT_RANGE);
-                *val = p->value.range;
+                val = p->value.range;
                 return true;
             }
             return faux;
@@ -3033,7 +3029,7 @@ namespace netxs::lixx // li++, libinput++.
         }
         libinput_source_sptr libinput_add_event_source(si32 fd, libinput_source_dispatch_t dispatch, void* dispatch_arg)
         {
-            auto source = ptr::shared<libinput_source_t>();
+            auto source = ptr::shared<libinput_event_source_t>();
             source->dispatch     = dispatch;
             source->dispatch_arg = dispatch_arg;
             source->fd           = fd;
@@ -5025,7 +5021,7 @@ namespace netxs::lixx // li++, libinput++.
         si32 libinput_dispatch()
         {
             static auto take_time_snapshot = byte{};
-            auto source = (libinput_source_t*)nullptr;
+            auto source = (libinput_event_source_t*)nullptr;
             auto ep = std::array<::epoll_event, 32>{};
             // Every 10 calls to libinput_dispatch() we take the current time so we can check the delay between our current time and the event timestamps.
                  if ((++take_time_snapshot % 10) == 0) dispatch_time = datetime::now();
@@ -5034,7 +5030,7 @@ namespace netxs::lixx // li++, libinput++.
             if (count < 0) return -errno;
             for (auto i = 0; i < count; ++i)
             {
-                source = (libinput_source_t*)ep[i].data.ptr;
+                source = (libinput_event_source_t*)ep[i].data.ptr;
                 if (source->fd != os::invalid_fd)
                 {
                     source->dispatch(source->dispatch_arg);
@@ -12449,11 +12445,11 @@ namespace netxs::lixx // li++, libinput++.
                     auto quirks = li_device->li_context()->quirks;
                     if (auto q = li_device->ud_device->quirks_fetch_for_device(quirks))
                     {
-                        auto r = quirk_range{};
-                        if (q->quirks_get_range(QUIRK_ATTR_TOUCH_SIZE_RANGE, &r))
+                        auto r = si32_range{};
+                        if (q->quirks_get_range(QUIRK_ATTR_TOUCH_SIZE_RANGE, r))
                         {
-                            auto hi = r.upper;
-                            auto lo = r.lower;
+                            auto hi = r.max;
+                            auto lo = r.min;
                             if (li_device->libevdev_get_num_slots() < 5)
                             {
                                 log("Expected 5+ slots for touch size detection");
@@ -12489,13 +12485,13 @@ namespace netxs::lixx // li++, libinput++.
                     assert(abs);
                     auto quirks = li_device->li_context()->quirks;
                     auto q = li_device->ud_device->quirks_fetch_for_device(quirks);
-                    auto r = quirk_range{};
+                    auto r = si32_range{};
                     auto hi = 0;
                     auto lo = 0;
-                    if (q && q->quirks_get_range(QUIRK_ATTR_PRESSURE_RANGE, &r))
+                    if (q && q->quirks_get_range(QUIRK_ATTR_PRESSURE_RANGE, r))
                     {
-                        hi = r.upper;
-                        lo = r.lower;
+                        hi = r.max;
+                        lo = r.min;
                         if (hi == 0 && lo == 0)
                         {
                             log("pressure-based touch detection disabled");
@@ -15445,13 +15441,13 @@ namespace netxs::lixx // li++, libinput++.
                             if (auto q = device->ud_device->quirks_fetch_for_device(quirks))
                             {
                                 // Note: the quirk term "range" refers to the hi/lo settings, not the full available range for the pressure axis.
-                                auto r = quirk_range{};
-                                if (q->quirks_get_range(QUIRK_ATTR_PRESSURE_RANGE, &r))
+                                auto r = si32_range{};
+                                if (q->quirks_get_range(QUIRK_ATTR_PRESSURE_RANGE, r))
                                 {
-                                    if (r.lower < r.upper)
+                                    if (r.min < r.max)
                                     {
-                                        *hi = r.lower;
-                                        *lo = r.upper;
+                                        *hi = r.min;
+                                        *lo = r.max;
                                         status = true;
                                     }
                                     else
@@ -20873,7 +20869,7 @@ namespace netxs::lixx // li++, libinput++.
                                 auto p = ptr::shared<property_t>();
                                 auto rc = faux;
                                 auto dim = quirk_dimensions{};
-                                auto range = quirk_range{};
+                                auto range = si32_range{};
                                 if (key == quirks_t::quirk_get_name(QUIRK_ATTR_SIZE_HINT))
                                 {
                                     p->id = QUIRK_ATTR_SIZE_HINT;
@@ -20887,7 +20883,7 @@ namespace netxs::lixx // li++, libinput++.
                                 else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_TOUCH_SIZE_RANGE))
                                 {
                                     p->id = QUIRK_ATTR_TOUCH_SIZE_RANGE;
-                                    if (parse_range_property(value, range.upper, range.lower))
+                                    if (parse_range_property(value, range.max, range.min))
                                     {
                                         p->type = PT_RANGE;
                                         p->value.range = range;
@@ -20947,7 +20943,7 @@ namespace netxs::lixx // li++, libinput++.
                                 else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_PRESSURE_RANGE))
                                 {
                                     p->id = QUIRK_ATTR_PRESSURE_RANGE;
-                                    if (parse_range_property(value, range.upper, range.lower))
+                                    if (parse_range_property(value, range.max, range.min))
                                     {
                                         p->type = PT_RANGE;
                                         p->value.range = range;
