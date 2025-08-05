@@ -6692,10 +6692,44 @@ namespace netxs::lixx // li++, libinput++.
             }
             else return LIBINPUT_CONFIG_STATUS_UNSUPPORTED;
         }
+        void evdev_read_calibration_prop()
+        {
+            auto prop = udev_device_get_property_value("LIBINPUT_CALIBRATION_MATRIX");
+            if (prop && abs.absinfo_x && abs.absinfo_y) // Parses a set of 6 space-separated floats.
+            {
+                auto calibration = std::array<fp32, 6>{};
+                auto strv = utf::split<true>(prop, " ");
+                if (strv.size() >= calibration.size())
+                {
+                    auto head = strv.begin();
+                    for (auto& c : calibration)
+                    {
+                        auto& s = *head++;
+                        if (auto v = utf::to_int<fp64>(s))
+                        {
+                            c = v.value();
+                        }
+                        else
+                        {
+                            log("Calibration matrix is broken");
+                            return;
+                        }
+                    }
+                    abs.default_calibration.matrix_from_farray6(calibration);
+                    evdev_device_calibrate(calibration);
+                    log("Apply calibration: %f% %f% %f% %f% %f% %f%",
+                            calibration[0],
+                            calibration[1],
+                            calibration[2],
+                            calibration[3],
+                            calibration[4],
+                            calibration[5]);
+                }
+            }
+        }
     };
 
     libinput_device_sptr libinput_device_create(libinput_seat_sptr seat, ud_device_sptr ud_device);
-    void evdev_read_calibration_prop(libinput_device_sptr li_device);
 
     struct libinput_paired_keyboard
     {
@@ -18669,7 +18703,7 @@ namespace netxs::lixx // li++, libinput++.
             else
             {
                 path_list.push_back(li_device);
-                evdev_read_calibration_prop(li_device);
+                li_device->evdev_read_calibration_prop();
                 li_device->output_name = li_device->udev_device_get_property_value("WL_OUTPUT");
             }
         }
@@ -18834,7 +18868,7 @@ namespace netxs::lixx // li++, libinput++.
             {
                 if (auto li_device = libinput_device_create(seat, ud_device))
                 {
-                    evdev_read_calibration_prop(li_device);
+                    li_device->evdev_read_calibration_prop();
                     li_device->output_name = li_device->udev_device_get_property_value("WL_OUTPUT");
                     return li_device;
                 }
@@ -20199,57 +20233,6 @@ namespace netxs::lixx // li++, libinput++.
         }
         return li_device;
     }
-            bool parse_calibration_property(qiew prop, std::array<fp32, 6>& calibration_out)
-            {
-                // Parses a set of 6 space-separated floats.
-                if (!prop) return faux;
-                auto rc = faux;
-                auto strv = utf::split<true>(prop, " ");
-                auto num_calibration = strv.size();
-                if (num_calibration >= 6)
-                {
-                    auto calibration = std::array<fp32, 6>{};
-                    auto head = strv.begin();
-                    for (auto& c : calibration)
-                    {
-                        auto& s = *head++;
-                        if (auto v = utf::to_int<fp64>(s))
-                        {
-                            c = v.value();
-                        }
-                        else return faux;
-                    }
-                    calibration_out = calibration;
-                    rc = true;
-                }
-                return rc;
-            }
-            void evdev_device_set_default_calibration(libinput_device_sptr li_device, std::array<fp32, 6> const& calibration)
-            {
-                li_device->abs.default_calibration.matrix_from_farray6(calibration);
-                li_device->evdev_device_calibrate(calibration);
-            }
-        void evdev_read_calibration_prop(libinput_device_sptr li_device)
-        {
-            if (auto prop = li_device->udev_device_get_property_value("LIBINPUT_CALIBRATION_MATRIX"))
-            {
-                if (li_device->abs.absinfo_x && li_device->abs.absinfo_y)
-                {
-                    auto calibration = std::array<fp32, 6>{};
-                    if (parse_calibration_property(prop, calibration))
-                    {
-                        evdev_device_set_default_calibration(li_device, calibration);
-                        log("Apply calibration: %f% %f% %f% %f% %f% %f%",
-                                calibration[0],
-                                calibration[1],
-                                calibration[2],
-                                calibration[3],
-                                calibration[4],
-                                calibration[5]);
-                    }
-                }
-            }
-        }
     libinput_sptr libinput_create_context(void* user_data = nullptr)
     {
         auto li = ptr::shared<libinput_t>();
