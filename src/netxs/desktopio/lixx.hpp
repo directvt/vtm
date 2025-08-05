@@ -4891,14 +4891,62 @@ namespace netxs::lixx // li++, libinput++.
 
         void libinput_device_removed(ud_device_sptr ud_device);
         void libinput_device_added(ud_device_sptr ud_device);
-        void libinput_init_quirks();
-        libinput_seat_sptr path_seat_get_for_device(ud_device_sptr ud_device);
-        libinput_seat_sptr path_seat_create(view seat_name, view seat_logical_name);
         void remove_device(libinput_device_sptr li_device);
         void libinput_remove_devices();
         void input_enable();
         void input_disable();
 
+        void libinput_init_quirks()
+        {
+            if (libinput_t::quirks_initialized) return;
+            libinput_t::quirks_initialized = true; // If we fail, we'll fail next time too.
+            auto quirks_pir_ptr = ::getenv("LIBINPUT_QUIRKS_DIR");
+            auto data_path = text{};
+            auto override_file = text{};
+            if (!quirks_pir_ptr)
+            {
+                data_path     = ""s;//LIBINPUT_QUIRKS_DIR;
+                override_file = ""s;//LIBINPUT_QUIRKS_OVERRIDE_FILE;
+            }
+            else
+            {
+                data_path = text{ quirks_pir_ptr };
+            }
+            libinput_t::quirks = quirks_init_subsystem(data_path, override_file, This());
+            if (!libinput_t::quirks)
+            {
+                //log("Failed to load the device quirks from %s%%s%%s%. This will negatively affect device behavior", data_path, override_file.size() ? " and " : "", override_file.size() ? override_file : "");
+                return;
+            }
+        }
+        libinput_seat_sptr path_seat_get_for_device(ud_device_sptr ud_device)
+        {
+            auto seat_logical_name = text{};
+            auto seat_prop = ud_device->udev_device_get_property_value("ID_SEAT");
+            auto seat_name = text{ seat_prop ? seat_prop : lixx::default_seat };
+            seat_prop = ud_device->udev_device_get_property_value("WL_SEAT");
+            seat_logical_name = seat_prop ? seat_prop : lixx::default_seat_name;
+            auto seat = libinput_seat_sptr{};
+            if (seat_logical_name.empty())
+            {
+                log("Failed to create seat name for device '%s%'", ud_device->udev_device_get_sysname());
+            }
+            else
+            {
+                auto iter = std::ranges::find_if(seat_list, [&](auto& s){ return s->logical_name == seat_logical_name; });
+                if (iter != seat_list.end())
+                {
+                    seat = *iter;
+                }
+                else
+                {
+                    seat = ptr::shared<libinput_seat_t>();
+                    seat->libinput_seat_init(This(), seat_name, seat_logical_name);
+                    libinput_t::seat_list.push_back(seat);
+                }
+            }
+            return seat;
+        }
         libinput_device_sptr libinput_add_device(qiew sysname)
         {
             auto li_device = libinput_device_sptr{};
@@ -5957,13 +6005,6 @@ namespace netxs::lixx // li++, libinput++.
             auto self = This();
             if (auto& timer = scroll.timer)       timer->cancel();
             if (auto& timer = middlebutton.timer) timer->cancel();
-            for (auto d : seat->devices_list)
-            {
-                if (d != self)
-                {
-                    d->dispatch->device_removed(d, self);
-                }
-            }
             evdev_device_suspend();
             dispatch->remove();
             was_removed = true; // A device may be removed while suspended, mark it to skip re-opening a different device with the same node.
@@ -6006,7 +6047,7 @@ namespace netxs::lixx // li++, libinput++.
                 }
                 else if (rc == -ENODEV)
                 {
-                    li_device->evdev_device_remove();
+                    li->remove_device(li_device->This());
                     return;
                 }
             }
@@ -18788,6 +18829,7 @@ namespace netxs::lixx // li++, libinput++.
                 }
                 else
                 {
+                    d->dispatch->device_removed(d, li_device);
                     return faux;
                 }
             });
@@ -18802,57 +18844,7 @@ namespace netxs::lixx // li++, libinput++.
                 }
                 seat->devices_list.clear();
             }
-        }
-        libinput_seat_sptr libinput_t::path_seat_get_for_device(ud_device_sptr ud_device)
-        {
-            auto seat_logical_name = text{};
-            auto seat_prop = ud_device->udev_device_get_property_value("ID_SEAT");
-            auto seat_name = text{ seat_prop ? seat_prop : lixx::default_seat };
-            seat_prop = ud_device->udev_device_get_property_value("WL_SEAT");
-            seat_logical_name = seat_prop ? seat_prop : lixx::default_seat_name;
-            auto seat = libinput_seat_sptr{};
-            if (seat_logical_name.empty())
-            {
-                log("Failed to create seat name for device '%s%'", ud_device->udev_device_get_sysname());
-            }
-            else
-            {
-                auto iter = std::ranges::find_if(seat_list, [&](auto& s){ return s->logical_name == seat_logical_name; });
-                if (iter != seat_list.end())
-                {
-                    seat = *iter;
-                }
-                else
-                {
-                    seat = ptr::shared<libinput_seat_t>();
-                    seat->libinput_seat_init(This(), seat_name, seat_logical_name);
-                    libinput_t::seat_list.push_back(seat);
-                }
-            }
-            return seat;
-        }
-        void libinput_t::libinput_init_quirks()
-        {
-            if (libinput_t::quirks_initialized) return;
-            libinput_t::quirks_initialized = true; // If we fail, we'll fail next time too.
-            auto quirks_pir_ptr = ::getenv("LIBINPUT_QUIRKS_DIR");
-            auto data_path = text{};
-            auto override_file = text{};
-            if (!quirks_pir_ptr)
-            {
-                data_path     = ""s;//LIBINPUT_QUIRKS_DIR;
-                override_file = ""s;//LIBINPUT_QUIRKS_OVERRIDE_FILE;
-            }
-            else
-            {
-                data_path = text{ quirks_pir_ptr };
-            }
-            libinput_t::quirks = quirks_init_subsystem(data_path, override_file, This());
-            if (!libinput_t::quirks)
-            {
-                //log("Failed to load the device quirks from %s%%s%%s%. This will negatively affect device behavior", data_path, override_file.size() ? " and " : "", override_file.size() ? override_file : "");
-                return;
-            }
+            path_list.clear();
         }
     si32 parse_mouse_wheel_click_angle_property(qiew prop)
     {
@@ -20701,7 +20693,7 @@ namespace netxs::lixx // li++, libinput++.
                                         }
                                         if (rc)
                                         {
-                                            ::memcpy(props_out.data(), props.data(), count * sizeof(props[0]));
+                                            props_out = props;
                                             nprops = count;
                                         }
                                     }
