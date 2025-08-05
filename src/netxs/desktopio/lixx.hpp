@@ -1069,6 +1069,8 @@ namespace netxs::lixx // li++, libinput++.
     using accel_profile_func_t = fp64(*)(motion_filter_sptr filter, void* data, fp64 velocity, time now);
     using libinput_source_dispatch_t = void(*)(void* data);
 
+    using input_prop = std::pair<ui32, bool>;
+
     struct input_event_t : ::input_event
     {
         netxs::time input_event_time() const
@@ -6685,12 +6687,6 @@ namespace netxs::lixx // li++, libinput++.
             }
             else return LIBINPUT_CONFIG_STATUS_UNSUPPORTED;
         }
-    };
-
-    struct input_prop
-    {
-        ui32 prop;
-        bool enabled;
     };
 
     void libinput_seat_init(libinput_seat_sptr seat, libinput_sptr li, view physical_name, view logical_name);
@@ -20757,8 +20753,8 @@ namespace netxs::lixx // li++, libinput++.
                                                 }
                                                 prop = (ui32)val;
                                             }
-                                            props[idx].prop    = prop;
-                                            props[idx].enabled = enable;
+                                            props[idx].first  = prop;
+                                            props[idx].second = enable;
                                         }
                                         if (rc)
                                         {
@@ -20941,8 +20937,8 @@ namespace netxs::lixx // li++, libinput++.
                                         auto value_tuples = quirk_tuples{};
                                         for (auto i = 0u; i < nprops; i++)
                                         {
-                                            value_tuples.tuples[i].first  = props[i].prop;
-                                            value_tuples.tuples[i].second = props[i].enabled;
+                                            value_tuples.tuples[i].first  = props[i].first;
+                                            value_tuples.tuples[i].second = props[i].second;
                                         }
                                         value_tuples.ntuples = nprops;
                                         p->value = value_tuples;
