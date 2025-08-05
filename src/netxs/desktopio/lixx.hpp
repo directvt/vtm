@@ -4894,7 +4894,7 @@ namespace netxs::lixx // li++, libinput++.
         libinput_device_sptr device_enable(ud_device_sptr ud_device, qiew seat_logical_name_override = {});
         libinput_seat_sptr path_seat_get_for_device(ud_device_sptr ud_device, qiew seat_logical_name_override);
         libinput_seat_sptr path_seat_create(view seat_name, view seat_logical_name);
-        libinput_seat_sptr path_seat_get_named(view seat_name_physical, view seat_name_logical);
+
         void remove_device(libinput_device_sptr li_device);
         void libinput_remove_devices();
         libinput_device_sptr libinput_add_device(view path);
@@ -18811,24 +18811,6 @@ namespace netxs::lixx // li++, libinput++.
                 seat->devices_list.clear();
             }
         }
-        libinput_seat_sptr libinput_t::path_seat_get_named(view seat_name_physical, view seat_name_logical)
-        {
-            for (auto& s : seat_list)
-            {
-                if (s->physical_name == seat_name_physical && s->logical_name == seat_name_logical)
-                {
-                    return std::static_pointer_cast<libinput_seat_t>(s);
-                }
-            }
-            return libinput_seat_sptr{};
-        }
-        libinput_seat_sptr libinput_t::path_seat_create(view seat_name, view seat_logical_name)
-        {
-            auto seat = ptr::shared<libinput_seat_t>();
-            seat->libinput_seat_init(This(), seat_name, seat_logical_name);
-            libinput_t::seat_list.push_back(seat);
-            return seat;
-        }
         libinput_seat_sptr libinput_t::path_seat_get_for_device(ud_device_sptr ud_device, qiew seat_logical_name_override)
         {
             auto seat_logical_name = text{};
@@ -18850,14 +18832,16 @@ namespace netxs::lixx // li++, libinput++.
             }
             else
             {
-                seat = path_seat_get_named(seat_name, seat_logical_name);
-                if (!seat)
+                auto iter = std::ranges::find_if(seat_list, [&](auto& s){ return s->logical_name == seat_logical_name; });
+                if (iter != seat_list.end())
                 {
-                    seat = path_seat_create(seat_name, seat_logical_name);
-                    if (!seat)
-                    {
-                        log("Failed to create seat for device '%s%'", ud_device->udev_device_get_sysname());
-                    }
+                    seat = *iter;
+                }
+                else
+                {
+                    seat = ptr::shared<libinput_seat_t>();
+                    seat->libinput_seat_init(This(), seat_name, seat_logical_name);
+                    libinput_t::seat_list.push_back(seat);
                 }
             }
             return seat;
