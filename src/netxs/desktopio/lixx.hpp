@@ -4733,11 +4733,10 @@ namespace netxs::lixx // li++, libinput++.
             initial_tty = get_active_tty();
             current_tty = initial_tty;
             wd_tty = ::inotify_add_watch(fd, active_tty_file, tty_monitor_mode);
-            // Take active devices.
             auto code = std::error_code{};
             auto events = os::fs::directory_iterator{ "/dev/input/", code };
             if (!code)
-            for (auto& entry : events)
+            for (auto& entry : events) // Take all active input devices.
             {
                 auto sysname = entry.path().filename().string();
                 if (sysname.starts_with("event"))
@@ -4859,6 +4858,8 @@ namespace netxs::lixx // li++, libinput++.
     };
 
     quirks_context_sptr quirks_init_subsystem(view data_path, view override_file, libinput_sptr li);
+    libinput_device_sptr libinput_device_create(libinput_seat_sptr seat, ud_device_sptr ud_device);
+
     struct libinput_t : ptr::enable_shared_from_this<libinput_t>
     {
         using event_variants = std::variant<libinput_event_empty,
@@ -4891,16 +4892,26 @@ namespace netxs::lixx // li++, libinput++.
         void libinput_device_removed(ud_device_sptr ud_device);
         void libinput_device_added(ud_device_sptr ud_device);
         void libinput_init_quirks();
-        libinput_device_sptr device_enable(ud_device_sptr ud_device, qiew seat_logical_name_override = {});
-        libinput_seat_sptr path_seat_get_for_device(ud_device_sptr ud_device, qiew seat_logical_name_override);
+        libinput_seat_sptr path_seat_get_for_device(ud_device_sptr ud_device);
         libinput_seat_sptr path_seat_create(view seat_name, view seat_logical_name);
-
         void remove_device(libinput_device_sptr li_device);
         void libinput_remove_devices();
-        libinput_device_sptr libinput_add_device(view path);
         void input_enable();
         void input_disable();
 
+        libinput_device_sptr libinput_add_device(qiew sysname)
+        {
+            auto li_device = libinput_device_sptr{};
+            auto ud_device = ptr::shared<ud_device_t>(sysname);
+            if (!ud_device->ignore_litest_test_suite_device())
+            {
+                if (auto seat = path_seat_get_for_device(ud_device))
+                {
+                    li_device = libinput_device_create(seat, ud_device);
+                }
+            }
+            return li_device;
+        }
         void enumerate_active_devices(auto proc)
         {
             for (auto d : path_list)
@@ -6728,8 +6739,6 @@ namespace netxs::lixx // li++, libinput++.
             }
         }
     };
-
-    libinput_device_sptr libinput_device_create(libinput_seat_sptr seat, ud_device_sptr ud_device);
 
     struct libinput_paired_keyboard
     {
@@ -18693,18 +18702,13 @@ namespace netxs::lixx // li++, libinput++.
                 libinput_t::seat_list.push_back(ud_seat);
             }
             auto li_device = libinput_device_create(ud_seat, ud_device);
-            if (!li_device)
-            {
-                if constexpr (debugmode)
-                {
-                    log("Not using input device '%s%'", ud_device->udev_device_get_sysname());
-                }
-            }
-            else
+            if (li_device)
             {
                 path_list.push_back(li_device);
-                li_device->evdev_read_calibration_prop();
-                li_device->output_name = li_device->udev_device_get_property_value("WL_OUTPUT");
+            }
+            else if constexpr (debugmode)
+            {
+                log("Not using input device '%s%'", ud_device->udev_device_get_sysname());
             }
         }
         void libinput_t::libinput_device_removed(ud_device_sptr ud_device)
@@ -18771,18 +18775,6 @@ namespace netxs::lixx // li++, libinput++.
                 }
             }
         }
-        libinput_device_sptr libinput_t::libinput_add_device(view path)
-        {
-            auto li_device = libinput_device_sptr{};
-            auto [devpath, sysname] = utf::split_back(path, '/');
-            auto ud_device = ptr::shared<ud_device_t>(sysname);
-            if (!ud_device->ignore_litest_test_suite_device())
-            {
-                libinput_init_quirks();
-                li_device = device_enable(ud_device);
-            }
-            return li_device;
-        }
         void libinput_t::remove_device(libinput_device_sptr li_device)
         {
             std::erase_if(path_list, [&](auto d){ return d == li_device; });
@@ -18811,20 +18803,13 @@ namespace netxs::lixx // li++, libinput++.
                 seat->devices_list.clear();
             }
         }
-        libinput_seat_sptr libinput_t::path_seat_get_for_device(ud_device_sptr ud_device, qiew seat_logical_name_override)
+        libinput_seat_sptr libinput_t::path_seat_get_for_device(ud_device_sptr ud_device)
         {
             auto seat_logical_name = text{};
             auto seat_prop = ud_device->udev_device_get_property_value("ID_SEAT");
-            auto seat_name = text{ seat_prop ? seat_prop : default_seat };
-            if (seat_logical_name_override)
-            {
-                seat_logical_name = seat_logical_name_override;
-            }
-            else
-            {
-                seat_prop = ud_device->udev_device_get_property_value("WL_SEAT");
-                seat_logical_name = seat_prop ? seat_prop : default_seat_name;
-            }
+            auto seat_name = text{ seat_prop ? seat_prop : lixx::default_seat };
+            seat_prop = ud_device->udev_device_get_property_value("WL_SEAT");
+            seat_logical_name = seat_prop ? seat_prop : lixx::default_seat_name;
             auto seat = libinput_seat_sptr{};
             if (seat_logical_name.empty())
             {
@@ -18845,19 +18830,6 @@ namespace netxs::lixx // li++, libinput++.
                 }
             }
             return seat;
-        }
-        libinput_device_sptr libinput_t::device_enable(ud_device_sptr ud_device, qiew seat_logical_name_override)
-        {
-            if (auto seat = path_seat_get_for_device(ud_device, seat_logical_name_override))
-            {
-                if (auto li_device = libinput_device_create(seat, ud_device))
-                {
-                    li_device->evdev_read_calibration_prop();
-                    li_device->output_name = li_device->udev_device_get_property_value("WL_OUTPUT");
-                    return li_device;
-                }
-            }
-            return libinput_device_sptr{};
         }
         void libinput_t::libinput_init_quirks()
         {
@@ -20206,6 +20178,8 @@ namespace netxs::lixx // li++, libinput++.
             li_device->device_group = li_device->udev_device_get_property_value("LIBINPUT_DEVICE_GROUP");
             seat->devices_list.push_back(li_device);
             evdev_notify_added_device(li_device);
+            li_device->evdev_read_calibration_prop();
+            li_device->output_name = li_device->udev_device_get_property_value("WL_OUTPUT");
         }
         else
         {
