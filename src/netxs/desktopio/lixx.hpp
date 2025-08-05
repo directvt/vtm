@@ -2525,10 +2525,7 @@ namespace netxs::lixx // li++, libinput++.
         ui32     ud_type; // We can have more than one type set, so this is a bitfield.
         text     dt2; // Device tree compatible (first) string.
     };
-    struct quirk_dimensions //todo use ui64_coor
-    {
-        ui64 x, y;
-    };
+
     struct quirk_tuples
     {
         struct tuples_t
@@ -2559,7 +2556,7 @@ namespace netxs::lixx // li++, libinput++.
             ui32             u;
             si32             i;
             fp64             d;
-            quirk_dimensions dim;
+            si32_coor        dim;
             si32_range       range;
             quirk_tuples     tuples;
             quirk_array      array;
@@ -2743,12 +2740,12 @@ namespace netxs::lixx // li++, libinput++.
             }
             return faux;
         }
-        bool quirks_get_dimensions(quirk which, quirk_dimensions* val)
+        bool quirks_get_dimensions(quirk which, si32_coor& val)
         {
             if (auto p = _quirk_find_prop(which))
             {
                 assert(p->type == PT_DIMENSION);
-                *val = p->value.dim;
+                val = p->value.dim;
                 return true;
             }
             return faux;
@@ -19356,31 +19353,29 @@ namespace netxs::lixx // li++, libinput++.
         li_device->libevdev_enable_event_code<EV_ABS>(ABS_X, li_device->libevdev_get_abs_info(ABS_MT_POSITION_X));
         li_device->libevdev_enable_event_code<EV_ABS>(ABS_Y, li_device->libevdev_get_abs_info(ABS_MT_POSITION_Y));
     }
-    bool evdev_read_attr_res_prop(libinput_device_sptr li_device, ui64* xres, ui64* yres)
+    bool evdev_read_attr_res_prop(libinput_device_sptr li_device, si32_coor& res)
     {
         auto quirks_v = li_device->li_context()->quirks;
         if (auto q = li_device->ud_device->quirks_fetch_for_device(quirks_v))
         {
-            auto dim = quirk_dimensions{};
-            if (q->quirks_get_dimensions(QUIRK_ATTR_RESOLUTION_HINT, &dim))
+            auto dim = si32_coor{};
+            if (q->quirks_get_dimensions(QUIRK_ATTR_RESOLUTION_HINT, dim))
             {
-                *xres = dim.x;
-                *yres = dim.y;
+                res = dim;
                 return true;
             }
         }
         return faux;
     }
-    bool evdev_read_attr_size_prop(libinput_device_sptr li_device, ui64* size_x, ui64* size_y)
+    bool evdev_read_attr_size_prop(libinput_device_sptr li_device, si32_coor& size)
     {
         auto quirks = li_device->li_context()->quirks;
         if (auto q = li_device->ud_device->quirks_fetch_for_device(quirks))
         {
-            auto dim = quirk_dimensions{};
-            if (q->quirks_get_dimensions(QUIRK_ATTR_SIZE_HINT, &dim))
+            auto dim = si32_coor{};
+            if (q->quirks_get_dimensions(QUIRK_ATTR_SIZE_HINT, dim))
             {
-                *size_x = dim.x;
-                *size_y = dim.y;
+                size = dim;
                 return true;
             }
         }
@@ -19388,11 +19383,9 @@ namespace netxs::lixx // li++, libinput++.
     }
     si32 evdev_fix_abs_resolution(libinput_device_sptr li_device, ui32 xcode, ui32 ycode)
     {
-        static constexpr auto fake_resolution = (ui64)1;
-        auto widthmm  = ui64{};
-        auto heightmm = ui64{};
-        auto xres = fake_resolution;
-        auto yres = fake_resolution;
+        static constexpr auto fake_resolution = dot_11;
+        auto mm = si32_coor{};
+        auto res = fake_resolution;
         if (!(xcode == ABS_X && ycode == ABS_Y)
          && !(xcode == ABS_MT_POSITION_X && ycode == ABS_MT_POSITION_Y))
          {
@@ -19406,16 +19399,16 @@ namespace netxs::lixx // li++, libinput++.
             return 0;
         }
         // Note: we *do not* override resolutions if provided by the kernel. If a device needs this, add it to 60-evdev.hwdb. The libinput property is only for general size hints where we can make educated guesses but don't know better.
-        if (!evdev_read_attr_res_prop(li_device, &xres, &yres)
-         && evdev_read_attr_size_prop(li_device, &widthmm, &heightmm))
+        if (!evdev_read_attr_res_prop(li_device, res)
+         && evdev_read_attr_size_prop(li_device, mm))
         {
-            xres = absx->absinfo_range() / widthmm;
-            yres = absy->absinfo_range() / heightmm;
+            res.x = absx->absinfo_range() / mm.x;
+            res.y = absy->absinfo_range() / mm.y;
         }
         // libevdev_set_abs_resolution() changes the absinfo we already have a pointer to, no need to fetch it again.
-        li_device->libevdev_set_abs_resolution(xcode, xres);
-        li_device->libevdev_set_abs_resolution(ycode, yres);
-        return xres == fake_resolution;
+        li_device->libevdev_set_abs_resolution(xcode, res.x);
+        li_device->libevdev_set_abs_resolution(ycode, res.y);
+        return res.x == fake_resolution.x;
     }
     si32 evdev_read_fuzz_prop(libinput_device_sptr li_device, ui32 code)
     {
@@ -20660,27 +20653,23 @@ namespace netxs::lixx // li++, libinput++.
                                 log("Unknown key %s% in %s%", key, s->name2);
                                 return faux;
                             }
-                                bool parse_dimension_property(view prop, ui64& w, ui64& h)
+                                bool parse_dimension_property(view prop, si32_coor& dim)
                                 {
-                                    auto x = 0;
-                                    auto y = 0;
-                                    auto ok = prop.empty() || ::sscanf(prop.data(), "%dx%d", &x, &y) != 2 || x <= 0 || y <= 0;
+                                    auto d = si32_coor{};
+                                    auto ok = prop.size() && ::sscanf(prop.data(), "%dx%d", &d.x, &d.y) == 2 && d.x > 0 && d.y > 0;
                                     if (ok)
                                     {
-                                        w = (ui64)x;
-                                        h = (ui64)y;
+                                        dim = d;
                                     }
                                     return ok;
                                 }
-                                bool parse_range_property(view prop, si32& hi, si32& lo)
+                                bool parse_range_property(view prop, si32_range& range)
                                 {
-                                    auto first = 0;
-                                    auto second = 0;
-                                    auto ok = prop.size() && (prop == "none" || (::sscanf(prop.data(), "%d:%d", &first, &second) == 2 && second < first));
+                                    auto r = si32_range{};
+                                    auto ok = prop.size() && (prop == "none" || (::sscanf(prop.data(), "%d:%d", &r.max, &r.min) == 2 && r.min < r.max)); // "max:min":  Pressure/touch size.
                                     if (ok)
                                     {
-                                        hi = first;
-                                        lo = second;
+                                        range = r;
                                     }
                                     return ok;
                                 }
@@ -20868,12 +20857,12 @@ namespace netxs::lixx // li++, libinput++.
                             {
                                 auto p = ptr::shared<property_t>();
                                 auto rc = faux;
-                                auto dim = quirk_dimensions{};
+                                auto dim = si32_coor{};
                                 auto range = si32_range{};
                                 if (key == quirks_t::quirk_get_name(QUIRK_ATTR_SIZE_HINT))
                                 {
                                     p->id = QUIRK_ATTR_SIZE_HINT;
-                                    if (parse_dimension_property(value, dim.x, dim.y))
+                                    if (parse_dimension_property(value, dim))
                                     {
                                         p->type = PT_DIMENSION;
                                         p->value.dim = dim;
@@ -20883,7 +20872,7 @@ namespace netxs::lixx // li++, libinput++.
                                 else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_TOUCH_SIZE_RANGE))
                                 {
                                     p->id = QUIRK_ATTR_TOUCH_SIZE_RANGE;
-                                    if (parse_range_property(value, range.max, range.min))
+                                    if (parse_range_property(value, range))
                                     {
                                         p->type = PT_RANGE;
                                         p->value.range = range;
@@ -20943,7 +20932,7 @@ namespace netxs::lixx // li++, libinput++.
                                 else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_PRESSURE_RANGE))
                                 {
                                     p->id = QUIRK_ATTR_PRESSURE_RANGE;
-                                    if (parse_range_property(value, range.max, range.min))
+                                    if (parse_range_property(value, range))
                                     {
                                         p->type = PT_RANGE;
                                         p->value.range = range;
@@ -20963,7 +20952,7 @@ namespace netxs::lixx // li++, libinput++.
                                 else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_RESOLUTION_HINT))
                                 {
                                     p->id = QUIRK_ATTR_RESOLUTION_HINT;
-                                    if (parse_dimension_property(value, dim.x, dim.y))
+                                    if (parse_dimension_property(value, dim))
                                     {
                                         p->type = PT_DIMENSION;
                                         p->value.dim = dim;
