@@ -2782,13 +2782,13 @@ namespace netxs::lixx // li++, libinput++.
     {
         using libinput_timer_t = lixx::libinput_timer_t<libinput_timer_host>;
 
-        std::vector<libinput_timer_sptr> active;
-        std::vector<libinput_timer_sptr> cached;
-        libinput_source_sptr             source;
-        fd_t                             fd{ os::invalid_fd };
-        fd_t                             epoll_fd{ os::invalid_fd };
-        time                             next_expiry;
-        std::list<libinput_source_sptr>  source_destroy_list;
+        std::vector<libinput_timer_sptr>  active;
+        std::vector<libinput_timer_sptr>  cached;
+        libinput_source_sptr              source;
+        fd_t                              fd{ os::invalid_fd };
+        fd_t                              epoll_fd{ os::invalid_fd };
+        time                              next_expiry;
+        std::vector<libinput_source_sptr> source_destroy_list;
 
         void clear()
         {
@@ -4824,200 +4824,6 @@ namespace netxs::lixx // li++, libinput++.
         }
     };
 
-    quirks_context_sptr quirks_init_subsystem(view data_path, view override_file, libinput_sptr li);
-    libinput_device_sptr libinput_device_create(libinput_sptr li, ud_device_sptr ud_device);
-
-    struct libinput_t : ptr::enable_shared_from_this<libinput_t>
-    {
-        using event_variants = std::variant<libinput_event_empty,
-                                            libinput_event_device_notify,
-                                            libinput_event_keyboard,
-                                            libinput_event_pointer,
-                                            libinput_event_gesture,
-                                            libinput_event_touch,
-                                            libinput_event_switch,
-                                            libinput_event_tablet_pad,
-                                            libinput_event_tablet_tool>;
-
-        libinput_timer_host                   timers;
-        std::deque<event_variants>            event_queue;
-
-        std::list<libinput_tablet_tool_sptr>  tool_list;
-        void*                                 user_data = {};
-        time                                  last_event_time = {};
-        time                                  dispatch_time = {};
-        ui32                                  seat_slot_map = {};
-        ui32                                  seat_button_count[KEY_CNT] = {};
-        bool                                  quirks_initialized = {};
-        quirks_context_sptr                   quirks;
-
-        ud_monitor_sptr                       ud_monitor;
-        libinput_source_sptr                  ud_monitor_source;
-        std::list<libinput_device_sptr>       device_list;
-
-        static void evdev_udev_handler(void* data);
-
-        void libinput_device_removed(ud_device_sptr ud_device);
-        void libinput_device_added(ud_device_sptr ud_device);
-        void remove_device(libinput_device_sptr li_device);
-        void libinput_remove_devices();
-        void input_enable();
-        void input_disable();
-
-        ui32 update_seat_button_count(ui32 button_code, libinput_button_state state)
-        {
-            assert(button_code <= KEY_MAX);
-            auto& press_count = seat_button_count[button_code];
-                 if (state == LIBINPUT_BUTTON_STATE_PRESSED) press_count++;
-            else if (press_count)                            press_count--; // We might not have received the first PRESSED event.
-            return press_count;
-        }
-        ui32 update_seat_key_count(ui32 keycode, libinput_key_state state)
-        {
-            assert(keycode <= KEY_MAX);
-            auto& key_count = seat_button_count[keycode];
-                 if (state == LIBINPUT_KEY_STATE_PRESSED) key_count++;
-            else if (key_count)                           key_count--; // We might not have received the first PRESSED event.
-            return key_count;
-        }
-        void libinput_init_quirks()
-        {
-            if (libinput_t::quirks_initialized) return;
-            libinput_t::quirks_initialized = true; // If we fail, we'll fail next time too.
-            auto quirks_pir_ptr = ::getenv("LIBINPUT_QUIRKS_DIR");
-            auto data_path = text{};
-            auto override_file = text{};
-            if (!quirks_pir_ptr)
-            {
-                data_path     = ""s;//LIBINPUT_QUIRKS_DIR;
-                override_file = ""s;//LIBINPUT_QUIRKS_OVERRIDE_FILE;
-            }
-            else
-            {
-                data_path = text{ quirks_pir_ptr };
-            }
-            libinput_t::quirks = quirks_init_subsystem(data_path, override_file, This());
-            if (!libinput_t::quirks)
-            {
-                //log("Failed to load the device quirks from %s%%s%%s%. This will negatively affect device behavior", data_path, override_file.size() ? " and " : "", override_file.size() ? override_file : "");
-                return;
-            }
-        }
-        libinput_device_sptr libinput_add_device(qiew sysname)
-        {
-            auto ud_device = ptr::shared<ud_device_t>(sysname);
-            auto li_device = libinput_device_create(This(), ud_device);
-            return li_device;
-        }
-        void enumerate_active_devices(auto proc)
-        {
-            for (auto d : device_list)
-            {
-                if (!proc(d)) break;
-            }
-        }
-        bool current_tty_is_active()
-        {
-            return ud_monitor && ud_monitor->initial_tty.size() && ud_monitor->initial_tty == ud_monitor->current_tty;
-        }
-        template<class T>
-        auto& libinput_emplace_event()
-        {
-            auto& event_packet = std::get<T>(event_queue.emplace_back(T{}));
-            return event_packet;
-        }
-        static auto& empty_event()
-        {
-            static auto empty_event = libinput_event_device_notify{};
-            return empty_event;
-        }
-        auto& libinput_get_event()
-        {
-            auto selector = [](auto& e)->libinput_event& { return e; };
-            assert(!event_queue.empty());
-            if (event_queue.size() > 1)
-            {
-                event_queue.pop_front(); // Pop/invalidate previous event.
-                auto& event = std::visit(selector, event_queue.front());
-                return event;
-            }
-            else
-            {
-                return (libinput_event&)empty_event();
-            }
-        }
-        si32 libinput_dispatch()
-        {
-            static auto take_time_snapshot = byte{};
-            auto source = (libinput_event_source_t*)nullptr;
-            auto ep = std::array<::epoll_event, 32>{};
-            // Every 10 calls to libinput_dispatch() we take the current time so we can check the delay between our current time and the event timestamps.
-                 if ((++take_time_snapshot % 10) == 0) dispatch_time = datetime::now();
-            else if (dispatch_time != time{})          dispatch_time = {};
-            auto count = ::epoll_wait(timers.epoll_fd, ep.data(), ep.size(), 0);
-            if (count < 0) return -errno;
-            for (auto i = 0; i < count; ++i)
-            {
-                source = (libinput_event_source_t*)ep[i].data.ptr;
-                if (source->fd != os::invalid_fd)
-                {
-                    source->dispatch(source->dispatch_arg);
-                }
-            }
-            timers.source_destroy_list.clear();
-            return 0;
-        }
-        bool libinput_init(void* user_data)
-        {
-            timers.epoll_fd = ::epoll_create1(EPOLL_CLOEXEC);
-            if (timers.epoll_fd < 0) return faux;
-            libinput_t::event_queue.resize(4);
-            libinput_t::event_queue.clear();
-            libinput_t::event_queue.emplace_back(empty_event()); // At least one event must be in the event queue (as previous).
-            libinput_t::user_data = user_data;
-            auto ok = timers.libinput_timer_subsys_init();
-            libinput_init_quirks();
-            input_enable();
-            return ok;
-        }
-        #if HAVE_LIBWACOM
-        WacomDeviceDatabase* libinput_libwacom_ref()
-        {
-            auto db = (WacomDeviceDatabase*)nullptr;
-            if (!libwacom.db)
-            {
-                db = ::libwacom_database_new();
-                if (!db)
-                {
-                    log("Failed to initialize libwacom context");
-                    return NULL;
-                }
-                libwacom.db = db;
-                libwacom.refcount = 0;
-            }
-            libwacom.refcount++;
-            db = libwacom.db;
-            return db;
-        }
-        #endif
-        void libinput_libwacom_unref()
-        {
-            #if HAVE_LIBWACOM
-            if (!libwacom.db) return;
-            assert(libwacom.refcount >= 1);
-            if (--libwacom.refcount == 0)
-            {
-                ::libwacom_database_destroy(libwacom.db);
-                libwacom.db = {};
-            }
-            #endif
-        }
-        fd_t libinput_get_fd()
-        {
-            return timers.epoll_fd;
-        }
-    };
-
     struct evdev_dispatch_t : ptr::enable_shared_from_this<evdev_dispatch_t>
     {
         struct evdev_sendevents_t
@@ -5108,6 +4914,233 @@ namespace netxs::lixx // li++, libinput++.
             result.x = d.x >= 0 ? in.x - lag_x : in.x + lag_x;
             result.y = d.y >= 0 ? in.y - lag_y : in.y + lag_y;
             return result;
+        }
+    };
+
+
+    quirks_context_sptr quirks_init_subsystem(view data_path, view override_file, libinput_sptr li);
+    libinput_device_sptr libinput_device_create(libinput_sptr li, ud_device_sptr ud_device);
+
+    struct libinput_t : ptr::enable_shared_from_this<libinput_t>
+    {
+        using event_variants = std::variant<libinput_event_empty,
+                                            libinput_event_device_notify,
+                                            libinput_event_keyboard,
+                                            libinput_event_pointer,
+                                            libinput_event_gesture,
+                                            libinput_event_touch,
+                                            libinput_event_switch,
+                                            libinput_event_tablet_pad,
+                                            libinput_event_tablet_tool>;
+
+        libinput_timer_host                   timers;
+        std::deque<event_variants>            event_queue;
+
+        std::list<libinput_tablet_tool_sptr>  tool_list;
+        void*                                 user_data = {};
+        time                                  last_event_time = {};
+        time                                  dispatch_time = {};
+        ui32                                  seat_slot_map = {};
+        ui32                                  seat_button_count[KEY_CNT] = {};
+        bool                                  quirks_initialized = {};
+        quirks_context_sptr                   quirks;
+
+        ud_monitor_sptr                       ud_monitor;
+        libinput_source_sptr                  ud_monitor_source;
+        std::list<libinput_device_sptr>       device_list;
+
+        static void evdev_udev_handler(void* data);
+        void remove_device(libinput_device_sptr li_device);
+        void libinput_remove_devices();
+
+        void input_disable()
+        {
+            if (ud_monitor)
+            {
+                ud_monitor.reset();
+                timers.libinput_remove_event_source(ud_monitor_source);
+                ud_monitor_source.reset();
+                libinput_remove_devices();
+            }
+        }
+        void input_enable()
+        {
+            if (!ud_monitor)
+            {
+                ud_monitor = ptr::shared<ud_monitor_t>(This());
+                if (!ud_monitor->udev_monitor_enable_receiving())
+                {
+                    log("Failed to bind the device monitor");
+                    ud_monitor.reset();
+                }
+                else
+                {
+                    auto fd = ud_monitor->udev_monitor_get_fd();
+                    ud_monitor_source = timers.libinput_add_event_source(fd, evdev_udev_handler, this);
+                    for (auto [sysname, ud_device] : ud_monitor->device_list) // Add all devices.
+                    {
+                        if (ud_device->initialized)
+                        {
+                            libinput_device_create(This(), ud_device);
+                        }
+                        else
+                        {
+                            log("Skip unconfigured input device '%s%'", sysname);
+                        }
+                    }
+                }
+            }
+        }
+        ui32 update_seat_button_count(ui32 button_code, libinput_button_state state)
+        {
+            assert(button_code <= KEY_MAX);
+            auto& press_count = seat_button_count[button_code];
+                 if (state == LIBINPUT_BUTTON_STATE_PRESSED) press_count++;
+            else if (press_count)                            press_count--; // We might not have received the first PRESSED event.
+            return press_count;
+        }
+        ui32 update_seat_key_count(ui32 keycode, libinput_key_state state)
+        {
+            assert(keycode <= KEY_MAX);
+            auto& key_count = seat_button_count[keycode];
+                 if (state == LIBINPUT_KEY_STATE_PRESSED) key_count++;
+            else if (key_count)                           key_count--; // We might not have received the first PRESSED event.
+            return key_count;
+        }
+        void libinput_init_quirks()
+        {
+            if (libinput_t::quirks_initialized) return;
+            libinput_t::quirks_initialized = true; // If we fail, we'll fail next time too.
+            auto quirks_pir_ptr = ::getenv("LIBINPUT_QUIRKS_DIR");
+            auto data_path = text{};
+            auto override_file = text{};
+            if (!quirks_pir_ptr)
+            {
+                data_path     = ""s;//LIBINPUT_QUIRKS_DIR;
+                override_file = ""s;//LIBINPUT_QUIRKS_OVERRIDE_FILE;
+            }
+            else
+            {
+                data_path = text{ quirks_pir_ptr };
+            }
+            libinput_t::quirks = quirks_init_subsystem(data_path, override_file, This());
+            if (!libinput_t::quirks)
+            {
+                //log("Failed to load the device quirks from %s%%s%%s%. This will negatively affect device behavior", data_path, override_file.size() ? " and " : "", override_file.size() ? override_file : "");
+                return;
+            }
+        }
+        libinput_device_sptr libinput_add_device(qiew sysname)
+        {
+            auto ud_device = ptr::shared<ud_device_t>(sysname);
+            auto li_device = libinput_device_create(This(), ud_device);
+            return li_device;
+        }
+        void enumerate_active_devices(auto proc)
+        {
+            for (auto d : device_list)
+            {
+                if (!proc(d)) break;
+            }
+        }
+        bool current_tty_is_active()
+        {
+            return ud_monitor && ud_monitor->initial_tty.size() && ud_monitor->initial_tty == ud_monitor->current_tty;
+        }
+        template<class T>
+        auto& libinput_emplace_event()
+        {
+            auto& event_packet = std::get<T>(event_queue.emplace_back(T{}));
+            return event_packet;
+        }
+        static auto& empty_event()
+        {
+            static auto empty_event = libinput_event_device_notify{};
+            return empty_event;
+        }
+        auto& libinput_get_event()
+        {
+            auto selector = [](auto& e)->libinput_event& { return e; };
+            assert(!event_queue.empty());
+            if (event_queue.size() > 1)
+            {
+                event_queue.pop_front(); // Pop/invalidate previous event.
+                auto& event = std::visit(selector, event_queue.front());
+                return event;
+            }
+            else
+            {
+                return (libinput_event&)empty_event();
+            }
+        }
+        si32 libinput_dispatch()
+        {
+            static auto take_time_snapshot = byte{};
+            auto ep = std::array<::epoll_event, 32>{};
+            // Every 10 calls to libinput_dispatch() we take the current time so we can check the delay between our current time and the event timestamps.
+                 if ((++take_time_snapshot % 10) == 0) dispatch_time = datetime::now();
+            else if (dispatch_time != time{})          dispatch_time = {};
+            auto count = ::epoll_wait(timers.epoll_fd, ep.data(), ep.size(), 0);
+            if (count < 0) return -errno;
+            for (auto i = 0; i < count; ++i)
+            {
+                auto& source = *(libinput_event_source_t*)ep[i].data.ptr;
+                if (source.fd != os::invalid_fd)
+                {
+                    source.dispatch(source.dispatch_arg);
+                }
+            }
+            timers.source_destroy_list.clear();
+            return 0;
+        }
+        bool libinput_init(void* user_data)
+        {
+            timers.epoll_fd = ::epoll_create1(EPOLL_CLOEXEC);
+            if (timers.epoll_fd < 0) return faux;
+            libinput_t::event_queue.resize(4);
+            libinput_t::event_queue.clear();
+            libinput_t::event_queue.emplace_back(empty_event()); // At least one event must be in the event queue (as previous).
+            libinput_t::user_data = user_data;
+            auto ok = timers.libinput_timer_subsys_init();
+            libinput_init_quirks();
+            input_enable();
+            return ok;
+        }
+        #if HAVE_LIBWACOM
+        WacomDeviceDatabase* libinput_libwacom_ref()
+        {
+            auto db = (WacomDeviceDatabase*)nullptr;
+            if (!libwacom.db)
+            {
+                db = ::libwacom_database_new();
+                if (!db)
+                {
+                    log("Failed to initialize libwacom context");
+                    return NULL;
+                }
+                libwacom.db = db;
+                libwacom.refcount = 0;
+            }
+            libwacom.refcount++;
+            db = libwacom.db;
+            return db;
+        }
+        #endif
+        void libinput_libwacom_unref()
+        {
+            #if HAVE_LIBWACOM
+            if (!libwacom.db) return;
+            assert(libwacom.refcount >= 1);
+            if (--libwacom.refcount == 0)
+            {
+                ::libwacom_database_destroy(libwacom.db);
+                libwacom.db = {};
+            }
+            #endif
+        }
+        fd_t libinput_get_fd()
+        {
+            return timers.epoll_fd;
         }
     };
 
@@ -18649,16 +18682,6 @@ namespace netxs::lixx // li++, libinput++.
         libinput_switch_state get_switch_state(libinput_switch which)                                                                      { return fallback_impl.fallback_interface_get_switch_state(which); }
     };
 
-        void libinput_t::libinput_device_added(ud_device_sptr ud_device)
-        {
-            libinput_device_create(This(), ud_device);
-        }
-        void libinput_t::libinput_device_removed(ud_device_sptr ud_device)
-        {
-            auto devpath = ud_device->udev_device_get_devpath();
-            log("Device removed: '%s%'", ud_device->properties["NAME"]);
-            std::erase_if(device_list, [&](auto d){ return devpath == d->udev_device_get_devpath(); });
-        }
         void libinput_t::evdev_udev_handler(void* data)
         {
             auto li = (libinput_t*)data;
@@ -18666,51 +18689,15 @@ namespace netxs::lixx // li++, libinput++.
             {
                 if (action == "add")
                 {
-                    li->libinput_device_added(ud_device);
+                    libinput_device_create(li->This(), ud_device);
                 }
                 else if (action == "remove")
                 {
-                    li->libinput_device_removed(ud_device);
+                    auto devpath = ud_device->udev_device_get_devpath();
+                    log("Device removed: '%s%'", ud_device->properties["NAME"]);
+                    std::erase_if(li->device_list, [&](auto d){ return devpath == d->udev_device_get_devpath(); });
                 }
             });
-        }
-        void libinput_t::input_disable()
-        {
-            if (ud_monitor)
-            {
-                ud_monitor.reset();
-                timers.libinput_remove_event_source(ud_monitor_source);
-                ud_monitor_source.reset();
-                libinput_remove_devices();
-            }
-        }
-        void libinput_t::input_enable()
-        {
-            if (!ud_monitor)
-            {
-                ud_monitor = ptr::shared<ud_monitor_t>(This());
-                if (!ud_monitor->udev_monitor_enable_receiving())
-                {
-                    log("Failed to bind the device monitor");
-                    ud_monitor.reset();
-                }
-                else
-                {
-                    auto fd = ud_monitor->udev_monitor_get_fd();
-                    ud_monitor_source = timers.libinput_add_event_source(fd, evdev_udev_handler, this);
-                    for (auto [sysname, ud_device] : ud_monitor->device_list) // Add all devices.
-                    {
-                        if (ud_device->initialized)
-                        {
-                            libinput_device_added(ud_device);
-                        }
-                        else
-                        {
-                            log("Skip unconfigured input device '%s%'", sysname);
-                        }
-                    }
-                }
-            }
         }
         void libinput_t::remove_device(libinput_device_sptr li_device)
         {
@@ -18736,6 +18723,7 @@ namespace netxs::lixx // li++, libinput++.
             }
             device_list.clear();
         }
+
     si32 parse_mouse_wheel_click_angle_property(qiew prop)
     {
         auto angle = 0;
