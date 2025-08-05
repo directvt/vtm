@@ -1068,7 +1068,6 @@ namespace netxs::lixx // li++, libinput++.
 
     using accel_profile_func_t = fp64(*)(motion_filter_sptr filter, void* data, fp64 velocity, time now);
     using libinput_source_dispatch_t = void(*)(void* data);
-
     using input_prop = std::pair<ui32, bool>;
 
     struct input_event_t : ::input_event
@@ -2761,11 +2760,11 @@ namespace netxs::lixx // li++, libinput++.
     {
         libinput_sptr                   libinput;
         std::list<libinput_device_sptr> devices_list;
-        void*                           user_data;
+        void*                           user_data = {};
         text                            physical_name;
         text                            logical_name;
-        ui32                            slot_map;
-        ui32                            button_count[KEY_CNT];
+        ui32                            slot_map = {};
+        ui32                            button_count[KEY_CNT] = {};
 
         ui32 update_seat_button_count(ui32 button_code, libinput_button_state state)
         {
@@ -2774,6 +2773,12 @@ namespace netxs::lixx // li++, libinput++.
                  if (state == LIBINPUT_BUTTON_STATE_PRESSED) press_count++;
             else if (press_count)                            press_count--; // We might not have received the first PRESSED event.
             return press_count;
+        }
+        void libinput_seat_init(libinput_sptr li, view physical_name, view logical_name)
+        {
+            libinput      = li;
+            physical_name = physical_name;
+            logical_name  = logical_name;
         }
     };
 
@@ -6689,7 +6694,6 @@ namespace netxs::lixx // li++, libinput++.
         }
     };
 
-    void libinput_seat_init(libinput_seat_sptr seat, libinput_sptr li, view physical_name, view logical_name);
     libinput_device_sptr libinput_device_create(libinput_seat_sptr seat, ud_device_sptr ud_device);
     void evdev_read_calibration_prop(libinput_device_sptr li_device);
 
@@ -18648,8 +18652,12 @@ namespace netxs::lixx // li++, libinput++.
                     break;
                 }
             }
-            ud_seat = ptr::shared<libinput_seat_t>();
-            libinput_seat_init(ud_seat, libinput_t::This(), device_seat, seat_name);
+            if (!ud_seat)
+            {
+                ud_seat = ptr::shared<libinput_seat_t>();
+                ud_seat->libinput_seat_init(libinput_t::This(), device_seat, seat_name);
+                libinput_t::seat_list.push_back(ud_seat);
+            }
             auto li_device = libinput_device_create(ud_seat, ud_device);
             if (!li_device)
             {
@@ -18783,7 +18791,8 @@ namespace netxs::lixx // li++, libinput++.
         libinput_seat_sptr libinput_t::path_seat_create(view seat_name, view seat_logical_name)
         {
             auto seat = ptr::shared<libinput_seat_t>();
-            libinput_seat_init(seat, This(), seat_name, seat_logical_name);
+            seat->libinput_seat_init(This(), seat_name, seat_logical_name);
+            libinput_t::seat_list.push_back(seat);
             return seat;
         }
         libinput_seat_sptr libinput_t::path_seat_get_for_device(ud_device_sptr ud_device, qiew seat_logical_name_override)
@@ -18855,13 +18864,6 @@ namespace netxs::lixx // li++, libinput++.
                 return;
             }
         }
-    void libinput_seat_init(libinput_seat_sptr seat, libinput_sptr li, view physical_name, view logical_name)
-    {
-        seat->libinput      = li;
-        seat->physical_name = physical_name;
-        seat->logical_name  = logical_name;
-        li->seat_list.push_back(seat);
-    }
     si32 parse_mouse_wheel_click_angle_property(qiew prop)
     {
         auto angle = 0;
