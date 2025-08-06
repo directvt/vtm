@@ -87,14 +87,6 @@ namespace netxs::lixx // li++, libinput++.
         LIBEVDEV_READ_STATUS_SUCCESS,
         LIBEVDEV_READ_STATUS_SYNC,
     };
-    enum libinput_dispatch_type
-    {
-        DISPATCH_FALLBACK,
-        DISPATCH_TOUCHPAD,
-        DISPATCH_TABLET,
-        DISPATCH_TABLET_PAD,
-        DISPATCH_TOTEM,
-    };
     enum libinput_arbitration_state
     {
         ARBITRATION_NOT_ACTIVE,
@@ -4713,7 +4705,6 @@ namespace netxs::lixx // li++, libinput++.
     struct evdev_dispatch_t : ptr::enable_shared_from_this<evdev_dispatch_t>
     {
         libinput_device_sptr               li_device;
-        libinput_dispatch_type             dispatch_type;
         libinput_device_config_send_events sendevents_config;
         libinput_config_send_events_mode   sendevents_current_mode;
 
@@ -13432,8 +13423,7 @@ namespace netxs::lixx // li++, libinput++.
             si32 tp_init(libinput_device_sptr li_device)
             {
                 auto use_touch_size = faux;
-                tp.dispatch_type = DISPATCH_TOUCHPAD;
-                tp.li_device     = li_device;
+                tp.li_device = li_device;
                 if (!tp_pass_sanity_check(li_device))
                 {
                     return faux;
@@ -14294,7 +14284,6 @@ namespace netxs::lixx // li++, libinput++.
             si32 pad_init(libinput_device_sptr li_device)
             {
                 [[maybe_unused]] auto li = li_device->li;
-                pad.dispatch_type = DISPATCH_TABLET_PAD;
                 pad.li_device     = li_device;
                 pad.status        = PAD_NONE;
                 pad.changed_axes  = PAD_AXIS_NONE;
@@ -16655,9 +16644,8 @@ namespace netxs::lixx // li++, libinput++.
                     }
                 }
                 #endif
-                tablet.tablet_id          = ++tablet_ids;
-                tablet.dispatch_type      = DISPATCH_TABLET;
                 tablet.li_device          = li_device;
+                tablet.tablet_id          = ++tablet_ids;
                 tablet.status             = TABLET_NONE;
                 tablet.current_tool.type  = LIBINPUT_TABLET_TOOL_TYPE_NONE;
                 if (!tablet_reject_device(li_device))
@@ -19203,7 +19191,6 @@ namespace netxs::lixx // li++, libinput++.
             totem_ptr = ptr::shared<totem_dispatch>();
             auto& totem = *totem_ptr;
             totem.li_device = li_device;
-            totem.dispatch_type = DISPATCH_TOTEM;
             auto num_slots = li_device->libevdev_get_num_slots();
             if (num_slots > 0)
             {
@@ -19591,7 +19578,6 @@ namespace netxs::lixx // li++, libinput++.
             auto fallback_ptr = ptr::shared<fallback_dispatch>();
             auto& fallback = *fallback_ptr;
             fallback.li_device     = li_device;
-            fallback.dispatch_type = DISPATCH_FALLBACK;
             fallback.pending_event = EVDEV_NONE;
             fallback.fallback_impl.fallback_dispatch_init_rel(li_device);
             fallback.fallback_impl.fallback_dispatch_init_abs(li_device);
