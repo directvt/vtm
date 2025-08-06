@@ -103,7 +103,6 @@ namespace netxs::lixx // li++, libinput++.
     };
     enum libinput_device_caps
     {
-        EVDEV_DEVICE_NO_CAPABILITIES = 0ul,
         EVDEV_DEVICE_KEYBOARD        = 1ul << 0,
         EVDEV_DEVICE_POINTER         = 1ul << 1,
         EVDEV_DEVICE_GESTURE         = 1ul << 2,
@@ -4475,7 +4474,7 @@ namespace netxs::lixx // li++, libinput++.
             {
                 return -EBADF;
             }
-            if ((flags & lixx::valid_flags) == 0)
+            if (!(flags & lixx::valid_flags))
             {
                 return -EINVAL;
             }
@@ -5099,8 +5098,8 @@ namespace netxs::lixx // li++, libinput++.
         text                                    sysname;
         bool                                    was_removed;
         si32                                    fd;
-        libinput_device_caps                    device_caps;
-        libinput_device_tags                    tags;
+        ui32                                    device_caps{};
+        ui32                                    device_tags{};
         bool                                    is_mt;
         bool                                    is_suspended;
         si32                                    dpi;                    // HW resolution.
@@ -5157,7 +5156,7 @@ namespace netxs::lixx // li++, libinput++.
         }
         bool evdev_device_is_virtual()
         {
-            return tags & EVDEV_TAG_VIRTUAL;
+            return device_tags & EVDEV_TAG_VIRTUAL;
         }
         void post_device_event(time now, libinput_event_type type, libinput_event& event)
         {
@@ -6403,7 +6402,7 @@ namespace netxs::lixx // li++, libinput++.
             }
             static libinput_config_scroll_method evdev_scroll_get_default_method(libinput_device_sptr li_device)
             {
-                auto on_button_down = (li_device->tags & EVDEV_TAG_TRACKPOINT)
+                auto on_button_down = (li_device->device_tags & EVDEV_TAG_TRACKPOINT)
                                   || (!li_device->libevdev_has_event_code<EV_REL>(REL_WHEEL) // Mice without a scroll wheel but with middle button have on-button scrolling by default.
                                    && !li_device->libevdev_has_event_code<EV_REL>(REL_HWHEEL)
                                    &&  li_device->libevdev_has_event_code<EV_KEY>(BTN_MIDDLE));
@@ -6658,7 +6657,7 @@ namespace netxs::lixx // li++, libinput++.
                     {
                         filter = ptr::shared<custom_accelerator>();
                     }
-                    else if (tags & EVDEV_TAG_TRACKPOINT)
+                    else if (device_tags & EVDEV_TAG_TRACKPOINT)
                     {
                         if (which == LIBINPUT_CONFIG_ACCEL_PROFILE_FLAT)
                         {
@@ -11545,7 +11544,7 @@ namespace netxs::lixx // li++, libinput++.
                                         if (!t.dirty) continue;
                                         if (t.palm_state != TOUCH_PALM_NONE || tp_thumb_ignored(t)) continue;
                                         // Only scroll with the finger in the previous edge.
-                                        if (t.scroll.edge && (tp_touch_get_edge(t) & t.scroll.edge) == 0) continue;
+                                        if (t.scroll.edge && !(tp_touch_get_edge(t) & t.scroll.edge)) continue;
                                         switch (t.scroll.edge)
                                         {
                                             case EDGE_NONE:
@@ -11896,9 +11895,9 @@ namespace netxs::lixx // li++, libinput++.
                         {
                             auto bus_trp = trackpoint_li_device->libevdev_get_id_bustype();
                             bool tp_is_internal, trp_is_internal;
-                            if (trackpoint_li_device->tags & EVDEV_TAG_TRACKPOINT)
+                            if (trackpoint_li_device->device_tags & EVDEV_TAG_TRACKPOINT)
                             {
-                                tp_is_internal = !!(touchpad_li_device->tags & EVDEV_TAG_INTERNAL_TOUCHPAD);
+                                tp_is_internal = !!(touchpad_li_device->device_tags & EVDEV_TAG_INTERNAL_TOUCHPAD);
                                 trp_is_internal = bus_trp != BUS_USB && bus_trp != BUS_BLUETOOTH;
                                 if (!tp.buttons.trackpoint_li_device && tp_is_internal && trp_is_internal)
                                 {
@@ -11923,8 +11922,8 @@ namespace netxs::lixx // li++, libinput++.
                                 auto product_tp  = touchpad_li_device->evdev_device_get_id_product();
                                 auto product_kbd = keyboard_li_device->evdev_device_get_id_product();
                                 // External touchpads with the same vid/pid as the keyboard are considered a happy couple.
-                                if (touchpad_li_device->tags & EVDEV_TAG_EXTERNAL_TOUCHPAD) return vendor_tp == vendor_kbd && product_tp == product_kbd;
-                                if (keyboard_li_device->tags & EVDEV_TAG_INTERNAL_KEYBOARD) return true;
+                                if (touchpad_li_device->device_tags & EVDEV_TAG_EXTERNAL_TOUCHPAD) return vendor_tp == vendor_kbd && product_tp == product_kbd;
+                                if (keyboard_li_device->device_tags & EVDEV_TAG_INTERNAL_KEYBOARD) return true;
                                 // Keyboard is not tagged as internal keyboard and it's not part of a combo.
                                 return faux;
                             }
@@ -12016,7 +12015,7 @@ namespace netxs::lixx // li++, libinput++.
                             }
                         void tp_dwt_pair_keyboard(libinput_device_sptr touchpad_li_device, libinput_device_sptr keyboard_li_device)
                         {
-                            if ((keyboard_li_device->tags & EVDEV_TAG_KEYBOARD) == 0) return;
+                            if (!(keyboard_li_device->device_tags & EVDEV_TAG_KEYBOARD)) return;
                             if (!tp_want_dwt(touchpad_li_device, keyboard_li_device)) return;
                             if (tp.dwt.paired_keyboard_list.size() > 3)
                             {
@@ -12145,8 +12144,8 @@ namespace netxs::lixx // li++, libinput++.
                             }
                         void tp_pair_lid_switch(libinput_device_sptr touchpad_li_device, libinput_device_sptr lid_switch_li_device)
                         {
-                            if (lid_switch_li_device->tags & EVDEV_TAG_LID_SWITCH
-                             && !(touchpad_li_device->tags & EVDEV_TAG_EXTERNAL_TOUCHPAD)
+                            if (lid_switch_li_device->device_tags & EVDEV_TAG_LID_SWITCH
+                             && !(touchpad_li_device->device_tags & EVDEV_TAG_EXTERNAL_TOUCHPAD)
                              && !tp.lid_switch.lid_switch_li_device)
                             {
                                 log("lid: activated for %s%<->%s%", touchpad_li_device->devname, lid_switch_li_device->devname);
@@ -12181,9 +12180,9 @@ namespace netxs::lixx // li++, libinput++.
                             }
                         void tp_pair_tablet_mode_switch(libinput_device_sptr touchpad_li_device, libinput_device_sptr tablet_mode_switch_li_device)
                         {
-                            if ((tablet_mode_switch_li_device->tags & EVDEV_TAG_TABLET_MODE_SWITCH) == 0) return;
+                            if (!(tablet_mode_switch_li_device->device_tags & EVDEV_TAG_TABLET_MODE_SWITCH)) return;
                             if (tp.tablet_mode_switch.tablet_mode_switch_li_device) return;
-                            if (touchpad_li_device->tags & EVDEV_TAG_EXTERNAL_TOUCHPAD) return;
+                            if (touchpad_li_device->device_tags & EVDEV_TAG_EXTERNAL_TOUCHPAD) return;
                             if (touchpad_li_device->evdev_device_has_model_quirk(QUIRK_MODEL_TABLET_MODE_NO_SUSPEND)) return;
                             log("tablet-mode: activated for %s%<->%s%", touchpad_li_device->devname, tablet_mode_switch_li_device->devname);
                             if (!tp.tablet_mode_switch.listener)
@@ -12216,7 +12215,7 @@ namespace netxs::lixx // li++, libinput++.
                             }
                         void tp_pair_tablet(libinput_device_sptr touchpad_li_device, libinput_device_sptr tablet_li_device)
                         {
-                            if (tp.left_handed.must_rotate && (tablet_li_device->device_caps & EVDEV_DEVICE_TABLET) != 0)
+                            if (tp.left_handed.must_rotate && (tablet_li_device->device_caps & EVDEV_DEVICE_TABLET))
                             if (touchpad_li_device->device_group.size() && touchpad_li_device->device_group == tablet_li_device->device_group)
                             {
                                 tp.left_handed.tablet_li_device = tablet_li_device;
@@ -12238,7 +12237,7 @@ namespace netxs::lixx // li++, libinput++.
                 tp_pair_tablet(            li_device, added_li_device);
                 if (tp.sendevents.current_mode == LIBINPUT_CONFIG_SEND_EVENTS_DISABLED_ON_EXTERNAL_MOUSE)
                 {
-                    if (added_li_device->tags & EVDEV_TAG_EXTERNAL_MOUSE)
+                    if (added_li_device->device_tags & EVDEV_TAG_EXTERNAL_MOUSE)
                     {
                         tp_suspend(li_device, SUSPEND_EXTERNAL_MOUSE);
                     }
@@ -12286,7 +12285,7 @@ namespace netxs::lixx // li++, libinput++.
                     auto found = faux;
                     for (auto d : li_device->li->device_list)
                     {
-                        if (d != removed_li_device && (d->tags & EVDEV_TAG_EXTERNAL_MOUSE))
+                        if (d != removed_li_device && (d->device_tags & EVDEV_TAG_EXTERNAL_MOUSE))
                         {
                             found = true;
                             break;
@@ -12686,7 +12685,7 @@ namespace netxs::lixx // li++, libinput++.
                         // Exceptions here:
                         // - The one-button Apple touchpad (discontinued in 2008) has a single physical button.
                         // - Wacom touch devices have neither left nor right buttons.
-                        if (!is_clickpad && has_left && !has_right && (tp.li_device->model_flags & EVDEV_MODEL_APPLE_TOUCHPAD_ONEBUTTON) == 0)
+                        if (!is_clickpad && has_left && !has_right && !(tp.li_device->model_flags & EVDEV_MODEL_APPLE_TOUCHPAD_ONEBUTTON))
                         {
                             log("missing right button, assuming it is a clickpad");
                             is_clickpad = true;
@@ -12885,7 +12884,7 @@ namespace netxs::lixx // li++, libinput++.
                     }
                 void tp_init_dwt(libinput_device_sptr li_device)
                 {
-                    if (!(li_device->tags & EVDEV_TAG_EXTERNAL_TOUCHPAD) || tp_is_tpkb_combo_below(li_device))
+                    if (!(li_device->device_tags & EVDEV_TAG_EXTERNAL_TOUCHPAD) || tp_is_tpkb_combo_below(li_device))
                     {
                         tp.dwt.config.is_available        = tp_dwt_config_is_available;
                         tp.dwt.config.set_enabled         = tp_dwt_config_set;
@@ -12931,7 +12930,7 @@ namespace netxs::lixx // li++, libinput++.
                 void tp_init_dwtp(libinput_device_sptr li_device)
                 {
                     tp.palm.dwtp_enabled = tp_dwt_default_enabled2();
-                    if (!(li_device->tags & EVDEV_TAG_EXTERNAL_TOUCHPAD))
+                    if (!(li_device->device_tags & EVDEV_TAG_EXTERNAL_TOUCHPAD))
                     {
                         tp.palm.config.is_available        = tp_dwtp_config_is_available;
                         tp.palm.config.set_enabled         = tp_dwtp_config_set;
@@ -12953,7 +12952,7 @@ namespace netxs::lixx // li++, libinput++.
                     }
                     void tp_init_palmdetect_edge(libinput_device_sptr li_device)
                     {
-                        if (li_device->tags & EVDEV_TAG_EXTERNAL_TOUCHPAD && !tp_is_tpkb_combo_below(li_device)) return;
+                        if (li_device->device_tags & EVDEV_TAG_EXTERNAL_TOUCHPAD && !tp_is_tpkb_combo_below(li_device)) return;
                         // Edge palm detection hurts more than it helps on Apple touchpads.
                         if (li_device->evdev_device_has_model_quirk(QUIRK_MODEL_APPLE_TOUCHPAD)) return;
                         auto [w, h] = li_device->evdev_device_get_size();
@@ -13015,7 +13014,7 @@ namespace netxs::lixx // li++, libinput++.
                     }
                     bool tp_is_tablet(libinput_device_sptr li_device)
                     {
-                        return li_device->tags & EVDEV_TAG_TABLET_TOUCHPAD;
+                        return li_device->device_tags & EVDEV_TAG_TABLET_TOUCHPAD;
                     }
                 void tp_init_palmdetect(libinput_device_sptr li_device)
                 {
@@ -13023,7 +13022,7 @@ namespace netxs::lixx // li++, libinput++.
                     tp.palm.left_edge = si32min;
                     tp.palm.upper_edge = si32min;
                     tp_init_palmdetect_arbitration(li_device);
-                    if (li_device->tags & EVDEV_TAG_EXTERNAL_TOUCHPAD
+                    if (li_device->device_tags & EVDEV_TAG_EXTERNAL_TOUCHPAD
                      && !tp_is_tpkb_combo_below(li_device)
                      && !tp_is_tablet(li_device))
                     {
@@ -13237,7 +13236,7 @@ namespace netxs::lixx // li++, libinput++.
                     auto methods = tp_scroll_get_methods();
                     auto twofg = methods & LIBINPUT_CONFIG_SCROLL_2FG;
                     auto method = twofg ? LIBINPUT_CONFIG_SCROLL_2FG : LIBINPUT_CONFIG_SCROLL_EDGE;
-                    if ((methods & method) == 0)
+                    if (!(methods & method))
                     {
                         log("invalid default scroll method %d%", method);
                     }
@@ -13486,10 +13485,10 @@ namespace netxs::lixx // li++, libinput++.
                 {
                     tp.jump.detection_disabled = true;
                 }
-                li_device->device_caps = (libinput_device_caps)(li_device->device_caps | EVDEV_DEVICE_POINTER);
+                li_device->device_caps |= EVDEV_DEVICE_POINTER;
                 if (tp.gesture.enabled)
                 {
-                    li_device->device_caps = (libinput_device_caps)(li_device->device_caps | EVDEV_DEVICE_GESTURE);
+                    li_device->device_caps |= EVDEV_DEVICE_GESTURE;
                 }
                 return true;
             }
@@ -13497,7 +13496,7 @@ namespace netxs::lixx // li++, libinput++.
             {
                 for (auto d : li_device->li->device_list)
                 {
-                    if (d->tags & EVDEV_TAG_EXTERNAL_MOUSE)
+                    if (d->device_tags & EVDEV_TAG_EXTERNAL_MOUSE)
                     {
                         tp_suspend(li_device, SUSPEND_EXTERNAL_MOUSE);
                         break;
@@ -13993,7 +13992,7 @@ namespace netxs::lixx // li++, libinput++.
                             }
                                                 si32 evdev_device_tablet_pad_get_num_buttons(libinput_device_sptr li_device)
                                                 {
-                                                    auto is_pad = !!(li_device->device_caps & EVDEV_DEVICE_TABLET_PAD);
+                                                    auto is_pad = li_device->device_caps & EVDEV_DEVICE_TABLET_PAD;
                                                     return is_pad ? pad.nbuttons : -1;
                                                 }
                                             si32 libinput_device_tablet_pad_get_num_buttons(libinput_device_sptr li_device)
@@ -14101,7 +14100,7 @@ namespace netxs::lixx // li++, libinput++.
                                             if (map_value != (ui32)-1)
                                             {
                                                 auto button_or_key = (si32)(map_value & 0x00FFFFFF); // Map value.
-                                                if ((map_value & 0xFF000000) == 0) // It is a button.
+                                                if (!(map_value & 0xFF000000)) // It is a button.
                                                 {
                                                     auto group = pad_button_get_mode_group(button_or_key);
                                                     pad_button_update_mode(group, button_or_key, state);
@@ -16314,7 +16313,7 @@ namespace netxs::lixx // li++, libinput++.
             {
                 auto is_touchscreen  = added_li_device->libinput_device_has_capability(LIBINPUT_DEVICE_CAP_TOUCH);
                 auto is_ext_touchpad = added_li_device->libinput_device_has_capability(LIBINPUT_DEVICE_CAP_POINTER)
-                                                           && (added_li_device->tags & EVDEV_TAG_EXTERNAL_TOUCHPAD);
+                                                           && (added_li_device->device_tags & EVDEV_TAG_EXTERNAL_TOUCHPAD);
                 if (is_touchscreen || is_ext_touchpad) tablet_setup_touch_arbitration(li_device, added_li_device);
                 if (is_ext_touchpad) tablet_setup_rotation(li_device, added_li_device);
             }
@@ -16844,7 +16843,7 @@ namespace netxs::lixx // li++, libinput++.
                         bool fallback_reject_relative(libinput_device_sptr li_device, evdev_event const& ev, [[maybe_unused]] time now)
                         {
                             auto usage = ev.usage;
-                            if ((usage == evdev::rel_x || usage == evdev::rel_y) && (li_device->device_caps & EVDEV_DEVICE_POINTER) == 0)
+                            if ((usage == evdev::rel_x || usage == evdev::rel_y) && !(li_device->device_caps & EVDEV_DEVICE_POINTER))
                             {
                                 log("REL_X/Y from a non-pointer device");
                                 return true;
@@ -18237,7 +18236,7 @@ namespace netxs::lixx // li++, libinput++.
                 void fallback_interface_sync_initial_state(libinput_device_sptr li_device)
                 {
                     auto stamp = datetime::now();
-                    if (li_device->tags & EVDEV_TAG_LID_SWITCH)
+                    if (li_device->device_tags & EVDEV_TAG_LID_SWITCH)
                     {
                         fallback.lid.is_closed = li_device->libevdev_get_event_value<EV_SW>(SW_LID);
                         fallback.lid.is_closed_client_state = faux;
@@ -18304,8 +18303,8 @@ namespace netxs::lixx // li++, libinput++.
                 }
                     void fallback_lid_pair_keyboard(libinput_device_sptr lid_switch_li_device, libinput_device_sptr keyboard_li_device)
                     {
-                        if ((keyboard_li_device->tags & EVDEV_TAG_KEYBOARD) == 0 || (lid_switch_li_device->tags & EVDEV_TAG_LID_SWITCH) == 0) return;
-                        if ((keyboard_li_device->tags & EVDEV_TAG_INTERNAL_KEYBOARD) == 0) return;
+                        if (!(keyboard_li_device->device_tags & EVDEV_TAG_KEYBOARD) || !(lid_switch_li_device->device_tags & EVDEV_TAG_LID_SWITCH)) return;
+                        if (!(keyboard_li_device->device_tags & EVDEV_TAG_INTERNAL_KEYBOARD)) return;
                         if (fallback.lid.paired_keyboard_list.size() > 3)
                         {
                             log("lid: too many internal keyboards");
@@ -18354,17 +18353,17 @@ namespace netxs::lixx // li++, libinput++.
                         }
                     void fallback_pair_tablet_mode(libinput_device_sptr keyboard_li_device, libinput_device_sptr tablet_mode_switch_li_device)
                     {
-                        if ((keyboard_li_device->tags & EVDEV_TAG_EXTERNAL_KEYBOARD)) return;
-                        if ((keyboard_li_device->tags & EVDEV_TAG_TRACKPOINT))
+                        if ((keyboard_li_device->device_tags & EVDEV_TAG_EXTERNAL_KEYBOARD)) return;
+                        if ((keyboard_li_device->device_tags & EVDEV_TAG_TRACKPOINT))
                         {
-                            if (keyboard_li_device->tags & EVDEV_TAG_EXTERNAL_MOUSE) return;
+                            if (keyboard_li_device->device_tags & EVDEV_TAG_EXTERNAL_MOUSE) return;
                         }
-                        else if ((keyboard_li_device->tags & EVDEV_TAG_INTERNAL_KEYBOARD) == 0) // This filters out all internal keyboard-like devices (Video Switch).
+                        else if (!(keyboard_li_device->device_tags & EVDEV_TAG_INTERNAL_KEYBOARD)) // This filters out all internal keyboard-like devices (Video Switch).
                         {
                             return;
                         }
                         if (keyboard_li_device->evdev_device_has_model_quirk(QUIRK_MODEL_TABLET_MODE_NO_SUSPEND)) return;
-                        if ((tablet_mode_switch_li_device->tags & EVDEV_TAG_TABLET_MODE_SWITCH) == 0) return;
+                        if (!(tablet_mode_switch_li_device->device_tags & EVDEV_TAG_TABLET_MODE_SWITCH)) return;
                         if (fallback.tablet_mode.other.sw_li_device) return;
                         log("tablet-mode: paired %s%<->%s%", keyboard_li_device->devname, tablet_mode_switch_li_device->devname);
                         if (!fallback.tablet_mode.other.listener)
@@ -18429,7 +18428,7 @@ namespace netxs::lixx // li++, libinput++.
                 }
             void fallback_init_rotation(libinput_device_sptr li_device)
             {
-                if (li_device->tags & EVDEV_TAG_TRACKPOINT) return;
+                if (li_device->device_tags & EVDEV_TAG_TRACKPOINT) return;
                 fallback.rotation.config.is_available      = fallback_rotation_config_is_available;
                 fallback.rotation.config.set_angle         = fallback_rotation_config_set_angle;
                 fallback.rotation.config.get_angle         = fallback_rotation_config_get_angle;
@@ -18486,12 +18485,12 @@ namespace netxs::lixx // li++, libinput++.
                 }
             void fallback_dispatch_init_switch(libinput_device_sptr li_device)
             {
-                if (li_device->tags & EVDEV_TAG_LID_SWITCH)
+                if (li_device->device_tags & EVDEV_TAG_LID_SWITCH)
                 {
                     fallback.lid.reliability = evdev_read_switch_reliability_prop(li_device);
                     fallback.lid.is_closed = faux;
                 }
-                if (li_device->tags & EVDEV_TAG_TABLET_MODE_SWITCH)
+                if (li_device->device_tags & EVDEV_TAG_TABLET_MODE_SWITCH)
                 {
                     auto val = li_device->libevdev_get_event_value<EV_SW>(SW_TABLET_MODE);
                     fallback.tablet_mode.sw.state = val;
@@ -18737,7 +18736,7 @@ namespace netxs::lixx // li++, libinput++.
             for (auto [quirk, model] : model_map)
             {
                 auto is_set = faux;
-                assert((all_model_flags & model) == 0); // Check for flag re-use.
+                assert(!(all_model_flags & model)); // Check for flag re-use.
                 all_model_flags |= model;
                 if (q->quirks_get(quirk, is_set))
                 {
@@ -18858,7 +18857,7 @@ namespace netxs::lixx // li++, libinput++.
             }
             if (is_virtual)
             {
-                li_device->tags = (libinput_device_tags)(li_device->tags | EVDEV_TAG_VIRTUAL);
+                li_device->device_tags |= EVDEV_TAG_VIRTUAL;
             }
         }
     }
@@ -19322,13 +19321,13 @@ namespace netxs::lixx // li++, libinput++.
         }
                 void evdev_tag_touchpad_internal(libinput_device_sptr li_device)
                 {
-                    li_device->tags = (libinput_device_tags)(li_device->tags | EVDEV_TAG_INTERNAL_TOUCHPAD);
-                    li_device->tags = (libinput_device_tags)(li_device->tags & ~EVDEV_TAG_EXTERNAL_TOUCHPAD);
+                    li_device->device_tags |= EVDEV_TAG_INTERNAL_TOUCHPAD;
+                    li_device->device_tags &= ~EVDEV_TAG_EXTERNAL_TOUCHPAD;
                 }
                 void evdev_tag_touchpad_external(libinput_device_sptr li_device)
                 {
-                    li_device->tags = (libinput_device_tags)(li_device->tags | EVDEV_TAG_EXTERNAL_TOUCHPAD);
-                    li_device->tags = (libinput_device_tags)(li_device->tags & ~EVDEV_TAG_INTERNAL_TOUCHPAD);
+                    li_device->device_tags |= EVDEV_TAG_EXTERNAL_TOUCHPAD;
+                    li_device->device_tags &= ~EVDEV_TAG_INTERNAL_TOUCHPAD;
                 }
             void evdev_tag_touchpad(libinput_device_sptr li_device)
             {
@@ -19365,7 +19364,7 @@ namespace netxs::lixx // li++, libinput++.
                 {
                     evdev_tag_touchpad_external(li_device);
                 }
-                if ((li_device->tags & (EVDEV_TAG_EXTERNAL_TOUCHPAD | EVDEV_TAG_INTERNAL_TOUCHPAD)) == 0)
+                if (!(li_device->device_tags & (EVDEV_TAG_EXTERNAL_TOUCHPAD | EVDEV_TAG_INTERNAL_TOUCHPAD)))
                 {
                     log("Internal or external? Please file a bug");
                     evdev_tag_touchpad_external(li_device);
@@ -19374,7 +19373,7 @@ namespace netxs::lixx // li++, libinput++.
             static ui32 tp_sendevents_get_modes(libinput_device_sptr li_device)
             {
                 auto modes = (ui32)LIBINPUT_CONFIG_SEND_EVENTS_DISABLED;
-                if (li_device->tags & EVDEV_TAG_INTERNAL_TOUCHPAD)
+                if (li_device->device_tags & EVDEV_TAG_INTERNAL_TOUCHPAD)
                 {
                     modes |= LIBINPUT_CONFIG_SEND_EVENTS_DISABLED_ON_EXTERNAL_MOUSE;
                 }
@@ -19443,7 +19442,7 @@ namespace netxs::lixx // li++, libinput++.
             auto bustype = li_device->libevdev_get_id_bustype();
             if (bustype == BUS_USB || bustype == BUS_BLUETOOTH)
             {
-                li_device->tags = (libinput_device_tags)(li_device->tags | EVDEV_TAG_EXTERNAL_MOUSE);
+                li_device->device_tags |= EVDEV_TAG_EXTERNAL_MOUSE;
             }
         }
         void evdev_tag_trackpoint(libinput_device_sptr li_device)
@@ -19453,7 +19452,7 @@ namespace netxs::lixx // li++, libinput++.
             {
                 return;
             }
-            li_device->tags = (libinput_device_tags)(li_device->tags | EVDEV_TAG_TRACKPOINT);
+            li_device->device_tags |= EVDEV_TAG_TRACKPOINT;
             auto quirks = li_device->li->quirks;
             if (auto q = li_device->ud_device->quirks_fetch_for_device(quirks))
             {
@@ -19466,7 +19465,7 @@ namespace netxs::lixx // li++, libinput++.
                     }
                     else if ("external"sv == prop)
                     {
-                        li_device->tags = (libinput_device_tags)(li_device->tags | EVDEV_TAG_EXTERNAL_MOUSE);
+                        li_device->device_tags |= EVDEV_TAG_EXTERNAL_MOUSE;
                         log("is an external pointing stick");
                     }
                     else
@@ -19479,7 +19478,7 @@ namespace netxs::lixx // li++, libinput++.
         fp64 evdev_get_trackpoint_multiplier(libinput_device_sptr li_device)
         {
             auto multiplier = 1.0;
-            if (li_device->tags & EVDEV_TAG_TRACKPOINT)
+            if (li_device->device_tags & EVDEV_TAG_TRACKPOINT)
             {
                 auto quirks = li_device->li->quirks;
                 if (auto q = li_device->ud_device->quirks_fetch_for_device(quirks))
@@ -19549,7 +19548,7 @@ namespace netxs::lixx // li++, libinput++.
         si32 evdev_read_dpi_prop(libinput_device_sptr li_device)
         {
             auto dpi = lixx::default_mouse_dpi;
-            if (li_device->tags & EVDEV_TAG_TRACKPOINT) return lixx::default_mouse_dpi;
+            if (li_device->device_tags & EVDEV_TAG_TRACKPOINT) return lixx::default_mouse_dpi;
             auto mouse_dpi = li_device->udev_device_get_property_value("MOUSE_DPI");
             if (mouse_dpi)
             {
@@ -19565,13 +19564,13 @@ namespace netxs::lixx // li++, libinput++.
         }
             void evdev_tag_keyboard_internal(libinput_device_sptr li_device)
             {
-                li_device->tags = (libinput_device_tags)(li_device->tags | EVDEV_TAG_INTERNAL_KEYBOARD);
-                li_device->tags = (libinput_device_tags)(li_device->tags & ~EVDEV_TAG_EXTERNAL_KEYBOARD);
+                li_device->device_tags |= EVDEV_TAG_INTERNAL_KEYBOARD;
+                li_device->device_tags &= ~EVDEV_TAG_EXTERNAL_KEYBOARD;
             }
             void evdev_tag_keyboard_external(libinput_device_sptr li_device)
             {
-                li_device->tags = (libinput_device_tags)(li_device->tags | EVDEV_TAG_EXTERNAL_KEYBOARD);
-                li_device->tags = (libinput_device_tags)(li_device->tags & ~EVDEV_TAG_INTERNAL_KEYBOARD);
+                li_device->device_tags |= EVDEV_TAG_EXTERNAL_KEYBOARD;
+                li_device->device_tags &= ~EVDEV_TAG_INTERNAL_KEYBOARD;
             }
         void evdev_tag_keyboard(libinput_device_sptr li_device)
         {
@@ -19604,7 +19603,7 @@ namespace netxs::lixx // li++, libinput++.
                         }
                     }
                 }
-                li_device->tags = (libinput_device_tags)(li_device->tags | EVDEV_TAG_KEYBOARD);
+                li_device->device_tags |= EVDEV_TAG_KEYBOARD;
             }
         }
         evdev_dispatch_sptr fallback_dispatch_create(libinput_device_sptr li_device)
@@ -19654,7 +19653,7 @@ namespace netxs::lixx // li++, libinput++.
     evdev_dispatch_sptr evdev_configure_device(libinput_device_sptr li_device)
     {
         auto udev_tags = li_device->evdev_device_get_udev_tags();
-        if ((udev_tags & EVDEV_UDEV_TAG_INPUT) == 0 || (udev_tags & ~EVDEV_UDEV_TAG_INPUT) == 0)
+        if ((udev_tags & EVDEV_UDEV_TAG_INPUT) == 0 || !(udev_tags & ~EVDEV_UDEV_TAG_INPUT))
         {
             log("not tagged as supported input device: ", li_device->ud_device->properties["NAME"]);
             return nullptr;
@@ -19705,7 +19704,7 @@ namespace netxs::lixx // li++, libinput++.
         }
         if (li_device->evdev_device_has_model_quirk(QUIRK_MODEL_DELL_CANVAS_TOTEM))
         {
-            li_device->device_caps = (libinput_device_caps)(li_device->device_caps | EVDEV_DEVICE_TABLET);
+            li_device->device_caps |= EVDEV_DEVICE_TABLET;
             log("Device is a totem: ", li_device->ud_device->properties["NAME"]);
             return evdev_totem_create(li_device);
         }
@@ -19713,13 +19712,13 @@ namespace netxs::lixx // li++, libinput++.
         auto tablet_tags = EVDEV_UDEV_TAG_TABLET | EVDEV_UDEV_TAG_TOUCHPAD | EVDEV_UDEV_TAG_TOUCHSCREEN;
         if (udev_tags & EVDEV_UDEV_TAG_TABLET_PAD) // Libwacom assigns tablet _and_ tablet_pad to the pad devices.
         {
-            li_device->device_caps = (libinput_device_caps)(li_device->device_caps | EVDEV_DEVICE_TABLET_PAD);
+            li_device->device_caps |= EVDEV_DEVICE_TABLET_PAD;
             log("Device is a tablet pad: ", li_device->ud_device->properties["NAME"]);
             return evdev_tablet_pad_create(li_device);
         }
         if ((udev_tags & tablet_tags) == EVDEV_UDEV_TAG_TABLET)
         {
-            li_device->device_caps = (libinput_device_caps)(li_device->device_caps | EVDEV_DEVICE_TABLET);
+            li_device->device_caps |= EVDEV_DEVICE_TABLET;
             log("Device is a tablet: ", li_device->ud_device->properties["NAME"]);
             return evdev_tablet_create(li_device);
         }
@@ -19727,7 +19726,7 @@ namespace netxs::lixx // li++, libinput++.
         {
             if (udev_tags & EVDEV_UDEV_TAG_TABLET)
             {
-                li_device->tags = (libinput_device_tags)(li_device->tags | EVDEV_TAG_TABLET_TOUCHPAD);
+                li_device->device_tags |= EVDEV_TAG_TABLET_TOUCHPAD;
             }
             li_device->use_velocity_averaging = evdev_need_velocity_averaging(li_device); // Whether velocity should be averaged, false by default.
             log("Device is a touchpad: ", li_device->ud_device->properties["NAME"]);
@@ -19737,7 +19736,7 @@ namespace netxs::lixx // li++, libinput++.
         {
             evdev_tag_external_mouse(li_device);
             evdev_tag_trackpoint(li_device);
-            if (li_device->tags & EVDEV_TAG_TRACKPOINT)
+            if (li_device->device_tags & EVDEV_TAG_TRACKPOINT)
             {
                 li_device->trackpoint_multiplier = evdev_get_trackpoint_multiplier(li_device);
             }
@@ -19746,7 +19745,7 @@ namespace netxs::lixx // li++, libinput++.
                 li_device->dpi = evdev_read_dpi_prop(li_device);
             }
             li_device->use_velocity_averaging = evdev_need_velocity_averaging(li_device); // Whether velocity should be averaged, false by default.
-            li_device->device_caps = (libinput_device_caps)(li_device->device_caps | EVDEV_DEVICE_POINTER);
+            li_device->device_caps |= EVDEV_DEVICE_POINTER;
             log("Device is a pointer: ", li_device->ud_device->properties["NAME"]);
             li_device->left_handed.want_enabled = true; // Want left-handed config option.
             li_device->scroll.natural_scrolling_enabled = true; // Want natural-scroll config option.
@@ -19757,26 +19756,26 @@ namespace netxs::lixx // li++, libinput++.
         }
         if (udev_tags & EVDEV_UDEV_TAG_KEYBOARD)
         {
-            li_device->device_caps = (libinput_device_caps)(li_device->device_caps | EVDEV_DEVICE_KEYBOARD);
+            li_device->device_caps |= EVDEV_DEVICE_KEYBOARD;
             log("Device is a keyboard: ", li_device->ud_device->properties["NAME"]);
             if (li_device->libevdev_has_event_code<EV_REL>(REL_WHEEL) || li_device->libevdev_has_event_code<EV_REL>(REL_HWHEEL)) // Want natural-scroll config option.
             {
                 li_device->scroll.natural_scrolling_enabled = true;
-                li_device->device_caps = (libinput_device_caps)(li_device->device_caps | EVDEV_DEVICE_POINTER);
+                li_device->device_caps |= EVDEV_DEVICE_POINTER;
             }
             evdev_tag_keyboard(li_device);
         }
         if (udev_tags & EVDEV_UDEV_TAG_TOUCHSCREEN)
         {
-            li_device->device_caps = (libinput_device_caps)(li_device->device_caps | EVDEV_DEVICE_TOUCH);
+            li_device->device_caps |= EVDEV_DEVICE_TOUCH;
             log("Device is a touch device: ", li_device->ud_device->properties["NAME"]);
         }
         if (udev_tags & EVDEV_UDEV_TAG_SWITCH)
         {
             if (li_device->libevdev_has_event_code<EV_SW>(SW_LID))
             {
-                li_device->device_caps = (libinput_device_caps)(li_device->device_caps | EVDEV_DEVICE_SWITCH);
-                li_device->tags = (libinput_device_tags)(li_device->tags | EVDEV_TAG_LID_SWITCH);
+                li_device->device_caps |= EVDEV_DEVICE_SWITCH;
+                li_device->device_tags |= EVDEV_TAG_LID_SWITCH;
             }
             if (li_device->libevdev_has_event_code<EV_SW>(SW_TABLET_MODE))
             {
@@ -19787,8 +19786,8 @@ namespace netxs::lixx // li++, libinput++.
                 }
                 else
                 {
-                    li_device->tags = (libinput_device_tags)(li_device->tags | EVDEV_TAG_TABLET_MODE_SWITCH);
-                    li_device->device_caps = (libinput_device_caps)(li_device->device_caps | EVDEV_DEVICE_SWITCH);
+                    li_device->device_tags |= EVDEV_TAG_TABLET_MODE_SWITCH;
+                    li_device->device_caps |= EVDEV_DEVICE_SWITCH;
                 }
             }
             if (li_device->device_caps & EVDEV_DEVICE_SWITCH)
@@ -19830,7 +19829,6 @@ namespace netxs::lixx // li++, libinput++.
         auto li_device = ptr::shared<libinput_device_t>();
         li_device->li = li;
         li_device->sysname = ud_device->udev_device_get_sysname();
-        li_device->device_caps = EVDEV_DEVICE_NO_CAPABILITIES;
         li_device->is_mt = 0;
         li_device->ud_device = ud_device;
         li_device->dispatch = nullptr;
@@ -19847,7 +19845,7 @@ namespace netxs::lixx // li++, libinput++.
         li_device->abs.default_calibration.matrix_init_identity();
         evdev_pre_configure_model_quirks(li_device);
         li_device->dispatch = evdev_configure_device(li_device);
-        if (li_device->dispatch && li_device->device_caps != EVDEV_DEVICE_NO_CAPABILITIES)
+        if (li_device->dispatch && li_device->device_caps)
         {
             auto& li_device_inst = *li_device;
             li_device->source = li->timers.libinput_add_event_source(ud_device->fd, [&]{ li_device_inst.evdev_device_dispatch(); });
