@@ -4950,19 +4950,7 @@ namespace netxs::lixx // li++, libinput++.
         std::list<libinput_device_sptr>       device_list;
 
         static void evdev_udev_handler(void* data);
-        void remove_device(libinput_device_sptr li_device);
-        void libinput_remove_devices();
 
-        void input_disable()
-        {
-            if (ud_monitor)
-            {
-                ud_monitor.reset();
-                timers.libinput_remove_event_source(ud_monitor_source);
-                ud_monitor_source.reset();
-                libinput_remove_devices();
-            }
-        }
         void input_enable()
         {
             if (!ud_monitor)
@@ -6024,7 +6012,7 @@ namespace netxs::lixx // li++, libinput++.
                 }
                 else if (rc == -ENODEV)
                 {
-                    li->remove_device(li_device->This());
+                    li_device->remove_device();
                     return;
                 }
             }
@@ -6038,6 +6026,23 @@ namespace netxs::lixx // li++, libinput++.
             {
                 li->timers.libinput_remove_event_source(li_device->source);
             }
+        }
+        void remove_device()
+        {
+            auto li_device = This();
+            std::erase_if(li->device_list, [&](auto d)
+            {
+                if (d == li_device)
+                {
+                    li_device->evdev_device_remove();
+                    return true;
+                }
+                else
+                {
+                    d->dispatch->device_removed(d, li_device);
+                    return faux;
+                }
+            });
         }
         si32 evdev_device_resume()
         {
@@ -18698,30 +18703,6 @@ namespace netxs::lixx // li++, libinput++.
                     std::erase_if(li->device_list, [&](auto d){ return devpath == d->udev_device_get_devpath(); });
                 }
             });
-        }
-        void libinput_t::remove_device(libinput_device_sptr li_device)
-        {
-            std::erase_if(device_list, [&](auto d)
-            {
-                if (d == li_device)
-                {
-                    li_device->evdev_device_remove();
-                    return true;
-                }
-                else
-                {
-                    d->dispatch->device_removed(d, li_device);
-                    return faux;
-                }
-            });
-        }
-        void libinput_t::libinput_remove_devices()
-        {
-            for (auto li_device : device_list)
-            {
-                li_device->evdev_device_remove();
-            }
-            device_list.clear();
         }
 
     si32 parse_mouse_wheel_click_angle_property(qiew prop)

@@ -4756,7 +4756,7 @@ namespace netxs::os
                     }
                     else
                     {
-                        lixx::li->remove_device(device);
+                        device->remove_device();
                     }
                     return true;
                 });
