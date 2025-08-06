@@ -1547,7 +1547,7 @@ namespace netxs::lixx // li++, libinput++.
         virtual fp64      apply_acceleration(fp64 velocity)                                                                                 { return velocity; }
         virtual fp64_coor filter(         [[maybe_unused]] fp64_coor unaccelerated, [[maybe_unused]] void* data, [[maybe_unused]] time now) { return {}; }
         virtual fp64_coor filter_constant([[maybe_unused]] fp64_coor unaccelerated, [[maybe_unused]] void* data, [[maybe_unused]] time now) { return {}; }
-        virtual fp64_coor filter_scroll(  [[maybe_unused]] fp64_coor unaccelerated, [[maybe_unused]] void* data, [[maybe_unused]] time now) { return {}; }
+        virtual fp64_coor filter_scroll(  [[maybe_unused]] fp64_coor unaccelerated, [[maybe_unused]] time now)                              { return {}; }
         virtual bool      set_speed([[maybe_unused]] fp64 speed_adjustment)                                                                 { return {}; }
         virtual bool      set_accel_config([[maybe_unused]] libinput_config_accel& accel_config)                                            { return {}; }
         virtual void      restart([[maybe_unused]] time now)                                                                                { }
@@ -1569,9 +1569,9 @@ namespace netxs::lixx // li++, libinput++.
             assert(type == accel_config.profile);
             return set_accel_config(accel_config);
         }
-        fp64_coor filter_dispatch_scroll(fp64_coor unaccelerated, void* data, time stamp)
+        fp64_coor filter_dispatch_scroll(fp64_coor unaccelerated, time stamp)
         {
-            return filter_scroll(unaccelerated, data, stamp);
+            return filter_scroll(unaccelerated, stamp);
         }
         fp64_coor filter_dispatch(fp64_coor unaccelerated, void* data, time now)
         {
@@ -1625,7 +1625,7 @@ namespace netxs::lixx // li++, libinput++.
                 auto coords = multiplied * f;
                 return coords;
             }
-            fp64_coor trackpoint_accelerator_filter_noop(fp64_coor unaccelerated, [[maybe_unused]] void* data, [[maybe_unused]] time now)
+            fp64_coor trackpoint_accelerator_filter_noop(fp64_coor unaccelerated)
             {
                 return unaccelerated * accel.multiplier;
             }
@@ -1683,8 +1683,8 @@ namespace netxs::lixx // li++, libinput++.
 
         trackpoint_accelerator_impl_t impl{ *this };
         virtual fp64_coor filter(         fp64_coor unaccelerated, void* data, time now) { return impl.trackpoint_accelerator_filter(unaccelerated, data, now); }
-        virtual fp64_coor filter_constant(fp64_coor unaccelerated, void* data, time now) { return impl.trackpoint_accelerator_filter_noop(unaccelerated, data, now); }
-        virtual fp64_coor filter_scroll(  fp64_coor unaccelerated, void* data, time now) { return impl.trackpoint_accelerator_filter_noop(unaccelerated, data, now); }
+        virtual fp64_coor filter_constant(fp64_coor unaccelerated, void*, time)          { return impl.trackpoint_accelerator_filter_noop(unaccelerated); }
+        virtual fp64_coor filter_scroll(  fp64_coor unaccelerated, time)                 { return impl.trackpoint_accelerator_filter_noop(unaccelerated); }
         virtual bool      set_speed(fp64 speed_adjustment)                               { return impl.trackpoint_accelerator_set_speed(speed_adjustment); }
         virtual void      restart(time now)                                              {        impl.trackpoint_accelerator_restart(now); }
     };
@@ -1696,11 +1696,11 @@ namespace netxs::lixx // li++, libinput++.
         struct pointer_accelerator_flat_impl_t
         {
             pointer_accelerator_flat& accel;
-            fp64_coor accelerator_filter_flat(fp64_coor unaccelerated, [[maybe_unused]] void* data, [[maybe_unused]] time now)
+            fp64_coor accelerator_filter_flat(fp64_coor unaccelerated)
             {
                 return unaccelerated * accel.factor;
             }
-            fp64_coor accelerator_filter_noop_flat(fp64_coor unaccelerated, void* data, time now)
+            fp64_coor accelerator_filter_noop_flat(fp64_coor unaccelerated)
             {
                 // We map the unaccelerated flat filter to have the same behavior as the "accelerated" flat filter.
                 // The filter by definition is flat, i.e. it does not actually
@@ -1708,7 +1708,7 @@ namespace netxs::lixx // li++, libinput++.
                 // that a user wants all mouse movement to have the same speed, mapped 1:1 to the input speed.
                 // Thus we apply the same factor to our non-accelerated motion - this way
                 // things like button scrolling end up having the same movement as pointer motion.
-                return accelerator_filter_flat(unaccelerated, data, now);
+                return accelerator_filter_flat(unaccelerated);
             }
             bool accelerator_set_speed_flat(fp64 speed_adjustment)
             {
@@ -1728,10 +1728,10 @@ namespace netxs::lixx // li++, libinput++.
         }
 
         pointer_accelerator_flat_impl_t impl{ *this };
-        virtual fp64_coor filter(         fp64_coor unaccelerated, void* data, time now) { return impl.accelerator_filter_flat(unaccelerated, data, now); }
-        virtual fp64_coor filter_constant(fp64_coor unaccelerated, void* data, time now) { return impl.accelerator_filter_noop_flat(unaccelerated, data, now); }
-        virtual fp64_coor filter_scroll(  fp64_coor unaccelerated, void* data, time now) { return impl.accelerator_filter_noop_flat(unaccelerated, data, now); }
-        virtual bool      set_speed(fp64 speed_adjustment)                               { return impl.accelerator_set_speed_flat(speed_adjustment); }
+        virtual fp64_coor filter(         fp64_coor unaccelerated, void*, time) { return impl.accelerator_filter_flat(unaccelerated); }
+        virtual fp64_coor filter_constant(fp64_coor unaccelerated, void*, time) { return impl.accelerator_filter_noop_flat(unaccelerated); }
+        virtual fp64_coor filter_scroll(  fp64_coor unaccelerated, time)        { return impl.accelerator_filter_noop_flat(unaccelerated); }
+        virtual bool      set_speed(fp64 speed_adjustment)                      { return impl.accelerator_set_speed_flat(speed_adjustment); }
     };
 
     struct trackpoint_flat_accelerator : pointer_accelerator_flat
@@ -1948,7 +1948,7 @@ namespace netxs::lixx // li++, libinput++.
             {
                 return custom_accelerator_filter(LIBINPUT_ACCEL_TYPE_FALLBACK, unaccelerated, now);
             }
-            fp64_coor custom_accelerator_filter_scroll(fp64_coor unaccelerated, [[maybe_unused]] void* data, time now)
+            fp64_coor custom_accelerator_filter_scroll(fp64_coor unaccelerated, time now)
             {
                 return custom_accelerator_filter(LIBINPUT_ACCEL_TYPE_SCROLL, unaccelerated, now);
             }
@@ -2006,7 +2006,7 @@ namespace netxs::lixx // li++, libinput++.
         custom_accelerator_impl_t impl{ *this };
         virtual fp64_coor filter(         fp64_coor unaccelerated, void* data, time now) { return impl.custom_accelerator_filter_motion(unaccelerated, data, now); }
         virtual fp64_coor filter_constant(fp64_coor unaccelerated, void* data, time now) { return impl.custom_accelerator_filter_fallback(unaccelerated, data, now); }
-        virtual fp64_coor filter_scroll(  fp64_coor unaccelerated, void* data, time now) { return impl.custom_accelerator_filter_scroll(unaccelerated, data, now); }
+        virtual fp64_coor filter_scroll(  fp64_coor unaccelerated, time now)             { return impl.custom_accelerator_filter_scroll(unaccelerated, now); }
         virtual bool      set_speed(fp64 speed_adjustment)                               { return impl.custom_accelerator_set_speed(speed_adjustment); }
         virtual bool      set_accel_config(libinput_config_accel& accel_config)          { return impl.custom_accelerator_set_accel_config(accel_config); }
         virtual void      restart(time now)                                              {        impl.custom_accelerator_restart(now); }
@@ -2025,7 +2025,7 @@ namespace netxs::lixx // li++, libinput++.
             {
                 return accel.normalize_for_dpi(unaccelerated) * accel.calculate_acceleration_simpsons(unaccelerated, stamp);
             }
-            fp64_coor accelerator_filter_noop(fp64_coor unaccelerated, [[maybe_unused]] void* data, [[maybe_unused]] time now)
+            fp64_coor accelerator_filter_noop(fp64_coor unaccelerated)
             {
                 return accel.normalize_for_dpi(unaccelerated);
             }
@@ -2117,8 +2117,8 @@ namespace netxs::lixx // li++, libinput++.
         pointer_accelerator_impl_t impl{ *this };
         virtual fp64      apply_acceleration(fp64 velocity)                              { return impl.pointer_accel_profile_linear(velocity); }
         virtual fp64_coor filter(         fp64_coor unaccelerated, void* data, time now) { return impl.accelerator_filter_linear(unaccelerated, data, now); }
-        virtual fp64_coor filter_constant(fp64_coor unaccelerated, void* data, time now) { return impl.accelerator_filter_noop(unaccelerated, data, now); }
-        virtual fp64_coor filter_scroll(  fp64_coor unaccelerated, void* data, time now) { return impl.accelerator_filter_noop(unaccelerated, data, now); }
+        virtual fp64_coor filter_constant(fp64_coor unaccelerated, void*, time)          { return impl.accelerator_filter_noop(unaccelerated); }
+        virtual fp64_coor filter_scroll(  fp64_coor unaccelerated, time)                 { return impl.accelerator_filter_noop(unaccelerated); }
         virtual bool      set_speed(fp64 speed_adjustment)                               { return impl.accelerator_set_speed(speed_adjustment); }
         virtual void      restart(time now)                                              { impl.accelerator_restart(now); }
     };
@@ -2174,11 +2174,11 @@ namespace netxs::lixx // li++, libinput++.
         struct touchpad_accelerator_flat_impl_t
         {
             touchpad_accelerator_flat& accel;
-                fp64_coor accelerator_filter_touchpad_flat(fp64_coor unaccelerated, [[maybe_unused]] void* data, [[maybe_unused]] time now)
+                fp64_coor accelerator_filter_touchpad_flat(fp64_coor unaccelerated)
                 {
                     return accel.normalize_for_dpi(unaccelerated) * lixx::tp_magic_slowdown_flat * accel.factor; // You want flat acceleration, you get flat acceleration for the device.
                 }
-            fp64_coor accelerator_filter_noop_touchpad_flat(fp64_coor unaccelerated, void* data, time stamp)
+            fp64_coor accelerator_filter_noop_touchpad_flat(fp64_coor unaccelerated)
             {
                 // We map the unaccelerated flat filter to have the same behavior as
                 // the "accelerated" flat filter.
@@ -2190,7 +2190,7 @@ namespace netxs::lixx // li++, libinput++.
                 // Thus we apply the same factor to our non-accelerated motion - this way
                 // things like gestures end up having the same movement as
                 // pointer motion.
-                return accelerator_filter_touchpad_flat(unaccelerated, data, stamp);
+                return accelerator_filter_touchpad_flat(unaccelerated);
             }
             bool accelerator_set_speed_touchpad_flat(fp64 speed_adjustment)
             {
@@ -2209,10 +2209,10 @@ namespace netxs::lixx // li++, libinput++.
         }
 
         touchpad_accelerator_flat_impl_t impl{ *this };
-        virtual fp64_coor filter(         fp64_coor unaccelerated, void* data, time now) { return impl.accelerator_filter_touchpad_flat(unaccelerated, data, now); }
-        virtual fp64_coor filter_constant(fp64_coor unaccelerated, void* data, time now) { return impl.accelerator_filter_noop_touchpad_flat(unaccelerated, data, now); }
-        virtual fp64_coor filter_scroll(  fp64_coor unaccelerated, void* data, time now) { return impl.accelerator_filter_noop_touchpad_flat(unaccelerated, data, now); }
-        virtual bool      set_speed(fp64 speed_adjustment)                               { return impl.accelerator_set_speed_touchpad_flat(speed_adjustment); }
+        virtual fp64_coor filter(         fp64_coor unaccelerated, void*, time) { return impl.accelerator_filter_touchpad_flat(unaccelerated); }
+        virtual fp64_coor filter_constant(fp64_coor unaccelerated, void*, time) { return impl.accelerator_filter_noop_touchpad_flat(unaccelerated); }
+        virtual fp64_coor filter_scroll(  fp64_coor unaccelerated, time)        { return impl.accelerator_filter_noop_touchpad_flat(unaccelerated); }
+        virtual bool      set_speed(fp64 speed_adjustment)                      { return impl.accelerator_set_speed_touchpad_flat(speed_adjustment); }
     };
 
     struct pointer_accelerator_x230 : motion_filter
@@ -2236,7 +2236,7 @@ namespace netxs::lixx // li++, libinput++.
                 auto accelerated = unaccelerated * accel.calculate_acceleration_simpsons(unaccelerated, stamp);
                 return accelerated;
             }
-            fp64_coor accelerator_filter_constant_x230(fp64_coor unaccelerated, [[maybe_unused]] void* data, [[maybe_unused]] time now)
+            fp64_coor accelerator_filter_constant_x230(fp64_coor unaccelerated)
             {
                 const auto factor = lixx::x230_magic_slowdown / lixx::x230_tp_magic_low_res_factor;
                 return accel.normalize_for_dpi(unaccelerated) * factor;
@@ -2290,8 +2290,8 @@ namespace netxs::lixx // li++, libinput++.
         pointer_accelerator_x230_impl_t impl{ *this };
         virtual fp64      apply_acceleration(fp64 velocity)                              { return impl.touchpad_lenovo_x230_accel_profile(velocity); }
         virtual fp64_coor filter(         fp64_coor unaccelerated, void* data, time now) { return impl.accelerator_filter_x230(unaccelerated, data, now); }
-        virtual fp64_coor filter_constant(fp64_coor unaccelerated, void* data, time now) { return impl.accelerator_filter_constant_x230(unaccelerated, data, now); }
-        virtual fp64_coor filter_scroll(  fp64_coor unaccelerated, void* data, time now) { return impl.accelerator_filter_constant_x230(unaccelerated, data, now); }
+        virtual fp64_coor filter_constant(fp64_coor unaccelerated, void*, time)          { return impl.accelerator_filter_constant_x230(unaccelerated); }
+        virtual fp64_coor filter_scroll(  fp64_coor unaccelerated, time)                 { return impl.accelerator_filter_constant_x230(unaccelerated); }
         virtual bool      set_speed(fp64 speed_adjustment)                               { return impl.accelerator_set_speed_x230(speed_adjustment); }
         virtual void      restart(time now)                                              {        impl.accelerator_restart_x230(now); }
     };
@@ -2310,7 +2310,7 @@ namespace netxs::lixx // li++, libinput++.
                 auto accelerated = unaccelerated * accel.calculate_acceleration_simpsons(unaccelerated, now);
                 return accel.normalize_for_dpi(accelerated);
             }
-            fp64_coor touchpad_constant_filter(fp64_coor unaccelerated, [[maybe_unused]] void* data, [[maybe_unused]] time now)
+            fp64_coor touchpad_constant_filter(fp64_coor unaccelerated)
             {
                 // We need to use the same baseline here as the accelerated code,
                 // otherwise our unaccelerated speed is different to the accelerated
@@ -2416,8 +2416,8 @@ namespace netxs::lixx // li++, libinput++.
         touchpad_accelerator_impl_t impl{ *this };
         virtual fp64      apply_acceleration(fp64 velocity)                              { return impl.touchpad_accel_profile_linear(velocity); }
         virtual fp64_coor filter(         fp64_coor unaccelerated, void* data, time now) { return impl.accelerator_filter_touchpad(unaccelerated, data, now); }
-        virtual fp64_coor filter_constant(fp64_coor unaccelerated, void* data, time now) { return impl.touchpad_constant_filter(unaccelerated, data, now); }
-        virtual fp64_coor filter_scroll(  fp64_coor unaccelerated, void* data, time now) { return impl.touchpad_constant_filter(unaccelerated, data, now); }
+        virtual fp64_coor filter_constant(fp64_coor unaccelerated, void*, time)          { return impl.touchpad_constant_filter(unaccelerated); }
+        virtual fp64_coor filter_scroll(  fp64_coor unaccelerated, time)                 { return impl.touchpad_constant_filter(unaccelerated); }
         virtual bool      set_speed(fp64 speed_adjustment)                               { return impl.touchpad_accelerator_set_speed(speed_adjustment); }
         virtual void      restart(time now)                                              {        impl.touchpad_accelerator_restart(now); }
     };
@@ -11275,7 +11275,7 @@ namespace netxs::lixx // li++, libinput++.
                                             {
                                                 if (!unaccelerated) return fp64_coor{};
                                                 auto raw = tp_scale_to_xaxis(unaccelerated); // Convert to device units with x/y in the same resolution.
-                                                return tp.li_device->pointer_filter->filter_dispatch_scroll(raw, &tp, stamp);
+                                                return tp.li_device->pointer_filter->filter_dispatch_scroll(raw, stamp);
                                             }
                                             void tp_gesture_init_scroll()
                                             {
@@ -17386,7 +17386,7 @@ namespace netxs::lixx // li++, libinput++.
                                         [[fallthrough]];
                                     case BUTTONSCROLL_SCROLLING:
                                     {
-                                        auto normalized = li_device->pointer_filter->filter_dispatch_scroll(raw, li_device.get(), stamp);
+                                        auto normalized = li_device->pointer_filter->filter_dispatch_scroll(raw, stamp);
                                         li_device->evdev_post_scroll(stamp, LIBINPUT_POINTER_AXIS_SOURCE_CONTINUOUS, normalized);
                                         return true;
                                     }
@@ -17694,7 +17694,7 @@ namespace netxs::lixx // li++, libinput++.
                                     if (li_device->model_flags & EVDEV_MODEL_LENOVO_SCROLLPOINT)
                                     {
                                         auto raw = fp64_coor{ (fp64)fallback.wheel.lo_res.x, (fp64)fallback.wheel.lo_res.y * -1 };
-                                        auto normalized = li_device->pointer_filter->filter_dispatch_scroll(raw, li_device.get(), stamp);
+                                        auto normalized = li_device->pointer_filter->filter_dispatch_scroll(raw, stamp);
                                         li_device->evdev_post_scroll(stamp, LIBINPUT_POINTER_AXIS_SOURCE_CONTINUOUS, normalized);
                                         fallback.wheel.hi_res.x = 0;
                                         fallback.wheel.hi_res.y = 0;
