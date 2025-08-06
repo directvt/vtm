@@ -6757,6 +6757,126 @@ namespace netxs::lixx // li++, libinput++.
                 }
             }
         }
+        void evdev_device_init_abs_range_warnings()
+        {
+            auto& x = *abs.absinfo_x;
+            auto& y = *abs.absinfo_y;
+            auto& w = abs.dimensions.x;
+            auto& h = abs.dimensions.y;
+            abs.warning_range.min.x = x.minimum - 0.05 * w;
+            abs.warning_range.min.y = y.minimum - 0.05 * h;
+            abs.warning_range.max.x = x.maximum + 0.05 * w;
+            abs.warning_range.max.y = y.maximum + 0.05 * h;
+        }
+                void evdev_init_accel(libinput_config_accel_profile which)
+                {
+                    auto filter = motion_filter_sptr{};
+                    if (which == LIBINPUT_CONFIG_ACCEL_PROFILE_CUSTOM)
+                    {
+                        filter = ptr::shared<custom_accelerator>();
+                    }
+                    else if (tags & EVDEV_TAG_TRACKPOINT)
+                    {
+                        if (which == LIBINPUT_CONFIG_ACCEL_PROFILE_FLAT)
+                        {
+                            filter = ptr::shared<trackpoint_flat_accelerator>(trackpoint_multiplier);
+                        }
+                        else
+                        {
+                            filter = ptr::shared<trackpoint_accelerator>(trackpoint_multiplier, use_velocity_averaging);
+                        }
+                    }
+                    else
+                    {
+                        if (which == LIBINPUT_CONFIG_ACCEL_PROFILE_FLAT)
+                        {
+                            filter = ptr::shared<pointer_accelerator_flat>(dpi);
+                        }
+                        else if (dpi < lixx::default_mouse_dpi)
+                        {
+                            filter = ptr::shared<pointer_accelerator_low_dpi>(dpi, use_velocity_averaging);
+                        }
+                        else
+                        {
+                            filter = ptr::shared<pointer_accelerator>(dpi, use_velocity_averaging);
+                        }
+                    }
+                    evdev_device_init_pointer_acceleration(filter);
+                }
+            static libinput_config_status evdev_accel_config_set_speed(libinput_device_sptr li_device, fp64 speed)
+            {
+                auto ok = li_device->pointer_filter->filter_set_speed(speed);
+                return ok ? LIBINPUT_CONFIG_STATUS_SUCCESS : LIBINPUT_CONFIG_STATUS_INVALID;
+            }
+            static libinput_config_status evdev_accel_config_set_profile(libinput_device_sptr li_device, libinput_config_accel_profile profile)
+            {
+                auto& filter = li_device->pointer_filter;
+                if (filter->filter_get_type() != profile)
+                {
+                    auto speed = filter->filter_get_speed();
+                    li_device->evdev_init_accel(profile);
+                    evdev_accel_config_set_speed(li_device, speed);
+                }
+                return LIBINPUT_CONFIG_STATUS_SUCCESS;
+            }
+            static libinput_config_accel_profile evdev_accel_config_get_profile(libinput_device_sptr li_device)
+            {
+                return li_device->pointer_filter->filter_get_type();
+            }
+            static libinput_config_accel_profile evdev_accel_config_get_default_profile(libinput_device_sptr li_device)
+            {
+                if (!li_device->pointer_filter)
+                {
+                    return LIBINPUT_CONFIG_ACCEL_PROFILE_NONE;
+                }
+                else // No device has a flat profile as default.
+                {
+                    return LIBINPUT_CONFIG_ACCEL_PROFILE_ADAPTIVE;
+                }
+            }
+            static libinput_config_status evdev_set_accel_config(libinput_device_sptr li_device, libinput_config_accel& accel_config)
+            {
+                assert(evdev_accel_config_get_profile(li_device) == accel_config.profile);
+                auto ok = li_device->pointer_filter->filter_set_accel_config(accel_config);
+                return ok ? LIBINPUT_CONFIG_STATUS_SUCCESS : LIBINPUT_CONFIG_STATUS_INVALID;
+            }
+            static si32 evdev_accel_config_available([[maybe_unused]] libinput_device_sptr li_device) // This function is only called if we set up ptraccel, so we can reply with a resounding "Yes".
+            {
+                return 1;
+            }
+            static fp64 evdev_accel_config_get_speed(libinput_device_sptr li_device)
+            {
+                return li_device->pointer_filter->filter_get_speed();
+            }
+            static fp64 evdev_accel_config_get_default_speed([[maybe_unused]] libinput_device_sptr li_device)
+            {
+                return 0.0;
+            }
+            static ui32 evdev_accel_config_get_profiles(libinput_device_sptr li_device)
+            {
+                auto filter_ptr = li_device->pointer_filter;
+                return filter_ptr ? LIBINPUT_CONFIG_ACCEL_PROFILE_ADAPTIVE | LIBINPUT_CONFIG_ACCEL_PROFILE_FLAT | LIBINPUT_CONFIG_ACCEL_PROFILE_CUSTOM
+                                : LIBINPUT_CONFIG_ACCEL_PROFILE_NONE;
+            }
+        void evdev_device_init_pointer_acceleration(motion_filter_sptr filter)
+        {
+            pointer_filter = filter;
+            if (config.accel == nullptr)
+            {
+                pointer_config.available           = evdev_accel_config_available;
+                pointer_config.set_speed           = evdev_accel_config_set_speed;
+                pointer_config.get_speed           = evdev_accel_config_get_speed;
+                pointer_config.get_default_speed   = evdev_accel_config_get_default_speed;
+                pointer_config.get_profiles        = evdev_accel_config_get_profiles;
+                pointer_config.set_profile         = evdev_accel_config_set_profile;
+                pointer_config.get_profile         = evdev_accel_config_get_profile;
+                pointer_config.get_default_profile = evdev_accel_config_get_default_profile;
+                pointer_config.set_accel_config    = evdev_set_accel_config;
+                config.accel                       = &pointer_config;
+                auto default_speed = evdev_accel_config_get_default_speed(This());
+                evdev_accel_config_set_speed(This(), default_speed);
+            }
+        }
     };
 
     struct libinput_paired_keyboard
@@ -7029,9 +7149,6 @@ namespace netxs::lixx // li++, libinput++.
             libinput_device_sptr tablet_li_device;
             bool                 tablet_left_handed_state;
         };
-
-    void evdev_device_init_pointer_acceleration(libinput_device_sptr li_device, motion_filter_sptr filter);
-    void evdev_device_init_abs_range_warnings(libinput_device_sptr li_device);
 
     struct tp_dispatch : evdev_dispatch_t
     {
@@ -12564,7 +12681,7 @@ namespace netxs::lixx // li++, libinput++.
                         filter = ptr::shared<touchpad_accelerator>(dpi, eds_threshold, eds_value, use_v_avg);
                     }
                     if (!filter) return faux;
-                    evdev_device_init_pointer_acceleration(tp.li_device, filter);
+                    tp.li_device->evdev_device_init_pointer_acceleration(filter);
                     li_device->pointer_config.set_profile = tp_accel_config_set_profile;
                     return true;
                 }
@@ -13485,7 +13602,7 @@ namespace netxs::lixx // li++, libinput++.
                 {
                     return faux;
                 }
-                evdev_device_init_abs_range_warnings(li_device);
+                li_device->evdev_device_init_abs_range_warnings();
                 use_touch_size = tp_init_touch_size(li_device);
                 if (!use_touch_size)
                 {
@@ -14751,7 +14868,7 @@ namespace netxs::lixx // li++, libinput++.
             {
                 auto resolution = si32_coor{ li_device->abs.absinfo_x->resolution, li_device->abs.absinfo_y->resolution };
                 auto filter = ptr::shared<tablet_accelerator_flat>(resolution); // Same filter as the tablet.
-                evdev_device_init_pointer_acceleration(li_device, filter);
+                li_device->evdev_device_init_pointer_acceleration(filter);
                 // We override the profile hooks for accel configuration with hooks that don't allow selection of profiles.
                 li_device->pointer_config.get_profiles        = totem_accel_config_get_profiles;
                 li_device->pointer_config.set_profile         = totem_accel_config_set_profile;
@@ -16575,7 +16692,7 @@ namespace netxs::lixx // li++, libinput++.
                 {
                     auto resolution = si32_coor{ li_device->abs.absinfo_x->resolution, li_device->abs.absinfo_y->resolution };
                     auto filter = ptr::shared<tablet_accelerator_flat>(resolution);
-                    evdev_device_init_pointer_acceleration(li_device, filter);
+                    li_device->evdev_device_init_pointer_acceleration(filter);
                     // We override the profile hooks for accel configuration with hooks that don't allow selection of profiles.
                     li_device->pointer_config.get_profiles        = tablet_accel_config_get_profiles;
                     li_device->pointer_config.set_profile         = tablet_accel_config_set_profile;
@@ -18475,7 +18592,7 @@ namespace netxs::lixx // li++, libinput++.
                 fallback.abs.point.x = li_device->abs.absinfo_x->value;
                 fallback.abs.point.y = li_device->abs.absinfo_y->value;
                 fallback.abs.seat_slot = -1;
-                evdev_device_init_abs_range_warnings(li_device);
+                li_device->evdev_device_init_abs_range_warnings();
             }
                     bool parse_switch_reliability_property(view prop, switch_reliability& reliability)
                     {
@@ -19266,115 +19383,6 @@ namespace netxs::lixx // li++, libinput++.
         }
     }
 
-                void evdev_init_accel(libinput_device_sptr li_device, libinput_config_accel_profile which)
-                {
-                    auto filter = motion_filter_sptr{};
-                    if (which == LIBINPUT_CONFIG_ACCEL_PROFILE_CUSTOM)
-                    {
-                        filter = ptr::shared<custom_accelerator>();
-                    }
-                    else if (li_device->tags & EVDEV_TAG_TRACKPOINT)
-                    {
-                        if (which == LIBINPUT_CONFIG_ACCEL_PROFILE_FLAT)
-                        {
-                            filter = ptr::shared<trackpoint_flat_accelerator>(li_device->trackpoint_multiplier);
-                        }
-                        else
-                        {
-                            filter = ptr::shared<trackpoint_accelerator>(li_device->trackpoint_multiplier, li_device->use_velocity_averaging);
-                        }
-                    }
-                    else
-                    {
-                        if (which == LIBINPUT_CONFIG_ACCEL_PROFILE_FLAT)
-                        {
-                            filter = ptr::shared<pointer_accelerator_flat>(li_device->dpi);
-                        }
-                        else if (li_device->dpi < lixx::default_mouse_dpi)
-                        {
-                            filter = ptr::shared<pointer_accelerator_low_dpi>(li_device->dpi, li_device->use_velocity_averaging);
-                        }
-                        else
-                        {
-                            filter = ptr::shared<pointer_accelerator>(li_device->dpi, li_device->use_velocity_averaging);
-                        }
-                    }
-                    evdev_device_init_pointer_acceleration(li_device, filter);
-                }
-            static libinput_config_status evdev_accel_config_set_speed(libinput_device_sptr li_device, fp64 speed)
-            {
-                auto ok = li_device->pointer_filter->filter_set_speed(speed);
-                return ok ? LIBINPUT_CONFIG_STATUS_SUCCESS : LIBINPUT_CONFIG_STATUS_INVALID;
-            }
-            static libinput_config_status evdev_accel_config_set_profile(libinput_device_sptr li_device, libinput_config_accel_profile profile)
-            {
-                auto& filter = li_device->pointer_filter;
-                if (filter->filter_get_type() != profile)
-                {
-                    auto speed = filter->filter_get_speed();
-                    evdev_init_accel(li_device, profile);
-                    evdev_accel_config_set_speed(li_device, speed);
-                }
-                return LIBINPUT_CONFIG_STATUS_SUCCESS;
-            }
-            static libinput_config_accel_profile evdev_accel_config_get_profile(libinput_device_sptr li_device)
-            {
-                return li_device->pointer_filter->filter_get_type();
-            }
-            static libinput_config_accel_profile evdev_accel_config_get_default_profile(libinput_device_sptr li_device)
-            {
-                if (!li_device->pointer_filter)
-                {
-                    return LIBINPUT_CONFIG_ACCEL_PROFILE_NONE;
-                }
-                else // No device has a flat profile as default.
-                {
-                    return LIBINPUT_CONFIG_ACCEL_PROFILE_ADAPTIVE;
-                }
-            }
-            static libinput_config_status evdev_set_accel_config(libinput_device_sptr li_device, libinput_config_accel& accel_config)
-            {
-                assert(evdev_accel_config_get_profile(li_device) == accel_config.profile);
-                auto ok = li_device->pointer_filter->filter_set_accel_config(accel_config);
-                return ok ? LIBINPUT_CONFIG_STATUS_SUCCESS : LIBINPUT_CONFIG_STATUS_INVALID;
-            }
-            static si32 evdev_accel_config_available([[maybe_unused]] libinput_device_sptr li_device) // This function is only called if we set up ptraccel, so we can reply with a resounding "Yes".
-            {
-                return 1;
-            }
-            static fp64 evdev_accel_config_get_speed(libinput_device_sptr li_device)
-            {
-                return li_device->pointer_filter->filter_get_speed();
-            }
-            static fp64 evdev_accel_config_get_default_speed([[maybe_unused]] libinput_device_sptr li_device)
-            {
-                return 0.0;
-            }
-            static ui32 evdev_accel_config_get_profiles(libinput_device_sptr li_device)
-            {
-                auto filter_ptr = li_device->pointer_filter;
-                return filter_ptr ? LIBINPUT_CONFIG_ACCEL_PROFILE_ADAPTIVE | LIBINPUT_CONFIG_ACCEL_PROFILE_FLAT | LIBINPUT_CONFIG_ACCEL_PROFILE_CUSTOM
-                                : LIBINPUT_CONFIG_ACCEL_PROFILE_NONE;
-            }
-        void evdev_device_init_pointer_acceleration(libinput_device_sptr li_device, motion_filter_sptr filter)
-        {
-            li_device->pointer_filter = filter;
-            if (li_device->config.accel == nullptr)
-            {
-                li_device->pointer_config.available           = evdev_accel_config_available;
-                li_device->pointer_config.set_speed           = evdev_accel_config_set_speed;
-                li_device->pointer_config.get_speed           = evdev_accel_config_get_speed;
-                li_device->pointer_config.get_default_speed   = evdev_accel_config_get_default_speed;
-                li_device->pointer_config.get_profiles        = evdev_accel_config_get_profiles;
-                li_device->pointer_config.set_profile         = evdev_accel_config_set_profile;
-                li_device->pointer_config.get_profile         = evdev_accel_config_get_profile;
-                li_device->pointer_config.get_default_profile = evdev_accel_config_get_default_profile;
-                li_device->pointer_config.set_accel_config    = evdev_set_accel_config;
-                li_device->config.accel                       = &li_device->pointer_config;
-                auto default_speed = evdev_accel_config_get_default_speed(li_device);
-                evdev_accel_config_set_speed(li_device, default_speed);
-            }
-        }
     evdev_dispatch_sptr evdev_totem_create(libinput_device_sptr li_device)
     {
         auto totem_ptr = totem_dispatch_sptr{};
@@ -19530,17 +19538,6 @@ namespace netxs::lixx // li++, libinput++.
                     evdev_tag_touchpad_external(li_device);
                 }
             }
-                void evdev_device_init_abs_range_warnings(libinput_device_sptr li_device)
-                {
-                    auto x = li_device->abs.absinfo_x;
-                    auto y = li_device->abs.absinfo_y;
-                    auto width = li_device->abs.dimensions.x;
-                    auto height = li_device->abs.dimensions.y;
-                    li_device->abs.warning_range.min.x = x->minimum - 0.05 * width;
-                    li_device->abs.warning_range.min.y = y->minimum - 0.05 * height;
-                    li_device->abs.warning_range.max.x = x->maximum + 0.05 * width;
-                    li_device->abs.warning_range.max.y = y->maximum + 0.05 * height;
-                }
             static ui32 tp_sendevents_get_modes(libinput_device_sptr li_device)
             {
                 auto modes = (ui32)LIBINPUT_CONFIG_SEND_EVENTS_DISABLED;
@@ -19975,7 +19972,7 @@ namespace netxs::lixx // li++, libinput++.
          && li_device->libevdev_has_event_code<EV_REL>(REL_X)
          && li_device->libevdev_has_event_code<EV_REL>(REL_Y))
         {
-            evdev_init_accel(li_device, LIBINPUT_CONFIG_ACCEL_PROFILE_ADAPTIVE);
+            li_device->evdev_init_accel(LIBINPUT_CONFIG_ACCEL_PROFILE_ADAPTIVE);
         }
         if (li_device->evdev_device_has_model_quirk(QUIRK_MODEL_INVERT_HORIZONTAL_SCROLLING))
         {
