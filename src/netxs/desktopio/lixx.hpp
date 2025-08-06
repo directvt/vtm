@@ -140,7 +140,6 @@ namespace netxs::lixx // li++, libinput++.
     //todo unify, combine with ud_type_enum and rename to ID_INPUT_*
     enum evdev_ud_device_tags
     {
-        EVDEV_UDEV_TAG_NONE          = 0,
         EVDEV_UDEV_TAG_INPUT         = 1ul << 0,
         EVDEV_UDEV_TAG_KEYBOARD      = 1ul << 1,
         EVDEV_UDEV_TAG_MOUSE         = 1ul << 2,
@@ -1594,7 +1593,6 @@ namespace netxs::lixx // li++, libinput++.
             return coor * lixx::default_mouse_dpi / dpi;
         }
     };
-
     struct trackpoint_accelerator : motion_filter
     {
         fp64 multiplier;
@@ -1683,7 +1681,6 @@ namespace netxs::lixx // li++, libinput++.
         virtual fp64_coor filter_scroll(  fp64_coor unaccelerated, time)            { return impl.trackpoint_accelerator_filter_noop(unaccelerated); }
         virtual bool      set_speed(fp64 speed_adjustment)                          { return impl.trackpoint_accelerator_set_speed(speed_adjustment); }
     };
-
     struct pointer_accelerator_flat : motion_filter
     {
         fp64 factor;
@@ -1728,7 +1725,6 @@ namespace netxs::lixx // li++, libinput++.
         virtual fp64_coor filter_scroll(  fp64_coor unaccelerated, time)        { return impl.accelerator_filter_noop_flat(unaccelerated); }
         virtual bool      set_speed(fp64 speed_adjustment)                      { return impl.accelerator_set_speed_flat(speed_adjustment); }
     };
-
     struct trackpoint_flat_accelerator : pointer_accelerator_flat
     {
         fp64 multiplier;
@@ -1739,7 +1735,6 @@ namespace netxs::lixx // li++, libinput++.
             type = LIBINPUT_CONFIG_ACCEL_PROFILE_FLAT;
         }
     };
-
     struct tablet_accelerator_flat : motion_filter
     {
         fp64      factor;
@@ -1798,7 +1793,6 @@ namespace netxs::lixx // li++, libinput++.
         virtual fp64_coor filter(fp64_coor unaccelerated, void* data, time) { return impl.tablet_accelerator_filter_flat(unaccelerated, data); }
         virtual bool      set_speed(fp64 speed_adjustment)                  { return impl.tablet_accelerator_set_speed(speed_adjustment); }
     };
-
     struct custom_accel_function
     {
         time              last_time;
@@ -1914,7 +1908,6 @@ namespace netxs::lixx // li++, libinput++.
             return cf;
         }
     };
-
     struct custom_accelerator : motion_filter
     {
         struct funcs_t
@@ -2002,7 +1995,6 @@ namespace netxs::lixx // li++, libinput++.
         virtual bool      set_accel_config(libinput_config_accel& accel_config)     { return impl.custom_accelerator_set_accel_config(accel_config); }
         virtual void      restart(time)                                             { } // Noop, this function has no effect in the custom interface.
     };
-
     struct pointer_accelerator : motion_filter
     {
         fp64 threshold; // 1000dpi units/us.
@@ -2108,7 +2100,6 @@ namespace netxs::lixx // li++, libinput++.
         virtual fp64_coor filter_scroll(  fp64_coor unaccelerated, time)            { return impl.accelerator_filter_noop(unaccelerated); }
         virtual bool      set_speed(fp64 speed_adjustment)                          { return impl.accelerator_set_speed(speed_adjustment); }
     };
-
     struct pointer_accelerator_low_dpi : pointer_accelerator
     {
         struct pointer_accelerator_low_dpi_impl_t
@@ -2152,7 +2143,6 @@ namespace netxs::lixx // li++, libinput++.
         virtual fp64      apply_acceleration(fp64 velocity)                { return impl_low.pointer_accel_profile_linear_low_dpi(velocity); }
         virtual fp64_coor filter(fp64_coor unaccelerated, void*, time now) { return impl_low.accelerator_filter_low_dpi(unaccelerated, now); }
     };
-
     struct touchpad_accelerator_flat : motion_filter
     {
         fp64 factor;
@@ -2200,7 +2190,6 @@ namespace netxs::lixx // li++, libinput++.
         virtual fp64_coor filter_scroll(  fp64_coor unaccelerated, time)        { return impl.accelerator_filter_noop_touchpad_flat(unaccelerated); }
         virtual bool      set_speed(fp64 speed_adjustment)                      { return impl.accelerator_set_speed_touchpad_flat(speed_adjustment); }
     };
-
     struct pointer_accelerator_x230 : motion_filter
     {
         fp64 threshold; // Units/us.
@@ -2281,7 +2270,6 @@ namespace netxs::lixx // li++, libinput++.
         virtual bool      set_speed(fp64 speed_adjustment)                          { return impl.accelerator_set_speed_x230(speed_adjustment); }
         virtual void      restart(time now)                                         {        impl.accelerator_x230_restart(now); }
     };
-
     struct touchpad_accelerator : motion_filter
     {
         fp64 threshold;    // mm/s.
@@ -2403,12 +2391,6 @@ namespace netxs::lixx // li++, libinput++.
         virtual bool      set_speed(fp64 speed_adjustment)                          { return impl.touchpad_accelerator_set_speed(speed_adjustment); }
     };
 
-    struct event_source_t
-    {
-        std::function<void()> func;
-        fd_t                  fd{ os::invalid_fd };
-    };
-
     struct match_t
     {
         ui32     bits;
@@ -2422,7 +2404,6 @@ namespace netxs::lixx // li++, libinput++.
         ui32     ud_type; // We can have more than one type set, so this is a bitfield.
         text     dt2; // Device tree compatible (first) string.
     };
-
     struct quirk_tuples
     {
         struct tuples_t
@@ -2664,6 +2645,11 @@ namespace netxs::lixx // li++, libinput++.
         std::list<quirks_sptr>  quirks; // List of quirks handed to libinput, just for bookkeeping.
     };
 
+    struct event_source_t
+    {
+        std::function<void()> func;
+        fd_t                  fd{ os::invalid_fd };
+    };
     template<class T>
     struct libinput_timer_t : ptr::enable_shared_from_this<libinput_timer_t<T>>
     {
@@ -3743,9 +3729,9 @@ namespace netxs::lixx // li++, libinput++.
         {
             return udev_device_get_property_value(property) == "1";
         }
-        evdev_ud_device_tags evdev_device_get_udev_tags()
+        ui32 evdev_device_get_udev_tags()
         {
-            static constexpr auto evdev_udev_tag_matches = std::to_array<std::pair<view, evdev_ud_device_tags>>(
+            static constexpr auto evdev_udev_tag_matches = std::to_array<std::pair<view, ui32>>(
             {
                 { "ID_INPUT",               EVDEV_UDEV_TAG_INPUT         },
                 { "ID_INPUT_KEYBOARD",      EVDEV_UDEV_TAG_KEYBOARD      },
@@ -3761,12 +3747,12 @@ namespace netxs::lixx // li++, libinput++.
                 { "ID_INPUT_TRACKBALL",     EVDEV_UDEV_TAG_TRACKBALL     },
                 { "ID_INPUT_SWITCH",        EVDEV_UDEV_TAG_SWITCH        },
             });
-            auto tags = EVDEV_UDEV_TAG_NONE;
+            auto tags = ui32{};
             for (auto [name, tag] : evdev_udev_tag_matches)
             {
                 if (parse_udev_flag(name))
                 {
-                    tags = (evdev_ud_device_tags)(tags | tag);
+                    tags |= tag;
                 }
             }
             return tags;
@@ -4823,7 +4809,6 @@ namespace netxs::lixx // li++, libinput++.
             return result;
         }
     };
-
 
     quirks_context_sptr quirks_init_subsystem(view data_path, view override_file, libinput_sptr li);
     libinput_device_sptr libinput_device_create(libinput_sptr li, ud_device_sptr ud_device);
@@ -6071,7 +6056,7 @@ namespace netxs::lixx // li++, libinput++.
         {
             return ud_device->libevdev_next_event(flags, ev);
         }
-        evdev_ud_device_tags evdev_device_get_udev_tags()
+        ui32 evdev_device_get_udev_tags()
         {
             return ud_device->evdev_device_get_udev_tags();
         }
@@ -19162,7 +19147,7 @@ namespace netxs::lixx // li++, libinput++.
         else      log("kernel fuzz of %d% but LIBINPUT_FUZZ_%02x% is missing", abs->fuzz, code);
         return 0;
     }
-    void evdev_extract_abs_axes(libinput_device_sptr li_device, evdev_ud_device_tags udev_tags)
+    void evdev_extract_abs_axes(libinput_device_sptr li_device, ui32 udev_tags)
     {
         auto fuzz = 0;
         if (!li_device->libevdev_has_event_code<EV_ABS>(ABS_X)
@@ -19715,32 +19700,28 @@ namespace netxs::lixx // li++, libinput++.
             evdev_extract_abs_axes(li_device, udev_tags);
             if (li_device->evdev_is_fake_mt_device())
             {
-                udev_tags = (evdev_ud_device_tags)(udev_tags & ~EVDEV_UDEV_TAG_TOUCHSCREEN);
+                udev_tags &= ~EVDEV_UDEV_TAG_TOUCHSCREEN;
             }
         }
-        auto dispatch = evdev_dispatch_sptr{};
         if (li_device->evdev_device_has_model_quirk(QUIRK_MODEL_DELL_CANVAS_TOTEM))
         {
-            dispatch = evdev_totem_create(li_device);
             li_device->device_caps = (libinput_device_caps)(li_device->device_caps | EVDEV_DEVICE_TABLET);
             log("Device is a totem: ", li_device->ud_device->properties["NAME"]);
-            return dispatch;
+            return evdev_totem_create(li_device);
         }
         // Libwacom assigns touchpad (or touchscreen) _and_ tablet to the tablet touch bits, so make sure we don't initialize the tablet interface for the touch device.
         auto tablet_tags = EVDEV_UDEV_TAG_TABLET | EVDEV_UDEV_TAG_TOUCHPAD | EVDEV_UDEV_TAG_TOUCHSCREEN;
         if (udev_tags & EVDEV_UDEV_TAG_TABLET_PAD) // Libwacom assigns tablet _and_ tablet_pad to the pad devices.
         {
-            dispatch = evdev_tablet_pad_create(li_device);
             li_device->device_caps = (libinput_device_caps)(li_device->device_caps | EVDEV_DEVICE_TABLET_PAD);
             log("Device is a tablet pad: ", li_device->ud_device->properties["NAME"]);
-            return dispatch;
+            return evdev_tablet_pad_create(li_device);
         }
         if ((udev_tags & tablet_tags) == EVDEV_UDEV_TAG_TABLET)
         {
-            dispatch = evdev_tablet_create(li_device);
             li_device->device_caps = (libinput_device_caps)(li_device->device_caps | EVDEV_DEVICE_TABLET);
             log("Device is a tablet: ", li_device->ud_device->properties["NAME"]);
-            return dispatch;
+            return evdev_tablet_create(li_device);
         }
         if (udev_tags & EVDEV_UDEV_TAG_TOUCHPAD)
         {
@@ -19749,9 +19730,8 @@ namespace netxs::lixx // li++, libinput++.
                 li_device->tags = (libinput_device_tags)(li_device->tags | EVDEV_TAG_TABLET_TOUCHPAD);
             }
             li_device->use_velocity_averaging = evdev_need_velocity_averaging(li_device); // Whether velocity should be averaged, false by default.
-            dispatch = evdev_mt_touchpad_create(li_device);
             log("Device is a touchpad: ", li_device->ud_device->properties["NAME"]);
-            return dispatch;
+            return evdev_mt_touchpad_create(li_device);
         }
         if (udev_tags & EVDEV_UDEV_TAG_MOUSE || udev_tags & EVDEV_UDEV_TAG_POINTINGSTICK)
         {
