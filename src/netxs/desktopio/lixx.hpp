@@ -1597,8 +1597,8 @@ namespace netxs::lixx // li++, libinput++.
 
     struct trackpoint_accelerator : motion_filter
     {
-        fp64             multiplier;
-        fp64             speed_factor;
+        fp64 multiplier;
+        fp64 speed_factor;
 
         struct trackpoint_accelerator_impl_t
         {
@@ -2005,9 +2005,9 @@ namespace netxs::lixx // li++, libinput++.
 
     struct pointer_accelerator : motion_filter
     {
-        fp64                 threshold;     // 1000dpi units/us.
-        fp64                 accel;         // Unitless factor.
-        fp64                 incline;       // Incline of the function.
+        fp64 threshold; // 1000dpi units/us.
+        fp64 accel;     // Unitless factor.
+        fp64 incline;   // Incline of the function.
 
         struct pointer_accelerator_impl_t
         {
@@ -2203,9 +2203,9 @@ namespace netxs::lixx // li++, libinput++.
 
     struct pointer_accelerator_x230 : motion_filter
     {
-        fp64                 threshold;    // Units/us.
-        fp64                 accel;        // Unitless factor.
-        fp64                 incline;      // Incline of the function.
+        fp64 threshold; // Units/us.
+        fp64 accel;     // Unitless factor.
+        fp64 incline;   // Incline of the function.
 
         struct pointer_accelerator_x230_impl_t
         {
@@ -2284,9 +2284,9 @@ namespace netxs::lixx // li++, libinput++.
 
     struct touchpad_accelerator : motion_filter
     {
-        fp64                 threshold;     // mm/s.
-        fp64                 accel;         // Unitless factor.
-        fp64                 speed_factor;  // Factor based on speed setting.
+        fp64 threshold;    // mm/s.
+        fp64 accel;        // Unitless factor.
+        fp64 speed_factor; // Factor based on speed setting.
 
         struct touchpad_accelerator_impl_t
         {
