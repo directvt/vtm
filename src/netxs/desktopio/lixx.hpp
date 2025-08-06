@@ -4712,14 +4712,9 @@ namespace netxs::lixx // li++, libinput++.
 
     struct evdev_dispatch_t : ptr::enable_shared_from_this<evdev_dispatch_t>
     {
-        struct evdev_sendevents_t
-        {
-            libinput_device_config_send_events config;
-            libinput_config_send_events_mode   current_mode;
-        };
-
-        libinput_dispatch_type dispatch_type;
-        evdev_sendevents_t     sendevents;
+        libinput_dispatch_type             dispatch_type;
+        libinput_device_config_send_events sendevents_config;
+        libinput_config_send_events_mode   sendevents_current_mode;
 
         evdev_dispatch_t() = default;
         virtual ~evdev_dispatch_t()
@@ -5972,7 +5967,7 @@ namespace netxs::lixx // li++, libinput++.
             static libinput_config_status evdev_sendevents_set_mode(libinput_device_sptr li_device, libinput_config_send_events_mode mode)
             {
                 auto dispatch = li_device->dispatch;
-                if (mode == dispatch->sendevents.current_mode)
+                if (mode == dispatch->sendevents_current_mode)
                 {
                     return LIBINPUT_CONFIG_STATUS_SUCCESS;
                 }
@@ -5982,12 +5977,12 @@ namespace netxs::lixx // li++, libinput++.
                     case LIBINPUT_CONFIG_SEND_EVENTS_DISABLED: li_device->evdev_device_suspend(); break;
                     default: return LIBINPUT_CONFIG_STATUS_UNSUPPORTED; // No support for combined modes yet.
                 }
-                dispatch->sendevents.current_mode = mode;
+                dispatch->sendevents_current_mode = mode;
                 return LIBINPUT_CONFIG_STATUS_SUCCESS;
             }
             static libinput_config_send_events_mode evdev_sendevents_get_mode(libinput_device_sptr li_device)
             {
-                return li_device->dispatch->sendevents.current_mode;
+                return li_device->dispatch->sendevents_current_mode;
             }
             static libinput_config_send_events_mode evdev_sendevents_get_default_mode([[maybe_unused]] libinput_device_sptr li_device)
             {
@@ -5999,12 +5994,12 @@ namespace netxs::lixx // li++, libinput++.
             }
         void evdev_init_sendevents(evdev_dispatch_sptr dispatch)
         {
-            config.sendevents = &dispatch->sendevents.config;
-            dispatch->sendevents.current_mode            = LIBINPUT_CONFIG_SEND_EVENTS_ENABLED;
-            dispatch->sendevents.config.get_modes        = evdev_sendevents_get_modes;
-            dispatch->sendevents.config.set_mode         = evdev_sendevents_set_mode;
-            dispatch->sendevents.config.get_mode         = evdev_sendevents_get_mode;
-            dispatch->sendevents.config.get_default_mode = evdev_sendevents_get_default_mode;
+            config.sendevents = &dispatch->sendevents_config;
+            dispatch->sendevents_current_mode            = LIBINPUT_CONFIG_SEND_EVENTS_ENABLED;
+            dispatch->sendevents_config.get_modes        = evdev_sendevents_get_modes;
+            dispatch->sendevents_config.set_mode         = evdev_sendevents_set_mode;
+            dispatch->sendevents_config.get_mode         = evdev_sendevents_get_mode;
+            dispatch->sendevents_config.get_default_mode = evdev_sendevents_get_default_mode;
         }
         libinput_switch_state evdev_device_switch_get_state(libinput_switch sw)
         {
@@ -18310,7 +18305,7 @@ namespace netxs::lixx // li++, libinput++.
                     }
                             void fallback_resume(libinput_device_sptr li_device)
                             {
-                                if (fallback.sendevents.current_mode != LIBINPUT_CONFIG_SEND_EVENTS_DISABLED)
+                                if (fallback.sendevents_current_mode != LIBINPUT_CONFIG_SEND_EVENTS_DISABLED)
                                 {
                                     li_device->evdev_device_resume();
                                 }
