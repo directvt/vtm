@@ -1550,7 +1550,7 @@ namespace netxs::lixx // li++, libinput++.
         virtual fp64_coor filter_scroll(  [[maybe_unused]] fp64_coor unaccelerated, [[maybe_unused]] time now)                              { return {}; }
         virtual bool      set_speed([[maybe_unused]] fp64 speed_adjustment)                                                                 { return {}; }
         virtual bool      set_accel_config([[maybe_unused]] libinput_config_accel& accel_config)                                            { return {}; }
-        virtual void      restart([[maybe_unused]] time now)                                                                                { trackers.trackers_reset(now); }
+        virtual void      restart(time now)                                                                                                 { trackers.trackers_reset(now); }
 
         bool filter_set_speed(fp64 speed_adjustment)
         {
@@ -2000,7 +2000,7 @@ namespace netxs::lixx // li++, libinput++.
         virtual fp64_coor filter_scroll(  fp64_coor unaccelerated, time now)        { return impl.custom_accelerator_filter_scroll(unaccelerated, now); }
         virtual bool      set_speed(fp64 speed_adjustment)                          { return impl.custom_accelerator_set_speed(speed_adjustment); }
         virtual bool      set_accel_config(libinput_config_accel& accel_config)     { return impl.custom_accelerator_set_accel_config(accel_config); }
-        virtual void      restart(time now)                                         { } // Noop, this function has no effect in the custom interface.
+        virtual void      restart(time)                                             { } // Noop, this function has no effect in the custom interface.
     };
 
     struct pointer_accelerator : motion_filter
