@@ -29,14 +29,14 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-#include <sys/epoll.h>                      // ::epoll_create1()
-#include <sys/timerfd.h>                    // ::timerfd_create() ::timerfd_settime()
-#include <sys/stat.h>                       // ::fstat()
-#include <linux/input.h>                    // EV_*
-#include <fnmatch.h>                        // ::fnmatch()
-#include <dirent.h>                         // ::dirent
-#include <fcntl.h>                          // O_RDWR | O_NONBLOCK | O_CLOEXEC
-#include <sys/inotify.h>                    // ::inotify
+#include <sys/epoll.h>   // ::epoll_create1()
+#include <sys/timerfd.h> // ::timerfd_create() ::timerfd_settime()
+#include <sys/stat.h>    // ::fstat()
+#include <linux/input.h> // EV_*
+#include <fnmatch.h>     // ::fnmatch()
+#include <dirent.h>      // ::dirent
+#include <fcntl.h>       // O_RDWR | O_NONBLOCK | O_CLOEXEC
+#include <sys/inotify.h> // ::inotify
 
 #define CASE_RETURN_STRING(a) case a: return #a
 
@@ -1032,7 +1032,7 @@ namespace netxs::lixx // li++, libinput++.
     static constexpr auto zero_coor = fp64_coor{};
 
     using fd_t = os::fd_t;
-    template<class T>//todo simplify
+    template<class T>
     struct libinput_timer_t;
     using libinput_sptr                       = sptr<struct libinput_t>;
     using libinput_timer_sptr                 = sptr<struct libinput_timer_t<struct libinput_timer_host>>;
@@ -1063,7 +1063,6 @@ namespace netxs::lixx // li++, libinput++.
     using button_state_t = std::bitset<KEY_CNT>;
     using tablet_axes_bitset = std::bitset<lixx::libinput_tablet_tool_axis_cnt>;
 
-    using accel_profile_func_t = fp64(*)(motion_filter_sptr filter, void* data, fp64 velocity, time now);
     using input_prop = std::pair<ui32, bool>;
 
     struct input_event_t : ::input_event
@@ -1379,65 +1378,6 @@ namespace netxs::lixx // li++, libinput++.
         config_t                  config;
     };
 
-    struct motion_filter : ptr::enable_shared_from_this<motion_filter>
-    {
-        fp64                          speed_adjustment; // Normalized [-1, 1].
-        libinput_config_accel_profile type;
-        si32                          dpi;
-
-        motion_filter(si32 dpi = 1)
-            : dpi{ dpi }
-        { }
-        virtual ~motion_filter()
-        { }
-
-        virtual fp64_coor filter(         [[maybe_unused]] fp64_coor unaccelerated, [[maybe_unused]] void* data, [[maybe_unused]] time now) { return {}; }
-        virtual fp64_coor filter_constant([[maybe_unused]] fp64_coor unaccelerated, [[maybe_unused]] void* data, [[maybe_unused]] time now) { return {}; }
-        virtual fp64_coor filter_scroll(  [[maybe_unused]] fp64_coor unaccelerated, [[maybe_unused]] void* data, [[maybe_unused]] time now) { return {}; }
-        virtual bool      set_speed([[maybe_unused]] fp64 speed_adjustment)                                                                 { return {}; }
-        virtual bool      set_accel_config([[maybe_unused]] libinput_config_accel& accel_config)                                            { return {}; }
-        virtual void      restart([[maybe_unused]] void* data, [[maybe_unused]] time now)                                                   { }
-
-        bool filter_set_speed(fp64 speed_adjustment)
-        {
-            return set_speed(speed_adjustment);
-        }
-        fp64 filter_get_speed()
-        {
-            return speed_adjustment;
-        }
-        libinput_config_accel_profile filter_get_type()
-        {
-            return type;
-        }
-        bool filter_set_accel_config(libinput_config_accel& accel_config)
-        {
-            assert(type == accel_config.profile);
-            return set_accel_config(accel_config);
-        }
-        fp64_coor filter_dispatch_scroll(fp64_coor unaccelerated, void* data, time stamp)
-        {
-            return filter_scroll(unaccelerated, data, stamp);
-        }
-        fp64_coor filter_dispatch(fp64_coor unaccelerated, void* data, time now)
-        {
-            return filter(unaccelerated, data, now);
-        }
-        fp64 calculate_acceleration_simpsons(accel_profile_func_t profile, void* data, fp64 velocity, fp64 last_velocity, time now)
-        {
-            // Use Simpson's rule to calculate the average acceleration between the previous motion and the most recent.
-            auto factor = profile(This(), data, velocity, now)
-                        + profile(This(), data, last_velocity, now)
-                        + profile(This(), data, (last_velocity + velocity) / 2.0, now) * 4.0;
-            factor /= 6.0;
-            return factor; // Unitless factor.
-        }
-        fp64_coor normalize_for_dpi(fp64_coor coor)
-        {
-            return coor * lixx::default_mouse_dpi / dpi;
-        }
-    };
-
             struct pointer_delta_smoothener
             {
                 span threshold;
@@ -1587,11 +1527,78 @@ namespace netxs::lixx // li++, libinput++.
                 return result; // Units/us.
             }
         };
+    struct motion_filter : ptr::enable_shared_from_this<motion_filter>
+    {
+        si32                          dpi;
+        fp64                          velocity;      // Units/us.
+        fp64                          last_velocity; // Units/us.
+        pointer_trackers              trackers;
+        libinput_config_accel_profile type{};
+        fp64                          speed_adjustment{}; // Normalized [-1, 1].
+
+        motion_filter(si32 dpi = 1)
+            :         dpi{ dpi },
+                 velocity{ 0.0 },
+            last_velocity{ 0.0 }
+        { }
+        virtual ~motion_filter()
+        { }
+
+        virtual fp64      apply_acceleration(fp64 velocity)                                                                                 { return velocity; }
+        virtual fp64_coor filter(         [[maybe_unused]] fp64_coor unaccelerated, [[maybe_unused]] void* data, [[maybe_unused]] time now) { return {}; }
+        virtual fp64_coor filter_constant([[maybe_unused]] fp64_coor unaccelerated, [[maybe_unused]] void* data, [[maybe_unused]] time now) { return {}; }
+        virtual fp64_coor filter_scroll(  [[maybe_unused]] fp64_coor unaccelerated, [[maybe_unused]] void* data, [[maybe_unused]] time now) { return {}; }
+        virtual bool      set_speed([[maybe_unused]] fp64 speed_adjustment)                                                                 { return {}; }
+        virtual bool      set_accel_config([[maybe_unused]] libinput_config_accel& accel_config)                                            { return {}; }
+        virtual void      restart([[maybe_unused]] void* data, [[maybe_unused]] time now)                                                   { }
+
+        bool filter_set_speed(fp64 speed_adjustment)
+        {
+            return set_speed(speed_adjustment);
+        }
+        fp64 filter_get_speed()
+        {
+            return speed_adjustment;
+        }
+        libinput_config_accel_profile filter_get_type()
+        {
+            return type;
+        }
+        bool filter_set_accel_config(libinput_config_accel& accel_config)
+        {
+            assert(type == accel_config.profile);
+            return set_accel_config(accel_config);
+        }
+        fp64_coor filter_dispatch_scroll(fp64_coor unaccelerated, void* data, time stamp)
+        {
+            return filter_scroll(unaccelerated, data, stamp);
+        }
+        fp64_coor filter_dispatch(fp64_coor unaccelerated, void* data, time now)
+        {
+            return filter(unaccelerated, data, now);
+        }
+        fp64 calculate_acceleration_simpsons(fp64_coor unaccelerated, time now)
+        {
+                trackers.trackers_feed(unaccelerated, now);
+                velocity = trackers.trackers_velocity(now);
+                // Use Simpson's rule to calculate the average acceleration between the previous motion and the most recent.
+                auto factor = apply_acceleration(velocity)
+                            + apply_acceleration(last_velocity)
+                            + apply_acceleration((last_velocity + velocity) / 2.0) * 4.0;
+                last_velocity = velocity;
+            factor /= 6.0;
+            return factor; // Unitless factor.
+        }
+        fp64_coor normalize_for_dpi(fp64_coor coor)
+        {
+            return coor * lixx::default_mouse_dpi / dpi;
+        }
+    };
+
     struct trackpoint_accelerator : motion_filter
     {
         fp64             multiplier;
         fp64             speed_factor;
-        pointer_trackers trackers;
 
         struct trackpoint_accelerator_impl_t
         {
@@ -2007,32 +2014,18 @@ namespace netxs::lixx // li++, libinput++.
 
     struct pointer_accelerator : motion_filter
     {
-        fp64                 velocity;      // Units/us.
-        fp64                 last_velocity; // Units/us.
         fp64                 threshold;     // 1000dpi units/us.
         fp64                 accel;         // Unitless factor.
         fp64                 incline;       // Incline of the function.
-        accel_profile_func_t profile;       //
-        pointer_trackers     trackers;      //
 
         struct pointer_accelerator_impl_t
         {
             pointer_accelerator& accel;
-                fp64 calculate_acceleration_factor_pointer(fp64_coor unaccelerated, void* data, time stamp)
-                {
-                    accel.trackers.trackers_feed(unaccelerated, stamp);
-                    auto velocity = accel.trackers.trackers_velocity(stamp); // Units/us in normalized 1000dpi units.
-                    // This will call into our pointer_accel_profile_linear() profile func.
-                    auto accel_factor = accel.calculate_acceleration_simpsons(accel.profile, data, velocity/* normalized coords */, accel.last_velocity/* normalized coords */, stamp);
-                    accel.last_velocity = velocity;
-                    return accel_factor;
-                }
             fp64_coor accelerator_filter_linear(fp64_coor unaccelerated, void* data, time stamp)
             {
                 // Accelerate for normalized units and return normalized units.
                 auto normalized = accel.normalize_for_dpi(unaccelerated);
-                auto accel_factor = calculate_acceleration_factor_pointer(normalized, data, stamp);
-                auto accelerated = normalized * accel_factor;
+                auto accelerated = normalized * accel.calculate_acceleration_simpsons(unaccelerated, stamp);
                 return accelerated;
             }
             fp64_coor accelerator_filter_noop(fp64_coor unaccelerated, [[maybe_unused]] void* data, [[maybe_unused]] time now)
@@ -2057,9 +2050,8 @@ namespace netxs::lixx // li++, libinput++.
                 accel.speed_adjustment = new_speed_adjustment;
                 return true;
             }
-            static fp64 pointer_accel_profile_linear(motion_filter_sptr filter, [[maybe_unused]] void* data, fp64 speed_in/* in normalized units */, [[maybe_unused]] time now)
+            fp64 pointer_accel_profile_linear(fp64 speed_in/* in normalized units */)
             {
-                auto& accel = *std::static_pointer_cast<pointer_accelerator>(filter);
                 auto max_accel = accel.accel; // Unitless factor.
                 auto threshold = accel.threshold; // 1000dpi units/us.
                 auto incline = accel.incline;
@@ -2117,18 +2109,16 @@ namespace netxs::lixx // li++, libinput++.
 
         pointer_accelerator(si32 dpi, bool use_velocity_averaging)
             : motion_filter{ dpi },
-                   velocity{ 0.0 },
-              last_velocity{ 0.0 },
                   threshold{ lixx::default_acceleration_threshold },
                       accel{ lixx::default_acceleration },
-                    incline{ lixx::default_incline },
-                    profile{ pointer_accelerator_impl_t::pointer_accel_profile_linear }
+                    incline{ lixx::default_incline }
         {
             trackers.trackers_init(use_velocity_averaging ? 16 : 2);
             type = LIBINPUT_CONFIG_ACCEL_PROFILE_ADAPTIVE;
         }
 
         pointer_accelerator_impl_t impl{ *this };
+        virtual fp64      apply_acceleration(fp64 velocity)                              { return impl.pointer_accel_profile_linear(velocity); }
         virtual fp64_coor filter(         fp64_coor unaccelerated, void* data, time now) { return impl.accelerator_filter_linear(unaccelerated, data, now); }
         virtual fp64_coor filter_constant(fp64_coor unaccelerated, void* data, time now) { return impl.accelerator_filter_noop(unaccelerated, data, now); }
         virtual fp64_coor filter_scroll(  fp64_coor unaccelerated, void* data, time now) { return impl.accelerator_filter_noop(unaccelerated, data, now); }
@@ -2141,7 +2131,7 @@ namespace netxs::lixx // li++, libinput++.
         struct pointer_accelerator_low_dpi_impl_t
         {
             pointer_accelerator_low_dpi& accel;
-            static fp64 pointer_accel_profile_linear_low_dpi(motion_filter_sptr filter, [[maybe_unused]] void* data, fp64 speed_in/* in device units (units/us) */, [[maybe_unused]] time now)
+            fp64 pointer_accel_profile_linear_low_dpi(fp64 speed_in/* in device units (units/us) */)
             {
                 // Custom acceleration function for mice < 1000dpi.
                 // At slow motion, a single device unit causes a one-pixel movement.
@@ -2150,7 +2140,6 @@ namespace netxs::lixx // li++, libinput++.
                 // at low speeds we get pixel-precision, at high speeds we get approx. the
                 // same movement as a high-dpi mouse.
                 // Note: data fed to this function is in device units, not normalized.
-                auto& accel = *std::static_pointer_cast<pointer_accelerator_low_dpi>(filter);
                 auto max_accel = accel.accel; // Unitless factor.
                 auto threshold = accel.threshold; // Units/us.
                 auto incline = accel.incline;
@@ -2166,29 +2155,19 @@ namespace netxs::lixx // li++, libinput++.
                 factor = std::min(max_accel, factor);
                 return factor;
             }
-                fp64 calculate_acceleration_factor(fp64_coor unaccelerated, void* data, time now)
-                {
-                    accel.trackers.trackers_feed(unaccelerated, now);
-                    auto velocity = accel.trackers.trackers_velocity(now); // Units/us in device-native dpi.
-                    auto accel_factor = accel.calculate_acceleration_simpsons(accel.profile, data, velocity, accel.last_velocity, now);
-                    accel.last_velocity = velocity;
-                    return accel_factor;
-                }
             fp64_coor accelerator_filter_low_dpi(fp64_coor unaccelerated, void* data, time now)
             {
-                auto accel_factor = calculate_acceleration_factor(unaccelerated, data, now);
-                auto normalized = unaccelerated * accel_factor;
+                auto normalized = unaccelerated * accel.calculate_acceleration_simpsons(unaccelerated, now);
                 return normalized;
             }
         };
 
         pointer_accelerator_low_dpi(si32 dpi, bool use_velocity_averaging)
             : pointer_accelerator{ dpi, use_velocity_averaging }
-        {
-            profile = pointer_accelerator_low_dpi_impl_t::pointer_accel_profile_linear_low_dpi;
-        }
+        { }
 
         pointer_accelerator_low_dpi_impl_t impl_low{ *this };
+        virtual fp64      apply_acceleration(fp64 velocity)                     { return impl_low.pointer_accel_profile_linear_low_dpi(velocity); }
         virtual fp64_coor filter(fp64_coor unaccelerated, void* data, time now) { return impl_low.accelerator_filter_low_dpi(unaccelerated, data, now); }
     };
 
@@ -2201,8 +2180,7 @@ namespace netxs::lixx // li++, libinput++.
             touchpad_accelerator_flat& accel;
                 fp64_coor accelerator_filter_touchpad_flat(fp64_coor unaccelerated, [[maybe_unused]] void* data, [[maybe_unused]] time now)
                 {
-                    auto normalized = accel.normalize_for_dpi(unaccelerated) * lixx::tp_magic_slowdown_flat * accel.factor; // You want flat acceleration, you get flat acceleration for the device.
-                    return normalized;
+                    return accel.normalize_for_dpi(unaccelerated) * lixx::tp_magic_slowdown_flat * accel.factor; // You want flat acceleration, you get flat acceleration for the device.
                 }
             fp64_coor accelerator_filter_noop_touchpad_flat(fp64_coor unaccelerated, void* data, time stamp)
             {
@@ -2243,30 +2221,13 @@ namespace netxs::lixx // li++, libinput++.
 
     struct pointer_accelerator_x230 : motion_filter
     {
-        fp64                 velocity;     // Units/us.
-        fp64                 last_velocity;// Units/us.
         fp64                 threshold;    // Units/us.
         fp64                 accel;        // Unitless factor.
         fp64                 incline;      // Incline of the function.
-        accel_profile_func_t profile;      //
-        pointer_trackers     trackers;     //
 
         struct pointer_accelerator_x230_impl_t
         {
             pointer_accelerator_x230& accel;
-                    fp64 acceleration_profile(void* data, fp64 velocity, time stamp)
-                    {
-                        return accel.profile(accel.This(), data, velocity, stamp);
-                    }
-                fp64 calculate_acceleration(void* data, fp64 velocity, fp64 last_velocity, time stamp)
-                {
-                    // Use Simpson's rule to calculate the average acceleration between the previous motion and the most recent.
-                    auto factor =   acceleration_profile(data, velocity, stamp);
-                    factor +=       acceleration_profile(data, last_velocity, stamp);
-                    factor += 4.0 * acceleration_profile(data, (last_velocity + velocity) / 2, stamp);
-                    factor = factor / 6.0;
-                    return factor; // Unitless factor.
-                }
             fp64_coor accelerator_filter_x230(fp64_coor raw, void* data, time stamp)
             {
                 // This filter is a "do not touch me" filter. So the hack here is
@@ -2276,10 +2237,7 @@ namespace netxs::lixx // li++, libinput++.
                 // 2) Run all calculation on 1000dpi-normalized data.
                 // 3) Apply accel factor no normalized data.
                 auto unaccelerated = accel.normalize_for_dpi(raw);
-                accel.trackers.trackers_feed(unaccelerated, stamp);
-                auto velocity = accel.trackers.trackers_velocity(stamp);
-                auto accel_factor = calculate_acceleration(data, velocity, accel.last_velocity, stamp);
-                accel.last_velocity = velocity;
+                auto accel_factor = accel.calculate_acceleration_simpsons(unaccelerated, stamp);
                 auto accelerated = unaccelerated * accel_factor;
                 return accelerated;
             }
@@ -2306,11 +2264,10 @@ namespace netxs::lixx // li++, libinput++.
                 accel.speed_adjustment = speed_adjustment;
                 return true;
             }
-            static fp64 touchpad_lenovo_x230_accel_profile(motion_filter_sptr filter, [[maybe_unused]] void* data, fp64 speed_in/* 1000dpi-units/µs */, [[maybe_unused]] time now)
+            fp64 touchpad_lenovo_x230_accel_profile(fp64 speed_in/* 1000dpi-units/µs */)
             {
                 // Those touchpads presents an actual lower resolution that what is advertised. We see some jumps from the cursor due to the big steps in X and Y when we are receiving data.
                 // Apply a factor to minimize those jumps at low speed, and try keeping the same feeling as regular touchpads at high speed. It still feels slower but it is usable at least.
-                auto& accel = *std::static_pointer_cast<pointer_accelerator_x230>(filter);
                 auto max_accel = accel.accel * lixx::x230_tp_magic_low_res_factor; // Unitless factor.
                 auto threshold = accel.threshold / lixx::x230_tp_magic_low_res_factor; // Units/us.
                 auto incline   = accel.incline * lixx::x230_tp_magic_low_res_factor;
@@ -2326,12 +2283,9 @@ namespace netxs::lixx // li++, libinput++.
 
         pointer_accelerator_x230(si32 dpi, bool use_velocity_averaging)
             : motion_filter{ dpi },
-                   velocity{ 0.0 },
-              last_velocity{ 0.0 },
                   threshold{ lixx::x230_threshold },
                       accel{ lixx::x230_acceleration }, // Unitless factor.
-                    incline{ lixx::x230_incline }, // Incline of the acceleration function.
-                    profile{ pointer_accelerator_x230_impl_t::touchpad_lenovo_x230_accel_profile }
+                    incline{ lixx::x230_incline } // Incline of the acceleration function.
         {
             // The Lenovo x230 has a bad touchpad. This accel method has been trial-and-error'd, any changes to it will require re-testing everything.
             // Don't touch this.
@@ -2340,6 +2294,7 @@ namespace netxs::lixx // li++, libinput++.
         }
 
         pointer_accelerator_x230_impl_t impl{ *this };
+        virtual fp64      apply_acceleration(fp64 velocity)                              { return impl.touchpad_lenovo_x230_accel_profile(velocity); }
         virtual fp64_coor filter(         fp64_coor unaccelerated, void* data, time now) { return impl.accelerator_filter_x230(unaccelerated, data, now); }
         virtual fp64_coor filter_constant(fp64_coor unaccelerated, void* data, time now) { return impl.accelerator_filter_constant_x230(unaccelerated, data, now); }
         virtual fp64_coor filter_scroll(  fp64_coor unaccelerated, void* data, time now) { return impl.accelerator_filter_constant_x230(unaccelerated, data, now); }
@@ -2349,29 +2304,16 @@ namespace netxs::lixx // li++, libinput++.
 
     struct touchpad_accelerator : motion_filter
     {
-        fp64                 velocity;      // Units/us.
-        fp64                 last_velocity; // Units/us.
         fp64                 threshold;     // mm/s.
         fp64                 accel;         // Unitless factor.
-        pointer_trackers     trackers;      //
-        accel_profile_func_t profile;
         fp64                 speed_factor;  // Factor based on speed setting.
 
         struct touchpad_accelerator_impl_t
         {
             touchpad_accelerator& accel;
-                fp64 calculate_acceleration_factor_tp(fp64_coor unaccelerated, void* data, time stamp)
-                {
-                    accel.trackers.trackers_feed(unaccelerated, stamp);
-                    auto velocity = accel.trackers.trackers_velocity(stamp); // Units/us in device-native dpi.
-                    auto accel_factor = accel.calculate_acceleration_simpsons(accel.profile, data, velocity, accel.last_velocity, stamp);
-                    accel.last_velocity = velocity;
-                    return accel_factor;
-                }
-            fp64_coor accelerator_filter_touchpad(fp64_coor unaccelerated, void* data, time stamp)
+            fp64_coor accelerator_filter_touchpad(fp64_coor unaccelerated, void* data, time now)
             {
-                auto accel_factor = calculate_acceleration_factor_tp(unaccelerated, data, stamp);
-                auto accelerated = unaccelerated * accel_factor;
+                auto accelerated = unaccelerated * accel.calculate_acceleration_simpsons(unaccelerated, now);
                 return accel.normalize_for_dpi(accelerated);
             }
             fp64_coor touchpad_constant_filter(fp64_coor unaccelerated, [[maybe_unused]] void* data, [[maybe_unused]] time now)
@@ -2408,9 +2350,8 @@ namespace netxs::lixx // li++, libinput++.
                 accel.speed_factor = speed_factor2(speed_adjustment);
                 return true;
             }
-                static fp64 touchpad_accel_profile_linear(motion_filter_sptr filter, [[maybe_unused]] void* data, fp64 speed_in/* in device units/µs */, [[maybe_unused]] time now)
+                fp64 touchpad_accel_profile_linear(fp64 speed_in/* in device units/µs */)
                 {
-                    auto& accel = *std::static_pointer_cast<touchpad_accelerator>(filter);
                     const auto threshold = accel.threshold; // mm/s.
                     const auto baseline = 0.9;
                     auto factor = 0.0; // Unitless.
@@ -2471,11 +2412,8 @@ namespace netxs::lixx // li++, libinput++.
 
         touchpad_accelerator(si32 dpi, span event_delta_smooth_threshold, span event_delta_smooth_value, bool use_velocity_averaging)
             : motion_filter{ dpi },
-                   velocity{ 0.0 },
-              last_velocity{ 0.0 },
                   threshold{ 130 },
-                      accel{ 0.0 },
-                    profile{ touchpad_accelerator_impl_t::touchpad_accel_profile_linear }
+                      accel{ 0.0 }
         {
             type = LIBINPUT_CONFIG_ACCEL_PROFILE_ADAPTIVE;
             trackers.trackers_init(use_velocity_averaging ? 16 : 2);
@@ -2483,6 +2421,7 @@ namespace netxs::lixx // li++, libinput++.
         }
 
         touchpad_accelerator_impl_t impl{ *this };
+        virtual fp64      apply_acceleration(fp64 velocity)                              { return impl.touchpad_accel_profile_linear(velocity); }
         virtual fp64_coor filter(         fp64_coor unaccelerated, void* data, time now) { return impl.accelerator_filter_touchpad(unaccelerated, data, now); }
         virtual fp64_coor filter_constant(fp64_coor unaccelerated, void* data, time now) { return impl.touchpad_constant_filter(unaccelerated, data, now); }
         virtual fp64_coor filter_scroll(  fp64_coor unaccelerated, void* data, time now) { return impl.touchpad_constant_filter(unaccelerated, data, now); }
