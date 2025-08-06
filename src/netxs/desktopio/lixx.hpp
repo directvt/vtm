@@ -2756,18 +2756,16 @@ namespace netxs::lixx // li++, libinput++.
     template<class T>
     struct libinput_timer_t : ptr::enable_shared_from_this<libinput_timer_t<T>>
     {
-        T&     owner;
-        text   timer_name;
-        time   expire;
-        void*  timer_func_data;
-        void (*timer_func)(time now, void* timer_func_data);
+        T&                        owner;
+        text                      timer_name;
+        time                      expire;
+        std::function<void(time)> func;
 
-        libinput_timer_t(T& owner, text&& name, auto func, auto func_data)
+        libinput_timer_t(T& owner, text&& name, auto func)
             :         owner{ owner           },
                  timer_name{ std::move(name) },
                      expire{                 },
-            timer_func_data{ func_data       },
-                 timer_func{ func            }
+                       func{ std::move(func) }
         { }
         void cancel()
         {
@@ -2801,9 +2799,9 @@ namespace netxs::lixx // li++, libinput++.
             os::close(fd);
             os::close(epoll_fd);
         }
-        auto create(text name, void(*func)(time now, void* func_data), void* func_data)
+        auto create(text name, auto func)
         {
-            return ptr::shared<libinput_timer_t>(*this, std::move(name), func, func_data);
+            return ptr::shared<libinput_timer_t>(*this, std::move(name), std::move(func));
         }
         void libinput_timer_cancel(libinput_timer_t& timer)
         {
@@ -2849,7 +2847,7 @@ namespace netxs::lixx // li++, libinput++.
                     if (timer->expire <= now)
                     {
                         timer->expire = {};
-                        timer->timer_func(now, timer->timer_func_data); // The func may re-arm timers or trigger another unrelated timer to be cancelled and removed.
+                        timer->func(now); // The func may re-arm timers or trigger another unrelated timer to be cancelled and removed.
                     }
                     else // Keep not expired timers active.
                     {
@@ -6328,11 +6326,6 @@ namespace netxs::lixx // li++, libinput++.
                 return li_device->middlebutton.enabled_default ? LIBINPUT_CONFIG_MIDDLE_EMULATION_ENABLED
                                                                : LIBINPUT_CONFIG_MIDDLE_EMULATION_DISABLED;
             }
-            static void evdev_middlebutton_handle_timeout(time now, void* data)
-            {
-                auto li_device = ((libinput_device_t*)data)->This();
-                li_device->evdev_middlebutton_handle_event(now, MIDDLEBUTTON_EVENT_TIMEOUT);
-            }
             static libinput_config_status evdev_middlebutton_set(libinput_device_sptr li_device, libinput_config_middle_emulation_state enable)
             {
                 switch (enable)
@@ -6351,7 +6344,7 @@ namespace netxs::lixx // li++, libinput++.
         void evdev_init_middlebutton(bool enable, bool want_config)
         {
             auto timer_name = utf::fprint("%s% middlebutton", evdev_device_get_sysname());
-            middlebutton.timer = li->timers.create(timer_name, evdev_middlebutton_handle_timeout, this);
+            middlebutton.timer = li->timers.create(timer_name, [&](time now){ evdev_middlebutton_handle_event(now, MIDDLEBUTTON_EVENT_TIMEOUT); });
             middlebutton.enabled_default = enable;
             middlebutton.want_enabled    = enable;
             middlebutton.enabled         = enable;
@@ -6499,10 +6492,9 @@ namespace netxs::lixx // li++, libinput++.
             calibration.get_matrix         = evdev_calibration_get_matrix;
             calibration.get_default_matrix = evdev_calibration_get_default_matrix;
         }
-            static void evdev_button_scroll_timeout([[maybe_unused]] time now, void* data)
+            void evdev_button_scroll_timeout()
             {
-                auto li_device = (libinput_device_t*)data;
-                li_device->scroll.button_scroll_state = BUTTONSCROLL_READY;
+                scroll.button_scroll_state = BUTTONSCROLL_READY;
             }
             static ui32 evdev_scroll_get_methods([[maybe_unused]] libinput_device_sptr li_device)
             {
@@ -6578,7 +6570,7 @@ namespace netxs::lixx // li++, libinput++.
         void evdev_init_button_scroll(void(*change_scroll_method)(libinput_device_sptr))
         {
             auto timer_name = utf::fprint("%s% btnscroll", evdev_device_get_sysname());
-            scroll.timer = li->timers.create(timer_name, evdev_button_scroll_timeout, this);
+            scroll.timer = li->timers.create(timer_name, [&](time){ evdev_button_scroll_timeout(); });
             scroll.config.get_methods             = evdev_scroll_get_methods;
             scroll.config.set_method              = evdev_scroll_set_method;
             scroll.config.get_method              = evdev_scroll_get_method;
@@ -12685,6 +12677,18 @@ namespace netxs::lixx // li++, libinput++.
                     li_device->pointer_config.set_profile = tp_accel_config_set_profile;
                     return true;
                 }
+                    void tp_tap_handle_timeout(time now)
+                    {
+                        static auto empty_touch = tp_touch{}; // This touch is not dereferenced anywhere. This just is a placeholder.
+                        tp.tp_impl.tp_tap_handle_event(empty_touch, TAP_EVENT_TIMEOUT, now);
+                        for (auto& t : tp.touches)
+                        {
+                            if (t.state != TOUCH_NONE && t.tap.state != TAP_TOUCH_STATE_IDLE)
+                            {
+                                t.tap.state = TAP_TOUCH_STATE_DEAD;
+                            }
+                        }
+                    }
                     static si32 tp_tap_config_count(libinput_device_sptr li_device)
                     {
                         auto& tp = *std::static_pointer_cast<tp_dispatch>(li_device->dispatch);
@@ -12760,19 +12764,6 @@ namespace netxs::lixx // li++, libinput++.
                     {
                         return tp_drag_lock_default(li_device);
                     }
-                    static void tp_tap_handle_timeout(time stamp, void* data)
-                    {
-                        auto& tp = *(tp_dispatch*)data;
-                        static auto empty_touch = tp_touch{}; // This touch is not dereferenced anywhere. This just is a placeholder.
-                        tp.tp_impl.tp_tap_handle_event(empty_touch, TAP_EVENT_TIMEOUT, stamp);
-                        for (auto& t : tp.touches)
-                        {
-                            if (t.state != TOUCH_NONE && t.tap.state != TAP_TOUCH_STATE_IDLE)
-                            {
-                                t.tap.state = TAP_TOUCH_STATE_DEAD;
-                            }
-                        }
-                    }
                 void tp_init_tap()
                 {
                     tp.tap.config.count                        = tp_tap_config_count;
@@ -12797,7 +12788,7 @@ namespace netxs::lixx // li++, libinput++.
                     tp.tap.drag_lock = tp_drag_lock_default(tp.li_device);
                     auto timer_name = utf::fprint("%s% tap", tp.li_device->evdev_device_get_sysname());
                     auto li = tp.li_device->li;
-                    tp.tap.timer = li->timers.create(timer_name, tp_tap_handle_timeout, &tp);
+                    tp.tap.timer = li->timers.create(timer_name, [&](time now){ tp_tap_handle_timeout(now); });
                 }
                     bool tp_guess_clickpad(libinput_device_sptr li_device)
                     {
@@ -12932,11 +12923,6 @@ namespace netxs::lixx // li++, libinput++.
                     {
                         return LIBINPUT_CONFIG_CLICKFINGER_MAP_LRM;
                     }
-                    static void tp_button_handle_timeout(time now, void* data)
-                    {
-                        auto& t = *(tp_touch*)data;
-                        t.tp->tp_impl.tp_button_handle_event(t, BUTTON_EVENT_TIMEOUT, now);
-                    }
                 void tp_init_buttons(libinput_device_sptr li_device)
                 {
                     tp.buttons.is_clickpad = tp_guess_clickpad(li_device);
@@ -12965,7 +12951,7 @@ namespace netxs::lixx // li++, libinput++.
                     {
                         auto timer_name = utf::fprint("%s% (%d%) button", li_device->evdev_device_get_sysname(), ++i);
                         t.button.state = BUTTON_STATE_NONE;
-                        t.button.timer = li->timers.create(timer_name, tp_button_handle_timeout, &t);
+                        t.button.timer = li->timers.create(timer_name, [&](time now){ tp_button_handle_event(t, BUTTON_EVENT_TIMEOUT, now); });
                     }
                 }
                     static si32 tp_dwt_config_is_available([[maybe_unused]] libinput_device_sptr li_device)
@@ -13068,19 +13054,15 @@ namespace netxs::lixx // li++, libinput++.
                         li_device->config.dwtp = &tp.palm.config;
                     }
                 }
-                        static void tp_arbitration_timeout([[maybe_unused]] time now, void* data)
+                        void tp_arbitration_timeout()
                         {
-                            auto& tp = *(tp_dispatch*)data;
-                            if (tp.arbitration.state != ARBITRATION_NOT_ACTIVE)
-                            {
-                                tp.arbitration.state = ARBITRATION_NOT_ACTIVE;
-                            }
+                            tp.arbitration.state = ARBITRATION_NOT_ACTIVE;
                         }
                     void tp_init_palmdetect_arbitration(libinput_device_sptr li_device)
                     {
                         auto timer_name = utf::fprint("%s% arbitration", li_device->evdev_device_get_sysname());
                         auto li = tp.li_device->li;
-                        tp.arbitration.arbitration_timer = li->timers.create(timer_name, tp_arbitration_timeout, &tp);
+                        tp.arbitration.arbitration_timer = li->timers.create(timer_name, [&](time){ tp_arbitration_timeout(); });
                         tp.arbitration.state = ARBITRATION_NOT_ACTIVE;
                     }
                     void tp_init_palmdetect_edge(libinput_device_sptr li_device)
@@ -13171,9 +13153,8 @@ namespace netxs::lixx // li++, libinput++.
                         {
                             tp_tap_enabled_update(faux, tp.tap.enabled, stamp);
                         }
-                    static void tp_trackpoint_timeout(time now, void* data)
+                    void tp_trackpoint_timeout(time now)
                     {
-                        auto& tp = *(tp_dispatch*)data;
                         if (tp.palm.trackpoint_active)
                         {
                             tp.tp_impl.tp_tap_resume(now);
@@ -13181,9 +13162,8 @@ namespace netxs::lixx // li++, libinput++.
                         }
                         tp.palm.trackpoint_event_count = 0;
                     }
-                    static void tp_keyboard_timeout(time now, void* data)
+                    void tp_keyboard_timeout(time now)
                     {
-                        auto& tp = *(tp_dispatch*)data;
                         if (tp.dwt.dwt_enabled && tp.dwt.key_mask.any())
                         {
                             tp.dwt.keyboard_timer->start(now + lixx::default_keyboard_activity_timeout_2);
@@ -13201,15 +13181,9 @@ namespace netxs::lixx // li++, libinput++.
                     auto sysname = li_device->evdev_device_get_sysname();
                     auto tp_timer_name = utf::fprint("%s% trackpoint", sysname);
                     auto kb_timer_name = utf::fprint("%s% keyboard", sysname);
-                    tp.palm.trackpoint_timer = li->timers.create(tp_timer_name, tp_trackpoint_timeout, &tp);
-                    tp.dwt.keyboard_timer = li->timers.create(kb_timer_name, tp_keyboard_timeout, &tp);
+                    tp.palm.trackpoint_timer = li->timers.create(tp_timer_name, [&](time now){ tp_trackpoint_timeout(now); });
+                    tp.dwt.keyboard_timer = li->timers.create(kb_timer_name, [&](time now){ tp_keyboard_timeout(now); });
                 }
-                        static void tp_edge_scroll_handle_timeout(time now, void* data)
-                        {
-                            auto& t = *(tp_touch*)data;
-                            auto& tp = *(t.tp);
-                            tp.tp_impl.tp_edge_scroll_handle_event(t, SCROLL_EVENT_TIMEOUT, now);
-                        }
                     void tp_edge_scroll_init(libinput_device_sptr li_device)
                     {
                         // Touchpads smaller than 40mm are not tall enough to have a horizontal scroll area, it takes too much space away. But clickpads have enough space here anyway because of the software button area (and all these tiny clickpads were built when software buttons were a thing, e.g. Lenovo *20 series).
@@ -13229,7 +13203,7 @@ namespace netxs::lixx // li++, libinput++.
                             auto li = tp.li_device->li;
                             auto timer_name = utf::fprint("%s% (%d%) edgescroll", li_device->evdev_device_get_sysname(), i++);
                             t.scroll.direction = -1;
-                            t.scroll.timer = li->timers.create(timer_name, tp_edge_scroll_handle_timeout, &t);
+                            t.scroll.timer = li->timers.create(timer_name, [&](time now){ tp_edge_scroll_handle_event(t, SCROLL_EVENT_TIMEOUT, now); });
                         }
                     }
                 bool tp_pass_sanity_check(libinput_device_sptr li_device)
@@ -13483,35 +13457,32 @@ namespace netxs::lixx // li++, libinput++.
                     auto& tp = *std::static_pointer_cast<tp_dispatch>(li_device->dispatch);
                     return tp.tp_impl.tp_3fg_drag_default();
                 }
-                static void tp_gesture_finger_count_switch_timeout(time now, void* data)
+                void tp_gesture_finger_count_switch_timeout(time now)
                 {
-                    auto& tp = *(tp_dispatch*)data;
                     if (tp.gesture.finger_count_pending)
                     {
-                        tp.tp_impl.tp_gesture_handle_event(GESTURE_EVENT_FINGER_SWITCH_TIMEOUT, now);
+                        tp_gesture_handle_event(GESTURE_EVENT_FINGER_SWITCH_TIMEOUT, now);
                         tp.gesture.finger_count = tp.gesture.finger_count_pending;
                         tp.gesture.finger_count_pending = 0;
                     }
                 }
-                    static bool tp_tap_dragging_or_double_tapping(tp_dispatch_sptr tp)
+                    bool tp_tap_dragging_or_double_tapping()
                     {
-                        auto state = tp->tap.state;
+                        auto state = tp.tap.state;
                         return state == TAP_STATE_1FGTAP_DRAGGING_OR_DOUBLETAP
                             || state == TAP_STATE_2FGTAP_DRAGGING_OR_DOUBLETAP
                             || state == TAP_STATE_3FGTAP_DRAGGING_OR_DOUBLETAP;
                     }
-                static void tp_gesture_hold_timeout(time now, void* data)
+                void tp_gesture_hold_timeout(time now)
                 {
-                    auto& tp = *(tp_dispatch*)data;
-                    if (!tp_tap_dragging_or_double_tapping(tp.This<tp_dispatch>()) && !tp.tp_impl.tp_tap_dragging())
+                    if (!tp_tap_dragging_or_double_tapping() && !tp_tap_dragging())
                     {
-                        tp.tp_impl.tp_gesture_handle_event(GESTURE_EVENT_HOLD_TIMEOUT, now);
+                        tp_gesture_handle_event(GESTURE_EVENT_HOLD_TIMEOUT, now);
                     }
                 }
-                static void tp_gesture_3fg_drag_timeout(time now, void* data)
+                void tp_gesture_3fg_drag_timeout(time now)
                 {
-                    auto& tp = *(tp_dispatch*)data;
-                    tp.tp_impl.tp_gesture_handle_event(GESTURE_EVENT_3FG_DRAG_RELEASE_TIMEOUT, now);
+                    tp_gesture_handle_event(GESTURE_EVENT_3FG_DRAG_RELEASE_TIMEOUT, now);
                 }
             void tp_init_gesture()
             {
@@ -13540,9 +13511,9 @@ namespace netxs::lixx // li++, libinput++.
                 auto gestures_timer_name = utf::fprint("%s% gestures", sysname);
                 auto hold_timer_name     = utf::fprint("%s% hold", sysname);
                 auto drag_3fg_timer_name = utf::fprint("%s% drag_3fg", sysname);
-                tp.gesture.finger_count_switch_timer = li->timers.create(gestures_timer_name, tp_gesture_finger_count_switch_timeout, &tp);
-                tp.gesture.hold_timer                = li->timers.create(hold_timer_name    , tp_gesture_hold_timeout               , &tp);
-                tp.gesture.drag_3fg_timer            = li->timers.create(drag_3fg_timer_name, tp_gesture_3fg_drag_timeout           , &tp);
+                tp.gesture.finger_count_switch_timer = li->timers.create(gestures_timer_name, [&](time now){ tp_gesture_finger_count_switch_timeout(now); });
+                tp.gesture.hold_timer                = li->timers.create(hold_timer_name    , [&](time now){ tp_gesture_hold_timeout(now);                });
+                tp.gesture.drag_3fg_timer            = li->timers.create(drag_3fg_timer_name, [&](time now){ tp_gesture_3fg_drag_timeout(now);            });
             }
             void tp_init_thumb()
             {
@@ -16767,17 +16738,16 @@ namespace netxs::lixx // li++, libinput++.
                     }
                     return has_axis;
                 }
-                static void tablet_proximity_out_quirk_timer_func(time now, void* data)
+                void tablet_proximity_out_quirk_timer_func(time now)
                 {
-                    auto& tablet = *(tablet_dispatch*)data;
                     if (tablet.status & (TABLET_TOOL_IN_CONTACT | TABLET_BUTTONS_DOWN))
                     {
-                        tablet.tablet_impl.tablet_proximity_out_quirk_set_timer(now);
+                        tablet_proximity_out_quirk_set_timer(now);
                         return;
                     }
                     if (tablet.quirks.last_event_time > now - lixx::forced_proxout_timeout)
                     {
-                        tablet.tablet_impl.tablet_proximity_out_quirk_set_timer(tablet.quirks.last_event_time);
+                        tablet_proximity_out_quirk_set_timer(tablet.quirks.last_event_time);
                         return;
                     }
                     log("tablet: forcing proximity after timeout");
@@ -16856,7 +16826,7 @@ namespace netxs::lixx // li++, libinput++.
                         }
                         tablet.status |= TABLET_TOOL_OUT_OF_PROXIMITY;
                         tablet.quirks.need_to_force_prox_out = true; // We always enable the proximity out quirk, but disable it once a device gives us the right event sequence.
-                        tablet.quirks.prox_out_timer = li->timers.create("proxout", tablet_proximity_out_quirk_timer_func, &tablet);
+                        tablet.quirks.prox_out_timer = li->timers.create("proxout", [&](time now){ tablet_proximity_out_quirk_timer_func(now); });
                     }
                 }
                 #if HAVE_LIBWACOM
@@ -18720,12 +18690,6 @@ namespace netxs::lixx // li++, libinput++.
                 if (li_device->scroll.lock_enabled) li_device->scroll.lock_state = BUTTONSCROLL_LOCK_IDLE;
                 else                                li_device->scroll.lock_state = BUTTONSCROLL_LOCK_DISABLED;
             }
-                static void wheel_init_scroll_timer(time now, void* data)
-                {
-                    auto li_device = (libinput_device_t*)data;
-                    auto& fallback = *li_device->dispatch->This<fallback_dispatch>();
-                    fallback.fallback_impl.wheel_handle_event(WHEEL_EVENT_SCROLL_TIMEOUT, now);
-                }
             void fallback_init_wheel(libinput_device_sptr li_device)
             {
                 fallback.wheel.state = WHEEL_STATE_NONE;
@@ -18741,21 +18705,9 @@ namespace netxs::lixx // li++, libinput++.
                 {
                     auto li = li_device->li;
                     auto timer_name = utf::fprint("%s% wheel scroll", li_device->evdev_device_get_sysname());
-                    fallback.wheel.scroll_timer = li->timers.create(timer_name, wheel_init_scroll_timer, li_device.get());
+                    fallback.wheel.scroll_timer = li->timers.create(timer_name, [&](time now){ wheel_handle_event(WHEEL_EVENT_SCROLL_TIMEOUT, now);; });
                 }
             }
-                static void debounce_timeout_short(time now, void* data)
-                {
-                    auto li_device = (libinput_device_t*)data;
-                    auto& fallback = *li_device->dispatch->This<fallback_dispatch>();
-                    fallback.fallback_impl.debounce_handle_event(DEBOUNCE_EVENT_TIMEOUT_SHORT, now);
-                }
-                static void debounce_timeout(time now, void* data)
-                {
-                    auto li_device = (libinput_device_t*)data;
-                    auto& fallback = *li_device->dispatch->This<fallback_dispatch>();
-                    fallback.fallback_impl.debounce_handle_event(DEBOUNCE_EVENT_TIMEOUT, now);
-                }
             void fallback_init_debounce()
             {
                 auto li_device = fallback.li_device;
@@ -18769,23 +18721,19 @@ namespace netxs::lixx // li++, libinput++.
                 auto ds_timer_name = utf::fprint("%s% debounce short", sysname);
                 auto db_timer_name = utf::fprint("%s% debounce", sysname);
                 fallback.debounce.state = DEBOUNCE_STATE_IS_UP;
-                fallback.debounce.timer_short = li->timers.create(ds_timer_name, debounce_timeout_short, li_device.get());
-                fallback.debounce.timer = li->timers.create(db_timer_name, debounce_timeout, li_device.get());
+                fallback.debounce.timer_short = li->timers.create(ds_timer_name, [&](time now){ debounce_handle_event(DEBOUNCE_EVENT_TIMEOUT_SHORT, now); });
+                fallback.debounce.timer = li->timers.create(db_timer_name, [&](time now){ debounce_handle_event(DEBOUNCE_EVENT_TIMEOUT, now); });
             }
-                static void fallback_arbitration_timeout([[maybe_unused]] time now, void* data)
+                void fallback_arbitration_timeout()
                 {
-                    auto& fallback = *(fallback_dispatch*)data;
-                    if (fallback.arbitration.in_arbitration)
-                    {
-                        fallback.arbitration.in_arbitration = faux;
-                    }
+                    fallback.arbitration.in_arbitration = faux;
                     log("touch arbitration timeout");
                 }
             void fallback_init_arbitration(libinput_device_sptr li_device)
             {
                 auto li = li_device->li;
                 auto timer_name = utf::fprint("%s% arbitration", li_device->evdev_device_get_sysname());
-                fallback.arbitration.arbitration_timer = li->timers.create(timer_name, fallback_arbitration_timeout, &fallback);
+                fallback.arbitration.arbitration_timer = li->timers.create(timer_name, [&](time){ fallback_arbitration_timeout(); });
                 fallback.arbitration.in_arbitration = faux;
             }
         };
