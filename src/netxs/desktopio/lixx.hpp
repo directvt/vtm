@@ -1064,7 +1064,6 @@ namespace netxs::lixx // li++, libinput++.
     using tablet_axes_bitset = std::bitset<lixx::libinput_tablet_tool_axis_cnt>;
 
     using accel_profile_func_t = fp64(*)(motion_filter_sptr filter, void* data, fp64 velocity, time now);
-    using libinput_source_dispatch_t = void(*)(void* data);
     using input_prop = std::pair<ui32, bool>;
 
     struct input_event_t : ::input_event
@@ -2493,9 +2492,8 @@ namespace netxs::lixx // li++, libinput++.
 
     struct event_source_t
     {
-        libinput_source_dispatch_t dispatch;
-        void*                      dispatch_arg;
-        fd_t                       fd{ os::invalid_fd };
+        std::function<void()> func;
+        fd_t                  fd{ os::invalid_fd };
     };
 
     struct match_t
@@ -2880,17 +2878,30 @@ namespace netxs::lixx // li++, libinput++.
                 libinput_timer_handler(now);
             }
         }
-        static void libinput_timer_dispatch(void* data)
+        void libinput_timer_dispatch()
         {
-            auto& timers = *(libinput_timer_host*)data;
             auto discard = ui64{};
-            auto r = ::read(timers.fd, &discard, sizeof(discard));
+            auto r = ::read(fd, &discard, sizeof(discard));
             if (r == -1 && errno != EAGAIN)
             {
                 log("timer: error %d% reading from timerfd (%s%)", errno, ::strerror(errno));
             }
             auto now = datetime::now();
-            timers.libinput_timer_handler(now);
+            libinput_timer_handler(now);
+        }
+        event_source_sptr libinput_add_event_source(si32 fd, auto func)
+        {
+            auto source = ptr::shared<event_source_t>();
+            source->func = std::move(func);
+            source->fd = fd;
+            auto ep = ::epoll_event{};
+            ep.events = EPOLLIN;
+            ep.data.ptr = source.get();
+            if (0 > ::epoll_ctl(epoll_fd, EPOLL_CTL_ADD, fd, &ep))
+            {
+                source.reset();
+            }
+            return source;
         }
         bool libinput_timer_subsys_init()
         {
@@ -2902,7 +2913,7 @@ namespace netxs::lixx // li++, libinput++.
             }
             else
             {
-                source = libinput_add_event_source(fd, libinput_timer_dispatch, this);
+                source = libinput_add_event_source(fd, [&]{ libinput_timer_dispatch(); });
                 return true;
             }
         }
@@ -2915,21 +2926,6 @@ namespace netxs::lixx // li++, libinput++.
                 source_destroy_list.push_back(source);
             }
             source.reset();
-        }
-        event_source_sptr libinput_add_event_source(si32 fd, libinput_source_dispatch_t dispatch, void* dispatch_arg)
-        {
-            auto source = ptr::shared<event_source_t>();
-            source->dispatch     = dispatch;
-            source->dispatch_arg = dispatch_arg;
-            source->fd           = fd;
-            auto ep = ::epoll_event{};
-            ep.events = EPOLLIN;
-            ep.data.ptr = source.get();
-            if (0 > ::epoll_ctl(epoll_fd, EPOLL_CTL_ADD, fd, &ep))
-            {
-                source.reset();
-            }
-            return source;
         }
     };
 
@@ -4947,7 +4943,7 @@ namespace netxs::lixx // li++, libinput++.
         event_source_sptr                     ud_monitor_source;
         std::list<libinput_device_sptr>       device_list;
 
-        static void evdev_udev_handler(void* data);
+        void evdev_udev_handler();
 
         void input_enable()
         {
@@ -4962,7 +4958,7 @@ namespace netxs::lixx // li++, libinput++.
                 else
                 {
                     auto fd = ud_monitor->udev_monitor_get_fd();
-                    ud_monitor_source = timers.libinput_add_event_source(fd, evdev_udev_handler, this);
+                    ud_monitor_source = timers.libinput_add_event_source(fd, [&]{ evdev_udev_handler(); });
                     for (auto [sysname, ud_device] : ud_monitor->device_list) // Add all devices.
                     {
                         if (ud_device->initialized)
@@ -5073,7 +5069,7 @@ namespace netxs::lixx // li++, libinput++.
                 auto& source = *(event_source_t*)ep[i].data.ptr;
                 if (source.fd != os::invalid_fd)
                 {
-                    source.dispatch(source.dispatch_arg);
+                    source.func();
                 }
             }
             timers.source_destroy_list.clear();
@@ -5973,44 +5969,41 @@ namespace netxs::lixx // li++, libinput++.
             was_removed = true; // A device may be removed while suspended, mark it to skip re-opening a different device with the same node.
             notify_removed_device();
         }
-        static void evdev_device_dispatch(void* data)
+        void evdev_device_dispatch()
         {
-            auto li_device = (libinput_device_t*)data;
-            auto li = li_device->li;
             auto ev = input_event_t{};
             auto rc = (si32)LIBEVDEV_READ_STATUS_SUCCESS;
             auto once = faux;
-            auto& frame = li_device->frame;
             frame.evdev_frame_reset();
             do // If the compositor is repainting, this function is called only once per frame and we have to process all the events available on the fd, otherwise there will be input lag.
             {
-                rc = li_device->libevdev_next_event(LIBEVDEV_READ_FLAG_NORMAL, ev);
+                rc = libevdev_next_event(LIBEVDEV_READ_FLAG_NORMAL, ev);
                 if (rc == LIBEVDEV_READ_STATUS_SYNC)
                 {
                     log("SYN_DROPPED event - some input events have been lost.");
                     ev.code = SYN_REPORT; // Send one more sync event so we handle all currently pending events before we sync up to the current state.
                     frame.evdev_frame_append_input_event(ev);
-                    li_device->evdev_device_dispatch_frame(frame);
+                    evdev_device_dispatch_frame(frame);
                     frame.evdev_frame_reset();
-                    rc = li_device->evdev_sync_device();
+                    rc = evdev_sync_device();
                 }
                 else if (rc == LIBEVDEV_READ_STATUS_SUCCESS)
                 {
                     if (!once)
                     {
-                        li_device->evdev_note_time_delay(ev);
+                        evdev_note_time_delay(ev);
                         once = true;
                     }
                     frame.evdev_frame_append_input_event(ev);
                     if (ev.type == EV_SYN && ev.code == SYN_REPORT)
                     {
-                        li_device->evdev_device_dispatch_frame(frame);
+                        evdev_device_dispatch_frame(frame);
                         frame.evdev_frame_reset();
                     }
                 }
                 else if (rc == -ENODEV)
                 {
-                    li_device->remove_device();
+                    remove_device();
                     return;
                 }
             }
@@ -6018,11 +6011,11 @@ namespace netxs::lixx // li++, libinput++.
             if (frame.ev_events.size() > 1) // This should never happen, the kernel flushes only on SYN_REPORT.
             {
                 log("event frame missing SYN_REPORT, forcing frame");
-                li_device->evdev_device_dispatch_frame(frame);
+                evdev_device_dispatch_frame(frame);
             }
             if (rc != -EAGAIN && rc != -EINTR)
             {
-                li->timers.libinput_remove_event_source(li_device->source);
+                li->timers.libinput_remove_event_source(source);
             }
         }
         void remove_device()
@@ -6062,7 +6055,7 @@ namespace netxs::lixx // li++, libinput++.
                 status = libevdev_next_event(LIBEVDEV_READ_FLAG_SYNC, ev);
             }
             while (status == LIBEVDEV_READ_STATUS_SYNC);
-            source = li->timers.libinput_add_event_source(fd, evdev_device_dispatch, this);
+            source = li->timers.libinput_add_event_source(fd, [&]{ evdev_device_dispatch(); });
             if (!source)
             {
                 return -ENOMEM;
@@ -18752,20 +18745,19 @@ namespace netxs::lixx // li++, libinput++.
         libinput_switch_state get_switch_state(libinput_switch which)                                                                      { return fallback_impl.fallback_interface_get_switch_state(which); }
     };
 
-        void libinput_t::evdev_udev_handler(void* data)
+        void libinput_t::evdev_udev_handler()
         {
-            auto li = (libinput_t*)data;
-            li->ud_monitor->add_devices([&](auto action, auto ud_device)
+            ud_monitor->add_devices([&](auto action, auto ud_device)
             {
                 if (action == "add")
                 {
-                    libinput_device_create(li->This(), ud_device);
+                    libinput_device_create(This(), ud_device);
                 }
                 else if (action == "remove")
                 {
                     auto devpath = ud_device->udev_device_get_devpath();
                     log("Device removed: '%s%'", ud_device->properties["NAME"]);
-                    std::erase_if(li->device_list, [&](auto d){ return devpath == d->udev_device_get_devpath(); });
+                    std::erase_if(device_list, [&](auto d){ return devpath == d->udev_device_get_devpath(); });
                 }
             });
         }
@@ -19969,7 +19961,8 @@ namespace netxs::lixx // li++, libinput++.
         li_device->dispatch = evdev_configure_device(li_device);
         if (li_device->dispatch && li_device->device_caps != EVDEV_DEVICE_NO_CAPABILITIES)
         {
-            li_device->source = li->timers.libinput_add_event_source(ud_device->fd, libinput_device_t::evdev_device_dispatch, li_device.get());
+            auto& li_device_inst = *li_device;
+            li_device->source = li->timers.libinput_add_event_source(ud_device->fd, [&]{ li_device_inst.evdev_device_dispatch(); });
             li_device->device_group = li_device->udev_device_get_property_value("LIBINPUT_DEVICE_GROUP");
             li->device_list.push_back(li_device);
             evdev_notify_added_device(li_device);
