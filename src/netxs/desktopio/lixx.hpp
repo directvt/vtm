@@ -1037,7 +1037,6 @@ namespace netxs::lixx // li++, libinput++.
     using libinput_sptr                       = sptr<struct libinput_t>;
     using libinput_timer_sptr                 = sptr<struct libinput_timer_t<struct libinput_timer_host>>;
     using libinput_device_sptr                = sptr<struct libinput_device_t>;
-    using libinput_source_sptr                = sptr<struct libinput_event_source_t>;
     using libinput_tablet_tool_sptr           = sptr<struct libinput_tablet_tool>;
     using libinput_event_listener_sptr        = sptr<struct libinput_event_listener>;
     using libinput_paired_keyboard_sptr       = sptr<struct libinput_paired_keyboard>;
@@ -1049,6 +1048,7 @@ namespace netxs::lixx // li++, libinput++.
     using ud_device_sptr                      = sptr<struct ud_device_t>;
     using ud_monitor_sptr                     = sptr<struct ud_monitor_t>;
     using tp_dispatch_sptr                    = sptr<struct tp_dispatch>;
+    using event_source_sptr                   = sptr<struct event_source_t>;
     using pad_dispatch_sptr                   = sptr<struct pad_dispatch>;
     using motion_filter_sptr                  = sptr<struct motion_filter>;
     using pad_led_group_sptr                  = sptr<struct pad_led_group>;
@@ -2491,7 +2491,7 @@ namespace netxs::lixx // li++, libinput++.
         virtual void      restart(void* data, time now)                                  {        impl.touchpad_accelerator_restart(data, now); }
     };
 
-    struct libinput_event_source_t
+    struct event_source_t
     {
         libinput_source_dispatch_t dispatch;
         void*                      dispatch_arg;
@@ -2782,11 +2782,11 @@ namespace netxs::lixx // li++, libinput++.
 
         std::vector<libinput_timer_sptr>  active;
         std::vector<libinput_timer_sptr>  cached;
-        libinput_source_sptr              source;
+        event_source_sptr                 source;
         fd_t                              fd{ os::invalid_fd };
         fd_t                              epoll_fd{ os::invalid_fd };
         time                              next_expiry;
-        std::vector<libinput_source_sptr> source_destroy_list;
+        std::vector<event_source_sptr>    source_destroy_list;
 
         void clear()
         {
@@ -2906,7 +2906,7 @@ namespace netxs::lixx // li++, libinput++.
                 return true;
             }
         }
-        void libinput_remove_event_source(libinput_source_sptr& source)
+        void libinput_remove_event_source(event_source_sptr& source)
         {
             if (source->fd != os::invalid_fd)
             {
@@ -2916,9 +2916,9 @@ namespace netxs::lixx // li++, libinput++.
             }
             source.reset();
         }
-        libinput_source_sptr libinput_add_event_source(si32 fd, libinput_source_dispatch_t dispatch, void* dispatch_arg)
+        event_source_sptr libinput_add_event_source(si32 fd, libinput_source_dispatch_t dispatch, void* dispatch_arg)
         {
-            auto source = ptr::shared<libinput_event_source_t>();
+            auto source = ptr::shared<event_source_t>();
             source->dispatch     = dispatch;
             source->dispatch_arg = dispatch_arg;
             source->fd           = fd;
@@ -4944,7 +4944,7 @@ namespace netxs::lixx // li++, libinput++.
         quirks_context_sptr                   quirks;
 
         ud_monitor_sptr                       ud_monitor;
-        libinput_source_sptr                  ud_monitor_source;
+        event_source_sptr                     ud_monitor_source;
         std::list<libinput_device_sptr>       device_list;
 
         static void evdev_udev_handler(void* data);
@@ -5070,7 +5070,7 @@ namespace netxs::lixx // li++, libinput++.
             if (count < 0) return -errno;
             for (auto i = 0; i < count; ++i)
             {
-                auto& source = *(libinput_event_source_t*)ep[i].data.ptr;
+                auto& source = *(event_source_t*)ep[i].data.ptr;
                 if (source.fd != os::invalid_fd)
                 {
                     source.dispatch(source.dispatch_arg);
@@ -5197,7 +5197,7 @@ namespace netxs::lixx // li++, libinput++.
         std::list<libinput_event_listener_sptr> event_listeners;
         void*                                   user_data;
         libinput_device_config                  config;
-        libinput_source_sptr                    source;
+        event_source_sptr                       source;
         evdev_dispatch_sptr                     dispatch;
         ud_device_sptr                          ud_device;
         text                                    output_name;
