@@ -1550,7 +1550,7 @@ namespace netxs::lixx // li++, libinput++.
         virtual fp64_coor filter_scroll(  [[maybe_unused]] fp64_coor unaccelerated, [[maybe_unused]] void* data, [[maybe_unused]] time now) { return {}; }
         virtual bool      set_speed([[maybe_unused]] fp64 speed_adjustment)                                                                 { return {}; }
         virtual bool      set_accel_config([[maybe_unused]] libinput_config_accel& accel_config)                                            { return {}; }
-        virtual void      restart([[maybe_unused]] void* data, [[maybe_unused]] time now)                                                   { }
+        virtual void      restart([[maybe_unused]] time now)                                                                                { }
 
         bool filter_set_speed(fp64 speed_adjustment)
         {
@@ -1579,13 +1579,13 @@ namespace netxs::lixx // li++, libinput++.
         }
         fp64 calculate_acceleration_simpsons(fp64_coor unaccelerated, time now)
         {
-                trackers.trackers_feed(unaccelerated, now);
-                velocity = trackers.trackers_velocity(now);
-                // Use Simpson's rule to calculate the average acceleration between the previous motion and the most recent.
-                auto factor = apply_acceleration(velocity)
-                            + apply_acceleration(last_velocity)
-                            + apply_acceleration((last_velocity + velocity) / 2.0) * 4.0;
-                last_velocity = velocity;
+            trackers.trackers_feed(unaccelerated, now);
+            velocity = trackers.trackers_velocity(now);
+            // Use Simpson's rule to calculate the average acceleration between the previous motion and the most recent.
+            auto factor = apply_acceleration(velocity)
+                        + apply_acceleration(last_velocity)
+                        + apply_acceleration((last_velocity + velocity) / 2.0) * 4.0;
+            last_velocity = velocity;
             factor /= 6.0;
             return factor; // Unitless factor.
         }
@@ -1656,7 +1656,7 @@ namespace netxs::lixx // li++, libinput++.
                 accel.speed_factor = speed_factor1(speed_adjustment);
                 return true;
             }
-            void trackpoint_accelerator_restart([[maybe_unused]] void* data, time now)
+            void trackpoint_accelerator_restart(time now)
             {
                 accel.trackers.trackers_reset(now);
             }
@@ -1686,7 +1686,7 @@ namespace netxs::lixx // li++, libinput++.
         virtual fp64_coor filter_constant(fp64_coor unaccelerated, void* data, time now) { return impl.trackpoint_accelerator_filter_noop(unaccelerated, data, now); }
         virtual fp64_coor filter_scroll(  fp64_coor unaccelerated, void* data, time now) { return impl.trackpoint_accelerator_filter_noop(unaccelerated, data, now); }
         virtual bool      set_speed(fp64 speed_adjustment)                               { return impl.trackpoint_accelerator_set_speed(speed_adjustment); }
-        virtual void      restart(void* data, time now)                                  {        impl.trackpoint_accelerator_restart(data, now); }
+        virtual void      restart(time now)                                              {        impl.trackpoint_accelerator_restart(now); }
     };
 
     struct pointer_accelerator_flat : motion_filter
@@ -1952,7 +1952,7 @@ namespace netxs::lixx // li++, libinput++.
             {
                 return custom_accelerator_filter(LIBINPUT_ACCEL_TYPE_SCROLL, unaccelerated, now);
             }
-            void custom_accelerator_restart([[maybe_unused]] void* data, [[maybe_unused]] time now)
+            void custom_accelerator_restart([[maybe_unused]] time now)
             {
                 // Noop, this function has no effect in the custom interface.
             }
@@ -2009,7 +2009,7 @@ namespace netxs::lixx // li++, libinput++.
         virtual fp64_coor filter_scroll(  fp64_coor unaccelerated, void* data, time now) { return impl.custom_accelerator_filter_scroll(unaccelerated, data, now); }
         virtual bool      set_speed(fp64 speed_adjustment)                               { return impl.custom_accelerator_set_speed(speed_adjustment); }
         virtual bool      set_accel_config(libinput_config_accel& accel_config)          { return impl.custom_accelerator_set_accel_config(accel_config); }
-        virtual void      restart(void* data, time now)                                  {        impl.custom_accelerator_restart(data, now); }
+        virtual void      restart(time now)                                              {        impl.custom_accelerator_restart(now); }
     };
 
     struct pointer_accelerator : motion_filter
@@ -2023,16 +2023,13 @@ namespace netxs::lixx // li++, libinput++.
             pointer_accelerator& accel;
             fp64_coor accelerator_filter_linear(fp64_coor unaccelerated, void* data, time stamp)
             {
-                // Accelerate for normalized units and return normalized units.
-                auto normalized = accel.normalize_for_dpi(unaccelerated);
-                auto accelerated = normalized * accel.calculate_acceleration_simpsons(unaccelerated, stamp);
-                return accelerated;
+                return accel.normalize_for_dpi(unaccelerated) * accel.calculate_acceleration_simpsons(unaccelerated, stamp);
             }
             fp64_coor accelerator_filter_noop(fp64_coor unaccelerated, [[maybe_unused]] void* data, [[maybe_unused]] time now)
             {
                 return accel.normalize_for_dpi(unaccelerated);
             }
-            void accelerator_restart([[maybe_unused]] void* data, time now)
+            void accelerator_restart(time now)
             {
                 accel.trackers.trackers_reset(now);
             }
@@ -2123,7 +2120,7 @@ namespace netxs::lixx // li++, libinput++.
         virtual fp64_coor filter_constant(fp64_coor unaccelerated, void* data, time now) { return impl.accelerator_filter_noop(unaccelerated, data, now); }
         virtual fp64_coor filter_scroll(  fp64_coor unaccelerated, void* data, time now) { return impl.accelerator_filter_noop(unaccelerated, data, now); }
         virtual bool      set_speed(fp64 speed_adjustment)                               { return impl.accelerator_set_speed(speed_adjustment); }
-        virtual void      restart(void* data, time now)                                  { impl.accelerator_restart(data, now); }
+        virtual void      restart(time now)                                              { impl.accelerator_restart(now); }
     };
 
     struct pointer_accelerator_low_dpi : pointer_accelerator
@@ -2157,8 +2154,7 @@ namespace netxs::lixx // li++, libinput++.
             }
             fp64_coor accelerator_filter_low_dpi(fp64_coor unaccelerated, void* data, time now)
             {
-                auto normalized = unaccelerated * accel.calculate_acceleration_simpsons(unaccelerated, now);
-                return normalized;
+                return unaccelerated * accel.calculate_acceleration_simpsons(unaccelerated, now);
             }
         };
 
@@ -2237,17 +2233,15 @@ namespace netxs::lixx // li++, libinput++.
                 // 2) Run all calculation on 1000dpi-normalized data.
                 // 3) Apply accel factor no normalized data.
                 auto unaccelerated = accel.normalize_for_dpi(raw);
-                auto accel_factor = accel.calculate_acceleration_simpsons(unaccelerated, stamp);
-                auto accelerated = unaccelerated * accel_factor;
+                auto accelerated = unaccelerated * accel.calculate_acceleration_simpsons(unaccelerated, stamp);
                 return accelerated;
             }
             fp64_coor accelerator_filter_constant_x230(fp64_coor unaccelerated, [[maybe_unused]] void* data, [[maybe_unused]] time now)
             {
                 const auto factor = lixx::x230_magic_slowdown / lixx::x230_tp_magic_low_res_factor;
-                auto normalized = accel.normalize_for_dpi(unaccelerated) * factor;
-                return normalized;
+                return accel.normalize_for_dpi(unaccelerated) * factor;
             }
-            void accelerator_restart_x230([[maybe_unused]] void* data, time stamp)
+            void accelerator_restart_x230(time stamp)
             {
                 accel.trackers.trackers_reset(stamp);
             }
@@ -2299,7 +2293,7 @@ namespace netxs::lixx // li++, libinput++.
         virtual fp64_coor filter_constant(fp64_coor unaccelerated, void* data, time now) { return impl.accelerator_filter_constant_x230(unaccelerated, data, now); }
         virtual fp64_coor filter_scroll(  fp64_coor unaccelerated, void* data, time now) { return impl.accelerator_filter_constant_x230(unaccelerated, data, now); }
         virtual bool      set_speed(fp64 speed_adjustment)                               { return impl.accelerator_set_speed_x230(speed_adjustment); }
-        virtual void      restart(void* data, time now)                                  {        impl.accelerator_restart_x230(data, now); }
+        virtual void      restart(time now)                                              {        impl.accelerator_restart_x230(now); }
     };
 
     struct touchpad_accelerator : motion_filter
@@ -2326,10 +2320,9 @@ namespace netxs::lixx // li++, libinput++.
                 // lixx::tp_magic_slowdown so we only have one number here but meanwhile
                 // this will do.
                 static constexpr auto baseline = 0.9;
-                auto normalized = accel.normalize_for_dpi(unaccelerated) * baseline * lixx::tp_magic_slowdown;
-                return normalized;
+                return accel.normalize_for_dpi(unaccelerated) * baseline * lixx::tp_magic_slowdown;
             }
-            void touchpad_accelerator_restart([[maybe_unused]] void* data, time stamp)
+            void touchpad_accelerator_restart(time stamp)
             {
                 accel.trackers.trackers_reset(stamp);
             }
@@ -2426,7 +2419,7 @@ namespace netxs::lixx // li++, libinput++.
         virtual fp64_coor filter_constant(fp64_coor unaccelerated, void* data, time now) { return impl.touchpad_constant_filter(unaccelerated, data, now); }
         virtual fp64_coor filter_scroll(  fp64_coor unaccelerated, void* data, time now) { return impl.touchpad_constant_filter(unaccelerated, data, now); }
         virtual bool      set_speed(fp64 speed_adjustment)                               { return impl.touchpad_accelerator_set_speed(speed_adjustment); }
-        virtual void      restart(void* data, time now)                                  {        impl.touchpad_accelerator_restart(data, now); }
+        virtual void      restart(time now)                                              {        impl.touchpad_accelerator_restart(now); }
     };
 
     struct event_source_t
@@ -7415,9 +7408,9 @@ namespace netxs::lixx // li++, libinput++.
                                 tp.queued = (touchpad_event)(tp.queued | TOUCHPAD_EVENT_TIMESTAMP);
                             }
                         }
-                                    void filter_restart(motion_filter_sptr filter, void* data, time stamp)
+                                    void filter_restart(motion_filter_sptr filter, time stamp)
                                     {
-                                        filter->restart(data, stamp);
+                                        filter->restart(stamp);
                                     }
                                 void tp_process_msc_timestamp(time stamp)
                                 {
@@ -7477,7 +7470,7 @@ namespace netxs::lixx // li++, libinput++.
                                                 }
                                                 m.state = JUMP_STATE_IGNORE;
                                                 // We need to restart the acceleration filter to forget its history. * The current point becomes the first point in the history there * (including timestamp) and that accelerates correctly. * This has a potential to be incorrect but since we only ever see * those jumps over the first three events it doesn't matter.
-                                                filter_restart(tp.li_device->pointer_filter, &tp, stamp - tdelta);
+                                                filter_restart(tp.li_device->pointer_filter, stamp - tdelta);
                                             }
                                             break;
                                         case JUMP_STATE_IGNORE:
@@ -9779,7 +9772,7 @@ namespace netxs::lixx // li++, libinput++.
                                 {
                                     tp_thumb_update_multifinger();
                                 }
-                                if (restart_filter) filter_restart(tp.li_device->pointer_filter, &tp, stamp);
+                                if (restart_filter) filter_restart(tp.li_device->pointer_filter, stamp);
                                 tp_button_handle_state(stamp);
                                 tp_edge_scroll_handle_state(stamp);
                                 // We have a physical button down event on a clickpad. To avoid spurious pointer moves by the clicking finger we pin all fingers.
