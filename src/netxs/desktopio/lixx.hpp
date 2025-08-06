@@ -1032,11 +1032,12 @@ namespace netxs::lixx // li++, libinput++.
     using fd_t = os::fd_t;
     template<class T>
     struct libinput_timer_t;
+    using libinput_event_listener = std::function<void(time, struct libinput_event&)>;
+    using libinput_event_listener_sptr        = sptr<libinput_event_listener>;
     using libinput_sptr                       = sptr<struct libinput_t>;
     using libinput_timer_sptr                 = sptr<struct libinput_timer_t<struct libinput_timer_host>>;
     using libinput_device_sptr                = sptr<struct libinput_device_t>;
     using libinput_tablet_tool_sptr           = sptr<struct libinput_tablet_tool>;
-    using libinput_event_listener_sptr        = sptr<struct libinput_event_listener>;
     using libinput_paired_keyboard_sptr       = sptr<struct libinput_paired_keyboard>;
     using libinput_tablet_pad_mode_group_sptr = sptr<struct libinput_tablet_pad_mode_group>;
     using match_sptr                          = sptr<struct match_t>;
@@ -1060,7 +1061,6 @@ namespace netxs::lixx // li++, libinput++.
 
     using button_state_t = std::bitset<KEY_CNT>;
     using tablet_axes_bitset = std::bitset<lixx::libinput_tablet_tool_axis_cnt>;
-
     using input_prop = std::pair<ui32, bool>;
 
     struct input_event_t : ::input_event
@@ -2907,12 +2907,6 @@ namespace netxs::lixx // li++, libinput++.
         }
     };
 
-    using notify_func_t = void(*)(time stamp, libinput_event& event, void* notify_func_data);
-    struct libinput_event_listener
-    {
-        notify_func_t notify_func;
-        void*         notify_func_data;
-    };
     struct libinput_event_keyboard : libinput_event
     {
         ui32               key;
@@ -5163,9 +5157,10 @@ namespace netxs::lixx // li++, libinput++.
             event.stamp = now;
             event.type = type;
             event.li_device = This();
-            for (auto& listener : event_listeners)
+            for (auto& l : event_listeners)
             {
-                listener->notify_func(now, event, listener->notify_func_data);
+                auto& listener = *l;
+                listener(now, event);
             }
         }
         si32 libinput_device_has_capability(libinput_device_capability capability)
@@ -11866,9 +11861,8 @@ namespace netxs::lixx // li++, libinput++.
                                     tp_gesture_cancel(stamp);
                                     tp_tap_suspend(stamp);
                                 }
-                            static void tp_trackpoint_event(time stamp, libinput_event& event, void* data)
+                            void tp_trackpoint_event(time stamp, libinput_event& event)
                             {
-                                auto& tp = *(tp_dispatch*)data;
                                 if (tp.palm.dwtp_enabled)
                                 {
                                     if (event.type != LIBINPUT_EVENT_POINTER_BUTTON) // Buttons do not count as trackpad activity, as people may use the trackpoint buttons in combination with the touchpad.
@@ -11883,7 +11877,7 @@ namespace netxs::lixx // li++, libinput++.
                                         {
                                             if (!tp.palm.trackpoint_active)
                                             {
-                                                tp.tp_impl.tp_stop_actions(stamp);
+                                                tp_stop_actions(stamp);
                                                 tp.palm.trackpoint_active = true;
                                             }
                                             tp.palm.trackpoint_timer->start(stamp + lixx::default_trackpoint_activity_timeout);
@@ -11908,7 +11902,7 @@ namespace netxs::lixx // li++, libinput++.
                                     {
                                         if (!tp.palm.trackpoint_listener)
                                         {
-                                            tp.palm.trackpoint_listener = ptr::shared(libinput_event_listener{ .notify_func = tp_trackpoint_event, .notify_func_data = &tp });
+                                            tp.palm.trackpoint_listener = ptr::shared<libinput_event_listener>([&](time stamp, libinput_event& event){ tp_trackpoint_event(stamp, event); });
                                         }
                                         trackpoint_li_device->libinput_device_add_event_listener(tp.palm.trackpoint_listener);
                                     }
@@ -11967,9 +11961,8 @@ namespace netxs::lixx // li++, libinput++.
                                 {
                                     return keycode == KEY_LEFTSHIFT || keycode == KEY_RIGHTSHIFT;
                                 }
-                            static void tp_keyboard_event(time stamp, libinput_event& event, void* data)
+                            void tp_keyboard_event(time stamp, libinput_event& event)
                             {
-                                auto& tp = *(tp_dispatch*)data;
                                 auto timeout = span{};
                                 auto is_modifier = faux;
                                 if (event.type != LIBINPUT_EVENT_KEYBOARD_KEY) return;
@@ -11983,13 +11976,13 @@ namespace netxs::lixx // li++, libinput++.
                                     return;
                                 }
                                 if (!tp.dwt.dwt_enabled) return;
-                                if (tp.tp_impl.tp_key_ignore_for_dwt(key)) return;
+                                if (tp_key_ignore_for_dwt(key)) return;
                                 // Modifier keys don't trigger disable-while-typing so things like ctrl+zoom or ctrl+click are possible.
                                 // The exception is shift which we don't trigger DWT for on its own but we do trigger DWT for once we type some other key.
-                                is_modifier = tp.tp_impl.tp_key_is_modifier(key);
+                                is_modifier = tp_key_is_modifier(key);
                                 if (is_modifier)
                                 {
-                                    if (!tp.tp_impl.tp_key_is_shift(key))
+                                    if (!tp_key_is_shift(key))
                                     {
                                         tp.dwt.mod_mask.set(key);
                                     }
@@ -12000,7 +11993,7 @@ namespace netxs::lixx // li++, libinput++.
                                     {
                                         // This is the first non-modifier key press. Check if the modifier mask is set. If any modifier is down we don't trigger dwt because it's likely to be combination like Ctrl+S or similar.
                                         if (tp.dwt.mod_mask.any()) return;
-                                        tp.tp_impl.tp_stop_actions(stamp);
+                                        tp_stop_actions(stamp);
                                         tp.dwt.keyboard_active = true;
                                         timeout = lixx::default_keyboard_activity_timeout_1;
                                     }
@@ -12023,7 +12016,7 @@ namespace netxs::lixx // li++, libinput++.
                             }
                             auto kbd = ptr::shared<libinput_paired_keyboard>();
                             kbd->li_device = keyboard_li_device;
-                            kbd->listener = ptr::shared(libinput_event_listener{ .notify_func = tp_keyboard_event, .notify_func_data = &tp });
+                            kbd->listener = ptr::shared<libinput_event_listener>([&](time stamp, libinput_event& event){ tp_keyboard_event(stamp, event); });
                             keyboard_li_device->libinput_device_add_event_listener(kbd->listener);
                             tp.dwt.paired_keyboard_list.push_back(kbd);
                             log("palm: dwt activated with %s%<->%s%", touchpad_li_device->devname, keyboard_li_device->devname);
@@ -12121,9 +12114,8 @@ namespace netxs::lixx // li++, libinput++.
                                     }
                                     tp.suspend_reason |= trigger;
                                 }
-                            static void tp_lid_switch_event([[maybe_unused]] time now, libinput_event& event, void* data)
+                            void tp_lid_switch_event(libinput_event& event)
                             {
-                                auto& tp = *(tp_dispatch*)data;
                                 if (event.type == LIBINPUT_EVENT_SWITCH_TOGGLE)
                                 {
                                     if (event.libinput_event_switch_get_switch() == LIBINPUT_SWITCH_LID)
@@ -12131,12 +12123,12 @@ namespace netxs::lixx // li++, libinput++.
                                         auto state = event.libinput_event_switch_get_switch_state();
                                         if (state)
                                         {
-                                            tp.tp_impl.tp_suspend(tp.li_device, SUSPEND_LID);
+                                            tp_suspend(tp.li_device, SUSPEND_LID);
                                             log("lid: suspending touchpad");
                                         }
                                         else
                                         {
-                                            tp.tp_impl.tp_resume(tp.li_device, SUSPEND_LID);
+                                            tp_resume(tp.li_device, SUSPEND_LID);
                                             log("lid: resume touchpad");
                                         }
                                     }
@@ -12151,15 +12143,14 @@ namespace netxs::lixx // li++, libinput++.
                                 log("lid: activated for %s%<->%s%", touchpad_li_device->devname, lid_switch_li_device->devname);
                                 if (!tp.lid_switch.listener)
                                 {
-                                    tp.lid_switch.listener = ptr::shared(libinput_event_listener{ .notify_func = tp_lid_switch_event, .notify_func_data = &tp });
+                                    tp.lid_switch.listener = ptr::shared<libinput_event_listener>([&](time, libinput_event& event){ tp_lid_switch_event(event); });
                                 }
                                 lid_switch_li_device->libinput_device_add_event_listener(tp.lid_switch.listener);
                                 tp.lid_switch.lid_switch_li_device = lid_switch_li_device;
                             }
                         }
-                            static void tp_tablet_mode_switch_event([[maybe_unused]] time now, libinput_event& event, void* data)
+                            void tp_tablet_mode_switch_event(libinput_event& event)
                             {
-                                auto& tp = *(tp_dispatch*)data;
                                 if (event.type == LIBINPUT_EVENT_SWITCH_TOGGLE)
                                 {
                                     if (event.libinput_event_switch_get_switch() == LIBINPUT_SWITCH_TABLET_MODE)
@@ -12167,12 +12158,12 @@ namespace netxs::lixx // li++, libinput++.
                                         auto state = event.libinput_event_switch_get_switch_state();
                                         if (state == LIBINPUT_SWITCH_STATE_ON)
                                         {
-                                            tp.tp_impl.tp_suspend(tp.li_device, SUSPEND_TABLET_MODE);
+                                            tp_suspend(tp.li_device, SUSPEND_TABLET_MODE);
                                             log("tablet-mode: suspending touchpad");
                                         }
                                         else
                                         {
-                                            tp.tp_impl.tp_resume(tp.li_device, SUSPEND_TABLET_MODE);
+                                            tp_resume(tp.li_device, SUSPEND_TABLET_MODE);
                                             log("tablet-mode: resume touchpad");
                                         }
                                     }
@@ -12187,7 +12178,7 @@ namespace netxs::lixx // li++, libinput++.
                             log("tablet-mode: activated for %s%<->%s%", touchpad_li_device->devname, tablet_mode_switch_li_device->devname);
                             if (!tp.tablet_mode_switch.listener)
                             {
-                                tp.tablet_mode_switch.listener = ptr::shared(libinput_event_listener{ .notify_func = tp_tablet_mode_switch_event, .notify_func_data = &tp });
+                                tp.tablet_mode_switch.listener = ptr::shared<libinput_event_listener>([&](time, libinput_event& event){ tp_tablet_mode_switch_event(event); });
                             }
                             tablet_mode_switch_li_device->libinput_device_add_event_listener(tp.tablet_mode_switch.listener);
                             tp.tablet_mode_switch.tablet_mode_switch_li_device = tablet_mode_switch_li_device;
@@ -17242,9 +17233,8 @@ namespace netxs::lixx // li++, libinput++.
                                                 fallback.lid.is_closed_client_state = fallback.lid.is_closed;
                                             }
                                         }
-                                    static void fallback_lid_keyboard_event(time stamp, libinput_event& event, void* data)
+                                    void fallback_lid_keyboard_event(time stamp, libinput_event& event)
                                     {
-                                        auto& fallback = *(fallback_dispatch*)data;
                                         if (!fallback.lid.is_closed) return;
                                         if (event.type == LIBINPUT_EVENT_KEYBOARD_KEY)
                                         {
@@ -17252,8 +17242,8 @@ namespace netxs::lixx // li++, libinput++.
                                             {
                                                 auto fd = fallback.li_device->libevdev_get_fd();
                                                 auto events = std::array<input_event_t, 2>{};
-                                                events[0] = fallback.fallback_impl.input_event_init(time{}, EV_SW, SW_LID, 0);
-                                                events[1] = fallback.fallback_impl.input_event_init(time{}, EV_SYN, SYN_REPORT, 0);
+                                                events[0] = input_event_init(time{}, EV_SW, SW_LID, 0);
+                                                events[1] = input_event_init(time{}, EV_SYN, SYN_REPORT, 0);
                                                 auto rc = write(fd, events.data(), sizeof(events));
                                                 if (rc < 0)
                                                 {
@@ -17263,14 +17253,14 @@ namespace netxs::lixx // li++, libinput++.
                                             }
                                             // Posting the event here means we preempt the keyboard events that caused us to wake up, so the lid event is always passed on before the key event.
                                             fallback.lid.is_closed = faux;
-                                            fallback.fallback_impl.fallback_lid_notify_toggle(fallback.li_device, stamp);
+                                            fallback_lid_notify_toggle(fallback.li_device, stamp);
                                         }
                                     }
                                 void fallback_lid_toggle_keyboard_listener(libinput_paired_keyboard_sptr kbd, bool is_closed)
                                 {
                                     if (!kbd->listener)
                                     {
-                                        kbd->listener = ptr::shared(libinput_event_listener{ .notify_func = fallback_lid_keyboard_event, .notify_func_data = &fallback });
+                                        kbd->listener = ptr::shared<libinput_event_listener>([&](time stamp, libinput_event& event){ fallback_lid_keyboard_event(stamp, event); });
                                     }
                                     else
                                     {
@@ -18329,9 +18319,8 @@ namespace netxs::lixx // li++, libinput++.
                             {
                                 li_device->evdev_device_suspend();
                             }
-                        static void fallback_tablet_mode_switch_event([[maybe_unused]] time now, libinput_event& event, void* data)
+                        void fallback_tablet_mode_switch_event(libinput_event& event)
                         {
-                            auto& fallback = *(fallback_dispatch*)data;
                             auto li_device = fallback.li_device;
                             if (event.type == LIBINPUT_EVENT_SWITCH_TOGGLE)
                             {
@@ -18340,12 +18329,12 @@ namespace netxs::lixx // li++, libinput++.
                                     auto state = event.libinput_event_switch_get_switch_state();
                                     if (state == LIBINPUT_SWITCH_STATE_ON)
                                     {
-                                        fallback.fallback_impl.fallback_suspend(li_device);
+                                        fallback_suspend(li_device);
                                         log("tablet-mode: suspending device");
                                     }
                                     else
                                     {
-                                        fallback.fallback_impl.fallback_resume(li_device);
+                                        fallback_resume(li_device);
                                         log("tablet-mode: resuming device");
                                     }
                                 }
@@ -18368,7 +18357,7 @@ namespace netxs::lixx // li++, libinput++.
                         log("tablet-mode: paired %s%<->%s%", keyboard_li_device->devname, tablet_mode_switch_li_device->devname);
                         if (!fallback.tablet_mode.other.listener)
                         {
-                            fallback.tablet_mode.other.listener = ptr::shared(libinput_event_listener{ .notify_func = fallback_tablet_mode_switch_event, .notify_func_data = &fallback });
+                            fallback.tablet_mode.other.listener = ptr::shared<libinput_event_listener>([&](time, libinput_event& event){ fallback_tablet_mode_switch_event(event); });
                         }
                         tablet_mode_switch_li_device->libinput_device_add_event_listener(fallback.tablet_mode.other.listener);
                         fallback.tablet_mode.other.sw_li_device = tablet_mode_switch_li_device;
