@@ -4712,6 +4712,7 @@ namespace netxs::lixx // li++, libinput++.
 
     struct evdev_dispatch_t : ptr::enable_shared_from_this<evdev_dispatch_t>
     {
+        libinput_device_sptr               li_device;
         libinput_dispatch_type             dispatch_type;
         libinput_device_config_send_events sendevents_config;
         libinput_config_send_events_mode   sendevents_current_mode;
@@ -7024,7 +7025,6 @@ namespace netxs::lixx // li++, libinput++.
 
     struct tp_dispatch : evdev_dispatch_t
     {
-        libinput_device_sptr             li_device;
         ui32                             nfingers_down;     // Number of fingers down.
         ui32                             old_nfingers_down; // Previous no fingers down.
         ui32                             slot;              // Current slot.
@@ -13617,7 +13617,6 @@ namespace netxs::lixx // li++, libinput++.
             std::list<libinput_tablet_pad_mode_group_sptr> mode_group_list;
         };
 
-        libinput_device_sptr li_device;
         byte                 status;
         ui32                 changed_axes;
         button_state_t       next_button_state;
@@ -14333,7 +14332,6 @@ namespace netxs::lixx // li++, libinput++.
     struct totem_dispatch;
     struct totem_dispatch : evdev_dispatch_t
     {
-        libinput_device_sptr    li_device;
         si32                    slot_index; // Current slot index.
         std::vector<totem_slot> slots;
         libinput_device_sptr    touch_li_device;
@@ -14768,7 +14766,6 @@ namespace netxs::lixx // li++, libinput++.
             bool                proximity_out_in_progress; // True while injecting BTN_TOOL_PEN events.
         };
 
-        libinput_device_sptr                 li_device;
         ui32                                 tablet_id; // Incremental ID.
         ui32                                 status;
         tablet_axes_bitset                   changed_axes_bits;
@@ -16798,7 +16795,6 @@ namespace netxs::lixx // li++, libinput++.
             libinput_timer_sptr        arbitration_timer;
         };
 
-        libinput_device_sptr               li_device;
         libinput_device_config_calibration calibration;
         fb_rotation_t                      rotation;
         fb_abs_t                           abs;
