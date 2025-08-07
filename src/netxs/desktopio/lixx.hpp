@@ -6955,11 +6955,6 @@ namespace netxs::lixx // li++, libinput++.
             bool                         use_size;
             si32                         size_threshold;
         };
-        struct tp_dispatch_sendevents_t
-        {
-            libinput_device_config_send_events config;
-            libinput_config_send_events_mode   current_mode;
-        };
         struct tp_dispatch_dwt_t // We have to allow for more than one device node to be the internal dwt keyboard (Razer Blade). But they're the same physical device, so we don't care about per-keyboard key/modifier masks.
         {
             libinput_device_config_dwt               config;
@@ -7041,7 +7036,6 @@ namespace netxs::lixx // li++, libinput++.
         tp_dispatch_tap_t                tap;
         tp_dispatch_drag_3fg_t           drag_3fg;
         tp_dispatch_palm_t               palm;
-        tp_dispatch_sendevents_t         sendevents;
         tp_dispatch_dwt_t                dwt;
         tp_dispatch_thumb_t              thumb;
         tp_dispatch_quirks_t             quirks;
@@ -12212,7 +12206,7 @@ namespace netxs::lixx // li++, libinput++.
                 tp_pair_lid_switch(        li_device, added_li_device);
                 tp_pair_tablet_mode_switch(li_device, added_li_device);
                 tp_pair_tablet(            li_device, added_li_device);
-                if (tp.sendevents.current_mode == LIBINPUT_CONFIG_SEND_EVENTS_DISABLED_ON_EXTERNAL_MOUSE)
+                if (tp.sendevents_current_mode == LIBINPUT_CONFIG_SEND_EVENTS_DISABLED_ON_EXTERNAL_MOUSE)
                 {
                     if (added_li_device->device_tags & EVDEV_TAG_EXTERNAL_MOUSE)
                     {
@@ -12257,7 +12251,7 @@ namespace netxs::lixx // li++, libinput++.
                     tp.tablet_mode_switch.tablet_mode_switch_li_device.reset();
                     tp_resume(li_device, SUSPEND_TABLET_MODE);
                 }
-                if (tp.sendevents.current_mode == LIBINPUT_CONFIG_SEND_EVENTS_DISABLED_ON_EXTERNAL_MOUSE)
+                if (tp.sendevents_current_mode == LIBINPUT_CONFIG_SEND_EVENTS_DISABLED_ON_EXTERNAL_MOUSE)
                 {
                     auto found = faux;
                     for (auto d : li_device->li->device_list)
@@ -13597,26 +13591,20 @@ namespace netxs::lixx // li++, libinput++.
             fp64 dial1;
             fp64 dial2;
         };
-        struct sendevents_t
-        {
-            libinput_device_config_send_events config;
-            libinput_config_send_events_mode   current_mode;
-        };
         struct modes_t
         {
             std::list<libinput_tablet_pad_mode_group_sptr> mode_group_list;
         };
 
-        byte                 status;
-        ui32                 changed_axes;
-        button_state_t       next_button_state;
-        button_state_t       prev_button_state;
-        ui32                 button_map[KEY_CNT];
-        ui32                 nbuttons;
-        bool                 have_abs_misc_terminator;
-        dials_t              dials;
-        sendevents_t         sendevents;
-        modes_t              modes;
+        byte                               status;
+        ui32                               changed_axes;
+        button_state_t                     next_button_state;
+        button_state_t                     prev_button_state;
+        ui32                               button_map[KEY_CNT];
+        ui32                               nbuttons;
+        bool                               have_abs_misc_terminator;
+        dials_t                            dials;
+        modes_t                            modes;
 
         struct pad_impl_t
         {
@@ -19218,20 +19206,20 @@ namespace netxs::lixx // li++, libinput++.
             static libinput_config_status pad_sendevents_set_mode(libinput_device_sptr li_device, libinput_config_send_events_mode mode)
             {
                 auto& pad = *std::static_pointer_cast<pad_dispatch>(li_device->dispatch);
-                if (mode == pad.sendevents.current_mode) return LIBINPUT_CONFIG_STATUS_SUCCESS;
+                if (mode == pad.sendevents_current_mode) return LIBINPUT_CONFIG_STATUS_SUCCESS;
                 switch(mode)
                 {
                     case LIBINPUT_CONFIG_SEND_EVENTS_ENABLED: break;
                     case LIBINPUT_CONFIG_SEND_EVENTS_DISABLED: pad.suspend(li_device); break;
                     default: return LIBINPUT_CONFIG_STATUS_UNSUPPORTED;
                 }
-                pad.sendevents.current_mode = mode;
+                pad.sendevents_current_mode = mode;
                 return LIBINPUT_CONFIG_STATUS_SUCCESS;
             }
             static libinput_config_send_events_mode pad_sendevents_get_mode(libinput_device_sptr li_device)
             {
                 auto& pad = *std::static_pointer_cast<pad_dispatch>(li_device->dispatch);
-                return pad.sendevents.current_mode;
+                return pad.sendevents_current_mode;
             }
             static libinput_config_send_events_mode pad_sendevents_get_default_mode([[maybe_unused]] libinput_device_sptr li_device)
             {
@@ -19246,12 +19234,12 @@ namespace netxs::lixx // li++, libinput++.
             }
             else
             {
-                li_device->config.sendevents = &pad->sendevents.config;
-                pad->sendevents.current_mode            = LIBINPUT_CONFIG_SEND_EVENTS_ENABLED;
-                pad->sendevents.config.get_modes        = pad_sendevents_get_modes;
-                pad->sendevents.config.set_mode         = pad_sendevents_set_mode;
-                pad->sendevents.config.get_mode         = pad_sendevents_get_mode;
-                pad->sendevents.config.get_default_mode = pad_sendevents_get_default_mode;
+                li_device->config.sendevents = &pad->sendevents_config;
+                pad->sendevents_current_mode            = LIBINPUT_CONFIG_SEND_EVENTS_ENABLED;
+                pad->sendevents_config.get_modes        = pad_sendevents_get_modes;
+                pad->sendevents_config.set_mode         = pad_sendevents_set_mode;
+                pad->sendevents_config.get_mode         = pad_sendevents_get_mode;
+                pad->sendevents_config.get_default_mode = pad_sendevents_get_default_mode;
             }
             return pad;
         }
@@ -19354,7 +19342,7 @@ namespace netxs::lixx // li++, libinput++.
                 {
                     mode = (libinput_config_send_events_mode)(mode & ~LIBINPUT_CONFIG_SEND_EVENTS_DISABLED_ON_EXTERNAL_MOUSE);
                 }
-                if (mode == tp.sendevents.current_mode) return LIBINPUT_CONFIG_STATUS_SUCCESS;
+                if (mode == tp.sendevents_current_mode) return LIBINPUT_CONFIG_STATUS_SUCCESS;
                 switch(mode)
                 {
                     case LIBINPUT_CONFIG_SEND_EVENTS_ENABLED:
@@ -19372,13 +19360,13 @@ namespace netxs::lixx // li++, libinput++.
                     default:
                         return LIBINPUT_CONFIG_STATUS_UNSUPPORTED;
                 }
-                tp.sendevents.current_mode = mode;
+                tp.sendevents_current_mode = mode;
                 return LIBINPUT_CONFIG_STATUS_SUCCESS;
             }
             static libinput_config_send_events_mode tp_sendevents_get_mode(libinput_device_sptr li_device)
             {
                 auto& tp = *std::static_pointer_cast<tp_dispatch>(li_device->dispatch);
-                return tp.sendevents.current_mode;
+                return tp.sendevents_current_mode;
             }
             static libinput_config_send_events_mode tp_sendevents_get_default_mode([[maybe_unused]] libinput_device_sptr li_device)
             {
@@ -19394,12 +19382,12 @@ namespace netxs::lixx // li++, libinput++.
             }
             else
             {
-                li_device->config.sendevents           = &tp->sendevents.config;
-                tp->sendevents.current_mode            = LIBINPUT_CONFIG_SEND_EVENTS_ENABLED;
-                tp->sendevents.config.get_modes        = tp_sendevents_get_modes;
-                tp->sendevents.config.set_mode         = tp_sendevents_set_mode;
-                tp->sendevents.config.get_mode         = tp_sendevents_get_mode;
-                tp->sendevents.config.get_default_mode = tp_sendevents_get_default_mode;
+                li_device->config.sendevents           = &tp->sendevents_config;
+                tp->sendevents_current_mode            = LIBINPUT_CONFIG_SEND_EVENTS_ENABLED;
+                tp->sendevents_config.get_modes        = tp_sendevents_get_modes;
+                tp->sendevents_config.set_mode         = tp_sendevents_set_mode;
+                tp->sendevents_config.get_mode         = tp_sendevents_get_mode;
+                tp->sendevents_config.get_default_mode = tp_sendevents_get_default_mode;
                 tp->tp_impl.tp_init_left_handed(li_device);
             }
             return tp;
