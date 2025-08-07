@@ -3186,13 +3186,12 @@ namespace netxs::lixx // li++, libinput++.
         utf::unordered_map<text, text> properties;
         text                           sysname; // "eventX"
         text                           devpath; // "/dev/input/eventX"
-        text                           devname; // "USB Optical Mouse M7"
-
-        text                                 phys;
-        text                                 uniq;
-        fd_t                                 fd{ os::invalid_fd };
-        bool                                 initialized{};
-        sync_states                          sync_state{};
+        text                           devname; // uevent_name: "USB Optical Mouse M7"
+        text                           phys;    // uevent_phys: "usb-0000:00:14.0-4/input0" or "i2c-ASUE140C:00" or "isa0060/serio0/input0"
+        text                           uniq;    // uevent_uniq: ""
+        fd_t                           fd{ os::invalid_fd };
+        bool                           initialized{};
+        sync_states                    sync_state{};
 
         ::input_id prod_info;
         si32       driver_version{};
@@ -5066,7 +5065,6 @@ namespace netxs::lixx // li++, libinput++.
         event_source_sptr                       source;
         evdev_dispatch_sptr                     dispatch;
         ud_device_sptr                          ud_device;
-        text                                    output_name;
         text                                    devname;
         text                                    sysname;
         bool                                    was_removed{};
@@ -18612,6 +18610,7 @@ namespace netxs::lixx // li++, libinput++.
     }
     bool evdev_read_wheel_click_count_prop(libinput_device_sptr li_device, qiew prop_name, fp64& angle)
     {
+        angle = lixx::default_wheel_click_angle;
         if (auto prop = li_device->udev_device_get_property_value(prop_name))
         {
             if (auto val = parse_mouse_wheel_click_angle_property(prop))
@@ -18620,11 +18619,10 @@ namespace netxs::lixx // li++, libinput++.
                 return true;
             }
             log("mouse wheel click count is present but invalid, using %d% degrees for angle instead instead", lixx::default_wheel_click_angle);
-            angle = lixx::default_wheel_click_angle;
         }
         return faux;
     }
-    bool evdev_read_wheel_click_prop(libinput_device_sptr li_device, view prop_name, fp64& angle)
+    bool evdev_read_wheel_click_angle_prop(libinput_device_sptr li_device, view prop_name, fp64& angle)
     {
         angle = lixx::default_wheel_click_angle;
         if (auto prop = li_device->udev_device_get_property_value(prop_name))
@@ -18641,16 +18639,13 @@ namespace netxs::lixx // li++, libinput++.
     fp64_coor evdev_read_wheel_click_props(libinput_device_sptr li_device)
     {
         auto angles = fp64_coor{};
-        auto wheel_count = "MOUSE_WHEEL_CLICK_COUNT";
-        auto wheel_angle = "MOUSE_WHEEL_CLICK_ANGLE";
-        auto hwheel_count = "MOUSE_WHEEL_CLICK_COUNT_HORIZONTAL";
-        auto hwheel_angle = "MOUSE_WHEEL_CLICK_ANGLE_HORIZONTAL";
-        // CLICK_COUNT overrides CLICK_ANGLE.
-        if (evdev_read_wheel_click_count_prop(li_device, wheel_count, angles.y) || evdev_read_wheel_click_prop(li_device, wheel_angle, angles.y))
+        if (evdev_read_wheel_click_count_prop(li_device, "MOUSE_WHEEL_CLICK_COUNT", angles.y) // *_CLICK_COUNT should override *_CLICK_ANGLE.
+         || evdev_read_wheel_click_angle_prop(li_device, "MOUSE_WHEEL_CLICK_ANGLE", angles.y))
         {
-            log("wheel: vert click angle: %.2f%", angles.y);
+            log("wheel: vertical click angle: %.2f%", angles.y);
         }
-        if (evdev_read_wheel_click_count_prop(li_device, hwheel_count, angles.x) || evdev_read_wheel_click_prop(li_device, hwheel_angle, angles.x))
+        if (evdev_read_wheel_click_count_prop(li_device, "MOUSE_WHEEL_CLICK_COUNT_HORIZONTAL", angles.x)
+         || evdev_read_wheel_click_angle_prop(li_device, "MOUSE_WHEEL_CLICK_ANGLE_HORIZONTAL", angles.x))
         {
             log("wheel: horizontal click angle: %.2f%", angles.x);
         }
@@ -18815,99 +18810,6 @@ namespace netxs::lixx // li++, libinput++.
         li_device->libevdev_disable_event_code<EV_ABS>(REL_X);
         li_device->libevdev_disable_event_code<EV_ABS>(REL_Y);
         li_device->libevdev_disable_event_code<EV_ABS>(REL_Z);
-    }
-    bool evdev_device_is_joystick_or_gamepad(libinput_device_sptr li_device)
-    {
-        // The EVDEV_UDEV_TAG_JOYSTICK is set when a joystick or gamepad button
-        // is found. However, it can not be used to identify joysticks or
-        // gamepads because there are keyboards that also have it. Even worse,
-        // many joysticks also map KEY_* and thus are tagged as keyboards.
-        //
-        // In order to be able to detect joysticks and gamepads and
-        // differentiate them from keyboards, apply the following rules:
-        //
-        //  1. The device is tagged as joystick but not as tablet.
-        //  2. The device doesn't have 4 well-known keyboard keys.
-        //  3. It has at least 2 joystick buttons.
-        //  4. It doesn't have 10 keyboard keys.
-        static constexpr auto well_known_keyboard_keys = std::to_array<ui32>(
-        {
-            KEY_LEFTCTRL,
-            KEY_CAPSLOCK,
-            KEY_NUMLOCK,
-            KEY_INSERT,
-            KEY_MUTE,
-            KEY_CALC,
-            KEY_FILE,
-            KEY_MAIL,
-            KEY_PLAYPAUSE,
-            KEY_BRIGHTNESSDOWN,
-        });
-        auto udev_tags = li_device->evdev_device_get_udev_tags();
-        auto has_joystick_tags = (udev_tags & EVDEV_UDEV_TAG_JOYSTICK)
-                             && !(udev_tags & EVDEV_UDEV_TAG_TABLET)
-                             && !(udev_tags & EVDEV_UDEV_TAG_TABLET_PAD);
-        if (!has_joystick_tags)
-        {
-            return faux;
-        }
-        auto code = 0u;
-        auto num_well_known_keys = 0u;
-        for (auto code : well_known_keyboard_keys)
-        {
-            if (li_device->libevdev_has_event_code<EV_KEY>(code))
-            {
-                num_well_known_keys++;
-            }
-        }
-        if (num_well_known_keys >= 4) // Should not have 4 well-known keys.
-        {
-            return faux;
-        }
-        auto num_joystick_btns = 0u;
-        for (code = BTN_JOYSTICK; code < BTN_DIGI; code++)
-        {
-            if (li_device->libevdev_has_event_code<EV_KEY>(code))
-            {
-                num_joystick_btns++;
-            }
-        }
-        for (code = BTN_TRIGGER_HAPPY; code <= BTN_TRIGGER_HAPPY40; code++)
-        {
-            if (li_device->libevdev_has_event_code<EV_KEY>(code))
-            {
-                num_joystick_btns++;
-            }
-        }
-        if (num_joystick_btns < 2) // Require at least 2 joystick buttons.
-        {
-            return faux;
-        }
-        auto num_keys = 0u;
-        for (code = KEY_ESC; code <= KEY_MICMUTE; code++)
-        {
-            if (li_device->libevdev_has_event_code<EV_KEY>(code))
-                num_keys++;
-        }
-        for (code = KEY_OK; code <= KEY_LIGHTS_TOGGLE; code++)
-        {
-            if (li_device->libevdev_has_event_code<EV_KEY>(code))
-            {
-                num_keys++;
-            }
-        }
-        for (code = KEY_ALS_TOGGLE; code < BTN_TRIGGER_HAPPY; code++)
-        {
-            if (li_device->libevdev_has_event_code<EV_KEY>(code))
-            {
-                num_keys++;
-            }
-        }
-        if (num_keys >= 10) // Should not have 10 keyboard keys.
-        {
-            return faux;
-        }
-        return true;
     }
     bool evdev_check_min_max(libinput_device_sptr li_device, ui32 code)
     {
@@ -19623,8 +19525,7 @@ namespace netxs::lixx // li++, libinput++.
         {
             evdev_disable_accelerometer_axes(li_device);
         }
-        //todo interferencing with ud_device tags
-        if (evdev_device_is_joystick_or_gamepad(li_device))
+        if (udev_tags & EVDEV_UDEV_TAG_JOYSTICK)
         {
             log("Device is a joystick or a gamepad, ignoring: ", li_device->ud_device->properties["NAME"]);
             return nullptr;
@@ -19772,16 +19673,20 @@ namespace netxs::lixx // li++, libinput++.
     {
         auto li_device = ptr::shared<libinput_device_t>();
         li_device->li = li;
-        li_device->sysname = ud_device->udev_device_get_sysname();
         li_device->ud_device = ud_device;
-        li_device->devname = li_device->libevdev_get_name();
+        li_device->sysname = ud_device->sysname;
+        li_device->devname = ud_device->devname;
         li_device->scroll.wheel_click_angle = evdev_read_wheel_click_props(li_device);
         li_device->model_flags = evdev_read_model_flags(li_device);
+
         li_device->abs.calibration.matrix_init_identity();
         li_device->abs.usermatrix.matrix_init_identity();
         li_device->abs.default_calibration.matrix_init_identity();
+
         evdev_pre_configure_model_quirks(li_device);
+
         li_device->dispatch = evdev_configure_device(li_device);
+
         if (li_device->dispatch && li_device->device_caps)
         {
             auto& li_device_inst = *li_device;
@@ -19790,7 +19695,6 @@ namespace netxs::lixx // li++, libinput++.
             li->device_list.push_back(li_device);
             evdev_notify_added_device(li_device);
             li_device->evdev_read_calibration_prop();
-            li_device->output_name = li_device->udev_device_get_property_value("WL_OUTPUT");
         }
         else
         {
