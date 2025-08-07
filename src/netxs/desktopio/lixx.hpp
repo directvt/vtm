@@ -3186,8 +3186,8 @@ namespace netxs::lixx // li++, libinput++.
         utf::unordered_map<text, text> properties;
         text                           sysname; // "eventX"
         text                           devpath; // "/dev/input/eventX"
+        text                           devname; // "USB Optical Mouse M7"
 
-        text                                 name;
         text                                 phys;
         text                                 uniq;
         fd_t                                 fd{ os::invalid_fd };
@@ -3301,7 +3301,7 @@ namespace netxs::lixx // li++, libinput++.
             auto accum2= [](auto& bits, auto& ids)            { auto summ = 0; for (auto i : ids)                 summ += (si32)bits[i]; return summ; };
             auto allof = [](auto& bits, auto from, auto upto) { for (auto i = from; i < upto; i++) if (!bits[i]) return faux; return true; };
             auto anyof = [](auto& bits, auto from, auto upto) { for (auto i = from; i < upto; i++) if (bits[i]) return true; return faux; };
-            properties["NAME"] = name;
+            properties["NAME"] = devname;
             properties["PHYS"] = phys;
             properties["UNIQ"] = uniq;
             properties["PRODUCT"] = utf::fprint("%%/%%/%%/%%", utf::to_hex(prod_info.bustype),
@@ -3378,7 +3378,7 @@ namespace netxs::lixx // li++, libinput++.
                     like_joystick = count <= 3 && joystick_button_count + joystick_axe_count >= 2 // The device has joystick buttons and axes but also a keyboard key subset.
                                                             && !(have_wheel && have_pad_buttons); // The device with a wheel and pad buttons is not a joystick.
                 }
-                auto like_trackball      = utf::to_lower(text{ name }).find("trackball") != text::npos;
+                auto like_trackball      = utf::to_lower(text{ devname }).find("trackball") != text::npos;
                 auto like_switch         = ev_bits[EV_SW];
                 auto like_mouse          = have_mouse_buttons && !(like_touchpad || like_tablet || like_joystick);
                 auto like_pointing_stick = prop_bits[INPUT_PROP_POINTING_STICK] || (like_mouse && prod_info.bustype == BUS_I2C);
@@ -3893,7 +3893,7 @@ namespace netxs::lixx // li++, libinput++.
         }
         qiew libevdev_get_name()
         {
-            return name;
+            return devname;
         }
         fd_t libevdev_get_fd()
         {
@@ -3925,7 +3925,7 @@ namespace netxs::lixx // li++, libinput++.
         {
             initialized = faux;
             fd = os::invalid_fd;
-            name = {};
+            devname = {};
             phys = {};
             uniq = {};
             mt_slot_vals.clear();
@@ -4026,12 +4026,12 @@ namespace netxs::lixx // li++, libinput++.
         {
             auto trim = [](text& s){ s.erase(std::find(s.begin(), s.end(), '\0'), s.end()); return true; };
             libevdev_reset();
-            name.assign(256, '\0');
+            devname.assign(256, '\0');
             phys.assign(256, '\0');
             uniq.assign(256, '\0');
             auto rc = (0 <= ::ioctl(new_fd, EVIOCSCLOCKID, &lixx::clock_type))
                    && (0 <= ::ioctl(new_fd, EVIOCGBIT(0,      sizeof(ev_bits)),    &ev_bits       ))
-                   && (0 <= ::ioctl(new_fd, EVIOCGNAME(name.size() - 1),           name.data()    ))                    && trim(name)
+                   && (0 <= ::ioctl(new_fd, EVIOCGNAME(devname.size() - 1),        devname.data() ))                    && trim(devname)
                    && (0 <= ::ioctl(new_fd, EVIOCGPHYS(phys.size() - 1),           phys.data()    ) || errno == ENOENT) && trim(phys)
                    && (0 <= ::ioctl(new_fd, EVIOCGUNIQ(uniq.size() - 1),           uniq.data()    ) || errno == ENOENT) && trim(uniq)
                    && (0 <= ::ioctl(new_fd, EVIOCGID,                              &prod_info     ))
@@ -4546,17 +4546,15 @@ namespace netxs::lixx // li++, libinput++.
         fd_t                                     wd_dev;
         text                                     buffer;
         text                                     uevent_buffer;
-        libinput_sptr                            li;
         utf::unordered_map<text, ud_device_sptr> device_list;
         text                                     initial_tty;
         text                                     current_tty;
 
-        ud_monitor_t(libinput_sptr li)
+        ud_monitor_t()
             :           fd{ os::invalid_fd },
                     wd_tty{ os::invalid_fd },
                     wd_dev{ os::invalid_fd },
-             uevent_buffer(4096, '\0'),
-                        li{ li }
+             uevent_buffer(4096, '\0')
         {
             auto tmp1 = ::dup(STDIN_FILENO);
             auto tmp2 = ::inotify_init1(IN_CLOEXEC | IN_NONBLOCK); //todo Revise: ::inotify_init1() returns STDIN_FILENO for unknown reason despite the STDIN_FILENO is not closed.
@@ -4818,7 +4816,7 @@ namespace netxs::lixx // li++, libinput++.
         quirks_context_sptr                   quirks;
 
         ud_monitor_sptr                       ud_monitor;
-        event_source_sptr                     ud_monitor_source;
+        event_source_sptr                     ud_monitor_handler;
         std::list<libinput_device_sptr>       device_list;
 
         void evdev_udev_handler();
@@ -4827,7 +4825,7 @@ namespace netxs::lixx // li++, libinput++.
         {
             if (!ud_monitor)
             {
-                ud_monitor = ptr::shared<ud_monitor_t>(This());
+                ud_monitor = ptr::shared<ud_monitor_t>();
                 if (!ud_monitor->udev_monitor_enable_receiving())
                 {
                     log("Failed to bind the device monitor");
@@ -4835,8 +4833,8 @@ namespace netxs::lixx // li++, libinput++.
                 }
                 else
                 {
-                    auto fd = ud_monitor->udev_monitor_get_fd();
-                    ud_monitor_source = timers.libinput_add_event_source(fd, [&]{ evdev_udev_handler(); });
+                    auto monitor_fd = ud_monitor->udev_monitor_get_fd();
+                    ud_monitor_handler = timers.libinput_add_event_source(monitor_fd, [&]{ evdev_udev_handler(); });
                     for (auto [sysname, ud_device] : ud_monitor->device_list) // Add all devices.
                     {
                         if (ud_device->initialized)
@@ -5008,68 +5006,62 @@ namespace netxs::lixx // li++, libinput++.
     {
         struct evdev_abs_t
         {
-            struct warning_range_t
-            {
-                si32_coor min;
-                si32_coor max;
-            };
-
-            abs_info_t const* absinfo_x;//todo unify
-            abs_info_t const* absinfo_y;//
-            bool              is_fake_resolution;
-            si32              apply_calibration;
+            abs_info_t const* absinfo_x{};//todo unify
+            abs_info_t const* absinfo_y{};//
+            bool              is_fake_resolution{};
+            si32              apply_calibration{};
             matrix            calibration;
             matrix            default_calibration; // From LIBINPUT_CALIBRATION_MATRIX.
             matrix            usermatrix; // As supplied by the caller.
             si32_coor         dimensions;
-            warning_range_t   warning_range;
+            si32_range        warning_range_x;
+            si32_range        warning_range_y;
         };
         struct evdev_scroll_t
         {
             libinput_timer_sptr                   timer;
             libinput_device_config_scroll_method  config;
             libinput_config_scroll_method         method; // Currently enabled method, button.
-            ui32                                  button; // evdev_usage_t
-            time                                  button_down_time;
-            libinput_config_scroll_method         want_method; // Set during device init, used at runtime to delay changes until all buttons are up.
-            ui32                                  want_button; // evdev_usage_t
+            ui32                                  button{}; // evdev_usage_t
+            time                                  button_down_time{};
+            libinput_config_scroll_method         want_method{}; // Set during device init, used at runtime to delay changes until all buttons are up.
+            ui32                                  want_button{}; // evdev_usage_t
             void                                (*change_scroll_method)(libinput_device_sptr li_device); // Checks if buttons are down and commits the setting.
-            evdev_button_scroll_state             button_scroll_state;
-            fp64                                  threshold;
-            fp64                                  direction_lock_threshold;
-            ui32                                  direction;
+            evdev_button_scroll_state             button_scroll_state{};
+            fp64                                  threshold = 5.0; // Default may be overridden.
+            fp64                                  direction_lock_threshold = 5.0; // Default may be overridden.
+            ui32                                  direction{};
             fp64_coor                             buildup;
             libinput_device_config_natural_scroll config_natural;
-            bool                                  natural_scrolling_enabled; // Set during device init if we want natural scrolling, used at runtime to enable/disable the feature.
-            bool                                  invert_horizontal_scrolling; // Set during device init to invert direction of horizontal scrolling.
+            bool                                  natural_scrolling_enabled{}; // Set during device init if we want natural scrolling, used at runtime to enable/disable the feature.
+            bool                                  invert_horizontal_scrolling{}; // Set during device init to invert direction of horizontal scrolling.
             fp64_coor                             wheel_click_angle; // Angle per REL_WHEEL click in degrees.
-            evdev_button_scroll_lock_state        lock_state;
-            bool                                  want_lock_enabled;
-            bool                                  lock_enabled;
+            evdev_button_scroll_lock_state        lock_state{};
+            bool                                  want_lock_enabled{};
+            bool                                  lock_enabled{};
         };
         struct evdev_left_handed_t
         {
             libinput_device_config_left_handed config;
-            bool                               enabled; // Left-handed currently enabled.
-            bool                               want_enabled; // Set during device init if we want left_handed config, used at runtime to delay the effect until buttons are up.
+            bool                               enabled{}; // Left-handed currently enabled.
+            bool                               want_enabled{}; // Set during device init if we want left_handed config, used at runtime to delay the effect until buttons are up.
             void                             (*change_to_enabled)(libinput_device_sptr li_device); // Checks if buttons are down and commits the setting.
         };
         struct evdev_middlebutton_t
         {
             libinput_device_config_middle_emulation config;
-            bool                                    enabled; // Middle-button emulation enabled.
-            bool                                    enabled_default;
-            bool                                    want_enabled;
-            evdev_middlebutton_state                state;
+            bool                                    enabled{}; // Middle-button emulation enabled.
+            bool                                    enabled_default{};
+            bool                                    want_enabled{};
+            evdev_middlebutton_state                state{};
             libinput_timer_sptr                     timer;
-            ui32                                    button_mask;
-            time                                    first_event_time;
+            ui32                                    button_mask{};
+            time                                    first_event_time{};
         };
 
         libinput_sptr                           li;
         text                                    device_group; //todo Property for tablet touch arbitration. Set LIBINPUT_DEVICE_GROUP somewhere in settings (or in quirks) for devices intended to be in a group (e.g. tablet+stylus).
         std::list<libinput_event_listener_sptr> event_listeners;
-        void*                                   user_data;
         libinput_device_config                  config;
         event_source_sptr                       source;
         evdev_dispatch_sptr                     dispatch;
@@ -5077,16 +5069,15 @@ namespace netxs::lixx // li++, libinput++.
         text                                    output_name;
         text                                    devname;
         text                                    sysname;
-        bool                                    was_removed;
-        si32                                    fd;
+        bool                                    was_removed{};
         ui32                                    device_caps{};
         ui32                                    device_tags{};
-        bool                                    is_mt;
-        bool                                    is_suspended;
-        si32                                    dpi;                    // HW resolution.
-        fp64                                    trackpoint_multiplier;  // Trackpoint constant multiplier.
-        bool                                    use_velocity_averaging; // Whether averaging should be applied on velocity calculation.
-        ui32                                    model_flags;
+        bool                                    is_mt{};
+        bool                                    is_suspended{};
+        si32                                    dpi{ lixx::default_mouse_dpi }; // HW resolution.
+        fp64                                    trackpoint_multiplier{};  // Trackpoint constant multiplier.
+        bool                                    use_velocity_averaging{}; // Whether averaging should be applied on velocity calculation.
+        ui32                                    model_flags{};
         evdev_abs_t                             abs;
         evdev_scroll_t                          scroll;
         libinput_device_config_accel            pointer_config;
@@ -5255,13 +5246,13 @@ namespace netxs::lixx // li++, libinput++.
             {
                 case evdev::abs_x:
                 case evdev::abs_mt_position_x:
-                    min = abs.warning_range.min.x;
-                    max = abs.warning_range.max.x;
+                    min = abs.warning_range_x.min;
+                    max = abs.warning_range_x.max;
                     break;
                 case evdev::abs_y:
                 case evdev::abs_mt_position_y:
-                    min = abs.warning_range.min.y;
-                    max = abs.warning_range.max.y;
+                    min = abs.warning_range_y.min;
+                    max = abs.warning_range_y.max;
                     break;
                 default:
                     return;
@@ -5916,15 +5907,14 @@ namespace netxs::lixx // li++, libinput++.
         }
         si32 evdev_device_resume()
         {
-            if (fd != -1) return 0;
+            if (ud_device->fd != os::invalid_fd) return 0;
             if (was_removed) return -ENODEV;
             auto devnode = ud_device->udev_device_get_devnode();
             if (!devnode) return -ENODEV;
             auto new_fd = ::open(devnode.data(), O_RDWR | O_NONBLOCK | O_CLOEXEC);
-            if (new_fd < 0) return -errno;
+            if (new_fd == os::invalid_fd) return -errno;
             ud_device_t::evdev_drain_fd(new_fd);
-            fd = new_fd;
-            ud_device->libevdev_change_fd(fd);
+            ud_device->libevdev_change_fd(new_fd);
             // Re-sync libevdev's view of the device, but discard the actual events. Our device is in a neutral state already.
             auto ev = input_event_t{};
             libevdev_next_event(LIBEVDEV_READ_FLAG_FORCE_SYNC, ev);
@@ -5934,7 +5924,7 @@ namespace netxs::lixx // li++, libinput++.
                 status = libevdev_next_event(LIBEVDEV_READ_FLAG_SYNC, ev);
             }
             while (status == LIBEVDEV_READ_STATUS_SYNC);
-            source = li->timers.libinput_add_event_source(fd, [&]{ evdev_device_dispatch(); });
+            source = li->timers.libinput_add_event_source(ud_device->fd, [&]{ evdev_device_dispatch(); });
             if (!source)
             {
                 return -ENOMEM;
@@ -5950,10 +5940,10 @@ namespace netxs::lixx // li++, libinput++.
             {
                 li->timers.libinput_remove_event_source(source);
             }
-            if (fd != os::invalid_fd)
+            if (ud_device->fd != os::invalid_fd)
             {
-                os::close(fd);
-                fd = os::invalid_fd;
+                os::close(ud_device->fd);
+                ud_device->fd = os::invalid_fd;
             }
         }
             static libinput_config_status evdev_sendevents_set_mode(libinput_device_sptr li_device, libinput_config_send_events_mode mode)
@@ -6627,10 +6617,10 @@ namespace netxs::lixx // li++, libinput++.
             auto& y = *abs.absinfo_y;
             auto& w = abs.dimensions.x;
             auto& h = abs.dimensions.y;
-            abs.warning_range.min.x = x.minimum - 0.05 * w;
-            abs.warning_range.min.y = y.minimum - 0.05 * h;
-            abs.warning_range.max.x = x.maximum + 0.05 * w;
-            abs.warning_range.max.y = y.maximum + 0.05 * h;
+            abs.warning_range_x.min = x.minimum - 0.05 * w;
+            abs.warning_range_y.min = y.minimum - 0.05 * h;
+            abs.warning_range_x.max = x.maximum + 0.05 * w;
+            abs.warning_range_y.max = y.maximum + 0.05 * h;
         }
                 void evdev_init_accel(libinput_config_accel_profile which)
                 {
@@ -13596,15 +13586,15 @@ namespace netxs::lixx // li++, libinput++.
             std::list<libinput_tablet_pad_mode_group_sptr> mode_group_list;
         };
 
-        byte                               status;
-        ui32                               changed_axes;
-        button_state_t                     next_button_state;
-        button_state_t                     prev_button_state;
-        ui32                               button_map[KEY_CNT];
-        ui32                               nbuttons;
-        bool                               have_abs_misc_terminator;
-        dials_t                            dials;
-        modes_t                            modes;
+        byte           status;
+        ui32           changed_axes;
+        button_state_t next_button_state;
+        button_state_t prev_button_state;
+        ui32           button_map[KEY_CNT];
+        ui32           nbuttons;
+        bool           have_abs_misc_terminator;
+        dials_t        dials;
+        modes_t        modes;
 
         struct pad_impl_t
         {
@@ -19783,17 +19773,10 @@ namespace netxs::lixx // li++, libinput++.
         auto li_device = ptr::shared<libinput_device_t>();
         li_device->li = li;
         li_device->sysname = ud_device->udev_device_get_sysname();
-        li_device->is_mt = 0;
         li_device->ud_device = ud_device;
-        li_device->dispatch = nullptr;
-        li_device->fd = ud_device->fd;
         li_device->devname = li_device->libevdev_get_name();
-        li_device->scroll.threshold = 5.0; // Default may be overridden.
-        li_device->scroll.direction_lock_threshold = 5.0; // Default may be overridden.
-        li_device->scroll.direction = 0;
         li_device->scroll.wheel_click_angle = evdev_read_wheel_click_props(li_device);
         li_device->model_flags = evdev_read_model_flags(li_device);
-        li_device->dpi = lixx::default_mouse_dpi;
         li_device->abs.calibration.matrix_init_identity();
         li_device->abs.usermatrix.matrix_init_identity();
         li_device->abs.default_calibration.matrix_init_identity();
