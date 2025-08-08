@@ -5856,7 +5856,7 @@ namespace netxs::lixx // li++, libinput++.
     {
         static constexpr auto& active_tty_file = "/sys/devices/virtual/tty/tty0/active"; //todo incompatible with FreeBSD
         static constexpr auto& dev_input_path = "/dev/input";
-        static constexpr auto dev_monitor_mode = IN_CREATE | IN_ATTRIB/*try again after mode access update*/ | IN_DELETE;
+        static constexpr auto dev_monitor_mode = IN_CREATE | IN_ATTRIB/*try again after mode access update*/;
         static constexpr auto tty_monitor_mode = IN_MODIFY;
 
         fd_t                                     fd;
@@ -5864,7 +5864,7 @@ namespace netxs::lixx // li++, libinput++.
         fd_t                                     wd_dev;
         text                                     buffer;
         text                                     uevent_buffer;
-        utf::unordered_map<text, ud_device_sptr> device_list;
+        utf::unordered_map<text, ud_device_sptr> ud_device_list;
         text                                     initial_tty;
         text                                     current_tty;
 
@@ -5903,7 +5903,7 @@ namespace netxs::lixx // li++, libinput++.
                 if (sysname.starts_with("event"))
                 {
                     auto ud_device = ptr::shared<ud_device_t>(sysname);
-                    device_list[sysname] = ud_device;
+                    ud_device_list[sysname] = ud_device;
                 }
             }
         }
@@ -5953,27 +5953,15 @@ namespace netxs::lixx // li++, libinput++.
                         auto filename = qiew{ event.name };
                         if (!(event.mask & IN_ISDIR) && (event.mask & dev_monitor_mode) && filename.starts_with("event"))
                         {
-                            auto deleted = event.mask & IN_DELETE;
-                            auto iter = device_list.find(filename);
-                            if (deleted)
+                            // Created or access modified. Do nothing on delete, just wait for ENODEV.
+                            auto iter = ud_device_list.find(filename);
+                            if (iter == ud_device_list.end())
                             {
-                                if (iter != device_list.end())
+                                auto ud_device = ptr::shared<ud_device_t>(filename);
+                                if (ud_device->initialized)
                                 {
-                                    auto device_ptr = iter->second;
-                                    device_list.erase(iter);
-                                    proc("remove", device_ptr);
-                                }
-                            }
-                            else
-                            {
-                                if (iter == device_list.end())
-                                {
-                                    auto ud_device = ptr::shared<ud_device_t>(filename);
-                                    if (ud_device->initialized)
-                                    {
-                                        device_list[filename] = ud_device;
-                                        proc("add", ud_device);
-                                    }
+                                    ud_device_list[filename] = ud_device;
+                                    proc(ud_device);
                                 }
                             }
                         }
@@ -6048,8 +6036,13 @@ namespace netxs::lixx // li++, libinput++.
         event_source_sptr                     ud_monitor_handler;
         std::list<libinput_device_sptr>       device_list;
 
-        void evdev_udev_handler();
-
+        void evdev_udev_handler()
+        {
+            ud_monitor->add_devices([&](auto ud_device)
+            {
+                libinput_device_create(This(), ud_device);
+            });
+        }
         void input_enable()
         {
             if (!ud_monitor)
@@ -6064,7 +6057,7 @@ namespace netxs::lixx // li++, libinput++.
                 {
                     auto monitor_fd = ud_monitor->udev_monitor_get_fd();
                     ud_monitor_handler = timers.libinput_add_event_source(monitor_fd, [&]{ evdev_udev_handler(); });
-                    for (auto [sysname, ud_device] : ud_monitor->device_list) // Add all devices.
+                    for (auto [sysname, ud_device] : ud_monitor->ud_device_list) // Add all devices.
                     {
                         if (ud_device->initialized)
                         {
@@ -7123,7 +7116,6 @@ namespace netxs::lixx // li++, libinput++.
         }
         void evdev_device_remove()
         {
-            auto self = This();
             if (auto& timer = scroll.timer)       timer->cancel();
             if (auto& timer = middlebutton.timer) timer->cancel();
             evdev_device_suspend();
@@ -7196,6 +7188,7 @@ namespace netxs::lixx // li++, libinput++.
                     return faux;
                 }
             });
+            std::erase_if(li->ud_monitor->ud_device_list, [&](auto d){ return d.second == ud_device; });
         }
         si32 evdev_device_resume()
         {
@@ -19793,23 +19786,6 @@ namespace netxs::lixx // li++, libinput++.
         void     touch_arbitration_update_rect(fp64_rect area, time now)                                   { fallback_impl.            fallback_interface_update_rect(area, now); }
         libinput_switch_state get_switch_state(libinput_switch which)                                      { return fallback_impl.fallback_interface_get_switch_state(which); }
     };
-
-        void libinput_t::evdev_udev_handler()
-        {
-            ud_monitor->add_devices([&](auto action, auto ud_device)
-            {
-                if (action == "add")
-                {
-                    libinput_device_create(This(), ud_device);
-                }
-                else if (action == "remove")
-                {
-                    auto devpath = ud_device->udev_device_get_devpath();
-                    log("Device removed: '%s%'", ud_device->properties["NAME"]);
-                    std::erase_if(device_list, [&](auto d){ return devpath == d->udev_device_get_devpath(); });
-                }
-            });
-        }
 
     bool totem_reject_device(libinput_device_sptr li_device)
     {
