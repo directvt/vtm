@@ -8440,7 +8440,7 @@ namespace netxs::lixx // li++, libinput++.
                                 t.has_ended = true;
                                 tp_maybe_end_touch(t);
                             }
-                        void tp_process_absolute(evdev_event const& ev, time stamp)
+                        void tp_process_absolute(evdev_event const& ev)
                         {
                             auto& t = tp_current_touch();
                             switch (ev.usage)
@@ -8756,7 +8756,7 @@ namespace netxs::lixx // li++, libinput++.
                                             }
                                         }
                                     }
-                                void tp_process_fake_touches(time stamp)
+                                void tp_process_fake_touches()
                                 {
                                     auto nfake_touches = tp_fake_finger_count();
                                     if (nfake_touches == lixx::fake_finger_overflow) return;
@@ -8995,7 +8995,7 @@ namespace netxs::lixx // li++, libinput++.
                             void tp_pre_process_state(time stamp)
                             {
                                 if (tp.queued & TOUCHPAD_EVENT_TIMESTAMP) tp_process_msc_timestamp(stamp);
-                                tp_process_fake_touches(stamp);
+                                tp_process_fake_touches();
                                 tp_unhover_touches(stamp);
                                 for (auto& t : tp.touches)
                                 {
@@ -12975,7 +12975,7 @@ namespace netxs::lixx // li++, libinput++.
                 switch (type)
                 {
                     case EV_ABS:
-                        if (tp.has_mt) tp_process_absolute(ev, stamp);
+                        if (tp.has_mt) tp_process_absolute(ev);
                         else           tp_process_absolute_st(ev);
                         break;
                     case EV_KEY: tp_process_key(ev, stamp); break;
