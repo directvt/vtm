@@ -8435,7 +8435,7 @@ namespace netxs::lixx // li++, libinput++.
                                     }
                                     t.dirty = true;
                                 }
-                            void tp_end_sequence(tp_touch& t, time stamp)
+                            void tp_end_sequence(tp_touch& t)
                             {
                                 t.has_ended = true;
                                 tp_maybe_end_touch(t);
@@ -8469,7 +8469,7 @@ namespace netxs::lixx // li++, libinput++.
                                     else if (tp.nactive_slots >= 1)
                                     {
                                         tp.nactive_slots -= 1;
-                                        tp_end_sequence(t, stamp);
+                                        tp_end_sequence(t);
                                     }
                                     break;
                                 case evdev::abs_mt_pressure:
@@ -8799,7 +8799,7 @@ namespace netxs::lixx // li++, libinput++.
                                     {
                                         auto& t = tp.touches[i];
                                         if (i < nfake_touches) tp_new_touch(t);
-                                        else                   tp_end_sequence(t, stamp);
+                                        else                   tp_end_sequence(t);
                                     }
                                 }
                                         void tp_begin_touch(tp_touch& t, time stamp)
@@ -10756,7 +10756,7 @@ namespace netxs::lixx // li++, libinput++.
                                                     {
                                                         //not inplemented
                                                     }
-                                                void tp_gesture_handle_event_on_state_3fg_drag_released(gesture_event event, time stamp)
+                                                void tp_gesture_handle_event_on_state_3fg_drag_released(gesture_event event)
                                                 {
                                                     switch(event)
                                                     {
@@ -10862,7 +10862,7 @@ namespace netxs::lixx // li++, libinput++.
                                                 case GESTURE_STATE_SWIPE:             tp_gesture_handle_event_on_state_swipe(            event, stamp); break;
                                                 case GESTURE_STATE_3FG_DRAG_START:    tp_gesture_handle_event_on_state_3fg_drag_start(   event); break;
                                                 case GESTURE_STATE_3FG_DRAG:          tp_gesture_handle_event_on_state_3fg_drag(         event, stamp); break;
-                                                case GESTURE_STATE_3FG_DRAG_RELEASED: tp_gesture_handle_event_on_state_3fg_drag_released(event, stamp); break;
+                                                case GESTURE_STATE_3FG_DRAG_RELEASED: tp_gesture_handle_event_on_state_3fg_drag_released(event); break;
                                                 default: break;
                                             }
                                             if (oldstate != tp.gesture.state)
@@ -13029,7 +13029,7 @@ namespace netxs::lixx // li++, libinput++.
                             tp_release_all_taps(now);
                             for (auto& t : tp.touches)
                             {
-                                tp_end_sequence(t, now);
+                                tp_end_sequence(t);
                             }
                             tp_release_fake_touches();
                             tp_thumb_reset();
