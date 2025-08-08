@@ -6271,13 +6271,13 @@ namespace netxs::lixx // li++, libinput++.
         };
 
         libinput_sptr                           li;
+        ud_device_sptr                          ud_device;
         text                                    device_group; //todo Property for tablet touch arbitration. Set LIBINPUT_DEVICE_GROUP somewhere in settings (or in quirks) for devices intended to be in a group (e.g. tablet+stylus).
         std::list<libinput_event_listener_sptr> event_listeners;
         libinput_device_config                  config;
         libinput_device_config_send_events      sendevents_config;
         libinput_config_send_events_mode        sendevents_current_mode;
         event_source_sptr                       source;
-        ud_device_sptr                          ud_device;
         text                                    devname;
         text                                    sysname;
         bool                                    was_removed{};
@@ -6295,7 +6295,10 @@ namespace netxs::lixx // li++, libinput++.
         evdev_middlebutton_t                    middlebutton;
         evdev_frame                             frame;
 
-        libinput_device_t() = default;
+        libinput_device_t(libinput_sptr li, ud_device_sptr ud_device)
+            :      li{ li },
+            ud_device{ ud_device }
+        { }
         virtual ~libinput_device_t()
         { }
 
@@ -8314,7 +8317,9 @@ namespace netxs::lixx // li++, libinput++.
         tp_dispatch_tablet_mode_switch_t tablet_mode_switch;
         tp_dispatch_left_handed_t        left_handed;
 
-        tp_dispatch() = default;
+        tp_dispatch(auto&... args)
+            : libinput_device_t{ args... }
+        { }
         ~tp_dispatch()
         {
             arbitration.arbitration_timer.reset();
@@ -14842,6 +14847,10 @@ namespace netxs::lixx // li++, libinput++.
             std::list<libinput_tablet_pad_mode_group_sptr> mode_group_list;
         };
 
+        pad_dispatch(auto&&... args)
+            : libinput_device_t{ args... }
+        { }
+
         byte           status;
         ui32           changed_axes;
         button_state_t next_button_state;
@@ -15559,6 +15568,10 @@ namespace netxs::lixx // li++, libinput++.
         bool                    button_state_previous;
         libinput_arbitration_state arbitration_state;
 
+        totem_dispatch(auto&&... args)
+            : libinput_device_t{ args... }
+        { }
+
         struct totem_impl_t
         {
             totem_dispatch& totem;
@@ -16004,7 +16017,9 @@ namespace netxs::lixx // li++, libinput++.
         rotation_t                           rotation;
         quirks_t                             quirks;
 
-        tablet_dispatch() = default;
+        tablet_dispatch(auto&&... args)
+            : libinput_device_t{ args... }
+        { }
         ~tablet_dispatch()
         {
             if (auto& timer = quirks.prox_out_timer)
@@ -18011,7 +18026,9 @@ namespace netxs::lixx // li++, libinput++.
         fb_lid_t                           lid;
         fb_arbitration_t                   arbitration;
 
-        fallback_dispatch() = default;
+        fallback_dispatch(auto&&... args)
+            : libinput_device_t{ args... }
+        { }
         ~fallback_dispatch()
         {
             wheel.scroll_timer.reset();
@@ -18022,8 +18039,7 @@ namespace netxs::lixx // li++, libinput++.
 
         struct fallback_impl_t
         {
-            fallback_dispatch& dispatch;
-            fallback_dispatch& fallback{ dispatch };
+            fallback_dispatch& fallback;
                         bool fallback_reject_relative(evdev_event const& ev)
                         {
                             auto usage = ev.usage;
@@ -19841,7 +19857,7 @@ namespace netxs::lixx // li++, libinput++.
         li_device->device_caps |= EVDEV_DEVICE_TABLET;
         if (!totem_reject_device(li_device))
         {
-            totem_ptr = ptr::shared<totem_dispatch>();
+            totem_ptr = ptr::shared<totem_dispatch>(li, ud_device);
             auto& totem = *totem_ptr;
             auto num_slots = li_device->libevdev_get_num_slots();
             if (num_slots > 0)
@@ -19892,7 +19908,7 @@ namespace netxs::lixx // li++, libinput++.
         libinput_device_sptr evdev_tablet_pad_create(libinput_sptr li, ud_device_sptr ud_device)
         {
             ud_device->device_class += " tabletpad";
-            auto pad = ptr::shared<pad_dispatch>();
+            auto pad = ptr::shared<pad_dispatch>(li, ud_device);
             auto li_device = pad;
             li_device->li = li;
             li_device->ud_device = ud_device;
@@ -19915,7 +19931,7 @@ namespace netxs::lixx // li++, libinput++.
         libinput_device_sptr evdev_tablet_create(libinput_sptr li, ud_device_sptr ud_device)
         {
             ud_device->device_class += " tablet";
-            auto tablet_ptr = ptr::shared<tablet_dispatch>();
+            auto tablet_ptr = ptr::shared<tablet_dispatch>(li, ud_device);
             auto li_device = tablet_ptr;
             li_device->li = li;
             li_device->ud_device = ud_device;
@@ -20048,7 +20064,7 @@ namespace netxs::lixx // li++, libinput++.
         libinput_device_sptr evdev_mt_touchpad_create(libinput_sptr li, ud_device_sptr ud_device, ui32 udev_tags)
         {
             ud_device->device_class += " touchpad";
-            auto tp_ptr = ptr::shared<tp_dispatch>();
+            auto tp_ptr = ptr::shared<tp_dispatch>(li, ud_device);
             auto& tp = *tp_ptr;
             tp.li = li;
             tp.ud_device = ud_device;
@@ -20245,7 +20261,7 @@ namespace netxs::lixx // li++, libinput++.
         }
         libinput_device_sptr fallback_dispatch_create(libinput_sptr li, ud_device_sptr ud_device, ui32 udev_tags)
         {
-            auto fallback_ptr = ptr::shared<fallback_dispatch>();
+            auto fallback_ptr = ptr::shared<fallback_dispatch>(li, ud_device);
             auto li_device = fallback_ptr;
             li_device->li = li;
             li_device->ud_device = ud_device;
