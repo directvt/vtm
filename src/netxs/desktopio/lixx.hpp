@@ -5845,6 +5845,45 @@ namespace netxs::lixx // li++, libinput++.
             }
             return angles;
         }
+        auto evdev_device_get_size()
+        {
+            auto w = 0.0;
+            auto h = 0.0;
+            auto abs_info_x = libevdev_get_abs_info(ABS_X);
+            auto abs_info_y = libevdev_get_abs_info(ABS_Y);
+            auto has_size = abs_info_x && abs_info_y
+                        && (abs_info_x->minimum != 0 || abs_info_x->maximum != 1)
+                        && (abs_info_y->minimum != 0 || abs_info_y->maximum != 1)
+                        && !abs.is_fake_resolution
+                        && abs_info_x->resolution && abs_info_y->resolution;
+            if (has_size)
+            {
+                w = abs_info_x->absinfo_convert_to_mm(abs_info_x->maximum);
+                h = abs_info_y->absinfo_convert_to_mm(abs_info_y->maximum);
+            }
+            return std::pair{ w, h };
+        }
+        bool totem_reject_device()
+        {
+            auto has_xy = libevdev_has_event_code<EV_ABS>(ABS_MT_POSITION_X)
+                       && libevdev_has_event_code<EV_ABS>(ABS_MT_POSITION_Y);
+            auto has_slot = libevdev_has_event_code<EV_ABS>(ABS_MT_SLOT);
+            auto has_tool_dial = libevdev_has_event_code<EV_ABS>(ABS_MT_TOOL_TYPE)
+                              && libevdev_get_abs_maximum(ABS_MT_TOOL_TYPE) >= MT_TOOL_DIAL;
+            auto [w, h] = evdev_device_get_size();
+            auto has_size = w && h;
+            auto has_touch_size = libevdev_get_abs_resolution(ABS_MT_TOUCH_MAJOR) > 0
+                               || libevdev_get_abs_resolution(ABS_MT_TOUCH_MINOR) > 0;
+            if (has_xy && has_slot && has_tool_dial && has_size && has_touch_size)
+            {
+                return faux;
+            }
+            else
+            {
+                log("missing totem capabilities:%s%%s%%s%%s%%s%. Ignoring this device.", has_xy ? "" : " xy", has_slot ? "" : " slot", has_tool_dial ? "" : " dial", has_size ? "" : " resolutions", has_touch_size ? "" : " touch-size");
+                return true;
+            }
+        }
     };
     struct ud_monitor_t
     {
@@ -7424,21 +7463,7 @@ namespace netxs::lixx // li++, libinput++.
         }
         auto evdev_device_get_size()
         {
-            auto w = 0.0;
-            auto h = 0.0;
-            auto abs_info_x = libevdev_get_abs_info(ABS_X);
-            auto abs_info_y = libevdev_get_abs_info(ABS_Y);
-            auto has_size = abs_info_x && abs_info_y
-                        && (abs_info_x->minimum != 0 || abs_info_x->maximum != 1)
-                        && (abs_info_y->minimum != 0 || abs_info_y->maximum != 1)
-                        && !ud_device->abs.is_fake_resolution
-                        && abs_info_x->resolution && abs_info_y->resolution;
-            if (has_size)
-            {
-                w = abs_info_x->absinfo_convert_to_mm(abs_info_x->maximum);
-                h = abs_info_y->absinfo_convert_to_mm(abs_info_y->maximum);
-            }
-            return std::pair{ w, h };
+            return ud_device->evdev_device_get_size();
         }
         view evdev_device_get_sysname()
         {
@@ -19824,41 +19849,16 @@ namespace netxs::lixx // li++, libinput++.
         void     touch_arbitration_update_rect(fp64_rect area, time)                                       { fallback_impl.            fallback_interface_update_rect(area); }
         libinput_switch_state get_switch_state(libinput_switch which)                                      { return fallback_impl.fallback_interface_get_switch_state(which); }
     };
-
-    bool totem_reject_device(libinput_device_sptr li_device)
-    {
-        auto has_xy = li_device->libevdev_has_event_code<EV_ABS>(ABS_MT_POSITION_X)
-                   && li_device->libevdev_has_event_code<EV_ABS>(ABS_MT_POSITION_Y);
-        auto has_slot = li_device->libevdev_has_event_code<EV_ABS>(ABS_MT_SLOT);
-        auto has_tool_dial = li_device->libevdev_has_event_code<EV_ABS>(ABS_MT_TOOL_TYPE)
-                          && li_device->libevdev_get_abs_maximum(ABS_MT_TOOL_TYPE) >= MT_TOOL_DIAL;
-        auto [w, h] = li_device->evdev_device_get_size();
-        auto has_size = w && h;
-        auto has_touch_size = li_device->libevdev_get_abs_resolution(ABS_MT_TOUCH_MAJOR) > 0
-                           || li_device->libevdev_get_abs_resolution(ABS_MT_TOUCH_MINOR) > 0;
-        if (has_xy && has_slot && has_tool_dial && has_size && has_touch_size)
-        {
-            return faux;
-        }
-        else
-        {
-            log("missing totem capabilities:%s%%s%%s%%s%%s%. Ignoring this device.", has_xy ? "" : " xy", has_slot ? "" : " slot", has_tool_dial ? "" : " dial", has_size ? "" : " resolutions", has_touch_size ? "" : " touch-size");
-            return true;
-        }
-    }
-
     libinput_device_sptr evdev_totem_create(libinput_sptr li, ud_device_sptr ud_device)
     {
         ud_device->device_class += " totem";
         auto totem_ptr = totem_dispatch_sptr{};
-        auto li_device = totem_ptr;
-        li_device->ud_device = ud_device;
-        li_device->li = li;
-        li_device->device_caps |= EVDEV_DEVICE_TABLET;
-        if (!totem_reject_device(li_device))
+        if (!ud_device->totem_reject_device())
         {
             totem_ptr = ptr::shared<totem_dispatch>(li, ud_device);
             auto& totem = *totem_ptr;
+            auto li_device = totem_ptr;
+            li_device->device_caps |= EVDEV_DEVICE_TABLET;
             auto num_slots = li_device->libevdev_get_num_slots();
             if (num_slots > 0)
             {
@@ -19910,8 +19910,6 @@ namespace netxs::lixx // li++, libinput++.
             ud_device->device_class += " tabletpad";
             auto pad = ptr::shared<pad_dispatch>(li, ud_device);
             auto li_device = pad;
-            li_device->li = li;
-            li_device->ud_device = ud_device;
             li_device->device_caps |= EVDEV_DEVICE_TABLET_PAD;
             if (pad->pad_impl.pad_init(li_device) != 0)
             {
@@ -19933,8 +19931,6 @@ namespace netxs::lixx // li++, libinput++.
             ud_device->device_class += " tablet";
             auto tablet_ptr = ptr::shared<tablet_dispatch>(li, ud_device);
             auto li_device = tablet_ptr;
-            li_device->li = li;
-            li_device->ud_device = ud_device;
             li_device->device_caps |= EVDEV_DEVICE_TABLET;
             #if HAVE_LIBWACOM
             li->libinput_libwacom_ref();
@@ -20263,8 +20259,6 @@ namespace netxs::lixx // li++, libinput++.
         {
             auto fallback_ptr = ptr::shared<fallback_dispatch>(li, ud_device);
             auto li_device = fallback_ptr;
-            li_device->li = li;
-            li_device->ud_device = ud_device;
             auto& fallback = *fallback_ptr;
             if (udev_tags & EVDEV_UDEV_TAG_MOUSE || udev_tags & EVDEV_UDEV_TAG_POINTINGSTICK)
             {
