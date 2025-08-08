@@ -12705,7 +12705,7 @@ namespace netxs::lixx // li++, libinput++.
                                         {
                                             if (tp.queued & TOUCHPAD_EVENT_MOTION) tp_gesture_post_pointer_motion(stamp);
                                         }
-                                        void tp_gesture_handle_state_3fg_drag_released(time stamp, [[maybe_unused]] bool ignore_motion)
+                                        void tp_gesture_handle_state_3fg_drag_released(time stamp)
                                         {
                                             tp_gesture_detect_motion_gestures(stamp);
                                         }
@@ -12733,7 +12733,7 @@ namespace netxs::lixx // li++, libinput++.
                                         if (tp.gesture.state == GESTURE_STATE_PINCH_START      ) { tp_gesture_handle_state_pinch_start(            stamp);                remember_transition(transition_state, tp.gesture.state); }
                                         if (tp.gesture.state == GESTURE_STATE_3FG_DRAG         ) { tp_gesture_handle_state_3fg_drag(               stamp);                remember_transition(transition_state, tp.gesture.state); }
                                         if (tp.gesture.state == GESTURE_STATE_3FG_DRAG_START   ) { tp_gesture_handle_state_3fg_drag_start(         stamp);                remember_transition(transition_state, tp.gesture.state); }
-                                        if (tp.gesture.state == GESTURE_STATE_3FG_DRAG_RELEASED) { tp_gesture_handle_state_3fg_drag_released(      stamp, ignore_motion); remember_transition(transition_state, tp.gesture.state); }
+                                        if (tp.gesture.state == GESTURE_STATE_3FG_DRAG_RELEASED) { tp_gesture_handle_state_3fg_drag_released(      stamp);                remember_transition(transition_state, tp.gesture.state); }
                                         if constexpr (debugmode)
                                         {
                                             if (oldstate != tp.gesture.state)
@@ -13529,7 +13529,7 @@ namespace netxs::lixx // li++, libinput++.
                     tp_change_rotation(DO_NOTIFY);
                 }
             }
-            void tp_interface_toggle_touch(libinput_arbitration_state which, [[maybe_unused]] fp64_rect area, time stamp)
+            void tp_interface_toggle_touch(libinput_arbitration_state which, time stamp)
             {
                 if (which == tp.arbitration.state) return;
                 switch (which)
@@ -14720,7 +14720,7 @@ namespace netxs::lixx // li++, libinput++.
                     }
                 }
             }
-                bool tp_requires_rotation([[maybe_unused]] libinput_device_sptr li_device)
+                bool tp_requires_rotation()
                 {
                     auto rotate = faux;
                     #if HAVE_LIBWACOM
@@ -14779,27 +14779,27 @@ namespace netxs::lixx // li++, libinput++.
                     li_device->dev_left_handed.enabled = li_device->dev_left_handed.want_enabled;
                     tp.tp_impl.tp_change_rotation(DO_NOTIFY);
                 }
-            void tp_init_left_handed(libinput_device_sptr li_device)
+            void tp_init_left_handed()
             {
-                tp.left_handed.must_rotate = tp_requires_rotation(li_device);
-                auto want_left_handed = !(li_device->ud_device->model_flags & EVDEV_MODEL_APPLE_TOUCHPAD_ONEBUTTON);
+                tp.left_handed.must_rotate = tp_requires_rotation();
+                auto want_left_handed = !(tp.ud_device->model_flags & EVDEV_MODEL_APPLE_TOUCHPAD_ONEBUTTON);
                 if (want_left_handed)
                 {
-                    li_device->evdev_init_left_handed(tp_change_to_left_handed);
+                    tp.evdev_init_left_handed(tp_change_to_left_handed);
                 }
             }
         };
 
         tp_impl_t tp_impl{ *this };
-        void                  process(evdev_event& ev, time stamp)                                { tp_impl.        tp_interface_process(ev, stamp); }
-        void                  suspend()                                                           { tp_impl.              tp_clear_state(); }
-        void                   remove()                                                           { tp_impl.         tp_interface_remove(); }
-        void             device_added(libinput_device_sptr added_li_device)                       { tp_impl.   tp_interface_device_added(added_li_device); }
-        void           device_removed(libinput_device_sptr removed_li_device)                     { tp_impl. tp_interface_device_removed(removed_li_device); }
-        void       left_handed_toggle(bool left_handed_enabled)                                   { tp_impl.touchpad_left_handed_toggled(left_handed_enabled); }
-        void touch_arbitration_toggle(libinput_arbitration_state which, fp64_rect area, time now) { tp_impl.   tp_interface_toggle_touch(which, area, now); }
-        void         device_suspended(libinput_device_sptr suspended_li_device)                   { device_removed(suspended_li_device); }
-        void           device_resumed(libinput_device_sptr resumed_li_device)                     { device_added(resumed_li_device); }
+        void                  process(evdev_event& ev, time stamp)                           { tp_impl.        tp_interface_process(ev, stamp); }
+        void                  suspend()                                                      { tp_impl.              tp_clear_state(); }
+        void                   remove()                                                      { tp_impl.         tp_interface_remove(); }
+        void             device_added(libinput_device_sptr added_li_device)                  { tp_impl.   tp_interface_device_added(added_li_device); }
+        void           device_removed(libinput_device_sptr removed_li_device)                { tp_impl. tp_interface_device_removed(removed_li_device); }
+        void       left_handed_toggle(bool left_handed_enabled)                              { tp_impl.touchpad_left_handed_toggled(left_handed_enabled); }
+        void touch_arbitration_toggle(libinput_arbitration_state which, fp64_rect, time now) { tp_impl.   tp_interface_toggle_touch(which, now); }
+        void         device_suspended(libinput_device_sptr suspended_li_device)              { device_removed(suspended_li_device); }
+        void           device_resumed(libinput_device_sptr resumed_li_device)                { device_added(resumed_li_device); }
     };
 
     struct pad_mode_led
@@ -20070,7 +20070,7 @@ namespace netxs::lixx // li++, libinput++.
                 tp.sendevents_config.set_mode         = tp_sendevents_set_mode;
                 tp.sendevents_config.get_mode         = tp_sendevents_get_mode;
                 tp.sendevents_config.get_default_mode = tp_sendevents_get_default_mode;
-                tp.tp_impl.tp_init_left_handed(tp_ptr);
+                tp.tp_impl.tp_init_left_handed();
             }
             return tp_ptr;
         }
