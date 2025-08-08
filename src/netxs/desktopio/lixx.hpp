@@ -7990,6 +7990,24 @@ namespace netxs::lixx // li++, libinput++.
                 evdev_accel_config_set_speed(This(), default_speed);
             }
         }
+        void evdev_notify_added_device()
+        {
+            auto self = This();
+            for (auto d : li->device_list)
+            {
+                if (d != self)
+                {
+                    d->device_added(self); // Notify existing device d about addition of device.
+                    device_added(d); // Notify new device about existing device d.
+                    if (d->is_suspended) // Notify new device if existing device d is suspended.
+                    {
+                        device_suspended(d);
+                    }
+                }
+            }
+            notify_added_device();
+            post_added();
+        }
     };
 
     struct libinput_paired_keyboard
@@ -20396,23 +20414,6 @@ namespace netxs::lixx // li++, libinput++.
         }
         return fallback_dispatch_create(li, ud_device, udev_tags);
     }
-        void evdev_notify_added_device(libinput_device_sptr li_device)//todo move to device_t
-        {
-            for (auto d : li_device->li->device_list)
-            {
-                if (d != li_device)
-                {
-                    d->device_added(li_device); // Notify existing device d about addition of device.
-                    li_device->device_added(d); // Notify new device about existing device d.
-                    if (d->is_suspended) // Notify new device if existing device d is suspended.
-                    {
-                        li_device->device_suspended(d);
-                    }
-                }
-            }
-            li_device->notify_added_device();
-            li_device->post_added();
-        }
     libinput_device_sptr libinput_device_create(libinput_sptr li, ud_device_sptr ud_device)
     {
         ud_device->evdev_read_model_flags(li);
@@ -20432,7 +20433,7 @@ namespace netxs::lixx // li++, libinput++.
             li_device->source = li->timers.libinput_add_event_source(ud_device->fd, [&]{ li_device_inst.evdev_device_dispatch(); });
             li_device->device_group = li_device->udev_device_get_property_value("LIBINPUT_DEVICE_GROUP");
             li->device_list.push_back(li_device);
-            evdev_notify_added_device(li_device);
+            li_device->evdev_notify_added_device();
             li_device->evdev_read_calibration_prop();
         }
         else
