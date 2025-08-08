@@ -5494,9 +5494,9 @@ namespace netxs::lixx // li++, libinput++.
             }
         }
         template<class Li>
-        bool evdev_read_attr_res_prop(Li li, si32_coor& res)
+        bool evdev_read_attr_res_prop(Li& li, si32_coor& res)
         {
-            auto quirks_v = li->quirks;
+            auto quirks_v = li.quirks;
             if (auto q = quirks_fetch_for_device(quirks_v))
             {
                 auto dim = si32_coor{};
@@ -5509,9 +5509,9 @@ namespace netxs::lixx // li++, libinput++.
             return faux;
         }
         template<class Li>
-        bool evdev_read_attr_size_prop(Li li, si32_coor& size)
+        bool evdev_read_attr_size_prop(Li& li, si32_coor& size)
         {
-            auto quirks = li->quirks;
+            auto quirks = li.quirks;
             if (auto q = quirks_fetch_for_device(quirks))
             {
                 auto dim = si32_coor{};
@@ -5524,7 +5524,7 @@ namespace netxs::lixx // li++, libinput++.
             return faux;
         }
         template<class Li>
-        si32 evdev_fix_abs_resolution(Li li, ui32 xcode, ui32 ycode)
+        si32 evdev_fix_abs_resolution(Li& li, ui32 xcode, ui32 ycode)
         {
             static constexpr auto fake_resolution = dot_11;
             auto mm = si32_coor{};
@@ -5586,7 +5586,7 @@ namespace netxs::lixx // li++, libinput++.
             return 0;
         }
         template<class Li>
-        void evdev_extract_abs_axes(Li li, ui32 udev_tags)
+        void evdev_extract_abs_axes(Li& li, ui32 udev_tags)
         {
             auto fuzz = 0;
             if (!libevdev_has_event_code<EV_ABS>(ABS_X)
@@ -5634,11 +5634,11 @@ namespace netxs::lixx // li++, libinput++.
             is_mt = 1;
         }
         template<class Li>
-        bool evdev_device_has_model_quirk(Li li, quirk model_quirk)
+        bool evdev_device_has_model_quirk(Li& li, quirk model_quirk)
         {
             auto result = faux;
             assert(quirks_t::quirk_get_name(model_quirk) != nullptr);
-            auto quirks_v = li->quirks;
+            auto quirks_v = li.quirks;
             if (auto q = quirks_fetch_for_device(quirks_v))
             {
                 q->quirks_get(model_quirk, result);
@@ -5646,7 +5646,7 @@ namespace netxs::lixx // li++, libinput++.
             return result;
         }
         template<class Li>
-        void evdev_pre_configure_model_quirks(Li li)
+        void evdev_pre_configure_model_quirks(Li& li)
         {
             auto prop = text{};
             //auto is_virtual = faux;
@@ -5656,7 +5656,7 @@ namespace netxs::lixx // li++, libinput++.
                 libevdev_set_abs_maximum(ABS_MT_SLOT, 1);
             }
             // Generally we don't care about MSC_TIMESTAMP and it can cause unnecessary wakeups but on some devices we need to watch it for pointer jumps.
-            auto quirks_v = li->quirks;
+            auto quirks_v = li.quirks;
             auto q = quirks_fetch_for_device(quirks_v);
             if (!q || !q->quirks_get(QUIRK_ATTR_MSC_TIMESTAMP, prop) || "watch"sv != prop)
             {
@@ -5719,7 +5719,7 @@ namespace netxs::lixx // li++, libinput++.
             }
         }
         template<class Li>
-        void evdev_read_model_flags(Li li)
+        void evdev_read_model_flags(Li& li)
         {
             #define X(name) { QUIRK_MODEL_##name, EVDEV_MODEL_##name }
             static constexpr auto model_map = std::to_array<std::pair<lixx::quirk, libinput_device_model>>(
@@ -5734,7 +5734,7 @@ namespace netxs::lixx // li++, libinput++.
             });
             #undef X
             auto all_model_flags = 0u;
-            auto quirks_v = li->quirks;
+            auto quirks_v = li.quirks;
             if (auto q = quirks_fetch_for_device(quirks_v))
             {
                 for (auto [quirk, model] : model_map)
@@ -6309,8 +6309,9 @@ namespace netxs::lixx // li++, libinput++.
             time                                    first_event_time{};
         };
 
-        libinput_sptr                           li;
-        ud_device_sptr                          ud_device;
+        libinput_t&                             li;
+        ud_device_sptr                            ud_device;
+        //ud_device_t&                            ud_device;
         text                                    device_group; //todo Property for tablet touch arbitration. Set LIBINPUT_DEVICE_GROUP somewhere in settings (or in quirks) for devices intended to be in a group (e.g. tablet+stylus).
         std::list<libinput_event_listener_sptr> event_listeners;
         libinput_device_config                  config;
@@ -6334,9 +6335,9 @@ namespace netxs::lixx // li++, libinput++.
         evdev_middlebutton_t                    middlebutton;
         evdev_frame                             frame;
 
-        libinput_device_t(libinput_sptr li, ud_device_sptr ud_device)
+        libinput_device_t(libinput_t& li, ud_device_sptr ud_device_ptr)
             :      li{ li },
-            ud_device{ ud_device }
+            ud_device{ ud_device_ptr }
         { }
         virtual ~libinput_device_t()
         { }
@@ -6510,7 +6511,7 @@ namespace netxs::lixx // li++, libinput++.
         {
             if (device_has_cap(LIBINPUT_DEVICE_CAP_POINTER))
             {
-                auto& motion_event = li->libinput_emplace_event<libinput_event_pointer>();
+                auto& motion_event = li.libinput_emplace_event<libinput_event_pointer>();
                 motion_event.delta     = delta;
                 motion_event.delta_raw = raw;
                 post_device_event(stamp, LIBINPUT_EVENT_POINTER_MOTION, motion_event);
@@ -6520,7 +6521,7 @@ namespace netxs::lixx // li++, libinput++.
         {
             if (device_has_cap(LIBINPUT_DEVICE_CAP_POINTER))
             {
-                auto& motion_absolute_event = li->libinput_emplace_event<libinput_event_pointer>();
+                auto& motion_absolute_event = li.libinput_emplace_event<libinput_event_pointer>();
                 motion_absolute_event.absolute  = point;
                 motion_absolute_event.absinfo_x = ud_device->abs.absinfo_x;
                 motion_absolute_event.absinfo_y = ud_device->abs.absinfo_y;
@@ -6613,14 +6614,14 @@ namespace netxs::lixx // li++, libinput++.
         {
             if (device_has_cap(LIBINPUT_DEVICE_CAP_POINTER))
             {
-                auto& axis_event = li->libinput_emplace_event<libinput_event_pointer>();
+                auto& axis_event = li.libinput_emplace_event<libinput_event_pointer>();
                 axis_event.delta       = delta;
                 axis_event.discrete    = {};
                 axis_event.v120        = {};
                 axis_event.source      = LIBINPUT_POINTER_AXIS_SOURCE_FINGER;
                 axis_event.active_axes = active_axes;
                 post_device_event(stamp, LIBINPUT_EVENT_POINTER_SCROLL_FINGER, axis_event);
-                auto& axis_event_legacy = li->libinput_emplace_event<libinput_event_pointer>();
+                auto& axis_event_legacy = li.libinput_emplace_event<libinput_event_pointer>();
                 axis_event_legacy = axis_event;
                 post_device_event(stamp, LIBINPUT_EVENT_POINTER_AXIS, axis_event_legacy);
             }
@@ -6629,14 +6630,14 @@ namespace netxs::lixx // li++, libinput++.
         {
             if (device_has_cap(LIBINPUT_DEVICE_CAP_POINTER))
             {
-                auto& axis_event = li->libinput_emplace_event<libinput_event_pointer>();
+                auto& axis_event = li.libinput_emplace_event<libinput_event_pointer>();
                 axis_event.delta       = delta;
                 axis_event.discrete    = {};
                 axis_event.v120        = {};
                 axis_event.source      = LIBINPUT_POINTER_AXIS_SOURCE_CONTINUOUS;
                 axis_event.active_axes = active_axes;
                 post_device_event(stamp, LIBINPUT_EVENT_POINTER_SCROLL_CONTINUOUS, axis_event);
-                auto& axis_event_legacy = li->libinput_emplace_event<libinput_event_pointer>();
+                auto& axis_event_legacy = li.libinput_emplace_event<libinput_event_pointer>();
                 axis_event_legacy = axis_event;
                 post_device_event(stamp, LIBINPUT_EVENT_POINTER_AXIS, axis_event_legacy);
             }
@@ -7043,8 +7044,8 @@ namespace netxs::lixx // li++, libinput++.
             {
                 if (device_has_cap(LIBINPUT_DEVICE_CAP_POINTER))
                 {
-                    auto seat_button_count = li->update_seat_button_count(button, state);
-                    auto& button_event = li->libinput_emplace_event<libinput_event_pointer>();
+                    auto seat_button_count = li.update_seat_button_count(button, state);
+                    auto& button_event = li.libinput_emplace_event<libinput_event_pointer>();
                     button_event.button            = button;
                     button_event.seat_button_count = seat_button_count;
                     button_event.state             = state;
@@ -7069,7 +7070,7 @@ namespace netxs::lixx // li++, libinput++.
             if (!is_suspended)
             {
                 auto self = This();
-                for (auto d : li->device_list) // Fire on all but specified.
+                for (auto d : li.device_list) // Fire on all but specified.
                 {
                     if (d != self)
                     {
@@ -7084,7 +7085,7 @@ namespace netxs::lixx // li++, libinput++.
             if (is_suspended)
             {
                 auto self = This();
-                for (auto d : li->device_list)
+                for (auto d : li.device_list)
                 {
                     if (d != self)
                     {
@@ -7104,7 +7105,7 @@ namespace netxs::lixx // li++, libinput++.
             #if EVENT_DEBUGGING
             evdev_print_event(ev, now);
             #endif
-            li->timers.libinput_timer_flush(now);
+            li.timers.libinput_timer_flush(now);
             process(ev, now);
         }
         void evdev_device_dispatch_one(evdev_event& ev, time now)
@@ -7136,9 +7137,9 @@ namespace netxs::lixx // li++, libinput++.
         void evdev_note_time_delay(input_event_t& ev)
         {
             auto event_time = ev.input_event_time();
-            if (li->dispatch_time != time{} && event_time <= li->dispatch_time) // If we have a current libinput_dispatch() snapshot, compare our event time with the one from the snapshot. If we have more than 10ms delay, complain about it. This catches delays in processing where there is no steady event flow and thus SYN_DROPPED may not get hit by the kernel despite us being too slow.
+            if (li.dispatch_time != time{} && event_time <= li.dispatch_time) // If we have a current libinput_dispatch() snapshot, compare our event time with the one from the snapshot. If we have more than 10ms delay, complain about it. This catches delays in processing where there is no steady event flow and thus SYN_DROPPED may not get hit by the kernel despite us being too slow.
             {
-                auto tdelta = li->dispatch_time - event_time;
+                auto tdelta = li.dispatch_time - event_time;
                 if (tdelta > 20ms)
                 {
                     log("event processing lagging behind by %dms%, your system is too slow", tdelta);
@@ -7147,14 +7148,14 @@ namespace netxs::lixx // li++, libinput++.
         }
         void notify_removed_device()
         {
-            auto& event = li->libinput_emplace_event<libinput_event_device_notify>();
+            auto& event = li.libinput_emplace_event<libinput_event_device_notify>();
             event.stamp     = datetime::now();
             event.type      = LIBINPUT_EVENT_DEVICE_REMOVED;
             event.li_device = This();
         }
         void notify_added_device()
         {
-            auto& event = li->libinput_emplace_event<libinput_event_device_notify>();
+            auto& event = li.libinput_emplace_event<libinput_event_device_notify>();
             event.stamp     = datetime::now();
             event.type      = LIBINPUT_EVENT_DEVICE_ADDED;
             event.li_device = This();
@@ -7214,13 +7215,13 @@ namespace netxs::lixx // li++, libinput++.
             }
             if (rc != -EAGAIN && rc != -EINTR)
             {
-                li->timers.libinput_remove_event_source(source);
+                li.timers.libinput_remove_event_source(source);
             }
         }
         void remove_device()
         {
             auto self = This();
-            std::erase_if(li->device_list, [&](auto d)
+            std::erase_if(li.device_list, [&](auto d)
             {
                 if (d == self)
                 {
@@ -7233,7 +7234,7 @@ namespace netxs::lixx // li++, libinput++.
                     return faux;
                 }
             });
-            std::erase_if(li->ud_monitor->ud_device_list, [&](auto d){ return d.second == ud_device; });
+            std::erase_if(li.ud_monitor->ud_device_list, [&](auto d){ return d.second == ud_device; });
             log("Device '%%' removed", devname);
         }
         si32 evdev_device_resume()
@@ -7255,7 +7256,7 @@ namespace netxs::lixx // li++, libinput++.
                 status = libevdev_next_event(LIBEVDEV_READ_FLAG_SYNC, ev);
             }
             while (status == LIBEVDEV_READ_STATUS_SYNC);
-            source = li->timers.libinput_add_event_source(ud_device->fd, [&]{ evdev_device_dispatch(); });
+            source = li.timers.libinput_add_event_source(ud_device->fd, [&]{ evdev_device_dispatch(); });
             if (!source)
             {
                 return -ENOMEM;
@@ -7269,7 +7270,7 @@ namespace netxs::lixx // li++, libinput++.
             suspend();
             if (source)
             {
-                li->timers.libinput_remove_event_source(source);
+                li.timers.libinput_remove_event_source(source);
             }
             if (ud_device->fd != os::invalid_fd)
             {
@@ -7497,7 +7498,7 @@ namespace netxs::lixx // li++, libinput++.
         void evdev_init_middlebutton(bool enable, bool want_config)
         {
             auto timer_name = utf::fprint("%s% middlebutton", evdev_device_get_sysname());
-            middlebutton.timer = li->timers.create(timer_name, [&](time now){ evdev_middlebutton_handle_event(now, MIDDLEBUTTON_EVENT_TIMEOUT); });
+            middlebutton.timer = li.timers.create(timer_name, [&](time now){ evdev_middlebutton_handle_event(now, MIDDLEBUTTON_EVENT_TIMEOUT); });
             middlebutton.enabled_default = enable;
             middlebutton.want_enabled    = enable;
             middlebutton.enabled         = enable;
@@ -7723,7 +7724,7 @@ namespace netxs::lixx // li++, libinput++.
         void evdev_init_button_scroll(void(*change_scroll_method)(libinput_device_sptr))
         {
             auto timer_name = utf::fprint("%s% btnscroll", evdev_device_get_sysname());
-            scroll.timer = li->timers.create(timer_name, [&](time){ evdev_button_scroll_timeout(); });
+            scroll.timer = li.timers.create(timer_name, [&](time){ evdev_button_scroll_timeout(); });
             scroll.config.get_methods             = evdev_scroll_get_methods;
             scroll.config.set_method              = evdev_scroll_set_method;
             scroll.config.get_method              = evdev_scroll_get_method;
@@ -7747,7 +7748,7 @@ namespace netxs::lixx // li++, libinput++.
         }
         void tablet_notify_proximity(time now, libinput_tablet_tool_sptr tool, libinput_tablet_tool_proximity_state proximity_state, tablet_axes_bitset& changed_axes, tablet_axes const& axes, abs_info_t const* x, abs_info_t const* y)
         {
-            auto& proximity_event = li->libinput_emplace_event<libinput_event_tablet_tool>();
+            auto& proximity_event = li.libinput_emplace_event<libinput_event_tablet_tool>();
             proximity_event.axes              = axes;
             proximity_event.tool              = tool;
             proximity_event.proximity_state   = proximity_state;
@@ -7759,7 +7760,7 @@ namespace netxs::lixx // li++, libinput++.
         }
         void tablet_notify_tip(time now, libinput_tablet_tool_sptr tool, libinput_tablet_tool_tip_state tip_state, tablet_axes_bitset& changed_axes, tablet_axes const& axes, abs_info_t const* x, abs_info_t const* y)
         {
-            auto& tip_event = li->libinput_emplace_event<libinput_event_tablet_tool>();
+            auto& tip_event = li.libinput_emplace_event<libinput_event_tablet_tool>();
             tip_event.axes              = axes;
             tip_event.tool              = tool;
             tip_event.proximity_state   = LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_IN;
@@ -7771,7 +7772,7 @@ namespace netxs::lixx // li++, libinput++.
         }
         void tablet_notify_axis(time now, libinput_tablet_tool_sptr tool, libinput_tablet_tool_tip_state tip_state, tablet_axes_bitset& changed_axes, tablet_axes const& axes, abs_info_t const* x, abs_info_t const* y)
         {
-            auto& axis_event = li->libinput_emplace_event<libinput_event_tablet_tool>();
+            auto& axis_event = li.libinput_emplace_event<libinput_event_tablet_tool>();
             axis_event.axes              = axes;
             axis_event.tool              = tool;
             axis_event.proximity_state   = LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_IN;
@@ -7783,10 +7784,10 @@ namespace netxs::lixx // li++, libinput++.
         }
         void tablet_notify_button(time now, libinput_tablet_tool_sptr tool, libinput_tablet_tool_tip_state tip_state, tablet_axes const& axes, ui32 button, libinput_button_state state, abs_info_t const* x, abs_info_t const* y)
         {
-            auto& button_event = li->libinput_emplace_event<libinput_event_tablet_tool>();
+            auto& button_event = li.libinput_emplace_event<libinput_event_tablet_tool>();
             button_event.button            = button;
             button_event.state             = state;
-            button_event.seat_button_count = li->update_seat_button_count(button, state);
+            button_event.seat_button_count = li.update_seat_button_count(button, state);
             button_event.axes              = axes;
             button_event.tool              = tool;
             button_event.proximity_state   = LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_IN;
@@ -8025,7 +8026,7 @@ namespace netxs::lixx // li++, libinput++.
         void evdev_notify_added_device()
         {
             auto self = This();
-            for (auto d : li->device_list)
+            for (auto d : li.device_list)
             {
                 if (d != self)
                 {
@@ -10266,7 +10267,7 @@ namespace netxs::lixx // li++, libinput++.
                                                         {
                                                             if (tp.device_has_cap(LIBINPUT_DEVICE_CAP_GESTURE))
                                                             {
-                                                                auto& gesture_event = tp.li->libinput_emplace_event<libinput_event_gesture>();
+                                                                auto& gesture_event = tp.li.libinput_emplace_event<libinput_event_gesture>();
                                                                 gesture_event.finger_count  = finger_count;
                                                                 gesture_event.cancelled     = cancelled;
                                                                 gesture_event.delta         = delta;
@@ -13541,7 +13542,7 @@ namespace netxs::lixx // li++, libinput++.
                 if (tp.sendevents_current_mode == LIBINPUT_CONFIG_SEND_EVENTS_DISABLED_ON_EXTERNAL_MOUSE)
                 {
                     auto found = faux;
-                    for (auto d : tp.li->device_list)
+                    for (auto d : tp.li.device_list)
                     {
                         if (d != removed_li_device && (d->device_tags & EVDEV_TAG_EXTERNAL_MOUSE))
                         {
@@ -13669,7 +13670,7 @@ namespace netxs::lixx // li++, libinput++.
                     {
                         return faux;
                     }
-                    auto quirks = tp.li->quirks;
+                    auto quirks = tp.li.quirks;
                     if (auto q = tp.ud_device->quirks_fetch_for_device(quirks))
                     {
                         auto r = si32_range{};
@@ -13710,7 +13711,7 @@ namespace netxs::lixx // li++, libinput++.
                     }
                     auto abs = tp.libevdev_get_abs_info(code);
                     assert(abs);
-                    auto quirks = tp.li->quirks;
+                    auto quirks = tp.li.quirks;
                     auto q = tp.ud_device->quirks_fetch_for_device(quirks);
                     auto r = si32_range{};
                     auto hi = 0;
@@ -13929,7 +13930,7 @@ namespace netxs::lixx // li++, libinput++.
                     tp.tap.drag_enabled = tp_drag_default(tp.This());
                     tp.tap.drag_lock = tp_drag_lock_default(tp.This());
                     auto timer_name = utf::fprint("%s% tap", tp.evdev_device_get_sysname());
-                    tp.tap.timer = tp.li->timers.create(timer_name, [&](time now){ tp_tap_handle_timeout(now); });
+                    tp.tap.timer = tp.li.timers.create(timer_name, [&](time now){ tp_tap_handle_timeout(now); });
                 }
                     bool tp_guess_clickpad()
                     {
@@ -14090,7 +14091,7 @@ namespace netxs::lixx // li++, libinput++.
                     {
                         auto timer_name = utf::fprint("%s% (%d%) button", tp.evdev_device_get_sysname(), ++i);
                         t.button.state = BUTTON_STATE_NONE;
-                        t.button.timer = tp.li->timers.create(timer_name, [&](time now){ tp_button_handle_event(t, BUTTON_EVENT_TIMEOUT, now); });
+                        t.button.timer = tp.li.timers.create(timer_name, [&](time now){ tp_button_handle_event(t, BUTTON_EVENT_TIMEOUT, now); });
                     }
                 }
                     static si32 tp_dwt_config_is_available([[maybe_unused]] libinput_device_sptr li_device)
@@ -14129,7 +14130,7 @@ namespace netxs::lixx // li++, libinput++.
                     {
                         auto rc = faux;
                         auto prop = text{};
-                        auto quirks = tp.li->quirks;
+                        auto quirks = tp.li.quirks;
                         if (auto q = tp.ud_device->quirks_fetch_for_device(quirks); q->quirks_get(QUIRK_ATTR_TPKBCOMBO_LAYOUT, prop))
                         {
                             rc = prop == "below"sv;
@@ -14200,7 +14201,7 @@ namespace netxs::lixx // li++, libinput++.
                     void tp_init_palmdetect_arbitration()
                     {
                         auto timer_name = utf::fprint("%s% arbitration", tp.evdev_device_get_sysname());
-                        tp.arbitration.arbitration_timer = tp.li->timers.create(timer_name, [&](time){ tp_arbitration_timeout(); });
+                        tp.arbitration.arbitration_timer = tp.li.timers.create(timer_name, [&](time){ tp_arbitration_timeout(); });
                         tp.arbitration.state = ARBITRATION_NOT_ACTIVE;
                     }
                     void tp_init_palmdetect_edge()
@@ -14231,7 +14232,7 @@ namespace netxs::lixx // li++, libinput++.
                         {
                             static constexpr auto default_palm_threshold = ui32{ 130 };
                             auto threshold = default_palm_threshold;
-                            auto quirks = tp.li->quirks;
+                            auto quirks = tp.li.quirks;
                             if (auto q = tp.ud_device->quirks_fetch_for_device(quirks))
                             {
                                 q->quirks_get(QUIRK_ATTR_PALM_PRESSURE_THRESHOLD, threshold);
@@ -14254,7 +14255,7 @@ namespace netxs::lixx // li++, libinput++.
                     }
                     void tp_init_palmdetect_size()
                     {
-                        auto quirks = tp.li->quirks;
+                        auto quirks = tp.li.quirks;
                         if (auto q = tp.ud_device->quirks_fetch_for_device(quirks))
                         {
                             auto threshold = ui32{};
@@ -14318,8 +14319,8 @@ namespace netxs::lixx // li++, libinput++.
                     auto sysname = tp.evdev_device_get_sysname();
                     auto tp_timer_name = utf::fprint("%s% trackpoint", sysname);
                     auto kb_timer_name = utf::fprint("%s% keyboard", sysname);
-                    tp.palm.trackpoint_timer = tp.li->timers.create(tp_timer_name, [&](time now){ tp_trackpoint_timeout(now); });
-                    tp.dwt.keyboard_timer = tp.li->timers.create(kb_timer_name, [&](time now){ tp_keyboard_timeout(now); });
+                    tp.palm.trackpoint_timer = tp.li.timers.create(tp_timer_name, [&](time now){ tp_trackpoint_timeout(now); });
+                    tp.dwt.keyboard_timer = tp.li.timers.create(kb_timer_name, [&](time now){ tp_keyboard_timeout(now); });
                 }
                     void tp_edge_scroll_init()
                     {
@@ -14339,7 +14340,7 @@ namespace netxs::lixx // li++, libinput++.
                         {
                             auto timer_name = utf::fprint("%s% (%d%) edgescroll", tp.evdev_device_get_sysname(), i++);
                             t.scroll.direction = -1;
-                            t.scroll.timer = tp.li->timers.create(timer_name, [&](time now){ tp_edge_scroll_handle_event(t, SCROLL_EVENT_TIMEOUT, now); });
+                            t.scroll.timer = tp.li.timers.create(timer_name, [&](time now){ tp_edge_scroll_handle_event(t, SCROLL_EVENT_TIMEOUT, now); });
                         }
                     }
                 bool tp_pass_sanity_check()
@@ -14646,9 +14647,9 @@ namespace netxs::lixx // li++, libinput++.
                 auto gestures_timer_name = utf::fprint("%s% gestures", sysname);
                 auto hold_timer_name     = utf::fprint("%s% hold", sysname);
                 auto drag_3fg_timer_name = utf::fprint("%s% drag_3fg", sysname);
-                tp.gesture.finger_count_switch_timer = tp.li->timers.create(gestures_timer_name, [&](time now){ tp_gesture_finger_count_switch_timeout(now); });
-                tp.gesture.hold_timer                = tp.li->timers.create(hold_timer_name    , [&](time now){ tp_gesture_hold_timeout(now);                });
-                tp.gesture.drag_3fg_timer            = tp.li->timers.create(drag_3fg_timer_name, [&](time now){ tp_gesture_3fg_drag_timeout(now);            });
+                tp.gesture.finger_count_switch_timer = tp.li.timers.create(gestures_timer_name, [&](time now){ tp_gesture_finger_count_switch_timeout(now); });
+                tp.gesture.hold_timer                = tp.li.timers.create(hold_timer_name    , [&](time now){ tp_gesture_hold_timeout(now);                });
+                tp.gesture.drag_3fg_timer            = tp.li.timers.create(drag_3fg_timer_name, [&](time now){ tp_gesture_3fg_drag_timeout(now);            });
             }
             void tp_init_thumb()
             {
@@ -14668,7 +14669,7 @@ namespace netxs::lixx // li++, libinput++.
                 mm.y = h * 0.92;
                 edges = tp.evdev_device_mm_to_units(mm);
                 tp.thumb.lower_thumb_line = edges.y;
-                auto quirks = tp.li->quirks;
+                auto quirks = tp.li.quirks;
                 if (auto q = tp.ud_device->quirks_fetch_for_device(quirks))
                 {
                     auto threshold = ui32{};
@@ -14741,7 +14742,7 @@ namespace netxs::lixx // li++, libinput++.
             }
             void tp_suspend_conditional()
             {
-                for (auto d : tp.li->device_list)
+                for (auto d : tp.li.device_list)
                 {
                     if (d->device_tags & EVDEV_TAG_EXTERNAL_MOUSE)
                     {
@@ -14756,7 +14757,7 @@ namespace netxs::lixx // li++, libinput++.
                     #if HAVE_LIBWACOM
                     if (li_device->tags & EVDEV_TAG_TABLET_TOUCHPAD)
                     {
-                        auto db = tp.li->libinput_libwacom_ref();
+                        auto db = tp.li.libinput_libwacom_ref();
                         if (db)
                         {
                             // Check if we have a device with the same vid/pid. If not, we need to loop through all devices and check their paired device.
@@ -14872,7 +14873,7 @@ namespace netxs::lixx // li++, libinput++.
             std::list<libinput_tablet_pad_mode_group_sptr> mode_group_list;
         };
 
-        pad_dispatch(auto&&... args)
+        pad_dispatch(auto&... args)
             : libinput_device_t{ args... }
         { }
 
@@ -15036,7 +15037,7 @@ namespace netxs::lixx // li++, libinput++.
                                 }
                                 void tablet_pad_notify_dial(time stamp, ui32 number, fp64 value, libinput_tablet_pad_mode_group_sptr group)
                                 {
-                                    auto& dial_event = pad.li->libinput_emplace_event<libinput_event_tablet_pad>();
+                                    auto& dial_event = pad.li.libinput_emplace_event<libinput_event_tablet_pad>();
                                     dial_event.mode       = group->current_mode;
                                     dial_event.mode_group = group;
                                     dial_event.dial       = { .v120 = value, .number = (si32)number };
@@ -15101,7 +15102,7 @@ namespace netxs::lixx // li++, libinput++.
                                 }
                                 void tablet_pad_notify_ring(time stamp, ui32 number, fp64 value, libinput_tablet_pad_ring_axis_source source, libinput_tablet_pad_mode_group_sptr group)
                                 {
-                                    auto& ring_event = pad.li->libinput_emplace_event<libinput_event_tablet_pad>();
+                                    auto& ring_event = pad.li.libinput_emplace_event<libinput_event_tablet_pad>();
                                     ring_event.mode       = group->current_mode;
                                     ring_event.mode_group = group;
                                     ring_event.ring       = { .source = source,
@@ -15176,7 +15177,7 @@ namespace netxs::lixx // li++, libinput++.
                                 }
                                 void tablet_pad_notify_strip(time stamp, ui32 number, fp64 value, libinput_tablet_pad_strip_axis_source source, libinput_tablet_pad_mode_group_sptr group)
                                 {
-                                    auto& strip_event = pad.li->libinput_emplace_event<libinput_event_tablet_pad>();
+                                    auto& strip_event = pad.li.libinput_emplace_event<libinput_event_tablet_pad>();
                                     strip_event.mode       = group->current_mode;
                                     strip_event.mode_group = group;
                                     strip_event.strip      = { .source = source,
@@ -15320,7 +15321,7 @@ namespace netxs::lixx // li++, libinput++.
                                     }
                                     void tablet_pad_notify_button(time stamp, ui32 button, libinput_button_state state, libinput_tablet_pad_mode_group_sptr group)
                                     {
-                                        auto& button_event = pad.li->libinput_emplace_event<libinput_event_tablet_pad>();
+                                        auto& button_event = pad.li.libinput_emplace_event<libinput_event_tablet_pad>();
                                         button_event.mode       = group->current_mode;
                                         button_event.mode_group = group;
                                         button_event.button     = { .number = button, .state = state };
@@ -15328,7 +15329,7 @@ namespace netxs::lixx // li++, libinput++.
                                     }
                                     void tablet_pad_notify_key(time stamp, si32 key, libinput_key_state state)
                                     {
-                                        auto& key_event = pad.li->libinput_emplace_event<libinput_event_tablet_pad>();
+                                        auto& key_event = pad.li.libinput_emplace_event<libinput_event_tablet_pad>();
                                         key_event.key.code  = (ui32)key;
                                         key_event.key.state = state;
                                         pad.post_device_event(stamp, LIBINPUT_EVENT_TABLET_PAD_KEY, key_event);
@@ -15593,7 +15594,7 @@ namespace netxs::lixx // li++, libinput++.
         bool                    button_state_previous;
         libinput_arbitration_state arbitration_state;
 
-        totem_dispatch(auto&&... args)
+        totem_dispatch(auto&... args)
             : libinput_device_t{ args... }
         { }
 
@@ -15617,7 +15618,7 @@ namespace netxs::lixx // li++, libinput++.
                 tool->axis_caps_bits.set(LIBINPUT_TABLET_TOOL_AXIS_SIZE_MAJOR);
                 tool->axis_caps_bits.set(LIBINPUT_TABLET_TOOL_AXIS_SIZE_MINOR);
                 tool->buttons_bits.set(BTN_0);
-                totem.li->tool_list.push_back(tool);
+                totem.li.tool_list.push_back(tool);
                 return tool;
             }
             void slot_axes_initialize(totem_slot& slot)
@@ -16042,7 +16043,7 @@ namespace netxs::lixx // li++, libinput++.
         rotation_t                           rotation;
         quirks_t                             quirks;
 
-        tablet_dispatch(auto&&... args)
+        tablet_dispatch(auto&... args)
             : libinput_device_t{ args... }
         { }
         ~tablet_dispatch()
@@ -16053,7 +16054,7 @@ namespace netxs::lixx // li++, libinput++.
                 timer.reset();
             }
             tool_list.clear();
-            li->libinput_libwacom_unref();
+            li.libinput_libwacom_unref();
         }
 
         struct tablet_impl_t
@@ -16416,7 +16417,7 @@ namespace netxs::lixx // li++, libinput++.
                                     {
                                         auto rc = faux;
                                         #if HAVE_LIBWACOM
-                                        auto db = tablet.li->libwacom.db;
+                                        auto db = tablet.li.libwacom.db;
                                         if (!db) return rc;
                                         #pragma GCC diagnostic push
                                         #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
@@ -16531,11 +16532,11 @@ namespace netxs::lixx // li++, libinput++.
                             }
                         libinput_tablet_tool_sptr tablet_get_tool(libinput_tablet_tool_type type, ui32 tool_id, ui32 serial)
                         {
-                            auto li = tablet.li;
+                            auto& li = tablet.li;
                             auto tool = libinput_tablet_tool_sptr{};
                             if (serial)
                             {
-                                for (auto t : li->tool_list) // Check if we already have the tool in our list of tools.
+                                for (auto t : li.tool_list) // Check if we already have the tool in our list of tools.
                                 {
                                     if (type == t->type && serial == t->serial)
                                     {
@@ -16558,7 +16559,7 @@ namespace netxs::lixx // li++, libinput++.
                             if (!tool) // If we didn't already have the new_tool in our list of tools, add it.
                             {
                                 tool = tablet_new_tool(type, tool_id, serial);
-                                auto& dest_list = serial ? li->tool_list : tablet.tool_list; // Select dest_tool so we create in the correct list.
+                                auto& dest_list = serial ? li.tool_list : tablet.tool_list; // Select dest_tool so we create in the correct list.
                                 dest_list.push_back(tool);
                             }
                             return tool;
@@ -16620,7 +16621,7 @@ namespace netxs::lixx // li++, libinput++.
                         bool tablet_get_quirked_pressure_thresholds(si32* hi, si32* lo)
                         {
                             auto status = faux;
-                            auto quirks = tablet.li->quirks;
+                            auto quirks = tablet.li.quirks;
                             if (auto q = tablet.ud_device->quirks_fetch_for_device(quirks))
                             {
                                 // Note: the quirk term "range" refers to the hi/lo settings, not the full available range for the pressure axis.
@@ -17799,7 +17800,7 @@ namespace netxs::lixx // li++, libinput++.
                 {
                     auto history_size = std::size(tablet.history.samples);
                     auto use_smoothing = true;
-                    auto quirks = li_device->li->quirks;
+                    auto quirks = li_device->li.quirks;
                     if (auto q = li_device->ud_device->quirks_fetch_for_device(quirks))
                     {
                         // By default, always enable smoothing except on AES or uinput devices. AttrTabletSmoothing can override this, if necessary.
@@ -17879,11 +17880,11 @@ namespace netxs::lixx // li++, libinput++.
             si32 tablet_init(libinput_device_sptr li_device)
             {
                 static auto tablet_ids = 0u;
-                auto li = li_device->li;
+                auto& li = li_device->li;
                 auto rc = -1;
                 auto wacom = (WacomDevice*)nullptr;
                 #if HAVE_LIBWACOM
-                auto db = li->libinput_libwacom_ref();
+                auto db = li.libinput_libwacom_ref();
                 if (db)
                 {
                     char event_path[64];
@@ -17936,7 +17937,7 @@ namespace netxs::lixx // li++, libinput++.
                         }
                         tablet.status |= TABLET_TOOL_OUT_OF_PROXIMITY;
                         tablet.quirks.need_to_force_prox_out = true; // We always enable the proximity out quirk, but disable it once a device gives us the right event sequence.
-                        tablet.quirks.prox_out_timer = li->timers.create("proxout", [&](time now){ tablet_proximity_out_quirk_timer_func(now); });
+                        tablet.quirks.prox_out_timer = li.timers.create("proxout", [&](time now){ tablet_proximity_out_quirk_timer_func(now); });
                     }
                 }
                 #if HAVE_LIBWACOM
@@ -18051,7 +18052,7 @@ namespace netxs::lixx // li++, libinput++.
         fb_lid_t                           lid;
         fb_arbitration_t                   arbitration;
 
-        fallback_dispatch(auto&&... args)
+        fallback_dispatch(auto&... args)
             : libinput_device_t{ args... }
         { }
         ~fallback_dispatch()
@@ -18384,8 +18385,8 @@ namespace netxs::lixx // li++, libinput++.
                             {
                                 if (fallback.device_has_cap(LIBINPUT_DEVICE_CAP_KEYBOARD))
                                 {
-                                    auto seat_key_count = fallback.li->update_seat_key_count(keycode, state);
-                                    auto& key_event = fallback.li->libinput_emplace_event<libinput_event_keyboard>();
+                                    auto seat_key_count = fallback.li.update_seat_key_count(keycode, state);
+                                    auto& key_event = fallback.li.libinput_emplace_event<libinput_event_keyboard>();
                                     key_event.key            = keycode;
                                     key_event.seat_key_count = seat_key_count;
                                     key_event.state          = state;
@@ -18453,7 +18454,7 @@ namespace netxs::lixx // li++, libinput++.
                                             {
                                                 if (fallback.device_has_cap(LIBINPUT_DEVICE_CAP_SWITCH))
                                                 {
-                                                    auto& switch_event = fallback.li->libinput_emplace_event<libinput_event_switch>();
+                                                    auto& switch_event = fallback.li.libinput_emplace_event<libinput_event_switch>();
                                                     switch_event.sw    = sw;
                                                     switch_event.state = state;
                                                     fallback.post_device_event(stamp, LIBINPUT_EVENT_SWITCH_TOGGLE, switch_event);
@@ -18613,7 +18614,7 @@ namespace netxs::lixx // li++, libinput++.
                             {
                                 if (fallback.device_has_cap(LIBINPUT_DEVICE_CAP_TOUCH))
                                 {
-                                    auto& touch_event = fallback.li->libinput_emplace_event<libinput_event_touch>();
+                                    auto& touch_event = fallback.li.libinput_emplace_event<libinput_event_touch>();
                                     touch_event.slot      = slot;
                                     touch_event.seat_slot = seat_slot;
                                     touch_event.point     = point;
@@ -18623,16 +18624,16 @@ namespace netxs::lixx // li++, libinput++.
                         bool fallback_flush_st_down(time stamp)
                         {
                             if (!(fallback.device_caps & EVDEV_DEVICE_TOUCH)) return faux;
-                            auto li = fallback.li;
+                            auto& li = fallback.li;
                             if (fallback.abs.seat_slot != -1)
                             {
                                 log("driver sent multiple touch down for the same slot");
                                 return faux;
                             }
-                            auto seat_slot = ::ffs(~li->seat_slot_map) - 1;
+                            auto seat_slot = ::ffs(~li.seat_slot_map) - 1;
                             fallback.abs.seat_slot = seat_slot;
                             if (seat_slot == -1) return faux;
-                            li->seat_slot_map |= (1ul << seat_slot);
+                            li.seat_slot_map |= (1ul << seat_slot);
                             auto point = fallback.abs.point;
                             fallback.evdev_transform_absolute(point);
                             touch_notify_touch_down(stamp, -1, seat_slot, point);
@@ -18642,7 +18643,7 @@ namespace netxs::lixx // li++, libinput++.
                             {
                                 if (fallback.device_has_cap(LIBINPUT_DEVICE_CAP_TOUCH))
                                 {
-                                    auto& touch_event = fallback.li->libinput_emplace_event<libinput_event_touch>();
+                                    auto& touch_event = fallback.li.libinput_emplace_event<libinput_event_touch>();
                                     touch_event.slot      = slot;
                                     touch_event.seat_slot = seat_slot;
                                     touch_event.point     = point;
@@ -18662,7 +18663,7 @@ namespace netxs::lixx // li++, libinput++.
                             {
                                 if (fallback.device_has_cap(LIBINPUT_DEVICE_CAP_TOUCH))
                                 {
-                                    auto& touch_event = fallback.li->libinput_emplace_event<libinput_event_touch>();
+                                    auto& touch_event = fallback.li.libinput_emplace_event<libinput_event_touch>();
                                     touch_event.slot      = slot;
                                     touch_event.seat_slot = seat_slot;
                                     fallback.post_device_event(stamp, LIBINPUT_EVENT_TOUCH_UP, touch_event);
@@ -18670,12 +18671,12 @@ namespace netxs::lixx // li++, libinput++.
                             }
                         bool fallback_flush_st_up(time stamp)
                         {
-                            auto li = fallback.li;
+                            auto& li = fallback.li;
                             if (!(fallback.device_caps & EVDEV_DEVICE_TOUCH)) return faux;
                             auto seat_slot = fallback.abs.seat_slot;
                             fallback.abs.seat_slot = -1;
                             if (seat_slot == -1) return faux;
-                            li->seat_slot_map &= ~(1ul << seat_slot);
+                            li.seat_slot_map &= ~(1ul << seat_slot);
                             touch_notify_touch_up(stamp, -1, seat_slot);
                             return true;
                         }
@@ -18683,7 +18684,7 @@ namespace netxs::lixx // li++, libinput++.
                                 {
                                     if (fallback.device_has_cap(LIBINPUT_DEVICE_CAP_TOUCH))
                                     {
-                                        auto& touch_event = fallback.li->libinput_emplace_event<libinput_event_touch>();
+                                        auto& touch_event = fallback.li.libinput_emplace_event<libinput_event_touch>();
                                         touch_event.slot      = slot;
                                         touch_event.seat_slot = seat_slot;
                                         fallback.post_device_event(stamp, LIBINPUT_EVENT_TOUCH_CANCEL, touch_event);
@@ -18691,13 +18692,13 @@ namespace netxs::lixx // li++, libinput++.
                                 }
                             bool fallback_flush_mt_cancel(si32 slot_idx, time stamp)
                             {
-                                auto li = fallback.li;
+                                auto& li = fallback.li;
                                 if (!(fallback.device_caps & EVDEV_DEVICE_TOUCH)) return faux;
                                 auto& slot = fallback.mt.slots[slot_idx];
                                 auto seat_slot = slot.seat_slot;
                                 slot.seat_slot = -1;
                                 if (seat_slot == -1) return faux;
-                                li->seat_slot_map &= ~(1ul << seat_slot);
+                                li.seat_slot_map &= ~(1ul << seat_slot);
                                 touch_notify_touch_cancel(stamp, slot_idx, seat_slot);
                                 return true;
                             }
@@ -18715,7 +18716,7 @@ namespace netxs::lixx // li++, libinput++.
                             }
                             bool fallback_flush_mt_down(si32 slot_idx, time stamp)
                             {
-                                auto li = fallback.li;
+                                auto& li = fallback.li;
                                 if (!(fallback.device_caps & EVDEV_DEVICE_TOUCH)) return faux;
                                 auto& slot = fallback.mt.slots[slot_idx];
                                 if (slot.seat_slot != -1)
@@ -18723,10 +18724,10 @@ namespace netxs::lixx // li++, libinput++.
                                     log("driver sent multiple touch down for the same slot");
                                     return faux;
                                 }
-                                auto seat_slot = ::ffs(~li->seat_slot_map) - 1;
+                                auto seat_slot = ::ffs(~li.seat_slot_map) - 1;
                                 slot.seat_slot = seat_slot;
                                 if (seat_slot == -1) return faux;
-                                li->seat_slot_map |= (1ul << seat_slot);
+                                li.seat_slot_map |= (1ul << seat_slot);
                                 auto point = slot.point;
                                 slot.hysteresis_center = point;
                                 fallback.evdev_transform_absolute(point);
@@ -18764,13 +18765,13 @@ namespace netxs::lixx // li++, libinput++.
                             }
                             bool fallback_flush_mt_up(si32 slot_idx, time stamp)
                             {
-                                auto li = fallback.li;
+                                auto& li = fallback.li;
                                 if (!(fallback.device_caps & EVDEV_DEVICE_TOUCH)) return faux;
                                 auto& slot = fallback.mt.slots[slot_idx];
                                 auto seat_slot = slot.seat_slot;
                                 slot.seat_slot = -1;
                                 if (seat_slot == -1) return faux;
-                                li->seat_slot_map &= ~(1ul << seat_slot);
+                                li.seat_slot_map &= ~(1ul << seat_slot);
                                 touch_notify_touch_up(stamp, slot_idx, seat_slot);
                                 return true;
                             }
@@ -18837,7 +18838,7 @@ namespace netxs::lixx // li++, libinput++.
                                         }
                                         if (fallback.device_has_cap(LIBINPUT_DEVICE_CAP_POINTER))
                                         {
-                                            auto& axis_event = fallback.li->libinput_emplace_event<libinput_event_pointer>();
+                                            auto& axis_event = fallback.li.libinput_emplace_event<libinput_event_pointer>();
                                             axis_event.delta       = delta;
                                             axis_event.discrete    = {};
                                             axis_event.v120        = v120;
@@ -18860,7 +18861,7 @@ namespace netxs::lixx // li++, libinput++.
                                         }
                                         if (fallback.device_has_cap(LIBINPUT_DEVICE_CAP_POINTER))
                                         {
-                                            auto& axis_event = fallback.li->libinput_emplace_event<libinput_event_pointer>();
+                                            auto& axis_event = fallback.li.libinput_emplace_event<libinput_event_pointer>();
                                             axis_event.delta       = delta;
                                             axis_event.discrete    = discrete;
                                             axis_event.v120        = {};
@@ -19278,7 +19279,7 @@ namespace netxs::lixx // li++, libinput++.
                         {
                             if (fallback.device_has_cap(LIBINPUT_DEVICE_CAP_TOUCH))
                             {
-                                auto& touch_event = fallback.li->libinput_emplace_event<libinput_event_touch>();
+                                auto& touch_event = fallback.li.libinput_emplace_event<libinput_event_touch>();
                                 fallback.post_device_event(stamp, LIBINPUT_EVENT_TOUCH_FRAME, touch_event);
                             }
                         }
@@ -19359,12 +19360,12 @@ namespace netxs::lixx // li++, libinput++.
                 }
                             bool fallback_flush_st_cancel(time stamp)
                             {
-                                auto li = fallback.li;
+                                auto& li = fallback.li;
                                 if (!(fallback.device_caps & EVDEV_DEVICE_TOUCH)) return faux;
                                 auto seat_slot = fallback.abs.seat_slot;
                                 fallback.abs.seat_slot = -1;
                                 if (seat_slot == -1) return faux;
-                                li->seat_slot_map &= ~(1ul << seat_slot);
+                                li.seat_slot_map &= ~(1ul << seat_slot);
                                 touch_notify_touch_cancel(stamp, -1, seat_slot);
                                 return true;
                             }
@@ -19680,7 +19681,7 @@ namespace netxs::lixx // li++, libinput++.
                 {
                     auto r = switch_reliability{};
                     auto prop = text{};
-                    auto quirks = li_device->li->quirks;
+                    auto quirks = li_device->li.quirks;
                     auto q = li_device->ud_device->quirks_fetch_for_device(quirks);
                     if (!q || !q->quirks_get(QUIRK_ATTR_LID_SWITCH_RELIABILITY, prop))
                     {
@@ -19803,9 +19804,9 @@ namespace netxs::lixx // li++, libinput++.
                 fallback.wheel.ignore_small_hi_res_movements = !fallback.evdev_device_is_virtual();
                 if (fallback.wheel.ignore_small_hi_res_movements)
                 {
-                    auto li = li_device->li;
+                    auto& li = li_device->li;
                     auto timer_name = utf::fprint("%s% wheel scroll", li_device->evdev_device_get_sysname());
-                    fallback.wheel.scroll_timer = li->timers.create(timer_name, [&](time now){ wheel_handle_event(WHEEL_EVENT_SCROLL_TIMEOUT, now);; });
+                    fallback.wheel.scroll_timer = li.timers.create(timer_name, [&](time now){ wheel_handle_event(WHEEL_EVENT_SCROLL_TIMEOUT, now);; });
                 }
             }
             void fallback_init_debounce()
@@ -19819,8 +19820,8 @@ namespace netxs::lixx // li++, libinput++.
                 auto ds_timer_name = utf::fprint("%s% debounce short", sysname);
                 auto db_timer_name = utf::fprint("%s% debounce", sysname);
                 fallback.debounce.state = DEBOUNCE_STATE_IS_UP;
-                fallback.debounce.timer_short = fallback.li->timers.create(ds_timer_name, [&](time now){ debounce_handle_event(DEBOUNCE_EVENT_TIMEOUT_SHORT, now); });
-                fallback.debounce.timer = fallback.li->timers.create(db_timer_name, [&](time now){ debounce_handle_event(DEBOUNCE_EVENT_TIMEOUT, now); });
+                fallback.debounce.timer_short = fallback.li.timers.create(ds_timer_name, [&](time now){ debounce_handle_event(DEBOUNCE_EVENT_TIMEOUT_SHORT, now); });
+                fallback.debounce.timer = fallback.li.timers.create(db_timer_name, [&](time now){ debounce_handle_event(DEBOUNCE_EVENT_TIMEOUT, now); });
             }
                 void fallback_arbitration_timeout()
                 {
@@ -19829,9 +19830,9 @@ namespace netxs::lixx // li++, libinput++.
                 }
             void fallback_init_arbitration(libinput_device_sptr li_device)
             {
-                auto li = li_device->li;
+                auto& li = li_device->li;
                 auto timer_name = utf::fprint("%s% arbitration", li_device->evdev_device_get_sysname());
-                fallback.arbitration.arbitration_timer = li->timers.create(timer_name, [&](time){ fallback_arbitration_timeout(); });
+                fallback.arbitration.arbitration_timer = li.timers.create(timer_name, [&](time){ fallback_arbitration_timeout(); });
                 fallback.arbitration.in_arbitration = faux;
             }
         };
@@ -19849,7 +19850,7 @@ namespace netxs::lixx // li++, libinput++.
         void     touch_arbitration_update_rect(fp64_rect area, time)                                       { fallback_impl.            fallback_interface_update_rect(area); }
         libinput_switch_state get_switch_state(libinput_switch which)                                      { return fallback_impl.fallback_interface_get_switch_state(which); }
     };
-    libinput_device_sptr evdev_totem_create(libinput_sptr li, ud_device_sptr ud_device)
+    libinput_device_sptr evdev_totem_create(libinput_t& li, ud_device_sptr ud_device)
     {
         ud_device->device_class += " totem";
         auto totem_ptr = totem_dispatch_sptr{};
@@ -19905,7 +19906,7 @@ namespace netxs::lixx // li++, libinput++.
             {
                 return LIBINPUT_CONFIG_SEND_EVENTS_ENABLED;
             }
-        libinput_device_sptr evdev_tablet_pad_create(libinput_sptr li, ud_device_sptr ud_device)
+        libinput_device_sptr evdev_tablet_pad_create(libinput_t& li, ud_device_sptr ud_device)
         {
             ud_device->device_class += " tabletpad";
             auto pad = ptr::shared<pad_dispatch>(li, ud_device);
@@ -19926,14 +19927,14 @@ namespace netxs::lixx // li++, libinput++.
             }
             return pad;
         }
-        libinput_device_sptr evdev_tablet_create(libinput_sptr li, ud_device_sptr ud_device)
+        libinput_device_sptr evdev_tablet_create(libinput_t& li, ud_device_sptr ud_device)
         {
             ud_device->device_class += " tablet";
             auto tablet_ptr = ptr::shared<tablet_dispatch>(li, ud_device);
             auto li_device = tablet_ptr;
             li_device->device_caps |= EVDEV_DEVICE_TABLET;
             #if HAVE_LIBWACOM
-            li->libinput_libwacom_ref();
+            li.libinput_libwacom_ref();
             #endif
             if (::getenv("LIBINPUT_RUNNING_TEST_SUITE"))
             {
@@ -19948,7 +19949,7 @@ namespace netxs::lixx // li++, libinput++.
         bool evdev_need_velocity_averaging(libinput_device_sptr li_device)
         {
             auto use_velocity_averaging = faux; // Default off unless we have quirk.
-            auto quirks = li_device->li->quirks;
+            auto quirks = li_device->li.quirks;
             if (auto q = li_device->ud_device->quirks_fetch_for_device(quirks))
             {
                 q->quirks_get(QUIRK_ATTR_USE_VELOCITY_AVERAGING, use_velocity_averaging);
@@ -20057,13 +20058,11 @@ namespace netxs::lixx // li++, libinput++.
             {
                 return LIBINPUT_CONFIG_SEND_EVENTS_ENABLED;
             }
-        libinput_device_sptr evdev_mt_touchpad_create(libinput_sptr li, ud_device_sptr ud_device, ui32 udev_tags)
+        libinput_device_sptr evdev_mt_touchpad_create(libinput_t& li, ud_device_sptr ud_device, ui32 udev_tags)
         {
             ud_device->device_class += " touchpad";
             auto tp_ptr = ptr::shared<tp_dispatch>(li, ud_device);
             auto& tp = *tp_ptr;
-            tp.li = li;
-            tp.ud_device = ud_device;
             if (udev_tags & EVDEV_UDEV_TAG_TABLET)
             {
                 tp.device_tags |= EVDEV_TAG_TABLET_TOUCHPAD;
@@ -20102,7 +20101,7 @@ namespace netxs::lixx // li++, libinput++.
                 return;
             }
             li_device->device_tags |= EVDEV_TAG_TRACKPOINT;
-            auto quirks = li_device->li->quirks;
+            auto quirks = li_device->li.quirks;
             if (auto q = li_device->ud_device->quirks_fetch_for_device(quirks))
             {
                 auto prop = text{};
@@ -20129,7 +20128,7 @@ namespace netxs::lixx // li++, libinput++.
             auto multiplier = 1.0;
             if (li_device->device_tags & EVDEV_TAG_TRACKPOINT)
             {
-                auto quirks = li_device->li->quirks;
+                auto quirks = li_device->li.quirks;
                 if (auto q = li_device->ud_device->quirks_fetch_for_device(quirks))
                 {
                     q->quirks_get(QUIRK_ATTR_TRACKPOINT_MULTIPLIER, multiplier);
@@ -20232,7 +20231,7 @@ namespace netxs::lixx // li++, libinput++.
                         return;
                     }
                 }
-                auto quirks = li_device->li->quirks;
+                auto quirks = li_device->li.quirks;
                 if (auto q = li_device->ud_device->quirks_fetch_for_device(quirks))
                 {
                     auto prop = text{};
@@ -20255,7 +20254,7 @@ namespace netxs::lixx // li++, libinput++.
                 li_device->device_tags |= EVDEV_TAG_KEYBOARD;
             }
         }
-        libinput_device_sptr fallback_dispatch_create(libinput_sptr li, ud_device_sptr ud_device, ui32 udev_tags)
+        libinput_device_sptr fallback_dispatch_create(libinput_t& li, ud_device_sptr ud_device, ui32 udev_tags)
         {
             auto fallback_ptr = ptr::shared<fallback_dispatch>(li, ud_device);
             auto li_device = fallback_ptr;
@@ -20373,7 +20372,7 @@ namespace netxs::lixx // li++, libinput++.
         }
     libinput_device_sptr libinput_t::libinput_device_create(ud_device_sptr ud_device)
     {
-        auto li = This();
+        auto& li = *this;
         ud_device->evdev_read_model_flags(li);
         ud_device->abs.calibration.matrix_init_identity();
         ud_device->abs.usermatrix.matrix_init_identity();
@@ -20429,9 +20428,9 @@ namespace netxs::lixx // li++, libinput++.
     }
     libinput_sptr libinput_create_context(void* user_data = nullptr)
     {
-        auto li = ptr::shared<libinput_t>();
-        li->libinput_init(user_data);
-        return li;
+        auto li_ptr = ptr::shared<libinput_t>();
+        li_ptr->libinput_init(user_data);
+        return li_ptr;
     }
     si32 libinput_device_config_rotation_is_available(libinput_device_sptr li_device)
     {
