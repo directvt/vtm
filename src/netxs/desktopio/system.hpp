@@ -4743,7 +4743,7 @@ namespace netxs::os
                     if (device->libinput_device_has_capability(LIBINPUT_DEVICE_CAP_POINTER))
                     {
                         count++;
-                        log("\tadded device: %% (%%)", device->ud_device->devpath, device->devname);
+                        log("\tadded device: %% (%%)", device->ud_device.devpath, device->devname);
                         auto rc = device->libinput_device_config_tap_set_enabled(LIBINPUT_CONFIG_TAP_ENABLED) == LIBINPUT_CONFIG_STATUS_SUCCESS;
                         log("\t  LIBINPUT_CONFIG_TAP_ENABLED: ", rc);
                         rc = device->libinput_device_config_scroll_set_method(LIBINPUT_CONFIG_SCROLL_2FG) == LIBINPUT_CONFIG_STATUS_SUCCESS;// | LIBINPUT_CONFIG_SCROLL_EDGE));
@@ -4813,7 +4813,7 @@ namespace netxs::os
                     if (device->libinput_device_has_capability(LIBINPUT_DEVICE_CAP_POINTER))
                     {
                         count++;
-                        auto& dev_path = device->ud_device->devpath;
+                        auto& dev_path = device->ud_device.devpath;
                         auto& dev_name = device->devname;
                         if (-1 != ::chmod(dev_path.data(), access))
                         {

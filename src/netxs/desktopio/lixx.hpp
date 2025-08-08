@@ -5962,18 +5962,18 @@ namespace netxs::lixx // li++, libinput++.
         }
         auto add_by_name(qiew filename, auto proc)
         {
-            auto ud_device = ud_device_sptr{};
+            auto ud_device_ptr = ud_device_sptr{};
             auto iter = ud_device_list.find(filename);
             if (iter == ud_device_list.end())
             {
-                ud_device = ptr::shared<ud_device_t>(filename);
-                if (ud_device->initialized && proc(ud_device))
+                ud_device_ptr = ptr::shared<ud_device_t>(filename);
+                if (ud_device_ptr->initialized && proc(*ud_device_ptr))
                 {
-                    ud_device_list[filename] = ud_device;
+                    ud_device_list[filename] = ud_device_ptr;
                 }
-                else ud_device.reset();
+                else ud_device_ptr.reset();
             }
-            return ud_device;
+            return ud_device_ptr;
         }
         void add_devices(auto proc)
         {
@@ -6072,11 +6072,11 @@ namespace netxs::lixx // li++, libinput++.
         event_source_sptr                     ud_monitor_handler;
         std::list<libinput_device_sptr>       device_list;
 
-        libinput_device_sptr libinput_device_create(ud_device_sptr ud_device);
+        libinput_device_sptr libinput_device_create(ud_device_t& ud_device);
 
         void evdev_udev_handler()
         {
-            ud_monitor->add_devices([&](auto ud_device)
+            ud_monitor->add_devices([&](auto& ud_device)
             {
                 return !!libinput_device_create(ud_device);
             });
@@ -6095,11 +6095,11 @@ namespace netxs::lixx // li++, libinput++.
                 {
                     auto monitor_fd = ud_monitor->udev_monitor_get_fd();
                     ud_monitor_handler = timers.libinput_add_event_source(monitor_fd, [&]{ evdev_udev_handler(); });
-                    for (auto [sysname, ud_device] : ud_monitor->ud_device_list) // Add all devices.
+                    for (auto [sysname, ud_device_ptr] : ud_monitor->ud_device_list) // Add all devices.
                     {
-                        if (ud_device->initialized)
+                        if (ud_device_ptr->initialized)
                         {
-                            libinput_device_create(ud_device);
+                            libinput_device_create(*ud_device_ptr);
                         }
                         else
                         {
@@ -6150,7 +6150,7 @@ namespace netxs::lixx // li++, libinput++.
         libinput_device_sptr libinput_add_device(qiew sysname)
         {
             auto li_device = libinput_device_sptr{};
-            ud_monitor->add_by_name(sysname, [&](ud_device_sptr ud_device)
+            ud_monitor->add_by_name(sysname, [&](ud_device_t& ud_device)
             {
                 li_device = libinput_device_create(ud_device);
                 return !!li_device;
@@ -6310,8 +6310,7 @@ namespace netxs::lixx // li++, libinput++.
         };
 
         libinput_t&                             li;
-        ud_device_sptr                            ud_device;
-        //ud_device_t&                            ud_device;
+        ud_device_t&                            ud_device;
         text                                    device_group; //todo Property for tablet touch arbitration. Set LIBINPUT_DEVICE_GROUP somewhere in settings (or in quirks) for devices intended to be in a group (e.g. tablet+stylus).
         std::list<libinput_event_listener_sptr> event_listeners;
         libinput_device_config                  config;
@@ -6335,9 +6334,9 @@ namespace netxs::lixx // li++, libinput++.
         evdev_middlebutton_t                    middlebutton;
         evdev_frame                             frame;
 
-        libinput_device_t(libinput_t& li, ud_device_sptr ud_device_ptr)
+        libinput_device_t(libinput_t& li, ud_device_t& ud_device)
             :      li{ li },
-            ud_device{ ud_device_ptr }
+            ud_device{ ud_device }
         { }
         virtual ~libinput_device_t()
         { }
@@ -6523,26 +6522,26 @@ namespace netxs::lixx // li++, libinput++.
             {
                 auto& motion_absolute_event = li.libinput_emplace_event<libinput_event_pointer>();
                 motion_absolute_event.absolute  = point;
-                motion_absolute_event.absinfo_x = ud_device->abs.absinfo_x;
-                motion_absolute_event.absinfo_y = ud_device->abs.absinfo_y;
+                motion_absolute_event.absinfo_x = ud_device.abs.absinfo_x;
+                motion_absolute_event.absinfo_y = ud_device.abs.absinfo_y;
                 post_device_event(stamp, LIBINPUT_EVENT_POINTER_MOTION_ABSOLUTE, motion_absolute_event);
             }
         }
         si32 libevdev_get_id_bustype()
         {
-            return ud_device->libevdev_get_id_bustype();
+            return ud_device.libevdev_get_id_bustype();
         }
         ui32 evdev_device_get_id_product()
         {
-            return ud_device->libevdev_get_id_product();
+            return ud_device.libevdev_get_id_product();
         }
         si32 libevdev_get_id_vendor()
         {
-            return ud_device->libevdev_get_id_vendor();
+            return ud_device.libevdev_get_id_vendor();
         }
         ui32 evdev_device_get_id_vendor()
         {
-            return ud_device->libevdev_get_id_vendor();
+            return ud_device.libevdev_get_id_vendor();
         }
         si32 libinput_device_config_left_handed_is_available()
         {
@@ -6556,14 +6555,14 @@ namespace netxs::lixx // li++, libinput++.
         fp64_coor evdev_device_units_to_mm(si32_coor units)
         {
             auto mm = fp64_coor{};
-            if (ud_device->abs.absinfo_x == nullptr || ud_device->abs.absinfo_y == nullptr)
+            if (ud_device.abs.absinfo_x == nullptr || ud_device.abs.absinfo_y == nullptr)
             {
                 log("%s%: is not an abs device", devname);
             }
             else
             {
-                auto& absx = *ud_device->abs.absinfo_x;
-                auto& absy = *ud_device->abs.absinfo_y;
+                auto& absx = *ud_device.abs.absinfo_x;
+                auto& absy = *ud_device.abs.absinfo_y;
                 mm.x = (units.x - absx.minimum) / absx.resolution;
                 mm.y = (units.y - absy.minimum) / absy.resolution;
             }
@@ -6577,13 +6576,13 @@ namespace netxs::lixx // li++, libinput++.
             {
                 case evdev::abs_x:
                 case evdev::abs_mt_position_x:
-                    min = ud_device->abs.warning_range_x.min;
-                    max = ud_device->abs.warning_range_x.max;
+                    min = ud_device.abs.warning_range_x.min;
+                    max = ud_device.abs.warning_range_x.max;
                     break;
                 case evdev::abs_y:
                 case evdev::abs_mt_position_y:
-                    min = ud_device->abs.warning_range_y.min;
-                    max = ud_device->abs.warning_range_y.max;
+                    min = ud_device.abs.warning_range_y.min;
+                    max = ud_device.abs.warning_range_y.max;
                     break;
                 default:
                     return;
@@ -6704,9 +6703,9 @@ namespace netxs::lixx // li++, libinput++.
         }
         void evdev_transform_absolute(si32_coor& point)
         {
-            if (ud_device->abs.apply_calibration)
+            if (ud_device.abs.apply_calibration)
             {
-                ud_device->abs.calibration.matrix_mult_vec(point);
+                ud_device.abs.calibration.matrix_mult_vec(point);
             }
         }
         ui32 evdev_to_left_handed(ui32 button)
@@ -7234,19 +7233,19 @@ namespace netxs::lixx // li++, libinput++.
                     return faux;
                 }
             });
-            std::erase_if(li.ud_monitor->ud_device_list, [&](auto d){ return d.second == ud_device; });
+            std::erase_if(li.ud_monitor->ud_device_list, [&](auto d){ return d.second.get() == &ud_device; });
             log("Device '%%' removed", devname);
         }
         si32 evdev_device_resume()
         {
-            if (ud_device->fd != os::invalid_fd) return 0;
+            if (ud_device.fd != os::invalid_fd) return 0;
             if (was_removed) return -ENODEV;
-            auto devnode = ud_device->udev_device_get_devnode();
+            auto devnode = ud_device.udev_device_get_devnode();
             if (!devnode) return -ENODEV;
             auto new_fd = ::open(devnode.data(), O_RDWR | O_NONBLOCK | O_CLOEXEC);
             if (new_fd == os::invalid_fd) return -errno;
             ud_device_t::evdev_drain_fd(new_fd);
-            ud_device->libevdev_change_fd(new_fd);
+            ud_device.libevdev_change_fd(new_fd);
             // Re-sync libevdev's view of the device, but discard the actual events. Our device is in a neutral state already.
             auto ev = input_event_t{};
             libevdev_next_event(LIBEVDEV_READ_FLAG_FORCE_SYNC, ev);
@@ -7256,7 +7255,7 @@ namespace netxs::lixx // li++, libinput++.
                 status = libevdev_next_event(LIBEVDEV_READ_FLAG_SYNC, ev);
             }
             while (status == LIBEVDEV_READ_STATUS_SYNC);
-            source = li.timers.libinput_add_event_source(ud_device->fd, [&]{ evdev_device_dispatch(); });
+            source = li.timers.libinput_add_event_source(ud_device.fd, [&]{ evdev_device_dispatch(); });
             if (!source)
             {
                 return -ENOMEM;
@@ -7272,10 +7271,10 @@ namespace netxs::lixx // li++, libinput++.
             {
                 li.timers.libinput_remove_event_source(source);
             }
-            if (ud_device->fd != os::invalid_fd)
+            if (ud_device.fd != os::invalid_fd)
             {
-                os::close(ud_device->fd);
-                ud_device->fd = os::invalid_fd;
+                os::close(ud_device.fd);
+                ud_device.fd = os::invalid_fd;
             }
         }
             static libinput_config_status evdev_sendevents_set_mode(libinput_device_sptr li_device, libinput_config_send_events_mode mode)
@@ -7322,14 +7321,14 @@ namespace netxs::lixx // li++, libinput++.
         {
             // Convert the pair of coordinates in mm to device units. This takes the axis min into account, i.e. 0 mm  is equivalent to the min.
             auto units = si32_coor{};
-            if (ud_device->abs.absinfo_x == nullptr || ud_device->abs.absinfo_y == nullptr)
+            if (ud_device.abs.absinfo_x == nullptr || ud_device.abs.absinfo_y == nullptr)
             {
                 log("%s%: is not an abs device", devname);
             }
             else
             {
-                auto absx = ud_device->abs.absinfo_x;
-                auto absy = ud_device->abs.absinfo_y;
+                auto absx = ud_device.abs.absinfo_x;
+                auto absy = ud_device.abs.absinfo_y;
                 units.x = mm.x * absx->resolution + absx->minimum;
                 units.y = mm.y * absy->resolution + absy->minimum;
             }
@@ -7337,134 +7336,134 @@ namespace netxs::lixx // li++, libinput++.
         }
         bool evdev_device_has_model_quirk(quirk model_quirk)
         {
-            return ud_device->evdev_device_has_model_quirk(li, model_quirk);
+            return ud_device.evdev_device_has_model_quirk(li, model_quirk);
         }
         si32 libevdev_fetch_slot_value(ui32 slot, ui32 code, si32& value)
         {
-            return ud_device->libevdev_fetch_slot_value(slot, code, value);
+            return ud_device.libevdev_fetch_slot_value(slot, code, value);
         }
         bool parse_udev_flag(view property)
         {
-            return ud_device->parse_udev_flag(property);
+            return ud_device.parse_udev_flag(property);
         }
         si32 libevdev_next_event(ui32 flags, input_event_t& ev)
         {
-            return ud_device->libevdev_next_event(flags, ev);
+            return ud_device.libevdev_next_event(flags, ev);
         }
         template<ui32 Type>
         si32 libevdev_has_event_code(ui32 code)
         {
-            return ud_device->libevdev_has_event_code<Type>(code);
+            return ud_device.libevdev_has_event_code<Type>(code);
         }
         template<ui32 Type>
         si32 libevdev_has_event_type()
         {
-            return ud_device->libevdev_has_event_type<Type>();
+            return ud_device.libevdev_has_event_type<Type>();
         }
         template<ui32 Type>
         void libevdev_disable_event_code(ui32 code)
         {
-            ud_device->libevdev_disable_event_code<Type>(code);
+            ud_device.libevdev_disable_event_code<Type>(code);
         }
         si32 libevdev_has_property(ui32 prop)
         {
-            return ud_device->libevdev_has_property(prop);
+            return ud_device.libevdev_has_property(prop);
         }
         template<ui32 Type>
         void libevdev_enable_event_code(ui32 code, void const* data)
         {
-            ud_device->libevdev_enable_event_code<Type>(code, data);
+            ud_device.libevdev_enable_event_code<Type>(code, data);
         }
         template<ui32 Type>
         void libevdev_disable_event_type()
         {
-            ud_device->libevdev_disable_event_type<Type>();
+            ud_device.libevdev_disable_event_type<Type>();
         }
         si32 libevdev_disable_property(ui32 prop)
         {
-            return ud_device->libevdev_disable_property(prop);
+            return ud_device.libevdev_disable_property(prop);
         }
         si32 libevdev_enable_property(ui32 prop)
         {
-            return ud_device->libevdev_enable_property(prop);
+            return ud_device.libevdev_enable_property(prop);
         }
         template<ui32 Type>
         si32 libevdev_enable_event_type()
         {
-            return ud_device->libevdev_enable_event_type<Type>();
+            return ud_device.libevdev_enable_event_type<Type>();
         }
         si32 libevdev_get_num_slots()
         {
-            return ud_device->libevdev_get_num_slots();
+            return ud_device.libevdev_get_num_slots();
         }
         si32 libevdev_get_current_slot()
         {
-            return ud_device->libevdev_get_current_slot();
+            return ud_device.libevdev_get_current_slot();
         }
         si32 libevdev_get_slot_value(ui32 slot, ui32 code)
         {
-            return ud_device->libevdev_get_slot_value(slot, code);
+            return ud_device.libevdev_get_slot_value(slot, code);
         }
         template<ui32 Type>
         si32 libevdev_get_event_value(ui32 code)
         {
-            return ud_device->libevdev_get_event_value<Type>(code);
+            return ud_device.libevdev_get_event_value<Type>(code);
         }
         auto udev_device_get_property_value(view property)
         {
-            return ud_device->udev_device_get_property_value(property);
+            return ud_device.udev_device_get_property_value(property);
         }
         auto udev_device_get_devpath()
         {
-            return ud_device->udev_device_get_devpath();
+            return ud_device.udev_device_get_devpath();
         }
         qiew libevdev_get_name()
         {
-            return ud_device->libevdev_get_name();
+            return ud_device.libevdev_get_name();
         }
         fd_t libevdev_get_fd()
         {
-            return ud_device->libevdev_get_fd();
+            return ud_device.libevdev_get_fd();
         }
         void libevdev_set_abs_maximum(ui32 code, si32 val)
         {
-            ud_device->libevdev_set_abs_maximum(code, val);
+            ud_device.libevdev_set_abs_maximum(code, val);
         }
         bool libinput_ud_device_is_virtual()
         {
-            return ud_device->libinput_ud_device_is_virtual();
+            return ud_device.libinput_ud_device_is_virtual();
         }
         void libevdev_set_abs_resolution(ui32 code, si32 val)
         {
-            ud_device->libevdev_set_abs_resolution(code, val);
+            ud_device.libevdev_set_abs_resolution(code, val);
         }
         void libevdev_set_abs_fuzz(ui32 code, si32 val)
         {
-            ud_device->libevdev_set_abs_fuzz(code, val);
+            ud_device.libevdev_set_abs_fuzz(code, val);
         }
         si32 libevdev_get_abs_fuzz(ui32 code)
         {
-            return ud_device->libevdev_get_abs_fuzz(code);
+            return ud_device.libevdev_get_abs_fuzz(code);
         }
         si32 libevdev_get_abs_maximum(ui32 code)
         {
-            return ud_device->libevdev_get_abs_maximum(code);
+            return ud_device.libevdev_get_abs_maximum(code);
         }
         si32 libevdev_get_abs_resolution(ui32 code)
         {
-            return ud_device->libevdev_get_abs_resolution(code);
+            return ud_device.libevdev_get_abs_resolution(code);
         }
         abs_info_t* libevdev_get_abs_info(ui32 code)
         {
-            return ud_device->libevdev_get_abs_info(code);
+            return ud_device.libevdev_get_abs_info(code);
         }
         void libevdev_set_abs_info(ui32 code, abs_info_t& absinfo)
         {
-            ud_device->libevdev_set_abs_info(code, absinfo);
+            ud_device.libevdev_set_abs_info(code, absinfo);
         }
         auto evdev_device_get_size()
         {
-            return ud_device->evdev_device_get_size();
+            return ud_device.evdev_device_get_size();
         }
         view evdev_device_get_sysname()
         {
@@ -7579,15 +7578,15 @@ namespace netxs::lixx // li++, libinput++.
                     auto translate = matrix{};
                     auto transform = matrix{};
                     transform.matrix_from_farray6(calibration);
-                    ud_device->abs.apply_calibration = !transform.matrix_is_identity();
-                    ud_device->abs.usermatrix.matrix_from_farray6(calibration); // Back up the user matrix so we can return it on request.
-                    if (!ud_device->abs.apply_calibration)
+                    ud_device.abs.apply_calibration = !transform.matrix_is_identity();
+                    ud_device.abs.usermatrix.matrix_from_farray6(calibration); // Back up the user matrix so we can return it on request.
+                    if (!ud_device.abs.apply_calibration)
                     {
-                        ud_device->abs.calibration.matrix_init_identity();
+                        ud_device.abs.calibration.matrix_init_identity();
                         return;
                     }
-                    auto sx = ud_device->abs.absinfo_x->absinfo_range();
-                    auto sy = ud_device->abs.absinfo_y->absinfo_range();
+                    auto sx = ud_device.abs.absinfo_x->absinfo_range();
+                    auto sy = ud_device.abs.absinfo_y->absinfo_range();
                     // The transformation matrix is in the form:
                     //  [ a b c ]
                     //  [ d e f ]
@@ -7607,21 +7606,21 @@ namespace netxs::lixx // li++, libinput++.
                     // Matrix maths requires the normalize/un-normalize in reverse order.
                     //
                     // - Un-Normalize.
-                    translate.matrix_init_translate(ud_device->abs.absinfo_x->minimum, ud_device->abs.absinfo_y->minimum);
+                    translate.matrix_init_translate(ud_device.abs.absinfo_x->minimum, ud_device.abs.absinfo_y->minimum);
                     scale.matrix_init_scale(sx, sy);
                     scale.matrix_mult(translate, scale);
                     // - Calibrate.
                     transform.matrix_mult(scale, transform);
                     // - Normalize.
-                    translate.matrix_init_translate(-ud_device->abs.absinfo_x->minimum / sx, -ud_device->abs.absinfo_y->minimum / sy);
+                    translate.matrix_init_translate(-ud_device.abs.absinfo_x->minimum / sx, -ud_device.abs.absinfo_y->minimum / sy);
                     scale.matrix_init_scale(1.0 / sx, 1.0 / sy);
                     scale.matrix_mult(translate, scale);
                     // - Store final matrix in device.
-                    ud_device->abs.calibration.matrix_mult(transform, scale);
+                    ud_device.abs.calibration.matrix_mult(transform, scale);
                 }
             static si32 evdev_calibration_has_matrix(libinput_device_sptr li_device)
             {
-                return li_device->ud_device->abs.absinfo_x && li_device->ud_device->abs.absinfo_y;
+                return li_device->ud_device.abs.absinfo_x && li_device->ud_device.abs.absinfo_y;
             }
             static libinput_config_status evdev_calibration_set_matrix(libinput_device_sptr li_device, std::array<fp32, 6> const& matrix_data)
             {
@@ -7630,13 +7629,13 @@ namespace netxs::lixx // li++, libinput++.
             }
             static si32 evdev_calibration_get_matrix(libinput_device_sptr li_device, std::array<fp32, 6>& matrix_data)
             {
-                li_device->ud_device->abs.usermatrix.matrix_to_farray6(matrix_data);
-                return !li_device->ud_device->abs.usermatrix.matrix_is_identity();
+                li_device->ud_device.abs.usermatrix.matrix_to_farray6(matrix_data);
+                return !li_device->ud_device.abs.usermatrix.matrix_is_identity();
             }
             static si32 evdev_calibration_get_default_matrix(libinput_device_sptr li_device, std::array<fp32, 6>& matrix_data)
             {
-                li_device->ud_device->abs.default_calibration.matrix_to_farray6(matrix_data);
-                return !li_device->ud_device->abs.default_calibration.matrix_is_identity();
+                li_device->ud_device.abs.default_calibration.matrix_to_farray6(matrix_data);
+                return !li_device->ud_device.abs.default_calibration.matrix_is_identity();
             }
         void evdev_init_calibration(libinput_device_config_calibration& calibration)
         {
@@ -7744,7 +7743,7 @@ namespace netxs::lixx // li++, libinput++.
         }
         bool evdev_is_fake_mt_device()
         {
-            return ud_device->evdev_is_fake_mt_device();
+            return ud_device.evdev_is_fake_mt_device();
         }
         void tablet_notify_proximity(time now, libinput_tablet_tool_sptr tool, libinput_tablet_tool_proximity_state proximity_state, tablet_axes_bitset& changed_axes, tablet_axes const& axes, abs_info_t const* x, abs_info_t const* y)
         {
@@ -7871,7 +7870,7 @@ namespace netxs::lixx // li++, libinput++.
         void evdev_read_calibration_prop()
         {
             auto prop = udev_device_get_property_value("LIBINPUT_CALIBRATION_MATRIX");
-            if (prop && ud_device->abs.absinfo_x && ud_device->abs.absinfo_y) // Parses a set of 6 space-separated floats.
+            if (prop && ud_device.abs.absinfo_x && ud_device.abs.absinfo_y) // Parses a set of 6 space-separated floats.
             {
                 auto calibration = std::array<fp32, 6>{};
                 auto strv = utf::split<true>(prop, " ");
@@ -7891,7 +7890,7 @@ namespace netxs::lixx // li++, libinput++.
                             return;
                         }
                     }
-                    ud_device->abs.default_calibration.matrix_from_farray6(calibration);
+                    ud_device.abs.default_calibration.matrix_from_farray6(calibration);
                     evdev_device_calibrate(calibration);
                     log("Apply calibration: %f% %f% %f% %f% %f% %f%",
                             calibration[0],
@@ -7905,14 +7904,14 @@ namespace netxs::lixx // li++, libinput++.
         }
         void evdev_device_init_abs_range_warnings()
         {
-            auto& x = *ud_device->abs.absinfo_x;
-            auto& y = *ud_device->abs.absinfo_y;
-            auto& w = ud_device->abs.dimensions.x;
-            auto& h = ud_device->abs.dimensions.y;
-            ud_device->abs.warning_range_x.min = x.minimum - 0.05 * w;
-            ud_device->abs.warning_range_y.min = y.minimum - 0.05 * h;
-            ud_device->abs.warning_range_x.max = x.maximum + 0.05 * w;
-            ud_device->abs.warning_range_y.max = y.maximum + 0.05 * h;
+            auto& x = *ud_device.abs.absinfo_x;
+            auto& y = *ud_device.abs.absinfo_y;
+            auto& w = ud_device.abs.dimensions.x;
+            auto& h = ud_device.abs.dimensions.y;
+            ud_device.abs.warning_range_x.min = x.minimum - 0.05 * w;
+            ud_device.abs.warning_range_y.min = y.minimum - 0.05 * h;
+            ud_device.abs.warning_range_x.max = x.maximum + 0.05 * w;
+            ud_device.abs.warning_range_y.max = y.maximum + 0.05 * h;
         }
                 void evdev_init_accel(libinput_config_accel_profile which)
                 {
@@ -8371,9 +8370,9 @@ namespace netxs::lixx // li++, libinput++.
                                 switch (usage)
                                 {
                                     case evdev::abs_x:
-                                    case evdev::abs_mt_position_x: absinfo = tp.ud_device->abs.absinfo_x; break;
+                                    case evdev::abs_mt_position_x: absinfo = tp.ud_device.abs.absinfo_x; break;
                                     case evdev::abs_y:
-                                    case evdev::abs_mt_position_y: absinfo = tp.ud_device->abs.absinfo_y; break;
+                                    case evdev::abs_mt_position_y: absinfo = tp.ud_device.abs.absinfo_y; break;
                                     default: ::abort();
                                 }
                                 return absinfo->maximum - (value - absinfo->minimum);
@@ -8760,7 +8759,7 @@ namespace netxs::lixx // li++, libinput++.
                                 {
                                     auto nfake_touches = tp_fake_finger_count();
                                     if (nfake_touches == lixx::fake_finger_overflow) return;
-                                    if (tp.ud_device->model_flags & EVDEV_MODEL_SYNAPTICS_SERIAL_TOUCHPAD)
+                                    if (tp.ud_device.model_flags & EVDEV_MODEL_SYNAPTICS_SERIAL_TOUCHPAD)
                                     {
                                         tp_restore_synaptics_touches();
                                     }
@@ -8784,7 +8783,7 @@ namespace netxs::lixx // li++, libinput++.
                                     // libevdev.
                                     //
                                     // For a long explanation of what happens, see https://gitlab.freedesktop.org/libevdev/libevdev/merge_requests/19.
-                                    if (tp.ud_device->model_flags & EVDEV_MODEL_ALPS_SERIAL_TOUCHPAD
+                                    if (tp.ud_device.model_flags & EVDEV_MODEL_ALPS_SERIAL_TOUCHPAD
                                      && nfake_touches > 1 && tp.has_mt
                                      && tp.nactive_slots > 0
                                      && nfake_touches > tp.nactive_slots
@@ -9049,7 +9048,7 @@ namespace netxs::lixx // li++, libinput++.
                                     // Changing the numbers of fingers can cause a jump in the coordinates, always reset the motion history for all touches when that happens.
                                     if (tp.nfingers_down != tp.old_nfingers_down) return true;
                                     // Quirk: if we had multiple events without x/y axis information, the next x/y event is going to be a jump. So we reset that touch to non-dirty effectively swallowing that event and restarting with the next event again.
-                                    if (tp.ud_device->model_flags & EVDEV_MODEL_LENOVO_T450_TOUCHPAD)
+                                    if (tp.ud_device.model_flags & EVDEV_MODEL_LENOVO_T450_TOUCHPAD)
                                     {
                                         if (tp.queued & TOUCHPAD_EVENT_MOTION)
                                         {
@@ -9078,13 +9077,13 @@ namespace netxs::lixx // li++, libinput++.
                                     fp64_coor evdev_device_unit_delta_to_mm(si32_coor units)
                                     {
                                         auto mm = fp64_coor{};
-                                        if (tp.ud_device->abs.absinfo_x == nullptr || tp.ud_device->abs.absinfo_y == nullptr)
+                                        if (tp.ud_device.abs.absinfo_x == nullptr || tp.ud_device.abs.absinfo_y == nullptr)
                                         {
                                             log("%s%: is not an abs device", tp.devname);
                                             return mm;
                                         }
-                                        auto& absx = *tp.ud_device->abs.absinfo_x;
-                                        auto& absy = *tp.ud_device->abs.absinfo_y;
+                                        auto& absx = *tp.ud_device.abs.absinfo_x;
+                                        auto& absy = *tp.ud_device.abs.absinfo_y;
                                         mm.x = 1.0 * units.x / absx.resolution;
                                         mm.y = 1.0 * units.y / absy.resolution;
                                         return mm;
@@ -9110,7 +9109,7 @@ namespace netxs::lixx // li++, libinput++.
                                     // On some touchpads the firmware does funky stuff and we cannot have our own jump detection, e.g. Lenovo Carbon X1 Gen 6 (see issue #506).
                                     if (tp.jump.detection_disabled) return faux;
                                     // We haven't seen pointer jumps on Wacom tablets yet, so exclude those.
-                                    if (tp.ud_device->model_flags & EVDEV_MODEL_WACOM_TOUCHPAD) return faux;
+                                    if (tp.ud_device.model_flags & EVDEV_MODEL_WACOM_TOUCHPAD) return faux;
                                     if (t.history.count == 0)
                                     {
                                         t.jumps_last_delta_mm = 0.0;
@@ -9120,7 +9119,7 @@ namespace netxs::lixx // li++, libinput++.
                                     auto& last = tp_motion_history_offset(t, 0);
                                     auto tdelta = stamp - last.stamp;
                                     // For test devices we always force the time delta to 12, at least until the test suite actually does proper intervals.
-                                    if (tp.ud_device->model_flags & EVDEV_MODEL_TEST_DEVICE)
+                                    if (tp.ud_device.model_flags & EVDEV_MODEL_TEST_DEVICE)
                                     {
                                         reference_interval = tdelta;
                                     }
@@ -9137,7 +9136,7 @@ namespace netxs::lixx // li++, libinput++.
                                     // Special case for the ALPS devices in the Lenovo ThinkPad E465, E550. These devices send occasional 4095/0 events on two fingers before snapping back to the correct position.
                                     // https://gitlab.freedesktop.org/libinput/libinput/-/issues/492.
                                     // The specific values are hardcoded here, if this ever happens on any other device we can make it absmax/absmin instead.
-                                    if (tp.ud_device->model_flags & EVDEV_MODEL_ALPS_SERIAL_TOUCHPAD
+                                    if (tp.ud_device.model_flags & EVDEV_MODEL_ALPS_SERIAL_TOUCHPAD
                                      && t.point.x == 4095 && t.point.y == 0)
                                     {
                                         t.point = last.point;
@@ -9393,7 +9392,7 @@ namespace netxs::lixx // li++, libinput++.
                                             }
                                             fp64_coor tp_phys_delta(fp64_coor delta)
                                             {
-                                                auto mm = delta / tp.ud_device->abs.absinfo_x->resolution;
+                                                auto mm = delta / tp.ud_device.abs.absinfo_x->resolution;
                                                 return mm;
                                             }
                                         bool tp_palm_detect_move_out_of_edge(tp_touch& t, time stamp)
@@ -11095,8 +11094,8 @@ namespace netxs::lixx // li++, libinput++.
                                                     if (!real_touch || tp_thumb_ignored(t1) || tp_thumb_ignored(t2)) return 0;
                                                     auto x = (fp64)std::abs(t1.point.x - t2.point.x);
                                                     auto y = (fp64)std::abs(t1.point.y - t2.point.y);
-                                                    auto xres = tp.ud_device->abs.absinfo_x->resolution;
-                                                    auto yres = tp.ud_device->abs.absinfo_y->resolution;
+                                                    auto xres = tp.ud_device.abs.absinfo_x->resolution;
+                                                    auto yres = tp.ud_device.abs.absinfo_y->resolution;
                                                     x /= xres;
                                                     y /= yres;
                                                     auto within_distance = x <= 40 && y <= 30;
@@ -11107,9 +11106,9 @@ namespace netxs::lixx // li++, libinput++.
                                                             // If they're vertically spread between 20-40mm, they're not together if:
                                                             // - the touchpad's vertical size is >50mm, anything smaller is unlikely to have a thumb resting on it
                                                             // - and one of the touches is in the bottom 20mm of the touchpad and the other one isn't.
-                                                            if (tp.ud_device->abs.dimensions.y / yres >= 50)
+                                                            if (tp.ud_device.abs.dimensions.y / yres >= 50)
                                                             {
-                                                                auto bottom_threshold = tp.ud_device->abs.absinfo_y->maximum - 20 * yres;
+                                                                auto bottom_threshold = tp.ud_device.abs.absinfo_y->maximum - 20 * yres;
                                                                 if ((t1.point.y > bottom_threshold) != (t2.point.y > bottom_threshold))
                                                                 {
                                                                     within_distance = faux;
@@ -11276,7 +11275,7 @@ namespace netxs::lixx // li++, libinput++.
                                     }
                                 si32 tp_post_button_events(time stamp)
                                 {
-                                    auto clickpad = tp.buttons.is_clickpad || (tp.ud_device->model_flags & EVDEV_MODEL_APPLE_TOUCHPAD_ONEBUTTON);
+                                    auto clickpad = tp.buttons.is_clickpad || (tp.ud_device.model_flags & EVDEV_MODEL_APPLE_TOUCHPAD_ONEBUTTON);
                                     return clickpad ? tp_post_clickpadbutton_buttons(stamp)
                                                     : tp_post_physical_buttons(stamp);
                                 }
@@ -12003,7 +12002,7 @@ namespace netxs::lixx // li++, libinput++.
                                         auto mm = tp_phys_delta(t.point - t.tap.initial);
                                         // If we have more fingers down than slots, we know that synaptics touchpads are likely to give us pointer jumps. This triggers the movement threshold, making three-finger taps less reliable (#101435).
                                         // This uses the real nfingers_down, not the one for taps.
-                                        if ((tp.ud_device->model_flags & EVDEV_MODEL_SYNAPTICS_SERIAL_TOUCHPAD)
+                                        if ((tp.ud_device.model_flags & EVDEV_MODEL_SYNAPTICS_SERIAL_TOUCHPAD)
                                          && (tp.nfingers_down > 2 || tp.old_nfingers_down > 2)
                                          && (tp.nfingers_down > tp.num_slots || tp.old_nfingers_down > tp.num_slots))
                                         {
@@ -13671,7 +13670,7 @@ namespace netxs::lixx // li++, libinput++.
                         return faux;
                     }
                     auto quirks = tp.li.quirks;
-                    if (auto q = tp.ud_device->quirks_fetch_for_device(quirks))
+                    if (auto q = tp.ud_device.quirks_fetch_for_device(quirks))
                     {
                         auto r = si32_range{};
                         if (q->quirks_get(QUIRK_ATTR_TOUCH_SIZE_RANGE, r))
@@ -13712,7 +13711,7 @@ namespace netxs::lixx // li++, libinput++.
                     auto abs = tp.libevdev_get_abs_info(code);
                     assert(abs);
                     auto quirks = tp.li.quirks;
-                    auto q = tp.ud_device->quirks_fetch_for_device(quirks);
+                    auto q = tp.ud_device.quirks_fetch_for_device(quirks);
                     auto r = si32_range{};
                     auto hi = 0;
                     auto lo = 0;
@@ -13748,8 +13747,8 @@ namespace netxs::lixx // li++, libinput++.
                 {
                     auto xmargin = 0;
                     auto ymargin = 0;
-                    auto& ax = *tp.ud_device->abs.absinfo_x;
-                    auto& ay = *tp.ud_device->abs.absinfo_y;
+                    auto& ax = *tp.ud_device.abs.absinfo_x;
+                    auto& ay = *tp.ud_device.abs.absinfo_y;
                     xmargin = ax.fuzz ? ax.fuzz : ax.resolution / 4;
                     ymargin = ay.fuzz ? ay.fuzz : ay.resolution / 4;
                     tp.hysteresis.margin.x = xmargin;
@@ -13785,8 +13784,8 @@ namespace netxs::lixx // li++, libinput++.
                     auto filter = motion_filter_sptr{};
                     auto dpi = tp.dpi;
                     auto use_v_avg = tp.use_velocity_averaging;
-                    auto res_x = tp.ud_device->abs.absinfo_x->resolution;
-                    auto res_y = tp.ud_device->abs.absinfo_y->resolution;
+                    auto res_x = tp.ud_device.abs.absinfo_x->resolution;
+                    auto res_y = tp.ud_device.abs.absinfo_y->resolution;
                     // Not all touchpads report the same amount of units/mm (resolution).
                     // Normalize motion events to the default mouse DPI as base (unaccelerated) speed. This also evens out any differences in x and y resolution, so that a circle on the touchpad does not turn into an ellipse on the screen.
                     tp.accel_scale_coeff = { (lixx::default_mouse_dpi / 25.4) / res_x, (lixx::default_mouse_dpi / 25.4) / res_y };
@@ -13800,7 +13799,7 @@ namespace netxs::lixx // li++, libinput++.
                         filter = ptr::shared<custom_accelerator>();
                     }
                     else if (tp.evdev_device_has_model_quirk(QUIRK_MODEL_LENOVO_X230)
-                          || tp.ud_device->model_flags & EVDEV_MODEL_LENOVO_X220_TOUCHPAD_FW81)
+                          || tp.ud_device.model_flags & EVDEV_MODEL_LENOVO_X220_TOUCHPAD_FW81)
                     {
                         filter = ptr::shared<pointer_accelerator_x230>(dpi, use_v_avg);
                     }
@@ -13942,7 +13941,7 @@ namespace netxs::lixx // li++, libinput++.
                         // Exceptions here:
                         // - The one-button Apple touchpad (discontinued in 2008) has a single physical button.
                         // - Wacom touch devices have neither left nor right buttons.
-                        if (!is_clickpad && has_left && !has_right && !(tp.ud_device->model_flags & EVDEV_MODEL_APPLE_TOUCHPAD_ONEBUTTON))
+                        if (!is_clickpad && has_left && !has_right && !(tp.ud_device.model_flags & EVDEV_MODEL_APPLE_TOUCHPAD_ONEBUTTON))
                         {
                             log("missing right button, assuming it is a clickpad");
                             is_clickpad = true;
@@ -14028,7 +14027,7 @@ namespace netxs::lixx // li++, libinput++.
                             methods |= LIBINPUT_CONFIG_CLICK_METHOD_BUTTON_AREAS;
                             if (tp.has_mt) methods |= LIBINPUT_CONFIG_CLICK_METHOD_CLICKFINGER;
                         }
-                        if (li_device->ud_device->model_flags & EVDEV_MODEL_APPLE_TOUCHPAD_ONEBUTTON) methods |= LIBINPUT_CONFIG_CLICK_METHOD_CLICKFINGER;
+                        if (li_device->ud_device.model_flags & EVDEV_MODEL_APPLE_TOUCHPAD_ONEBUTTON) methods |= LIBINPUT_CONFIG_CLICK_METHOD_CLICKFINGER;
                         return methods;
                     }
                     static libinput_config_status tp_button_config_click_set_method(libinput_device_sptr li_device, libinput_config_click_method method)
@@ -14068,8 +14067,8 @@ namespace netxs::lixx // li++, libinput++.
                 {
                     tp.buttons.is_clickpad = tp_guess_clickpad();
                     tp.buttons.has_topbuttons = tp.libevdev_has_property(INPUT_PROP_TOPBUTTONPAD);
-                    auto absinfo_x = tp.ud_device->abs.absinfo_x;
-                    auto absinfo_y = tp.ud_device->abs.absinfo_y;
+                    auto absinfo_x = tp.ud_device.abs.absinfo_x;
+                    auto absinfo_y = tp.ud_device.abs.absinfo_y;
                     // Pinned-finger motion threshold, see tp_unpin_finger.
                     tp.buttons.motion_dist_scale_coeff                   = { 1.0 / absinfo_x->resolution, 1.0 / absinfo_y->resolution };
                     tp.buttons.config_method.get_methods                 = tp_button_config_click_get_methods;
@@ -14131,7 +14130,7 @@ namespace netxs::lixx // li++, libinput++.
                         auto rc = faux;
                         auto prop = text{};
                         auto quirks = tp.li.quirks;
-                        if (auto q = tp.ud_device->quirks_fetch_for_device(quirks); q->quirks_get(QUIRK_ATTR_TPKBCOMBO_LAYOUT, prop))
+                        if (auto q = tp.ud_device.quirks_fetch_for_device(quirks); q->quirks_get(QUIRK_ATTR_TPKBCOMBO_LAYOUT, prop))
                         {
                             rc = prop == "below"sv;
                         }
@@ -14233,7 +14232,7 @@ namespace netxs::lixx // li++, libinput++.
                             static constexpr auto default_palm_threshold = ui32{ 130 };
                             auto threshold = default_palm_threshold;
                             auto quirks = tp.li.quirks;
-                            if (auto q = tp.ud_device->quirks_fetch_for_device(quirks))
+                            if (auto q = tp.ud_device.quirks_fetch_for_device(quirks))
                             {
                                 q->quirks_get(QUIRK_ATTR_PALM_PRESSURE_THRESHOLD, threshold);
                             }
@@ -14256,7 +14255,7 @@ namespace netxs::lixx // li++, libinput++.
                     void tp_init_palmdetect_size()
                     {
                         auto quirks = tp.li.quirks;
-                        if (auto q = tp.ud_device->quirks_fetch_for_device(quirks))
+                        if (auto q = tp.ud_device.quirks_fetch_for_device(quirks))
                         {
                             auto threshold = ui32{};
                             if (q->quirks_get(QUIRK_ATTR_PALM_SIZE_THRESHOLD, threshold) && threshold != 0)
@@ -14361,20 +14360,20 @@ namespace netxs::lixx // li++, libinput++.
                 {
                     static constexpr auto touchpad_width_mm = 69; // 1 under palm detection.
                     static constexpr auto touchpad_height_mm = 50;
-                    if (!tp.ud_device->abs.is_fake_resolution) return;
+                    if (!tp.ud_device.abs.is_fake_resolution) return;
                     // We only get here if
                     // - the touchpad provides no resolution
                     // - the udev hwdb didn't override the resolution
                     // - no ATTR_SIZE_HINT is set
                     // The majority of touchpads that triggers all these conditions are old ones, so let's assume a small touchpad size and assume that.
-                    log("Device size is mx=%% my=%%. No resolution or size hints, assuming a size of %d%x%d%mm", tp.ud_device->abs.dimensions.x, tp.ud_device->abs.dimensions.y, touchpad_width_mm, touchpad_height_mm);
-                    auto xres = tp.ud_device->abs.dimensions.x / touchpad_width_mm;
-                    auto yres = tp.ud_device->abs.dimensions.y / touchpad_height_mm;
+                    log("Device size is mx=%% my=%%. No resolution or size hints, assuming a size of %d%x%d%mm", tp.ud_device.abs.dimensions.x, tp.ud_device.abs.dimensions.y, touchpad_width_mm, touchpad_height_mm);
+                    auto xres = tp.ud_device.abs.dimensions.x / touchpad_width_mm;
+                    auto yres = tp.ud_device.abs.dimensions.y / touchpad_height_mm;
                     tp.libevdev_set_abs_resolution(ABS_X, xres);
                     tp.libevdev_set_abs_resolution(ABS_Y, yres);
                     tp.libevdev_set_abs_resolution(ABS_MT_POSITION_X, xres);
                     tp.libevdev_set_abs_resolution(ABS_MT_POSITION_Y, yres);
-                    tp.ud_device->abs.is_fake_resolution = faux;
+                    tp.ud_device.abs.is_fake_resolution = faux;
                 }
                 void tp_init_pressurepad()
                 {
@@ -14670,7 +14669,7 @@ namespace netxs::lixx // li++, libinput++.
                 edges = tp.evdev_device_mm_to_units(mm);
                 tp.thumb.lower_thumb_line = edges.y;
                 auto quirks = tp.li.quirks;
-                if (auto q = tp.ud_device->quirks_fetch_for_device(quirks))
+                if (auto q = tp.ud_device.quirks_fetch_for_device(quirks))
                 {
                     auto threshold = ui32{};
                     if (tp.libevdev_has_event_code<EV_ABS>(ABS_MT_PRESSURE))
@@ -14712,7 +14711,7 @@ namespace netxs::lixx // li++, libinput++.
                 {
                     tp_init_pressure();
                 }
-                tp.dpi = tp.ud_device->abs.absinfo_x->resolution * 25.4; // Set the dpi to that of the x axis, because that's what we normalize to when needed.
+                tp.dpi = tp.ud_device.abs.absinfo_x->resolution * 25.4; // Set the dpi to that of the x axis, because that's what we normalize to when needed.
                 tp_init_hysteresis();
                 if (!tp_init_accel(LIBINPUT_CONFIG_ACCEL_PROFILE_ADAPTIVE))
                 {
@@ -14813,7 +14812,7 @@ namespace netxs::lixx // li++, libinput++.
             void tp_init_left_handed()
             {
                 tp.left_handed.must_rotate = tp_requires_rotation();
-                auto want_left_handed = !(tp.ud_device->model_flags & EVDEV_MODEL_APPLE_TOUCHPAD_ONEBUTTON);
+                auto want_left_handed = !(tp.ud_device.model_flags & EVDEV_MODEL_APPLE_TOUCHPAD_ONEBUTTON);
                 if (want_left_handed)
                 {
                     tp.evdev_init_left_handed(tp_change_to_left_handed);
@@ -15700,16 +15699,16 @@ namespace netxs::lixx // li++, libinput++.
                 {
                     case SLOT_STATE_BEGIN:
                         tip_state = LIBINPUT_TABLET_TOOL_TIP_DOWN;
-                        totem.tablet_notify_proximity(now, slot.tool, LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_IN, slot.changed_axes_bits, axes, totem.ud_device->abs.absinfo_x, totem.ud_device->abs.absinfo_y);
+                        totem.tablet_notify_proximity(now, slot.tool, LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_IN, slot.changed_axes_bits, axes, totem.ud_device.abs.absinfo_x, totem.ud_device.abs.absinfo_y);
                         totem_slot_reset_changed_axes(slot);
-                        totem.tablet_notify_tip(now, slot.tool, tip_state, slot.changed_axes_bits, axes, totem.ud_device->abs.absinfo_x, totem.ud_device->abs.absinfo_y);
+                        totem.tablet_notify_tip(now, slot.tool, tip_state, slot.changed_axes_bits, axes, totem.ud_device.abs.absinfo_x, totem.ud_device.abs.absinfo_y);
                         slot.state = SLOT_STATE_UPDATE;
                         break;
                     case SLOT_STATE_UPDATE:
                         tip_state = LIBINPUT_TABLET_TOOL_TIP_DOWN;
                         if (updated)
                         {
-                            totem.tablet_notify_axis(now, slot.tool, tip_state, slot.changed_axes_bits, axes, totem.ud_device->abs.absinfo_x, totem.ud_device->abs.absinfo_y);
+                            totem.tablet_notify_axis(now, slot.tool, tip_state, slot.changed_axes_bits, axes, totem.ud_device.abs.absinfo_x, totem.ud_device.abs.absinfo_y);
                         }
                         break;
                     case SLOT_STATE_END: /* prox out is handled after button events */ break;
@@ -15735,7 +15734,7 @@ namespace netxs::lixx // li++, libinput++.
                     {
                         btn_state = LIBINPUT_BUTTON_STATE_RELEASED;
                     }
-                    totem.tablet_notify_button(now, slot.tool, tip_state, axes, BTN_0, btn_state, totem.ud_device->abs.absinfo_x, totem.ud_device->abs.absinfo_y);
+                    totem.tablet_notify_button(now, slot.tool, tip_state, axes, BTN_0, btn_state, totem.ud_device.abs.absinfo_x, totem.ud_device.abs.absinfo_y);
                     totem.button_state_previous = totem.button_state_now;
                 }
                 switch(slot.state)
@@ -15744,9 +15743,9 @@ namespace netxs::lixx // li++, libinput++.
                     case SLOT_STATE_UPDATE: break;
                     case SLOT_STATE_END:
                         tip_state = LIBINPUT_TABLET_TOOL_TIP_UP;
-                        totem.tablet_notify_tip(now, slot.tool, tip_state, slot.changed_axes_bits, axes, totem.ud_device->abs.absinfo_x, totem.ud_device->abs.absinfo_y);
+                        totem.tablet_notify_tip(now, slot.tool, tip_state, slot.changed_axes_bits, axes, totem.ud_device.abs.absinfo_x, totem.ud_device.abs.absinfo_y);
                         totem_slot_reset_changed_axes(slot);
-                        totem.tablet_notify_proximity(now, slot.tool, LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_OUT, slot.changed_axes_bits, axes, totem.ud_device->abs.absinfo_x, totem.ud_device->abs.absinfo_y);
+                        totem.tablet_notify_proximity(now, slot.tool, LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_OUT, slot.changed_axes_bits, axes, totem.ud_device.abs.absinfo_x, totem.ud_device.abs.absinfo_y);
                         slot.state = SLOT_STATE_NONE;
                         break;
                     case SLOT_STATE_NONE: ::abort(); break;
@@ -15877,15 +15876,15 @@ namespace netxs::lixx // li++, libinput++.
                         tip_state = slot.state == SLOT_STATE_NONE ? LIBINPUT_TABLET_TOOL_TIP_UP : LIBINPUT_TABLET_TOOL_TIP_DOWN;
                         if (totem.button_state_now)
                         {
-                            totem.tablet_notify_button(now, slot.tool, tip_state, axes, BTN_0, LIBINPUT_BUTTON_STATE_RELEASED, totem.ud_device->abs.absinfo_x, totem.ud_device->abs.absinfo_y);
+                            totem.tablet_notify_button(now, slot.tool, tip_state, axes, BTN_0, LIBINPUT_BUTTON_STATE_RELEASED, totem.ud_device.abs.absinfo_x, totem.ud_device.abs.absinfo_y);
                             totem.button_state_now = faux;
                             totem.button_state_previous = faux;
                         }
                         if (slot.state != SLOT_STATE_NONE)
                         {
-                            totem.tablet_notify_tip(now, slot.tool, LIBINPUT_TABLET_TOOL_TIP_UP, slot.changed_axes_bits, axes, totem.ud_device->abs.absinfo_x, totem.ud_device->abs.absinfo_y);
+                            totem.tablet_notify_tip(now, slot.tool, LIBINPUT_TABLET_TOOL_TIP_UP, slot.changed_axes_bits, axes, totem.ud_device.abs.absinfo_x, totem.ud_device.abs.absinfo_y);
                         }
-                        totem.tablet_notify_proximity(now, slot.tool, LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_OUT, slot.changed_axes_bits, axes, totem.ud_device->abs.absinfo_x, totem.ud_device->abs.absinfo_y);
+                        totem.tablet_notify_proximity(now, slot.tool, LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_OUT, slot.changed_axes_bits, axes, totem.ud_device.abs.absinfo_x, totem.ud_device.abs.absinfo_y);
                     }
                 }
                 totem_set_touch_device_enabled(true, now);
@@ -15933,9 +15932,9 @@ namespace netxs::lixx // li++, libinput++.
                         slot_axes_initialize(slot);
                         totem_slot_mark_all_axes_changed(slot, slot.tool);
                         totem_slot_fetch_axes(slot, slot.tool, axes, now);
-                        li_device->tablet_notify_proximity(now, slot.tool, LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_IN, slot.changed_axes_bits, axes, li_device->ud_device->abs.absinfo_x, li_device->ud_device->abs.absinfo_y);
+                        li_device->tablet_notify_proximity(now, slot.tool, LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_IN, slot.changed_axes_bits, axes, li_device->ud_device.abs.absinfo_x, li_device->ud_device.abs.absinfo_y);
                         totem_slot_reset_changed_axes(slot);
-                        li_device->tablet_notify_tip(now, slot.tool, LIBINPUT_TABLET_TOOL_TIP_DOWN, slot.changed_axes_bits, axes, li_device->ud_device->abs.absinfo_x, li_device->ud_device->abs.absinfo_y);
+                        li_device->tablet_notify_tip(now, slot.tool, LIBINPUT_TABLET_TOOL_TIP_DOWN, slot.changed_axes_bits, axes, li_device->ud_device.abs.absinfo_x, li_device->ud_device.abs.absinfo_y);
                         slot.state = SLOT_STATE_UPDATE;
                         enable_touch = faux;
                     }
@@ -15960,7 +15959,7 @@ namespace netxs::lixx // li++, libinput++.
                 }
             si32 totem_init_accel(libinput_device_sptr li_device)
             {
-                auto resolution = si32_coor{ li_device->ud_device->abs.absinfo_x->resolution, li_device->ud_device->abs.absinfo_y->resolution };
+                auto resolution = si32_coor{ li_device->ud_device.abs.absinfo_x->resolution, li_device->ud_device.abs.absinfo_y->resolution };
                 auto filter = ptr::shared<tablet_accelerator_flat>(resolution); // Same filter as the tablet.
                 li_device->evdev_device_init_pointer_acceleration(filter);
                 // We override the profile hooks for accel configuration with hooks that don't allow selection of profiles.
@@ -16622,7 +16621,7 @@ namespace netxs::lixx // li++, libinput++.
                         {
                             auto status = faux;
                             auto quirks = tablet.li.quirks;
-                            if (auto q = tablet.ud_device->quirks_fetch_for_device(quirks))
+                            if (auto q = tablet.ud_device.quirks_fetch_for_device(quirks))
                             {
                                 // Note: the quirk term "range" refers to the hi/lo settings, not the full available range for the pressure axis.
                                 auto r = si32_range{};
@@ -16842,9 +16841,9 @@ namespace netxs::lixx // li++, libinput++.
                                     if (tablet.changed_axes_bits[LIBINPUT_TABLET_TOOL_AXIS_X]
                                      || tablet.changed_axes_bits[LIBINPUT_TABLET_TOOL_AXIS_Y])
                                     {
-                                        auto& absinfo_x = tablet.ud_device->abs.absinfo_x;
+                                        auto& absinfo_x = tablet.ud_device.abs.absinfo_x;
                                         tablet.axes.point.x = tablet.rotation.rotate ? absinfo_x->invert_axis() : absinfo_x->value;
-                                        auto& absinfo_y = tablet.ud_device->abs.absinfo_y;
+                                        auto& absinfo_y = tablet.ud_device.abs.absinfo_y;
                                         tablet.axes.point.y = tablet.rotation.rotate ? absinfo_y->invert_axis() : absinfo_y->value;
                                         // Calibration and area are currently mutually exclusive so one of those is a noop.
                                         tablet.evdev_transform_absolute(tablet.axes.point);
@@ -17349,8 +17348,8 @@ namespace netxs::lixx // li++, libinput++.
                         {
                             tablet.area.have_area = tablet.area.want_area;
                             log("tablet-area: area is %area%", tablet.area.have_area);
-                            auto absx = tablet.ud_device->abs.absinfo_x;
-                            auto absy = tablet.ud_device->abs.absinfo_y;
+                            auto absx = tablet.ud_device.abs.absinfo_x;
+                            auto absy = tablet.ud_device.abs.absinfo_y;
                             tablet.area.x.minimum = absx->axis_range_percentage(100 * (tablet.area.have_area.coor.x));
                             tablet.area.x.maximum = absx->axis_range_percentage(100 * (tablet.area.have_area.coor.x + tablet.area.have_area.size.x));
                             tablet.area.y.minimum = absy->axis_range_percentage(100 * (tablet.area.have_area.coor.y));
@@ -17395,7 +17394,7 @@ namespace netxs::lixx // li++, libinput++.
                                 // We allow a margin of 3% (6mm on a 200mm tablet) to be "within"
                                 // the area - there we clip to the area but do not ignore the
                                 // sequence.
-                                const auto point = si32_coor{ tablet.ud_device->abs.absinfo_x->value, tablet.ud_device->abs.absinfo_y->value };
+                                const auto point = si32_coor{ tablet.ud_device.abs.absinfo_x->value, tablet.ud_device.abs.absinfo_y->value };
                                 const auto margin = 0.03;
                                 if (is_inside_area(point, margin))
                                 {
@@ -17735,8 +17734,8 @@ namespace netxs::lixx // li++, libinput++.
                 {
                     tablet.area.have_area = fp64_rect{{ 0.0, 0.0 }, { 1.0, 1.0 }};
                     tablet.area.want_area = tablet.area.have_area;
-                    tablet.area.x = *li_device->ud_device->abs.absinfo_x;
-                    tablet.area.y = *li_device->ud_device->abs.absinfo_y;
+                    tablet.area.x = *li_device->ud_device.abs.absinfo_x;
+                    tablet.area.y = *li_device->ud_device.abs.absinfo_y;
                     if (!li_device->libevdev_has_property(INPUT_PROP_DIRECT))
                     {
                         li_device->config.area = &tablet.area.config;
@@ -17775,7 +17774,7 @@ namespace netxs::lixx // li++, libinput++.
                     }
                 si32 tablet_init_accel(libinput_device_sptr li_device)
                 {
-                    auto resolution = si32_coor{ li_device->ud_device->abs.absinfo_x->resolution, li_device->ud_device->abs.absinfo_y->resolution };
+                    auto resolution = si32_coor{ li_device->ud_device.abs.absinfo_x->resolution, li_device->ud_device.abs.absinfo_y->resolution };
                     auto filter = ptr::shared<tablet_accelerator_flat>(resolution);
                     li_device->evdev_device_init_pointer_acceleration(filter);
                     // We override the profile hooks for accel configuration with hooks that don't allow selection of profiles.
@@ -17801,7 +17800,7 @@ namespace netxs::lixx // li++, libinput++.
                     auto history_size = std::size(tablet.history.samples);
                     auto use_smoothing = true;
                     auto quirks = li_device->li.quirks;
-                    if (auto q = li_device->ud_device->quirks_fetch_for_device(quirks))
+                    if (auto q = li_device->ud_device.quirks_fetch_for_device(quirks))
                     {
                         // By default, always enable smoothing except on AES or uinput devices. AttrTabletSmoothing can override this, if necessary.
                         if (!q || !q->quirks_get(QUIRK_ATTR_TABLET_SMOOTHING, use_smoothing))
@@ -18332,8 +18331,8 @@ namespace netxs::lixx // li++, libinput++.
                         }
                     void fallback_process_absolute(evdev_event& ev)
                     {
-                        if (fallback.ud_device->is_mt) fallback_process_touch(ev);
-                        else                           fallback_process_absolute_motion(ev);
+                        if (fallback.ud_device.is_mt) fallback_process_touch(ev);
+                        else                          fallback_process_absolute_motion(ev);
                     }
                         void fallback_process_touch_button(si32 value)
                         {
@@ -18407,7 +18406,7 @@ namespace netxs::lixx // li++, libinput++.
                         if (ev.value == 2) return; // Ignore kernel key repeat.
                         if (ev.usage == evdev::btn_touch)
                         {
-                            if (!fallback.ud_device->is_mt)
+                            if (!fallback.ud_device.is_mt)
                             {
                                 fallback_process_touch_button(ev.value);
                             }
@@ -18876,7 +18875,7 @@ namespace netxs::lixx // li++, libinput++.
                                     auto discrete = si32_coor{};
                                     auto v120 = si32_coor{};
                                     // This mouse has a trackstick instead of a mouse wheel and sends trackstick data via REL_WHEEL. Normalize it like normal x/y coordinates.
-                                    if (fallback.ud_device->model_flags & EVDEV_MODEL_LENOVO_SCROLLPOINT)
+                                    if (fallback.ud_device.model_flags & EVDEV_MODEL_LENOVO_SCROLLPOINT)
                                     {
                                         auto raw = fp64_coor{ (fp64)fallback.wheel.lo_res.x, (fp64)fallback.wheel.lo_res.y * -1 };
                                         auto normalized = fallback.pointer_filter->filter_dispatch_scroll(raw, stamp);
@@ -19471,13 +19470,13 @@ namespace netxs::lixx // li++, libinput++.
                     si32_rect evdev_phys_rect_to_units(fp64_rect mm)
                     {
                         auto units = si32_rect{};
-                        if (fallback.ud_device->abs.absinfo_x == nullptr || fallback.ud_device->abs.absinfo_y == nullptr)
+                        if (fallback.ud_device.abs.absinfo_x == nullptr || fallback.ud_device.abs.absinfo_y == nullptr)
                         {
                             log("%s%: is not an abs device", fallback.devname);
                             return units;
                         }
-                        auto absx = fallback.ud_device->abs.absinfo_x;
-                        auto absy = fallback.ud_device->abs.absinfo_y;
+                        auto absx = fallback.ud_device.abs.absinfo_x;
+                        auto absy = fallback.ud_device.abs.absinfo_y;
                         units.coor.x = mm.coor.x * absx->resolution + absx->minimum;
                         units.coor.y = mm.coor.y * absy->resolution + absy->minimum;
                         units.size.x = mm.size.x * absx->resolution;
@@ -19659,8 +19658,8 @@ namespace netxs::lixx // li++, libinput++.
             void fallback_dispatch_init_abs(libinput_device_sptr li_device)
             {
                 if (!li_device->libevdev_has_event_code<EV_ABS>(ABS_X)) return;
-                fallback.abs.point.x = li_device->ud_device->abs.absinfo_x->value;
-                fallback.abs.point.y = li_device->ud_device->abs.absinfo_y->value;
+                fallback.abs.point.x = li_device->ud_device.abs.absinfo_x->value;
+                fallback.abs.point.y = li_device->ud_device.abs.absinfo_y->value;
                 fallback.abs.seat_slot = -1;
                 li_device->evdev_device_init_abs_range_warnings();
             }
@@ -19682,7 +19681,7 @@ namespace netxs::lixx // li++, libinput++.
                     auto r = switch_reliability{};
                     auto prop = text{};
                     auto quirks = li_device->li.quirks;
-                    auto q = li_device->ud_device->quirks_fetch_for_device(quirks);
+                    auto q = li_device->ud_device.quirks_fetch_for_device(quirks);
                     if (!q || !q->quirks_get(QUIRK_ATTR_LID_SWITCH_RELIABILITY, prop))
                     {
                         r = RELIABILITY_RELIABLE;
@@ -19725,7 +19724,7 @@ namespace netxs::lixx // li++, libinput++.
                 auto need_mtdev = li_device->evdev_need_mtdev();
                 if (need_mtdev)
                 {
-                    log("Device requires mtdev plumbing: ", li_device->ud_device->properties["NAME"]);
+                    log("Device requires mtdev plumbing: ", li_device->ud_device.properties["NAME"]);
                     num_slots = 10; // Pick 10 slots as default for type A devices.
                     active_slot = 0;
                 }
@@ -19748,11 +19747,11 @@ namespace netxs::lixx // li++, libinput++.
                 }
                 fallback.mt.slot = active_slot;
                 fallback.mt.has_palm = li_device->libevdev_has_event_code<EV_ABS>(ABS_MT_TOOL_TYPE);
-                if (li_device->ud_device->abs.absinfo_x->fuzz || li_device->ud_device->abs.absinfo_y->fuzz)
+                if (li_device->ud_device.abs.absinfo_x->fuzz || li_device->ud_device.abs.absinfo_y->fuzz)
                 {
                     fallback.mt.want_hysteresis = true;
-                    fallback.mt.hysteresis_margin.x = li_device->ud_device->abs.absinfo_x->fuzz / 2;
-                    fallback.mt.hysteresis_margin.y = li_device->ud_device->abs.absinfo_y->fuzz / 2;
+                    fallback.mt.hysteresis_margin.x = li_device->ud_device.abs.absinfo_x->fuzz / 2;
+                    fallback.mt.hysteresis_margin.y = li_device->ud_device.abs.absinfo_y->fuzz / 2;
                 }
                 return 0;
             }
@@ -19850,11 +19849,11 @@ namespace netxs::lixx // li++, libinput++.
         void     touch_arbitration_update_rect(fp64_rect area, time)                                       { fallback_impl.            fallback_interface_update_rect(area); }
         libinput_switch_state get_switch_state(libinput_switch which)                                      { return fallback_impl.fallback_interface_get_switch_state(which); }
     };
-    libinput_device_sptr evdev_totem_create(libinput_t& li, ud_device_sptr ud_device)
+    libinput_device_sptr evdev_totem_create(libinput_t& li, ud_device_t& ud_device)
     {
-        ud_device->device_class += " totem";
+        ud_device.device_class += " totem";
         auto totem_ptr = totem_dispatch_sptr{};
-        if (!ud_device->totem_reject_device())
+        if (!ud_device.totem_reject_device())
         {
             totem_ptr = ptr::shared<totem_dispatch>(li, ud_device);
             auto& totem = *totem_ptr;
@@ -19906,9 +19905,9 @@ namespace netxs::lixx // li++, libinput++.
             {
                 return LIBINPUT_CONFIG_SEND_EVENTS_ENABLED;
             }
-        libinput_device_sptr evdev_tablet_pad_create(libinput_t& li, ud_device_sptr ud_device)
+        libinput_device_sptr evdev_tablet_pad_create(libinput_t& li, ud_device_t& ud_device)
         {
-            ud_device->device_class += " tabletpad";
+            ud_device.device_class += " tabletpad";
             auto pad = ptr::shared<pad_dispatch>(li, ud_device);
             auto li_device = pad;
             li_device->device_caps |= EVDEV_DEVICE_TABLET_PAD;
@@ -19927,9 +19926,9 @@ namespace netxs::lixx // li++, libinput++.
             }
             return pad;
         }
-        libinput_device_sptr evdev_tablet_create(libinput_t& li, ud_device_sptr ud_device)
+        libinput_device_sptr evdev_tablet_create(libinput_t& li, ud_device_t& ud_device)
         {
-            ud_device->device_class += " tablet";
+            ud_device.device_class += " tablet";
             auto tablet_ptr = ptr::shared<tablet_dispatch>(li, ud_device);
             auto li_device = tablet_ptr;
             li_device->device_caps |= EVDEV_DEVICE_TABLET;
@@ -19950,7 +19949,7 @@ namespace netxs::lixx // li++, libinput++.
         {
             auto use_velocity_averaging = faux; // Default off unless we have quirk.
             auto quirks = li_device->li.quirks;
-            if (auto q = li_device->ud_device->quirks_fetch_for_device(quirks))
+            if (auto q = li_device->ud_device.quirks_fetch_for_device(quirks))
             {
                 q->quirks_get(QUIRK_ATTR_USE_VELOCITY_AVERAGING, use_velocity_averaging);
                 if (use_velocity_averaging)
@@ -20001,7 +20000,7 @@ namespace netxs::lixx // li++, libinput++.
                 {
                     evdev_tag_touchpad_external(li_device);
                 }
-                if (li_device->ud_device->model_flags & EVDEV_MODEL_WACOM_TOUCHPAD) // Wacom makes touchpads, but not internal ones.
+                if (li_device->ud_device.model_flags & EVDEV_MODEL_WACOM_TOUCHPAD) // Wacom makes touchpads, but not internal ones.
                 {
                     evdev_tag_touchpad_external(li_device);
                 }
@@ -20058,9 +20057,9 @@ namespace netxs::lixx // li++, libinput++.
             {
                 return LIBINPUT_CONFIG_SEND_EVENTS_ENABLED;
             }
-        libinput_device_sptr evdev_mt_touchpad_create(libinput_t& li, ud_device_sptr ud_device, ui32 udev_tags)
+        libinput_device_sptr evdev_mt_touchpad_create(libinput_t& li, ud_device_t& ud_device, ui32 udev_tags)
         {
-            ud_device->device_class += " touchpad";
+            ud_device.device_class += " touchpad";
             auto tp_ptr = ptr::shared<tp_dispatch>(li, ud_device);
             auto& tp = *tp_ptr;
             if (udev_tags & EVDEV_UDEV_TAG_TABLET)
@@ -20102,7 +20101,7 @@ namespace netxs::lixx // li++, libinput++.
             }
             li_device->device_tags |= EVDEV_TAG_TRACKPOINT;
             auto quirks = li_device->li.quirks;
-            if (auto q = li_device->ud_device->quirks_fetch_for_device(quirks))
+            if (auto q = li_device->ud_device.quirks_fetch_for_device(quirks))
             {
                 auto prop = text{};
                 if (q->quirks_get(QUIRK_ATTR_TRACKPOINT_INTEGRATION, prop))
@@ -20129,7 +20128,7 @@ namespace netxs::lixx // li++, libinput++.
             if (li_device->device_tags & EVDEV_TAG_TRACKPOINT)
             {
                 auto quirks = li_device->li.quirks;
-                if (auto q = li_device->ud_device->quirks_fetch_for_device(quirks))
+                if (auto q = li_device->ud_device.quirks_fetch_for_device(quirks))
                 {
                     q->quirks_get(QUIRK_ATTR_TRACKPOINT_MULTIPLIER, multiplier);
                 }
@@ -20232,7 +20231,7 @@ namespace netxs::lixx // li++, libinput++.
                     }
                 }
                 auto quirks = li_device->li.quirks;
-                if (auto q = li_device->ud_device->quirks_fetch_for_device(quirks))
+                if (auto q = li_device->ud_device.quirks_fetch_for_device(quirks))
                 {
                     auto prop = text{};
                     if (q->quirks_get(QUIRK_ATTR_KEYBOARD_INTEGRATION, prop))
@@ -20254,163 +20253,162 @@ namespace netxs::lixx // li++, libinput++.
                 li_device->device_tags |= EVDEV_TAG_KEYBOARD;
             }
         }
-        libinput_device_sptr fallback_dispatch_create(libinput_t& li, ud_device_sptr ud_device, ui32 udev_tags)
+        libinput_device_sptr fallback_dispatch_create(libinput_t& li, ud_device_t& ud_device, ui32 udev_tags)
         {
             auto fallback_ptr = ptr::shared<fallback_dispatch>(li, ud_device);
-            auto li_device = fallback_ptr;
             auto& fallback = *fallback_ptr;
             if (udev_tags & EVDEV_UDEV_TAG_MOUSE || udev_tags & EVDEV_UDEV_TAG_POINTINGSTICK)
             {
-                ud_device->device_class += " pointer";
-                evdev_tag_external_mouse(li_device);
-                evdev_tag_trackpoint(li_device);
-                if (li_device->device_tags & EVDEV_TAG_TRACKPOINT)
+                ud_device.device_class += " pointer";
+                evdev_tag_external_mouse(fallback_ptr);
+                evdev_tag_trackpoint(fallback_ptr);
+                if (fallback.device_tags & EVDEV_TAG_TRACKPOINT)
                 {
-                    li_device->trackpoint_multiplier = evdev_get_trackpoint_multiplier(li_device);
+                    fallback.trackpoint_multiplier = evdev_get_trackpoint_multiplier(fallback_ptr);
                 }
                 else
                 {
-                    li_device->dpi = evdev_read_dpi_prop(li_device);
+                    fallback.dpi = evdev_read_dpi_prop(fallback_ptr);
                 }
-                li_device->use_velocity_averaging = evdev_need_velocity_averaging(li_device); // Whether velocity should be averaged, false by default.
-                li_device->device_caps |= EVDEV_DEVICE_POINTER;
-                li_device->dev_left_handed.want_enabled = true; // Want left-handed config option.
-                li_device->scroll.natural_scrolling_enabled = true; // Want natural-scroll config option.
-                if (li_device->libevdev_has_event_code<EV_REL>(REL_X) || li_device->libevdev_has_event_code<EV_REL>(REL_Y)) // Want button scrolling config option.
+                fallback.use_velocity_averaging = evdev_need_velocity_averaging(fallback_ptr); // Whether velocity should be averaged, false by default.
+                fallback.device_caps |= EVDEV_DEVICE_POINTER;
+                fallback.dev_left_handed.want_enabled = true; // Want left-handed config option.
+                fallback.scroll.natural_scrolling_enabled = true; // Want natural-scroll config option.
+                if (fallback.libevdev_has_event_code<EV_REL>(REL_X) || fallback.libevdev_has_event_code<EV_REL>(REL_Y)) // Want button scrolling config option.
                 {
-                    li_device->scroll.want_button = evdev_usage_from_code(EV_KEY, 1);
+                    fallback.scroll.want_button = evdev_usage_from_code(EV_KEY, 1);
                 }
             }
             if (udev_tags & EVDEV_UDEV_TAG_KEYBOARD)
             {
-                ud_device->device_class += " keyboard";
-                li_device->device_caps |= EVDEV_DEVICE_KEYBOARD;
-                if (li_device->libevdev_has_event_code<EV_REL>(REL_WHEEL) || li_device->libevdev_has_event_code<EV_REL>(REL_HWHEEL)) // Want natural-scroll config option.
+                ud_device.device_class += " keyboard";
+                fallback.device_caps |= EVDEV_DEVICE_KEYBOARD;
+                if (fallback.libevdev_has_event_code<EV_REL>(REL_WHEEL) || fallback.libevdev_has_event_code<EV_REL>(REL_HWHEEL)) // Want natural-scroll config option.
                 {
-                    li_device->scroll.natural_scrolling_enabled = true;
-                    li_device->device_caps |= EVDEV_DEVICE_POINTER;
+                    fallback.scroll.natural_scrolling_enabled = true;
+                    fallback.device_caps |= EVDEV_DEVICE_POINTER;
                 }
-                evdev_tag_keyboard(li_device);
+                evdev_tag_keyboard(fallback_ptr);
             }
             if (udev_tags & EVDEV_UDEV_TAG_TOUCHSCREEN)
             {
-                ud_device->device_class += " touch";
-                li_device->device_caps |= EVDEV_DEVICE_TOUCH;
+                ud_device.device_class += " touch";
+                fallback.device_caps |= EVDEV_DEVICE_TOUCH;
             }
             if (udev_tags & EVDEV_UDEV_TAG_SWITCH)
             {
-                if (li_device->libevdev_has_event_code<EV_SW>(SW_LID))
+                if (fallback.libevdev_has_event_code<EV_SW>(SW_LID))
                 {
-                    li_device->device_caps |= EVDEV_DEVICE_SWITCH;
-                    li_device->device_tags |= EVDEV_TAG_LID_SWITCH;
+                    fallback.device_caps |= EVDEV_DEVICE_SWITCH;
+                    fallback.device_tags |= EVDEV_TAG_LID_SWITCH;
                 }
-                if (li_device->libevdev_has_event_code<EV_SW>(SW_TABLET_MODE))
+                if (fallback.libevdev_has_event_code<EV_SW>(SW_TABLET_MODE))
                 {
-                    if (li_device->evdev_device_has_model_quirk(QUIRK_MODEL_TABLET_MODE_SWITCH_UNRELIABLE))
+                    if (fallback.evdev_device_has_model_quirk(QUIRK_MODEL_TABLET_MODE_SWITCH_UNRELIABLE))
                     {
                         log("Device is an unreliable tablet mode switch, filtering events");
-                        li_device->libevdev_disable_event_code<EV_SW>(SW_TABLET_MODE);
+                        fallback.libevdev_disable_event_code<EV_SW>(SW_TABLET_MODE);
                     }
                     else
                     {
-                        li_device->device_tags |= EVDEV_TAG_TABLET_MODE_SWITCH;
-                        li_device->device_caps |= EVDEV_DEVICE_SWITCH;
+                        fallback.device_tags |= EVDEV_TAG_TABLET_MODE_SWITCH;
+                        fallback.device_caps |= EVDEV_DEVICE_SWITCH;
                     }
                 }
-                if (li_device->device_caps & EVDEV_DEVICE_SWITCH)
+                if (fallback.device_caps & EVDEV_DEVICE_SWITCH)
                 {
-                    ud_device->device_class += " switch";
+                    ud_device.device_class += " switch";
                 }
             }
-            if (li_device->device_caps & EVDEV_DEVICE_POINTER
-            && li_device->libevdev_has_event_code<EV_REL>(REL_X)
-            && li_device->libevdev_has_event_code<EV_REL>(REL_Y))
+            if (fallback.device_caps & EVDEV_DEVICE_POINTER
+             && fallback.libevdev_has_event_code<EV_REL>(REL_X)
+             && fallback.libevdev_has_event_code<EV_REL>(REL_Y))
             {
-                li_device->evdev_init_accel(LIBINPUT_CONFIG_ACCEL_PROFILE_ADAPTIVE);
+                fallback.evdev_init_accel(LIBINPUT_CONFIG_ACCEL_PROFILE_ADAPTIVE);
             }
-            if (li_device->evdev_device_has_model_quirk(QUIRK_MODEL_INVERT_HORIZONTAL_SCROLLING))
+            if (fallback.evdev_device_has_model_quirk(QUIRK_MODEL_INVERT_HORIZONTAL_SCROLLING))
             {
-                li_device->scroll.invert_horizontal_scrolling = true;
+                fallback.scroll.invert_horizontal_scrolling = true;
             }
             fallback.pending_event = EVDEV_NONE;
-            fallback.fallback_impl.fallback_dispatch_init_rel(li_device);
-            fallback.fallback_impl.fallback_dispatch_init_abs(li_device);
-            if (fallback.fallback_impl.fallback_dispatch_init_slots(li_device) == -1)
+            fallback.fallback_impl.fallback_dispatch_init_rel(fallback_ptr);
+            fallback.fallback_impl.fallback_dispatch_init_abs(fallback_ptr);
+            if (fallback.fallback_impl.fallback_dispatch_init_slots(fallback_ptr) == -1)
             {
                 fallback_ptr.reset();
                 return fallback_ptr;
             }
-            fallback.fallback_impl.fallback_dispatch_init_switch(li_device);
-            if (li_device->dev_left_handed.want_enabled)
+            fallback.fallback_impl.fallback_dispatch_init_switch(fallback_ptr);
+            if (fallback.dev_left_handed.want_enabled)
             {
-                li_device->evdev_init_left_handed(fallback_dispatch::fallback_impl_t::fallback_change_to_left_handed);
+                fallback.evdev_init_left_handed(fallback_dispatch::fallback_impl_t::fallback_change_to_left_handed);
             }
-            if (li_device->scroll.want_button)
+            if (fallback.scroll.want_button)
             {
-                li_device->evdev_init_button_scroll(fallback_dispatch::fallback_impl_t::fallback_change_scroll_method);
+                fallback.evdev_init_button_scroll(fallback_dispatch::fallback_impl_t::fallback_change_scroll_method);
             }
-            if (li_device->scroll.natural_scrolling_enabled)
+            if (fallback.scroll.natural_scrolling_enabled)
             {
-                li_device->evdev_init_natural_scroll();
+                fallback.evdev_init_natural_scroll();
             }
-            li_device->evdev_init_calibration(fallback.calibration);
-            li_device->evdev_init_sendevents();
-            fallback.fallback_impl.fallback_init_rotation(li_device);
+            fallback.evdev_init_calibration(fallback.calibration);
+            fallback.evdev_init_sendevents();
+            fallback.fallback_impl.fallback_init_rotation(fallback_ptr);
             // BTN_MIDDLE is set on mice even when it's not present. So we can only use the absence of BTN_MIDDLE to mean something, i.e. we enable it by default on anything that only has L&R. If we have L&R and no middle, we don't expose it as config option.
-            if (li_device->libevdev_has_event_code<EV_KEY>(BTN_LEFT)
-             && li_device->libevdev_has_event_code<EV_KEY>(BTN_RIGHT))
+            if (fallback.libevdev_has_event_code<EV_KEY>(BTN_LEFT)
+             && fallback.libevdev_has_event_code<EV_KEY>(BTN_RIGHT))
             {
-                auto has_middle = li_device->libevdev_has_event_code<EV_KEY>(BTN_MIDDLE);
+                auto has_middle = fallback.libevdev_has_event_code<EV_KEY>(BTN_MIDDLE);
                 auto want_config = has_middle;
                 auto enable_by_default = !has_middle;
-                li_device->evdev_init_middlebutton(enable_by_default, want_config);
+                fallback.evdev_init_middlebutton(enable_by_default, want_config);
             }
-            fallback.fallback_impl.fallback_init_wheel(li_device);
+            fallback.fallback_impl.fallback_init_wheel(fallback_ptr);
             fallback.fallback_impl.fallback_init_debounce();
-            fallback.fallback_impl.fallback_init_arbitration(li_device);
+            fallback.fallback_impl.fallback_init_arbitration(fallback_ptr);
             return fallback_ptr;
         }
-    libinput_device_sptr libinput_t::libinput_device_create(ud_device_sptr ud_device)
+    libinput_device_sptr libinput_t::libinput_device_create(ud_device_t& ud_device)
     {
         auto& li = *this;
-        ud_device->evdev_read_model_flags(li);
-        ud_device->abs.calibration.matrix_init_identity();
-        ud_device->abs.usermatrix.matrix_init_identity();
-        ud_device->abs.default_calibration.matrix_init_identity();
-        ud_device->evdev_pre_configure_model_quirks(li);
+        ud_device.evdev_read_model_flags(li);
+        ud_device.abs.calibration.matrix_init_identity();
+        ud_device.abs.usermatrix.matrix_init_identity();
+        ud_device.abs.default_calibration.matrix_init_identity();
+        ud_device.evdev_pre_configure_model_quirks(li);
 
         auto li_device = libinput_device_sptr{};
-        auto udev_tags = ud_device->evdev_device_get_udev_tags();
-             if (!(udev_tags & EVDEV_UDEV_TAG_INPUT) || !(udev_tags & ~EVDEV_UDEV_TAG_INPUT)) ud_device->device_class += " unknown";
-        else if (udev_tags == (EVDEV_UDEV_TAG_INPUT | EVDEV_UDEV_TAG_ACCELEROMETER))          ud_device->device_class += " accelerometer"; // Ignore pure accelerometers, but accept devices that are accelerometers with other axes.
-        else if (udev_tags & EVDEV_UDEV_TAG_JOYSTICK)                                         ud_device->device_class += " joystick";
-        else if (ud_device->evdev_reject_device())                                            ud_device->device_class += " unsupported";
+        auto udev_tags = ud_device.evdev_device_get_udev_tags();
+             if (!(udev_tags & EVDEV_UDEV_TAG_INPUT) || !(udev_tags & ~EVDEV_UDEV_TAG_INPUT)) ud_device.device_class += " unknown";
+        else if (udev_tags == (EVDEV_UDEV_TAG_INPUT | EVDEV_UDEV_TAG_ACCELEROMETER))          ud_device.device_class += " accelerometer"; // Ignore pure accelerometers, but accept devices that are accelerometers with other axes.
+        else if (udev_tags & EVDEV_UDEV_TAG_JOYSTICK)                                         ud_device.device_class += " joystick";
+        else if (ud_device.evdev_reject_device())                                             ud_device.device_class += " unsupported";
         else
         {
-            if (udev_tags & EVDEV_UDEV_TAG_ACCELEROMETER) ud_device->evdev_disable_accelerometer_axes();
-            if (!ud_device->evdev_is_fake_mt_device()) ud_device->evdev_fix_android_mt();
-            if (ud_device->libevdev_has_event_code<EV_ABS>(ABS_X))
+            if (udev_tags & EVDEV_UDEV_TAG_ACCELEROMETER) ud_device.evdev_disable_accelerometer_axes();
+            if (!ud_device.evdev_is_fake_mt_device()) ud_device.evdev_fix_android_mt();
+            if (ud_device.libevdev_has_event_code<EV_ABS>(ABS_X))
             {
-                ud_device->evdev_extract_abs_axes(li, udev_tags);
-                if (ud_device->evdev_is_fake_mt_device())
+                ud_device.evdev_extract_abs_axes(li, udev_tags);
+                if (ud_device.evdev_is_fake_mt_device())
                 {
                     udev_tags &= ~EVDEV_UDEV_TAG_TOUCHSCREEN;
                 }
             }
-                 if (ud_device->evdev_device_has_model_quirk(li, QUIRK_MODEL_DELL_CANVAS_TOTEM)) li_device = evdev_totem_create(      li, ud_device);
-            else if (udev_tags & EVDEV_UDEV_TAG_TABLET_PAD)                                      li_device = evdev_tablet_pad_create( li, ud_device); // Libwacom assigns tablet _and_ tablet_pad to the pad devices.
-            else if (udev_tags & EVDEV_UDEV_TAG_PURETABLET)                                      li_device = evdev_tablet_create(     li, ud_device); // Libwacom assigns touchpad (or touchscreen) _and_ tablet to the tablet touch bits, so make sure we don't initialize the tablet interface for the touch device.
-            else if (udev_tags & EVDEV_UDEV_TAG_TOUCHPAD)                                        li_device = evdev_mt_touchpad_create(li, ud_device, udev_tags);
-            else                                                                                 li_device = fallback_dispatch_create(li, ud_device, udev_tags);
+                 if (ud_device.evdev_device_has_model_quirk(li, QUIRK_MODEL_DELL_CANVAS_TOTEM)) li_device = evdev_totem_create(      li, ud_device);
+            else if (udev_tags & EVDEV_UDEV_TAG_TABLET_PAD)                                     li_device = evdev_tablet_pad_create( li, ud_device); // Libwacom assigns tablet _and_ tablet_pad to the pad devices.
+            else if (udev_tags & EVDEV_UDEV_TAG_PURETABLET)                                     li_device = evdev_tablet_create(     li, ud_device); // Libwacom assigns touchpad (or touchscreen) _and_ tablet to the tablet touch bits, so make sure we don't initialize the tablet interface for the touch device.
+            else if (udev_tags & EVDEV_UDEV_TAG_TOUCHPAD)                                       li_device = evdev_mt_touchpad_create(li, ud_device, udev_tags);
+            else                                                                                li_device = fallback_dispatch_create(li, ud_device, udev_tags);
         }
-        log("Device '%%':%%", ud_device->properties["NAME"], ud_device->device_class);
+        log("Device '%%':%%", ud_device.properties["NAME"], ud_device.device_class);
         if (li_device && li_device->device_caps)
         {
             auto& li_device_inst = *li_device;
-            li_device->sysname = ud_device->sysname;
-            li_device->devname = ud_device->devname;
-            li_device->scroll.wheel_click_angle = ud_device->evdev_read_wheel_click_props();
-            li_device->source = timers.libinput_add_event_source(ud_device->fd, [&]{ li_device_inst.evdev_device_dispatch(); });
+            li_device->sysname = ud_device.sysname;
+            li_device->devname = ud_device.devname;
+            li_device->scroll.wheel_click_angle = ud_device.evdev_read_wheel_click_props();
+            li_device->source = timers.libinput_add_event_source(ud_device.fd, [&]{ li_device_inst.evdev_device_dispatch(); });
             li_device->device_group = li_device->udev_device_get_property_value("LIBINPUT_DEVICE_GROUP");
             device_list.push_back(li_device);
             li_device->evdev_notify_added_device();
