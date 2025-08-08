@@ -2381,6 +2381,79 @@ namespace netxs::lixx // li++, libinput++.
         virtual bool      set_speed(fp64 speed_adjustment)                          { return impl.touchpad_accelerator_set_speed(speed_adjustment); }
     };
 
+    si32 libevdev_event_type_from_name(qiew name)
+    {
+             if (name == "EV_ABS"      ) return EV_ABS;
+        else if (name == "EV_FF"       ) return EV_FF;
+        else if (name == "EV_FF_STATUS") return EV_FF_STATUS;
+        else if (name == "EV_KEY"      ) return EV_KEY;
+        else if (name == "EV_LED"      ) return EV_LED;
+        else if (name == "EV_MAX"      ) return EV_MAX;
+        else if (name == "EV_MSC"      ) return EV_MSC;
+        else if (name == "EV_PWR"      ) return EV_PWR;
+        else if (name == "EV_REL"      ) return EV_REL;
+        else if (name == "EV_REP"      ) return EV_REP;
+        else if (name == "EV_SND"      ) return EV_SND;
+        else if (name == "EV_SW"       ) return EV_SW;
+        else if (name == "EV_SYN"      ) return EV_SYN;
+        else return -1;
+    }
+    qiew libevdev_event_type_get_name(ui32 type)
+    {
+             if (type == EV_SYN      ) return "EV_SYN";
+        else if (type == EV_KEY      ) return "EV_KEY";
+        else if (type == EV_REL      ) return "EV_REL";
+        else if (type == EV_ABS      ) return "EV_ABS";
+        else if (type == EV_MSC      ) return "EV_MSC";
+        else if (type == EV_SW       ) return "EV_SW";
+        else if (type == EV_LED      ) return "EV_LED";
+        else if (type == EV_SND      ) return "EV_SND";
+        else if (type == EV_REP      ) return "EV_REP";
+        else if (type == EV_FF       ) return "EV_FF";
+        else if (type == EV_PWR      ) return "EV_PWR";
+        else if (type == EV_FF_STATUS) return "EV_FF_STATUS";
+        else if (type == EV_MAX      ) return "EV_MAX";
+        else                           return "";
+    }
+    si32 libevdev_event_type_get_max(ui32 type)
+    {
+             if (type == EV_SYN) return SYN_MAX;
+        else if (type == EV_ABS) return ABS_MAX;
+        else if (type == EV_REL) return REL_MAX;
+        else if (type == EV_KEY) return KEY_MAX;
+        else if (type == EV_REP) return REP_MAX;
+        else if (type == EV_MSC) return MSC_MAX;
+        else if (type == EV_SW ) return SW_MAX;
+        else if (type == EV_LED) return LED_MAX;
+        else if (type == EV_SND) return SND_MAX;
+        else if (type == EV_FF ) return FF_MAX;
+        else                     return -1;
+    }
+    qiew libevdev_property_get_name(ui32 prop)
+    {
+             if (prop == INPUT_PROP_POINTER       ) return "INPUT_PROP_POINTER";
+        else if (prop == INPUT_PROP_DIRECT        ) return "INPUT_PROP_DIRECT";
+        else if (prop == INPUT_PROP_BUTTONPAD     ) return "INPUT_PROP_BUTTONPAD";
+        else if (prop == INPUT_PROP_SEMI_MT       ) return "INPUT_PROP_SEMI_MT";
+        else if (prop == INPUT_PROP_TOPBUTTONPAD  ) return "INPUT_PROP_TOPBUTTONPAD";
+        else if (prop == INPUT_PROP_POINTING_STICK) return "INPUT_PROP_POINTING_STICK";
+        else if (prop == INPUT_PROP_ACCELEROMETER ) return "INPUT_PROP_ACCELEROMETER";
+        else if (prop == INPUT_PROP_MAX           ) return "INPUT_PROP_MAX";
+        else                                        return "";
+    }
+    si32 libevdev_property_from_name(qiew name)
+    {
+             if (name == "INPUT_PROP_ACCELEROMETER" ) return INPUT_PROP_ACCELEROMETER;
+        else if (name == "INPUT_PROP_BUTTONPAD"     ) return INPUT_PROP_BUTTONPAD;
+        else if (name == "INPUT_PROP_DIRECT"        ) return INPUT_PROP_DIRECT;
+        else if (name == "INPUT_PROP_MAX"           ) return INPUT_PROP_MAX;
+        else if (name == "INPUT_PROP_POINTER"       ) return INPUT_PROP_POINTER;
+        else if (name == "INPUT_PROP_POINTING_STICK") return INPUT_PROP_POINTING_STICK;
+        else if (name == "INPUT_PROP_SEMI_MT"       ) return INPUT_PROP_SEMI_MT;
+        else if (name == "INPUT_PROP_TOPBUTTONPAD"  ) return INPUT_PROP_TOPBUTTONPAD;
+        else                                          return -1;
+    }
+
     struct match_t
     {
         ui32     bits;
@@ -2633,6 +2706,881 @@ namespace netxs::lixx // li++, libinput++.
         text                    dt2;
         std::list<section_sptr> sections;
         std::list<quirks_sptr>  quirks; // List of quirks handed to libinput, just for bookkeeping.
+
+        static bool read_uevent(qiew filepath, auto proc)
+        {
+            auto buffer = std::array<char, 4096>{};
+            auto f = std::ifstream{ filepath, std::ios::binary };
+            if (f.is_open())
+            {
+                f.read(buffer.data(), buffer.size());
+                auto data = qiew{ buffer.data(), (size_t)f.gcount() };
+                auto lines = utf::split<true>(data, "\n");
+                for (auto l : lines)
+                {
+                    auto p = l.find('=');
+                    if (p != text::npos)
+                    {
+                        auto prop_name  = l.substr(0, p);
+                        auto prop_value = l.substr(p + 1);
+                        proc(utf::to_upper(prop_name), utf::dequote(prop_value));
+                    }
+                }
+                return true;
+            }
+            else
+            {
+                log("Failed to open %filepath%, errno=%%", filepath, errno);
+            }
+            return faux;
+        }
+        text init_dmi() // Desktop Management Interface.
+        {
+            if (::getenv("LIBINPUT_RUNNING_TEST_SUITE")) return "dmi:";
+            #if defined(__linux__)
+                auto modalias = "dmi:*"s;
+                auto dmi_uevent_file = "/sys/devices/virtual/dmi/id/uevent";
+                read_uevent(dmi_uevent_file, [&](qiew prop_name, qiew prop_value)
+                {
+                    if (prop_name == "MODALIAS")
+                    {
+                        modalias = prop_value;
+                    }
+                });
+                return modalias;
+            #elif defined(__FreeBSD__)
+                auto buf = std::array<char, KENV_MVALLEN + 1>{};
+                auto bios_vendor      = -1 != ::kenv(KENV_GET, "smbios.bios.vendor"    , buf.data(), buf.size()) ? text{ buf.data() } : ""s;
+                auto bios_version     = -1 != ::kenv(KENV_GET, "smbios.bios.version"   , buf.data(), buf.size()) ? text{ buf.data() } : ""s;
+                auto bios_reldate     = -1 != ::kenv(KENV_GET, "smbios.bios.reldate"   , buf.data(), buf.size()) ? text{ buf.data() } : ""s;
+                auto system_maker     = -1 != ::kenv(KENV_GET, "smbios.system.maker"   , buf.data(), buf.size()) ? text{ buf.data() } : ""s;
+                auto system_product   = -1 != ::kenv(KENV_GET, "smbios.system.product" , buf.data(), buf.size()) ? text{ buf.data() } : ""s;
+                auto system_version   = -1 != ::kenv(KENV_GET, "smbios.system.version" , buf.data(), buf.size()) ? text{ buf.data() } : ""s;
+                auto planar_maker     = -1 != ::kenv(KENV_GET, "smbios.planar.maker"   , buf.data(), buf.size()) ? text{ buf.data() } : ""s;
+                auto planar_product   = -1 != ::kenv(KENV_GET, "smbios.planar.product" , buf.data(), buf.size()) ? text{ buf.data() } : ""s;
+                auto planar_version   = -1 != ::kenv(KENV_GET, "smbios.planar.version" , buf.data(), buf.size()) ? text{ buf.data() } : ""s;
+                auto chassis_vendor   = -1 != ::kenv(KENV_GET, "smbios.chassis.vendor" , buf.data(), buf.size()) ? text{ buf.data() } : ""s;
+                auto chassis_version  = -1 != ::kenv(KENV_GET, "smbios.chassis.version", buf.data(), buf.size()) ? text{ buf.data() } : ""s;
+                auto chassis_type     = -1 != ::kenv(KENV_GET, "smbios.chassis.type"   , buf.data(), buf.size()) ? text{ buf.data() } : ""s;
+                auto chassis_type_num =   strcmp(chassis_type, "Desktop"    ) == 0 ? 0x3
+                                        : strcmp(chassis_type, "Portable"   ) == 0 ? 0x8
+                                        : strcmp(chassis_type, "Laptop"     ) == 0 ? 0x9
+                                        : strcmp(chassis_type, "Notebook"   ) == 0 ? 0xA
+                                        : strcmp(chassis_type, "Tablet"     ) == 0 ? 0x1E
+                                        : strcmp(chassis_type, "Convertible") == 0 ? 0x1F
+                                        : strcmp(chassis_type, "Detachable" ) == 0 ? 0x20
+                                                                                    : 0x2;
+                auto modalias = utf::fprintf("dmi:bvn%s%:bvr%s%:bd%s%:svn%s%:pn%s%:pvr%s%:rvn%s%:rn%s%:rvr%s%:cvn%s%:ct%d%:cvr%s%:",
+                    bios_vendor, bios_version, bios_reldate, system_maker, system_product,
+                    system_version, planar_maker, planar_product, planar_version, chassis_vendor,
+                    chassis_type_num, chassis_version);
+                return modalias;
+            #else
+                return "dmi:*"s;
+            #endif
+        }
+        text init_dt() // Device Tree.
+        {
+            auto copy = text{};
+            if (!::getenv("LIBINPUT_RUNNING_TEST_SUITE"))
+            {
+                auto filepath = "/sys/firmware/devicetree/base/compatible";
+                auto buffer = std::array<char, 4096>{};
+                auto f = std::ifstream{ filepath, std::ios::binary };
+                if (f.is_open())
+                {
+                    f.read(buffer.data(), buffer.size());
+                    copy = buffer.data(); // devicetree/base/compatible has multiple null-terminated entries but we only care about the first one here.
+                }
+            }
+            return copy;
+        }
+        static bool strneq(char const* str1, char const* str2, si32 n)
+        {
+            return str1 && str2 ? ::strncmp(str1, str2, n) == 0 : str1 == str2;
+        }
+        static bool strendswith(char const* str, char const* suffix)
+        {
+            if (str == nullptr) return faux;
+            auto slen = strlen(str);
+            auto suffixlen = strlen(suffix);
+            if (slen == 0 || suffixlen == 0 || suffixlen > slen) return faux;
+            auto offset = slen - suffixlen;
+            return strneq(&str[offset], suffix, suffixlen);
+        }
+        static si32 is_data_file(::dirent const* dir)
+        {
+            return strendswith(dir->d_name, ".quirks");
+        }
+        static si32 libinput_strverscmp(char const* l0, char const* r0)
+        {
+            auto l = (byte const*)l0;
+            auto r = (byte const*)r0;
+            auto i = 0ul;
+            auto dp = 0ul;
+            auto j = 0ul;
+            auto z = 1;
+            for (dp = i = 0; l[i] == r[i]; i++) // Find maximal matching prefix and track its maximal digit suffix and whether those digits are all zeros.
+            {
+                auto c = l[i];
+                if (!c) return 0;
+                if (!isdigit(c))
+                {
+                    dp = i + 1;
+                    z = 1;
+                }
+                else if (c != '0')
+                {
+                    z=0;
+                }
+            }
+            if (l[dp] != '0' && r[dp] != '0') // If we're not looking at a digit sequence that began with a zero, longest digit string is greater.
+            {
+                for (j = i; isdigit(l[j]); j++)
+                {
+                    if (!isdigit(r[j])) return 1;
+                }
+                if (isdigit(r[j])) return -1;
+            }
+            else if (z && dp < i && (isdigit(l[i]) || isdigit(r[i]))) // Otherwise, if common prefix of digit sequence is all zeros, digits order less than non-digits.
+            {
+                return (byte)(l[i] - '0') - (byte)(r[i] - '0');
+            }
+            return l[i] - r[i];
+        }
+        static si32 versionsort(::dirent const**a, ::dirent const**b)
+        {
+            return libinput_strverscmp((*a)->d_name, (*b)->d_name);
+        }
+        bool parse_match(section_sptr s, view key, view value) // Parse a MatchFooBar=banana line.
+        {
+            auto rc = true;
+            auto check_set_bits = [&](auto field)
+            {
+                if (s->match->bits & field) rc = faux;
+                else                        s->match->bits |= field;
+                return rc;
+            };
+            assert(value.size() >= 1);
+            if (key == "MatchName")
+            {
+                if (check_set_bits(M_NAME))
+                {
+                    s->match->name2 = value;
+                }
+            }
+            else if (key == "MatchUniq")
+            {
+                if (check_set_bits(M_UNIQ))
+                {
+                    s->match->uniq2 = value;
+                }
+            }
+            else if (key == "MatchBus")
+            {
+                if (check_set_bits(M_BUS))
+                {
+                         if (value == "usb"      ) s->match->bus = BT_USB;
+                    else if (value == "bluetooth") s->match->bus = BT_BLUETOOTH;
+                    else if (value == "ps2"      ) s->match->bus = BT_PS2;
+                    else if (value == "rmi"      ) s->match->bus = BT_RMI;
+                    else if (value == "i2c"      ) s->match->bus = BT_I2C;
+                    else if (value == "spi"      ) s->match->bus = BT_SPI;
+                    else
+                    {
+                        rc = faux;
+                    }
+                }
+            }
+            else if (key == "MatchVendor")
+            {
+                if (check_set_bits(M_VID))
+                {
+                    if (auto v = utf::to_int<ui32, 16>(value))
+                    {
+                        s->match->vendor = v.value();
+                    }
+                    else
+                    {
+                        rc = faux;
+                    }
+                }
+            }
+            else if (key == "MatchProduct")
+            {
+                static constexpr auto product_size = std::size(decltype(s->match->product){});
+                auto product = std::array<ui32, product_size>{};
+                auto strs = utf::split<true>(value, ";");
+                auto head = strs.begin();
+                for (auto& p : product)
+                {
+                    if (head == strs.end()) break;
+                    auto str = *head++;
+                    if (auto v = utf::to_int<ui32, 16>(str))
+                    {
+                        p = v.value();
+                    }
+                    else
+                    {
+                        rc = faux;
+                        break;
+                    }
+                }
+                if (strs.size() && rc == true)
+                {
+                    if (check_set_bits(M_PID))
+                    {
+                        ::memcpy(s->match->product, product.data(), sizeof(product));
+                    }
+                }
+            }
+            else if (key == "MatchVersion")
+            {
+                if (check_set_bits(M_VERSION))
+                {
+                    if (auto v = utf::to_int<ui32, 16>(value))
+                    {
+                        s->match->version = v.value();
+                    }
+                    else
+                    {
+                        rc = faux;
+                    }
+                }
+            }
+            else if (key == "MatchDMIModalias")
+            {
+                if (check_set_bits(M_DMI))
+                {
+                    if (!value.starts_with("dmi:"))
+                    {
+                        log("%s%: MatchDMIModalias must start with 'dmi:'", s->name2);
+                        rc = faux;
+                    }
+                    else
+                    {
+                        s->match->dmi2 = value;
+                    }
+                }
+            }
+            else if (key == "MatchUdevType")
+            {
+                if (check_set_bits(M_UDEV_TYPE))
+                {
+                         if (value == "touchpad"     ) s->match->ud_type = UDEV_TOUCHPAD;
+                    else if (value == "mouse"        ) s->match->ud_type = UDEV_MOUSE;
+                    else if (value == "pointingstick") s->match->ud_type = UDEV_POINTINGSTICK;
+                    else if (value == "keyboard"     ) s->match->ud_type = UDEV_KEYBOARD;
+                    else if (value == "joystick"     ) s->match->ud_type = UDEV_JOYSTICK;
+                    else if (value == "tablet"       ) s->match->ud_type = UDEV_TABLET;
+                    else if (value == "tablet-pad"   ) s->match->ud_type = UDEV_TABLET_PAD;
+                    else
+                    {
+                        rc = faux;
+                    }
+                }
+            }
+            else if (key == "MatchDeviceTree")
+            {
+                if (check_set_bits(M_DT))
+                {
+                    s->match->dt2 = value;
+                }
+            }
+            else
+            {
+                log("Unknown match key '%s%'", key);
+                rc = faux;
+            }
+            if (rc)
+            {
+                s->has_match = true;
+            }
+            return rc;
+        }
+        bool parse_model(section_sptr s, view key, view value)
+        {
+            auto b = value == "1";
+            auto q = QUIRK_MODEL_ALPS_SERIAL_TOUCHPAD;
+            assert(key.starts_with("Model"));
+            do
+            {
+                if (key == quirks_t::quirk_get_name(q))
+                {
+                    auto p = ptr::shared<property_t>();
+                    p->id = q;
+                    p->value = b;
+                    s->properties.push_back(p);
+                    s->has_property = true;
+                    return true;
+                }
+                q = (quirk)(q + 1);
+            }
+            while (q < _QUIRK_LAST_MODEL_QUIRK_);
+            log("Unknown key %s% in %s%", key, s->name2);
+            return faux;
+        }
+        bool parse_dimension_property(view prop, si32_coor& dim)
+        {
+            auto d = si32_coor{};
+            auto ok = prop.size() && ::sscanf(prop.data(), "%dx%d", &d.x, &d.y) == 2 && d.x > 0 && d.y > 0;
+            if (ok)
+            {
+                dim = d;
+            }
+            return ok;
+        }
+        bool parse_range_property(view prop, si32_range& range)
+        {
+            auto r = si32_range{};
+            auto ok = prop.size() && (prop == "none" || (::sscanf(prop.data(), "%d:%d", &r.max, &r.min) == 2 && r.min < r.max)); // "max:min":  Pressure/touch size.
+            if (ok)
+            {
+                range = r;
+            }
+            return ok;
+        }
+        bool parse_evcode_string(view s, si32& type_out, si32& code_out)
+        {
+            auto found = faux;
+            if (s.starts_with("EV_"))
+            {
+                auto type = libevdev_event_type_from_name(s.data());
+                found = type != -1;
+                if (found)
+                {
+                    type_out = type;
+                    code_out = lixx::event_code_undefined;
+                }
+            }
+            else
+            {
+                static constexpr auto map = std::to_array<std::pair<view, si32>>(
+                {
+                    { "KEY_", EV_KEY },
+                    { "BTN_", EV_KEY },
+                    { "ABS_", EV_ABS },
+                    { "REL_", EV_REL },
+                    { "SW_",  EV_SW  },
+                });
+                for (auto [str, type] : map)
+                {
+                    if (s.starts_with(str))
+                    {
+                        auto code = -1;//todo is it too much? libevdev_event_code_from_name(type, s.data());
+                        found = code != -1;
+                        if (found)
+                        {
+                            type_out = type;
+                            code_out = code;
+                        }
+                        break;
+                    }
+                }
+            }
+            return found;
+        }
+        bool parse_evcode_property(view prop, input_event_t* events, ui64& nevents)
+        {
+            // Parses a string of the format "+EV_ABS;+KEY_A;-BTN_TOOL_DOUBLETAP;-ABS_X;" where each element must be + or - (enable/disable) followed by a named event type OR a named event code OR a tuple in the form of EV_KEY:0x123, i.e. a named event type followed by a hex event code.
+            // - events must point to an existing array of size nevents.
+            // - nevents specifies the size of the array in events and returns the number of items, elements exceeding nevents are simply ignored, just make sure events is large enough for your use-case.
+            // The results are returned as input events with type and code set, all other fields undefined. Where only the event type is specified, the code is set to lixx::event_code_undefined.
+            // On success, events contains nevents events with each event's value set to 1 or 0 depending on the + or - prefix.
+            auto rc = true;
+            auto evs = std::array<input_event_t, 32>{}; // A randomly chosen max so we avoid crazy quirks.
+            auto strv = utf::split(prop, ";");
+            if (strv.empty() || strv.size() > evs.size())
+            {
+                rc = faux;
+            }
+            else
+            {
+                auto ncodes = std::min(nevents, strv.size());
+                for (auto idx = 0; strv[idx]; idx++)
+                {
+                    auto s = strv[idx].data();
+                    auto c = *s++;
+                    auto enable = faux;
+                            if (c == '+') enable = true;
+                    else if (c == '-') enable = faux;
+                    else
+                    {
+                        rc = faux;
+                        break;
+                    }
+                    auto type = 0;
+                    auto code = 0;
+                    auto crop = qiew{ s };
+                    if (crop.find(':') == text::npos)
+                    {
+                        if (!parse_evcode_string(s, type, code))
+                        {
+                            rc = faux;
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        auto consumed = 0;
+                        char stype[13] = {}; // EV_FF_STATUS + '\0'.
+                        if (::sscanf(s, "%12[A-Z_]:%x%n", stype, &code, &consumed) != 2
+                            || ::strlen(s) != (ui64)consumed
+                            || (type = libevdev_event_type_from_name(stype)) == -1
+                            || code < 0 || code > libevdev_event_type_get_max(type))
+                        {
+                            rc = faux;
+                            break;
+                        }
+                    }
+                    evs[idx].type = type;
+                    evs[idx].code = code;
+                    evs[idx].value = enable;
+                }
+                if (rc)
+                {
+                    ::memcpy(events, evs.data(), ncodes * sizeof(*events));
+                    nevents = ncodes;
+                }
+            }
+            return rc;
+        }
+        bool parse_input_prop_property(view prop_str, std::array<input_prop, INPUT_PROP_CNT>& props_out, ui64& nprops)
+        {
+            // Parses a string of the format "+INPUT_PROP_BUTTONPAD;-INPUT_PROP_POINTER;+0x123;" where each element must be a named input prop OR a hexcode in the form 0x1234. The prefix for each element must be either '+' (enable) or '-' (disable).
+            // - props must point to an existing array of size nprops.
+            // - nprops specifies the size of the array in props and returns the number of elements, elements exceeding nprops are simply ignored, just make sure props is large enough for your use-case.
+            // On success, props contains nprops elements.
+            auto props = std::array<input_prop, INPUT_PROP_CNT>{}; // Doubling up on quirks is a bug.
+            auto strv = utf::split(prop_str, ";");
+            auto rc = strv.size() && strv.size() < props.size();
+            if (rc)
+            {
+                auto count = std::min(nprops, strv.size());
+                for (auto idx = 0; strv[idx]; idx++)
+                {
+                    auto s = strv[idx].data();
+                    auto c = *s++;
+                    auto prop = 0u;
+                    auto enable = faux;
+                            if (c == '+') enable = true;
+                    else if (c == '-') enable = faux;
+                    else
+                    {
+                        rc = faux;
+                        break;
+                    }
+                    auto crop = qiew{ s };
+                    if (auto v = utf::to_int<ui32, 16>(crop))
+                    {
+                        prop = v.value();
+                        if (prop > INPUT_PROP_MAX)
+                        {
+                            rc = faux;
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        auto val = libevdev_property_from_name(s);
+                        if (val == -1)
+                        {
+                            rc = faux;
+                            break;
+                        }
+                        prop = (ui32)val;
+                    }
+                    props[idx].first  = prop;
+                    props[idx].second = enable;
+                }
+                if (rc)
+                {
+                    props_out = props;
+                    nprops = count;
+                }
+            }
+            return rc;
+        }
+        bool parse_attr(section_sptr s, view key, qiew value)
+        {
+            auto p = ptr::shared<property_t>();
+            auto rc = faux;
+            auto dim = si32_coor{};
+            auto range = si32_range{};
+            if (key == quirks_t::quirk_get_name(QUIRK_ATTR_SIZE_HINT))
+            {
+                p->id = QUIRK_ATTR_SIZE_HINT;
+                rc = parse_dimension_property(value, dim);
+                if (rc) p->value = dim;
+            }
+            else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_TOUCH_SIZE_RANGE))
+            {
+                p->id = QUIRK_ATTR_TOUCH_SIZE_RANGE;
+                rc = parse_range_property(value, range);
+                if (rc) p->value = range;
+            }
+            else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_PALM_SIZE_THRESHOLD))
+            {
+                p->id = QUIRK_ATTR_PALM_SIZE_THRESHOLD;
+                auto v = utf::to_int<ui32>(value);
+                rc = !!v;
+                if (rc) p->value = v.value();
+            }
+            else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_LID_SWITCH_RELIABILITY))
+            {
+                p->id = QUIRK_ATTR_LID_SWITCH_RELIABILITY;
+                rc = value == "reliable" || value == "write_open" || value == "unreliable";
+                if (rc) p->value = text{ value };
+            }
+            else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_KEYBOARD_INTEGRATION))
+            {
+                p->id = QUIRK_ATTR_KEYBOARD_INTEGRATION;
+                rc = value == "internal" && value != "external";
+                if (rc) p->value = text{ value };
+            }
+            else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_TRACKPOINT_INTEGRATION))
+            {
+                p->id = QUIRK_ATTR_TRACKPOINT_INTEGRATION;
+                rc = value == "internal" && value != "external";
+                if (rc) p->value = text{ value };
+            }
+            else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_TPKBCOMBO_LAYOUT))
+            {
+                p->id = QUIRK_ATTR_TPKBCOMBO_LAYOUT;
+                rc = value == "below";
+                if (rc) p->value = text{ value };
+            }
+            else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_PRESSURE_RANGE))
+            {
+                p->id = QUIRK_ATTR_PRESSURE_RANGE;
+                rc = parse_range_property(value, range);
+                if (rc) p->value = range;
+            }
+            else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_PALM_PRESSURE_THRESHOLD))
+            {
+                p->id = QUIRK_ATTR_PALM_PRESSURE_THRESHOLD;
+                auto v = utf::to_int<ui32>(value);
+                rc = !!v;
+                if (rc) p->value = v.value();
+            }
+            else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_RESOLUTION_HINT))
+            {
+                p->id = QUIRK_ATTR_RESOLUTION_HINT;
+                rc = parse_dimension_property(value, dim);
+                if (rc) p->value = dim;
+            }
+            else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_TRACKPOINT_MULTIPLIER))
+            {
+                p->id = QUIRK_ATTR_TRACKPOINT_MULTIPLIER;
+                auto v = utf::to_int<fp64>(value);
+                rc = !!v;
+                if (rc) p->value = v.value();
+            }
+            else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_USE_VELOCITY_AVERAGING))
+            {
+                p->id = QUIRK_ATTR_USE_VELOCITY_AVERAGING;
+                p->value = value == "1";
+                rc = true;
+            }
+            else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_TABLET_SMOOTHING))
+            {
+                p->id = QUIRK_ATTR_TABLET_SMOOTHING;
+                p->value = value == "1";
+                rc = true;
+            }
+            else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_THUMB_PRESSURE_THRESHOLD))
+            {
+                p->id = QUIRK_ATTR_THUMB_PRESSURE_THRESHOLD;
+                auto v = utf::to_int<ui32>(value);
+                rc = !!v;
+                if (rc) p->value = v.value();
+            }
+            else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_THUMB_SIZE_THRESHOLD))
+            {
+                p->id = QUIRK_ATTR_THUMB_SIZE_THRESHOLD;
+                auto v = utf::to_int<ui32>(value);
+                rc = !!v;
+                if (rc) p->value = v.value();
+            }
+            else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_MSC_TIMESTAMP))
+            {
+                p->id = QUIRK_ATTR_MSC_TIMESTAMP;
+                rc = value == "watch";
+                if (rc) p->value = text{ value };
+            }
+            else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_EVENT_CODE))
+            {
+                auto events = std::array<input_event_t, 32>{};
+                auto nevents = (ui64)events.size();
+                p->id = QUIRK_ATTR_EVENT_CODE;
+                if (parse_evcode_property(value, events.data(), nevents) && nevents)
+                {
+                    auto value_tuples = quirk_tuples{};
+                    for (auto i = 0u; i < nevents; i++)
+                    {
+                        value_tuples.tuples[i].first = events[i].type;
+                        value_tuples.tuples[i].second = events[i].code;
+                        value_tuples.tuples[i].third = events[i].value;
+                    }
+                    value_tuples.ntuples = nevents;
+                    p->value = value_tuples;
+                    rc = true;
+                }
+            }
+            else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_INPUT_PROP))
+            {
+                auto props = std::array<input_prop, INPUT_PROP_CNT>{};
+                auto nprops = (ui64)props.size();
+                p->id = QUIRK_ATTR_INPUT_PROP;
+                if (parse_input_prop_property(value, props, nprops) && nprops != 0)
+                {
+                    auto value_tuples = quirk_tuples{};
+                    for (auto i = 0u; i < nprops; i++)
+                    {
+                        value_tuples.tuples[i].first  = props[i].first;
+                        value_tuples.tuples[i].second = props[i].second;
+                    }
+                    value_tuples.ntuples = nprops;
+                    p->value = value_tuples;
+                    rc = true;
+                }
+            }
+            else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_IS_VIRTUAL))
+            {
+                p->id = QUIRK_ATTR_IS_VIRTUAL;
+                p->value = value == "1";
+                rc = true;
+            }
+            else
+            {
+                log("Unknown key %s% in %s%", key, s->name2);
+            }
+            if (rc)
+            {
+                s->properties.push_back(p);
+                s->has_property = true;
+            }
+            return rc;
+        }
+        bool parse_value_line(section_sptr s, view line)
+        {
+            auto rc = faux;
+            auto strv = utf::split(line, "=");
+            if (strv.size() == 2)
+            {
+                auto key = strv[0];
+                auto value = strv[1];
+                if (key.size() && value.size() && value[0] != '"' && value[0] != '\'') // The value is not supposed to be in quotes.
+                {
+                            if (key.starts_with("Match")) rc = parse_match(s, key, value);
+                    else if (key.starts_with("Model")) rc = parse_model(s, key, value);
+                    else if (key.starts_with("Attr") ) rc = parse_attr( s, key, value);
+                    else log("Unknown value prefix %s%", line);
+                }
+            }
+            return rc;
+        }
+        bool parse_file(view path)
+        {
+            enum state_enum
+            {
+                STATE_SECTION,
+                STATE_MATCH,
+                STATE_MATCH_OR_VALUE,
+                STATE_VALUE_OR_SECTION,
+                STATE_ANY,
+            };
+            auto strstartswith = [](char const* str, char const* prefix)
+            {
+                if (str == nullptr) return faux;
+                auto prefixlen = ::strlen(prefix);
+                return prefixlen > 0 ? strneq(str, prefix, ::strlen(prefix)) : faux;
+            };
+            char line[512];
+            auto rc = true;
+            auto state = STATE_SECTION;
+            auto section = ptr::shared<section_t>();
+            auto lineno = -1;
+            log("%s%", path);
+            auto fp = ::fopen(path.data(), "r");
+            if (!fp) // If the file doesn't exist that's fine. Only way this can happen is for the custom override file, all others are provided by scandir so they do exist. Short of races we don't care about.
+            {
+                if (errno == ENOENT) return true;
+                log("%s%: failed to open file", path);
+                rc = faux;
+            }
+            else while (::fgets(line, sizeof(line), fp))
+            {
+                lineno++;
+                auto comment = strstr(line, "#");
+                if (comment) // Comment points to # but we need to remove the preceding whitespaces too.
+                {
+                    comment--;
+                    while (comment >= line)
+                    {
+                        if (*comment == ' ' || *comment == '\t')
+                        {
+                            comment--;
+                        }
+                    }
+                    *(comment + 1) = '\0';
+                }
+                else // Strip the trailing newline.
+                {
+                    comment = strstr(line, "\n");
+                    if (comment) *comment = '\0';
+                }
+                if (strlen(line) == 0) continue;
+                // We don't use quotes for strings, so we really don't want erroneous trailing whitespaces.
+                auto c = line[strlen(line) - 1];
+                if (c == ' ' || c == '\t') // Strip the trailing newline.
+                {
+                    log("%s%:%d%: Trailing whitespace '%s%'", path, lineno, line);
+                    rc = faux;
+                    break;
+                }
+                c = line[0];
+                if (c == '\0' || c == '\n' || c == '#')
+                {
+                    //
+                }
+                else if (c == ' ' || c == '\t') // Whitespaces not allowed.
+                {
+                    log("%s%:%d%: Preceding whitespace '%s%'", path, lineno, line);
+                    rc = faux;
+                    break;
+                }
+                else if (c == '[') // Section title.
+                {
+                    if (line[strlen(line) - 1] != ']')
+                    {
+                        log("%s%:%d%: Closing ] missing '%s%'", path, lineno, line);
+                        rc = faux;
+                        break;
+                    }
+                    if (state != STATE_SECTION && state != STATE_VALUE_OR_SECTION)
+                    {
+                        log("%s%:%d%: expected section before %s%", path, lineno, line);
+                        rc = faux;
+                        break;
+                    }
+                    if (section && (!section->has_match || !section->has_property))
+                    {
+                        log("%s%:%d%: previous section %s% was empty", path, lineno, section->name2);
+                        rc = faux;
+                        break; // Previous section was empty.
+                    }
+                    state = STATE_MATCH;
+                    auto path_copy = text{ path };
+                    section->name2 = utf::fprint("%s% (%s%)", line, ::basename(path_copy.data()));
+                    sections.push_back(section);
+                    break;
+                }
+                else // Entries must start with A-Z.
+                {
+                    if (line[0] < 'A' || line[0] > 'Z')
+                    {
+                        log("%s%:%d%: Unexpected line %s%", path, lineno, line);
+                        rc = faux;
+                        break;
+                    }
+                    if (state == STATE_SECTION)
+                    {
+                        log("%s%:%d%: expected [Section], got %s%", path, lineno, line);
+                        rc = faux;
+                        break;
+                    }
+                    else if (state == STATE_MATCH)
+                    {
+                        if (!strstartswith(line, "Match"))
+                        {
+                            log("%s%:%d%: expected MatchFoo=bar, have %s%", path, lineno, line);
+                            rc = faux;
+                            break;
+                        }
+                        state = STATE_MATCH_OR_VALUE;
+                    }
+                    else if (state == STATE_MATCH_OR_VALUE)
+                    {
+                        if (!strstartswith(line, "Match"))
+                        {
+                            state = STATE_VALUE_OR_SECTION;
+                        }
+                    }
+                    else if (state == STATE_VALUE_OR_SECTION)
+                    {
+                        if (strstartswith(line, "Match"))
+                        {
+                            log("%s%:%d%: expected value or [Section], have %s%", path, lineno, line);
+                            rc = faux;
+                            break;
+                        }
+                    }
+                    else if (state == STATE_ANY)
+                    {
+                        //
+                    }
+                    if (!parse_value_line(section, line))
+                    {
+                        log("%s%:%d%: failed to parse %s%", path, lineno, line);
+                        rc = faux;
+                        break;
+                    }
+                }
+            }
+            if (rc)
+            {
+                if (!section)
+                {
+                    log("%s%: is an empty file", path);
+                    rc = faux;
+                }
+                else if ((!section->has_match || !section->has_property))
+                {
+                    log("%s%:%d%: previous section %s% was empty", path, lineno, section->name2);
+                    rc = faux;
+                }
+            }
+            if (fp)
+            {
+                ::fclose(fp);
+            }
+            return rc;
+        }
+        bool parse_files(qiew data_path)
+        {
+            //todo use os::fs
+            auto namelist = (::dirent**)nullptr;
+            auto ndev = ::scandir(data_path.data(), &namelist, is_data_file, versionsort);
+            if (ndev <= 0)
+            {
+                //log("%s%: failed to find data files", data_path ? data_path : "empty path");
+                return faux;
+            }
+            auto idx = 0;
+            for (; idx < ndev; idx++)
+            {
+                char path[PATH_MAX];
+                ::snprintf(path, sizeof(path), "%s/%s", data_path.data(), namelist[idx]->d_name);
+                if (!parse_file(path)) break;
+            }
+            for (auto i = 0; i < ndev; i++)
+            {
+                ::free(namelist[i]);
+            }
+            ::free(namelist);
+            return idx == ndev;
+        }
+        bool quirks_init_subsystem(view data_path, view override_file, libinput_sptr li)
+        {
+            libinput = li;
+            dmi2     = init_dmi();
+            dt2      = init_dt();
+            auto ok = (!dmi2.empty() || !dt2.empty())
+             && parse_files(data_path)
+             && (override_file.empty() || parse_file(override_file));
+            return ok;
+        }
     };
 
     struct event_source_t
@@ -3096,79 +4044,6 @@ namespace netxs::lixx // li++, libinput++.
         }
     };
 
-    si32 libevdev_event_type_from_name(qiew name)
-    {
-             if (name == "EV_ABS"      ) return EV_ABS;
-        else if (name == "EV_FF"       ) return EV_FF;
-        else if (name == "EV_FF_STATUS") return EV_FF_STATUS;
-        else if (name == "EV_KEY"      ) return EV_KEY;
-        else if (name == "EV_LED"      ) return EV_LED;
-        else if (name == "EV_MAX"      ) return EV_MAX;
-        else if (name == "EV_MSC"      ) return EV_MSC;
-        else if (name == "EV_PWR"      ) return EV_PWR;
-        else if (name == "EV_REL"      ) return EV_REL;
-        else if (name == "EV_REP"      ) return EV_REP;
-        else if (name == "EV_SND"      ) return EV_SND;
-        else if (name == "EV_SW"       ) return EV_SW;
-        else if (name == "EV_SYN"      ) return EV_SYN;
-        else return -1;
-    }
-    qiew libevdev_event_type_get_name(ui32 type)
-    {
-             if (type == EV_SYN      ) return "EV_SYN";
-        else if (type == EV_KEY      ) return "EV_KEY";
-        else if (type == EV_REL      ) return "EV_REL";
-        else if (type == EV_ABS      ) return "EV_ABS";
-        else if (type == EV_MSC      ) return "EV_MSC";
-        else if (type == EV_SW       ) return "EV_SW";
-        else if (type == EV_LED      ) return "EV_LED";
-        else if (type == EV_SND      ) return "EV_SND";
-        else if (type == EV_REP      ) return "EV_REP";
-        else if (type == EV_FF       ) return "EV_FF";
-        else if (type == EV_PWR      ) return "EV_PWR";
-        else if (type == EV_FF_STATUS) return "EV_FF_STATUS";
-        else if (type == EV_MAX      ) return "EV_MAX";
-        else                           return "";
-    }
-    si32 libevdev_event_type_get_max(ui32 type)
-    {
-             if (type == EV_SYN) return SYN_MAX;
-        else if (type == EV_ABS) return ABS_MAX;
-        else if (type == EV_REL) return REL_MAX;
-        else if (type == EV_KEY) return KEY_MAX;
-        else if (type == EV_REP) return REP_MAX;
-        else if (type == EV_MSC) return MSC_MAX;
-        else if (type == EV_SW ) return SW_MAX;
-        else if (type == EV_LED) return LED_MAX;
-        else if (type == EV_SND) return SND_MAX;
-        else if (type == EV_FF ) return FF_MAX;
-        else                     return -1;
-    }
-    qiew libevdev_property_get_name(ui32 prop)
-    {
-             if (prop == INPUT_PROP_POINTER       ) return "INPUT_PROP_POINTER";
-        else if (prop == INPUT_PROP_DIRECT        ) return "INPUT_PROP_DIRECT";
-        else if (prop == INPUT_PROP_BUTTONPAD     ) return "INPUT_PROP_BUTTONPAD";
-        else if (prop == INPUT_PROP_SEMI_MT       ) return "INPUT_PROP_SEMI_MT";
-        else if (prop == INPUT_PROP_TOPBUTTONPAD  ) return "INPUT_PROP_TOPBUTTONPAD";
-        else if (prop == INPUT_PROP_POINTING_STICK) return "INPUT_PROP_POINTING_STICK";
-        else if (prop == INPUT_PROP_ACCELEROMETER ) return "INPUT_PROP_ACCELEROMETER";
-        else if (prop == INPUT_PROP_MAX           ) return "INPUT_PROP_MAX";
-        else                                        return "";
-    }
-    si32 libevdev_property_from_name(qiew name)
-    {
-             if (name == "INPUT_PROP_ACCELEROMETER" ) return INPUT_PROP_ACCELEROMETER;
-        else if (name == "INPUT_PROP_BUTTONPAD"     ) return INPUT_PROP_BUTTONPAD;
-        else if (name == "INPUT_PROP_DIRECT"        ) return INPUT_PROP_DIRECT;
-        else if (name == "INPUT_PROP_MAX"           ) return INPUT_PROP_MAX;
-        else if (name == "INPUT_PROP_POINTER"       ) return INPUT_PROP_POINTER;
-        else if (name == "INPUT_PROP_POINTING_STICK") return INPUT_PROP_POINTING_STICK;
-        else if (name == "INPUT_PROP_SEMI_MT"       ) return INPUT_PROP_SEMI_MT;
-        else if (name == "INPUT_PROP_TOPBUTTONPAD"  ) return INPUT_PROP_TOPBUTTONPAD;
-        else                                          return -1;
-    }
-
     struct ud_device_t
     {
         struct slot_change_state
@@ -3427,33 +4302,6 @@ namespace netxs::lixx // li++, libinput++.
             auto events = std::array<input_event_t, 24>{};
             while (::read(fd, events.data(), sizeof(events)) == sizeof(events)) // Discard all pending events.
             { }
-        }
-        static bool read_uevent(qiew filepath, auto proc)
-        {
-            auto buffer = std::array<char, 4096>{};
-            auto f = std::ifstream{ filepath, std::ios::binary };
-            if (f.is_open())
-            {
-                f.read(buffer.data(), buffer.size());
-                auto data = qiew{ buffer.data(), (size_t)f.gcount() };
-                auto lines = utf::split<true>(data, "\n");
-                for (auto l : lines)
-                {
-                    auto p = l.find('=');
-                    if (p != text::npos)
-                    {
-                        auto prop_name  = l.substr(0, p);
-                        auto prop_value = l.substr(p + 1);
-                        proc(utf::to_upper(prop_name), utf::dequote(prop_value));
-                    }
-                }
-                return true;
-            }
-            else
-            {
-                log("Failed to open %filepath%, errno=%%", filepath, errno);
-            }
-            return faux;
         }
 
         quirks_sptr quirks_fetch_for_device(quirks_context_sptr ctx)
@@ -4821,7 +5669,7 @@ namespace netxs::lixx // li++, libinput++.
         void evdev_pre_configure_model_quirks(Li li)
         {
             auto prop = text{};
-            auto is_virtual = faux;
+            //auto is_virtual = faux;
             // Touchpad claims to have 4 slots but only ever sends 2.   https://bugs.freedesktop.org/show_bug.cgi?id=98100
             if (evdev_device_has_model_quirk(li, QUIRK_MODEL_HP_ZBOOK_STUDIO_G3))
             {
@@ -5170,7 +6018,6 @@ namespace netxs::lixx // li++, libinput++.
         }
     };
 
-    quirks_context_sptr quirks_init_subsystem(view data_path, view override_file, libinput_sptr li);
     libinput_device_sptr libinput_device_create(libinput_sptr li, ud_device_sptr ud_device);
 
     struct libinput_t : ptr::enable_shared_from_this<libinput_t>
@@ -5263,11 +6110,10 @@ namespace netxs::lixx // li++, libinput++.
             {
                 data_path = text{ quirks_pir_ptr };
             }
-            libinput_t::quirks = quirks_init_subsystem(data_path, override_file, This());
-            if (!libinput_t::quirks)
+            quirks = ptr::shared<quirks_context_t>();
+            if (!quirks->quirks_init_subsystem(data_path, override_file, This()))
             {
-                //log("Failed to load the device quirks from %s%%s%%s%. This will negatively affect device behavior", data_path, override_file.size() ? " and " : "", override_file.size() ? override_file : "");
-                return;
+                quirks.reset();
             }
         }
         libinput_device_sptr libinput_add_device(qiew sysname)
@@ -18981,24 +19827,6 @@ namespace netxs::lixx // li++, libinput++.
             });
         }
 
-    bool strneq(char const* str1, char const* str2, si32 n)
-    {
-        // One nullptr, one not nullptr is always false.
-        if (str1 && str2)
-        {
-            return ::strncmp(str1, str2, n) == 0;
-        }
-        else
-        {
-            return str1 == str2;
-        }
-    }
-    bool strstartswith(char const* str, char const* prefix)
-    {
-        if (str == nullptr) return faux;
-        auto prefixlen = ::strlen(prefix);
-        return prefixlen > 0 ? strneq(str, prefix, ::strlen(prefix)) : faux;
-    }
     bool totem_reject_device(libinput_device_sptr li_device)
     {
         auto has_xy = li_device->libevdev_has_event_code<EV_ABS>(ABS_MT_POSITION_X)
@@ -19684,913 +20512,6 @@ namespace netxs::lixx // li++, libinput++.
         if (!libinput_device_config_rotation_is_available(li_device)) return 0;
         return li_device->config.rotation->get_angle(li_device);
     }
-                text init_dmi() // Desktop Management Interface.
-                {
-                    if (::getenv("LIBINPUT_RUNNING_TEST_SUITE")) return "dmi:";
-                    #if defined(__linux__)
-                        if (auto li = ptr::shared<libinput_t>())
-                        {
-                            auto dmi_uevent_file = "/sys/devices/virtual/dmi/id/uevent";
-                            auto modalias = "dmi:*"s;
-                            ud_device_t::read_uevent(dmi_uevent_file, [&](qiew prop_name, qiew prop_value)
-                            {
-                                if (prop_name == "MODALIAS")
-                                {
-                                    modalias = prop_value;
-                                }
-                            });
-                            return modalias;
-                        }
-                        return nullptr;
-                    #elif defined(__FreeBSD__)
-                        auto buf = std::array<char, KENV_MVALLEN + 1>{};
-                        auto bios_vendor      = -1 != ::kenv(KENV_GET, "smbios.bios.vendor"    , buf.data(), buf.size()) ? text{ buf.data() } : ""s;
-                        auto bios_version     = -1 != ::kenv(KENV_GET, "smbios.bios.version"   , buf.data(), buf.size()) ? text{ buf.data() } : ""s;
-                        auto bios_reldate     = -1 != ::kenv(KENV_GET, "smbios.bios.reldate"   , buf.data(), buf.size()) ? text{ buf.data() } : ""s;
-                        auto system_maker     = -1 != ::kenv(KENV_GET, "smbios.system.maker"   , buf.data(), buf.size()) ? text{ buf.data() } : ""s;
-                        auto system_product   = -1 != ::kenv(KENV_GET, "smbios.system.product" , buf.data(), buf.size()) ? text{ buf.data() } : ""s;
-                        auto system_version   = -1 != ::kenv(KENV_GET, "smbios.system.version" , buf.data(), buf.size()) ? text{ buf.data() } : ""s;
-                        auto planar_maker     = -1 != ::kenv(KENV_GET, "smbios.planar.maker"   , buf.data(), buf.size()) ? text{ buf.data() } : ""s;
-                        auto planar_product   = -1 != ::kenv(KENV_GET, "smbios.planar.product" , buf.data(), buf.size()) ? text{ buf.data() } : ""s;
-                        auto planar_version   = -1 != ::kenv(KENV_GET, "smbios.planar.version" , buf.data(), buf.size()) ? text{ buf.data() } : ""s;
-                        auto chassis_vendor   = -1 != ::kenv(KENV_GET, "smbios.chassis.vendor" , buf.data(), buf.size()) ? text{ buf.data() } : ""s;
-                        auto chassis_version  = -1 != ::kenv(KENV_GET, "smbios.chassis.version", buf.data(), buf.size()) ? text{ buf.data() } : ""s;
-                        auto chassis_type     = -1 != ::kenv(KENV_GET, "smbios.chassis.type"   , buf.data(), buf.size()) ? text{ buf.data() } : ""s;
-                        auto chassis_type_num = strcmp(chassis_type, "Desktop"    ) == 0 ? 0x3
-                                              : strcmp(chassis_type, "Portable"   ) == 0 ? 0x8
-                                              : strcmp(chassis_type, "Laptop"     ) == 0 ? 0x9
-                                              : strcmp(chassis_type, "Notebook"   ) == 0 ? 0xA
-                                              : strcmp(chassis_type, "Tablet"     ) == 0 ? 0x1E
-                                              : strcmp(chassis_type, "Convertible") == 0 ? 0x1F
-                                              : strcmp(chassis_type, "Detachable" ) == 0 ? 0x20
-                                                                                         : 0x2;
-                        auto modalias = utf::fprintf("dmi:bvn%s%:bvr%s%:bd%s%:svn%s%:pn%s%:pvr%s%:rvn%s%:rn%s%:rvr%s%:cvn%s%:ct%d%:cvr%s%:",
-                            bios_vendor, bios_version, bios_reldate, system_maker, system_product,
-                            system_version, planar_maker, planar_product, planar_version, chassis_vendor,
-                            chassis_type_num, chassis_version);
-                        return modalias;
-                    #else
-                        return "dmi:*"s;
-                    #endif
-                }
-                text init_dt() // Device Tree.
-                {
-                    auto copy = text{};
-                    if (!::getenv("LIBINPUT_RUNNING_TEST_SUITE"))
-                    {
-                        auto filepath = "/sys/firmware/devicetree/base/compatible";
-                        auto buffer = std::array<char, 4096>{};
-                        auto f = std::ifstream{ filepath, std::ios::binary };
-                        if (f.is_open())
-                        {
-                            f.read(buffer.data(), buffer.size());
-                            copy = buffer.data(); // devicetree/base/compatible has multiple null-terminated entries but we only care about the first one here.
-                        }
-                    }
-                    return copy;
-                }
-                        bool strendswith(char const* str, char const* suffix)
-                        {
-                            if (str == nullptr) return faux;
-                            auto slen = strlen(str);
-                            auto suffixlen = strlen(suffix);
-                            if (slen == 0 || suffixlen == 0 || suffixlen > slen) return faux;
-                            auto offset = slen - suffixlen;
-                            return strneq(&str[offset], suffix, suffixlen);
-                        }
-                    si32 is_data_file(dirent const* dir)
-                    {
-                        return strendswith(dir->d_name, ".quirks");
-                    }
-                        si32 libinput_strverscmp(char const* l0, char const* r0)
-                        {
-                            auto l = (byte const*)l0;
-                            auto r = (byte const*)r0;
-                            auto i = 0ul;
-                            auto dp = 0ul;
-                            auto j = 0ul;
-                            auto z = 1;
-                            // Find maximal matching prefix and track its maximal digit suffix and whether those digits are all zeros.
-                            for (dp = i = 0; l[i] == r[i]; i++)
-                            {
-                                auto c = l[i];
-                                if (!c) return 0;
-                                if (!isdigit(c))
-                                {
-                                    dp = i + 1;
-                                    z = 1;
-                                }
-                                else if (c != '0')
-                                {
-                                    z=0;
-                                }
-                            }
-                            if (l[dp] != '0' && r[dp] != '0')
-                            {
-                                // If we're not looking at a digit sequence that began with a zero, longest digit string is greater.
-                                for (j = i; isdigit(l[j]); j++)
-                                {
-                                    if (!isdigit(r[j])) return 1;
-                                }
-                                if (isdigit(r[j])) return -1;
-                            }
-                            else if (z && dp < i && (isdigit(l[i]) || isdigit(r[i])))
-                            {
-                                // Otherwise, if common prefix of digit sequence is all zeros, digits order less than non-digits.
-                                return (byte)(l[i] - '0') - (byte)(r[i] - '0');
-                            }
-                            return l[i] - r[i];
-                        }
-                    si32 versionsort(dirent const**a, dirent const**b)
-                    {
-                        return libinput_strverscmp((*a)->d_name, (*b)->d_name);
-                    }
-                            bool parse_match(section_sptr s, view key, view value) // Parse a MatchFooBar=banana line.
-                            {
-                                auto rc = true;
-                                auto check_set_bits = [&](auto field)
-                                {
-                                    if (s->match->bits & field) rc = faux;
-                                    else                        s->match->bits |= field;
-                                    return rc;
-                                };
-                                assert(value.size() >= 1);
-                                if (key == "MatchName")
-                                {
-                                    if (check_set_bits(M_NAME))
-                                    {
-                                        s->match->name2 = value;
-                                    }
-                                }
-                                else if (key == "MatchUniq")
-                                {
-                                    if (check_set_bits(M_UNIQ))
-                                    {
-                                        s->match->uniq2 = value;
-                                    }
-                                }
-                                else if (key == "MatchBus")
-                                {
-                                    if (check_set_bits(M_BUS))
-                                    {
-                                             if (value == "usb"      ) s->match->bus = BT_USB;
-                                        else if (value == "bluetooth") s->match->bus = BT_BLUETOOTH;
-                                        else if (value == "ps2"      ) s->match->bus = BT_PS2;
-                                        else if (value == "rmi"      ) s->match->bus = BT_RMI;
-                                        else if (value == "i2c"      ) s->match->bus = BT_I2C;
-                                        else if (value == "spi"      ) s->match->bus = BT_SPI;
-                                        else
-                                        {
-                                            rc = faux;
-                                        }
-                                    }
-                                }
-                                else if (key == "MatchVendor")
-                                {
-                                    if (check_set_bits(M_VID))
-                                    {
-                                        if (auto v = utf::to_int<ui32, 16>(value))
-                                        {
-                                            s->match->vendor = v.value();
-                                        }
-                                        else
-                                        {
-                                            rc = faux;
-                                        }
-                                    }
-                                }
-                                else if (key == "MatchProduct")
-                                {
-                                    static constexpr auto product_size = std::size(decltype(s->match->product){});
-                                    auto product = std::array<ui32, product_size>{};
-                                    auto strs = utf::split<true>(value, ";");
-                                    auto head = strs.begin();
-                                    for (auto& p : product)
-                                    {
-                                        if (head == strs.end()) break;
-                                        auto str = *head++;
-                                        if (auto v = utf::to_int<ui32, 16>(str))
-                                        {
-                                            p = v.value();
-                                        }
-                                        else
-                                        {
-                                            rc = faux;
-                                            break;
-                                        }
-                                    }
-                                    if (strs.size() && rc == true)
-                                    {
-                                        if (check_set_bits(M_PID))
-                                        {
-                                            ::memcpy(s->match->product, product.data(), sizeof(product));
-                                        }
-                                    }
-                                }
-                                else if (key == "MatchVersion")
-                                {
-                                    if (check_set_bits(M_VERSION))
-                                    {
-                                        if (auto v = utf::to_int<ui32, 16>(value))
-                                        {
-                                            s->match->version = v.value();
-                                        }
-                                        else
-                                        {
-                                            rc = faux;
-                                        }
-                                    }
-                                }
-                                else if (key == "MatchDMIModalias")
-                                {
-                                    if (check_set_bits(M_DMI))
-                                    {
-                                        if (!value.starts_with("dmi:"))
-                                        {
-                                            log("%s%: MatchDMIModalias must start with 'dmi:'", s->name2);
-                                            rc = faux;
-                                        }
-                                        else
-                                        {
-                                            s->match->dmi2 = value;
-                                        }
-                                    }
-                                }
-                                else if (key == "MatchUdevType")
-                                {
-                                    if (check_set_bits(M_UDEV_TYPE))
-                                    {
-                                             if (value == "touchpad"     ) s->match->ud_type = UDEV_TOUCHPAD;
-                                        else if (value == "mouse"        ) s->match->ud_type = UDEV_MOUSE;
-                                        else if (value == "pointingstick") s->match->ud_type = UDEV_POINTINGSTICK;
-                                        else if (value == "keyboard"     ) s->match->ud_type = UDEV_KEYBOARD;
-                                        else if (value == "joystick"     ) s->match->ud_type = UDEV_JOYSTICK;
-                                        else if (value == "tablet"       ) s->match->ud_type = UDEV_TABLET;
-                                        else if (value == "tablet-pad"   ) s->match->ud_type = UDEV_TABLET_PAD;
-                                        else
-                                        {
-                                            rc = faux;
-                                        }
-                                    }
-                                }
-                                else if (key == "MatchDeviceTree")
-                                {
-                                    if (check_set_bits(M_DT))
-                                    {
-                                        s->match->dt2 = value;
-                                    }
-                                }
-                                else
-                                {
-                                    log("Unknown match key '%s%'", key);
-                                    rc = faux;
-                                }
-                                if (rc)
-                                {
-                                    s->has_match = true;
-                                }
-                                return rc;
-                            }
-                            bool parse_model(section_sptr s, view key, view value)
-                            {
-                                auto b = value == "1";
-                                auto q = QUIRK_MODEL_ALPS_SERIAL_TOUCHPAD;
-                                assert(key.starts_with("Model"));
-                                do
-                                {
-                                    if (key == quirks_t::quirk_get_name(q))
-                                    {
-                                        auto p = ptr::shared<property_t>();
-                                        p->id = q;
-                                        p->value = b;
-                                        s->properties.push_back(p);
-                                        s->has_property = true;
-                                        return true;
-                                    }
-                                    q = (quirk)(q + 1);
-                                }
-                                while (q < _QUIRK_LAST_MODEL_QUIRK_);
-                                log("Unknown key %s% in %s%", key, s->name2);
-                                return faux;
-                            }
-                                bool parse_dimension_property(view prop, si32_coor& dim)
-                                {
-                                    auto d = si32_coor{};
-                                    auto ok = prop.size() && ::sscanf(prop.data(), "%dx%d", &d.x, &d.y) == 2 && d.x > 0 && d.y > 0;
-                                    if (ok)
-                                    {
-                                        dim = d;
-                                    }
-                                    return ok;
-                                }
-                                bool parse_range_property(view prop, si32_range& range)
-                                {
-                                    auto r = si32_range{};
-                                    auto ok = prop.size() && (prop == "none" || (::sscanf(prop.data(), "%d:%d", &r.max, &r.min) == 2 && r.min < r.max)); // "max:min":  Pressure/touch size.
-                                    if (ok)
-                                    {
-                                        range = r;
-                                    }
-                                    return ok;
-                                }
-                                    bool parse_evcode_string(view s, si32& type_out, si32& code_out)
-                                    {
-                                        auto found = faux;
-                                        if (s.starts_with("EV_"))
-                                        {
-                                            auto type = libevdev_event_type_from_name(s.data());
-                                            found = type != -1;
-                                            if (found)
-                                            {
-                                                type_out = type;
-                                                code_out = lixx::event_code_undefined;
-                                            }
-                                        }
-                                        else
-                                        {
-                                            static constexpr auto map = std::to_array<std::pair<view, si32>>(
-                                            {
-                                                { "KEY_", EV_KEY },
-                                                { "BTN_", EV_KEY },
-                                                { "ABS_", EV_ABS },
-                                                { "REL_", EV_REL },
-                                                { "SW_",  EV_SW  },
-                                            });
-                                            for (auto [str, type] : map)
-                                            {
-                                                if (s.starts_with(str))
-                                                {
-                                                    auto code = -1;//todo is it too much? libevdev_event_code_from_name(type, s.data());
-                                                    found = code != -1;
-                                                    if (found)
-                                                    {
-                                                        type_out = type;
-                                                        code_out = code;
-                                                    }
-                                                    break;
-                                                }
-                                            }
-                                        }
-                                        return found;
-                                    }
-                                bool parse_evcode_property(view prop, input_event_t* events, ui64& nevents)
-                                {
-                                    // Parses a string of the format "+EV_ABS;+KEY_A;-BTN_TOOL_DOUBLETAP;-ABS_X;"
-                                    // where each element must be + or - (enable/disable) followed by a named event
-                                    // type OR a named event code OR a tuple in the form of EV_KEY:0x123, i.e. a
-                                    // named event type followed by a hex event code.
-                                    //
-                                    // events must point to an existing array of size nevents.
-                                    // nevents specifies the size of the array in events and returns the number
-                                    // of items, elements exceeding nevents are simply ignored, just make sure
-                                    // events is large enough for your use-case.
-                                    //
-                                    // The results are returned as input events with type and code set, all
-                                    // other fields undefined. Where only the event type is specified, the code
-                                    // is set to lixx::event_code_undefined.
-                                    //
-                                    // On success, events contains nevents events with each event's value set to 1
-                                    // or 0 depending on the + or - prefix.
-                                    auto rc = true;
-                                    auto evs = std::array<input_event_t, 32>{}; // A randomly chosen max so we avoid crazy quirks.
-                                    auto strv = utf::split(prop, ";");
-                                    auto ncodes = (ui64)strv.size();
-                                    if (strv.empty() || ncodes > evs.size())
-                                    {
-                                        rc = faux;
-                                    }
-                                    else
-                                    {
-                                        ncodes = std::min(nevents, ncodes);
-                                        for (auto idx = 0; strv[idx]; idx++)
-                                        {
-                                            auto s = strv[idx].data();
-                                            auto c = *s++;
-                                            auto enable = faux;
-                                                 if (c == '+') enable = true;
-                                            else if (c == '-') enable = faux;
-                                            else
-                                            {
-                                                rc = faux;
-                                                break;
-                                            }
-                                            auto type = 0;
-                                            auto code = 0;
-                                            auto crop = qiew{ s };
-                                            if (crop.find(':') == text::npos)
-                                            {
-                                                if (!parse_evcode_string(s, type, code))
-                                                {
-                                                    rc = faux;
-                                                    break;
-                                                }
-                                            }
-                                            else
-                                            {
-                                                auto consumed = 0;
-                                                char stype[13] = {}; // EV_FF_STATUS + '\0'.
-                                                if (::sscanf(s, "%12[A-Z_]:%x%n", stype, &code, &consumed) != 2
-                                                 || ::strlen(s) != (ui64)consumed
-                                                 || (type = libevdev_event_type_from_name(stype)) == -1
-                                                 || code < 0 || code > libevdev_event_type_get_max(type))
-                                                {
-                                                    rc = faux;
-                                                    break;
-                                                }
-                                            }
-                                            evs[idx].type = type;
-                                            evs[idx].code = code;
-                                            evs[idx].value = enable;
-                                        }
-                                        if (rc)
-                                        {
-                                            ::memcpy(events, evs.data(), ncodes * sizeof(*events));
-                                            nevents = ncodes;
-                                        }
-                                    }
-                                    return rc;
-                                }
-                                bool parse_input_prop_property(view prop_str, std::array<input_prop, INPUT_PROP_CNT>& props_out, ui64& nprops)
-                                {
-                                    // Parses a string of the format "+INPUT_PROP_BUTTONPAD;-INPUT_PROP_POINTER;+0x123;"
-                                    // where each element must be a named input prop OR a hexcode in the form
-                                    // 0x1234. The prefix for each element must be either '+' (enable) or '-' (disable).
-                                    //
-                                    // props must point to an existing array of size nprops.
-                                    // nprops specifies the size of the array in props and returns the number
-                                    // of elements, elements exceeding nprops are simply ignored, just make sure
-                                    // props is large enough for your use-case.
-                                    //
-                                    // On success, props contains nprops elements.
-                                    auto props = std::array<input_prop, INPUT_PROP_CNT>{}; // Doubling up on quirks is a bug.
-                                    auto strv = utf::split(prop_str, ";");
-                                    auto count = (ui64)strv.size();
-                                    auto rc = strv.size() && count != 0 && count < props.size();
-                                    if (rc)
-                                    {
-                                        count = std::min(nprops, count);
-                                        for (auto idx = 0; strv[idx]; idx++)
-                                        {
-                                            auto s = strv[idx].data();
-                                            auto c = *s++;
-                                            auto prop = 0u;
-                                            auto enable = faux;
-                                                 if (c == '+') enable = true;
-                                            else if (c == '-') enable = faux;
-                                            else
-                                            {
-                                                rc = faux;
-                                                break;
-                                            }
-                                            auto crop = qiew{ s };
-                                            if (auto v = utf::to_int<ui32, 16>(crop))
-                                            {
-                                                prop = v.value();
-                                                if (prop > INPUT_PROP_MAX)
-                                                {
-                                                    rc = faux;
-                                                    break;
-                                                }
-                                            }
-                                            else
-                                            {
-                                                auto val = libevdev_property_from_name(s);
-                                                if (val == -1)
-                                                {
-                                                    rc = faux;
-                                                    break;
-                                                }
-                                                prop = (ui32)val;
-                                            }
-                                            props[idx].first  = prop;
-                                            props[idx].second = enable;
-                                        }
-                                        if (rc)
-                                        {
-                                            props_out = props;
-                                            nprops = count;
-                                        }
-                                    }
-                                    return rc;
-                                }
-                            bool parse_attr(section_sptr s, view key, qiew value)
-                            {
-                                auto p = ptr::shared<property_t>();
-                                auto rc = faux;
-                                auto dim = si32_coor{};
-                                auto range = si32_range{};
-                                if (key == quirks_t::quirk_get_name(QUIRK_ATTR_SIZE_HINT))
-                                {
-                                    p->id = QUIRK_ATTR_SIZE_HINT;
-                                    if (parse_dimension_property(value, dim))
-                                    {
-                                        p->value = dim;
-                                        rc = true;
-                                    }
-                                }
-                                else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_TOUCH_SIZE_RANGE))
-                                {
-                                    p->id = QUIRK_ATTR_TOUCH_SIZE_RANGE;
-                                    if (parse_range_property(value, range))
-                                    {
-                                        p->value = range;
-                                        rc = true;
-                                    }
-                                }
-                                else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_PALM_SIZE_THRESHOLD))
-                                {
-                                    p->id = QUIRK_ATTR_PALM_SIZE_THRESHOLD;
-                                    if (auto v = utf::to_int<ui32>(value))
-                                    {
-                                        p->value = v.value();
-                                        rc = true;
-                                    }
-                                }
-                                else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_LID_SWITCH_RELIABILITY))
-                                {
-                                    p->id = QUIRK_ATTR_LID_SWITCH_RELIABILITY;
-                                    if (value == "reliable" || value == "write_open" || value == "unreliable")
-                                    {
-                                        p->value = text{ value };
-                                        rc = true;
-                                    }
-                                }
-                                else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_KEYBOARD_INTEGRATION))
-                                {
-                                    p->id = QUIRK_ATTR_KEYBOARD_INTEGRATION;
-                                    if (value == "internal" && value != "external")
-                                    {
-                                        p->value = text{ value };
-                                        rc = true;
-                                    }
-                                }
-                                else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_TRACKPOINT_INTEGRATION))
-                                {
-                                    p->id = QUIRK_ATTR_TRACKPOINT_INTEGRATION;
-                                    if (value == "internal" && value != "external")
-                                    {
-                                        p->value = text{ value };
-                                        rc = true;
-                                    }
-                                }
-                                else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_TPKBCOMBO_LAYOUT))
-                                {
-                                    p->id = QUIRK_ATTR_TPKBCOMBO_LAYOUT;
-                                    if (value == "below")
-                                    {
-                                        p->value = text{ value };
-                                        rc = true;
-                                    }
-                                }
-                                else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_PRESSURE_RANGE))
-                                {
-                                    p->id = QUIRK_ATTR_PRESSURE_RANGE;
-                                    if (parse_range_property(value, range))
-                                    {
-                                        p->value = range;
-                                        rc = true;
-                                    }
-                                }
-                                else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_PALM_PRESSURE_THRESHOLD))
-                                {
-                                    p->id = QUIRK_ATTR_PALM_PRESSURE_THRESHOLD;
-                                    if (auto v = utf::to_int<ui32>(value))
-                                    {
-                                        p->value = v.value();
-                                        rc = true;
-                                    }
-                                }
-                                else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_RESOLUTION_HINT))
-                                {
-                                    p->id = QUIRK_ATTR_RESOLUTION_HINT;
-                                    if (parse_dimension_property(value, dim))
-                                    {
-                                        p->value = dim;
-                                        rc = true;
-                                    }
-                                }
-                                else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_TRACKPOINT_MULTIPLIER))
-                                {
-                                    p->id = QUIRK_ATTR_TRACKPOINT_MULTIPLIER;
-                                    if (auto v = utf::to_int<fp64>(value))
-                                    {
-                                        p->value = v.value();
-                                        rc = true;
-                                    }
-                                }
-                                else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_USE_VELOCITY_AVERAGING))
-                                {
-                                    p->id = QUIRK_ATTR_USE_VELOCITY_AVERAGING;
-                                    p->value = value == "1";
-                                    rc = true;
-                                }
-                                else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_TABLET_SMOOTHING))
-                                {
-                                    p->id = QUIRK_ATTR_TABLET_SMOOTHING;
-                                    p->value = value == "1";
-                                    rc = true;
-                                }
-                                else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_THUMB_PRESSURE_THRESHOLD))
-                                {
-                                    p->id = QUIRK_ATTR_THUMB_PRESSURE_THRESHOLD;
-                                    if (auto v = utf::to_int<ui32>(value))
-                                    {
-                                        p->value = v.value();
-                                        rc = true;
-                                    }
-                                }
-                                else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_THUMB_SIZE_THRESHOLD))
-                                {
-                                    p->id = QUIRK_ATTR_THUMB_SIZE_THRESHOLD;
-                                    if (auto v = utf::to_int<ui32>(value))
-                                    {
-                                        p->value = v.value();
-                                        rc = true;
-                                    }
-                                }
-                                else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_MSC_TIMESTAMP))
-                                {
-                                    p->id = QUIRK_ATTR_MSC_TIMESTAMP;
-                                    if (value == "watch")
-                                    {
-                                        p->value = text{ value };
-                                        rc = true;
-                                    }
-                                }
-                                else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_EVENT_CODE))
-                                {
-                                    auto events = std::array<input_event_t, 32>{};
-                                    auto nevents = (ui64)events.size();
-                                    p->id = QUIRK_ATTR_EVENT_CODE;
-                                    if (parse_evcode_property(value, events.data(), nevents) && nevents != 0)
-                                    {
-                                        auto value_tuples = quirk_tuples{};
-                                        for (auto i = 0u; i < nevents; i++)
-                                        {
-                                            value_tuples.tuples[i].first = events[i].type;
-                                            value_tuples.tuples[i].second = events[i].code;
-                                            value_tuples.tuples[i].third = events[i].value;
-                                        }
-                                        value_tuples.ntuples = nevents;
-                                        p->value = value_tuples;
-                                        rc = true;
-                                    }
-                                }
-                                else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_INPUT_PROP))
-                                {
-                                    auto props = std::array<input_prop, INPUT_PROP_CNT>{};
-                                    auto nprops = (ui64)props.size();
-                                    p->id = QUIRK_ATTR_INPUT_PROP;
-                                    if (parse_input_prop_property(value, props, nprops) && nprops != 0)
-                                    {
-                                        auto value_tuples = quirk_tuples{};
-                                        for (auto i = 0u; i < nprops; i++)
-                                        {
-                                            value_tuples.tuples[i].first  = props[i].first;
-                                            value_tuples.tuples[i].second = props[i].second;
-                                        }
-                                        value_tuples.ntuples = nprops;
-                                        p->value = value_tuples;
-                                        rc = true;
-                                    }
-                                }
-                                else if (key == quirks_t::quirk_get_name(QUIRK_ATTR_IS_VIRTUAL))
-                                {
-                                    p->id = QUIRK_ATTR_IS_VIRTUAL;
-                                    p->value = value == "1";
-                                    rc = true;
-                                }
-                                else
-                                {
-                                    log("Unknown key %s% in %s%", key, s->name2);
-                                }
-                                if (rc)
-                                {
-                                    s->properties.push_back(p);
-                                    s->has_property = true;
-                                }
-                                return rc;
-                            }
-                        bool parse_value_line(section_sptr s, view line)
-                        {
-                            auto rc = faux;
-                            auto strv = utf::split(line, "=");
-                            if (strv.size() == 2)
-                            {
-                                auto key = strv[0];
-                                auto value = strv[1];
-                                if (key.size() && value.size() && value[0] != '"' && value[0] != '\'') // The value is not supposed to be in quotes.
-                                {
-                                         if (key.starts_with("Match")) rc = parse_match(s, key, value);
-                                    else if (key.starts_with("Model")) rc = parse_model(s, key, value);
-                                    else if (key.starts_with("Attr") ) rc = parse_attr( s, key, value);
-                                    else log("Unknown value prefix %s%", line);
-                                }
-                            }
-                            return rc;
-                        }
-                    bool parse_file(quirks_context_sptr ctx, view path)
-                    {
-                        enum state_enum
-                        {
-                            STATE_SECTION,
-                            STATE_MATCH,
-                            STATE_MATCH_OR_VALUE,
-                            STATE_VALUE_OR_SECTION,
-                            STATE_ANY,
-                        };
-                        char line[512];
-                        auto rc = true;
-                        auto state = STATE_SECTION;
-                        auto section = ptr::shared<section_t>();
-                        auto lineno = -1;
-                        log("%s%", path);
-                        auto fp = ::fopen(path.data(), "r");
-                        if (!fp) // If the file doesn't exist that's fine. Only way this can happen is for the custom override file, all others are provided by scandir so they do exist. Short of races we don't care about.
-                        {
-                            if (errno == ENOENT) return true;
-                            log("%s%: failed to open file", path);
-                            rc = faux;
-                        }
-                        else while (::fgets(line, sizeof(line), fp))
-                        {
-                            lineno++;
-                            auto comment = strstr(line, "#");
-                            if (comment) // Comment points to # but we need to remove the preceding whitespaces too.
-                            {
-                                comment--;
-                                while (comment >= line)
-                                {
-                                    if (*comment == ' ' || *comment == '\t')
-                                    {
-                                        comment--;
-                                    }
-                                }
-                                *(comment + 1) = '\0';
-                            }
-                            else // Strip the trailing newline.
-                            {
-                                comment = strstr(line, "\n");
-                                if (comment) *comment = '\0';
-                            }
-                            if (strlen(line) == 0) continue;
-                            // We don't use quotes for strings, so we really don't want erroneous trailing whitespaces.
-                            auto c = line[strlen(line) - 1];
-                            if (c == ' ' || c == '\t') // Strip the trailing newline.
-                            {
-                                log("%s%:%d%: Trailing whitespace '%s%'", path, lineno, line);
-                                rc = faux;
-                                break;
-                            }
-                            c = line[0];
-                            if (c == '\0' || c == '\n' || c == '#')
-                            {
-                                //
-                            }
-                            else if (c == ' ' || c == '\t') // Whitespaces not allowed.
-                            {
-                                log("%s%:%d%: Preceding whitespace '%s%'", path, lineno, line);
-                                rc = faux;
-                                break;
-                            }
-                            else if (c == '[') // Section title.
-                            {
-                                if (line[strlen(line) - 1] != ']')
-                                {
-                                    log("%s%:%d%: Closing ] missing '%s%'", path, lineno, line);
-                                    rc = faux;
-                                    break;
-                                }
-                                if (state != STATE_SECTION && state != STATE_VALUE_OR_SECTION)
-                                {
-                                    log("%s%:%d%: expected section before %s%", path, lineno, line);
-                                    rc = faux;
-                                    break;
-                                }
-                                if (section && (!section->has_match || !section->has_property))
-                                {
-                                    log("%s%:%d%: previous section %s% was empty", path, lineno, section->name2);
-                                    rc = faux;
-                                    break; // Previous section was empty.
-                                }
-                                state = STATE_MATCH;
-                                auto path_copy = text{ path };
-                                section->name2 = utf::fprint("%s% (%s%)", line, ::basename(path_copy.data()));
-                                ctx->sections.push_back(section);
-                                break;
-                            }
-                            else // Entries must start with A-Z.
-                            {
-                                if (line[0] < 'A' || line[0] > 'Z')
-                                {
-                                    log("%s%:%d%: Unexpected line %s%", path, lineno, line);
-                                    rc = faux;
-                                    break;
-                                }
-                                if (state == STATE_SECTION)
-                                {
-                                    log("%s%:%d%: expected [Section], got %s%", path, lineno, line);
-                                    rc = faux;
-                                    break;
-                                }
-                                else if (state == STATE_MATCH)
-                                {
-                                    if (!strstartswith(line, "Match"))
-                                    {
-                                        log("%s%:%d%: expected MatchFoo=bar, have %s%", path, lineno, line);
-                                        rc = faux;
-                                        break;
-                                    }
-                                    state = STATE_MATCH_OR_VALUE;
-                                }
-                                else if (state == STATE_MATCH_OR_VALUE)
-                                {
-                                    if (!strstartswith(line, "Match"))
-                                    {
-                                        state = STATE_VALUE_OR_SECTION;
-                                    }
-                                }
-                                else if (state == STATE_VALUE_OR_SECTION)
-                                {
-                                    if (strstartswith(line, "Match"))
-                                    {
-                                        log("%s%:%d%: expected value or [Section], have %s%", path, lineno, line);
-                                        rc = faux;
-                                        break;
-                                    }
-                                }
-                                else if (state == STATE_ANY)
-                                {
-                                    //
-                                }
-                                if (!parse_value_line(section, line))
-                                {
-                                    log("%s%:%d%: failed to parse %s%", path, lineno, line);
-                                    rc = faux;
-                                    break;
-                                }
-                            }
-                        }
-                        if (rc)
-                        {
-                            if (!section)
-                            {
-                                log("%s%: is an empty file", path);
-                                rc = faux;
-                            }
-                            else if ((!section->has_match || !section->has_property))
-                            {
-                                log("%s%:%d%: previous section %s% was empty", path, lineno, section->name2);
-                                rc = faux;
-                            }
-                        }
-                        if (fp)
-                        {
-                            ::fclose(fp);
-                        }
-                        return rc;
-                    }
-                bool parse_files(quirks_context_sptr ctx, qiew data_path)
-                {
-                    //todo use os::fs
-                    auto namelist = (dirent**)nullptr;
-                    auto ndev = ::scandir(data_path.data(), &namelist, is_data_file, versionsort);
-                    if (ndev <= 0)
-                    {
-                        //log("%s%: failed to find data files", data_path ? data_path : "empty path");
-                        return faux;
-                    }
-                    auto idx = 0;
-                    for (; idx < ndev; idx++)
-                    {
-                        char path[PATH_MAX];
-                        ::snprintf(path, sizeof(path), "%s/%s", data_path.data(), namelist[idx]->d_name);
-                        if (!parse_file(ctx, path)) break;
-                    }
-                    for (auto i = 0; i < ndev; i++)
-                    {
-                        ::free(namelist[i]);
-                    }
-                    ::free(namelist);
-                    return idx == ndev;
-                }
-            quirks_context_sptr quirks_init_subsystem(view data_path, view override_file, libinput_sptr li)
-            {
-                auto ctx = ptr::shared<quirks_context_t>();
-                ctx->libinput    = li;
-                ctx->dmi2        = init_dmi();
-                ctx->dt2         = init_dt();
-                if ((ctx->dmi2.empty() && ctx->dt2.empty())
-                 || (!parse_files(ctx, data_path))
-                 || (override_file.size() && !parse_file(ctx, override_file)))
-                {
-                    return quirks_context_sptr{};
-                }
-                else
-                {
-                    return ctx;
-                }
-            }
 }
 #if not defined(DEBUG)
     #undef log
