@@ -5927,6 +5927,21 @@ namespace netxs::lixx // li++, libinput++.
             }
             else return {};
         }
+        auto add_by_name(qiew filename, auto proc)
+        {
+            auto ud_device = ud_device_sptr{};
+            auto iter = ud_device_list.find(filename);
+            if (iter == ud_device_list.end())
+            {
+                ud_device = ptr::shared<ud_device_t>(filename);
+                if (ud_device->initialized && proc(ud_device))
+                {
+                    ud_device_list[filename] = ud_device;
+                }
+                else ud_device.reset();
+            }
+            return ud_device;
+        }
         void add_devices(auto proc)
         {
             auto length = 0u;
@@ -5951,19 +5966,9 @@ namespace netxs::lixx // li++, libinput++.
                     else if (event.wd == wd_dev)
                     {
                         auto filename = qiew{ event.name };
-                        if (!(event.mask & IN_ISDIR) && (event.mask & dev_monitor_mode) && filename.starts_with("event"))
+                        if (!(event.mask & IN_ISDIR) && (event.mask & dev_monitor_mode) && filename.starts_with("event")) // Created or access modified. Do nothing on delete, just wait for ENODEV.
                         {
-                            // Created or access modified. Do nothing on delete, just wait for ENODEV.
-                            auto iter = ud_device_list.find(filename);
-                            if (iter == ud_device_list.end())
-                            {
-                                auto ud_device = ptr::shared<ud_device_t>(filename);
-                                if (ud_device->initialized)
-                                {
-                                    ud_device_list[filename] = ud_device;
-                                    proc(ud_device);
-                                }
-                            }
+                            add_by_name(filename, proc);
                         }
                     }
                     crop.remove_prefix(sizeof(::inotify_event) + event.len);
@@ -6040,7 +6045,7 @@ namespace netxs::lixx // li++, libinput++.
         {
             ud_monitor->add_devices([&](auto ud_device)
             {
-                libinput_device_create(This(), ud_device);
+                return !!libinput_device_create(This(), ud_device);
             });
         }
         void input_enable()
@@ -6111,8 +6116,12 @@ namespace netxs::lixx // li++, libinput++.
         }
         libinput_device_sptr libinput_add_device(qiew sysname)
         {
-            auto ud_device = ptr::shared<ud_device_t>(sysname);
-            auto li_device = libinput_device_create(This(), ud_device);
+            auto li_device = libinput_device_sptr{};
+            ud_monitor->add_by_name(sysname, [&](ud_device_sptr ud_device)
+            {
+                li_device = libinput_device_create(This(), ud_device);
+                return !!li_device;
+            });
             return li_device;
         }
         void enumerate_active_devices(auto proc)
@@ -7189,6 +7198,7 @@ namespace netxs::lixx // li++, libinput++.
                 }
             });
             std::erase_if(li->ud_monitor->ud_device_list, [&](auto d){ return d.second == ud_device; });
+            log("Device '%%' removed", devname);
         }
         si32 evdev_device_resume()
         {
