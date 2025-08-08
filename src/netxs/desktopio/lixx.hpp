@@ -143,6 +143,7 @@ namespace netxs::lixx // li++, libinput++.
         EVDEV_UDEV_TAG_POINTINGSTICK = 1ul << 9,
         EVDEV_UDEV_TAG_TRACKBALL     = 1ul << 10,
         EVDEV_UDEV_TAG_SWITCH        = 1ul << 11,
+        EVDEV_UDEV_TAG_PURETABLET    = 1ul << 12,
     };
     enum evdev_button_scroll_state
     {
@@ -4608,6 +4609,10 @@ namespace netxs::lixx // li++, libinput++.
                     tags |= tag;
                 }
             }
+            if ((tags & (EVDEV_UDEV_TAG_TABLET | EVDEV_UDEV_TAG_TOUCHPAD | EVDEV_UDEV_TAG_TOUCHSCREEN)) == EVDEV_UDEV_TAG_TABLET)
+            {
+                tags |= EVDEV_UDEV_TAG_PURETABLET;
+            }
             return tags;
         }
         abs_info_t* libevdev_get_abs_info(ui32 code)
@@ -5438,9 +5443,6 @@ namespace netxs::lixx // li++, libinput++.
         }
         bool evdev_reject_device()
         {
-            auto code = 0u;
-            auto absx = (abs_info_t const*)nullptr;
-            auto absy = (abs_info_t const*)nullptr;
             if (libevdev_has_event_code<EV_ABS>(ABS_X) ^ libevdev_has_event_code<EV_ABS>(ABS_Y))
             {
                 return true;
@@ -5449,33 +5451,31 @@ namespace netxs::lixx // li++, libinput++.
             {
                 return true;
             }
-            if (!evdev_is_fake_mt_device()
-             && libevdev_has_event_code<EV_ABS>(ABS_MT_POSITION_X) ^ libevdev_has_event_code<EV_ABS>(ABS_MT_POSITION_Y))
+            if (!evdev_is_fake_mt_device() && libevdev_has_event_code<EV_ABS>(ABS_MT_POSITION_X) ^ libevdev_has_event_code<EV_ABS>(ABS_MT_POSITION_Y))
             {
                 return true;
             }
             if (libevdev_has_event_code<EV_ABS>(ABS_X))
             {
-                absx = libevdev_get_abs_info(ABS_X);
-                absy = libevdev_get_abs_info(ABS_Y);
+                auto absx = libevdev_get_abs_info(ABS_X);
+                auto absy = libevdev_get_abs_info(ABS_Y);
                 if ((absx->resolution == 0 && absy->resolution != 0) || (absx->resolution != 0 && absy->resolution == 0))
                 {
-                    log("kernel has only x or y resolution, not both");
+                    log("Device has only x or y resolution");
                     return true;
                 }
             }
             if (!evdev_is_fake_mt_device() && libevdev_has_event_code<EV_ABS>(ABS_MT_POSITION_X))
             {
-                absx = libevdev_get_abs_info(ABS_MT_POSITION_X);
-                absy = libevdev_get_abs_info(ABS_MT_POSITION_Y);
-                if ((absx->resolution == 0 && absy->resolution != 0)
-                || (absx->resolution != 0 && absy->resolution == 0))
+                auto absx = libevdev_get_abs_info(ABS_MT_POSITION_X);
+                auto absy = libevdev_get_abs_info(ABS_MT_POSITION_Y);
+                if ((absx->resolution == 0 && absy->resolution != 0) || (absx->resolution != 0 && absy->resolution == 0))
                 {
-                    log("kernel has only x or y MT resolution, not both");
+                    log("MT Device has only x or y resolution");
                     return true;
                 }
             }
-            for (code = 0; code < ABS_CNT; code++)
+            for (auto code = 0u; code < ABS_CNT; code++)
             {
                 if (code != ABS_MISC && code != ABS_MT_SLOT && code != ABS_MT_TOOL_TYPE && !evdev_check_min_max(code))
                 {
@@ -5484,20 +5484,14 @@ namespace netxs::lixx // li++, libinput++.
             }
             return faux;
         }
-        void evdev_fix_android_mt()
+        void evdev_fix_android_mt() // If !evdev_is_fake_mt_device().
         {
-            if (libevdev_has_event_code<EV_ABS>(ABS_X) || libevdev_has_event_code<EV_ABS>(ABS_Y))
+            if (!libevdev_has_event_code<EV_ABS>(ABS_X) && !libevdev_has_event_code<EV_ABS>(ABS_Y))
+            if (libevdev_has_event_code<EV_ABS>(ABS_MT_POSITION_X) && libevdev_has_event_code<EV_ABS>(ABS_MT_POSITION_Y))
             {
-                return;
+                libevdev_enable_event_code<EV_ABS>(ABS_X, libevdev_get_abs_info(ABS_MT_POSITION_X));
+                libevdev_enable_event_code<EV_ABS>(ABS_Y, libevdev_get_abs_info(ABS_MT_POSITION_Y));
             }
-            if (!libevdev_has_event_code<EV_ABS>(ABS_MT_POSITION_X)
-             || !libevdev_has_event_code<EV_ABS>(ABS_MT_POSITION_Y)
-             || evdev_is_fake_mt_device())
-            {
-                return;
-            }
-            libevdev_enable_event_code<EV_ABS>(ABS_X, libevdev_get_abs_info(ABS_MT_POSITION_X));
-            libevdev_enable_event_code<EV_ABS>(ABS_Y, libevdev_get_abs_info(ABS_MT_POSITION_Y));
         }
         template<class Li>
         bool evdev_read_attr_res_prop(Li li, si32_coor& res)
@@ -5651,20 +5645,6 @@ namespace netxs::lixx // li++, libinput++.
             }
             return result;
         }
-        template<ui32 Type>
-        void set_event_type_code(bool enable, ui32 code, void const* data = nullptr)
-        {
-            if (code == lixx::event_code_undefined)
-            {
-                if (enable) libevdev_enable_event_type<Type>();
-                else        libevdev_disable_event_type<Type>();
-            }
-            else
-            {
-                if (enable) libevdev_enable_event_code<Type>(code, data);
-                else        libevdev_disable_event_code<Type>(code);
-            }
-        }
         template<class Li>
         void evdev_pre_configure_model_quirks(Li li)
         {
@@ -5792,6 +5772,20 @@ namespace netxs::lixx // li++, libinput++.
             {
                 log("is a test device");
                 model_flags |= EVDEV_MODEL_TEST_DEVICE;
+            }
+        }
+        template<ui32 Type>
+        void set_event_type_code(bool enable, ui32 code, void const* data = nullptr)
+        {
+            if (code == lixx::event_code_undefined)
+            {
+                if (enable) libevdev_enable_event_type<Type>();
+                else        libevdev_disable_event_type<Type>();
+            }
+            else
+            {
+                if (enable) libevdev_enable_event_code<Type>(code, data);
+                else        libevdev_disable_event_code<Type>(code);
             }
         }
         si32 parse_mouse_wheel_click_angle_property(qiew prop)
@@ -19839,6 +19833,7 @@ namespace netxs::lixx // li++, libinput++.
 
     libinput_device_sptr evdev_totem_create(libinput_sptr li, ud_device_sptr ud_device)
     {
+        ud_device->device_class += " totem";
         auto totem_ptr = totem_dispatch_sptr{};
         auto li_device = totem_ptr;
         li_device->ud_device = ud_device;
@@ -19896,6 +19891,7 @@ namespace netxs::lixx // li++, libinput++.
             }
         libinput_device_sptr evdev_tablet_pad_create(libinput_sptr li, ud_device_sptr ud_device)
         {
+            ud_device->device_class += " tabletpad";
             auto pad = ptr::shared<pad_dispatch>();
             auto li_device = pad;
             li_device->li = li;
@@ -19918,6 +19914,7 @@ namespace netxs::lixx // li++, libinput++.
         }
         libinput_device_sptr evdev_tablet_create(libinput_sptr li, ud_device_sptr ud_device)
         {
+            ud_device->device_class += " tablet";
             auto tablet_ptr = ptr::shared<tablet_dispatch>();
             auto li_device = tablet_ptr;
             li_device->li = li;
@@ -20050,31 +20047,32 @@ namespace netxs::lixx // li++, libinput++.
             }
         libinput_device_sptr evdev_mt_touchpad_create(libinput_sptr li, ud_device_sptr ud_device, ui32 udev_tags)
         {
-            auto tp = ptr::shared<tp_dispatch>();
-            auto li_device = tp;
-            li_device->li = li;
-            li_device->ud_device = ud_device;
+            ud_device->device_class += " touchpad";
+            auto tp_ptr = ptr::shared<tp_dispatch>();
+            auto& tp = *tp_ptr;
+            tp.li = li;
+            tp.ud_device = ud_device;
             if (udev_tags & EVDEV_UDEV_TAG_TABLET)
             {
-                li_device->device_tags |= EVDEV_TAG_TABLET_TOUCHPAD;
+                tp.device_tags |= EVDEV_TAG_TABLET_TOUCHPAD;
             }
-            li_device->use_velocity_averaging = evdev_need_velocity_averaging(li_device); // Whether velocity should be averaged, false by default.
-            evdev_tag_touchpad(li_device);
-            if (!tp->tp_impl.tp_init())
+            tp.use_velocity_averaging = evdev_need_velocity_averaging(tp_ptr); // Whether velocity should be averaged, false by default.
+            evdev_tag_touchpad(tp_ptr);
+            if (!tp.tp_impl.tp_init())
             {
-                tp.reset();
+                tp_ptr.reset();
             }
             else
             {
-                li_device->config.sendevents           = &tp->sendevents_config;
-                tp->sendevents_current_mode            = LIBINPUT_CONFIG_SEND_EVENTS_ENABLED;
-                tp->sendevents_config.get_modes        = tp_sendevents_get_modes;
-                tp->sendevents_config.set_mode         = tp_sendevents_set_mode;
-                tp->sendevents_config.get_mode         = tp_sendevents_get_mode;
-                tp->sendevents_config.get_default_mode = tp_sendevents_get_default_mode;
-                tp->tp_impl.tp_init_left_handed(li_device);
+                tp.config.sendevents                  = &tp.sendevents_config;
+                tp.sendevents_current_mode            = LIBINPUT_CONFIG_SEND_EVENTS_ENABLED;
+                tp.sendevents_config.get_modes        = tp_sendevents_get_modes;
+                tp.sendevents_config.set_mode         = tp_sendevents_set_mode;
+                tp.sendevents_config.get_mode         = tp_sendevents_get_mode;
+                tp.sendevents_config.get_default_mode = tp_sendevents_get_default_mode;
+                tp.tp_impl.tp_init_left_handed(tp_ptr);
             }
-            return tp;
+            return tp_ptr;
         }
         void evdev_tag_external_mouse(libinput_device_sptr li_device)
         {
@@ -20365,64 +20363,31 @@ namespace netxs::lixx // li++, libinput++.
         }
     libinput_device_sptr evdev_configure_device(libinput_sptr li, ud_device_sptr ud_device)
     {
+        auto li_device = libinput_device_sptr{};
         auto udev_tags = ud_device->evdev_device_get_udev_tags();
-        if (!(udev_tags & EVDEV_UDEV_TAG_INPUT) || !(udev_tags & ~EVDEV_UDEV_TAG_INPUT))
+             if (!(udev_tags & EVDEV_UDEV_TAG_INPUT) || !(udev_tags & ~EVDEV_UDEV_TAG_INPUT)) ud_device->device_class += " unknown";
+        else if (udev_tags == (EVDEV_UDEV_TAG_INPUT | EVDEV_UDEV_TAG_ACCELEROMETER))          ud_device->device_class += " accelerometer"; // Ignore pure accelerometers, but accept devices that are accelerometers with other axes.
+        else if (udev_tags & EVDEV_UDEV_TAG_JOYSTICK)                                         ud_device->device_class += " joystick";
+        else if (ud_device->evdev_reject_device())                                            ud_device->device_class += " unsupported";
+        else
         {
-            ud_device->device_class += " unknown";
-            return {};
-        }
-        if (udev_tags == (EVDEV_UDEV_TAG_INPUT | EVDEV_UDEV_TAG_ACCELEROMETER)) // Ignore pure accelerometers, but accept devices that are accelerometers with other axes.
-        {
-            ud_device->device_class += " accelerometer";
-            return {};
-        }
-        if (udev_tags & EVDEV_UDEV_TAG_JOYSTICK)
-        {
-            ud_device->device_class += " joystick";
-            return {};
-        }
-        if (ud_device->evdev_reject_device())
-        {
-            ud_device->device_class += " unsupported";
-            return {};
-        }
-        if (udev_tags & EVDEV_UDEV_TAG_ACCELEROMETER)
-        {
-            ud_device->evdev_disable_accelerometer_axes();
-        }
-        if (!ud_device->evdev_is_fake_mt_device())
-        {
-            ud_device->evdev_fix_android_mt();
-        }
-        if (ud_device->libevdev_has_event_code<EV_ABS>(ABS_X))
-        {
-            ud_device->evdev_extract_abs_axes(li, udev_tags);
-            if (ud_device->evdev_is_fake_mt_device())
+            if (udev_tags & EVDEV_UDEV_TAG_ACCELEROMETER) ud_device->evdev_disable_accelerometer_axes();
+            if (!ud_device->evdev_is_fake_mt_device()) ud_device->evdev_fix_android_mt();
+            if (ud_device->libevdev_has_event_code<EV_ABS>(ABS_X))
             {
-                udev_tags &= ~EVDEV_UDEV_TAG_TOUCHSCREEN;
+                ud_device->evdev_extract_abs_axes(li, udev_tags);
+                if (ud_device->evdev_is_fake_mt_device())
+                {
+                    udev_tags &= ~EVDEV_UDEV_TAG_TOUCHSCREEN;
+                }
             }
+                 if (ud_device->evdev_device_has_model_quirk(li, QUIRK_MODEL_DELL_CANVAS_TOTEM)) li_device = evdev_totem_create(      li, ud_device);
+            else if (udev_tags & EVDEV_UDEV_TAG_TABLET_PAD)                                      li_device = evdev_tablet_pad_create( li, ud_device); // Libwacom assigns tablet _and_ tablet_pad to the pad devices.
+            else if (udev_tags & EVDEV_UDEV_TAG_PURETABLET)                                      li_device = evdev_tablet_create(     li, ud_device); // Libwacom assigns touchpad (or touchscreen) _and_ tablet to the tablet touch bits, so make sure we don't initialize the tablet interface for the touch device.
+            else if (udev_tags & EVDEV_UDEV_TAG_TOUCHPAD)                                        li_device = evdev_mt_touchpad_create(li, ud_device, udev_tags);
+            else                                                                                 li_device = fallback_dispatch_create(li, ud_device, udev_tags);
         }
-        if (ud_device->evdev_device_has_model_quirk(li, QUIRK_MODEL_DELL_CANVAS_TOTEM))
-        {
-            ud_device->device_class += " totem";
-            return evdev_totem_create(li, ud_device);
-        }
-        if (udev_tags & EVDEV_UDEV_TAG_TABLET_PAD) // Libwacom assigns tablet _and_ tablet_pad to the pad devices.
-        {
-            ud_device->device_class += " tabletpad";
-            return evdev_tablet_pad_create(li, ud_device);
-        }
-        if ((udev_tags & (EVDEV_UDEV_TAG_TABLET | EVDEV_UDEV_TAG_TOUCHPAD | EVDEV_UDEV_TAG_TOUCHSCREEN)) == EVDEV_UDEV_TAG_TABLET) // Libwacom assigns touchpad (or touchscreen) _and_ tablet to the tablet touch bits, so make sure we don't initialize the tablet interface for the touch device.
-        {
-            ud_device->device_class += " tablet";
-            return evdev_tablet_create(li, ud_device);
-        }
-        if (udev_tags & EVDEV_UDEV_TAG_TOUCHPAD)
-        {
-            ud_device->device_class += " touchpad";
-            return evdev_mt_touchpad_create(li, ud_device, udev_tags);
-        }
-        return fallback_dispatch_create(li, ud_device, udev_tags);
+        return li_device;
     }
     libinput_device_sptr libinput_device_create(libinput_sptr li, ud_device_sptr ud_device)
     {
