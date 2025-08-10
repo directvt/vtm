@@ -6053,7 +6053,6 @@ namespace netxs::lixx // li++, libinput++.
         std::deque<event_variants>            event_queue;
 
         std::list<libinput_tablet_tool_sptr>  tool_list;
-        void*                                 user_data = {};
         time                                  last_event_time = {};
         time                                  dispatch_time = {};
         ui32                                  seat_slot_map = {};
@@ -6061,10 +6060,35 @@ namespace netxs::lixx // li++, libinput++.
         bool                                  quirks_initialized = {};
         quirks_context_sptr                   quirks;
 
-        ud_monitor_t                          ud_monitor{ *this };
+        ud_monitor_t                          ud_monitor;
         std::list<libinput_device_sptr>       device_list;
 
         libinput_device_sptr libinput_device_create(ud_device_t& ud_device);
+        static auto& empty_event()
+        {
+            static auto empty_event = libinput_event_device_notify{};
+            return empty_event;
+        }
+
+        libinput_t()
+            : ud_monitor{ *this }
+        {
+            timers.epoll_fd = ::epoll_create1(EPOLL_CLOEXEC);
+            if (timers.epoll_fd != os::invalid_fd)
+            {
+                libinput_t::event_queue.resize(4);
+                libinput_t::event_queue.clear();
+                libinput_t::event_queue.emplace_back(empty_event()); // At least one event must be in the event queue (as previous).
+                if (timers.libinput_timer_subsys_init())
+                {
+                    libinput_init_quirks();
+                    ud_monitor.udev_monitor_add_all_active_input_devices();
+                    ud_monitor.udev_monitor_enable_monitoring();
+                }
+            }
+        }
+
+        operator bool () const { return timers.epoll_fd != os::invalid_fd; }
 
         ui32 update_seat_button_count(ui32 button_code, libinput_button_state state)
         {
@@ -6126,11 +6150,6 @@ namespace netxs::lixx // li++, libinput++.
             auto& event_packet = std::get<T>(event_queue.emplace_back(T{}));
             return event_packet;
         }
-        static auto& empty_event()
-        {
-            static auto empty_event = libinput_event_device_notify{};
-            return empty_event;
-        }
         auto& libinput_get_event()
         {
             auto selector = [](auto& e)->libinput_event& { return e; };
@@ -6165,20 +6184,6 @@ namespace netxs::lixx // li++, libinput++.
             }
             timers.source_destroy_list.clear();
             return 0;
-        }
-        bool libinput_init(void* user_data)
-        {
-            timers.epoll_fd = ::epoll_create1(EPOLL_CLOEXEC);
-            if (timers.epoll_fd < 0) return faux;
-            libinput_t::event_queue.resize(4);
-            libinput_t::event_queue.clear();
-            libinput_t::event_queue.emplace_back(empty_event()); // At least one event must be in the event queue (as previous).
-            libinput_t::user_data = user_data;
-            auto ok = timers.libinput_timer_subsys_init();
-            libinput_init_quirks();
-            ud_monitor.udev_monitor_add_all_active_input_devices();
-            ud_monitor.udev_monitor_enable_monitoring();
-            return ok;
         }
         #if HAVE_LIBWACOM
         WacomDeviceDatabase* libinput_libwacom_ref()
@@ -20376,12 +20381,6 @@ namespace netxs::lixx // li++, libinput++.
             li_device.reset();
         }
         return li_device;
-    }
-    libinput_sptr libinput_create_context(void* user_data = nullptr)
-    {
-        auto li_ptr = ptr::shared<libinput_t>();
-        li_ptr->libinput_init(user_data);
-        return li_ptr;
     }
     si32 libinput_device_config_rotation_is_available(libinput_device_sptr li_device)
     {

@@ -4725,7 +4725,7 @@ namespace netxs::os
             // lixx: .
             auto initialize()
             {
-                li = lixx::libinput_create_context();
+                li = ptr::shared<libinput_t>();
                 return li;
             }
             // lixx: .
