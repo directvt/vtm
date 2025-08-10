@@ -8170,6 +8170,49 @@ namespace netxs::lixx // li++, libinput++.
                 evdev_tag_touchpad_external();
             }
         }
+        si32 evdev_device_tablet_pad_get_num_dials()
+        {
+            auto ndials = 0;
+            if (!(device_caps & EVDEV_DEVICE_TABLET_PAD)) return -1;
+            if (libevdev_has_event_code<EV_REL>(REL_WHEEL)
+             || libevdev_has_event_code<EV_REL>(REL_DIAL))
+            {
+                ndials++;
+                if (libevdev_has_event_code<EV_REL>(REL_HWHEEL))
+                {
+                    ndials++;
+                }
+            }
+            return ndials;
+        }
+        si32 evdev_device_tablet_pad_get_num_rings()
+        {
+            auto nrings = 0;
+            if (!(device_caps & EVDEV_DEVICE_TABLET_PAD)) return -1;
+            if (libevdev_has_event_code<EV_ABS>(ABS_WHEEL))
+            {
+                nrings++;
+                if (libevdev_has_event_code<EV_ABS>(ABS_THROTTLE))
+                {
+                    nrings++;
+                }
+            }
+            return nrings;
+        }
+        si32 evdev_device_tablet_pad_get_num_strips()
+        {
+            auto nstrips = 0;
+            if (!(device_caps & EVDEV_DEVICE_TABLET_PAD)) return -1;
+            if (libevdev_has_event_code<EV_ABS>(ABS_RX))
+            {
+                nstrips++;
+                if (libevdev_has_event_code<EV_ABS>(ABS_RY))
+                {
+                    nstrips++;
+                }
+            }
+            return nstrips;
+        }
     };
 
     struct libinput_paired_keyboard
@@ -13884,9 +13927,9 @@ namespace netxs::lixx // li++, libinput++.
                     tp.hysteresis.enabled = (ax.fuzz || ay.fuzz);
                     if (tp.hysteresis.enabled) log("hysteresis enabled");
                 }
-                        libinput_config_status tp_accel_config_set_speed(libinput_device_sptr li_device, fp64 speed)
+                        libinput_config_status tp_accel_config_set_speed(fp64 speed)
                         {
-                            auto ok = li_device->pointer_filter->filter_set_speed(speed);
+                            auto ok = tp.pointer_filter->filter_set_speed(speed);
                             return ok ? LIBINPUT_CONFIG_STATUS_SUCCESS : LIBINPUT_CONFIG_STATUS_INVALID;
                         }
                     static libinput_config_status tp_accel_config_set_profile(libinput_device_sptr li_device, libinput_config_accel_profile profile)
@@ -13898,7 +13941,7 @@ namespace netxs::lixx // li++, libinput++.
                             auto speed = filter->filter_get_speed();
                             if (tp.tp_impl.tp_init_accel(profile))
                             {
-                                tp.tp_impl.tp_accel_config_set_speed(li_device, speed);
+                                tp.tp_impl.tp_accel_config_set_speed(speed);
                             }
                             else
                             {
@@ -15118,28 +15161,9 @@ namespace netxs::lixx // li++, libinput++.
                                 pad_button_set_down(ev.usage, is_press);
                             }
                         }
-                                            si32 evdev_device_tablet_pad_get_num_dials(libinput_device_sptr li_device)
-                                            {
-                                                auto ndials = 0;
-                                                if (!(li_device->device_caps & EVDEV_DEVICE_TABLET_PAD)) return -1;
-                                                if (li_device->libevdev_has_event_code<EV_REL>(REL_WHEEL)
-                                                 || li_device->libevdev_has_event_code<EV_REL>(REL_DIAL))
-                                                {
-                                                    ndials++;
-                                                    if (li_device->libevdev_has_event_code<EV_REL>(REL_HWHEEL))
-                                                    {
-                                                        ndials++;
-                                                    }
-                                                }
-                                                return ndials;
-                                            }
-                                        si32 libinput_device_tablet_pad_get_num_dials(libinput_device_sptr li_device)
-                                        {
-                                            return evdev_device_tablet_pad_get_num_dials(li_device);
-                                        }
                                     si32 libinput_tablet_pad_mode_group_has_dial(libinput_tablet_pad_mode_group_sptr group, ui32 dial)
                                     {
-                                        if ((si32)dial >= libinput_device_tablet_pad_get_num_dials(group->li_device))
+                                        if ((si32)dial >= group->li_device->evdev_device_tablet_pad_get_num_dials())
                                         {
                                             return 0;
                                         }
@@ -15184,27 +15208,9 @@ namespace netxs::lixx // li++, libinput++.
                                     }
                                     return degrees;
                                 }
-                                            si32 evdev_device_tablet_pad_get_num_rings(libinput_device_sptr li_device)
-                                            {
-                                                auto nrings = 0;
-                                                if (!(li_device->device_caps & EVDEV_DEVICE_TABLET_PAD)) return -1;
-                                                if (li_device->libevdev_has_event_code<EV_ABS>(ABS_WHEEL))
-                                                {
-                                                    nrings++;
-                                                    if (li_device->libevdev_has_event_code<EV_ABS>(ABS_THROTTLE))
-                                                    {
-                                                        nrings++;
-                                                    }
-                                                }
-                                                return nrings;
-                                            }
-                                        si32 libinput_device_tablet_pad_get_num_rings(libinput_device_sptr li_device)
-                                        {
-                                            return evdev_device_tablet_pad_get_num_rings(li_device);
-                                        }
                                     si32 libinput_tablet_pad_mode_group_has_ring(libinput_tablet_pad_mode_group_sptr group, ui32 ring)
                                     {
-                                        if ((si32)ring >= libinput_device_tablet_pad_get_num_rings(group->li_device))
+                                        if ((si32)ring >= group->li_device->evdev_device_tablet_pad_get_num_rings())
                                         {
                                             return 0;
                                         }
@@ -15262,27 +15268,9 @@ namespace netxs::lixx // li++, libinput++.
                                     if (pad.dev_left_handed.enabled) pos = 1.0 - pos;
                                     return pos;
                                 }
-                                            si32 evdev_device_tablet_pad_get_num_strips(libinput_device_sptr li_device)
-                                            {
-                                                auto nstrips = 0;
-                                                if (!(li_device->device_caps & EVDEV_DEVICE_TABLET_PAD)) return -1;
-                                                if (li_device->libevdev_has_event_code<EV_ABS>(ABS_RX))
-                                                {
-                                                    nstrips++;
-                                                    if (li_device->libevdev_has_event_code<EV_ABS>(ABS_RY))
-                                                    {
-                                                        nstrips++;
-                                                    }
-                                                }
-                                                return nstrips;
-                                            }
-                                        si32 libinput_device_tablet_pad_get_num_strips(libinput_device_sptr li_device)
-                                        {
-                                            return evdev_device_tablet_pad_get_num_strips(li_device);
-                                        }
                                     si32 libinput_tablet_pad_mode_group_has_strip(libinput_tablet_pad_mode_group_sptr group, ui32 strip)
                                     {
-                                        if ((si32)strip >= libinput_device_tablet_pad_get_num_strips(group->li_device)) return 0;
+                                        if ((si32)strip >= group->li_device->evdev_device_tablet_pad_get_num_strips()) return 0;
                                         return !!(group->strip_mask & (1ul << strip));
                                     }
                                 libinput_tablet_pad_mode_group_sptr pad_strip_get_mode_group(ui32 strip)
@@ -15361,13 +15349,9 @@ namespace netxs::lixx // li++, libinput++.
                                                     auto is_pad = li_device->device_caps & EVDEV_DEVICE_TABLET_PAD;
                                                     return is_pad ? pad.nbuttons : -1;
                                                 }
-                                            si32 libinput_device_tablet_pad_get_num_buttons(libinput_device_sptr li_device)
-                                            {
-                                                return evdev_device_tablet_pad_get_num_buttons(li_device);
-                                            }
                                         si32 libinput_tablet_pad_mode_group_has_button(libinput_tablet_pad_mode_group_sptr group, ui32 button)
                                         {
-                                            if ((si32)button >= libinput_device_tablet_pad_get_num_buttons(group->li_device))
+                                            if ((si32)button >= evdev_device_tablet_pad_get_num_buttons(group->li_device))
                                             {
                                                 return 0;
                                             }
@@ -15387,7 +15371,10 @@ namespace netxs::lixx // li++, libinput++.
                                     }
                                         si32 libinput_tablet_pad_mode_group_button_is_toggle(libinput_tablet_pad_mode_group_sptr group, ui32 button)
                                         {
-                                            if ((si32)button >= libinput_device_tablet_pad_get_num_buttons(group->li_device)) return 0;
+                                            if ((si32)button >= evdev_device_tablet_pad_get_num_buttons(group->li_device))
+                                            {
+                                                return 0;
+                                            }
                                             return !!(group->toggle_button_mask & (1ul << button));
                                         }
                                         si32 pad_led_group_get_mode(pad_led_group_sptr group)
@@ -15543,7 +15530,7 @@ namespace netxs::lixx // li++, libinput++.
                         }
                         pad_flush(datetime::now());
                     }
-                    bool pad_init_buttons_from_libwacom([[maybe_unused]] libinput_device_sptr li_device, [[maybe_unused]] WacomDevice* tablet)
+                    bool pad_init_buttons_from_libwacom([[maybe_unused]] WacomDevice* tablet)
                     {
                         auto rc = faux;
                         #if HAVE_LIBWACOM
@@ -15622,7 +15609,7 @@ namespace netxs::lixx // li++, libinput++.
                     {
                         pad.button_map[i] = (ui32)-1;
                     }
-                    if (!pad_init_buttons_from_libwacom(li_device, wacom))
+                    if (!pad_init_buttons_from_libwacom(wacom))
                     {
                         pad_init_buttons_from_kernel(li_device);
                     }
