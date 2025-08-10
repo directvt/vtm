@@ -1038,7 +1038,6 @@ namespace netxs::lixx // li++, libinput++.
     using section_sptr                        = sptr<struct section_t>;
     using property_sptr                       = sptr<struct property_t>;
     using ud_device_sptr                      = sptr<struct ud_device_t>;
-    using ud_monitor_sptr                     = sptr<struct ud_monitor_t>;
     using tp_dispatch_sptr                    = sptr<struct tp_dispatch>;
     using event_source_sptr                   = sptr<struct event_source_t>;
     using pad_dispatch_sptr                   = sptr<struct pad_dispatch>;
@@ -5885,167 +5884,161 @@ namespace netxs::lixx // li++, libinput++.
             }
         }
     };
-    struct ud_monitor_t
-    {
-        static constexpr auto& active_tty_file = "/sys/devices/virtual/tty/tty0/active"; //todo incompatible with FreeBSD
-        static constexpr auto& dev_input_path = "/dev/input";
-        static constexpr auto dev_monitor_mode = IN_CREATE | IN_ATTRIB/*try again after mode access update*/;
-        static constexpr auto tty_monitor_mode = IN_MODIFY;
-
-        fd_t                                     fd;
-        fd_t                                     wd_tty;
-        fd_t                                     wd_dev;
-        text                                     buffer;
-        text                                     uevent_buffer;
-        utf::unordered_map<text, ud_device_sptr> ud_device_list;
-        text                                     initial_tty;
-        text                                     current_tty;
-
-        ud_monitor_t()
-            :           fd{ os::invalid_fd },
-                    wd_tty{ os::invalid_fd },
-                    wd_dev{ os::invalid_fd },
-             uevent_buffer(4096, '\0')
-        {
-            auto tmp1 = ::dup(STDIN_FILENO);
-            auto tmp2 = ::inotify_init1(IN_CLOEXEC | IN_NONBLOCK); //todo Revise: ::inotify_init1() returns STDIN_FILENO for unknown reason despite the STDIN_FILENO is not closed.
-            if (tmp2 == os::invalid_fd)
-            {
-                log("Failed to initialize inotify context");
-            }
-            else if (tmp2 == STDIN_FILENO)
-            {
-                fd = ::dup(tmp2);
-                os::close(tmp2);
-                ::dup2(tmp1, STDIN_FILENO);
-            }
-            else
-            {
-                fd = tmp2;
-            }
-            os::close(tmp1);
-            initial_tty = get_active_tty();
-            current_tty = initial_tty;
-            wd_tty = ::inotify_add_watch(fd, active_tty_file, tty_monitor_mode);
-            auto code = std::error_code{};
-            auto events = os::fs::directory_iterator{ "/dev/input/", code };
-            if (!code)
-            for (auto& entry : events) // Take all active input devices.
-            {
-                auto sysname = entry.path().filename().string();
-                if (sysname.starts_with("event"))
-                {
-                    auto ud_device = ptr::shared<ud_device_t>(sysname);
-                    ud_device_list[sysname] = ud_device;
-                }
-            }
-        }
-        ~ud_monitor_t()
-        {
-            udev_monitor_disable_receiving();
-        }
-
-        text get_active_tty()
-        {
-            auto buffer = std::array<char, 10>{};
-            auto f = std::ifstream{ active_tty_file };
-            if (f.is_open())
-            {
-                f.read(buffer.data(), buffer.size());
-                f.close();
-                auto ttynum = qiew{ buffer.data() };
-                utf::trim_back(ttynum, whitespaces);
-                if (ttynum.size()) log("Active tty changed to '%tty%'", ttynum);
-                return ttynum;
-            }
-            else return {};
-        }
-        auto add_by_name(qiew filename, auto proc)
-        {
-            auto ud_device_ptr = ud_device_sptr{};
-            auto iter = ud_device_list.find(filename);
-            if (iter == ud_device_list.end())
-            {
-                ud_device_ptr = ptr::shared<ud_device_t>(filename);
-                if (ud_device_ptr->initialized && proc(*ud_device_ptr))
-                {
-                    ud_device_list[filename] = ud_device_ptr;
-                }
-                else ud_device_ptr.reset();
-            }
-            return ud_device_ptr;
-        }
-        void add_devices(auto proc)
-        {
-            auto length = 0u;
-            ::ioctl(fd, FIONREAD, &length); // Get available events block size.
-            if (length)
-            {
-                buffer.resize(length);
-                length = ::read(fd, buffer.data(), buffer.size()); // Take events block.
-                if (!length)
-                {
-                    log("Failed to read events. errno=%%", errno);
-                    return;
-                }
-                auto crop = qiew{ buffer };
-                while (crop)
-                {
-                    auto& event = *(::inotify_event*)crop.data();
-                    if (event.wd == wd_tty)
-                    {
-                        current_tty = get_active_tty();
-                    }
-                    else if (event.wd == wd_dev)
-                    {
-                        auto filename = qiew{ event.name };
-                        if (!(event.mask & IN_ISDIR) && (event.mask & dev_monitor_mode) && filename.starts_with("event")) // Created or access modified. Do nothing on delete, just wait for ENODEV.
-                        {
-                            add_by_name(filename, proc);
-                        }
-                    }
-                    crop.remove_prefix(sizeof(::inotify_event) + event.len);
-                }
-            }
-        }
-        bool udev_monitor_enable_receiving()
-        {
-            if (fd != os::invalid_fd)
-            {
-                wd_dev = ::inotify_add_watch(fd, dev_input_path, dev_monitor_mode);
-                if (wd_dev != os::invalid_fd)
-                {
-                    //log("Watching:: %s%", dev_input_path);
-                    return true;
-                }
-                else
-                {
-                    log("Couldn't add watch to %s%", dev_input_path);
-                }
-            }
-            else
-            {
-                log("Couldn't initialize inotify");
-            }
-            return faux;
-        }
-        void udev_monitor_disable_receiving()
-        {
-            if (auto fd_value = std::exchange(fd, os::invalid_fd); fd_value != os::invalid_fd)
-            {
-                os::close(fd_value);
-                wd_dev = os::invalid_fd;
-                wd_tty = os::invalid_fd;
-            }
-        }
-        auto udev_monitor_get_fd()
-        {
-            return fd;
-        }
-    };
 
     struct libinput_t : ptr::enable_shared_from_this<libinput_t>
     {
+        struct ud_monitor_t
+        {
+            static constexpr auto& active_tty_file = "/sys/devices/virtual/tty/tty0/active"; //todo incompatible with FreeBSD
+            static constexpr auto& dev_input_path = "/dev/input";
+            static constexpr auto dev_monitor_mode = IN_CREATE | IN_ATTRIB/*try again after mode access update*/;
+            static constexpr auto tty_monitor_mode = IN_MODIFY;
+
+            libinput_t&                              li;
+            fd_t                                     inotify_fd;
+            fd_t                                     wd_tty;
+            fd_t                                     wd_dev;
+            text                                     buffer;
+            text                                     uevent_buffer;
+            utf::unordered_map<text, ud_device_sptr> ud_device_list;
+            text                                     initial_tty;
+            text                                     current_tty;
+            event_source_sptr                        ud_monitor_handler;
+
+            ud_monitor_t(libinput_t& li)
+                :           li{ li },
+                    inotify_fd{ os::invalid_fd },
+                        wd_tty{ os::invalid_fd },
+                        wd_dev{ os::invalid_fd },
+                 uevent_buffer(4096, '\0')
+            {
+                auto tmp1 = ::dup(STDIN_FILENO);
+                auto tmp2 = ::inotify_init1(IN_CLOEXEC | IN_NONBLOCK); //todo Revise: ::inotify_init1() returns STDIN_FILENO for unknown reason despite the STDIN_FILENO is not closed.
+                if (tmp2 == os::invalid_fd)
+                {
+                    log("Failed to initialize inotify context");
+                }
+                else if (tmp2 == STDIN_FILENO)
+                {
+                    inotify_fd = ::dup(tmp2);
+                    os::close(tmp2);
+                    ::dup2(tmp1, STDIN_FILENO);
+                }
+                else
+                {
+                    inotify_fd = tmp2;
+                }
+                os::close(tmp1);
+                initial_tty = get_active_tty();
+                current_tty = initial_tty;
+                wd_tty = ::inotify_add_watch(inotify_fd, active_tty_file, tty_monitor_mode);
+            }
+            ~ud_monitor_t()
+            {
+                udev_monitor_disable_monitoring();
+            }
+            operator bool () const { return inotify_fd != os::invalid_fd; }
+
+            text get_active_tty()
+            {
+                auto buffer = std::array<char, 10>{};
+                auto f = std::ifstream{ active_tty_file };
+                if (f.is_open())
+                {
+                    f.read(buffer.data(), buffer.size());
+                    f.close();
+                    auto ttynum = qiew{ buffer.data() };
+                    utf::trim_back(ttynum, whitespaces);
+                    if (ttynum.size()) log("Active tty changed to '%tty%'", ttynum);
+                    return ttynum;
+                }
+                else return {};
+            }
+            bool add_by_name(qiew filename)
+            {
+                auto iter = ud_device_list.find(filename);
+                if (iter == ud_device_list.end())
+                {
+                    auto ud_device_ptr = ptr::shared<ud_device_t>(filename);
+                    if (ud_device_ptr->initialized && li.libinput_device_create(*ud_device_ptr))
+                    {
+                        ud_device_list[filename] = ud_device_ptr;
+                        return true;
+                    }
+                }
+                return faux;
+            }
+            void add_devices()
+            {
+                auto length = 0u;
+                ::ioctl(inotify_fd, FIONREAD, &length); // Get available events block size.
+                if (length)
+                {
+                    buffer.resize(length);
+                    length = ::read(inotify_fd, buffer.data(), buffer.size()); // Take events block.
+                    if (!length)
+                    {
+                        log("Failed to read events. errno=%%", errno);
+                        return;
+                    }
+                    auto crop = qiew{ buffer };
+                    while (crop)
+                    {
+                        auto& event = *(::inotify_event*)crop.data();
+                        if (event.wd == wd_tty)
+                        {
+                            current_tty = get_active_tty();
+                        }
+                        else if (event.wd == wd_dev)
+                        {
+                            auto filename = qiew{ event.name };
+                            if (!(event.mask & IN_ISDIR) && (event.mask & dev_monitor_mode) && filename.starts_with("event")) // Created or access modified. Do nothing on delete, just wait for ENODEV.
+                            {
+                                add_by_name(filename);
+                            }
+                        }
+                        crop.remove_prefix(sizeof(::inotify_event) + event.len);
+                    }
+                }
+            }
+            void udev_monitor_add_all_active_input_devices()
+            {
+                auto code = std::error_code{};
+                auto events = os::fs::directory_iterator{ "/dev/input/", code };
+                if (!code)
+                for (auto& entry : events)
+                {
+                    auto filename = entry.path().filename().string();
+                    if (filename.starts_with("event"))
+                    {
+                        add_by_name(filename);
+                    }
+                }
+            }
+            void udev_monitor_enable_monitoring()
+            {
+                if (inotify_fd != os::invalid_fd)
+                {
+                    wd_dev = ::inotify_add_watch(inotify_fd, dev_input_path, dev_monitor_mode);
+                    if (wd_dev != os::invalid_fd)
+                    {
+                        ud_monitor_handler = li.timers.libinput_add_event_source(inotify_fd, [&]{ add_devices(); });
+                    }
+                    else log("Couldn't add watch to %s%", dev_input_path);
+                }
+                else log("Couldn't initialize inotify");
+            }
+            void udev_monitor_disable_monitoring()
+            {
+                if (auto fd_value = std::exchange(inotify_fd, os::invalid_fd); fd_value != os::invalid_fd)
+                {
+                    os::close(fd_value);
+                    wd_dev = os::invalid_fd;
+                    wd_tty = os::invalid_fd;
+                }
+            }
+        };
+
         using event_variants = std::variant<libinput_event_empty,
                                             libinput_event_device_notify,
                                             libinput_event_keyboard,
@@ -6068,47 +6061,11 @@ namespace netxs::lixx // li++, libinput++.
         bool                                  quirks_initialized = {};
         quirks_context_sptr                   quirks;
 
-        ud_monitor_sptr                       ud_monitor;
-        event_source_sptr                     ud_monitor_handler;
+        ud_monitor_t                          ud_monitor{ *this };
         std::list<libinput_device_sptr>       device_list;
 
         libinput_device_sptr libinput_device_create(ud_device_t& ud_device);
 
-        void evdev_udev_handler()
-        {
-            ud_monitor->add_devices([&](auto& ud_device)
-            {
-                return !!libinput_device_create(ud_device);
-            });
-        }
-        void input_enable()
-        {
-            if (!ud_monitor)
-            {
-                ud_monitor = ptr::shared<ud_monitor_t>();
-                if (!ud_monitor->udev_monitor_enable_receiving())
-                {
-                    log("Failed to bind the device monitor");
-                    ud_monitor.reset();
-                }
-                else
-                {
-                    auto monitor_fd = ud_monitor->udev_monitor_get_fd();
-                    ud_monitor_handler = timers.libinput_add_event_source(monitor_fd, [&]{ evdev_udev_handler(); });
-                    for (auto [sysname, ud_device_ptr] : ud_monitor->ud_device_list) // Add all devices.
-                    {
-                        if (ud_device_ptr->initialized)
-                        {
-                            libinput_device_create(*ud_device_ptr);
-                        }
-                        else
-                        {
-                            log("Skip unconfigured input device '%s%'", sysname);
-                        }
-                    }
-                }
-            }
-        }
         ui32 update_seat_button_count(ui32 button_code, libinput_button_state state)
         {
             assert(button_code <= KEY_MAX);
@@ -6149,13 +6106,8 @@ namespace netxs::lixx // li++, libinput++.
         }
         libinput_device_sptr libinput_add_device(qiew sysname)
         {
-            auto li_device = libinput_device_sptr{};
-            ud_monitor->add_by_name(sysname, [&](ud_device_t& ud_device)
-            {
-                li_device = libinput_device_create(ud_device);
-                return !!li_device;
-            });
-            return li_device;
+            auto ok = ud_monitor.add_by_name(sysname);
+            return ok? device_list.back() : libinput_device_sptr{};
         }
         void enumerate_active_devices(auto proc)
         {
@@ -6166,7 +6118,7 @@ namespace netxs::lixx // li++, libinput++.
         }
         bool current_tty_is_active()
         {
-            return ud_monitor && ud_monitor->initial_tty.size() && ud_monitor->initial_tty == ud_monitor->current_tty;
+            return ud_monitor && ud_monitor.initial_tty.size() && ud_monitor.initial_tty == ud_monitor.current_tty;
         }
         template<class T>
         auto& libinput_emplace_event()
@@ -6224,7 +6176,8 @@ namespace netxs::lixx // li++, libinput++.
             libinput_t::user_data = user_data;
             auto ok = timers.libinput_timer_subsys_init();
             libinput_init_quirks();
-            input_enable();
+            ud_monitor.udev_monitor_add_all_active_input_devices();
+            ud_monitor.udev_monitor_enable_monitoring();
             return ok;
         }
         #if HAVE_LIBWACOM
@@ -7233,7 +7186,7 @@ namespace netxs::lixx // li++, libinput++.
                     return faux;
                 }
             });
-            std::erase_if(li.ud_monitor->ud_device_list, [&](auto d){ return d.second.get() == &ud_device; });
+            std::erase_if(li.ud_monitor.ud_device_list, [&](auto d){ return d.second.get() == &ud_device; });
             log("Device '%%' removed", devname);
         }
         si32 evdev_device_resume()
