@@ -4857,24 +4857,15 @@ namespace netxs::lixx // li++, libinput++.
         }
         bool totem_reject_device()
         {
-            auto has_xy = libevdev_has_event_code<EV_ABS>(ABS_MT_POSITION_X)
-                       && libevdev_has_event_code<EV_ABS>(ABS_MT_POSITION_Y);
-            auto has_slot = libevdev_has_event_code<EV_ABS>(ABS_MT_SLOT);
-            auto has_tool_dial = libevdev_has_event_code<EV_ABS>(ABS_MT_TOOL_TYPE)
-                              && libevdev_get_abs_maximum(ABS_MT_TOOL_TYPE) >= MT_TOOL_DIAL;
             auto [w, h] = evdev_device_get_size();
-            auto has_size = w && h;
-            auto has_touch_size = libevdev_get_abs_resolution(ABS_MT_TOUCH_MAJOR) > 0
-                               || libevdev_get_abs_resolution(ABS_MT_TOUCH_MINOR) > 0;
-            if (has_xy && has_slot && has_tool_dial && has_size && has_touch_size)
-            {
-                return faux;
-            }
-            else
-            {
-                log("missing totem capabilities:%s%%s%%s%%s%%s%. Ignoring this device.", has_xy ? "" : " xy", has_slot ? "" : " slot", has_tool_dial ? "" : " dial", has_size ? "" : " resolutions", has_touch_size ? "" : " touch-size");
-                return true;
-            }
+            auto has_size       = w && h;
+            auto has_slot       = libevdev_has_event_code<EV_ABS>(ABS_MT_SLOT);
+            auto has_xy         = libevdev_has_event_code<EV_ABS>(ABS_MT_POSITION_X) && libevdev_has_event_code<EV_ABS>(ABS_MT_POSITION_Y);
+            auto has_tool_dial  = libevdev_has_event_code<EV_ABS>(ABS_MT_TOOL_TYPE) && libevdev_get_abs_maximum(ABS_MT_TOOL_TYPE) >= MT_TOOL_DIAL;
+            auto has_touch_size = libevdev_get_abs_resolution(ABS_MT_TOUCH_MAJOR) > 0 || libevdev_get_abs_resolution(ABS_MT_TOUCH_MINOR) > 0;
+            auto ok = has_xy && has_slot && has_tool_dial && has_size && has_touch_size;
+            if (!ok) log("missing totem capabilities:%s%%s%%s%%s%%s%. Ignoring this device.", has_xy ? "" : " xy", has_slot ? "" : " slot", has_tool_dial ? "" : " dial", has_size ? "" : " resolutions", has_touch_size ? "" : " touch-size");
+            return !ok;
         }
     };
 
@@ -17745,24 +17736,18 @@ namespace netxs::lixx // li++, libinput++.
                     tablet_change_rotation(DONT_NOTIFY);
                 }
             }
-                bool tablet_reject_device(libinput_device_sptr li_device)
+                bool tablet_reject_device()
                 {
-                    auto has_xy         = li_device->libevdev_has_event_code<EV_ABS>(ABS_X) && li_device->libevdev_has_event_code<EV_ABS>(ABS_Y);
-                    auto has_pen        = li_device->libevdev_has_event_code<EV_KEY>(BTN_TOOL_PEN);
-                    auto has_btn_stylus = li_device->libevdev_has_event_code<EV_KEY>(BTN_STYLUS);
-                    auto [w, h] = li_device->evdev_device_get_size();
-                    auto has_size = w && h;
-                    if (has_xy && (has_pen || has_btn_stylus) && has_size)
-                    {
-                        return faux;
-                    }
-                    else
-                    {
-                        log("missing tablet capabilities: %s%%s%%s%%s%. Ignoring this device.", has_xy ? "" : " xy", has_pen ? "" : " pen", has_btn_stylus ? "" : " btn-stylus", has_size ? "" : " resolution");
-                        return true;
-                    }
+                    auto [w, h] = tablet.evdev_device_get_size();
+                    auto has_size       = w && h;
+                    auto has_xy         = tablet.libevdev_has_event_code<EV_ABS>(ABS_X) && tablet.libevdev_has_event_code<EV_ABS>(ABS_Y);
+                    auto has_pen        = tablet.libevdev_has_event_code<EV_KEY>(BTN_TOOL_PEN);
+                    auto has_btn_stylus = tablet.libevdev_has_event_code<EV_KEY>(BTN_STYLUS);
+                    auto ok = has_xy && (has_pen || has_btn_stylus) && has_size;
+                    if (!ok) log("missing tablet capabilities: %s%%s%%s%%s%. Ignoring this device.", has_xy ? "" : " xy", has_pen ? "" : " pen", has_btn_stylus ? "" : " btn-stylus", has_size ? "" : " resolution");
+                    return !ok;
                 }
-                bool tablet_is_aes([[maybe_unused]] libinput_device_sptr li_device, [[maybe_unused]] WacomDevice* wacom)
+                bool tablet_is_aes()
                 {
                     #if HAVE_LIBWACOM
                     auto vid = li_device->evdev_device_get_id_vendor();
@@ -17785,7 +17770,7 @@ namespace netxs::lixx // li++, libinput++.
                     #endif
                     return faux;
                 }
-                bool tablet_is_display_tablet([[maybe_unused]] WacomDevice* wacom)
+                bool tablet_is_display_tablet()
                 {
                     #if HAVE_LIBWACOM
                     return !wacom || (::libwacom_get_integration_flags(wacom) & (WACOM_DEVICE_INTEGRATED_SYSTEM | WACOM_DEVICE_INTEGRATED_DISPLAY));
@@ -17793,16 +17778,16 @@ namespace netxs::lixx // li++, libinput++.
                     return true;
                     #endif
                 }
-                void tablet_fix_tilt(libinput_device_sptr li_device)
+                void tablet_fix_tilt()
                 {
-                    if (li_device->libevdev_has_event_code<EV_ABS>(ABS_TILT_X) !=
-                        li_device->libevdev_has_event_code<EV_ABS>(ABS_TILT_Y))
+                    if (tablet.libevdev_has_event_code<EV_ABS>(ABS_TILT_X) !=
+                        tablet.libevdev_has_event_code<EV_ABS>(ABS_TILT_Y))
                     {
-                        li_device->libevdev_disable_event_code<EV_ABS>(ABS_TILT_X);
-                        li_device->libevdev_disable_event_code<EV_ABS>(ABS_TILT_Y);
+                        tablet.libevdev_disable_event_code<EV_ABS>(ABS_TILT_X);
+                        tablet.libevdev_disable_event_code<EV_ABS>(ABS_TILT_Y);
                         return;
                     }
-                    if (!li_device->libevdev_has_event_code<EV_ABS>(ABS_TILT_X))
+                    if (!tablet.libevdev_has_event_code<EV_ABS>(ABS_TILT_X))
                     {
                         return;
                     }
@@ -17821,23 +17806,23 @@ namespace netxs::lixx // li++, libinput++.
                     // fix it if we run into a device where that isn't the case.
                     for (ui32 axis = ABS_TILT_X; axis <= ABS_TILT_Y; axis++)
                     {
-                        auto abs = *li_device->libevdev_get_abs_info(axis);
+                        auto abs = *tablet.libevdev_get_abs_info(axis);
                         if (abs.resolution == 0) // Don't touch axes reporting radians.
                         {
                             if ((si32)abs.absinfo_range() % 2 != 1)
                             {
                                 abs.maximum += 1;
-                                li_device->libevdev_set_abs_info(axis, abs);
+                                tablet.libevdev_set_abs_info(axis, abs);
                                 log("Adjusting 'type=%% code=%%' range to [%d%, %d%]", EV_ABS, axis, abs.minimum, abs.maximum);
                             }
                         }
                     }
                 }
-                void tablet_init_calibration(libinput_device_sptr li_device, bool is_display_tablet)
+                void tablet_init_calibration(bool is_display_tablet)
                 {
-                    if (is_display_tablet || li_device->libevdev_has_property(INPUT_PROP_DIRECT))
+                    if (is_display_tablet || tablet.libevdev_has_property(INPUT_PROP_DIRECT))
                     {
-                        li_device->evdev_init_calibration(tablet.calibration);
+                        tablet.evdev_init_calibration(tablet.calibration);
                     }
                 }
                     static si32 tablet_area_has_rectangle([[maybe_unused]] libinput_device_sptr li_device)
@@ -17870,31 +17855,27 @@ namespace netxs::lixx // li++, libinput++.
                         auto rect = fp64_rect{{ 0.0, 0.0 }, { 1.0, 1.0 }};
                         return rect;
                     }
-                void tablet_init_area(libinput_device_sptr li_device)
+                void tablet_init_area()
                 {
                     tablet.area.have_area = fp64_rect{{ 0.0, 0.0 }, { 1.0, 1.0 }};
                     tablet.area.want_area = tablet.area.have_area;
-                    tablet.area.x = *li_device->ud_device.abs.absinfo_x;
-                    tablet.area.y = *li_device->ud_device.abs.absinfo_y;
-                    if (!li_device->libevdev_has_property(INPUT_PROP_DIRECT))
+                    tablet.area.x = *tablet.ud_device.abs.absinfo_x;
+                    tablet.area.y = *tablet.ud_device.abs.absinfo_y;
+                    if (!tablet.libevdev_has_property(INPUT_PROP_DIRECT))
                     {
-                        li_device->config.area = &tablet.area.config;
+                        tablet.config.area = &tablet.area.config;
                         tablet.area.config.has_rectangle         = tablet_area_has_rectangle;
                         tablet.area.config.set_rectangle         = tablet_area_set_rectangle;
                         tablet.area.config.get_rectangle         = tablet_area_get_rectangle;
                         tablet.area.config.get_default_rectangle = tablet_area_get_default_rectangle;
                     }
                 }
-                void tablet_init_proximity_threshold(libinput_device_sptr li_device)
+                void tablet_init_proximity_threshold()
                 {
-                    // This rules out most of the bamboos and other devices, we're pretty much down to.
-                    if (!li_device->libevdev_has_event_code<EV_KEY>(BTN_TOOL_MOUSE)
-                     && !li_device->libevdev_has_event_code<EV_KEY>(BTN_TOOL_LENS))
+                    if (tablet.libevdev_has_event_code<EV_KEY>(BTN_TOOL_MOUSE) || tablet.libevdev_has_event_code<EV_KEY>(BTN_TOOL_LENS)) // This rules out most of the bamboos and other devices, we're pretty much down to.
                     {
-                        return;
+                        tablet.cursor_proximity_threshold = 42; // Value is in device coordinates. 42 is the default proximity threshold the xf86-input-wacom driver uses for Intuos/Cintiq models. Graphire models have a threshold of 10 but since they haven't been manufactured in ages and the intersection of users having a graphire, running libinput and wanting to use the mouse/lens cursor tool is small enough to not worry about it for now. If we need to, we can introduce a udev property later.
                     }
-                    // 42 is the default proximity threshold the xf86-input-wacom driver uses for Intuos/Cintiq models. Graphire models have a threshold of 10 but since they haven't been manufactured in ages and the intersection of users having a graphire, running libinput and wanting to use the mouse/lens cursor tool is small enough to not worry about it for now. If we need to, we can introduce a udev property later.
-                    tablet.cursor_proximity_threshold = 42; // Value is in device coordinates.
                 }
                     static ui32 tablet_accel_config_get_profiles([[maybe_unused]] libinput_device_sptr li_device)
                     {
@@ -17912,19 +17893,18 @@ namespace netxs::lixx // li++, libinput++.
                     {
                         return LIBINPUT_CONFIG_ACCEL_PROFILE_NONE;
                     }
-                si32 tablet_init_accel(libinput_device_sptr li_device)
+                void tablet_init_accel()
                 {
-                    auto resolution = si32_coor{ li_device->ud_device.abs.absinfo_x->resolution, li_device->ud_device.abs.absinfo_y->resolution };
+                    auto resolution = si32_coor{ tablet.ud_device.abs.absinfo_x->resolution, tablet.ud_device.abs.absinfo_y->resolution };
                     auto filter = ptr::shared<tablet_accelerator_flat>(resolution);
-                    li_device->evdev_device_init_pointer_acceleration(filter);
+                    tablet.evdev_device_init_pointer_acceleration(filter);
                     // We override the profile hooks for accel configuration with hooks that don't allow selection of profiles.
-                    li_device->pointer_config.get_profiles        = tablet_accel_config_get_profiles;
-                    li_device->pointer_config.set_profile         = tablet_accel_config_set_profile;
-                    li_device->pointer_config.get_profile         = tablet_accel_config_get_profile;
-                    li_device->pointer_config.get_default_profile = tablet_accel_config_get_default_profile;
-                    return 0;
+                    tablet.pointer_config.get_profiles        = tablet_accel_config_get_profiles;
+                    tablet.pointer_config.set_profile         = tablet_accel_config_set_profile;
+                    tablet.pointer_config.get_profile         = tablet_accel_config_get_profile;
+                    tablet.pointer_config.get_default_profile = tablet_accel_config_get_default_profile;
                 }
-                void tablet_init_left_handed(libinput_device_sptr li_device, [[maybe_unused]] WacomDevice* wacom)
+                void tablet_init_left_handed()
                 {
                     auto has_left_handed = true;
                     #if HAVE_LIBWACOM
@@ -17932,17 +17912,16 @@ namespace netxs::lixx // li++, libinput++.
                     #endif
                     if (has_left_handed)
                     {
-                        li_device->evdev_init_left_handed(tablet_dispatch::tablet_impl_t::tablet_change_to_left_handed);
+                        tablet.evdev_init_left_handed(tablet_dispatch::tablet_impl_t::tablet_change_to_left_handed);
                     }
                 }
-                void tablet_init_smoothing(libinput_device_sptr li_device, bool is_aes, bool is_virtual)
+                void tablet_init_smoothing(bool is_aes, bool is_virtual)
                 {
                     auto history_size = std::size(tablet.history.samples);
                     auto use_smoothing = true;
-                    if (auto q = li_device->li.quirks_fetch_for_device(li_device->ud_device))
+                    if (auto q = tablet.li.quirks_fetch_for_device(tablet.ud_device))
                     {
-                        // By default, always enable smoothing except on AES or uinput devices. AttrTabletSmoothing can override this, if necessary.
-                        if (!q || !q->quirks_get(QUIRK_ATTR_TABLET_SMOOTHING, use_smoothing))
+                        if (!q || !q->quirks_get(QUIRK_ATTR_TABLET_SMOOTHING, use_smoothing)) // By default, always enable smoothing except on AES or uinput devices. AttrTabletSmoothing can override this, if necessary.
                         {
                             use_smoothing = !is_aes && !is_virtual;
                         }
@@ -18015,74 +17994,73 @@ namespace netxs::lixx // li++, libinput++.
                     tablet.quirks.proximity_out_in_progress = faux;
                     tablet.quirks.proximity_out_forced = true;
                 }
-            si32 tablet_init(libinput_device_sptr li_device)
+            bool tablet_init()
             {
                 static auto tablet_ids = 0u;
-                auto& li = li_device->li;
-                auto rc = -1;
                 auto wacom = (WacomDevice*)nullptr;
                 #if HAVE_LIBWACOM
-                auto db = li.libinput_libwacom_ref();
+                auto db = tablet.li.libinput_libwacom_ref();
                 if (db)
                 {
                     char event_path[64];
-                    snprintf(event_path, sizeof(event_path), "/dev/input/%s", li_device->evdev_device_get_sysname().data());
+                    snprintf(event_path, sizeof(event_path), "/dev/input/%s", evdev_device_get_sysname().data());
                     wacom = ::libwacom_new_from_path(db, event_path, WFALLBACK_NONE, nullptr);
                     if (!wacom)
                     {
-                        wacom = ::libwacom_new_from_usbid(db, li_device->evdev_device_get_id_vendor(), li_device->evdev_device_get_id_product(), nullptr);
+                        wacom = ::libwacom_new_from_usbid(db, tablet.evdev_device_get_id_vendor(), tablet.evdev_device_get_id_product(), nullptr);
                     }
                     if (!wacom)
                     {
-                        log("device \"%s%\" (%04x%:%04x%) is not known to libwacom", evdev_device_get_name(li_device), li_device->evdev_device_get_id_vendor(), li_device->evdev_device_get_id_product());
+                        log("device \"%s%\" (%04x%:%04x%) is not known to libwacom", tablet.devname, tablet.evdev_device_get_id_vendor(), tablet.evdev_device_get_id_product());
                     }
                 }
                 #endif
-                tablet.tablet_id          = ++tablet_ids;
-                tablet.status             = TABLET_NONE;
-                tablet.current_tool.type  = LIBINPUT_TABLET_TOOL_TYPE_NONE;
-                if (!tablet_reject_device(li_device))
+                tablet.tablet_id         = ++tablet_ids;
+                tablet.status            = TABLET_NONE;
+                tablet.current_tool.type = LIBINPUT_TABLET_TOOL_TYPE_NONE;
+                auto ok = !tablet_reject_device();
+                if (ok)
                 {
-                    auto is_aes            = tablet_is_aes(li_device, wacom);
-                    auto is_virtual        = li_device->evdev_device_is_virtual();
-                    auto is_display_tablet = tablet_is_display_tablet(wacom);
-                    if (!li_device->libevdev_has_event_code<EV_KEY>(BTN_TOOL_PEN))
+                    auto is_aes            = tablet_is_aes();
+                    auto is_virtual        = tablet.evdev_device_is_virtual();
+                    auto is_display_tablet = tablet_is_display_tablet();
+                    if (!tablet.libevdev_has_event_code<EV_KEY>(BTN_TOOL_PEN))
                     {
-                        li_device->libevdev_enable_event_code<EV_KEY>(BTN_TOOL_PEN, nullptr);
+                        tablet.libevdev_enable_event_code<EV_KEY>(BTN_TOOL_PEN, nullptr);
                         tablet.quirks.proximity_out_forced = true;
                     }
-                    if (li_device->evdev_device_get_id_vendor() != lixx::vendor_id_wacom) // Our rotation code only works with Wacoms, let's wait until someone shouts.
+                    if (tablet.evdev_device_get_id_vendor() != lixx::vendor_id_wacom) // Our rotation code only works with Wacoms, let's wait until someone shouts.
                     {
-                        li_device->libevdev_disable_event_code<EV_KEY>(BTN_TOOL_MOUSE);
-                        li_device->libevdev_disable_event_code<EV_KEY>(BTN_TOOL_LENS);
+                        tablet.libevdev_disable_event_code<EV_KEY>(BTN_TOOL_MOUSE);
+                        tablet.libevdev_disable_event_code<EV_KEY>(BTN_TOOL_LENS);
                     }
-                    tablet_fix_tilt(                li_device);
-                    tablet_init_calibration(        li_device, is_display_tablet);
-                    tablet_init_area(               li_device);
-                    tablet_init_proximity_threshold(li_device);
-                    rc = tablet_init_accel(         li_device);
-                    if (rc == 0)
+                    tablet_fix_tilt();
+                    tablet_init_calibration(is_display_tablet);
+                    tablet_init_area();
+                    tablet_init_proximity_threshold();
+                    tablet_init_accel();
+                    tablet.evdev_init_sendevents();
+                    tablet_init_left_handed();
+                    tablet_init_smoothing(is_aes, is_virtual);
+                    for (auto axis = LIBINPUT_TABLET_TOOL_AXIS_X; axis <= LIBINPUT_TABLET_TOOL_AXIS_SIZE_MINOR; axis = (libinput_tablet_tool_axis)(axis + 1))
                     {
-                        li_device->evdev_init_sendevents();
-                        tablet_init_left_handed(li_device, wacom);
-                        tablet_init_smoothing(li_device, is_aes, is_virtual);
-                        for (auto axis = LIBINPUT_TABLET_TOOL_AXIS_X; axis <= LIBINPUT_TABLET_TOOL_AXIS_SIZE_MINOR; axis = (libinput_tablet_tool_axis)(axis + 1))
+                        if (tablet_device_has_axis(axis))
                         {
-                            if (tablet_device_has_axis(axis))
-                            {
-                                tablet.axis_caps_bits.set(axis);
-                            }
+                            tablet.axis_caps_bits.set(axis);
                         }
-                        tablet.status |= TABLET_TOOL_OUT_OF_PROXIMITY;
-                        tablet.quirks.need_to_force_prox_out = true; // We always enable the proximity out quirk, but disable it once a device gives us the right event sequence.
-                        tablet.quirks.prox_out_timer = li.timers.create("proxout", [&](time now){ tablet_proximity_out_quirk_timer_func(now); });
                     }
+                    tablet.status |= TABLET_TOOL_OUT_OF_PROXIMITY;
+                    tablet.quirks.need_to_force_prox_out = true; // We always enable the proximity out quirk, but disable it once a device gives us the right event sequence.
+                    tablet.quirks.prox_out_timer = tablet.li.timers.create("proxout", [&](time now){ tablet_proximity_out_quirk_timer_func(now); });
                 }
-                #if HAVE_LIBWACOM
-                if (wacom) ::libwacom_destroy(wacom);
-                if (db) libinput_libwacom_unref(li);
-                #endif
-                return rc;
+                else
+                {
+                    #if HAVE_LIBWACOM
+                    if (wacom) ::libwacom_destroy(wacom);
+                    if (db) libinput_libwacom_unref(tablet.li);
+                    #endif
+                }
+                return ok;
             }
         };
 
@@ -20068,8 +20046,8 @@ namespace netxs::lixx // li++, libinput++.
         {
             ud_device.device_class += " tablet";
             auto tablet_ptr = ptr::shared<tablet_dispatch>(li, ud_device);
-            auto li_device = tablet_ptr;
-            li_device->device_caps |= EVDEV_DEVICE_TABLET;
+            auto& tablet = *tablet_ptr;
+            tablet.device_caps |= EVDEV_DEVICE_TABLET;
             #if HAVE_LIBWACOM
             li.libinput_libwacom_ref();
             #endif
@@ -20077,7 +20055,7 @@ namespace netxs::lixx // li++, libinput++.
             {
                 lixx::forced_proxout_timeout = 150ms; // Stop false positives caused by the forced proximity code.
             }
-            if (tablet_ptr->tablet_impl.tablet_init(li_device) != 0)
+            if (!tablet.tablet_impl.tablet_init())
             {
                 tablet_ptr.reset();
             }
