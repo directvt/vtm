@@ -1341,19 +1341,14 @@ namespace netxs::lixx // li++, libinput++.
             bool                                    has_configured_range;
             libinput_tablet_tool_pressure_threshold threshold;
         };
-        struct config_t
-        {
-            libinput_tablet_tool_config_pressure_range pressure_range;
-        };
 
-        ui32                      serial;
-        ui32                      tool_id;
-        libinput_tablet_tool_type type;
-        tablet_axes_bitset        axis_caps_bits;
-        std::bitset<KEY_MAX>      buttons_bits;
-        void*                     user_data;
-        pressure_t                pressure;
-        config_t                  config;
+        ui32                                       serial;
+        ui32                                       tool_id;
+        libinput_tablet_tool_type                  type;
+        tablet_axes_bitset                         axis_caps_bits;
+        std::bitset<KEY_MAX>                       buttons_bits;
+        pressure_t                                 pressure;
+        libinput_tablet_tool_config_pressure_range config_pressure_range;
     };
 
             struct pointer_delta_smoothener
@@ -1865,11 +1860,8 @@ namespace netxs::lixx // li++, libinput++.
         static custom_accel_function_sptr create_custom_accel_function(fp64 step, auto const& points)
         {
             auto npoints = points.size();
-            if (npoints < lixx::libinput_accel_npoints_min || npoints > lixx::libinput_accel_npoints_max)
-            {
-                return {};
-            }
-            if (step <= 0 || step > lixx::libinput_accel_step_max)
+            if (npoints < lixx::libinput_accel_npoints_min || npoints > lixx::libinput_accel_npoints_max
+             || step <= 0 || step > lixx::libinput_accel_step_max)
             {
                 return {};
             }
@@ -7430,7 +7422,7 @@ namespace netxs::lixx // li++, libinput++.
             }
             static si32 evdev_left_handed_get(libinput_device_sptr li_device)
             {
-                return li_device->dev_left_handed.want_enabled; // Return the wanted configuration, even if it hasn't taken effect yet!.
+                return li_device->dev_left_handed.want_enabled; // Return the wanted configuration, even if it hasn't taken effect yet!
             }
             static si32 evdev_left_handed_get_default([[maybe_unused]] libinput_device_sptr li_device)
             {
@@ -7536,7 +7528,7 @@ namespace netxs::lixx // li++, libinput++.
             }
             static libinput_config_scroll_method evdev_scroll_get_method(libinput_device_sptr li_device)
             {
-                return li_device->scroll.want_method; // Return the wanted configuration, even if it hasn't taken effect yet!.
+                return li_device->scroll.want_method; // Return the wanted configuration, even if it hasn't taken effect yet!
             }
             static libinput_config_scroll_method evdev_scroll_get_default_method(libinput_device_sptr li_device)
             {
@@ -12874,7 +12866,7 @@ namespace netxs::lixx // li++, libinput++.
                                         void tp_gesture_handle_state_3fg_drag_start(time stamp)
                                         {
                                             tp.evdev_pointer_notify_button(stamp, evdev::btn_left, LIBINPUT_BUTTON_STATE_PRESSED);
-                                            //todo FIXME: immediately send a motion event?.
+                                            //todo FIXME: immediately send a motion event?
                                             tp.gesture.state = GESTURE_STATE_3FG_DRAG;
                                         }
                                         void tp_gesture_handle_state_3fg_drag(time stamp)
@@ -15677,8 +15669,7 @@ namespace netxs::lixx // li++, libinput++.
                 pad.status       = PAD_NONE;
                 pad.changed_axes = PAD_AXIS_NONE;
                 // We expect the kernel to either give us both axes as hires or neither. Getting one is a kernel bug we don't need to care about.
-                pad.dials.has_hires_dial = pad.libevdev_has_event_code<EV_REL>(REL_WHEEL_HI_RES)
-                                        || pad.libevdev_has_event_code<EV_REL>(REL_HWHEEL_HI_RES);
+                pad.dials.has_hires_dial = pad.libevdev_has_event_code<EV_REL>(REL_WHEEL_HI_RES) || pad.libevdev_has_event_code<EV_REL>(REL_HWHEEL_HI_RES);
                 if (pad.libevdev_has_event_code<EV_REL>(REL_WHEEL)
                  && pad.libevdev_has_event_code<EV_REL>(REL_DIAL))
                 {
@@ -15725,11 +15716,11 @@ namespace netxs::lixx // li++, libinput++.
         };
     struct totem_device : libinput_device_t
     {
-        si32                    slot_index; // Current slot index.
-        std::vector<totem_slot> slots;
-        libinput_device_sptr    touch_li_device;
-        bool                    button_state_now; // We only have one button.
-        bool                    button_state_previous;
+        si32                       slot_index; // Current slot index.
+        std::vector<totem_slot>    slots;
+        libinput_device_sptr       touch_li_device;
+        bool                       button_state_now; // We only have one button.
+        bool                       button_state_previous;
         libinput_arbitration_state arbitration_state;
 
         totem_device(auto&... args)
@@ -16660,10 +16651,10 @@ namespace netxs::lixx // li++, libinput++.
                                 tool->type     = type,
                                 tool->pressure = { .range        = { .min = 0.0, .max = 0.0 }, // To trigger configuration.
                                                    .wanted_range = { .min = 0.0, .max = 1.0 }},
-                                tool->config = { .pressure_range = { .is_available = pressure_range_is_available,
-                                                                     .set          = pressure_range_set,
-                                                                     .get          = pressure_range_get,
-                                                                     .get_default  = pressure_range_get_default }};
+                                tool->config_pressure_range = { .is_available = pressure_range_is_available,
+                                                                .set          = pressure_range_set,
+                                                                .get          = pressure_range_get,
+                                                                .get_default  = pressure_range_get_default };
                                 tool_init_pressure_thresholds(tool, &tool->pressure.threshold);
                                 tool_set_bits(tool);
                                 return tool;
