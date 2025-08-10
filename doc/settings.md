@@ -1459,7 +1459,7 @@ Notes
                 <BoxDrawing="Псевдографика"/>
                 <LargeTypePieces="Составная типографика (Large Type Pieces)"/>
                 <Style="Стилизованные подчеркивания">
-                    <SingleOverline="Черта поверху"/>
+                    <SingleOverline="Одинарное надчеркивание"/>
                     <DoubleUnderline="Двойное подчеркивание"/>
                     <SingleUnderline="Одинарное подчеркивание"/>
                     <DashedUnderline="Подчеркивание пунктиром"/>
