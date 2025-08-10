@@ -2701,7 +2701,6 @@ namespace netxs::lixx // li++, libinput++.
     };
     struct quirks_context_t
     {
-        libinput_sptr           libinput; // For logging.
         text                    dmi2;
         text                    dt2;
         std::list<section_sptr> sections;
@@ -3571,9 +3570,8 @@ namespace netxs::lixx // li++, libinput++.
             ::free(namelist);
             return idx == ndev;
         }
-        bool quirks_init_subsystem(view data_path, view override_file, libinput_sptr li)
+        bool quirks_init_subsystem(view data_path, view override_file)
         {
-            libinput = li;
             dmi2     = init_dmi();
             dt2      = init_dt();
             auto ok = (!dmi2.empty() || !dt2.empty())
@@ -6123,7 +6121,7 @@ namespace netxs::lixx // li++, libinput++.
                 data_path = text{ quirks_pir_ptr };
             }
             quirks = ptr::shared<quirks_context_t>();
-            if (!quirks->quirks_init_subsystem(data_path, override_file, This()))
+            if (!quirks->quirks_init_subsystem(data_path, override_file))
             {
                 quirks.reset();
             }
