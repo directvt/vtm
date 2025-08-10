@@ -17988,14 +17988,13 @@ namespace netxs::lixx // li++, libinput++.
             bool tablet_init()
             {
                 static auto tablet_ids = 0u;
-                auto wacom = (WacomDevice*)nullptr;
                 #if HAVE_LIBWACOM
                 auto db = tablet.li.libinput_libwacom_ref();
                 if (db)
                 {
                     char event_path[64];
                     ::snprintf(event_path, sizeof(event_path), "/dev/input/%s", ud_device.sysname.data());
-                    wacom = ::libwacom_new_from_path(db, event_path, WFALLBACK_NONE, nullptr);
+                    auto wacom = ::libwacom_new_from_path(db, event_path, WFALLBACK_NONE, nullptr);
                     if (!wacom)
                     {
                         wacom = ::libwacom_new_from_usbid(db, tablet.evdev_device_get_id_vendor(), tablet.evdev_device_get_id_product(), nullptr);
