@@ -1177,13 +1177,6 @@ namespace netxs::lixx // li++, libinput++.
         libinput_config_accel_profile profile = LIBINPUT_CONFIG_ACCEL_PROFILE_NONE;
         custom_t                      custom;
     };
-    struct libinput_device_config_send_events
-    {
-        ui32                            (*get_modes)       (libinput_device_sptr li_device);
-        libinput_config_status          (*set_mode)        (libinput_device_sptr li_device, libinput_config_send_events_mode mode);
-        libinput_config_send_events_mode(*get_mode)        (libinput_device_sptr li_device);
-        libinput_config_send_events_mode(*get_default_mode)(libinput_device_sptr li_device);
-    };
     struct libinput_device_config_scroll_method
     {
         ui32                                    (*get_methods)            (libinput_device_sptr li_device);
@@ -1310,7 +1303,6 @@ namespace netxs::lixx // li++, libinput++.
             libinput_device_config_tap*              tap;
             libinput_device_config_calibration*      calibration;
             libinput_device_config_area*             area;
-            libinput_device_config_send_events*      sendevents;
             libinput_device_config_accel*            accel;
             libinput_device_config_natural_scroll*   natural_scroll;
             libinput_device_config_left_handed*      left_handed;
@@ -2629,7 +2621,7 @@ namespace netxs::lixx // li++, libinput++.
         }
         static char const* quirk_get_name(quirk q)
         {
-            switch(q)
+            switch (q)
             {
                 case QUIRK_MODEL_ALPS_SERIAL_TOUCHPAD:          return "ModelALPSSerialTouchpad";
                 case QUIRK_MODEL_APPLE_TOUCHPAD:                return "ModelAppleTouchpad";
@@ -2681,7 +2673,7 @@ namespace netxs::lixx // li++, libinput++.
         }
         static char const* matchflagname(match_flags f)
         {
-            switch(f)
+            switch (f)
             {
                 case M_NAME:      return "MatchName";        break;
                 case M_BUS:       return "MatchBus";         break;
@@ -2915,7 +2907,7 @@ namespace netxs::lixx // li++, libinput++.
         view event_type_to_str()
         {
             if constexpr (debugmode)
-            switch(type)
+            switch (type)
             {
                 CASE_RETURN_STRING(LIBINPUT_EVENT_DEVICE_ADDED);
                 CASE_RETURN_STRING(LIBINPUT_EVENT_DEVICE_REMOVED);
@@ -4383,7 +4375,7 @@ namespace netxs::lixx // li++, libinput++.
                     update_state(ev);
                 }
             }
-            while(filter_status == EVENT_FILTER_DISCARD);
+            while (filter_status == EVENT_FILTER_DISCARD);
             rc = LIBEVDEV_READ_STATUS_SUCCESS;
             if (ev.type == EV_SYN && ev.code == SYN_DROPPED)
             {
@@ -6222,8 +6214,7 @@ namespace netxs::lixx // li++, libinput++.
         text                                    device_group; //todo Property for tablet touch arbitration. Set LIBINPUT_DEVICE_GROUP somewhere in settings (or in quirks) for devices intended to be in a group (e.g. tablet+stylus).
         std::list<libinput_event_listener_sptr> event_listeners;
         libinput_device_config                  config;
-        libinput_device_config_send_events      sendevents_config;
-        libinput_config_send_events_mode        sendevents_current_mode;
+        libinput_config_send_events_mode        sendevents_current_mode = LIBINPUT_CONFIG_SEND_EVENTS_ENABLED;
         event_source_sptr                       source;
         bool                                    was_removed{};
         ui32                                    device_caps{};
@@ -6260,6 +6251,28 @@ namespace netxs::lixx // li++, libinput++.
         virtual                  void touch_arbitration_update_rect([[maybe_unused]] fp64_rect area, time)                                                    { } // Called when touch arbitration is on, updates the area where touch arbitration should apply.
         virtual libinput_switch_state              get_switch_state([[maybe_unused]] libinput_switch which)                                                   { return libinput_switch_state{}; } // Return the state of the given switch.
         virtual                  void            left_handed_toggle([[maybe_unused]] bool left_handed_enabled)                                                { }
+
+        virtual libinput_config_status sendevents_set_mode(libinput_config_send_events_mode mode)
+        {
+                 if (mode == sendevents_current_mode)              return LIBINPUT_CONFIG_STATUS_SUCCESS;
+            else if (mode == LIBINPUT_CONFIG_SEND_EVENTS_ENABLED)  evdev_device_resume();
+            else if (mode == LIBINPUT_CONFIG_SEND_EVENTS_DISABLED) evdev_device_suspend();
+            else                                                   return LIBINPUT_CONFIG_STATUS_UNSUPPORTED; // No support for combined modes yet.
+            sendevents_current_mode = mode;
+            return LIBINPUT_CONFIG_STATUS_SUCCESS;
+        }
+        virtual libinput_config_send_events_mode sendevents_get_mode()
+        {
+            return sendevents_current_mode;
+        }
+        virtual libinput_config_send_events_mode sendevents_get_default_mode()
+        {
+            return LIBINPUT_CONFIG_SEND_EVENTS_ENABLED;
+        }
+        virtual ui32 sendevents_get_modes()
+        {
+            return LIBINPUT_CONFIG_SEND_EVENTS_DISABLED;
+        }
 
         static si32_coor apply_hysteresis(si32_coor in, si32_coor center, si32_coor margin)
         {
@@ -6916,7 +6929,7 @@ namespace netxs::lixx // li++, libinput++.
                 else
                 {
                     scroll.timer->cancel();
-                    switch(scroll.button_scroll_state)
+                    switch (scroll.button_scroll_state)
                     {
                         case BUTTONSCROLL_IDLE: log("invalid state IDLE for button up"); break;
                         case BUTTONSCROLL_BUTTON_DOWN:
@@ -7182,42 +7195,6 @@ namespace netxs::lixx // li++, libinput++.
                 os::close(ud_device.fd);
                 ud_device.fd = os::invalid_fd;
             }
-        }
-            static libinput_config_status evdev_sendevents_set_mode(libinput_device_sptr li_device, libinput_config_send_events_mode mode)
-            {
-                if (mode == li_device->sendevents_current_mode)
-                {
-                    return LIBINPUT_CONFIG_STATUS_SUCCESS;
-                }
-                switch(mode)
-                {
-                    case LIBINPUT_CONFIG_SEND_EVENTS_ENABLED:  li_device->evdev_device_resume(); break;
-                    case LIBINPUT_CONFIG_SEND_EVENTS_DISABLED: li_device->evdev_device_suspend(); break;
-                    default: return LIBINPUT_CONFIG_STATUS_UNSUPPORTED; // No support for combined modes yet.
-                }
-                li_device->sendevents_current_mode = mode;
-                return LIBINPUT_CONFIG_STATUS_SUCCESS;
-            }
-            static libinput_config_send_events_mode evdev_sendevents_get_mode(libinput_device_sptr li_device)
-            {
-                return li_device->sendevents_current_mode;
-            }
-            static libinput_config_send_events_mode evdev_sendevents_get_default_mode([[maybe_unused]] libinput_device_sptr li_device)
-            {
-                return LIBINPUT_CONFIG_SEND_EVENTS_ENABLED;
-            }
-            static ui32 evdev_sendevents_get_modes([[maybe_unused]] libinput_device_sptr li_device)
-            {
-                return LIBINPUT_CONFIG_SEND_EVENTS_DISABLED;
-            }
-        void evdev_init_sendevents()
-        {
-            config.sendevents = &sendevents_config;
-            sendevents_current_mode            = LIBINPUT_CONFIG_SEND_EVENTS_ENABLED;
-            sendevents_config.get_modes        = evdev_sendevents_get_modes;
-            sendevents_config.set_mode         = evdev_sendevents_set_mode;
-            sendevents_config.get_mode         = evdev_sendevents_get_mode;
-            sendevents_config.get_default_mode = evdev_sendevents_get_default_mode;
         }
         libinput_switch_state evdev_device_switch_get_state(libinput_switch sw)
         {
@@ -8860,7 +8837,7 @@ namespace netxs::lixx // li++, libinput++.
                                         m.interval = {};
                                         return;
                                     }
-                                    switch(m.state)
+                                    switch (m.state)
                                     {
                                         case JUMP_STATE_EXPECT_FIRST:
                                             if (m.now > 20ms)
@@ -9263,7 +9240,7 @@ namespace netxs::lixx // li++, libinput++.
                                     }
                                     char const* thumb_state_to_str(tp_thumb_state state)
                                     {
-                                        switch(state)
+                                        switch (state)
                                         {
                                             CASE_RETURN_STRING(THUMB_STATE_FINGER);
                                             CASE_RETURN_STRING(THUMB_STATE_JAILED);
@@ -9376,13 +9353,13 @@ namespace netxs::lixx // li++, libinput++.
                                         }
                                     void tp_thumb_revive(tp_touch& t)
                                     {
-                                        if((tp.thumb.state != THUMB_STATE_SUPPRESSED && tp.thumb.state != THUMB_STATE_PINCH)
+                                        if ((tp.thumb.state != THUMB_STATE_SUPPRESSED && tp.thumb.state != THUMB_STATE_PINCH)
                                          || (tp.thumb.index != t.index))
                                         {
                                             return;
                                         }
-                                        if(tp_thumb_needs_jail(t)) tp_thumb_set_state(t, THUMB_STATE_REVIVED_JAILED);
-                                        else                           tp_thumb_set_state(t, THUMB_STATE_REVIVED);
+                                        if (tp_thumb_needs_jail(t)) tp_thumb_set_state(t, THUMB_STATE_REVIVED_JAILED);
+                                        else                        tp_thumb_set_state(t, THUMB_STATE_REVIVED);
                                     }
                                 void tp_thumb_update_touch(tp_touch& t)
                                 {
@@ -9391,7 +9368,7 @@ namespace netxs::lixx // li++, libinput++.
                                     if (t.speed_exceeded_count >= 10 && tp.thumb.pinch_eligible && tp.gesture.state == GESTURE_STATE_NONE)
                                     {
                                         tp.thumb.pinch_eligible = faux;
-                                        if(tp.thumb.state == THUMB_STATE_PINCH)
+                                        if (tp.thumb.state == THUMB_STATE_PINCH)
                                         {
                                             for (auto& thumb : tp.touches)
                                             {
@@ -9635,7 +9612,7 @@ namespace netxs::lixx // li++, libinput++.
                                     }
                                     char const* touch_state_to_str(touch_state state)
                                     {
-                                        switch(state)
+                                        switch (state)
                                         {
                                             CASE_RETURN_STRING(TOUCH_NONE);
                                             CASE_RETURN_STRING(TOUCH_HOVERING);
@@ -9985,7 +9962,7 @@ namespace netxs::lixx // li++, libinput++.
                                         }
                                         void tp_button_top_new_handle_event(tp_touch& t, button_event event, time stamp)
                                         {
-                                            switch(event)
+                                            switch (event)
                                             {
                                                 case BUTTON_EVENT_IN_BOTTOM_R:
                                                 case BUTTON_EVENT_IN_BOTTOM_M:
@@ -10006,7 +9983,7 @@ namespace netxs::lixx // li++, libinput++.
                                         }
                                         void tp_button_top_to_ignore_handle_event(tp_touch& t, button_event event, time stamp)
                                         {
-                                            switch(event)
+                                            switch (event)
                                             {
                                                 case BUTTON_EVENT_IN_TOP_R:
                                                 case BUTTON_EVENT_IN_TOP_M:
@@ -10045,7 +10022,7 @@ namespace netxs::lixx // li++, libinput++.
                                         }
                                         const char* button_state_to_str(button_state_enum state)
                                         {
-                                            switch(state)
+                                            switch (state)
                                             {
                                                 CASE_RETURN_STRING(BUTTON_STATE_NONE);
                                                 CASE_RETURN_STRING(BUTTON_STATE_AREA);
@@ -10059,7 +10036,7 @@ namespace netxs::lixx // li++, libinput++.
                                         }
                                         const char* button_event_to_str(button_event event)
                                         {
-                                            switch(event)
+                                            switch (event)
                                             {
                                                 CASE_RETURN_STRING(BUTTON_EVENT_IN_BOTTOM_R);
                                                 CASE_RETURN_STRING(BUTTON_EVENT_IN_BOTTOM_M);
@@ -10079,7 +10056,7 @@ namespace netxs::lixx // li++, libinput++.
                                     void tp_button_handle_event(tp_touch& t, button_event event, time stamp)
                                     {
                                         auto current = t.button.state;
-                                        switch(current)
+                                        switch (current)
                                         {
                                             case BUTTON_STATE_NONE:           tp_button_none_handle_event(         t, event, stamp); break;
                                             case BUTTON_STATE_AREA:           tp_button_area_handle_event(         t, event, stamp); break;
@@ -10406,7 +10383,7 @@ namespace netxs::lixx // li++, libinput++.
                                                     }
                                                 void tp_gesture_handle_event_on_state_none(gesture_event event, time stamp)
                                                 {
-                                                    switch(event)
+                                                    switch (event)
                                                     {
                                                         case GESTURE_EVENT_RESET:
                                                         case GESTURE_EVENT_END:
@@ -10491,7 +10468,7 @@ namespace netxs::lixx // li++, libinput++.
                                                     }
                                                 void tp_gesture_handle_event_on_state_unknown(gesture_event event, time stamp)
                                                 {
-                                                    switch(event)
+                                                    switch (event)
                                                     {
                                                         case GESTURE_EVENT_RESET:
                                                         case GESTURE_EVENT_END:
@@ -10573,7 +10550,7 @@ namespace netxs::lixx // li++, libinput++.
                                                     }
                                                 void tp_gesture_handle_event_on_state_hold(gesture_event event, time stamp)
                                                 {
-                                                    switch(event)
+                                                    switch (event)
                                                     {
                                                         case GESTURE_EVENT_RESET: log("log_gesture_bug: tp", (ui32)event); break;
                                                         case GESTURE_EVENT_END:
@@ -10624,7 +10601,7 @@ namespace netxs::lixx // li++, libinput++.
                                                 }
                                                 void tp_gesture_handle_event_on_state_hold_and_motion(gesture_event event, time stamp)
                                                 {
-                                                    switch(event)
+                                                    switch (event)
                                                     {
                                                         case GESTURE_EVENT_RESET: log("log_gesture_bug: tp", (ui32)event); break;
                                                         case GESTURE_EVENT_END:
@@ -10659,7 +10636,7 @@ namespace netxs::lixx // li++, libinput++.
                                                     }
                                                 void tp_gesture_handle_event_on_state_pointer_motion(gesture_event event, time stamp)
                                                 {
-                                                    switch(event)
+                                                    switch (event)
                                                     {
                                                         case GESTURE_EVENT_RESET:
                                                         case GESTURE_EVENT_END:
@@ -10694,7 +10671,7 @@ namespace netxs::lixx // li++, libinput++.
                                                 }
                                                 void tp_gesture_handle_event_on_state_scroll_start(gesture_event event, time stamp)
                                                 {
-                                                    switch(event)
+                                                    switch (event)
                                                     {
                                                         case GESTURE_EVENT_RESET:
                                                         case GESTURE_EVENT_END:
@@ -10729,7 +10706,7 @@ namespace netxs::lixx // li++, libinput++.
                                                     }
                                                 void tp_gesture_handle_event_on_state_scroll(gesture_event event, time stamp)
                                                 {
-                                                    switch(event)
+                                                    switch (event)
                                                     {
                                                         case GESTURE_EVENT_RESET:
                                                         case GESTURE_EVENT_END:
@@ -10759,7 +10736,7 @@ namespace netxs::lixx // li++, libinput++.
                                                 }
                                                 void tp_gesture_handle_event_on_state_pinch_start(gesture_event event)
                                                 {
-                                                    switch(event)
+                                                    switch (event)
                                                     {
                                                         case GESTURE_EVENT_RESET:
                                                         case GESTURE_EVENT_END:
@@ -10783,7 +10760,7 @@ namespace netxs::lixx // li++, libinput++.
                                                     }
                                                 void tp_gesture_handle_event_on_state_pinch(gesture_event event, time stamp)
                                                 {
-                                                    switch(event)
+                                                    switch (event)
                                                     {
                                                         case GESTURE_EVENT_RESET: log("log_gesture_bug: tp", (ui32)event); break;
                                                         case GESTURE_EVENT_END:
@@ -10810,7 +10787,7 @@ namespace netxs::lixx // li++, libinput++.
                                                 }
                                                 void tp_gesture_handle_event_on_state_swipe_start(gesture_event event)
                                                 {
-                                                    switch(event)
+                                                    switch (event)
                                                     {
                                                         case GESTURE_EVENT_RESET:
                                                         case GESTURE_EVENT_END:
@@ -10837,7 +10814,7 @@ namespace netxs::lixx // li++, libinput++.
                                                     }
                                                 void tp_gesture_handle_event_on_state_swipe(gesture_event event, time stamp)
                                                 {
-                                                    switch(event)
+                                                    switch (event)
                                                     {
                                                         case GESTURE_EVENT_RESET: log("log_gesture_bug: tp", (ui32)event); break;
                                                         case GESTURE_EVENT_END:
@@ -10864,7 +10841,7 @@ namespace netxs::lixx // li++, libinput++.
                                                 }
                                                 void tp_gesture_handle_event_on_state_3fg_drag_start(gesture_event event)
                                                 {
-                                                    switch(event)
+                                                    switch (event)
                                                     {
                                                         case GESTURE_EVENT_RESET:
                                                         case GESTURE_EVENT_END:
@@ -10892,7 +10869,7 @@ namespace netxs::lixx // li++, libinput++.
                                                 }
                                                 void tp_gesture_handle_event_on_state_3fg_drag(gesture_event event, time stamp)
                                                 {
-                                                    switch(event)
+                                                    switch (event)
                                                     {
                                                         case GESTURE_EVENT_RESET: log("log_gesture_bug: tp", (ui32)event); break;
                                                         case GESTURE_EVENT_CANCEL:
@@ -10930,7 +10907,7 @@ namespace netxs::lixx // li++, libinput++.
                                                     }
                                                 void tp_gesture_handle_event_on_state_3fg_drag_released(gesture_event event)
                                                 {
-                                                    switch(event)
+                                                    switch (event)
                                                     {
                                                         case GESTURE_EVENT_RESET: log("log_gesture_bug: tp", (ui32)event); break;
                                                         case GESTURE_EVENT_END:
@@ -10997,7 +10974,7 @@ namespace netxs::lixx // li++, libinput++.
                                             }
                                             char const* gesture_event_to_str(gesture_event event)
                                             {
-                                                switch(event)
+                                                switch (event)
                                                 {
                                                     CASE_RETURN_STRING(GESTURE_EVENT_RESET);
                                                     CASE_RETURN_STRING(GESTURE_EVENT_END);
@@ -11019,7 +10996,7 @@ namespace netxs::lixx // li++, libinput++.
                                         void tp_gesture_handle_event(gesture_event event, time stamp)
                                         {
                                             auto oldstate = tp.gesture.state;
-                                            switch(tp.gesture.state)
+                                            switch (tp.gesture.state)
                                             {
                                                 case GESTURE_STATE_NONE:              tp_gesture_handle_event_on_state_none(             event, stamp); break;
                                                 case GESTURE_STATE_UNKNOWN:           tp_gesture_handle_event_on_state_unknown(          event, stamp); break;
@@ -12070,7 +12047,7 @@ namespace netxs::lixx // li++, libinput++.
                                         }
                                         const char* tap_state_to_str(enum tp_tap_state state)
                                         {
-                                            switch(state)
+                                            switch (state)
                                             {
                                                 CASE_RETURN_STRING(TAP_STATE_IDLE);
                                                 CASE_RETURN_STRING(TAP_STATE_HOLD);
@@ -12106,7 +12083,7 @@ namespace netxs::lixx // li++, libinput++.
                                         }
                                         char const* tap_event_to_str(tap_event event)
                                         {
-                                            switch(event)
+                                            switch (event)
                                             {
                                                 CASE_RETURN_STRING(TAP_EVENT_TOUCH);
                                                 CASE_RETURN_STRING(TAP_EVENT_MOTION);
@@ -12122,7 +12099,7 @@ namespace netxs::lixx // li++, libinput++.
                                     void tp_tap_handle_event(tp_touch& t, tap_event event, time stamp)
                                     {
                                         auto current = tp.tap.state;
-                                        switch(current)
+                                        switch (current)
                                         {
                                             case TAP_STATE_IDLE:                         tp_tap_idle_handle_event(                 t, event, stamp); break;
                                             case TAP_STATE_TOUCH:                        tp_tap_touch_handle_event(                t, event, stamp); break;
@@ -14271,7 +14248,7 @@ namespace netxs::lixx // li++, libinput++.
                     static libinput_config_status tp_dwt_config_set(libinput_device_sptr li_device, libinput_config_dwt_state enable)
                     {
                         auto& tp = *std::static_pointer_cast<tp_device>(li_device);
-                        switch(enable)
+                        switch (enable)
                         {
                             case LIBINPUT_CONFIG_DWT_ENABLED:
                             case LIBINPUT_CONFIG_DWT_DISABLED:
@@ -14329,7 +14306,7 @@ namespace netxs::lixx // li++, libinput++.
                     static libinput_config_status tp_dwtp_config_set(libinput_device_sptr li_device, libinput_config_dwtp_state enable)
                     {
                         auto& tp = *std::static_pointer_cast<tp_device>(li_device);
-                        switch(enable)
+                        switch (enable)
                         {
                             case LIBINPUT_CONFIG_DWTP_ENABLED:
                             case LIBINPUT_CONFIG_DWTP_DISABLED:
@@ -14940,7 +14917,7 @@ namespace netxs::lixx // li++, libinput++.
                                 if (devices)
                                 {
                                     auto d = devices;
-                                    while(*d)
+                                    while (*d)
                                     {
                                         auto paired = ::libwacom_get_paired_device(*d);
                                         if (paired && ::libwacom_match_get_vendor_id(paired) == vid
@@ -14996,6 +14973,51 @@ namespace netxs::lixx // li++, libinput++.
         void touch_arbitration_toggle(libinput_arbitration_state which, fp64_rect, time now) { tp_impl.   tp_interface_toggle_touch(which, now); }
         void         device_suspended(libinput_device_sptr suspended_li_device)              { device_removed(suspended_li_device); }
         void           device_resumed(libinput_device_sptr resumed_li_device)                { device_added(resumed_li_device); }
+        virtual ui32 sendevents_get_modes() override
+        {
+            auto modes = (ui32)LIBINPUT_CONFIG_SEND_EVENTS_DISABLED;
+            if (device_tags & EVDEV_TAG_INTERNAL_TOUCHPAD)
+            {
+                modes |= LIBINPUT_CONFIG_SEND_EVENTS_DISABLED_ON_EXTERNAL_MOUSE;
+            }
+            return modes;
+        }
+        virtual libinput_config_status sendevents_set_mode(libinput_config_send_events_mode mode) override
+        {
+            // DISABLED overrides any DISABLED_ON_.
+            if ((mode & LIBINPUT_CONFIG_SEND_EVENTS_DISABLED) && (mode & LIBINPUT_CONFIG_SEND_EVENTS_DISABLED_ON_EXTERNAL_MOUSE))
+            {
+                mode = (libinput_config_send_events_mode)(mode & ~LIBINPUT_CONFIG_SEND_EVENTS_DISABLED_ON_EXTERNAL_MOUSE);
+            }
+            if (mode == sendevents_current_mode) return LIBINPUT_CONFIG_STATUS_SUCCESS;
+            switch (mode)
+            {
+                case LIBINPUT_CONFIG_SEND_EVENTS_ENABLED:
+                    tp_impl.tp_resume(SUSPEND_SENDEVENTS);
+                    tp_impl.tp_resume(SUSPEND_EXTERNAL_MOUSE);
+                    break;
+                case LIBINPUT_CONFIG_SEND_EVENTS_DISABLED:
+                    tp_impl.tp_suspend(SUSPEND_SENDEVENTS);
+                    tp_impl.tp_resume(SUSPEND_EXTERNAL_MOUSE);
+                    break;
+                case LIBINPUT_CONFIG_SEND_EVENTS_DISABLED_ON_EXTERNAL_MOUSE:
+                    tp_impl.tp_suspend_conditional();
+                    tp_impl.tp_resume(SUSPEND_SENDEVENTS);
+                    break;
+                default:
+                    return LIBINPUT_CONFIG_STATUS_UNSUPPORTED;
+            }
+            sendevents_current_mode = mode;
+            return LIBINPUT_CONFIG_STATUS_SUCCESS;
+        }
+        virtual libinput_config_send_events_mode sendevents_get_mode() override
+        {
+            return sendevents_current_mode;
+        }
+        virtual libinput_config_send_events_mode sendevents_get_default_mode() override
+        {
+            return LIBINPUT_CONFIG_SEND_EVENTS_ENABLED;
+        }
     };
 
     struct pad_mode_led
@@ -15550,41 +15572,41 @@ namespace netxs::lixx // li++, libinput++.
                         #endif
                         return rc;
                     }
-                    void pad_init_buttons_from_kernel(libinput_device_sptr li_device)
+                    void pad_init_buttons_from_kernel()
                     {
                         auto map = 0;
                         // We match wacom_report_numbered_buttons() from the kernel.
                         for (auto code = BTN_0; code < BTN_0 + 10; code++)
                         {
-                            if (li_device->libevdev_has_event_code<EV_KEY>(code))
+                            if (pad.libevdev_has_event_code<EV_KEY>(code))
                             {
                                 pad.button_map[code] = map++;
                             }
                         }
                         for (auto code = BTN_BASE; code < BTN_BASE + 2; code++)
                         {
-                            if (li_device->libevdev_has_event_code<EV_KEY>(code))
+                            if (pad.libevdev_has_event_code<EV_KEY>(code))
                             {
                                 pad.button_map[code] = map++;
                             }
                         }
                         for (auto code = BTN_A; code < BTN_A + 6; code++)
                         {
-                            if (li_device->libevdev_has_event_code<EV_KEY>(code))
+                            if (pad.libevdev_has_event_code<EV_KEY>(code))
                             {
                                 pad.button_map[code] = map++;
                             }
                         }
                         for (auto code = BTN_LEFT; code < BTN_LEFT + 7; code++)
                         {
-                            if (li_device->libevdev_has_event_code<EV_KEY>(code))
+                            if (pad.libevdev_has_event_code<EV_KEY>(code))
                             {
                                 pad.button_map[code] = map++;
                             }
                         }
                         pad.nbuttons = map;
                     }
-                    void pad_init_keys(libinput_device_sptr li_device)
+                    void pad_init_keys()
                     {
                         static constexpr auto codes = std::to_array( // Wacom's keys are the only ones we know anything about.
                         {
@@ -15592,18 +15614,18 @@ namespace netxs::lixx // li++, libinput++.
                             KEY_ONSCREEN_KEYBOARD,
                             KEY_CONTROLPANEL,
                         });
-                        if (li_device->libevdev_get_id_vendor() == lixx::vendor_id_wacom)
+                        if (pad.libevdev_get_id_vendor() == lixx::vendor_id_wacom)
                         {
                             for (auto code : codes)
                             {
-                                if (li_device->libevdev_has_event_code<EV_KEY>(code))
+                                if (pad.libevdev_has_event_code<EV_KEY>(code))
                                 {
                                     pad.button_map[code] = code | 0xFF000000;
                                 }
                             }
                         }
                     }
-                void pad_init_buttons(libinput_device_sptr li_device, WacomDevice* wacom)
+                void pad_init_buttons(WacomDevice* wacom)
                 {
                     for (auto i = 0u; i < std::size(pad.button_map); i++)
                     {
@@ -15611,11 +15633,11 @@ namespace netxs::lixx // li++, libinput++.
                     }
                     if (!pad_init_buttons_from_libwacom(wacom))
                     {
-                        pad_init_buttons_from_kernel(li_device);
+                        pad_init_buttons_from_kernel();
                     }
-                    pad_init_keys(li_device);
+                    pad_init_keys();
                 }
-                void pad_init_left_handed(libinput_device_sptr li_device, [[maybe_unused]] WacomDevice* wacom)
+                void pad_init_left_handed([[maybe_unused]] WacomDevice* wacom)
                 {
                     auto has_left_handed = true;
                     #if HAVE_LIBWACOM
@@ -15623,7 +15645,7 @@ namespace netxs::lixx // li++, libinput++.
                     #endif
                     if (has_left_handed)
                     {
-                        li_device->evdev_init_left_handed(pad_device::pad_impl_t::pad_change_to_left_handed);
+                        pad.evdev_init_left_handed(pad_device::pad_impl_t::pad_change_to_left_handed);
                     }
                 }
                     si32 pad_init_fallback_group()
@@ -15644,7 +15666,7 @@ namespace netxs::lixx // li++, libinput++.
                         pad.modes.mode_group_list.push_back(group);
                         return 0;
                     }
-                si32 pad_init_leds([[maybe_unused]] libinput_device_sptr li_device, [[maybe_unused]] WacomDevice* wacom)
+                si32 pad_init_leds([[maybe_unused]] WacomDevice* wacom)
                 {
                     auto rc = 1;
                     if (pad.nbuttons > 32)
@@ -15658,22 +15680,22 @@ namespace netxs::lixx // li++, libinput++.
                     if (rc != 0) rc = pad_init_fallback_group(); // If libwacom fails, we init one fallback group anyway.
                     return rc;
                 }
-            si32 pad_init(libinput_device_sptr li_device)
+            si32 pad_init()
             {
                 pad.status       = PAD_NONE;
                 pad.changed_axes = PAD_AXIS_NONE;
                 // We expect the kernel to either give us both axes as hires or neither. Getting one is a kernel bug we don't need to care about.
-                pad.dials.has_hires_dial = li_device->libevdev_has_event_code<EV_REL>(REL_WHEEL_HI_RES)
-                                        || li_device->libevdev_has_event_code<EV_REL>(REL_HWHEEL_HI_RES);
-                if (li_device->libevdev_has_event_code<EV_REL>(REL_WHEEL)
-                 && li_device->libevdev_has_event_code<EV_REL>(REL_DIAL))
+                pad.dials.has_hires_dial = pad.libevdev_has_event_code<EV_REL>(REL_WHEEL_HI_RES)
+                                        || pad.libevdev_has_event_code<EV_REL>(REL_HWHEEL_HI_RES);
+                if (pad.libevdev_has_event_code<EV_REL>(REL_WHEEL)
+                 && pad.libevdev_has_event_code<EV_REL>(REL_DIAL))
                 {
                     log("Unsupported combination REL_DIAL and REL_WHEEL");
                 }
                 auto wacom = (WacomDevice*)nullptr;
-                pad_init_buttons(li_device, wacom);
-                pad_init_left_handed(li_device, wacom);
-                auto rc = pad_init_leds(li_device, wacom);
+                pad_init_buttons(wacom);
+                pad_init_left_handed(wacom);
+                auto rc = pad_init_leds(wacom);
                 return rc;
             }
         };
@@ -15681,6 +15703,26 @@ namespace netxs::lixx // li++, libinput++.
         pad_impl_t pad_impl{ *this };
         void process(evdev_event& ev, time stamp) { pad_impl.pad_process(ev, stamp); }
         void suspend()                            { pad_impl.pad_suspend(); }
+        virtual ui32 sendevents_get_modes() override
+        {
+            return LIBINPUT_CONFIG_SEND_EVENTS_DISABLED;
+        }
+        virtual libinput_config_status sendevents_set_mode(libinput_config_send_events_mode mode) override
+        {
+                 if (mode == sendevents_current_mode)              return LIBINPUT_CONFIG_STATUS_SUCCESS;
+            else if (mode == LIBINPUT_CONFIG_SEND_EVENTS_DISABLED) suspend();
+            else if (mode != LIBINPUT_CONFIG_SEND_EVENTS_ENABLED)  return LIBINPUT_CONFIG_STATUS_UNSUPPORTED;
+            sendevents_current_mode = mode;
+            return LIBINPUT_CONFIG_STATUS_SUCCESS;
+        }
+        virtual libinput_config_send_events_mode sendevents_get_mode() override
+        {
+            return sendevents_current_mode;
+        }
+        virtual libinput_config_send_events_mode sendevents_get_default_mode() override
+        {
+            return LIBINPUT_CONFIG_SEND_EVENTS_ENABLED;
+        }
     };
 
         struct totem_slot
@@ -15846,7 +15888,7 @@ namespace netxs::lixx // li++, libinput++.
                     totem.tablet_notify_button(now, slot.tool, tip_state, axes, BTN_0, btn_state, totem.ud_device.abs.absinfo_x, totem.ud_device.abs.absinfo_y);
                     totem.button_state_previous = totem.button_state_now;
                 }
-                switch(slot.state)
+                switch (slot.state)
                 {
                     case SLOT_STATE_BEGIN:
                     case SLOT_STATE_UPDATE: break;
@@ -15958,7 +16000,7 @@ namespace netxs::lixx // li++, libinput++.
                 auto global_state = slot_state_enum{};
                 auto enable_touch = faux;
                 auto type = evdev_usage_type(ev.usage);
-                switch(type)
+                switch (type)
                 {
                     case EV_ABS: totem_process_abs(ev); break;
                     case EV_KEY: totem_process_key(ev); break;
@@ -18015,7 +18057,6 @@ namespace netxs::lixx // li++, libinput++.
                     tablet_init_area();
                     tablet_init_proximity_threshold();
                     tablet_init_accel();
-                    tablet.evdev_init_sendevents();
                     tablet_init_left_handed();
                     tablet_init_smoothing(is_aes, is_virtual);
                     for (auto axis = LIBINPUT_TABLET_TOOL_AXIS_X; axis <= LIBINPUT_TABLET_TOOL_AXIS_SIZE_MINOR; axis = (libinput_tablet_tool_axis)(axis + 1))
@@ -18235,7 +18276,7 @@ namespace netxs::lixx // li++, libinput++.
                                 }
                                 char const* wheel_state_to_str(wheel_state state)
                                 {
-                                    switch(state)
+                                    switch (state)
                                     {
                                         CASE_RETURN_STRING(WHEEL_STATE_NONE);
                                         CASE_RETURN_STRING(WHEEL_STATE_ACCUMULATING_SCROLL);
@@ -18245,7 +18286,7 @@ namespace netxs::lixx // li++, libinput++.
                                 }
                                 char const* wheel_event_to_str(wheel_event event)
                                 {
-                                    switch(event)
+                                    switch (event)
                                     {
                                         CASE_RETURN_STRING(WHEEL_EVENT_SCROLL_ACCUMULATED);
                                         CASE_RETURN_STRING(WHEEL_EVENT_SCROLL);
@@ -18651,7 +18692,7 @@ namespace netxs::lixx // li++, libinput++.
                             bool post_button_scroll(fp64_coor raw, time stamp)
                             {
                                 if (generic.scroll.method != LIBINPUT_CONFIG_SCROLL_ON_BUTTON_DOWN) return faux;
-                                switch(generic.scroll.button_scroll_state)
+                                switch (generic.scroll.button_scroll_state)
                                 {
                                     case BUTTONSCROLL_IDLE: return faux;
                                     case BUTTONSCROLL_BUTTON_DOWN:
@@ -19272,7 +19313,7 @@ namespace netxs::lixx // li++, libinput++.
                                 }
                                 char const* debounce_state_to_str(debounce_state state)
                                 {
-                                    switch(state)
+                                    switch (state)
                                     {
                                         CASE_RETURN_STRING(DEBOUNCE_STATE_IS_UP);
                                         CASE_RETURN_STRING(DEBOUNCE_STATE_IS_DOWN);
@@ -19289,7 +19330,7 @@ namespace netxs::lixx // li++, libinput++.
                                 }
                                 char const* debounce_event_to_str(debounce_event event)
                                 {
-                                    switch(event)
+                                    switch (event)
                                     {
                                         CASE_RETURN_STRING(DEBOUNCE_EVENT_PRESS);
                                         CASE_RETURN_STRING(DEBOUNCE_EVENT_RELEASE);
@@ -19307,7 +19348,7 @@ namespace netxs::lixx // li++, libinput++.
                                     debounce_cancel_timer();
                                     debounce_cancel_timer_short();
                                 }
-                                switch(current)
+                                switch (current)
                                 {
                                     case DEBOUNCE_STATE_IS_UP:                      debounce_is_up_handle_event(                     event, stamp); break;
                                     case DEBOUNCE_STATE_IS_DOWN:                    debounce_is_down_handle_event(                   event, stamp); break;
@@ -19940,6 +19981,7 @@ namespace netxs::lixx // li++, libinput++.
         void     touch_arbitration_update_rect(fp64_rect area, time)                                       { generic_impl.            fallback_interface_update_rect(area); }
         libinput_switch_state get_switch_state(libinput_switch which)                                      { return generic_impl.fallback_interface_get_switch_state(which); }
     };
+
     libinput_device_sptr create_totem(libinput_t& li, ud_device_t& ud_device)
     {
         ud_device.device_class += " totem";
@@ -19959,7 +20001,6 @@ namespace netxs::lixx // li++, libinput++.
                 {
                     slot.index = i++;
                 }
-                totem.evdev_init_sendevents();
                 totem.totem_impl.totem_init_accel();
             }
             else
@@ -19969,147 +20010,58 @@ namespace netxs::lixx // li++, libinput++.
         }
         return totem_ptr;
     }
-            static ui32 pad_sendevents_get_modes([[maybe_unused]] libinput_device_sptr li_device)
-            {
-                return LIBINPUT_CONFIG_SEND_EVENTS_DISABLED;
-            }
-            static libinput_config_status pad_sendevents_set_mode(libinput_device_sptr li_device, libinput_config_send_events_mode mode)
-            {
-                auto& pad = *std::static_pointer_cast<pad_device>(li_device);
-                if (mode == pad.sendevents_current_mode) return LIBINPUT_CONFIG_STATUS_SUCCESS;
-                switch(mode)
-                {
-                    case LIBINPUT_CONFIG_SEND_EVENTS_ENABLED: break;
-                    case LIBINPUT_CONFIG_SEND_EVENTS_DISABLED: pad.suspend(); break;
-                    default: return LIBINPUT_CONFIG_STATUS_UNSUPPORTED;
-                }
-                pad.sendevents_current_mode = mode;
-                return LIBINPUT_CONFIG_STATUS_SUCCESS;
-            }
-            static libinput_config_send_events_mode pad_sendevents_get_mode(libinput_device_sptr li_device)
-            {
-                auto& pad = *std::static_pointer_cast<pad_device>(li_device);
-                return pad.sendevents_current_mode;
-            }
-            static libinput_config_send_events_mode pad_sendevents_get_default_mode([[maybe_unused]] libinput_device_sptr li_device)
-            {
-                return LIBINPUT_CONFIG_SEND_EVENTS_ENABLED;
-            }
-        libinput_device_sptr create_tablet_pad(libinput_t& li, ud_device_t& ud_device)
+    libinput_device_sptr create_tablet_pad(libinput_t& li, ud_device_t& ud_device)
+    {
+        ud_device.device_class += " tabletpad";
+        auto pad_ptr = ptr::shared<pad_device>(li, ud_device);
+        pad_ptr->device_caps |= EVDEV_DEVICE_TABLET_PAD;
+        if (!pad_ptr->pad_impl.pad_init())
         {
-            ud_device.device_class += " tabletpad";
-            auto pad = ptr::shared<pad_device>(li, ud_device);
-            auto li_device = pad;
-            li_device->device_caps |= EVDEV_DEVICE_TABLET_PAD;
-            if (pad->pad_impl.pad_init(li_device) != 0)
-            {
-                pad.reset();
-            }
-            else
-            {
-                li_device->config.sendevents = &pad->sendevents_config;
-                pad->sendevents_current_mode            = LIBINPUT_CONFIG_SEND_EVENTS_ENABLED;
-                pad->sendevents_config.get_modes        = pad_sendevents_get_modes;
-                pad->sendevents_config.set_mode         = pad_sendevents_set_mode;
-                pad->sendevents_config.get_mode         = pad_sendevents_get_mode;
-                pad->sendevents_config.get_default_mode = pad_sendevents_get_default_mode;
-            }
-            return pad;
+            pad_ptr.reset();
         }
-        libinput_device_sptr create_tablet(libinput_t& li, ud_device_t& ud_device)
+        return pad_ptr;
+    }
+    libinput_device_sptr create_tablet(libinput_t& li, ud_device_t& ud_device)
+    {
+        ud_device.device_class += " tablet";
+        auto tablet_ptr = ptr::shared<tablet_device>(li, ud_device);
+        auto& tablet = *tablet_ptr;
+        tablet.device_caps |= EVDEV_DEVICE_TABLET;
+        #if HAVE_LIBWACOM
+        li.libinput_libwacom_ref();
+        #endif
+        if (::getenv("LIBINPUT_RUNNING_TEST_SUITE"))
         {
-            ud_device.device_class += " tablet";
-            auto tablet_ptr = ptr::shared<tablet_device>(li, ud_device);
-            auto& tablet = *tablet_ptr;
-            tablet.device_caps |= EVDEV_DEVICE_TABLET;
-            #if HAVE_LIBWACOM
-            li.libinput_libwacom_ref();
-            #endif
-            if (::getenv("LIBINPUT_RUNNING_TEST_SUITE"))
-            {
-                lixx::forced_proxout_timeout = 150ms; // Stop false positives caused by the forced proximity code.
-            }
-            if (!tablet.tablet_impl.tablet_init())
-            {
-                tablet_ptr.reset();
-            }
-            return tablet_ptr;
+            lixx::forced_proxout_timeout = 150ms; // Stop false positives caused by the forced proximity code.
         }
-            static ui32 tp_sendevents_get_modes(libinput_device_sptr li_device)
-            {
-                auto modes = (ui32)LIBINPUT_CONFIG_SEND_EVENTS_DISABLED;
-                if (li_device->device_tags & EVDEV_TAG_INTERNAL_TOUCHPAD)
-                {
-                    modes |= LIBINPUT_CONFIG_SEND_EVENTS_DISABLED_ON_EXTERNAL_MOUSE;
-                }
-                return modes;
-            }
-            static libinput_config_status tp_sendevents_set_mode(libinput_device_sptr li_device, libinput_config_send_events_mode mode)
-            {
-                auto& tp = *std::static_pointer_cast<tp_device>(li_device);
-                // DISABLED overrides any DISABLED_ON_.
-                if ((mode & LIBINPUT_CONFIG_SEND_EVENTS_DISABLED) && (mode & LIBINPUT_CONFIG_SEND_EVENTS_DISABLED_ON_EXTERNAL_MOUSE))
-                {
-                    mode = (libinput_config_send_events_mode)(mode & ~LIBINPUT_CONFIG_SEND_EVENTS_DISABLED_ON_EXTERNAL_MOUSE);
-                }
-                if (mode == tp.sendevents_current_mode) return LIBINPUT_CONFIG_STATUS_SUCCESS;
-                switch(mode)
-                {
-                    case LIBINPUT_CONFIG_SEND_EVENTS_ENABLED:
-                        tp.tp_impl.tp_resume(SUSPEND_SENDEVENTS);
-                        tp.tp_impl.tp_resume(SUSPEND_EXTERNAL_MOUSE);
-                        break;
-                    case LIBINPUT_CONFIG_SEND_EVENTS_DISABLED:
-                        tp.tp_impl.tp_suspend(SUSPEND_SENDEVENTS);
-                        tp.tp_impl.tp_resume(SUSPEND_EXTERNAL_MOUSE);
-                        break;
-                    case LIBINPUT_CONFIG_SEND_EVENTS_DISABLED_ON_EXTERNAL_MOUSE:
-                        tp.tp_impl.tp_suspend_conditional();
-                        tp.tp_impl.tp_resume(SUSPEND_SENDEVENTS);
-                        break;
-                    default:
-                        return LIBINPUT_CONFIG_STATUS_UNSUPPORTED;
-                }
-                tp.sendevents_current_mode = mode;
-                return LIBINPUT_CONFIG_STATUS_SUCCESS;
-            }
-            static libinput_config_send_events_mode tp_sendevents_get_mode(libinput_device_sptr li_device)
-            {
-                auto& tp = *std::static_pointer_cast<tp_device>(li_device);
-                return tp.sendevents_current_mode;
-            }
-            static libinput_config_send_events_mode tp_sendevents_get_default_mode([[maybe_unused]] libinput_device_sptr li_device)
-            {
-                return LIBINPUT_CONFIG_SEND_EVENTS_ENABLED;
-            }
-        libinput_device_sptr create_touchpad(libinput_t& li, ud_device_t& ud_device, ui32 udev_tags)
+        if (!tablet.tablet_impl.tablet_init())
         {
-            ud_device.device_class += " touchpad";
-            auto tp_ptr = ptr::shared<tp_device>(li, ud_device);
-            auto& tp = *tp_ptr;
-            if (udev_tags & EVDEV_UDEV_TAG_TABLET)
-            {
-                tp.device_tags |= EVDEV_TAG_TABLET_TOUCHPAD;
-            }
-            tp.use_velocity_averaging = tp.evdev_need_velocity_averaging(); // Whether velocity should be averaged, false by default.
-            tp.evdev_tag_touchpad();
-            if (!tp.tp_impl.tp_init())
-            {
-                tp_ptr.reset();
-            }
-            else
-            {
-                tp.config.sendevents                  = &tp.sendevents_config;
-                tp.sendevents_current_mode            = LIBINPUT_CONFIG_SEND_EVENTS_ENABLED;
-                tp.sendevents_config.get_modes        = tp_sendevents_get_modes;
-                tp.sendevents_config.set_mode         = tp_sendevents_set_mode;
-                tp.sendevents_config.get_mode         = tp_sendevents_get_mode;
-                tp.sendevents_config.get_default_mode = tp_sendevents_get_default_mode;
-                tp.tp_impl.tp_init_left_handed();
-            }
-            return tp_ptr;
+            tablet_ptr.reset();
         }
-        libinput_device_sptr create_generic(libinput_t& li, ud_device_t& ud_device, ui32 udev_tags)
+        return tablet_ptr;
+    }
+    libinput_device_sptr create_touchpad(libinput_t& li, ud_device_t& ud_device, ui32 udev_tags)
+    {
+        ud_device.device_class += " touchpad";
+        auto tp_ptr = ptr::shared<tp_device>(li, ud_device);
+        auto& tp = *tp_ptr;
+        if (udev_tags & EVDEV_UDEV_TAG_TABLET)
+        {
+            tp.device_tags |= EVDEV_TAG_TABLET_TOUCHPAD;
+        }
+        tp.use_velocity_averaging = tp.evdev_need_velocity_averaging(); // Whether velocity should be averaged, false by default.
+        tp.evdev_tag_touchpad();
+        if (!tp.tp_impl.tp_init())
+        {
+            tp_ptr.reset();
+        }
+        else
+        {
+            tp.tp_impl.tp_init_left_handed();
+        }
+        return tp_ptr;
+    }
+    libinput_device_sptr create_generic(libinput_t& li, ud_device_t& ud_device, ui32 udev_tags)
         {
             auto generic_ptr = ptr::shared<generic_device>(li, ud_device);
             auto& generic = *generic_ptr;
@@ -20208,7 +20160,6 @@ namespace netxs::lixx // li++, libinput++.
                 generic.evdev_init_natural_scroll();
             }
             generic.evdev_init_calibration(generic.calibration);
-            generic.evdev_init_sendevents();
             generic.generic_impl.fallback_init_rotation(generic_ptr);
             // BTN_MIDDLE is set on mice even when it's not present. So we can only use the absence of BTN_MIDDLE to mean something, i.e. we enable it by default on anything that only has L&R. If we have L&R and no middle, we don't expose it as config option.
             if (generic.libevdev_has_event_code<EV_KEY>(BTN_LEFT)
