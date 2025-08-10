@@ -6225,7 +6225,6 @@ namespace netxs::lixx // li++, libinput++.
         libinput_device_config_send_events      sendevents_config;
         libinput_config_send_events_mode        sendevents_current_mode;
         event_source_sptr                       source;
-        text                                    devname;
         bool                                    was_removed{};
         ui32                                    device_caps{};
         ui32                                    device_tags{};
@@ -6409,7 +6408,7 @@ namespace netxs::lixx // li++, libinput++.
                     case LIBINPUT_DEVICE_CAP_SWITCH:      capability = "CAP_SWITCH";      break;
                     default:                              capability = "CAP_UNKNOWN";     break;
                 }
-                log("Event for missing capability %s% on device \"%s%\"", capability, devname);
+                log("Event for missing capability %s% on device \"%s%\"", capability, ud_device.devname);
             }
             return faux;
         }
@@ -6464,7 +6463,7 @@ namespace netxs::lixx // li++, libinput++.
             auto mm = fp64_coor{};
             if (ud_device.abs.absinfo_x == nullptr || ud_device.abs.absinfo_y == nullptr)
             {
-                log("%s%: is not an abs device", devname);
+                log("%s%: is not an abs device", ud_device.devname);
             }
             else
             {
@@ -7141,7 +7140,7 @@ namespace netxs::lixx // li++, libinput++.
                 }
             });
             std::erase_if(li.ud_monitor.ud_device_list, [&](auto d){ return d.second.get() == &ud_device; });
-            log("Device '%%' removed", devname);
+            log("Device '%%' removed", ud_device.devname);
         }
         si32 evdev_device_resume()
         {
@@ -7230,7 +7229,7 @@ namespace netxs::lixx // li++, libinput++.
             auto units = si32_coor{};
             if (ud_device.abs.absinfo_x == nullptr || ud_device.abs.absinfo_y == nullptr)
             {
-                log("%s%: is not an abs device", devname);
+                log("%s%: is not an abs device", ud_device.devname);
             }
             else
             {
@@ -9210,7 +9209,7 @@ namespace netxs::lixx // li++, libinput++.
                                         auto mm = fp64_coor{};
                                         if (tp.ud_device.abs.absinfo_x == nullptr || tp.ud_device.abs.absinfo_y == nullptr)
                                         {
-                                            log("%s%: is not an abs device", tp.devname);
+                                            log("%s%: is not an abs device", tp.ud_device.devname);
                                             return mm;
                                         }
                                         auto& absx = *tp.ud_device.abs.absinfo_x;
@@ -13418,7 +13417,7 @@ namespace netxs::lixx // li++, libinput++.
                             kbd->listener = ptr::shared<libinput_event_listener>([&](time stamp, libinput_event& event){ tp_keyboard_event(stamp, event); });
                             keyboard_li_device->libinput_device_add_event_listener(kbd->listener);
                             tp.dwt.paired_keyboard_list.push_back(kbd);
-                            log("palm: dwt activated with %s%<->%s%", tp.devname, keyboard_li_device->devname);
+                            log("palm: dwt activated with %s%<->%s%", tp.ud_device.devname, keyboard_li_device->ud_device.devname);
                         }
                                     void tp_init_top_softbuttons(fp64 topbutton_size_mult)
                                     {
@@ -13539,7 +13538,7 @@ namespace netxs::lixx // li++, libinput++.
                              && !(tp.device_tags & EVDEV_TAG_EXTERNAL_TOUCHPAD)
                              && !tp.lid_switch.lid_switch_li_device)
                             {
-                                log("lid: activated for %s%<->%s%", tp.devname, lid_switch_li_device->devname);
+                                log("lid: activated for %s%<->%s%", tp.ud_device.devname, lid_switch_li_device->ud_device.devname);
                                 if (!tp.lid_switch.listener)
                                 {
                                     tp.lid_switch.listener = ptr::shared<libinput_event_listener>([&](time, libinput_event& event){ tp_lid_switch_event(event); });
@@ -13574,7 +13573,7 @@ namespace netxs::lixx // li++, libinput++.
                             if (tp.tablet_mode_switch.tablet_mode_switch_li_device) return;
                             if (tp.device_tags & EVDEV_TAG_EXTERNAL_TOUCHPAD) return;
                             if (tp.evdev_device_has_model_quirk(QUIRK_MODEL_TABLET_MODE_NO_SUSPEND)) return;
-                            log("tablet-mode: activated for %s%<->%s%", tp.devname, tablet_mode_switch_li_device->devname);
+                            log("tablet-mode: activated for %s%<->%s%", tp.ud_device.devname, tablet_mode_switch_li_device->ud_device.devname);
                             if (!tp.tablet_mode_switch.listener)
                             {
                                 tp.tablet_mode_switch.listener = ptr::shared<libinput_event_listener>([&](time, libinput_event& event){ tp_tablet_mode_switch_event(event); });
@@ -13608,7 +13607,7 @@ namespace netxs::lixx // li++, libinput++.
                             if (tp.device_group.size() && tp.device_group == tablet_li_device->device_group)
                             {
                                 tp.left_handed.tablet_li_device = tablet_li_device;
-                                log("touchpad-rotation: %s% will rotate %s%", tp.devname, tablet_li_device->devname);
+                                log("touchpad-rotation: %s% will rotate %s%", tp.ud_device.devname, tablet_li_device->ud_device.devname);
                                 if (tablet_li_device->libinput_device_config_left_handed_get())
                                 {
                                     tp.left_handed.want_rotate = true;
@@ -16028,11 +16027,11 @@ namespace netxs::lixx // li++, libinput++.
                 }
                 if (totem.touch_li_device != nullptr)
                 {
-                    log("already has a paired touch device, ignoring (%s%)", added_li_device->devname);
+                    log("already has a paired touch device, ignoring (%s%)", added_li_device->ud_device.devname);
                     return;
                 }
                 totem.touch_li_device = added_li_device;
-                log("%s%: is the totem touch device", added_li_device->devname);
+                log("%s%: is the totem touch device", added_li_device->ud_device.devname);
             }
             void totem_interface_device_removed(libinput_device_sptr removed_li_device)
             {
@@ -17635,14 +17634,14 @@ namespace netxs::lixx // li++, libinput++.
                         {
                             // We found a better device, let's swap it out.
                             tablet_set_touch_device_enabled(ARBITRATION_NOT_ACTIVE, fp64_rect{}, datetime::now());
-                            log("touch-arbitration: removing pairing for %s%<->%s%", tablet.devname, tablet.touch_li_device->devname);
+                            log("touch-arbitration: removing pairing for %s%<->%s%", tablet.ud_device.devname, tablet.touch_li_device->ud_device.devname);
                         }
                         else
                         {
                             return;
                         }
                     }
-                    log("touch-arbitration: activated for %s%<->%s%", tablet.devname, new_li_device->devname);
+                    log("touch-arbitration: activated for %s%<->%s%", tablet.ud_device.devname, new_li_device->ud_device.devname);
                     tablet.touch_li_device = new_li_device;
                 }
                 void tablet_setup_rotation(libinput_device_sptr new_li_device)
@@ -17651,7 +17650,7 @@ namespace netxs::lixx // li++, libinput++.
                     auto& group2 = new_li_device->device_group;
                     if (!tablet.rotation.touch_li_device && group1.size() && group1 == group2)
                     {
-                        log("tablet-rotation: %s% will rotate %s%", tablet.devname, new_li_device->devname);
+                        log("tablet-rotation: %s% will rotate %s%", tablet.ud_device.devname, new_li_device->ud_device.devname);
                         tablet.rotation.touch_li_device = new_li_device;
                         if (new_li_device->libinput_device_config_left_handed_get())
                         {
@@ -19579,7 +19578,7 @@ namespace netxs::lixx // li++, libinput++.
                         auto units = si32_rect{};
                         if (generic.ud_device.abs.absinfo_x == nullptr || generic.ud_device.abs.absinfo_y == nullptr)
                         {
-                            log("%s%: is not an abs device", generic.devname);
+                            log("%s%: is not an abs device", generic.ud_device.devname);
                             return units;
                         }
                         auto absx = generic.ud_device.abs.absinfo_x;
@@ -19635,7 +19634,7 @@ namespace netxs::lixx // li++, libinput++.
                         auto kbd = ptr::shared<libinput_paired_keyboard>();
                         kbd->li_device = keyboard_li_device;
                         generic.lid.paired_keyboard_list.push_back(kbd);
-                        log("lid: keyboard paired with %s%<->%s%", generic.devname, keyboard_li_device->devname);
+                        log("lid: keyboard paired with %s%<->%s%", generic.ud_device.devname, keyboard_li_device->ud_device.devname);
                         if (generic.lid.is_closed) // We need to init the event listener now only if the reported state is closed.
                         {
                             fallback_lid_toggle_keyboard_listener(kbd, generic.lid.is_closed);
@@ -19686,7 +19685,7 @@ namespace netxs::lixx // li++, libinput++.
                         if (generic.evdev_device_has_model_quirk(QUIRK_MODEL_TABLET_MODE_NO_SUSPEND)) return;
                         if (!(tablet_mode_switch_li_device->device_tags & EVDEV_TAG_TABLET_MODE_SWITCH)) return;
                         if (generic.tablet_mode.other.sw_li_device) return;
-                        log("tablet-mode: paired %s%<->%s%", generic.devname, tablet_mode_switch_li_device->devname);
+                        log("tablet-mode: paired %s%<->%s%", generic.ud_device.devname, tablet_mode_switch_li_device->ud_device.devname);
                         if (!generic.tablet_mode.other.listener)
                         {
                             generic.tablet_mode.other.listener = ptr::shared<libinput_event_listener>([&](time, libinput_event& event){ fallback_tablet_mode_switch_event(event); });
@@ -19794,7 +19793,7 @@ namespace netxs::lixx // li++, libinput++.
                     }
                     else if (!parse_switch_reliability_property(prop, r))
                     {
-                        log("%s%: switch reliability set to unknown value '%s%'", li_device->devname, prop);
+                        log("%s%: switch reliability set to unknown value '%s%'", li_device->ud_device.devname, prop);
                         r = RELIABILITY_RELIABLE;
                     }
                     else if (r == RELIABILITY_WRITE_OPEN)
@@ -20275,7 +20274,6 @@ namespace netxs::lixx // li++, libinput++.
         if (li_device && li_device->device_caps)
         {
             auto& li_device_inst = *li_device;
-            li_device->devname = ud_device.devname;
             li_device->scroll.wheel_click_angle = ud_device.evdev_read_wheel_click_props();
             li_device->source = timers.libinput_add_event_source(ud_device.fd, [&]{ li_device_inst.evdev_device_dispatch(); });
             li_device->device_group = li_device->udev_device_get_property_value("LIBINPUT_DEVICE_GROUP");
