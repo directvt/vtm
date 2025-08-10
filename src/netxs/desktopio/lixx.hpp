@@ -7959,6 +7959,234 @@ namespace netxs::lixx // li++, libinput++.
             notify_added_device();
             post_added();
         }
+        si32 libinput_device_config_rotation_is_available()
+        {
+            return config.rotation ? config.rotation->is_available(This()) : 0;
+        }
+        libinput_config_status libinput_device_config_rotation_set_angle(ui32 degrees_cw)
+        {
+            if (!libinput_device_config_rotation_is_available())
+            {
+                return degrees_cw ? LIBINPUT_CONFIG_STATUS_UNSUPPORTED : LIBINPUT_CONFIG_STATUS_SUCCESS;
+            }
+            else if (degrees_cw >= 360)
+            {
+                return LIBINPUT_CONFIG_STATUS_INVALID;
+            }
+            return config.rotation->set_angle(This(), degrees_cw);
+        }
+        ui32 libinput_device_config_rotation_get_angle()
+        {
+            if (!libinput_device_config_rotation_is_available()) return 0;
+            return config.rotation->get_angle(This());
+        }
+        void evdev_tag_external_mouse()
+        {
+            auto bustype = libevdev_get_id_bustype();
+            if (bustype == BUS_USB || bustype == BUS_BLUETOOTH)
+            {
+                device_tags |= EVDEV_TAG_EXTERNAL_MOUSE;
+            }
+        }
+        void evdev_tag_trackpoint()
+        {
+            if (!libevdev_has_property(INPUT_PROP_POINTING_STICK)
+             && !parse_udev_flag("ID_INPUT_POINTINGSTICK"))
+            {
+                return;
+            }
+            device_tags |= EVDEV_TAG_TRACKPOINT;
+            if (auto q = li.quirks_fetch_for_device(ud_device))
+            {
+                auto prop = text{};
+                if (q->quirks_get(QUIRK_ATTR_TRACKPOINT_INTEGRATION, prop))
+                {
+                    if ("internal"sv == prop)
+                    {
+                        // Noop, this is the default anyway.
+                    }
+                    else if ("external"sv == prop)
+                    {
+                        device_tags |= EVDEV_TAG_EXTERNAL_MOUSE;
+                        log("is an external pointing stick");
+                    }
+                    else
+                    {
+                        log("tagged with unknown value %s%", prop);
+                    }
+                }
+            }
+        }
+        fp64 evdev_get_trackpoint_multiplier()
+        {
+            auto multiplier = 1.0;
+            if (device_tags & EVDEV_TAG_TRACKPOINT)
+            {
+                if (auto q = li.quirks_fetch_for_device(ud_device))
+                {
+                    q->quirks_get(QUIRK_ATTR_TRACKPOINT_MULTIPLIER, multiplier);
+                }
+                if (multiplier <= 0.0)
+                {
+                    log("trackpoint multiplier %.2f% is invalid", multiplier);
+                    multiplier = 1.0;
+                }
+                if (multiplier != 1.0)
+                {
+                    log("trackpoint multiplier is %.2f%", multiplier);
+                }
+            }
+            return multiplier;
+        }
+            si32 parse_mouse_dpi_property(qiew prop_str)
+            {
+                // Helper function to parse the mouse DPI tag from udev.
+                // The tag is of the form:
+                // MOUSE_DPI=400 *1000 2000
+                // or
+                // MOUSE_DPI=400@125 *1000@125 2000@125
+                // Where the * indicates the default value and @number indicates device poll rate.
+                // Numbers should be in ascending order, and if rates are present they should be present for all entries.
+                //
+                // When parsing the mouse DPI property, if we find an error we just return 0
+                // since it's obviously invalid, the caller will treat that as an error and
+                // use a reasonable default instead. If the property contains multiple DPI
+                // settings but none flagged as default, we return the last because we're
+                // lazy and that's a silly way to set the property anyway.
+                //
+                // @param prop The value of the udev property (without the MOUSE_DPI=).
+                // @return The default dpi value on success, 0 on error.
+                if (!prop_str) return 0;
+                auto is_default = faux;
+                auto nread = 0;
+                auto dpi = 0;
+                auto rate = 0;
+                auto prop = prop_str.begin();
+                while (*prop != 0)
+                {
+                    if (*prop == ' ')
+                    {
+                        prop++;
+                        continue;
+                    }
+                    if (*prop == '*')
+                    {
+                        prop++;
+                        is_default = true;
+                        if (!isdigit(prop[0])) return 0;
+                    }
+                    // While we don't do anything with the rate right now we will validate that, if it's present, it is non-zero and positive.
+                    rate = 1;
+                    nread = 0;
+                    ::sscanf(prop, "%d@%d%n", &dpi, &rate, &nread);
+                    if (!nread) ::sscanf(prop, "%d%n", &dpi, &nread);
+                    if (!nread || dpi <= 0 || rate <= 0 || prop[nread] == '@') return 0;
+                    if (is_default) break;
+                    prop += nread;
+                }
+                return dpi;
+            }
+        si32 evdev_read_dpi_prop()
+        {
+            auto dpi = lixx::default_mouse_dpi;
+            if (device_tags & EVDEV_TAG_TRACKPOINT) return lixx::default_mouse_dpi;
+            auto mouse_dpi = udev_device_get_property_value("MOUSE_DPI");
+            if (mouse_dpi)
+            {
+                dpi = parse_mouse_dpi_property(mouse_dpi);
+                if (!dpi)
+                {
+                    log("mouse DPI property is present but invalid, using %d% DPI instead", lixx::default_mouse_dpi);
+                    dpi = lixx::default_mouse_dpi;
+                }
+                log("device set to %d% DPI", dpi);
+            }
+            return dpi;
+        }
+        void evdev_tag_keyboard()
+        {
+            if (libevdev_has_event_type<EV_KEY>())
+            {
+                for (auto code = KEY_Q; code <= KEY_P; code++)
+                {
+                    if (!libevdev_has_event_code<EV_KEY>(code))
+                    {
+                        return;
+                    }
+                }
+                if (auto q = li.quirks_fetch_for_device(ud_device))
+                {
+                    auto prop = text{};
+                    if (q->quirks_get(QUIRK_ATTR_KEYBOARD_INTEGRATION, prop))
+                    {
+                        if ("internal"sv == prop)
+                        {
+                            device_tags |= EVDEV_TAG_INTERNAL_KEYBOARD;
+                            device_tags &= ~EVDEV_TAG_EXTERNAL_KEYBOARD;
+                        }
+                        else if ("external"sv == prop)
+                        {
+                            device_tags |= EVDEV_TAG_EXTERNAL_KEYBOARD;
+                            device_tags &= ~EVDEV_TAG_INTERNAL_KEYBOARD;
+                        }
+                        else
+                        {
+                            log("tagged with unknown value %s%", prop);
+                        }
+                    }
+                }
+                device_tags |= EVDEV_TAG_KEYBOARD;
+            }
+        }
+        bool evdev_need_velocity_averaging()
+        {
+            auto use_velocity_averaging = faux; // Default off unless we have quirk.
+            if (auto q = li.quirks_fetch_for_device(ud_device))
+            {
+                q->quirks_get(QUIRK_ATTR_USE_VELOCITY_AVERAGING, use_velocity_averaging);
+                if (use_velocity_averaging)
+                {
+                    log("velocity averaging is turned on");
+                }
+            }
+            return use_velocity_averaging;
+        }
+        void evdev_tag_touchpad()
+        {
+            auto evdev_tag_touchpad_internal = [&]
+            {
+                device_tags |= EVDEV_TAG_INTERNAL_TOUCHPAD;
+                device_tags &= ~EVDEV_TAG_EXTERNAL_TOUCHPAD;
+            };
+            auto evdev_tag_touchpad_external = [&]
+            {
+                device_tags |= EVDEV_TAG_EXTERNAL_TOUCHPAD;
+                device_tags &= ~EVDEV_TAG_INTERNAL_TOUCHPAD;
+            };
+            if (auto prop = udev_device_get_property_value("ID_INPUT_TOUCHPAD_INTEGRATION"))
+            {
+                     if (prop == "internal") { evdev_tag_touchpad_internal(); return; }
+                else if (prop == "external") { evdev_tag_touchpad_external(); return; }
+                else                         log("Device is tagged with unknown value %s%", prop);
+            }
+            // The hwdb is the authority on integration, these heuristics are the fallback only (they precede the hwdb too).
+            // Simple approach:
+            //   Bluetooth touchpads are considered external, anything else is internal. Except the ones from some vendors that only make external touchpads.
+            auto bustype = libevdev_get_id_bustype();
+            auto vendor  = libevdev_get_id_vendor();
+            if (bustype == BUS_BLUETOOTH) evdev_tag_touchpad_external();
+            else                          evdev_tag_touchpad_internal();
+            if (vendor == lixx::vendor_id_logitech // Logitech does not have internal touchpads.
+                || ud_device.model_flags & EVDEV_MODEL_WACOM_TOUCHPAD) // Wacom makes touchpads, but not internal ones.
+            {
+                evdev_tag_touchpad_external();
+            }
+            if (!(device_tags & (EVDEV_TAG_EXTERNAL_TOUCHPAD | EVDEV_TAG_INTERNAL_TOUCHPAD)))
+            {
+                log("Internal or external? Please file a bug");
+                evdev_tag_touchpad_external();
+            }
+        }
     };
 
     struct libinput_paired_keyboard
@@ -19855,70 +20083,6 @@ namespace netxs::lixx // li++, libinput++.
             }
             return tablet_ptr;
         }
-        bool evdev_need_velocity_averaging(libinput_device_sptr li_device)
-        {
-            auto use_velocity_averaging = faux; // Default off unless we have quirk.
-            if (auto q = li_device->li.quirks_fetch_for_device(li_device->ud_device))
-            {
-                q->quirks_get(QUIRK_ATTR_USE_VELOCITY_AVERAGING, use_velocity_averaging);
-                if (use_velocity_averaging)
-                {
-                    log("velocity averaging is turned on");
-                }
-            }
-            return use_velocity_averaging;
-        }
-                void evdev_tag_touchpad_internal(libinput_device_sptr li_device)
-                {
-                    li_device->device_tags |= EVDEV_TAG_INTERNAL_TOUCHPAD;
-                    li_device->device_tags &= ~EVDEV_TAG_EXTERNAL_TOUCHPAD;
-                }
-                void evdev_tag_touchpad_external(libinput_device_sptr li_device)
-                {
-                    li_device->device_tags |= EVDEV_TAG_EXTERNAL_TOUCHPAD;
-                    li_device->device_tags &= ~EVDEV_TAG_INTERNAL_TOUCHPAD;
-                }
-            void evdev_tag_touchpad(libinput_device_sptr li_device)
-            {
-                auto prop = li_device->udev_device_get_property_value("ID_INPUT_TOUCHPAD_INTEGRATION");
-                if (prop)
-                {
-                    if (prop == "internal")
-                    {
-                        evdev_tag_touchpad_internal(li_device);
-                        return;
-                    }
-                    else if (prop == "external")
-                    {
-                        evdev_tag_touchpad_external(li_device);
-                        return;
-                    }
-                    log("tagged with unknown value %s%", prop);
-                }
-                // The hwdb is the authority on integration, these heuristics are the fallback only (they precede the hwdb too).
-                // Simple approach:
-                //   Bluetooth touchpads are considered external, anything else is internal. Except the ones from some vendors that only make external touchpads.
-                auto bustype = li_device->libevdev_get_id_bustype();
-                auto vendor  = li_device->libevdev_get_id_vendor();
-                switch (bustype)
-                {
-                    case BUS_BLUETOOTH: evdev_tag_touchpad_external(li_device); break;
-                    default:            evdev_tag_touchpad_internal(li_device); break;
-                }
-                if (vendor == lixx::vendor_id_logitech) // Logitech does not have internal touchpads.
-                {
-                    evdev_tag_touchpad_external(li_device);
-                }
-                if (li_device->ud_device.model_flags & EVDEV_MODEL_WACOM_TOUCHPAD) // Wacom makes touchpads, but not internal ones.
-                {
-                    evdev_tag_touchpad_external(li_device);
-                }
-                if (!(li_device->device_tags & (EVDEV_TAG_EXTERNAL_TOUCHPAD | EVDEV_TAG_INTERNAL_TOUCHPAD)))
-                {
-                    log("Internal or external? Please file a bug");
-                    evdev_tag_touchpad_external(li_device);
-                }
-            }
             static ui32 tp_sendevents_get_modes(libinput_device_sptr li_device)
             {
                 auto modes = (ui32)LIBINPUT_CONFIG_SEND_EVENTS_DISABLED;
@@ -19975,8 +20139,8 @@ namespace netxs::lixx // li++, libinput++.
             {
                 tp.device_tags |= EVDEV_TAG_TABLET_TOUCHPAD;
             }
-            tp.use_velocity_averaging = evdev_need_velocity_averaging(tp_ptr); // Whether velocity should be averaged, false by default.
-            evdev_tag_touchpad(tp_ptr);
+            tp.use_velocity_averaging = tp.evdev_need_velocity_averaging(); // Whether velocity should be averaged, false by default.
+            tp.evdev_tag_touchpad();
             if (!tp.tp_impl.tp_init())
             {
                 tp_ptr.reset();
@@ -19993,172 +20157,6 @@ namespace netxs::lixx // li++, libinput++.
             }
             return tp_ptr;
         }
-        void evdev_tag_external_mouse(libinput_device_sptr li_device)
-        {
-            auto bustype = li_device->libevdev_get_id_bustype();
-            if (bustype == BUS_USB || bustype == BUS_BLUETOOTH)
-            {
-                li_device->device_tags |= EVDEV_TAG_EXTERNAL_MOUSE;
-            }
-        }
-        void evdev_tag_trackpoint(libinput_device_sptr li_device)
-        {
-            if (!li_device->libevdev_has_property(INPUT_PROP_POINTING_STICK)
-             && !li_device->parse_udev_flag("ID_INPUT_POINTINGSTICK"))
-            {
-                return;
-            }
-            li_device->device_tags |= EVDEV_TAG_TRACKPOINT;
-            if (auto q = li_device->li.quirks_fetch_for_device(li_device->ud_device))
-            {
-                auto prop = text{};
-                if (q->quirks_get(QUIRK_ATTR_TRACKPOINT_INTEGRATION, prop))
-                {
-                    if ("internal"sv == prop)
-                    {
-                        // Noop, this is the default anyway.
-                    }
-                    else if ("external"sv == prop)
-                    {
-                        li_device->device_tags |= EVDEV_TAG_EXTERNAL_MOUSE;
-                        log("is an external pointing stick");
-                    }
-                    else
-                    {
-                        log("tagged with unknown value %s%", prop);
-                    }
-                }
-            }
-        }
-        fp64 evdev_get_trackpoint_multiplier(libinput_device_sptr li_device)
-        {
-            auto multiplier = 1.0;
-            if (li_device->device_tags & EVDEV_TAG_TRACKPOINT)
-            {
-                if (auto q = li_device->li.quirks_fetch_for_device(li_device->ud_device))
-                {
-                    q->quirks_get(QUIRK_ATTR_TRACKPOINT_MULTIPLIER, multiplier);
-                }
-                if (multiplier <= 0.0)
-                {
-                    log("trackpoint multiplier %.2f% is invalid", multiplier);
-                    multiplier = 1.0;
-                }
-                if (multiplier != 1.0)
-                {
-                    log("trackpoint multiplier is %.2f%", multiplier);
-                }
-            }
-            return multiplier;
-        }
-            si32 parse_mouse_dpi_property(qiew prop_str)
-            {
-                // Helper function to parse the mouse DPI tag from udev.
-                // The tag is of the form:
-                // MOUSE_DPI=400 *1000 2000
-                // or
-                // MOUSE_DPI=400@125 *1000@125 2000@125
-                // Where the * indicates the default value and @number indicates device poll rate.
-                // Numbers should be in ascending order, and if rates are present they should be present for all entries.
-                //
-                // When parsing the mouse DPI property, if we find an error we just return 0
-                // since it's obviously invalid, the caller will treat that as an error and
-                // use a reasonable default instead. If the property contains multiple DPI
-                // settings but none flagged as default, we return the last because we're
-                // lazy and that's a silly way to set the property anyway.
-                //
-                // @param prop The value of the udev property (without the MOUSE_DPI=).
-                // @return The default dpi value on success, 0 on error.
-                if (!prop_str) return 0;
-                auto is_default = faux;
-                auto nread = 0;
-                auto dpi = 0;
-                auto rate = 0;
-                auto prop = prop_str.begin();
-                while (*prop != 0)
-                {
-                    if (*prop == ' ')
-                    {
-                        prop++;
-                        continue;
-                    }
-                    if (*prop == '*')
-                    {
-                        prop++;
-                        is_default = true;
-                        if (!isdigit(prop[0])) return 0;
-                    }
-                    // While we don't do anything with the rate right now we will validate that, if it's present, it is non-zero and positive.
-                    rate = 1;
-                    nread = 0;
-                    ::sscanf(prop, "%d@%d%n", &dpi, &rate, &nread);
-                    if (!nread) ::sscanf(prop, "%d%n", &dpi, &nread);
-                    if (!nread || dpi <= 0 || rate <= 0 || prop[nread] == '@') return 0;
-                    if (is_default) break;
-                    prop += nread;
-                }
-                return dpi;
-            }
-        si32 evdev_read_dpi_prop(libinput_device_sptr li_device)
-        {
-            auto dpi = lixx::default_mouse_dpi;
-            if (li_device->device_tags & EVDEV_TAG_TRACKPOINT) return lixx::default_mouse_dpi;
-            auto mouse_dpi = li_device->udev_device_get_property_value("MOUSE_DPI");
-            if (mouse_dpi)
-            {
-                dpi = parse_mouse_dpi_property(mouse_dpi);
-                if (!dpi)
-                {
-                    log("mouse DPI property is present but invalid, using %d% DPI instead", lixx::default_mouse_dpi);
-                    dpi = lixx::default_mouse_dpi;
-                }
-                log("device set to %d% DPI", dpi);
-            }
-            return dpi;
-        }
-            void evdev_tag_keyboard_internal(libinput_device_sptr li_device)
-            {
-                li_device->device_tags |= EVDEV_TAG_INTERNAL_KEYBOARD;
-                li_device->device_tags &= ~EVDEV_TAG_EXTERNAL_KEYBOARD;
-            }
-            void evdev_tag_keyboard_external(libinput_device_sptr li_device)
-            {
-                li_device->device_tags |= EVDEV_TAG_EXTERNAL_KEYBOARD;
-                li_device->device_tags &= ~EVDEV_TAG_INTERNAL_KEYBOARD;
-            }
-        void evdev_tag_keyboard(libinput_device_sptr li_device)
-        {
-            if (li_device->libevdev_has_event_type<EV_KEY>())
-            {
-                for (auto code = KEY_Q; code <= KEY_P; code++)
-                {
-                    if (!li_device->libevdev_has_event_code<EV_KEY>(code))
-                    {
-                        return;
-                    }
-                }
-                if (auto q = li_device->li.quirks_fetch_for_device(li_device->ud_device))
-                {
-                    auto prop = text{};
-                    if (q->quirks_get(QUIRK_ATTR_KEYBOARD_INTEGRATION, prop))
-                    {
-                        if ("internal"sv == prop)
-                        {
-                            evdev_tag_keyboard_internal(li_device);
-                        }
-                        else if ("external"sv == prop)
-                        {
-                            evdev_tag_keyboard_external(li_device);
-                        }
-                        else
-                        {
-                            log("tagged with unknown value %s%", prop);
-                        }
-                    }
-                }
-                li_device->device_tags |= EVDEV_TAG_KEYBOARD;
-            }
-        }
         libinput_device_sptr fallback_dispatch_create(libinput_t& li, ud_device_t& ud_device, ui32 udev_tags)
         {
             auto fallback_ptr = ptr::shared<fallback_dispatch>(li, ud_device);
@@ -20166,17 +20164,17 @@ namespace netxs::lixx // li++, libinput++.
             if (udev_tags & EVDEV_UDEV_TAG_MOUSE || udev_tags & EVDEV_UDEV_TAG_POINTINGSTICK)
             {
                 ud_device.device_class += " pointer";
-                evdev_tag_external_mouse(fallback_ptr);
-                evdev_tag_trackpoint(fallback_ptr);
+                fallback.evdev_tag_external_mouse();
+                fallback.evdev_tag_trackpoint();
                 if (fallback.device_tags & EVDEV_TAG_TRACKPOINT)
                 {
-                    fallback.trackpoint_multiplier = evdev_get_trackpoint_multiplier(fallback_ptr);
+                    fallback.trackpoint_multiplier = fallback.evdev_get_trackpoint_multiplier();
                 }
                 else
                 {
-                    fallback.dpi = evdev_read_dpi_prop(fallback_ptr);
+                    fallback.dpi = fallback.evdev_read_dpi_prop();
                 }
-                fallback.use_velocity_averaging = evdev_need_velocity_averaging(fallback_ptr); // Whether velocity should be averaged, false by default.
+                fallback.use_velocity_averaging = fallback.evdev_need_velocity_averaging(); // Whether velocity should be averaged, false by default.
                 fallback.device_caps |= EVDEV_DEVICE_POINTER;
                 fallback.dev_left_handed.want_enabled = true; // Want left-handed config option.
                 fallback.scroll.natural_scrolling_enabled = true; // Want natural-scroll config option.
@@ -20194,7 +20192,7 @@ namespace netxs::lixx // li++, libinput++.
                     fallback.scroll.natural_scrolling_enabled = true;
                     fallback.device_caps |= EVDEV_DEVICE_POINTER;
                 }
-                evdev_tag_keyboard(fallback_ptr);
+                fallback.evdev_tag_keyboard();
             }
             if (udev_tags & EVDEV_UDEV_TAG_TOUCHSCREEN)
             {
@@ -20329,27 +20327,6 @@ namespace netxs::lixx // li++, libinput++.
             li_device.reset();
         }
         return li_device;
-    }
-    si32 libinput_device_config_rotation_is_available(libinput_device_sptr li_device)
-    {
-        return li_device->config.rotation ? li_device->config.rotation->is_available(li_device) : 0;
-    }
-    libinput_config_status libinput_device_config_rotation_set_angle(libinput_device_sptr li_device, ui32 degrees_cw)
-    {
-        if (!libinput_device_config_rotation_is_available(li_device))
-        {
-            return degrees_cw ? LIBINPUT_CONFIG_STATUS_UNSUPPORTED : LIBINPUT_CONFIG_STATUS_SUCCESS;
-        }
-        else if (degrees_cw >= 360)
-        {
-            return LIBINPUT_CONFIG_STATUS_INVALID;
-        }
-        return li_device->config.rotation->set_angle(li_device, degrees_cw);
-    }
-    ui32 libinput_device_config_rotation_get_angle(libinput_device_sptr li_device)
-    {
-        if (!libinput_device_config_rotation_is_available(li_device)) return 0;
-        return li_device->config.rotation->get_angle(li_device);
     }
 }
 #if not defined(DEBUG)
