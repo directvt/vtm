@@ -6261,10 +6261,6 @@ namespace netxs::lixx // li++, libinput++.
             sendevents_current_mode = mode;
             return LIBINPUT_CONFIG_STATUS_SUCCESS;
         }
-        virtual libinput_config_send_events_mode sendevents_get_mode()
-        {
-            return sendevents_current_mode;
-        }
         virtual libinput_config_send_events_mode sendevents_get_default_mode()
         {
             return LIBINPUT_CONFIG_SEND_EVENTS_ENABLED;
@@ -15010,10 +15006,6 @@ namespace netxs::lixx // li++, libinput++.
             sendevents_current_mode = mode;
             return LIBINPUT_CONFIG_STATUS_SUCCESS;
         }
-        virtual libinput_config_send_events_mode sendevents_get_mode() override
-        {
-            return sendevents_current_mode;
-        }
         virtual libinput_config_send_events_mode sendevents_get_default_mode() override
         {
             return LIBINPUT_CONFIG_SEND_EVENTS_ENABLED;
@@ -15714,10 +15706,6 @@ namespace netxs::lixx // li++, libinput++.
             else if (mode != LIBINPUT_CONFIG_SEND_EVENTS_ENABLED)  return LIBINPUT_CONFIG_STATUS_UNSUPPORTED;
             sendevents_current_mode = mode;
             return LIBINPUT_CONFIG_STATUS_SUCCESS;
-        }
-        virtual libinput_config_send_events_mode sendevents_get_mode() override
-        {
-            return sendevents_current_mode;
         }
         virtual libinput_config_send_events_mode sendevents_get_default_mode() override
         {
