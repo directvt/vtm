@@ -5291,7 +5291,7 @@ namespace netxs::lixx // li++, libinput++.
             }
             else
             {
-                auto ncodes = std::min(nevents, strv.size());
+                auto ncodes = std::min(nevents, (ui64)strv.size());
                 for (auto idx = 0; strv[idx]; idx++)
                 {
                     auto s = strv[idx].data();
@@ -5351,7 +5351,7 @@ namespace netxs::lixx // li++, libinput++.
             auto rc = strv.size() && strv.size() < props.size();
             if (rc)
             {
-                auto count = std::min(nprops, strv.size());
+                auto count = std::min(nprops, (ui64)strv.size());
                 for (auto idx = 0; strv[idx]; idx++)
                 {
                     auto s = strv[idx].data();
