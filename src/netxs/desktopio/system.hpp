@@ -558,6 +558,7 @@ namespace netxs::os
                     static constexpr auto style       = 0;
                     static constexpr auto paste_begin = 1;
                     static constexpr auto paste_end   = 2;
+                    static constexpr auto fp32_mouse  = 3;
                 }
                 namespace op
                 {
@@ -5051,10 +5052,24 @@ namespace netxs::os
                         }
                         else if (r.EventType == MENU_EVENT) // Forward console control events.
                         {
+                            struct fp32_mouse_t
+                            {
+                                ui32 EventType = MENU_EVENT;
+                                ui32 id = nt::console::event::custom | nt::console::event::fp32_mouse;
+                                fp32 x = fp32nan; // Floating point x mouse coord.
+                                fp32 y = fp32nan; // Floating point y mouse coord.
+                                fp32 pad{};
+                            };
                             if (r.Event.MenuEvent.dwCommandId & nt::console::event::custom)
                             switch (r.Event.MenuEvent.dwCommandId ^ nt::console::event::custom)
                             {
-                                case nt::console::event::style:
+                                case nt::console::event::fp32_mouse:
+                                    {
+                                        auto& r2 = *reinterpret_cast<fp32_mouse_t*>(&r);
+                                        log("coord{ %%, %% }", r2.x, r2.y);
+                                    }
+                                    break;
+                                case nt::console::event::style://todo mark the style events somehow in order to distinguish it from fp32_mouse
                                     if (head != tail && head->EventType == MENU_EVENT)
                                     {
                                         auto& next_rec = *head++;

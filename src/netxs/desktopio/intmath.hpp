@@ -92,6 +92,8 @@ namespace netxs
     static constexpr auto fp64min = std::numeric_limits<fp64>::lowest();
     static constexpr auto fp32epsilon = std::numeric_limits<fp32>::min();
     static constexpr auto fp64epsilon = std::numeric_limits<fp64>::min();
+    static constexpr auto fp32nan = std::numeric_limits<fp32>::quiet_NaN();
+    static constexpr auto fp64nan = std::numeric_limits<fp64>::quiet_NaN();
     static constexpr auto debugmode
         #if defined(DEBUG)
         = true;

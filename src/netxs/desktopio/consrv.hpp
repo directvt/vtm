@@ -1003,6 +1003,16 @@ struct impl : consrv
                 if (gear.m_sys.hzwheel) flags |= MOUSE_HWHEELED;
             }
             auto lock = std::lock_guard{ locker };
+            struct fp32_mouse_t
+            {
+                ui32 EventType = MENU_EVENT;
+                ui32 id = nt::console::event::custom | nt::console::event::fp32_mouse;
+                fp32 x = fp32nan; // Floating point x mouse coord.
+                fp32 y = fp32nan; // Floating point y mouse coord.
+                fp32 pad{};
+            };
+            auto r2 = fp32_mouse_t{ .x = gear.coord.x, .y = gear.coord.y };
+            stream.emplace_back(*reinterpret_cast<INPUT_RECORD*>(&r2));
             stream.emplace_back(INPUT_RECORD
             {
                 .EventType = MOUSE_EVENT,
