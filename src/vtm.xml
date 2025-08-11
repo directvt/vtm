@@ -349,6 +349,7 @@ R"==(
             <script="vtm.defapp.ShowClosingPreview(not vtm.gear.IsKeyRepeated())"                 on="preview:Esc" /> <!-- Pred window close action. -->
             <script="if (vtm.defapp.ShowClosingPreview()) then vtm.defapp.Close() end"            on="preview:-Esc"/> <!-- Close the window on Esc release. -->
             <script="if (vtm.gear.IsKeyRepeated()) then vtm.defapp.ShowClosingPreview(false) end" on="preview:Any" /> <!-- Preview for "Any" is always triggered after all other previews. Non-preview "Any" is triggered before all other keys. -->
+            <script="if (vtm.defapp.ShowClosingPreview()) then local focus_count=vtm(); vtm.defapp.ShowClosingPreview(focus_count~=0) end" source="applet" on="release:e2::form::state::focus::count" /> <!-- Disable window closing preview when focus is lost. -->
             <script="vtm.defapp.ScrollViewportByPage( 0, 1)"                                      on="PageUp"      />
             <script="vtm.defapp.ScrollViewportByPage( 0,-1)"                                      on="PageDown"    />
             <script="vtm.defapp.ScrollViewportByStep( 0, 3)"                                      on="UpArrow"     />
