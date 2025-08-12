@@ -144,7 +144,8 @@ Screenshot:
 
 ### Floating point (pixel-wise) mouse reporting
 
-On Windows, when using the Win32 Console API, vtm reports mouse events with fractional mouse coordinates. Fractional coordinates are 32-bit floating-point numbers that represent the position of the cursor relative to the console's grid of text cells. Screen pixel coordinates can be calculated by multiplying the fractional coordinates by the cell size.
+On Windows, when using the Win32 Console API, vtm reports mouse events with fractional mouse coordinates. Pixel-wise or fractional coordinates are 32-bit floating-point numbers that represent the position of the mouse cursor relative to the console's grid of text cells. Screen pixel coordinates can be calculated by multiplying the fractional coordinates by the cell size.
+Fractional mouse coordinates are critical to UX. In particular, this directly relates to the sensitivity of scrollbars, where moving the mouse pointer even one pixel can cause content to scroll several lines.
 
 Example:
 ```c++
@@ -164,7 +165,7 @@ struct fp2d_mouse_input : MENU_EVENT_RECORD // MENU_EVENT_RECORD structure exten
 int main()
 {
     auto inp = ::GetStdHandle(STD_INPUT_HANDLE);
-    ::SetConsoleMode(inp, ENABLE_MOUSE_INPUT);
+    ::SetConsoleMode(inp, ENABLE_EXTENDED_FLAGS | ENABLE_MOUSE_INPUT);
     auto r = INPUT_RECORD{};
     auto count = DWORD{};
     auto x = std::numeric_limits<float>::quiet_NaN();
