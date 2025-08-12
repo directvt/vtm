@@ -170,7 +170,7 @@ int main()
     auto x = std::numeric_limits<float>::quiet_NaN();
     auto y = std::numeric_limits<float>::quiet_NaN();
     auto mouse_out = false;
-    std::cout << "Press mouse button to exit\n";
+    std::cout << "Press any mouse button to exit\n";
     while (true)
     {
         ::ReadConsoleInputW(inp, &r, 1, &count);
