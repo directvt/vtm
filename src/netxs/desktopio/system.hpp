@@ -5065,7 +5065,6 @@ namespace netxs::os
                         }
                         else if (r.EventType == MENU_EVENT) // Forward console control events.
                         {
-                            static constexpr auto style_event = nt::console::event::custom | nt::console::event::style;
                             if (r.Event.MenuEvent.dwCommandId & nt::console::event::custom)
                             switch (r.Event.MenuEvent.dwCommandId ^ nt::console::event::custom)
                             {
