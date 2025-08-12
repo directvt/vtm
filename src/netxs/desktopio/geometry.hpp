@@ -283,7 +283,7 @@ namespace netxs
         constexpr twod clamp(twod point) const
         {
             auto [min, max] = twod::sort(coor, coor + size);
-            return std::clamp(point, min, max - dot_11);
+            return std::clamp(point, min, std::max(min, max - dot_11)); // Use std::max for zero size cases.
         }
         // rect: Is the point inside the rect.
         constexpr bool hittest(twod p) const

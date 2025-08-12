@@ -703,7 +703,7 @@ namespace netxs::app::shared
             chord_block->attach_cells({ 5, 3 }, {           {}, label(skin::globals().NsInfoGeneric), label(skin::globals().NsInfoLiteral), label(skin::globals().NsInfoSpecific), label(skin::globals().NsInfoScancodes),
                                                  pressed_label, pressed[0],       pressed[1],       pressed[2],        pressed[3],
                                                 released_label, released[0],      released[1],      released[2],       released[3] });
-            released[0]->set("<Press any keys>")->hidden = faux;
+            released[0]->set(skin::globals().NsInfo_pressanykeys)->hidden = faux;
             auto& update = window_ptr->base::field([pressed, released](auto& boss, hids& gear, bool is_key_event)
             {
                 //log("vkchord=%% keyid=%% hexvkchord=%% hexscchord=%% hexchchord=%%", input::key::kmap::to_string(gear.vkchord, faux),

@@ -58,7 +58,7 @@ namespace netxs::app::test
             {
                 return ansi::mgl(1).wrp(wrap::off).fgc(hdrclr).unc(whitedk).cap(caption).erl().und(unln::none).eol().fgc(txtclr).mgl(3).unc(0).wrp(wrap::on);
             };
-            return ansi::mgl(1).mgr(2).jet(bias::center)
+            auto crop = ansi::mgl(1).mgr(2).jet(bias::center)
                 .add("\n")
                 .wrp(wrap::off).fgc(hdrclr).cap(skin::globals().NsInfoSF, 3, 3, faux).eol()
                 .jet(bias::left)
@@ -260,8 +260,10 @@ namespace netxs::app::test
                 .add(header(skin::globals().NsInfoCharacterHalves))
                 .add("\n")
                 .add("😎", vss<21,11>, " 😃", vss<21,21>, "<VS21_11/VS21_21\n")
-                .add("\n")
-                .add(header(skin::globals().NsInfosRGBBlending))
+                .add("\n");
+            if constexpr (debugmode)
+            {
+                crop.add(header(skin::globals().NsInfosRGBBlending))
                 .add("\n")
                 .add(skin::globals().NsInfoPressCtrlCaps)
                 .add("\n")
@@ -275,6 +277,8 @@ namespace netxs::app::test
                 .bgc(argb{})
                 .fgc(purered).add(" test \n")
                 .fgc(purecyan).add(" test ");
+            }
+            return crop;
         };
 
         auto get_text = []

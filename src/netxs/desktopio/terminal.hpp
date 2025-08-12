@@ -400,7 +400,7 @@ namespace netxs::ui
             using prot = input::mouse::prot;
 
             term& owner; // m_tracking: Terminal object reference.
-            twod  coord; // m_tracking: Last coord of mouse cursor.
+            fp2d  coord; // m_tracking: Last coord of mouse cursor.
             subs  token; // m_tracking: Subscription token.
             prot  encod; // m_tracking: Mouse encoding protocol.
             mode  state; // m_tracking: Mouse reporting mode.
@@ -445,6 +445,15 @@ namespace netxs::ui
                 state = (mode)(state | m);
                 if (state && !token.size()) // Do not subscribe if it is already subscribed.
                 {
+                    owner.on(tier::mouserelease, input::key::MouseLeave, token, [&](hids& gear)
+                    {
+                        if (owner.selmod == mime::disabled)
+                        {
+                            coord = { fp32nan, fp32nan }; // Forward a mouse halt event.
+                            owner.ipccon.mouse(gear, true, coord, encod, state);
+                        }
+                    });
+                    owner.bell::dup_handler(tier::general, input::events::halt.id, token.back());
                     owner.LISTEN(tier::release, input::events::device::mouse::any, gear, token)
                     {
                         check_focus(gear);
@@ -456,10 +465,10 @@ namespace netxs::ui
                             }
                             else if (gear.m_sys.buttons) gear.capture(owner.id);
                             auto& console = *owner.target;
-                            auto c = twod{ gear.m_sys.coordxy };
+                            auto c = gear.m_sys.coordxy;
                             c.y -= console.get_basis();
                             auto moved = coord((state & mode::over) ? c
-                                                                    : std::clamp(c, dot_00, console.panel - dot_11));
+                                                                    : std::clamp(c, fp2d{ dot_00 }, fp2d{ console.panel - dot_11 }));
                             if (gear.m_sav.changed != gear.m_sys.changed)
                             {
                                 owner.ipccon.mouse(gear, moved, coord, encod, state);

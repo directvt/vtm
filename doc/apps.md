@@ -38,6 +38,7 @@
   - Enforced ENABLE_PROCESSED_OUTPUT and ENABLE_VIRTUAL_TERMINAL_PROCESSING modes.
   - Disabled ENABLE_QUICK_EDIT_MODE mode.
   - Per process (not per process name) Windows Command Prompt (cmd.exe) input history, aka "Line input" or "Cooked read".
+  - Floating point (pixel-wise) mouse reporting.
 - Stdin/stdout logging.
 
 ### Private control sequences
@@ -140,6 +141,64 @@ Example 4. Output the longest word in the Hindi language 16x1 (G1_00):
     ```
 Screenshot:  
   ![image](images/vtm_character_geometry_modifiers_screenshot.png)
+
+### Floating point (pixel-wise) mouse reporting
+
+On Windows, when using the Win32 Console API, vtm reports mouse events with fractional mouse coordinates. Fractional coordinates are 32-bit floating-point numbers that represent the position of the cursor relative to the console's grid of text cells. Screen pixel coordinates can be calculated by multiplying the fractional coordinates by the cell size.
+
+Example:
+```c++
+#include <iostream>
+#include <vector>
+#include <windows.h>
+
+static constexpr auto custom_type = 0b1000'0000'0000'0000;
+static constexpr auto fp2d_mouse = 3;
+struct fp2d_mouse_input : MENU_EVENT_RECORD // MENU_EVENT_RECORD structure extension.
+{
+    //DWORD EventType   = MENU_EVENT;
+    //DWORD dwCommandId = custom_type | fp2d_mouse;
+    float x; // Floating point mouse x coord.
+    float y; // Floating point mouse y coord.
+};
+int main()
+{
+    auto inp = ::GetStdHandle(STD_INPUT_HANDLE);
+    ::SetConsoleMode(inp, ENABLE_MOUSE_INPUT);
+    auto r = INPUT_RECORD{};
+    auto count = DWORD{};
+    auto x = std::numeric_limits<float>::quiet_NaN();
+    auto y = std::numeric_limits<float>::quiet_NaN();
+    auto mouse_out = false;
+    std::cout << "Press any mouse button to exit\n";
+    while (true)
+    {
+        ::ReadConsoleInputW(inp, &r, 1, &count);
+        if (r.EventType == MENU_EVENT)
+        {
+            if (r.Event.MenuEvent.dwCommandId == (custom_type | fp2d_mouse)) // The floating point coordinates message always precedes the classic mouse report.
+            {
+                x = reinterpret_cast<fp2d_mouse_input*>(&r.Event.MenuEvent)->x;
+                y = reinterpret_cast<fp2d_mouse_input*>(&r.Event.MenuEvent)->y;
+                mouse_out = std::isnan(x); // NaN is a sign that the mouse has gone away or is disconnected.
+                if (mouse_out) std::cout << "The mouse has left the window\n";
+            }
+        }
+        else if (r.EventType == MOUSE_EVENT && !mouse_out)
+        {
+            if (r.Event.MouseEvent.dwButtonState) return 0;
+            if (std::isnan(x)) // Classical behavior.
+            {
+                std::cout << "MOUSE_EVENT coord: " << r.Event.MouseEvent.dwMousePosition.X << "," << r.Event.MouseEvent.dwMousePosition.Y << "\n";
+            }
+            else // Floating point mouse coordinates.
+            {
+                std::cout << "MOUSE_EVENT coord: " << x << "," << y << "\n";
+            }
+        }
+    }
+}
+```
 
 ### Window menu
 

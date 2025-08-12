@@ -558,7 +558,20 @@ namespace netxs::os
                     static constexpr auto style       = 0;
                     static constexpr auto paste_begin = 1;
                     static constexpr auto paste_end   = 2;
+                    static constexpr auto fp2d_mouse  = 3;
                 }
+                struct fp2d_mouse_input
+                {
+                    ui32 EventType = MENU_EVENT;
+                    ui32 id        = event::custom | event::fp2d_mouse;
+                    fp2d coord;    // Floating point mouse coord.
+                };
+                struct style_input
+                {
+                    ui32 EventType = MENU_EVENT;
+                    ui32 id        = event::custom | event::style;
+                    si32 format;   // Style format command.
+                };
                 namespace op
                 {
                     static constexpr auto read_io                 = CTL_CODE(FILE_DEVICE_CONSOLE, 1,  METHOD_OUT_DIRECT,  FILE_ANY_ACCESS);
@@ -4507,7 +4520,7 @@ namespace netxs::os
                     }
                 }
             }
-            void mouse(input::hids& gear, bool moved, twod coord, input::mouse::prot encod, input::mouse::mode state)
+            void mouse(input::hids& gear, bool moved, fp2d coord, input::mouse::prot encod, input::mouse::mode state)
             {
                 using mode = input::mouse::mode;
                 using prot = input::mouse::prot;
@@ -4882,6 +4895,7 @@ namespace netxs::os
             #if defined(_WIN32)
 
                 auto accumfp = fp32{};
+                auto coordfp = fp2d{ fp32nan, fp32nan };
                 auto items = std::vector<INPUT_RECORD>{};
                 auto count = DWORD{};
                 auto point = utfx{};
@@ -5054,12 +5068,19 @@ namespace netxs::os
                             if (r.Event.MenuEvent.dwCommandId & nt::console::event::custom)
                             switch (r.Event.MenuEvent.dwCommandId ^ nt::console::event::custom)
                             {
-                                case nt::console::event::style:
-                                    if (head != tail && head->EventType == MENU_EVENT)
+                                case nt::console::event::fp2d_mouse:
+                                    coordfp = reinterpret_cast<nt::console::fp2d_mouse_input*>(&r)->coord;
+                                    if (std::isnan(coordfp.x))
                                     {
-                                        auto& next_rec = *head++;
-                                        style(deco{ (si32)next_rec.Event.MenuEvent.dwCommandId });
+                                        m.changed++;
+                                        m.timecod = datetime::now();
+                                        m.enabled = input::hids::stat::halt; // Send a mouse halt event.
+                                        mouse(m);
+                                        m.enabled = input::hids::stat::ok;
                                     }
+                                    break;
+                                case nt::console::event::style:
+                                    style(deco{ reinterpret_cast<nt::console::style_input*>(&r)->format });
                                     break;
                                 case nt::console::event::paste_begin:
                                     ctrlv = true;
@@ -5099,7 +5120,7 @@ namespace netxs::os
                                 m.hzwheel = {};
                             }
                             auto new_button_state = (si32)(r.Event.MouseEvent.dwButtonState & 0b00011111);
-                            auto new_coords_state = twod{ r.Event.MouseEvent.dwMousePosition.X, r.Event.MouseEvent.dwMousePosition.Y };
+                            auto new_coords_state = !std::isnan(coordfp.x) ? coordfp : fp2d{ r.Event.MouseEvent.dwMousePosition.X, r.Event.MouseEvent.dwMousePosition.Y };
                             if (!((dtvt::vtmode & ui::console::nt16) && wheeldt)) // Skip the mouse coord update when wheeling on win7/8 (broken coords).
                             {
                                 if (m.coordxy != new_coords_state)

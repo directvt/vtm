@@ -23,7 +23,7 @@ struct consrv
     virtual fd_t watch() = 0;
     virtual bool send(view utf8) = 0;
     virtual void keybd(input::hids& gear, bool decckm) = 0;
-    virtual void mouse(input::hids& gear, bool moved, twod coord, input::mouse::prot encod, input::mouse::mode state) = 0;
+    virtual void mouse(input::hids& gear, bool moved, fp2d coord, input::mouse::prot encod, input::mouse::mode state) = 0;
     virtual void paste(view block) = 0;
     virtual void focus(bool state) = 0;
     virtual void winsz(twod newsz) = 0;
@@ -959,16 +959,22 @@ struct impl : consrv
         void style(si32 format)
         {
             auto lock = std::lock_guard{ locker };
-            auto data = INPUT_RECORD{ .EventType = MENU_EVENT };
-            data.Event.MenuEvent.dwCommandId = nt::console::event::custom | nt::console::event::style;
-            stream.emplace_back(data);
-            data.Event.MenuEvent.dwCommandId = nt::console::event::custom | format;
-            stream.emplace_back(data);
+            auto data = nt::console::style_input{ .format = format };
+            stream.emplace_back(*reinterpret_cast<INPUT_RECORD*>(&data));
             ondata.reset();
             signal.notify_one();
         }
-        void mouse(input::hids& gear, twod coord)
+        void mouse(input::hids& gear, fp2d coord)
         {
+            if (std::isnan(coord.x)) // Forward a mouse halt event.
+            {
+                auto lock = std::lock_guard{ locker };
+                auto r2 = nt::console::fp2d_mouse_input{ .coord = coord };
+                stream.emplace_back(*reinterpret_cast<INPUT_RECORD*>(&r2));
+                ondata.reset();
+                signal.notify_one();
+                return;
+            }
             auto state = os::nt::ms_kbstate(gear.ctlstat);
             auto bttns = gear.m_sys.buttons & 0b00011111;
             auto moved = gear.m_sys.buttons == gear.m_sav.buttons && gear.m_sys.wheelfp == 0.f; // No events means mouse move. MSFT: "MOUSE_EVENT_RECORD::dwEventFlags: If this value is zero, it indicates a mouse button being pressed or released". Far Manager relies on this.
@@ -982,7 +988,7 @@ struct impl : consrv
                 {
                     auto& s = dclick[i];
                     auto fired = gear.m_sys.timecod;
-                    if (fired - s.fired < gear.delay && s.coord == coord) // Set the double-click flag if the delay has not expired and the mouse is in the same position.
+                    if (fired - s.fired < gear.delay && s.coord == twod{ coord }) // Set the double-click flag if the delay has not expired and the mouse is in the same cell.
                     {
                         flags |= DOUBLE_CLICK;
                         s.fired = {};
@@ -1003,6 +1009,8 @@ struct impl : consrv
                 if (gear.m_sys.hzwheel) flags |= MOUSE_HWHEELED;
             }
             auto lock = std::lock_guard{ locker };
+            auto r2 = nt::console::fp2d_mouse_input{ .coord = coord };
+            stream.emplace_back(*reinterpret_cast<INPUT_RECORD*>(&r2));
             stream.emplace_back(INPUT_RECORD
             {
                 .EventType = MOUSE_EVENT,
@@ -1012,8 +1020,8 @@ struct impl : consrv
                     {
                         .dwMousePosition =
                         {
-                            .X = (si16)std::clamp<si32>(coord.x, si16min, si16max),
-                            .Y = (si16)std::clamp<si32>(coord.y, si16min, si16max),
+                            .X = (si16)std::clamp<si32>((si32)coord.x, si16min, si16max),
+                            .Y = (si16)std::clamp<si32>((si32)coord.y, si16min, si16max),
                         },
                         .dwButtonState     = (DWORD)bttns,
                         .dwControlKeyState = state,
@@ -4934,7 +4942,7 @@ struct impl : consrv
             uiterm.mtrack.setmode(input::mouse::prot::w32);
         }
     }
-    void mouse(input::hids& gear, bool /*moved*/, twod coord, input::mouse::prot /*encod*/,
+    void mouse(input::hids& gear, bool /*moved*/, fp2d coord, input::mouse::prot /*encod*/,
                  input::mouse::mode /*state*/) { events.mouse(gear, coord);        }
     void keybd(input::hids& gear, bool decckm) { events.keybd(gear, decckm);       }
     void paste(view block)                     { events.paste(block);              }
@@ -5153,7 +5161,7 @@ struct consrv : ipc::stdcon
     {
         //todo win32-input-mode
     }
-    void mouse(input::hids& /*gear*/, bool /*moved*/, twod /*coord*/, input::mouse::prot /*encod*/, input::mouse::mode /*state*/)
+    void mouse(input::hids& /*gear*/, bool /*moved*/, fp2d /*coord*/, input::mouse::prot /*encod*/, input::mouse::mode /*state*/)
     {
         //todo win32-input-mode
     }

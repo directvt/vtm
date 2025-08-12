@@ -612,8 +612,9 @@ namespace netxs::ansi
             return *this;
         }
         template<class T>
-        auto& mouse_sgr(T const& gear, twod coor) // escx: Mouse tracking report (SGR).
+        auto& mouse_sgr(T const& gear, fp2d coor) // escx: Mouse tracking report (SGR).
         {
+            if (std::isnan(coor.x)) return *this;
             using hids = T;
             static constexpr auto left     = si32{ 0  };
             static constexpr auto mddl     = si32{ 1  };
@@ -681,13 +682,14 @@ namespace netxs::ansi
             auto count = std::max(1, std::abs(gear.m_sys.wheelsi));
             while (count--)
             {
-                add("\033[<", ctrl, ';', coor.x, ';', coor.y, pressed ? 'M' : 'm');
+                add("\033[<", ctrl, ';', (si32)coor.x, ';', (si32)coor.y, pressed ? 'M' : 'm');
             }
             return *this;
         }
         template<class T>
-        auto& mouse_x11(T const& gear, twod coor, bool utf8) // escx: Mouse tracking report (X11).
+        auto& mouse_x11(T const& gear, fp2d coor, bool utf8) // escx: Mouse tracking report (X11).
         {
+            if (std::isnan(coor.x)) return *this;
             using hids = T;
             static constexpr auto left     = si32{ 0  };
             static constexpr auto mddl     = si32{ 1  };
@@ -739,15 +741,15 @@ namespace netxs::ansi
                 if (utf8)
                 {
                     add("\033[M");
-                    utf::to_utf_from_code(std::clamp(ctrl,   0, si16max - 32) + 32, *this);
-                    utf::to_utf_from_code(std::clamp(coor.x, 1, si16max - 32) + 32, *this);
-                    utf::to_utf_from_code(std::clamp(coor.y, 1, si16max - 32) + 32, *this);
+                    utf::to_utf_from_code(std::clamp(ctrl,         0, si16max - 32) + 32, *this);
+                    utf::to_utf_from_code(std::clamp((si32)coor.x, 1, si16max - 32) + 32, *this);
+                    utf::to_utf_from_code(std::clamp((si32)coor.y, 1, si16max - 32) + 32, *this);
                 }
                 else
                 {
-                    add("\033[M", (char)(std::clamp(ctrl,   0, 127-32) + 32),
-                                  (char)(std::clamp(coor.x, 1, 127-32) + 32),
-                                  (char)(std::clamp(coor.y, 1, 127-32) + 32));
+                    add("\033[M", (char)(std::clamp(ctrl,         0, 127-32) + 32),
+                                  (char)(std::clamp((si32)coor.x, 1, 127-32) + 32),
+                                  (char)(std::clamp((si32)coor.y, 1, 127-32) + 32));
                 }
             }
             return *this;
