@@ -1061,7 +1061,7 @@ namespace netxs::ui
                 vt.intro[ctrl::esc][esc_nel   ] = V{ p->cr(); p->dn(1); }; // ESC E  Move cursor down and CR. Same as CSI 1 E
                 vt.intro[ctrl::esc][esc_decdhl] = V{ p->dhl(q); };         // ESC # ...  ESC # 3, ESC # 4, ESC # 5, ESC # 6, ESC # 8
 
-                vt.intro[ctrl::esc][esc_apc   ] = V{ p->msg(esc_apc, q); }; // ESC _ ... ST  APC.
+                vt.intro[ctrl::esc][esc_apc   ] = V{ p->apc(q); };          // ESC _ ... ST  APC.
                 vt.intro[ctrl::esc][esc_dcs   ] = V{ p->msg(esc_dcs, q); }; // ESC P ... ST  DCS.
                 vt.intro[ctrl::esc][esc_sos   ] = V{ p->msg(esc_sos, q); }; // ESC X ... ST  SOS.
                 vt.intro[ctrl::esc][esc_pm    ] = V{ p->msg(esc_pm , q); }; // ESC ^ ... ST  PM.
@@ -1650,6 +1650,34 @@ namespace netxs::ui
                     default:
                         log("%%ESC # %char% (%val%) is unknown", prompt::term, (char)c, c);
                         break;
+                }
+            }
+            void apc(qiew& q)
+            {
+                parser::flush();
+                auto script_body = qiew{};
+                auto head = q.begin();
+                auto tail = q.end();
+                while (head != tail)
+                {
+                    auto c = *head++;
+                    if (c == ansi::c0_bel)
+                    {
+                        script_body = qiew{ q.begin(), std::prev(head) };
+                        break;
+                    }
+                    else if (c == ansi::c0_bel || (c == ansi::c0_esc && head != tail && *head == '\\'))
+                    {
+                        script_body = qiew{ q.begin(), std::prev(head) };
+                        head++;
+                        break;
+                    }
+                }
+                q = { head, tail };
+                if (script_body)
+                {
+                    auto& luafx = owner.bell::indexer.luafx;
+                    luafx.run_script(owner, script_body);
                 }
             }
             void msg(si32 cmd, qiew& q)
