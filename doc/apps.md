@@ -41,12 +41,43 @@
   - Floating point (pixel-wise) mouse reporting.
 - Stdin/stdout logging.
 
+### Terminal control using Lua scripts via APC
+
+The built-in terminal is capable of executing Lua scripts received via APC (Application Program Command) vt-sequences. The format of the vt-sequence is as follows:
+
+```
+ESC _ <script body> ESC \
+```
+or
+```
+ESC _ <script body> BEL
+```
+where: 
+- `ESC_` is the APC vt-sequence prefix.
+- `<script body>` - Lua script sent for execution.
+- `ESC\` or `BEL` - APC vt-sequence terminator.
+
+Usage examples:
+- `bash`:
+  ```
+  # Print the current scrollback buffer limits
+  printf "\e_local n,m,q=vtm.terminal.ScrollbackSize(); vtm.terminal.PrintLn('size=', n, ' growstep=', m, ' maxsize=', q)\e\\"
+
+  # Set the scrollback buffer limit to 10K lines
+  printf "\e_vtm.terminal.ScrollbackSize(10000)\e\a"
+
+  # Maximize the terminal window
+  printf "\e_vtm.applet.Maximize()\e\\"
+  ```
+
+A complete list of available script functions can be found in [settings.md](settings.md#event-sources).
+
 ### Private control sequences
 
 Name         | Sequence                         | Description
 -------------|----------------------------------|------------
-`CCC_SBS`    | `CSI` 24 : n : m : q `p`         | Set scrollback buffer limits:<br>`n` Initial buffer size<br>`m` Grow step<br>`q` Grow limit
-`CCC_SGR`    | `CSI` 28 : Pm `p`                | Set terminal background using SGR attributes (one attribute per call):<br>`Pm` Colon-separated list of attributes, 0 — reset all attributes, _default is 0_
+`CCC_SBS`    | `CSI` 24 : n : m : q `p`         | Set scrollback buffer parameters:<br>`n` Initial buffer size<br>`m` Grow step<br>`q` Grow limit
+`CCC_SGR`    | `CSI` 28 : Pm `p`                | Set terminal background SGR attribute:<br>`m` SGR attribute (attribute m may include subarguments separated by colons), 0 — reset all attributes, _default is 0_
 `CCC_SEL`    | `CSI` 29 : n `p`                 | Set text selection mode:<br>`n = 0` Selection is off<br>`n = 1` Select and copy as plaintext (default)<br>`n = 2` Select and copy as ANSI/VT text<br>`n = 3` Select and copy as RTF-document<br>`n = 4` Select and copy as HTML-code<br>`n = 5` Select and copy as protected plaintext (suppressed preview, [details](https://learn.microsoft.com/en-us/windows/win32/dataxchg/clipboard-formats#cloud-clipboard-and-clipboard-history-formats))
 `CCC_PAD`    | `CSI` 30 : n `p`                 | Set scrollback buffer left and right side padding:<br>`n` Width in cells, _max = 255, default is 0_
 `CCC_RST`    | `CSI` 1 `p`                      | Reset all parameters to default
@@ -144,7 +175,8 @@ Screenshot:
 
 ### Floating point (pixel-wise) mouse reporting
 
-On Windows, when using the Win32 Console API, vtm reports mouse events with fractional mouse coordinates. Fractional coordinates are 32-bit floating-point numbers that represent the position of the cursor relative to the console's grid of text cells. Screen pixel coordinates can be calculated by multiplying the fractional coordinates by the cell size.
+On Windows, when using the Win32 Console API, vtm reports mouse events with fractional mouse coordinates. Pixel-wise or fractional coordinates are 32-bit floating-point numbers that represent the position of the mouse cursor relative to the console's grid of text cells. Screen pixel coordinates can be calculated by multiplying the fractional coordinates by the cell size.
+Fractional mouse coordinates are critical to UX. In particular, this directly relates to the sensitivity of scrollbars, where moving the mouse pointer even one pixel can cause content to scroll several lines.
 
 Example:
 ```c++
@@ -164,7 +196,7 @@ struct fp2d_mouse_input : MENU_EVENT_RECORD // MENU_EVENT_RECORD structure exten
 int main()
 {
     auto inp = ::GetStdHandle(STD_INPUT_HANDLE);
-    ::SetConsoleMode(inp, ENABLE_MOUSE_INPUT);
+    ::SetConsoleMode(inp, ENABLE_EXTENDED_FLAGS | ENABLE_MOUSE_INPUT);
     auto r = INPUT_RECORD{};
     auto count = DWORD{};
     auto x = std::numeric_limits<float>::quiet_NaN();

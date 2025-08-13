@@ -620,7 +620,8 @@ Standard object names
 |                 |                          | `vtm.terminal.ScrollViewportToTop()`               | Scroll the terminal viewport to the scrollback top.
 |                 |                          | `vtm.terminal.ScrollViewportToEnd()`               | Scroll the terminal viewport to the scrollback bottom.
 |                 |                          | `vtm.terminal.SendKey(string s)`                   | Send the text string `s` as terminal input.
-|                 |                          | `vtm.terminal.Print(string s)`                     | Print the text string `s` to the terminal scrollback buffer.
+|                 |                          | `vtm.terminal.Print(auto args, ...)`               | Print the specified args to the terminal scrollback buffer.
+|                 |                          | `vtm.terminal.PrintLn(auto args, ...)`             | Print the specified args and move the text cursor to the next line.
 |                 |                          | `vtm.terminal.CopyViewport()`                      | Сopy terminal viewport to the clipboard.
 |                 |                          | `vtm.terminal.CopySelection()`                     | Copy selected lines or the current line to the clipboard.
 |                 |                          | `vtm.terminal.PasteClipboard()`                    | Paste from clipboard.
@@ -642,6 +643,8 @@ Standard object names
 |                 |                          | `vtm.terminal.LogMode(int n)`                      | Set the current terminal logging mode on/off.
 |                 |                          | `vtm.terminal.LogMode() -> int`                    | Get the current terminal logging mode state.
 |                 |                          | `vtm.terminal.ClearScrollback()`                   | Clear the terminal scrollback buffer.
+|                 |                          | `vtm.terminal.ScrollbackSize() -> int n, m, q`     | Get the current scrollback buffer parameters (three integer values):<br>`n` Initial buffer size<br>`m` Grow step<br>`q` Grow limit
+|                 |                          | `vtm.terminal.ScrollbackSize(int n, int m, int q)` | Set scrollback buffer parameters:<br>`n` Initial buffer size<br>`m` Grow step<br>`q` Grow limit
 |                 |                          | `vtm.terminal.Restart()`                           | Restart the current terminal session.
 |                 |                          | `vtm.terminal.Quit()`                              | Close terminal.
 
