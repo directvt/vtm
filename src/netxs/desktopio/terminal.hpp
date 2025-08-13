@@ -78,6 +78,7 @@ namespace netxs::ui
             X(ScrollViewportToEnd  ) /* */ \
             X(SendKey              ) /* */ \
             X(Print                ) /* */ \
+            X(PrintLn              ) /* */ \
             X(CopyViewport         ) /* */ \
             X(CopySelection        ) /* */ \
             X(PasteClipboard       ) /* */ \
@@ -93,6 +94,7 @@ namespace netxs::ui
             X(LineAlignMode        ) /* */ \
             X(LogMode              ) /* */ \
             X(ClearScrollback      ) /* */ \
+            X(ScrollbackSize       ) /* */ \
             X(Restart              ) /* */ \
             X(Quit                 ) /* */ \
 
@@ -8370,7 +8372,7 @@ namespace netxs::ui
                                                         }
                                                         else
                                                         {
-                                                            auto state = luafx.get_args_or(1, 0);
+                                                            auto state = luafx.get_args_or(1, si32{ 0 });
                                                             set_rawkbd(1 + (si32)!!state);
                                                             luafx.set_return();
                                                         }
@@ -8435,8 +8437,28 @@ namespace netxs::ui
                                                     {
                                                         luafx.run_with_gear([&](auto& gear)
                                                         {
-                                                            auto crop = luafx.get_args_or(1, ""s);
+                                                            auto args_count = luafx.args_count();
+                                                            auto crop = text{};
+                                                            for (auto i = 1; i <= args_count; i++)
+                                                            {
+                                                                crop += luafx.get_args_or(i, ""s);
+                                                            }
                                                             if (crop.size()) data_in(crop);
+                                                            gear.set_handled();
+                                                        });
+                                                    }},
+                { methods::PrintLn,                 [&]
+                                                    {
+                                                        luafx.run_with_gear([&](auto& gear)
+                                                        {
+                                                            auto args_count = luafx.args_count();
+                                                            auto crop = text{};
+                                                            for (auto i = 1; i <= args_count; i++)
+                                                            {
+                                                                crop += luafx.get_args_or(i, ""s);
+                                                            }
+                                                            crop += "\n\r";
+                                                            data_in(crop);
                                                             gear.set_handled();
                                                         });
                                                     }},
@@ -8491,7 +8513,7 @@ namespace netxs::ui
                                                         }
                                                         else
                                                         {
-                                                            auto state = luafx.get_args_or(1, 1);
+                                                            auto state = luafx.get_args_or(1, si32{ 1 });
                                                             set_selmod(state % mime::count);
                                                             luafx.set_return();
                                                         }
@@ -8566,7 +8588,7 @@ namespace netxs::ui
                                                         }
                                                         else
                                                         {
-                                                            auto state = luafx.get_args_or(1, 0);
+                                                            auto state = luafx.get_args_or(1, si32{ 0 });
                                                             base::riseup(tier::preview, terminal::events::toggle::cwdsync, state);
                                                             luafx.set_return();
                                                         }
@@ -8616,7 +8638,7 @@ namespace netxs::ui
                                                         }
                                                         else
                                                         {
-                                                            auto state = luafx.get_args_or(1, 0);
+                                                            auto state = luafx.get_args_or(1, si32{ 0 });
                                                             set_log(state);
                                                             luafx.set_return();
                                                         }
@@ -8630,6 +8652,24 @@ namespace netxs::ui
                                                         }
                                                         clear_scrollback();
                                                         luafx.set_return();
+                                                    }},
+                { methods::ScrollbackSize,          [&]
+                                                    {
+                                                        luafx.run_with_gear_wo_return([&](auto& gear){ gear.set_handled(); });
+                                                        target->flush();
+                                                        auto args_count = luafx.args_count();
+                                                        if (!args_count)
+                                                        {
+                                                            luafx.set_return(defcfg.def_length, defcfg.def_growdt, defcfg.def_growmx);
+                                                        }
+                                                        else
+                                                        {
+                                                            auto ring_size = luafx.get_args_or(1, defcfg.def_length);
+                                                            auto grow_step = luafx.get_args_or(2, defcfg.def_growdt);
+                                                            auto grow_mxsz = luafx.get_args_or(3, defcfg.def_growmx);
+                                                            normal.resize_history(ring_size, grow_step, grow_mxsz);
+                                                            luafx.set_return();
+                                                        }
                                                     }},
                 { methods::Restart,                 [&]
                                                     {
