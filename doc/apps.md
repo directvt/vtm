@@ -43,7 +43,7 @@
 
 ### Terminal control using Lua scripts via APC
 
-The built-in terminal is capable of executing Lua scripts received via APC (Application Program Command). The format of the vt-sequence is as follows:
+The built-in terminal is capable of executing Lua scripts received via APC (Application Program Command) vt-sequences. The format of the vt-sequence is as follows:
 
 ```
 ESC _ <script body> ESC \
@@ -53,23 +53,24 @@ or
 ESC _ <script body> BEL
 ```
 where: 
-- `ESC_` is the APC prefix.
+- `ESC_` is the APC vt-sequence prefix.
 - `<script body>` - Lua script sent for execution.
-- `ESC\` or `BEL` - vt-sequence terminator.
+- `ESC\` or `BEL` - APC vt-sequence terminator.
 
-Examples:
-```
-# Print the current scrollback buffer limits
-printf "\e_local n,m,q=vtm.terminal.ScrollbackSize(); vtm.terminal.PrintLn('size=', n, ' growstep=', m, ' maxsize=', q)\e\\"
+Usage examples:
+- `bash`:
+  ```
+  # Print the current scrollback buffer limits
+  printf "\e_local n,m,q=vtm.terminal.ScrollbackSize(); vtm.terminal.PrintLn('size=', n, ' growstep=', m, ' maxsize=', q)\e\\"
 
-# Set the scrollback buffer limit to 10K lines
-printf "\e_vtm.terminal.ScrollbackSize(10000)\e\a"
+  # Set the scrollback buffer limit to 10K lines
+  printf "\e_vtm.terminal.ScrollbackSize(10000)\e\a"
 
-# Maximize the terminal window
-printf "\e_vtm.applet.Maximize()\e\\"
-```
+  # Maximize the terminal window
+  printf "\e_vtm.applet.Maximize()\e\\"
+  ```
 
-A full list of available functions can be found in [settings.md](settings.md#event-sources).
+A complete list of available script functions can be found in [settings.md](settings.md#event-sources).
 
 ### Private control sequences
 
