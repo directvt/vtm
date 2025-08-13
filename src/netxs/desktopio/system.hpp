@@ -4527,7 +4527,13 @@ namespace netxs::os
 
                 if (attached)
                 {
-                    if (encod == prot::w32) termlink->mouse(gear, moved, coord, encod, state);
+                    if (state & mode::vtim)
+                    {
+                        auto guard = std::lock_guard{ writemtx };
+                        writebuf.mouse_vtm(gear, coord);
+                        writesyn.notify_one();
+                    }
+                    else if (encod == prot::w32) termlink->mouse(gear, moved, coord, encod, state);
                     else
                     {
                         if (state & mode::move

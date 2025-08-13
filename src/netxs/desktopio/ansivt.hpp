@@ -612,6 +612,22 @@ namespace netxs::ansi
             return *this;
         }
         template<class T>
+        auto& mouse_vtm(T const& gear, fp2d coor) // escx: Mouse tracking report (vt-input-mode).
+        {
+            //  ESC _ event=mouse ; id=0 ; kbmods=<KeyMods> ; coord=<X>,<Y> ; buttons=<ButtonState> ; scroll=<DeltaX>,<DeltaY> ST
+            auto wheeldt = netxs::saturate_cast<si32>(gear.m_sys.wheelfp * 120);
+            auto h = gear.m_sys.hzwheel ? wheeldt : 0;
+            auto v = gear.m_sys.hzwheel ? 0 : wheeldt;
+            add("\033_event=mouse;id=", gear.id, ";kbmods=", gear.m_sys.ctlstat,
+                //todo use utf::_to_hex(auto number, size_t width, auto push)
+                //todo letoh/htole
+                ";coord=", utf::to_hex(*reinterpret_cast<ui32*>(&coor.x)),
+                      ",", utf::to_hex(*reinterpret_cast<ui32*>(&coor.y)),
+              ";buttons=", gear.m_sys.buttons,
+               ";scroll=", h, ",", v, "\033\\");
+            return *this;
+        }
+        template<class T>
         auto& mouse_sgr(T const& gear, fp2d coor) // escx: Mouse tracking report (SGR).
         {
             if (std::isnan(coor.x)) return *this;

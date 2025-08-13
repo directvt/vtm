@@ -60,13 +60,42 @@ namespace netxs::ui
 {
     namespace terminal
     {
+        namespace event_source
+        {
+            static constexpr auto _counter = __COUNTER__ + 1;
+            static constexpr auto keyboard  = 1 << (__COUNTER__ - _counter);
+            static constexpr auto mouse     = 1 << (__COUNTER__ - _counter);
+            static constexpr auto focus     = 1 << (__COUNTER__ - _counter);
+            static constexpr auto format    = 1 << (__COUNTER__ - _counter);
+            static constexpr auto clipboard = 1 << (__COUNTER__ - _counter);
+            static constexpr auto window    = 1 << (__COUNTER__ - _counter);
+            static constexpr auto system    = 1 << (__COUNTER__ - _counter);
+        }
         namespace events = netxs::events::userland::terminal;
+        static auto event_source_map = utf::unordered_map<text, si32>
+           {{ "keyboard"s,  event_source::keyboard  },
+            { "mouse"s,     event_source::mouse     },
+            { "focus"s,     event_source::focus     },
+            { "format"s,    event_source::format    },
+            { "clipboard"s, event_source::clipboard },
+            { "window"s,    event_source::window    },
+            { "system"s,    event_source::system    }};
     }
 
     struct term
         : public ui::form<term>
     {
         static constexpr auto classname = basename::terminal;
+        static constexpr auto event_source_name = std::to_array(
+        {
+            "keyboard",
+            "mouse",
+            "focus",
+            "format",
+            "clipboard",
+            "window",
+            "system",
+        });
 
         #define proc_list \
             X(KeyEvent             ) /* */ \
@@ -95,6 +124,7 @@ namespace netxs::ui
             X(LogMode              ) /* */ \
             X(ClearScrollback      ) /* */ \
             X(ScrollbackSize       ) /* */ \
+            X(EventReporting       ) /* */ \
             X(Restart              ) /* */ \
             X(Quit                 ) /* */ \
 
@@ -7041,6 +7071,7 @@ namespace netxs::ui
         hook       onerun; // term: One-shot token for restart session.
         bool       rawkbd; // term: Exclusive keyboard access.
         bool       bottom_anchored; // term: Anchor scrollback content when resizing (default is anchor at bottom).
+        ui32       event_sources; // term: vt-input-mode event reporting bit-field.
         vtty       ipccon; // term: IPC connector. Should be destroyed first.
 
         // term: Place rectangle block to the scrollback buffer.
@@ -8310,7 +8341,8 @@ namespace netxs::ui
               kbmode{ prot::vt },
               ime_on{ faux },
               rawkbd{ faux },
-              bottom_anchored{ true }
+              bottom_anchored{ true },
+              event_sources{}
         {
             set_fg_color(defcfg.def_fcolor);
             set_bg_color(defcfg.def_bcolor);
@@ -8668,6 +8700,55 @@ namespace netxs::ui
                                                             auto grow_step = luafx.get_args_or(2, defcfg.def_growdt);
                                                             auto grow_mxsz = luafx.get_args_or(3, defcfg.def_growmx);
                                                             normal.resize_history(ring_size, grow_step, grow_mxsz);
+                                                            luafx.set_return();
+                                                        }
+                                                    }},
+                { methods::EventReporting,          [&]
+                                                    {
+                                                        luafx.run_with_gear_wo_return([&](auto& gear){ gear.set_handled(); });
+                                                        auto args_count = luafx.args_count();
+                                                        if (!args_count)
+                                                        {
+                                                            auto src_list = txts{};
+                                                            auto i = 0;
+                                                            auto e = event_sources;
+                                                            while (e)
+                                                            {
+                                                                if (e & 1) src_list.push_back(event_source_name[i]);
+                                                                i++;
+                                                                e >>= 1;
+                                                            }
+                                                            luafx.set_return_array(src_list);
+                                                        }
+                                                        else
+                                                        {
+                                                            auto prev_event_sources = event_sources;
+                                                            for (auto i = 1; i <= args_count; i++)
+                                                            {
+                                                                auto src = luafx.get_args_or(i, ""s);
+                                                                if (src.empty())
+                                                                {
+                                                                    event_sources = {};
+                                                                }
+                                                                else
+                                                                {
+                                                                    auto iter = ui::terminal::event_source_map.find(src);
+                                                                    if (iter != ui::terminal::event_source_map.end())
+                                                                    {
+                                                                        event_sources |= iter->second;
+                                                                    }
+                                                                    else
+                                                                    {
+                                                                        log("%%Unknown event source: '%%'", prompt::term, src);
+                                                                    }
+                                                                }
+                                                            }
+                                                            auto mouse_tracking = event_sources & ui::terminal::event_source::mouse;
+                                                            if ((prev_event_sources & ui::terminal::event_source::mouse) != mouse_tracking)
+                                                            {
+                                                                mouse_tracking ? mtrack.enable(input::mouse::mode::vt_input_mode)
+                                                                               : mtrack.disable(input::mouse::mode::vt_input_mode);
+                                                            }
                                                             luafx.set_return();
                                                         }
                                                     }},
