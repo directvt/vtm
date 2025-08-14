@@ -89,7 +89,7 @@ Field             | Descriprtion
   ```
 - Mouse
   ```
-  ESC _ event=mouse ; id=0 ; kbmods=<KeyMods> ; coor=<X>,<Y> ; buttons=<ButtonState> ; scroll=<DeltaX>,<DeltaY> ESC \
+  ESC _ event=mouse ; id=0 ; kbmods=<KeyMods> ; coor=<X>,<Y> ; buttons=<ButtonState> ; scroll=<DeltaX>,<DeltaY> ; finescroll=<DeltaX>,<DeltaY> ESC \
   ```
 - Focus
   ```
@@ -123,7 +123,7 @@ ESC _ event=keyboard ; id=0 ; kbmods=<KeyMods> ; keyid=<KeyId> ; pressed=<KeyDow
 
 Attribute                     | Description
 ------------------------------|------------
-`id=0`                        | Seat id.
+`id=0`                        | Device group id.
 `kbmods=<KeyMods>`            | Keyboard modifiers.
 `keyid=<KeyId>`               | Physical key ID.
 `pressed=<KeyDown>`           | Key state:<br>\<KeyDown\>=1 - Pressed.<br>\<KeyDown\>=0 - Released.
@@ -362,21 +362,17 @@ Key ID | Name               | Generic Name       | Scan Code | Notes
 ### Mouse
 
 ```
-ESC _ event=mouse ; id=0 ; kbmods=<KeyMods> ; coor=<X>,<Y> ; buttons=<ButtonState> ; scroll=<DeltaX>,<DeltaY> ESC \
+ESC _ event=mouse ; id=0 ; kbmods=<KeyMods> ; coor=<X>,<Y> ; buttons=<ButtonState> ; scroll=<DeltaX>,<DeltaY> finescroll=<DeltaX>,<DeltaY> ESC \
 ```
 
-Attribute                   | Description
-----------------------------|------------
-`id=0`                      | Seat id.
-`kbmods=<KeyMods>`          | Keyboard modifiers (see Keyboard event).
-`coor=<X>,<Y>`              | Pixel-wise coordinates of the mouse pointer. Each coordinate is represented in the form of a floating point value of the sum of the integer coordinate of the cell in the terminal window grid and the relative offset within the cell in the range `[0.0f, 1.0f)`.
-`buttons=<ButtonState>`     | Mouse button state.
-`scroll=<DeltaX>,<DeltaY>`  | Integer value of high resolution horizontal and vertical scroll delta in integer 1/120 units.
-
-In response to the activation of `mouse` tracking, the application receives a vt-sequence containing current mouse state:
-```
-ESC _ event=mouse ; kbmods=<KeyMods> ; coor=<X>,<Y> ; buttons=<ButtonState> ESC \
-```
+Attribute                       | Description
+--------------------------------|------------
+`id=0`                          | Device group id.
+`kbmods=<KeyMods>`              | Keyboard modifiers (see Keyboard event).
+`coor=<X>,<Y>`                  | Pixel-wise coordinates of the mouse pointer. Each coordinate is represented in the form of a floating point value of the sum of the integer coordinate of the cell in the terminal window grid and the relative offset within the cell in the range `[0.0f, 1.0f)`.
+`buttons=<ButtonState>`         | Mouse button state.
+`scroll=<DeltaX>,<DeltaY>`      | Integer values of low resolution horizontal and vertical scroll deltas in integer 1/1 units (one scroll line corresponds to a value of 1).
+`finescroll=<DeltaX>,<DeltaY>`  | Integer values of high resolution horizontal and vertical scroll deltas in integer 1/120 units (one scroll line corresponds to a value of 120).
 
 The mouse tracking event fires on any mouse activity, as well as on keyboard modifier changes.
 
@@ -402,7 +398,7 @@ ESC _ event=focus ; id=0 ; state=<FocusState> ESC \
 
 Attribute            | Description
 ---------------------|------------
-`id=0`               | Seat id.
+`id=0`               | Device group id.
 `state=<FocusState>` | Terminal window focus:<br>\<FocusState\>=1 - Focused.<br>\<FocusState\>=0 - Unfocused.
 
 In response to the activation of `focus` tracking, the application receives a vt-sequence containing current focus state.
@@ -429,7 +425,7 @@ ESC _ event=clipboard ; id=0 ; format=<ClipFormat> ; security=<SecLevel> ; data=
 
 Attribute             | Description
 ----------------------|------------
-`id=0`                | Seat id.
+`id=0`                | Device group id.
 `format=<ClipFormat>` | Clipboard data format.
 `security=<SecLevel>` | Security level.
 `data=<Data>`         | Base64 encoded data.

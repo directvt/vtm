@@ -1698,7 +1698,7 @@ namespace netxs::ui
                         script_body = qiew{ q.begin(), std::prev(head) };
                         break;
                     }
-                    else if (c == ansi::c0_bel || (c == ansi::c0_esc && head != tail && *head == '\\'))
+                    else if (c == ansi::c0_esc && head != tail && *head == '\\')
                     {
                         script_body = qiew{ q.begin(), std::prev(head) };
                         head++;
