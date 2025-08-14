@@ -89,7 +89,7 @@ Field             | Descriprtion
   ```
 - Mouse
   ```
-  ESC _ event=mouse ; id=0 ; kbmods=<KeyMods> ; coord=<X>,<Y> ; buttons=<ButtonState> ; scroll=<DeltaX>,<DeltaY> ESC \
+  ESC _ event=mouse ; id=0 ; kbmods=<KeyMods> ; coor=<X>,<Y> ; buttons=<ButtonState> ; scroll=<DeltaX>,<DeltaY> ESC \
   ```
 - Focus
   ```
@@ -362,20 +362,20 @@ Key ID | Name               | Generic Name       | Scan Code | Notes
 ### Mouse
 
 ```
-ESC _ event=mouse ; id=0 ; kbmods=<KeyMods> ; coord=<X>,<Y> ; buttons=<ButtonState> ; scroll=<DeltaX>,<DeltaY> ESC \
+ESC _ event=mouse ; id=0 ; kbmods=<KeyMods> ; coor=<X>,<Y> ; buttons=<ButtonState> ; scroll=<DeltaX>,<DeltaY> ESC \
 ```
 
 Attribute                   | Description
 ----------------------------|------------
 `id=0`                      | Seat id.
 `kbmods=<KeyMods>`          | Keyboard modifiers (see Keyboard event).
-`coord=<X>,<Y>`             | Pixel-wise coordinates of the mouse pointer. Each coordinate is represented in the form of a floating point value of the sum of the integer coordinate of the cell in the terminal window grid and the relative offset within the cell in the range `[0.0f, 1.0f)`.
+`coor=<X>,<Y>`              | Pixel-wise coordinates of the mouse pointer. Each coordinate is represented in the form of a floating point value of the sum of the integer coordinate of the cell in the terminal window grid and the relative offset within the cell in the range `[0.0f, 1.0f)`.
 `buttons=<ButtonState>`     | Mouse button state.
 `scroll=<DeltaX>,<DeltaY>`  | Integer value of high resolution horizontal and vertical scroll delta in integer 1/120 units.
 
 In response to the activation of `mouse` tracking, the application receives a vt-sequence containing current mouse state:
 ```
-ESC _ event=mouse ; kbmods=<KeyMods> ; coord=<X>,<Y> ; buttons=<ButtonState> ESC \
+ESC _ event=mouse ; kbmods=<KeyMods> ; coor=<X>,<Y> ; buttons=<ButtonState> ESC \
 ```
 
 The mouse tracking event fires on any mouse activity, as well as on keyboard modifier changes.

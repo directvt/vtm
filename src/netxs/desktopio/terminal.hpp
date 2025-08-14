@@ -8746,8 +8746,11 @@ namespace netxs::ui
                                                             auto mouse_tracking = event_sources & ui::terminal::event_source::mouse;
                                                             if ((prev_event_sources & ui::terminal::event_source::mouse) != mouse_tracking)
                                                             {
-                                                                mouse_tracking ? mtrack.enable(input::mouse::mode::vt_input_mode)
-                                                                               : mtrack.disable(input::mouse::mode::vt_input_mode);
+                                                                base::enqueue([&, mouse_tracking](auto& /*boss*/) // Perform switching outside of Lua script context.
+                                                                {
+                                                                    mouse_tracking ? mtrack.enable(input::mouse::mode::vt_input_mode)
+                                                                                   : mtrack.disable(input::mouse::mode::vt_input_mode);
+                                                                });
                                                             }
                                                             luafx.set_return();
                                                         }

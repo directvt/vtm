@@ -583,7 +583,7 @@ Standard object names
 |                 |                          | `vtm.gate.AntialiasingMode() -> int`               | Toggle anti-aliasing mode.
 |`applet`         | Running applet           | `vtm.applet.Warp(int l, int r, int t, int b)`      | Request to deform the applet window. The parameters specify four deltas for the left, right, top and bottom sides of the applet window.
 |                 |                          | `vtm.applet.ZOrder() -> int`                       | Request the current z-order state of the applet window.
-|                 |                          | `vtm.applet.ZOrder(int n) -> int`                  | Set the current z-order state for the applet window. -1: backmost; 0: plain; 1: topmost.
+|                 |                          | `vtm.applet.ZOrder(int n) -> int`                  | Set the current z-order state for the applet window. -1: backmost; 0: normal; 1: topmost.
 |                 |                          | `vtm.applet.Close()`                               | Close applet window.
 |                 |                          | `vtm.applet.Minimize()`                            | Minimize applet window.
 |                 |                          | `vtm.applet.Maximize()`                            | Maximize applet window.
