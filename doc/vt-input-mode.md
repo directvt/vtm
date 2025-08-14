@@ -362,7 +362,7 @@ Key ID | Name               | Generic Name       | Scan Code | Notes
 ### Mouse
 
 ```
-ESC _ event=mouse ; id=0 ; kbmods=<KeyMods> ; coor=<X>,<Y> ; buttons=<ButtonState> ; scroll=<DeltaX>,<DeltaY> finescroll=<DeltaX>,<DeltaY> ESC \
+ESC _ event=mouse ; id=0 ; kbmods=<KeyMods> ; coor=<X>,<Y> ; buttons=<ButtonState> ; scroll=<DeltaX>,<DeltaY> ; finescroll=<DeltaX>,<DeltaY> ESC \
 ```
 
 Attribute                       | Description
