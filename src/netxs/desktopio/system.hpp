@@ -4527,7 +4527,13 @@ namespace netxs::os
 
                 if (attached)
                 {
-                    if (encod == prot::w32) termlink->mouse(gear, moved, coord, encod, state);
+                    if (state & mode::vtim)
+                    {
+                        auto guard = std::lock_guard{ writemtx };
+                        writebuf.mouse_vtm(gear, coord);
+                        writesyn.notify_one();
+                    }
+                    else if (encod == prot::w32) termlink->mouse(gear, moved, coord, encod, state);
                     else
                     {
                         if (state & mode::move
@@ -5233,6 +5239,7 @@ namespace netxs::os
                     focus,
                     style,
                     paste,
+                    mousevtim,
                 };
                 static const auto style_cmd = "\033[" + std::to_string(ansi::ccc_stl) + ":";
                 auto take_sequence = [](qiew& cache) // s.size() always > 1.
@@ -5287,6 +5294,37 @@ namespace netxs::os
                         else if (c == 'O') // SS3: ESC O byte
                         {
                             s = s.substr(0, 3);
+                        }
+                        else if (c == '_') // APC: ESC _ payload ST
+                        {
+                            incomplete = true;
+                            while (head != tail) // Looking for ST
+                            {
+                                auto d = *head++;
+                                if (d == ansi::c0_bel)
+                                {
+                                    s = qiew{ s.begin() + 2, std::prev(head) };
+                                    incomplete = faux;
+                                    break;
+                                }
+                                else if (d == ansi::c0_esc && head != tail && *head == '\\')
+                                {
+                                    s = { s.begin() + 2, std::prev(head) };
+                                    incomplete = faux;
+                                    head++;
+                                    break;
+                                }
+                            }
+                            if (!incomplete) // Return payload only, not a whole APC sequence.
+                            {
+                                cache = { head, tail };
+                                if (s.starts_with(ansi::apc_prefix_mouse))
+                                {
+                                    s.remove_prefix(ansi::apc_prefix_mouse.size());
+                                    t = type::mousevtim;
+                                }
+                                return std::tuple{ t, s, incomplete };
+                            }
                         }
                         else // ESC cluster == Alt+cluster
                         {
@@ -5635,6 +5673,73 @@ namespace netxs::os
                         {
                             auto [t, s, incomplete] = take_sequence(cache);
                             if (incomplete) break;
+                            else if (t == type::mousevtim) // ESC _ payload ST
+                            {
+                                utf::split<true>(s, ';', [&](qiew frag)
+                                {
+                                    if (frag.starts_with(ansi::apc_prefix_mouse_kbmods))
+                                    {
+                                        frag.remove_prefix(ansi::apc_prefix_mouse_kbmods.size());
+                                        if (auto v = utf::to_int<ui32>(frag))
+                                        {
+                                            m.ctlstat = v.value();
+                                            k.ctlstat = m.ctlstat;
+                                        }
+                                    }
+                                    else if (frag.starts_with(ansi::apc_prefix_mouse_coor))
+                                    {
+                                        frag.remove_prefix(ansi::apc_prefix_mouse_coor.size());
+                                        if (auto x = utf::to_int<ui32, 16>(frag); x && frag)
+                                        {
+                                            frag.pop_front(); // Pop ','
+                                            if (auto y = utf::to_int<ui32, 16>(frag))
+                                            {
+                                                m.coordxy.x = *reinterpret_cast<fp32*>(&x.value());
+                                                m.coordxy.y = *reinterpret_cast<fp32*>(&y.value());
+                                            }
+                                        }
+                                    }
+                                    else if (frag.starts_with(ansi::apc_prefix_mouse_buttons))
+                                    {
+                                        frag.remove_prefix(ansi::apc_prefix_mouse_buttons.size());
+                                        if (auto b = utf::to_int<ui32>(frag))
+                                        {
+                                            m.buttons = b.value();
+                                        }
+                                    }
+                                    else if (frag.starts_with(ansi::apc_prefix_mouse_scroll))
+                                    {
+                                        frag.remove_prefix(ansi::apc_prefix_mouse_scroll.size());
+                                        if (auto h = utf::to_int<si32>(frag); h && frag)
+                                        {
+                                            frag.pop_front(); // Pop ','
+                                            if (auto v = utf::to_int<si32>(frag))
+                                            {
+                                                //todo make it twod
+                                                m.hzwheel = h.value() != 0;
+                                                m.wheelsi = m.hzwheel ? h.value() : v.value();
+                                            }
+                                        }
+                                    }
+                                    else if (frag.starts_with(ansi::apc_prefix_mouse_finescroll))
+                                    {
+                                        frag.remove_prefix(ansi::apc_prefix_mouse_finescroll.size());
+                                        if (auto h = utf::to_int<si32>(frag); h && frag)
+                                        {
+                                            frag.pop_front(); // Pop ','
+                                            if (auto v = utf::to_int<si32>(frag))
+                                            {
+                                                //todo make it fp2d
+                                                m.hzwheel = h.value() != 0;
+                                                m.wheelfp = (m.hzwheel ? h.value() : v.value()) / 120.0;
+                                            }
+                                        }
+                                    }
+                                });
+                                m.changed++;
+                                m.timecod = datetime::now();
+                                mouse(m);
+                            }
                             else if (t == type::mouse) // ESC [ < ctrl ; xpos ; ypos M
                             {
                                 auto tmp = s.substr(3); // Pop "\033[<"

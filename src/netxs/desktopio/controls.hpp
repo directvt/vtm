@@ -282,6 +282,17 @@ namespace netxs::events
         ::lua_settop(lua, 0);
         (push_value(args), ...);
     }
+    void luna::set_return_array(txts const& str_list)
+    {
+        ::lua_settop(lua, 0);
+        ::lua_createtable(lua, 0, 0);
+        auto i = 0;
+        for (auto& s : str_list)
+        {
+            ::lua_pushlstring(lua, s.data(), s.size());
+            ::lua_rawseti(lua, -2, ++i);
+        }
+    }
     si32 luna::args_count()
     {
         return ::lua_gettop(lua);

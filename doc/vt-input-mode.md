@@ -33,11 +33,43 @@ Existing approaches have the following drawbacks:
 
 - We use HEX-form of the uint32 (IEEE-754 32-bit binary float, Little-Endian) for the floating point value representation.
 - Space characters are not used in sequence payloads and are only used for readability of the description.
-- All unescaped symbols outside of this protocol should be treated as clipboard pasted data.
+- //todo: keyboard only: All unescaped symbols outside of this protocol should be treated as clipboard pasted data.
 
-### Format
+## Event tracking activation
 
-Signaling uses APC `ESC _ <payload> ESC \` with an event-specific payload syntax.
+Event tracking is activated by sending an APC vt-sequence to the terminal with a script to switch the event tracking mode.
+
+The following APC sequences set/reset/request event tracking for the specified event `"Source"`s:
+
+- Set:
+  ```
+  ESC _ vtm.terminal.EventReporting("Source0", ..., "SourceN") ESC \
+  ```
+- Reset (the event tracking is deactivated if an empty string is specified.):
+  ```
+  ESC _ vtm.terminal.EventReporting("") ESC \
+  ```
+- Get a list of active sources:
+  ```
+  ESC _ src_list=vtm.terminal.EventReporting() ESC \
+  ```
+
+Sources      | Events to track
+-------------|----------------
+`"keyboard"` | Keyboard.
+`"mouse"`    | Mouse.
+`"focus"`    | Focus.
+`"format"`   | Line format.
+`"clipboard"`| Clipboard.
+`"window"`   | Window size and selection.
+`"system"`   | System signals.
+`""`         | Empty string to set all event reporting off.
+
+/todo: keyboard only: Note: By enabling `vt-input-mode`, all current terminal modes are automatically saved (to be restored on exit) and switched to something like "raw" mode, in which input is available character by character, echoing is disabled, and all special processing of terminal input and output characters is disabled (except for `LF` to `CR+LF` conversion).
+
+### Event format
+
+The event signaling also uses APC `ESC _ <payload> ESC \` with an event-specific payload syntax.
 
 The payload consists of a list of attributes in the following format:
 ```
@@ -49,27 +81,6 @@ Field             | Descriprtion
 `<attr>`          | Attribute name.
 `<val>,...,<val>` | Comma-separated value list.
 
-## Initialization
-
-```
-Set:   ESC _ events=<Source0>,...,<SourceN> ESC \
-Reset: ESC _ events ESC \
-```
-
-Source     | Events to track
------------|----------------
-`keyboard` | Keyboard.
-`mouse`    | Mouse.
-`focus`    | Focus.
-`format`   | Line format.
-`clipoard` | Clipboard.
-`window`   | Window size and selection.
-`system`   | System signals.
-
-This sequence enables `vt-input-mode` and event tracking for the specified event `Source`s. The `vt-input-mode` is deactivated if none of the `Source`s is specified.
-
-Note: By enabling `vt-input-mode`, all current terminal modes are automatically saved (to be restored on exit) and switched to something like "raw" mode, in which input is available character by character, echoing is disabled, and all special processing of terminal input and output characters is disabled (except for `LF` to `CR+LF` conversion).
-
 ## Events
 
 - Keyboard
@@ -78,7 +89,7 @@ Note: By enabling `vt-input-mode`, all current terminal modes are automatically 
   ```
 - Mouse
   ```
-  ESC _ event=mouse ; id=0 ; kbmods=<KeyMods> ; coord=<X>,<Y> ; buttons=<ButtonState> ; scroll=<DeltaX>,<DeltaY> ESC \
+  ESC _ event=mouse ; id=0 ; kbmods=<KeyMods> ; coor=<X>,<Y> ; buttons=<ButtonState> ; scroll=<DeltaX>,<DeltaY> ; finescroll=<DeltaX>,<DeltaY> ESC \
   ```
 - Focus
   ```
@@ -91,7 +102,7 @@ Note: By enabling `vt-input-mode`, all current terminal modes are automatically 
 //todo Textinput, Text, IME or Input for IME preview etc
 - Clipboard
   ```
-  ESC _ event=clipoard ; id=0 ; format=<ClipFormat> ; security=<SecLevel> ; data=<Data> ESC \
+  ESC _ event=clipboard ; id=0 ; format=<ClipFormat> ; security=<SecLevel> ; data=<Data> ESC \
   ```
 - Window
   ```
@@ -112,7 +123,7 @@ ESC _ event=keyboard ; id=0 ; kbmods=<KeyMods> ; keyid=<KeyId> ; pressed=<KeyDow
 
 Attribute                     | Description
 ------------------------------|------------
-`id=0`                        | Seat id.
+`id=0`                        | Device group id.
 `kbmods=<KeyMods>`            | Keyboard modifiers.
 `keyid=<KeyId>`               | Physical key ID.
 `pressed=<KeyDown>`           | Key state:<br>\<KeyDown\>=1 - Pressed.<br>\<KeyDown\>=0 - Released.
@@ -351,21 +362,17 @@ Key ID | Name               | Generic Name       | Scan Code | Notes
 ### Mouse
 
 ```
-ESC _ event=mouse ; id=0 ; kbmods=<KeyMods> ; coord=<X>,<Y> ; buttons=<ButtonState> ; scroll=<DeltaX>,<DeltaY> ESC \
+ESC _ event=mouse ; id=0 ; kbmods=<KeyMods> ; coor=<X>,<Y> ; buttons=<ButtonState> ; scroll=<DeltaX>,<DeltaY> finescroll=<DeltaX>,<DeltaY> ESC \
 ```
 
-Attribute                   | Description
-----------------------------|------------
-`id=0`                      | Seat id.
-`kbmods=<KeyMods>`          | Keyboard modifiers (see Keyboard event).
-`coord=<X>,<Y>`             | Pixel-wise coordinates of the mouse pointer. Each coordinate is represented in the form of a floating point value of the sum of the integer coordinate of the cell in the terminal window grid and the relative offset within the cell in the range `[0.0f, 1.0f)`.
-`buttons=<ButtonState>`     | Mouse button state.
-`scroll=<DeltaX>,<DeltaY>`  | Integer value of high resolution horizontal and vertical scroll delta in integer 1/120 units.
-
-In response to the activation of `mouse` tracking, the application receives a vt-sequence containing current mouse state:
-```
-ESC _ event=mouse ; kbmods=<KeyMods> ; coord=<X>,<Y> ; buttons=<ButtonState> ESC \
-```
+Attribute                       | Description
+--------------------------------|------------
+`id=0`                          | Device group id.
+`kbmods=<KeyMods>`              | Keyboard modifiers (see Keyboard event).
+`coor=<X>,<Y>`                  | Pixel-wise coordinates of the mouse pointer. Each coordinate is represented in the form of a floating point value of the sum of the integer coordinate of the cell in the terminal window grid and the relative offset within the cell in the range `[0.0f, 1.0f)`.
+`buttons=<ButtonState>`         | Mouse button state.
+`scroll=<DeltaX>,<DeltaY>`      | Integer values of low resolution horizontal and vertical scroll deltas in integer 1/1 units (one scroll line corresponds to a value of 1).
+`finescroll=<DeltaX>,<DeltaY>`  | Integer values of high resolution horizontal and vertical scroll deltas in integer 1/120 units (one scroll line corresponds to a value of 120).
 
 The mouse tracking event fires on any mouse activity, as well as on keyboard modifier changes.
 
@@ -391,7 +398,7 @@ ESC _ event=focus ; id=0 ; state=<FocusState> ESC \
 
 Attribute            | Description
 ---------------------|------------
-`id=0`               | Seat id.
+`id=0`               | Device group id.
 `state=<FocusState>` | Terminal window focus:<br>\<FocusState\>=1 - Focused.<br>\<FocusState\>=0 - Unfocused.
 
 In response to the activation of `focus` tracking, the application receives a vt-sequence containing current focus state.
@@ -413,12 +420,12 @@ In response to the activation of `format` tracking, the application receives a v
 ### Clipboard
 
 ```
-ESC _ event=clipoard ; id=0 ; format=<ClipFormat> ; security=<SecLevel> ; data=<Data> ESC \
+ESC _ event=clipboard ; id=0 ; format=<ClipFormat> ; security=<SecLevel> ; data=<Data> ESC \
 ```
 
 Attribute             | Description
 ----------------------|------------
-`id=0`                | Seat id.
+`id=0`                | Device group id.
 `format=<ClipFormat>` | Clipboard data format.
 `security=<SecLevel>` | Security level.
 `data=<Data>`         | Base64 encoded data.

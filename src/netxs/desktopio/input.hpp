@@ -752,16 +752,19 @@ namespace netxs::input
             move = 1 << 2,
             over = 1 << 3,
             utf8 = 1 << 4,
+            vtim = 1 << 5, // vt-input-mode
             buttons_press = bttn,
             buttons_drags = bttn | drag,
             all_movements = bttn | drag | move,
             negative_args = bttn | drag | move | over,
+            vt_input_mode = bttn | drag | move | over | vtim,
         };
         enum prot
         {
             x11,
             sgr,
             w32,
+            //vtm, // vt-input-mode
         };
         struct buttons
         {

@@ -157,6 +157,7 @@ namespace netxs::events
         static si32 vtmlua_push_value(      lua_State* lua, auto&& v);
         si32 push_value(auto&& v);
         void set_return(auto... args);
+        void set_return_array(txts const& str_list);
         si32 args_count();
         void read_args(si32 index, auto add_item);
         auto get_args_or(si32 idx, auto fallback = {});

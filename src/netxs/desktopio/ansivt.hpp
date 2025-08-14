@@ -260,6 +260,14 @@ namespace netxs::ansi
     static const auto paste_begin = "\033[200~"sv; // Bracketed paste begin.
     static const auto paste_end   = "\033[201~"sv; // Bracketed paste end.
 
+    static constexpr auto apc_prefix_mouse            = "event=mouse;"sv;
+    static constexpr auto apc_prefix_mouse_id         = "id="sv;         // ui32
+    static constexpr auto apc_prefix_mouse_kbmods     = "kbmods="sv;     // ui32
+    static constexpr auto apc_prefix_mouse_coor       = "coor="sv;       // fp32,fp32
+    static constexpr auto apc_prefix_mouse_buttons    = "buttons="sv;    // ui32
+    static constexpr auto apc_prefix_mouse_scroll     = "scroll="sv;     // si32,si32
+    static constexpr auto apc_prefix_mouse_finescroll = "finescroll="sv; // si32,si32
+
     template<class Base>
     class basevt
     {
@@ -541,8 +549,8 @@ namespace netxs::ansi
         }
         auto& vmouse(bool b) // escx: Focus and Mouse position reporting/tracking.
         {
-            return add(b ? "\033[?1002;1003;1004;1006;10060h"
-                         : "\033[?1002;1003;1004;1006;10060l");
+            return add(b ? "\033[?1002;1003;1004;1006;10060h\033_vtm.terminal.EventReporting('mouse')\033\\"
+                         : "\033[?1002;1003;1004;1006;10060l\033_vtm.terminal.EventReporting('')\033\\");
         }
         auto& setutf(bool b)        { return add(b ? "\033%G"      : "\033%@"        ); } // escx: Select UTF-8 character set (true) or default (faux). Not supported by Apple Terminal on macOS.
         auto& altbuf(bool b)        { return add(b ? "\033[?1049h" : "\033[?1049l"   ); } // escx: Alternative buffer.
@@ -609,6 +617,32 @@ namespace netxs::ansi
                 osc_palette_reset();
                 load_palette();
             }
+            return *this;
+        }
+        template<class T>
+        auto& mouse_vtm(T const& gear, fp2d coor) // escx: Mouse tracking report (vt-input-mode).
+        {
+            //  ESC _ event=mouse ; id=0 ; kbmods=<KeyMods> ; coor=<X>,<Y> ; buttons=<ButtonState> ; scroll=<DeltaX>,<DeltaY> ST
+            auto wheelfp = netxs::saturate_cast<si32>(gear.m_sys.wheelfp * 120);
+            //todo make it fp2d
+            auto v1 = gear.m_sys.wheelsi;
+            auto h1 = 0;
+            auto v2 = wheelfp;
+            auto h2 = 0;
+            auto x = ui32{};
+            auto y = ui32{};
+            ::memcpy(&x, &coor.x, sizeof(x));
+            ::memcpy(&y, &coor.y, sizeof(y));
+            if (gear.m_sys.hzwheel)
+            {
+                std::swap(h1, v1);
+                std::swap(h2, v2);
+            }
+            add("\033_event=mouse;id=", gear.id, ";kbmods=", gear.m_sys.ctlstat, ";coor=");
+            utf::_to_hex(netxs::letoh(x), 4 * 2, [&](char c){ add(c); });
+            add(",");
+            utf::_to_hex(netxs::letoh(y), 4 * 2, [&](char c){ add(c); });
+            add(";buttons=", gear.m_sys.buttons, ";scroll=", h1, ",", v1, ";finescroll=", h2, ",", v2, "\033\\");
             return *this;
         }
         template<class T>
