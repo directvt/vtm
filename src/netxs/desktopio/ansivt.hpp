@@ -629,15 +629,17 @@ namespace netxs::ansi
             auto h1 = 0;
             auto v2 = wheelfp;
             auto h2 = 0;
+            auto x = coor.x;
+            auto y = coor.y;
             if (gear.m_sys.hzwheel)
             {
                 std::swap(h1, v1);
                 std::swap(h2, v2);
             }
             add("\033_event=mouse;id=", gear.id, ";kbmods=", gear.m_sys.ctlstat, ";coor=");
-            utf::_to_hex(netxs::letoh(*reinterpret_cast<ui32*>(&coor.x)), 4 * 2, [&](char c){ add(c); });
+            utf::_to_hex(netxs::letoh(*reinterpret_cast<ui32*>(&x)), 4 * 2, [&](char c){ add(c); });
             add(",");
-            utf::_to_hex(netxs::letoh(*reinterpret_cast<ui32*>(&coor.y)), 4 * 2, [&](char c){ add(c); });
+            utf::_to_hex(netxs::letoh(*reinterpret_cast<ui32*>(&y)), 4 * 2, [&](char c){ add(c); });
             add(";buttons=", gear.m_sys.buttons, ";scroll=", h1, ",", v1, ";finescroll=", h2, ",", v2, "\033\\");
             return *this;
         }
