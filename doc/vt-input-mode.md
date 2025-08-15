@@ -14,19 +14,18 @@ Anyone who wants to:
 - Share applications on LAN (using inetd, netcat, etc).
 - Track every key press and key release.
 - Track position dependent keys such as WASD.
-- Distinguish between Left and Right physical keys.
+- Distinguish between Left and Right physical keyboard keys.
 - Get consistent output regardless of terminal window resize.
 - Track mouse on a pixel-wise level.
 - Track mouse outside the terminal window (getting negative coordinates).
-- Take advantage of high-resolution wheel scrolling.
+- Take advantage of high-resolution (fine) scrolling.
 - Track scrollback text manipulation.
 - Track application closing and system shutdown.
-- Be independent of operating system and third party libraries.
 
 Existing approaches have the following drawbacks:
 - There is no uniform way to receive keyboard events.
 - Window size tracking requires platform-specific calls with no way to synchronize the output.
-- Mouse tracking modes lack support for negative coordinates, and high-resolution wheel scrolling.
+- Mouse tracking modes lack support for negative coordinates, and high-resolution scrolling.
 - Bracketed paste mode does not support the transfer of binary data and data containing sequences of bracketed paste mode itself.
 
 ## Conventions
