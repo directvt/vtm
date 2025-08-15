@@ -540,7 +540,7 @@ namespace netxs::ui
                 if (ext_gear_id)
                 {
                     auto& gear = *gear_ptr;
-                    if (gear.m_sys.timecod != time{}) // Don't send mouse events if the mouse has not been used yet.
+                    if (gear.m_sys.timecod != time{} || gear.mouse_disabled) // Don't send mouse events if the mouse has not been used yet or disabled.
                     {
                         gear.fire_fast();
                         gear.fire(event_id);

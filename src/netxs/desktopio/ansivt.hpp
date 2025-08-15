@@ -626,8 +626,16 @@ namespace netxs::ansi
             //todo make it fp2d
             auto x = ui32{};
             auto y = ui32{};
-            ::memcpy(&x, &coor.x, sizeof(x));
-            ::memcpy(&y, &coor.y, sizeof(y));
+            if (gear.mouse_disabled)
+            {
+                ::memcpy(&x, &fp32nan, sizeof(x));
+                ::memcpy(&y, &fp32nan, sizeof(y));
+            }
+            else
+            {
+                ::memcpy(&x, &coor.x, sizeof(x));
+                ::memcpy(&y, &coor.y, sizeof(y));
+            }
             auto iv = gear.m_sys.wheelsi;
             auto ih = 0;
             auto fh = ui32{};
