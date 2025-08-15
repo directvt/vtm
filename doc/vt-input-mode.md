@@ -31,7 +31,7 @@ Existing approaches have the following drawbacks:
 
 ## Conventions
 
-- We use HEX-form of the uint32 (IEEE-754 32-bit binary float, Little-Endian) for the floating point value representation.
+- We use HEX-form of the uint32 for the 32-bit floating point value representation (IEEE-754 32-bit binary float, Little-Endian).
 - Space characters are not used in sequence payloads and are only used for readability of the description.
 - //todo: keyboard only: All unescaped symbols outside of this protocol should be treated as clipboard pasted data.
 
@@ -368,7 +368,7 @@ Attribute                       | Description
 `id=0`                          | Device group id.
 `kbmods=<KeyMods>`              | Keyboard modifiers (see Keyboard event).
 `coor=<X>,<Y>`                  | Pixel-wise 32-bit floating point coordinates of the mouse pointer relative to the console's text cell grid. The integer part corresponds to the cell coordinates, and the fractional part corresponds to the normalized position within the cell. The pointer's screen pixel coordinates can be calculated by multiplying these floating point values by the cell size. Receiving a NaN value is a signal that the mouse has left the window or disconnected.
-`buttons=<ButtonState>`         | Mouse button state.
+`buttons=<ButtonState>`         | Mouse buttons bit field.
 `iscroll=<DeltaX>,<DeltaY>`     | Low-resolution integer horizontal and vertical scroll deltas (one scroll line corresponds to a value of 1). Low-resolution scroll deltas increase as the values of high-resolution deltas accumulate, and are zeroed when the scroll direction changes.
 `fscroll=<DeltaX>,<DeltaY>`     | High-resolution 32-bit floating-point horizontal and vertical scroll deltas (one scroll line corresponds to a value of 1.0f).
 
