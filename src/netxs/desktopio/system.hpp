@@ -5707,9 +5707,9 @@ namespace netxs::os
                                             m.buttons = b.value();
                                         }
                                     }
-                                    else if (frag.starts_with(ansi::apc_prefix_mouse_scroll))
+                                    else if (frag.starts_with(ansi::apc_prefix_mouse_iscroll))
                                     {
-                                        frag.remove_prefix(ansi::apc_prefix_mouse_scroll.size());
+                                        frag.remove_prefix(ansi::apc_prefix_mouse_iscroll.size());
                                         if (auto h = utf::to_int<si32>(frag); h && frag)
                                         {
                                             frag.pop_front(); // Pop ','
@@ -5721,17 +5721,19 @@ namespace netxs::os
                                             }
                                         }
                                     }
-                                    else if (frag.starts_with(ansi::apc_prefix_mouse_finescroll))
+                                    else if (frag.starts_with(ansi::apc_prefix_mouse_fscroll))
                                     {
-                                        frag.remove_prefix(ansi::apc_prefix_mouse_finescroll.size());
-                                        if (auto h = utf::to_int<si32>(frag); h && frag)
+                                        frag.remove_prefix(ansi::apc_prefix_mouse_fscroll.size());
+                                        if (auto h = utf::to_int<ui32, 16>(frag); h && frag)
                                         {
                                             frag.pop_front(); // Pop ','
-                                            if (auto v = utf::to_int<si32>(frag))
+                                            if (auto v = utf::to_int<ui32, 16>(frag))
                                             {
                                                 //todo make it fp2d
-                                                m.hzwheel = h.value() != 0;
-                                                m.wheelfp = (m.hzwheel ? h.value() : v.value()) / 120.0;
+                                                auto fh = *reinterpret_cast<fp32*>(&h.value());
+                                                auto fv = *reinterpret_cast<fp32*>(&v.value());
+                                                m.hzwheel = fh != 0;
+                                                m.wheelfp = m.hzwheel ? fh : fv;
                                             }
                                         }
                                     }

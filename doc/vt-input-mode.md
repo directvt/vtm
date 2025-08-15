@@ -63,17 +63,15 @@ Sources      | Events to track
 `"clipboard"`| Clipboard.
 `"window"`   | Window size and selection.
 `"system"`   | System signals.
-`""`         | Empty string to set all event reporting off.
+`""`         | Set event reporting off.
 
 /todo: keyboard only: Note: By enabling `vt-input-mode`, all current terminal modes are automatically saved (to be restored on exit) and switched to something like "raw" mode, in which input is available character by character, echoing is disabled, and all special processing of terminal input and output characters is disabled (except for `LF` to `CR+LF` conversion).
 
 ### Event format
 
-The event signaling also uses APC `ESC _ <payload> ESC \` with an event-specific payload syntax.
-
-The payload consists of a list of attributes in the following format:
+The event signaling also uses APC `ESC _ <payload> ESC \` vt-sequences with the following payload format:
 ```
-<attr>=<val>,...,<val>; ...; <attr>=<val>,...,<val>
+<attr>=<val>,...,<val>;...;<attr>=<val>,...,<val>
 ```
 
 Field             | Descriprtion
@@ -89,7 +87,7 @@ Field             | Descriprtion
   ```
 - Mouse
   ```
-  ESC _ event=mouse ; id=0 ; kbmods=<KeyMods> ; coor=<X>,<Y> ; buttons=<ButtonState> ; scroll=<DeltaX>,<DeltaY> ; finescroll=<DeltaX>,<DeltaY> ESC \
+  ESC _ event=mouse ; id=0 ; kbmods=<KeyMods> ; coor=<X>,<Y> ; buttons=<ButtonState> ; iscroll=<DeltaX>,<DeltaY> ; fscroll=<DeltaX>,<DeltaY> ESC \
   ```
 - Focus
   ```
@@ -362,17 +360,17 @@ Key ID | Name               | Generic Name       | Scan Code | Notes
 ### Mouse
 
 ```
-ESC _ event=mouse ; id=0 ; kbmods=<KeyMods> ; coor=<X>,<Y> ; buttons=<ButtonState> ; scroll=<DeltaX>,<DeltaY> ; finescroll=<DeltaX>,<DeltaY> ESC \
+ESC _ event=mouse ; id=0 ; kbmods=<KeyMods> ; coor=<X>,<Y> ; buttons=<ButtonState> ; iscroll=<DeltaX>,<DeltaY> ; fscroll=<DeltaX>,<DeltaY> ESC \
 ```
 
 Attribute                       | Description
 --------------------------------|------------
 `id=0`                          | Device group id.
 `kbmods=<KeyMods>`              | Keyboard modifiers (see Keyboard event).
-`coor=<X>,<Y>`                  | Pixel-wise coordinates of the mouse pointer. Each coordinate is represented in the form of a floating point value of the sum of the integer coordinate of the cell in the terminal window grid and the relative offset within the cell in the range `[0.0f, 1.0f)`.
+`coor=<X>,<Y>`                  | Pixel-wise 32-bit floating point coordinates of the mouse pointer relative to the console's text cell grid. The integer part corresponds to the cell coordinates, and the fractional part corresponds to the normalized position within the cell. The pointer's screen pixel coordinates can be calculated by multiplying these floating point values by the cell size. Receiving a NaN value is a signal that the mouse has left the window or disconnected.
 `buttons=<ButtonState>`         | Mouse button state.
-`scroll=<DeltaX>,<DeltaY>`      | Integer values of low resolution horizontal and vertical scroll deltas in integer 1/1 units (one scroll line corresponds to a value of 1).
-`finescroll=<DeltaX>,<DeltaY>`  | Integer values of high resolution horizontal and vertical scroll deltas in integer 1/120 units (one scroll line corresponds to a value of 120).
+`iscroll=<DeltaX>,<DeltaY>`     | Low-resolution integer horizontal and vertical scroll deltas (one scroll line corresponds to a value of 1). Low-resolution scroll deltas increase as the values of high-resolution deltas accumulate, and are zeroed when the scroll direction changes.
+`fscroll=<DeltaX>,<DeltaY>`     | High-resolution 32-bit floating-point horizontal and vertical scroll deltas (one scroll line corresponds to a value of 1.0f).
 
 The mouse tracking event fires on any mouse activity, as well as on keyboard modifier changes.
 
