@@ -14,7 +14,7 @@ Anyone who wants to:
 - Share applications on LAN (using inetd, netcat, etc).
 - Track every key press and key release.
 - Track position dependent keys such as WASD.
-- Distinguish between Left and Right physical keyboard keys.
+- Distinguish between physical Left and Right keyboard keys.
 - Get consistent output regardless of terminal window resize.
 - Track mouse on a pixel-wise level.
 - Track mouse outside the terminal window (getting negative coordinates).
