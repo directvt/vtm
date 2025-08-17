@@ -517,6 +517,17 @@ namespace netxs::ui
                 state = (mode)(state & ~(m));
                 if (!state) token.clear();
                 owner.selection_selmod(smode);
+                auto gates = owner.base::riseup(tier::request, e2::form::state::keybd::enlist); // Take all foci.
+                for (auto gate_id : gates) // Reset double click state for all gears.
+                {
+                    if (auto gear_ptr = owner.base::getref<hids>(gate_id))
+                    {
+                        for (auto& [bttn_id, s] : gear_ptr->stamp) // Reset double click state. The issue is related to Far Manager, which changes the mouse tracking mode before releasing the button when double-clicking.
+                        {
+                            s.count = !!s.count; // Set to 1 if non zero.
+                        }
+                    }
+                }
             }
             void setmode(prot p) { encod = p; }
         };

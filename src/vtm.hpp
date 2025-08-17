@@ -1669,12 +1669,12 @@ namespace netxs::app::vtm
                             for (auto& [ext_gear_id, gear_ptr] : usergate.gears)
                             {
                                 auto& gear = *gear_ptr;
-                                if (gear.mouse_disabled) continue;
+                                if (gear.mouse_disabled || std::isnan(gear.coord.x)) continue;
                                 auto coor = twod{ gear.coord } + gear.owner.coor();
                                 coor.y -= 1;
                                 coor.x -= half_x;
                                 user_name.move(coor);
-                                parent_canvas.fill(user_name, cell::shaders::contrast);
+                                parent_canvas.fill(user_name, cell::shaders::contrast); //todo revise: segfault?
                                 usergate.fill_pointer(gear, parent_canvas);
                             }
                         }

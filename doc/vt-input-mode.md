@@ -14,24 +14,23 @@ Anyone who wants to:
 - Share applications on LAN (using inetd, netcat, etc).
 - Track every key press and key release.
 - Track position dependent keys such as WASD.
-- Distinguish between Left and Right physical keys.
+- Distinguish between physical Left and Right keyboard keys.
 - Get consistent output regardless of terminal window resize.
 - Track mouse on a pixel-wise level.
 - Track mouse outside the terminal window (getting negative coordinates).
-- Take advantage of high-resolution wheel scrolling.
+- Take advantage of high-resolution (fine) scrolling.
 - Track scrollback text manipulation.
 - Track application closing and system shutdown.
-- Be independent of operating system and third party libraries.
 
 Existing approaches have the following drawbacks:
 - There is no uniform way to receive keyboard events.
 - Window size tracking requires platform-specific calls with no way to synchronize the output.
-- Mouse tracking modes lack support for negative coordinates, and high-resolution wheel scrolling.
+- Mouse tracking modes lack support for negative coordinates, and high-resolution scrolling.
 - Bracketed paste mode does not support the transfer of binary data and data containing sequences of bracketed paste mode itself.
 
 ## Conventions
 
-- We use HEX-form of the uint32 for the 32-bit floating point value representation (IEEE-754 32-bit binary float, Little-Endian).
+- We use HEX-form of the uint32 for the 32-bit floating point value representation (IEEE-754 32-bit binary float, Little-Endian). For example, the floating point value `3.1415f` is represented as the unsigned integer in hex `40490E56` (decimal 1078529622).
 - Space characters are not used in sequence payloads and are only used for readability of the description.
 - //todo: keyboard only: All unescaped symbols outside of this protocol should be treated as clipboard pasted data.
 
@@ -121,7 +120,7 @@ ESC _ event=keyboard ; id=<ID> ; kbmods=<KeyMods> ; keyid=<KeyId> ; pressed=<Key
 
 Attribute                     | Description
 ------------------------------|------------
-`id=<ID>`                     | Device group id (unsigned integer value).
+`id=<ID>`                     | Device group id (unsigned integer).
 `kbmods=<KeyMods>`            | Keyboard modifiers bit field.
 `keyid=<KeyId>`               | Physical key ID.
 `pressed=<KeyDown>`           | Key state:<br>\<KeyDown\>=1 - Pressed.<br>\<KeyDown\>=0 - Released.
@@ -365,12 +364,12 @@ ESC _ event=mouse ; id=<ID> ; kbmods=<KeyMods> ; coor=<X>,<Y> ; buttons=<ButtonS
 
 Attribute                       | Description
 --------------------------------|------------
-`id=<ID>`                       | Device group id (unsigned integer value).
-`kbmods=<KeyMods>`              | Keyboard modifiers bit field (see Keyboard event).
-`coor=<X>,<Y>`                  | Pixel-wise 32-bit floating point coordinates of the mouse pointer relative to the console's text cell grid. The integer part corresponds to the cell coordinates, and the fractional part corresponds to the normalized position within the cell. The pointer's screen pixel coordinates can be calculated by multiplying these floating point values by the cell size. Receiving a NaN value is a signal that the mouse has left the window or disconnected.
-`buttons=<ButtonState>`         | Mouse buttons bit field.
-`iscroll=<DeltaX>,<DeltaY>`     | Low-resolution integer horizontal and vertical scroll deltas (one scroll line corresponds to a value of 1). Low-resolution scroll deltas increase as the values of high-resolution deltas accumulate, and are zeroed when the scroll direction changes.
-`fscroll=<DeltaX>,<DeltaY>`     | High-resolution 32-bit floating-point horizontal and vertical scroll deltas (one scroll line corresponds to a value of 1.0f).
+`id=<ID>`                       | Device group id (unsigned integer).
+`kbmods=<KeyMods>`              | Keyboard modifiers bit field (unsigned integer, the same value as in Keyboard event).
+`coor=<X>,<Y>`                  | 32-bit floating point coordinates of the mouse pointer relative to the console's text cell grid. The integer part corresponds to the cell coordinates, and the fractional part corresponds to the normalized position within the cell. The pointer's screen pixel coordinates can be calculated by multiplying these floating point values by the cell size. Receiving a NaN value is a signal that the mouse has left the window or disconnected.
+`buttons=<ButtonState>`         | Mouse buttons bit field (unsigned integer).
+`iscroll=<DeltaX>,<DeltaY>`     | Horizontal and vertical low-resolution scroll deltas in form of signed integers (one scroll line corresponds to a value of 1). Low-resolution scroll deltas increase as the values of high-resolution deltas accumulate, and are zeroed when the scroll direction changes.
+`fscroll=<DeltaX>,<DeltaY>`     | Horizontal and vertical high-resolution scroll deltas in form of 32-bit floating-point values (one scroll line corresponds to a value of 1.0f).
 
 The mouse tracking event fires on any mouse activity, as well as on keyboard modifier changes.
 
@@ -396,7 +395,7 @@ ESC _ event=focus ; id=<ID> ; state=<FocusState> ESC \
 
 Attribute            | Description
 ---------------------|------------
-`id=<ID>`            | Device group id (unsigned integer value).
+`id=<ID>`            | Device group id (unsigned integer).
 `state=<FocusState>` | Terminal window focus:<br>\<FocusState\>=1 - Focused.<br>\<FocusState\>=0 - Unfocused.
 
 In response to the activation of `focus` tracking, the application receives a vt-sequence containing current focus state.
@@ -423,7 +422,7 @@ ESC _ event=clipboard ; id=<ID> ; format=<ClipFormat> ; security=<SecLevel> ; da
 
 Attribute             | Description
 ----------------------|------------
-`id=<ID>`             | Device group id (unsigned integer value).
+`id=<ID>`             | Device group id (unsigned integer).
 `format=<ClipFormat>` | Clipboard data format.
 `security=<SecLevel>` | Security level.
 `data=<Data>`         | Base64 encoded data.

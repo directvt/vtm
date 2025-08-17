@@ -966,10 +966,10 @@ struct impl : consrv
         }
         void mouse(input::hids& gear, fp2d coord)
         {
-            if (std::isnan(coord.x)) // Forward a mouse halt event.
+            if (gear.mouse_disabled || std::isnan(coord.x)) // Forward a mouse halt event.
             {
                 auto lock = std::lock_guard{ locker };
-                auto r2 = nt::console::fp2d_mouse_input{ .coord = coord };
+                auto r2 = nt::console::fp2d_mouse_input{ .coord = { fp32nan, fp32nan} };
                 stream.emplace_back(*reinterpret_cast<INPUT_RECORD*>(&r2));
                 ondata.reset();
                 signal.notify_one();

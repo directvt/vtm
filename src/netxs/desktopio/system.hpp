@@ -5740,7 +5740,16 @@ namespace netxs::os
                                 });
                                 m.changed++;
                                 m.timecod = datetime::now();
-                                mouse(m);
+                                if (std::isnan(m.coordxy.x))
+                                {
+                                    m.enabled = input::hids::stat::halt; // Send a mouse halt event.
+                                    mouse(m);
+                                    m.enabled = input::hids::stat::ok;
+                                }
+                                else
+                                {
+                                    mouse(m);
+                                }
                             }
                             else if (t == type::mouse) // ESC [ < ctrl ; xpos ; ypos M
                             {
