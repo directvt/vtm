@@ -569,7 +569,7 @@ namespace netxs::ui
             static const auto busy = cell{}.bgc(reddk).fgc(0xFFffffff);
             auto brush = gear.m_sys.buttons ? cell{ busy }.txt(64 + (char)gear.m_sys.buttons/*A-Z...*/)
                                             : idle;
-            auto area = rect{ gear.coord, dot_11 };
+            auto area = rect{ gear.coord + gear.owner.coor(), dot_11 };
             parent_canvas.fill(area, cell::shaders::fuse(brush));
         }
         void draw_mouse_pointer(face& parent_canvas)
@@ -577,7 +577,7 @@ namespace netxs::ui
             for (auto& [ext_gear_id, gear_ptr] : gears)
             {
                 auto& gear = *gear_ptr;
-                if (gear.mouse_disabled) continue;
+                if (gear.mouse_disabled || std::isnan(gear.coord.x)) continue;
                 fill_pointer(gear, parent_canvas);
             }
         }
@@ -589,7 +589,7 @@ namespace netxs::ui
                 gear.board::shown = !gear.mouse_disabled &&
                                     (props.clip_preview_time == span::zero() ||
                                      props.clip_preview_time > stamp - gear.delta.stamp());
-                if (gear.board::shown)
+                if (gear.board::shown && !std::isnan(gear.coord.x))
                 {
                     auto coor = twod{ gear.coord } + dot_21 * 2;
                     auto full = gear.board::image.full();
@@ -609,7 +609,7 @@ namespace netxs::ui
                 auto& gear = *gear_ptr;
                 if (gear.mouse_disabled) continue;
                 auto [tooltip_page_sptr, tooltip_offset] = gear.tooltip.get_render_sptr_and_offset(props.tooltip_colors);
-                if (tooltip_page_sptr)
+                if (tooltip_page_sptr && !std::isnan(gear.coord.x))
                 {
                     auto& tooltip_page = *tooltip_page_sptr;
                     auto fs_area = full;
@@ -689,10 +689,6 @@ namespace netxs::ui
                     {
                         debug.output(canvas);
                     }
-                    if (props.legacy_mode & ui::console::mouse) // Render our mouse pointer.
-                    {
-                        draw_mouse_pointer(canvas);
-                    }
                     if (props.show_regions)
                     {
                         canvas.each([](cell& c)
@@ -704,6 +700,10 @@ namespace netxs::ui
                             c.bgc(bgc);
                         });
                     }
+                }
+                if (props.legacy_mode & ui::console::mouse) // Render our mouse pointer.
+                {
+                    draw_mouse_pointer(canvas);
                 }
             }
             else
