@@ -244,14 +244,28 @@ R"==(
             <script=RollFontsForward       on="Ctrl+Shift+F12"                   />
             <script=ResetWheelAccumulator  on="preview:-Ctrl"                    />
             <script=ToggleDebugOverlay     on="Space-Backspace | Backspace-Space"/>
+)=="
+#if defined (WIN32)
+R"==(
+            <script=FocusTaskBar           on="Esc+F1"                           />
+)=="
+#else
+R"==(
+            <script=FocusTaskBar           on="Alt+Shift+Z"                      />
+)=="
+#endif
+R"==(
         </gate>
+        <taskbar script*>  <!-- Taskbar bindings. -->
+            <script=FocusTaskBar on="-Esc"/>
+        </taskbar>
         <desktop script*>  <!-- Desktop bindings. -->
             <script=FocusPrevWindow on="Ctrl+PageUp"  />
             <script=FocusNextWindow on="Ctrl+PageDown"/>
             <script=Disconnect      on="Shift+F7"     />
             <script=TryToQuit       on="preview:F10"  />
             <script=RunApplication  on="Alt+Shift+N"  />
-            <script=RunInfoPage     on="Esc+F1"       />
+            <script=RunInfoPage     on="Esc+I"        />
         </desktop>
         <applet script*>  <!-- Applet bindings. -->
             <script=AlwaysOnTopApplet     on="Esc+T"                                              />
@@ -1062,17 +1076,19 @@ R"==(
           - .gear: ...
         - .applet (standalone app): ...
         or
-        - .desktop: ...
-          - .window: ...
-            - .applet: ...
-              - .tile: ...
-                - .grip: ...
-              - .terminal: ...  -->
+        - .taskbar: ...
+          - .desktop: ...
+            - .window: ...
+              - .applet: ...
+                - .tile: ...
+                  - .grip: ...
+                - .terminal: ...  -->
     <TryToQuit             ="vtm.desktop.Shutdown('try');"/>      <!-- Shut down the desktop server if no applications are running. -->
     <RunApplication        ="vtm.desktop.Run();"/>                <!-- Run default application. -->
     <RunInfoPage           ="vtm.desktop.Run({ title='Info-page', hidden=true, label='Info', type='info' });"/>  <!-- Run Info-page. -->
     <FocusPrevWindow       ="vtm.desktop.FocusNextWindow(-1);"/>  <!-- Switch focus to the prev window. -->
     <FocusNextWindow       ="vtm.desktop.FocusNextWindow( 1);"/>  <!-- Switch focus to the next window. -->
+    <FocusTaskBar          ="if (vtm.gear.Focus(vtm.taskbar)) then vtm.gear.Focus(vtm.desktop) end;"/>  <!-- Set input focus to the taskbar or return focus back to the desktop. -->
 
     <AlwaysOnTopApplet     ="vtm.applet.ZOrder(vtm.applet.ZOrder()==1 and 0 or 1);"/>  <!-- Request to toggle z-order window attribute. -1: backmost; 0: plain; 1: topmost. -->
     <CloseApplet           ="vtm.applet.Close();"/>            <!-- Request to Close window. -->

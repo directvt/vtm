@@ -5375,7 +5375,7 @@ namespace netxs::os
                         { "\x00"s     , { " ",    key::Space         | hids::LCtrl  << 8 }},
                         { "\x08"      , { "\x7f", key::Backspace     | hids::LCtrl  << 8 }},
                         { "\033\x08"  , { "",     key::Backspace     | hids::AltGr  << 8 }},
-                        { "\033[Z"    , { "",     key::Tab           | hids::LShift << 8 }},
+                        //{ "\033[Z"    , { "",     key::Tab           | hids::LShift << 8 }}, // Alt+Shift+Z
                         { "\033[1;3I" , { "",     key::Tab           | hids::LAlt   << 8 }},
                         { "\033\033"  , { "",     key::Esc           | hids::LAlt   << 8 }},
                         { "\x7f"      , { "\x08", key::Backspace                         }},
@@ -5481,7 +5481,7 @@ namespace netxs::os
                             m[utf8] = { "", key | (ctls << 8) };
                         }
                     }
-                    for (auto i = 0; i < 'Z' - 'A'; i++)
+                    for (auto i = 0; i <= 'Z' - 'A'; i++)
                     {
                         m[text(1, i + 'A')] = { text(1, i + 'A'), (key::KeyA + i * 2) | (hids::LShift << 8) };
                         m[text(1, i + 'a')] = { text(1, i + 'a'),  key::KeyA + i * 2 };

@@ -551,12 +551,54 @@ namespace netxs::app::desk
                 });
             auto taskbar_grips = taskbar_viewport->attach(slot::_1, ui::fork::ctor(axis::X))
                 ->limits({ menu_min_size, -1 }, { menu_min_size, -1 })
+                ->plugin<pro::focus>()
+                ->plugin<pro::keybd>()
                 ->plugin<pro::timer>()
                 ->plugin<pro::acryl>()
                 ->plugin<pro::cache>()
                 ->active(menu_bg_color)
                 ->invoke([&](auto& boss)
                 {
+                    //auto& luafx = boss.bell::indexer.luafx;
+                    auto& bindings = boss.base::property<input::bindings::vector>("taskbar.bindings");
+                    auto applet_context = config.settings::push_context("/config/events/taskbar/");
+                    auto script_list = config.settings::take_ptr_list_for_name("script");
+                    bindings = input::bindings::load(config, script_list);
+                    input::bindings::keybind(boss, bindings);
+                    boss.base::add_methods(basename::taskbar,
+                    {
+                        { "FocusNext",          [&]
+                                                {
+                                                    //auto gui_cmd = e2::command::gui.param();
+                                                    //auto& gear = luafx.get_gear();
+                                                    //if (gear.is_real())
+                                                    //{
+                                                    //    gui_cmd.gear_id = gear.id;
+                                                    //    gear.set_handled();
+                                                    //}
+                                                    //gui_cmd.cmd_id = syscmd::focusnextwindow;
+                                                    //gui_cmd.args.emplace_back(luafx.get_args_or(1, si32{ 1 }));
+                                                    //boss.base::riseup(tier::preview, e2::command::gui, gui_cmd);
+                                                    //luafx.set_return();
+                                                }},
+                        { "Warp",               [&]
+                                                {
+                                                    //auto gui_cmd = e2::command::gui.param();
+                                                    //auto& gear = luafx.get_gear();
+                                                    //if (gear.is_real())
+                                                    //{
+                                                    //    gui_cmd.gear_id = gear.id;
+                                                    //    gear.set_handled();
+                                                    //}
+                                                    //gui_cmd.cmd_id = syscmd::warpwindow;
+                                                    //gui_cmd.args.emplace_back(luafx.get_args_or(1, si32{ 0 }));
+                                                    //gui_cmd.args.emplace_back(luafx.get_args_or(2, si32{ 0 }));
+                                                    //gui_cmd.args.emplace_back(luafx.get_args_or(3, si32{ 0 }));
+                                                    //gui_cmd.args.emplace_back(luafx.get_args_or(4, si32{ 0 }));
+                                                    //boss.base::riseup(tier::preview, e2::command::gui, gui_cmd);
+                                                    //luafx.set_return();
+                                                }},
+                    });
                     boss.LISTEN(tier::request, desk::events::ui::toggle, state)
                     {
                         state = active;

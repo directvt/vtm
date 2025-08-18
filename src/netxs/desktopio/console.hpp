@@ -520,6 +520,21 @@ namespace netxs::ui
                                             }
                                             luafx.set_return();
                                         }},
+                    { "Focus",          [&]
+                                        {
+                                            auto is_focused = faux;
+                                            if (auto object_ptr = luafx.get_args_or(1, sptr{}))
+                                            {
+                                                is_focused = pro::focus::is_focused(object_ptr, gear.id);
+                                                if (!is_focused)
+                                                {
+                                                    if constexpr (debugmode) log("Set focus to the object:", object_ptr->id);
+                                                    pro::focus::set(object_ptr, gear.id, solo::on, true);
+                                                }
+                                            }
+                                            else log("%%No object found to focus on", prompt::hids);
+                                            luafx.set_return(is_focused);
+                                        }},
                 });
                 gear.base::father = This();            // Gear has a fixed parent.
                 gear.base::update_scripting_context(); //
