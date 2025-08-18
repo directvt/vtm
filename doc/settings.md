@@ -1110,17 +1110,18 @@ Notes
             <script=TerminalRestart                    on=""                     />
         </terminal>
         <defapp script*>  <!-- Default application bindings (e.g., Info-Page). -->
-            <script="vtm.defapp.ShowClosingPreview(not vtm.gear.IsKeyRepeated())"                 on="preview:Esc" /> <!-- Pred window close action. -->
-            <script="if (vtm.defapp.ShowClosingPreview()) then vtm.defapp.Close() end"            on="preview:-Esc"/> <!-- Close the window on Esc release. -->
-            <script="if (vtm.gear.IsKeyRepeated()) then vtm.defapp.ShowClosingPreview(false) end" on="preview:Any" /> <!-- Preview for "Any" is always triggered after all other previews. Non-preview "Any" is triggered before all other keys. -->
-            <script="vtm.defapp.ScrollViewportByPage( 0, 1)"                                      on="PageUp"      />
-            <script="vtm.defapp.ScrollViewportByPage( 0,-1)"                                      on="PageDown"    />
-            <script="vtm.defapp.ScrollViewportByStep( 0, 3)"                                      on="UpArrow"     />
-            <script="vtm.defapp.ScrollViewportByStep( 0,-3)"                                      on="DownArrow"   />
-            <script="vtm.defapp.ScrollViewportByStep( 3, 0)"                                      on="LeftArrow"   />
-            <script="vtm.defapp.ScrollViewportByStep(-3, 0)"                                      on="RightArrow"  />
-            <script="if (not vtm.gear.IsKeyRepeated()) then vtm.defapp.ScrollViewportToTop() end" on="Home"        />
-            <script="if (not vtm.gear.IsKeyRepeated()) then vtm.defapp.ScrollViewportToEnd() end" on="End"         />
+            <script="vtm.defapp.ShowClosingPreview(faux);"                                            on="Any"         /> <!-- Preview for "Any" is always triggered after all other previews. Non-preview "Any" is triggered before all other keys. -->
+            <script="if (not vtm.gear.IsKeyRepeated()) then vtm.defapp.ShowClosingPreview(true); end" on="Esc"         /> <!-- Window pred-close action (close when releasing the Esc key). -->
+            <script="if (vtm.defapp.ShowClosingPreview()) then vtm.defapp.Close() end"                on="preview:-Esc"/> <!-- Close the window on Esc release. -->
+            <script="if (vtm.defapp.ShowClosingPreview()) then local focus_count=vtm(); vtm.defapp.ShowClosingPreview(focus_count~=0) end" source="applet" on="release:e2::form::state::focus::count" /> <!-- Disable window closing preview when focus is lost. -->
+            <script="vtm.defapp.ScrollViewportByPage( 0, 1)"                                          on="PageUp"      />
+            <script="vtm.defapp.ScrollViewportByPage( 0,-1)"                                          on="PageDown"    />
+            <script="vtm.defapp.ScrollViewportByStep( 0, 3)"                                          on="UpArrow"     />
+            <script="vtm.defapp.ScrollViewportByStep( 0,-3)"                                          on="DownArrow"   />
+            <script="vtm.defapp.ScrollViewportByStep( 3, 0)"                                          on="LeftArrow"   />
+            <script="vtm.defapp.ScrollViewportByStep(-3, 0)"                                          on="RightArrow"  />
+            <script="if (not vtm.gear.IsKeyRepeated()) then vtm.defapp.ScrollViewportToTop() end"     on="Home"        />
+            <script="if (not vtm.gear.IsKeyRepeated()) then vtm.defapp.ScrollViewportToEnd() end"     on="End"         />
         </defapp>
     </events>
 </config>
