@@ -23,26 +23,13 @@
   </tr>
 </thead>
 <tbody>
-  <tr>
-    <th>Ctrl-Alt ¹ (Alt+Shift+B on non-Windows platforms)</th>
-    <td colspan="9">Toggle alternate keyboard mode</td>
-  </tr>
-  <tr>
-    <th>Alt+Shift+N ¹</th>
-    <td colspan="9">Run app</td>
-  </tr>
-  <tr>
-    <th>F10 ¹</th>
-    <td colspan="9">Disconnect all users and shutdown if there are no apps running</td>
-  </tr>
-  <tr>
-    <th>Shift+F7 ¹</th>
-    <td colspan="9">Leave current session</td>
-  </tr>
-  <tr>
-    <th>Ctrl+PageUp/PageDown ¹</th>
-    <td colspan="9">Switch focus between running apps</td>
-  </tr>
+  <tr><th>Esc+F1 ¹ (Alt+Z on non-Windows platforms)</th>      <td colspan="9">Focus taskbar</td></tr>
+  <tr><th>Esc+I</th>                                          <td colspan="9">Open Info-page</td></tr>
+  <tr><th>Ctrl-Alt (Alt+Shift+B on non-Windows platforms)</th><td colspan="9">Toggle exclusive keyboard mode</td></tr>
+  <tr><th>Alt+Shift+N</th>                                    <td colspan="9">Run app</td></tr>
+  <tr><th>F10</th>                                            <td colspan="9">Disconnect all users and shutdown if there are no apps running</td></tr>
+  <tr><th>Shift+F7</th>                                       <td colspan="9">Leave current session</td></tr>
+  <tr><th>Ctrl+PageUp/PageDown</th>                           <td colspan="9">Switch focus between running apps</td></tr>
   <tr>
     <th>LeftClick</th>
     <td>Run app</td>
@@ -136,25 +123,10 @@
     <td colspan="1">Zoom window</td>
     <td colspan="2"></td>
   </tr>
-  <tr>
-    <th>Alt+LeftDrag</th>
-    <td colspan="9">Switch boxed/linear selection mode</td>
-  </tr>
-  <tr>
-    <th>Ctrl+RightDrag or Ctrl+MiddleDrag</th>
-    <td colspan="9">Copy selected area to clipboard, OSC 52</td>
-  </tr>
-  <tr>
-    <th>Wheel</th>
-    <td colspan="7">Vertical scrolling</td>
-    <td colspan="2"></td>
-  </tr>
-  <tr>
-    <th>Shift+Wheel or Alt+Wheel</th>
-    <td colspan="7">Horizontal scrolling</td>
-    <td colspan="2"></td>
-  </tr>
-  <tr><th>Esc+F1</th>                                             <td colspan="3"></td><td colspan="7">Open Info-page</td></tr>
+  <tr><th>Alt+LeftDrag</th>                                       <td colspan="9">Switch boxed/linear selection mode</td></tr>
+  <tr><th>Ctrl+RightDrag or Ctrl+MiddleDrag</th>                  <td colspan="9">Copy selected area to clipboard, OSC 52</td></tr>
+  <tr><th>Wheel</th>                                              <td colspan="7">Vertical scrolling</td><td colspan="2"></td></tr>
+  <tr><th>Shift+Wheel or Alt+Wheel</th>                           <td colspan="7">Horizontal scrolling</td><td colspan="2"></td></tr>
   <tr><th>Esc+F10</th>                                            <td colspan="3"></td><td colspan="7">Restore window</td></tr>
   <tr><th>Esc+F11</th>                                            <td colspan="3"></td><td colspan="7">Maximize window</td></tr>
   <tr><th>Esc+F12</th>                                            <td colspan="3"></td><td colspan="7">Maximize window to full screen</td></tr>

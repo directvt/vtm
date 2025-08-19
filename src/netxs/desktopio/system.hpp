@@ -2024,10 +2024,11 @@ namespace netxs::os
         static const auto etc = []
         {
             #if defined(_WIN32)
-                return fs::path{ os::env::get("PROGRAMDATA") };
+                auto value = os::env::get("PROGRAMDATA");
             #else
-                return fs::path{ "/etc/" };
+                auto value = "/etc/";
             #endif
+            return fs::path{ utf::remove_quotes(value) };
         }();
         // os::path: User home path.
         static const auto home = []
@@ -2044,17 +2045,18 @@ namespace netxs::os
                     if (buffer.back() == '\0') buffer.pop_back(); // Pop terminating null.
                 }
                 else os::fail("Can't detect user profile path");
-                return fs::path{ utf::to_utf(buffer) };
+                auto path_value = utf::to_utf(buffer);
             #else
-                return fs::path{ os::env::get("HOME") };
+                auto path_value = os::env::get("HOME");
             #endif
+            return fs::path{ utf::remove_quotes(path_value) };
         }();
-        auto expand(text path)
+        auto expand(text path) // Non-quoted path.
         {
             if (path.starts_with("$"))
             {
                 auto temp = path.substr(1);
-                path = os::env::get(temp);
+                path = utf::remove_quotes(os::env::get(temp));
                 log(prompt::pads, temp, " = ", path);
             }
             auto crop = path.starts_with("~/")    ? os::path::home / path.substr(2 /* trim `~` */)
@@ -2627,7 +2629,8 @@ namespace netxs::os
             auto c = result.front();
             if (c != '\"' && c != '\'' && result.find(' ') != text::npos)
             {
-                result = '\"' + result + '\"';
+                auto utf8 = std::exchange(result, ""s);
+                utf::quote(utf8, result, '\"');
             }
             return result;
         }
@@ -2885,7 +2888,7 @@ namespace netxs::os
 
             #endif
         }
-        auto getpaths(auto& file, auto& dest, [[maybe_unused]] bool check_arch = true)
+        auto getpaths(fs::path& file, fs::path& dest, [[maybe_unused]] bool check_arch = true)
         {
             if (!os::process::elevated)
             {
@@ -2899,7 +2902,8 @@ namespace netxs::os
             #endif
             else
             {
-                file = fs::path{ os::process::binary() };
+                auto path_str = os::process::binary();
+                file = fs::path{ utf::dequote(path_str) };
                 if (file.empty())
                 {
                     log("Failed to get the process image path.");
@@ -5375,7 +5379,7 @@ namespace netxs::os
                         { "\x00"s     , { " ",    key::Space         | hids::LCtrl  << 8 }},
                         { "\x08"      , { "\x7f", key::Backspace     | hids::LCtrl  << 8 }},
                         { "\033\x08"  , { "",     key::Backspace     | hids::AltGr  << 8 }},
-                        { "\033[Z"    , { "",     key::Tab           | hids::LShift << 8 }},
+                        //{ "\033[Z"    , { "",     key::Tab           | hids::LShift << 8 }}, // Alt+Shift+Z
                         { "\033[1;3I" , { "",     key::Tab           | hids::LAlt   << 8 }},
                         { "\033\033"  , { "",     key::Esc           | hids::LAlt   << 8 }},
                         { "\x7f"      , { "\x08", key::Backspace                         }},
@@ -5481,7 +5485,7 @@ namespace netxs::os
                             m[utf8] = { "", key | (ctls << 8) };
                         }
                     }
-                    for (auto i = 0; i < 'Z' - 'A'; i++)
+                    for (auto i = 0; i <= 'Z' - 'A'; i++)
                     {
                         m[text(1, i + 'A')] = { text(1, i + 'A'), (key::KeyA + i * 2) | (hids::LShift << 8) };
                         m[text(1, i + 'a')] = { text(1, i + 'a'),  key::KeyA + i * 2 };
@@ -5629,13 +5633,13 @@ namespace netxs::os
                     }
                 };
 
-                auto parser = [&, input = text{}, pflag = faux](view accum) mutable
+                auto parser = [&, input = text{}, pasting_not_complete = faux](view accum) mutable
                 {
                     input += accum;
                     auto cache = qiew{ input };
                     while (cache.size())
                     {
-                        if (pflag)
+                        if (pasting_not_complete)
                         {
                             auto pos = cache.find(ansi::paste_end);
                             if (pos != text::npos)
@@ -5643,7 +5647,7 @@ namespace netxs::os
                                 p_txtdata += cache.substr(0, pos);
                                 cache.remove_prefix(pos + ansi::paste_end.size());
                                 paste_data(p_txtdata);
-                                pflag = faux;
+                                pasting_not_complete = faux;
                                 p_txtdata.clear();
                                 continue;
                             }
@@ -5852,7 +5856,7 @@ namespace netxs::os
                                     p_txtdata = cache.substr(0, pos);
                                     if (pos != text::npos) cache.remove_prefix(pos);
                                     else                   cache.clear();
-                                    pflag = true;
+                                    pasting_not_complete = true;
                                     break;
                                 }
                             }

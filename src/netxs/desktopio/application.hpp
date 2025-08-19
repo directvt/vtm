@@ -22,7 +22,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v2025.08.17";
+    static const auto version = "v2025.08.19";
     static const auto repository = "https://github.com/directvt/vtm";
     static const auto usr_config = "~/.config/vtm/settings.xml"s;
     static const auto sys_config = "/etc/vtm/settings.xml"s;
@@ -676,7 +676,7 @@ namespace netxs::app::shared
                         auto buff = text((size_t)size, '\0');
                         file.seekg(0, std::ios::beg);
                         file.read(buff.data(), size);
-                        config_inst.load(buff, config_path_str);
+                        config_inst.load(buff, config_path.string());
                         log("%%Loaded %count% bytes", prompt::pads, size);
                         return true;
                     }

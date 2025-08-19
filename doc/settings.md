@@ -592,6 +592,7 @@ Standard object names
 |`gear`           | User mouse and keyboard  | `vtm.gear.IsKeyRepeated() -> bool`                 | Returns true if the keyboard event is a key-repeat generated event.
 |                 |                          | `vtm.gear.SetHandled()`                            | Set that the event is processed, and stop further processing.
 |                 |                          | `vtm.gear.RepeatWhilePressed(ref ObjectId)`        | Capture the mouse by ObjectId and trigger the mouse button pressed event to repeat while pressed.
+|                 |                          | `vtm.gear.Focus(ref ObjectId) -> bool`             | Set input focus to the object. Returns true if focus is already set.
 |`desktop`        | Desktop environment      | `vtm.desktop.Cleanup(bool b)`                      | Clean up temporary internal structures of the desktop environment and optionally report the state of registry objects.
 |                 |                          | `vtm.desktop.EventList()`                          | Print all available generic event IDs.
 |                 |                          | `vtm.desktop.Shutdown()`                           | Close all windows and shutdown the desktop.
@@ -1017,14 +1018,19 @@ Notes
             <script=RollFontsForward       on="Ctrl+Shift+F12"                   />
             <script=ResetWheelAccumulator  on="preview:-Ctrl"                    />
             <script=ToggleDebugOverlay     on="Space-Backspace | Backspace-Space"/>
+            <script=FocusTaskBar           on="Esc+F1"                           />
+            <script=FocusTaskBar           on="Alt+Z"                            />
         </gate>
+        <taskbar script*>  <!-- Taskbar bindings. -->
+            <script=FocusTaskBar on="-Esc"/>
+        </taskbar>
         <desktop script*>  <!-- Desktop bindings. -->
             <script=FocusPrevWindow on="Ctrl+PageUp"  />
             <script=FocusNextWindow on="Ctrl+PageDown"/>
             <script=Disconnect      on="Shift+F7"     />
             <script=TryToQuit       on="preview:F10"  />
             <script=RunApplication  on="Alt+Shift+N"  />
-            <script=RunInfoPage     on="Esc+F1"       />
+            <script=RunInfoPage     on="Esc+I"        />
         </desktop>
         <applet script*>  <!-- Applet bindings. -->
             <script=AlwaysOnTopApplet     on="Esc+T"                                              />
@@ -1110,17 +1116,18 @@ Notes
             <script=TerminalRestart                    on=""                     />
         </terminal>
         <defapp script*>  <!-- Default application bindings (e.g., Info-Page). -->
-            <script="vtm.defapp.ShowClosingPreview(not vtm.gear.IsKeyRepeated())"                 on="preview:Esc" /> <!-- Pred window close action. -->
-            <script="if (vtm.defapp.ShowClosingPreview()) then vtm.defapp.Close() end"            on="preview:-Esc"/> <!-- Close the window on Esc release. -->
-            <script="if (vtm.gear.IsKeyRepeated()) then vtm.defapp.ShowClosingPreview(false) end" on="preview:Any" /> <!-- Preview for "Any" is always triggered after all other previews. Non-preview "Any" is triggered before all other keys. -->
-            <script="vtm.defapp.ScrollViewportByPage( 0, 1)"                                      on="PageUp"      />
-            <script="vtm.defapp.ScrollViewportByPage( 0,-1)"                                      on="PageDown"    />
-            <script="vtm.defapp.ScrollViewportByStep( 0, 3)"                                      on="UpArrow"     />
-            <script="vtm.defapp.ScrollViewportByStep( 0,-3)"                                      on="DownArrow"   />
-            <script="vtm.defapp.ScrollViewportByStep( 3, 0)"                                      on="LeftArrow"   />
-            <script="vtm.defapp.ScrollViewportByStep(-3, 0)"                                      on="RightArrow"  />
-            <script="if (not vtm.gear.IsKeyRepeated()) then vtm.defapp.ScrollViewportToTop() end" on="Home"        />
-            <script="if (not vtm.gear.IsKeyRepeated()) then vtm.defapp.ScrollViewportToEnd() end" on="End"         />
+            <script="vtm.defapp.ShowClosingPreview(faux);"                                            on="Any"         /> <!-- Preview for "Any" is always triggered after all other previews. Non-preview "Any" is triggered before all other keys. -->
+            <script="if (not vtm.gear.IsKeyRepeated()) then vtm.defapp.ShowClosingPreview(true); end" on="Esc"         /> <!-- Window pred-close action (close when releasing the Esc key). -->
+            <script="if (vtm.defapp.ShowClosingPreview()) then vtm.defapp.Close() end"                on="preview:-Esc"/> <!-- Close the window on Esc release. -->
+            <script="if (vtm.defapp.ShowClosingPreview()) then local focus_count=vtm(); vtm.defapp.ShowClosingPreview(focus_count~=0) end" source="applet" on="release:e2::form::state::focus::count" /> <!-- Disable window closing preview when focus is lost. -->
+            <script="vtm.defapp.ScrollViewportByPage( 0, 1)"                                          on="PageUp"      />
+            <script="vtm.defapp.ScrollViewportByPage( 0,-1)"                                          on="PageDown"    />
+            <script="vtm.defapp.ScrollViewportByStep( 0, 3)"                                          on="UpArrow"     />
+            <script="vtm.defapp.ScrollViewportByStep( 0,-3)"                                          on="DownArrow"   />
+            <script="vtm.defapp.ScrollViewportByStep( 3, 0)"                                          on="LeftArrow"   />
+            <script="vtm.defapp.ScrollViewportByStep(-3, 0)"                                          on="RightArrow"  />
+            <script="if (not vtm.gear.IsKeyRepeated()) then vtm.defapp.ScrollViewportToTop() end"     on="Home"        />
+            <script="if (not vtm.gear.IsKeyRepeated()) then vtm.defapp.ScrollViewportToEnd() end"     on="End"         />
         </defapp>
     </events>
 </config>
@@ -1816,19 +1823,22 @@ Notes
     <OnLeftClick on="LeftClick"/>
     <!-- vtm.* scripting context:
         - .gate: ...
+          - .gear: ...
         - .applet (standalone app): ...
-            - .gear: ...
-        - .desktop: ...
-                - .window: ...
-                - .applet: ...
-                    - .tile: ...
-                        - .grip: ...
-                    - .terminal: ...  -->
+        or
+        - .taskbar: ...
+          - .desktop: ...
+            - .window: ...
+              - .applet: ...
+                - .tile: ...
+                  - .grip: ...
+                - .terminal: ...  -->
     <TryToQuit             ="vtm.desktop.Shutdown('try');"/>      <!-- Shut down the desktop server if no applications are running. -->
     <RunApplication        ="vtm.desktop.Run();"/>                <!-- Run default application. -->
     <RunInfoPage           ="vtm.desktop.Run({ title='Info-page', hidden=true, label='Info', type='info' });"/>  <!-- Run Info-page. -->
     <FocusPrevWindow       ="vtm.desktop.FocusNextWindow(-1);"/>  <!-- Switch focus to the prev window. -->
     <FocusNextWindow       ="vtm.desktop.FocusNextWindow( 1);"/>  <!-- Switch focus to the next window. -->
+    <FocusTaskBar          ="if (vtm.gear.Focus(vtm.taskbar)) then vtm.gear.Focus(vtm.desktop) end;"/>  <!-- Set input focus to the taskbar or return focus back to the desktop. -->
 
     <AlwaysOnTopApplet     ="vtm.applet.ZOrder(vtm.applet.ZOrder()==1 and 0 or 1);"/>  <!-- Request to toggle z-order window attribute. -1: backmost; 0: plain; 1: topmost. -->
     <CloseApplet           ="vtm.applet.Close();"/>            <!-- Request to Close window. -->

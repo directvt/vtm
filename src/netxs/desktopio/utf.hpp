@@ -2280,6 +2280,19 @@ namespace netxs::utf
         *iter++ = quote;
         dest.resize(iter - dest.begin());
     }
+    auto dequote(view utf8)
+    {
+        if (utf8.size() > 1)
+        {
+            auto c = utf8.front();
+            if ((c == '\'' || c == '\"') && c == utf8.back())
+            {
+                utf8 = utf8.substr(1, utf8.size() - 2);
+                return unescape(utf8);
+            }
+        }
+        return text{ utf8 };
+    }
     // utf: Trim utf8 up to and including stopstr, and return the trims.
     template<bool Lazy = true>
     auto take_front_including(view& utf8, view stopstr)
@@ -2408,7 +2421,7 @@ namespace netxs::utf
     {
         return take_front<faux>(utf8, delims);
     }
-    auto dequote(qiew utf8)
+    auto remove_quotes(view utf8)
     {
         if (utf8.size() > 2)
         {
