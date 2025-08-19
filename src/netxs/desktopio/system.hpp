@@ -2024,10 +2024,11 @@ namespace netxs::os
         static const auto etc = []
         {
             #if defined(_WIN32)
-                return fs::path{ os::env::get("PROGRAMDATA") };
+                auto value = os::env::get("PROGRAMDATA");
             #else
-                return fs::path{ "/etc/" };
+                auto value = "/etc/"s;
             #endif
+            return fs::path{ utf::dequote(value) };
         }();
         // os::path: User home path.
         static const auto home = []
@@ -2044,17 +2045,19 @@ namespace netxs::os
                     if (buffer.back() == '\0') buffer.pop_back(); // Pop terminating null.
                 }
                 else os::fail("Can't detect user profile path");
-                return fs::path{ utf::to_utf(buffer) };
+                auto path_value = utf::to_utf(buffer);
             #else
-                return fs::path{ os::env::get("HOME") };
+                auto path_value = os::env::get("HOME");
             #endif
+            return fs::path{ utf::dequote(path_value) };
         }();
         auto expand(text path)
         {
             if (path.starts_with("$"))
             {
                 auto temp = path.substr(1);
-                path = os::env::get(temp);
+                auto value = os::env::get(temp);
+                path = utf::dequote(value);
                 log(prompt::pads, temp, " = ", path);
             }
             auto crop = path.starts_with("~/")    ? os::path::home / path.substr(2 /* trim `~` */)
@@ -2885,7 +2888,7 @@ namespace netxs::os
 
             #endif
         }
-        auto getpaths(auto& file, auto& dest, [[maybe_unused]] bool check_arch = true)
+        auto getpaths(fs::path& file, fs::path& dest, [[maybe_unused]] bool check_arch = true)
         {
             if (!os::process::elevated)
             {
@@ -2899,7 +2902,8 @@ namespace netxs::os
             #endif
             else
             {
-                file = fs::path{ os::process::binary() };
+                auto path_str = os::process::binary();
+                file = fs::path{ utf::dequote(path_str) };
                 if (file.empty())
                 {
                     log("Failed to get the process image path.");

@@ -2408,7 +2408,7 @@ namespace netxs::utf
     {
         return take_front<faux>(utf8, delims);
     }
-    auto dequote(qiew utf8)
+    auto dequote(view utf8)
     {
         if (utf8.size() > 2)
         {

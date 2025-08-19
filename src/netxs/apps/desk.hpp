@@ -70,6 +70,8 @@ namespace netxs::app::desk
             auto focused_color   = skin::globals().focused;
             auto danger_color    = skin::globals().danger;
             auto active_color    = skin::globals().active;
+            auto highlight_color = cell{ skin::globals().winfocus };
+            auto c3 = highlight_color;
             auto cE = active_color;
             auto c1 = danger_color;
             auto cF = focused_color;
@@ -157,6 +159,9 @@ namespace netxs::app::desk
                 });
             auto app_label = item_area->attach(slot::_1, ui::item::ctor(ansi::add(utf8).mgl(0).wrp(wrap::off).jet(bias::left)))
                 ->active()
+                ->plugin<pro::focus>(pro::focus::mode::focused)
+                ->plugin<pro::keybd>()
+                ->shader(c3, e2::form::state::focus::count)
                 ->setpad({ tall + 1, 0, tall, tall })
                 ->template plugin<pro::notes>(skin::globals().NsTaskbarAppsApp_tooltip)
                 ->flexible()
