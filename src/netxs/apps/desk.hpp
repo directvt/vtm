@@ -565,7 +565,7 @@ namespace netxs::app::desk
                 ->invoke([&](auto& boss)
                 {
                     //auto& luafx = boss.bell::indexer.luafx;
-                    auto& bindings = boss.base::property<input::bindings::vector>("taskbar.bindings");
+                    auto& bindings = boss.base::template property<input::bindings::vector>("taskbar.bindings"); // Apple clang requires template.
                     auto applet_context = config.settings::push_context("/config/events/taskbar/");
                     auto script_list = config.settings::take_ptr_list_for_name("script");
                     bindings = input::bindings::load(config, script_list);
