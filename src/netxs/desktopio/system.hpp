@@ -2026,9 +2026,9 @@ namespace netxs::os
             #if defined(_WIN32)
                 auto value = os::env::get("PROGRAMDATA");
             #else
-                auto value = "/etc/"s;
+                auto value = "/etc/";
             #endif
-            return fs::path{ utf::dequote(value) };
+            return fs::path{ utf::remove_quotes(value) };
         }();
         // os::path: User home path.
         static const auto home = []
@@ -2049,15 +2049,14 @@ namespace netxs::os
             #else
                 auto path_value = os::env::get("HOME");
             #endif
-            return fs::path{ utf::dequote(path_value) };
+            return fs::path{ utf::remove_quotes(path_value) };
         }();
-        auto expand(text path)
+        auto expand(text path) // Non-quoted path.
         {
             if (path.starts_with("$"))
             {
                 auto temp = path.substr(1);
-                auto value = os::env::get(temp);
-                path = utf::dequote(value);
+                path = utf::remove_quotes(os::env::get(temp));
                 log(prompt::pads, temp, " = ", path);
             }
             auto crop = path.starts_with("~/")    ? os::path::home / path.substr(2 /* trim `~` */)
@@ -2630,7 +2629,8 @@ namespace netxs::os
             auto c = result.front();
             if (c != '\"' && c != '\'' && result.find(' ') != text::npos)
             {
-                result = '\"' + result + '\"';
+                auto utf8 = std::exchange(result, ""s);
+                utf::quote(utf8, result, '\"');
             }
             return result;
         }

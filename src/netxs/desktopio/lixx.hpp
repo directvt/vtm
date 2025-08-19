@@ -4918,7 +4918,7 @@ namespace netxs::lixx // li++, libinput++.
                     {
                         auto prop_name  = l.substr(0, p);
                         auto prop_value = l.substr(p + 1);
-                        proc(utf::to_upper(prop_name), utf::dequote(prop_value));
+                        proc(utf::to_upper(prop_name), utf::remove_quotes(prop_value));
                     }
                 }
                 return true;

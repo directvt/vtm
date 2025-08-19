@@ -676,7 +676,7 @@ namespace netxs::app::shared
                         auto buff = text((size_t)size, '\0');
                         file.seekg(0, std::ios::beg);
                         file.read(buff.data(), size);
-                        config_inst.load(buff, config_path_str);
+                        config_inst.load(buff, config_path.string());
                         log("%%Loaded %count% bytes", prompt::pads, size);
                         return true;
                     }

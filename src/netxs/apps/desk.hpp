@@ -159,8 +159,8 @@ namespace netxs::app::desk
                 });
             auto app_label = item_area->attach(slot::_1, ui::item::ctor(ansi::add(utf8).mgl(0).wrp(wrap::off).jet(bias::left)))
                 ->active()
-                ->plugin<pro::focus>(pro::focus::mode::focused)
-                ->plugin<pro::keybd>()
+                ->template plugin<pro::focus>(pro::focus::mode::focused)
+                ->template plugin<pro::keybd>()
                 ->shader(c3, e2::form::state::focus::count)
                 ->setpad({ tall + 1, 0, tall, tall })
                 ->template plugin<pro::notes>(skin::globals().NsTaskbarAppsApp_tooltip)
