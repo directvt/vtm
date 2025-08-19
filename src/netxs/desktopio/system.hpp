@@ -5633,13 +5633,13 @@ namespace netxs::os
                     }
                 };
 
-                auto parser = [&, input = text{}, pflag = faux](view accum) mutable
+                auto parser = [&, input = text{}, pasting_not_complete = faux](view accum) mutable
                 {
                     input += accum;
                     auto cache = qiew{ input };
                     while (cache.size())
                     {
-                        if (pflag)
+                        if (pasting_not_complete)
                         {
                             auto pos = cache.find(ansi::paste_end);
                             if (pos != text::npos)
@@ -5647,7 +5647,7 @@ namespace netxs::os
                                 p_txtdata += cache.substr(0, pos);
                                 cache.remove_prefix(pos + ansi::paste_end.size());
                                 paste_data(p_txtdata);
-                                pflag = faux;
+                                pasting_not_complete = faux;
                                 p_txtdata.clear();
                                 continue;
                             }
@@ -5856,7 +5856,7 @@ namespace netxs::os
                                     p_txtdata = cache.substr(0, pos);
                                     if (pos != text::npos) cache.remove_prefix(pos);
                                     else                   cache.clear();
-                                    pflag = true;
+                                    pasting_not_complete = true;
                                     break;
                                 }
                             }
