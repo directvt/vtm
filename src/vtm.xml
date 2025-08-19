@@ -251,7 +251,7 @@ R"==(
 )=="
 #else
 R"==(
-            <script=FocusTaskBar           on="Alt+Shift+Z"                      />
+            <script=FocusTaskBar           on="Alt+Z"                            />
 )=="
 #endif
 R"==(

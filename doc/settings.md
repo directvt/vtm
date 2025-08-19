@@ -1019,7 +1019,7 @@ Notes
             <script=ResetWheelAccumulator  on="preview:-Ctrl"                    />
             <script=ToggleDebugOverlay     on="Space-Backspace | Backspace-Space"/>
             <script=FocusTaskBar           on="Esc+F1"                           />
-            <script=FocusTaskBar           on="Alt+Shift+Z"                      />
+            <script=FocusTaskBar           on="Alt+Z"                            />
         </gate>
         <taskbar script*>  <!-- Taskbar bindings. -->
             <script=FocusTaskBar on="-Esc"/>
