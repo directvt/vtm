@@ -4097,14 +4097,23 @@ namespace netxs::os
                         auto reading_thread = std::thread{ [&]
                         {
                             auto buffer = std::array<char, os::pipebuf>{};
-                            auto answer = io::recv(os::stdin_fd, buffer);
-                            if (answer.find("10060") != text::npos) // Check the answer for "\x1b[?1;2;10060c".
+                            auto answer = text{};
+                            while (true) // WSL shreds stdinput into 16 byte chunks, so we should get all chunks.
                             {
-                                vtm_env = "1";
+                                auto crop = io::recv(os::stdin_fd, buffer);
+                                answer += crop;
+                                if (!crop || crop.find('c') != text::npos) break; // Looking for the sequence terminator 'c'.
                             }
-                            else if (answer && answer.back() == 'u' && colorterm == "kmscon") // Detect an old kmscon which is limited to 256 colors (It replies: "60;1;6;9;15cu").
+                            if (answer.size())
                             {
-                                dtvt::vtmode |= ui::console::vt256;
+                                if (answer.find("10060") != text::npos) // Check the answer for "\x1b[?1;2;10060c".
+                                {
+                                    vtm_env = "1";
+                                }
+                                else if (answer.back() == 'u' && colorterm == "kmscon") // Detect an old kmscon which is limited to 256 colors (It replies: "60;1;6;9;15cu").
+                                {
+                                    dtvt::vtmode |= ui::console::vt256;
+                                }
                             }
                             lock.notify();
                         }};
