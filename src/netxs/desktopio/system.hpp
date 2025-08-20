@@ -5276,9 +5276,9 @@ namespace netxs::os
                                 {
                                     if (s.starts_with(style_cmd)) t = type::style; // "\033[33:"...
                                 }
-                                else if ((c == 'I' || c == 'O') && len == 3) // \033[1;3I == Alt+Tab
+                                else if (c == 'I' || c == 'O') // \033[1;3I == Alt+Tab
                                 {
-                                    t = type::focus;
+                                    if (len == 3) t = type::focus;
                                 }
                                 else if (c == '[') // ESC [ [ byte
                                 {
@@ -5633,13 +5633,13 @@ namespace netxs::os
                     }
                 };
 
-                auto parser = [&, input = text{}, pasting_not_complete = faux](view accum) mutable
+                auto parser = [&, input = text{}, paste_not_complete = faux](view accum) mutable
                 {
                     input += accum;
                     auto cache = qiew{ input };
                     while (cache.size())
                     {
-                        if (pasting_not_complete)
+                        if (paste_not_complete)
                         {
                             auto pos = cache.find(ansi::paste_end);
                             if (pos != text::npos)
@@ -5647,7 +5647,7 @@ namespace netxs::os
                                 p_txtdata += cache.substr(0, pos);
                                 cache.remove_prefix(pos + ansi::paste_end.size());
                                 paste_data(p_txtdata);
-                                pasting_not_complete = faux;
+                                paste_not_complete = faux;
                                 p_txtdata.clear();
                                 continue;
                             }
@@ -5677,7 +5677,7 @@ namespace netxs::os
                         {
                             auto [t, s, incomplete] = take_sequence(cache);
                             if (incomplete) break;
-                            else if (t == type::mousevtim) // ESC _ payload ST
+                            else if (t == type::mousevtim) // vt-input-mode report:  ESC _ payload ST
                             {
                                 utf::split<true>(s, ';', [&](qiew frag)
                                 {
@@ -5755,9 +5755,11 @@ namespace netxs::os
                                     mouse(m);
                                 }
                             }
-                            else if (t == type::mouse) // ESC [ < ctrl ; xpos ; ypos M
+                            else if (t == type::mouse) // SGR mouse report:  ESC [ < ctrl ; xpos ; ypos M
                             {
+                                auto ispressed = s.pop_back() == 'M';
                                 auto tmp = s.substr(3); // Pop "\033[<"
+                                //todo use utf::split(tmp, ';', [&](auto frag){...});
                                 auto ctrl = utf::to_int(tmp);
                                 if (tmp.empty() || !ctrl) continue;
                                 tmp.pop_front(); // Pop ;
@@ -5768,7 +5770,6 @@ namespace netxs::os
                                 if (!pos_y) continue;
 
                                 auto timecode = datetime::now();
-                                auto ispressed = s.back() == 'M';
                                 auto clamp = [](auto a){ return std::clamp(a, si32min / 2, si32max / 2); };
                                 auto x = clamp(pos_x.value() - 1);
                                 auto y = clamp(pos_y.value() - 1);
@@ -5827,12 +5828,12 @@ namespace netxs::os
                                 m.timecod = timecode;
                                 mouse(m);
                             }
-                            else if (t == type::focus)
+                            else if (t == type::focus) // Focus report:  ESC [ I/O
                             {
                                 auto state = s.back() == 'I';
                                 focus(state);
                             }
-                            else if (t == type::style)
+                            else if (t == type::style) // Line style report:  ESC [ std::to_string(ansi::ccc_stl) : n p
                             {
                                 auto tmp = s.substr(style_cmd.size());
                                 if (auto format = utf::to_int(tmp))
@@ -5856,7 +5857,7 @@ namespace netxs::os
                                     p_txtdata = cache.substr(0, pos);
                                     if (pos != text::npos) cache.remove_prefix(pos);
                                     else                   cache.clear();
-                                    pasting_not_complete = true;
+                                    paste_not_complete = true;
                                     break;
                                 }
                             }
