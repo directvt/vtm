@@ -64,7 +64,7 @@ int main(int argc, char* argv[])
         {
             rungui = true;
         }
-        else if (getopt.match("-r", "--", "--run", /*UD*/"--runapp"))
+        else if (getopt.match("-r", "--", "--run"))
         {
             whoami = type::runapp;
             params = getopt.rest();
@@ -81,7 +81,7 @@ int main(int argc, char* argv[])
         {
             whoami = type::logmon;
         }
-        else if (getopt.match("-p", "--pin", /*UD*/"--pipe"))
+        else if (getopt.match("-p", "--pin"))
         {
             vtpipe = getopt.next();
             if (vtpipe.empty())
