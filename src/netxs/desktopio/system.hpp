@@ -4378,6 +4378,11 @@ namespace netxs::os
             {
                 if (stdwrite.joinable())
                 {
+                    //if (attached.exchange(faux)) // Detach child process and forget.
+                    //{
+                    //    writesyn.notify_one(); // Interrupt writing thread.
+                    //    termlink->abort(termlink->stdinput); // Interrupt reading thread.
+                    //}
                     writesyn.notify_one();
                     if (io_log) log(prompt::vtty, "Writing thread joining", ' ', utf::to_hex_0x(stdwrite.get_id()));
                     stdwrite.join();
