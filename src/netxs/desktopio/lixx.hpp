@@ -678,11 +678,6 @@ namespace netxs::lixx // li++, libinput++.
         LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_OUT = 0,
         LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_IN  = 1,
     };
-    enum libinput_button_state
-    {
-        LIBINPUT_BUTTON_STATE_RELEASED = 0,
-        LIBINPUT_BUTTON_STATE_PRESSED  = 1
-    };
     enum libinput_key_state
     {
         LIBINPUT_KEY_STATE_RELEASED = 0,
@@ -845,6 +840,8 @@ namespace netxs::lixx // li++, libinput++.
     constexpr ui16 evdev_usage_code(ui32 usage)                { return (ui16)usage & 0xFFFF; }
     struct evdev // The enum doesn't need to contain all event codes, only the ones we use in libinput - add to here as required.      * The order doesn't matter either since each enum value is just the type | code value anyway, keep it in somewhat logical groups where possible.
     {
+        static constexpr auto pressed             = 1;
+        static constexpr auto released            = 0;
         static constexpr auto syn_report          = evdev_usage_from_code(EV_SYN, SYN_REPORT);
         static constexpr auto key_reserved        = evdev_usage_from_code(EV_KEY, KEY_RESERVED);
         static constexpr auto key_esc             = evdev_usage_from_code(EV_KEY, KEY_ESC);
@@ -2891,7 +2888,7 @@ namespace netxs::lixx // li++, libinput++.
         virtual fp64_coor             libinput_event_pointer_get_absolute_xy_transformed(fp64_coor /*size*/)         { if constexpr (debugmode) bad_event_type(__func__); return {}; }
         virtual fp64_coor             libinput_event_pointer_get_ds()                                                { if constexpr (debugmode) bad_event_type(__func__); return {}; }
         virtual ui32                  libinput_event_pointer_get_button()                                            { if constexpr (debugmode) bad_event_type(__func__); return {}; }
-        virtual libinput_button_state libinput_event_pointer_get_button_state()                                      { if constexpr (debugmode) bad_event_type(__func__); return {}; }
+        virtual si32                  libinput_event_pointer_get_button_state()                                      { if constexpr (debugmode) bad_event_type(__func__); return {}; }
         virtual si32                  libinput_event_pointer_has_axis(libinput_pointer_axis /*axis*/)                { if constexpr (debugmode) bad_event_type(__func__); return {}; }
         virtual fp64_coor             libinput_event_pointer_get_scroll_value()                                      { if constexpr (debugmode) bad_event_type(__func__); return {}; }
         virtual fp64_coor             libinput_event_pointer_get_scroll_value_v120()                                 { if constexpr (debugmode) bad_event_type(__func__); return {}; }
@@ -2973,7 +2970,7 @@ namespace netxs::lixx // li++, libinput++.
         si32_coor                    v120;
         ui32                         button;
         ui32                         seat_button_count;
-        libinput_button_state        state;
+        si32                         state;
         libinput_pointer_axis_source source;
         ui32                         active_axes;
         abs_info_t const*            absinfo_x;
@@ -2985,12 +2982,12 @@ namespace netxs::lixx // li++, libinput++.
                                  absinfo_y->absinfo_scale_axis(absolute.y, size.y) };
             return xy;
         }
-        virtual fp64_coor             libinput_event_pointer_get_ds()                             override { return delta; }
-        virtual ui32                  libinput_event_pointer_get_button()                         override { return button; }
-        virtual libinput_button_state libinput_event_pointer_get_button_state()                   override { return state; }
-        virtual si32                  libinput_event_pointer_has_axis(libinput_pointer_axis axis) override { return !!(active_axes & (1ul << axis)); }
-        virtual fp64_coor             libinput_event_pointer_get_scroll_value()                   override { return delta; }
-        virtual fp64_coor             libinput_event_pointer_get_scroll_value_v120()              override { return v120; }
+        virtual fp64_coor libinput_event_pointer_get_ds()                             override { return delta; }
+        virtual ui32      libinput_event_pointer_get_button()                         override { return button; }
+        virtual si32      libinput_event_pointer_get_button_state()                   override { return state; }
+        virtual si32      libinput_event_pointer_has_axis(libinput_pointer_axis axis) override { return !!(active_axes & (1ul << axis)); }
+        virtual fp64_coor libinput_event_pointer_get_scroll_value()                   override { return delta; }
+        virtual fp64_coor libinput_event_pointer_get_scroll_value_v120()              override { return v120; }
     };
     struct libinput_event_gesture : libinput_event
     {
@@ -3042,8 +3039,8 @@ namespace netxs::lixx // li++, libinput++.
     {
         struct button_t
         {
-            ui32                  number;
-            libinput_button_state state;
+            ui32 number;
+            si32 state;
         };
         struct key_t
         {
@@ -3092,7 +3089,7 @@ namespace netxs::lixx // li++, libinput++.
     struct libinput_event_tablet_tool : libinput_event
     {
         ui32                                 button;
-        libinput_button_state                state;
+        si32                                 state;
         ui32                                 seat_button_count;
         tablet_axes                          axes;
         tablet_axes_bitset                   changed_axes_bits;
@@ -5988,12 +5985,12 @@ namespace netxs::lixx // li++, libinput++.
             }
             return {};
         }
-        ui32 update_seat_button_count(ui32 button_code, libinput_button_state state)
+        ui32 update_seat_button_count(ui32 button_code, si32 state)
         {
             assert(button_code <= KEY_MAX);
             auto& press_count = seat_button_count[button_code];
-                 if (state == LIBINPUT_BUTTON_STATE_PRESSED) press_count++;
-            else if (press_count)                            press_count--; // We might not have received the first PRESSED event.
+                 if (state == evdev::pressed)  press_count++;
+            else if (press_count)              press_count--; // We might not have received the first PRESSED event.
             return press_count;
         }
         ui32 update_seat_key_count(ui32 keycode, libinput_key_state state)
@@ -6610,11 +6607,11 @@ namespace netxs::lixx // li++, libinput++.
                         switch (event)
                         {
                             case MIDDLEBUTTON_EVENT_L_DOWN: middlebutton_state_error(event); break;
-                            case MIDDLEBUTTON_EVENT_R_DOWN: evdev_pointer_notify_button(stamp, evdev::btn_middle, LIBINPUT_BUTTON_STATE_PRESSED); middlebutton_set_state(MIDDLEBUTTON_MIDDLE, stamp); break;
-                            case MIDDLEBUTTON_EVENT_OTHER:  evdev_pointer_notify_button(stamp, evdev::btn_left, LIBINPUT_BUTTON_STATE_PRESSED); middlebutton_set_state(MIDDLEBUTTON_PASSTHROUGH, stamp); return 0;
+                            case MIDDLEBUTTON_EVENT_R_DOWN: evdev_pointer_notify_button(stamp, evdev::btn_middle, evdev::pressed); middlebutton_set_state(MIDDLEBUTTON_MIDDLE, stamp); break;
+                            case MIDDLEBUTTON_EVENT_OTHER:  evdev_pointer_notify_button(stamp, evdev::btn_left, evdev::pressed); middlebutton_set_state(MIDDLEBUTTON_PASSTHROUGH, stamp); return 0;
                             case MIDDLEBUTTON_EVENT_R_UP:   middlebutton_state_error(event); break;
-                            case MIDDLEBUTTON_EVENT_L_UP:   evdev_pointer_notify_button(middlebutton.first_event_time, evdev::btn_left, LIBINPUT_BUTTON_STATE_PRESSED); evdev_pointer_notify_button(stamp, evdev::btn_left, LIBINPUT_BUTTON_STATE_RELEASED); middlebutton_set_state(MIDDLEBUTTON_IDLE, stamp); break;
-                            case MIDDLEBUTTON_EVENT_TIMEOUT:evdev_pointer_notify_button(middlebutton.first_event_time, evdev::btn_left, LIBINPUT_BUTTON_STATE_PRESSED); middlebutton_set_state(MIDDLEBUTTON_PASSTHROUGH, stamp); break;
+                            case MIDDLEBUTTON_EVENT_L_UP:   evdev_pointer_notify_button(middlebutton.first_event_time, evdev::btn_left, evdev::pressed); evdev_pointer_notify_button(stamp, evdev::btn_left, evdev::released); middlebutton_set_state(MIDDLEBUTTON_IDLE, stamp); break;
+                            case MIDDLEBUTTON_EVENT_TIMEOUT:evdev_pointer_notify_button(middlebutton.first_event_time, evdev::btn_left, evdev::pressed); middlebutton_set_state(MIDDLEBUTTON_PASSTHROUGH, stamp); break;
                             case MIDDLEBUTTON_EVENT_ALL_UP: middlebutton_state_error(event); break;
                         }
                         return 1;
@@ -6623,12 +6620,12 @@ namespace netxs::lixx // li++, libinput++.
                     {
                         switch (event)
                         {
-                            case MIDDLEBUTTON_EVENT_L_DOWN:  evdev_pointer_notify_button(stamp, evdev::btn_middle, LIBINPUT_BUTTON_STATE_PRESSED); middlebutton_set_state(MIDDLEBUTTON_MIDDLE, stamp); break;
+                            case MIDDLEBUTTON_EVENT_L_DOWN:  evdev_pointer_notify_button(stamp, evdev::btn_middle, evdev::pressed); middlebutton_set_state(MIDDLEBUTTON_MIDDLE, stamp); break;
                             case MIDDLEBUTTON_EVENT_R_DOWN:  middlebutton_state_error(event); break;
-                            case MIDDLEBUTTON_EVENT_OTHER:   evdev_pointer_notify_button(middlebutton.first_event_time, evdev::btn_right, LIBINPUT_BUTTON_STATE_PRESSED); middlebutton_set_state(MIDDLEBUTTON_PASSTHROUGH, stamp); return 0;
-                            case MIDDLEBUTTON_EVENT_R_UP:    evdev_pointer_notify_button(middlebutton.first_event_time, evdev::btn_right, LIBINPUT_BUTTON_STATE_PRESSED); evdev_pointer_notify_button(stamp, evdev::btn_right, LIBINPUT_BUTTON_STATE_RELEASED); middlebutton_set_state(MIDDLEBUTTON_IDLE, stamp); break;
+                            case MIDDLEBUTTON_EVENT_OTHER:   evdev_pointer_notify_button(middlebutton.first_event_time, evdev::btn_right, evdev::pressed); middlebutton_set_state(MIDDLEBUTTON_PASSTHROUGH, stamp); return 0;
+                            case MIDDLEBUTTON_EVENT_R_UP:    evdev_pointer_notify_button(middlebutton.first_event_time, evdev::btn_right, evdev::pressed); evdev_pointer_notify_button(stamp, evdev::btn_right, evdev::released); middlebutton_set_state(MIDDLEBUTTON_IDLE, stamp); break;
                             case MIDDLEBUTTON_EVENT_L_UP:    middlebutton_state_error(event); break;
-                            case MIDDLEBUTTON_EVENT_TIMEOUT: evdev_pointer_notify_button(middlebutton.first_event_time, evdev::btn_right, LIBINPUT_BUTTON_STATE_PRESSED); middlebutton_set_state(MIDDLEBUTTON_PASSTHROUGH, stamp); break;
+                            case MIDDLEBUTTON_EVENT_TIMEOUT: evdev_pointer_notify_button(middlebutton.first_event_time, evdev::btn_right, evdev::pressed); middlebutton_set_state(MIDDLEBUTTON_PASSTHROUGH, stamp); break;
                             case MIDDLEBUTTON_EVENT_ALL_UP:  middlebutton_state_error(event); break;
                         }
                         return 1;
@@ -6639,9 +6636,9 @@ namespace netxs::lixx // li++, libinput++.
                         {
                             case MIDDLEBUTTON_EVENT_L_DOWN:
                             case MIDDLEBUTTON_EVENT_R_DOWN:  middlebutton_state_error(event); break;
-                            case MIDDLEBUTTON_EVENT_OTHER:   evdev_pointer_notify_button(stamp, evdev::btn_middle, LIBINPUT_BUTTON_STATE_RELEASED); middlebutton_set_state(MIDDLEBUTTON_IGNORE_LR, stamp);        return 0;
-                            case MIDDLEBUTTON_EVENT_R_UP:    evdev_pointer_notify_button(stamp, evdev::btn_middle, LIBINPUT_BUTTON_STATE_RELEASED); middlebutton_set_state(MIDDLEBUTTON_LEFT_UP_PENDING, stamp);  break;
-                            case MIDDLEBUTTON_EVENT_L_UP:    evdev_pointer_notify_button(stamp, evdev::btn_middle, LIBINPUT_BUTTON_STATE_RELEASED); middlebutton_set_state(MIDDLEBUTTON_RIGHT_UP_PENDING, stamp); break;
+                            case MIDDLEBUTTON_EVENT_OTHER:   evdev_pointer_notify_button(stamp, evdev::btn_middle, evdev::released); middlebutton_set_state(MIDDLEBUTTON_IGNORE_LR, stamp);        return 0;
+                            case MIDDLEBUTTON_EVENT_R_UP:    evdev_pointer_notify_button(stamp, evdev::btn_middle, evdev::released); middlebutton_set_state(MIDDLEBUTTON_LEFT_UP_PENDING, stamp);  break;
+                            case MIDDLEBUTTON_EVENT_L_UP:    evdev_pointer_notify_button(stamp, evdev::btn_middle, evdev::released); middlebutton_set_state(MIDDLEBUTTON_RIGHT_UP_PENDING, stamp); break;
                             case MIDDLEBUTTON_EVENT_TIMEOUT: middlebutton_state_error(event); break;
                             case MIDDLEBUTTON_EVENT_ALL_UP:  middlebutton_state_error(event); break;
                         }
@@ -6658,7 +6655,7 @@ namespace netxs::lixx // li++, libinput++.
                             case MIDDLEBUTTON_EVENT_ALL_UP:  middlebutton_state_error(event); break;
                             case MIDDLEBUTTON_EVENT_L_DOWN:  middlebutton_state_error(event); break;
                             case MIDDLEBUTTON_EVENT_R_DOWN:
-                                evdev_pointer_notify_button(stamp, evdev::btn_middle, LIBINPUT_BUTTON_STATE_PRESSED);
+                                evdev_pointer_notify_button(stamp, evdev::btn_middle, evdev::pressed);
                                 middlebutton_set_state(MIDDLEBUTTON_MIDDLE, stamp);
                                 break;
                         }
@@ -6668,7 +6665,7 @@ namespace netxs::lixx // li++, libinput++.
                     {
                         switch (event)
                         {
-                            case MIDDLEBUTTON_EVENT_L_DOWN:  evdev_pointer_notify_button(stamp, evdev::btn_middle, LIBINPUT_BUTTON_STATE_PRESSED); middlebutton_set_state(MIDDLEBUTTON_MIDDLE, stamp); break;
+                            case MIDDLEBUTTON_EVENT_L_DOWN:  evdev_pointer_notify_button(stamp, evdev::btn_middle, evdev::pressed); middlebutton_set_state(MIDDLEBUTTON_MIDDLE, stamp); break;
                             case MIDDLEBUTTON_EVENT_R_DOWN:  middlebutton_state_error(event); break;
                             case MIDDLEBUTTON_EVENT_OTHER:   middlebutton_set_state(MIDDLEBUTTON_IGNORE_R, stamp); return 0;
                             case MIDDLEBUTTON_EVENT_R_UP:    middlebutton_set_state(MIDDLEBUTTON_IDLE, stamp); break;
@@ -6761,10 +6758,10 @@ namespace netxs::lixx // li++, libinput++.
                     if (middlebutton.button_mask != 0) return;
                     middlebutton.enabled = middlebutton.want_enabled;
                 }
-            bool evdev_middlebutton_filter_button(time stamp, ui32 button, libinput_button_state state)
+            bool evdev_middlebutton_filter_button(time stamp, ui32 button, si32 state)
             {
                 auto event = evdev_middlebutton_event{};
-                auto is_press = state == LIBINPUT_BUTTON_STATE_PRESSED;
+                auto is_press = state == evdev::pressed;
                 auto rc = 0;
                 auto btnbit = (button - evdev::btn_left);
                 auto old_mask = 0u;
@@ -6801,7 +6798,7 @@ namespace netxs::lixx // li++, libinput++.
                 }
                 return rc;
             }
-        void evdev_pointer_notify_physical_button(time stamp, ui32 button, libinput_button_state state)
+        void evdev_pointer_notify_physical_button(time stamp, ui32 button, si32 state)
         {
             if (!evdev_middlebutton_filter_button(stamp, button, state))
             {
@@ -6862,8 +6859,8 @@ namespace netxs::lixx // li++, libinput++.
                         case BUTTONSCROLL_READY:
                             log("btnscroll: cancel");
                             // If the button is released quickly enough or without scroll events, emit the button press/release events.
-                            evdev_pointer_post_button(scroll.button_down_time, scroll.button, LIBINPUT_BUTTON_STATE_PRESSED);
-                            evdev_pointer_post_button(stamp, scroll.button, LIBINPUT_BUTTON_STATE_RELEASED);
+                            evdev_pointer_post_button(scroll.button_down_time, scroll.button, evdev::pressed);
+                            evdev_pointer_post_button(stamp, scroll.button, evdev::released);
                             break;
                         case BUTTONSCROLL_SCROLLING:
                             log("btnscroll: up");
@@ -6873,7 +6870,7 @@ namespace netxs::lixx // li++, libinput++.
                     scroll.button_scroll_state = BUTTONSCROLL_IDLE;
                 }
             }
-        void evdev_pointer_notify_button(time stamp, ui32 button, libinput_button_state state)
+        void evdev_pointer_notify_button(time stamp, ui32 button, si32 state)
         {
             if (scroll.method == LIBINPUT_CONFIG_SCROLL_ON_BUTTON_DOWN && button == scroll.button)
             {
@@ -6884,7 +6881,7 @@ namespace netxs::lixx // li++, libinput++.
                 evdev_pointer_post_button(stamp, button, state);
             }
         }
-            void pointer_notify_button(time stamp, ui32 button, libinput_button_state state)
+            void pointer_notify_button(time stamp, ui32 button, si32 state)
             {
                 if (device_has_cap(LIBINPUT_DEVICE_CAP_POINTER))
                 {
@@ -6896,13 +6893,13 @@ namespace netxs::lixx // li++, libinput++.
                     post_device_event(stamp, LIBINPUT_EVENT_POINTER_BUTTON, button_event);
                 }
             }
-        void evdev_pointer_post_button(time stamp, ui32 button, libinput_button_state state)
+        void evdev_pointer_post_button(time stamp, ui32 button, si32 state)
         {
             auto down_count = evdev_update_key_down_count(button, state);
-            if ((state == LIBINPUT_BUTTON_STATE_PRESSED && down_count == 1) || (state == LIBINPUT_BUTTON_STATE_RELEASED && down_count == 0))
+            if ((state == evdev::pressed && down_count == 1) || (state == evdev::released && down_count == 0))
             {
                 pointer_notify_button(stamp, evdev_usage_code(button), state);
-                if (state == LIBINPUT_BUTTON_STATE_RELEASED)
+                if (state == evdev::released)
                 {
                     if (dev_left_handed.change_to_enabled) dev_left_handed.change_to_enabled(This());
                     if (scroll.change_scroll_method) scroll.change_scroll_method(This());
@@ -7494,7 +7491,7 @@ namespace netxs::lixx // li++, libinput++.
             axis_event.changed_axes_bits = changed_axes;
             post_device_event(now, LIBINPUT_EVENT_TABLET_TOOL_AXIS, axis_event);
         }
-        void tablet_notify_button(time now, libinput_tablet_tool_sptr tool, libinput_tablet_tool_tip_state tip_state, tablet_axes const& axes, ui32 button, libinput_button_state state, abs_info_t const* x, abs_info_t const* y)
+        void tablet_notify_button(time now, libinput_tablet_tool_sptr tool, libinput_tablet_tool_tip_state tip_state, tablet_axes const& axes, ui32 button, si32 state, abs_info_t const* x, abs_info_t const* y)
         {
             auto& button_event = li.libinput_emplace_event<libinput_event_tablet_tool>();
             button_event.button            = button;
@@ -10708,7 +10705,7 @@ namespace netxs::lixx // li++, libinput++.
                                                         case GESTURE_EVENT_RESET: log("log_gesture_bug: tp", (ui32)event); break;
                                                         case GESTURE_EVENT_CANCEL:
                                                             // If the gesture is cancelled we release the button immediately.
-                                                            tp.evdev_pointer_notify_button(tp.gesture.drag_3fg_release_time, evdev::btn_left, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                            tp.evdev_pointer_notify_button(tp.gesture.drag_3fg_release_time, evdev::btn_left, evdev::released);
                                                             tp.gesture.state = GESTURE_STATE_NONE;
                                                             break;
                                                         case GESTURE_EVENT_END:
@@ -10719,7 +10716,7 @@ namespace netxs::lixx // li++, libinput++.
                                                         case GESTURE_EVENT_FINGER_SWITCH_TIMEOUT:
                                                             if (tp.gesture.finger_count_pending < 2)
                                                             {
-                                                                tp.evdev_pointer_notify_button(tp.gesture.drag_3fg_release_time, evdev::btn_left, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                                tp.evdev_pointer_notify_button(tp.gesture.drag_3fg_release_time, evdev::btn_left, evdev::released);
                                                                 tp.gesture.state = GESTURE_STATE_NONE;
                                                             }
                                                             break;
@@ -10750,7 +10747,7 @@ namespace netxs::lixx // li++, libinput++.
                                                             tp_gesture_stop_3fg_drag();
                                                             tp.gesture.drag_3fg_timer->cancel();
                                                             tp.gesture.finger_count_switch_timer->cancel();
-                                                            tp.evdev_pointer_notify_button(tp.gesture.drag_3fg_release_time, evdev::btn_left, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                            tp.evdev_pointer_notify_button(tp.gesture.drag_3fg_release_time, evdev::btn_left, evdev::released);
                                                             tp.gesture.state = GESTURE_STATE_NONE;
                                                             break;
                                                         case GESTURE_EVENT_FINGER_SWITCH_TIMEOUT:
@@ -10765,7 +10762,7 @@ namespace netxs::lixx // li++, libinput++.
                                                         case GESTURE_EVENT_POINTER_MOTION_START:
                                                             tp_gesture_stop_3fg_drag();
                                                             tp.gesture.drag_3fg_timer->cancel();
-                                                            tp.evdev_pointer_notify_button(tp.gesture.drag_3fg_release_time, evdev::btn_left, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                            tp.evdev_pointer_notify_button(tp.gesture.drag_3fg_release_time, evdev::btn_left, evdev::released);
                                                             tp.gesture.state = GESTURE_STATE_POINTER_MOTION;
                                                             break;
                                                         case GESTURE_EVENT_HOLD_AND_MOTION_START:
@@ -10773,7 +10770,7 @@ namespace netxs::lixx // li++, libinput++.
                                                         // Anything that's detected as gesture in this state will be continue the current 3fg drag gesture.
                                                         case GESTURE_EVENT_SCROLL_START:
                                                             tp.gesture.drag_3fg_timer->cancel();
-                                                            tp.evdev_pointer_notify_button(tp.gesture.drag_3fg_release_time, evdev::btn_left, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                            tp.evdev_pointer_notify_button(tp.gesture.drag_3fg_release_time, evdev::btn_left, evdev::released);
                                                             tp.gesture.state = GESTURE_STATE_SCROLL_START;
                                                             break;
                                                         case GESTURE_EVENT_SWIPE_START:
@@ -11138,16 +11135,15 @@ namespace netxs::lixx // li++, libinput++.
                                                 }
                                                 return button;
                                             }
-                                        si32 tp_notify_clickpadbutton(time stamp, ui32 button, ui32 is_topbutton, libinput_button_state state)
+                                        si32 tp_notify_clickpadbutton(time stamp, ui32 button, ui32 is_topbutton, si32 state)
                                         {
                                             // If we've a trackpoint, send top buttons through the trackpoint.
                                             if (tp.buttons.trackpoint_li_device)
                                             {
                                                 if (is_topbutton)
                                                 {
-                                                    auto value = (state == LIBINPUT_BUTTON_STATE_PRESSED) ? 1 : 0;
                                                     auto event = evdev_event{ .usage = button,
-                                                                              .value = value };
+                                                                              .value = state };
                                                     auto syn_report = evdev_event{ .usage = evdev::syn_report,
                                                                                    .value = 0 };
                                                     tp.buttons.trackpoint_li_device->process(event, stamp);
@@ -11160,7 +11156,7 @@ namespace netxs::lixx // li++, libinput++.
                                             // A button click always terminates edge scrolling, even if we don't end up sending a button event.
                                             tp_edge_scroll_stop_events(stamp);
                                             // If the user has requested clickfinger replace the button chosen by the softbutton code with one based on the number of fingers.
-                                            if (tp.buttons.click_method == LIBINPUT_CONFIG_CLICK_METHOD_CLICKFINGER && state == LIBINPUT_BUTTON_STATE_PRESSED)
+                                            if (tp.buttons.click_method == LIBINPUT_CONFIG_CLICK_METHOD_CLICKFINGER && state == evdev::pressed)
                                             {
                                                 button = tp_clickfinger_set_button();
                                                 tp.buttons.active = button;
@@ -11172,7 +11168,7 @@ namespace netxs::lixx // li++, libinput++.
                                     si32 tp_post_clickpadbutton_buttons(time stamp)
                                     {
                                         auto button = ui32{};
-                                        auto state = libinput_button_state{};
+                                        auto state = si32{};
                                         enum { AREA = 0x01, LEFT = 0x02, MIDDLE = 0x04, RIGHT = 0x08 };
                                         auto want_left_handed = true;
                                         auto current = tp.buttons.state;
@@ -11224,7 +11220,7 @@ namespace netxs::lixx // li++, libinput++.
                                             if (want_left_handed) button = tp.evdev_to_left_handed(button);
                                             tp.buttons.active = button;
                                             tp.buttons.active_is_topbutton = is_top;
-                                            state = LIBINPUT_BUTTON_STATE_PRESSED;
+                                            state = evdev::pressed;
                                         }
                                         else
                                         {
@@ -11232,7 +11228,7 @@ namespace netxs::lixx // li++, libinput++.
                                             is_top = tp.buttons.active_is_topbutton;
                                             tp.buttons.active = {};
                                             tp.buttons.active_is_topbutton = 0;
-                                            state = LIBINPUT_BUTTON_STATE_RELEASED;
+                                            state = evdev::released;
                                         }
                                         tp.buttons.click_pending = faux;
                                         return button != 0 ? tp_notify_clickpadbutton(stamp, button, is_top, state) : 0;
@@ -11244,10 +11240,10 @@ namespace netxs::lixx // li++, libinput++.
                                         auto button = evdev::btn_left;
                                         while (current || old)
                                         {
-                                            auto state = libinput_button_state{};
+                                            auto state = si32{};
                                             if ((current & 0x1) ^ (old & 0x1))
                                             {
-                                                state = (current & 0x1) ? LIBINPUT_BUTTON_STATE_PRESSED : LIBINPUT_BUTTON_STATE_RELEASED;
+                                                state = (current & 0x1) ? evdev::pressed : evdev::released;
                                                 auto b = tp.evdev_to_left_handed(button);
                                                 tp.evdev_pointer_notify_physical_button(stamp, b, state);
                                             }
@@ -11289,14 +11285,14 @@ namespace netxs::lixx // li++, libinput++.
                                                 case TAP_EVENT_PALM_UP: break;
                                             }
                                         }
-                                            void tp_tap_notify(time stamp, si32 nfingers, libinput_button_state state)
+                                            void tp_tap_notify(time stamp, si32 nfingers, si32 state)
                                             {
                                                 assert(tp.tap.map < std::size(lixx::tap_button_map));
                                                 if (nfingers < 1 || nfingers > 3) return;
                                                 tp_gesture_cancel(stamp);
                                                 auto button = lixx::tap_button_map[tp.tap.map][nfingers - 1];
-                                                if (state == LIBINPUT_BUTTON_STATE_PRESSED) tp.tap.buttons_pressed |= (1ul << nfingers);
-                                                else                                        tp.tap.buttons_pressed &= ~(1ul << nfingers);
+                                                if (state == evdev::pressed) tp.tap.buttons_pressed |= (1ul << nfingers);
+                                                else                         tp.tap.buttons_pressed &= ~(1ul << nfingers);
                                                 tp.evdev_pointer_notify_button(stamp, button, state);
                                             }
                                             void tp_tap_set_drag_timer(time stamp, si32 nfingers_tapped)
@@ -11330,7 +11326,7 @@ namespace netxs::lixx // li++, libinput++.
                                                     tp_tap_set_timer(stamp);
                                                     break;
                                                 case TAP_EVENT_RELEASE:
-                                                    tp_tap_notify(tp.tap.press_stamp, 1, LIBINPUT_BUTTON_STATE_PRESSED);
+                                                    tp_tap_notify(tp.tap.press_stamp, 1, evdev::pressed);
                                                     if (tp.tap.drag_enabled)
                                                     {
                                                         tp.tap.state = TAP_STATE_1FGTAP_TAPPED;
@@ -11339,7 +11335,7 @@ namespace netxs::lixx // li++, libinput++.
                                                     }
                                                     else
                                                     {
-                                                        tp_tap_notify(stamp, 1, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                        tp_tap_notify(stamp, 1, evdev::released);
                                                         tp.tap.state = TAP_STATE_IDLE;
                                                     }
                                                     break;
@@ -11412,8 +11408,8 @@ namespace netxs::lixx // li++, libinput++.
                                                     tp_tap_set_timer(stamp);
                                                     break;
                                                 }
-                                                case TAP_EVENT_TIMEOUT: tp.tap.state = TAP_STATE_IDLE; tp_tap_notify(tp.tap.release_stamp, nfingers_tapped, LIBINPUT_BUTTON_STATE_RELEASED); break;
-                                                case TAP_EVENT_BUTTON:  tp.tap.state = TAP_STATE_DEAD; tp_tap_notify(tp.tap.release_stamp, nfingers_tapped, LIBINPUT_BUTTON_STATE_RELEASED); break;
+                                                case TAP_EVENT_TIMEOUT: tp.tap.state = TAP_STATE_IDLE; tp_tap_notify(tp.tap.release_stamp, nfingers_tapped, evdev::released); break;
+                                                case TAP_EVENT_BUTTON:  tp.tap.state = TAP_STATE_DEAD; tp_tap_notify(tp.tap.release_stamp, nfingers_tapped, evdev::released); break;
                                                 case TAP_EVENT_THUMB:   log("log_tap_bug: tp ", event); break;
                                                 case TAP_EVENT_PALM:    log("log_tap_bug: tp ", event); break;
                                                 case TAP_EVENT_PALM_UP: break;
@@ -11472,7 +11468,7 @@ namespace netxs::lixx // li++, libinput++.
                                                     tp_tap_clear_timer();
                                                     break;
                                                 case TAP_EVENT_RELEASE:
-                                                    tp_tap_notify(tp.tap.press_stamp, 2, LIBINPUT_BUTTON_STATE_PRESSED);
+                                                    tp_tap_notify(tp.tap.press_stamp, 2, evdev::pressed);
                                                     if (tp.tap.drag_enabled)
                                                     {
                                                         tp.tap.state = TAP_STATE_2FGTAP_TAPPED;
@@ -11480,7 +11476,7 @@ namespace netxs::lixx // li++, libinput++.
                                                     }
                                                     else
                                                     {
-                                                        tp_tap_notify(tp.tap.release_stamp, 2, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                        tp_tap_notify(tp.tap.release_stamp, 2, evdev::released);
                                                         tp.tap.state = TAP_STATE_IDLE;
                                                     }
                                                     break;
@@ -11491,14 +11487,14 @@ namespace netxs::lixx // li++, libinput++.
                                                 case TAP_EVENT_PALM_UP: break;
                                                 case TAP_EVENT_PALM:
                                                     // There's only one saved press time and it's overwritten by the last touch down. So in the case of finger down, palm down, finger up, palm detected, we use the palm touch's press time here instead of the finger's press time. Let's wait and see if that's an issue.
-                                                    tp_tap_notify(tp.tap.press_stamp, 1, LIBINPUT_BUTTON_STATE_PRESSED);
+                                                    tp_tap_notify(tp.tap.press_stamp, 1, evdev::pressed);
                                                     if (tp.tap.drag_enabled) // For a single-finger tap the timer delay is the same as for the release of the finger that became a palm, no reset necessary.
                                                     {
                                                         tp.tap.state = TAP_STATE_1FGTAP_TAPPED;
                                                     }
                                                     else
                                                     {
-                                                        tp_tap_notify(tp.tap.release_stamp, 1, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                        tp_tap_notify(tp.tap.release_stamp, 1, evdev::released);
                                                         tp.tap.state = TAP_STATE_IDLE;
                                                     }
                                                     break;
@@ -11545,8 +11541,8 @@ namespace netxs::lixx // li++, libinput++.
                                             switch (event)
                                             {
                                                 case TAP_EVENT_TOUCH:
-                                                    tp_tap_notify(tp.tap.press_stamp, 3, LIBINPUT_BUTTON_STATE_PRESSED);
-                                                    tp_tap_notify(tp.tap.release_stamp, 3, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                    tp_tap_notify(tp.tap.press_stamp, 3, evdev::pressed);
+                                                    tp_tap_notify(tp.tap.release_stamp, 3, evdev::released);
                                                     tp.tap.state = TAP_STATE_TOUCH_3;
                                                     tp.tap.press_stamp = stamp;
                                                     tp_tap_set_timer(stamp);
@@ -11556,18 +11552,18 @@ namespace netxs::lixx // li++, libinput++.
                                                     tp_tap_set_timer(stamp);
                                                     break;
                                                 case TAP_EVENT_MOTION:
-                                                    tp_tap_notify(tp.tap.press_stamp, 3, LIBINPUT_BUTTON_STATE_PRESSED);
-                                                    tp_tap_notify(tp.tap.release_stamp, 3, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                    tp_tap_notify(tp.tap.press_stamp, 3, evdev::pressed);
+                                                    tp_tap_notify(tp.tap.release_stamp, 3, evdev::released);
                                                     tp_tap_move_to_dead(t);
                                                     break;
                                                 case TAP_EVENT_TIMEOUT:
-                                                    tp_tap_notify(tp.tap.press_stamp, 3, LIBINPUT_BUTTON_STATE_PRESSED);
-                                                    tp_tap_notify(tp.tap.release_stamp, 3, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                    tp_tap_notify(tp.tap.press_stamp, 3, evdev::pressed);
+                                                    tp_tap_notify(tp.tap.release_stamp, 3, evdev::released);
                                                     tp.tap.state = TAP_STATE_TOUCH_2_HOLD;
                                                     break;
                                                 case TAP_EVENT_BUTTON:
-                                                    tp_tap_notify(tp.tap.press_stamp, 3, LIBINPUT_BUTTON_STATE_PRESSED);
-                                                    tp_tap_notify(tp.tap.release_stamp, 3, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                    tp_tap_notify(tp.tap.press_stamp, 3, evdev::pressed);
+                                                    tp_tap_notify(tp.tap.release_stamp, 3, evdev::released);
                                                     tp.tap.state = TAP_STATE_DEAD;
                                                     break;
                                                 case TAP_EVENT_THUMB:   break;
@@ -11580,14 +11576,14 @@ namespace netxs::lixx // li++, libinput++.
                                             switch (event)
                                             {
                                                 case TAP_EVENT_TOUCH:
-                                                    tp_tap_notify(tp.tap.press_stamp, 3, LIBINPUT_BUTTON_STATE_PRESSED);
-                                                    tp_tap_notify(tp.tap.release_stamp, 3, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                    tp_tap_notify(tp.tap.press_stamp, 3, evdev::pressed);
+                                                    tp_tap_notify(tp.tap.release_stamp, 3, evdev::released);
                                                     tp.tap.state = TAP_STATE_TOUCH_2;
                                                     tp.tap.press_stamp = stamp;
                                                     tp_tap_set_timer(stamp);
                                                     break;
                                                 case TAP_EVENT_RELEASE:
-                                                    tp_tap_notify(tp.tap.press_stamp, 3, LIBINPUT_BUTTON_STATE_PRESSED);
+                                                    tp_tap_notify(tp.tap.press_stamp, 3, evdev::pressed);
                                                     if (tp.tap.drag_enabled)
                                                     {
                                                         tp.tap.state = TAP_STATE_3FGTAP_TAPPED;
@@ -11595,36 +11591,36 @@ namespace netxs::lixx // li++, libinput++.
                                                     }
                                                     else
                                                     {
-                                                        tp_tap_notify(tp.tap.release_stamp, 3, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                        tp_tap_notify(tp.tap.release_stamp, 3, evdev::released);
                                                         tp.tap.state = TAP_STATE_IDLE;
                                                     }
                                                     break;
                                                 case TAP_EVENT_MOTION:
-                                                    tp_tap_notify(tp.tap.press_stamp, 3, LIBINPUT_BUTTON_STATE_PRESSED);
-                                                    tp_tap_notify(tp.tap.release_stamp, 3, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                    tp_tap_notify(tp.tap.press_stamp, 3, evdev::pressed);
+                                                    tp_tap_notify(tp.tap.release_stamp, 3, evdev::released);
                                                     tp_tap_move_to_dead(t);
                                                     break;
                                                 case TAP_EVENT_TIMEOUT:
-                                                    tp_tap_notify(tp.tap.press_stamp, 3, LIBINPUT_BUTTON_STATE_PRESSED);
-                                                    tp_tap_notify(tp.tap.release_stamp, 3, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                    tp_tap_notify(tp.tap.press_stamp, 3, evdev::pressed);
+                                                    tp_tap_notify(tp.tap.release_stamp, 3, evdev::released);
                                                     tp.tap.state = TAP_STATE_HOLD;
                                                     break;
                                                 case TAP_EVENT_BUTTON:
-                                                    tp_tap_notify(tp.tap.press_stamp, 3, LIBINPUT_BUTTON_STATE_PRESSED);
-                                                    tp_tap_notify(tp.tap.release_stamp, 3, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                    tp_tap_notify(tp.tap.press_stamp, 3, evdev::pressed);
+                                                    tp_tap_notify(tp.tap.release_stamp, 3, evdev::released);
                                                     tp.tap.state = TAP_STATE_DEAD;
                                                     break;
                                                 case TAP_EVENT_THUMB:
                                                     break;
                                                 case TAP_EVENT_PALM:
-                                                    tp_tap_notify(tp.tap.press_stamp, 2, LIBINPUT_BUTTON_STATE_PRESSED);
+                                                    tp_tap_notify(tp.tap.press_stamp, 2, evdev::pressed);
                                                     if (tp.tap.drag_enabled) // Resetting the timer to the appropriate delay for a two-finger tap would be ideal, but the timestamp of the last real finger release is lost, so the in-progress similar delay for release of the finger which became a palm instead will have to do.
                                                     {
                                                         tp.tap.state = TAP_STATE_2FGTAP_TAPPED;
                                                     }
                                                     else
                                                     {
-                                                        tp_tap_notify(tp.tap.release_stamp, 2, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                        tp_tap_notify(tp.tap.release_stamp, 2, evdev::released);
                                                         tp.tap.state = TAP_STATE_IDLE;
                                                     }
                                                     break;
@@ -11637,15 +11633,15 @@ namespace netxs::lixx // li++, libinput++.
                                             switch (event)
                                             {
                                                 case TAP_EVENT_TOUCH:
-                                                    tp_tap_notify(tp.tap.release_stamp, nfingers_tapped, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                    tp_tap_notify(tp.tap.release_stamp, nfingers_tapped, evdev::released);
                                                     tp.tap.state = TAP_STATE_TOUCH_2;
                                                     tp.tap.press_stamp = stamp;
                                                     tp_tap_set_timer(stamp);
                                                     break;
                                                 case TAP_EVENT_RELEASE:
                                                     tp.tap.state = TAP_STATE_1FGTAP_TAPPED;
-                                                    tp_tap_notify(tp.tap.release_stamp, nfingers_tapped, LIBINPUT_BUTTON_STATE_RELEASED);
-                                                    tp_tap_notify(tp.tap.press_stamp, 1, LIBINPUT_BUTTON_STATE_PRESSED);
+                                                    tp_tap_notify(tp.tap.release_stamp, nfingers_tapped, evdev::released);
+                                                    tp_tap_notify(tp.tap.press_stamp, 1, evdev::pressed);
                                                     tp.tap.release_stamp = stamp;
                                                     tp_tap_set_timer(stamp);
                                                     break;
@@ -11664,7 +11660,7 @@ namespace netxs::lixx // li++, libinput++.
                                                 }
                                                 case TAP_EVENT_BUTTON:
                                                     tp.tap.state = TAP_STATE_DEAD;
-                                                    tp_tap_notify(tp.tap.release_stamp, nfingers_tapped, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                    tp_tap_notify(tp.tap.release_stamp, nfingers_tapped, evdev::released);
                                                     break;
                                                 case TAP_EVENT_THUMB:
                                                     break;
@@ -11722,7 +11718,7 @@ namespace netxs::lixx // li++, libinput++.
                                                     }
                                                     else
                                                     {
-                                                        tp_tap_notify(stamp, nfingers_tapped, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                        tp_tap_notify(stamp, nfingers_tapped, evdev::released);
                                                         tp.tap.state = TAP_STATE_IDLE;
                                                     }
                                                     break;
@@ -11732,12 +11728,12 @@ namespace netxs::lixx // li++, libinput++.
                                                     break;
                                                 case TAP_EVENT_BUTTON:
                                                     tp.tap.state = TAP_STATE_DEAD;
-                                                    tp_tap_notify(stamp, nfingers_tapped, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                    tp_tap_notify(stamp, nfingers_tapped, evdev::released);
                                                     break;
                                                 case TAP_EVENT_THUMB:
                                                     break;
                                                 case TAP_EVENT_PALM:
-                                                    tp_tap_notify(tp.tap.release_stamp, nfingers_tapped, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                    tp_tap_notify(tp.tap.release_stamp, nfingers_tapped, evdev::released);
                                                     tp.tap.state = TAP_STATE_IDLE;
                                                     break;
                                                 case TAP_EVENT_PALM_UP:
@@ -11765,11 +11761,11 @@ namespace netxs::lixx // li++, libinput++.
                                                 case TAP_EVENT_MOTION: log("log_tap_bug1: tp ", event); break;
                                                 case TAP_EVENT_TIMEOUT:
                                                     tp.tap.state = TAP_STATE_IDLE;
-                                                    tp_tap_notify(stamp, nfingers_tapped, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                    tp_tap_notify(stamp, nfingers_tapped, evdev::released);
                                                     break;
                                                 case TAP_EVENT_BUTTON:
                                                     tp.tap.state = TAP_STATE_DEAD;
-                                                    tp_tap_notify(stamp, nfingers_tapped, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                    tp_tap_notify(stamp, nfingers_tapped, evdev::released);
                                                     break;
                                                 case TAP_EVENT_THUMB:
                                                 case TAP_EVENT_PALM: log("log_tap_bug2: tp ", event); break;
@@ -11781,13 +11777,13 @@ namespace netxs::lixx // li++, libinput++.
                                             switch (event)
                                             {
                                                 case TAP_EVENT_TOUCH:
-                                                    tp_tap_notify(stamp, nfingers_tapped, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                    tp_tap_notify(stamp, nfingers_tapped, evdev::released);
                                                     tp_tap_clear_timer();
                                                     tp_tap_move_to_dead(t);
                                                     break;
                                                 case TAP_EVENT_RELEASE:
                                                     tp.tap.state = TAP_STATE_IDLE;
-                                                    tp_tap_notify(stamp, nfingers_tapped, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                    tp_tap_notify(stamp, nfingers_tapped, evdev::released);
                                                     break;
                                                 case TAP_EVENT_MOTION:
                                                 case TAP_EVENT_TIMEOUT:
@@ -11804,7 +11800,7 @@ namespace netxs::lixx // li++, libinput++.
                                                 }
                                                 case TAP_EVENT_BUTTON:
                                                     tp.tap.state = TAP_STATE_DEAD;
-                                                    tp_tap_notify(stamp, nfingers_tapped, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                    tp_tap_notify(stamp, nfingers_tapped, evdev::released);
                                                     break;
                                                 case TAP_EVENT_THUMB: break;
                                                 case TAP_EVENT_PALM:
@@ -11839,13 +11835,13 @@ namespace netxs::lixx // li++, libinput++.
                                                 }
                                                 case TAP_EVENT_TOUCH:
                                                     tp.tap.state = TAP_STATE_DEAD;
-                                                    tp_tap_notify(stamp, nfingers_tapped, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                    tp_tap_notify(stamp, nfingers_tapped, evdev::released);
                                                     break;
                                                 case TAP_EVENT_MOTION:
                                                 case TAP_EVENT_TIMEOUT: break; // Noop.
                                                 case TAP_EVENT_BUTTON:
                                                     tp.tap.state = TAP_STATE_DEAD;
-                                                    tp_tap_notify(stamp, nfingers_tapped, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                    tp_tap_notify(stamp, nfingers_tapped, evdev::released);
                                                     break;
                                                 case TAP_EVENT_THUMB: break;
                                                 case TAP_EVENT_PALM:
@@ -12711,9 +12707,8 @@ namespace netxs::lixx // li++, libinput++.
                                         }
                                         void tp_gesture_handle_state_3fg_drag_start(time stamp)
                                         {
-                                            tp.evdev_pointer_notify_button(stamp, evdev::btn_left, LIBINPUT_BUTTON_STATE_PRESSED);
-                                            //todo FIXME: immediately send a motion event?
-                                            tp.gesture.state = GESTURE_STATE_3FG_DRAG;
+                                            tp.evdev_pointer_notify_button(stamp, evdev::btn_left, evdev::pressed);
+                                            tp.gesture.state = GESTURE_STATE_3FG_DRAG; //todo FIXME: immediately send a motion event?
                                         }
                                         void tp_gesture_handle_state_3fg_drag(time stamp)
                                         {
@@ -12980,7 +12975,7 @@ namespace netxs::lixx // li++, libinput++.
                                 {
                                     if (tp.tap.buttons_pressed & (1ul << i))
                                     {
-                                        tp_tap_notify(now, i, LIBINPUT_BUTTON_STATE_RELEASED);
+                                        tp_tap_notify(now, i, evdev::released);
                                     }
                                 }
                                 for (auto& t : tp.touches) // To neutralize all current touches, we make them all palms.
@@ -15249,11 +15244,11 @@ namespace netxs::lixx // li++, libinput++.
                                             // Wacom PTH-660 doesn't light up any LEDs until the button is pressed, so let's assume mode 0.
                                             return 0;
                                         }
-                                    void pad_button_update_mode(libinput_tablet_pad_mode_group_sptr g, ui32 button_index, libinput_button_state state)
+                                    void pad_button_update_mode(libinput_tablet_pad_mode_group_sptr g, ui32 button_index, si32 state)
                                     {
                                         auto group = std::static_pointer_cast<pad_led_group>(g);
                                         auto rc = -ENODEV;
-                                        if (state != LIBINPUT_BUTTON_STATE_PRESSED) return;
+                                        if (state != evdev::pressed) return;
                                         if (!libinput_tablet_pad_mode_group_button_is_toggle(g, button_index)) return;
                                         if (group->led_list.empty())
                                         {
@@ -15280,7 +15275,7 @@ namespace netxs::lixx // li++, libinput++.
                                         }
                                         if (rc >= 0) group->current_mode = rc;
                                     }
-                                    void tablet_pad_notify_button(time stamp, ui32 button, libinput_button_state state, libinput_tablet_pad_mode_group_sptr group)
+                                    void tablet_pad_notify_button(time stamp, ui32 button, si32 state, libinput_tablet_pad_mode_group_sptr group)
                                     {
                                         auto& button_event = pad.li.libinput_emplace_event<libinput_event_tablet_pad>();
                                         button_event.mode       = group->current_mode;
@@ -15295,7 +15290,7 @@ namespace netxs::lixx // li++, libinput++.
                                         key_event.key.state = state;
                                         pad.post_device_event(stamp, LIBINPUT_EVENT_TABLET_PAD_KEY, key_event);
                                     }
-                                void pad_notify_button_mask(time stamp, button_state_t& buttons, libinput_button_state state)
+                                void pad_notify_button_mask(time stamp, button_state_t& buttons, si32 state)
                                 {
                                     for (auto code = 0u; code < buttons.size(); code++)
                                     {
@@ -15319,10 +15314,10 @@ namespace netxs::lixx // li++, libinput++.
                                         }
                                     }
                                 }
-                            void pad_notify_buttons(time stamp, libinput_button_state state)
+                            void pad_notify_buttons(time stamp, si32 state)
                             {
-                                auto buttons = state == LIBINPUT_BUTTON_STATE_PRESSED ? pad.next_button_state & ~pad.prev_button_state  // pad_get_buttons_pressed()
-                                                                                      : pad.prev_button_state & ~pad.next_button_state; // pad_get_buttons_released();
+                                auto buttons = state == evdev::pressed ? pad.next_button_state & ~pad.prev_button_state  // pad_get_buttons_pressed()
+                                                                       : pad.prev_button_state & ~pad.next_button_state; // pad_get_buttons_released();
                                 pad_notify_button_mask(stamp, buttons, state);
                             }
                             static void pad_change_to_left_handed(libinput_device_sptr li_device)
@@ -15342,13 +15337,13 @@ namespace netxs::lixx // li++, libinput++.
                             }
                             if (pad_has_status(PAD_BUTTONS_RELEASED))
                             {
-                                pad_notify_buttons(stamp, LIBINPUT_BUTTON_STATE_RELEASED);
+                                pad_notify_buttons(stamp, evdev::released);
                                 pad_unset_status(PAD_BUTTONS_RELEASED);
                                 pad_change_to_left_handed(pad.This());
                             }
                             if (pad_has_status(PAD_BUTTONS_PRESSED))
                             {
-                                pad_notify_buttons(stamp, LIBINPUT_BUTTON_STATE_PRESSED);
+                                pad_notify_buttons(stamp, evdev::pressed);
                                 pad_unset_status(PAD_BUTTONS_PRESSED);
                             }
                             pad.prev_button_state = pad.next_button_state;
@@ -15701,31 +15696,19 @@ namespace netxs::lixx // li++, libinput++.
                 // tip up before button up but meh.
                 if (totem.button_state_now != totem.button_state_previous)
                 {
-                    auto btn_state = libinput_button_state{};
-                    if (totem.button_state_now)
-                    {
-                        btn_state = LIBINPUT_BUTTON_STATE_PRESSED;
-                    }
-                    else
-                    {
-                        btn_state = LIBINPUT_BUTTON_STATE_RELEASED;
-                    }
+                    auto btn_state = totem.button_state_now ? evdev::pressed : evdev::released;
                     totem.tablet_notify_button(now, slot.tool, tip_state, axes, BTN_0, btn_state, totem.ud_device.abs.absinfo_x, totem.ud_device.abs.absinfo_y);
                     totem.button_state_previous = totem.button_state_now;
                 }
-                switch (slot.state)
+                if (slot.state == SLOT_STATE_END)
                 {
-                    case SLOT_STATE_BEGIN:
-                    case SLOT_STATE_UPDATE: break;
-                    case SLOT_STATE_END:
-                        tip_state = LIBINPUT_TABLET_TOOL_TIP_UP;
-                        totem.tablet_notify_tip(now, slot.tool, tip_state, slot.changed_axes_bits, axes, totem.ud_device.abs.absinfo_x, totem.ud_device.abs.absinfo_y);
-                        totem_slot_reset_changed_axes(slot);
-                        totem.tablet_notify_proximity(now, slot.tool, LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_OUT, slot.changed_axes_bits, axes, totem.ud_device.abs.absinfo_x, totem.ud_device.abs.absinfo_y);
-                        slot.state = SLOT_STATE_NONE;
-                        break;
-                    case SLOT_STATE_NONE: ::abort(); break;
+                    tip_state = LIBINPUT_TABLET_TOOL_TIP_UP;
+                    totem.tablet_notify_tip(now, slot.tool, tip_state, slot.changed_axes_bits, axes, totem.ud_device.abs.absinfo_x, totem.ud_device.abs.absinfo_y);
+                    totem_slot_reset_changed_axes(slot);
+                    totem.tablet_notify_proximity(now, slot.tool, LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_OUT, slot.changed_axes_bits, axes, totem.ud_device.abs.absinfo_x, totem.ud_device.abs.absinfo_y);
+                    slot.state = SLOT_STATE_NONE;
                 }
+                else if (slot.state == SLOT_STATE_NONE) ::abort();
                 slot.last_point = slot.axes.point;
                 totem_slot_reset_changed_axes(slot);
                 return slot.state;
@@ -15852,7 +15835,7 @@ namespace netxs::lixx // li++, libinput++.
                         tip_state = slot.state == SLOT_STATE_NONE ? LIBINPUT_TABLET_TOOL_TIP_UP : LIBINPUT_TABLET_TOOL_TIP_DOWN;
                         if (totem.button_state_now)
                         {
-                            totem.tablet_notify_button(now, slot.tool, tip_state, axes, BTN_0, LIBINPUT_BUTTON_STATE_RELEASED, totem.ud_device.abs.absinfo_x, totem.ud_device.abs.absinfo_y);
+                            totem.tablet_notify_button(now, slot.tool, tip_state, axes, BTN_0, evdev::released, totem.ud_device.abs.absinfo_x, totem.ud_device.abs.absinfo_y);
                             totem.button_state_now = faux;
                             totem.button_state_previous = faux;
                         }
@@ -17180,7 +17163,7 @@ namespace netxs::lixx // li++, libinput++.
                             axes.delta.x = 0;
                             axes.delta.y = 0;
                         }
-                                void tablet_notify_button_mask(time stamp, libinput_tablet_tool_sptr tool, button_state_t& buttons, libinput_button_state state)
+                                void tablet_notify_button_mask(time stamp, libinput_tablet_tool_sptr tool, button_state_t& buttons, si32 state)
                                 {
                                     auto c = !!(tablet.status & TABLET_TOOL_IN_CONTACT);
                                     auto tip_state = c ? LIBINPUT_TABLET_TOOL_TIP_DOWN : LIBINPUT_TABLET_TOOL_TIP_UP;
@@ -17192,22 +17175,22 @@ namespace netxs::lixx // li++, libinput++.
                                         }
                                     }
                                 }
-                            void tablet_notify_buttons(time stamp, libinput_tablet_tool_sptr tool, libinput_button_state state)
+                            void tablet_notify_buttons(time stamp, libinput_tablet_tool_sptr tool, si32 state)
                             {
-                                auto buttons = state == LIBINPUT_BUTTON_STATE_PRESSED ? tablet.next_button_state & ~tablet.prev_button_state
-                                                                                      : tablet.prev_button_state & ~tablet.next_button_state;
+                                auto buttons = state == evdev::pressed ? tablet.next_button_state & ~tablet.prev_button_state
+                                                                       : tablet.prev_button_state & ~tablet.next_button_state;
                                 tablet_notify_button_mask(stamp, tool, buttons, state);
                             }
                         void tablet_send_buttons(libinput_tablet_tool_sptr tool, time stamp)
                         {
                             if (tablet.status & TABLET_BUTTONS_RELEASED)
                             {
-                                tablet_notify_buttons(stamp, tool, LIBINPUT_BUTTON_STATE_RELEASED);
+                                tablet_notify_buttons(stamp, tool, evdev::released);
                                 tablet.status &= ~TABLET_BUTTONS_RELEASED;
                             }
                             if (tablet.status & TABLET_BUTTONS_PRESSED)
                             {
-                                tablet_notify_buttons(stamp, tool, LIBINPUT_BUTTON_STATE_PRESSED);
+                                tablet_notify_buttons(stamp, tool, evdev::pressed);
                                 tablet.status &= ~TABLET_BUTTONS_PRESSED;
                             }
                         }
@@ -18931,11 +18914,11 @@ namespace netxs::lixx // li++, libinput++.
                                         assert(new_state >= DEBOUNCE_STATE_IS_UP && new_state <= DEBOUNCE_STATE_IS_DOWN_DELAYING);
                                         generic.debounce.state = new_state;
                                     }
-                                        void fallback_notify_physical_button(libinput_device_sptr li_device, time stamp, ui32 button, libinput_button_state state)
+                                        void fallback_notify_physical_button(libinput_device_sptr li_device, time stamp, ui32 button, si32 state)
                                         {
                                             li_device->evdev_pointer_notify_physical_button(stamp, button, state);
                                         }
-                                    void debounce_notify_button(libinput_button_state state)
+                                    void debounce_notify_button(si32 state)
                                     {
                                         auto usage = generic.debounce.button_usage;
                                         auto stamp = generic.debounce.button_time;
@@ -18950,7 +18933,7 @@ namespace netxs::lixx // li++, libinput++.
                                             generic.debounce.button_time = stamp;
                                             debounce_set_timer(stamp);
                                             debounce_set_state(DEBOUNCE_STATE_IS_DOWN_WAITING);
-                                            debounce_notify_button(LIBINPUT_BUTTON_STATE_PRESSED);
+                                            debounce_notify_button(evdev::pressed);
                                             break;
                                         case DEBOUNCE_EVENT_RELEASE:
                                         case DEBOUNCE_EVENT_TIMEOUT:
@@ -18978,7 +18961,7 @@ namespace netxs::lixx // li++, libinput++.
                                             else
                                             {
                                                 debounce_set_state(DEBOUNCE_STATE_IS_UP_DETECTING_SPURIOUS);
-                                                debounce_notify_button(LIBINPUT_BUTTON_STATE_RELEASED);
+                                                debounce_notify_button(evdev::released);
                                             }
                                             break;
                                         case DEBOUNCE_EVENT_TIMEOUT:
@@ -19015,7 +18998,7 @@ namespace netxs::lixx // li++, libinput++.
                                         case DEBOUNCE_EVENT_TIMEOUT:
                                         case DEBOUNCE_EVENT_OTHERBUTTON:
                                             debounce_set_state(DEBOUNCE_STATE_IS_UP);
-                                            debounce_notify_button(LIBINPUT_BUTTON_STATE_RELEASED);
+                                            debounce_notify_button(evdev::released);
                                             break;
                                     }
                                 }
@@ -19032,11 +19015,11 @@ namespace netxs::lixx // li++, libinput++.
                                         case DEBOUNCE_EVENT_TIMEOUT: log("log_debounce_bug7: fallback ", event); break;
                                         case DEBOUNCE_EVENT_TIMEOUT_SHORT:
                                             debounce_set_state(DEBOUNCE_STATE_IS_UP_WAITING);
-                                            debounce_notify_button(LIBINPUT_BUTTON_STATE_RELEASED);
+                                            debounce_notify_button(evdev::released);
                                             break;
                                         case DEBOUNCE_EVENT_OTHERBUTTON:
                                             debounce_set_state(DEBOUNCE_STATE_IS_UP);
-                                            debounce_notify_button(LIBINPUT_BUTTON_STATE_RELEASED);
+                                            debounce_notify_button(evdev::released);
                                             break;
                                     }
                                 }
@@ -19080,12 +19063,12 @@ namespace netxs::lixx // li++, libinput++.
                                             debounce_cancel_timer();
                                             debounce_set_state(DEBOUNCE_STATE_IS_DOWN);
                                             debounce_enable_spurious();
-                                            debounce_notify_button(LIBINPUT_BUTTON_STATE_PRESSED);
+                                            debounce_notify_button(evdev::pressed);
                                             break;
                                         case DEBOUNCE_EVENT_TIMEOUT:
                                         case DEBOUNCE_EVENT_OTHERBUTTON:
                                             debounce_set_state(DEBOUNCE_STATE_IS_DOWN);
-                                            debounce_notify_button(LIBINPUT_BUTTON_STATE_PRESSED);
+                                            debounce_notify_button(evdev::pressed);
                                             break;
                                     }
                                 }
@@ -19120,7 +19103,7 @@ namespace netxs::lixx // li++, libinput++.
                                         case DEBOUNCE_EVENT_TIMEOUT:
                                         case DEBOUNCE_EVENT_OTHERBUTTON:
                                             debounce_set_state(DEBOUNCE_STATE_IS_DOWN);
-                                            debounce_notify_button(LIBINPUT_BUTTON_STATE_PRESSED);
+                                            debounce_notify_button(evdev::pressed);
                                             break;
                                     }
                                 }
@@ -19128,8 +19111,8 @@ namespace netxs::lixx // li++, libinput++.
                                 {
                                     switch (event)
                                     {
-                                        case DEBOUNCE_EVENT_PRESS:   generic.debounce.button_time = stamp; debounce_notify_button(LIBINPUT_BUTTON_STATE_PRESSED); break;
-                                        case DEBOUNCE_EVENT_RELEASE: generic.debounce.button_time = stamp; debounce_notify_button(LIBINPUT_BUTTON_STATE_RELEASED); break;
+                                        case DEBOUNCE_EVENT_PRESS:   generic.debounce.button_time = stamp; debounce_notify_button(evdev::pressed); break;
+                                        case DEBOUNCE_EVENT_RELEASE: generic.debounce.button_time = stamp; debounce_notify_button(evdev::released); break;
                                         case DEBOUNCE_EVENT_TIMEOUT_SHORT:
                                         case DEBOUNCE_EVENT_TIMEOUT: log("log_debounce_bug14: fallback ", event); break;
                                         case DEBOUNCE_EVENT_OTHERBUTTON: break;
@@ -19366,7 +19349,7 @@ namespace netxs::lixx // li++, libinput++.
                                     case KEY_TYPE_NONE: break;
                                     case KEY_TYPE_KEY: fallback_keyboard_notify_key(stamp, usage, LIBINPUT_KEY_STATE_RELEASED); break;
                                     // Note: the left-handed configuration is nonzero for the mapped button (not the physical button), in get_key_down_count(). We must not map this to left-handed again, see #881.
-                                    case KEY_TYPE_BUTTON: generic.evdev_pointer_notify_button(stamp, usage, LIBINPUT_BUTTON_STATE_RELEASED); break;
+                                    case KEY_TYPE_BUTTON: generic.evdev_pointer_notify_button(stamp, usage, evdev::released); break;
                                 }
                                 count = get_key_down_count(usage);
                                 if (count != 0)
