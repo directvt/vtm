@@ -989,7 +989,7 @@ namespace netxs::lixx // li++, libinput++.
     };
     struct matrix
     {
-        fp32 val[3][3]; // row/col
+        fp32 val[3][3] = {}; // row/col
 
         void matrix_mult_vec(si32_coor& p) const
         {
@@ -1093,7 +1093,7 @@ namespace netxs::lixx // li++, libinput++.
             libinput_config_accel_custom_func scroll;
         };
 
-        libinput_config_accel_profile profile = LIBINPUT_CONFIG_ACCEL_PROFILE_NONE;
+        libinput_config_accel_profile profile = {};
         custom_t                      custom{};
     };
     struct libinput_device_config_scroll_method
@@ -1272,8 +1272,8 @@ namespace netxs::lixx // li++, libinput++.
 
             struct pointer_delta_smoothener
             {
-                span threshold;
-                span value;
+                span threshold{};
+                span value{};
 
                 static pointer_delta_smoothener_sptr create(span event_delta_smooth_threshold, span event_delta_smooth_value)
                 {
@@ -2265,7 +2265,8 @@ namespace netxs::lixx // li++, libinput++.
         touchpad_accelerator(si32 dpi, span event_delta_smooth_threshold, span event_delta_smooth_value, bool use_velocity_averaging)
             : motion_filter{ dpi },
                   threshold{ 130 },
-                      accel{ 0.0 }
+                      accel{ 0.0 },
+               speed_factor{ 0.0 }
         {
             type = LIBINPUT_CONFIG_ACCEL_PROFILE_ADAPTIVE;
             trackers.trackers_init(use_velocity_averaging ? 16 : 2);
@@ -2355,15 +2356,15 @@ namespace netxs::lixx // li++, libinput++.
 
     struct match_t
     {
-        ui32     bits;
+        ui32     bits{};
         text     name2;
         text     uniq2;
-        bustype  bus;
-        ui32     vendor;
-        ui32     product[64]; // Zero-terminated.
-        ui32     version;
+        bustype  bus{};
+        ui32     vendor{};
+        ui32     product[64] = {}; // Zero-terminated.
+        ui32     version{};
         text     dmi2; // DMI modalias with preceding "dmi:".
-        ui32     ud_type; // We can have more than one type set, so this is a bitfield.
+        ui32     ud_type{}; // We can have more than one type set, so this is a bitfield.
         text     dt2; // Device tree compatible (first) string.
     };
     struct quirk_tuples
@@ -2375,7 +2376,7 @@ namespace netxs::lixx // li++, libinput++.
             si32 third;
         };
         std::array<tuples_t, 32> tuples;
-        ui64                     ntuples;
+        ui64                     ntuples{};
     };
     struct property_t
     {
@@ -2392,9 +2393,9 @@ namespace netxs::lixx // li++, libinput++.
     };
     struct section_t
     {
-        bool                     has_match;    // To check for empty sections.
-        bool                     has_property; // To check for empty sections.
-        text                     name2;        // The [Section Name].
+        bool                     has_match{};    // To check for empty sections.
+        bool                     has_property{}; // To check for empty sections.
+        text                     name2;          // The [Section Name].
         match_sptr               match;
         std::list<property_sptr> properties;
     };
@@ -2636,7 +2637,7 @@ namespace netxs::lixx // li++, libinput++.
         event_source_sptr                source;
         fd_t                             fd{ os::invalid_fd };
         fd_t                             epoll_fd{ os::invalid_fd };
-        time                             next_expiry;
+        time                             next_expiry{};
         std::vector<event_source_sptr>   source_destroy_list;
 
         void clear()
@@ -2784,9 +2785,9 @@ namespace netxs::lixx // li++, libinput++.
 
     struct libinput_event
     {
-        libinput_event_type  type;
+        libinput_event_type  type{};
         libinput_device_sptr li_device;
-        time                 stamp;
+        time                 stamp{};
 
         libinput_event() = default;
         virtual ~libinput_event()
@@ -2864,9 +2865,9 @@ namespace netxs::lixx // li++, libinput++.
 
     struct libinput_event_keyboard : libinput_event
     {
-        ui32 key;
-        ui32 seat_key_count;
-        si32 state;
+        ui32 key{};
+        ui32 seat_key_count{};
+        si32 state{};
 
         virtual ui32 libinput_event_keyboard_get_key()       override { return key; }
         virtual si32 libinput_event_keyboard_get_key_state() override { return state; }
@@ -2889,13 +2890,13 @@ namespace netxs::lixx // li++, libinput++.
         si32_coor                    absolute;
         si32_coor                    discrete;
         si32_coor                    v120;
-        ui32                         button;
-        ui32                         seat_button_count;
-        si32                         state;
-        libinput_pointer_axis_source source;
-        ui32                         active_axes;
-        abs_info_t const*            absinfo_x;
-        abs_info_t const*            absinfo_y;
+        ui32                         button{};
+        ui32                         seat_button_count{};
+        si32                         state{};
+        libinput_pointer_axis_source source{};
+        ui32                         active_axes{};
+        abs_info_t const*            absinfo_x{};
+        abs_info_t const*            absinfo_y{};
 
         virtual fp64_coor libinput_event_pointer_get_absolute_xy_transformed(fp64_coor size) override
         {
@@ -11129,10 +11130,9 @@ namespace netxs::lixx // li++, libinput++.
                                         auto button = evdev::btn_left;
                                         while (current || old)
                                         {
-                                            auto state = si32{};
                                             if ((current & 0x1) ^ (old & 0x1))
                                             {
-                                                state = (current & 0x1) ? evdev::pressed : evdev::released;
+                                                auto state = (current & 0x1) ? evdev::pressed : evdev::released;
                                                 auto b = tp.evdev_to_left_handed(button);
                                                 tp.evdev_pointer_notify_physical_button(stamp, b, state);
                                             }
@@ -18771,16 +18771,12 @@ namespace netxs::lixx // li++, libinput++.
                                         assert(new_state >= DEBOUNCE_STATE_IS_UP && new_state <= DEBOUNCE_STATE_IS_DOWN_DELAYING);
                                         generic.debounce.state = new_state;
                                     }
-                                        void fallback_notify_physical_button(libinput_device_sptr li_device, time stamp, ui32 button, si32 state)
-                                        {
-                                            li_device->evdev_pointer_notify_physical_button(stamp, button, state);
-                                        }
                                     void debounce_notify_button(si32 state)
                                     {
                                         auto usage = generic.debounce.button_usage;
                                         auto stamp = generic.debounce.button_time;
-                                        usage = generic.evdev_to_left_handed(usage);
-                                        fallback_notify_physical_button(generic.This(), stamp, usage, state);
+                                        auto button = generic.evdev_to_left_handed(usage);
+                                        generic.evdev_pointer_notify_physical_button(stamp, button, state);
                                     }
                                 void debounce_is_up_handle_event(debounce_event event, time stamp)
                                 {
