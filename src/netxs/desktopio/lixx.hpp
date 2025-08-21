@@ -95,55 +95,55 @@ namespace netxs::lixx // li++, libinput++.
     };
     enum libinput_device_caps
     {
-        EVDEV_DEVICE_KEYBOARD        = 1ul << 0,
-        EVDEV_DEVICE_POINTER         = 1ul << 1,
-        EVDEV_DEVICE_GESTURE         = 1ul << 2,
-        EVDEV_DEVICE_TOUCH           = 1ul << 3,
-        EVDEV_DEVICE_SWITCH          = 1ul << 4,
-        EVDEV_DEVICE_TABLET_PAD      = 1ul << 5,
-        EVDEV_DEVICE_TABLET          = 1ul << 6,
+        EVDEV_DEVICE_KEYBOARD        = 1 << 0,
+        EVDEV_DEVICE_POINTER         = 1 << 1,
+        EVDEV_DEVICE_GESTURE         = 1 << 2,
+        EVDEV_DEVICE_TOUCH           = 1 << 3,
+        EVDEV_DEVICE_SWITCH          = 1 << 4,
+        EVDEV_DEVICE_TABLET_PAD      = 1 << 5,
+        EVDEV_DEVICE_TABLET          = 1 << 6,
     };
     enum ud_type_enum
     {
-        UDEV_MOUSE         = 1ul << 1,
-        UDEV_POINTINGSTICK = 1ul << 2,
-        UDEV_TOUCHPAD      = 1ul << 3,
-        UDEV_TABLET        = 1ul << 4,
-        UDEV_TABLET_PAD    = 1ul << 5,
-        UDEV_JOYSTICK      = 1ul << 6,
-        UDEV_KEYBOARD      = 1ul << 7,
+        UDEV_MOUSE         = 1 << 1,
+        UDEV_POINTINGSTICK = 1 << 2,
+        UDEV_TOUCHPAD      = 1 << 3,
+        UDEV_TABLET        = 1 << 4,
+        UDEV_TABLET_PAD    = 1 << 5,
+        UDEV_JOYSTICK      = 1 << 6,
+        UDEV_KEYBOARD      = 1 << 7,
     };
     enum libinput_device_tags
     {
-        EVDEV_TAG_NONE               = 0ul,
-        EVDEV_TAG_EXTERNAL_MOUSE     = 1ul << 0,
-        EVDEV_TAG_INTERNAL_TOUCHPAD  = 1ul << 1,
-        EVDEV_TAG_EXTERNAL_TOUCHPAD  = 1ul << 2,
-        EVDEV_TAG_TRACKPOINT         = 1ul << 3,
-        EVDEV_TAG_KEYBOARD           = 1ul << 4,
-        EVDEV_TAG_LID_SWITCH         = 1ul << 5,
-        EVDEV_TAG_INTERNAL_KEYBOARD  = 1ul << 6,
-        EVDEV_TAG_EXTERNAL_KEYBOARD  = 1ul << 7,
-        EVDEV_TAG_TABLET_MODE_SWITCH = 1ul << 8,
-        EVDEV_TAG_TABLET_TOUCHPAD    = 1ul << 9,
-        EVDEV_TAG_VIRTUAL            = 1ul << 10,
+        EVDEV_TAG_NONE               = 0,
+        EVDEV_TAG_EXTERNAL_MOUSE     = 1 << 0,
+        EVDEV_TAG_INTERNAL_TOUCHPAD  = 1 << 1,
+        EVDEV_TAG_EXTERNAL_TOUCHPAD  = 1 << 2,
+        EVDEV_TAG_TRACKPOINT         = 1 << 3,
+        EVDEV_TAG_KEYBOARD           = 1 << 4,
+        EVDEV_TAG_LID_SWITCH         = 1 << 5,
+        EVDEV_TAG_INTERNAL_KEYBOARD  = 1 << 6,
+        EVDEV_TAG_EXTERNAL_KEYBOARD  = 1 << 7,
+        EVDEV_TAG_TABLET_MODE_SWITCH = 1 << 8,
+        EVDEV_TAG_TABLET_TOUCHPAD    = 1 << 9,
+        EVDEV_TAG_VIRTUAL            = 1 << 10,
     };
     //todo unify, combine with ud_type_enum and rename to ID_INPUT_*
     enum evdev_ud_device_tags
     {
-        EVDEV_UDEV_TAG_INPUT         = 1ul << 0,
-        EVDEV_UDEV_TAG_KEYBOARD      = 1ul << 1,
-        EVDEV_UDEV_TAG_MOUSE         = 1ul << 2,
-        EVDEV_UDEV_TAG_TOUCHPAD      = 1ul << 3,
-        EVDEV_UDEV_TAG_TOUCHSCREEN   = 1ul << 4,
-        EVDEV_UDEV_TAG_TABLET        = 1ul << 5,
-        EVDEV_UDEV_TAG_JOYSTICK      = 1ul << 6,
-        EVDEV_UDEV_TAG_ACCELEROMETER = 1ul << 7,
-        EVDEV_UDEV_TAG_TABLET_PAD    = 1ul << 8,
-        EVDEV_UDEV_TAG_POINTINGSTICK = 1ul << 9,
-        EVDEV_UDEV_TAG_TRACKBALL     = 1ul << 10,
-        EVDEV_UDEV_TAG_SWITCH        = 1ul << 11,
-        EVDEV_UDEV_TAG_PURETABLET    = 1ul << 12,
+        EVDEV_UDEV_TAG_INPUT         = 1 << 0,
+        EVDEV_UDEV_TAG_KEYBOARD      = 1 << 1,
+        EVDEV_UDEV_TAG_MOUSE         = 1 << 2,
+        EVDEV_UDEV_TAG_TOUCHPAD      = 1 << 3,
+        EVDEV_UDEV_TAG_TOUCHSCREEN   = 1 << 4,
+        EVDEV_UDEV_TAG_TABLET        = 1 << 5,
+        EVDEV_UDEV_TAG_JOYSTICK      = 1 << 6,
+        EVDEV_UDEV_TAG_ACCELEROMETER = 1 << 7,
+        EVDEV_UDEV_TAG_TABLET_PAD    = 1 << 8,
+        EVDEV_UDEV_TAG_POINTINGSTICK = 1 << 9,
+        EVDEV_UDEV_TAG_TRACKBALL     = 1 << 10,
+        EVDEV_UDEV_TAG_SWITCH        = 1 << 11,
+        EVDEV_UDEV_TAG_PURETABLET    = 1 << 12,
     };
     enum evdev_button_scroll_state
     {
@@ -175,10 +175,10 @@ namespace netxs::lixx // li++, libinput++.
     };
     enum libinput_config_accel_profile
     {
-        LIBINPUT_CONFIG_ACCEL_PROFILE_NONE     = 0,       // Placeholder for devices that don't have a configurable pointer acceleration profile.
-        LIBINPUT_CONFIG_ACCEL_PROFILE_FLAT     = (1 << 0),// A flat acceleration profile. Pointer motion is accelerated by a constant (device-specific) factor, depending on the current speed.
-        LIBINPUT_CONFIG_ACCEL_PROFILE_ADAPTIVE = (1 << 1),// An adaptive acceleration profile. Pointer acceleration depends on the input speed. This is the default profile for most devices.
-        LIBINPUT_CONFIG_ACCEL_PROFILE_CUSTOM   = (1 << 2),// A custom acceleration profile. Device movement acceleration depends on user defined custom acceleration functions for each movement type.
+        LIBINPUT_CONFIG_ACCEL_PROFILE_NONE     = 0,      // Placeholder for devices that don't have a configurable pointer acceleration profile.
+        LIBINPUT_CONFIG_ACCEL_PROFILE_FLAT     = 1 << 0, // A flat acceleration profile. Pointer motion is accelerated by a constant (device-specific) factor, depending on the current speed.
+        LIBINPUT_CONFIG_ACCEL_PROFILE_ADAPTIVE = 1 << 1, // An adaptive acceleration profile. Pointer acceleration depends on the input speed. This is the default profile for most devices.
+        LIBINPUT_CONFIG_ACCEL_PROFILE_CUSTOM   = 1 << 2, // A custom acceleration profile. Device movement acceleration depends on user defined custom acceleration functions for each movement type.
     };
     enum libinput_switch
     {
@@ -233,50 +233,20 @@ namespace netxs::lixx // li++, libinput++.
         LIBINPUT_CONFIG_TAP_DISABLED, // Tapping is to be disabled, or is currently disabled.
         LIBINPUT_CONFIG_TAP_ENABLED,  // Tapping is to be enabled, or is currently enabled.
     };
-    enum libinput_config_tap_button_map
-    {
-        LIBINPUT_CONFIG_TAP_MAP_LRM,// 1/2/3 finger tap maps to left/right/middle.
-        LIBINPUT_CONFIG_TAP_MAP_LMR,// 1/2/3 finger tap maps to left/middle/right.
-    };
     enum libinput_config_drag_state
     {
-        LIBINPUT_CONFIG_DRAG_DISABLED,// Drag is to be disabled, or is currently disabled.
-        LIBINPUT_CONFIG_DRAG_ENABLED, // Drag is to be enabled, or is currently enabled.
-    };
-    enum libinput_config_drag_lock_state
-    {
-        LIBINPUT_CONFIG_DRAG_LOCK_DISABLED,        // Drag lock is to be disabled, or is currently disabled.
-        LIBINPUT_CONFIG_DRAG_LOCK_ENABLED_TIMEOUT, // Drag lock is to be enabled in timeout mode, or is currently enabled in timeout mode.
-        LIBINPUT_CONFIG_DRAG_LOCK_ENABLED = LIBINPUT_CONFIG_DRAG_LOCK_ENABLED_TIMEOUT,// Legacy spelling for LIBINPUT_CONFIG_DRAG_LOCK_ENABLED_TIMEOUT.
-        LIBINPUT_CONFIG_DRAG_LOCK_ENABLED_STICKY,  // Drag lock is to be enabled in sticky mode, or is currently enabled in sticky mode.
-    };
-    enum libinput_config_scroll_method
-    {
-        LIBINPUT_CONFIG_SCROLL_NO_SCROLL      = 0,       // Never send scroll events instead of pointer motion events. This has no effect on events generated by scroll wheels.
-        LIBINPUT_CONFIG_SCROLL_2FG            = (1 << 0),// Send scroll events when two fingers are logically down on the device.
-        LIBINPUT_CONFIG_SCROLL_EDGE           = (1 << 1),// Send scroll events when a finger moves along the bottom or right edge of a device.
-        LIBINPUT_CONFIG_SCROLL_ON_BUTTON_DOWN = (1 << 2),// Send scroll events when a button is down and the device moves along a scroll-capable axis.
+        LIBINPUT_CONFIG_DRAG_DISABLED, // Drag is to be disabled, or is currently disabled.
+        LIBINPUT_CONFIG_DRAG_ENABLED,  // Drag is to be enabled, or is currently enabled.
     };
     enum libinput_config_scroll_button_lock_state
     {
         LIBINPUT_CONFIG_SCROLL_BUTTON_LOCK_DISABLED,
         LIBINPUT_CONFIG_SCROLL_BUTTON_LOCK_ENABLED,
     };
-    enum libinput_config_click_method
-    {
-        LIBINPUT_CONFIG_CLICK_METHOD_NONE         = 0,       // Do not send software-emulated button events. This has no effect on events generated by physical buttons.
-        LIBINPUT_CONFIG_CLICK_METHOD_BUTTON_AREAS = (1 << 0),// Use software-button areas to generate button events.
-        LIBINPUT_CONFIG_CLICK_METHOD_CLICKFINGER  = (1 << 1),// The number of fingers decides which button press to generate.
-    };
-    enum libinput_config_clickfinger_button_map
-    {
-        LIBINPUT_CONFIG_CLICKFINGER_MAP_LRM,// 1/2/3 finger click maps to left/right/middle.
-        LIBINPUT_CONFIG_CLICKFINGER_MAP_LMR,// 1/2/3 finger click maps to left/middle/right.
-    };
     enum libinput_config_middle_emulation_state
     {
-        LIBINPUT_CONFIG_MIDDLE_EMULATION_DISABLED,// Middle mouse button emulation is to be disabled, or is currently disabled.
-        LIBINPUT_CONFIG_MIDDLE_EMULATION_ENABLED, // Middle mouse button emulation is to be enabled, or is currently enabled.
+        LIBINPUT_CONFIG_MIDDLE_EMULATION_DISABLED, // Middle mouse button emulation is to be disabled, or is currently disabled.
+        LIBINPUT_CONFIG_MIDDLE_EMULATION_ENABLED,  // Middle mouse button emulation is to be enabled, or is currently enabled.
     };
     enum libinput_config_dwt_state
     {
@@ -290,20 +260,52 @@ namespace netxs::lixx // li++, libinput++.
     };
     enum libinput_config_hold_state
     {
-        LIBINPUT_CONFIG_HOLD_DISABLED,// Hold gestures are to be disabled, or are currently disabled.
-        LIBINPUT_CONFIG_HOLD_ENABLED, // Hold gestures are to be enabled, or are currently disabled.
+        LIBINPUT_CONFIG_HOLD_DISABLED, // Hold gestures are to be disabled, or are currently disabled.
+        LIBINPUT_CONFIG_HOLD_ENABLED,  // Hold gestures are to be enabled, or are currently disabled.
+    };
+
+    enum libinput_config_tap_button_map
+    {
+        LIBINPUT_CONFIG_TAP_MAP_LRM, // 1/2/3 finger tap maps to left/right/middle.
+        LIBINPUT_CONFIG_TAP_MAP_LMR, // 1/2/3 finger tap maps to left/middle/right.
+    };
+    enum libinput_config_clickfinger_button_map
+    {
+        LIBINPUT_CONFIG_CLICKFINGER_MAP_LRM, // 1/2/3 finger click maps to left/right/middle.
+        LIBINPUT_CONFIG_CLICKFINGER_MAP_LMR, // 1/2/3 finger click maps to left/middle/right.
+    };
+
+    enum libinput_config_drag_lock_state
+    {
+        LIBINPUT_CONFIG_DRAG_LOCK_DISABLED,        // Drag lock is to be disabled, or is currently disabled.
+        LIBINPUT_CONFIG_DRAG_LOCK_ENABLED_TIMEOUT, // Drag lock is to be enabled in timeout mode, or is currently enabled in timeout mode.
+        LIBINPUT_CONFIG_DRAG_LOCK_ENABLED = LIBINPUT_CONFIG_DRAG_LOCK_ENABLED_TIMEOUT,// Legacy spelling for LIBINPUT_CONFIG_DRAG_LOCK_ENABLED_TIMEOUT.
+        LIBINPUT_CONFIG_DRAG_LOCK_ENABLED_STICKY,  // Drag lock is to be enabled in sticky mode, or is currently enabled in sticky mode.
+    };
+    enum libinput_config_scroll_method
+    {
+        LIBINPUT_CONFIG_SCROLL_NO_SCROLL      = 0,      // Never send scroll events instead of pointer motion events. This has no effect on events generated by scroll wheels.
+        LIBINPUT_CONFIG_SCROLL_2FG            = 1 << 0, // Send scroll events when two fingers are logically down on the device.
+        LIBINPUT_CONFIG_SCROLL_EDGE           = 1 << 1, // Send scroll events when a finger moves along the bottom or right edge of a device.
+        LIBINPUT_CONFIG_SCROLL_ON_BUTTON_DOWN = 1 << 2, // Send scroll events when a button is down and the device moves along a scroll-capable axis.
+    };
+    enum libinput_config_click_method
+    {
+        LIBINPUT_CONFIG_CLICK_METHOD_NONE         = 0,      // Do not send software-emulated button events. This has no effect on events generated by physical buttons.
+        LIBINPUT_CONFIG_CLICK_METHOD_BUTTON_AREAS = 1 << 0, // Use software-button areas to generate button events.
+        LIBINPUT_CONFIG_CLICK_METHOD_CLICKFINGER  = 1 << 1, // The number of fingers decides which button press to generate.
     };
     enum libinput_config_3fg_drag_state
     {
-        LIBINPUT_CONFIG_3FG_DRAG_DISABLED,   // Drag is to be disabled, or is currently disabled.
-        LIBINPUT_CONFIG_3FG_DRAG_ENABLED_3FG,// Drag is to be enabled for 3 fingers, or is currently enabled.
-        LIBINPUT_CONFIG_3FG_DRAG_ENABLED_4FG,// Drag is to be enabled for 4 fingers, or is currently enabled.
+        LIBINPUT_CONFIG_3FG_DRAG_DISABLED,    // Drag is to be disabled, or is currently disabled.
+        LIBINPUT_CONFIG_3FG_DRAG_ENABLED_3FG, // Drag is to be enabled for 3 fingers, or is currently enabled.
+        LIBINPUT_CONFIG_3FG_DRAG_ENABLED_4FG, // Drag is to be enabled for 4 fingers, or is currently enabled.
     };
     enum libinput_config_send_events_mode
     {
-        LIBINPUT_CONFIG_SEND_EVENTS_ENABLED                    = 0,       // Send events from this device normally. This is a placeholder mode only, any device detected by libinput can be enabled. Do not test for this value as bitmask.
-        LIBINPUT_CONFIG_SEND_EVENTS_DISABLED                   = (1 << 0),// Do not send events through this device. Depending on the device, this may close all file descriptors on the device or it may leave the file descriptors open and route events through a different device.
-        LIBINPUT_CONFIG_SEND_EVENTS_DISABLED_ON_EXTERNAL_MOUSE = (1 << 1),// If an external pointer device is plugged in, do not send events, from this device. This option may be available on built-in touchpads.
+        LIBINPUT_CONFIG_SEND_EVENTS_ENABLED                    = 0,      // Send events from this device normally. This is a placeholder mode only, any device detected by libinput can be enabled. Do not test for this value as bitmask.
+        LIBINPUT_CONFIG_SEND_EVENTS_DISABLED                   = 1 << 0, // Do not send events through this device. Depending on the device, this may close all file descriptors on the device or it may leave the file descriptors open and route events through a different device.
+        LIBINPUT_CONFIG_SEND_EVENTS_DISABLED_ON_EXTERNAL_MOUSE = 1 << 1, // If an external pointer device is plugged in, do not send events, from this device. This option may be available on built-in touchpads.
     };
     enum wheel_event
     {
@@ -361,14 +363,14 @@ namespace netxs::lixx // li++, libinput++.
     enum evdev_event_type
     {
         EVDEV_NONE                = 0,
-        EVDEV_ABSOLUTE_TOUCH_DOWN = 1ul << 0,
-        EVDEV_ABSOLUTE_MOTION     = 1ul << 1,
-        EVDEV_ABSOLUTE_TOUCH_UP   = 1ul << 2,
-        EVDEV_ABSOLUTE_MT         = 1ul << 3,
-        EVDEV_WHEEL               = 1ul << 4,
-        EVDEV_KEY                 = 1ul << 5,
-        EVDEV_RELATIVE_MOTION     = 1ul << 6,
-        EVDEV_BUTTON              = 1ul << 7,
+        EVDEV_ABSOLUTE_TOUCH_DOWN = 1 << 0,
+        EVDEV_ABSOLUTE_MOTION     = 1 << 1,
+        EVDEV_ABSOLUTE_TOUCH_UP   = 1 << 2,
+        EVDEV_ABSOLUTE_MT         = 1 << 3,
+        EVDEV_WHEEL               = 1 << 4,
+        EVDEV_KEY                 = 1 << 5,
+        EVDEV_RELATIVE_MOTION     = 1 << 6,
+        EVDEV_BUTTON              = 1 << 7,
     };
     enum debounce_event
     {
@@ -380,16 +382,16 @@ namespace netxs::lixx // li++, libinput++.
     };
     enum suspend_trigger
     {
-        SUSPEND_NO_FLAG         = 0x0,
-        SUSPEND_EXTERNAL_MOUSE  = 0x1,
-        SUSPEND_SENDEVENTS      = 0x2,
-        SUSPEND_LID             = 0x4,
-        SUSPEND_TABLET_MODE     = 0x8,
+        SUSPEND_NO_FLAG         = 0,
+        SUSPEND_EXTERNAL_MOUSE  = 1 << 0,
+        SUSPEND_SENDEVENTS      = 1 << 1,
+        SUSPEND_LID             = 1 << 2,
+        SUSPEND_TABLET_MODE     = 1 << 3,
     };
     enum libinput_pointer_axis
     {
-        LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL   = 0,
-        LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL = 1,
+        LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL,
+        LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL,
     };
     enum tap_event
     {
@@ -447,17 +449,17 @@ namespace netxs::lixx // li++, libinput++.
     enum tp_edge
     {
         EDGE_NONE   = 0,
-        EDGE_RIGHT  = 1ul << 0,
-        EDGE_BOTTOM = 1ul << 1,
+        EDGE_RIGHT  = 1 << 0,
+        EDGE_BOTTOM = 1 << 1,
     };
     enum touchpad_event
     {
         TOUCHPAD_EVENT_NONE           = 0,
-        TOUCHPAD_EVENT_MOTION         = 1ul << 0,
-        TOUCHPAD_EVENT_BUTTON_PRESS   = 1ul << 1,
-        TOUCHPAD_EVENT_BUTTON_RELEASE = 1ul << 2,
-        TOUCHPAD_EVENT_OTHERAXIS      = 1ul << 3,
-        TOUCHPAD_EVENT_TIMESTAMP      = 1ul << 4,
+        TOUCHPAD_EVENT_MOTION         = 1 << 0,
+        TOUCHPAD_EVENT_BUTTON_PRESS   = 1 << 1,
+        TOUCHPAD_EVENT_BUTTON_RELEASE = 1 << 2,
+        TOUCHPAD_EVENT_OTHERAXIS      = 1 << 3,
+        TOUCHPAD_EVENT_TIMESTAMP      = 1 << 4,
     };
     enum tp_gesture_state
     {
@@ -570,20 +572,20 @@ namespace netxs::lixx // li++, libinput++.
     };
     enum tablet_status
     {
-        TABLET_NONE                    = 0ul,
-        TABLET_AXES_UPDATED            = 1ul << 0,
-        TABLET_BUTTONS_PRESSED         = 1ul << 1,
-        TABLET_BUTTONS_DOWN            = 1ul << 2,
-        TABLET_BUTTONS_RELEASED        = 1ul << 3,
-        TABLET_TOOL_UPDATED            = 1ul << 4,
-        TABLET_TOOL_IN_CONTACT         = 1ul << 5,
-        TABLET_TOOL_LEAVING_PROXIMITY  = 1ul << 6,
-        TABLET_TOOL_OUT_OF_PROXIMITY   = 1ul << 7,
-        TABLET_TOOL_ENTERING_PROXIMITY = 1ul << 8,
-        TABLET_TOOL_ENTERING_CONTACT   = 1ul << 9,
-        TABLET_TOOL_LEAVING_CONTACT    = 1ul << 10,
-        TABLET_TOOL_OUT_OF_RANGE       = 1ul << 11,
-        TABLET_TOOL_OUTSIDE_AREA       = 1ul << 12,
+        TABLET_NONE                    = 0,
+        TABLET_AXES_UPDATED            = 1 << 0,
+        TABLET_BUTTONS_PRESSED         = 1 << 1,
+        TABLET_BUTTONS_DOWN            = 1 << 2,
+        TABLET_BUTTONS_RELEASED        = 1 << 3,
+        TABLET_TOOL_UPDATED            = 1 << 4,
+        TABLET_TOOL_IN_CONTACT         = 1 << 5,
+        TABLET_TOOL_LEAVING_PROXIMITY  = 1 << 6,
+        TABLET_TOOL_OUT_OF_PROXIMITY   = 1 << 7,
+        TABLET_TOOL_ENTERING_PROXIMITY = 1 << 8,
+        TABLET_TOOL_ENTERING_CONTACT   = 1 << 9,
+        TABLET_TOOL_LEAVING_CONTACT    = 1 << 10,
+        TABLET_TOOL_OUT_OF_RANGE       = 1 << 11,
+        TABLET_TOOL_OUTSIDE_AREA       = 1 << 12,
     };
     enum slot_state_enum
     {
@@ -613,19 +615,19 @@ namespace netxs::lixx // li++, libinput++.
     enum pad_axes
     {
         PAD_AXIS_NONE   = 0,
-        PAD_AXIS_RING1  = 1ul << 0,
-        PAD_AXIS_RING2  = 1ul << 1,
-        PAD_AXIS_STRIP1 = 1ul << 2,
-        PAD_AXIS_STRIP2 = 1ul << 3,
-        PAD_AXIS_DIAL1  = 1ul << 4,
-        PAD_AXIS_DIAL2  = 1ul << 5,
+        PAD_AXIS_RING1  = 1 << 0,
+        PAD_AXIS_RING2  = 1 << 1,
+        PAD_AXIS_STRIP1 = 1 << 2,
+        PAD_AXIS_STRIP2 = 1 << 3,
+        PAD_AXIS_DIAL1  = 1 << 4,
+        PAD_AXIS_DIAL2  = 1 << 5,
     };
     enum pad_status
     {
         PAD_NONE             = 0,
-        PAD_AXES_UPDATED     = 1ul << 0,
-        PAD_BUTTONS_PRESSED  = 1ul << 1,
-        PAD_BUTTONS_RELEASED = 1ul << 2,
+        PAD_AXES_UPDATED     = 1 << 0,
+        PAD_BUTTONS_PRESSED  = 1 << 1,
+        PAD_BUTTONS_RELEASED = 1 << 2,
     };
     enum button_event
     {
@@ -650,25 +652,25 @@ namespace netxs::lixx // li++, libinput++.
     };
     enum libinput_tablet_tool_proximity_state
     {
-        LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_OUT = 0,
-        LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_IN  = 1,
+        LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_OUT,
+        LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_IN,
     };
     enum directions
     {
-        N  = 1ul << 0,
-        NE = 1ul << 1,
-        E  = 1ul << 2,
-        SE = 1ul << 3,
-        S  = 1ul << 4,
-        SW = 1ul << 5,
-        W  = 1ul << 6,
-        NW = 1ul << 7,
+        N  = 1 << 0,
+        NE = 1 << 1,
+        E  = 1 << 2,
+        SE = 1 << 3,
+        S  = 1 << 4,
+        SW = 1 << 5,
+        W  = 1 << 6,
+        NW = 1 << 7,
         UNDEFINED_DIRECTION = 0xff
     };
     enum libinput_tablet_tool_tip_state
     {
-        LIBINPUT_TABLET_TOOL_TIP_UP   = 0,
-        LIBINPUT_TABLET_TOOL_TIP_DOWN = 1,
+        LIBINPUT_TABLET_TOOL_TIP_UP,
+        LIBINPUT_TABLET_TOOL_TIP_DOWN,
     };
     enum libinput_tablet_tool_type
     {
@@ -716,15 +718,15 @@ namespace netxs::lixx // li++, libinput++.
     };
     enum match_flags
     {
-        M_NAME      = 1ul << 0,
-        M_BUS       = 1ul << 1,
-        M_VID       = 1ul << 2,
-        M_PID       = 1ul << 3,
-        M_DMI       = 1ul << 4,
-        M_UDEV_TYPE = 1ul << 5,
-        M_DT        = 1ul << 6,
-        M_VERSION   = 1ul << 7,
-        M_UNIQ      = 1ul << 8,
+        M_NAME      = 1 << 0,
+        M_BUS       = 1 << 1,
+        M_VID       = 1 << 2,
+        M_PID       = 1 << 3,
+        M_DMI       = 1 << 4,
+        M_UDEV_TYPE = 1 << 5,
+        M_DT        = 1 << 6,
+        M_VERSION   = 1 << 7,
+        M_UNIQ      = 1 << 8,
         M_LAST      = M_UNIQ,
     };
     enum quirk
@@ -782,17 +784,17 @@ namespace netxs::lixx // li++, libinput++.
     };
     enum libinput_device_model
     {
-        EVDEV_MODEL_DEFAULT                   = 0ul,
-        EVDEV_MODEL_WACOM_TOUCHPAD            = 1ul << 1,
-        EVDEV_MODEL_SYNAPTICS_SERIAL_TOUCHPAD = 1ul << 2,
-        EVDEV_MODEL_ALPS_SERIAL_TOUCHPAD      = 1ul << 3,
-        EVDEV_MODEL_LENOVO_T450_TOUCHPAD      = 1ul << 4,
-        EVDEV_MODEL_APPLE_TOUCHPAD_ONEBUTTON  = 1ul << 5,
-        EVDEV_MODEL_LENOVO_SCROLLPOINT        = 1ul << 6,
+        EVDEV_MODEL_DEFAULT                   = 0,
+        EVDEV_MODEL_WACOM_TOUCHPAD            = 1 << 1,
+        EVDEV_MODEL_SYNAPTICS_SERIAL_TOUCHPAD = 1 << 2,
+        EVDEV_MODEL_ALPS_SERIAL_TOUCHPAD      = 1 << 3,
+        EVDEV_MODEL_LENOVO_T450_TOUCHPAD      = 1 << 4,
+        EVDEV_MODEL_APPLE_TOUCHPAD_ONEBUTTON  = 1 << 5,
+        EVDEV_MODEL_LENOVO_SCROLLPOINT        = 1 << 6,
         // udev tags, not true quirks.
-        EVDEV_MODEL_TEST_DEVICE               = 1ul << 20,
-        EVDEV_MODEL_TRACKBALL                 = 1ul << 21,
-        EVDEV_MODEL_LENOVO_X220_TOUCHPAD_FW81 = 1ul << 22,
+        EVDEV_MODEL_TEST_DEVICE               = 1 << 20,
+        EVDEV_MODEL_TRACKBALL                 = 1 << 21,
+        EVDEV_MODEL_LENOVO_X220_TOUCHPAD_FW81 = 1 << 22,
     };
     enum button_state_enum
     {
