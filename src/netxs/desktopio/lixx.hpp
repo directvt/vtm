@@ -228,11 +228,6 @@ namespace netxs::lixx // li++, libinput++.
         LIBINPUT_CONFIG_STATUS_UNSUPPORTED, // Configuration not available on this device.
         LIBINPUT_CONFIG_STATUS_INVALID,     // Invalid parameter range.
     };
-    enum libinput_config_hold_state
-    {
-        LIBINPUT_CONFIG_HOLD_DISABLED, // Hold gestures are to be disabled, or are currently disabled.
-        LIBINPUT_CONFIG_HOLD_ENABLED,  // Hold gestures are to be enabled, or are currently disabled.
-    };
     enum libinput_config_drag_lock_state
     {
         LIBINPUT_CONFIG_DRAG_LOCK_DISABLED,        // Drag lock is to be disabled, or is currently disabled.
@@ -1213,9 +1208,9 @@ namespace netxs::lixx // li++, libinput++.
         };
         struct libinput_device_config_gesture
         {
-            libinput_config_status    (*set_hold_enabled)(libinput_device_sptr li_device, libinput_config_hold_state enabled);
-            libinput_config_hold_state(*get_hold_enabled)(libinput_device_sptr li_device);
-            libinput_config_hold_state(*get_hold_default)(libinput_device_sptr li_device);
+            libinput_config_status (*set_hold_enabled)(libinput_device_sptr li_device, bool hold_enabled);
+            bool                   (*get_hold_enabled)(libinput_device_sptr li_device);
+            bool                   (*get_hold_default)(libinput_device_sptr li_device);
         };
         struct libinput_device_config_3fg_drag
         {
@@ -14376,7 +14371,7 @@ namespace netxs::lixx // li++, libinput++.
                     {
                         return (!tp.semi_mt && tp.num_slots > 1);
                     }
-                static libinput_config_status tp_gesture_set_hold_enabled(libinput_device_sptr li_device, libinput_config_hold_state enabled)
+                static libinput_config_status tp_gesture_set_hold_enabled(libinput_device_sptr li_device, bool hold_enabled)
                 {
                     auto& tp = *std::static_pointer_cast<tp_device>(li_device);
                     if (!tp.tp_impl.tp_gesture_are_gestures_enabled())
@@ -14385,19 +14380,19 @@ namespace netxs::lixx // li++, libinput++.
                     }
                     else
                     {
-                        tp.gesture.hold_enabled = (enabled == LIBINPUT_CONFIG_HOLD_ENABLED);
+                        tp.gesture.hold_enabled = hold_enabled;
                         return LIBINPUT_CONFIG_STATUS_SUCCESS;
                     }
                 }
-                static libinput_config_hold_state tp_gesture_is_hold_enabled(libinput_device_sptr li_device)
+                static bool tp_gesture_is_hold_enabled(libinput_device_sptr li_device)
                 {
                     auto& tp = *std::static_pointer_cast<tp_device>(li_device);
-                    return tp.gesture.hold_enabled ? LIBINPUT_CONFIG_HOLD_ENABLED : LIBINPUT_CONFIG_HOLD_DISABLED;
+                    return tp.gesture.hold_enabled;
                 }
-                static libinput_config_hold_state tp_gesture_get_hold_default(libinput_device_sptr li_device)
+                static bool tp_gesture_get_hold_default(libinput_device_sptr li_device)
                 {
                     auto& tp = *std::static_pointer_cast<tp_device>(li_device);
-                    return tp.tp_impl.tp_gesture_are_gestures_enabled() ? LIBINPUT_CONFIG_HOLD_ENABLED : LIBINPUT_CONFIG_HOLD_DISABLED;
+                    return tp.tp_impl.tp_gesture_are_gestures_enabled();
                 }
                 static si32 tp_3fg_drag_count(libinput_device_sptr li_device)
                 {
