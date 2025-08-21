@@ -180,11 +180,6 @@ namespace netxs::lixx // li++, libinput++.
         LIBINPUT_CONFIG_ACCEL_PROFILE_ADAPTIVE = (1 << 1),// An adaptive acceleration profile. Pointer acceleration depends on the input speed. This is the default profile for most devices.
         LIBINPUT_CONFIG_ACCEL_PROFILE_CUSTOM   = (1 << 2),// A custom acceleration profile. Device movement acceleration depends on user defined custom acceleration functions for each movement type.
     };
-    enum libinput_switch_state
-    {
-        LIBINPUT_SWITCH_STATE_OFF = 0,
-        LIBINPUT_SWITCH_STATE_ON  = 1,
-    };
     enum libinput_switch
     {
         LIBINPUT_SWITCH_LID = 1,    // The laptop lid was closed when the switch state is @ref LIBINPUT_SWITCH_STATE_ON, or was opened when it is @ref LIBINPUT_SWITCH_STATE_OFF.
@@ -382,11 +377,6 @@ namespace netxs::lixx // li++, libinput++.
         DEBOUNCE_EVENT_TIMEOUT,
         DEBOUNCE_EVENT_TIMEOUT_SHORT,
         DEBOUNCE_EVENT_OTHERBUTTON,
-    };
-    enum tpkbcombo_layout
-    {
-        TPKBCOMBO_LAYOUT_UNKNOWN,
-        TPKBCOMBO_LAYOUT_BELOW,
     };
     enum suspend_trigger
     {
@@ -2686,9 +2676,9 @@ namespace netxs::lixx // li++, libinput++.
         {
             owner.libinput_timer_cancel(*this);
         }
-        void start(time expire, ui32 flags = TIMER_FLAG_NONE)
+        void start(time expire, bool allow_negative = {})
         {
-            owner.libinput_timer_set(*this, expire, flags);
+            owner.libinput_timer_set(*this, expire, allow_negative);
         }
     };
     struct libinput_timer_host
@@ -2726,13 +2716,13 @@ namespace netxs::lixx // li++, libinput++.
                 libinput_timer_handler();
             }
         }
-        void libinput_timer_set(libinput_timer_t& timer, time expire, [[maybe_unused]] ui32 flags = TIMER_FLAG_NONE)
+        void libinput_timer_set(libinput_timer_t& timer, time expire, [[maybe_unused]] bool allow_negative = {})
         {
             #ifndef NDEBUG
             auto now = datetime::now();
             if (expire < now)
             {
-                if ((flags & TIMER_FLAG_ALLOW_NEGATIVE) == 0 && now - expire > lixx::timer_warning_limit)
+                if (!allow_negative && now - expire > lixx::timer_warning_limit)
                 {
                     log("timer %s%: scheduled expiry is in the past (-%dms%), your system is too slow", timer.timer_name, now - expire);
                 }
@@ -2863,7 +2853,7 @@ namespace netxs::lixx // li++, libinput++.
         virtual ui32                  libinput_event_keyboard_get_key()                                              { if constexpr (debugmode) bad_event_type(__func__); return {}; }
         virtual si32                  libinput_event_keyboard_get_key_state()                                        { if constexpr (debugmode) bad_event_type(__func__); return {}; }
         virtual libinput_switch       libinput_event_switch_get_switch()                                             { if constexpr (debugmode) bad_event_type(__func__); return {}; }
-        virtual libinput_switch_state libinput_event_switch_get_switch_state()                                       { if constexpr (debugmode) bad_event_type(__func__); return {}; }
+        virtual si32                  libinput_event_switch_get_switch_state()                                       { if constexpr (debugmode) bad_event_type(__func__); return {}; }
         virtual si32                  libinput_event_gesture_get_finger_count()                                      { if constexpr (debugmode) bad_event_type(__func__); return {}; }
         virtual si32                  libinput_event_gesture_get_cancelled()                                         { if constexpr (debugmode) bad_event_type(__func__); return {}; }
         virtual fp64_coor             libinput_event_gesture_get_ds()                                                { if constexpr (debugmode) bad_event_type(__func__); return {}; }
@@ -2998,11 +2988,11 @@ namespace netxs::lixx // li++, libinput++.
     };
     struct libinput_event_switch : libinput_event
     {
-        libinput_switch       sw;
-        libinput_switch_state state;
+        libinput_switch sw;
+        si32            state;
 
-        virtual libinput_switch       libinput_event_switch_get_switch()       override { return sw; }
-        virtual libinput_switch_state libinput_event_switch_get_switch_state() override { return state; }
+        virtual libinput_switch libinput_event_switch_get_switch()       override { return sw; }
+        virtual si32            libinput_event_switch_get_switch_state() override { return state; }
     };
         struct libinput_tablet_pad_mode_group
         {
@@ -5972,7 +5962,7 @@ namespace netxs::lixx // li++, libinput++.
         }
         ui32 update_press_count(ui32 key_code, si32 state)
         {
-            assert(button_code <= KEY_MAX);
+            assert(key_code <= KEY_MAX);
             auto& press_count = seat_button_count[key_code];
                  if (state == evdev::pressed) press_count++;
             else if (press_count)             press_count--; // We might not have received the first PRESSED event.
@@ -6146,19 +6136,19 @@ namespace netxs::lixx // li++, libinput++.
         virtual ~libinput_device_t()
         { }
 
-        virtual                  void                       process([[maybe_unused]] evdev_event& event, time)                                                { } // Process an evdev input event.
-        virtual                  void                       suspend()                                                                                         { } // Device is being suspended.
-        virtual                  void                        remove()                                                                                         { } // Device is being removed (may be nullptr).
-        virtual                  void                       destroy()                                                                                         { } // Destroy an event dispatch handler and free all its resources.
-        virtual                  void                  device_added([[maybe_unused]] libinput_device_sptr added_li_device)                                    { } // A new device was added.
-        virtual                  void                device_removed([[maybe_unused]] libinput_device_sptr removed_li_device)                                  { } // A device was removed.
-        virtual                  void              device_suspended([[maybe_unused]] libinput_device_sptr suspended_li_device)                                { } // A device was suspended.
-        virtual                  void                device_resumed([[maybe_unused]] libinput_device_sptr resumed_li_device)                                  { } // A device was resumed.
-        virtual                  void                    post_added()                                                                                         { } // Called immediately after the LIBINPUT_EVENT_DEVICE_ADDED event was sent.
-        virtual                  void      touch_arbitration_toggle([[maybe_unused]] libinput_arbitration_state which, [[maybe_unused]] fp64_rect area, time) { } // For touch arbitration, called on the device that should enable/disable touch capabilities.
-        virtual                  void touch_arbitration_update_rect([[maybe_unused]] fp64_rect area, time)                                                    { } // Called when touch arbitration is on, updates the area where touch arbitration should apply.
-        virtual libinput_switch_state              get_switch_state([[maybe_unused]] libinput_switch which)                                                   { return libinput_switch_state{}; } // Return the state of the given switch.
-        virtual                  void            left_handed_toggle([[maybe_unused]] bool left_handed_enabled)                                                { }
+        virtual void                       process([[maybe_unused]] evdev_event& event, time)                                                { } // Process an evdev input event.
+        virtual void                       suspend()                                                                                         { } // Device is being suspended.
+        virtual void                        remove()                                                                                         { } // Device is being removed (may be nullptr).
+        virtual void                       destroy()                                                                                         { } // Destroy an event dispatch handler and free all its resources.
+        virtual void                  device_added([[maybe_unused]] libinput_device_sptr added_li_device)                                    { } // A new device was added.
+        virtual void                device_removed([[maybe_unused]] libinput_device_sptr removed_li_device)                                  { } // A device was removed.
+        virtual void              device_suspended([[maybe_unused]] libinput_device_sptr suspended_li_device)                                { } // A device was suspended.
+        virtual void                device_resumed([[maybe_unused]] libinput_device_sptr resumed_li_device)                                  { } // A device was resumed.
+        virtual void                    post_added()                                                                                         { } // Called immediately after the LIBINPUT_EVENT_DEVICE_ADDED event was sent.
+        virtual void      touch_arbitration_toggle([[maybe_unused]] libinput_arbitration_state which, [[maybe_unused]] fp64_rect area, time) { } // For touch arbitration, called on the device that should enable/disable touch capabilities.
+        virtual void touch_arbitration_update_rect([[maybe_unused]] fp64_rect area, time)                                                    { } // Called when touch arbitration is on, updates the area where touch arbitration should apply.
+        virtual si32              get_switch_state([[maybe_unused]] libinput_switch which)                                                   { return {}; } // Return the state of the given switch.
+        virtual void            left_handed_toggle([[maybe_unused]] bool left_handed_enabled)                                                { }
 
         virtual libinput_config_status sendevents_set_mode(libinput_config_send_events_mode mode)
         {
@@ -6810,14 +6800,14 @@ namespace netxs::lixx // li++, libinput++.
                     if (scroll.button < evdev::btn_left + 5)
                     {
                         // For mouse buttons 1-5 (0x110 to 0x114) we apply a timeout before scrolling since the button could also be used for regular clicking.
-                        auto flags = TIMER_FLAG_NONE;
+                        auto allow_negative = faux;
                         scroll.button_scroll_state = BUTTONSCROLL_BUTTON_DOWN;
                         // Special case: if middle button emulation is enabled and our scroll button is the left or right button, we only get here *after* the middle button timeout has expired for that button press. The time passed is the button-down time though (which is in the past), so we have to allow for a negative timer to be set.
                         if (middlebutton.enabled && (scroll.button == evdev::btn_left || scroll.button == evdev::btn_right))
                         {
-                            flags = TIMER_FLAG_ALLOW_NEGATIVE;
+                            allow_negative = true;
                         }
-                        scroll.timer->start(stamp + lixx::default_button_scroll_timeout, flags);
+                        scroll.timer->start(stamp + lixx::default_button_scroll_timeout, allow_negative);
                     }
                     else // For extra mouse buttons numbered 6 or more (0x115+) we assume it is dedicated exclusively to scrolling, so we don't apply the timeout in order to provide immediate scrolling responsiveness.
                     {
@@ -13379,8 +13369,7 @@ namespace netxs::lixx // li++, libinput++.
                                 {
                                     if (event.libinput_event_switch_get_switch() == LIBINPUT_SWITCH_TABLET_MODE)
                                     {
-                                        auto state = event.libinput_event_switch_get_switch_state();
-                                        if (state == LIBINPUT_SWITCH_STATE_ON)
+                                        if (event.libinput_event_switch_get_switch_state())
                                         {
                                             tp_suspend(SUSPEND_TABLET_MODE);
                                             log("tablet-mode: suspending touchpad");
@@ -13406,7 +13395,7 @@ namespace netxs::lixx // li++, libinput++.
                             }
                             tablet_mode_switch_li_device->libinput_device_add_event_listener(tp.tablet_mode_switch.listener);
                             tp.tablet_mode_switch.tablet_mode_switch_li_device = tablet_mode_switch_li_device;
-                            if (tablet_mode_switch_li_device->get_switch_state(LIBINPUT_SWITCH_TABLET_MODE) == LIBINPUT_SWITCH_STATE_ON)
+                            if (tablet_mode_switch_li_device->get_switch_state(LIBINPUT_SWITCH_TABLET_MODE))
                             {
                                 tp_suspend(SUSPEND_TABLET_MODE);
                             }
@@ -18358,7 +18347,7 @@ namespace netxs::lixx // li++, libinput++.
                                             event.input_event_usec = tval.tv_usec;
                                             return event;
                                         }
-                                            void switch_notify_toggle(time stamp, libinput_switch sw, libinput_switch_state state)
+                                            void switch_notify_toggle(time stamp, libinput_switch sw, si32 state)
                                             {
                                                 if (generic.device_has_cap(LIBINPUT_DEVICE_CAP_SWITCH))
                                                 {
@@ -18372,7 +18361,7 @@ namespace netxs::lixx // li++, libinput++.
                                         {
                                             if (generic.lid.is_closed ^ generic.lid.is_closed_client_state)
                                             {
-                                                switch_notify_toggle(stamp, LIBINPUT_SWITCH_LID, (libinput_switch_state)generic.lid.is_closed);
+                                                switch_notify_toggle(stamp, LIBINPUT_SWITCH_LID, generic.lid.is_closed);
                                                 generic.lid.is_closed_client_state = generic.lid.is_closed;
                                             }
                                         }
@@ -18429,7 +18418,7 @@ namespace netxs::lixx // li++, libinput++.
                             }
                         void fallback_process_switch(evdev_event& ev, time stamp)
                         {
-                            auto state = libinput_switch_state{};
+                            auto state = si32{};
                             auto is_closed = faux;
                             //todo: this should to move to handle_state.
                             switch (ev.usage)
@@ -18447,7 +18436,7 @@ namespace netxs::lixx // li++, libinput++.
                                     if (generic.tablet_mode.sw.state != ev.value)
                                     {
                                         generic.tablet_mode.sw.state = ev.value;
-                                        state = ev.value ? LIBINPUT_SWITCH_STATE_ON : LIBINPUT_SWITCH_STATE_OFF;
+                                        state = ev.value;
                                         switch_notify_toggle(stamp, LIBINPUT_SWITCH_TABLET_MODE, state);
                                     }
                                     break;
@@ -19365,7 +19354,7 @@ namespace netxs::lixx // li++, libinput++.
                     }
                     if (generic.tablet_mode.sw.state)
                     {
-                        switch_notify_toggle(stamp, LIBINPUT_SWITCH_TABLET_MODE, LIBINPUT_SWITCH_STATE_ON);
+                        switch_notify_toggle(stamp, LIBINPUT_SWITCH_TABLET_MODE, true);
                     }
                 }
                     si32_rect evdev_phys_rect_to_units(fp64_rect mm)
@@ -19452,8 +19441,7 @@ namespace netxs::lixx // li++, libinput++.
                             {
                                 if (event.libinput_event_switch_get_switch() == LIBINPUT_SWITCH_TABLET_MODE)
                                 {
-                                    auto state = event.libinput_event_switch_get_switch_state();
-                                    if (state == LIBINPUT_SWITCH_STATE_ON)
+                                    if (event.libinput_event_switch_get_switch_state())
                                     {
                                         fallback_suspend();
                                         log("tablet-mode: suspending device");
@@ -19487,7 +19475,7 @@ namespace netxs::lixx // li++, libinput++.
                         }
                         tablet_mode_switch_li_device->libinput_device_add_event_listener(generic.tablet_mode.other.listener);
                         generic.tablet_mode.other.sw_li_device = tablet_mode_switch_li_device;
-                        if (tablet_mode_switch_li_device->get_switch_state(LIBINPUT_SWITCH_TABLET_MODE) == LIBINPUT_SWITCH_STATE_ON)
+                        if (tablet_mode_switch_li_device->get_switch_state(LIBINPUT_SWITCH_TABLET_MODE))
                         {
                             log("tablet-mode: suspending device");
                             fallback_suspend();
@@ -19515,10 +19503,10 @@ namespace netxs::lixx // li++, libinput++.
                         generic.tablet_mode.other.sw_li_device = {};
                     }
                 }
-                libinput_switch_state fallback_interface_get_switch_state(libinput_switch sw)
+                si32 fallback_interface_get_switch_state(libinput_switch sw)
                 {
                     if (sw != LIBINPUT_SWITCH_TABLET_MODE) ::abort(); // Internal function only, so we can abort here.
-                    return generic.tablet_mode.sw.state ? LIBINPUT_SWITCH_STATE_ON : LIBINPUT_SWITCH_STATE_OFF;
+                    return generic.tablet_mode.sw.state;
                 }
                 static si32 fallback_rotation_config_is_available([[maybe_unused]] libinput_device_sptr li_device)
                 {
@@ -19736,17 +19724,17 @@ namespace netxs::lixx // li++, libinput++.
         };
 
         generic_impl_t generic_impl{ *this };
-        void                           process(evdev_event& ev, time now)                                  { generic_impl.                fallback_interface_process(ev, now); }
-        void                           suspend()                                                           { generic_impl.                fallback_interface_suspend(); }
-        void                            remove()                                                           { generic_impl.                 fallback_interface_remove(); }
-        void                      device_added(libinput_device_sptr added_li_device)                       { generic_impl.           fallback_interface_device_added(added_li_device); }
-        void                    device_removed(libinput_device_sptr removed_li_device)                     { generic_impl.         fallback_interface_device_removed(removed_li_device); }
-        void                  device_suspended(libinput_device_sptr suspended_li_device)                   { generic_impl.         fallback_interface_device_removed(suspended_li_device); }
-        void                    device_resumed(libinput_device_sptr resumed_li_device)                     { generic_impl.           fallback_interface_device_added(resumed_li_device); }
-        void                        post_added()                                                           { generic_impl.     fallback_interface_sync_initial_state(); }
-        void          touch_arbitration_toggle(libinput_arbitration_state which, fp64_rect area, time now) { generic_impl.           fallback_interface_toggle_touch(which, area, now) ; }
-        void     touch_arbitration_update_rect(fp64_rect area, time)                                       { generic_impl.            fallback_interface_update_rect(area); }
-        libinput_switch_state get_switch_state(libinput_switch which)                                      { return generic_impl.fallback_interface_get_switch_state(which); }
+        void                       process(evdev_event& ev, time now)                                  { generic_impl.                fallback_interface_process(ev, now); }
+        void                       suspend()                                                           { generic_impl.                fallback_interface_suspend(); }
+        void                        remove()                                                           { generic_impl.                 fallback_interface_remove(); }
+        void                  device_added(libinput_device_sptr added_li_device)                       { generic_impl.           fallback_interface_device_added(added_li_device); }
+        void                device_removed(libinput_device_sptr removed_li_device)                     { generic_impl.         fallback_interface_device_removed(removed_li_device); }
+        void              device_suspended(libinput_device_sptr suspended_li_device)                   { generic_impl.         fallback_interface_device_removed(suspended_li_device); }
+        void                device_resumed(libinput_device_sptr resumed_li_device)                     { generic_impl.           fallback_interface_device_added(resumed_li_device); }
+        void                    post_added()                                                           { generic_impl.     fallback_interface_sync_initial_state(); }
+        void      touch_arbitration_toggle(libinput_arbitration_state which, fp64_rect area, time now) { generic_impl.           fallback_interface_toggle_touch(which, area, now) ; }
+        void touch_arbitration_update_rect(fp64_rect area, time)                                       { generic_impl.            fallback_interface_update_rect(area); }
+        si32              get_switch_state(libinput_switch which)                                      { return generic_impl.fallback_interface_get_switch_state(which); }
     };
 
     libinput_device_sptr create_totem(libinput_t& li, ud_device_t& ud_device)
