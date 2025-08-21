@@ -1094,7 +1094,7 @@ namespace netxs::lixx // li++, libinput++.
         };
 
         libinput_config_accel_profile profile = LIBINPUT_CONFIG_ACCEL_PROFILE_NONE;
-        custom_t                      custom;
+        custom_t                      custom{};
     };
     struct libinput_device_config_scroll_method
     {
@@ -1219,20 +1219,20 @@ namespace netxs::lixx // li++, libinput++.
         };
         struct libinput_device_config
         {
-            libinput_device_config_tap*              tap;
-            libinput_device_config_calibration*      calibration;
-            libinput_device_config_area*             area;
-            libinput_device_config_accel*            accel;
-            libinput_device_config_natural_scroll*   natural_scroll;
-            libinput_device_config_left_handed*      left_handed;
-            libinput_device_config_scroll_method*    scroll_method;
-            libinput_device_config_click_method*     click_method;
-            libinput_device_config_middle_emulation* middle_emulation;
-            libinput_device_config_dwt*              dwt;
-            libinput_device_config_dwtp*             dwtp;
-            libinput_device_config_rotation*         rotation;
-            libinput_device_config_gesture*          gesture;
-            libinput_device_config_3fg_drag*         drag_3fg;
+            libinput_device_config_tap*              tap{};
+            libinput_device_config_calibration*      calibration{};
+            libinput_device_config_area*             area{};
+            libinput_device_config_accel*            accel{};
+            libinput_device_config_natural_scroll*   natural_scroll{};
+            libinput_device_config_left_handed*      left_handed{};
+            libinput_device_config_scroll_method*    scroll_method{};
+            libinput_device_config_click_method*     click_method{};
+            libinput_device_config_middle_emulation* middle_emulation{};
+            libinput_device_config_dwt*              dwt{};
+            libinput_device_config_dwtp*             dwtp{};
+            libinput_device_config_rotation*         rotation{};
+            libinput_device_config_gesture*          gesture{};
+            libinput_device_config_3fg_drag*         drag_3fg{};
         };
 
         struct libinput_tablet_tool_config_pressure_range
@@ -1244,12 +1244,12 @@ namespace netxs::lixx // li++, libinput++.
         };
         struct libinput_tablet_tool_pressure_threshold
         {
-            ui32                     tablet_id;
+            ui32                     tablet_id{};
             abs_info_t               abs_pressure; // The configured axis we actually work with.
-            si32_range               threshold;   // In device coordinates.
-            fp64                     offset;
-            bool                     has_offset;
-            pressure_heuristic_state heuristic_state; // This gives us per-tablet heuristic state which is arguably wrong but >99% of users have one tablet and it's easier to implement it this way.
+            si32_range               threshold;    // In device coordinates.
+            fp64                     offset{};
+            bool                     has_offset{};
+            pressure_heuristic_state heuristic_state{}; // This gives us per-tablet heuristic state which is arguably wrong but >99% of users have one tablet and it's easier to implement it this way.
         };
     struct libinput_tablet_tool
     {
@@ -1257,13 +1257,13 @@ namespace netxs::lixx // li++, libinput++.
         {
             fp64_range                              range; // We're assuming that the *configured* pressure range is per tool, not per tablet. The *adjusted* thresholds are then per-tablet.
             fp64_range                              wanted_range;
-            bool                                    has_configured_range;
+            bool                                    has_configured_range{};
             libinput_tablet_tool_pressure_threshold threshold;
         };
 
-        ui32                                       serial;
-        ui32                                       tool_id;
-        libinput_tablet_tool_type                  type;
+        ui32                                       serial{};
+        ui32                                       tool_id{};
+        libinput_tablet_tool_type                  type{};
         tablet_axes_bitset                         axis_caps_bits;
         std::bitset<KEY_MAX>                       buttons_bits;
         pressure_t                                 pressure;
@@ -1286,8 +1286,8 @@ namespace netxs::lixx // li++, libinput++.
             struct pointer_tracker
             {
                 fp64_coor delta; // Delta to most recent event.
-                time      now;   // us.
-                ui32      dir;
+                time      now{}; // us.
+                ui32      dir{};
 
                 fp64 calculate_trackers_velocity(time new_now, pointer_delta_smoothener_sptr smoothener)
                 {
@@ -1338,7 +1338,7 @@ namespace netxs::lixx // li++, libinput++.
         struct pointer_trackers
         {
             std::vector<pointer_tracker>  trackers;
-            ui32                          cur_tracker;
+            ui32                          cur_tracker{};
             pointer_delta_smoothener_sptr smoothener;
 
             pointer_tracker& trackers_by_offset(ui32 offset = 0)
@@ -1688,8 +1688,8 @@ namespace netxs::lixx // li++, libinput++.
     };
     struct custom_accel_function
     {
-        time              last_time;
-        fp64              step;
+        time              last_time{};
+        fp64              step{};
         std::vector<fp64> points;
 
         fp64 custom_accel_function_calculate_speed(fp64_coor unaccelerated, time now)
@@ -1793,7 +1793,6 @@ namespace netxs::lixx // li++, libinput++.
             }
             auto cf = ptr::shared<custom_accel_function>();
             cf->points.assign(points.begin(), points.end());
-            cf->last_time = {};
             cf->step = step;
             return cf;
         }
