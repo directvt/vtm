@@ -5789,6 +5789,7 @@ namespace netxs::os
                                 auto y = clamp(pos_y.value() - 1);
                                 auto ctl = ctrl.value();
 
+                                m.timecod = timecode;
                                 m.enabled = {};
                                 m.hzwheel = {};
                                 m.wheelfp = {};
@@ -5806,14 +5807,13 @@ namespace netxs::os
 
                                 if (ctl == 35 && m.buttons) // Moving without buttons (case when second release not fired: apple's terminal.app)
                                 {
-                                    log("ctl == 35 && m.buttons");
                                     m.buttons = {};
                                     m.changed++;
-                                    m.timecod = timecode;
                                     mouse(m);
                                 }
+                                auto prev_buttons = m.buttons;
+                                auto prev_coordxy = m.coordxy;
                                 m.coordxy = { x, y };
-                                    log("m.coordxy = ", m.coordxy);
                                 switch (ctl)
                                 {
                                     case 0: netxs::set_bit<input::hids::buttons::left  >(m.buttons, ispressed); break;
@@ -5835,13 +5835,19 @@ namespace netxs::os
                                         break;
                                     //todo impl ext mouse buttons 129-131
                                 }
+                                if (prev_buttons != m.buttons && prev_coordxy != m.coordxy) // Move mouse before button pressed. This is a case where the button state and coords arrived simultaneously.
+                                {
+                                    std::swap(prev_buttons, m.buttons);
+                                    m.changed++;
+                                    mouse(m);
+                                    std::swap(prev_buttons, m.buttons);
+                                }
                                 if (!(dtvt::vtmode & ui::console::vt_2D) && dtvt::wheelrate) // Don't accelerate the mouse wheel if we are already inside the vtm.
                                 {
                                     m.wheelfp *= dtvt::wheelrate;
                                 }
                                 m.wheelsi = (si32)m.wheelfp;
                                 m.changed++;
-                                m.timecod = timecode;
                                 mouse(m);
                             }
                             else if (t == type::focus) // Focus report:  ESC [ I/O
