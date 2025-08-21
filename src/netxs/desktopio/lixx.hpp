@@ -4181,7 +4181,7 @@ namespace netxs::lixx // li++, libinput++.
             {
                 if (sync_state == SYNC_NEEDED)
                 {
-                    rc  = do_sync_state();
+                    rc = do_sync_state();
                     if (rc != evdev::success) return rc;
                     sync_state = SYNC_IN_PROGRESS;
                 }
