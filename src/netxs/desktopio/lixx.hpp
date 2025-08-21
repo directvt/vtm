@@ -419,11 +419,6 @@ namespace netxs::lixx // li++, libinput++.
         LIBINPUT_POINTER_AXIS_SOURCE_CONTINUOUS,// The event is caused by the motion of some device.
         LIBINPUT_POINTER_AXIS_SOURCE_WHEEL_TILT,// @deprecated This axis source is deprecated as of libinput 1.16. The event is caused by the tilting of a mouse wheel rather than its rotation. This method is commonly used on mice without separate horizontal scroll wheels.
     };
-    enum gesture_cancelled
-    {
-        END_GESTURE    = 0,
-        CANCEL_GESTURE = 1,
-    };
     enum gesture_event
     {
         GESTURE_EVENT_RESET,
@@ -10315,7 +10310,7 @@ namespace netxs::lixx // li++, libinput++.
                                                     {
                                                         gesture_notify(stamp, LIBINPUT_EVENT_GESTURE_HOLD_END, finger_count, cancelled, lixx::zero_coor, lixx::zero_coor, 0, 0.0);
                                                     }
-                                                        void tp_gesture_end(time stamp, gesture_cancelled cancelled)
+                                                        void tp_gesture_end(time stamp, bool gesture_cancelled)
                                                         {
                                                             switch (tp.gesture.state)
                                                             {
@@ -10333,18 +10328,15 @@ namespace netxs::lixx // li++, libinput++.
                                                                 case GESTURE_STATE_SWIPE:
                                                                 case GESTURE_STATE_3FG_DRAG:
                                                                 case GESTURE_STATE_3FG_DRAG_RELEASED:
-                                                                    switch (cancelled)
-                                                                    {
-                                                                        case CANCEL_GESTURE: tp_gesture_handle_event(GESTURE_EVENT_CANCEL, stamp); break;
-                                                                        case END_GESTURE:    tp_gesture_handle_event(GESTURE_EVENT_END, stamp);    break;
-                                                                    }
+                                                                    if (gesture_cancelled) tp_gesture_handle_event(GESTURE_EVENT_CANCEL, stamp);
+                                                                    else                   tp_gesture_handle_event(GESTURE_EVENT_END, stamp);
                                                                     break;
                                                                 default: break;
                                                             }
                                                         }
                                                     void tp_gesture_cancel(time stamp)
                                                     {
-                                                        tp_gesture_end(stamp, CANCEL_GESTURE);
+                                                        tp_gesture_end(stamp, true);
                                                     }
                                                 void tp_gesture_handle_event_on_state_hold(gesture_event event, time stamp)
                                                 {
@@ -10819,7 +10811,7 @@ namespace netxs::lixx // li++, libinput++.
                                         }
                                     void tp_gesture_stop(time stamp)
                                     {
-                                        tp_gesture_end(stamp, END_GESTURE);
+                                        tp_gesture_end(stamp, faux);
                                     }
                                     bool tp_gesture_debounce_finger_changes()
                                     {
