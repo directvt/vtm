@@ -583,16 +583,6 @@ namespace netxs::lixx // li++, libinput++.
         LIBINPUT_DEVICE_CAP_GESTURE     = 5,
         LIBINPUT_DEVICE_CAP_SWITCH      = 6,
     };
-    enum notify
-    {
-        DONT_NOTIFY,
-        DO_NOTIFY,
-    };
-    enum timer_flags
-    {
-        TIMER_FLAG_NONE           = 0,
-        TIMER_FLAG_ALLOW_NEGATIVE = 1ul << 0,
-    };
     enum tablet_status
     {
         TABLET_NONE                    = 0ul,
@@ -5991,7 +5981,7 @@ namespace netxs::lixx // li++, libinput++.
         libinput_device_sptr libinput_add_device(qiew sysname)
         {
             auto ok = ud_monitor.add_by_name(sysname);
-            return ok? device_list.back() : libinput_device_sptr{};
+            return ok ? device_list.back() : libinput_device_sptr{};
         }
         void enumerate_active_devices(auto proc)
         {
@@ -13421,7 +13411,7 @@ namespace netxs::lixx // li++, libinput++.
                                 tp_suspend(SUSPEND_TABLET_MODE);
                             }
                         }
-                            void tp_change_rotation(notify n)
+                            void tp_change_rotation(bool notify)
                             {
                                 auto tablet_li_device = tp.left_handed.tablet_li_device;
                                 bool tablet_is_left, touchpad_is_left;
@@ -13431,7 +13421,7 @@ namespace netxs::lixx // li++, libinput++.
                                     tablet_is_left = tp.left_handed.tablet_left_handed_state;
                                     tp.left_handed.want_rotate = touchpad_is_left || tablet_is_left;
                                     tp_apply_rotation();
-                                    if (n == DO_NOTIFY && tablet_li_device)
+                                    if (notify && tablet_li_device)
                                     {
                                         tablet_li_device->left_handed_toggle(tp.left_handed.want_rotate);
                                     }
@@ -13448,7 +13438,7 @@ namespace netxs::lixx // li++, libinput++.
                                 {
                                     tp.left_handed.want_rotate = true;
                                     tp.left_handed.tablet_left_handed_state = true;
-                                    tp_change_rotation(DONT_NOTIFY);
+                                    tp_change_rotation(faux);
                                 }
                             }
                         }
@@ -13521,8 +13511,7 @@ namespace netxs::lixx // li++, libinput++.
                 {
                     tp.left_handed.tablet_li_device = {};
                     tp.left_handed.tablet_left_handed_state = faux;
-                    // Slight awkwardness: removing the tablet causes the touchpad to rotate back to normal if only the tablet was set to left-handed. Niche case, nothing to worry about.
-                    tp_change_rotation(DO_NOTIFY);
+                    tp_change_rotation(true); // Slight awkwardness: removing the tablet causes the touchpad to rotate back to normal if only the tablet was set to left-handed. Niche case, nothing to worry about.
                 }
             }
             void tp_interface_toggle_touch(libinput_arbitration_state which, time stamp)
@@ -13544,12 +13533,13 @@ namespace netxs::lixx // li++, libinput++.
             }
             void touchpad_left_handed_toggled(bool left_handed_enabled)
             {
-                // Called when the tablet toggles to left-handed.
-                if (!tp.left_handed.tablet_li_device) return;
-                log("touchpad-rotation: tablet is %s%", left_handed_enabled ? "left-handed" : "right-handed");
-                // Our left-handed config is independent even though rotation is locked. So we rotate when either device is left-handed. But it can only be actually changed when the device is in a neutral state, hence the want_rotate.
-                tp.left_handed.tablet_left_handed_state = left_handed_enabled;
-                tp_change_rotation(DONT_NOTIFY);
+                if (tp.left_handed.tablet_li_device) // Called when the tablet toggles to left-handed.
+                {
+                    log("touchpad-rotation: tablet is %s%", left_handed_enabled ? "left-handed" : "right-handed");
+                    // Our left-handed config is independent even though rotation is locked. So we rotate when either device is left-handed. But it can only be actually changed when the device is in a neutral state, hence the want_rotate.
+                    tp.left_handed.tablet_left_handed_state = left_handed_enabled;
+                    tp_change_rotation(faux);
+                }
             }
                 bool tp_init_slots()
                 {
@@ -14766,7 +14756,7 @@ namespace netxs::lixx // li++, libinput++.
                     }
                     // Tapping and clickfinger aren't affected by left-handed config, so checking physical buttons is enough.
                     li_device->dev_left_handed.enabled = li_device->dev_left_handed.want_enabled;
-                    tp.tp_impl.tp_change_rotation(DO_NOTIFY);
+                    tp.tp_impl.tp_change_rotation(true);
                 }
             void tp_init_left_handed()
             {
@@ -17265,14 +17255,14 @@ namespace netxs::lixx // li++, libinput++.
                                 tablet.rotation.rotate = tablet.rotation.want_rotate;
                                 log("tablet-rotation: rotation is %s%", tablet.rotation.rotate ? "on" : "off");
                             }
-                        void tablet_change_rotation(notify do_notify)
+                        void tablet_change_rotation(bool notify)
                         {
                             auto touch_li_device = tablet.touch_li_device;
                             auto tablet_is_left = tablet.dev_left_handed.enabled;
                             auto touchpad_is_left = tablet.rotation.touch_device_left_handed_state;
                             tablet.rotation.want_rotate = tablet_is_left || touchpad_is_left;
                             tablet_apply_rotation();
-                            if (do_notify == DO_NOTIFY && touch_li_device)
+                            if (notify && touch_li_device)
                             {
                                 auto enable = tablet.dev_left_handed.want_enabled;
                                 touch_li_device->left_handed_toggle(enable);
@@ -17284,7 +17274,7 @@ namespace netxs::lixx // li++, libinput++.
                         {
                             li_device->dev_left_handed.enabled = li_device->dev_left_handed.want_enabled;
                             auto tablet_ptr = std::static_pointer_cast<tablet_device>(li_device);
-                            tablet_ptr->tablet_impl.tablet_change_rotation(DO_NOTIFY);
+                            tablet_ptr->tablet_impl.tablet_change_rotation(true);
                         }
                     }
                     void tablet_change_area()
@@ -17479,7 +17469,7 @@ namespace netxs::lixx // li++, libinput++.
                         if (new_li_device->libinput_device_config_left_handed_get())
                         {
                             tablet.rotation.touch_device_left_handed_state = true;
-                            tablet_change_rotation(DO_NOTIFY);
+                            tablet_change_rotation(true);
                         }
                     }
                 }
@@ -17498,7 +17488,7 @@ namespace netxs::lixx // li++, libinput++.
                 {
                     tablet.rotation.touch_li_device = {};
                     tablet.rotation.touch_device_left_handed_state = faux;
-                    tablet_change_rotation(DO_NOTIFY);
+                    tablet_change_rotation(true);
                 }
             }
                 si32 tablet_tool_to_evcode(libinput_tablet_tool_type type)
@@ -17547,7 +17537,7 @@ namespace netxs::lixx // li++, libinput++.
                     log("tablet-rotation: touchpad is %s%", left_handed_enabled ? "left-handed" : "right-handed");
                     // Our left-handed config is independent even though rotation is locked. So we rotate when either device is left-handed. But it can only be actually changed when the device is in a neutral state, hence the want_rotate.
                     tablet.rotation.touch_device_left_handed_state = left_handed_enabled;
-                    tablet_change_rotation(DONT_NOTIFY);
+                    tablet_change_rotation(faux);
                 }
             }
                 bool tablet_reject_device()
