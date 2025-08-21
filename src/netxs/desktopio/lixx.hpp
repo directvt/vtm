@@ -6055,6 +6055,7 @@ namespace netxs::lixx // li++, libinput++.
 
         libinput_t&                             li;
         ud_device_t&                            ud_device;
+        ud_device_sptr                          deleted_device_ptr; // Backup device reference when device is removed.
         text                                    device_group; //todo Property for tablet touch arbitration. Set LIBINPUT_DEVICE_GROUP somewhere in settings (or in quirks) for devices intended to be in a group (e.g. tablet+stylus).
         std::list<libinput_event_listener_sptr> event_listeners;
         libinput_device_config                  config;
@@ -6988,7 +6989,15 @@ namespace netxs::lixx // li++, libinput++.
                     return faux;
                 }
             });
-            std::erase_if(li.ud_monitor.ud_device_list, [&](auto d){ return d.second.get() == &ud_device; });
+            std::erase_if(li.ud_monitor.ud_device_list, [&](auto d)
+            {
+                auto found = d.second.get() == &ud_device;
+                if (found)
+                {
+                    deleted_device_ptr = d.second;
+                }
+                return found;
+            });
             log("Device '%%' removed", ud_device.devname);
         }
         si32 evdev_device_resume()
