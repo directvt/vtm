@@ -228,11 +228,6 @@ namespace netxs::lixx // li++, libinput++.
         LIBINPUT_CONFIG_STATUS_UNSUPPORTED, // Configuration not available on this device.
         LIBINPUT_CONFIG_STATUS_INVALID,     // Invalid parameter range.
     };
-    enum libinput_config_dwtp_state
-    {
-        LIBINPUT_CONFIG_DWTP_DISABLED,
-        LIBINPUT_CONFIG_DWTP_ENABLED,
-    };
     enum libinput_config_hold_state
     {
         LIBINPUT_CONFIG_HOLD_DISABLED, // Hold gestures are to be disabled, or are currently disabled.
@@ -1204,10 +1199,10 @@ namespace netxs::lixx // li++, libinput++.
         };
         struct libinput_device_config_dwtp
         {
-            si32                      (*is_available)       (libinput_device_sptr li_device);
-            libinput_config_status    (*set_enabled)        (libinput_device_sptr li_device, libinput_config_dwtp_state enable);
-            libinput_config_dwtp_state(*get_enabled)        (libinput_device_sptr li_device);
-            libinput_config_dwtp_state(*get_default_enabled)(libinput_device_sptr li_device);
+            si32                   (*is_available)       (libinput_device_sptr li_device);
+            libinput_config_status (*set_enabled)        (libinput_device_sptr li_device, bool dwtp_enabled);
+            bool                   (*get_enabled)        (libinput_device_sptr li_device);
+            bool                   (*get_default_enabled)(libinput_device_sptr li_device);
         };
         struct libinput_device_config_rotation
         {
@@ -13995,9 +13990,9 @@ namespace netxs::lixx // li++, libinput++.
                     static bool tp_dwt_config_get_default(libinput_device_sptr li_device)
                     {
                         auto& tp = *std::static_pointer_cast<tp_device>(li_device);
-                        return tp.tp_impl.tp_dwt_default_enabled2();
+                        return tp.tp_impl.tp_dwt_default_enabled();
                     }
-                    bool tp_dwt_default_enabled2()
+                    bool tp_dwt_default_enabled()
                     {
                         return true;
                     }
@@ -14019,11 +14014,11 @@ namespace netxs::lixx // li++, libinput++.
                         tp.dwt.config.set_enabled         = tp_dwt_config_set;
                         tp.dwt.config.get_enabled         = tp_dwt_config_get;
                         tp.dwt.config.get_default_enabled = tp_dwt_config_get_default;
-                        tp.dwt.dwt_enabled                = tp_dwt_default_enabled2();
+                        tp.dwt.dwt_enabled                = tp_dwt_default_enabled();
                         tp.config.dwt = &tp.dwt.config;
                     }
                 }
-                    static bool tp_dwt_default_enabled([[maybe_unused]] tp_dispatch_sptr tp)
+                    static bool tp_dwtp_default_enabled([[maybe_unused]] tp_dispatch_sptr tp)
                     {
                         return true;
                     }
@@ -14031,34 +14026,26 @@ namespace netxs::lixx // li++, libinput++.
                     {
                         return 1;
                     }
-                    static libinput_config_status tp_dwtp_config_set(libinput_device_sptr li_device, libinput_config_dwtp_state enable)
+                    static libinput_config_status tp_dwtp_config_set(libinput_device_sptr li_device, bool dwtp_enabled)
                     {
                         auto& tp = *std::static_pointer_cast<tp_device>(li_device);
-                        switch (enable)
-                        {
-                            case LIBINPUT_CONFIG_DWTP_ENABLED:
-                            case LIBINPUT_CONFIG_DWTP_DISABLED:
-                                break;
-                            default:
-                                return LIBINPUT_CONFIG_STATUS_INVALID;
-                        }
-                        tp.palm.dwtp_enabled = (enable == LIBINPUT_CONFIG_DWTP_ENABLED);
+                        tp.palm.dwtp_enabled = dwtp_enabled;
                         return LIBINPUT_CONFIG_STATUS_SUCCESS;
                     }
-                    static libinput_config_dwtp_state tp_dwtp_config_get(libinput_device_sptr li_device)
+                    static bool tp_dwtp_config_get(libinput_device_sptr li_device)
                     {
                         auto& tp = *std::static_pointer_cast<tp_device>(li_device);
-                        return tp.palm.dwtp_enabled ? LIBINPUT_CONFIG_DWTP_ENABLED : LIBINPUT_CONFIG_DWTP_DISABLED;
+                        return tp.palm.dwtp_enabled;
                     }
-                    static libinput_config_dwtp_state tp_dwtp_config_get_default(libinput_device_sptr li_device)
+                    static bool tp_dwtp_config_get_default(libinput_device_sptr li_device)
                     {
                         auto& tp = *std::static_pointer_cast<tp_device>(li_device);
-                        auto dwtp = tp.tp_impl.tp_dwt_default_enabled2();
-                        return dwtp ? LIBINPUT_CONFIG_DWTP_ENABLED : LIBINPUT_CONFIG_DWTP_DISABLED;
+                        auto dwtp = tp.tp_impl.tp_dwtp_default_enabled();
+                        return dwtp;
                     }
                 void tp_init_dwtp()
                 {
-                    tp.palm.dwtp_enabled = tp_dwt_default_enabled2();
+                    tp.palm.dwtp_enabled = tp_dwtp_default_enabled();
                     if (!(tp.device_tags & EVDEV_TAG_EXTERNAL_TOUCHPAD))
                     {
                         tp.palm.config.is_available        = tp_dwtp_config_is_available;
