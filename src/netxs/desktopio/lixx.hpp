@@ -82,11 +82,6 @@ namespace netxs::lixx // li++, libinput++.
         TOUCH_ONGOING,
         TOUCH_CHANGED,
     };
-    enum read_status
-    {
-        LIBEVDEV_READ_STATUS_SUCCESS,
-        LIBEVDEV_READ_STATUS_SYNC,
-    };
     enum libinput_arbitration_state
     {
         ARBITRATION_NOT_ACTIVE,
@@ -765,6 +760,8 @@ namespace netxs::lixx // li++, libinput++.
     constexpr ui16 evdev_usage_code(ui32 usage)                { return (ui16)usage & 0xFFFF; }
     struct evdev // The enum doesn't need to contain all event codes, only the ones we use in libinput - add to here as required.      * The order doesn't matter either since each enum value is just the type | code value anyway, keep it in somewhat logical groups where possible.
     {
+        static constexpr auto success             = 0;
+        static constexpr auto sync                = 1;
         static constexpr auto pressed             = 1;
         static constexpr auto released            = 0;
         static constexpr auto syn_report          = evdev_usage_from_code(EV_SYN, SYN_REPORT);
@@ -4171,7 +4168,7 @@ namespace netxs::lixx // li++, libinput++.
             }
         si32 libevdev_next_event(ui32 flags, input_event_t& ev)
         {
-            auto rc = (si32)LIBEVDEV_READ_STATUS_SUCCESS;
+            auto rc = evdev::success;
             if (!initialized || fd == os::invalid_fd)
             {
                 return -EBADF;
@@ -4184,8 +4181,8 @@ namespace netxs::lixx // li++, libinput++.
             {
                 if (sync_state == SYNC_NEEDED)
                 {
-                    rc = do_sync_state();
-                    if (rc != LIBEVDEV_READ_STATUS_SUCCESS) return rc;
+                    rc  = do_sync_state();
+                    if (rc != evdev::success) return rc;
                     sync_state = SYNC_IN_PROGRESS;
                 }
                 if (queue_nsync == 0)
@@ -4218,8 +4215,7 @@ namespace netxs::lixx // li++, libinput++.
                 if (flags & LIBEVDEV_READ_FLAG_FORCE_SYNC)
                 {
                     sync_state = SYNC_NEEDED;
-                    rc = LIBEVDEV_READ_STATUS_SYNC;
-                    return rc;
+                    return evdev::sync;
                 }
                 if (queue_shift(ev) != 0)
                 {
@@ -4232,16 +4228,16 @@ namespace netxs::lixx // li++, libinput++.
                 }
             }
             while (filter_status == EVENT_FILTER_DISCARD);
-            rc = LIBEVDEV_READ_STATUS_SUCCESS;
+            rc = evdev::success;
             if (ev.type == EV_SYN && ev.code == SYN_DROPPED)
             {
                 sync_state = SYNC_NEEDED;
-                rc = LIBEVDEV_READ_STATUS_SYNC;
+                rc = evdev::sync;
             }
             if (flags & LIBEVDEV_READ_FLAG_SYNC && queue_nsync > 0)
             {
                 queue_nsync--;
-                rc = LIBEVDEV_READ_STATUS_SYNC;
+                rc = evdev::sync;
                 if (queue_nsync == 0)
                 {
                     sync_state = SYNC_NONE;
@@ -6880,7 +6876,7 @@ namespace netxs::lixx // li++, libinput++.
         si32 evdev_sync_device()
         {
             auto ev = input_event_t{};
-            auto rc = 0;
+            auto rc = evdev::success;
             frame.evdev_frame_reset();
             do
             {
@@ -6888,9 +6884,9 @@ namespace netxs::lixx // li++, libinput++.
                 if (rc < 0) break;
                 frame.evdev_frame_append_input_event(ev);
             }
-            while (rc == LIBEVDEV_READ_STATUS_SYNC);
+            while (rc == evdev::sync);
             evdev_device_dispatch_frame(frame);
-            return rc == -EAGAIN ? LIBEVDEV_READ_STATUS_SUCCESS : rc;
+            return rc == -EAGAIN ? evdev::success : rc;
         }
         void evdev_note_time_delay(input_event_t& ev)
         {
@@ -6930,13 +6926,13 @@ namespace netxs::lixx // li++, libinput++.
         void evdev_device_dispatch()
         {
             auto ev = input_event_t{};
-            auto rc = (si32)LIBEVDEV_READ_STATUS_SUCCESS;
+            auto rc = evdev::success;
             auto once = faux;
             frame.evdev_frame_reset();
             do // If the compositor is repainting, this function is called only once per frame and we have to process all the events available on the fd, otherwise there will be input lag.
             {
                 rc = ud_device.libevdev_next_event(LIBEVDEV_READ_FLAG_NORMAL, ev);
-                if (rc == LIBEVDEV_READ_STATUS_SYNC)
+                if (rc == evdev::sync)
                 {
                     log("SYN_DROPPED event - some input events have been lost.");
                     ev.code = SYN_REPORT; // Send one more sync event so we handle all currently pending events before we sync up to the current state.
@@ -6945,7 +6941,7 @@ namespace netxs::lixx // li++, libinput++.
                     frame.evdev_frame_reset();
                     rc = evdev_sync_device();
                 }
-                else if (rc == LIBEVDEV_READ_STATUS_SUCCESS)
+                else if (rc == evdev::success)
                 {
                     if (!once)
                     {
@@ -6965,7 +6961,7 @@ namespace netxs::lixx // li++, libinput++.
                     return;
                 }
             }
-            while (rc == LIBEVDEV_READ_STATUS_SUCCESS);
+            while (rc == evdev::success);
             if (frame.ev_events.size() > 1) // This should never happen, the kernel flushes only on SYN_REPORT.
             {
                 log("event frame missing SYN_REPORT, forcing frame");
@@ -7008,12 +7004,8 @@ namespace netxs::lixx // li++, libinput++.
             // Re-sync libevdev's view of the device, but discard the actual events. Our device is in a neutral state already.
             auto ev = input_event_t{};
             ud_device.libevdev_next_event(LIBEVDEV_READ_FLAG_FORCE_SYNC, ev);
-            auto status = 0;
-            do
-            {
-                status = ud_device.libevdev_next_event(LIBEVDEV_READ_FLAG_SYNC, ev);
-            }
-            while (status == LIBEVDEV_READ_STATUS_SYNC);
+            while (ud_device.libevdev_next_event(LIBEVDEV_READ_FLAG_SYNC, ev) == evdev::sync)
+            { }
             source = li.timers.libinput_add_event_source(ud_device.fd, [&]{ evdev_device_dispatch(); });
             if (!source)
             {
