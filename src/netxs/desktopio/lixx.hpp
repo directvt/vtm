@@ -1098,123 +1098,123 @@ namespace netxs::lixx // li++, libinput++.
     };
     struct libinput_device_config_scroll_method
     {
-        ui32                          (*get_methods)            (libinput_device_sptr li_device);
-        libinput_config_status        (*set_method)             (libinput_device_sptr li_device, libinput_config_scroll_method method);
-        libinput_config_scroll_method (*get_method)             (libinput_device_sptr li_device);
-        libinput_config_scroll_method (*get_default_method)     (libinput_device_sptr li_device);
-        libinput_config_status        (*set_button)             (libinput_device_sptr li_device, ui32 button);
-        ui32                          (*get_button)             (libinput_device_sptr li_device);
-        ui32                          (*get_default_button)     (libinput_device_sptr li_device);
-        libinput_config_status        (*set_button_lock)        (libinput_device_sptr li_device, bool scroll_button_lock_enabled);
-        bool                          (*get_button_lock)        (libinput_device_sptr li_device);
-        bool                          (*get_default_button_lock)(libinput_device_sptr li_device);
+        ui32                          (*get_methods)            (libinput_device_sptr li_device) = {};
+        libinput_config_status        (*set_method)             (libinput_device_sptr li_device, libinput_config_scroll_method method) = {};
+        libinput_config_scroll_method (*get_method)             (libinput_device_sptr li_device) = {};
+        libinput_config_scroll_method (*get_default_method)     (libinput_device_sptr li_device) = {};
+        libinput_config_status        (*set_button)             (libinput_device_sptr li_device, ui32 button) = {};
+        ui32                          (*get_button)             (libinput_device_sptr li_device) = {};
+        ui32                          (*get_default_button)     (libinput_device_sptr li_device) = {};
+        libinput_config_status        (*set_button_lock)        (libinput_device_sptr li_device, bool scroll_button_lock_enabled) = {};
+        bool                          (*get_button_lock)        (libinput_device_sptr li_device) = {};
+        bool                          (*get_default_button_lock)(libinput_device_sptr li_device) = {};
     };
     struct libinput_device_config_natural_scroll
     {
-        si32                  (*has)                (libinput_device_sptr li_device);
-        libinput_config_status(*set_enabled)        (libinput_device_sptr li_device, si32 enabled);
-        si32                  (*get_enabled)        (libinput_device_sptr li_device);
-        si32                  (*get_default_enabled)(libinput_device_sptr li_device);
+        si32                  (*has)                (libinput_device_sptr li_device) = {};
+        libinput_config_status(*set_enabled)        (libinput_device_sptr li_device, si32 enabled) = {};
+        si32                  (*get_enabled)        (libinput_device_sptr li_device) = {};
+        si32                  (*get_default_enabled)(libinput_device_sptr li_device) = {};
     };
     struct libinput_device_config_accel
     {
-        si32                         (*available)          (libinput_device_sptr li_device);
-        libinput_config_status       (*set_speed)          (libinput_device_sptr li_device, fp64 speed);
-        fp64                         (*get_speed)          (libinput_device_sptr li_device);
-        fp64                         (*get_default_speed)  (libinput_device_sptr li_device);
-        ui32                         (*get_profiles)       (libinput_device_sptr li_device);
-        libinput_config_status       (*set_profile)        (libinput_device_sptr li_device, libinput_config_accel_profile);
-        libinput_config_accel_profile(*get_profile)        (libinput_device_sptr li_device);
-        libinput_config_accel_profile(*get_default_profile)(libinput_device_sptr li_device);
-        libinput_config_status       (*set_accel_config)   (libinput_device_sptr li_device, libinput_config_accel& accel_config);
+        si32                         (*available)          (libinput_device_sptr li_device) = {};
+        libinput_config_status       (*set_speed)          (libinput_device_sptr li_device, fp64 speed) = {};
+        fp64                         (*get_speed)          (libinput_device_sptr li_device) = {};
+        fp64                         (*get_default_speed)  (libinput_device_sptr li_device) = {};
+        ui32                         (*get_profiles)       (libinput_device_sptr li_device) = {};
+        libinput_config_status       (*set_profile)        (libinput_device_sptr li_device, libinput_config_accel_profile) = {};
+        libinput_config_accel_profile(*get_profile)        (libinput_device_sptr li_device) = {};
+        libinput_config_accel_profile(*get_default_profile)(libinput_device_sptr li_device) = {};
+        libinput_config_status       (*set_accel_config)   (libinput_device_sptr li_device, libinput_config_accel& accel_config) = {};
     };
     struct libinput_device_config_left_handed
     {
-        si32                  (*has)        (libinput_device_sptr li_device);
-        libinput_config_status(*set)        (libinput_device_sptr li_device, si32 left_handed);
-        si32                  (*get)        (libinput_device_sptr li_device);
-        si32                  (*get_default)(libinput_device_sptr li_device);
+        si32                  (*has)        (libinput_device_sptr li_device) = {};
+        libinput_config_status(*set)        (libinput_device_sptr li_device, si32 left_handed) = {};
+        si32                  (*get)        (libinput_device_sptr li_device) = {};
+        si32                  (*get_default)(libinput_device_sptr li_device) = {};
     };
     struct libinput_device_config_middle_emulation
     {
-        si32                   (*available)  (libinput_device_sptr li_device);
-        libinput_config_status (*set)        (libinput_device_sptr li_device, bool middle_emulation_enabled);
-        bool                   (*get)        (libinput_device_sptr li_device);
-        bool                   (*get_default)(libinput_device_sptr li_device);
+        si32                   (*available)  (libinput_device_sptr li_device) = {};
+        libinput_config_status (*set)        (libinput_device_sptr li_device, bool middle_emulation_enabled) = {};
+        bool                   (*get)        (libinput_device_sptr li_device) = {};
+        bool                   (*get_default)(libinput_device_sptr li_device) = {};
     };
         struct libinput_device_config_calibration
         {
-            si32                  (*has_matrix)        (libinput_device_sptr li_device);
-            libinput_config_status(*set_matrix)        (libinput_device_sptr li_device, std::array<fp32, 6> const& matrix);
-            si32                  (*get_matrix)        (libinput_device_sptr li_device, std::array<fp32, 6>& matrix);
-            si32                  (*get_default_matrix)(libinput_device_sptr li_device, std::array<fp32, 6>& matrix);
+            si32                  (*has_matrix)        (libinput_device_sptr li_device) = {};
+            libinput_config_status(*set_matrix)        (libinput_device_sptr li_device, std::array<fp32, 6> const& matrix) = {};
+            si32                  (*get_matrix)        (libinput_device_sptr li_device, std::array<fp32, 6>& matrix) = {};
+            si32                  (*get_default_matrix)(libinput_device_sptr li_device, std::array<fp32, 6>& matrix) = {};
         };
         struct libinput_device_config_tap
         {
-            si32                           (*count)                       (libinput_device_sptr li_device);
-            libinput_config_status         (*set_enabled)                 (libinput_device_sptr li_device, bool tap_state_enabled);
-            bool                           (*get_enabled)                 (libinput_device_sptr li_device);
-            bool                           (*get_default)                 (libinput_device_sptr li_device);
-            libinput_config_status         (*set_map)                     (libinput_device_sptr li_device, bool use_lmr_map);
-            bool                           (*get_map)                     (libinput_device_sptr li_device);
-            bool                           (*get_default_map)             (libinput_device_sptr li_device);
-            libinput_config_status         (*set_drag_enabled)            (libinput_device_sptr li_device, bool drag_enbled);
-            bool                           (*get_drag_enabled)            (libinput_device_sptr li_device);
-            bool                           (*get_default_drag_enabled)    (libinput_device_sptr li_device);
-            libinput_config_status         (*set_draglock_enabled)        (libinput_device_sptr li_device, libinput_config_drag_lock_state);
-            libinput_config_drag_lock_state(*get_draglock_enabled)        (libinput_device_sptr li_device);
-            libinput_config_drag_lock_state(*get_default_draglock_enabled)(libinput_device_sptr li_device);
+            si32                           (*count)                       (libinput_device_sptr li_device) = {};
+            libinput_config_status         (*set_enabled)                 (libinput_device_sptr li_device, bool tap_state_enabled) = {};
+            bool                           (*get_enabled)                 (libinput_device_sptr li_device) = {};
+            bool                           (*get_default)                 (libinput_device_sptr li_device) = {};
+            libinput_config_status         (*set_map)                     (libinput_device_sptr li_device, bool use_lmr_map) = {};
+            bool                           (*get_map)                     (libinput_device_sptr li_device) = {};
+            bool                           (*get_default_map)             (libinput_device_sptr li_device) = {};
+            libinput_config_status         (*set_drag_enabled)            (libinput_device_sptr li_device, bool drag_enbled) = {};
+            bool                           (*get_drag_enabled)            (libinput_device_sptr li_device) = {};
+            bool                           (*get_default_drag_enabled)    (libinput_device_sptr li_device) = {};
+            libinput_config_status         (*set_draglock_enabled)        (libinput_device_sptr li_device, libinput_config_drag_lock_state) = {};
+            libinput_config_drag_lock_state(*get_draglock_enabled)        (libinput_device_sptr li_device) = {};
+            libinput_config_drag_lock_state(*get_default_draglock_enabled)(libinput_device_sptr li_device) = {};
         };
         struct libinput_device_config_area
         {
-            si32                  (*has_rectangle)        (libinput_device_sptr li_device);
-            libinput_config_status(*set_rectangle)        (libinput_device_sptr li_device, fp64_rect rectangle);
-            fp64_rect             (*get_rectangle)        (libinput_device_sptr li_device);
-            fp64_rect             (*get_default_rectangle)(libinput_device_sptr li_device);
+            si32                  (*has_rectangle)        (libinput_device_sptr li_device) = {};
+            libinput_config_status(*set_rectangle)        (libinput_device_sptr li_device, fp64_rect rectangle) = {};
+            fp64_rect             (*get_rectangle)        (libinput_device_sptr li_device) = {};
+            fp64_rect             (*get_default_rectangle)(libinput_device_sptr li_device) = {};
         };
         struct libinput_device_config_click_method
         {
-            ui32                         (*get_methods)                (libinput_device_sptr li_device);
-            libinput_config_status       (*set_method)                 (libinput_device_sptr li_device, libinput_config_click_method method);
-            libinput_config_click_method (*get_method)                 (libinput_device_sptr li_device);
-            libinput_config_click_method (*get_default_method)         (libinput_device_sptr li_device);
-            libinput_config_status       (*set_clickfinger_map)        (libinput_device_sptr li_device, bool use_lmr_map);
-            bool                         (*get_clickfinger_map)        (libinput_device_sptr li_device);
-            bool                         (*get_default_clickfinger_map)(libinput_device_sptr li_device);
+            ui32                         (*get_methods)                (libinput_device_sptr li_device) = {};
+            libinput_config_status       (*set_method)                 (libinput_device_sptr li_device, libinput_config_click_method method) = {};
+            libinput_config_click_method (*get_method)                 (libinput_device_sptr li_device) = {};
+            libinput_config_click_method (*get_default_method)         (libinput_device_sptr li_device) = {};
+            libinput_config_status       (*set_clickfinger_map)        (libinput_device_sptr li_device, bool use_lmr_map) = {};
+            bool                         (*get_clickfinger_map)        (libinput_device_sptr li_device) = {};
+            bool                         (*get_default_clickfinger_map)(libinput_device_sptr li_device) = {};
         };
         struct libinput_device_config_dwt
         {
-            si32                   (*is_available)       (libinput_device_sptr li_device);
-            libinput_config_status (*set_enabled)        (libinput_device_sptr li_device, bool dwt_enabled);
-            bool                   (*get_enabled)        (libinput_device_sptr li_device);
-            bool                   (*get_default_enabled)(libinput_device_sptr li_device);
+            si32                   (*is_available)       (libinput_device_sptr li_device) = {};
+            libinput_config_status (*set_enabled)        (libinput_device_sptr li_device, bool dwt_enabled) = {};
+            bool                   (*get_enabled)        (libinput_device_sptr li_device) = {};
+            bool                   (*get_default_enabled)(libinput_device_sptr li_device) = {};
         };
         struct libinput_device_config_dwtp
         {
-            si32                   (*is_available)       (libinput_device_sptr li_device);
-            libinput_config_status (*set_enabled)        (libinput_device_sptr li_device, bool dwtp_enabled);
-            bool                   (*get_enabled)        (libinput_device_sptr li_device);
-            bool                   (*get_default_enabled)(libinput_device_sptr li_device);
+            si32                   (*is_available)       (libinput_device_sptr li_device) = {};
+            libinput_config_status (*set_enabled)        (libinput_device_sptr li_device, bool dwtp_enabled) = {};
+            bool                   (*get_enabled)        (libinput_device_sptr li_device) = {};
+            bool                   (*get_default_enabled)(libinput_device_sptr li_device) = {};
         };
         struct libinput_device_config_rotation
         {
-            si32                  (*is_available)     (libinput_device_sptr li_device);
-            libinput_config_status(*set_angle)        (libinput_device_sptr li_device, ui32 degrees_cw);
-            ui32                  (*get_angle)        (libinput_device_sptr li_device);
-            ui32                  (*get_default_angle)(libinput_device_sptr li_device);
+            si32                  (*is_available)     (libinput_device_sptr li_device) = {};
+            libinput_config_status(*set_angle)        (libinput_device_sptr li_device, ui32 degrees_cw) = {};
+            ui32                  (*get_angle)        (libinput_device_sptr li_device) = {};
+            ui32                  (*get_default_angle)(libinput_device_sptr li_device) = {};
         };
         struct libinput_device_config_gesture
         {
-            libinput_config_status (*set_hold_enabled)(libinput_device_sptr li_device, bool hold_enabled);
-            bool                   (*get_hold_enabled)(libinput_device_sptr li_device);
-            bool                   (*get_hold_default)(libinput_device_sptr li_device);
+            libinput_config_status (*set_hold_enabled)(libinput_device_sptr li_device, bool hold_enabled) = {};
+            bool                   (*get_hold_enabled)(libinput_device_sptr li_device) = {};
+            bool                   (*get_hold_default)(libinput_device_sptr li_device) = {};
         };
         struct libinput_device_config_3fg_drag
         {
-            si32                          (*count)      (libinput_device_sptr li_device);
-            libinput_config_status        (*set_enabled)(libinput_device_sptr li_device, libinput_config_3fg_drag_state enable);
-            libinput_config_3fg_drag_state(*get_enabled)(libinput_device_sptr li_device);
-            libinput_config_3fg_drag_state(*get_default)(libinput_device_sptr li_device);
+            si32                          (*count)      (libinput_device_sptr li_device) = {};
+            libinput_config_status        (*set_enabled)(libinput_device_sptr li_device, libinput_config_3fg_drag_state enable) = {};
+            libinput_config_3fg_drag_state(*get_enabled)(libinput_device_sptr li_device) = {};
+            libinput_config_3fg_drag_state(*get_default)(libinput_device_sptr li_device) = {};
 
         };
         struct libinput_device_config
@@ -1237,10 +1237,10 @@ namespace netxs::lixx // li++, libinput++.
 
         struct libinput_tablet_tool_config_pressure_range
         {
-            si32                  (*is_available)(libinput_tablet_tool_sptr tool);
-            libinput_config_status(*set)         (libinput_tablet_tool_sptr tool, fp64_range range);
-            void                  (*get)         (libinput_tablet_tool_sptr tool, fp64_range& range);
-            void                  (*get_default) (libinput_tablet_tool_sptr tool, fp64_range& range);
+            si32                  (*is_available)(libinput_tablet_tool_sptr tool) = {};
+            libinput_config_status(*set)         (libinput_tablet_tool_sptr tool, fp64_range range) = {};
+            void                  (*get)         (libinput_tablet_tool_sptr tool, fp64_range& range) = {};
+            void                  (*get_default) (libinput_tablet_tool_sptr tool, fp64_range& range) = {};
         };
         struct libinput_tablet_tool_pressure_threshold
         {
@@ -2913,12 +2913,12 @@ namespace netxs::lixx // li++, libinput++.
     };
     struct libinput_event_gesture : libinput_event
     {
-        si32      finger_count;
-        si32      cancelled;
+        si32      finger_count{};
+        si32      cancelled{};
         fp64_coor delta;
         fp64_coor delta_unaccel;
-        fp64      scale;
-        fp64      angle;
+        fp64      scale{};
+        fp64      angle{};
 
         virtual si32      libinput_event_gesture_get_finger_count()     override { return finger_count; }
         virtual si32      libinput_event_gesture_get_cancelled()        override { return cancelled; }
@@ -2929,14 +2929,14 @@ namespace netxs::lixx // li++, libinput++.
     };
     struct libinput_event_touch : libinput_event
     {
-        si32      slot;
-        si32      seat_slot;
+        si32      slot{};
+        si32      seat_slot{};
         si32_coor point;
     };
     struct libinput_event_switch : libinput_event
     {
-        libinput_switch sw;
-        si32            state;
+        libinput_switch sw{};
+        si32            state{};
 
         virtual libinput_switch libinput_event_switch_get_switch()       override { return sw; }
         virtual si32            libinput_event_switch_get_switch_state() override { return state; }
@@ -2944,15 +2944,15 @@ namespace netxs::lixx // li++, libinput++.
         struct libinput_tablet_pad_mode_group
         {
             libinput_device_sptr li_device;
-            void*                user_data;
-            ui32                 index;
-            ui32                 num_modes;
-            ui32                 current_mode;
-            ui32                 button_mask;
-            ui32                 ring_mask;
-            ui32                 strip_mask;
-            ui32                 dial_mask;
-            ui32                 toggle_button_mask;
+            void*                user_data{};
+            ui32                 index{};
+            ui32                 num_modes{};
+            ui32                 current_mode{};
+            ui32                 button_mask{};
+            ui32                 ring_mask{};
+            ui32                 strip_mask{};
+            ui32                 dial_mask{};
+            ui32                 toggle_button_mask{};
 
             libinput_tablet_pad_mode_group() = default;
             virtual ~libinput_tablet_pad_mode_group() { }
@@ -2961,33 +2961,33 @@ namespace netxs::lixx // li++, libinput++.
     {
         struct button_t
         {
-            ui32 number;
-            si32 state;
+            ui32 number{};
+            si32 state{};
         };
         struct key_t
         {
-            ui32 code;
-            si32 state;
+            ui32 code{};
+            si32 state{};
         };
         struct dial_t
         {
-            fp64 v120;
-            si32 number;
+            fp64 v120{};
+            si32 number{};
         };
         struct ring_t
         {
-            libinput_tablet_pad_ring_axis_source source;
-            fp64                                 position;
-            si32                                 number;
+            libinput_tablet_pad_ring_axis_source source{};
+            fp64                                 position{};
+            si32                                 number{};
         };
         struct strip_t
         {
-            libinput_tablet_pad_strip_axis_source source;
-            fp64                                  position;
-            si32                                  number;
+            libinput_tablet_pad_strip_axis_source source{};
+            fp64                                  position{};
+            si32                                  number{};
         };
 
-        ui32                                mode;
+        ui32                                mode{};
         libinput_tablet_pad_mode_group_sptr mode_group;
         button_t                            button;
         key_t                               key;
@@ -3000,24 +3000,24 @@ namespace netxs::lixx // li++, libinput++.
             si32_coor  point;
             fp64_coor  delta;
             fp64_range size_limits;
-            fp64       distance;
-            fp64       pressure;
+            fp64       distance{};
+            fp64       pressure{};
             fp64_coor  tilt;
-            fp64       rotation;
-            fp64       slider;
-            fp64       wheel;
-            si32       wheel_discrete;
+            fp64       rotation{};
+            fp64       slider{};
+            fp64       wheel{};
+            si32       wheel_discrete{};
         };
     struct libinput_event_tablet_tool : libinput_event
     {
-        ui32                                 button;
-        si32                                 state;
-        ui32                                 seat_button_count;
+        ui32                                 button{};
+        si32                                 state{};
+        ui32                                 seat_button_count{};
         tablet_axes                          axes;
         tablet_axes_bitset                   changed_axes_bits;
         libinput_tablet_tool_sptr            tool;
-        libinput_tablet_tool_proximity_state proximity_state;
-        libinput_tablet_tool_tip_state       tip_state;
+        libinput_tablet_tool_proximity_state proximity_state{};
+        libinput_tablet_tool_tip_state       tip_state{};
         abs_info_t                           abs_info_x2; //todo not used?
         abs_info_t                           abs_info_y2; //
 
@@ -3026,8 +3026,8 @@ namespace netxs::lixx // li++, libinput++.
 
     struct evdev_event
     {
-        ui32 usage; // This may be a value outside the known usages above but it's just an int.
-        si32 value;
+        ui32 usage{}; // This may be a value outside the known usages above but it's just an int.
+        si32 value{};
     };
     struct evdev_frame
     {
@@ -3065,13 +3065,13 @@ namespace netxs::lixx // li++, libinput++.
     {
         struct slot_change_state
         {
-            touch_states         state;
+            touch_states         state{};
             std::bitset<ABS_CNT> axes;
         };
         struct mt_sync_state
         {
-            ui32 code;
-            si32 val[lixx::max_slots];
+            ui32 code{};
+            si32 val[lixx::max_slots] = {};
         };
         struct evdev_abs_t
         {
@@ -4717,7 +4717,7 @@ namespace netxs::lixx // li++, libinput++.
         text                    dt2;
         std::list<section_sptr> sections;
         std::list<quirks_sptr>  quirk_list; // List of quirks handed to libinput, just for bookkeeping.
-        bool                    initialized;
+        bool                    initialized{};
 
         quirks_context_t()
         {
@@ -6020,7 +6020,7 @@ namespace netxs::lixx // li++, libinput++.
             time                                  button_down_time{};
             libinput_config_scroll_method         want_method{}; // Set during device init, used at runtime to delay changes until all buttons are up.
             ui32                                  want_button{}; // evdev_usage_t
-            void                                (*change_scroll_method)(libinput_device_sptr li_device); // Checks if buttons are down and commits the setting.
+            void                                (*change_scroll_method)(libinput_device_sptr li_device) = {}; // Checks if buttons are down and commits the setting.
             evdev_button_scroll_state             button_scroll_state{};
             fp64                                  threshold = 5.0; // Default may be overridden.
             fp64                                  direction_lock_threshold = 5.0; // Default may be overridden.
@@ -6039,7 +6039,7 @@ namespace netxs::lixx // li++, libinput++.
             libinput_device_config_left_handed config;
             bool                               enabled{}; // Left-handed currently enabled.
             bool                               want_enabled{}; // Set during device init if we want left_handed config, used at runtime to delay the effect until buttons are up.
-            void                             (*change_to_enabled)(libinput_device_sptr li_device); // Checks if buttons are down and commits the setting.
+            void                             (*change_to_enabled)(libinput_device_sptr li_device) = {}; // Checks if buttons are down and commits the setting.
         };
         struct evdev_middlebutton_t
         {
@@ -6071,7 +6071,7 @@ namespace netxs::lixx // li++, libinput++.
         evdev_scroll_t                          scroll;
         libinput_device_config_accel            pointer_config;
         motion_filter_sptr                      pointer_filter;
-        byte                                    key_count[KEY_CNT]; // Key counter used for multiplexing button events internally in libinput.
+        byte                                    key_count[KEY_CNT] = {}; // Key counter used for multiplexing button events internally in libinput.
         evdev_left_handed_t                     dev_left_handed;
         evdev_middlebutton_t                    middlebutton;
         evdev_frame                             frame;
@@ -7934,242 +7934,242 @@ namespace netxs::lixx // li++, libinput++.
             {
                 struct tp_history_point
                 {
-                    time      stamp;
+                    time      stamp{};
                     si32_coor point;
                 };
 
-                tp_history_point samples[lixx::touchpad_history_length];
-                ui32             index;
-                ui32             count;
+                tp_history_point samples[lixx::touchpad_history_length] = {};
+                ui32             index{};
+                ui32             count{};
             };
             struct tp_button_t
             {
-                button_state_enum   state;
-                button_event        current; // We use button_event here so we can use == on events.
+                button_state_enum   state{};
+                button_event        current{}; // We use button_event here so we can use == on events.
                 libinput_timer_sptr timer;
                 si32_coor           initial;
-                bool                has_moved; // Has moved more than threshold.
-                time                initial_time;
+                bool                has_moved{}; // Has moved more than threshold.
+                time                initial_time{};
             };
             struct tp_tap_t
             {
-                tp_tap_touch_state state;
+                tp_tap_touch_state state{};
                 si32_coor          initial;
-                bool               is_thumb;
-                bool               is_palm;
+                bool               is_thumb{};
+                bool               is_palm{};
             };
             struct tp_scroll_t
             {
-                tp_edge_scroll_touch_state edge_state;
-                ui32                       edge;
-                si32                       direction;
+                tp_edge_scroll_touch_state edge_state{};
+                ui32                       edge{};
+                si32                       direction{};
                 libinput_timer_sptr        timer;
                 si32_coor                  initial;
             };
         struct tp_touch
         {
             tp_dispatch_sptr tp;
-            ui32             index;
-            si32             pressure;
+            ui32             index{};
+            si32             pressure{};
             touch_state      state;
-            bool             has_ended; // TRACKING_ID == -1.
-            bool             dirty;
-            bool             is_tool_palm; // MT_TOOL_PALM.
-            bool             was_down; // If distance == 0, false for pure hovering touches.
-            time             initial_time;
+            bool             has_ended{}; // TRACKING_ID == -1.
+            bool             dirty{};
+            bool             is_tool_palm{}; // MT_TOOL_PALM.
+            bool             was_down{}; // If distance == 0, false for pure hovering touches.
+            time             initial_time{};
             si32_coor        gesture_origin;
             si32_coor        point;
             si32_range       touch_limits;
-            fp64             jumps_last_delta_mm;
+            fp64             jumps_last_delta_mm{};
             si32_coor        hysteresis_center;
-            byte             hysteresis_x_motion_history;
-            bool             pinned_state;  // A pinned touchpoint is the one that pressed the physical button on a clickpad. After the release, it won't move until the center moves more than a threshold away from the original coordinates.
+            byte             hysteresis_x_motion_history{};
+            bool             pinned_state{};  // A pinned touchpoint is the one that pressed the physical button on a clickpad. After the release, it won't move until the center moves more than a threshold away from the original coordinates.
             si32_coor        pinned_center; //
-            bool             quirks_reset_motion_history; // A quirk mostly used on Synaptics touchpads. In a transition to/from fake touches > num_slots, the current event data is likely garbage and the subsequent event is likely too. This marker tells us to reset the motion history again -> this effectively swallows any motion.
+            bool             quirks_reset_motion_history{}; // A quirk mostly used on Synaptics touchpads. In a transition to/from fake touches > num_slots, the current event data is likely garbage and the subsequent event is likely too. This marker tells us to reset the motion history again -> this effectively swallows any motion.
             tp_history_t     history;
             tp_button_t      button; // Software-button state and timeout if applicable.
             tp_tap_t         tap;
             tp_scroll_t      scroll;
-            touch_palm_state palm_state; // Palm state.
+            touch_palm_state palm_state{}; // Palm state.
             si32_coor        palm_first; // Palm detected there.
-            time             palm_stamp; // Palm detection time.
-            fp64             speed_last; // Speed in mm/s at last sample.
-            ui32             speed_exceeded_count;
+            time             palm_stamp{}; // Palm detection time.
+            fp64             speed_last{}; // Speed in mm/s at last sample.
+            ui32             speed_exceeded_count{};
         };
         struct tp_dispatch_arbitration_t
         {
-            libinput_arbitration_state state;
+            libinput_arbitration_state state{};
             libinput_timer_sptr        arbitration_timer;
         };
         struct tp_dispatch_jump_t
         {
-            bool detection_disabled;
+            bool detection_disabled{};
         };
         struct tp_dispatch_pressure_t // If pressure goes above high -> touch down, if pressure then goes below low -> touch up.
         {
-            bool use_pressure;
-            si32 high;
-            si32 low;
+            bool use_pressure{};
+            si32 high{};
+            si32 low{};
         };
         struct tp_dispatch_touch_size_t // If touch size (either axis) goes above high -> touch down, if touch size (either axis) goes below low -> touch up.
         {
-            bool use_touch_size;
-            si32 high;
-            si32 low;
-            fp64 orientation_to_angle; // Convert device units to angle.
+            bool use_touch_size{};
+            si32 high{};
+            si32 low{};
+            fp64 orientation_to_angle{}; // Convert device units to angle.
         };
         struct tp_dispatch_hysteresis_t
         {
-            bool      enabled;
+            bool      enabled{};
             si32_coor margin;
-            ui32      other_event_count;
-            time      last_motion_time;
+            ui32      other_event_count{};
+            time      last_motion_time{};
         };
         struct tp_dispatch_gesture_t
         {
             libinput_device_config_gesture config;
-            bool                           enabled;
-            ui32                           finger_count;
-            ui32                           finger_count_pending;
+            bool                           enabled{};
+            ui32                           finger_count{};
+            ui32                           finger_count_pending{};
             libinput_timer_sptr            finger_count_switch_timer;
             tp_gesture_state               state;
-            tp_touch*                      two_touches[2];
-            time                           initial_time;
-            fp64                           initial_distance;
-            fp64                           prev_scale;
-            fp64                           angle;
+            tp_touch*                      two_touches[2] = {};
+            time                           initial_time{};
+            fp64                           initial_distance{};
+            fp64                           prev_scale{};
+            fp64                           angle{};
             fp64_coor                      center;
             libinput_timer_sptr            hold_timer;
-            bool                           hold_enabled;
+            bool                           hold_enabled{};
             libinput_timer_sptr            drag_3fg_timer;
-            time                           drag_3fg_release_time;
+            time                           drag_3fg_release_time{};
         };
             struct tp_dispatch_bottom_area_t // Only used for clickpads. The software button areas are always 2 horizontal stripes across the touchpad. The buttons are split according to the edge settings.
             {
-                si32 top_edge;               // In device coordinates.
-                si32 rightbutton_left_edge;  // In device coordinates.
-                si32 middlebutton_left_edge; // In device coordinates.
+                si32 top_edge{};               // In device coordinates.
+                si32 rightbutton_left_edge{};  // In device coordinates.
+                si32 middlebutton_left_edge{}; // In device coordinates.
             };
             struct tp_dispatch_top_area_t
             {
-                si32 bottom_edge;           // In device coordinates.
-                si32 rightbutton_left_edge; // In device coordinates.
-                si32 leftbutton_right_edge; // In device coordinates.
+                si32 bottom_edge{};           // In device coordinates.
+                si32 rightbutton_left_edge{}; // In device coordinates.
+                si32 leftbutton_right_edge{}; // In device coordinates.
             };
         struct tp_dispatch_buttons_t
         {
-            bool                                is_clickpad; // True for clickpads.
-            bool                                has_topbuttons;
-            bool                                use_clickfinger;  // Number of fingers decides button number.
-            bool                                click_pending;
-            ui32                                state;
-            ui32                                old_state;
+            bool                                is_clickpad{}; // True for clickpads.
+            bool                                has_topbuttons{};
+            bool                                use_clickfinger{};  // Number of fingers decides button number.
+            bool                                click_pending{};
+            ui32                                state{};
+            ui32                                old_state{};
             fp64_coor                           motion_dist_scale_coeff; // For pinned touches.
-            ui32                                active;  // evdev_usage_t  Currently active button, for release event.
-            bool                                active_is_topbutton; // Is active a top button?
+            ui32                                active{};  // evdev_usage_t  Currently active button, for release event.
+            bool                                active_is_topbutton{}; // Is active a top button?
             tp_dispatch_bottom_area_t           bottom_area;
             tp_dispatch_top_area_t              top_area;
             libinput_device_sptr                trackpoint_li_device;
-            libinput_config_click_method        click_method;
-            libinput_device_config_click_method config_method;
-            bool                                use_lmr_map;
-            bool                                want_use_lmr_map;
+            libinput_config_click_method        click_method{};
+            libinput_device_config_click_method config_method{};
+            bool                                use_lmr_map{};
+            bool                                want_use_lmr_map{};
         };
             struct tp_dispatch_active_t
             {
-                bool h;
-                bool v;
+                bool h{};
+                bool v{};
             };
             struct tp_dispatch_duration_t
             {
-                span h;
-                span v;
+                span h{};
+                span v{};
             };
         struct tp_dispatch_scroll_t
         {
             libinput_device_config_scroll_method config_method;
-            libinput_config_scroll_method        method;
-            si32                                 right_edge;  // In device coordinates.
-            si32                                 bottom_edge; // In device coordinates.
+            libinput_config_scroll_method        method{};
+            si32                                 right_edge{};  // In device coordinates.
+            si32                                 bottom_edge{}; // In device coordinates.
             tp_dispatch_active_t                 active;
             fp64_coor                            vector;
-            time                                 stamp;
+            time                                 stamp{};
             tp_dispatch_duration_t               duration;
         };
         struct tp_dispatch_tap_t
         {
             libinput_device_config_tap      config;
-            bool                            tap_state_enabled;
-            bool                            suspended;
+            bool                            tap_state_enabled{};
+            bool                            suspended{};
             libinput_timer_sptr             timer;
-            tp_tap_state                    state;
-            ui32                            buttons_pressed;
-            time                            press_stamp;
-            time                            release_stamp;
-            bool                            use_lmr_map;
-            bool                            want_use_lmr_map;
-            bool                            drag_enabled;
-            libinput_config_drag_lock_state drag_lock;
-            ui32                            nfingers_down; // Number of fingers down for tapping (excl. thumb/palm).
+            tp_tap_state                    state{};
+            ui32                            buttons_pressed{};
+            time                            press_stamp{};
+            time                            release_stamp{};
+            bool                            use_lmr_map{};
+            bool                            want_use_lmr_map{};
+            bool                            drag_enabled{};
+            libinput_config_drag_lock_state drag_lock{};
+            ui32                            nfingers_down{}; // Number of fingers down for tapping (excl. thumb/palm).
         };
         struct tp_dispatch_drag_3fg_t
         {
             libinput_device_config_3fg_drag config;
-            ui64                            nfingers;
-            ui64                            want_nfingers;
+            ui64                            nfingers{};
+            ui64                            want_nfingers{};
         };
         struct tp_dispatch_palm_t
         {
             libinput_device_config_dwtp  config;
-            bool                         dwtp_enabled;
-            si32                         right_edge; // In device coordinates.
-            si32                         left_edge;  // In device coordinates.
-            si32                         upper_edge; // In device coordinates.
-            bool                         trackpoint_active;
+            bool                         dwtp_enabled{};
+            si32                         right_edge{}; // In device coordinates.
+            si32                         left_edge{};  // In device coordinates.
+            si32                         upper_edge{}; // In device coordinates.
+            bool                         trackpoint_active{};
             libinput_event_listener_sptr trackpoint_listener;
             libinput_timer_sptr          trackpoint_timer;
-            time                         trackpoint_last_event_time;
-            ui32                         trackpoint_event_count;
-            bool                         monitor_trackpoint;
-            bool                         use_mt_tool;
-            bool                         use_pressure;
-            si32                         pressure_threshold;
-            bool                         use_size;
-            si32                         size_threshold;
+            time                         trackpoint_last_event_time{};
+            ui32                         trackpoint_event_count{};
+            bool                         monitor_trackpoint{};
+            bool                         use_mt_tool{};
+            bool                         use_pressure{};
+            si32                         pressure_threshold{};
+            bool                         use_size{};
+            si32                         size_threshold{};
         };
         struct tp_dispatch_dwt_t // We have to allow for more than one device node to be the internal dwt keyboard (Razer Blade). But they're the same physical device, so we don't care about per-keyboard key/modifier masks.
         {
             libinput_device_config_dwt               config;
-            bool                                     dwt_enabled;
+            bool                                     dwt_enabled{};
             std::list<libinput_paired_keyboard_sptr> paired_keyboard_list;
             button_state_t                           key_mask;
             button_state_t                           mod_mask;
-            bool                                     keyboard_active;
+            bool                                     keyboard_active{};
             libinput_timer_sptr                      keyboard_timer;
-            time                                     keyboard_last_press_time;
+            time                                     keyboard_last_press_time{};
         };
         struct tp_dispatch_thumb_t
         {
-            bool           detect_thumbs;
-            si32           upper_thumb_line;
-            si32           lower_thumb_line;
-            bool           use_pressure;
-            si32           pressure_threshold;
-            bool           use_size;
-            si32           size_threshold;
-            tp_thumb_state state;
-            ui32           index;
-            bool           pinch_eligible;
+            bool           detect_thumbs{};
+            si32           upper_thumb_line{};
+            si32           lower_thumb_line{};
+            bool           use_pressure{};
+            si32           pressure_threshold{};
+            bool           use_size{};
+            si32           size_threshold{};
+            tp_thumb_state state{};
+            ui32           index{};
+            bool           pinch_eligible{};
         };
             struct msc_timestamp_t
             {
-                tp_jump_state state;
-                span          interval;
-                span          now;
+                tp_jump_state state{};
+                span          interval{};
+                span          now{};
             };
         struct tp_dispatch_quirks_t // A quirk used on the T450 series Synaptics hardware. Slowly moving the finger causes multiple events with only ABS_MT_PRESSURE but no x/y information. When the x/y event comes, it will be a jump of ~20 units. We use the below to count non-motion events to discard that first event with the jump.
         {
-            ui32            nonmotion_event_count;
+            ui32            nonmotion_event_count{};
             msc_timestamp_t msc_timestamp;
         };
         struct tp_dispatch_lid_switch_t
@@ -8184,37 +8184,37 @@ namespace netxs::lixx // li++, libinput++.
         };
         struct tp_dispatch_left_handed_t
         {
-            bool                 rotate;
-            bool                 want_rotate;
-            bool                 must_rotate; // True if we should rotate when applicable.
+            bool                 rotate{};
+            bool                 want_rotate{};
+            bool                 must_rotate{}; // True if we should rotate when applicable.
             libinput_device_sptr tablet_li_device;
-            bool                 tablet_left_handed_state;
+            bool                 tablet_left_handed_state{};
         };
 
     struct tp_device : libinput_device_t
     {
-        ui32                             nfingers_down;     // Number of fingers down.
-        ui32                             old_nfingers_down; // Previous no fingers down.
-        ui32                             slot;              // Current slot.
-        bool                             has_mt;            //
-        bool                             semi_mt;           //
-        ui32                             suspend_reason;
+        ui32                             nfingers_down{};     // Number of fingers down.
+        ui32                             old_nfingers_down{}; // Previous no fingers down.
+        ui32                             slot{};              // Current slot.
+        bool                             has_mt{};            //
+        bool                             semi_mt{};           //
+        ui32                             suspend_reason{};
         tp_dispatch_arbitration_t        arbitration;
-        ui32                             nactive_slots; // Number of active slots.
-        ui32                             num_slots;     // Number of slots.
-        ui32                             ntouches;      // No slots inc. fakes.
-        std::vector<tp_touch>            touches;       // len == ntouches.
-        ui32                             fake_touches;  // Bit 0: BTN_TOUCH, bit 1: BTN_TOOL_FINGER,  bit 2: BTN_TOOL_DOUBLETAP.
+        ui32                             nactive_slots{}; // Number of active slots.
+        ui32                             num_slots{};     // Number of slots.
+        ui32                             ntouches{};      // No slots inc. fakes.
+        std::vector<tp_touch>            touches;         // len == ntouches.
+        ui32                             fake_touches{};  // Bit 0: BTN_TOUCH, bit 1: BTN_TOOL_FINGER,  bit 2: BTN_TOOL_DOUBLETAP.
         tp_dispatch_jump_t               jump;
         tp_dispatch_pressure_t           pressure;
         tp_dispatch_touch_size_t         touch_size;
         tp_dispatch_hysteresis_t         hysteresis;
         fp64_coor                        accel_scale_coeff;
-        fp64                             accel_xy_scale_coeff;
+        fp64                             accel_xy_scale_coeff{};
         tp_dispatch_gesture_t            gesture;
         tp_dispatch_buttons_t            buttons;
         tp_dispatch_scroll_t             tp_scroll;
-        touchpad_event                   queued;
+        touchpad_event                   queued{};
         tp_dispatch_tap_t                tap;
         tp_dispatch_drag_3fg_t           drag_3fg;
         tp_dispatch_palm_t               palm;
@@ -14740,8 +14740,8 @@ namespace netxs::lixx // li++, libinput++.
     };
     struct pad_mode_toggle_button
     {
-        ui32                          button_index;
-        pad_toggle_button_target_mode target_mode;
+        ui32                          button_index{};
+        pad_toggle_button_target_mode target_mode{};
     };
     struct pad_led_group : libinput_tablet_pad_mode_group
     {
@@ -14752,9 +14752,9 @@ namespace netxs::lixx // li++, libinput++.
     {
         struct dials_t
         {
-            bool has_hires_dial;
-            fp64 dial1;
-            fp64 dial2;
+            bool has_hires_dial{};
+            fp64 dial1{};
+            fp64 dial2{};
         };
         struct modes_t
         {
@@ -14765,13 +14765,13 @@ namespace netxs::lixx // li++, libinput++.
             : libinput_device_t{ args... }
         { }
 
-        byte           status;
-        ui32           changed_axes;
+        byte           status{};
+        ui32           changed_axes{};
         button_state_t next_button_state;
         button_state_t prev_button_state;
-        ui32           button_map[KEY_CNT];
-        ui32           nbuttons;
-        bool           have_abs_misc_terminator;
+        ui32           button_map[KEY_CNT] = {};
+        ui32           nbuttons{};
+        bool           have_abs_misc_terminator{};
         dials_t        dials;
         modes_t        modes;
 
@@ -15423,9 +15423,9 @@ namespace netxs::lixx // li++, libinput++.
 
         struct totem_slot
         {
-            bool                      dirty;
-            ui32                      index;
-            slot_state_enum           state;
+            bool                      dirty{};
+            ui32                      index{};
+            slot_state_enum           state{};
             libinput_tablet_tool_sptr tool;
             tablet_axes               axes;
             tablet_axes_bitset        changed_axes_bits;
@@ -15433,12 +15433,12 @@ namespace netxs::lixx // li++, libinput++.
         };
     struct totem_device : libinput_device_t
     {
-        si32                       slot_index; // Current slot index.
+        si32                       slot_index{}; // Current slot index.
         std::vector<totem_slot>    slots;
         libinput_device_sptr       touch_li_device;
-        bool                       button_state_now; // We only have one button.
-        bool                       button_state_previous;
-        libinput_arbitration_state arbitration_state;
+        bool                       button_state_now{}; // We only have one button.
+        bool                       button_state_previous{};
+        libinput_arbitration_state arbitration_state{};
 
         totem_device(auto&... args)
             : libinput_device_t{ args... }
@@ -15819,16 +15819,16 @@ namespace netxs::lixx // li++, libinput++.
     {
         struct history_t
         {
-            ui32        index;
-            ui32        count;
-            tablet_axes samples[lixx::tablet_history_length];
-            ui64        size;
+            ui32        index{};
+            ui32        count{};
+            tablet_axes samples[lixx::tablet_history_length] = {};
+            ui64        size{};
         };
         struct current_tool_t
         {
-            libinput_tablet_tool_type type;
-            ui32                      id;
-            ui32                      serial;
+            libinput_tablet_tool_type type{};
+            ui32                      id{};
+            ui32                      serial{};
         };
         struct area_t
         {
@@ -15841,39 +15841,39 @@ namespace netxs::lixx // li++, libinput++.
         struct rotation_t
         {
             libinput_device_sptr touch_li_device; // The device locked for rotation.
-            bool                 touch_device_left_handed_state; // Last known left-handed state of the touchpad.
-            bool                 rotate;
-            bool                 want_rotate;
+            bool                 touch_device_left_handed_state{}; // Last known left-handed state of the touchpad.
+            bool                 rotate{};
+            bool                 want_rotate{};
         };
         struct quirks_t
         {
-            bool                need_to_force_prox_out;
+            bool                need_to_force_prox_out{};
             libinput_timer_sptr prox_out_timer;
-            bool                proximity_out_forced;
-            time                last_event_time;
-            bool                proximity_out_in_progress; // True while injecting BTN_TOOL_PEN events.
+            bool                proximity_out_forced{};
+            time                last_event_time{};
+            bool                proximity_out_in_progress{}; // True while injecting BTN_TOOL_PEN events.
         };
 
-        ui32                                 tablet_id; // Incremental ID.
-        ui32                                 status;
+        ui32                                 tablet_id{}; // Incremental ID.
+        ui32                                 status{};
         tablet_axes_bitset                   changed_axes_bits;
         tablet_axes                          axes; // For assembling the current state.
         si32_coor                            last_smooth_point;
         history_t                            history;
         tablet_axes_bitset                   axis_caps_bits;
-        si32                                 current_value[lixx::libinput_tablet_tool_axis_cnt];
-        si32                                 prev_value[lixx::libinput_tablet_tool_axis_cnt];
+        si32                                 current_value[lixx::libinput_tablet_tool_axis_cnt] = {};
+        si32                                 prev_value[lixx::libinput_tablet_tool_axis_cnt] = {};
         std::list<libinput_tablet_tool_sptr> tool_list; // Only used for tablets that don't report serial numbers.
         button_state_t                       next_button_state;
         button_state_t                       prev_button_state;
-        ui32                                 tool_state;
-        ui32                                 prev_tool_state;
+        ui32                                 tool_state{};
+        ui32                                 prev_tool_state{};
         current_tool_t                       current_tool;
-        ui32                                 cursor_proximity_threshold;
+        ui32                                 cursor_proximity_threshold{};
         libinput_device_config_calibration   calibration;
         area_t                               area;
         libinput_device_sptr                 touch_li_device; // The paired touch device on devices with both pen & touch.
-        libinput_arbitration_state           arbitration;
+        libinput_arbitration_state           arbitration{};
         rotation_t                           rotation;
         quirks_t                             quirks;
 
@@ -17778,50 +17778,50 @@ namespace netxs::lixx // li++, libinput++.
 
     struct mt_slot
     {
-        bool            dirty;
-        slot_state_enum state;
-        si32            seat_slot;
+        bool            dirty{};
+        slot_state_enum state{};
+        si32            seat_slot{};
         si32_coor       point;
         si32_coor       hysteresis_center;
-        mt_palm_state   palm_state;
+        mt_palm_state   palm_state{};
     };
     struct generic_device : libinput_device_t
     {
         struct fb_rotation_t
         {
-            si32                            angle;
+            si32                            angle{};
             lixx::matrix                    matrix;
             libinput_device_config_rotation config;
         };
         struct fb_abs_t
         {
             si32_coor point;
-            si32      seat_slot;
+            si32      seat_slot{};
         };
         struct fb_mt_t
         {
-            si32                 slot;
+            si32                 slot{};
             std::vector<mt_slot> slots;
-            bool                 want_hysteresis;
+            bool                 want_hysteresis{};
             si32_coor            hysteresis_margin;
-            bool                 has_palm;
+            bool                 has_palm{};
         };
         struct fb_wheel_t
         {
-            wheel_state         state;
+            wheel_state         state{};
             si32_coor           lo_res;
             si32_coor           hi_res;
-            bool                emulate_hi_res_wheel;
-            bool                hi_res_event_received;
+            bool                emulate_hi_res_wheel{};
+            bool                hi_res_event_received{};
             libinput_timer_sptr scroll_timer;
-            wheel_direction     dir;
-            bool                ignore_small_hi_res_movements;
+            wheel_direction     dir{};
+            bool                ignore_small_hi_res_movements{};
         };
         struct fb_tablet_mode_t
         {
             struct fb_tablet_mode_sw_t // The struct for the tablet mode switch device itself.
             {
-                si32 state;
+                si32 state{};
             };
             struct fb_tablet_mode_other_t // The struct for other devices listening to the tablet mode switch.
             {
@@ -17833,24 +17833,24 @@ namespace netxs::lixx // li++, libinput++.
         };
         struct fb_debounce_t
         {
-            ui32                button_usage; // evdev_usage_t
-            time                button_time;
+            ui32                button_usage{}; // evdev_usage_t
+            time                button_time{};
             libinput_timer_sptr timer;
             libinput_timer_sptr timer_short;
-            debounce_state      state;
-            bool                spurious_enabled;
+            debounce_state      state{};
+            bool                spurious_enabled{};
         };
         struct fb_lid_t
         {
-            switch_reliability                       reliability;
-            bool                                     is_closed;
-            bool                                     is_closed_client_state;
+            switch_reliability                       reliability{};
+            bool                                     is_closed{};
+            bool                                     is_closed_client_state{};
             std::list<libinput_paired_keyboard_sptr> paired_keyboard_list; // We allow multiple paired keyboards for the lid switch listener. Only one keyboard should exist, but that can have more than one event node.
         };
         struct fb_arbitration_t // Pen/touch arbitration has a delayed state, in_arbitration is what decides when to filter.
         {
-            libinput_arbitration_state state;
-            bool                       in_arbitration;
+            libinput_arbitration_state state{};
+            bool                       in_arbitration{};
             si32_rect                  area;
             libinput_timer_sptr        arbitration_timer;
         };
@@ -17864,7 +17864,7 @@ namespace netxs::lixx // li++, libinput++.
         fb_tablet_mode_t                   tablet_mode;
         button_state_t                     next_hw_key_mask; // Bitmask of pressed keys used to ignore initial release events from the kernel.
         button_state_t                     prev_hw_key_mask;
-        evdev_event_type                   pending_event;
+        evdev_event_type                   pending_event{};
         fb_debounce_t                      debounce;
         fb_lid_t                           lid;
         fb_arbitration_t                   arbitration;

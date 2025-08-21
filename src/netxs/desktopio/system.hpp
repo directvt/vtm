@@ -5806,12 +5806,14 @@ namespace netxs::os
 
                                 if (ctl == 35 && m.buttons) // Moving without buttons (case when second release not fired: apple's terminal.app)
                                 {
+                                    log("ctl == 35 && m.buttons");
                                     m.buttons = {};
                                     m.changed++;
                                     m.timecod = timecode;
                                     mouse(m);
                                 }
                                 m.coordxy = { x, y };
+                                    log("m.coordxy = ", m.coordxy);
                                 switch (ctl)
                                 {
                                     case 0: netxs::set_bit<input::hids::buttons::left  >(m.buttons, ispressed); break;
@@ -5845,6 +5847,7 @@ namespace netxs::os
                             else if (t == type::focus) // Focus report:  ESC [ I/O
                             {
                                 auto state = s.back() == 'I';
+                                    log("t == type::focus(%%)", state);
                                 focus(state);
                             }
                             else if (t == type::style) // Line style report:  ESC [ std::to_string(ansi::ccc_stl) : n p
@@ -5877,6 +5880,7 @@ namespace netxs::os
                             }
                             else // t == type::undef
                             {
+                                    log("detect_key(%%)", utf::debase437(s));
                                 detect_key(s);
                             }
                         }
