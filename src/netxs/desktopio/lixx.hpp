@@ -228,11 +228,6 @@ namespace netxs::lixx // li++, libinput++.
         LIBINPUT_CONFIG_STATUS_UNSUPPORTED, // Configuration not available on this device.
         LIBINPUT_CONFIG_STATUS_INVALID,     // Invalid parameter range.
     };
-    enum libinput_config_dwt_state
-    {
-        LIBINPUT_CONFIG_DWT_DISABLED,
-        LIBINPUT_CONFIG_DWT_ENABLED,
-    };
     enum libinput_config_dwtp_state
     {
         LIBINPUT_CONFIG_DWTP_DISABLED,
@@ -1202,10 +1197,10 @@ namespace netxs::lixx // li++, libinput++.
         };
         struct libinput_device_config_dwt
         {
-            si32                     (*is_available)       (libinput_device_sptr li_device);
-            libinput_config_status   (*set_enabled)        (libinput_device_sptr li_device, libinput_config_dwt_state enable);
-            libinput_config_dwt_state(*get_enabled)        (libinput_device_sptr li_device);
-            libinput_config_dwt_state(*get_default_enabled)(libinput_device_sptr li_device);
+            si32                   (*is_available)       (libinput_device_sptr li_device);
+            libinput_config_status (*set_enabled)        (libinput_device_sptr li_device, bool dwt_enabled);
+            bool                   (*get_enabled)        (libinput_device_sptr li_device);
+            bool                   (*get_default_enabled)(libinput_device_sptr li_device);
         };
         struct libinput_device_config_dwtp
         {
@@ -13986,29 +13981,21 @@ namespace netxs::lixx // li++, libinput++.
                     {
                         return 1;
                     }
-                    static libinput_config_status tp_dwt_config_set(libinput_device_sptr li_device, libinput_config_dwt_state enable)
+                    static libinput_config_status tp_dwt_config_set(libinput_device_sptr li_device, bool dwt_enabled)
                     {
                         auto& tp = *std::static_pointer_cast<tp_device>(li_device);
-                        switch (enable)
-                        {
-                            case LIBINPUT_CONFIG_DWT_ENABLED:
-                            case LIBINPUT_CONFIG_DWT_DISABLED:
-                                break;
-                            default:
-                                return LIBINPUT_CONFIG_STATUS_INVALID;
-                        }
-                        tp.dwt.dwt_enabled = (enable == LIBINPUT_CONFIG_DWT_ENABLED);
+                        tp.dwt.dwt_enabled = dwt_enabled;
                         return LIBINPUT_CONFIG_STATUS_SUCCESS;
                     }
-                    static libinput_config_dwt_state tp_dwt_config_get(libinput_device_sptr li_device)
+                    static bool tp_dwt_config_get(libinput_device_sptr li_device)
                     {
                         auto& tp = *std::static_pointer_cast<tp_device>(li_device);
-                        return tp.dwt.dwt_enabled ? LIBINPUT_CONFIG_DWT_ENABLED : LIBINPUT_CONFIG_DWT_DISABLED;
+                        return tp.dwt.dwt_enabled;
                     }
-                    static libinput_config_dwt_state tp_dwt_config_get_default(libinput_device_sptr li_device)
+                    static bool tp_dwt_config_get_default(libinput_device_sptr li_device)
                     {
                         auto& tp = *std::static_pointer_cast<tp_device>(li_device);
-                        return tp.tp_impl.tp_dwt_default_enabled2() ? LIBINPUT_CONFIG_DWT_ENABLED : LIBINPUT_CONFIG_DWT_DISABLED;
+                        return tp.tp_impl.tp_dwt_default_enabled2();
                     }
                     bool tp_dwt_default_enabled2()
                     {
