@@ -678,11 +678,6 @@ namespace netxs::lixx // li++, libinput++.
         LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_OUT = 0,
         LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_IN  = 1,
     };
-    enum libinput_key_state
-    {
-        LIBINPUT_KEY_STATE_RELEASED = 0,
-        LIBINPUT_KEY_STATE_PRESSED  = 1
-    };
     enum directions
     {
         N  = 1ul << 0,
@@ -2876,7 +2871,7 @@ namespace netxs::lixx // li++, libinput++.
             return li_device;
         }
         virtual ui32                  libinput_event_keyboard_get_key()                                              { if constexpr (debugmode) bad_event_type(__func__); return {}; }
-        virtual libinput_key_state    libinput_event_keyboard_get_key_state()                                        { if constexpr (debugmode) bad_event_type(__func__); return {}; }
+        virtual si32                  libinput_event_keyboard_get_key_state()                                        { if constexpr (debugmode) bad_event_type(__func__); return {}; }
         virtual libinput_switch       libinput_event_switch_get_switch()                                             { if constexpr (debugmode) bad_event_type(__func__); return {}; }
         virtual libinput_switch_state libinput_event_switch_get_switch_state()                                       { if constexpr (debugmode) bad_event_type(__func__); return {}; }
         virtual si32                  libinput_event_gesture_get_finger_count()                                      { if constexpr (debugmode) bad_event_type(__func__); return {}; }
@@ -2943,12 +2938,12 @@ namespace netxs::lixx // li++, libinput++.
 
     struct libinput_event_keyboard : libinput_event
     {
-        ui32               key;
-        ui32               seat_key_count;
-        libinput_key_state state;
+        ui32 key;
+        ui32 seat_key_count;
+        si32 state;
 
-        virtual ui32               libinput_event_keyboard_get_key()       override { return key; }
-        virtual libinput_key_state libinput_event_keyboard_get_key_state() override { return state; }
+        virtual ui32 libinput_event_keyboard_get_key()       override { return key; }
+        virtual si32 libinput_event_keyboard_get_key_state() override { return state; }
     };
     struct libinput_event_empty : libinput_event
     {
@@ -3044,8 +3039,8 @@ namespace netxs::lixx // li++, libinput++.
         };
         struct key_t
         {
-            ui32               code;
-            libinput_key_state state;
+            ui32 code;
+            si32 state;
         };
         struct dial_t
         {
@@ -5993,12 +5988,13 @@ namespace netxs::lixx // li++, libinput++.
             else if (press_count)              press_count--; // We might not have received the first PRESSED event.
             return press_count;
         }
-        ui32 update_seat_key_count(ui32 keycode, libinput_key_state state)
+        //todo unify
+        ui32 update_seat_key_count(ui32 keycode, si32 state)
         {
             assert(keycode <= KEY_MAX);
             auto& key_count = seat_button_count[keycode];
-                 if (state == LIBINPUT_KEY_STATE_PRESSED) key_count++;
-            else if (key_count)                           key_count--; // We might not have received the first PRESSED event.
+                 if (state == evdev::pressed) key_count++;
+            else if (key_count)               key_count--; // We might not have received the first PRESSED event.
             return key_count;
         }
         libinput_device_sptr libinput_add_device(qiew sysname)
@@ -13216,7 +13212,7 @@ namespace netxs::lixx // li++, libinput++.
                                 //auto& kbdev = event.libinput_event_get_keyboard_event();
                                 auto key = event.libinput_event_keyboard_get_key();
                                 // Only trigger the timer on key down.
-                                if (event.libinput_event_keyboard_get_key_state() != LIBINPUT_KEY_STATE_PRESSED)
+                                if (event.libinput_event_keyboard_get_key_state() != evdev::pressed)
                                 {
                                     tp.dwt.key_mask.reset(key);
                                     tp.dwt.mod_mask.reset(key);
@@ -15283,7 +15279,7 @@ namespace netxs::lixx // li++, libinput++.
                                         button_event.button     = { .number = button, .state = state };
                                         pad.post_device_event(stamp, LIBINPUT_EVENT_TABLET_PAD_BUTTON, button_event);
                                     }
-                                    void tablet_pad_notify_key(time stamp, si32 key, libinput_key_state state)
+                                    void tablet_pad_notify_key(time stamp, si32 key, si32 state)
                                     {
                                         auto& key_event = pad.li.libinput_emplace_event<libinput_event_tablet_pad>();
                                         key_event.key.code  = (ui32)key;
@@ -15308,7 +15304,7 @@ namespace netxs::lixx // li++, libinput++.
                                                 }
                                                 else // It is a key.
                                                 {
-                                                    tablet_pad_notify_key(stamp, button_or_key, (libinput_key_state)state);
+                                                    tablet_pad_notify_key(stamp, button_or_key, state);
                                                 }
                                             }
                                         }
@@ -18322,7 +18318,7 @@ namespace netxs::lixx // li++, libinput++.
                             auto code = evdev_usage_code(usage);
                             generic.next_hw_key_mask.set(code, pressed);
                         }
-                            void keyboard_notify_key(time stamp, ui32 keycode, libinput_key_state state)
+                            void keyboard_notify_key(time stamp, ui32 keycode, si32 state)
                             {
                                 if (generic.device_has_cap(LIBINPUT_DEVICE_CAP_KEYBOARD))
                                 {
@@ -18334,11 +18330,10 @@ namespace netxs::lixx // li++, libinput++.
                                     generic.post_device_event(stamp, LIBINPUT_EVENT_KEYBOARD_KEY, key_event);
                                 }
                             }
-                        void fallback_keyboard_notify_key(time stamp, ui32 usage, libinput_key_state state)
+                        void fallback_keyboard_notify_key(time stamp, ui32 usage, si32 state)
                         {
                             auto down_count = generic.evdev_update_key_down_count(usage, state);
-                            if ((state == LIBINPUT_KEY_STATE_PRESSED  && down_count == 1)
-                             || (state == LIBINPUT_KEY_STATE_RELEASED && down_count == 0))
+                            if ((state == evdev::pressed && down_count == 1) || (state == evdev::released && down_count == 0))
                             {
                                 keyboard_notify_key(stamp, evdev_usage_code(usage), state);
                             }
@@ -18355,27 +18350,18 @@ namespace netxs::lixx // li++, libinput++.
                             return;
                         }
                         auto type = get_key_type(ev.usage);
-                        // Ignore key release events from the kernel for keys that libinput never got a pressed event for or key presses for keys that we think are still down.
-                        switch (type)
+                        if (type == KEY_TYPE_KEY || type == KEY_TYPE_BUTTON) // Ignore key release events from the kernel for keys that libinput never got a pressed event for or key presses for keys that we think are still down.
                         {
-                            case KEY_TYPE_NONE: break;
-                            case KEY_TYPE_KEY:
-                            case KEY_TYPE_BUTTON:
-                                if ((ev.value && hw_is_key_down(ev.usage)) || (ev.value == 0 && !hw_is_key_down(ev.usage)))
-                                {
-                                    return;
-                                }
-                                generic.pending_event = (evdev_event_type)(generic.pending_event | EVDEV_KEY);
-                                break;
+                            if ((ev.value && hw_is_key_down(ev.usage)) || (ev.value == 0 && !hw_is_key_down(ev.usage)))
+                            {
+                                return;
+                            }
+                            generic.pending_event = (evdev_event_type)(generic.pending_event | EVDEV_KEY);
                         }
                         hw_set_key_down(ev.usage, ev.value);
-                        switch (type)
+                        if (type == KEY_TYPE_KEY)
                         {
-                            case KEY_TYPE_KEY:
-                                fallback_keyboard_notify_key(stamp, ev.usage, ev.value ? LIBINPUT_KEY_STATE_PRESSED : LIBINPUT_KEY_STATE_RELEASED);
-                                break;
-                            case KEY_TYPE_NONE:
-                            case KEY_TYPE_BUTTON: break;
+                            fallback_keyboard_notify_key(stamp, ev.usage, ev.value ? evdev::pressed : evdev::released);
                         }
                     }
                                         input_event_t input_event_init(time stamp, ui32 type, ui32 code, si32 value)
@@ -19338,24 +19324,17 @@ namespace netxs::lixx // li++, libinput++.
                         {
                             for (auto usage = evdev::key_reserved; usage <= evdev::key_max; usage++)
                             {
-                                auto count = get_key_down_count(usage);
-                                if (count == 0) continue;
-                                if (count > 1)
+                                if (auto count = get_key_down_count(usage))
                                 {
-                                    log("key %d% is down %d% times", evdev_usage_code(usage), count);
-                                }
-                                switch (get_key_type(usage))
-                                {
-                                    case KEY_TYPE_NONE: break;
-                                    case KEY_TYPE_KEY: fallback_keyboard_notify_key(stamp, usage, LIBINPUT_KEY_STATE_RELEASED); break;
-                                    // Note: the left-handed configuration is nonzero for the mapped button (not the physical button), in get_key_down_count(). We must not map this to left-handed again, see #881.
-                                    case KEY_TYPE_BUTTON: generic.evdev_pointer_notify_button(stamp, usage, evdev::released); break;
-                                }
-                                count = get_key_down_count(usage);
-                                if (count != 0)
-                                {
-                                    log("releasing key %d% failed", usage);
-                                    break;
+                                    if (count > 1) log("key %d% is down %d% times", evdev_usage_code(usage), count);
+                                    auto type = get_key_type(usage);
+                                         if (type == KEY_TYPE_KEY) fallback_keyboard_notify_key(stamp, usage, evdev::released);
+                                    else if (type == KEY_TYPE_BUTTON) generic.evdev_pointer_notify_button(stamp, usage, evdev::released); // Note: the left-handed configuration is nonzero for the mapped button (not the physical button), in get_key_down_count(). We must not map this to left-handed again, see #881.
+                                    if (get_key_down_count(usage))
+                                    {
+                                        log("Releasing key %d% failed", usage);
+                                        break;
+                                    }
                                 }
                             }
                         }
