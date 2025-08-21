@@ -228,11 +228,6 @@ namespace netxs::lixx // li++, libinput++.
         LIBINPUT_CONFIG_STATUS_UNSUPPORTED, // Configuration not available on this device.
         LIBINPUT_CONFIG_STATUS_INVALID,     // Invalid parameter range.
     };
-    enum libinput_config_drag_state
-    {
-        LIBINPUT_CONFIG_DRAG_DISABLED, // Drag is to be disabled, or is currently disabled.
-        LIBINPUT_CONFIG_DRAG_ENABLED,  // Drag is to be enabled, or is currently enabled.
-    };
     enum libinput_config_scroll_button_lock_state
     {
         LIBINPUT_CONFIG_SCROLL_BUTTON_LOCK_DISABLED,
@@ -1191,9 +1186,9 @@ namespace netxs::lixx // li++, libinput++.
             libinput_config_status         (*set_map)                     (libinput_device_sptr li_device, bool use_lmr_map);
             bool                           (*get_map)                     (libinput_device_sptr li_device);
             bool                           (*get_default_map)             (libinput_device_sptr li_device);
-            libinput_config_status         (*set_drag_enabled)            (libinput_device_sptr li_device, libinput_config_drag_state);
-            libinput_config_drag_state     (*get_drag_enabled)            (libinput_device_sptr li_device);
-            libinput_config_drag_state     (*get_default_drag_enabled)    (libinput_device_sptr li_device);
+            libinput_config_status         (*set_drag_enabled)            (libinput_device_sptr li_device, bool drag_enbled);
+            bool                           (*get_drag_enabled)            (libinput_device_sptr li_device);
+            bool                           (*get_default_drag_enabled)    (libinput_device_sptr li_device);
             libinput_config_status         (*set_draglock_enabled)        (libinput_device_sptr li_device, libinput_config_drag_lock_state);
             libinput_config_drag_lock_state(*get_draglock_enabled)        (libinput_device_sptr li_device);
             libinput_config_drag_lock_state(*get_default_draglock_enabled)(libinput_device_sptr li_device);
@@ -13785,22 +13780,22 @@ namespace netxs::lixx // li++, libinput++.
                     {
                         return faux;
                     }
-                    static libinput_config_status tp_tap_config_set_drag_enabled(libinput_device_sptr li_device, libinput_config_drag_state enabled)
+                    static libinput_config_status tp_tap_config_set_drag_enabled(libinput_device_sptr li_device, bool drag_enbled)
                     {
                         auto& tp = *std::static_pointer_cast<tp_device>(li_device);
-                        tp.tap.drag_enabled = enabled;
+                        tp.tap.drag_enabled = drag_enbled;
                         return LIBINPUT_CONFIG_STATUS_SUCCESS;
                     }
-                    static libinput_config_drag_state tp_tap_config_get_drag_enabled(libinput_device_sptr li_device)
+                    static bool tp_tap_config_get_drag_enabled(libinput_device_sptr li_device)
                     {
                         auto& tp = *std::static_pointer_cast<tp_device>(li_device);
-                        return (libinput_config_drag_state)tp.tap.drag_enabled;
+                        return tp.tap.drag_enabled;
                     }
-                    static libinput_config_drag_state tp_drag_default([[maybe_unused]] libinput_device_sptr li_device)
+                    static bool tp_drag_default([[maybe_unused]] libinput_device_sptr li_device)
                     {
-                        return LIBINPUT_CONFIG_DRAG_ENABLED;
+                        return true;
                     }
-                    static libinput_config_drag_state tp_tap_config_get_default_drag_enabled(libinput_device_sptr li_device)
+                    static bool tp_tap_config_get_default_drag_enabled(libinput_device_sptr li_device)
                     {
                         return tp_drag_default(li_device);
                     }
