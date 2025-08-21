@@ -5789,6 +5789,7 @@ namespace netxs::os
                                 auto y = clamp(pos_y.value() - 1);
                                 auto ctl = ctrl.value();
 
+                                m.timecod = timecode;
                                 m.enabled = {};
                                 m.hzwheel = {};
                                 m.wheelfp = {};
@@ -5808,9 +5809,10 @@ namespace netxs::os
                                 {
                                     m.buttons = {};
                                     m.changed++;
-                                    m.timecod = timecode;
                                     mouse(m);
                                 }
+                                auto prev_buttons = m.buttons;
+                                auto prev_coordxy = m.coordxy;
                                 m.coordxy = { x, y };
                                 switch (ctl)
                                 {
@@ -5833,18 +5835,25 @@ namespace netxs::os
                                         break;
                                     //todo impl ext mouse buttons 129-131
                                 }
+                                if (prev_buttons != m.buttons && prev_coordxy != m.coordxy) // Move mouse before button pressed. This is a case where the button state and coords arrived simultaneously.
+                                {
+                                    std::swap(prev_buttons, m.buttons);
+                                    m.changed++;
+                                    mouse(m);
+                                    std::swap(prev_buttons, m.buttons);
+                                }
                                 if (!(dtvt::vtmode & ui::console::vt_2D) && dtvt::wheelrate) // Don't accelerate the mouse wheel if we are already inside the vtm.
                                 {
                                     m.wheelfp *= dtvt::wheelrate;
                                 }
                                 m.wheelsi = (si32)m.wheelfp;
                                 m.changed++;
-                                m.timecod = timecode;
                                 mouse(m);
                             }
                             else if (t == type::focus) // Focus report:  ESC [ I/O
                             {
                                 auto state = s.back() == 'I';
+                                    log("t == type::focus(%%)", state);
                                 focus(state);
                             }
                             else if (t == type::style) // Line style report:  ESC [ std::to_string(ansi::ccc_stl) : n p
@@ -5877,6 +5886,7 @@ namespace netxs::os
                             }
                             else // t == type::undef
                             {
+                                    log("detect_key(%%)", utf::debase437(s));
                                 detect_key(s);
                             }
                         }
