@@ -228,11 +228,6 @@ namespace netxs::lixx // li++, libinput++.
         LIBINPUT_CONFIG_STATUS_UNSUPPORTED, // Configuration not available on this device.
         LIBINPUT_CONFIG_STATUS_INVALID,     // Invalid parameter range.
     };
-    enum libinput_config_middle_emulation_state
-    {
-        LIBINPUT_CONFIG_MIDDLE_EMULATION_DISABLED, // Middle mouse button emulation is to be disabled, or is currently disabled.
-        LIBINPUT_CONFIG_MIDDLE_EMULATION_ENABLED,  // Middle mouse button emulation is to be enabled, or is currently enabled.
-    };
     enum libinput_config_dwt_state
     {
         LIBINPUT_CONFIG_DWT_DISABLED,
@@ -1160,10 +1155,10 @@ namespace netxs::lixx // li++, libinput++.
     };
     struct libinput_device_config_middle_emulation
     {
-        si32                                  (*available)  (libinput_device_sptr li_device);
-        libinput_config_status                (*set)        (libinput_device_sptr li_device, libinput_config_middle_emulation_state);
-        libinput_config_middle_emulation_state(*get)        (libinput_device_sptr li_device);
-        libinput_config_middle_emulation_state(*get_default)(libinput_device_sptr li_device);
+        si32                   (*available)  (libinput_device_sptr li_device);
+        libinput_config_status (*set)        (libinput_device_sptr li_device, bool middle_emulation_enabled);
+        bool                   (*get)        (libinput_device_sptr li_device);
+        bool                   (*get_default)(libinput_device_sptr li_device);
     };
         struct libinput_device_config_calibration
         {
@@ -7116,24 +7111,17 @@ namespace netxs::lixx // li++, libinput++.
         {
             return ud_device.evdev_device_get_size();
         }
-            static libinput_config_middle_emulation_state evdev_middlebutton_get(libinput_device_sptr li_device)
+            static bool evdev_middlebutton_get(libinput_device_sptr li_device)
             {
-                return li_device->middlebutton.want_enabled ? LIBINPUT_CONFIG_MIDDLE_EMULATION_ENABLED
-                                                            : LIBINPUT_CONFIG_MIDDLE_EMULATION_DISABLED;
+                return li_device->middlebutton.want_enabled;
             }
-            static libinput_config_middle_emulation_state evdev_middlebutton_get_default(libinput_device_sptr li_device)
+            static bool evdev_middlebutton_get_default(libinput_device_sptr li_device)
             {
-                return li_device->middlebutton.enabled_default ? LIBINPUT_CONFIG_MIDDLE_EMULATION_ENABLED
-                                                               : LIBINPUT_CONFIG_MIDDLE_EMULATION_DISABLED;
+                return li_device->middlebutton.enabled_default;
             }
-            static libinput_config_status evdev_middlebutton_set(libinput_device_sptr li_device, libinput_config_middle_emulation_state enable)
+            static libinput_config_status evdev_middlebutton_set(libinput_device_sptr li_device, bool middle_emulation_enabled)
             {
-                switch (enable)
-                {
-                    case LIBINPUT_CONFIG_MIDDLE_EMULATION_ENABLED:  li_device->middlebutton.want_enabled = true; break;
-                    case LIBINPUT_CONFIG_MIDDLE_EMULATION_DISABLED: li_device->middlebutton.want_enabled = faux; break;
-                    default: return LIBINPUT_CONFIG_STATUS_INVALID;
-                }
+                li_device->middlebutton.want_enabled = middle_emulation_enabled;
                 li_device->evdev_middlebutton_apply_config();
                 return LIBINPUT_CONFIG_STATUS_SUCCESS;
             }
@@ -14307,23 +14295,18 @@ namespace netxs::lixx // li++, libinput++.
                 {
                     return libinput_device_t::evdev_middlebutton_is_available(li_device);
                 }
-                static libinput_config_status tp_clickpad_middlebutton_set(libinput_device_sptr li_device, libinput_config_middle_emulation_state enable)
+                static libinput_config_status tp_clickpad_middlebutton_set(libinput_device_sptr li_device, bool middle_emulation_enabled)
                 {
-                    switch (enable)
-                    {
-                        case LIBINPUT_CONFIG_MIDDLE_EMULATION_ENABLED:  li_device->middlebutton.want_enabled = true; break;
-                        case LIBINPUT_CONFIG_MIDDLE_EMULATION_DISABLED: li_device->middlebutton.want_enabled = faux; break;
-                        default: return LIBINPUT_CONFIG_STATUS_INVALID;
-                    }
+                    li_device->middlebutton.want_enabled = middle_emulation_enabled;
                     auto& tp = *std::static_pointer_cast<tp_device>(li_device);
                     tp.tp_impl.tp_clickpad_middlebutton_apply_config();
                     return LIBINPUT_CONFIG_STATUS_SUCCESS;
                 }
-                static libinput_config_middle_emulation_state tp_clickpad_middlebutton_get(libinput_device_sptr li_device)
+                static bool tp_clickpad_middlebutton_get(libinput_device_sptr li_device)
                 {
                     return libinput_device_t::evdev_middlebutton_get(li_device);
                 }
-                static libinput_config_middle_emulation_state tp_clickpad_middlebutton_get_default(libinput_device_sptr li_device)
+                static bool tp_clickpad_middlebutton_get_default(libinput_device_sptr li_device)
                 {
                     return libinput_device_t::evdev_middlebutton_get_default(li_device);
                 }
