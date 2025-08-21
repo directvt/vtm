@@ -1219,7 +1219,7 @@ namespace netxs::lixx // li++, libinput++.
             libinput_config_status       (*set_clickfinger_map)        (libinput_device_sptr li_device, bool use_lmr_map);
             bool                         (*get_clickfinger_map)        (libinput_device_sptr li_device);
             bool                         (*get_default_clickfinger_map)(libinput_device_sptr li_device);
-         ;
+        };
         struct libinput_device_config_dwt
         {
             si32                     (*is_available)       (libinput_device_sptr li_device);
@@ -11236,7 +11236,7 @@ namespace netxs::lixx // li++, libinput++.
                                         }
                                             void tp_tap_notify(time stamp, si32 nfingers, si32 state)
                                             {
-                                                assert(tp.tap.use_lmr_map < std::size(lixx::tap_button_map));
+                                                assert((si32)tp.tap.use_lmr_map < std::size(lixx::tap_button_map));
                                                 if (nfingers < 1 || nfingers > 3) return;
                                                 tp_gesture_cancel(stamp);
                                                 auto button = lixx::tap_button_map[tp.tap.use_lmr_map][nfingers - 1];
