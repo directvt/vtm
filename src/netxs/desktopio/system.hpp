@@ -5853,7 +5853,6 @@ namespace netxs::os
                             else if (t == type::focus) // Focus report:  ESC [ I/O
                             {
                                 auto state = s.back() == 'I';
-                                    log("t == type::focus(%%)", state);
                                 focus(state);
                             }
                             else if (t == type::style) // Line style report:  ESC [ std::to_string(ansi::ccc_stl) : n p
@@ -5886,7 +5885,6 @@ namespace netxs::os
                             }
                             else // t == type::undef
                             {
-                                    log("detect_key(%%)", utf::debase437(s));
                                 detect_key(s);
                             }
                         }
