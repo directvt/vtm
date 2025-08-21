@@ -5980,22 +5980,13 @@ namespace netxs::lixx // li++, libinput++.
             }
             return {};
         }
-        ui32 update_seat_button_count(ui32 button_code, si32 state)
+        ui32 update_press_count(ui32 key_code, si32 state)
         {
             assert(button_code <= KEY_MAX);
-            auto& press_count = seat_button_count[button_code];
-                 if (state == evdev::pressed)  press_count++;
-            else if (press_count)              press_count--; // We might not have received the first PRESSED event.
+            auto& press_count = seat_button_count[key_code];
+                 if (state == evdev::pressed) press_count++;
+            else if (press_count)             press_count--; // We might not have received the first PRESSED event.
             return press_count;
-        }
-        //todo unify
-        ui32 update_seat_key_count(ui32 keycode, si32 state)
-        {
-            assert(keycode <= KEY_MAX);
-            auto& key_count = seat_button_count[keycode];
-                 if (state == evdev::pressed) key_count++;
-            else if (key_count)               key_count--; // We might not have received the first PRESSED event.
-            return key_count;
         }
         libinput_device_sptr libinput_add_device(qiew sysname)
         {
@@ -6881,7 +6872,7 @@ namespace netxs::lixx // li++, libinput++.
             {
                 if (device_has_cap(LIBINPUT_DEVICE_CAP_POINTER))
                 {
-                    auto seat_button_count = li.update_seat_button_count(button, state);
+                    auto seat_button_count = li.update_press_count(button, state);
                     auto& button_event = li.libinput_emplace_event<libinput_event_pointer>();
                     button_event.button            = button;
                     button_event.seat_button_count = seat_button_count;
@@ -7492,7 +7483,7 @@ namespace netxs::lixx // li++, libinput++.
             auto& button_event = li.libinput_emplace_event<libinput_event_tablet_tool>();
             button_event.button            = button;
             button_event.state             = state;
-            button_event.seat_button_count = li.update_seat_button_count(button, state);
+            button_event.seat_button_count = li.update_press_count(button, state);
             button_event.axes              = axes;
             button_event.tool              = tool;
             button_event.proximity_state   = LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_IN;
@@ -18322,7 +18313,7 @@ namespace netxs::lixx // li++, libinput++.
                             {
                                 if (generic.device_has_cap(LIBINPUT_DEVICE_CAP_KEYBOARD))
                                 {
-                                    auto seat_key_count = generic.li.update_seat_key_count(keycode, state);
+                                    auto seat_key_count = generic.li.update_press_count(keycode, state);
                                     auto& key_event = generic.li.libinput_emplace_event<libinput_event_keyboard>();
                                     key_event.key            = keycode;
                                     key_event.seat_key_count = seat_key_count;
