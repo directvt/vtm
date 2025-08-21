@@ -8268,7 +8268,7 @@ namespace netxs::ui
                         follow[axis::Y] = true;
                     }
                     ipccon.keybd(gear, decckm, kbmode);
-                    if (!gear.touched || gear.keystat != input::key::released) gear.set_handled(faux);
+                    if (!gear.touched || gear.keystat != input::key::released || rawkbd) gear.set_handled(faux);
                     break;
                 case keybd::type::imeinput:
                 case keybd::type::keypaste:

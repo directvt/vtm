@@ -11,10 +11,10 @@ namespace netxs::ansi
 
     static const auto esc_csi     = '['; // ESC [ ...
     static const auto esc_ocs     = ']'; // ESC ] ...
-    static const auto esc_dcs     = 'P'; // ESC P ... BELL/ST
-    static const auto esc_sos     = 'X'; // ESC X ... BELL/ST
-    static const auto esc_pm      = '^'; // ESC ^ ... BELL/ST
-    static const auto esc_apc     = '_'; // ESC _ ... BELL/ST
+    static const auto esc_dcs     = 'P'; // ESC P ... BEL/ST
+    static const auto esc_sos     = 'X'; // ESC X ... BEL/ST
+    static const auto esc_pm      = '^'; // ESC ^ ... BEL/ST
+    static const auto esc_apc     = '_'; // ESC _ ... BEL/ST  The command string may consist of bit combinations in the ASCII ranges from 8 to 13 and from 32 to 126.
     static const auto esc_g0set   = '('; // ESC ( c
     static const auto esc_g1set   = ')'; // ESC ) c
     static const auto esc_g2set   = '*'; // ESC * c

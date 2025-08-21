@@ -1669,13 +1669,15 @@ namespace netxs::app::vtm
                             for (auto& [ext_gear_id, gear_ptr] : usergate.gears)
                             {
                                 auto& gear = *gear_ptr;
-                                if (gear.mouse_disabled || std::isnan(gear.coord.x)) continue;
-                                auto coor = twod{ gear.coord } + gear.owner.coor();
-                                coor.y -= 1;
-                                coor.x -= half_x;
-                                user_name.move(coor);
-                                parent_canvas.fill(user_name, cell::shaders::contrast); //todo revise: segfault?
-                                usergate.fill_pointer(gear, parent_canvas);
+                                if (!gear.mouse_disabled && !std::isnan(gear.coord.x))
+                                {
+                                    auto coor = twod{ gear.coord } + gear.owner.coor();
+                                    coor.y -= 1;
+                                    coor.x -= half_x;
+                                    user_name.move(coor);
+                                    parent_canvas.fill(user_name, cell::shaders::contrast); //todo revise: segfault?
+                                    usergate.fill_pointer(gear, parent_canvas);
+                                }
                             }
                         }
                     }
@@ -1891,7 +1893,7 @@ namespace netxs::app::vtm
             };
             usergate.LISTEN(tier::release, e2::form::drag::pull::any, gear)
             {
-                if (gear.owner.id != usergate.id) return;
+                if (gear.owner.id == usergate.id)
                 if (auto delta = twod{ gear.coord } - twod{ drag_origin })
                 {
                     drag_origin = gear.coord;

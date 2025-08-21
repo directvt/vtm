@@ -82,11 +82,6 @@ namespace netxs::lixx // li++, libinput++.
         TOUCH_ONGOING,
         TOUCH_CHANGED,
     };
-    enum read_status
-    {
-        LIBEVDEV_READ_STATUS_SUCCESS,
-        LIBEVDEV_READ_STATUS_SYNC,
-    };
     enum libinput_arbitration_state
     {
         ARBITRATION_NOT_ACTIVE,
@@ -95,55 +90,55 @@ namespace netxs::lixx // li++, libinput++.
     };
     enum libinput_device_caps
     {
-        EVDEV_DEVICE_KEYBOARD        = 1ul << 0,
-        EVDEV_DEVICE_POINTER         = 1ul << 1,
-        EVDEV_DEVICE_GESTURE         = 1ul << 2,
-        EVDEV_DEVICE_TOUCH           = 1ul << 3,
-        EVDEV_DEVICE_SWITCH          = 1ul << 4,
-        EVDEV_DEVICE_TABLET_PAD      = 1ul << 5,
-        EVDEV_DEVICE_TABLET          = 1ul << 6,
+        EVDEV_DEVICE_KEYBOARD        = 1 << 0,
+        EVDEV_DEVICE_POINTER         = 1 << 1,
+        EVDEV_DEVICE_GESTURE         = 1 << 2,
+        EVDEV_DEVICE_TOUCH           = 1 << 3,
+        EVDEV_DEVICE_SWITCH          = 1 << 4,
+        EVDEV_DEVICE_TABLET_PAD      = 1 << 5,
+        EVDEV_DEVICE_TABLET          = 1 << 6,
     };
     enum ud_type_enum
     {
-        UDEV_MOUSE         = 1ul << 1,
-        UDEV_POINTINGSTICK = 1ul << 2,
-        UDEV_TOUCHPAD      = 1ul << 3,
-        UDEV_TABLET        = 1ul << 4,
-        UDEV_TABLET_PAD    = 1ul << 5,
-        UDEV_JOYSTICK      = 1ul << 6,
-        UDEV_KEYBOARD      = 1ul << 7,
+        UDEV_MOUSE         = 1 << 1,
+        UDEV_POINTINGSTICK = 1 << 2,
+        UDEV_TOUCHPAD      = 1 << 3,
+        UDEV_TABLET        = 1 << 4,
+        UDEV_TABLET_PAD    = 1 << 5,
+        UDEV_JOYSTICK      = 1 << 6,
+        UDEV_KEYBOARD      = 1 << 7,
     };
     enum libinput_device_tags
     {
-        EVDEV_TAG_NONE               = 0ul,
-        EVDEV_TAG_EXTERNAL_MOUSE     = 1ul << 0,
-        EVDEV_TAG_INTERNAL_TOUCHPAD  = 1ul << 1,
-        EVDEV_TAG_EXTERNAL_TOUCHPAD  = 1ul << 2,
-        EVDEV_TAG_TRACKPOINT         = 1ul << 3,
-        EVDEV_TAG_KEYBOARD           = 1ul << 4,
-        EVDEV_TAG_LID_SWITCH         = 1ul << 5,
-        EVDEV_TAG_INTERNAL_KEYBOARD  = 1ul << 6,
-        EVDEV_TAG_EXTERNAL_KEYBOARD  = 1ul << 7,
-        EVDEV_TAG_TABLET_MODE_SWITCH = 1ul << 8,
-        EVDEV_TAG_TABLET_TOUCHPAD    = 1ul << 9,
-        EVDEV_TAG_VIRTUAL            = 1ul << 10,
+        EVDEV_TAG_NONE               = 0,
+        EVDEV_TAG_EXTERNAL_MOUSE     = 1 << 0,
+        EVDEV_TAG_INTERNAL_TOUCHPAD  = 1 << 1,
+        EVDEV_TAG_EXTERNAL_TOUCHPAD  = 1 << 2,
+        EVDEV_TAG_TRACKPOINT         = 1 << 3,
+        EVDEV_TAG_KEYBOARD           = 1 << 4,
+        EVDEV_TAG_LID_SWITCH         = 1 << 5,
+        EVDEV_TAG_INTERNAL_KEYBOARD  = 1 << 6,
+        EVDEV_TAG_EXTERNAL_KEYBOARD  = 1 << 7,
+        EVDEV_TAG_TABLET_MODE_SWITCH = 1 << 8,
+        EVDEV_TAG_TABLET_TOUCHPAD    = 1 << 9,
+        EVDEV_TAG_VIRTUAL            = 1 << 10,
     };
     //todo unify, combine with ud_type_enum and rename to ID_INPUT_*
     enum evdev_ud_device_tags
     {
-        EVDEV_UDEV_TAG_INPUT         = 1ul << 0,
-        EVDEV_UDEV_TAG_KEYBOARD      = 1ul << 1,
-        EVDEV_UDEV_TAG_MOUSE         = 1ul << 2,
-        EVDEV_UDEV_TAG_TOUCHPAD      = 1ul << 3,
-        EVDEV_UDEV_TAG_TOUCHSCREEN   = 1ul << 4,
-        EVDEV_UDEV_TAG_TABLET        = 1ul << 5,
-        EVDEV_UDEV_TAG_JOYSTICK      = 1ul << 6,
-        EVDEV_UDEV_TAG_ACCELEROMETER = 1ul << 7,
-        EVDEV_UDEV_TAG_TABLET_PAD    = 1ul << 8,
-        EVDEV_UDEV_TAG_POINTINGSTICK = 1ul << 9,
-        EVDEV_UDEV_TAG_TRACKBALL     = 1ul << 10,
-        EVDEV_UDEV_TAG_SWITCH        = 1ul << 11,
-        EVDEV_UDEV_TAG_PURETABLET    = 1ul << 12,
+        EVDEV_UDEV_TAG_INPUT         = 1 << 0,
+        EVDEV_UDEV_TAG_KEYBOARD      = 1 << 1,
+        EVDEV_UDEV_TAG_MOUSE         = 1 << 2,
+        EVDEV_UDEV_TAG_TOUCHPAD      = 1 << 3,
+        EVDEV_UDEV_TAG_TOUCHSCREEN   = 1 << 4,
+        EVDEV_UDEV_TAG_TABLET        = 1 << 5,
+        EVDEV_UDEV_TAG_JOYSTICK      = 1 << 6,
+        EVDEV_UDEV_TAG_ACCELEROMETER = 1 << 7,
+        EVDEV_UDEV_TAG_TABLET_PAD    = 1 << 8,
+        EVDEV_UDEV_TAG_POINTINGSTICK = 1 << 9,
+        EVDEV_UDEV_TAG_TRACKBALL     = 1 << 10,
+        EVDEV_UDEV_TAG_SWITCH        = 1 << 11,
+        EVDEV_UDEV_TAG_PURETABLET    = 1 << 12,
     };
     enum evdev_button_scroll_state
     {
@@ -175,15 +170,10 @@ namespace netxs::lixx // li++, libinput++.
     };
     enum libinput_config_accel_profile
     {
-        LIBINPUT_CONFIG_ACCEL_PROFILE_NONE     = 0,       // Placeholder for devices that don't have a configurable pointer acceleration profile.
-        LIBINPUT_CONFIG_ACCEL_PROFILE_FLAT     = (1 << 0),// A flat acceleration profile. Pointer motion is accelerated by a constant (device-specific) factor, depending on the current speed.
-        LIBINPUT_CONFIG_ACCEL_PROFILE_ADAPTIVE = (1 << 1),// An adaptive acceleration profile. Pointer acceleration depends on the input speed. This is the default profile for most devices.
-        LIBINPUT_CONFIG_ACCEL_PROFILE_CUSTOM   = (1 << 2),// A custom acceleration profile. Device movement acceleration depends on user defined custom acceleration functions for each movement type.
-    };
-    enum libinput_switch_state
-    {
-        LIBINPUT_SWITCH_STATE_OFF = 0,
-        LIBINPUT_SWITCH_STATE_ON  = 1,
+        LIBINPUT_CONFIG_ACCEL_PROFILE_NONE     = 0,      // Placeholder for devices that don't have a configurable pointer acceleration profile.
+        LIBINPUT_CONFIG_ACCEL_PROFILE_FLAT     = 1 << 0, // A flat acceleration profile. Pointer motion is accelerated by a constant (device-specific) factor, depending on the current speed.
+        LIBINPUT_CONFIG_ACCEL_PROFILE_ADAPTIVE = 1 << 1, // An adaptive acceleration profile. Pointer acceleration depends on the input speed. This is the default profile for most devices.
+        LIBINPUT_CONFIG_ACCEL_PROFILE_CUSTOM   = 1 << 2, // A custom acceleration profile. Device movement acceleration depends on user defined custom acceleration functions for each movement type.
     };
     enum libinput_switch
     {
@@ -233,21 +223,6 @@ namespace netxs::lixx // li++, libinput++.
         LIBINPUT_CONFIG_STATUS_UNSUPPORTED, // Configuration not available on this device.
         LIBINPUT_CONFIG_STATUS_INVALID,     // Invalid parameter range.
     };
-    enum libinput_config_tap_state
-    {
-        LIBINPUT_CONFIG_TAP_DISABLED, // Tapping is to be disabled, or is currently disabled.
-        LIBINPUT_CONFIG_TAP_ENABLED,  // Tapping is to be enabled, or is currently enabled.
-    };
-    enum libinput_config_tap_button_map
-    {
-        LIBINPUT_CONFIG_TAP_MAP_LRM,// 1/2/3 finger tap maps to left/right/middle.
-        LIBINPUT_CONFIG_TAP_MAP_LMR,// 1/2/3 finger tap maps to left/middle/right.
-    };
-    enum libinput_config_drag_state
-    {
-        LIBINPUT_CONFIG_DRAG_DISABLED,// Drag is to be disabled, or is currently disabled.
-        LIBINPUT_CONFIG_DRAG_ENABLED, // Drag is to be enabled, or is currently enabled.
-    };
     enum libinput_config_drag_lock_state
     {
         LIBINPUT_CONFIG_DRAG_LOCK_DISABLED,        // Drag lock is to be disabled, or is currently disabled.
@@ -257,58 +232,28 @@ namespace netxs::lixx // li++, libinput++.
     };
     enum libinput_config_scroll_method
     {
-        LIBINPUT_CONFIG_SCROLL_NO_SCROLL      = 0,       // Never send scroll events instead of pointer motion events. This has no effect on events generated by scroll wheels.
-        LIBINPUT_CONFIG_SCROLL_2FG            = (1 << 0),// Send scroll events when two fingers are logically down on the device.
-        LIBINPUT_CONFIG_SCROLL_EDGE           = (1 << 1),// Send scroll events when a finger moves along the bottom or right edge of a device.
-        LIBINPUT_CONFIG_SCROLL_ON_BUTTON_DOWN = (1 << 2),// Send scroll events when a button is down and the device moves along a scroll-capable axis.
-    };
-    enum libinput_config_scroll_button_lock_state
-    {
-        LIBINPUT_CONFIG_SCROLL_BUTTON_LOCK_DISABLED,
-        LIBINPUT_CONFIG_SCROLL_BUTTON_LOCK_ENABLED,
+        LIBINPUT_CONFIG_SCROLL_NO_SCROLL      = 0,      // Never send scroll events instead of pointer motion events. This has no effect on events generated by scroll wheels.
+        LIBINPUT_CONFIG_SCROLL_2FG            = 1 << 0, // Send scroll events when two fingers are logically down on the device.
+        LIBINPUT_CONFIG_SCROLL_EDGE           = 1 << 1, // Send scroll events when a finger moves along the bottom or right edge of a device.
+        LIBINPUT_CONFIG_SCROLL_ON_BUTTON_DOWN = 1 << 2, // Send scroll events when a button is down and the device moves along a scroll-capable axis.
     };
     enum libinput_config_click_method
     {
-        LIBINPUT_CONFIG_CLICK_METHOD_NONE         = 0,       // Do not send software-emulated button events. This has no effect on events generated by physical buttons.
-        LIBINPUT_CONFIG_CLICK_METHOD_BUTTON_AREAS = (1 << 0),// Use software-button areas to generate button events.
-        LIBINPUT_CONFIG_CLICK_METHOD_CLICKFINGER  = (1 << 1),// The number of fingers decides which button press to generate.
-    };
-    enum libinput_config_clickfinger_button_map
-    {
-        LIBINPUT_CONFIG_CLICKFINGER_MAP_LRM,// 1/2/3 finger click maps to left/right/middle.
-        LIBINPUT_CONFIG_CLICKFINGER_MAP_LMR,// 1/2/3 finger click maps to left/middle/right.
-    };
-    enum libinput_config_middle_emulation_state
-    {
-        LIBINPUT_CONFIG_MIDDLE_EMULATION_DISABLED,// Middle mouse button emulation is to be disabled, or is currently disabled.
-        LIBINPUT_CONFIG_MIDDLE_EMULATION_ENABLED, // Middle mouse button emulation is to be enabled, or is currently enabled.
-    };
-    enum libinput_config_dwt_state
-    {
-        LIBINPUT_CONFIG_DWT_DISABLED,
-        LIBINPUT_CONFIG_DWT_ENABLED,
-    };
-    enum libinput_config_dwtp_state
-    {
-        LIBINPUT_CONFIG_DWTP_DISABLED,
-        LIBINPUT_CONFIG_DWTP_ENABLED,
-    };
-    enum libinput_config_hold_state
-    {
-        LIBINPUT_CONFIG_HOLD_DISABLED,// Hold gestures are to be disabled, or are currently disabled.
-        LIBINPUT_CONFIG_HOLD_ENABLED, // Hold gestures are to be enabled, or are currently disabled.
+        LIBINPUT_CONFIG_CLICK_METHOD_NONE         = 0,      // Do not send software-emulated button events. This has no effect on events generated by physical buttons.
+        LIBINPUT_CONFIG_CLICK_METHOD_BUTTON_AREAS = 1 << 0, // Use software-button areas to generate button events.
+        LIBINPUT_CONFIG_CLICK_METHOD_CLICKFINGER  = 1 << 1, // The number of fingers decides which button press to generate.
     };
     enum libinput_config_3fg_drag_state
     {
-        LIBINPUT_CONFIG_3FG_DRAG_DISABLED,   // Drag is to be disabled, or is currently disabled.
-        LIBINPUT_CONFIG_3FG_DRAG_ENABLED_3FG,// Drag is to be enabled for 3 fingers, or is currently enabled.
-        LIBINPUT_CONFIG_3FG_DRAG_ENABLED_4FG,// Drag is to be enabled for 4 fingers, or is currently enabled.
+        LIBINPUT_CONFIG_3FG_DRAG_DISABLED,    // Drag is to be disabled, or is currently disabled.
+        LIBINPUT_CONFIG_3FG_DRAG_ENABLED_3FG, // Drag is to be enabled for 3 fingers, or is currently enabled.
+        LIBINPUT_CONFIG_3FG_DRAG_ENABLED_4FG, // Drag is to be enabled for 4 fingers, or is currently enabled.
     };
     enum libinput_config_send_events_mode
     {
-        LIBINPUT_CONFIG_SEND_EVENTS_ENABLED                    = 0,       // Send events from this device normally. This is a placeholder mode only, any device detected by libinput can be enabled. Do not test for this value as bitmask.
-        LIBINPUT_CONFIG_SEND_EVENTS_DISABLED                   = (1 << 0),// Do not send events through this device. Depending on the device, this may close all file descriptors on the device or it may leave the file descriptors open and route events through a different device.
-        LIBINPUT_CONFIG_SEND_EVENTS_DISABLED_ON_EXTERNAL_MOUSE = (1 << 1),// If an external pointer device is plugged in, do not send events, from this device. This option may be available on built-in touchpads.
+        LIBINPUT_CONFIG_SEND_EVENTS_ENABLED                    = 0,      // Send events from this device normally. This is a placeholder mode only, any device detected by libinput can be enabled. Do not test for this value as bitmask.
+        LIBINPUT_CONFIG_SEND_EVENTS_DISABLED                   = 1 << 0, // Do not send events through this device. Depending on the device, this may close all file descriptors on the device or it may leave the file descriptors open and route events through a different device.
+        LIBINPUT_CONFIG_SEND_EVENTS_DISABLED_ON_EXTERNAL_MOUSE = 1 << 1, // If an external pointer device is plugged in, do not send events, from this device. This option may be available on built-in touchpads.
     };
     enum wheel_event
     {
@@ -366,14 +311,14 @@ namespace netxs::lixx // li++, libinput++.
     enum evdev_event_type
     {
         EVDEV_NONE                = 0,
-        EVDEV_ABSOLUTE_TOUCH_DOWN = 1ul << 0,
-        EVDEV_ABSOLUTE_MOTION     = 1ul << 1,
-        EVDEV_ABSOLUTE_TOUCH_UP   = 1ul << 2,
-        EVDEV_ABSOLUTE_MT         = 1ul << 3,
-        EVDEV_WHEEL               = 1ul << 4,
-        EVDEV_KEY                 = 1ul << 5,
-        EVDEV_RELATIVE_MOTION     = 1ul << 6,
-        EVDEV_BUTTON              = 1ul << 7,
+        EVDEV_ABSOLUTE_TOUCH_DOWN = 1 << 0,
+        EVDEV_ABSOLUTE_MOTION     = 1 << 1,
+        EVDEV_ABSOLUTE_TOUCH_UP   = 1 << 2,
+        EVDEV_ABSOLUTE_MT         = 1 << 3,
+        EVDEV_WHEEL               = 1 << 4,
+        EVDEV_KEY                 = 1 << 5,
+        EVDEV_RELATIVE_MOTION     = 1 << 6,
+        EVDEV_BUTTON              = 1 << 7,
     };
     enum debounce_event
     {
@@ -383,23 +328,18 @@ namespace netxs::lixx // li++, libinput++.
         DEBOUNCE_EVENT_TIMEOUT_SHORT,
         DEBOUNCE_EVENT_OTHERBUTTON,
     };
-    enum tpkbcombo_layout
-    {
-        TPKBCOMBO_LAYOUT_UNKNOWN,
-        TPKBCOMBO_LAYOUT_BELOW,
-    };
     enum suspend_trigger
     {
-        SUSPEND_NO_FLAG         = 0x0,
-        SUSPEND_EXTERNAL_MOUSE  = 0x1,
-        SUSPEND_SENDEVENTS      = 0x2,
-        SUSPEND_LID             = 0x4,
-        SUSPEND_TABLET_MODE     = 0x8,
+        SUSPEND_NO_FLAG         = 0,
+        SUSPEND_EXTERNAL_MOUSE  = 1 << 0,
+        SUSPEND_SENDEVENTS      = 1 << 1,
+        SUSPEND_LID             = 1 << 2,
+        SUSPEND_TABLET_MODE     = 1 << 3,
     };
     enum libinput_pointer_axis
     {
-        LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL   = 0,
-        LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL = 1,
+        LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL,
+        LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL,
     };
     enum tap_event
     {
@@ -429,11 +369,6 @@ namespace netxs::lixx // li++, libinput++.
         LIBINPUT_POINTER_AXIS_SOURCE_CONTINUOUS,// The event is caused by the motion of some device.
         LIBINPUT_POINTER_AXIS_SOURCE_WHEEL_TILT,// @deprecated This axis source is deprecated as of libinput 1.16. The event is caused by the tilting of a mouse wheel rather than its rotation. This method is commonly used on mice without separate horizontal scroll wheels.
     };
-    enum gesture_cancelled
-    {
-        END_GESTURE    = 0,
-        CANCEL_GESTURE = 1,
-    };
     enum gesture_event
     {
         GESTURE_EVENT_RESET,
@@ -462,17 +397,17 @@ namespace netxs::lixx // li++, libinput++.
     enum tp_edge
     {
         EDGE_NONE   = 0,
-        EDGE_RIGHT  = 1ul << 0,
-        EDGE_BOTTOM = 1ul << 1,
+        EDGE_RIGHT  = 1 << 0,
+        EDGE_BOTTOM = 1 << 1,
     };
     enum touchpad_event
     {
         TOUCHPAD_EVENT_NONE           = 0,
-        TOUCHPAD_EVENT_MOTION         = 1ul << 0,
-        TOUCHPAD_EVENT_BUTTON_PRESS   = 1ul << 1,
-        TOUCHPAD_EVENT_BUTTON_RELEASE = 1ul << 2,
-        TOUCHPAD_EVENT_OTHERAXIS      = 1ul << 3,
-        TOUCHPAD_EVENT_TIMESTAMP      = 1ul << 4,
+        TOUCHPAD_EVENT_MOTION         = 1 << 0,
+        TOUCHPAD_EVENT_BUTTON_PRESS   = 1 << 1,
+        TOUCHPAD_EVENT_BUTTON_RELEASE = 1 << 2,
+        TOUCHPAD_EVENT_OTHERAXIS      = 1 << 3,
+        TOUCHPAD_EVENT_TIMESTAMP      = 1 << 4,
     };
     enum tp_gesture_state
     {
@@ -583,32 +518,22 @@ namespace netxs::lixx // li++, libinput++.
         LIBINPUT_DEVICE_CAP_GESTURE     = 5,
         LIBINPUT_DEVICE_CAP_SWITCH      = 6,
     };
-    enum notify
-    {
-        DONT_NOTIFY,
-        DO_NOTIFY,
-    };
-    enum timer_flags
-    {
-        TIMER_FLAG_NONE           = 0,
-        TIMER_FLAG_ALLOW_NEGATIVE = 1ul << 0,
-    };
     enum tablet_status
     {
-        TABLET_NONE                    = 0ul,
-        TABLET_AXES_UPDATED            = 1ul << 0,
-        TABLET_BUTTONS_PRESSED         = 1ul << 1,
-        TABLET_BUTTONS_DOWN            = 1ul << 2,
-        TABLET_BUTTONS_RELEASED        = 1ul << 3,
-        TABLET_TOOL_UPDATED            = 1ul << 4,
-        TABLET_TOOL_IN_CONTACT         = 1ul << 5,
-        TABLET_TOOL_LEAVING_PROXIMITY  = 1ul << 6,
-        TABLET_TOOL_OUT_OF_PROXIMITY   = 1ul << 7,
-        TABLET_TOOL_ENTERING_PROXIMITY = 1ul << 8,
-        TABLET_TOOL_ENTERING_CONTACT   = 1ul << 9,
-        TABLET_TOOL_LEAVING_CONTACT    = 1ul << 10,
-        TABLET_TOOL_OUT_OF_RANGE       = 1ul << 11,
-        TABLET_TOOL_OUTSIDE_AREA       = 1ul << 12,
+        TABLET_NONE                    = 0,
+        TABLET_AXES_UPDATED            = 1 << 0,
+        TABLET_BUTTONS_PRESSED         = 1 << 1,
+        TABLET_BUTTONS_DOWN            = 1 << 2,
+        TABLET_BUTTONS_RELEASED        = 1 << 3,
+        TABLET_TOOL_UPDATED            = 1 << 4,
+        TABLET_TOOL_IN_CONTACT         = 1 << 5,
+        TABLET_TOOL_LEAVING_PROXIMITY  = 1 << 6,
+        TABLET_TOOL_OUT_OF_PROXIMITY   = 1 << 7,
+        TABLET_TOOL_ENTERING_PROXIMITY = 1 << 8,
+        TABLET_TOOL_ENTERING_CONTACT   = 1 << 9,
+        TABLET_TOOL_LEAVING_CONTACT    = 1 << 10,
+        TABLET_TOOL_OUT_OF_RANGE       = 1 << 11,
+        TABLET_TOOL_OUTSIDE_AREA       = 1 << 12,
     };
     enum slot_state_enum
     {
@@ -638,19 +563,19 @@ namespace netxs::lixx // li++, libinput++.
     enum pad_axes
     {
         PAD_AXIS_NONE   = 0,
-        PAD_AXIS_RING1  = 1ul << 0,
-        PAD_AXIS_RING2  = 1ul << 1,
-        PAD_AXIS_STRIP1 = 1ul << 2,
-        PAD_AXIS_STRIP2 = 1ul << 3,
-        PAD_AXIS_DIAL1  = 1ul << 4,
-        PAD_AXIS_DIAL2  = 1ul << 5,
+        PAD_AXIS_RING1  = 1 << 0,
+        PAD_AXIS_RING2  = 1 << 1,
+        PAD_AXIS_STRIP1 = 1 << 2,
+        PAD_AXIS_STRIP2 = 1 << 3,
+        PAD_AXIS_DIAL1  = 1 << 4,
+        PAD_AXIS_DIAL2  = 1 << 5,
     };
     enum pad_status
     {
         PAD_NONE             = 0,
-        PAD_AXES_UPDATED     = 1ul << 0,
-        PAD_BUTTONS_PRESSED  = 1ul << 1,
-        PAD_BUTTONS_RELEASED = 1ul << 2,
+        PAD_AXES_UPDATED     = 1 << 0,
+        PAD_BUTTONS_PRESSED  = 1 << 1,
+        PAD_BUTTONS_RELEASED = 1 << 2,
     };
     enum button_event
     {
@@ -675,35 +600,25 @@ namespace netxs::lixx // li++, libinput++.
     };
     enum libinput_tablet_tool_proximity_state
     {
-        LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_OUT = 0,
-        LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_IN  = 1,
-    };
-    enum libinput_button_state
-    {
-        LIBINPUT_BUTTON_STATE_RELEASED = 0,
-        LIBINPUT_BUTTON_STATE_PRESSED  = 1
-    };
-    enum libinput_key_state
-    {
-        LIBINPUT_KEY_STATE_RELEASED = 0,
-        LIBINPUT_KEY_STATE_PRESSED  = 1
+        LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_OUT,
+        LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_IN,
     };
     enum directions
     {
-        N  = 1ul << 0,
-        NE = 1ul << 1,
-        E  = 1ul << 2,
-        SE = 1ul << 3,
-        S  = 1ul << 4,
-        SW = 1ul << 5,
-        W  = 1ul << 6,
-        NW = 1ul << 7,
+        N  = 1 << 0,
+        NE = 1 << 1,
+        E  = 1 << 2,
+        SE = 1 << 3,
+        S  = 1 << 4,
+        SW = 1 << 5,
+        W  = 1 << 6,
+        NW = 1 << 7,
         UNDEFINED_DIRECTION = 0xff
     };
     enum libinput_tablet_tool_tip_state
     {
-        LIBINPUT_TABLET_TOOL_TIP_UP   = 0,
-        LIBINPUT_TABLET_TOOL_TIP_DOWN = 1,
+        LIBINPUT_TABLET_TOOL_TIP_UP,
+        LIBINPUT_TABLET_TOOL_TIP_DOWN,
     };
     enum libinput_tablet_tool_type
     {
@@ -751,15 +666,15 @@ namespace netxs::lixx // li++, libinput++.
     };
     enum match_flags
     {
-        M_NAME      = 1ul << 0,
-        M_BUS       = 1ul << 1,
-        M_VID       = 1ul << 2,
-        M_PID       = 1ul << 3,
-        M_DMI       = 1ul << 4,
-        M_UDEV_TYPE = 1ul << 5,
-        M_DT        = 1ul << 6,
-        M_VERSION   = 1ul << 7,
-        M_UNIQ      = 1ul << 8,
+        M_NAME      = 1 << 0,
+        M_BUS       = 1 << 1,
+        M_VID       = 1 << 2,
+        M_PID       = 1 << 3,
+        M_DMI       = 1 << 4,
+        M_UDEV_TYPE = 1 << 5,
+        M_DT        = 1 << 6,
+        M_VERSION   = 1 << 7,
+        M_UNIQ      = 1 << 8,
         M_LAST      = M_UNIQ,
     };
     enum quirk
@@ -817,17 +732,17 @@ namespace netxs::lixx // li++, libinput++.
     };
     enum libinput_device_model
     {
-        EVDEV_MODEL_DEFAULT                   = 0ul,
-        EVDEV_MODEL_WACOM_TOUCHPAD            = 1ul << 1,
-        EVDEV_MODEL_SYNAPTICS_SERIAL_TOUCHPAD = 1ul << 2,
-        EVDEV_MODEL_ALPS_SERIAL_TOUCHPAD      = 1ul << 3,
-        EVDEV_MODEL_LENOVO_T450_TOUCHPAD      = 1ul << 4,
-        EVDEV_MODEL_APPLE_TOUCHPAD_ONEBUTTON  = 1ul << 5,
-        EVDEV_MODEL_LENOVO_SCROLLPOINT        = 1ul << 6,
+        EVDEV_MODEL_DEFAULT                   = 0,
+        EVDEV_MODEL_WACOM_TOUCHPAD            = 1 << 1,
+        EVDEV_MODEL_SYNAPTICS_SERIAL_TOUCHPAD = 1 << 2,
+        EVDEV_MODEL_ALPS_SERIAL_TOUCHPAD      = 1 << 3,
+        EVDEV_MODEL_LENOVO_T450_TOUCHPAD      = 1 << 4,
+        EVDEV_MODEL_APPLE_TOUCHPAD_ONEBUTTON  = 1 << 5,
+        EVDEV_MODEL_LENOVO_SCROLLPOINT        = 1 << 6,
         // udev tags, not true quirks.
-        EVDEV_MODEL_TEST_DEVICE               = 1ul << 20,
-        EVDEV_MODEL_TRACKBALL                 = 1ul << 21,
-        EVDEV_MODEL_LENOVO_X220_TOUCHPAD_FW81 = 1ul << 22,
+        EVDEV_MODEL_TEST_DEVICE               = 1 << 20,
+        EVDEV_MODEL_TRACKBALL                 = 1 << 21,
+        EVDEV_MODEL_LENOVO_X220_TOUCHPAD_FW81 = 1 << 22,
     };
     enum button_state_enum
     {
@@ -845,6 +760,10 @@ namespace netxs::lixx // li++, libinput++.
     constexpr ui16 evdev_usage_code(ui32 usage)                { return (ui16)usage & 0xFFFF; }
     struct evdev // The enum doesn't need to contain all event codes, only the ones we use in libinput - add to here as required.      * The order doesn't matter either since each enum value is just the type | code value anyway, keep it in somewhat logical groups where possible.
     {
+        static constexpr auto success             = 0;
+        static constexpr auto sync                = 1;
+        static constexpr auto pressed             = 1;
+        static constexpr auto released            = 0;
         static constexpr auto syn_report          = evdev_usage_from_code(EV_SYN, SYN_REPORT);
         static constexpr auto key_reserved        = evdev_usage_from_code(EV_KEY, KEY_RESERVED);
         static constexpr auto key_esc             = evdev_usage_from_code(EV_KEY, KEY_ESC);
@@ -1008,8 +927,8 @@ namespace netxs::lixx // li++, libinput++.
     static constexpr auto valid_flags    = LIBEVDEV_READ_FLAG_NORMAL | LIBEVDEV_READ_FLAG_SYNC | LIBEVDEV_READ_FLAG_FORCE_SYNC | LIBEVDEV_READ_FLAG_BLOCKING;
     static constexpr auto tap_button_map = std::to_array<std::array<ui32, 3>>(
     {
-        { evdev::btn_left, evdev::btn_right, evdev::btn_middle },
-        { evdev::btn_left, evdev::btn_middle, evdev::btn_right },
+        { evdev::btn_left, evdev::btn_right, evdev::btn_middle }, // 1/2/3 finger click maps to left/right/middle.
+        { evdev::btn_left, evdev::btn_middle, evdev::btn_right }, // 1/2/3 finger click maps to left/middle/right.
     });
     static constexpr fp64 v_us2ms(fp64 units_per_us) { return units_per_us * 1000.0; }
     static constexpr fp64 v_us2s(fp64 units_per_us)  { return units_per_us * 1000000.0; }
@@ -1070,7 +989,7 @@ namespace netxs::lixx // li++, libinput++.
     };
     struct matrix
     {
-        fp32 val[3][3]; // row/col
+        fp32 val[3][3] = {}; // row/col
 
         void matrix_mult_vec(si32_coor& p) const
         {
@@ -1174,21 +1093,21 @@ namespace netxs::lixx // li++, libinput++.
             libinput_config_accel_custom_func scroll;
         };
 
-        libinput_config_accel_profile profile = LIBINPUT_CONFIG_ACCEL_PROFILE_NONE;
-        custom_t                      custom;
+        libinput_config_accel_profile profile = {};
+        custom_t                      custom{};
     };
     struct libinput_device_config_scroll_method
     {
-        ui32                                    (*get_methods)            (libinput_device_sptr li_device);
-        libinput_config_status                  (*set_method)             (libinput_device_sptr li_device, libinput_config_scroll_method method);
-        libinput_config_scroll_method           (*get_method)             (libinput_device_sptr li_device);
-        libinput_config_scroll_method           (*get_default_method)     (libinput_device_sptr li_device);
-        libinput_config_status                  (*set_button)             (libinput_device_sptr li_device, ui32 button);
-        ui32                                    (*get_button)             (libinput_device_sptr li_device);
-        ui32                                    (*get_default_button)     (libinput_device_sptr li_device);
-        libinput_config_status                  (*set_button_lock)        (libinput_device_sptr li_device, libinput_config_scroll_button_lock_state);
-        libinput_config_scroll_button_lock_state(*get_button_lock)        (libinput_device_sptr li_device);
-        libinput_config_scroll_button_lock_state(*get_default_button_lock)(libinput_device_sptr li_device);
+        ui32                          (*get_methods)            (libinput_device_sptr li_device);
+        libinput_config_status        (*set_method)             (libinput_device_sptr li_device, libinput_config_scroll_method method);
+        libinput_config_scroll_method (*get_method)             (libinput_device_sptr li_device);
+        libinput_config_scroll_method (*get_default_method)     (libinput_device_sptr li_device);
+        libinput_config_status        (*set_button)             (libinput_device_sptr li_device, ui32 button);
+        ui32                          (*get_button)             (libinput_device_sptr li_device);
+        ui32                          (*get_default_button)     (libinput_device_sptr li_device);
+        libinput_config_status        (*set_button_lock)        (libinput_device_sptr li_device, bool scroll_button_lock_enabled);
+        bool                          (*get_button_lock)        (libinput_device_sptr li_device);
+        bool                          (*get_default_button_lock)(libinput_device_sptr li_device);
     };
     struct libinput_device_config_natural_scroll
     {
@@ -1218,10 +1137,10 @@ namespace netxs::lixx // li++, libinput++.
     };
     struct libinput_device_config_middle_emulation
     {
-        si32                                  (*available)  (libinput_device_sptr li_device);
-        libinput_config_status                (*set)        (libinput_device_sptr li_device, libinput_config_middle_emulation_state);
-        libinput_config_middle_emulation_state(*get)        (libinput_device_sptr li_device);
-        libinput_config_middle_emulation_state(*get_default)(libinput_device_sptr li_device);
+        si32                   (*available)  (libinput_device_sptr li_device);
+        libinput_config_status (*set)        (libinput_device_sptr li_device, bool middle_emulation_enabled);
+        bool                   (*get)        (libinput_device_sptr li_device);
+        bool                   (*get_default)(libinput_device_sptr li_device);
     };
         struct libinput_device_config_calibration
         {
@@ -1233,15 +1152,15 @@ namespace netxs::lixx // li++, libinput++.
         struct libinput_device_config_tap
         {
             si32                           (*count)                       (libinput_device_sptr li_device);
-            libinput_config_status         (*set_enabled)                 (libinput_device_sptr li_device, libinput_config_tap_state enable);
-            libinput_config_tap_state      (*get_enabled)                 (libinput_device_sptr li_device);
-            libinput_config_tap_state      (*get_default)                 (libinput_device_sptr li_device);
-            libinput_config_status         (*set_map)                     (libinput_device_sptr li_device, libinput_config_tap_button_map map);
-            libinput_config_tap_button_map (*get_map)                     (libinput_device_sptr li_device);
-            libinput_config_tap_button_map (*get_default_map)             (libinput_device_sptr li_device);
-            libinput_config_status         (*set_drag_enabled)            (libinput_device_sptr li_device, libinput_config_drag_state);
-            libinput_config_drag_state     (*get_drag_enabled)            (libinput_device_sptr li_device);
-            libinput_config_drag_state     (*get_default_drag_enabled)    (libinput_device_sptr li_device);
+            libinput_config_status         (*set_enabled)                 (libinput_device_sptr li_device, bool tap_state_enabled);
+            bool                           (*get_enabled)                 (libinput_device_sptr li_device);
+            bool                           (*get_default)                 (libinput_device_sptr li_device);
+            libinput_config_status         (*set_map)                     (libinput_device_sptr li_device, bool use_lmr_map);
+            bool                           (*get_map)                     (libinput_device_sptr li_device);
+            bool                           (*get_default_map)             (libinput_device_sptr li_device);
+            libinput_config_status         (*set_drag_enabled)            (libinput_device_sptr li_device, bool drag_enbled);
+            bool                           (*get_drag_enabled)            (libinput_device_sptr li_device);
+            bool                           (*get_default_drag_enabled)    (libinput_device_sptr li_device);
             libinput_config_status         (*set_draglock_enabled)        (libinput_device_sptr li_device, libinput_config_drag_lock_state);
             libinput_config_drag_lock_state(*get_draglock_enabled)        (libinput_device_sptr li_device);
             libinput_config_drag_lock_state(*get_default_draglock_enabled)(libinput_device_sptr li_device);
@@ -1255,27 +1174,27 @@ namespace netxs::lixx // li++, libinput++.
         };
         struct libinput_device_config_click_method
         {
-            ui32                                  (*get_methods)                (libinput_device_sptr li_device);
-            libinput_config_status                (*set_method)                 (libinput_device_sptr li_device, libinput_config_click_method method);
-            libinput_config_click_method          (*get_method)                 (libinput_device_sptr li_device);
-            libinput_config_click_method          (*get_default_method)         (libinput_device_sptr li_device);
-            libinput_config_status                (*set_clickfinger_map)        (libinput_device_sptr li_device, libinput_config_clickfinger_button_map map);
-            libinput_config_clickfinger_button_map(*get_clickfinger_map)        (libinput_device_sptr li_device);
-            libinput_config_clickfinger_button_map(*get_default_clickfinger_map)(libinput_device_sptr li_device);
+            ui32                         (*get_methods)                (libinput_device_sptr li_device);
+            libinput_config_status       (*set_method)                 (libinput_device_sptr li_device, libinput_config_click_method method);
+            libinput_config_click_method (*get_method)                 (libinput_device_sptr li_device);
+            libinput_config_click_method (*get_default_method)         (libinput_device_sptr li_device);
+            libinput_config_status       (*set_clickfinger_map)        (libinput_device_sptr li_device, bool use_lmr_map);
+            bool                         (*get_clickfinger_map)        (libinput_device_sptr li_device);
+            bool                         (*get_default_clickfinger_map)(libinput_device_sptr li_device);
         };
         struct libinput_device_config_dwt
         {
-            si32                     (*is_available)       (libinput_device_sptr li_device);
-            libinput_config_status   (*set_enabled)        (libinput_device_sptr li_device, libinput_config_dwt_state enable);
-            libinput_config_dwt_state(*get_enabled)        (libinput_device_sptr li_device);
-            libinput_config_dwt_state(*get_default_enabled)(libinput_device_sptr li_device);
+            si32                   (*is_available)       (libinput_device_sptr li_device);
+            libinput_config_status (*set_enabled)        (libinput_device_sptr li_device, bool dwt_enabled);
+            bool                   (*get_enabled)        (libinput_device_sptr li_device);
+            bool                   (*get_default_enabled)(libinput_device_sptr li_device);
         };
         struct libinput_device_config_dwtp
         {
-            si32                      (*is_available)       (libinput_device_sptr li_device);
-            libinput_config_status    (*set_enabled)        (libinput_device_sptr li_device, libinput_config_dwtp_state enable);
-            libinput_config_dwtp_state(*get_enabled)        (libinput_device_sptr li_device);
-            libinput_config_dwtp_state(*get_default_enabled)(libinput_device_sptr li_device);
+            si32                   (*is_available)       (libinput_device_sptr li_device);
+            libinput_config_status (*set_enabled)        (libinput_device_sptr li_device, bool dwtp_enabled);
+            bool                   (*get_enabled)        (libinput_device_sptr li_device);
+            bool                   (*get_default_enabled)(libinput_device_sptr li_device);
         };
         struct libinput_device_config_rotation
         {
@@ -1286,9 +1205,9 @@ namespace netxs::lixx // li++, libinput++.
         };
         struct libinput_device_config_gesture
         {
-            libinput_config_status    (*set_hold_enabled)(libinput_device_sptr li_device, libinput_config_hold_state enabled);
-            libinput_config_hold_state(*get_hold_enabled)(libinput_device_sptr li_device);
-            libinput_config_hold_state(*get_hold_default)(libinput_device_sptr li_device);
+            libinput_config_status (*set_hold_enabled)(libinput_device_sptr li_device, bool hold_enabled);
+            bool                   (*get_hold_enabled)(libinput_device_sptr li_device);
+            bool                   (*get_hold_default)(libinput_device_sptr li_device);
         };
         struct libinput_device_config_3fg_drag
         {
@@ -1300,20 +1219,20 @@ namespace netxs::lixx // li++, libinput++.
         };
         struct libinput_device_config
         {
-            libinput_device_config_tap*              tap;
-            libinput_device_config_calibration*      calibration;
-            libinput_device_config_area*             area;
-            libinput_device_config_accel*            accel;
-            libinput_device_config_natural_scroll*   natural_scroll;
-            libinput_device_config_left_handed*      left_handed;
-            libinput_device_config_scroll_method*    scroll_method;
-            libinput_device_config_click_method*     click_method;
-            libinput_device_config_middle_emulation* middle_emulation;
-            libinput_device_config_dwt*              dwt;
-            libinput_device_config_dwtp*             dwtp;
-            libinput_device_config_rotation*         rotation;
-            libinput_device_config_gesture*          gesture;
-            libinput_device_config_3fg_drag*         drag_3fg;
+            libinput_device_config_tap*              tap{};
+            libinput_device_config_calibration*      calibration{};
+            libinput_device_config_area*             area{};
+            libinput_device_config_accel*            accel{};
+            libinput_device_config_natural_scroll*   natural_scroll{};
+            libinput_device_config_left_handed*      left_handed{};
+            libinput_device_config_scroll_method*    scroll_method{};
+            libinput_device_config_click_method*     click_method{};
+            libinput_device_config_middle_emulation* middle_emulation{};
+            libinput_device_config_dwt*              dwt{};
+            libinput_device_config_dwtp*             dwtp{};
+            libinput_device_config_rotation*         rotation{};
+            libinput_device_config_gesture*          gesture{};
+            libinput_device_config_3fg_drag*         drag_3fg{};
         };
 
         struct libinput_tablet_tool_config_pressure_range
@@ -1325,12 +1244,12 @@ namespace netxs::lixx // li++, libinput++.
         };
         struct libinput_tablet_tool_pressure_threshold
         {
-            ui32                     tablet_id;
+            ui32                     tablet_id{};
             abs_info_t               abs_pressure; // The configured axis we actually work with.
-            si32_range               threshold;   // In device coordinates.
-            fp64                     offset;
-            bool                     has_offset;
-            pressure_heuristic_state heuristic_state; // This gives us per-tablet heuristic state which is arguably wrong but >99% of users have one tablet and it's easier to implement it this way.
+            si32_range               threshold;    // In device coordinates.
+            fp64                     offset{};
+            bool                     has_offset{};
+            pressure_heuristic_state heuristic_state{}; // This gives us per-tablet heuristic state which is arguably wrong but >99% of users have one tablet and it's easier to implement it this way.
         };
     struct libinput_tablet_tool
     {
@@ -1338,13 +1257,13 @@ namespace netxs::lixx // li++, libinput++.
         {
             fp64_range                              range; // We're assuming that the *configured* pressure range is per tool, not per tablet. The *adjusted* thresholds are then per-tablet.
             fp64_range                              wanted_range;
-            bool                                    has_configured_range;
+            bool                                    has_configured_range{};
             libinput_tablet_tool_pressure_threshold threshold;
         };
 
-        ui32                                       serial;
-        ui32                                       tool_id;
-        libinput_tablet_tool_type                  type;
+        ui32                                       serial{};
+        ui32                                       tool_id{};
+        libinput_tablet_tool_type                  type{};
         tablet_axes_bitset                         axis_caps_bits;
         std::bitset<KEY_MAX>                       buttons_bits;
         pressure_t                                 pressure;
@@ -1353,8 +1272,8 @@ namespace netxs::lixx // li++, libinput++.
 
             struct pointer_delta_smoothener
             {
-                span threshold;
-                span value;
+                span threshold{};
+                span value{};
 
                 static pointer_delta_smoothener_sptr create(span event_delta_smooth_threshold, span event_delta_smooth_value)
                 {
@@ -1367,8 +1286,8 @@ namespace netxs::lixx // li++, libinput++.
             struct pointer_tracker
             {
                 fp64_coor delta; // Delta to most recent event.
-                time      now;   // us.
-                ui32      dir;
+                time      now{}; // us.
+                ui32      dir{};
 
                 fp64 calculate_trackers_velocity(time new_now, pointer_delta_smoothener_sptr smoothener)
                 {
@@ -1419,7 +1338,7 @@ namespace netxs::lixx // li++, libinput++.
         struct pointer_trackers
         {
             std::vector<pointer_tracker>  trackers;
-            ui32                          cur_tracker;
+            ui32                          cur_tracker{};
             pointer_delta_smoothener_sptr smoothener;
 
             pointer_tracker& trackers_by_offset(ui32 offset = 0)
@@ -1769,8 +1688,8 @@ namespace netxs::lixx // li++, libinput++.
     };
     struct custom_accel_function
     {
-        time              last_time;
-        fp64              step;
+        time              last_time{};
+        fp64              step{};
         std::vector<fp64> points;
 
         fp64 custom_accel_function_calculate_speed(fp64_coor unaccelerated, time now)
@@ -1874,7 +1793,6 @@ namespace netxs::lixx // li++, libinput++.
             }
             auto cf = ptr::shared<custom_accel_function>();
             cf->points.assign(points.begin(), points.end());
-            cf->last_time = {};
             cf->step = step;
             return cf;
         }
@@ -2347,7 +2265,8 @@ namespace netxs::lixx // li++, libinput++.
         touchpad_accelerator(si32 dpi, span event_delta_smooth_threshold, span event_delta_smooth_value, bool use_velocity_averaging)
             : motion_filter{ dpi },
                   threshold{ 130 },
-                      accel{ 0.0 }
+                      accel{ 0.0 },
+               speed_factor{ 0.0 }
         {
             type = LIBINPUT_CONFIG_ACCEL_PROFILE_ADAPTIVE;
             trackers.trackers_init(use_velocity_averaging ? 16 : 2);
@@ -2437,15 +2356,15 @@ namespace netxs::lixx // li++, libinput++.
 
     struct match_t
     {
-        ui32     bits;
+        ui32     bits{};
         text     name2;
         text     uniq2;
-        bustype  bus;
-        ui32     vendor;
-        ui32     product[64]; // Zero-terminated.
-        ui32     version;
+        bustype  bus{};
+        ui32     vendor{};
+        ui32     product[64] = {}; // Zero-terminated.
+        ui32     version{};
         text     dmi2; // DMI modalias with preceding "dmi:".
-        ui32     ud_type; // We can have more than one type set, so this is a bitfield.
+        ui32     ud_type{}; // We can have more than one type set, so this is a bitfield.
         text     dt2; // Device tree compatible (first) string.
     };
     struct quirk_tuples
@@ -2457,7 +2376,7 @@ namespace netxs::lixx // li++, libinput++.
             si32 third;
         };
         std::array<tuples_t, 32> tuples;
-        ui64                     ntuples;
+        ui64                     ntuples{};
     };
     struct property_t
     {
@@ -2474,9 +2393,9 @@ namespace netxs::lixx // li++, libinput++.
     };
     struct section_t
     {
-        bool                     has_match;    // To check for empty sections.
-        bool                     has_property; // To check for empty sections.
-        text                     name2;        // The [Section Name].
+        bool                     has_match{};    // To check for empty sections.
+        bool                     has_property{}; // To check for empty sections.
+        text                     name2;          // The [Section Name].
         match_sptr               match;
         std::list<property_sptr> properties;
     };
@@ -2704,9 +2623,9 @@ namespace netxs::lixx // li++, libinput++.
         {
             owner.libinput_timer_cancel(*this);
         }
-        void start(time expire, ui32 flags = TIMER_FLAG_NONE)
+        void start(time expire, bool allow_negative = {})
         {
-            owner.libinput_timer_set(*this, expire, flags);
+            owner.libinput_timer_set(*this, expire, allow_negative);
         }
     };
     struct libinput_timer_host
@@ -2718,7 +2637,7 @@ namespace netxs::lixx // li++, libinput++.
         event_source_sptr                source;
         fd_t                             fd{ os::invalid_fd };
         fd_t                             epoll_fd{ os::invalid_fd };
-        time                             next_expiry;
+        time                             next_expiry{};
         std::vector<event_source_sptr>   source_destroy_list;
 
         void clear()
@@ -2744,13 +2663,13 @@ namespace netxs::lixx // li++, libinput++.
                 libinput_timer_handler();
             }
         }
-        void libinput_timer_set(libinput_timer_t& timer, time expire, [[maybe_unused]] ui32 flags = TIMER_FLAG_NONE)
+        void libinput_timer_set(libinput_timer_t& timer, time expire, [[maybe_unused]] bool allow_negative = {})
         {
             #ifndef NDEBUG
             auto now = datetime::now();
             if (expire < now)
             {
-                if ((flags & TIMER_FLAG_ALLOW_NEGATIVE) == 0 && now - expire > lixx::timer_warning_limit)
+                if (!allow_negative && now - expire > lixx::timer_warning_limit)
                 {
                     log("timer %s%: scheduled expiry is in the past (-%dms%), your system is too slow", timer.timer_name, now - expire);
                 }
@@ -2866,9 +2785,9 @@ namespace netxs::lixx // li++, libinput++.
 
     struct libinput_event
     {
-        libinput_event_type  type;
+        libinput_event_type  type{};
         libinput_device_sptr li_device;
-        time                 stamp;
+        time                 stamp{};
 
         libinput_event() = default;
         virtual ~libinput_event()
@@ -2879,9 +2798,9 @@ namespace netxs::lixx // li++, libinput++.
             return li_device;
         }
         virtual ui32                  libinput_event_keyboard_get_key()                                              { if constexpr (debugmode) bad_event_type(__func__); return {}; }
-        virtual libinput_key_state    libinput_event_keyboard_get_key_state()                                        { if constexpr (debugmode) bad_event_type(__func__); return {}; }
+        virtual si32                  libinput_event_keyboard_get_key_state()                                        { if constexpr (debugmode) bad_event_type(__func__); return {}; }
         virtual libinput_switch       libinput_event_switch_get_switch()                                             { if constexpr (debugmode) bad_event_type(__func__); return {}; }
-        virtual libinput_switch_state libinput_event_switch_get_switch_state()                                       { if constexpr (debugmode) bad_event_type(__func__); return {}; }
+        virtual si32                  libinput_event_switch_get_switch_state()                                       { if constexpr (debugmode) bad_event_type(__func__); return {}; }
         virtual si32                  libinput_event_gesture_get_finger_count()                                      { if constexpr (debugmode) bad_event_type(__func__); return {}; }
         virtual si32                  libinput_event_gesture_get_cancelled()                                         { if constexpr (debugmode) bad_event_type(__func__); return {}; }
         virtual fp64_coor             libinput_event_gesture_get_ds()                                                { if constexpr (debugmode) bad_event_type(__func__); return {}; }
@@ -2891,7 +2810,7 @@ namespace netxs::lixx // li++, libinput++.
         virtual fp64_coor             libinput_event_pointer_get_absolute_xy_transformed(fp64_coor /*size*/)         { if constexpr (debugmode) bad_event_type(__func__); return {}; }
         virtual fp64_coor             libinput_event_pointer_get_ds()                                                { if constexpr (debugmode) bad_event_type(__func__); return {}; }
         virtual ui32                  libinput_event_pointer_get_button()                                            { if constexpr (debugmode) bad_event_type(__func__); return {}; }
-        virtual libinput_button_state libinput_event_pointer_get_button_state()                                      { if constexpr (debugmode) bad_event_type(__func__); return {}; }
+        virtual si32                  libinput_event_pointer_get_button_state()                                      { if constexpr (debugmode) bad_event_type(__func__); return {}; }
         virtual si32                  libinput_event_pointer_has_axis(libinput_pointer_axis /*axis*/)                { if constexpr (debugmode) bad_event_type(__func__); return {}; }
         virtual fp64_coor             libinput_event_pointer_get_scroll_value()                                      { if constexpr (debugmode) bad_event_type(__func__); return {}; }
         virtual fp64_coor             libinput_event_pointer_get_scroll_value_v120()                                 { if constexpr (debugmode) bad_event_type(__func__); return {}; }
@@ -2946,12 +2865,12 @@ namespace netxs::lixx // li++, libinput++.
 
     struct libinput_event_keyboard : libinput_event
     {
-        ui32               key;
-        ui32               seat_key_count;
-        libinput_key_state state;
+        ui32 key{};
+        ui32 seat_key_count{};
+        si32 state{};
 
-        virtual ui32               libinput_event_keyboard_get_key()       override { return key; }
-        virtual libinput_key_state libinput_event_keyboard_get_key_state() override { return state; }
+        virtual ui32 libinput_event_keyboard_get_key()       override { return key; }
+        virtual si32 libinput_event_keyboard_get_key_state() override { return state; }
     };
     struct libinput_event_empty : libinput_event
     {
@@ -2971,13 +2890,13 @@ namespace netxs::lixx // li++, libinput++.
         si32_coor                    absolute;
         si32_coor                    discrete;
         si32_coor                    v120;
-        ui32                         button;
-        ui32                         seat_button_count;
-        libinput_button_state        state;
-        libinput_pointer_axis_source source;
-        ui32                         active_axes;
-        abs_info_t const*            absinfo_x;
-        abs_info_t const*            absinfo_y;
+        ui32                         button{};
+        ui32                         seat_button_count{};
+        si32                         state{};
+        libinput_pointer_axis_source source{};
+        ui32                         active_axes{};
+        abs_info_t const*            absinfo_x{};
+        abs_info_t const*            absinfo_y{};
 
         virtual fp64_coor libinput_event_pointer_get_absolute_xy_transformed(fp64_coor size) override
         {
@@ -2985,12 +2904,12 @@ namespace netxs::lixx // li++, libinput++.
                                  absinfo_y->absinfo_scale_axis(absolute.y, size.y) };
             return xy;
         }
-        virtual fp64_coor             libinput_event_pointer_get_ds()                             override { return delta; }
-        virtual ui32                  libinput_event_pointer_get_button()                         override { return button; }
-        virtual libinput_button_state libinput_event_pointer_get_button_state()                   override { return state; }
-        virtual si32                  libinput_event_pointer_has_axis(libinput_pointer_axis axis) override { return !!(active_axes & (1ul << axis)); }
-        virtual fp64_coor             libinput_event_pointer_get_scroll_value()                   override { return delta; }
-        virtual fp64_coor             libinput_event_pointer_get_scroll_value_v120()              override { return v120; }
+        virtual fp64_coor libinput_event_pointer_get_ds()                             override { return delta; }
+        virtual ui32      libinput_event_pointer_get_button()                         override { return button; }
+        virtual si32      libinput_event_pointer_get_button_state()                   override { return state; }
+        virtual si32      libinput_event_pointer_has_axis(libinput_pointer_axis axis) override { return !!(active_axes & (1ul << axis)); }
+        virtual fp64_coor libinput_event_pointer_get_scroll_value()                   override { return delta; }
+        virtual fp64_coor libinput_event_pointer_get_scroll_value_v120()              override { return v120; }
     };
     struct libinput_event_gesture : libinput_event
     {
@@ -3016,11 +2935,11 @@ namespace netxs::lixx // li++, libinput++.
     };
     struct libinput_event_switch : libinput_event
     {
-        libinput_switch       sw;
-        libinput_switch_state state;
+        libinput_switch sw;
+        si32            state;
 
-        virtual libinput_switch       libinput_event_switch_get_switch()       override { return sw; }
-        virtual libinput_switch_state libinput_event_switch_get_switch_state() override { return state; }
+        virtual libinput_switch libinput_event_switch_get_switch()       override { return sw; }
+        virtual si32            libinput_event_switch_get_switch_state() override { return state; }
     };
         struct libinput_tablet_pad_mode_group
         {
@@ -3042,13 +2961,13 @@ namespace netxs::lixx // li++, libinput++.
     {
         struct button_t
         {
-            ui32                  number;
-            libinput_button_state state;
+            ui32 number;
+            si32 state;
         };
         struct key_t
         {
-            ui32               code;
-            libinput_key_state state;
+            ui32 code;
+            si32 state;
         };
         struct dial_t
         {
@@ -3092,7 +3011,7 @@ namespace netxs::lixx // li++, libinput++.
     struct libinput_event_tablet_tool : libinput_event
     {
         ui32                                 button;
-        libinput_button_state                state;
+        si32                                 state;
         ui32                                 seat_button_count;
         tablet_axes                          axes;
         tablet_axes_bitset                   changed_axes_bits;
@@ -4249,7 +4168,7 @@ namespace netxs::lixx // li++, libinput++.
             }
         si32 libevdev_next_event(ui32 flags, input_event_t& ev)
         {
-            auto rc = (si32)LIBEVDEV_READ_STATUS_SUCCESS;
+            auto rc = evdev::success;
             if (!initialized || fd == os::invalid_fd)
             {
                 return -EBADF;
@@ -4263,7 +4182,7 @@ namespace netxs::lixx // li++, libinput++.
                 if (sync_state == SYNC_NEEDED)
                 {
                     rc = do_sync_state();
-                    if (rc != LIBEVDEV_READ_STATUS_SUCCESS) return rc;
+                    if (rc != evdev::success) return rc;
                     sync_state = SYNC_IN_PROGRESS;
                 }
                 if (queue_nsync == 0)
@@ -4296,8 +4215,7 @@ namespace netxs::lixx // li++, libinput++.
                 if (flags & LIBEVDEV_READ_FLAG_FORCE_SYNC)
                 {
                     sync_state = SYNC_NEEDED;
-                    rc = LIBEVDEV_READ_STATUS_SYNC;
-                    return rc;
+                    return evdev::sync;
                 }
                 if (queue_shift(ev) != 0)
                 {
@@ -4310,16 +4228,16 @@ namespace netxs::lixx // li++, libinput++.
                 }
             }
             while (filter_status == EVENT_FILTER_DISCARD);
-            rc = LIBEVDEV_READ_STATUS_SUCCESS;
+            rc = evdev::success;
             if (ev.type == EV_SYN && ev.code == SYN_DROPPED)
             {
                 sync_state = SYNC_NEEDED;
-                rc = LIBEVDEV_READ_STATUS_SYNC;
+                rc = evdev::sync;
             }
             if (flags & LIBEVDEV_READ_FLAG_SYNC && queue_nsync > 0)
             {
                 queue_nsync--;
-                rc = LIBEVDEV_READ_STATUS_SYNC;
+                rc = evdev::sync;
                 if (queue_nsync == 0)
                 {
                     sync_state = SYNC_NONE;
@@ -5988,26 +5906,18 @@ namespace netxs::lixx // li++, libinput++.
             }
             return {};
         }
-        ui32 update_seat_button_count(ui32 button_code, libinput_button_state state)
+        ui32 update_press_count(ui32 key_code, si32 state)
         {
-            assert(button_code <= KEY_MAX);
-            auto& press_count = seat_button_count[button_code];
-                 if (state == LIBINPUT_BUTTON_STATE_PRESSED) press_count++;
-            else if (press_count)                            press_count--; // We might not have received the first PRESSED event.
+            assert(key_code <= KEY_MAX);
+            auto& press_count = seat_button_count[key_code];
+                 if (state == evdev::pressed) press_count++;
+            else if (press_count)             press_count--; // We might not have received the first PRESSED event.
             return press_count;
-        }
-        ui32 update_seat_key_count(ui32 keycode, libinput_key_state state)
-        {
-            assert(keycode <= KEY_MAX);
-            auto& key_count = seat_button_count[keycode];
-                 if (state == LIBINPUT_KEY_STATE_PRESSED) key_count++;
-            else if (key_count)                           key_count--; // We might not have received the first PRESSED event.
-            return key_count;
         }
         libinput_device_sptr libinput_add_device(qiew sysname)
         {
             auto ok = ud_monitor.add_by_name(sysname);
-            return ok? device_list.back() : libinput_device_sptr{};
+            return ok ? device_list.back() : libinput_device_sptr{};
         }
         void enumerate_active_devices(auto proc)
         {
@@ -6145,6 +6055,7 @@ namespace netxs::lixx // li++, libinput++.
 
         libinput_t&                             li;
         ud_device_t&                            ud_device;
+        ud_device_sptr                          deleted_device_ptr; // Backup device reference when device is removed.
         text                                    device_group; //todo Property for tablet touch arbitration. Set LIBINPUT_DEVICE_GROUP somewhere in settings (or in quirks) for devices intended to be in a group (e.g. tablet+stylus).
         std::list<libinput_event_listener_sptr> event_listeners;
         libinput_device_config                  config;
@@ -6172,19 +6083,19 @@ namespace netxs::lixx // li++, libinput++.
         virtual ~libinput_device_t()
         { }
 
-        virtual                  void                       process([[maybe_unused]] evdev_event& event, time)                                                { } // Process an evdev input event.
-        virtual                  void                       suspend()                                                                                         { } // Device is being suspended.
-        virtual                  void                        remove()                                                                                         { } // Device is being removed (may be nullptr).
-        virtual                  void                       destroy()                                                                                         { } // Destroy an event dispatch handler and free all its resources.
-        virtual                  void                  device_added([[maybe_unused]] libinput_device_sptr added_li_device)                                    { } // A new device was added.
-        virtual                  void                device_removed([[maybe_unused]] libinput_device_sptr removed_li_device)                                  { } // A device was removed.
-        virtual                  void              device_suspended([[maybe_unused]] libinput_device_sptr suspended_li_device)                                { } // A device was suspended.
-        virtual                  void                device_resumed([[maybe_unused]] libinput_device_sptr resumed_li_device)                                  { } // A device was resumed.
-        virtual                  void                    post_added()                                                                                         { } // Called immediately after the LIBINPUT_EVENT_DEVICE_ADDED event was sent.
-        virtual                  void      touch_arbitration_toggle([[maybe_unused]] libinput_arbitration_state which, [[maybe_unused]] fp64_rect area, time) { } // For touch arbitration, called on the device that should enable/disable touch capabilities.
-        virtual                  void touch_arbitration_update_rect([[maybe_unused]] fp64_rect area, time)                                                    { } // Called when touch arbitration is on, updates the area where touch arbitration should apply.
-        virtual libinput_switch_state              get_switch_state([[maybe_unused]] libinput_switch which)                                                   { return libinput_switch_state{}; } // Return the state of the given switch.
-        virtual                  void            left_handed_toggle([[maybe_unused]] bool left_handed_enabled)                                                { }
+        virtual void                       process([[maybe_unused]] evdev_event& event, time)                                                { } // Process an evdev input event.
+        virtual void                       suspend()                                                                                         { } // Device is being suspended.
+        virtual void                        remove()                                                                                         { } // Device is being removed (may be nullptr).
+        virtual void                       destroy()                                                                                         { } // Destroy an event dispatch handler and free all its resources.
+        virtual void                  device_added([[maybe_unused]] libinput_device_sptr added_li_device)                                    { } // A new device was added.
+        virtual void                device_removed([[maybe_unused]] libinput_device_sptr removed_li_device)                                  { } // A device was removed.
+        virtual void              device_suspended([[maybe_unused]] libinput_device_sptr suspended_li_device)                                { } // A device was suspended.
+        virtual void                device_resumed([[maybe_unused]] libinput_device_sptr resumed_li_device)                                  { } // A device was resumed.
+        virtual void                    post_added()                                                                                         { } // Called immediately after the LIBINPUT_EVENT_DEVICE_ADDED event was sent.
+        virtual void      touch_arbitration_toggle([[maybe_unused]] libinput_arbitration_state which, [[maybe_unused]] fp64_rect area, time) { } // For touch arbitration, called on the device that should enable/disable touch capabilities.
+        virtual void touch_arbitration_update_rect([[maybe_unused]] fp64_rect area, time)                                                    { } // Called when touch arbitration is on, updates the area where touch arbitration should apply.
+        virtual si32              get_switch_state([[maybe_unused]] libinput_switch which)                                                   { return {}; } // Return the state of the given switch.
+        virtual void            left_handed_toggle([[maybe_unused]] bool left_handed_enabled)                                                { }
 
         virtual libinput_config_status sendevents_set_mode(libinput_config_send_events_mode mode)
         {
@@ -6610,11 +6521,11 @@ namespace netxs::lixx // li++, libinput++.
                         switch (event)
                         {
                             case MIDDLEBUTTON_EVENT_L_DOWN: middlebutton_state_error(event); break;
-                            case MIDDLEBUTTON_EVENT_R_DOWN: evdev_pointer_notify_button(stamp, evdev::btn_middle, LIBINPUT_BUTTON_STATE_PRESSED); middlebutton_set_state(MIDDLEBUTTON_MIDDLE, stamp); break;
-                            case MIDDLEBUTTON_EVENT_OTHER:  evdev_pointer_notify_button(stamp, evdev::btn_left, LIBINPUT_BUTTON_STATE_PRESSED); middlebutton_set_state(MIDDLEBUTTON_PASSTHROUGH, stamp); return 0;
+                            case MIDDLEBUTTON_EVENT_R_DOWN: evdev_pointer_notify_button(stamp, evdev::btn_middle, evdev::pressed); middlebutton_set_state(MIDDLEBUTTON_MIDDLE, stamp); break;
+                            case MIDDLEBUTTON_EVENT_OTHER:  evdev_pointer_notify_button(stamp, evdev::btn_left, evdev::pressed); middlebutton_set_state(MIDDLEBUTTON_PASSTHROUGH, stamp); return 0;
                             case MIDDLEBUTTON_EVENT_R_UP:   middlebutton_state_error(event); break;
-                            case MIDDLEBUTTON_EVENT_L_UP:   evdev_pointer_notify_button(middlebutton.first_event_time, evdev::btn_left, LIBINPUT_BUTTON_STATE_PRESSED); evdev_pointer_notify_button(stamp, evdev::btn_left, LIBINPUT_BUTTON_STATE_RELEASED); middlebutton_set_state(MIDDLEBUTTON_IDLE, stamp); break;
-                            case MIDDLEBUTTON_EVENT_TIMEOUT:evdev_pointer_notify_button(middlebutton.first_event_time, evdev::btn_left, LIBINPUT_BUTTON_STATE_PRESSED); middlebutton_set_state(MIDDLEBUTTON_PASSTHROUGH, stamp); break;
+                            case MIDDLEBUTTON_EVENT_L_UP:   evdev_pointer_notify_button(middlebutton.first_event_time, evdev::btn_left, evdev::pressed); evdev_pointer_notify_button(stamp, evdev::btn_left, evdev::released); middlebutton_set_state(MIDDLEBUTTON_IDLE, stamp); break;
+                            case MIDDLEBUTTON_EVENT_TIMEOUT:evdev_pointer_notify_button(middlebutton.first_event_time, evdev::btn_left, evdev::pressed); middlebutton_set_state(MIDDLEBUTTON_PASSTHROUGH, stamp); break;
                             case MIDDLEBUTTON_EVENT_ALL_UP: middlebutton_state_error(event); break;
                         }
                         return 1;
@@ -6623,12 +6534,12 @@ namespace netxs::lixx // li++, libinput++.
                     {
                         switch (event)
                         {
-                            case MIDDLEBUTTON_EVENT_L_DOWN:  evdev_pointer_notify_button(stamp, evdev::btn_middle, LIBINPUT_BUTTON_STATE_PRESSED); middlebutton_set_state(MIDDLEBUTTON_MIDDLE, stamp); break;
+                            case MIDDLEBUTTON_EVENT_L_DOWN:  evdev_pointer_notify_button(stamp, evdev::btn_middle, evdev::pressed); middlebutton_set_state(MIDDLEBUTTON_MIDDLE, stamp); break;
                             case MIDDLEBUTTON_EVENT_R_DOWN:  middlebutton_state_error(event); break;
-                            case MIDDLEBUTTON_EVENT_OTHER:   evdev_pointer_notify_button(middlebutton.first_event_time, evdev::btn_right, LIBINPUT_BUTTON_STATE_PRESSED); middlebutton_set_state(MIDDLEBUTTON_PASSTHROUGH, stamp); return 0;
-                            case MIDDLEBUTTON_EVENT_R_UP:    evdev_pointer_notify_button(middlebutton.first_event_time, evdev::btn_right, LIBINPUT_BUTTON_STATE_PRESSED); evdev_pointer_notify_button(stamp, evdev::btn_right, LIBINPUT_BUTTON_STATE_RELEASED); middlebutton_set_state(MIDDLEBUTTON_IDLE, stamp); break;
+                            case MIDDLEBUTTON_EVENT_OTHER:   evdev_pointer_notify_button(middlebutton.first_event_time, evdev::btn_right, evdev::pressed); middlebutton_set_state(MIDDLEBUTTON_PASSTHROUGH, stamp); return 0;
+                            case MIDDLEBUTTON_EVENT_R_UP:    evdev_pointer_notify_button(middlebutton.first_event_time, evdev::btn_right, evdev::pressed); evdev_pointer_notify_button(stamp, evdev::btn_right, evdev::released); middlebutton_set_state(MIDDLEBUTTON_IDLE, stamp); break;
                             case MIDDLEBUTTON_EVENT_L_UP:    middlebutton_state_error(event); break;
-                            case MIDDLEBUTTON_EVENT_TIMEOUT: evdev_pointer_notify_button(middlebutton.first_event_time, evdev::btn_right, LIBINPUT_BUTTON_STATE_PRESSED); middlebutton_set_state(MIDDLEBUTTON_PASSTHROUGH, stamp); break;
+                            case MIDDLEBUTTON_EVENT_TIMEOUT: evdev_pointer_notify_button(middlebutton.first_event_time, evdev::btn_right, evdev::pressed); middlebutton_set_state(MIDDLEBUTTON_PASSTHROUGH, stamp); break;
                             case MIDDLEBUTTON_EVENT_ALL_UP:  middlebutton_state_error(event); break;
                         }
                         return 1;
@@ -6639,9 +6550,9 @@ namespace netxs::lixx // li++, libinput++.
                         {
                             case MIDDLEBUTTON_EVENT_L_DOWN:
                             case MIDDLEBUTTON_EVENT_R_DOWN:  middlebutton_state_error(event); break;
-                            case MIDDLEBUTTON_EVENT_OTHER:   evdev_pointer_notify_button(stamp, evdev::btn_middle, LIBINPUT_BUTTON_STATE_RELEASED); middlebutton_set_state(MIDDLEBUTTON_IGNORE_LR, stamp);        return 0;
-                            case MIDDLEBUTTON_EVENT_R_UP:    evdev_pointer_notify_button(stamp, evdev::btn_middle, LIBINPUT_BUTTON_STATE_RELEASED); middlebutton_set_state(MIDDLEBUTTON_LEFT_UP_PENDING, stamp);  break;
-                            case MIDDLEBUTTON_EVENT_L_UP:    evdev_pointer_notify_button(stamp, evdev::btn_middle, LIBINPUT_BUTTON_STATE_RELEASED); middlebutton_set_state(MIDDLEBUTTON_RIGHT_UP_PENDING, stamp); break;
+                            case MIDDLEBUTTON_EVENT_OTHER:   evdev_pointer_notify_button(stamp, evdev::btn_middle, evdev::released); middlebutton_set_state(MIDDLEBUTTON_IGNORE_LR, stamp);        return 0;
+                            case MIDDLEBUTTON_EVENT_R_UP:    evdev_pointer_notify_button(stamp, evdev::btn_middle, evdev::released); middlebutton_set_state(MIDDLEBUTTON_LEFT_UP_PENDING, stamp);  break;
+                            case MIDDLEBUTTON_EVENT_L_UP:    evdev_pointer_notify_button(stamp, evdev::btn_middle, evdev::released); middlebutton_set_state(MIDDLEBUTTON_RIGHT_UP_PENDING, stamp); break;
                             case MIDDLEBUTTON_EVENT_TIMEOUT: middlebutton_state_error(event); break;
                             case MIDDLEBUTTON_EVENT_ALL_UP:  middlebutton_state_error(event); break;
                         }
@@ -6658,7 +6569,7 @@ namespace netxs::lixx // li++, libinput++.
                             case MIDDLEBUTTON_EVENT_ALL_UP:  middlebutton_state_error(event); break;
                             case MIDDLEBUTTON_EVENT_L_DOWN:  middlebutton_state_error(event); break;
                             case MIDDLEBUTTON_EVENT_R_DOWN:
-                                evdev_pointer_notify_button(stamp, evdev::btn_middle, LIBINPUT_BUTTON_STATE_PRESSED);
+                                evdev_pointer_notify_button(stamp, evdev::btn_middle, evdev::pressed);
                                 middlebutton_set_state(MIDDLEBUTTON_MIDDLE, stamp);
                                 break;
                         }
@@ -6668,7 +6579,7 @@ namespace netxs::lixx // li++, libinput++.
                     {
                         switch (event)
                         {
-                            case MIDDLEBUTTON_EVENT_L_DOWN:  evdev_pointer_notify_button(stamp, evdev::btn_middle, LIBINPUT_BUTTON_STATE_PRESSED); middlebutton_set_state(MIDDLEBUTTON_MIDDLE, stamp); break;
+                            case MIDDLEBUTTON_EVENT_L_DOWN:  evdev_pointer_notify_button(stamp, evdev::btn_middle, evdev::pressed); middlebutton_set_state(MIDDLEBUTTON_MIDDLE, stamp); break;
                             case MIDDLEBUTTON_EVENT_R_DOWN:  middlebutton_state_error(event); break;
                             case MIDDLEBUTTON_EVENT_OTHER:   middlebutton_set_state(MIDDLEBUTTON_IGNORE_R, stamp); return 0;
                             case MIDDLEBUTTON_EVENT_R_UP:    middlebutton_set_state(MIDDLEBUTTON_IDLE, stamp); break;
@@ -6761,10 +6672,10 @@ namespace netxs::lixx // li++, libinput++.
                     if (middlebutton.button_mask != 0) return;
                     middlebutton.enabled = middlebutton.want_enabled;
                 }
-            bool evdev_middlebutton_filter_button(time stamp, ui32 button, libinput_button_state state)
+            bool evdev_middlebutton_filter_button(time stamp, ui32 button, si32 state)
             {
                 auto event = evdev_middlebutton_event{};
-                auto is_press = state == LIBINPUT_BUTTON_STATE_PRESSED;
+                auto is_press = state == evdev::pressed;
                 auto rc = 0;
                 auto btnbit = (button - evdev::btn_left);
                 auto old_mask = 0u;
@@ -6801,7 +6712,7 @@ namespace netxs::lixx // li++, libinput++.
                 }
                 return rc;
             }
-        void evdev_pointer_notify_physical_button(time stamp, ui32 button, libinput_button_state state)
+        void evdev_pointer_notify_physical_button(time stamp, ui32 button, si32 state)
         {
             if (!evdev_middlebutton_filter_button(stamp, button, state))
             {
@@ -6836,14 +6747,14 @@ namespace netxs::lixx // li++, libinput++.
                     if (scroll.button < evdev::btn_left + 5)
                     {
                         // For mouse buttons 1-5 (0x110 to 0x114) we apply a timeout before scrolling since the button could also be used for regular clicking.
-                        auto flags = TIMER_FLAG_NONE;
+                        auto allow_negative = faux;
                         scroll.button_scroll_state = BUTTONSCROLL_BUTTON_DOWN;
                         // Special case: if middle button emulation is enabled and our scroll button is the left or right button, we only get here *after* the middle button timeout has expired for that button press. The time passed is the button-down time though (which is in the past), so we have to allow for a negative timer to be set.
                         if (middlebutton.enabled && (scroll.button == evdev::btn_left || scroll.button == evdev::btn_right))
                         {
-                            flags = TIMER_FLAG_ALLOW_NEGATIVE;
+                            allow_negative = true;
                         }
-                        scroll.timer->start(stamp + lixx::default_button_scroll_timeout, flags);
+                        scroll.timer->start(stamp + lixx::default_button_scroll_timeout, allow_negative);
                     }
                     else // For extra mouse buttons numbered 6 or more (0x115+) we assume it is dedicated exclusively to scrolling, so we don't apply the timeout in order to provide immediate scrolling responsiveness.
                     {
@@ -6862,8 +6773,8 @@ namespace netxs::lixx // li++, libinput++.
                         case BUTTONSCROLL_READY:
                             log("btnscroll: cancel");
                             // If the button is released quickly enough or without scroll events, emit the button press/release events.
-                            evdev_pointer_post_button(scroll.button_down_time, scroll.button, LIBINPUT_BUTTON_STATE_PRESSED);
-                            evdev_pointer_post_button(stamp, scroll.button, LIBINPUT_BUTTON_STATE_RELEASED);
+                            evdev_pointer_post_button(scroll.button_down_time, scroll.button, evdev::pressed);
+                            evdev_pointer_post_button(stamp, scroll.button, evdev::released);
                             break;
                         case BUTTONSCROLL_SCROLLING:
                             log("btnscroll: up");
@@ -6873,7 +6784,7 @@ namespace netxs::lixx // li++, libinput++.
                     scroll.button_scroll_state = BUTTONSCROLL_IDLE;
                 }
             }
-        void evdev_pointer_notify_button(time stamp, ui32 button, libinput_button_state state)
+        void evdev_pointer_notify_button(time stamp, ui32 button, si32 state)
         {
             if (scroll.method == LIBINPUT_CONFIG_SCROLL_ON_BUTTON_DOWN && button == scroll.button)
             {
@@ -6884,11 +6795,11 @@ namespace netxs::lixx // li++, libinput++.
                 evdev_pointer_post_button(stamp, button, state);
             }
         }
-            void pointer_notify_button(time stamp, ui32 button, libinput_button_state state)
+            void pointer_notify_button(time stamp, ui32 button, si32 state)
             {
                 if (device_has_cap(LIBINPUT_DEVICE_CAP_POINTER))
                 {
-                    auto seat_button_count = li.update_seat_button_count(button, state);
+                    auto seat_button_count = li.update_press_count(button, state);
                     auto& button_event = li.libinput_emplace_event<libinput_event_pointer>();
                     button_event.button            = button;
                     button_event.seat_button_count = seat_button_count;
@@ -6896,13 +6807,13 @@ namespace netxs::lixx // li++, libinput++.
                     post_device_event(stamp, LIBINPUT_EVENT_POINTER_BUTTON, button_event);
                 }
             }
-        void evdev_pointer_post_button(time stamp, ui32 button, libinput_button_state state)
+        void evdev_pointer_post_button(time stamp, ui32 button, si32 state)
         {
             auto down_count = evdev_update_key_down_count(button, state);
-            if ((state == LIBINPUT_BUTTON_STATE_PRESSED && down_count == 1) || (state == LIBINPUT_BUTTON_STATE_RELEASED && down_count == 0))
+            if ((state == evdev::pressed && down_count == 1) || (state == evdev::released && down_count == 0))
             {
                 pointer_notify_button(stamp, evdev_usage_code(button), state);
-                if (state == LIBINPUT_BUTTON_STATE_RELEASED)
+                if (state == evdev::released)
                 {
                     if (dev_left_handed.change_to_enabled) dev_left_handed.change_to_enabled(This());
                     if (scroll.change_scroll_method) scroll.change_scroll_method(This());
@@ -6966,7 +6877,7 @@ namespace netxs::lixx // li++, libinput++.
         si32 evdev_sync_device()
         {
             auto ev = input_event_t{};
-            auto rc = 0;
+            auto rc = evdev::success;
             frame.evdev_frame_reset();
             do
             {
@@ -6974,9 +6885,9 @@ namespace netxs::lixx // li++, libinput++.
                 if (rc < 0) break;
                 frame.evdev_frame_append_input_event(ev);
             }
-            while (rc == LIBEVDEV_READ_STATUS_SYNC);
+            while (rc == evdev::sync);
             evdev_device_dispatch_frame(frame);
-            return rc == -EAGAIN ? LIBEVDEV_READ_STATUS_SUCCESS : rc;
+            return rc == -EAGAIN ? evdev::success : rc;
         }
         void evdev_note_time_delay(input_event_t& ev)
         {
@@ -7016,13 +6927,13 @@ namespace netxs::lixx // li++, libinput++.
         void evdev_device_dispatch()
         {
             auto ev = input_event_t{};
-            auto rc = (si32)LIBEVDEV_READ_STATUS_SUCCESS;
+            auto rc = evdev::success;
             auto once = faux;
             frame.evdev_frame_reset();
             do // If the compositor is repainting, this function is called only once per frame and we have to process all the events available on the fd, otherwise there will be input lag.
             {
                 rc = ud_device.libevdev_next_event(LIBEVDEV_READ_FLAG_NORMAL, ev);
-                if (rc == LIBEVDEV_READ_STATUS_SYNC)
+                if (rc == evdev::sync)
                 {
                     log("SYN_DROPPED event - some input events have been lost.");
                     ev.code = SYN_REPORT; // Send one more sync event so we handle all currently pending events before we sync up to the current state.
@@ -7031,7 +6942,7 @@ namespace netxs::lixx // li++, libinput++.
                     frame.evdev_frame_reset();
                     rc = evdev_sync_device();
                 }
-                else if (rc == LIBEVDEV_READ_STATUS_SUCCESS)
+                else if (rc == evdev::success)
                 {
                     if (!once)
                     {
@@ -7051,7 +6962,7 @@ namespace netxs::lixx // li++, libinput++.
                     return;
                 }
             }
-            while (rc == LIBEVDEV_READ_STATUS_SUCCESS);
+            while (rc == evdev::success);
             if (frame.ev_events.size() > 1) // This should never happen, the kernel flushes only on SYN_REPORT.
             {
                 log("event frame missing SYN_REPORT, forcing frame");
@@ -7078,7 +6989,15 @@ namespace netxs::lixx // li++, libinput++.
                     return faux;
                 }
             });
-            std::erase_if(li.ud_monitor.ud_device_list, [&](auto d){ return d.second.get() == &ud_device; });
+            std::erase_if(li.ud_monitor.ud_device_list, [&](auto d)
+            {
+                auto found = d.second.get() == &ud_device;
+                if (found)
+                {
+                    deleted_device_ptr = d.second;
+                }
+                return found;
+            });
             log("Device '%%' removed", ud_device.devname);
         }
         si32 evdev_device_resume()
@@ -7094,12 +7013,8 @@ namespace netxs::lixx // li++, libinput++.
             // Re-sync libevdev's view of the device, but discard the actual events. Our device is in a neutral state already.
             auto ev = input_event_t{};
             ud_device.libevdev_next_event(LIBEVDEV_READ_FLAG_FORCE_SYNC, ev);
-            auto status = 0;
-            do
-            {
-                status = ud_device.libevdev_next_event(LIBEVDEV_READ_FLAG_SYNC, ev);
-            }
-            while (status == LIBEVDEV_READ_STATUS_SYNC);
+            while (ud_device.libevdev_next_event(LIBEVDEV_READ_FLAG_SYNC, ev) == evdev::sync)
+            { }
             source = li.timers.libinput_add_event_source(ud_device.fd, [&]{ evdev_device_dispatch(); });
             if (!source)
             {
@@ -7182,24 +7097,17 @@ namespace netxs::lixx // li++, libinput++.
         {
             return ud_device.evdev_device_get_size();
         }
-            static libinput_config_middle_emulation_state evdev_middlebutton_get(libinput_device_sptr li_device)
+            static bool evdev_middlebutton_get(libinput_device_sptr li_device)
             {
-                return li_device->middlebutton.want_enabled ? LIBINPUT_CONFIG_MIDDLE_EMULATION_ENABLED
-                                                            : LIBINPUT_CONFIG_MIDDLE_EMULATION_DISABLED;
+                return li_device->middlebutton.want_enabled;
             }
-            static libinput_config_middle_emulation_state evdev_middlebutton_get_default(libinput_device_sptr li_device)
+            static bool evdev_middlebutton_get_default(libinput_device_sptr li_device)
             {
-                return li_device->middlebutton.enabled_default ? LIBINPUT_CONFIG_MIDDLE_EMULATION_ENABLED
-                                                               : LIBINPUT_CONFIG_MIDDLE_EMULATION_DISABLED;
+                return li_device->middlebutton.enabled_default;
             }
-            static libinput_config_status evdev_middlebutton_set(libinput_device_sptr li_device, libinput_config_middle_emulation_state enable)
+            static libinput_config_status evdev_middlebutton_set(libinput_device_sptr li_device, bool middle_emulation_enabled)
             {
-                switch (enable)
-                {
-                    case LIBINPUT_CONFIG_MIDDLE_EMULATION_ENABLED:  li_device->middlebutton.want_enabled = true; break;
-                    case LIBINPUT_CONFIG_MIDDLE_EMULATION_DISABLED: li_device->middlebutton.want_enabled = faux; break;
-                    default: return LIBINPUT_CONFIG_STATUS_INVALID;
-                }
+                li_device->middlebutton.want_enabled = middle_emulation_enabled;
                 li_device->evdev_middlebutton_apply_config();
                 return LIBINPUT_CONFIG_STATUS_SUCCESS;
             }
@@ -7413,25 +7321,19 @@ namespace netxs::lixx // li++, libinput++.
                 }
                 return 0;
             }
-            static libinput_config_status evdev_scroll_set_button_lock(libinput_device_sptr li_device, libinput_config_scroll_button_lock_state state)
+            static libinput_config_status evdev_scroll_set_button_lock(libinput_device_sptr li_device, bool scroll_button_lock_enabled)
             {
-                switch (state)
-                {
-                    case LIBINPUT_CONFIG_SCROLL_BUTTON_LOCK_DISABLED: li_device->scroll.want_lock_enabled = faux; break;
-                    case LIBINPUT_CONFIG_SCROLL_BUTTON_LOCK_ENABLED:  li_device->scroll.want_lock_enabled = true; break;
-                    default: return LIBINPUT_CONFIG_STATUS_INVALID;
-                }
+                li_device->scroll.want_lock_enabled = scroll_button_lock_enabled;
                 li_device->scroll.change_scroll_method(li_device);
                 return LIBINPUT_CONFIG_STATUS_SUCCESS;
             }
-            static libinput_config_scroll_button_lock_state evdev_scroll_get_button_lock(libinput_device_sptr li_device)
+            static bool evdev_scroll_get_button_lock(libinput_device_sptr li_device)
             {
-                auto state = li_device->scroll.lock_state == BUTTONSCROLL_LOCK_DISABLED;
-                return state ? LIBINPUT_CONFIG_SCROLL_BUTTON_LOCK_DISABLED : LIBINPUT_CONFIG_SCROLL_BUTTON_LOCK_ENABLED;
+                return li_device->scroll.lock_state;
             }
-            static libinput_config_scroll_button_lock_state evdev_scroll_get_default_button_lock([[maybe_unused]] libinput_device_sptr li_device)
+            static bool evdev_scroll_get_default_button_lock([[maybe_unused]] libinput_device_sptr li_device)
             {
-                return LIBINPUT_CONFIG_SCROLL_BUTTON_LOCK_DISABLED;
+                return faux;
             }
         void evdev_init_button_scroll(void(*change_scroll_method)(libinput_device_sptr))
         {
@@ -7494,12 +7396,12 @@ namespace netxs::lixx // li++, libinput++.
             axis_event.changed_axes_bits = changed_axes;
             post_device_event(now, LIBINPUT_EVENT_TABLET_TOOL_AXIS, axis_event);
         }
-        void tablet_notify_button(time now, libinput_tablet_tool_sptr tool, libinput_tablet_tool_tip_state tip_state, tablet_axes const& axes, ui32 button, libinput_button_state state, abs_info_t const* x, abs_info_t const* y)
+        void tablet_notify_button(time now, libinput_tablet_tool_sptr tool, libinput_tablet_tool_tip_state tip_state, tablet_axes const& axes, ui32 button, si32 state, abs_info_t const* x, abs_info_t const* y)
         {
             auto& button_event = li.libinput_emplace_event<libinput_event_tablet_tool>();
             button_event.button            = button;
             button_event.state             = state;
-            button_event.seat_button_count = li.update_seat_button_count(button, state);
+            button_event.seat_button_count = li.update_press_count(button, state);
             button_event.axes              = axes;
             button_event.tool              = tool;
             button_event.proximity_state   = LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_IN;
@@ -7512,16 +7414,13 @@ namespace netxs::lixx // li++, libinput++.
         {
             return config.tap ? config.tap->count(This()) : 0;
         }
-        libinput_config_status libinput_device_config_tap_set_enabled(libinput_config_tap_state enable)
+        libinput_config_status libinput_device_config_tap_set_enabled(bool tap_state_enabled)
         {
             auto rc = LIBINPUT_CONFIG_STATUS_INVALID;
-            if (enable == LIBINPUT_CONFIG_TAP_ENABLED || enable == LIBINPUT_CONFIG_TAP_DISABLED)
-            {
-                auto fn = libinput_device_config_tap_get_finger_count();
-                rc = fn ? config.tap->set_enabled(This(), enable)
-                        : enable ? LIBINPUT_CONFIG_STATUS_UNSUPPORTED
-                                 : LIBINPUT_CONFIG_STATUS_SUCCESS;
-            }
+            auto fn = libinput_device_config_tap_get_finger_count();
+            rc = fn ? config.tap->set_enabled(This(), tap_state_enabled)
+                    : tap_state_enabled ? LIBINPUT_CONFIG_STATUS_UNSUPPORTED
+                                        : LIBINPUT_CONFIG_STATUS_SUCCESS;
             return rc;
         }
             ui32 libinput_device_config_scroll_get_methods()
@@ -8159,22 +8058,22 @@ namespace netxs::lixx // li++, libinput++.
             };
         struct tp_dispatch_buttons_t
         {
-            bool                                   is_clickpad; // True for clickpads.
-            bool                                   has_topbuttons;
-            bool                                   use_clickfinger;  // Number of fingers decides button number.
-            bool                                   click_pending;
-            ui32                                   state;
-            ui32                                   old_state;
-            fp64_coor                              motion_dist_scale_coeff; // For pinned touches.
-            ui32                                   active;  // evdev_usage_t  Currently active button, for release event.
-            bool                                   active_is_topbutton; // Is active a top button?
-            tp_dispatch_bottom_area_t              bottom_area;
-            tp_dispatch_top_area_t                 top_area;
-            libinput_device_sptr                   trackpoint_li_device;
-            libinput_config_click_method           click_method;
-            libinput_device_config_click_method    config_method;
-            libinput_config_clickfinger_button_map map;
-            libinput_config_clickfinger_button_map want_map;
+            bool                                is_clickpad; // True for clickpads.
+            bool                                has_topbuttons;
+            bool                                use_clickfinger;  // Number of fingers decides button number.
+            bool                                click_pending;
+            ui32                                state;
+            ui32                                old_state;
+            fp64_coor                           motion_dist_scale_coeff; // For pinned touches.
+            ui32                                active;  // evdev_usage_t  Currently active button, for release event.
+            bool                                active_is_topbutton; // Is active a top button?
+            tp_dispatch_bottom_area_t           bottom_area;
+            tp_dispatch_top_area_t              top_area;
+            libinput_device_sptr                trackpoint_li_device;
+            libinput_config_click_method        click_method;
+            libinput_device_config_click_method config_method;
+            bool                                use_lmr_map;
+            bool                                want_use_lmr_map;
         };
             struct tp_dispatch_active_t
             {
@@ -8200,15 +8099,15 @@ namespace netxs::lixx // li++, libinput++.
         struct tp_dispatch_tap_t
         {
             libinput_device_config_tap      config;
-            bool                            enabled;
+            bool                            tap_state_enabled;
             bool                            suspended;
             libinput_timer_sptr             timer;
             tp_tap_state                    state;
             ui32                            buttons_pressed;
             time                            press_stamp;
             time                            release_stamp;
-            libinput_config_tap_button_map  map;
-            libinput_config_tap_button_map  want_map;
+            bool                            use_lmr_map;
+            bool                            want_use_lmr_map;
             bool                            drag_enabled;
             libinput_config_drag_lock_state drag_lock;
             ui32                            nfingers_down; // Number of fingers down for tapping (excl. thumb/palm).
@@ -10187,7 +10086,7 @@ namespace netxs::lixx // li++, libinput++.
                                                         bool tp_gesture_use_hold_timer()
                                                         {
                                                             // When tap is not enabled, always use the timer.
-                                                            if (!tp.tap.enabled) return true;
+                                                            if (!tp.tap.tap_state_enabled) return true;
                                                             // Always use the timer if it is a quick hold.
                                                             if (tp_gesture_is_quick_hold()) return true;
                                                             // If the number of fingers on the touchpad exceeds the number of allowed fingers to tap, use the timer.
@@ -10224,7 +10123,7 @@ namespace netxs::lixx // li++, libinput++.
                                                         case GESTURE_EVENT_CANCEL: tp.gesture.hold_timer->cancel(); break;
                                                         case GESTURE_EVENT_FINGER_DETECTED:
                                                             // Note: this makes 3fg drag more responsive but disables 3fg pinch/hold. Those are niche enough to not worry about for now.
-                                                            if (!tp.tap.enabled && tp.drag_3fg.nfingers == tp.gesture.finger_count)
+                                                            if (!tp.tap.tap_state_enabled && tp.drag_3fg.nfingers == tp.gesture.finger_count)
                                                             {
                                                                 tp.gesture.state = GESTURE_STATE_3FG_DRAG_START;
                                                             }
@@ -10351,7 +10250,7 @@ namespace netxs::lixx // li++, libinput++.
                                                     {
                                                         gesture_notify(stamp, LIBINPUT_EVENT_GESTURE_HOLD_END, finger_count, cancelled, lixx::zero_coor, lixx::zero_coor, 0, 0.0);
                                                     }
-                                                        void tp_gesture_end(time stamp, gesture_cancelled cancelled)
+                                                        void tp_gesture_end(time stamp, bool gesture_cancelled)
                                                         {
                                                             switch (tp.gesture.state)
                                                             {
@@ -10369,18 +10268,15 @@ namespace netxs::lixx // li++, libinput++.
                                                                 case GESTURE_STATE_SWIPE:
                                                                 case GESTURE_STATE_3FG_DRAG:
                                                                 case GESTURE_STATE_3FG_DRAG_RELEASED:
-                                                                    switch (cancelled)
-                                                                    {
-                                                                        case CANCEL_GESTURE: tp_gesture_handle_event(GESTURE_EVENT_CANCEL, stamp); break;
-                                                                        case END_GESTURE:    tp_gesture_handle_event(GESTURE_EVENT_END, stamp);    break;
-                                                                    }
+                                                                    if (gesture_cancelled) tp_gesture_handle_event(GESTURE_EVENT_CANCEL, stamp);
+                                                                    else                   tp_gesture_handle_event(GESTURE_EVENT_END, stamp);
                                                                     break;
                                                                 default: break;
                                                             }
                                                         }
                                                     void tp_gesture_cancel(time stamp)
                                                     {
-                                                        tp_gesture_end(stamp, CANCEL_GESTURE);
+                                                        tp_gesture_end(stamp, true);
                                                     }
                                                 void tp_gesture_handle_event_on_state_hold(gesture_event event, time stamp)
                                                 {
@@ -10708,7 +10604,7 @@ namespace netxs::lixx // li++, libinput++.
                                                         case GESTURE_EVENT_RESET: log("log_gesture_bug: tp", (ui32)event); break;
                                                         case GESTURE_EVENT_CANCEL:
                                                             // If the gesture is cancelled we release the button immediately.
-                                                            tp.evdev_pointer_notify_button(tp.gesture.drag_3fg_release_time, evdev::btn_left, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                            tp.evdev_pointer_notify_button(tp.gesture.drag_3fg_release_time, evdev::btn_left, evdev::released);
                                                             tp.gesture.state = GESTURE_STATE_NONE;
                                                             break;
                                                         case GESTURE_EVENT_END:
@@ -10719,7 +10615,7 @@ namespace netxs::lixx // li++, libinput++.
                                                         case GESTURE_EVENT_FINGER_SWITCH_TIMEOUT:
                                                             if (tp.gesture.finger_count_pending < 2)
                                                             {
-                                                                tp.evdev_pointer_notify_button(tp.gesture.drag_3fg_release_time, evdev::btn_left, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                                tp.evdev_pointer_notify_button(tp.gesture.drag_3fg_release_time, evdev::btn_left, evdev::released);
                                                                 tp.gesture.state = GESTURE_STATE_NONE;
                                                             }
                                                             break;
@@ -10750,7 +10646,7 @@ namespace netxs::lixx // li++, libinput++.
                                                             tp_gesture_stop_3fg_drag();
                                                             tp.gesture.drag_3fg_timer->cancel();
                                                             tp.gesture.finger_count_switch_timer->cancel();
-                                                            tp.evdev_pointer_notify_button(tp.gesture.drag_3fg_release_time, evdev::btn_left, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                            tp.evdev_pointer_notify_button(tp.gesture.drag_3fg_release_time, evdev::btn_left, evdev::released);
                                                             tp.gesture.state = GESTURE_STATE_NONE;
                                                             break;
                                                         case GESTURE_EVENT_FINGER_SWITCH_TIMEOUT:
@@ -10765,7 +10661,7 @@ namespace netxs::lixx // li++, libinput++.
                                                         case GESTURE_EVENT_POINTER_MOTION_START:
                                                             tp_gesture_stop_3fg_drag();
                                                             tp.gesture.drag_3fg_timer->cancel();
-                                                            tp.evdev_pointer_notify_button(tp.gesture.drag_3fg_release_time, evdev::btn_left, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                            tp.evdev_pointer_notify_button(tp.gesture.drag_3fg_release_time, evdev::btn_left, evdev::released);
                                                             tp.gesture.state = GESTURE_STATE_POINTER_MOTION;
                                                             break;
                                                         case GESTURE_EVENT_HOLD_AND_MOTION_START:
@@ -10773,7 +10669,7 @@ namespace netxs::lixx // li++, libinput++.
                                                         // Anything that's detected as gesture in this state will be continue the current 3fg drag gesture.
                                                         case GESTURE_EVENT_SCROLL_START:
                                                             tp.gesture.drag_3fg_timer->cancel();
-                                                            tp.evdev_pointer_notify_button(tp.gesture.drag_3fg_release_time, evdev::btn_left, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                            tp.evdev_pointer_notify_button(tp.gesture.drag_3fg_release_time, evdev::btn_left, evdev::released);
                                                             tp.gesture.state = GESTURE_STATE_SCROLL_START;
                                                             break;
                                                         case GESTURE_EVENT_SWIPE_START:
@@ -10855,7 +10751,7 @@ namespace netxs::lixx // li++, libinput++.
                                         }
                                     void tp_gesture_stop(time stamp)
                                     {
-                                        tp_gesture_end(stamp, END_GESTURE);
+                                        tp_gesture_end(stamp, faux);
                                     }
                                     bool tp_gesture_debounce_finger_changes()
                                     {
@@ -11015,9 +10911,9 @@ namespace netxs::lixx // li++, libinput++.
                                 }
                                     void tp_tap_update_map()
                                     {
-                                        if (tp.tap.state == TAP_STATE_IDLE && tp.tap.map != tp.tap.want_map)
+                                        if (tp.tap.state == TAP_STATE_IDLE && tp.tap.use_lmr_map != tp.tap.want_use_lmr_map)
                                         {
-                                            tp.tap.map = tp.tap.want_map;
+                                            tp.tap.use_lmr_map = tp.tap.want_use_lmr_map;
                                         }
                                     }
                                 void tp_tap_post_process_state()
@@ -11028,7 +10924,7 @@ namespace netxs::lixx // li++, libinput++.
                                     {
                                         if (tp.buttons.state == BUTTON_STATE_NONE)
                                         {
-                                            if (tp.buttons.map != tp.buttons.want_map) tp.buttons.map = tp.buttons.want_map;
+                                            if (tp.buttons.use_lmr_map != tp.buttons.want_use_lmr_map) tp.buttons.use_lmr_map = tp.buttons.want_use_lmr_map;
                                         }
                                     }
                                 void tp_button_post_process_state()
@@ -11130,7 +11026,7 @@ namespace netxs::lixx // li++, libinput++.
                                                     case 1:
                                                     case 2:
                                                     case 3:
-                                                        button = lixx::tap_button_map[tp.buttons.map][nfingers - 1];
+                                                        button = lixx::tap_button_map[tp.buttons.use_lmr_map][nfingers - 1];
                                                         break;
                                                     default:
                                                         button = 0;
@@ -11138,16 +11034,15 @@ namespace netxs::lixx // li++, libinput++.
                                                 }
                                                 return button;
                                             }
-                                        si32 tp_notify_clickpadbutton(time stamp, ui32 button, ui32 is_topbutton, libinput_button_state state)
+                                        si32 tp_notify_clickpadbutton(time stamp, ui32 button, ui32 is_topbutton, si32 state)
                                         {
                                             // If we've a trackpoint, send top buttons through the trackpoint.
                                             if (tp.buttons.trackpoint_li_device)
                                             {
                                                 if (is_topbutton)
                                                 {
-                                                    auto value = (state == LIBINPUT_BUTTON_STATE_PRESSED) ? 1 : 0;
                                                     auto event = evdev_event{ .usage = button,
-                                                                              .value = value };
+                                                                              .value = state };
                                                     auto syn_report = evdev_event{ .usage = evdev::syn_report,
                                                                                    .value = 0 };
                                                     tp.buttons.trackpoint_li_device->process(event, stamp);
@@ -11160,7 +11055,7 @@ namespace netxs::lixx // li++, libinput++.
                                             // A button click always terminates edge scrolling, even if we don't end up sending a button event.
                                             tp_edge_scroll_stop_events(stamp);
                                             // If the user has requested clickfinger replace the button chosen by the softbutton code with one based on the number of fingers.
-                                            if (tp.buttons.click_method == LIBINPUT_CONFIG_CLICK_METHOD_CLICKFINGER && state == LIBINPUT_BUTTON_STATE_PRESSED)
+                                            if (tp.buttons.click_method == LIBINPUT_CONFIG_CLICK_METHOD_CLICKFINGER && state == evdev::pressed)
                                             {
                                                 button = tp_clickfinger_set_button();
                                                 tp.buttons.active = button;
@@ -11172,7 +11067,7 @@ namespace netxs::lixx // li++, libinput++.
                                     si32 tp_post_clickpadbutton_buttons(time stamp)
                                     {
                                         auto button = ui32{};
-                                        auto state = libinput_button_state{};
+                                        auto state = si32{};
                                         enum { AREA = 0x01, LEFT = 0x02, MIDDLE = 0x04, RIGHT = 0x08 };
                                         auto want_left_handed = true;
                                         auto current = tp.buttons.state;
@@ -11224,7 +11119,7 @@ namespace netxs::lixx // li++, libinput++.
                                             if (want_left_handed) button = tp.evdev_to_left_handed(button);
                                             tp.buttons.active = button;
                                             tp.buttons.active_is_topbutton = is_top;
-                                            state = LIBINPUT_BUTTON_STATE_PRESSED;
+                                            state = evdev::pressed;
                                         }
                                         else
                                         {
@@ -11232,7 +11127,7 @@ namespace netxs::lixx // li++, libinput++.
                                             is_top = tp.buttons.active_is_topbutton;
                                             tp.buttons.active = {};
                                             tp.buttons.active_is_topbutton = 0;
-                                            state = LIBINPUT_BUTTON_STATE_RELEASED;
+                                            state = evdev::released;
                                         }
                                         tp.buttons.click_pending = faux;
                                         return button != 0 ? tp_notify_clickpadbutton(stamp, button, is_top, state) : 0;
@@ -11244,10 +11139,9 @@ namespace netxs::lixx // li++, libinput++.
                                         auto button = evdev::btn_left;
                                         while (current || old)
                                         {
-                                            auto state = libinput_button_state{};
                                             if ((current & 0x1) ^ (old & 0x1))
                                             {
-                                                state = (current & 0x1) ? LIBINPUT_BUTTON_STATE_PRESSED : LIBINPUT_BUTTON_STATE_RELEASED;
+                                                auto state = (current & 0x1) ? evdev::pressed : evdev::released;
                                                 auto b = tp.evdev_to_left_handed(button);
                                                 tp.evdev_pointer_notify_physical_button(stamp, b, state);
                                             }
@@ -11265,7 +11159,7 @@ namespace netxs::lixx // li++, libinput++.
                                 }
                                     bool tp_tap_enabled()
                                     {
-                                        return tp.tap.enabled && !tp.tap.suspended;
+                                        return tp.tap.tap_state_enabled && !tp.tap.suspended;
                                     }
                                             void tp_tap_set_timer(time stamp)
                                             {
@@ -11289,14 +11183,14 @@ namespace netxs::lixx // li++, libinput++.
                                                 case TAP_EVENT_PALM_UP: break;
                                             }
                                         }
-                                            void tp_tap_notify(time stamp, si32 nfingers, libinput_button_state state)
+                                            void tp_tap_notify(time stamp, si32 nfingers, si32 state)
                                             {
-                                                assert(tp.tap.map < std::size(lixx::tap_button_map));
+                                                assert((si32)tp.tap.use_lmr_map < std::size(lixx::tap_button_map));
                                                 if (nfingers < 1 || nfingers > 3) return;
                                                 tp_gesture_cancel(stamp);
-                                                auto button = lixx::tap_button_map[tp.tap.map][nfingers - 1];
-                                                if (state == LIBINPUT_BUTTON_STATE_PRESSED) tp.tap.buttons_pressed |= (1ul << nfingers);
-                                                else                                        tp.tap.buttons_pressed &= ~(1ul << nfingers);
+                                                auto button = lixx::tap_button_map[tp.tap.use_lmr_map][nfingers - 1];
+                                                if (state == evdev::pressed) tp.tap.buttons_pressed |= (1ul << nfingers);
+                                                else                         tp.tap.buttons_pressed &= ~(1ul << nfingers);
                                                 tp.evdev_pointer_notify_button(stamp, button, state);
                                             }
                                             void tp_tap_set_drag_timer(time stamp, si32 nfingers_tapped)
@@ -11330,7 +11224,7 @@ namespace netxs::lixx // li++, libinput++.
                                                     tp_tap_set_timer(stamp);
                                                     break;
                                                 case TAP_EVENT_RELEASE:
-                                                    tp_tap_notify(tp.tap.press_stamp, 1, LIBINPUT_BUTTON_STATE_PRESSED);
+                                                    tp_tap_notify(tp.tap.press_stamp, 1, evdev::pressed);
                                                     if (tp.tap.drag_enabled)
                                                     {
                                                         tp.tap.state = TAP_STATE_1FGTAP_TAPPED;
@@ -11339,7 +11233,7 @@ namespace netxs::lixx // li++, libinput++.
                                                     }
                                                     else
                                                     {
-                                                        tp_tap_notify(stamp, 1, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                        tp_tap_notify(stamp, 1, evdev::released);
                                                         tp.tap.state = TAP_STATE_IDLE;
                                                     }
                                                     break;
@@ -11412,8 +11306,8 @@ namespace netxs::lixx // li++, libinput++.
                                                     tp_tap_set_timer(stamp);
                                                     break;
                                                 }
-                                                case TAP_EVENT_TIMEOUT: tp.tap.state = TAP_STATE_IDLE; tp_tap_notify(tp.tap.release_stamp, nfingers_tapped, LIBINPUT_BUTTON_STATE_RELEASED); break;
-                                                case TAP_EVENT_BUTTON:  tp.tap.state = TAP_STATE_DEAD; tp_tap_notify(tp.tap.release_stamp, nfingers_tapped, LIBINPUT_BUTTON_STATE_RELEASED); break;
+                                                case TAP_EVENT_TIMEOUT: tp.tap.state = TAP_STATE_IDLE; tp_tap_notify(tp.tap.release_stamp, nfingers_tapped, evdev::released); break;
+                                                case TAP_EVENT_BUTTON:  tp.tap.state = TAP_STATE_DEAD; tp_tap_notify(tp.tap.release_stamp, nfingers_tapped, evdev::released); break;
                                                 case TAP_EVENT_THUMB:   log("log_tap_bug: tp ", event); break;
                                                 case TAP_EVENT_PALM:    log("log_tap_bug: tp ", event); break;
                                                 case TAP_EVENT_PALM_UP: break;
@@ -11472,7 +11366,7 @@ namespace netxs::lixx // li++, libinput++.
                                                     tp_tap_clear_timer();
                                                     break;
                                                 case TAP_EVENT_RELEASE:
-                                                    tp_tap_notify(tp.tap.press_stamp, 2, LIBINPUT_BUTTON_STATE_PRESSED);
+                                                    tp_tap_notify(tp.tap.press_stamp, 2, evdev::pressed);
                                                     if (tp.tap.drag_enabled)
                                                     {
                                                         tp.tap.state = TAP_STATE_2FGTAP_TAPPED;
@@ -11480,7 +11374,7 @@ namespace netxs::lixx // li++, libinput++.
                                                     }
                                                     else
                                                     {
-                                                        tp_tap_notify(tp.tap.release_stamp, 2, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                        tp_tap_notify(tp.tap.release_stamp, 2, evdev::released);
                                                         tp.tap.state = TAP_STATE_IDLE;
                                                     }
                                                     break;
@@ -11491,14 +11385,14 @@ namespace netxs::lixx // li++, libinput++.
                                                 case TAP_EVENT_PALM_UP: break;
                                                 case TAP_EVENT_PALM:
                                                     // There's only one saved press time and it's overwritten by the last touch down. So in the case of finger down, palm down, finger up, palm detected, we use the palm touch's press time here instead of the finger's press time. Let's wait and see if that's an issue.
-                                                    tp_tap_notify(tp.tap.press_stamp, 1, LIBINPUT_BUTTON_STATE_PRESSED);
+                                                    tp_tap_notify(tp.tap.press_stamp, 1, evdev::pressed);
                                                     if (tp.tap.drag_enabled) // For a single-finger tap the timer delay is the same as for the release of the finger that became a palm, no reset necessary.
                                                     {
                                                         tp.tap.state = TAP_STATE_1FGTAP_TAPPED;
                                                     }
                                                     else
                                                     {
-                                                        tp_tap_notify(tp.tap.release_stamp, 1, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                        tp_tap_notify(tp.tap.release_stamp, 1, evdev::released);
                                                         tp.tap.state = TAP_STATE_IDLE;
                                                     }
                                                     break;
@@ -11545,8 +11439,8 @@ namespace netxs::lixx // li++, libinput++.
                                             switch (event)
                                             {
                                                 case TAP_EVENT_TOUCH:
-                                                    tp_tap_notify(tp.tap.press_stamp, 3, LIBINPUT_BUTTON_STATE_PRESSED);
-                                                    tp_tap_notify(tp.tap.release_stamp, 3, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                    tp_tap_notify(tp.tap.press_stamp, 3, evdev::pressed);
+                                                    tp_tap_notify(tp.tap.release_stamp, 3, evdev::released);
                                                     tp.tap.state = TAP_STATE_TOUCH_3;
                                                     tp.tap.press_stamp = stamp;
                                                     tp_tap_set_timer(stamp);
@@ -11556,18 +11450,18 @@ namespace netxs::lixx // li++, libinput++.
                                                     tp_tap_set_timer(stamp);
                                                     break;
                                                 case TAP_EVENT_MOTION:
-                                                    tp_tap_notify(tp.tap.press_stamp, 3, LIBINPUT_BUTTON_STATE_PRESSED);
-                                                    tp_tap_notify(tp.tap.release_stamp, 3, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                    tp_tap_notify(tp.tap.press_stamp, 3, evdev::pressed);
+                                                    tp_tap_notify(tp.tap.release_stamp, 3, evdev::released);
                                                     tp_tap_move_to_dead(t);
                                                     break;
                                                 case TAP_EVENT_TIMEOUT:
-                                                    tp_tap_notify(tp.tap.press_stamp, 3, LIBINPUT_BUTTON_STATE_PRESSED);
-                                                    tp_tap_notify(tp.tap.release_stamp, 3, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                    tp_tap_notify(tp.tap.press_stamp, 3, evdev::pressed);
+                                                    tp_tap_notify(tp.tap.release_stamp, 3, evdev::released);
                                                     tp.tap.state = TAP_STATE_TOUCH_2_HOLD;
                                                     break;
                                                 case TAP_EVENT_BUTTON:
-                                                    tp_tap_notify(tp.tap.press_stamp, 3, LIBINPUT_BUTTON_STATE_PRESSED);
-                                                    tp_tap_notify(tp.tap.release_stamp, 3, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                    tp_tap_notify(tp.tap.press_stamp, 3, evdev::pressed);
+                                                    tp_tap_notify(tp.tap.release_stamp, 3, evdev::released);
                                                     tp.tap.state = TAP_STATE_DEAD;
                                                     break;
                                                 case TAP_EVENT_THUMB:   break;
@@ -11580,14 +11474,14 @@ namespace netxs::lixx // li++, libinput++.
                                             switch (event)
                                             {
                                                 case TAP_EVENT_TOUCH:
-                                                    tp_tap_notify(tp.tap.press_stamp, 3, LIBINPUT_BUTTON_STATE_PRESSED);
-                                                    tp_tap_notify(tp.tap.release_stamp, 3, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                    tp_tap_notify(tp.tap.press_stamp, 3, evdev::pressed);
+                                                    tp_tap_notify(tp.tap.release_stamp, 3, evdev::released);
                                                     tp.tap.state = TAP_STATE_TOUCH_2;
                                                     tp.tap.press_stamp = stamp;
                                                     tp_tap_set_timer(stamp);
                                                     break;
                                                 case TAP_EVENT_RELEASE:
-                                                    tp_tap_notify(tp.tap.press_stamp, 3, LIBINPUT_BUTTON_STATE_PRESSED);
+                                                    tp_tap_notify(tp.tap.press_stamp, 3, evdev::pressed);
                                                     if (tp.tap.drag_enabled)
                                                     {
                                                         tp.tap.state = TAP_STATE_3FGTAP_TAPPED;
@@ -11595,36 +11489,36 @@ namespace netxs::lixx // li++, libinput++.
                                                     }
                                                     else
                                                     {
-                                                        tp_tap_notify(tp.tap.release_stamp, 3, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                        tp_tap_notify(tp.tap.release_stamp, 3, evdev::released);
                                                         tp.tap.state = TAP_STATE_IDLE;
                                                     }
                                                     break;
                                                 case TAP_EVENT_MOTION:
-                                                    tp_tap_notify(tp.tap.press_stamp, 3, LIBINPUT_BUTTON_STATE_PRESSED);
-                                                    tp_tap_notify(tp.tap.release_stamp, 3, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                    tp_tap_notify(tp.tap.press_stamp, 3, evdev::pressed);
+                                                    tp_tap_notify(tp.tap.release_stamp, 3, evdev::released);
                                                     tp_tap_move_to_dead(t);
                                                     break;
                                                 case TAP_EVENT_TIMEOUT:
-                                                    tp_tap_notify(tp.tap.press_stamp, 3, LIBINPUT_BUTTON_STATE_PRESSED);
-                                                    tp_tap_notify(tp.tap.release_stamp, 3, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                    tp_tap_notify(tp.tap.press_stamp, 3, evdev::pressed);
+                                                    tp_tap_notify(tp.tap.release_stamp, 3, evdev::released);
                                                     tp.tap.state = TAP_STATE_HOLD;
                                                     break;
                                                 case TAP_EVENT_BUTTON:
-                                                    tp_tap_notify(tp.tap.press_stamp, 3, LIBINPUT_BUTTON_STATE_PRESSED);
-                                                    tp_tap_notify(tp.tap.release_stamp, 3, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                    tp_tap_notify(tp.tap.press_stamp, 3, evdev::pressed);
+                                                    tp_tap_notify(tp.tap.release_stamp, 3, evdev::released);
                                                     tp.tap.state = TAP_STATE_DEAD;
                                                     break;
                                                 case TAP_EVENT_THUMB:
                                                     break;
                                                 case TAP_EVENT_PALM:
-                                                    tp_tap_notify(tp.tap.press_stamp, 2, LIBINPUT_BUTTON_STATE_PRESSED);
+                                                    tp_tap_notify(tp.tap.press_stamp, 2, evdev::pressed);
                                                     if (tp.tap.drag_enabled) // Resetting the timer to the appropriate delay for a two-finger tap would be ideal, but the timestamp of the last real finger release is lost, so the in-progress similar delay for release of the finger which became a palm instead will have to do.
                                                     {
                                                         tp.tap.state = TAP_STATE_2FGTAP_TAPPED;
                                                     }
                                                     else
                                                     {
-                                                        tp_tap_notify(tp.tap.release_stamp, 2, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                        tp_tap_notify(tp.tap.release_stamp, 2, evdev::released);
                                                         tp.tap.state = TAP_STATE_IDLE;
                                                     }
                                                     break;
@@ -11637,15 +11531,15 @@ namespace netxs::lixx // li++, libinput++.
                                             switch (event)
                                             {
                                                 case TAP_EVENT_TOUCH:
-                                                    tp_tap_notify(tp.tap.release_stamp, nfingers_tapped, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                    tp_tap_notify(tp.tap.release_stamp, nfingers_tapped, evdev::released);
                                                     tp.tap.state = TAP_STATE_TOUCH_2;
                                                     tp.tap.press_stamp = stamp;
                                                     tp_tap_set_timer(stamp);
                                                     break;
                                                 case TAP_EVENT_RELEASE:
                                                     tp.tap.state = TAP_STATE_1FGTAP_TAPPED;
-                                                    tp_tap_notify(tp.tap.release_stamp, nfingers_tapped, LIBINPUT_BUTTON_STATE_RELEASED);
-                                                    tp_tap_notify(tp.tap.press_stamp, 1, LIBINPUT_BUTTON_STATE_PRESSED);
+                                                    tp_tap_notify(tp.tap.release_stamp, nfingers_tapped, evdev::released);
+                                                    tp_tap_notify(tp.tap.press_stamp, 1, evdev::pressed);
                                                     tp.tap.release_stamp = stamp;
                                                     tp_tap_set_timer(stamp);
                                                     break;
@@ -11664,7 +11558,7 @@ namespace netxs::lixx // li++, libinput++.
                                                 }
                                                 case TAP_EVENT_BUTTON:
                                                     tp.tap.state = TAP_STATE_DEAD;
-                                                    tp_tap_notify(tp.tap.release_stamp, nfingers_tapped, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                    tp_tap_notify(tp.tap.release_stamp, nfingers_tapped, evdev::released);
                                                     break;
                                                 case TAP_EVENT_THUMB:
                                                     break;
@@ -11722,7 +11616,7 @@ namespace netxs::lixx // li++, libinput++.
                                                     }
                                                     else
                                                     {
-                                                        tp_tap_notify(stamp, nfingers_tapped, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                        tp_tap_notify(stamp, nfingers_tapped, evdev::released);
                                                         tp.tap.state = TAP_STATE_IDLE;
                                                     }
                                                     break;
@@ -11732,12 +11626,12 @@ namespace netxs::lixx // li++, libinput++.
                                                     break;
                                                 case TAP_EVENT_BUTTON:
                                                     tp.tap.state = TAP_STATE_DEAD;
-                                                    tp_tap_notify(stamp, nfingers_tapped, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                    tp_tap_notify(stamp, nfingers_tapped, evdev::released);
                                                     break;
                                                 case TAP_EVENT_THUMB:
                                                     break;
                                                 case TAP_EVENT_PALM:
-                                                    tp_tap_notify(tp.tap.release_stamp, nfingers_tapped, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                    tp_tap_notify(tp.tap.release_stamp, nfingers_tapped, evdev::released);
                                                     tp.tap.state = TAP_STATE_IDLE;
                                                     break;
                                                 case TAP_EVENT_PALM_UP:
@@ -11765,11 +11659,11 @@ namespace netxs::lixx // li++, libinput++.
                                                 case TAP_EVENT_MOTION: log("log_tap_bug1: tp ", event); break;
                                                 case TAP_EVENT_TIMEOUT:
                                                     tp.tap.state = TAP_STATE_IDLE;
-                                                    tp_tap_notify(stamp, nfingers_tapped, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                    tp_tap_notify(stamp, nfingers_tapped, evdev::released);
                                                     break;
                                                 case TAP_EVENT_BUTTON:
                                                     tp.tap.state = TAP_STATE_DEAD;
-                                                    tp_tap_notify(stamp, nfingers_tapped, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                    tp_tap_notify(stamp, nfingers_tapped, evdev::released);
                                                     break;
                                                 case TAP_EVENT_THUMB:
                                                 case TAP_EVENT_PALM: log("log_tap_bug2: tp ", event); break;
@@ -11781,13 +11675,13 @@ namespace netxs::lixx // li++, libinput++.
                                             switch (event)
                                             {
                                                 case TAP_EVENT_TOUCH:
-                                                    tp_tap_notify(stamp, nfingers_tapped, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                    tp_tap_notify(stamp, nfingers_tapped, evdev::released);
                                                     tp_tap_clear_timer();
                                                     tp_tap_move_to_dead(t);
                                                     break;
                                                 case TAP_EVENT_RELEASE:
                                                     tp.tap.state = TAP_STATE_IDLE;
-                                                    tp_tap_notify(stamp, nfingers_tapped, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                    tp_tap_notify(stamp, nfingers_tapped, evdev::released);
                                                     break;
                                                 case TAP_EVENT_MOTION:
                                                 case TAP_EVENT_TIMEOUT:
@@ -11804,7 +11698,7 @@ namespace netxs::lixx // li++, libinput++.
                                                 }
                                                 case TAP_EVENT_BUTTON:
                                                     tp.tap.state = TAP_STATE_DEAD;
-                                                    tp_tap_notify(stamp, nfingers_tapped, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                    tp_tap_notify(stamp, nfingers_tapped, evdev::released);
                                                     break;
                                                 case TAP_EVENT_THUMB: break;
                                                 case TAP_EVENT_PALM:
@@ -11839,13 +11733,13 @@ namespace netxs::lixx // li++, libinput++.
                                                 }
                                                 case TAP_EVENT_TOUCH:
                                                     tp.tap.state = TAP_STATE_DEAD;
-                                                    tp_tap_notify(stamp, nfingers_tapped, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                    tp_tap_notify(stamp, nfingers_tapped, evdev::released);
                                                     break;
                                                 case TAP_EVENT_MOTION:
                                                 case TAP_EVENT_TIMEOUT: break; // Noop.
                                                 case TAP_EVENT_BUTTON:
                                                     tp.tap.state = TAP_STATE_DEAD;
-                                                    tp_tap_notify(stamp, nfingers_tapped, LIBINPUT_BUTTON_STATE_RELEASED);
+                                                    tp_tap_notify(stamp, nfingers_tapped, evdev::released);
                                                     break;
                                                 case TAP_EVENT_THUMB: break;
                                                 case TAP_EVENT_PALM:
@@ -12195,7 +12089,7 @@ namespace netxs::lixx // li++, libinput++.
                                                 tp_gesture_handle_event(GESTURE_EVENT_FINGER_DETECTED, stamp);
                                                 return;
                                             }
-                                            if (!tp.gesture.enabled && !tp.tap.enabled && ntouches == 2)
+                                            if (!tp.gesture.enabled && !tp.tap.tap_state_enabled && ntouches == 2)
                                             {
                                                 tp_gesture_handle_event(GESTURE_EVENT_SCROLL_START, stamp);
                                                 return;
@@ -12711,9 +12605,8 @@ namespace netxs::lixx // li++, libinput++.
                                         }
                                         void tp_gesture_handle_state_3fg_drag_start(time stamp)
                                         {
-                                            tp.evdev_pointer_notify_button(stamp, evdev::btn_left, LIBINPUT_BUTTON_STATE_PRESSED);
-                                            //todo FIXME: immediately send a motion event?
-                                            tp.gesture.state = GESTURE_STATE_3FG_DRAG;
+                                            tp.evdev_pointer_notify_button(stamp, evdev::btn_left, evdev::pressed);
+                                            tp.gesture.state = GESTURE_STATE_3FG_DRAG; //todo FIXME: immediately send a motion event?
                                         }
                                         void tp_gesture_handle_state_3fg_drag(time stamp)
                                         {
@@ -12980,7 +12873,7 @@ namespace netxs::lixx // li++, libinput++.
                                 {
                                     if (tp.tap.buttons_pressed & (1ul << i))
                                     {
-                                        tp_tap_notify(now, i, LIBINPUT_BUTTON_STATE_RELEASED);
+                                        tp_tap_notify(now, i, evdev::released);
                                     }
                                 }
                                 for (auto& t : tp.touches) // To neutralize all current touches, we make them all palms.
@@ -13083,7 +12976,7 @@ namespace netxs::lixx // li++, libinput++.
                                         {
                                             auto was_enabled = tp_tap_enabled();
                                             tp.tap.suspended = suspended;
-                                            tp.tap.enabled = enabled;
+                                            tp.tap.tap_state_enabled = enabled;
                                             if (tp_tap_enabled() == was_enabled) return;
                                             if (tp_tap_enabled())
                                             {
@@ -13105,7 +12998,7 @@ namespace netxs::lixx // li++, libinput++.
                                         }
                                     void tp_tap_suspend(time stamp)
                                     {
-                                        tp_tap_enabled_update(true, tp.tap.enabled, stamp);
+                                        tp_tap_enabled_update(true, tp.tap.tap_state_enabled, stamp);
                                     }
                                 void tp_stop_actions(time stamp)
                                 {
@@ -13221,7 +13114,7 @@ namespace netxs::lixx // li++, libinput++.
                                 //auto& kbdev = event.libinput_event_get_keyboard_event();
                                 auto key = event.libinput_event_keyboard_get_key();
                                 // Only trigger the timer on key down.
-                                if (event.libinput_event_keyboard_get_key_state() != LIBINPUT_KEY_STATE_PRESSED)
+                                if (event.libinput_event_keyboard_get_key_state() != evdev::pressed)
                                 {
                                     tp.dwt.key_mask.reset(key);
                                     tp.dwt.mod_mask.reset(key);
@@ -13407,8 +13300,7 @@ namespace netxs::lixx // li++, libinput++.
                                 {
                                     if (event.libinput_event_switch_get_switch() == LIBINPUT_SWITCH_TABLET_MODE)
                                     {
-                                        auto state = event.libinput_event_switch_get_switch_state();
-                                        if (state == LIBINPUT_SWITCH_STATE_ON)
+                                        if (event.libinput_event_switch_get_switch_state())
                                         {
                                             tp_suspend(SUSPEND_TABLET_MODE);
                                             log("tablet-mode: suspending touchpad");
@@ -13434,12 +13326,12 @@ namespace netxs::lixx // li++, libinput++.
                             }
                             tablet_mode_switch_li_device->libinput_device_add_event_listener(tp.tablet_mode_switch.listener);
                             tp.tablet_mode_switch.tablet_mode_switch_li_device = tablet_mode_switch_li_device;
-                            if (tablet_mode_switch_li_device->get_switch_state(LIBINPUT_SWITCH_TABLET_MODE) == LIBINPUT_SWITCH_STATE_ON)
+                            if (tablet_mode_switch_li_device->get_switch_state(LIBINPUT_SWITCH_TABLET_MODE))
                             {
                                 tp_suspend(SUSPEND_TABLET_MODE);
                             }
                         }
-                            void tp_change_rotation(notify n)
+                            void tp_change_rotation(bool notify)
                             {
                                 auto tablet_li_device = tp.left_handed.tablet_li_device;
                                 bool tablet_is_left, touchpad_is_left;
@@ -13449,7 +13341,7 @@ namespace netxs::lixx // li++, libinput++.
                                     tablet_is_left = tp.left_handed.tablet_left_handed_state;
                                     tp.left_handed.want_rotate = touchpad_is_left || tablet_is_left;
                                     tp_apply_rotation();
-                                    if (n == DO_NOTIFY && tablet_li_device)
+                                    if (notify && tablet_li_device)
                                     {
                                         tablet_li_device->left_handed_toggle(tp.left_handed.want_rotate);
                                     }
@@ -13466,7 +13358,7 @@ namespace netxs::lixx // li++, libinput++.
                                 {
                                     tp.left_handed.want_rotate = true;
                                     tp.left_handed.tablet_left_handed_state = true;
-                                    tp_change_rotation(DONT_NOTIFY);
+                                    tp_change_rotation(faux);
                                 }
                             }
                         }
@@ -13539,8 +13431,7 @@ namespace netxs::lixx // li++, libinput++.
                 {
                     tp.left_handed.tablet_li_device = {};
                     tp.left_handed.tablet_left_handed_state = faux;
-                    // Slight awkwardness: removing the tablet causes the touchpad to rotate back to normal if only the tablet was set to left-handed. Niche case, nothing to worry about.
-                    tp_change_rotation(DO_NOTIFY);
+                    tp_change_rotation(true); // Slight awkwardness: removing the tablet causes the touchpad to rotate back to normal if only the tablet was set to left-handed. Niche case, nothing to worry about.
                 }
             }
             void tp_interface_toggle_touch(libinput_arbitration_state which, time stamp)
@@ -13562,12 +13453,13 @@ namespace netxs::lixx // li++, libinput++.
             }
             void touchpad_left_handed_toggled(bool left_handed_enabled)
             {
-                // Called when the tablet toggles to left-handed.
-                if (!tp.left_handed.tablet_li_device) return;
-                log("touchpad-rotation: tablet is %s%", left_handed_enabled ? "left-handed" : "right-handed");
-                // Our left-handed config is independent even though rotation is locked. So we rotate when either device is left-handed. But it can only be actually changed when the device is in a neutral state, hence the want_rotate.
-                tp.left_handed.tablet_left_handed_state = left_handed_enabled;
-                tp_change_rotation(DONT_NOTIFY);
+                if (tp.left_handed.tablet_li_device) // Called when the tablet toggles to left-handed.
+                {
+                    log("touchpad-rotation: tablet is %s%", left_handed_enabled ? "left-handed" : "right-handed");
+                    // Our left-handed config is independent even though rotation is locked. So we rotate when either device is left-handed. But it can only be actually changed when the device is in a neutral state, hence the want_rotate.
+                    tp.left_handed.tablet_left_handed_state = left_handed_enabled;
+                    tp_change_rotation(faux);
+                }
             }
                 bool tp_init_slots()
                 {
@@ -13818,54 +13710,54 @@ namespace netxs::lixx // li++, libinput++.
                         auto& tp = *std::static_pointer_cast<tp_device>(li_device);
                         return std::min(tp.ntouches, 3U); // We only do up to 3 finger tap.
                     }
-                    static libinput_config_status tp_tap_config_set_enabled(libinput_device_sptr li_device, libinput_config_tap_state enabled)
+                    static libinput_config_status tp_tap_config_set_enabled(libinput_device_sptr li_device, bool tap_state_enabled)
                     {
                         auto& tp = *std::static_pointer_cast<tp_device>(li_device);
-                        tp.tp_impl.tp_tap_enabled_update(tp.tap.suspended, (enabled == LIBINPUT_CONFIG_TAP_ENABLED), datetime::now());
+                        tp.tp_impl.tp_tap_enabled_update(tp.tap.suspended, tap_state_enabled, datetime::now());
                         return LIBINPUT_CONFIG_STATUS_SUCCESS;
                     }
-                    static libinput_config_tap_state tp_tap_config_is_enabled(libinput_device_sptr li_device)
+                    static bool tp_tap_config_is_enabled(libinput_device_sptr li_device)
                     {
                         auto& tp = *std::static_pointer_cast<tp_device>(li_device);
-                        return tp.tap.enabled ? LIBINPUT_CONFIG_TAP_ENABLED : LIBINPUT_CONFIG_TAP_DISABLED;
+                        return tp.tap.tap_state_enabled;
                     }
-                    static libinput_config_tap_state tp_tap_config_get_default(libinput_device_sptr li_device)
+                    static bool tp_tap_config_get_default(libinput_device_sptr li_device)
                     {
                         auto& tp = *std::static_pointer_cast<tp_device>(li_device);
                         return tp.tp_impl.tp_tap_default();
                     }
-                    static libinput_config_status tp_tap_config_set_map(libinput_device_sptr li_device, libinput_config_tap_button_map map)
+                    static libinput_config_status tp_tap_config_set_map(libinput_device_sptr li_device, bool use_lmr_map)
                     {
                         auto& tp = *std::static_pointer_cast<tp_device>(li_device);
-                        tp.tap.want_map = map;
+                        tp.tap.want_use_lmr_map = use_lmr_map;
                         tp.tp_impl.tp_tap_update_map();
                         return LIBINPUT_CONFIG_STATUS_SUCCESS;
                     }
-                    static libinput_config_tap_button_map tp_tap_config_get_map(libinput_device_sptr li_device)
+                    static bool tp_tap_config_get_map(libinput_device_sptr li_device)
                     {
                         auto& tp = *std::static_pointer_cast<tp_device>(li_device);
-                        return tp.tap.want_map;
+                        return tp.tap.want_use_lmr_map;
                     }
-                    static libinput_config_tap_button_map tp_tap_config_get_default_map([[maybe_unused]] libinput_device_sptr li_device)
+                    static bool tp_tap_config_get_default_map([[maybe_unused]] libinput_device_sptr li_device)
                     {
-                        return LIBINPUT_CONFIG_TAP_MAP_LRM;
+                        return faux;
                     }
-                    static libinput_config_status tp_tap_config_set_drag_enabled(libinput_device_sptr li_device, libinput_config_drag_state enabled)
+                    static libinput_config_status tp_tap_config_set_drag_enabled(libinput_device_sptr li_device, bool drag_enbled)
                     {
                         auto& tp = *std::static_pointer_cast<tp_device>(li_device);
-                        tp.tap.drag_enabled = enabled;
+                        tp.tap.drag_enabled = drag_enbled;
                         return LIBINPUT_CONFIG_STATUS_SUCCESS;
                     }
-                    static libinput_config_drag_state tp_tap_config_get_drag_enabled(libinput_device_sptr li_device)
+                    static bool tp_tap_config_get_drag_enabled(libinput_device_sptr li_device)
                     {
                         auto& tp = *std::static_pointer_cast<tp_device>(li_device);
-                        return (libinput_config_drag_state)tp.tap.drag_enabled;
+                        return tp.tap.drag_enabled;
                     }
-                    static libinput_config_drag_state tp_drag_default([[maybe_unused]] libinput_device_sptr li_device)
+                    static bool tp_drag_default([[maybe_unused]] libinput_device_sptr li_device)
                     {
-                        return LIBINPUT_CONFIG_DRAG_ENABLED;
+                        return true;
                     }
-                    static libinput_config_drag_state tp_tap_config_get_default_drag_enabled(libinput_device_sptr li_device)
+                    static bool tp_tap_config_get_default_drag_enabled(libinput_device_sptr li_device)
                     {
                         return tp_drag_default(li_device);
                     }
@@ -13905,9 +13797,9 @@ namespace netxs::lixx // li++, libinput++.
                     tp.tap.config.get_default_draglock_enabled = tp_tap_config_get_default_draglock_enabled;
                     tp.config.tap = &tp.tap.config;
                     tp.tap.state = TAP_STATE_IDLE;
-                    tp.tap.enabled = tp_tap_default();
-                    tp.tap.map = LIBINPUT_CONFIG_TAP_MAP_LRM;
-                    tp.tap.want_map = tp.tap.map;
+                    tp.tap.tap_state_enabled = tp_tap_default();
+                    tp.tap.use_lmr_map = faux;
+                    tp.tap.want_use_lmr_map = tp.tap.use_lmr_map;
                     tp.tap.drag_enabled = tp_drag_default(tp.This());
                     tp.tap.drag_lock = tp_drag_lock_default(tp.This());
                     auto timer_name = utf::fprint("%s% tap", tp.ud_device.sysname);
@@ -14029,21 +13921,21 @@ namespace netxs::lixx // li++, libinput++.
                         auto& tp = *std::static_pointer_cast<tp_device>(li_device);
                         return tp.tp_impl.tp_click_get_default_method();
                     }
-                    static libinput_config_status tp_button_config_set_clickfinger_map(libinput_device_sptr li_device, libinput_config_clickfinger_button_map map)
+                    static libinput_config_status tp_button_config_set_clickfinger_map(libinput_device_sptr li_device, bool use_lmr_map)
                     {
                         auto& tp = *std::static_pointer_cast<tp_device>(li_device);
-                        tp.buttons.want_map = map;
+                        tp.buttons.want_use_lmr_map = use_lmr_map;
                         tp.tp_impl.tp_button_update_clickfinger_map();
                         return LIBINPUT_CONFIG_STATUS_SUCCESS;
                     }
-                    static libinput_config_clickfinger_button_map tp_button_config_get_clickfinger_map(libinput_device_sptr li_device)
+                    static bool tp_button_config_get_clickfinger_map(libinput_device_sptr li_device)
                     {
                         auto& tp = *std::static_pointer_cast<tp_device>(li_device);
-                        return tp.buttons.want_map;
+                        return tp.buttons.want_use_lmr_map;
                     }
-                    static libinput_config_clickfinger_button_map tp_button_config_get_default_clickfinger_map([[maybe_unused]] libinput_device_sptr li_device)
+                    static bool tp_button_config_get_default_clickfinger_map([[maybe_unused]] libinput_device_sptr li_device)
                     {
-                        return LIBINPUT_CONFIG_CLICKFINGER_MAP_LRM;
+                        return faux;
                     }
                 void tp_init_buttons()
                 {
@@ -14061,8 +13953,8 @@ namespace netxs::lixx // li++, libinput++.
                     tp.buttons.config_method.get_clickfinger_map         = tp_button_config_get_clickfinger_map;
                     tp.buttons.config_method.get_default_clickfinger_map = tp_button_config_get_default_clickfinger_map;
                     tp.config.click_method = &tp.buttons.config_method;
-                    tp.buttons.map = LIBINPUT_CONFIG_CLICKFINGER_MAP_LRM;
-                    tp.buttons.want_map = tp.buttons.map;
+                    tp.buttons.use_lmr_map = faux;
+                    tp.buttons.want_use_lmr_map = tp.buttons.use_lmr_map;
                     tp.buttons.click_method = tp_click_get_default_method();
                     tp_switch_click_method();
                     tp_init_top_softbuttons(1.0);
@@ -14079,31 +13971,23 @@ namespace netxs::lixx // li++, libinput++.
                     {
                         return 1;
                     }
-                    static libinput_config_status tp_dwt_config_set(libinput_device_sptr li_device, libinput_config_dwt_state enable)
+                    static libinput_config_status tp_dwt_config_set(libinput_device_sptr li_device, bool dwt_enabled)
                     {
                         auto& tp = *std::static_pointer_cast<tp_device>(li_device);
-                        switch (enable)
-                        {
-                            case LIBINPUT_CONFIG_DWT_ENABLED:
-                            case LIBINPUT_CONFIG_DWT_DISABLED:
-                                break;
-                            default:
-                                return LIBINPUT_CONFIG_STATUS_INVALID;
-                        }
-                        tp.dwt.dwt_enabled = (enable == LIBINPUT_CONFIG_DWT_ENABLED);
+                        tp.dwt.dwt_enabled = dwt_enabled;
                         return LIBINPUT_CONFIG_STATUS_SUCCESS;
                     }
-                    static libinput_config_dwt_state tp_dwt_config_get(libinput_device_sptr li_device)
+                    static bool tp_dwt_config_get(libinput_device_sptr li_device)
                     {
                         auto& tp = *std::static_pointer_cast<tp_device>(li_device);
-                        return tp.dwt.dwt_enabled ? LIBINPUT_CONFIG_DWT_ENABLED : LIBINPUT_CONFIG_DWT_DISABLED;
+                        return tp.dwt.dwt_enabled;
                     }
-                    static libinput_config_dwt_state tp_dwt_config_get_default(libinput_device_sptr li_device)
+                    static bool tp_dwt_config_get_default(libinput_device_sptr li_device)
                     {
                         auto& tp = *std::static_pointer_cast<tp_device>(li_device);
-                        return tp.tp_impl.tp_dwt_default_enabled2() ? LIBINPUT_CONFIG_DWT_ENABLED : LIBINPUT_CONFIG_DWT_DISABLED;
+                        return tp.tp_impl.tp_dwt_default_enabled();
                     }
-                    bool tp_dwt_default_enabled2()
+                    bool tp_dwt_default_enabled()
                     {
                         return true;
                     }
@@ -14125,11 +14009,11 @@ namespace netxs::lixx // li++, libinput++.
                         tp.dwt.config.set_enabled         = tp_dwt_config_set;
                         tp.dwt.config.get_enabled         = tp_dwt_config_get;
                         tp.dwt.config.get_default_enabled = tp_dwt_config_get_default;
-                        tp.dwt.dwt_enabled                = tp_dwt_default_enabled2();
+                        tp.dwt.dwt_enabled                = tp_dwt_default_enabled();
                         tp.config.dwt = &tp.dwt.config;
                     }
                 }
-                    static bool tp_dwt_default_enabled([[maybe_unused]] tp_dispatch_sptr tp)
+                    bool tp_dwtp_default_enabled()
                     {
                         return true;
                     }
@@ -14137,34 +14021,26 @@ namespace netxs::lixx // li++, libinput++.
                     {
                         return 1;
                     }
-                    static libinput_config_status tp_dwtp_config_set(libinput_device_sptr li_device, libinput_config_dwtp_state enable)
+                    static libinput_config_status tp_dwtp_config_set(libinput_device_sptr li_device, bool dwtp_enabled)
                     {
                         auto& tp = *std::static_pointer_cast<tp_device>(li_device);
-                        switch (enable)
-                        {
-                            case LIBINPUT_CONFIG_DWTP_ENABLED:
-                            case LIBINPUT_CONFIG_DWTP_DISABLED:
-                                break;
-                            default:
-                                return LIBINPUT_CONFIG_STATUS_INVALID;
-                        }
-                        tp.palm.dwtp_enabled = (enable == LIBINPUT_CONFIG_DWTP_ENABLED);
+                        tp.palm.dwtp_enabled = dwtp_enabled;
                         return LIBINPUT_CONFIG_STATUS_SUCCESS;
                     }
-                    static libinput_config_dwtp_state tp_dwtp_config_get(libinput_device_sptr li_device)
+                    static bool tp_dwtp_config_get(libinput_device_sptr li_device)
                     {
                         auto& tp = *std::static_pointer_cast<tp_device>(li_device);
-                        return tp.palm.dwtp_enabled ? LIBINPUT_CONFIG_DWTP_ENABLED : LIBINPUT_CONFIG_DWTP_DISABLED;
+                        return tp.palm.dwtp_enabled;
                     }
-                    static libinput_config_dwtp_state tp_dwtp_config_get_default(libinput_device_sptr li_device)
+                    static bool tp_dwtp_config_get_default(libinput_device_sptr li_device)
                     {
                         auto& tp = *std::static_pointer_cast<tp_device>(li_device);
-                        auto dwtp = tp.tp_impl.tp_dwt_default_enabled2();
-                        return dwtp ? LIBINPUT_CONFIG_DWTP_ENABLED : LIBINPUT_CONFIG_DWTP_DISABLED;
+                        auto dwtp = tp.tp_impl.tp_dwtp_default_enabled();
+                        return dwtp;
                     }
                 void tp_init_dwtp()
                 {
-                    tp.palm.dwtp_enabled = tp_dwt_default_enabled2();
+                    tp.palm.dwtp_enabled = tp_dwtp_default_enabled();
                     if (!(tp.device_tags & EVDEV_TAG_EXTERNAL_TOUCHPAD))
                     {
                         tp.palm.config.is_available        = tp_dwtp_config_is_available;
@@ -14268,7 +14144,7 @@ namespace netxs::lixx // li++, libinput++.
                 }
                         void tp_tap_resume(time stamp)
                         {
-                            tp_tap_enabled_update(faux, tp.tap.enabled, stamp);
+                            tp_tap_enabled_update(faux, tp.tap.tap_state_enabled, stamp);
                         }
                     void tp_trackpoint_timeout(time now)
                     {
@@ -14370,41 +14246,36 @@ namespace netxs::lixx // li++, libinput++.
                         tp.libevdev_disable_event_code<EV_ABS>(ABS_PRESSURE);
                     }
                 }
-                    libinput_config_tap_state tp_tap_default()
+                    bool tp_tap_default()
                     {
                         if (!tp.libevdev_has_event_code<EV_KEY>(BTN_LEFT)) // If we don't have a left button we must have tapping enabled by default.
                         {
-                            return LIBINPUT_CONFIG_TAP_ENABLED;
+                            return true;
                         }
                         else
                         {
                             // Tapping is disabled by default for two reasons:
                             // - If you don't know that tapping is a thing (or enabled by default), you get spurious mouse events that make the desktop feel buggy.
                             // - If you do know what tapping is and you want it, you usually know where to enable it, or at least you can search for it.
-                            return LIBINPUT_CONFIG_TAP_DISABLED;
+                            return faux;
                         }
                     }
                 static si32 tp_clickpad_middlebutton_is_available(libinput_device_sptr li_device)
                 {
                     return libinput_device_t::evdev_middlebutton_is_available(li_device);
                 }
-                static libinput_config_status tp_clickpad_middlebutton_set(libinput_device_sptr li_device, libinput_config_middle_emulation_state enable)
+                static libinput_config_status tp_clickpad_middlebutton_set(libinput_device_sptr li_device, bool middle_emulation_enabled)
                 {
-                    switch (enable)
-                    {
-                        case LIBINPUT_CONFIG_MIDDLE_EMULATION_ENABLED:  li_device->middlebutton.want_enabled = true; break;
-                        case LIBINPUT_CONFIG_MIDDLE_EMULATION_DISABLED: li_device->middlebutton.want_enabled = faux; break;
-                        default: return LIBINPUT_CONFIG_STATUS_INVALID;
-                    }
+                    li_device->middlebutton.want_enabled = middle_emulation_enabled;
                     auto& tp = *std::static_pointer_cast<tp_device>(li_device);
                     tp.tp_impl.tp_clickpad_middlebutton_apply_config();
                     return LIBINPUT_CONFIG_STATUS_SUCCESS;
                 }
-                static libinput_config_middle_emulation_state tp_clickpad_middlebutton_get(libinput_device_sptr li_device)
+                static bool tp_clickpad_middlebutton_get(libinput_device_sptr li_device)
                 {
                     return libinput_device_t::evdev_middlebutton_get(li_device);
                 }
-                static libinput_config_middle_emulation_state tp_clickpad_middlebutton_get_default(libinput_device_sptr li_device)
+                static bool tp_clickpad_middlebutton_get_default(libinput_device_sptr li_device)
                 {
                     return libinput_device_t::evdev_middlebutton_get_default(li_device);
                 }
@@ -14500,7 +14371,7 @@ namespace netxs::lixx // li++, libinput++.
                     {
                         return (!tp.semi_mt && tp.num_slots > 1);
                     }
-                static libinput_config_status tp_gesture_set_hold_enabled(libinput_device_sptr li_device, libinput_config_hold_state enabled)
+                static libinput_config_status tp_gesture_set_hold_enabled(libinput_device_sptr li_device, bool hold_enabled)
                 {
                     auto& tp = *std::static_pointer_cast<tp_device>(li_device);
                     if (!tp.tp_impl.tp_gesture_are_gestures_enabled())
@@ -14509,19 +14380,19 @@ namespace netxs::lixx // li++, libinput++.
                     }
                     else
                     {
-                        tp.gesture.hold_enabled = (enabled == LIBINPUT_CONFIG_HOLD_ENABLED);
+                        tp.gesture.hold_enabled = hold_enabled;
                         return LIBINPUT_CONFIG_STATUS_SUCCESS;
                     }
                 }
-                static libinput_config_hold_state tp_gesture_is_hold_enabled(libinput_device_sptr li_device)
+                static bool tp_gesture_is_hold_enabled(libinput_device_sptr li_device)
                 {
                     auto& tp = *std::static_pointer_cast<tp_device>(li_device);
-                    return tp.gesture.hold_enabled ? LIBINPUT_CONFIG_HOLD_ENABLED : LIBINPUT_CONFIG_HOLD_DISABLED;
+                    return tp.gesture.hold_enabled;
                 }
-                static libinput_config_hold_state tp_gesture_get_hold_default(libinput_device_sptr li_device)
+                static bool tp_gesture_get_hold_default(libinput_device_sptr li_device)
                 {
                     auto& tp = *std::static_pointer_cast<tp_device>(li_device);
-                    return tp.tp_impl.tp_gesture_are_gestures_enabled() ? LIBINPUT_CONFIG_HOLD_ENABLED : LIBINPUT_CONFIG_HOLD_DISABLED;
+                    return tp.tp_impl.tp_gesture_are_gestures_enabled();
                 }
                 static si32 tp_3fg_drag_count(libinput_device_sptr li_device)
                 {
@@ -14784,7 +14655,7 @@ namespace netxs::lixx // li++, libinput++.
                     }
                     // Tapping and clickfinger aren't affected by left-handed config, so checking physical buttons is enough.
                     li_device->dev_left_handed.enabled = li_device->dev_left_handed.want_enabled;
-                    tp.tp_impl.tp_change_rotation(DO_NOTIFY);
+                    tp.tp_impl.tp_change_rotation(true);
                 }
             void tp_init_left_handed()
             {
@@ -15249,11 +15120,11 @@ namespace netxs::lixx // li++, libinput++.
                                             // Wacom PTH-660 doesn't light up any LEDs until the button is pressed, so let's assume mode 0.
                                             return 0;
                                         }
-                                    void pad_button_update_mode(libinput_tablet_pad_mode_group_sptr g, ui32 button_index, libinput_button_state state)
+                                    void pad_button_update_mode(libinput_tablet_pad_mode_group_sptr g, ui32 button_index, si32 state)
                                     {
                                         auto group = std::static_pointer_cast<pad_led_group>(g);
                                         auto rc = -ENODEV;
-                                        if (state != LIBINPUT_BUTTON_STATE_PRESSED) return;
+                                        if (state != evdev::pressed) return;
                                         if (!libinput_tablet_pad_mode_group_button_is_toggle(g, button_index)) return;
                                         if (group->led_list.empty())
                                         {
@@ -15280,7 +15151,7 @@ namespace netxs::lixx // li++, libinput++.
                                         }
                                         if (rc >= 0) group->current_mode = rc;
                                     }
-                                    void tablet_pad_notify_button(time stamp, ui32 button, libinput_button_state state, libinput_tablet_pad_mode_group_sptr group)
+                                    void tablet_pad_notify_button(time stamp, ui32 button, si32 state, libinput_tablet_pad_mode_group_sptr group)
                                     {
                                         auto& button_event = pad.li.libinput_emplace_event<libinput_event_tablet_pad>();
                                         button_event.mode       = group->current_mode;
@@ -15288,14 +15159,14 @@ namespace netxs::lixx // li++, libinput++.
                                         button_event.button     = { .number = button, .state = state };
                                         pad.post_device_event(stamp, LIBINPUT_EVENT_TABLET_PAD_BUTTON, button_event);
                                     }
-                                    void tablet_pad_notify_key(time stamp, si32 key, libinput_key_state state)
+                                    void tablet_pad_notify_key(time stamp, si32 key, si32 state)
                                     {
                                         auto& key_event = pad.li.libinput_emplace_event<libinput_event_tablet_pad>();
                                         key_event.key.code  = (ui32)key;
                                         key_event.key.state = state;
                                         pad.post_device_event(stamp, LIBINPUT_EVENT_TABLET_PAD_KEY, key_event);
                                     }
-                                void pad_notify_button_mask(time stamp, button_state_t& buttons, libinput_button_state state)
+                                void pad_notify_button_mask(time stamp, button_state_t& buttons, si32 state)
                                 {
                                     for (auto code = 0u; code < buttons.size(); code++)
                                     {
@@ -15313,16 +15184,16 @@ namespace netxs::lixx // li++, libinput++.
                                                 }
                                                 else // It is a key.
                                                 {
-                                                    tablet_pad_notify_key(stamp, button_or_key, (libinput_key_state)state);
+                                                    tablet_pad_notify_key(stamp, button_or_key, state);
                                                 }
                                             }
                                         }
                                     }
                                 }
-                            void pad_notify_buttons(time stamp, libinput_button_state state)
+                            void pad_notify_buttons(time stamp, si32 state)
                             {
-                                auto buttons = state == LIBINPUT_BUTTON_STATE_PRESSED ? pad.next_button_state & ~pad.prev_button_state  // pad_get_buttons_pressed()
-                                                                                      : pad.prev_button_state & ~pad.next_button_state; // pad_get_buttons_released();
+                                auto buttons = state == evdev::pressed ? pad.next_button_state & ~pad.prev_button_state  // pad_get_buttons_pressed()
+                                                                       : pad.prev_button_state & ~pad.next_button_state; // pad_get_buttons_released();
                                 pad_notify_button_mask(stamp, buttons, state);
                             }
                             static void pad_change_to_left_handed(libinput_device_sptr li_device)
@@ -15342,13 +15213,13 @@ namespace netxs::lixx // li++, libinput++.
                             }
                             if (pad_has_status(PAD_BUTTONS_RELEASED))
                             {
-                                pad_notify_buttons(stamp, LIBINPUT_BUTTON_STATE_RELEASED);
+                                pad_notify_buttons(stamp, evdev::released);
                                 pad_unset_status(PAD_BUTTONS_RELEASED);
                                 pad_change_to_left_handed(pad.This());
                             }
                             if (pad_has_status(PAD_BUTTONS_PRESSED))
                             {
-                                pad_notify_buttons(stamp, LIBINPUT_BUTTON_STATE_PRESSED);
+                                pad_notify_buttons(stamp, evdev::pressed);
                                 pad_unset_status(PAD_BUTTONS_PRESSED);
                             }
                             pad.prev_button_state = pad.next_button_state;
@@ -15701,31 +15572,19 @@ namespace netxs::lixx // li++, libinput++.
                 // tip up before button up but meh.
                 if (totem.button_state_now != totem.button_state_previous)
                 {
-                    auto btn_state = libinput_button_state{};
-                    if (totem.button_state_now)
-                    {
-                        btn_state = LIBINPUT_BUTTON_STATE_PRESSED;
-                    }
-                    else
-                    {
-                        btn_state = LIBINPUT_BUTTON_STATE_RELEASED;
-                    }
+                    auto btn_state = totem.button_state_now ? evdev::pressed : evdev::released;
                     totem.tablet_notify_button(now, slot.tool, tip_state, axes, BTN_0, btn_state, totem.ud_device.abs.absinfo_x, totem.ud_device.abs.absinfo_y);
                     totem.button_state_previous = totem.button_state_now;
                 }
-                switch (slot.state)
+                if (slot.state == SLOT_STATE_END)
                 {
-                    case SLOT_STATE_BEGIN:
-                    case SLOT_STATE_UPDATE: break;
-                    case SLOT_STATE_END:
-                        tip_state = LIBINPUT_TABLET_TOOL_TIP_UP;
-                        totem.tablet_notify_tip(now, slot.tool, tip_state, slot.changed_axes_bits, axes, totem.ud_device.abs.absinfo_x, totem.ud_device.abs.absinfo_y);
-                        totem_slot_reset_changed_axes(slot);
-                        totem.tablet_notify_proximity(now, slot.tool, LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_OUT, slot.changed_axes_bits, axes, totem.ud_device.abs.absinfo_x, totem.ud_device.abs.absinfo_y);
-                        slot.state = SLOT_STATE_NONE;
-                        break;
-                    case SLOT_STATE_NONE: ::abort(); break;
+                    tip_state = LIBINPUT_TABLET_TOOL_TIP_UP;
+                    totem.tablet_notify_tip(now, slot.tool, tip_state, slot.changed_axes_bits, axes, totem.ud_device.abs.absinfo_x, totem.ud_device.abs.absinfo_y);
+                    totem_slot_reset_changed_axes(slot);
+                    totem.tablet_notify_proximity(now, slot.tool, LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_OUT, slot.changed_axes_bits, axes, totem.ud_device.abs.absinfo_x, totem.ud_device.abs.absinfo_y);
+                    slot.state = SLOT_STATE_NONE;
                 }
+                else if (slot.state == SLOT_STATE_NONE) ::abort();
                 slot.last_point = slot.axes.point;
                 totem_slot_reset_changed_axes(slot);
                 return slot.state;
@@ -15852,7 +15711,7 @@ namespace netxs::lixx // li++, libinput++.
                         tip_state = slot.state == SLOT_STATE_NONE ? LIBINPUT_TABLET_TOOL_TIP_UP : LIBINPUT_TABLET_TOOL_TIP_DOWN;
                         if (totem.button_state_now)
                         {
-                            totem.tablet_notify_button(now, slot.tool, tip_state, axes, BTN_0, LIBINPUT_BUTTON_STATE_RELEASED, totem.ud_device.abs.absinfo_x, totem.ud_device.abs.absinfo_y);
+                            totem.tablet_notify_button(now, slot.tool, tip_state, axes, BTN_0, evdev::released, totem.ud_device.abs.absinfo_x, totem.ud_device.abs.absinfo_y);
                             totem.button_state_now = faux;
                             totem.button_state_previous = faux;
                         }
@@ -17180,7 +17039,7 @@ namespace netxs::lixx // li++, libinput++.
                             axes.delta.x = 0;
                             axes.delta.y = 0;
                         }
-                                void tablet_notify_button_mask(time stamp, libinput_tablet_tool_sptr tool, button_state_t& buttons, libinput_button_state state)
+                                void tablet_notify_button_mask(time stamp, libinput_tablet_tool_sptr tool, button_state_t& buttons, si32 state)
                                 {
                                     auto c = !!(tablet.status & TABLET_TOOL_IN_CONTACT);
                                     auto tip_state = c ? LIBINPUT_TABLET_TOOL_TIP_DOWN : LIBINPUT_TABLET_TOOL_TIP_UP;
@@ -17192,22 +17051,22 @@ namespace netxs::lixx // li++, libinput++.
                                         }
                                     }
                                 }
-                            void tablet_notify_buttons(time stamp, libinput_tablet_tool_sptr tool, libinput_button_state state)
+                            void tablet_notify_buttons(time stamp, libinput_tablet_tool_sptr tool, si32 state)
                             {
-                                auto buttons = state == LIBINPUT_BUTTON_STATE_PRESSED ? tablet.next_button_state & ~tablet.prev_button_state
-                                                                                      : tablet.prev_button_state & ~tablet.next_button_state;
+                                auto buttons = state == evdev::pressed ? tablet.next_button_state & ~tablet.prev_button_state
+                                                                       : tablet.prev_button_state & ~tablet.next_button_state;
                                 tablet_notify_button_mask(stamp, tool, buttons, state);
                             }
                         void tablet_send_buttons(libinput_tablet_tool_sptr tool, time stamp)
                         {
                             if (tablet.status & TABLET_BUTTONS_RELEASED)
                             {
-                                tablet_notify_buttons(stamp, tool, LIBINPUT_BUTTON_STATE_RELEASED);
+                                tablet_notify_buttons(stamp, tool, evdev::released);
                                 tablet.status &= ~TABLET_BUTTONS_RELEASED;
                             }
                             if (tablet.status & TABLET_BUTTONS_PRESSED)
                             {
-                                tablet_notify_buttons(stamp, tool, LIBINPUT_BUTTON_STATE_PRESSED);
+                                tablet_notify_buttons(stamp, tool, evdev::pressed);
                                 tablet.status &= ~TABLET_BUTTONS_PRESSED;
                             }
                         }
@@ -17295,14 +17154,14 @@ namespace netxs::lixx // li++, libinput++.
                                 tablet.rotation.rotate = tablet.rotation.want_rotate;
                                 log("tablet-rotation: rotation is %s%", tablet.rotation.rotate ? "on" : "off");
                             }
-                        void tablet_change_rotation(notify do_notify)
+                        void tablet_change_rotation(bool notify)
                         {
                             auto touch_li_device = tablet.touch_li_device;
                             auto tablet_is_left = tablet.dev_left_handed.enabled;
                             auto touchpad_is_left = tablet.rotation.touch_device_left_handed_state;
                             tablet.rotation.want_rotate = tablet_is_left || touchpad_is_left;
                             tablet_apply_rotation();
-                            if (do_notify == DO_NOTIFY && touch_li_device)
+                            if (notify && touch_li_device)
                             {
                                 auto enable = tablet.dev_left_handed.want_enabled;
                                 touch_li_device->left_handed_toggle(enable);
@@ -17314,7 +17173,7 @@ namespace netxs::lixx // li++, libinput++.
                         {
                             li_device->dev_left_handed.enabled = li_device->dev_left_handed.want_enabled;
                             auto tablet_ptr = std::static_pointer_cast<tablet_device>(li_device);
-                            tablet_ptr->tablet_impl.tablet_change_rotation(DO_NOTIFY);
+                            tablet_ptr->tablet_impl.tablet_change_rotation(true);
                         }
                     }
                     void tablet_change_area()
@@ -17509,7 +17368,7 @@ namespace netxs::lixx // li++, libinput++.
                         if (new_li_device->libinput_device_config_left_handed_get())
                         {
                             tablet.rotation.touch_device_left_handed_state = true;
-                            tablet_change_rotation(DO_NOTIFY);
+                            tablet_change_rotation(true);
                         }
                     }
                 }
@@ -17528,7 +17387,7 @@ namespace netxs::lixx // li++, libinput++.
                 {
                     tablet.rotation.touch_li_device = {};
                     tablet.rotation.touch_device_left_handed_state = faux;
-                    tablet_change_rotation(DO_NOTIFY);
+                    tablet_change_rotation(true);
                 }
             }
                 si32 tablet_tool_to_evcode(libinput_tablet_tool_type type)
@@ -17577,7 +17436,7 @@ namespace netxs::lixx // li++, libinput++.
                     log("tablet-rotation: touchpad is %s%", left_handed_enabled ? "left-handed" : "right-handed");
                     // Our left-handed config is independent even though rotation is locked. So we rotate when either device is left-handed. But it can only be actually changed when the device is in a neutral state, hence the want_rotate.
                     tablet.rotation.touch_device_left_handed_state = left_handed_enabled;
-                    tablet_change_rotation(DONT_NOTIFY);
+                    tablet_change_rotation(faux);
                 }
             }
                 bool tablet_reject_device()
@@ -18339,11 +18198,11 @@ namespace netxs::lixx // li++, libinput++.
                             auto code = evdev_usage_code(usage);
                             generic.next_hw_key_mask.set(code, pressed);
                         }
-                            void keyboard_notify_key(time stamp, ui32 keycode, libinput_key_state state)
+                            void keyboard_notify_key(time stamp, ui32 keycode, si32 state)
                             {
                                 if (generic.device_has_cap(LIBINPUT_DEVICE_CAP_KEYBOARD))
                                 {
-                                    auto seat_key_count = generic.li.update_seat_key_count(keycode, state);
+                                    auto seat_key_count = generic.li.update_press_count(keycode, state);
                                     auto& key_event = generic.li.libinput_emplace_event<libinput_event_keyboard>();
                                     key_event.key            = keycode;
                                     key_event.seat_key_count = seat_key_count;
@@ -18351,11 +18210,10 @@ namespace netxs::lixx // li++, libinput++.
                                     generic.post_device_event(stamp, LIBINPUT_EVENT_KEYBOARD_KEY, key_event);
                                 }
                             }
-                        void fallback_keyboard_notify_key(time stamp, ui32 usage, libinput_key_state state)
+                        void fallback_keyboard_notify_key(time stamp, ui32 usage, si32 state)
                         {
                             auto down_count = generic.evdev_update_key_down_count(usage, state);
-                            if ((state == LIBINPUT_KEY_STATE_PRESSED  && down_count == 1)
-                             || (state == LIBINPUT_KEY_STATE_RELEASED && down_count == 0))
+                            if ((state == evdev::pressed && down_count == 1) || (state == evdev::released && down_count == 0))
                             {
                                 keyboard_notify_key(stamp, evdev_usage_code(usage), state);
                             }
@@ -18372,27 +18230,18 @@ namespace netxs::lixx // li++, libinput++.
                             return;
                         }
                         auto type = get_key_type(ev.usage);
-                        // Ignore key release events from the kernel for keys that libinput never got a pressed event for or key presses for keys that we think are still down.
-                        switch (type)
+                        if (type == KEY_TYPE_KEY || type == KEY_TYPE_BUTTON) // Ignore key release events from the kernel for keys that libinput never got a pressed event for or key presses for keys that we think are still down.
                         {
-                            case KEY_TYPE_NONE: break;
-                            case KEY_TYPE_KEY:
-                            case KEY_TYPE_BUTTON:
-                                if ((ev.value && hw_is_key_down(ev.usage)) || (ev.value == 0 && !hw_is_key_down(ev.usage)))
-                                {
-                                    return;
-                                }
-                                generic.pending_event = (evdev_event_type)(generic.pending_event | EVDEV_KEY);
-                                break;
+                            if ((ev.value && hw_is_key_down(ev.usage)) || (ev.value == 0 && !hw_is_key_down(ev.usage)))
+                            {
+                                return;
+                            }
+                            generic.pending_event = (evdev_event_type)(generic.pending_event | EVDEV_KEY);
                         }
                         hw_set_key_down(ev.usage, ev.value);
-                        switch (type)
+                        if (type == KEY_TYPE_KEY)
                         {
-                            case KEY_TYPE_KEY:
-                                fallback_keyboard_notify_key(stamp, ev.usage, ev.value ? LIBINPUT_KEY_STATE_PRESSED : LIBINPUT_KEY_STATE_RELEASED);
-                                break;
-                            case KEY_TYPE_NONE:
-                            case KEY_TYPE_BUTTON: break;
+                            fallback_keyboard_notify_key(stamp, ev.usage, ev.value ? evdev::pressed : evdev::released);
                         }
                     }
                                         input_event_t input_event_init(time stamp, ui32 type, ui32 code, si32 value)
@@ -18408,7 +18257,7 @@ namespace netxs::lixx // li++, libinput++.
                                             event.input_event_usec = tval.tv_usec;
                                             return event;
                                         }
-                                            void switch_notify_toggle(time stamp, libinput_switch sw, libinput_switch_state state)
+                                            void switch_notify_toggle(time stamp, libinput_switch sw, si32 state)
                                             {
                                                 if (generic.device_has_cap(LIBINPUT_DEVICE_CAP_SWITCH))
                                                 {
@@ -18422,7 +18271,7 @@ namespace netxs::lixx // li++, libinput++.
                                         {
                                             if (generic.lid.is_closed ^ generic.lid.is_closed_client_state)
                                             {
-                                                switch_notify_toggle(stamp, LIBINPUT_SWITCH_LID, (libinput_switch_state)generic.lid.is_closed);
+                                                switch_notify_toggle(stamp, LIBINPUT_SWITCH_LID, generic.lid.is_closed);
                                                 generic.lid.is_closed_client_state = generic.lid.is_closed;
                                             }
                                         }
@@ -18479,7 +18328,7 @@ namespace netxs::lixx // li++, libinput++.
                             }
                         void fallback_process_switch(evdev_event& ev, time stamp)
                         {
-                            auto state = libinput_switch_state{};
+                            auto state = si32{};
                             auto is_closed = faux;
                             //todo: this should to move to handle_state.
                             switch (ev.usage)
@@ -18497,7 +18346,7 @@ namespace netxs::lixx // li++, libinput++.
                                     if (generic.tablet_mode.sw.state != ev.value)
                                     {
                                         generic.tablet_mode.sw.state = ev.value;
-                                        state = ev.value ? LIBINPUT_SWITCH_STATE_ON : LIBINPUT_SWITCH_STATE_OFF;
+                                        state = ev.value;
                                         switch_notify_toggle(stamp, LIBINPUT_SWITCH_TABLET_MODE, state);
                                     }
                                     break;
@@ -18931,16 +18780,12 @@ namespace netxs::lixx // li++, libinput++.
                                         assert(new_state >= DEBOUNCE_STATE_IS_UP && new_state <= DEBOUNCE_STATE_IS_DOWN_DELAYING);
                                         generic.debounce.state = new_state;
                                     }
-                                        void fallback_notify_physical_button(libinput_device_sptr li_device, time stamp, ui32 button, libinput_button_state state)
-                                        {
-                                            li_device->evdev_pointer_notify_physical_button(stamp, button, state);
-                                        }
-                                    void debounce_notify_button(libinput_button_state state)
+                                    void debounce_notify_button(si32 state)
                                     {
                                         auto usage = generic.debounce.button_usage;
                                         auto stamp = generic.debounce.button_time;
-                                        usage = generic.evdev_to_left_handed(usage);
-                                        fallback_notify_physical_button(generic.This(), stamp, usage, state);
+                                        auto button = generic.evdev_to_left_handed(usage);
+                                        generic.evdev_pointer_notify_physical_button(stamp, button, state);
                                     }
                                 void debounce_is_up_handle_event(debounce_event event, time stamp)
                                 {
@@ -18950,7 +18795,7 @@ namespace netxs::lixx // li++, libinput++.
                                             generic.debounce.button_time = stamp;
                                             debounce_set_timer(stamp);
                                             debounce_set_state(DEBOUNCE_STATE_IS_DOWN_WAITING);
-                                            debounce_notify_button(LIBINPUT_BUTTON_STATE_PRESSED);
+                                            debounce_notify_button(evdev::pressed);
                                             break;
                                         case DEBOUNCE_EVENT_RELEASE:
                                         case DEBOUNCE_EVENT_TIMEOUT:
@@ -18978,7 +18823,7 @@ namespace netxs::lixx // li++, libinput++.
                                             else
                                             {
                                                 debounce_set_state(DEBOUNCE_STATE_IS_UP_DETECTING_SPURIOUS);
-                                                debounce_notify_button(LIBINPUT_BUTTON_STATE_RELEASED);
+                                                debounce_notify_button(evdev::released);
                                             }
                                             break;
                                         case DEBOUNCE_EVENT_TIMEOUT:
@@ -19015,7 +18860,7 @@ namespace netxs::lixx // li++, libinput++.
                                         case DEBOUNCE_EVENT_TIMEOUT:
                                         case DEBOUNCE_EVENT_OTHERBUTTON:
                                             debounce_set_state(DEBOUNCE_STATE_IS_UP);
-                                            debounce_notify_button(LIBINPUT_BUTTON_STATE_RELEASED);
+                                            debounce_notify_button(evdev::released);
                                             break;
                                     }
                                 }
@@ -19032,11 +18877,11 @@ namespace netxs::lixx // li++, libinput++.
                                         case DEBOUNCE_EVENT_TIMEOUT: log("log_debounce_bug7: fallback ", event); break;
                                         case DEBOUNCE_EVENT_TIMEOUT_SHORT:
                                             debounce_set_state(DEBOUNCE_STATE_IS_UP_WAITING);
-                                            debounce_notify_button(LIBINPUT_BUTTON_STATE_RELEASED);
+                                            debounce_notify_button(evdev::released);
                                             break;
                                         case DEBOUNCE_EVENT_OTHERBUTTON:
                                             debounce_set_state(DEBOUNCE_STATE_IS_UP);
-                                            debounce_notify_button(LIBINPUT_BUTTON_STATE_RELEASED);
+                                            debounce_notify_button(evdev::released);
                                             break;
                                     }
                                 }
@@ -19080,12 +18925,12 @@ namespace netxs::lixx // li++, libinput++.
                                             debounce_cancel_timer();
                                             debounce_set_state(DEBOUNCE_STATE_IS_DOWN);
                                             debounce_enable_spurious();
-                                            debounce_notify_button(LIBINPUT_BUTTON_STATE_PRESSED);
+                                            debounce_notify_button(evdev::pressed);
                                             break;
                                         case DEBOUNCE_EVENT_TIMEOUT:
                                         case DEBOUNCE_EVENT_OTHERBUTTON:
                                             debounce_set_state(DEBOUNCE_STATE_IS_DOWN);
-                                            debounce_notify_button(LIBINPUT_BUTTON_STATE_PRESSED);
+                                            debounce_notify_button(evdev::pressed);
                                             break;
                                     }
                                 }
@@ -19120,7 +18965,7 @@ namespace netxs::lixx // li++, libinput++.
                                         case DEBOUNCE_EVENT_TIMEOUT:
                                         case DEBOUNCE_EVENT_OTHERBUTTON:
                                             debounce_set_state(DEBOUNCE_STATE_IS_DOWN);
-                                            debounce_notify_button(LIBINPUT_BUTTON_STATE_PRESSED);
+                                            debounce_notify_button(evdev::pressed);
                                             break;
                                     }
                                 }
@@ -19128,8 +18973,8 @@ namespace netxs::lixx // li++, libinput++.
                                 {
                                     switch (event)
                                     {
-                                        case DEBOUNCE_EVENT_PRESS:   generic.debounce.button_time = stamp; debounce_notify_button(LIBINPUT_BUTTON_STATE_PRESSED); break;
-                                        case DEBOUNCE_EVENT_RELEASE: generic.debounce.button_time = stamp; debounce_notify_button(LIBINPUT_BUTTON_STATE_RELEASED); break;
+                                        case DEBOUNCE_EVENT_PRESS:   generic.debounce.button_time = stamp; debounce_notify_button(evdev::pressed); break;
+                                        case DEBOUNCE_EVENT_RELEASE: generic.debounce.button_time = stamp; debounce_notify_button(evdev::released); break;
                                         case DEBOUNCE_EVENT_TIMEOUT_SHORT:
                                         case DEBOUNCE_EVENT_TIMEOUT: log("log_debounce_bug14: fallback ", event); break;
                                         case DEBOUNCE_EVENT_OTHERBUTTON: break;
@@ -19355,24 +19200,17 @@ namespace netxs::lixx // li++, libinput++.
                         {
                             for (auto usage = evdev::key_reserved; usage <= evdev::key_max; usage++)
                             {
-                                auto count = get_key_down_count(usage);
-                                if (count == 0) continue;
-                                if (count > 1)
+                                if (auto count = get_key_down_count(usage))
                                 {
-                                    log("key %d% is down %d% times", evdev_usage_code(usage), count);
-                                }
-                                switch (get_key_type(usage))
-                                {
-                                    case KEY_TYPE_NONE: break;
-                                    case KEY_TYPE_KEY: fallback_keyboard_notify_key(stamp, usage, LIBINPUT_KEY_STATE_RELEASED); break;
-                                    // Note: the left-handed configuration is nonzero for the mapped button (not the physical button), in get_key_down_count(). We must not map this to left-handed again, see #881.
-                                    case KEY_TYPE_BUTTON: generic.evdev_pointer_notify_button(stamp, usage, LIBINPUT_BUTTON_STATE_RELEASED); break;
-                                }
-                                count = get_key_down_count(usage);
-                                if (count != 0)
-                                {
-                                    log("releasing key %d% failed", usage);
-                                    break;
+                                    if (count > 1) log("key %d% is down %d% times", evdev_usage_code(usage), count);
+                                    auto type = get_key_type(usage);
+                                         if (type == KEY_TYPE_KEY) fallback_keyboard_notify_key(stamp, usage, evdev::released);
+                                    else if (type == KEY_TYPE_BUTTON) generic.evdev_pointer_notify_button(stamp, usage, evdev::released); // Note: the left-handed configuration is nonzero for the mapped button (not the physical button), in get_key_down_count(). We must not map this to left-handed again, see #881.
+                                    if (get_key_down_count(usage))
+                                    {
+                                        log("Releasing key %d% failed", usage);
+                                        break;
+                                    }
                                 }
                             }
                         }
@@ -19422,7 +19260,7 @@ namespace netxs::lixx // li++, libinput++.
                     }
                     if (generic.tablet_mode.sw.state)
                     {
-                        switch_notify_toggle(stamp, LIBINPUT_SWITCH_TABLET_MODE, LIBINPUT_SWITCH_STATE_ON);
+                        switch_notify_toggle(stamp, LIBINPUT_SWITCH_TABLET_MODE, true);
                     }
                 }
                     si32_rect evdev_phys_rect_to_units(fp64_rect mm)
@@ -19509,8 +19347,7 @@ namespace netxs::lixx // li++, libinput++.
                             {
                                 if (event.libinput_event_switch_get_switch() == LIBINPUT_SWITCH_TABLET_MODE)
                                 {
-                                    auto state = event.libinput_event_switch_get_switch_state();
-                                    if (state == LIBINPUT_SWITCH_STATE_ON)
+                                    if (event.libinput_event_switch_get_switch_state())
                                     {
                                         fallback_suspend();
                                         log("tablet-mode: suspending device");
@@ -19544,7 +19381,7 @@ namespace netxs::lixx // li++, libinput++.
                         }
                         tablet_mode_switch_li_device->libinput_device_add_event_listener(generic.tablet_mode.other.listener);
                         generic.tablet_mode.other.sw_li_device = tablet_mode_switch_li_device;
-                        if (tablet_mode_switch_li_device->get_switch_state(LIBINPUT_SWITCH_TABLET_MODE) == LIBINPUT_SWITCH_STATE_ON)
+                        if (tablet_mode_switch_li_device->get_switch_state(LIBINPUT_SWITCH_TABLET_MODE))
                         {
                             log("tablet-mode: suspending device");
                             fallback_suspend();
@@ -19572,10 +19409,10 @@ namespace netxs::lixx // li++, libinput++.
                         generic.tablet_mode.other.sw_li_device = {};
                     }
                 }
-                libinput_switch_state fallback_interface_get_switch_state(libinput_switch sw)
+                si32 fallback_interface_get_switch_state(libinput_switch sw)
                 {
                     if (sw != LIBINPUT_SWITCH_TABLET_MODE) ::abort(); // Internal function only, so we can abort here.
-                    return generic.tablet_mode.sw.state ? LIBINPUT_SWITCH_STATE_ON : LIBINPUT_SWITCH_STATE_OFF;
+                    return generic.tablet_mode.sw.state;
                 }
                 static si32 fallback_rotation_config_is_available([[maybe_unused]] libinput_device_sptr li_device)
                 {
@@ -19793,17 +19630,17 @@ namespace netxs::lixx // li++, libinput++.
         };
 
         generic_impl_t generic_impl{ *this };
-        void                           process(evdev_event& ev, time now)                                  { generic_impl.                fallback_interface_process(ev, now); }
-        void                           suspend()                                                           { generic_impl.                fallback_interface_suspend(); }
-        void                            remove()                                                           { generic_impl.                 fallback_interface_remove(); }
-        void                      device_added(libinput_device_sptr added_li_device)                       { generic_impl.           fallback_interface_device_added(added_li_device); }
-        void                    device_removed(libinput_device_sptr removed_li_device)                     { generic_impl.         fallback_interface_device_removed(removed_li_device); }
-        void                  device_suspended(libinput_device_sptr suspended_li_device)                   { generic_impl.         fallback_interface_device_removed(suspended_li_device); }
-        void                    device_resumed(libinput_device_sptr resumed_li_device)                     { generic_impl.           fallback_interface_device_added(resumed_li_device); }
-        void                        post_added()                                                           { generic_impl.     fallback_interface_sync_initial_state(); }
-        void          touch_arbitration_toggle(libinput_arbitration_state which, fp64_rect area, time now) { generic_impl.           fallback_interface_toggle_touch(which, area, now) ; }
-        void     touch_arbitration_update_rect(fp64_rect area, time)                                       { generic_impl.            fallback_interface_update_rect(area); }
-        libinput_switch_state get_switch_state(libinput_switch which)                                      { return generic_impl.fallback_interface_get_switch_state(which); }
+        void                       process(evdev_event& ev, time now)                                  { generic_impl.                fallback_interface_process(ev, now); }
+        void                       suspend()                                                           { generic_impl.                fallback_interface_suspend(); }
+        void                        remove()                                                           { generic_impl.                 fallback_interface_remove(); }
+        void                  device_added(libinput_device_sptr added_li_device)                       { generic_impl.           fallback_interface_device_added(added_li_device); }
+        void                device_removed(libinput_device_sptr removed_li_device)                     { generic_impl.         fallback_interface_device_removed(removed_li_device); }
+        void              device_suspended(libinput_device_sptr suspended_li_device)                   { generic_impl.         fallback_interface_device_removed(suspended_li_device); }
+        void                device_resumed(libinput_device_sptr resumed_li_device)                     { generic_impl.           fallback_interface_device_added(resumed_li_device); }
+        void                    post_added()                                                           { generic_impl.     fallback_interface_sync_initial_state(); }
+        void      touch_arbitration_toggle(libinput_arbitration_state which, fp64_rect area, time now) { generic_impl.           fallback_interface_toggle_touch(which, area, now) ; }
+        void touch_arbitration_update_rect(fp64_rect area, time)                                       { generic_impl.            fallback_interface_update_rect(area); }
+        si32              get_switch_state(libinput_switch which)                                      { return generic_impl.fallback_interface_get_switch_state(which); }
     };
 
     libinput_device_sptr create_totem(libinput_t& li, ud_device_t& ud_device)
