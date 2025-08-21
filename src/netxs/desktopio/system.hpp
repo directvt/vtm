@@ -4781,7 +4781,7 @@ namespace netxs::os
                     {
                         count++;
                         log("\tadded device: %% (%%)", device->ud_device.devpath, device->ud_device.devname);
-                        auto rc = device->libinput_device_config_tap_set_enabled(LIBINPUT_CONFIG_TAP_ENABLED) == LIBINPUT_CONFIG_STATUS_SUCCESS;
+                        auto rc = device->libinput_device_config_tap_set_enabled(true) == LIBINPUT_CONFIG_STATUS_SUCCESS;
                         log("\t  LIBINPUT_CONFIG_TAP_ENABLED: ", rc);
                         rc = device->libinput_device_config_scroll_set_method(LIBINPUT_CONFIG_SCROLL_2FG) == LIBINPUT_CONFIG_STATUS_SUCCESS;// | LIBINPUT_CONFIG_SCROLL_EDGE));
                         log("\t   LIBINPUT_CONFIG_SCROLL_2FG: ", rc);
