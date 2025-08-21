@@ -14018,7 +14018,7 @@ namespace netxs::lixx // li++, libinput++.
                         tp.config.dwt = &tp.dwt.config;
                     }
                 }
-                    static bool tp_dwtp_default_enabled([[maybe_unused]] tp_dispatch_sptr tp)
+                    bool tp_dwtp_default_enabled()
                     {
                         return true;
                     }
