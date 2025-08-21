@@ -592,8 +592,10 @@ namespace netxs::ui
             for (auto& [ext_gear_id, gear_ptr] : gears)
             {
                 auto& gear = *gear_ptr;
-                if (gear.mouse_disabled || std::isnan(gear.coord.x)) continue;
-                fill_pointer(gear, parent_canvas);
+                if (!gear.mouse_disabled && !std::isnan(gear.coord.x))
+                {
+                    fill_pointer(gear, parent_canvas);
+                }
             }
         }
         void draw_clipboard_preview(time const& stamp)
