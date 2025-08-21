@@ -263,18 +263,6 @@ namespace netxs::lixx // li++, libinput++.
         LIBINPUT_CONFIG_HOLD_DISABLED, // Hold gestures are to be disabled, or are currently disabled.
         LIBINPUT_CONFIG_HOLD_ENABLED,  // Hold gestures are to be enabled, or are currently disabled.
     };
-
-    enum libinput_config_tap_button_map
-    {
-        LIBINPUT_CONFIG_TAP_MAP_LRM, // 1/2/3 finger tap maps to left/right/middle.
-        LIBINPUT_CONFIG_TAP_MAP_LMR, // 1/2/3 finger tap maps to left/middle/right.
-    };
-    enum libinput_config_clickfinger_button_map
-    {
-        LIBINPUT_CONFIG_CLICKFINGER_MAP_LRM, // 1/2/3 finger click maps to left/right/middle.
-        LIBINPUT_CONFIG_CLICKFINGER_MAP_LMR, // 1/2/3 finger click maps to left/middle/right.
-    };
-
     enum libinput_config_drag_lock_state
     {
         LIBINPUT_CONFIG_DRAG_LOCK_DISABLED,        // Drag lock is to be disabled, or is currently disabled.
@@ -977,8 +965,8 @@ namespace netxs::lixx // li++, libinput++.
     static constexpr auto valid_flags    = LIBEVDEV_READ_FLAG_NORMAL | LIBEVDEV_READ_FLAG_SYNC | LIBEVDEV_READ_FLAG_FORCE_SYNC | LIBEVDEV_READ_FLAG_BLOCKING;
     static constexpr auto tap_button_map = std::to_array<std::array<ui32, 3>>(
     {
-        { evdev::btn_left, evdev::btn_right, evdev::btn_middle },
-        { evdev::btn_left, evdev::btn_middle, evdev::btn_right },
+        { evdev::btn_left, evdev::btn_right, evdev::btn_middle }, // 1/2/3 finger click maps to left/right/middle.
+        { evdev::btn_left, evdev::btn_middle, evdev::btn_right }, // 1/2/3 finger click maps to left/middle/right.
     });
     static constexpr fp64 v_us2ms(fp64 units_per_us) { return units_per_us * 1000.0; }
     static constexpr fp64 v_us2s(fp64 units_per_us)  { return units_per_us * 1000000.0; }
@@ -1205,9 +1193,9 @@ namespace netxs::lixx // li++, libinput++.
             libinput_config_status         (*set_enabled)                 (libinput_device_sptr li_device, libinput_config_tap_state enable);
             libinput_config_tap_state      (*get_enabled)                 (libinput_device_sptr li_device);
             libinput_config_tap_state      (*get_default)                 (libinput_device_sptr li_device);
-            libinput_config_status         (*set_map)                     (libinput_device_sptr li_device, libinput_config_tap_button_map map);
-            libinput_config_tap_button_map (*get_map)                     (libinput_device_sptr li_device);
-            libinput_config_tap_button_map (*get_default_map)             (libinput_device_sptr li_device);
+            libinput_config_status         (*set_map)                     (libinput_device_sptr li_device, bool use_lmr_map);
+            bool                           (*get_map)                     (libinput_device_sptr li_device);
+            bool                           (*get_default_map)             (libinput_device_sptr li_device);
             libinput_config_status         (*set_drag_enabled)            (libinput_device_sptr li_device, libinput_config_drag_state);
             libinput_config_drag_state     (*get_drag_enabled)            (libinput_device_sptr li_device);
             libinput_config_drag_state     (*get_default_drag_enabled)    (libinput_device_sptr li_device);
@@ -1224,14 +1212,14 @@ namespace netxs::lixx // li++, libinput++.
         };
         struct libinput_device_config_click_method
         {
-            ui32                                  (*get_methods)                (libinput_device_sptr li_device);
-            libinput_config_status                (*set_method)                 (libinput_device_sptr li_device, libinput_config_click_method method);
-            libinput_config_click_method          (*get_method)                 (libinput_device_sptr li_device);
-            libinput_config_click_method          (*get_default_method)         (libinput_device_sptr li_device);
-            libinput_config_status                (*set_clickfinger_map)        (libinput_device_sptr li_device, libinput_config_clickfinger_button_map map);
-            libinput_config_clickfinger_button_map(*get_clickfinger_map)        (libinput_device_sptr li_device);
-            libinput_config_clickfinger_button_map(*get_default_clickfinger_map)(libinput_device_sptr li_device);
-        };
+            ui32                         (*get_methods)                (libinput_device_sptr li_device);
+            libinput_config_status       (*set_method)                 (libinput_device_sptr li_device, libinput_config_click_method method);
+            libinput_config_click_method (*get_method)                 (libinput_device_sptr li_device);
+            libinput_config_click_method (*get_default_method)         (libinput_device_sptr li_device);
+            libinput_config_status       (*set_clickfinger_map)        (libinput_device_sptr li_device, bool use_lmr_map);
+            bool                         (*get_clickfinger_map)        (libinput_device_sptr li_device);
+            bool                         (*get_default_clickfinger_map)(libinput_device_sptr li_device);
+         ;
         struct libinput_device_config_dwt
         {
             si32                     (*is_available)       (libinput_device_sptr li_device);
@@ -8120,22 +8108,22 @@ namespace netxs::lixx // li++, libinput++.
             };
         struct tp_dispatch_buttons_t
         {
-            bool                                   is_clickpad; // True for clickpads.
-            bool                                   has_topbuttons;
-            bool                                   use_clickfinger;  // Number of fingers decides button number.
-            bool                                   click_pending;
-            ui32                                   state;
-            ui32                                   old_state;
-            fp64_coor                              motion_dist_scale_coeff; // For pinned touches.
-            ui32                                   active;  // evdev_usage_t  Currently active button, for release event.
-            bool                                   active_is_topbutton; // Is active a top button?
-            tp_dispatch_bottom_area_t              bottom_area;
-            tp_dispatch_top_area_t                 top_area;
-            libinput_device_sptr                   trackpoint_li_device;
-            libinput_config_click_method           click_method;
-            libinput_device_config_click_method    config_method;
-            libinput_config_clickfinger_button_map map;
-            libinput_config_clickfinger_button_map want_map;
+            bool                                is_clickpad; // True for clickpads.
+            bool                                has_topbuttons;
+            bool                                use_clickfinger;  // Number of fingers decides button number.
+            bool                                click_pending;
+            ui32                                state;
+            ui32                                old_state;
+            fp64_coor                           motion_dist_scale_coeff; // For pinned touches.
+            ui32                                active;  // evdev_usage_t  Currently active button, for release event.
+            bool                                active_is_topbutton; // Is active a top button?
+            tp_dispatch_bottom_area_t           bottom_area;
+            tp_dispatch_top_area_t              top_area;
+            libinput_device_sptr                trackpoint_li_device;
+            libinput_config_click_method        click_method;
+            libinput_device_config_click_method config_method;
+            bool                                use_lmr_map;
+            bool                                want_use_lmr_map;
         };
             struct tp_dispatch_active_t
             {
@@ -8168,8 +8156,8 @@ namespace netxs::lixx // li++, libinput++.
             ui32                            buttons_pressed;
             time                            press_stamp;
             time                            release_stamp;
-            libinput_config_tap_button_map  map;
-            libinput_config_tap_button_map  want_map;
+            bool                            use_lmr_map;
+            bool                            want_use_lmr_map;
             bool                            drag_enabled;
             libinput_config_drag_lock_state drag_lock;
             ui32                            nfingers_down; // Number of fingers down for tapping (excl. thumb/palm).
@@ -10973,9 +10961,9 @@ namespace netxs::lixx // li++, libinput++.
                                 }
                                     void tp_tap_update_map()
                                     {
-                                        if (tp.tap.state == TAP_STATE_IDLE && tp.tap.map != tp.tap.want_map)
+                                        if (tp.tap.state == TAP_STATE_IDLE && tp.tap.use_lmr_map != tp.tap.want_use_lmr_map)
                                         {
-                                            tp.tap.map = tp.tap.want_map;
+                                            tp.tap.use_lmr_map = tp.tap.want_use_lmr_map;
                                         }
                                     }
                                 void tp_tap_post_process_state()
@@ -10986,7 +10974,7 @@ namespace netxs::lixx // li++, libinput++.
                                     {
                                         if (tp.buttons.state == BUTTON_STATE_NONE)
                                         {
-                                            if (tp.buttons.map != tp.buttons.want_map) tp.buttons.map = tp.buttons.want_map;
+                                            if (tp.buttons.use_lmr_map != tp.buttons.want_use_lmr_map) tp.buttons.use_lmr_map = tp.buttons.want_use_lmr_map;
                                         }
                                     }
                                 void tp_button_post_process_state()
@@ -11088,7 +11076,7 @@ namespace netxs::lixx // li++, libinput++.
                                                     case 1:
                                                     case 2:
                                                     case 3:
-                                                        button = lixx::tap_button_map[tp.buttons.map][nfingers - 1];
+                                                        button = lixx::tap_button_map[tp.buttons.use_lmr_map][nfingers - 1];
                                                         break;
                                                     default:
                                                         button = 0;
@@ -11248,10 +11236,10 @@ namespace netxs::lixx // li++, libinput++.
                                         }
                                             void tp_tap_notify(time stamp, si32 nfingers, si32 state)
                                             {
-                                                assert(tp.tap.map < std::size(lixx::tap_button_map));
+                                                assert(tp.tap.use_lmr_map < std::size(lixx::tap_button_map));
                                                 if (nfingers < 1 || nfingers > 3) return;
                                                 tp_gesture_cancel(stamp);
-                                                auto button = lixx::tap_button_map[tp.tap.map][nfingers - 1];
+                                                auto button = lixx::tap_button_map[tp.tap.use_lmr_map][nfingers - 1];
                                                 if (state == evdev::pressed) tp.tap.buttons_pressed |= (1ul << nfingers);
                                                 else                         tp.tap.buttons_pressed &= ~(1ul << nfingers);
                                                 tp.evdev_pointer_notify_button(stamp, button, state);
@@ -13789,21 +13777,21 @@ namespace netxs::lixx // li++, libinput++.
                         auto& tp = *std::static_pointer_cast<tp_device>(li_device);
                         return tp.tp_impl.tp_tap_default();
                     }
-                    static libinput_config_status tp_tap_config_set_map(libinput_device_sptr li_device, libinput_config_tap_button_map map)
+                    static libinput_config_status tp_tap_config_set_map(libinput_device_sptr li_device, bool use_lmr_map)
                     {
                         auto& tp = *std::static_pointer_cast<tp_device>(li_device);
-                        tp.tap.want_map = map;
+                        tp.tap.want_use_lmr_map = use_lmr_map;
                         tp.tp_impl.tp_tap_update_map();
                         return LIBINPUT_CONFIG_STATUS_SUCCESS;
                     }
-                    static libinput_config_tap_button_map tp_tap_config_get_map(libinput_device_sptr li_device)
+                    static bool tp_tap_config_get_map(libinput_device_sptr li_device)
                     {
                         auto& tp = *std::static_pointer_cast<tp_device>(li_device);
-                        return tp.tap.want_map;
+                        return tp.tap.want_use_lmr_map;
                     }
-                    static libinput_config_tap_button_map tp_tap_config_get_default_map([[maybe_unused]] libinput_device_sptr li_device)
+                    static bool tp_tap_config_get_default_map([[maybe_unused]] libinput_device_sptr li_device)
                     {
-                        return LIBINPUT_CONFIG_TAP_MAP_LRM;
+                        return faux;
                     }
                     static libinput_config_status tp_tap_config_set_drag_enabled(libinput_device_sptr li_device, libinput_config_drag_state enabled)
                     {
@@ -13861,8 +13849,8 @@ namespace netxs::lixx // li++, libinput++.
                     tp.config.tap = &tp.tap.config;
                     tp.tap.state = TAP_STATE_IDLE;
                     tp.tap.enabled = tp_tap_default();
-                    tp.tap.map = LIBINPUT_CONFIG_TAP_MAP_LRM;
-                    tp.tap.want_map = tp.tap.map;
+                    tp.tap.use_lmr_map = faux;
+                    tp.tap.want_use_lmr_map = tp.tap.use_lmr_map;
                     tp.tap.drag_enabled = tp_drag_default(tp.This());
                     tp.tap.drag_lock = tp_drag_lock_default(tp.This());
                     auto timer_name = utf::fprint("%s% tap", tp.ud_device.sysname);
@@ -13984,21 +13972,21 @@ namespace netxs::lixx // li++, libinput++.
                         auto& tp = *std::static_pointer_cast<tp_device>(li_device);
                         return tp.tp_impl.tp_click_get_default_method();
                     }
-                    static libinput_config_status tp_button_config_set_clickfinger_map(libinput_device_sptr li_device, libinput_config_clickfinger_button_map map)
+                    static libinput_config_status tp_button_config_set_clickfinger_map(libinput_device_sptr li_device, bool use_lmr_map)
                     {
                         auto& tp = *std::static_pointer_cast<tp_device>(li_device);
-                        tp.buttons.want_map = map;
+                        tp.buttons.want_use_lmr_map = use_lmr_map;
                         tp.tp_impl.tp_button_update_clickfinger_map();
                         return LIBINPUT_CONFIG_STATUS_SUCCESS;
                     }
-                    static libinput_config_clickfinger_button_map tp_button_config_get_clickfinger_map(libinput_device_sptr li_device)
+                    static bool tp_button_config_get_clickfinger_map(libinput_device_sptr li_device)
                     {
                         auto& tp = *std::static_pointer_cast<tp_device>(li_device);
-                        return tp.buttons.want_map;
+                        return tp.buttons.want_use_lmr_map;
                     }
-                    static libinput_config_clickfinger_button_map tp_button_config_get_default_clickfinger_map([[maybe_unused]] libinput_device_sptr li_device)
+                    static bool tp_button_config_get_default_clickfinger_map([[maybe_unused]] libinput_device_sptr li_device)
                     {
-                        return LIBINPUT_CONFIG_CLICKFINGER_MAP_LRM;
+                        return faux;
                     }
                 void tp_init_buttons()
                 {
@@ -14016,8 +14004,8 @@ namespace netxs::lixx // li++, libinput++.
                     tp.buttons.config_method.get_clickfinger_map         = tp_button_config_get_clickfinger_map;
                     tp.buttons.config_method.get_default_clickfinger_map = tp_button_config_get_default_clickfinger_map;
                     tp.config.click_method = &tp.buttons.config_method;
-                    tp.buttons.map = LIBINPUT_CONFIG_CLICKFINGER_MAP_LRM;
-                    tp.buttons.want_map = tp.buttons.map;
+                    tp.buttons.use_lmr_map = faux;
+                    tp.buttons.want_use_lmr_map = tp.buttons.use_lmr_map;
                     tp.buttons.click_method = tp_click_get_default_method();
                     tp_switch_click_method();
                     tp_init_top_softbuttons(1.0);
