@@ -228,11 +228,6 @@ namespace netxs::lixx // li++, libinput++.
         LIBINPUT_CONFIG_STATUS_UNSUPPORTED, // Configuration not available on this device.
         LIBINPUT_CONFIG_STATUS_INVALID,     // Invalid parameter range.
     };
-    enum libinput_config_scroll_button_lock_state
-    {
-        LIBINPUT_CONFIG_SCROLL_BUTTON_LOCK_DISABLED,
-        LIBINPUT_CONFIG_SCROLL_BUTTON_LOCK_ENABLED,
-    };
     enum libinput_config_middle_emulation_state
     {
         LIBINPUT_CONFIG_MIDDLE_EMULATION_DISABLED, // Middle mouse button emulation is to be disabled, or is currently disabled.
@@ -1126,16 +1121,16 @@ namespace netxs::lixx // li++, libinput++.
     };
     struct libinput_device_config_scroll_method
     {
-        ui32                                    (*get_methods)            (libinput_device_sptr li_device);
-        libinput_config_status                  (*set_method)             (libinput_device_sptr li_device, libinput_config_scroll_method method);
-        libinput_config_scroll_method           (*get_method)             (libinput_device_sptr li_device);
-        libinput_config_scroll_method           (*get_default_method)     (libinput_device_sptr li_device);
-        libinput_config_status                  (*set_button)             (libinput_device_sptr li_device, ui32 button);
-        ui32                                    (*get_button)             (libinput_device_sptr li_device);
-        ui32                                    (*get_default_button)     (libinput_device_sptr li_device);
-        libinput_config_status                  (*set_button_lock)        (libinput_device_sptr li_device, libinput_config_scroll_button_lock_state);
-        libinput_config_scroll_button_lock_state(*get_button_lock)        (libinput_device_sptr li_device);
-        libinput_config_scroll_button_lock_state(*get_default_button_lock)(libinput_device_sptr li_device);
+        ui32                          (*get_methods)            (libinput_device_sptr li_device);
+        libinput_config_status        (*set_method)             (libinput_device_sptr li_device, libinput_config_scroll_method method);
+        libinput_config_scroll_method (*get_method)             (libinput_device_sptr li_device);
+        libinput_config_scroll_method (*get_default_method)     (libinput_device_sptr li_device);
+        libinput_config_status        (*set_button)             (libinput_device_sptr li_device, ui32 button);
+        ui32                          (*get_button)             (libinput_device_sptr li_device);
+        ui32                          (*get_default_button)     (libinput_device_sptr li_device);
+        libinput_config_status        (*set_button_lock)        (libinput_device_sptr li_device, bool scroll_button_lock_enabled);
+        bool                          (*get_button_lock)        (libinput_device_sptr li_device);
+        bool                          (*get_default_button_lock)(libinput_device_sptr li_device);
     };
     struct libinput_device_config_natural_scroll
     {
@@ -7352,25 +7347,19 @@ namespace netxs::lixx // li++, libinput++.
                 }
                 return 0;
             }
-            static libinput_config_status evdev_scroll_set_button_lock(libinput_device_sptr li_device, libinput_config_scroll_button_lock_state state)
+            static libinput_config_status evdev_scroll_set_button_lock(libinput_device_sptr li_device, bool scroll_button_lock_enabled)
             {
-                switch (state)
-                {
-                    case LIBINPUT_CONFIG_SCROLL_BUTTON_LOCK_DISABLED: li_device->scroll.want_lock_enabled = faux; break;
-                    case LIBINPUT_CONFIG_SCROLL_BUTTON_LOCK_ENABLED:  li_device->scroll.want_lock_enabled = true; break;
-                    default: return LIBINPUT_CONFIG_STATUS_INVALID;
-                }
+                li_device->scroll.want_lock_enabled = scroll_button_lock_enabled;
                 li_device->scroll.change_scroll_method(li_device);
                 return LIBINPUT_CONFIG_STATUS_SUCCESS;
             }
-            static libinput_config_scroll_button_lock_state evdev_scroll_get_button_lock(libinput_device_sptr li_device)
+            static bool evdev_scroll_get_button_lock(libinput_device_sptr li_device)
             {
-                auto state = li_device->scroll.lock_state == BUTTONSCROLL_LOCK_DISABLED;
-                return state ? LIBINPUT_CONFIG_SCROLL_BUTTON_LOCK_DISABLED : LIBINPUT_CONFIG_SCROLL_BUTTON_LOCK_ENABLED;
+                return li_device->scroll.lock_state;
             }
-            static libinput_config_scroll_button_lock_state evdev_scroll_get_default_button_lock([[maybe_unused]] libinput_device_sptr li_device)
+            static bool evdev_scroll_get_default_button_lock([[maybe_unused]] libinput_device_sptr li_device)
             {
-                return LIBINPUT_CONFIG_SCROLL_BUTTON_LOCK_DISABLED;
+                return faux;
             }
         void evdev_init_button_scroll(void(*change_scroll_method)(libinput_device_sptr))
         {
