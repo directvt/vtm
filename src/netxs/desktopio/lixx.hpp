@@ -228,11 +228,6 @@ namespace netxs::lixx // li++, libinput++.
         LIBINPUT_CONFIG_STATUS_UNSUPPORTED, // Configuration not available on this device.
         LIBINPUT_CONFIG_STATUS_INVALID,     // Invalid parameter range.
     };
-    enum libinput_config_tap_state
-    {
-        LIBINPUT_CONFIG_TAP_DISABLED, // Tapping is to be disabled, or is currently disabled.
-        LIBINPUT_CONFIG_TAP_ENABLED,  // Tapping is to be enabled, or is currently enabled.
-    };
     enum libinput_config_drag_state
     {
         LIBINPUT_CONFIG_DRAG_DISABLED, // Drag is to be disabled, or is currently disabled.
@@ -1190,9 +1185,9 @@ namespace netxs::lixx // li++, libinput++.
         struct libinput_device_config_tap
         {
             si32                           (*count)                       (libinput_device_sptr li_device);
-            libinput_config_status         (*set_enabled)                 (libinput_device_sptr li_device, libinput_config_tap_state enable);
-            libinput_config_tap_state      (*get_enabled)                 (libinput_device_sptr li_device);
-            libinput_config_tap_state      (*get_default)                 (libinput_device_sptr li_device);
+            libinput_config_status         (*set_enabled)                 (libinput_device_sptr li_device, bool tap_state_enabled);
+            bool                           (*get_enabled)                 (libinput_device_sptr li_device);
+            bool                           (*get_default)                 (libinput_device_sptr li_device);
             libinput_config_status         (*set_map)                     (libinput_device_sptr li_device, bool use_lmr_map);
             bool                           (*get_map)                     (libinput_device_sptr li_device);
             bool                           (*get_default_map)             (libinput_device_sptr li_device);
@@ -7461,16 +7456,13 @@ namespace netxs::lixx // li++, libinput++.
         {
             return config.tap ? config.tap->count(This()) : 0;
         }
-        libinput_config_status libinput_device_config_tap_set_enabled(libinput_config_tap_state enable)
+        libinput_config_status libinput_device_config_tap_set_enabled(bool tap_state_enabled)
         {
             auto rc = LIBINPUT_CONFIG_STATUS_INVALID;
-            if (enable == LIBINPUT_CONFIG_TAP_ENABLED || enable == LIBINPUT_CONFIG_TAP_DISABLED)
-            {
-                auto fn = libinput_device_config_tap_get_finger_count();
-                rc = fn ? config.tap->set_enabled(This(), enable)
-                        : enable ? LIBINPUT_CONFIG_STATUS_UNSUPPORTED
-                                 : LIBINPUT_CONFIG_STATUS_SUCCESS;
-            }
+            auto fn = libinput_device_config_tap_get_finger_count();
+            rc = fn ? config.tap->set_enabled(This(), tap_state_enabled)
+                    : tap_state_enabled ? LIBINPUT_CONFIG_STATUS_UNSUPPORTED
+                                        : LIBINPUT_CONFIG_STATUS_SUCCESS;
             return rc;
         }
             ui32 libinput_device_config_scroll_get_methods()
@@ -8149,7 +8141,7 @@ namespace netxs::lixx // li++, libinput++.
         struct tp_dispatch_tap_t
         {
             libinput_device_config_tap      config;
-            bool                            enabled;
+            bool                            tap_state_enabled;
             bool                            suspended;
             libinput_timer_sptr             timer;
             tp_tap_state                    state;
@@ -10136,7 +10128,7 @@ namespace netxs::lixx // li++, libinput++.
                                                         bool tp_gesture_use_hold_timer()
                                                         {
                                                             // When tap is not enabled, always use the timer.
-                                                            if (!tp.tap.enabled) return true;
+                                                            if (!tp.tap.tap_state_enabled) return true;
                                                             // Always use the timer if it is a quick hold.
                                                             if (tp_gesture_is_quick_hold()) return true;
                                                             // If the number of fingers on the touchpad exceeds the number of allowed fingers to tap, use the timer.
@@ -10173,7 +10165,7 @@ namespace netxs::lixx // li++, libinput++.
                                                         case GESTURE_EVENT_CANCEL: tp.gesture.hold_timer->cancel(); break;
                                                         case GESTURE_EVENT_FINGER_DETECTED:
                                                             // Note: this makes 3fg drag more responsive but disables 3fg pinch/hold. Those are niche enough to not worry about for now.
-                                                            if (!tp.tap.enabled && tp.drag_3fg.nfingers == tp.gesture.finger_count)
+                                                            if (!tp.tap.tap_state_enabled && tp.drag_3fg.nfingers == tp.gesture.finger_count)
                                                             {
                                                                 tp.gesture.state = GESTURE_STATE_3FG_DRAG_START;
                                                             }
@@ -11210,7 +11202,7 @@ namespace netxs::lixx // li++, libinput++.
                                 }
                                     bool tp_tap_enabled()
                                     {
-                                        return tp.tap.enabled && !tp.tap.suspended;
+                                        return tp.tap.tap_state_enabled && !tp.tap.suspended;
                                     }
                                             void tp_tap_set_timer(time stamp)
                                             {
@@ -12140,7 +12132,7 @@ namespace netxs::lixx // li++, libinput++.
                                                 tp_gesture_handle_event(GESTURE_EVENT_FINGER_DETECTED, stamp);
                                                 return;
                                             }
-                                            if (!tp.gesture.enabled && !tp.tap.enabled && ntouches == 2)
+                                            if (!tp.gesture.enabled && !tp.tap.tap_state_enabled && ntouches == 2)
                                             {
                                                 tp_gesture_handle_event(GESTURE_EVENT_SCROLL_START, stamp);
                                                 return;
@@ -13027,7 +13019,7 @@ namespace netxs::lixx // li++, libinput++.
                                         {
                                             auto was_enabled = tp_tap_enabled();
                                             tp.tap.suspended = suspended;
-                                            tp.tap.enabled = enabled;
+                                            tp.tap.tap_state_enabled = enabled;
                                             if (tp_tap_enabled() == was_enabled) return;
                                             if (tp_tap_enabled())
                                             {
@@ -13049,7 +13041,7 @@ namespace netxs::lixx // li++, libinput++.
                                         }
                                     void tp_tap_suspend(time stamp)
                                     {
-                                        tp_tap_enabled_update(true, tp.tap.enabled, stamp);
+                                        tp_tap_enabled_update(true, tp.tap.tap_state_enabled, stamp);
                                     }
                                 void tp_stop_actions(time stamp)
                                 {
@@ -13761,18 +13753,18 @@ namespace netxs::lixx // li++, libinput++.
                         auto& tp = *std::static_pointer_cast<tp_device>(li_device);
                         return std::min(tp.ntouches, 3U); // We only do up to 3 finger tap.
                     }
-                    static libinput_config_status tp_tap_config_set_enabled(libinput_device_sptr li_device, libinput_config_tap_state enabled)
+                    static libinput_config_status tp_tap_config_set_enabled(libinput_device_sptr li_device, bool tap_state_enabled)
                     {
                         auto& tp = *std::static_pointer_cast<tp_device>(li_device);
-                        tp.tp_impl.tp_tap_enabled_update(tp.tap.suspended, (enabled == LIBINPUT_CONFIG_TAP_ENABLED), datetime::now());
+                        tp.tp_impl.tp_tap_enabled_update(tp.tap.suspended, tap_state_enabled, datetime::now());
                         return LIBINPUT_CONFIG_STATUS_SUCCESS;
                     }
-                    static libinput_config_tap_state tp_tap_config_is_enabled(libinput_device_sptr li_device)
+                    static bool tp_tap_config_is_enabled(libinput_device_sptr li_device)
                     {
                         auto& tp = *std::static_pointer_cast<tp_device>(li_device);
-                        return tp.tap.enabled ? LIBINPUT_CONFIG_TAP_ENABLED : LIBINPUT_CONFIG_TAP_DISABLED;
+                        return tp.tap.tap_state_enabled;
                     }
-                    static libinput_config_tap_state tp_tap_config_get_default(libinput_device_sptr li_device)
+                    static bool tp_tap_config_get_default(libinput_device_sptr li_device)
                     {
                         auto& tp = *std::static_pointer_cast<tp_device>(li_device);
                         return tp.tp_impl.tp_tap_default();
@@ -13848,7 +13840,7 @@ namespace netxs::lixx // li++, libinput++.
                     tp.tap.config.get_default_draglock_enabled = tp_tap_config_get_default_draglock_enabled;
                     tp.config.tap = &tp.tap.config;
                     tp.tap.state = TAP_STATE_IDLE;
-                    tp.tap.enabled = tp_tap_default();
+                    tp.tap.tap_state_enabled = tp_tap_default();
                     tp.tap.use_lmr_map = faux;
                     tp.tap.want_use_lmr_map = tp.tap.use_lmr_map;
                     tp.tap.drag_enabled = tp_drag_default(tp.This());
@@ -14211,7 +14203,7 @@ namespace netxs::lixx // li++, libinput++.
                 }
                         void tp_tap_resume(time stamp)
                         {
-                            tp_tap_enabled_update(faux, tp.tap.enabled, stamp);
+                            tp_tap_enabled_update(faux, tp.tap.tap_state_enabled, stamp);
                         }
                     void tp_trackpoint_timeout(time now)
                     {
@@ -14313,18 +14305,18 @@ namespace netxs::lixx // li++, libinput++.
                         tp.libevdev_disable_event_code<EV_ABS>(ABS_PRESSURE);
                     }
                 }
-                    libinput_config_tap_state tp_tap_default()
+                    bool tp_tap_default()
                     {
                         if (!tp.libevdev_has_event_code<EV_KEY>(BTN_LEFT)) // If we don't have a left button we must have tapping enabled by default.
                         {
-                            return LIBINPUT_CONFIG_TAP_ENABLED;
+                            return true;
                         }
                         else
                         {
                             // Tapping is disabled by default for two reasons:
                             // - If you don't know that tapping is a thing (or enabled by default), you get spurious mouse events that make the desktop feel buggy.
                             // - If you do know what tapping is and you want it, you usually know where to enable it, or at least you can search for it.
-                            return LIBINPUT_CONFIG_TAP_DISABLED;
+                            return faux;
                         }
                     }
                 static si32 tp_clickpad_middlebutton_is_available(libinput_device_sptr li_device)
