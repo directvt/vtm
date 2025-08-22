@@ -260,6 +260,15 @@ namespace netxs::app::test
                 .add(header(skin::globals().NsInfoCharacterHalves))
                 .add("\n")
                 .add("😎", vss<21,11>, " 😃", vss<21,21>, "<VS21_11/VS21_21\n")
+                .add("\n")
+                .add(header(skin::globals().NsInfoTuiShadows))
+                .add("\n")
+                .add("\033[107;30m")
+                .add(" \033[2:1m \033[2:3m \033[2:7m                \033[2:6m \033[2:4m \033[2:0m \n")
+                .add(" \033[2:8m \033[2:0m                  \033[2:16m \033[2:0m ").add("\033[19D").add(skin::globals().NsInfoTuiShadowsOuter).add("\n")
+                .add(" \033[2:32m \033[2:96m \033[2:224m                \033[2:192m \033[2:128m \033[2:0m \n")
+                .add("  \033[2:247m \033[2:231m                \033[2:239m \033[2:0m  ").add("\033[19D\033[2:231m").add(skin::globals().NsInfoTuiShadowsInner).add("\n")
+                .add("\033[2:0m                      \033[m\n")
                 .add("\n");
             if constexpr (debugmode)
             {

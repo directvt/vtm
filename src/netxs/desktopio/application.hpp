@@ -920,6 +920,9 @@ namespace netxs::app::shared
         g.NsInfoRotationFlipandMirror     = config.settings::take("/Ns/Info/SF/RotationFlipandMirror"     , ""s);
         g.NsInfoCharacterMatrix           = config.settings::take("/Ns/Info/SF/CharacterMatrix"           , ""s);
         g.NsInfoCharacterHalves           = config.settings::take("/Ns/Info/SF/CharacterHalves"           , ""s);
+        g.NsInfoTuiShadows                = config.settings::take("/Ns/Info/SF/TuiShadows"                , ""s);
+        g.NsInfoTuiShadowsInner           = config.settings::take("/Ns/Info/SF/TuiShadowsInner"           , ""s);
+        g.NsInfoTuiShadowsOuter           = config.settings::take("/Ns/Info/SF/TuiShadowsOuter"           , ""s);
         g.NsInfosRGBBlending              = config.settings::take("/Ns/Info/SF/sRGBBlending"              , ""s);
         g.NsInfoPressCtrlCaps             = config.settings::take("/Ns/Info/SF/PressCtrlCaps"             , ""s);
 

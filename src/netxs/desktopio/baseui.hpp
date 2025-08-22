@@ -591,6 +591,9 @@ namespace netxs::ui
         text NsInfoRotationFlipandMirror;
         text NsInfoCharacterMatrix;
         text NsInfoCharacterHalves;
+        text NsInfoTuiShadows;
+        text NsInfoTuiShadowsInner;
+        text NsInfoTuiShadowsOuter;
         text NsInfosRGBBlending;
         text NsInfoPressCtrlCaps;
 

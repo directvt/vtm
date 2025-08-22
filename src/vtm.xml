@@ -527,6 +527,9 @@ R"==(
                 <RotationFlipandMirror="Rotation, Flip, and Mirror"/>
                 <CharacterMatrix="Character Matrix"/>
                 <CharacterHalves="Character Halves"/>
+                <TuiShadows="UI Shadows"/>
+                <TuiShadowsInner="Inner shadow"/>
+                <TuiShadowsOuter="Outer shadow"/>
                 <sRGBBlending="sRGB Gamma-correct Blending"/>
                 <PressCtrlCaps="Press Ctrl+CapsLock to toggle antialiasing mode on to check results."/>
             </SF>
@@ -742,6 +745,9 @@ R"==(
                 <RotationFlipandMirror="Вращение, переворот и отражение"/>
                 <CharacterMatrix="Матрица символов"/>
                 <CharacterHalves="Половинки символов"/>
+                <TuiShadows="Тени в пользовательском интерфейсе"/>
+                <TuiShadowsInner="Внутренняя тень"/>
+                <TuiShadowsOuter="Внешняя тень"/>
                 <sRGBBlending="Гамма-корректное sRGB наложение"/>
                 <PressCtrlCaps="Чтобы посмотреть работу наложения, переключите режим антиалиасинга нажатием Ctrl+CapsLock."/>
             </SF>
