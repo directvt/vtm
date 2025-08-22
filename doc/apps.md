@@ -17,7 +17,9 @@
 
 ### Features
 
-- Non-wrapped text output with horizontal scrolling support.
+- Non-wrapped text output with horizontal scrolling.
+- Terminal control using Lua scripts via APC.
+- Special (Exclusive) keyboard mode for terminal window to transfer all keyboard data to the terminal as is.
 - Configurable scrollback buffer size (100k lines by default, limited by `max_int32` and system RAM).
 - Search for text in the scrollback buffer.
 - Linear and rectangular text selection for copying and searching.
@@ -64,13 +66,26 @@ Usage examples:
   printf "\e_local n,m,q=vtm.terminal.ScrollbackSize(); vtm.terminal.PrintLn('size=', n, ' growstep=', m, ' maxsize=', q)\e\\"
 
   # Set the scrollback buffer limit to 10K lines
-  printf "\e_vtm.terminal.ScrollbackSize(10000)\e\a"
+  printf "\e_vtm.terminal.ScrollbackSize(10000)\a"
 
   # Maximize the terminal window
   printf "\e_vtm.applet.Maximize()\e\\"
   ```
 
 A complete list of available script functions can be found in [settings.md](settings.md#event-sources).
+
+Note: The terminal parser may incorrectly detect the boundaries of a control sequence if the script body contains an explicit ESC character. In such cases, it is necessary to use character combinations that represent ESC implicitly, such as `\e`, `\u{1b}`, `\x1b`.
+
+Example in bash:
+```bash
+printf "\e_vtm.terminal.PrintLn('\\e[44mHello!\\e[m')\a"
+printf "\e_vtm.terminal.PrintLn('\\\u{1b}[44mHello!\\\u{1b}[m')\a"
+printf "\e_vtm.terminal.PrintLn('\\x1b[44mHello!\\x1b[m')\a"
+```
+
+### Special keyboard mode for terminal window to transfer all keyboard input to the terminal as is
+
+The special (visible in the UI as Exclusive) terminal window mode allows all keyboard input to be passed through directly to the terminal, suppressing the existing UI keyboard bindings. This makes it possible for the terminal application to reuse any key combinations assigned to the terminal window, the vtm desktop, or another external UI object. The list of default key bindings is available in [`user-interface.md`](user-interface.md).
 
 ### Private control sequences
 
