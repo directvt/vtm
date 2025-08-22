@@ -159,8 +159,9 @@ namespace netxs::app::desk
                 });
             auto app_label = item_area->attach(slot::_1, ui::item::ctor(ansi::add(utf8).mgl(0).wrp(wrap::off).jet(bias::left)))
                 ->active()
-                ->template plugin<pro::focus>(pro::focus::mode::focused)
-                ->template plugin<pro::keybd>()
+                //todo taskbar keybd navigation
+                //->template plugin<pro::focus>(pro::focus::mode::focused)
+                //->template plugin<pro::keybd>()
                 ->shader(c3, e2::form::state::focus::count)
                 ->setpad({ tall + 1, 0, tall, tall })
                 ->template plugin<pro::notes>(skin::globals().NsTaskbarAppsApp_tooltip)
@@ -556,8 +557,9 @@ namespace netxs::app::desk
                 });
             auto taskbar_grips = taskbar_viewport->attach(slot::_1, ui::fork::ctor(axis::X))
                 ->limits({ menu_min_size, -1 }, { menu_min_size, -1 })
-                ->plugin<pro::focus>()
-                ->plugin<pro::keybd>()
+                //todo taskbar keybd navigation
+                //->plugin<pro::focus>()
+                //->plugin<pro::keybd>()
                 ->plugin<pro::timer>()
                 ->plugin<pro::acryl>()
                 ->plugin<pro::cache>()
@@ -644,6 +646,7 @@ namespace netxs::app::desk
                 ->limits({ 1, -1 }, { 1, -1 })
                 ->template plugin<pro::notes>(skin::globals().NsTaskbarGrips_tooltip)
                 ->active()
+                //todo taskbar keybd navigation
                 //->template plugin<pro::focus>(pro::focus::mode::focusable)
                 //->shader(c3, e2::form::state::focus::count)
                 ->shader(cell::shaders::xlight, e2::form::state::hover)
