@@ -300,7 +300,6 @@ namespace netxs::app::test
                 utf::replace_all(test, "q", "\033[2:192m \033[2:0m"); // 𜺌𜹥w6
                 utf::replace_all(test, "r", "\033[2:128m \033[2:0m"); // 𜺎𜹥w7
                 crop.add(test, "\033[m\n");
-                log("test=", utf::debase437(test));
             if constexpr (debugmode)
             {
                 crop.add(header(skin::globals().NsInfosRGBBlending))
