@@ -2771,6 +2771,11 @@ namespace netxs::ui
             static constexpr auto x3y1_x3y2_x3y3 = 41;   // 𜺏𜹥 = 41; // 𜷂
             static constexpr auto x1y1_x1y2_x1y3 = 148;  // 𜹺𜺏 = 148; // 𜷖
 
+            // 𜹸𜺌 = 244
+            // 𜹚𜹟 = 151
+            // 𜺌𜹤 = 233
+            // 𜹟𜹕 = 47
+
             static auto draw_shadow(rect area, face& canvas)
             {
                 if (!area) return;

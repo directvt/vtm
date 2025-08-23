@@ -268,8 +268,39 @@ namespace netxs::app::test
                 .add(" \033[2:8m \033[2:0m                  \033[2:16m \033[2:0m ").add("\033[19D").add(skin::globals().NsInfoTuiShadowsOuter).add("\n")
                 .add(" \033[2:32m \033[2:96m \033[2:224m                \033[2:192m \033[2:128m \033[2:0m \n")
                 .add("  \033[2:247m \033[2:231m                \033[2:239m \033[2:0m  ").add("\033[19D\033[2:231m").add(skin::globals().NsInfoTuiShadowsInner).add("\n")
-                .add("\033[2:0m                      \033[m\n")
+                .add("\033[2:0m                      \n")
                 .add("\n");
+                auto test = "     abde    abde     \n"
+                          //"     f  g    f  g     \n"
+                            "  abcpccoccccp  ocde  \n"
+                            "  j          f  g  k  \n"
+                            "  lmninnhnnnni  hnqr  \n"
+                            "     f  g    f  g     \n"
+                            "  abcp  occccpccocde  \n"
+                            "  j  f  g          k  \n"
+                            "  lmni  hnnnninnhnqr  \n"
+                          //"     f  g    f  g     \n"
+                            "     lmqr    lmqr     \n"s;
+                utf::replace_all(test, "m", "\033[2:96m \033[2:0m");  // 𜺍𜹤w2
+                utf::replace_all(test, "a", "\033[2:1m \033[2:0m");   // 𜺏𜹕q0
+                utf::replace_all(test, "b", "\033[2:3m \033[2:0m");   // 𜹯𜹕q1
+                utf::replace_all(test, "c", "\033[2:7m \033[2:0m");   // 𜹟𜹟q2
+                utf::replace_all(test, "d", "\033[2:6m \033[2:0m");   // 𜹟𜹥q3
+                utf::replace_all(test, "e", "\033[2:4m \033[2:0m");   // 𜹿𜹥q4
+                utf::replace_all(test, "f", "\033[2:41m \033[2:0m");  // 𜺏𜹥q5
+                utf::replace_all(test, "g", "\033[2:148m \033[2:0m"); // 𜹺𜺏q6
+                utf::replace_all(test, "h", "\033[2:244m \033[2:0m"); // 𜹸𜺌w5
+                utf::replace_all(test, "i", "\033[2:233m \033[2:0m"); // 𜺌𜹤w4
+                utf::replace_all(test, "j", "\033[2:8m \033[2:0m");   // 𜺏𜹡q9
+                utf::replace_all(test, "k", "\033[2:16m \033[2:0m");  // 𜺋𜹥w0
+                utf::replace_all(test, "l", "\033[2:32m \033[2:0m");  // 𜺏𜹤w1
+                utf::replace_all(test, "n", "\033[2:224m \033[2:0m"); // 𜺌𜺌w3
+                utf::replace_all(test, "o", "\033[2:151m \033[2:0m"); // 𜹚𜹟q8
+                utf::replace_all(test, "p", "\033[2:47m \033[2:0m");  // 𜹟𜹕q7
+                utf::replace_all(test, "q", "\033[2:192m \033[2:0m"); // 𜺌𜹥w6
+                utf::replace_all(test, "r", "\033[2:128m \033[2:0m"); // 𜺎𜹥w7
+                crop.add(test, "\033[m\n");
+                log("test=", utf::debase437(test));
             if constexpr (debugmode)
             {
                 crop.add(header(skin::globals().NsInfosRGBBlending))
