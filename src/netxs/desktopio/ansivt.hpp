@@ -977,8 +977,8 @@ namespace netxs::ansi
     auto cursor0(si32 i)       { return escx{}.cursor0(i);    } // ansi: Set cursor inside the cell.
     auto ref(si32 i)           { return escx{}.ref(i);        } // ansi: Create the reference to the existing paragraph. Create new id if it is not existing.
     auto idx(si32 i)           { return escx{}.idx(i);        } // ansi: Split the text run and associate the fragment with an id.
-                                                                       //       All following text is under the IDX until the next command is issued.
-                                                                       //       Redefine if the id already exists.
+                                                                //       All following text is under the IDX until the next command is issued.
+                                                                //       Redefine if the id already exists.
     // ansi: Curses commands.
     // The order is important (see the richtext::flow::exec constexpr).
     //todo tie with richtext::flow::exec
