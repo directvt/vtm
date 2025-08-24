@@ -403,23 +403,23 @@ Hotkey                       | Description
     <events>  <!-- The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop. The 'key*' statement here is to clear all previous bindings and start a new list. -->
         <terminal script*>  <!-- Terminal bindings. -->
             <script=ExclusiveKeyboardMode              on="preview: Alt+Shift+B"/>
-            <script="vtm.gear.SetHandled()"            on="Esc"/> <!-- Do nothing. We use the Esc key as a modifier. Its press+release events will only be sent after the key is physically released, and only if no other keys were pressed along with Esc. -->
-            <script                                    on="-Esc">  --  Clear selection if it is and send Esc press and release events.
+            <script="vtm.gear.SetHandled()" on="Esc"/> <!-- Do nothing. We use the Esc key as a modifier. Its press+release events will only be sent after the key is physically released, and only if no other keys were pressed along with Esc. -->
+            <script                         on="-Esc">  --  Clear selection if it is and send Esc press and release events.
                 vtm.terminal.ClearSelection()
                 vtm.terminal.KeyEvent({ virtcod=0x1b, scancod=1, keystat=1, cluster='\\u{1b}' }, { virtcod=0x1b, scancod=1, keystat=0 })
             </script>
-            <script=TerminalFindNext                   on="Alt+RightArrow"       />
-            <script=TerminalFindPrev                   on="Alt+LeftArrow"        />
-            <script=TerminalScrollViewportOnePageUp    on="Shift+Ctrl+PageUp"    />
-            <script=TerminalScrollViewportOnePageDown  on="Shift+Ctrl+PageDown"  />
-            <script=TerminalScrollViewportOnePageLeft  on="Shift+Alt+LeftArrow"  />
-            <script=TerminalScrollViewportOnePageRight on="Shift+Alt+RightArrow" />
-            <script=TerminalScrollViewportOneLineUp    on="Shift+Ctrl+UpArrow"   />
-            <script=TerminalScrollViewportOneLineDown  on="Shift+Ctrl+DownArrow" />
-            <script=TerminalScrollViewportOneCellLeft  on="Shift+Ctrl+LeftArrow" />
-            <script=TerminalScrollViewportOneCellRight on="Shift+Ctrl+RightArrow"/>
-            <script=TerminalScrollViewportToTop        on="Shift+Ctrl+Home"      />
-            <script=TerminalScrollViewportToEnd        on="Shift+Ctrl+End"       />
+            <script=IgnoreAltbuf | TerminalFindNext                   on="Alt+RightArrow"       />
+            <script=IgnoreAltbuf | TerminalFindPrev                   on="Alt+LeftArrow"        />
+            <script=IgnoreAltbuf | TerminalScrollViewportOnePageUp    on="Shift+Ctrl+PageUp"    />
+            <script=IgnoreAltbuf | TerminalScrollViewportOnePageDown  on="Shift+Ctrl+PageDown"  />
+            <script=IgnoreAltbuf | TerminalScrollViewportOnePageLeft  on="Shift+Alt+LeftArrow"  />
+            <script=IgnoreAltbuf | TerminalScrollViewportOnePageRight on="Shift+Alt+RightArrow" />
+            <script=IgnoreAltbuf | TerminalScrollViewportOneLineUp    on="Shift+Ctrl+UpArrow"   />
+            <script=IgnoreAltbuf | TerminalScrollViewportOneLineDown  on="Shift+Ctrl+DownArrow" />
+            <script=IgnoreAltbuf | TerminalScrollViewportOneCellLeft  on="Shift+Ctrl+LeftArrow" />
+            <script=IgnoreAltbuf | TerminalScrollViewportOneCellRight on="Shift+Ctrl+RightArrow"/>
+            <script=IgnoreAltbuf | TerminalScrollViewportToTop        on="Shift+Ctrl+Home"      />
+            <script=IgnoreAltbuf | TerminalScrollViewportToEnd        on="Shift+Ctrl+End"       />
             <script=TerminalSendKey                    on=""                     />
             <script=TerminalReset                      on=""                     />
             <script=TerminalClearScrollback            on=""                     />
