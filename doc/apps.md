@@ -125,7 +125,12 @@ Note: It is possible to combine multiple command into a single sequence using a 
 
 ### UI Shadows as SGR attribute
 
-The built-in terminal supports the output of UI shadows using the subparameters of the SGR 2 (faint) attribute separated by a colon. The subparameter is a decimal integer from 0 to 255, the value of which corresponds to the state of the bits of the so-called "shadow cube" of size 3x3: In the center is the shaded cell, and around it are the shading cells.  The presence of shading cells corresponds to a bit value of 1, the absence - to a bit value of 0.
+The built-in terminal supports for in-cell UI shadows, specified using a colon-separated subparameter of the SGR 2 (faint) attribute.
+
+- `ESC [` 2 : n `m`  
+  where n=0-255 is a bit field to specify shadows inside the cell.
+
+The subparameter is a decimal integer from 0 to 255, the value of which corresponds to the state of the bits representing cells around the cell: In the center is the shaded cell, and around it are the shading cells.  The presence of shading cells corresponds to a bit value of 1, the absence - to a bit value of 0.
 
 Every bit "drops the shadow" inside the "central" cell:
 ```
@@ -134,12 +139,9 @@ Shadow bits:  0  1  2
               5  6  7
 ```
 
-The bits of the "shadow cube" are enumerated from the upper left corner row by row excluding the central shaded cell. Eight bits are used, hence the range of subparameter values ​​0-255 inclusive. This approach allows shadows to be combined with each other simply by performing a binary OR operation.
+The bits are enumerated from the upper left corner row by row excluding the central shaded cell. Eight bits are used, hence the range of subparameter values ​​0-255 inclusive. This approach allows shadows to be combined with each other simply by performing a binary OR operation.
 
 Shadows persist as an SGR attribute and are visible in GUI mode:
-
-- `ESC [` 2 : n `m`  
-  where n=0-255 is a bit field to specify shadows inside the cell.
 
 #### Examples
 
