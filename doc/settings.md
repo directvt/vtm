@@ -894,7 +894,7 @@ Notes
             </autorun>
             <width>  <!-- Taskbar menu width. -->
                 <folded=18/>
-                <expanded=32/>
+                <expanded=40/>
             </width>
             <timeout=250ms/>  <!-- Taskbar collaplse timeout after mouse leave. -->
             <colors>
@@ -1088,18 +1088,18 @@ Notes
                 vtm.terminal.ClearSelection()
                 vtm.terminal.KeyEvent({ virtcod=0x1b, scancod=1, keystat=1, cluster='\\u{1b}' }, { virtcod=0x1b, scancod=1, keystat=0 })
             </script>
-            <script=TerminalFindNext                   on="Alt+RightArrow"       />
-            <script=TerminalFindPrev                   on="Alt+LeftArrow"        />
-            <script=TerminalScrollViewportOnePageUp    on="Shift+Ctrl+PageUp"    />
-            <script=TerminalScrollViewportOnePageDown  on="Shift+Ctrl+PageDown"  />
-            <script=TerminalScrollViewportOnePageLeft  on="Shift+Alt+LeftArrow"  />
-            <script=TerminalScrollViewportOnePageRight on="Shift+Alt+RightArrow" />
-            <script=TerminalScrollViewportOneLineUp    on="Shift+Ctrl+UpArrow"   />
-            <script=TerminalScrollViewportOneLineDown  on="Shift+Ctrl+DownArrow" />
-            <script=TerminalScrollViewportOneCellLeft  on="Shift+Ctrl+LeftArrow" />
-            <script=TerminalScrollViewportOneCellRight on="Shift+Ctrl+RightArrow"/>
-            <script=TerminalScrollViewportToTop        on="Shift+Ctrl+Home"      />
-            <script=TerminalScrollViewportToEnd        on="Shift+Ctrl+End"       />
+            <script=IgnoreAltbuf | TerminalFindNext                   on="Alt+RightArrow"       />
+            <script=IgnoreAltbuf | TerminalFindPrev                   on="Alt+LeftArrow"        />
+            <script=IgnoreAltbuf | TerminalScrollViewportOnePageUp    on="Shift+Ctrl+PageUp"    />
+            <script=IgnoreAltbuf | TerminalScrollViewportOnePageDown  on="Shift+Ctrl+PageDown"  />
+            <script=IgnoreAltbuf | TerminalScrollViewportOnePageLeft  on="Shift+Alt+LeftArrow"  />
+            <script=IgnoreAltbuf | TerminalScrollViewportOnePageRight on="Shift+Alt+RightArrow" />
+            <script=IgnoreAltbuf | TerminalScrollViewportOneLineUp    on="Shift+Ctrl+UpArrow"   />
+            <script=IgnoreAltbuf | TerminalScrollViewportOneLineDown  on="Shift+Ctrl+DownArrow" />
+            <script=IgnoreAltbuf | TerminalScrollViewportOneCellLeft  on="Shift+Ctrl+LeftArrow" />
+            <script=IgnoreAltbuf | TerminalScrollViewportOneCellRight on="Shift+Ctrl+RightArrow"/>
+            <script=IgnoreAltbuf | TerminalScrollViewportToTop        on="Shift+Ctrl+Home"      />
+            <script=IgnoreAltbuf | TerminalScrollViewportToEnd        on="Shift+Ctrl+End"       />
             <script=TerminalSendKey                    on=""                     />
             <script=TerminalReset                      on=""                     />
             <script=TerminalClearScrollback            on=""                     />
@@ -1284,6 +1284,9 @@ Notes
                 <RotationFlipandMirror="Rotation, Flip, and Mirror"/>
                 <CharacterMatrix="Character Matrix"/>
                 <CharacterHalves="Character Halves"/>
+                <TuiShadows="UI Shadows"/>
+                <TuiShadowsInner="Inner shadow"/>
+                <TuiShadowsOuter="Outer shadow"/>
                 <sRGBBlending="sRGB Gamma-correct Blending"/>
                 <PressCtrlCaps="Press Ctrl+CapsLock to toggle antialiasing mode on to check results."/>
             </SF>
@@ -1327,13 +1330,13 @@ Notes
                 </App>
             </Apps>
             <tooltip_footer>
-                "\e[m\n""   LeftClick to launch instance ""\n"
-                        "   RightClick to set as default "
+                "   LeftClick to launch instance ""\n"
+                "   RightClick to set as default "
             </tooltip_footer>
-            <Terminal    label="Terminal Emulator" title="Terminal"       tooltip="\e[1m Terminal Console                \e[m\n"|tooltip_footer/>
-            <Tile        label="Window Manager"    title="Window Manager" tooltip="\e[1m Tiling Window Manager           \e[m\n"|tooltip_footer/>
-            <Site        label="Viewport Marker"   title="Site "          tooltip="\e[1m Desktop Viewport Marker         \e[m\n"|tooltip_footer/>
-            <Logs        label="Log Monitor"       title="Log Monitor"    tooltip="\e[1m Log Monitor                     \e[m\n"|tooltip_footer/>
+            <Terminal    label="Terminal Emulator" title="Terminal"       tooltip="\e[1m Terminal Console               \e[m\n"|tooltip_footer/>
+            <Tile        label="Window Manager"    title="Window Manager" tooltip="\e[1m Tiling Window Manager          \e[m\n"|tooltip_footer/>
+            <Site        label="Viewport Marker"   title="Site "          tooltip="\e[1m Desktop Viewport Marker        \e[m\n"|tooltip_footer/>
+            <Logs        label="Log Monitor"       title="Log Monitor"    tooltip="\e[1m Log Monitor                    \e[m\n"|tooltip_footer/>
             <Grips    tooltip=" LeftDrag to adjust taskbar width "/>
             <UserList tooltip=" List of active connections ">
                 <Admins label="admins"/>
@@ -1424,6 +1427,7 @@ Notes
             <Apps label="applets"/>
         </Taskbar>
     </en-GB>
+
     <ru-RU>
         <TextbasedDesktopEnvironment="  Текстовая среда рабочего стола  "/>
         <Info label="Информация" title=label tooltip=" Информация ">
@@ -1497,6 +1501,9 @@ Notes
                 <RotationFlipandMirror="Вращение, переворот и отражение"/>
                 <CharacterMatrix="Матрица символов"/>
                 <CharacterHalves="Половинки символов"/>
+                <TuiShadows="Тени в пользовательском интерфейсе"/>
+                <TuiShadowsInner="Внутренняя тень"/>
+                <TuiShadowsOuter="Внешняя тень"/>
                 <sRGBBlending="Гамма-корректное sRGB наложение"/>
                 <PressCtrlCaps="Чтобы посмотреть работу наложения, переключите режим антиалиасинга нажатием Ctrl+CapsLock."/>
             </SF>
@@ -1926,5 +1933,6 @@ Notes
     <TerminalAlignMode                 ="vtm.terminal.LineAlignMode((vtm.terminal.LineAlignMode() + 1) % 3);"/>    <!-- Toggle terminal scrollback lines aligning mode. Applied to the active selection if it is. 0: left; 1: right; 2: center. -->
     <TerminalStdioLog                  ="vtm.terminal.LogMode(vtm.terminal.LogMode()==1 and 0 or 1);"/>            <!-- Toggle stdin/stdout logging. -->
     <TerminalRestart                   ="vtm.terminal.Restart();"/>                    <!-- Terminate runnning console apps and restart current session. -->
+    <IgnoreAltbuf                      ="if (vtm.terminal.AltbufMode()) then vtm.terminal.ForwardKeys(); return; end;"/>  <!-- Forward the last key event to the terminal if the alternate buffer is active. -->
 </Scripting>
 ```
