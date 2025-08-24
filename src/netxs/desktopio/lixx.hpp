@@ -5761,7 +5761,7 @@ namespace netxs::lixx // li++, libinput++.
                 if (iter == ud_device_list.end())
                 {
                     auto ud_device_ptr = ptr::shared<ud_device_t>(filename);
-                    if (ud_device_ptr->initialized && li.libinput_device_create(*ud_device_ptr))
+                    if (ud_device_ptr->initialized && li.libinput_device_create(ud_device_ptr))
                     {
                         ud_device_list[filename] = ud_device_ptr;
                         return true;
@@ -5861,7 +5861,7 @@ namespace netxs::lixx // li++, libinput++.
         ud_monitor_t                          ud_monitor;
         std::list<libinput_device_sptr>       device_list;
 
-        libinput_device_sptr libinput_device_create(ud_device_t& ud_device);
+        libinput_device_sptr libinput_device_create(ud_device_sptr ud_device_ptr);
         static auto& empty_event()
         {
             static auto empty_event = libinput_event_device_notify{};
@@ -6054,8 +6054,8 @@ namespace netxs::lixx // li++, libinput++.
         };
 
         libinput_t&                             li;
+        ud_device_sptr                          ud_device_ptr; // Owning the physical device.
         ud_device_t&                            ud_device;
-        ud_device_sptr                          deleted_device_ptr; // Backup device reference when device is removed.
         text                                    device_group; //todo Property for tablet touch arbitration. Set LIBINPUT_DEVICE_GROUP somewhere in settings (or in quirks) for devices intended to be in a group (e.g. tablet+stylus).
         std::list<libinput_event_listener_sptr> event_listeners;
         libinput_device_config                  config;
@@ -6076,9 +6076,10 @@ namespace netxs::lixx // li++, libinput++.
         evdev_middlebutton_t                    middlebutton;
         evdev_frame                             frame;
 
-        libinput_device_t(libinput_t& li, ud_device_t& ud_device)
-            :      li{ li },
-            ud_device{ ud_device }
+        libinput_device_t(libinput_t& li, ud_device_sptr ud_device_ptr)
+            :          li{ li },
+            ud_device_ptr{ ud_device_ptr },
+                ud_device{ *ud_device_ptr }
         { }
         virtual ~libinput_device_t()
         { }
@@ -6989,15 +6990,7 @@ namespace netxs::lixx // li++, libinput++.
                     return faux;
                 }
             });
-            std::erase_if(li.ud_monitor.ud_device_list, [&](auto d)
-            {
-                auto found = d.second.get() == &ud_device;
-                if (found)
-                {
-                    deleted_device_ptr = d.second;
-                }
-                return found;
-            });
+            std::erase_if(li.ud_monitor.ud_device_list, [&](auto d){ return d.second.get() == &ud_device; });
             log("Device '%%' removed", ud_device.devname);
         }
         si32 evdev_device_resume()
@@ -19643,13 +19636,14 @@ namespace netxs::lixx // li++, libinput++.
         si32              get_switch_state(libinput_switch which)                                      { return generic_impl.fallback_interface_get_switch_state(which); }
     };
 
-    libinput_device_sptr create_totem(libinput_t& li, ud_device_t& ud_device)
+    libinput_device_sptr create_totem(libinput_t& li, ud_device_sptr ud_device_ptr)
     {
+        auto& ud_device = *ud_device_ptr;
         ud_device.device_class += " totem";
         auto totem_ptr = sptr<totem_device>{};
         if (!ud_device.totem_reject_device())
         {
-            totem_ptr = ptr::shared<totem_device>(li, ud_device);
+            totem_ptr = ptr::shared<totem_device>(li, ud_device_ptr);
             auto& totem = *totem_ptr;
             totem.device_caps |= EVDEV_DEVICE_TABLET;
             auto num_slots = totem.ud_device.num_slots;
@@ -19671,10 +19665,11 @@ namespace netxs::lixx // li++, libinput++.
         }
         return totem_ptr;
     }
-    libinput_device_sptr create_tablet_pad(libinput_t& li, ud_device_t& ud_device)
+    libinput_device_sptr create_tablet_pad(libinput_t& li, ud_device_sptr ud_device_ptr)
     {
+        auto& ud_device = *ud_device_ptr;
         ud_device.device_class += " tabletpad";
-        auto pad_ptr = ptr::shared<pad_device>(li, ud_device);
+        auto pad_ptr = ptr::shared<pad_device>(li, ud_device_ptr);
         pad_ptr->device_caps |= EVDEV_DEVICE_TABLET_PAD;
         if (!pad_ptr->pad_impl.pad_init())
         {
@@ -19682,10 +19677,11 @@ namespace netxs::lixx // li++, libinput++.
         }
         return pad_ptr;
     }
-    libinput_device_sptr create_tablet(libinput_t& li, ud_device_t& ud_device)
+    libinput_device_sptr create_tablet(libinput_t& li, ud_device_sptr ud_device_ptr)
     {
+        auto& ud_device = *ud_device_ptr;
         ud_device.device_class += " tablet";
-        auto tablet_ptr = ptr::shared<tablet_device>(li, ud_device);
+        auto tablet_ptr = ptr::shared<tablet_device>(li, ud_device_ptr);
         auto& tablet = *tablet_ptr;
         tablet.device_caps |= EVDEV_DEVICE_TABLET;
         #if HAVE_LIBWACOM
@@ -19701,10 +19697,11 @@ namespace netxs::lixx // li++, libinput++.
         }
         return tablet_ptr;
     }
-    libinput_device_sptr create_touchpad(libinput_t& li, ud_device_t& ud_device, ui32 udev_tags)
+    libinput_device_sptr create_touchpad(libinput_t& li, ud_device_sptr ud_device_ptr, ui32 udev_tags)
     {
+        auto& ud_device = *ud_device_ptr;
         ud_device.device_class += " touchpad";
-        auto tp_ptr = ptr::shared<tp_device>(li, ud_device);
+        auto tp_ptr = ptr::shared<tp_device>(li, ud_device_ptr);
         auto& tp = *tp_ptr;
         if (udev_tags & EVDEV_UDEV_TAG_TABLET)
         {
@@ -19722,9 +19719,10 @@ namespace netxs::lixx // li++, libinput++.
         }
         return tp_ptr;
     }
-    libinput_device_sptr create_generic(libinput_t& li, ud_device_t& ud_device, ui32 udev_tags)
+    libinput_device_sptr create_generic(libinput_t& li, ud_device_sptr ud_device_ptr, ui32 udev_tags)
         {
-            auto generic_ptr = ptr::shared<generic_device>(li, ud_device);
+            auto& ud_device = *ud_device_ptr;
+            auto generic_ptr = ptr::shared<generic_device>(li, ud_device_ptr);
             auto& generic = *generic_ptr;
             if (udev_tags & EVDEV_UDEV_TAG_MOUSE || udev_tags & EVDEV_UDEV_TAG_POINTINGSTICK)
             {
@@ -19836,8 +19834,9 @@ namespace netxs::lixx // li++, libinput++.
             generic.generic_impl.fallback_init_arbitration(generic_ptr);
             return generic_ptr;
         }
-    libinput_device_sptr libinput_t::libinput_device_create(ud_device_t& ud_device)
+    libinput_device_sptr libinput_t::libinput_device_create(ud_device_sptr ud_device_ptr)
     {
+        auto& ud_device = *ud_device_ptr;
         auto& li = *this;
         ud_device.evdev_read_model_flags(li);
         ud_device.abs.calibration.matrix_init_identity();
@@ -19863,11 +19862,11 @@ namespace netxs::lixx // li++, libinput++.
                     udev_tags &= ~EVDEV_UDEV_TAG_TOUCHSCREEN;
                 }
             }
-                 if (ud_device.evdev_device_has_model_quirk(li, QUIRK_MODEL_DELL_CANVAS_TOTEM)) li_device = create_totem(     li, ud_device);
-            else if (udev_tags & EVDEV_UDEV_TAG_TABLET_PAD)                                     li_device = create_tablet_pad(li, ud_device); // Libwacom assigns tablet _and_ tablet_pad to the pad devices.
-            else if (udev_tags & EVDEV_UDEV_TAG_PURETABLET)                                     li_device = create_tablet(    li, ud_device); // Libwacom assigns touchpad (or touchscreen) _and_ tablet to the tablet touch bits, so make sure we don't initialize the tablet interface for the touch device.
-            else if (udev_tags & EVDEV_UDEV_TAG_TOUCHPAD)                                       li_device = create_touchpad(  li, ud_device, udev_tags);
-            else                                                                                li_device = create_generic(   li, ud_device, udev_tags);
+                 if (ud_device.evdev_device_has_model_quirk(li, QUIRK_MODEL_DELL_CANVAS_TOTEM)) li_device = create_totem(     li, ud_device_ptr);
+            else if (udev_tags & EVDEV_UDEV_TAG_TABLET_PAD)                                     li_device = create_tablet_pad(li, ud_device_ptr); // Libwacom assigns tablet _and_ tablet_pad to the pad devices.
+            else if (udev_tags & EVDEV_UDEV_TAG_PURETABLET)                                     li_device = create_tablet(    li, ud_device_ptr); // Libwacom assigns touchpad (or touchscreen) _and_ tablet to the tablet touch bits, so make sure we don't initialize the tablet interface for the touch device.
+            else if (udev_tags & EVDEV_UDEV_TAG_TOUCHPAD)                                       li_device = create_touchpad(  li, ud_device_ptr, udev_tags);
+            else                                                                                li_device = create_generic(   li, ud_device_ptr, udev_tags);
         }
         log("Device '%%':%%", ud_device.properties["NAME"], ud_device.device_class);
         if (li_device && li_device->device_caps)
