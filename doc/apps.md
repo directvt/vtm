@@ -21,10 +21,12 @@
 - Terminal control using Lua scripts via APC.
 - Special (Exclusive) keyboard mode for terminal window to transfer all keyboard data to the terminal as is.
 - Configurable scrollback buffer size (100k lines by default, limited by `max_int32` and system RAM).
+- Support for outputting plain text over other colored text while preserving all SGR attributes (a-la transparent color).
+- Support for printing SGR attributes without text over existing text (coloring by printing colored null characters).
 - Search for text in the scrollback buffer.
 - Linear and rectangular text selection for copying and searching.
 - Full [VT2D](character_geometry.md) support.
-- Shadow SGR attribute. See below for details.
+- UI Shadows as SGR attribute.
 - Support for several formats of copying the selected text:
   - Plain text
   - RTF
@@ -42,6 +44,24 @@
   - Per process (not per process name) Windows Command Prompt (cmd.exe) input history, aka "Line input" or "Cooked read".
   - Floating point (pixel-wise) mouse reporting.
 - Stdin/stdout logging.
+
+### Support for outputting plain text over other colored text while preserving all SGR attributes
+
+Outputting plain text over other colored text while preserving all SGR attributes allows changing the text inside cells without having to re-specify the color and other SGR attributes for the output string. This significantly simplifies and speeds up the output of intensively updated colored text blocks. This is achieved by using the so-called "transparent" color. The "transparent" color could be enabled by setting the following values ​​for the background color: red=255, green=255, blue=255, alpha=0.
+
+For example, replacing the letter `e` with `A` inside a colored text block:
+```bash
+printf "\e[44;31m Hello \e[mTest\b\b\b\b\b\b\b\b\b\e[48:2:255:255:255:0mA\e[m\n"
+```
+
+### Support for printing SGR attributes without text over existing text
+
+Printing SGR attributes without text over existing content allows to colorize existing on-screen blocks without having to re-print the text itself. Keeping the existing text on-screen is achieved by using the required number of null characters as the output string. When outputting a null character, the vtm terminal keeps the current character in the cell, updating only the SGR attributes.
+
+For example, color only the word ` Hello ` inside a monochrome string:
+```bash
+printf " Hello Test\r\e[44;31m\0\0\0\0\0\0\0\e[m\n"
+```
 
 ### Terminal control using Lua scripts via APC
 
@@ -89,37 +109,41 @@ The special (visible in the UI as Exclusive) terminal window mode allows all key
 
 ### Private control sequences
 
-Name         | Sequence                         | Description
--------------|----------------------------------|------------
-`CCC_SBS`    | `CSI` 24 : n : m : q `p`         | Set scrollback buffer parameters:<br>`n` Initial buffer size<br>`m` Grow step<br>`q` Grow limit
-`CCC_SGR`    | `CSI` 28 : Pm `p`                | Set terminal background SGR attribute:<br>`m` SGR attribute (attribute m may include subarguments separated by colons), 0 — reset all attributes, _default is 0_
-`CCC_SEL`    | `CSI` 29 : n `p`                 | Set text selection mode:<br>`n = 0` Selection is off<br>`n = 1` Select and copy as plaintext (default)<br>`n = 2` Select and copy as ANSI/VT text<br>`n = 3` Select and copy as RTF-document<br>`n = 4` Select and copy as HTML-code<br>`n = 5` Select and copy as protected plaintext (suppressed preview, [details](https://learn.microsoft.com/en-us/windows/win32/dataxchg/clipboard-formats#cloud-clipboard-and-clipboard-history-formats))
-`CCC_PAD`    | `CSI` 30 : n `p`                 | Set scrollback buffer left and right side padding:<br>`n` Width in cells, _max = 255, default is 0_
-`CCC_RST`    | `CSI` 1 `p`                      | Reset all parameters to default
-`CCC_TBS`    | `CSI` 5 : n `p`                  | Set tab length in cells:<br>`n` Length in cells, _max = 256, default is 8_
-`CCC_JET`    | `CSI` 11 : n `p`                 | Set text alignment, _default is Left_:<br>`n = 0`<br>`n = 1` Left<br>`n = 2` Right<br>`n = 3` Center
-`CCC_WRP`    | `CSI` 12 : n `p`                 | Set text autowrap mode, _default is On_:<br>`n = 0`<br>`n = 1` On<br>`n = 2` Off (_enables horizontal scrolling_)
-`CCC_RTL`    | `CSI` 13 : n `p`                 | Set text right-to-left mode, _default is Off_:<br>`n = 0`<br>`n = 1` On<br>`n = 2` Off
+Name         | Sequence                           | Description
+-------------|------------------------------------|------------
+`CCC_SBS`    | `ESC [` 24 : n : m : q `p`         | Set scrollback buffer parameters:<br>`n` Initial buffer size<br>`m` Grow step<br>`q` Grow limit
+`CCC_SGR`    | `ESC [` 28 : Pm `p`                | Set terminal background SGR attribute:<br>`m` SGR attribute (attribute m may include subarguments separated by colons), 0 — reset all attributes, _default is 0_
+`CCC_SEL`    | `ESC [` 29 : n `p`                 | Set text selection mode:<br>`n = 0` Selection is off<br>`n = 1` Select and copy as plaintext (default)<br>`n = 2` Select and copy as ANSI/VT text<br>`n = 3` Select and copy as RTF-document<br>`n = 4` Select and copy as HTML-code<br>`n = 5` Select and copy as protected plaintext (suppressed preview, [details](https://learn.microsoft.com/en-us/windows/win32/dataxchg/clipboard-formats#cloud-clipboard-and-clipboard-history-formats))
+`CCC_PAD`    | `ESC [` 30 : n `p`                 | Set scrollback buffer left and right side padding:<br>`n` Width in cells, _max = 255, default is 0_
+`CCC_RST`    | `ESC [` 1 `p`                      | Reset all parameters to default
+`CCC_TBS`    | `ESC [` 5 : n `p`                  | Set tab length in cells:<br>`n` Length in cells, _max = 256, default is 8_
+`CCC_JET`    | `ESC [` 11 : n `p`                 | Set text alignment, _default is Left_:<br>`n = 0`<br>`n = 1` Left<br>`n = 2` Right<br>`n = 3` Center
+`CCC_WRP`    | `ESC [` 12 : n `p`                 | Set text autowrap mode, _default is On_:<br>`n = 0`<br>`n = 1` On<br>`n = 2` Off (_enables horizontal scrolling_)
+`CCC_RTL`    | `ESC [` 13 : n `p`                 | Set text right-to-left mode, _default is Off_:<br>`n = 0`<br>`n = 1` On<br>`n = 2` Off
 
 Note: It is possible to combine multiple command into a single sequence using a semicolon. For example, the following sequence disables line wrapping, enables text selection, and sets background to blue: `\e[12:2;29:1;28:44p` or `\e[12:2;29:1;28:48:2:0:0:255p`.
 
-### Shadow SGR attribute
+### UI Shadows as SGR attribute
 
-Built-in terminal supports a shadow SGR attribute in form of 3x3 shadow cube:
-- `CSI` 2 : n `m`  
-  where n=0-255 is a bit field to specify shadows inside the cell.
+The built-in terminal supports the output of UI shadows using the subparameters of the SGR 2 (faint) attribute separated by a colon. The subparameter is a decimal integer from 0 to 255, the value of which corresponds to the state of the bits of the so-called "shadow cube" of size 3x3: In the center is the shaded cell, and around it are the shading cells.  The presence of shading cells corresponds to a bit value of 1, the absence - to a bit value of 0.
 
+Every bit "drops the shadow" inside the "central" cell:
 ```
 Shadow bits:  0  1  2
               3 >n< 4
               5  6  7
 ```
-Every bit drops the shadow inside the cell.
 
-Shadows persist as an SGR attribute and are visible in GUI mode.
+The bits of the "shadow cube" are enumerated from the upper left corner row by row excluding the central shaded cell. Eight bits are used, hence the range of subparameter values ​​0-255 inclusive. This approach allows shadows to be combined with each other simply by performing a binary OR operation.
+
+Shadows persist as an SGR attribute and are visible in GUI mode:
+
+- `ESC [` 2 : n `m`  
+  where n=0-255 is a bit field to specify shadows inside the cell.
 
 #### Examples
-- The shadow around a 1x1 window:
+
+- Shadows around the single cell:
   ```
    0  0  0   0  0  0   0  0  0
    0 >1< 0   0 >2< 0   0 >4< 0
@@ -127,13 +151,13 @@ Shadows persist as an SGR attribute and are visible in GUI mode.
            ┌─────────┐        
    0  0  0 │         │ 0  0  0
    0 >8< 1 │  1x1    │ 1 >16<0
-   0  0  0 │  Window │ 0  0  0
+   0  0  0 │  1 cell │ 0  0  0
            └─────────┘        
    0  0  1   0  1  0   1  0  0
    0 >32<0   0 >64<0   0>128<0
    0  0  0   0  0  0   0  0  0
     ```
-- 3x1 shadow (outer and inner), `pwsh`:
+- Shadows (outer and inner) around the 3x1 text block (pwsh)
   ```pwsh
   "`e[107;30m";`
   "`e[2:1m `e[2:3m `e[2:7m `e[2:6m `e[2:4m ";`
@@ -144,6 +168,21 @@ Shadows persist as an SGR attribute and are visible in GUI mode.
   
   ```
   ![image](https://github.com/user-attachments/assets/4c485864-7e50-4356-ad77-da65f2a5764e)
+- Shadow crossing (pwsh)
+  ```pwsh
+  "`e[107;30m";`
+  "     `e[2:1m `e[2:3m `e[2:6m `e[2:4m `e[2:0m    `e[2:1m `e[2:3m `e[2:6m `e[2:4m `e[2:0m     ";`
+  "  `e[2:1m `e[2:3m `e[2:7m `e[2:47m `e[2:7m `e[2:7m `e[2:151m `e[2:7m `e[2:7m `e[2:7m `e[2:7m `e[2:47m `e[2:0m  `e[2:151m `e[2:7m `e[2:6m `e[2:4m `e[2:0m  ";`
+  "  `e[2:8m `e[2:0m          `e[2:41m `e[2:0m  `e[2:148m `e[2:0m  `e[2:16m `e[2:0m  ";`
+  "  `e[2:32m `e[2:96m `e[2:224m `e[2:233m `e[2:224m `e[2:224m `e[2:244m `e[2:224m `e[2:224m `e[2:224m `e[2:224m `e[2:233m `e[2:0m  `e[2:244m `e[2:224m `e[2:192m `e[2:128m `e[2:0m  ";`
+  "     `e[2:41m `e[2:0m  `e[2:148m `e[2:0m    `e[2:41m `e[2:0m  `e[2:148m `e[2:0m     ";`
+  "  `e[2:1m `e[2:3m `e[2:7m `e[2:47m `e[2:0m  `e[2:151m `e[2:7m `e[2:7m `e[2:7m `e[2:7m `e[2:47m `e[2:7m `e[2:7m `e[2:151m `e[2:7m `e[2:6m `e[2:4m `e[2:0m  ";`
+  "  `e[2:8m `e[2:0m  `e[2:41m `e[2:0m  `e[2:148m `e[2:0m          `e[2:16m `e[2:0m  ";`
+  "  `e[2:32m `e[2:96m `e[2:224m `e[2:233m `e[2:0m  `e[2:244m `e[2:224m `e[2:224m `e[2:224m `e[2:224m `e[2:233m `e[2:224m `e[2:224m `e[2:244m `e[2:224m `e[2:192m `e[2:128m `e[2:0m  ";`
+  "     `e[2:32m `e[2:96m `e[2:192m `e[2:128m `e[2:0m    `e[2:32m `e[2:96m `e[2:192m `e[2:128m `e[2:0m     `e[m";`
+  
+  ```
+  ![image](https://github.com/user-attachments/assets/87f269a7-1e22-4a52-928b-870a607ae259)
 
 ### VT2D support
 

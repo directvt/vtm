@@ -122,6 +122,8 @@ namespace netxs::ui
             X(LineWrapMode         ) /* */ \
             X(LineAlignMode        ) /* */ \
             X(LogMode              ) /* */ \
+            X(AltbufMode           ) /* */ \
+            X(ForwardKeys          ) /* */ \
             X(ClearScrollback      ) /* */ \
             X(ScrollbackSize       ) /* */ \
             X(EventReporting       ) /* */ \
@@ -8254,9 +8256,9 @@ namespace netxs::ui
             imefmt.flow::compose<faux>(imebox, test);
             return composit_cursor;
         }
-        void key_event(hids& gear)
+        void key_event(hids& gear, bool forced_event = faux)
         {
-            if (gear.touched && !rawkbd) return;
+            if (!forced_event && gear.touched && !rawkbd) return;
             switch (gear.payload)
             {
                 case keybd::type::keypress:
@@ -8268,7 +8270,7 @@ namespace netxs::ui
                         follow[axis::Y] = true;
                     }
                     ipccon.keybd(gear, decckm, kbmode);
-                    if (!gear.touched || gear.keystat != input::key::released || rawkbd) gear.set_handled(faux);
+                    if (forced_event || !gear.touched || gear.keystat != input::key::released || rawkbd) gear.set_handled(faux);
                     break;
                 case keybd::type::imeinput:
                 case keybd::type::keypaste:
@@ -8685,6 +8687,28 @@ namespace netxs::ui
                                                             set_log(state);
                                                             luafx.set_return();
                                                         }
+                                                    }},
+                { methods::AltbufMode,              [&]
+                                                    {
+                                                        auto args_count = luafx.args_count();
+                                                        if (!args_count)
+                                                        {
+                                                            auto is_altbuf = target != &normal;
+                                                            luafx.set_return(is_altbuf);
+                                                        }
+                                                        else
+                                                        {
+                                                            auto state = luafx.get_args_or(1, faux);
+                                                            state ? _decset(1049) : _decrst(1049);
+                                                            luafx.set_return();
+                                                        }
+                                                    }},
+                { methods::ForwardKeys,             [&]
+                                                    {
+                                                        luafx.run_with_gear([&](auto& gear)
+                                                        {
+                                                            key_event(gear, true);
+                                                        });
                                                     }},
                 { methods::ClearScrollback,         [&]
                                                     {
