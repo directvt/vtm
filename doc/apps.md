@@ -21,8 +21,7 @@
 - Terminal control using Lua scripts via APC.
 - Special (Exclusive) keyboard mode for terminal window to transfer all keyboard data to the terminal as is.
 - Configurable scrollback buffer size (100k lines by default, limited by `max_int32` and system RAM).
-- Support for outputting plain text over other colored text while preserving all SGR attributes (a-la transparent color).
-- Support for printing SGR attributes without text over existing text (coloring by printing colored null characters).
+- Independent text-only and color-only output.
 - Search for text in the scrollback buffer.
 - Linear and rectangular text selection for copying and searching.
 - Full [VT2D](character_geometry.md) support.
@@ -45,16 +44,18 @@
   - Floating point (pixel-wise) mouse reporting.
 - Stdin/stdout logging.
 
-### Support for outputting plain text over other colored text while preserving all SGR attributes
+### Independent text-only and color-only output
 
-Outputting plain text over other colored text while preserving all SGR attributes allows changing the text inside cells without having to re-specify the color and other SGR attributes for the output string. This significantly simplifies and speeds up the output of intensively updated colored text blocks. This is achieved by using the so-called "transparent" color. The "transparent" color could be enabled by setting the following values ​​for the background color: red=255, green=255, blue=255, alpha=0.
+#### Text-only output
+
+Outputting plain text over other colored text while preserving all SGR attributes allows changing the text inside cells without having to re-specify the color and other SGR attributes for the output string (there may be a large number of attributes, and the one who prints may not even support it). This significantly simplifies and speeds up the output of intensively updated colored text blocks. This is achieved by using the so-called "transparent" color. The "transparent" color could be enabled by setting the following values ​​for the background color: red=255, green=255, blue=255, alpha=0.
 
 For example, replacing the letter `e` with `A` inside a colored text block:
 ```bash
 printf "\e[44;31m Hello \e[mTest\b\b\b\b\b\b\b\b\b\e[48:2:255:255:255:0mA\e[m\n"
 ```
 
-### Support for printing SGR attributes without text over existing text
+#### Color-only output
 
 Printing SGR attributes without text over existing content allows to colorize existing on-screen blocks without having to re-print the text itself. Keeping the existing text on-screen is achieved by using the required number of null characters as the output string. When outputting a null character, the vtm terminal keeps the current character in the cell, updating only the SGR attributes.
 
