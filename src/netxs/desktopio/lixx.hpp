@@ -315,10 +315,9 @@ namespace netxs::lixx // li++, libinput++.
         EVDEV_ABSOLUTE_MOTION     = 1 << 1,
         EVDEV_ABSOLUTE_TOUCH_UP   = 1 << 2,
         EVDEV_ABSOLUTE_MT         = 1 << 3,
-        EVDEV_WHEEL               = 1 << 4,
-        EVDEV_KEY                 = 1 << 5,
-        EVDEV_RELATIVE_MOTION     = 1 << 6,
-        EVDEV_BUTTON              = 1 << 7,
+        EVDEV_KEY                 = 1 << 4,
+        EVDEV_RELATIVE_MOTION     = 1 << 5,
+        EVDEV_BUTTON              = 1 << 6,
     };
     enum debounce_event
     {
@@ -6953,7 +6952,7 @@ namespace netxs::lixx // li++, libinput++.
                     frame.evdev_frame_append_input_event(ev);
                     if (ev.type == EV_SYN && ev.code == SYN_REPORT)
                     {
-                        evdev_device_dispatch_frame(frame);
+                        evdev_device_dispatch_frame(frame); //todo filter/drop kernel auto-repeat events (ev.value=1) for tp devices
                         frame.evdev_frame_reset();
                     }
                 }
@@ -8649,19 +8648,8 @@ namespace netxs::lixx // li++, libinput++.
                                     //
                                     // All touchpad devices have at least one slot so we only do this
                                     // for 2 touches or higher.
-                                    //
-                                    // There's an bug in libevdev < 1.9.0 affecting slots after a
-                                    // SYN_DROPPED. Where a user release one or more touches during
-                                    // SYN_DROPPED and places new ones on the touchpad, we may end up
-                                    // with fake touches but no active slots.
-                                    // So let's check for nactive_slots > 0 to make sure we don't lose
-                                    // all fingers. That's a workaround only, this must be fixed in
-                                    // libevdev.
-                                    //
-                                    // For a long explanation of what happens, see https://gitlab.freedesktop.org/libevdev/libevdev/merge_requests/19.
                                     if (tp.ud_device.model_flags & EVDEV_MODEL_ALPS_SERIAL_TOUCHPAD
                                      && nfake_touches > 1 && tp.has_mt
-                                     && tp.nactive_slots > 0
                                      && nfake_touches > tp.nactive_slots
                                      && tp.nactive_slots < tp.num_slots)
                                     {
@@ -17804,7 +17792,6 @@ namespace netxs::lixx // li++, libinput++.
             wheel_state         state{};
             si32_coor           lo_res;
             si32_coor           hi_res;
-            bool                emulate_hi_res_wheel{};
             bool                hi_res_event_received{};
             libinput_timer_sptr scroll_timer;
             wheel_direction     dir{};
@@ -18005,22 +17992,17 @@ namespace netxs::lixx // li++, libinput++.
                                 case evdev::rel_wheel:
                                     fallback_rotate_wheel(ev);
                                     generic.wheel.lo_res.y += ev.value;
-                                    if (generic.wheel.emulate_hi_res_wheel) generic.wheel.hi_res.y += ev.value * 120;
-                                    generic.pending_event = (evdev_event_type)(generic.pending_event | EVDEV_WHEEL);
                                     wheel_handle_event(WHEEL_EVENT_SCROLL, stamp);
                                     break;
                                 case evdev::rel_hwheel:
                                     fallback_rotate_wheel(ev);
                                     generic.wheel.lo_res.x += ev.value;
-                                    if (generic.wheel.emulate_hi_res_wheel) generic.wheel.hi_res.x += ev.value * 120;
-                                    generic.pending_event = (evdev_event_type)(generic.pending_event | EVDEV_WHEEL);
                                     wheel_handle_event(WHEEL_EVENT_SCROLL, stamp);
                                     break;
                                 case evdev::rel_wheel_hi_res:
                                     fallback_rotate_wheel(ev);
                                     generic.wheel.hi_res.y += ev.value;
                                     generic.wheel.hi_res_event_received = true;
-                                    generic.pending_event = (evdev_event_type)(generic.pending_event | EVDEV_WHEEL);
                                     wheel_handle_direction_change(ev, stamp);
                                     wheel_handle_event(WHEEL_EVENT_SCROLL, stamp);
                                     break;
@@ -18028,7 +18010,6 @@ namespace netxs::lixx // li++, libinput++.
                                     fallback_rotate_wheel(ev);
                                     generic.wheel.hi_res.x += ev.value;
                                     generic.wheel.hi_res_event_received = true;
-                                    generic.pending_event = (evdev_event_type)(generic.pending_event | EVDEV_WHEEL);
                                     wheel_handle_direction_change(ev, stamp);
                                     wheel_handle_event(WHEEL_EVENT_SCROLL, stamp);
                                     break;
@@ -18721,7 +18702,7 @@ namespace netxs::lixx // li++, libinput++.
                                 }
                             void wheel_handle_state_accumulating_scroll(time stamp)
                             {
-                                static constexpr auto acc_v120_threshold = 60;
+                                static constexpr auto acc_v120_threshold = 60; //todo make it non-static and based on std::abs(ev.value) (actual for the for the hi-res wheel mouses)
                                 if (std::abs(generic.wheel.hi_res.x) >= acc_v120_threshold
                                  || std::abs(generic.wheel.hi_res.y) >= acc_v120_threshold)
                                 {
@@ -18733,12 +18714,10 @@ namespace netxs::lixx // li++, libinput++.
                         {
                             if (generic.device_caps & EVDEV_DEVICE_POINTER)
                             {
-                                if (!generic.wheel.emulate_hi_res_wheel
-                                 && !generic.wheel.hi_res_event_received
+                                if (!generic.wheel.hi_res_event_received
                                  && (generic.wheel.lo_res.x != 0 || generic.wheel.lo_res.y != 0))
                                 {
-                                    log("device supports high-resolution scroll but only low-resolution events have been received");
-                                    generic.wheel.emulate_hi_res_wheel = true;
+                                    log("Device supports high-resolution scroll but only low-resolution events have been received");
                                     generic.wheel.hi_res.x = generic.wheel.lo_res.x * 120;
                                     generic.wheel.hi_res.y = generic.wheel.lo_res.y * 120;
                                 }
@@ -19581,12 +19560,6 @@ namespace netxs::lixx // li++, libinput++.
             {
                 generic.wheel.state = WHEEL_STATE_NONE;
                 generic.wheel.dir = WHEEL_DIR_UNKNOW;
-                // On kernel < 5.0 we need to emulate high-resolution wheel scroll events.
-                if ((li_device->libevdev_has_event_code<EV_REL>(REL_WHEEL)  && !li_device->libevdev_has_event_code<EV_REL>(REL_WHEEL_HI_RES))
-                 || (li_device->libevdev_has_event_code<EV_REL>(REL_HWHEEL) && !li_device->libevdev_has_event_code<EV_REL>(REL_HWHEEL_HI_RES)))
-                {
-                    generic.wheel.emulate_hi_res_wheel = true;
-                }
                 generic.wheel.ignore_small_hi_res_movements = !generic.evdev_device_is_virtual();
                 if (generic.wheel.ignore_small_hi_res_movements)
                 {
