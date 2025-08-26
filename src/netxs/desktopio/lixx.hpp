@@ -315,10 +315,9 @@ namespace netxs::lixx // li++, libinput++.
         EVDEV_ABSOLUTE_MOTION     = 1 << 1,
         EVDEV_ABSOLUTE_TOUCH_UP   = 1 << 2,
         EVDEV_ABSOLUTE_MT         = 1 << 3,
-        EVDEV_WHEEL               = 1 << 4,
-        EVDEV_KEY                 = 1 << 5,
-        EVDEV_RELATIVE_MOTION     = 1 << 6,
-        EVDEV_BUTTON              = 1 << 7,
+        EVDEV_KEY                 = 1 << 4,
+        EVDEV_RELATIVE_MOTION     = 1 << 5,
+        EVDEV_BUTTON              = 1 << 6,
     };
     enum debounce_event
     {
@@ -4256,22 +4255,19 @@ namespace netxs::lixx // li++, libinput++.
         }
         bool evdev_check_min_max(ui32 code)
         {
-            if (libevdev_has_event_code<EV_ABS>(code))
+            if (auto absinfo = libevdev_get_abs_info(code))
+            if (absinfo->minimum == absinfo->maximum)
             {
-                auto absinfo = libevdev_get_abs_info(code);
-                if (absinfo->minimum == absinfo->maximum)
+                // Some devices have a sort-of legitimate min/max of 0 for ABS_MISC and above (e.g. Roccat Kone XTD). Don't ignore them, simply disable the axes so we won't get events, we don't know what to do with them anyway.
+                if (absinfo->minimum == 0 && code >= ABS_MISC && code < ABS_MT_SLOT)
                 {
-                    // Some devices have a sort-of legitimate min/max of 0 for ABS_MISC and above (e.g. Roccat Kone XTD). Don't ignore them, simply disable the axes so we won't get events, we don't know what to do with them anyway.
-                    if (absinfo->minimum == 0 && code >= ABS_MISC && code < ABS_MT_SLOT)
-                    {
-                        log("disabling EV_ABS %#x% on device (min == max == 0)", code);
-                        libevdev_disable_event_code<EV_ABS>(code);
-                    }
-                    else
-                    {
-                        log("device has min == max on EV_ABS 'code=%%'", code);
-                        return faux;
-                    }
+                    log("Disabling EV_ABS %#x% on device (min == max == 0)", code);
+                    libevdev_disable_event_code<EV_ABS>(code);
+                }
+                else
+                {
+                    log("Device has min == max on EV_ABS 'code=%%'", code);
+                    return faux;
                 }
             }
             return true;
@@ -4426,11 +4422,6 @@ namespace netxs::lixx // li++, libinput++.
         void evdev_extract_abs_axes(Li& li, ui32 udev_tags)
         {
             auto fuzz = 0;
-            if (!libevdev_has_event_code<EV_ABS>(ABS_X)
-             || !libevdev_has_event_code<EV_ABS>(ABS_Y))
-            {
-                return;
-            }
             if (evdev_fix_abs_resolution(li, ABS_X, ABS_Y))
             {
                 abs.is_fake_resolution = true;
@@ -6953,7 +6944,7 @@ namespace netxs::lixx // li++, libinput++.
                     frame.evdev_frame_append_input_event(ev);
                     if (ev.type == EV_SYN && ev.code == SYN_REPORT)
                     {
-                        evdev_device_dispatch_frame(frame);
+                        evdev_device_dispatch_frame(frame); //todo filter/drop kernel auto-repeat events (ev.value=1) for tp devices
                         frame.evdev_frame_reset();
                     }
                 }
@@ -7455,22 +7446,16 @@ namespace netxs::lixx // li++, libinput++.
         ui32 libinput_device_config_accel_get_profiles()
         {
             if (!libinput_device_config_accel_is_available()) return 0;
-            return config.accel->get_profiles(This());
+            else                                              return config.accel->get_profiles(This());
         }
         libinput_config_status libinput_device_config_accel_set_profile(libinput_config_accel_profile profile)
         {
-            switch (profile)
-            {
-                case LIBINPUT_CONFIG_ACCEL_PROFILE_FLAT:
-                case LIBINPUT_CONFIG_ACCEL_PROFILE_ADAPTIVE:
-                case LIBINPUT_CONFIG_ACCEL_PROFILE_CUSTOM: break;
-                default: return LIBINPUT_CONFIG_STATUS_INVALID;
-            }
-            if (libinput_device_config_accel_is_available() && (libinput_device_config_accel_get_profiles() & profile))
-            {
-                return config.accel->set_profile(This(), profile);
-            }
-            else return LIBINPUT_CONFIG_STATUS_UNSUPPORTED;
+            auto ok = profile == LIBINPUT_CONFIG_ACCEL_PROFILE_FLAT
+                   || profile == LIBINPUT_CONFIG_ACCEL_PROFILE_ADAPTIVE
+                   || profile == LIBINPUT_CONFIG_ACCEL_PROFILE_CUSTOM;
+                 if (!ok)                                                   return LIBINPUT_CONFIG_STATUS_INVALID;
+            else if (libinput_device_config_accel_get_profiles() & profile) return config.accel->set_profile(This(), profile);
+            else                                                            return LIBINPUT_CONFIG_STATUS_UNSUPPORTED;
         }
         void evdev_read_calibration_prop()
         {
@@ -7606,7 +7591,7 @@ namespace netxs::lixx // li++, libinput++.
             {
                 auto filter_ptr = li_device->pointer_filter;
                 return filter_ptr ? LIBINPUT_CONFIG_ACCEL_PROFILE_ADAPTIVE | LIBINPUT_CONFIG_ACCEL_PROFILE_FLAT | LIBINPUT_CONFIG_ACCEL_PROFILE_CUSTOM
-                                : LIBINPUT_CONFIG_ACCEL_PROFILE_NONE;
+                                  : LIBINPUT_CONFIG_ACCEL_PROFILE_NONE;
             }
         void evdev_device_init_pointer_acceleration(motion_filter_sptr filter)
         {
@@ -8649,19 +8634,8 @@ namespace netxs::lixx // li++, libinput++.
                                     //
                                     // All touchpad devices have at least one slot so we only do this
                                     // for 2 touches or higher.
-                                    //
-                                    // There's an bug in libevdev < 1.9.0 affecting slots after a
-                                    // SYN_DROPPED. Where a user release one or more touches during
-                                    // SYN_DROPPED and places new ones on the touchpad, we may end up
-                                    // with fake touches but no active slots.
-                                    // So let's check for nactive_slots > 0 to make sure we don't lose
-                                    // all fingers. That's a workaround only, this must be fixed in
-                                    // libevdev.
-                                    //
-                                    // For a long explanation of what happens, see https://gitlab.freedesktop.org/libevdev/libevdev/merge_requests/19.
                                     if (tp.ud_device.model_flags & EVDEV_MODEL_ALPS_SERIAL_TOUCHPAD
                                      && nfake_touches > 1 && tp.has_mt
-                                     && tp.nactive_slots > 0
                                      && nfake_touches > tp.nactive_slots
                                      && tp.nactive_slots < tp.num_slots)
                                     {
@@ -13635,18 +13609,13 @@ namespace netxs::lixx // li++, libinput++.
                         if (filter->filter_get_type() != profile)
                         {
                             auto speed = filter->filter_get_speed();
-                            if (tp.tp_impl.tp_init_accel(profile))
-                            {
-                                tp.tp_impl.tp_accel_config_set_speed(speed);
-                            }
-                            else
-                            {
-                                return LIBINPUT_CONFIG_STATUS_UNSUPPORTED;
-                            }
+                            tp.tp_impl.tp_init_accel(profile);
+                            tp.tp_impl.tp_accel_config_set_speed(speed);
                         }
+                        //todo always true
                         return LIBINPUT_CONFIG_STATUS_SUCCESS;
                     }
-                bool tp_init_accel(libinput_config_accel_profile which)
+                void tp_init_accel(libinput_config_accel_profile which)
                 {
                     auto filter = motion_filter_sptr{};
                     auto dpi = tp.dpi;
@@ -13681,10 +13650,8 @@ namespace netxs::lixx // li++, libinput++.
                         }
                         filter = ptr::shared<touchpad_accelerator>(dpi, eds_threshold, eds_value, use_v_avg);
                     }
-                    if (!filter) return faux;
                     tp.evdev_device_init_pointer_acceleration(filter);
                     tp.pointer_config.set_profile = tp_accel_config_set_profile;
-                    return true;
                 }
                     void tp_tap_handle_timeout(time now)
                     {
@@ -14554,10 +14521,7 @@ namespace netxs::lixx // li++, libinput++.
                 }
                 tp.dpi = tp.ud_device.abs.absinfo_x->resolution * 25.4; // Set the dpi to that of the x axis, because that's what we normalize to when needed.
                 tp_init_hysteresis();
-                if (!tp_init_accel(LIBINPUT_CONFIG_ACCEL_PROFILE_ADAPTIVE))
-                {
-                    return faux;
-                }
+                tp_init_accel(LIBINPUT_CONFIG_ACCEL_PROFILE_ADAPTIVE);
                 tp_init_tap();
                 tp_init_buttons();
                 tp_init_dwt();
@@ -17804,7 +17768,6 @@ namespace netxs::lixx // li++, libinput++.
             wheel_state         state{};
             si32_coor           lo_res;
             si32_coor           hi_res;
-            bool                emulate_hi_res_wheel{};
             bool                hi_res_event_received{};
             libinput_timer_sptr scroll_timer;
             wheel_direction     dir{};
@@ -18005,22 +17968,17 @@ namespace netxs::lixx // li++, libinput++.
                                 case evdev::rel_wheel:
                                     fallback_rotate_wheel(ev);
                                     generic.wheel.lo_res.y += ev.value;
-                                    if (generic.wheel.emulate_hi_res_wheel) generic.wheel.hi_res.y += ev.value * 120;
-                                    generic.pending_event = (evdev_event_type)(generic.pending_event | EVDEV_WHEEL);
                                     wheel_handle_event(WHEEL_EVENT_SCROLL, stamp);
                                     break;
                                 case evdev::rel_hwheel:
                                     fallback_rotate_wheel(ev);
                                     generic.wheel.lo_res.x += ev.value;
-                                    if (generic.wheel.emulate_hi_res_wheel) generic.wheel.hi_res.x += ev.value * 120;
-                                    generic.pending_event = (evdev_event_type)(generic.pending_event | EVDEV_WHEEL);
                                     wheel_handle_event(WHEEL_EVENT_SCROLL, stamp);
                                     break;
                                 case evdev::rel_wheel_hi_res:
                                     fallback_rotate_wheel(ev);
                                     generic.wheel.hi_res.y += ev.value;
                                     generic.wheel.hi_res_event_received = true;
-                                    generic.pending_event = (evdev_event_type)(generic.pending_event | EVDEV_WHEEL);
                                     wheel_handle_direction_change(ev, stamp);
                                     wheel_handle_event(WHEEL_EVENT_SCROLL, stamp);
                                     break;
@@ -18028,7 +17986,6 @@ namespace netxs::lixx // li++, libinput++.
                                     fallback_rotate_wheel(ev);
                                     generic.wheel.hi_res.x += ev.value;
                                     generic.wheel.hi_res_event_received = true;
-                                    generic.pending_event = (evdev_event_type)(generic.pending_event | EVDEV_WHEEL);
                                     wheel_handle_direction_change(ev, stamp);
                                     wheel_handle_event(WHEEL_EVENT_SCROLL, stamp);
                                     break;
@@ -18721,7 +18678,7 @@ namespace netxs::lixx // li++, libinput++.
                                 }
                             void wheel_handle_state_accumulating_scroll(time stamp)
                             {
-                                static constexpr auto acc_v120_threshold = 60;
+                                static constexpr auto acc_v120_threshold = 60; //todo make it non-static and based on std::abs(ev.value) (actual for the for the hi-res wheel mouses)
                                 if (std::abs(generic.wheel.hi_res.x) >= acc_v120_threshold
                                  || std::abs(generic.wheel.hi_res.y) >= acc_v120_threshold)
                                 {
@@ -18733,12 +18690,10 @@ namespace netxs::lixx // li++, libinput++.
                         {
                             if (generic.device_caps & EVDEV_DEVICE_POINTER)
                             {
-                                if (!generic.wheel.emulate_hi_res_wheel
-                                 && !generic.wheel.hi_res_event_received
+                                if (!generic.wheel.hi_res_event_received
                                  && (generic.wheel.lo_res.x != 0 || generic.wheel.lo_res.y != 0))
                                 {
-                                    log("device supports high-resolution scroll but only low-resolution events have been received");
-                                    generic.wheel.emulate_hi_res_wheel = true;
+                                    log("Device supports high-resolution scroll but only low-resolution events have been received");
                                     generic.wheel.hi_res.x = generic.wheel.lo_res.x * 120;
                                     generic.wheel.hi_res.y = generic.wheel.lo_res.y * 120;
                                 }
@@ -19445,11 +19400,14 @@ namespace netxs::lixx // li++, libinput++.
             }
             void fallback_dispatch_init_abs(libinput_device_sptr li_device)
             {
-                if (!li_device->libevdev_has_event_code<EV_ABS>(ABS_X)) return;
-                generic.abs.point.x = li_device->ud_device.abs.absinfo_x->value;
-                generic.abs.point.y = li_device->ud_device.abs.absinfo_y->value;
-                generic.abs.seat_slot = -1;
-                li_device->evdev_device_init_abs_range_warnings();
+                if (li_device->libevdev_has_event_code<EV_ABS>(ABS_X)
+                 && li_device->libevdev_has_event_code<EV_ABS>(ABS_Y))
+                {
+                    generic.abs.point.x = li_device->ud_device.abs.absinfo_x->value;
+                    generic.abs.point.y = li_device->ud_device.abs.absinfo_y->value;
+                    generic.abs.seat_slot = -1;
+                    li_device->evdev_device_init_abs_range_warnings();
+                }
             }
                     bool parse_switch_reliability_property(view prop, switch_reliability& reliability)
                     {
@@ -19534,6 +19492,7 @@ namespace netxs::lixx // li++, libinput++.
                 }
                 generic.mt.slot = active_slot;
                 generic.mt.has_palm = li_device->libevdev_has_event_code<EV_ABS>(ABS_MT_TOOL_TYPE);
+                if (li_device->ud_device.abs.absinfo_x       && li_device->ud_device.abs.absinfo_y)
                 if (li_device->ud_device.abs.absinfo_x->fuzz || li_device->ud_device.abs.absinfo_y->fuzz)
                 {
                     generic.mt.want_hysteresis = true;
@@ -19581,12 +19540,6 @@ namespace netxs::lixx // li++, libinput++.
             {
                 generic.wheel.state = WHEEL_STATE_NONE;
                 generic.wheel.dir = WHEEL_DIR_UNKNOW;
-                // On kernel < 5.0 we need to emulate high-resolution wheel scroll events.
-                if ((li_device->libevdev_has_event_code<EV_REL>(REL_WHEEL)  && !li_device->libevdev_has_event_code<EV_REL>(REL_WHEEL_HI_RES))
-                 || (li_device->libevdev_has_event_code<EV_REL>(REL_HWHEEL) && !li_device->libevdev_has_event_code<EV_REL>(REL_HWHEEL_HI_RES)))
-                {
-                    generic.wheel.emulate_hi_res_wheel = true;
-                }
                 generic.wheel.ignore_small_hi_res_movements = !generic.evdev_device_is_virtual();
                 if (generic.wheel.ignore_small_hi_res_movements)
                 {
@@ -19854,7 +19807,8 @@ namespace netxs::lixx // li++, libinput++.
         {
             if (udev_tags & EVDEV_UDEV_TAG_ACCELEROMETER) ud_device.evdev_disable_accelerometer_axes();
             if (!ud_device.evdev_is_fake_mt_device()) ud_device.evdev_fix_android_mt();
-            if (ud_device.libevdev_has_event_code<EV_ABS>(ABS_X))
+            if (ud_device.libevdev_has_event_code<EV_ABS>(ABS_X)
+             && ud_device.libevdev_has_event_code<EV_ABS>(ABS_Y))
             {
                 ud_device.evdev_extract_abs_axes(li, udev_tags);
                 if (ud_device.evdev_is_fake_mt_device())

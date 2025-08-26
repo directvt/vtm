@@ -2801,7 +2801,7 @@ namespace netxs::ui
                          && match.length()
                          && owner.selmod == mime::textonly;
                 canvas.move(full.coor - dest.coor());
-                dest.plot(canvas, cell::shaders::fuse);
+                dest.plot(canvas, cell::shaders::flat);
                 if (auto area = canvas.area())
                 {
                     if (find)
@@ -5174,7 +5174,7 @@ namespace netxs::ui
                     auto height = curln.height(panel.x);
                     auto length = curln.length();
                     auto adjust = curln.style.jet();
-                    dest.output(curln, coor, cell::shaders::fuse);
+                    dest.output(curln, coor, cell::shaders::flat);
                     //dest.output_proxy(curln, coor, [&](auto const& coord, auto const& subblock, auto isr_to_l)
                     //{
                     //    dest.text(coord, subblock, isr_to_l, cell::shaders::fusefull);
