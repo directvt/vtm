@@ -52,7 +52,7 @@ The built-in terminal is capable of outputting alpha transparent (from 0 to 255,
   - `ESC` `[` `48` `:` `2` `:` [ `:` ] `red` `:` `green` `:` `blue` [ `:alpha` ] `m`
   - `ESC` `[` `38` `:` `2` `:` [ `:` ] `red` `:` `green` `:` `blue` [ `:alpha` ] `m`
 
-Note: If you need correct alpha blending, you should specify [premultiplied alpha](https://en.wikipedia.org/wiki/Alpha_compositing#Straight_versus_premultiplied) color values. (We use straight alpha color values to (over)highlight UI elements such as scrollbars and resize grips regardless of the underlying colors).
+Note: If you need correct alpha blending, you should specify [premultiplied-alpha](https://en.wikipedia.org/wiki/Alpha_compositing#Straight_versus_premultiplied) color values. (We use straight-alpha color values to overbright UI elements such as scrollbars and resize grips to make it visible regardless of the underlying colors).
 
 For example, outputting a pixel-art image with transparency (pwsh):
 
