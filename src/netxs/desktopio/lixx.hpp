@@ -646,7 +646,7 @@ namespace netxs::lixx // li++, libinput++.
         LIBINPUT_TABLET_TOOL_AXIS_SIZE_MAJOR = 10,
         LIBINPUT_TABLET_TOOL_AXIS_SIZE_MINOR = 11,
     };
-    enum pressure_heuristic_state
+    enum pressure_heuristic_enum
     {
         PRESSURE_HEURISTIC_STATE_PROXIN1, // First proximity in event.
         PRESSURE_HEURISTIC_STATE_PROXIN2, // Second proximity in event.
@@ -987,6 +987,7 @@ namespace netxs::lixx // li++, libinput++.
         fp64 absinfo_normalize()                              const { return absinfo_normalize_value(value); }
         fp64 absinfo_convert_to_mm(fp64 v)                    const { return (v - minimum) / resolution; }
         si32 pressure_offset_to_absinfo(fp64 pressure_offset) const { return (maximum - minimum) * pressure_offset + minimum; }
+        fp64 pressure_offset_from_absinfo(fp64 v)             const { return (v - minimum) / (maximum - minimum); }
     };
     struct matrix
     {
@@ -1236,14 +1237,19 @@ namespace netxs::lixx // li++, libinput++.
             libinput_device_config_3fg_drag*         drag_3fg{};
         };
 
-        struct libinput_tablet_tool_pressure_threshold
+    struct libinput_tablet_tool
+    {
+        struct pressure_t
         {
-            ui32                     tablet_id{};
-            abs_info_t               abs_pressure; // The configured axis we actually work with.
-            si32_range               threshold;    // In device coordinates.
-            fp64                     offset{};
-            bool                     has_offset{};
-            pressure_heuristic_state heuristic_state{}; // This gives us per-tablet heuristic state which is arguably wrong but >99% of users have one tablet and it's easier to implement it this way.
+            fp64_range              range; // We're assuming that the *configured* pressure range is per tool, not per tablet. The *adjusted* thresholds are then per-tablet.
+            fp64_range              wanted_range;
+            bool                    has_configured_range{};
+            ui32                    tablet_id{};
+            abs_info_t              abs_info; // The configured axis we actually work with.
+            si32_range              threshold; // In device coordinates.
+            fp64                    threshold_offset{};
+            bool                    threshold_has_offset{};
+            pressure_heuristic_enum heuristic_state{}; // This gives us per-tablet heuristic state which is arguably wrong but >99% of users have one tablet and it's easier to implement it this way.
 
             fp64 normalize_pressure(si32 abs_value)
             {
@@ -1255,29 +1261,20 @@ namespace netxs::lixx // li++, libinput++.
                 //            +- offset and lower threshold
                 //
                 // The axis is scaled into the range [lower, max] so that the lower threshold is 0 pressure.
-                auto abs = abs_pressure;
+                auto abs = abs_info;
                 abs.minimum = threshold.min;
                 return abs.absinfo_normalize_value(abs_value);
             }
             void set_pressure_offset(fp64 offset_in_percent)
             {
-                offset = offset_in_percent;
-                has_offset = true;
+                threshold_offset = offset_in_percent;
+                threshold_has_offset = true;
                 // Adjust the tresholds accordingly - we use the same gap (4% in device coordinates) between upper and lower as before which isn't technically correct (our range shrunk) but it's easy to calculate.
-                auto units = abs_pressure.pressure_offset_to_absinfo(offset_in_percent);
+                auto units = abs_info.pressure_offset_to_absinfo(offset_in_percent);
                 auto gap = threshold.max - threshold.min;
                 threshold.min = units;
                 threshold.max = units + gap;
             }
-        };
-    struct libinput_tablet_tool
-    {
-        struct pressure_t
-        {
-            fp64_range                              range; // We're assuming that the *configured* pressure range is per tool, not per tablet. The *adjusted* thresholds are then per-tablet.
-            fp64_range                              wanted_range;
-            bool                                    has_configured_range{};
-            libinput_tablet_tool_pressure_threshold threshold;
         };
 
         ui32                      serial{};
@@ -15423,11 +15420,11 @@ namespace netxs::lixx // li++, libinput++.
                 tool->serial = 0;
                 tool->tool_id = 0;
                 tool->type = LIBINPUT_TABLET_TOOL_TYPE_TOTEM;
-                tool->pressure.threshold.tablet_id = 0;
-                tool->pressure.threshold.offset = 0.0;
-                tool->pressure.threshold.has_offset = faux;
-                tool->pressure.threshold.threshold.min = 0;
-                tool->pressure.threshold.threshold.max = 1;
+                tool->pressure.tablet_id = 0;
+                tool->pressure.threshold_offset = 0.0;
+                tool->pressure.threshold_has_offset = faux;
+                tool->pressure.threshold.min = 0;
+                tool->pressure.threshold.max = 1;
                 tool->axis_caps_bits.set(LIBINPUT_TABLET_TOOL_AXIS_X);
                 tool->axis_caps_bits.set(LIBINPUT_TABLET_TOOL_AXIS_Y);
                 tool->axis_caps_bits.set(LIBINPUT_TABLET_TOOL_AXIS_ROTATION_Z);
@@ -16156,25 +16153,25 @@ namespace netxs::lixx // li++, libinput++.
                                     }
                                 void tool_init_pressure_thresholds(libinput_tablet_tool_sptr tool)
                                 {
-                                    auto& threshold = tool->pressure.threshold;
-                                    threshold.tablet_id     = tablet.tablet_id;
-                                    threshold.offset        = 0.0;
-                                    threshold.has_offset    = faux;
-                                    threshold.threshold.min = 0;
-                                    threshold.threshold.max = 1;
-                                    auto& pressure = tablet.libevdev_get_abs_info(ABS_PRESSURE);
-                                    if (!pressure) return;
-                                    threshold.abs_pressure = pressure;
-                                    auto& distance = tablet.libevdev_get_abs_info(ABS_DISTANCE);
-                                    if (distance)
+                                    auto& pressure = tool->pressure;
+                                    pressure.tablet_id            = tablet.tablet_id;
+                                    pressure.threshold_offset     = 0.0;
+                                    pressure.threshold_has_offset = faux;
+                                    pressure.threshold.min        = 0;
+                                    pressure.threshold.max        = 1;
+                                    auto& pressure_abs_info = tablet.libevdev_get_abs_info(ABS_PRESSURE);
+                                    if (!pressure_abs_info) return;
+                                    pressure.abs_info = pressure_abs_info;
+                                    auto& distance_abs_info = tablet.libevdev_get_abs_info(ABS_DISTANCE);
+                                    if (distance_abs_info)
                                     {
-                                        threshold.offset = 0.0;
-                                        threshold.heuristic_state = PRESSURE_HEURISTIC_STATE_DONE;
+                                        pressure.threshold_offset = 0.0;
+                                        pressure.heuristic_state = PRESSURE_HEURISTIC_STATE_DONE;
                                     }
                                     else
                                     {
-                                        threshold.offset = 1.0;
-                                        threshold.heuristic_state = PRESSURE_HEURISTIC_STATE_PROXIN1;
+                                        pressure.threshold_offset = 1.0;
+                                        pressure.heuristic_state = PRESSURE_HEURISTIC_STATE_PROXIN1;
                                     }
                                     apply_pressure_range_configuration(tool, true);
                                 }
@@ -16420,11 +16417,11 @@ namespace netxs::lixx // li++, libinput++.
                     {
                         auto min = tool->pressure.range.min;
                         auto max = tool->pressure.range.max;
-                        auto abs = tablet.libevdev_get_abs_info(ABS_PRESSURE);
-                        auto minimum = abs.axis_range_percentage(min * 100.0);
-                        auto maximum = abs.axis_range_percentage(max * 100.0);
-                        abs.minimum = minimum;
-                        abs.maximum = maximum;
+                        auto pressure_abs_info = tablet.libevdev_get_abs_info(ABS_PRESSURE);
+                        auto minimum = pressure_abs_info.axis_range_percentage(min * 100.0);
+                        auto maximum = pressure_abs_info.axis_range_percentage(max * 100.0);
+                        pressure_abs_info.minimum = minimum;
+                        pressure_abs_info.maximum = maximum;
                         // Only use the quirk pressure range if we don't have a custom range.
                         auto hi = 0;
                         auto lo = 0;
@@ -16432,47 +16429,39 @@ namespace netxs::lixx // li++, libinput++.
                             || !tablet_get_quirked_pressure_thresholds(&hi, &lo))
                         {
                             // 5 and 1% of the pressure range.
-                            hi = abs.axis_range_percentage(5);
-                            lo = abs.axis_range_percentage(1);
+                            hi = pressure_abs_info.axis_range_percentage(5);
+                            lo = pressure_abs_info.axis_range_percentage(1);
                         }
-                        auto& threshold = tool->pressure.threshold;
-                        threshold.abs_pressure = abs;
-                        threshold.threshold.min = lo;
-                        threshold.threshold.max = hi;
-                        if (threshold.has_offset) threshold.set_pressure_offset(threshold.offset);
+                        auto& pressure = tool->pressure;
+                        pressure.abs_info      = pressure_abs_info;
+                        pressure.threshold.min = lo;
+                        pressure.threshold.max = hi;
+                        if (pressure.threshold_has_offset) pressure.set_pressure_offset(pressure.threshold_offset);
                         if (tool->pressure.has_configured_range) // Disable any heuristics.
                         {
-                            threshold.has_offset = true;
-                            threshold.heuristic_state = PRESSURE_HEURISTIC_STATE_DONE;
+                            pressure.threshold_has_offset = true;
+                            pressure.heuristic_state = PRESSURE_HEURISTIC_STATE_DONE;
                         }
                     }
-                            fp64 pressure_offset_from_range(fp64 min, fp64 max, fp64 value)
-                            {
-                                return (value - min) / (max - min);
-                            }
-                        fp64 pressure_offset_from_absinfo(abs_info_t const& abs, si32 value)
-                        {
-                            return pressure_offset_from_range(abs.minimum, abs.maximum, value);
-                        }
                     void update_pressure_offset(libinput_tablet_tool_sptr tool)
                     {
-                        auto& pressure = tablet.libevdev_get_abs_info(ABS_PRESSURE);
-                        if (pressure && !tool->pressure.has_configured_range && tablet.changed_axes_bits[LIBINPUT_TABLET_TOOL_AXIS_PRESSURE])
+                        auto& pressure_abs_info = tablet.libevdev_get_abs_info(ABS_PRESSURE);
+                        if (pressure_abs_info && !tool->pressure.has_configured_range && tablet.changed_axes_bits[LIBINPUT_TABLET_TOOL_AXIS_PRESSURE])
                         {
                             // If we have an event that falls below the current offset, adjust the offset downwards. A fast contact can start with a higher-than-needed pressure offset and then we'd be tied into a high pressure offset for the rest of the session.
                             // If we are still pending the offset decision, only update the observed offset value, don't actually set it to have an offset.
-                            auto offset = pressure_offset_from_absinfo(pressure, pressure.value);
-                            auto& threshold = tool->pressure.threshold;
-                            if (threshold.has_offset)
+                            auto offset = pressure_abs_info.pressure_offset_from_absinfo(pressure_abs_info.value);
+                            auto& pressure = tool->pressure;
+                            if (pressure.threshold_has_offset)
                             {
-                                if (offset < threshold.offset)
+                                if (offset < pressure.threshold_offset)
                                 {
-                                    threshold.set_pressure_offset(offset);
+                                    pressure.set_pressure_offset(offset);
                                 }
                             }
-                            else if (threshold.heuristic_state != PRESSURE_HEURISTIC_STATE_DONE)
+                            else if (pressure.heuristic_state != PRESSURE_HEURISTIC_STATE_DONE)
                             {
-                                threshold.offset = std::min(offset, threshold.offset);
+                                pressure.threshold_offset = std::min(offset, pressure.threshold_offset);
                             }
                         }
                     }
@@ -16496,16 +16485,16 @@ namespace netxs::lixx // li++, libinput++.
                         {
                             return;
                         }
-                        auto& threshold = tool->pressure.threshold;
-                        if (threshold.has_offset) return;
-                        auto& pressure = tablet.libevdev_get_abs_info(ABS_PRESSURE);
-                        auto& distance = tablet.libevdev_get_abs_info(ABS_DISTANCE);
-                        if (!pressure || pressure.value <= pressure.minimum) return;
-                        auto units = pressure.value;
-                        auto offset = pressure_offset_from_absinfo(pressure, units);
-                        if (distance)
+                        auto& pressure = tool->pressure;
+                        if (pressure.threshold_has_offset) return;
+                        auto& pressure_abs_info = tablet.libevdev_get_abs_info(ABS_PRESSURE);
+                        auto& distance_abs_info = tablet.libevdev_get_abs_info(ABS_DISTANCE);
+                        if (!pressure_abs_info || pressure_abs_info.value <= pressure_abs_info.minimum) return;
+                        auto units = pressure_abs_info.value;
+                        auto offset = pressure_abs_info.pressure_offset_from_absinfo(units);
+                        if (distance_abs_info)
                         {
-                            if (distance.value < distance.axis_range_percentage(50)) // If we're closer than 50% of the distance axis, skip pressure offset detection, too likely to be wrong.
+                            if (distance_abs_info.value < distance_abs_info.axis_range_percentage(50)) // If we're closer than 50% of the distance axis, skip pressure offset detection, too likely to be wrong.
                             {
                                 return;
                             }
@@ -16513,30 +16502,30 @@ namespace netxs::lixx // li++, libinput++.
                         else
                         {
                             // A device without distance will always have some pressure on contact. Offset detection is delayed for a few proximity ins in the hope we'll find the minimum value until then. That offset is updated during motion events so by the time the deciding prox-in arrives we should know the minimum offset.
-                            if (units > pressure.minimum)
+                            if (units > pressure_abs_info.minimum)
                             {
-                                threshold.offset = std::min(offset, threshold.offset);
+                                pressure.threshold_offset = std::min(offset, pressure.threshold_offset);
                             }
-                            switch (threshold.heuristic_state)
+                            switch (pressure.heuristic_state)
                             {
                                 case PRESSURE_HEURISTIC_STATE_PROXIN1:
                                 case PRESSURE_HEURISTIC_STATE_PROXIN2:
-                                    threshold.heuristic_state = (pressure_heuristic_state)(threshold.heuristic_state + 1);
+                                    pressure.heuristic_state = (pressure_heuristic_enum)(pressure.heuristic_state + 1);
                                     return;
                                 case PRESSURE_HEURISTIC_STATE_DECIDE:
-                                    threshold.heuristic_state = (pressure_heuristic_state)(threshold.heuristic_state + 1);
-                                    units = pressure.pressure_offset_to_absinfo(threshold.offset);
-                                    offset = threshold.offset;
+                                    pressure.heuristic_state = (pressure_heuristic_enum)(pressure.heuristic_state + 1);
+                                    units = pressure_abs_info.pressure_offset_to_absinfo(pressure.threshold_offset);
+                                    offset = pressure.threshold_offset;
                                     break;
                                 case PRESSURE_HEURISTIC_STATE_DONE:
                                     return;
                             }
                         }
-                        if (units > pressure.minimum)
+                        if (units > pressure_abs_info.minimum)
                         {
                             if (offset > 0.5) log("Ignoring pressure offset greater than 50 percents detected on tool %s% (serial %#x%)", tablet_tool_type_to_string(tool->type), tool->serial);
                             else              log("Pressure offset detected on tool %s% (serial %#x%)", tablet_tool_type_to_string(tool->type), tool->serial);
-                            threshold.set_pressure_offset(offset);
+                            pressure.set_pressure_offset(offset);
                         }
                     }
                     void detect_tool_contact(libinput_tablet_tool_sptr tool)
@@ -16551,15 +16540,15 @@ namespace netxs::lixx // li++, libinput++.
                             {
                                 log("Invalid status: leaving contact");
                             }
-                            if (auto& p = tablet.libevdev_get_abs_info(ABS_PRESSURE))
+                            if (auto& pressure_abs_info = tablet.libevdev_get_abs_info(ABS_PRESSURE))
                             {
-                                auto pressure = p.value;
-                                auto& threshold = tool->pressure.threshold;
-                                if (pressure <= threshold.threshold.min && (tablet.status & TABLET_TOOL_IN_CONTACT))
+                                auto pressure_value = pressure_abs_info.value;
+                                auto& pressure = tool->pressure;
+                                if (pressure_value <= pressure.threshold.min && (tablet.status & TABLET_TOOL_IN_CONTACT))
                                 {
                                     tablet.status |= TABLET_TOOL_LEAVING_CONTACT;
                                 }
-                                else if (pressure >= threshold.threshold.max && !(tablet.status & TABLET_TOOL_IN_CONTACT))
+                                else if (pressure_value >= pressure.threshold.max && !(tablet.status & TABLET_TOOL_IN_CONTACT))
                                 {
                                     tablet.status |= TABLET_TOOL_ENTERING_CONTACT;
                                 }
@@ -16628,11 +16617,11 @@ namespace netxs::lixx // li++, libinput++.
                             }
                             void tablet_update_pressure(libinput_tablet_tool_sptr tool)
                             {
-                                auto& abs = tablet.libevdev_get_abs_info(ABS_PRESSURE);
-                                if (abs && tablet.changed_axes_bits[LIBINPUT_TABLET_TOOL_AXIS_PRESSURE])
+                                auto& pressure_abs_info = tablet.libevdev_get_abs_info(ABS_PRESSURE);
+                                if (pressure_abs_info && tablet.changed_axes_bits[LIBINPUT_TABLET_TOOL_AXIS_PRESSURE])
                                 {
-                                    auto& threshold = tool->pressure.threshold;
-                                    tablet.axes.pressure = threshold.normalize_pressure(abs.value);
+                                    auto& pressure = tool->pressure;
+                                    tablet.axes.pressure = pressure.normalize_pressure(pressure_abs_info.value);
                                 }
                             }
                             void tablet_update_distance()
@@ -17009,17 +16998,17 @@ namespace netxs::lixx // li++, libinput++.
                         void sanitize_pressure_distance(libinput_tablet_tool_sptr tool)
                         {
                             // Note: for pressure/distance sanitization we use the real pressure axis, not our configured one.
-                            auto& distance = tablet.libevdev_get_abs_info(ABS_DISTANCE);
-                            auto& pressure = tablet.libevdev_get_abs_info(ABS_PRESSURE);
-                            if (!pressure || !distance) return;
+                            auto& distance_abs_info = tablet.libevdev_get_abs_info(ABS_DISTANCE);
+                            auto& pressure_abs_info = tablet.libevdev_get_abs_info(ABS_PRESSURE);
+                            if (!pressure_abs_info || !distance_abs_info) return;
                             auto pressure_changed = tablet.changed_axes_bits[LIBINPUT_TABLET_TOOL_AXIS_PRESSURE];
                             auto distance_changed = tablet.changed_axes_bits[LIBINPUT_TABLET_TOOL_AXIS_DISTANCE];
                             if (!pressure_changed && !distance_changed) return;
                             // Note: this is an arbitrary "in contact" decision rather than "tip down". We use the lower threshold as minimum pressure value, anything less than that gets filtered away.
-                            auto& threshold = tool->pressure.threshold;
-                            auto tool_in_contact = pressure.value > threshold.threshold.min;
-                            if (distance && distance.value > distance.minimum // Keep distance and pressure mutually exclusive.
-                                         && pressure.value > pressure.minimum)
+                            auto& pressure = tool->pressure;
+                            auto tool_in_contact = pressure_abs_info.value > pressure.threshold.min;
+                            if (distance_abs_info && distance_abs_info.value > distance_abs_info.minimum // Keep distance and pressure mutually exclusive.
+                                                  && pressure_abs_info.value > pressure_abs_info.minimum)
                             {
                                 if (tool_in_contact)
                                 {
