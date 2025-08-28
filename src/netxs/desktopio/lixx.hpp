@@ -1235,13 +1235,6 @@ namespace netxs::lixx // li++, libinput++.
             libinput_device_config_3fg_drag*         drag_3fg{};
         };
 
-        struct libinput_tablet_tool_config_pressure_range
-        {
-            si32                  (*is_available)(libinput_tablet_tool_sptr tool) = {};
-            libinput_config_status(*set)         (libinput_tablet_tool_sptr tool, fp64_range range) = {};
-            void                  (*get)         (libinput_tablet_tool_sptr tool, fp64_range& range) = {};
-            void                  (*get_default) (libinput_tablet_tool_sptr tool, fp64_range& range) = {};
-        };
         struct libinput_tablet_tool_pressure_threshold
         {
             ui32                     tablet_id{};
@@ -1267,7 +1260,33 @@ namespace netxs::lixx // li++, libinput++.
         tablet_axes_bitset                         axis_caps_bits;
         std::bitset<KEY_MAX>                       buttons_bits;
         pressure_t                                 pressure;
-        libinput_tablet_tool_config_pressure_range config_pressure_range;
+
+        si32 pressure_range_is_available()
+        {
+            return axis_caps_bits[LIBINPUT_TABLET_TOOL_AXIS_PRESSURE];
+        }
+        libinput_config_status pressure_range_set(fp64_range range)
+        {
+            if (range.min < 0.0 || range.min >= 1.0 || range.max <= 0.0 || range.max > 1.0 || range.max <= range.min)
+            {
+                return LIBINPUT_CONFIG_STATUS_INVALID;
+            }
+            else
+            {
+                pressure.wanted_range = range;
+                pressure.has_configured_range = true;
+                return LIBINPUT_CONFIG_STATUS_SUCCESS;
+            }
+        }
+        void pressure_range_get(fp64_range& range)
+        {
+            range = pressure.wanted_range;
+        }
+        void pressure_range_get_default(fp64_range& range)
+        {
+            range.min = 0.0;
+            range.max = 1.0;
+        }
     };
 
             struct pointer_delta_smoothener
@@ -16099,32 +16118,6 @@ namespace netxs::lixx // li++, libinput++.
                         }
                         return faux;
                     }
-                                static si32 pressure_range_is_available(libinput_tablet_tool_sptr tool)
-                                {
-                                    return tool->axis_caps_bits[LIBINPUT_TABLET_TOOL_AXIS_PRESSURE];
-                                }
-                                static libinput_config_status pressure_range_set(libinput_tablet_tool_sptr tool, fp64_range range)
-                                {
-                                    if (range.min < 0.0 || range.min >= 1.0 || range.max <= 0.0 || range.max > 1.0 || range.max <= range.min)
-                                    {
-                                        return LIBINPUT_CONFIG_STATUS_INVALID;
-                                    }
-                                    else
-                                    {
-                                        tool->pressure.wanted_range = range;
-                                        tool->pressure.has_configured_range = true;
-                                        return LIBINPUT_CONFIG_STATUS_SUCCESS;
-                                    }
-                                }
-                                static void pressure_range_get(libinput_tablet_tool_sptr tool, fp64_range& range)
-                                {
-                                    range = tool->pressure.wanted_range;
-                                }
-                                static void pressure_range_get_default([[maybe_unused]] libinput_tablet_tool_sptr tool, fp64_range& range)
-                                {
-                                    range.min = 0.0;
-                                    range.max = 1.0;
-                                }
                                     void apply_pressure_range_configuration(libinput_tablet_tool_sptr tool, bool force_update)
                                     {
                                         if (!tablet.libevdev_has_event_code<EV_ABS>(ABS_PRESSURE)
@@ -16281,10 +16274,6 @@ namespace netxs::lixx // li++, libinput++.
                                 tool->type     = type,
                                 tool->pressure = { .range        = { .min = 0.0, .max = 0.0 }, // To trigger configuration.
                                                    .wanted_range = { .min = 0.0, .max = 1.0 }},
-                                tool->config_pressure_range = { .is_available = pressure_range_is_available,
-                                                                .set          = pressure_range_set,
-                                                                .get          = pressure_range_get,
-                                                                .get_default  = pressure_range_get_default };
                                 tool_init_pressure_thresholds(tool, &tool->pressure.threshold);
                                 tool_set_bits(tool);
                                 return tool;
