@@ -3451,10 +3451,8 @@ namespace netxs::lixx // li++, libinput++.
                 ev_bits[Type] = true;
                 if constexpr (Type == EV_REP)
                 {
-                    auto delay = 0;
-                    auto period = 0;
-                    libevdev_enable_event_code<EV_REP>(REP_DELAY, &delay);
-                    libevdev_enable_event_code<EV_REP>(REP_PERIOD, &period);
+                    libevdev_enable_event_code<EV_REP>(REP_DELAY);
+                    libevdev_enable_event_code<EV_REP>(REP_PERIOD);
                 }
                 return true;
             }
@@ -3566,24 +3564,23 @@ namespace netxs::lixx // li++, libinput++.
                     reset_tracking_ids();
                 }
             }
-        template<ui32 Type>
-        void libevdev_enable_event_code(ui32 code, void const* data) // data type: abs_info_t or si32.
+        template<ui32 Type, class T = si32>
+        void libevdev_enable_event_code(ui32 code, T data = 0) // data type: abs_info_t or si32.
         {
             if constexpr (Type != EV_SYN)
             {
                 if (libevdev_enable_event_type<Type>()
-                 && (data != nullptr || (Type != EV_ABS && Type != EV_REP))
                  && set_bits_by_type<Type>(code))
                 {
                     if constexpr (Type == EV_ABS)
                     {
-                        abs_values[code] = *(abs_info_t*)data;
+                        abs_values[code] = data;
                              if (code == ABS_MT_SLOT       ) init_slots();
                         else if (code == ABS_MT_TRACKING_ID) reset_tracking_ids();
                     }
                     else if constexpr (Type == EV_REP)
                     {
-                        rep_values[code] = *(si32*)data;
+                        rep_values[code] = data;
                     }
                 }
             }
@@ -4327,8 +4324,8 @@ namespace netxs::lixx // li++, libinput++.
             if (!libevdev_has_event_code<EV_ABS>(ABS_X) && !libevdev_has_event_code<EV_ABS>(ABS_Y))
             if (libevdev_has_event_code<EV_ABS>(ABS_MT_POSITION_X) && libevdev_has_event_code<EV_ABS>(ABS_MT_POSITION_Y))
             {
-                libevdev_enable_event_code<EV_ABS>(ABS_X, &libevdev_get_abs_info(ABS_MT_POSITION_X));
-                libevdev_enable_event_code<EV_ABS>(ABS_Y, &libevdev_get_abs_info(ABS_MT_POSITION_Y));
+                libevdev_enable_event_code<EV_ABS>(ABS_X, libevdev_get_abs_info(ABS_MT_POSITION_X));
+                libevdev_enable_event_code<EV_ABS>(ABS_Y, libevdev_get_abs_info(ABS_MT_POSITION_Y));
             }
         }
         template<class Li>
@@ -4478,7 +4475,7 @@ namespace netxs::lixx // li++, libinput++.
                         auto type = t.tuples[i].first;
                         auto code = t.tuples[i].second;
                         auto stat = t.tuples[i].third;
-                             if (type == EV_ABS) set_event_type_code<EV_ABS>(stat, code, &absinfo);
+                             if (type == EV_ABS) set_event_type_code<EV_ABS>(stat, code, absinfo);
                         else if (type == EV_REL) set_event_type_code<EV_REL>(stat, code);
                         else if (type == EV_KEY) set_event_type_code<EV_KEY>(stat, code);
                         else if (type == EV_REP) set_event_type_code<EV_REP>(stat, code);
@@ -4576,8 +4573,8 @@ namespace netxs::lixx // li++, libinput++.
                 model_flags |= EVDEV_MODEL_TEST_DEVICE;
             }
         }
-        template<ui32 Type>
-        void set_event_type_code(bool enable, ui32 code, void const* data = nullptr)
+        template<ui32 Type, class T = si32>
+        void set_event_type_code(bool enable, ui32 code, T data = 0)
         {
             if (code == lixx::event_code_undefined)
             {
@@ -17656,7 +17653,7 @@ namespace netxs::lixx // li++, libinput++.
                     auto is_display_tablet = tablet_is_display_tablet();
                     if (!tablet.libevdev_has_event_code<EV_KEY>(BTN_TOOL_PEN))
                     {
-                        tablet.ud_device.libevdev_enable_event_code<EV_KEY>(BTN_TOOL_PEN, nullptr);
+                        tablet.ud_device.libevdev_enable_event_code<EV_KEY>(BTN_TOOL_PEN);
                         tablet.quirks.proximity_out_forced = true;
                     }
                     if (tablet.libevdev_get_id_vendor() != lixx::vendor_id_wacom) // Our rotation code only works with Wacoms, let's wait until someone shouts.
