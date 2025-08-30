@@ -3845,8 +3845,8 @@ namespace netxs::ui
                 // Preserve original content. The app that changed the margins is responsible for updating the content.
                 auto upnew = std::max(upmin, twod{ panel.x, sctop });
                 auto dnnew = std::max(dnmin, twod{ panel.x, scend });
-                upbox.crop(upnew);
-                dnbox.crop(dnnew);
+                upbox.crop(upnew, brush.dry());
+                dnbox.crop(dnnew, brush.dry());
 
                 index.resize(arena); // Use a fixed ring because new lines are added much more often than a futures feed.
                 auto away = batch.basis != batch.slide;
@@ -4791,8 +4791,8 @@ namespace netxs::ui
                 {
                     auto& line = *++iter;
                     //todo respect line alignment
-                    if (line.wrapped()) curln.splice(coor, line                   , cell::shaders::full);
-                    else                curln.splice(coor, line.substr(0, panel.x), cell::shaders::full);
+                    if (line.wrapped()) curln.splice(coor, line                   , cell::shaders::full, brush.spc());
+                    else                curln.splice(coor, line.substr(0, panel.x), cell::shaders::full, brush.spc());
                     coor += line.height(panel.x) * panel.x;
                 }
             }
@@ -4843,7 +4843,7 @@ namespace netxs::ui
                     coord.x     += count;
                     if (batch.caret <= panel.x || !curln.wrapped()) // case 0.
                     {
-                        curln.splice<Copy>(start, count, proto, fuse);
+                        curln.splice<Copy>(start, count, proto, fuse, brush.spc());
                         auto& mapln = index[coord.y];
                         assert(coord.x % panel.x == batch.caret % panel.x && mapln.index == curln.index);
                         if (coord.x > mapln.width)
@@ -4871,7 +4871,7 @@ namespace netxs::ui
                         auto curid = curln.index;
                         if (query > 0) // case 3 - complex: Cursor is outside the viewport.
                         {              // cursor overlaps some lines below and placed below the viewport.
-                            curln.resize(batch.caret);
+                            curln.resize(batch.caret, brush.spc());
                             batch.recalc(curln);
                             if (auto n = (si32)(batch.back().index - curid))
                             {
@@ -4919,7 +4919,7 @@ namespace netxs::ui
                             auto& mapln = index[coord.y];
                             if (curid == mapln.index) // case 1 - plain: cursor is inside the current paragraph.
                             {
-                                curln.resize(batch.caret);
+                                curln.resize(batch.caret, brush.spc());
                                 if (batch.caret - coord.x == mapln.start)
                                 {
                                     if (coord.x > mapln.width)
@@ -4945,8 +4945,8 @@ namespace netxs::ui
                                 auto  shadow = destln.wrapped() ? destln.substr(mapln.start + coord.x)
                                                                 : destln.substr(mapln.start + coord.x, std::min(panel.x, mapln.width) - coord.x);
 
-                                if constexpr (mixer) curln.resize(batch.caret +shadow.length());
-                                else                 curln.splice(batch.caret, shadow, cell::shaders::full);
+                                if constexpr (mixer) curln.resize(batch.caret +shadow.length(), brush.spc());
+                                else                 curln.splice(batch.caret, shadow, cell::shaders::full, brush.spc());
 
                                 batch.recalc(curln);
                                 auto w = curln.length();
@@ -4997,7 +4997,7 @@ namespace netxs::ui
                                 assert(test_futures());
                             } // case 2 done.
                         }
-                        batch.current().splice<Copy>(start, count, proto, fuse);
+                        batch.current().splice<Copy>(start, count, proto, fuse, brush.spc());
                     }
                     assert(coord.y >= 0 && coord.y < arena);
                     coord.y += y_top;
@@ -5052,7 +5052,7 @@ namespace netxs::ui
                     auto newlen = batch.caret + count;
                     if (newlen > curln.length())
                     {
-                        curln.crop(newlen);
+                        curln.crop(newlen, brush.spc());
                         auto& mapln = index[coord.y - y_top];
                         mapln.width = newlen % panel.x;
                         batch.recalc(curln);
@@ -5317,7 +5317,7 @@ namespace netxs::ui
                     auto& curln = batch[i];
                     if (fresh)
                     {
-                        curln.trimto(start);
+                        curln.trimto(start, brush.spc());
                     }
                     else
                     {
@@ -5327,12 +5327,12 @@ namespace netxs::ui
                             mapln.width = panel.x;
                             auto x = std::min(coor.x, panel.x); // Trim unwrapped lines by viewport.
                             curln.splice<true>(start + x, panel.x - x, blank);
-                            curln.trimto(start + panel.x);
+                            curln.trimto(start + panel.x, brush.spc());
                         }
                         else
                         {
                             mapln.width = coor.x;
-                            curln.trimto(start + coor.x);
+                            curln.trimto(start + coor.x, brush.spc());
                         }
                         assert(mapln.start == 0 || curln.wrapped());
                     }
@@ -5426,7 +5426,7 @@ namespace netxs::ui
                     auto endit = batch.end();
 
                     auto& newln = *curit;
-                    newln.splice(0, tmpln.substr(start), cell::shaders::full);
+                    newln.splice(0, tmpln.substr(start), cell::shaders::full, brush.spc());
                     batch.undock_base_back(tmpln);
                     batch.invite(newln);
 
@@ -5434,7 +5434,7 @@ namespace netxs::ui
                     {
                         auto& curln = *(curit - 1);
                         curln = std::move(tmpln);
-                        curln.trimto(start);
+                        curln.trimto(start, brush.spc());
                         batch.invite(curln);
                     }
 
