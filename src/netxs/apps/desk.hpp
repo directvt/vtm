@@ -380,12 +380,15 @@ namespace netxs::app::desk
                                 gear.dismiss(true);
                             });
                         });
+                    //todo do not recreate a whole dom on every minor update
+                    //log(ansi::err("apps recreated"));
                     insts->attach_collection(e2::form::prop::ui::title, inst_ptr_list, app_template, [&](auto inst_ptr)
                     {
                         auto& window = *inst_ptr;
                         auto& boss = *block;
                         boss.LISTEN(tier::release, desk::events::ui::focus::any, gear, window.sensors)
                         {
+                            //log(ansi::err("desk::events::ui::focus::any"));
                             auto deed = boss.bell::protos();
                                  if (deed == desk::events::ui::focus::set.id) pro::focus::set(window.This(), gear.id, solo::off);
                             else if (deed == desk::events::ui::focus::off.id) pro::focus::off(window.This(), gear.id);
@@ -401,6 +404,9 @@ namespace netxs::app::desk
             auto tall = si32{ skin::globals().menuwide };
             auto inactive_color  = skin::globals().inactive;
             auto danger_color    = skin::globals().danger;
+            auto highlight_color = cell{ skin::globals().winfocus };
+            auto c8 = cell{}.bgc(argb::active_transparent).fgc(highlight_color.bgc());
+            //auto c3 = highlight_color;
             auto cA = inactive_color;
             auto c1 = danger_color;
 
@@ -425,9 +431,6 @@ namespace netxs::app::desk
                 panel->limits({ -1, panel_top }, { -1, panel_top })
                      ->attach(app::shared::builder(app::vtty::id)(panel_cfg, config));
             }
-
-            auto highlight_color = skin::color(tone::winfocus);
-            auto c8 = cell{}.bgc(argb::active_transparent).fgc(highlight_color.bgc());
 
             auto user_info = utf::split(usrcfg.cfg, ";");
             auto& user_id__view = user_info[0];

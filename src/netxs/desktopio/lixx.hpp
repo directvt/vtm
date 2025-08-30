@@ -646,7 +646,7 @@ namespace netxs::lixx // li++, libinput++.
         LIBINPUT_TABLET_TOOL_AXIS_SIZE_MAJOR = 10,
         LIBINPUT_TABLET_TOOL_AXIS_SIZE_MINOR = 11,
     };
-    enum pressure_heuristic_state
+    enum pressure_heuristic_enum
     {
         PRESSURE_HEURISTIC_STATE_PROXIN1, // First proximity in event.
         PRESSURE_HEURISTIC_STATE_PROXIN2, // Second proximity in event.
@@ -978,13 +978,16 @@ namespace netxs::lixx // li++, libinput++.
     };
     struct abs_info_t : ::input_absinfo
     {
-        fp64 absinfo_range()                           const { return (fp64)(maximum - minimum + 1); }
-        fp64 absinfo_scale_axis(fp64 v, fp64 to_range) const { return (v - minimum) * to_range / absinfo_range(); }
-        si32 axis_range_percentage(fp64 percent)       const { return (maximum - minimum) * percent / 100.0 + minimum; }
-        si32 invert_axis()                             const { return maximum - (value - minimum); }
-        fp64 absinfo_normalize_value(si32 v)           const { return std::min(1.0, std::max(0.0, (fp64)(v - minimum) / (maximum - minimum))); }
-        fp64 absinfo_normalize()                       const { return absinfo_normalize_value(value); }
-        fp64 absinfo_convert_to_mm(fp64 v)             const { return (v - minimum) / resolution; }
+        constexpr operator bool ()                            const { return resolution != 0; }
+        fp64 absinfo_range()                                  const { return (fp64)(maximum - minimum + 1); }
+        fp64 absinfo_scale_axis(fp64 v, fp64 to_range)        const { return (v - minimum) * to_range / absinfo_range(); }
+        si32 axis_range_percentage(fp64 percent)              const { return (maximum - minimum) * percent / 100.0 + minimum; }
+        si32 invert_axis()                                    const { return maximum - (value - minimum); }
+        fp64 absinfo_normalize_value(si32 v)                  const { return std::min(1.0, std::max(0.0, (fp64)(v - minimum) / (maximum - minimum))); }
+        fp64 absinfo_normalize()                              const { return absinfo_normalize_value(value); }
+        fp64 absinfo_convert_to_mm(fp64 v)                    const { return (v - minimum) / resolution; }
+        si32 pressure_offset_to_absinfo(fp64 pressure_offset) const { return (maximum - minimum) * pressure_offset + minimum; }
+        fp64 pressure_offset_from_absinfo(fp64 v)             const { return (v - minimum) / (maximum - minimum); }
     };
     struct matrix
     {
@@ -1234,39 +1237,79 @@ namespace netxs::lixx // li++, libinput++.
             libinput_device_config_3fg_drag*         drag_3fg{};
         };
 
-        struct libinput_tablet_tool_config_pressure_range
-        {
-            si32                  (*is_available)(libinput_tablet_tool_sptr tool) = {};
-            libinput_config_status(*set)         (libinput_tablet_tool_sptr tool, fp64_range range) = {};
-            void                  (*get)         (libinput_tablet_tool_sptr tool, fp64_range& range) = {};
-            void                  (*get_default) (libinput_tablet_tool_sptr tool, fp64_range& range) = {};
-        };
-        struct libinput_tablet_tool_pressure_threshold
-        {
-            ui32                     tablet_id{};
-            abs_info_t               abs_pressure; // The configured axis we actually work with.
-            si32_range               threshold;    // In device coordinates.
-            fp64                     offset{};
-            bool                     has_offset{};
-            pressure_heuristic_state heuristic_state{}; // This gives us per-tablet heuristic state which is arguably wrong but >99% of users have one tablet and it's easier to implement it this way.
-        };
     struct libinput_tablet_tool
     {
         struct pressure_t
         {
-            fp64_range                              range; // We're assuming that the *configured* pressure range is per tool, not per tablet. The *adjusted* thresholds are then per-tablet.
-            fp64_range                              wanted_range;
-            bool                                    has_configured_range{};
-            libinput_tablet_tool_pressure_threshold threshold;
+            fp64_range              range; // We're assuming that the *configured* pressure range is per tool, not per tablet. The *adjusted* thresholds are then per-tablet.
+            fp64_range              wanted_range;
+            bool                    has_configured_range{};
+            ui32                    tablet_id{};
+            abs_info_t              abs_info; // The configured axis we actually work with.
+            si32_range              threshold; // In device coordinates.
+            fp64                    threshold_offset{};
+            bool                    threshold_has_offset{};
+            pressure_heuristic_enum heuristic_state{}; // This gives us per-tablet heuristic state which is arguably wrong but >99% of users have one tablet and it's easier to implement it this way.
+
+            fp64 normalize_pressure(si32 abs_value)
+            {
+                // Note: the upper threshold takes the offset into account so that
+                //            |- 4% -|
+                // min |------X------X-------------------------| max
+                //            |      |
+                //            |      + upper threshold / tip trigger
+                //            +- offset and lower threshold
+                //
+                // The axis is scaled into the range [lower, max] so that the lower threshold is 0 pressure.
+                auto abs = abs_info;
+                abs.minimum = threshold.min;
+                return abs.absinfo_normalize_value(abs_value);
+            }
+            void set_pressure_offset(fp64 offset_in_percent)
+            {
+                threshold_offset = offset_in_percent;
+                threshold_has_offset = true;
+                // Adjust the tresholds accordingly - we use the same gap (4% in device coordinates) between upper and lower as before which isn't technically correct (our range shrunk) but it's easy to calculate.
+                auto units = abs_info.pressure_offset_to_absinfo(offset_in_percent);
+                auto gap = threshold.max - threshold.min;
+                threshold.min = units;
+                threshold.max = units + gap;
+            }
         };
 
-        ui32                                       serial{};
-        ui32                                       tool_id{};
-        libinput_tablet_tool_type                  type{};
-        tablet_axes_bitset                         axis_caps_bits;
-        std::bitset<KEY_MAX>                       buttons_bits;
-        pressure_t                                 pressure;
-        libinput_tablet_tool_config_pressure_range config_pressure_range;
+        ui32                      serial{};
+        ui32                      tool_id{};
+        libinput_tablet_tool_type type{};
+        tablet_axes_bitset        axis_caps_bits;
+        std::bitset<KEY_MAX>      buttons_bits;
+        pressure_t                pressure;
+
+        si32 pressure_range_is_available()
+        {
+            return axis_caps_bits[LIBINPUT_TABLET_TOOL_AXIS_PRESSURE];
+        }
+        libinput_config_status pressure_range_set(fp64_range range)
+        {
+            if (range.min < 0.0 || range.min >= 1.0 || range.max <= 0.0 || range.max > 1.0 || range.max <= range.min)
+            {
+                return LIBINPUT_CONFIG_STATUS_INVALID;
+            }
+            else
+            {
+                pressure.wanted_range = range;
+                pressure.has_configured_range = true;
+                return LIBINPUT_CONFIG_STATUS_SUCCESS;
+            }
+        }
+        void pressure_range_get(fp64_range& range)
+        {
+            range = pressure.wanted_range;
+        }
+        void pressure_range_get_default(fp64_range& range)
+        {
+            range.min = 0.0;
+            range.max = 1.0;
+        }
     };
 
             struct pointer_delta_smoothener
@@ -2894,13 +2937,13 @@ namespace netxs::lixx // li++, libinput++.
         si32                         state{};
         libinput_pointer_axis_source source{};
         ui32                         active_axes{};
-        abs_info_t const*            absinfo_x{};
-        abs_info_t const*            absinfo_y{};
+        abs_info_t                   absinfo_x{};
+        abs_info_t                   absinfo_y{};
 
         virtual fp64_coor libinput_event_pointer_get_absolute_xy_transformed(fp64_coor size) override
         {
-            auto xy = fp64_coor{ absinfo_x->absinfo_scale_axis(absolute.x, size.x),
-                                 absinfo_y->absinfo_scale_axis(absolute.y, size.y) };
+            auto xy = fp64_coor{ absinfo_x.absinfo_scale_axis(absolute.x, size.x),
+                                 absinfo_y.absinfo_scale_axis(absolute.y, size.y) };
             return xy;
         }
         virtual fp64_coor libinput_event_pointer_get_ds()                             override { return delta; }
@@ -3017,8 +3060,8 @@ namespace netxs::lixx // li++, libinput++.
         libinput_tablet_tool_sptr            tool;
         libinput_tablet_tool_proximity_state proximity_state{};
         libinput_tablet_tool_tip_state       tip_state{};
-        abs_info_t                           abs_info_x2; //todo not used?
-        abs_info_t                           abs_info_y2; //
+        abs_info_t                           abs_info_x2;
+        abs_info_t                           abs_info_y2;
 
         libinput_event_tablet_tool() = default;
     };
@@ -3074,16 +3117,16 @@ namespace netxs::lixx // li++, libinput++.
         };
         struct evdev_abs_t
         {
-            abs_info_t const* absinfo_x{};//todo unify
-            abs_info_t const* absinfo_y{};//
-            bool              is_fake_resolution{};
-            si32              apply_calibration{};
-            matrix            calibration;
-            matrix            default_calibration; // From LIBINPUT_CALIBRATION_MATRIX.
-            matrix            usermatrix; // As supplied by the caller.
-            si32_coor         dimensions;
-            si32_range        warning_range_x;
-            si32_range        warning_range_y;
+            abs_info_t& absinfo_x;
+            abs_info_t& absinfo_y;
+            bool        is_fake_resolution{};
+            si32        apply_calibration{};
+            matrix      calibration;
+            matrix      default_calibration; // From LIBINPUT_CALIBRATION_MATRIX.
+            matrix      usermatrix; // As supplied by the caller.
+            si32_coor   dimensions;
+            si32_range  warning_range_x;
+            si32_range  warning_range_y;
         };
 
         utf::unordered_map<text, text> properties;
@@ -3094,10 +3137,7 @@ namespace netxs::lixx // li++, libinput++.
         text                           uniq;    // uevent_uniq: ""
         text                           device_class; // Something like "touchpad", "tablet". Used for logs.
         fd_t                           fd{ os::invalid_fd };
-        bool                           initialized{};
         sync_states                    sync_state{};
-        bool                           is_mt{};
-        evdev_abs_t                    abs;
         ui32                           model_flags{};
 
         ::input_id prod_info;
@@ -3131,24 +3171,19 @@ namespace netxs::lixx // li++, libinput++.
         ui64                       queue_nsync{}; // Number of sync events.
         ::timeval                  last_event_time{};
 
+        bool                       initialized;
+        bool                       is_mt;
+        evdev_abs_t                abs;
+
         ud_device_t(text eventX)
-            : sysname{ eventX },
-              devpath{ "/dev/input/" + eventX }
+            :   sysname{ eventX },
+                devpath{ "/dev/input/" + eventX },
+            initialized{ _initialize() },
+                  is_mt{ !evdev_is_fake_mt_device() && libevdev_has_event_code<EV_ABS>(ABS_MT_POSITION_X)
+                                                    && libevdev_has_event_code<EV_ABS>(ABS_MT_POSITION_Y) },
+                    abs{ abs_values[is_mt ? ABS_MT_POSITION_X : ABS_X], abs_values[is_mt ? ABS_MT_POSITION_Y : ABS_Y] }
         {
-            auto new_fd = ::open(devpath.data(), O_RDONLY | O_NONBLOCK | O_NOCTTY);
-            if (new_fd != os::invalid_fd)
-            {
-                ud_device_t::evdev_drain_fd(new_fd);
-                _libevdev_set_fd(new_fd);
-                _set_properties();
-                _sync_with_hwdb();
-            }
-            if (!initialized)
-            {
-                log("  Device %% is not initialized", devpath);
-                os::close(new_fd);
-            }
-            else
+            if (initialized)
             {
                 if constexpr (debugmode)
                 {
@@ -3163,6 +3198,27 @@ namespace netxs::lixx // li++, libinput++.
                     }
                 }
             }
+        }
+        bool _initialize()
+        {
+            bool ok = faux;
+            auto new_fd = ::open(devpath.data(), O_RDONLY | O_NONBLOCK | O_NOCTTY);
+            if (new_fd != os::invalid_fd)
+            {
+                ud_device_t::evdev_drain_fd(new_fd);
+                ok = _libevdev_set_fd(new_fd);
+                if (ok)
+                {
+                    _set_properties();
+                    _sync_with_hwdb();
+                }
+                else
+                {
+                    log("  Device %% is not initialized", devpath);
+                    os::close(new_fd);
+                }
+            }
+            return ok;
         }
         void _sync_with_hwdb()
         {
@@ -3437,10 +3493,8 @@ namespace netxs::lixx // li++, libinput++.
                 ev_bits[Type] = true;
                 if constexpr (Type == EV_REP)
                 {
-                    auto delay = 0;
-                    auto period = 0;
-                    libevdev_enable_event_code<EV_REP>(REP_DELAY, &delay);
-                    libevdev_enable_event_code<EV_REP>(REP_PERIOD, &period);
+                    libevdev_enable_event_code<EV_REP>(REP_DELAY);
+                    libevdev_enable_event_code<EV_REP>(REP_PERIOD);
                 }
                 return true;
             }
@@ -3491,10 +3545,11 @@ namespace netxs::lixx // li++, libinput++.
             }
             return tags;
         }
-        abs_info_t* libevdev_get_abs_info(ui32 code)
+        abs_info_t& libevdev_get_abs_info(ui32 code)
         {
+            static auto empty_abs_info = abs_info_t{};
             auto ok = libevdev_has_event_code<EV_ABS>(code);
-            return ok ? &abs_values[code] : nullptr;
+            return ok ? abs_values[code] : empty_abs_info;
         }
             si32& get_slot_ref(si32 slot, si32 axis)
             {
@@ -3551,24 +3606,23 @@ namespace netxs::lixx // li++, libinput++.
                     reset_tracking_ids();
                 }
             }
-        template<ui32 Type>
-        void libevdev_enable_event_code(ui32 code, void const* data) // data type: abs_info_t or si32.
+        template<ui32 Type, class T = si32>
+        void libevdev_enable_event_code(ui32 code, T data = 0) // data type: abs_info_t or si32.
         {
             if constexpr (Type != EV_SYN)
             {
                 if (libevdev_enable_event_type<Type>()
-                 && (data != nullptr || (Type != EV_ABS && Type != EV_REP))
                  && set_bits_by_type<Type>(code))
                 {
                     if constexpr (Type == EV_ABS)
                     {
-                        abs_values[code] = *(abs_info_t*)data;
+                        abs_values[code] = data;
                              if (code == ABS_MT_SLOT       ) init_slots();
                         else if (code == ABS_MT_TRACKING_ID) reset_tracking_ids();
                     }
                     else if constexpr (Type == EV_REP)
                     {
-                        rep_values[code] = *(si32*)data;
+                        rep_values[code] = data;
                     }
                 }
             }
@@ -3584,18 +3638,18 @@ namespace netxs::lixx // li++, libinput++.
         }
         si32 libevdev_get_abs_fuzz(ui32 code)
         {
-            auto absinfo_ptr = libevdev_get_abs_info(code);
-            return absinfo_ptr ? absinfo_ptr->fuzz : 0;
+            auto& absinfo = libevdev_get_abs_info(code);
+            return absinfo.fuzz;
         }
         si32 libevdev_get_abs_maximum(ui32 code)
         {
-            auto absinfo_ptr = libevdev_get_abs_info(code);
-            return absinfo_ptr ? absinfo_ptr->maximum : 0;
+            auto& absinfo = libevdev_get_abs_info(code);
+            return absinfo.maximum;
         }
         si32 libevdev_get_abs_resolution(ui32 code)
         {
-            auto absinfo_ptr = libevdev_get_abs_info(code);
-            return absinfo_ptr ? absinfo_ptr->resolution : 0;
+            auto& absinfo = libevdev_get_abs_info(code);
+            return absinfo.resolution;
         }
         void libevdev_set_abs_fuzz(ui32 code, si32 val)
         {
@@ -3739,8 +3793,9 @@ namespace netxs::lixx // li++, libinput++.
                 queue.resize(max_event_count);
                 queue_next = 0;
             }
-        si32 _libevdev_set_fd(fd_t new_fd)
+        bool _libevdev_set_fd(fd_t new_fd)
         {
+            auto ok = faux;
             auto trim = [](text& s){ s.erase(std::find(s.begin(), s.end(), '\0'), s.end()); return true; };
             libevdev_reset();
             devname.assign(256, '\0');
@@ -3787,7 +3842,7 @@ namespace netxs::lixx // li++, libinput++.
             }
             if (rc)
             {
-                initialized = true;
+                ok = true;
                 fd = new_fd;
                 init_slots();
                 if (num_slots != -1)
@@ -3796,13 +3851,12 @@ namespace netxs::lixx // li++, libinput++.
                     sync_mt_state(tmp);
                 }
                 init_event_queue();
-                return 0;
             }
             else
             {
                 libevdev_reset();
-                return -errno;
             }
+            return ok;
         }
                         void init_event(input_event_t& ev, ui32 type, ui32 code, si32 value)
                         {
@@ -4255,11 +4309,11 @@ namespace netxs::lixx // li++, libinput++.
         }
         bool evdev_check_min_max(ui32 code)
         {
-            if (auto absinfo = libevdev_get_abs_info(code))
-            if (absinfo->minimum == absinfo->maximum)
+            if (auto& absinfo = libevdev_get_abs_info(code))
+            if (absinfo.minimum == absinfo.maximum)
             {
                 // Some devices have a sort-of legitimate min/max of 0 for ABS_MISC and above (e.g. Roccat Kone XTD). Don't ignore them, simply disable the axes so we won't get events, we don't know what to do with them anyway.
-                if (absinfo->minimum == 0 && code >= ABS_MISC && code < ABS_MT_SLOT)
+                if (absinfo.minimum == 0 && code >= ABS_MISC && code < ABS_MT_SLOT)
                 {
                     log("Disabling EV_ABS %#x% on device (min == max == 0)", code);
                     libevdev_disable_event_code<EV_ABS>(code);
@@ -4290,23 +4344,11 @@ namespace netxs::lixx // li++, libinput++.
             {
                 return true;
             }
-            if (libevdev_has_event_code<EV_ABS>(ABS_X))
+            if (libevdev_has_event_code<EV_ABS>(ABS_X) || is_mt)
             {
-                auto absx = libevdev_get_abs_info(ABS_X);
-                auto absy = libevdev_get_abs_info(ABS_Y);
-                if ((absx->resolution == 0 && absy->resolution != 0) || (absx->resolution != 0 && absy->resolution == 0))
+                if (!!abs.absinfo_x != !!abs.absinfo_y)
                 {
                     log("Device has only x or y resolution");
-                    return true;
-                }
-            }
-            if (!evdev_is_fake_mt_device() && libevdev_has_event_code<EV_ABS>(ABS_MT_POSITION_X))
-            {
-                auto absx = libevdev_get_abs_info(ABS_MT_POSITION_X);
-                auto absy = libevdev_get_abs_info(ABS_MT_POSITION_Y);
-                if ((absx->resolution == 0 && absy->resolution != 0) || (absx->resolution != 0 && absy->resolution == 0))
-                {
-                    log("MT Device has only x or y resolution");
                     return true;
                 }
             }
@@ -4357,34 +4399,23 @@ namespace netxs::lixx // li++, libinput++.
             return faux;
         }
         template<class Li>
-        si32 evdev_fix_abs_resolution(Li& li, ui32 xcode, ui32 ycode)
+        void evdev_fix_abs_resolution(Li& li)
         {
             static constexpr auto fake_resolution = dot_11;
-            auto mm = si32_coor{};
-            auto res = fake_resolution;
-            if (!(xcode == ABS_X && ycode == ABS_Y)
-             && !(xcode == ABS_MT_POSITION_X && ycode == ABS_MT_POSITION_Y))
+            abs.is_fake_resolution = faux;
+            if (!abs.absinfo_x || !abs.absinfo_y) // Note: we *do not* override resolutions if provided by the kernel. If a device needs this, add it to 60-evdev.hwdb. The libinput property is only for general size hints where we can make educated guesses but don't know better.
             {
-                log("invalid x/y code combination %d%/%d%", xcode, ycode);
-                return 0;
+                auto mm = si32_coor{};
+                auto res = fake_resolution;
+                if (!evdev_read_attr_res_prop(li, res) && evdev_read_attr_size_prop(li, mm))
+                {
+                    res.x = abs.absinfo_x.absinfo_range() / mm.x;
+                    res.y = abs.absinfo_y.absinfo_range() / mm.y;
+                }
+                abs.absinfo_x.resolution = res.x;
+                abs.absinfo_y.resolution = res.y;
+                abs.is_fake_resolution = res.x == fake_resolution.x;
             }
-            auto absx = libevdev_get_abs_info(xcode);
-            auto absy = libevdev_get_abs_info(ycode);
-            if (absx->resolution != 0 || absy->resolution != 0)
-            {
-                return 0;
-            }
-            // Note: we *do not* override resolutions if provided by the kernel. If a device needs this, add it to 60-evdev.hwdb. The libinput property is only for general size hints where we can make educated guesses but don't know better.
-            if (!evdev_read_attr_res_prop(li, res)
-             && evdev_read_attr_size_prop(li, mm))
-            {
-                res.x = absx->absinfo_range() / mm.x;
-                res.y = absy->absinfo_range() / mm.y;
-            }
-            // libevdev_set_abs_resolution() changes the absinfo we already have a pointer to, no need to fetch it again.
-            libevdev_set_abs_resolution(xcode, res.x);
-            libevdev_set_abs_resolution(ycode, res.y);
-            return res.x == fake_resolution.x;
         }
         si32 evdev_read_fuzz_prop(ui32 code)
         {
@@ -4409,57 +4440,42 @@ namespace netxs::lixx // li++, libinput++.
                 }
             }
             // The udev callout should have set the kernel fuzz to zero. If the kernel fuzz is nonzero, something has gone wrong there, so let's complain but still use a fuzz of zero for our view of the device. Otherwise, the kernel will use the nonzero fuzz, we then use the same fuzz on top of the pre-fuzzed data and that leads to unresponsive behavior.
-            auto abs_info = libevdev_get_abs_info(code);
-            if (!abs_info || abs_info->fuzz == 0)
+            auto& abs_info = libevdev_get_abs_info(code);
+            if (abs_info.fuzz == 0)
             {
                 return fuzz;
             }
-            if (prop) log("kernel fuzz of %d% even with LIBINPUT_FUZZ_%02x% present", abs_info->fuzz, code);
-            else      log("kernel fuzz of %d% but LIBINPUT_FUZZ_%02x% is missing", abs_info->fuzz, code);
+            if (prop) log("kernel fuzz of %d% even with LIBINPUT_FUZZ_%02x% present", abs_info.fuzz, code);
+            else      log("kernel fuzz of %d% but LIBINPUT_FUZZ_%02x% is missing", abs_info.fuzz, code);
             return 0;
         }
         template<class Li>
         void evdev_extract_abs_axes(Li& li, ui32 udev_tags)
         {
-            auto fuzz = 0;
-            if (evdev_fix_abs_resolution(li, ABS_X, ABS_Y))
+            evdev_fix_abs_resolution(li);
+            if (is_mt)
             {
-                abs.is_fake_resolution = true;
+                if (auto fuzz_x = evdev_read_fuzz_prop(ABS_MT_POSITION_X))
+                {
+                    libevdev_set_abs_fuzz(ABS_MT_POSITION_X, fuzz_x);
+                }
+                if (auto fuzz_y = evdev_read_fuzz_prop(ABS_MT_POSITION_Y))
+                {
+                    libevdev_set_abs_fuzz(ABS_MT_POSITION_Y, fuzz_y);
+                }
             }
-            if (udev_tags & (EVDEV_UDEV_TAG_TOUCHPAD | EVDEV_UDEV_TAG_TOUCHSCREEN))
+            else
             {
-                fuzz = evdev_read_fuzz_prop(ABS_X);
-                libevdev_set_abs_fuzz(ABS_X, fuzz);
-                fuzz = evdev_read_fuzz_prop(ABS_Y);
-                libevdev_set_abs_fuzz(ABS_Y, fuzz);
+                if (udev_tags & (EVDEV_UDEV_TAG_TOUCHPAD | EVDEV_UDEV_TAG_TOUCHSCREEN))
+                {
+                    auto fuzz_x = evdev_read_fuzz_prop(ABS_X);
+                    libevdev_set_abs_fuzz(ABS_X, fuzz_x);
+                    auto fuzz_y = evdev_read_fuzz_prop(ABS_Y);
+                    libevdev_set_abs_fuzz(ABS_Y, fuzz_y);
+                }
             }
-            abs.absinfo_x = libevdev_get_abs_info(ABS_X);
-            abs.absinfo_y = libevdev_get_abs_info(ABS_Y);
-            abs.dimensions.x = std::abs((si32)abs.absinfo_x->absinfo_range());
-            abs.dimensions.y = std::abs((si32)abs.absinfo_y->absinfo_range());
-            if (evdev_is_fake_mt_device()
-             || !libevdev_has_event_code<EV_ABS>(ABS_MT_POSITION_X)
-             || !libevdev_has_event_code<EV_ABS>(ABS_MT_POSITION_Y))
-            {
-                return;
-            }
-            if (evdev_fix_abs_resolution(li, ABS_MT_POSITION_X, ABS_MT_POSITION_Y))
-            {
-                abs.is_fake_resolution = true;
-            }
-            if ((fuzz = evdev_read_fuzz_prop(ABS_MT_POSITION_X)))
-            {
-                libevdev_set_abs_fuzz(ABS_MT_POSITION_X, fuzz);
-            }
-            if ((fuzz = evdev_read_fuzz_prop(ABS_MT_POSITION_Y)))
-            {
-                libevdev_set_abs_fuzz(ABS_MT_POSITION_Y, fuzz);
-            }
-            abs.absinfo_x = libevdev_get_abs_info(ABS_MT_POSITION_X);
-            abs.absinfo_y = libevdev_get_abs_info(ABS_MT_POSITION_Y);
-            abs.dimensions.x = std::abs((si32)abs.absinfo_x->absinfo_range());
-            abs.dimensions.y = std::abs((si32)abs.absinfo_y->absinfo_range());
-            is_mt = 1;
+            abs.dimensions.x = std::abs((si32)abs.absinfo_x.absinfo_range());
+            abs.dimensions.y = std::abs((si32)abs.absinfo_y.absinfo_range());
         }
         template<class Li>
         bool evdev_device_has_model_quirk(Li& li, quirk model_quirk)
@@ -4501,7 +4517,7 @@ namespace netxs::lixx // li++, libinput++.
                         auto type = t.tuples[i].first;
                         auto code = t.tuples[i].second;
                         auto stat = t.tuples[i].third;
-                             if (type == EV_ABS) set_event_type_code<EV_ABS>(stat, code, &absinfo);
+                             if (type == EV_ABS) set_event_type_code<EV_ABS>(stat, code, absinfo);
                         else if (type == EV_REL) set_event_type_code<EV_REL>(stat, code);
                         else if (type == EV_KEY) set_event_type_code<EV_KEY>(stat, code);
                         else if (type == EV_REP) set_event_type_code<EV_REP>(stat, code);
@@ -4599,8 +4615,8 @@ namespace netxs::lixx // li++, libinput++.
                 model_flags |= EVDEV_MODEL_TEST_DEVICE;
             }
         }
-        template<ui32 Type>
-        void set_event_type_code(bool enable, ui32 code, void const* data = nullptr)
+        template<ui32 Type, class T = si32>
+        void set_event_type_code(bool enable, ui32 code, T data = 0)
         {
             if (code == lixx::event_code_undefined)
             {
@@ -4674,17 +4690,15 @@ namespace netxs::lixx // li++, libinput++.
         {
             auto w = 0.0;
             auto h = 0.0;
-            auto abs_info_x = libevdev_get_abs_info(ABS_X);
-            auto abs_info_y = libevdev_get_abs_info(ABS_Y);
-            auto has_size = abs_info_x && abs_info_y
-                        && (abs_info_x->minimum != 0 || abs_info_x->maximum != 1)
-                        && (abs_info_y->minimum != 0 || abs_info_y->maximum != 1)
+            auto has_size = abs.absinfo_x && abs.absinfo_y
+                        && (abs.absinfo_x.minimum != 0 || abs.absinfo_x.maximum != 1)
+                        && (abs.absinfo_y.minimum != 0 || abs.absinfo_y.maximum != 1)
                         && !abs.is_fake_resolution
-                        && abs_info_x->resolution && abs_info_y->resolution;
+                        && abs.absinfo_x.resolution && abs.absinfo_y.resolution;
             if (has_size)
             {
-                w = abs_info_x->absinfo_convert_to_mm(abs_info_x->maximum);
-                h = abs_info_y->absinfo_convert_to_mm(abs_info_y->maximum);
+                w = abs.absinfo_x.absinfo_convert_to_mm(abs.absinfo_x.maximum);
+                h = abs.absinfo_y.absinfo_convert_to_mm(abs.absinfo_y.maximum);
             }
             return std::pair{ w, h };
         }
@@ -6303,14 +6317,14 @@ namespace netxs::lixx // li++, libinput++.
         fp64_coor evdev_device_units_to_mm(si32_coor units)
         {
             auto mm = fp64_coor{};
-            if (ud_device.abs.absinfo_x == nullptr || ud_device.abs.absinfo_y == nullptr)
+            if (!ud_device.abs.absinfo_x || !ud_device.abs.absinfo_y)
             {
-                log("%s%: is not an abs device", ud_device.devname);
+                log("%s%: is not an abs device (1)", ud_device.devname);
             }
             else
             {
-                auto& absx = *ud_device.abs.absinfo_x;
-                auto& absy = *ud_device.abs.absinfo_y;
+                auto& absx = ud_device.abs.absinfo_x;
+                auto& absy = ud_device.abs.absinfo_y;
                 mm.x = (units.x - absx.minimum) / absx.resolution;
                 mm.y = (units.y - absy.minimum) / absy.resolution;
             }
@@ -7025,16 +7039,16 @@ namespace netxs::lixx // li++, libinput++.
         {
             // Convert the pair of coordinates in mm to device units. This takes the axis min into account, i.e. 0 mm  is equivalent to the min.
             auto units = si32_coor{};
-            if (ud_device.abs.absinfo_x == nullptr || ud_device.abs.absinfo_y == nullptr)
+            if (!ud_device.abs.absinfo_x || !ud_device.abs.absinfo_y)
             {
-                log("%s%: is not an abs device", ud_device.devname);
+                log("%s%: is not an abs device (2)", ud_device.devname);
             }
             else
             {
-                auto absx = ud_device.abs.absinfo_x;
-                auto absy = ud_device.abs.absinfo_y;
-                units.x = mm.x * absx->resolution + absx->minimum;
-                units.y = mm.y * absy->resolution + absy->minimum;
+                auto& absx = ud_device.abs.absinfo_x;
+                auto& absy = ud_device.abs.absinfo_y;
+                units.x = mm.x * absx.resolution + absx.minimum;
+                units.y = mm.y * absy.resolution + absy.minimum;
             }
             return units;
         }
@@ -7073,7 +7087,7 @@ namespace netxs::lixx // li++, libinput++.
         {
             return ud_device.libevdev_get_abs_resolution(code);
         }
-        abs_info_t* libevdev_get_abs_info(ui32 code)
+        abs_info_t& libevdev_get_abs_info(ui32 code)
         {
             return ud_device.libevdev_get_abs_info(code);
         }
@@ -7190,8 +7204,8 @@ namespace netxs::lixx // li++, libinput++.
                         ud_device.abs.calibration.matrix_init_identity();
                         return;
                     }
-                    auto sx = ud_device.abs.absinfo_x->absinfo_range();
-                    auto sy = ud_device.abs.absinfo_y->absinfo_range();
+                    auto sx = ud_device.abs.absinfo_x.absinfo_range();
+                    auto sy = ud_device.abs.absinfo_y.absinfo_range();
                     // The transformation matrix is in the form:
                     //  [ a b c ]
                     //  [ d e f ]
@@ -7211,13 +7225,13 @@ namespace netxs::lixx // li++, libinput++.
                     // Matrix maths requires the normalize/un-normalize in reverse order.
                     //
                     // - Un-Normalize.
-                    translate.matrix_init_translate(ud_device.abs.absinfo_x->minimum, ud_device.abs.absinfo_y->minimum);
+                    translate.matrix_init_translate(ud_device.abs.absinfo_x.minimum, ud_device.abs.absinfo_y.minimum);
                     scale.matrix_init_scale(sx, sy);
                     scale.matrix_mult(translate, scale);
                     // - Calibrate.
                     transform.matrix_mult(scale, transform);
                     // - Normalize.
-                    translate.matrix_init_translate(-ud_device.abs.absinfo_x->minimum / sx, -ud_device.abs.absinfo_y->minimum / sy);
+                    translate.matrix_init_translate(-ud_device.abs.absinfo_x.minimum / sx, -ud_device.abs.absinfo_y.minimum / sy);
                     scale.matrix_init_scale(1.0 / sx, 1.0 / sy);
                     scale.matrix_mult(translate, scale);
                     // - Store final matrix in device.
@@ -7344,43 +7358,43 @@ namespace netxs::lixx // li++, libinput++.
         {
             return ud_device.evdev_is_fake_mt_device();
         }
-        void tablet_notify_proximity(time now, libinput_tablet_tool_sptr tool, libinput_tablet_tool_proximity_state proximity_state, tablet_axes_bitset& changed_axes, tablet_axes const& axes, abs_info_t const* x, abs_info_t const* y)
+        void tablet_notify_proximity(time now, libinput_tablet_tool_sptr tool, libinput_tablet_tool_proximity_state proximity_state, tablet_axes_bitset& changed_axes, tablet_axes const& axes, abs_info_t const& x, abs_info_t const& y)
         {
             auto& proximity_event = li.libinput_emplace_event<libinput_event_tablet_tool>();
             proximity_event.axes              = axes;
             proximity_event.tool              = tool;
             proximity_event.proximity_state   = proximity_state;
             proximity_event.tip_state         = LIBINPUT_TABLET_TOOL_TIP_UP;
-            proximity_event.abs_info_x2       = *x;
-            proximity_event.abs_info_y2       = *y;
+            proximity_event.abs_info_x2       = x;
+            proximity_event.abs_info_y2       = y;
             proximity_event.changed_axes_bits = changed_axes;
             post_device_event(now, LIBINPUT_EVENT_TABLET_TOOL_PROXIMITY, proximity_event);
         }
-        void tablet_notify_tip(time now, libinput_tablet_tool_sptr tool, libinput_tablet_tool_tip_state tip_state, tablet_axes_bitset& changed_axes, tablet_axes const& axes, abs_info_t const* x, abs_info_t const* y)
+        void tablet_notify_tip(time now, libinput_tablet_tool_sptr tool, libinput_tablet_tool_tip_state tip_state, tablet_axes_bitset& changed_axes, tablet_axes const& axes, abs_info_t const& x, abs_info_t const& y)
         {
             auto& tip_event = li.libinput_emplace_event<libinput_event_tablet_tool>();
             tip_event.axes              = axes;
             tip_event.tool              = tool;
             tip_event.proximity_state   = LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_IN;
             tip_event.tip_state         = tip_state;
-            tip_event.abs_info_x2       = *x;
-            tip_event.abs_info_y2       = *y;
+            tip_event.abs_info_x2       = x;
+            tip_event.abs_info_y2       = y;
             tip_event.changed_axes_bits = changed_axes;
             post_device_event(now, LIBINPUT_EVENT_TABLET_TOOL_TIP, tip_event);
         }
-        void tablet_notify_axis(time now, libinput_tablet_tool_sptr tool, libinput_tablet_tool_tip_state tip_state, tablet_axes_bitset& changed_axes, tablet_axes const& axes, abs_info_t const* x, abs_info_t const* y)
+        void tablet_notify_axis(time now, libinput_tablet_tool_sptr tool, libinput_tablet_tool_tip_state tip_state, tablet_axes_bitset& changed_axes, tablet_axes const& axes, abs_info_t const& x, abs_info_t const& y)
         {
             auto& axis_event = li.libinput_emplace_event<libinput_event_tablet_tool>();
             axis_event.axes              = axes;
             axis_event.tool              = tool;
             axis_event.proximity_state   = LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_IN;
             axis_event.tip_state         = tip_state;
-            axis_event.abs_info_x2       = *x;
-            axis_event.abs_info_y2       = *y;
+            axis_event.abs_info_x2       = x;
+            axis_event.abs_info_y2       = y;
             axis_event.changed_axes_bits = changed_axes;
             post_device_event(now, LIBINPUT_EVENT_TABLET_TOOL_AXIS, axis_event);
         }
-        void tablet_notify_button(time now, libinput_tablet_tool_sptr tool, libinput_tablet_tool_tip_state tip_state, tablet_axes const& axes, ui32 button, si32 state, abs_info_t const* x, abs_info_t const* y)
+        void tablet_notify_button(time now, libinput_tablet_tool_sptr tool, libinput_tablet_tool_tip_state tip_state, tablet_axes const& axes, ui32 button, si32 state, abs_info_t const& x, abs_info_t const& y)
         {
             auto& button_event = li.libinput_emplace_event<libinput_event_tablet_tool>();
             button_event.button            = button;
@@ -7390,8 +7404,8 @@ namespace netxs::lixx // li++, libinput++.
             button_event.tool              = tool;
             button_event.proximity_state   = LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_IN;
             button_event.tip_state         = tip_state;
-            button_event.abs_info_x2       = *x;
-            button_event.abs_info_y2       = *y;
+            button_event.abs_info_x2       = x;
+            button_event.abs_info_y2       = y;
             post_device_event(now, LIBINPUT_EVENT_TABLET_TOOL_BUTTON, button_event);
         }
         si32 libinput_device_config_tap_get_finger_count()
@@ -7494,8 +7508,8 @@ namespace netxs::lixx // li++, libinput++.
         }
         void evdev_device_init_abs_range_warnings()
         {
-            auto& x = *ud_device.abs.absinfo_x;
-            auto& y = *ud_device.abs.absinfo_y;
+            auto& x = ud_device.abs.absinfo_x;
+            auto& y = ud_device.abs.absinfo_y;
             auto& w = ud_device.abs.dimensions.x;
             auto& h = ud_device.abs.dimensions.y;
             ud_device.abs.warning_range_x.min = x.minimum - 0.05 * w;
@@ -8226,17 +8240,13 @@ namespace netxs::lixx // li++, libinput++.
                             }
                             si32 rotated(ui32 usage, si32 value)
                             {
-                                auto absinfo = (abs_info_t const*)nullptr;
-                                if (!tp.left_handed.rotate) return value;
-                                switch (usage)
+                                if (tp.left_handed.rotate)
                                 {
-                                    case evdev::abs_x:
-                                    case evdev::abs_mt_position_x: absinfo = tp.ud_device.abs.absinfo_x; break;
-                                    case evdev::abs_y:
-                                    case evdev::abs_mt_position_y: absinfo = tp.ud_device.abs.absinfo_y; break;
-                                    default: ::abort();
+                                    auto x = usage == evdev::abs_x || usage == evdev::abs_mt_position_x;
+                                    auto& absinfo = x ? tp.ud_device.abs.absinfo_x : tp.ud_device.abs.absinfo_y;
+                                    value = absinfo.maximum - (value - absinfo.minimum);
                                 }
-                                return absinfo->maximum - (value - absinfo->minimum);
+                                return value;
                             }
                                 void tp_motion_history_reset(tp_touch& t)
                                 {
@@ -8927,13 +8937,13 @@ namespace netxs::lixx // li++, libinput++.
                                     fp64_coor evdev_device_unit_delta_to_mm(si32_coor units)
                                     {
                                         auto mm = fp64_coor{};
-                                        if (tp.ud_device.abs.absinfo_x == nullptr || tp.ud_device.abs.absinfo_y == nullptr)
+                                        if (!tp.ud_device.abs.absinfo_x || !tp.ud_device.abs.absinfo_y)
                                         {
-                                            log("%s%: is not an abs device", tp.ud_device.devname);
+                                            log("%s%: is not an abs device (3)", tp.ud_device.devname);
                                             return mm;
                                         }
-                                        auto& absx = *tp.ud_device.abs.absinfo_x;
-                                        auto& absy = *tp.ud_device.abs.absinfo_y;
+                                        auto& absx = tp.ud_device.abs.absinfo_x;
+                                        auto& absy = tp.ud_device.abs.absinfo_y;
                                         mm.x = 1.0 * units.x / absx.resolution;
                                         mm.y = 1.0 * units.y / absy.resolution;
                                         return mm;
@@ -9242,7 +9252,7 @@ namespace netxs::lixx // li++, libinput++.
                                             }
                                             fp64_coor tp_phys_delta(fp64_coor delta)
                                             {
-                                                auto mm = delta / tp.ud_device.abs.absinfo_x->resolution;
+                                                auto mm = delta / tp.ud_device.abs.absinfo_x.resolution;
                                                 return mm;
                                             }
                                         bool tp_palm_detect_move_out_of_edge(tp_touch& t, time stamp)
@@ -10941,8 +10951,8 @@ namespace netxs::lixx // li++, libinput++.
                                                     if (!real_touch || tp_thumb_ignored(t1) || tp_thumb_ignored(t2)) return 0;
                                                     auto x = (fp64)std::abs(t1.point.x - t2.point.x);
                                                     auto y = (fp64)std::abs(t1.point.y - t2.point.y);
-                                                    auto xres = tp.ud_device.abs.absinfo_x->resolution;
-                                                    auto yres = tp.ud_device.abs.absinfo_y->resolution;
+                                                    auto xres = tp.ud_device.abs.absinfo_x.resolution;
+                                                    auto yres = tp.ud_device.abs.absinfo_y.resolution;
                                                     x /= xres;
                                                     y /= yres;
                                                     auto within_distance = x <= 40 && y <= 30;
@@ -10955,7 +10965,7 @@ namespace netxs::lixx // li++, libinput++.
                                                             // - and one of the touches is in the bottom 20mm of the touchpad and the other one isn't.
                                                             if (tp.ud_device.abs.dimensions.y / yres >= 50)
                                                             {
-                                                                auto bottom_threshold = tp.ud_device.abs.absinfo_y->maximum - 20 * yres;
+                                                                auto bottom_threshold = tp.ud_device.abs.absinfo_y.maximum - 20 * yres;
                                                                 if ((t1.point.y > bottom_threshold) != (t2.point.y > bottom_threshold))
                                                                 {
                                                                     within_distance = faux;
@@ -13431,11 +13441,11 @@ namespace netxs::lixx // li++, libinput++.
                 bool tp_init_slots()
                 {
                     auto n_btn_tool_touches = 1u;
-                    auto absinfo = tp.libevdev_get_abs_info(ABS_MT_SLOT);
+                    auto& absinfo = tp.libevdev_get_abs_info(ABS_MT_SLOT);
                     if (absinfo)
                     {
-                        tp.num_slots = absinfo->maximum + 1;
-                        tp.slot = absinfo->value;
+                        tp.num_slots = absinfo.maximum + 1;
+                        tp.slot = absinfo.value;
                         tp.has_mt = true;
                     }
                     else
@@ -13550,7 +13560,7 @@ namespace netxs::lixx // li++, libinput++.
                         tp.pressure.use_pressure = faux;
                         return;
                     }
-                    auto abs = tp.libevdev_get_abs_info(code);
+                    auto& abs = tp.libevdev_get_abs_info(code);
                     assert(abs);
                     auto q = tp.li.quirks_fetch_for_device(tp.ud_device);
                     auto r = si32_range{};
@@ -13568,11 +13578,11 @@ namespace netxs::lixx // li++, libinput++.
                     }
                     else // Approximately the synaptics defaults.
                     {
-                        auto range = abs->absinfo_range();
-                        hi = abs->minimum + 0.12 * range;
-                        lo = abs->minimum + 0.10 * range;
+                        auto range = abs.absinfo_range();
+                        hi = abs.minimum + 0.12 * range;
+                        lo = abs.minimum + 0.10 * range;
                     }
-                    if (hi > abs->maximum || hi < abs->minimum || lo > abs->maximum || lo < abs->minimum)
+                    if (hi > abs.maximum || hi < abs.minimum || lo > abs.maximum || lo < abs.minimum)
                     {
                         log("discarding out-of-bounds pressure range %d%:%d%", hi, lo);
                     }
@@ -13588,8 +13598,8 @@ namespace netxs::lixx // li++, libinput++.
                 {
                     auto xmargin = 0;
                     auto ymargin = 0;
-                    auto& ax = *tp.ud_device.abs.absinfo_x;
-                    auto& ay = *tp.ud_device.abs.absinfo_y;
+                    auto& ax = tp.ud_device.abs.absinfo_x;
+                    auto& ay = tp.ud_device.abs.absinfo_y;
                     xmargin = ax.fuzz ? ax.fuzz : ax.resolution / 4;
                     ymargin = ay.fuzz ? ay.fuzz : ay.resolution / 4;
                     tp.hysteresis.margin.x = xmargin;
@@ -13620,8 +13630,8 @@ namespace netxs::lixx // li++, libinput++.
                     auto filter = motion_filter_sptr{};
                     auto dpi = tp.dpi;
                     auto use_v_avg = tp.use_velocity_averaging;
-                    auto res_x = tp.ud_device.abs.absinfo_x->resolution;
-                    auto res_y = tp.ud_device.abs.absinfo_y->resolution;
+                    auto res_x = tp.ud_device.abs.absinfo_x.resolution;
+                    auto res_y = tp.ud_device.abs.absinfo_y.resolution;
                     // Not all touchpads report the same amount of units/mm (resolution).
                     // Normalize motion events to the default mouse DPI as base (unaccelerated) speed. This also evens out any differences in x and y resolution, so that a circle on the touchpad does not turn into an ellipse on the screen.
                     tp.accel_scale_coeff = { (lixx::default_mouse_dpi / 25.4) / res_x, (lixx::default_mouse_dpi / 25.4) / res_y };
@@ -13901,10 +13911,10 @@ namespace netxs::lixx // li++, libinput++.
                 {
                     tp.buttons.is_clickpad = tp_guess_clickpad();
                     tp.buttons.has_topbuttons = tp.libevdev_has_property(INPUT_PROP_TOPBUTTONPAD);
-                    auto absinfo_x = tp.ud_device.abs.absinfo_x;
-                    auto absinfo_y = tp.ud_device.abs.absinfo_y;
+                    auto& absinfo_x = tp.ud_device.abs.absinfo_x;
+                    auto& absinfo_y = tp.ud_device.abs.absinfo_y;
                     // Pinned-finger motion threshold, see tp_unpin_finger.
-                    tp.buttons.motion_dist_scale_coeff                   = { 1.0 / absinfo_x->resolution, 1.0 / absinfo_y->resolution };
+                    tp.buttons.motion_dist_scale_coeff                   = { 1.0 / absinfo_x.resolution, 1.0 / absinfo_y.resolution };
                     tp.buttons.config_method.get_methods                 = tp_button_config_click_get_methods;
                     tp.buttons.config_method.set_method                  = tp_button_config_click_set_method;
                     tp.buttons.config_method.get_method                  = tp_button_config_click_get_method;
@@ -14519,7 +14529,7 @@ namespace netxs::lixx // li++, libinput++.
                 {
                     tp_init_pressure();
                 }
-                tp.dpi = tp.ud_device.abs.absinfo_x->resolution * 25.4; // Set the dpi to that of the x axis, because that's what we normalize to when needed.
+                tp.dpi = tp.ud_device.abs.absinfo_x.resolution * 25.4; // Set the dpi to that of the x axis, because that's what we normalize to when needed.
                 tp_init_hysteresis();
                 tp_init_accel(LIBINPUT_CONFIG_ACCEL_PROFILE_ADAPTIVE);
                 tp_init_tap();
@@ -14869,17 +14879,17 @@ namespace netxs::lixx // li++, libinput++.
                                     dial_event.dial       = { .v120 = value, .number = (si32)number };
                                     pad.post_device_event(stamp, LIBINPUT_EVENT_TABLET_PAD_DIAL, dial_event);
                                 }
-                                    fp64 normalize_wacom_ring(abs_info_t const* absinfo)
+                                    fp64 normalize_wacom_ring(abs_info_t const& absinfo)
                                     {
                                         // Libinput has 0 as the ring's northernmost point in the device's current logical rotation, increasing clockwise to 1. Wacom has 0 on the left-most wheel position.
-                                        auto range = absinfo->absinfo_range();
-                                        auto value = (absinfo->value - absinfo->minimum) / range - 0.25;
+                                        auto range = absinfo.absinfo_range();
+                                        auto value = (absinfo.value - absinfo.minimum) / range - 0.25;
                                         if (value < 0.0) value += 1.0;
                                         return value;
                                     }
                                 fp64 pad_handle_ring(ui32 code)
                                 {
-                                    auto absinfo = pad.libevdev_get_abs_info(code);
+                                    auto& absinfo = pad.libevdev_get_abs_info(code);
                                     assert(absinfo);
                                     auto degrees = normalize_wacom_ring(absinfo) * 360;
                                     if (pad.dev_left_handed.enabled)
@@ -14918,25 +14928,25 @@ namespace netxs::lixx // li++, libinput++.
                                                               .number = (si32)number };
                                     pad.post_device_event(stamp, LIBINPUT_EVENT_TABLET_PAD_RING, ring_event);
                                 }
-                                    fp64 normalize_wacom_strip(abs_info_t const* absinfo)
+                                    fp64 normalize_wacom_strip(abs_info_t const& absinfo)
                                     {
                                         // Strip axes don't use a proper value, they just shift the bit left for each position. 0 isn't a real value either, it's only sent on finger release.
                                         auto min = fp64{};
-                                        auto max = log2(absinfo->maximum);
+                                        auto max = log2(absinfo.maximum);
                                         auto range = max - min;
-                                        auto value = (log2(absinfo->value) - min) / range;
+                                        auto value = (log2(absinfo.value) - min) / range;
                                         return value;
                                     }
-                                    fp64 normalize_strip(abs_info_t const* absinfo)
+                                    fp64 normalize_strip(abs_info_t const& absinfo)
                                     {
-                                        return absinfo->absinfo_normalize_value(absinfo->value);
+                                        return absinfo.absinfo_normalize_value(absinfo.value);
                                     }
                                 fp64 pad_handle_strip(ui32 code)
                                 {
                                     auto pos = fp64{};
-                                    auto absinfo = pad.libevdev_get_abs_info(code);
+                                    auto& absinfo = pad.libevdev_get_abs_info(code);
                                     assert(absinfo);
-                                    if (absinfo->value == 0) return 0.0;
+                                    if (absinfo.value == 0) return 0.0;
                                     if (pad.libevdev_get_id_vendor() == lixx::vendor_id_wacom)
                                     {
                                         pos = normalize_wacom_strip(absinfo);
@@ -15410,11 +15420,11 @@ namespace netxs::lixx // li++, libinput++.
                 tool->serial = 0;
                 tool->tool_id = 0;
                 tool->type = LIBINPUT_TABLET_TOOL_TYPE_TOTEM;
-                tool->pressure.threshold.tablet_id = 0;
-                tool->pressure.threshold.offset = 0.0;
-                tool->pressure.threshold.has_offset = faux;
-                tool->pressure.threshold.threshold.min = 0;
-                tool->pressure.threshold.threshold.max = 1;
+                tool->pressure.tablet_id = 0;
+                tool->pressure.threshold_offset = 0.0;
+                tool->pressure.threshold_has_offset = faux;
+                tool->pressure.threshold.min = 0;
+                tool->pressure.threshold.max = 1;
                 tool->axis_caps_bits.set(LIBINPUT_TABLET_TOOL_AXIS_X);
                 tool->axis_caps_bits.set(LIBINPUT_TABLET_TOOL_AXIS_Y);
                 tool->axis_caps_bits.set(LIBINPUT_TABLET_TOOL_AXIS_ROTATION_Z);
@@ -15751,7 +15761,7 @@ namespace netxs::lixx // li++, libinput++.
                 }
             si32 totem_init_accel()
             {
-                auto resolution = si32_coor{ totem.ud_device.abs.absinfo_x->resolution, totem.ud_device.abs.absinfo_y->resolution };
+                auto resolution = si32_coor{ totem.ud_device.abs.absinfo_x.resolution, totem.ud_device.abs.absinfo_y.resolution };
                 auto filter = ptr::shared<tablet_accelerator_flat>(resolution); // Same filter as the tablet.
                 totem.evdev_device_init_pointer_acceleration(filter);
                 // We override the profile hooks for accel configuration with hooks that don't allow selection of profiles.
@@ -16131,32 +16141,6 @@ namespace netxs::lixx // li++, libinput++.
                         }
                         return faux;
                     }
-                                static si32 pressure_range_is_available(libinput_tablet_tool_sptr tool)
-                                {
-                                    return tool->axis_caps_bits[LIBINPUT_TABLET_TOOL_AXIS_PRESSURE];
-                                }
-                                static libinput_config_status pressure_range_set(libinput_tablet_tool_sptr tool, fp64_range range)
-                                {
-                                    if (range.min < 0.0 || range.min >= 1.0 || range.max <= 0.0 || range.max > 1.0 || range.max <= range.min)
-                                    {
-                                        return LIBINPUT_CONFIG_STATUS_INVALID;
-                                    }
-                                    else
-                                    {
-                                        tool->pressure.wanted_range = range;
-                                        tool->pressure.has_configured_range = true;
-                                        return LIBINPUT_CONFIG_STATUS_SUCCESS;
-                                    }
-                                }
-                                static void pressure_range_get(libinput_tablet_tool_sptr tool, fp64_range& range)
-                                {
-                                    range = tool->pressure.wanted_range;
-                                }
-                                static void pressure_range_get_default([[maybe_unused]] libinput_tablet_tool_sptr tool, fp64_range& range)
-                                {
-                                    range.min = 0.0;
-                                    range.max = 1.0;
-                                }
                                     void apply_pressure_range_configuration(libinput_tablet_tool_sptr tool, bool force_update)
                                     {
                                         if (!tablet.libevdev_has_event_code<EV_ABS>(ABS_PRESSURE)
@@ -16167,26 +16151,27 @@ namespace netxs::lixx // li++, libinput++.
                                         tool->pressure.range.min = tool->pressure.wanted_range.min;
                                         tool->pressure.range.max = tool->pressure.wanted_range.max;
                                     }
-                                void tool_init_pressure_thresholds(libinput_tablet_tool_sptr tool, libinput_tablet_tool_pressure_threshold* threshold)
+                                void tool_init_pressure_thresholds(libinput_tablet_tool_sptr tool)
                                 {
-                                    threshold->tablet_id     = tablet.tablet_id;
-                                    threshold->offset        = 0.0;
-                                    threshold->has_offset    = faux;
-                                    threshold->threshold.min = 0;
-                                    threshold->threshold.max = 1;
-                                    auto pressure = tablet.libevdev_get_abs_info(ABS_PRESSURE);
-                                    if (!pressure) return;
-                                    threshold->abs_pressure = *pressure;
-                                    auto distance = tablet.libevdev_get_abs_info(ABS_DISTANCE);
-                                    if (distance)
+                                    auto& pressure = tool->pressure;
+                                    pressure.tablet_id            = tablet.tablet_id;
+                                    pressure.threshold_offset     = 0.0;
+                                    pressure.threshold_has_offset = faux;
+                                    pressure.threshold.min        = 0;
+                                    pressure.threshold.max        = 1;
+                                    auto& pressure_abs_info = tablet.libevdev_get_abs_info(ABS_PRESSURE);
+                                    if (!pressure_abs_info) return;
+                                    pressure.abs_info = pressure_abs_info;
+                                    auto& distance_abs_info = tablet.libevdev_get_abs_info(ABS_DISTANCE);
+                                    if (distance_abs_info)
                                     {
-                                        threshold->offset = 0.0;
-                                        threshold->heuristic_state = PRESSURE_HEURISTIC_STATE_DONE;
+                                        pressure.threshold_offset = 0.0;
+                                        pressure.heuristic_state = PRESSURE_HEURISTIC_STATE_DONE;
                                     }
                                     else
                                     {
-                                        threshold->offset = 1.0;
-                                        threshold->heuristic_state = PRESSURE_HEURISTIC_STATE_PROXIN1;
+                                        pressure.threshold_offset = 1.0;
+                                        pressure.heuristic_state = PRESSURE_HEURISTIC_STATE_PROXIN1;
                                     }
                                     apply_pressure_range_configuration(tool, true);
                                 }
@@ -16313,11 +16298,7 @@ namespace netxs::lixx // li++, libinput++.
                                 tool->type     = type,
                                 tool->pressure = { .range        = { .min = 0.0, .max = 0.0 }, // To trigger configuration.
                                                    .wanted_range = { .min = 0.0, .max = 1.0 }},
-                                tool->config_pressure_range = { .is_available = pressure_range_is_available,
-                                                                .set          = pressure_range_set,
-                                                                .get          = pressure_range_get,
-                                                                .get_default  = pressure_range_get_default };
-                                tool_init_pressure_thresholds(tool, &tool->pressure.threshold);
+                                tool_init_pressure_thresholds(tool);
                                 tool_set_bits(tool);
                                 return tool;
                             }
@@ -16367,9 +16348,9 @@ namespace netxs::lixx // li++, libinput++.
                     void tablet_update_proximity_state(libinput_tablet_tool_sptr tool)
                     {
                         auto dist_max = tablet.cursor_proximity_threshold;
-                        auto distance = tablet.libevdev_get_abs_info(ABS_DISTANCE);
-                        if (!distance || distance->value == 0) return;
-                        auto dist = (ui32)distance->value;
+                        auto& distance = tablet.libevdev_get_abs_info(ABS_DISTANCE);
+                        if (!distance || distance.value == 0) return;
+                        auto dist = (ui32)distance.value;
                         if (dist < dist_max && (tablet.status & (TABLET_TOOL_OUT_OF_RANGE | TABLET_TOOL_OUT_OF_PROXIMITY))) // Tool got into permitted range.
                         {
                             tablet.status &= ~TABLET_TOOL_OUT_OF_RANGE;
@@ -16432,33 +16413,15 @@ namespace netxs::lixx // li++, libinput++.
                             }
                             return status;
                         }
-                        libinput_tablet_tool_pressure_threshold* tablet_tool_get_threshold(libinput_tablet_tool_sptr tool)
-                        {
-                            return &tool->pressure.threshold;
-                        }
-                            si32 pressure_offset_to_absinfo(fp64 pressure_offset, abs_info_t const* abs)
-                            {
-                                return (abs->maximum - abs->minimum) * pressure_offset + abs->minimum;
-                            }
-                        void set_pressure_offset(libinput_tablet_tool_pressure_threshold* threshold, fp64 offset_in_percent)
-                        {
-                            threshold->offset = offset_in_percent;
-                            threshold->has_offset = true;
-                            // Adjust the tresholds accordingly - we use the same gap (4% in device coordinates) between upper and lower as before which isn't technically correct (our range shrunk) but it's easy to calculate.
-                            auto units = pressure_offset_to_absinfo(offset_in_percent, &threshold->abs_pressure);
-                            auto gap = threshold->threshold.max - threshold->threshold.min;
-                            threshold->threshold.min = units;
-                            threshold->threshold.max = units + gap;
-                        }
                     void update_pressure_range(libinput_tablet_tool_sptr tool)
                     {
                         auto min = tool->pressure.range.min;
                         auto max = tool->pressure.range.max;
-                        auto abs = *tablet.libevdev_get_abs_info(ABS_PRESSURE);
-                        auto minimum = abs.axis_range_percentage(min * 100.0);
-                        auto maximum = abs.axis_range_percentage(max * 100.0);
-                        abs.minimum = minimum;
-                        abs.maximum = maximum;
+                        auto pressure_abs_info = tablet.libevdev_get_abs_info(ABS_PRESSURE);
+                        auto minimum = pressure_abs_info.axis_range_percentage(min * 100.0);
+                        auto maximum = pressure_abs_info.axis_range_percentage(max * 100.0);
+                        pressure_abs_info.minimum = minimum;
+                        pressure_abs_info.maximum = maximum;
                         // Only use the quirk pressure range if we don't have a custom range.
                         auto hi = 0;
                         auto lo = 0;
@@ -16466,47 +16429,39 @@ namespace netxs::lixx // li++, libinput++.
                             || !tablet_get_quirked_pressure_thresholds(&hi, &lo))
                         {
                             // 5 and 1% of the pressure range.
-                            hi = abs.axis_range_percentage(5);
-                            lo = abs.axis_range_percentage(1);
+                            hi = pressure_abs_info.axis_range_percentage(5);
+                            lo = pressure_abs_info.axis_range_percentage(1);
                         }
-                        auto threshold = tablet_tool_get_threshold(tool);
-                        threshold->abs_pressure = abs;
-                        threshold->threshold.min = lo;
-                        threshold->threshold.max = hi;
-                        if (threshold->has_offset) set_pressure_offset(threshold, threshold->offset);
+                        auto& pressure = tool->pressure;
+                        pressure.abs_info      = pressure_abs_info;
+                        pressure.threshold.min = lo;
+                        pressure.threshold.max = hi;
+                        if (pressure.threshold_has_offset) pressure.set_pressure_offset(pressure.threshold_offset);
                         if (tool->pressure.has_configured_range) // Disable any heuristics.
                         {
-                            threshold->has_offset = true;
-                            threshold->heuristic_state = PRESSURE_HEURISTIC_STATE_DONE;
+                            pressure.threshold_has_offset = true;
+                            pressure.heuristic_state = PRESSURE_HEURISTIC_STATE_DONE;
                         }
                     }
-                            fp64 pressure_offset_from_range(fp64 min, fp64 max, fp64 value)
-                            {
-                                return (value - min) / (max - min);
-                            }
-                        fp64 pressure_offset_from_absinfo(abs_info_t const* abs, si32 value)
-                        {
-                            return pressure_offset_from_range(abs->minimum, abs->maximum, value);
-                        }
                     void update_pressure_offset(libinput_tablet_tool_sptr tool)
                     {
-                        auto pressure = tablet.libevdev_get_abs_info(ABS_PRESSURE);
-                        if (pressure && !tool->pressure.has_configured_range && tablet.changed_axes_bits[LIBINPUT_TABLET_TOOL_AXIS_PRESSURE])
+                        auto& pressure_abs_info = tablet.libevdev_get_abs_info(ABS_PRESSURE);
+                        if (pressure_abs_info && !tool->pressure.has_configured_range && tablet.changed_axes_bits[LIBINPUT_TABLET_TOOL_AXIS_PRESSURE])
                         {
                             // If we have an event that falls below the current offset, adjust the offset downwards. A fast contact can start with a higher-than-needed pressure offset and then we'd be tied into a high pressure offset for the rest of the session.
                             // If we are still pending the offset decision, only update the observed offset value, don't actually set it to have an offset.
-                            auto offset = pressure_offset_from_absinfo(pressure, pressure->value);
-                            auto threshold = tablet_tool_get_threshold(tool);
-                            if (threshold->has_offset)
+                            auto offset = pressure_abs_info.pressure_offset_from_absinfo(pressure_abs_info.value);
+                            auto& pressure = tool->pressure;
+                            if (pressure.threshold_has_offset)
                             {
-                                if (offset < threshold->offset)
+                                if (offset < pressure.threshold_offset)
                                 {
-                                    set_pressure_offset(threshold, offset);
+                                    pressure.set_pressure_offset(offset);
                                 }
                             }
-                            else if (threshold->heuristic_state != PRESSURE_HEURISTIC_STATE_DONE)
+                            else if (pressure.heuristic_state != PRESSURE_HEURISTIC_STATE_DONE)
                             {
-                                threshold->offset = std::min(offset, threshold->offset);
+                                pressure.threshold_offset = std::min(offset, pressure.threshold_offset);
                             }
                         }
                     }
@@ -16530,16 +16485,16 @@ namespace netxs::lixx // li++, libinput++.
                         {
                             return;
                         }
-                        auto threshold = tablet_tool_get_threshold(tool);
-                        if (threshold->has_offset) return;
-                        auto pressure = tablet.libevdev_get_abs_info(ABS_PRESSURE);
-                        auto distance = tablet.libevdev_get_abs_info(ABS_DISTANCE);
-                        if (!pressure || pressure->value <= pressure->minimum) return;
-                        auto units = pressure->value;
-                        auto offset = pressure_offset_from_absinfo(pressure, units);
-                        if (distance)
+                        auto& pressure = tool->pressure;
+                        if (pressure.threshold_has_offset) return;
+                        auto& pressure_abs_info = tablet.libevdev_get_abs_info(ABS_PRESSURE);
+                        auto& distance_abs_info = tablet.libevdev_get_abs_info(ABS_DISTANCE);
+                        if (!pressure_abs_info || pressure_abs_info.value <= pressure_abs_info.minimum) return;
+                        auto units = pressure_abs_info.value;
+                        auto offset = pressure_abs_info.pressure_offset_from_absinfo(units);
+                        if (distance_abs_info)
                         {
-                            if (distance->value < distance->axis_range_percentage(50)) // If we're closer than 50% of the distance axis, skip pressure offset detection, too likely to be wrong.
+                            if (distance_abs_info.value < distance_abs_info.axis_range_percentage(50)) // If we're closer than 50% of the distance axis, skip pressure offset detection, too likely to be wrong.
                             {
                                 return;
                             }
@@ -16547,30 +16502,30 @@ namespace netxs::lixx // li++, libinput++.
                         else
                         {
                             // A device without distance will always have some pressure on contact. Offset detection is delayed for a few proximity ins in the hope we'll find the minimum value until then. That offset is updated during motion events so by the time the deciding prox-in arrives we should know the minimum offset.
-                            if (units > pressure->minimum)
+                            if (units > pressure_abs_info.minimum)
                             {
-                                threshold->offset = std::min(offset, threshold->offset);
+                                pressure.threshold_offset = std::min(offset, pressure.threshold_offset);
                             }
-                            switch (threshold->heuristic_state)
+                            switch (pressure.heuristic_state)
                             {
                                 case PRESSURE_HEURISTIC_STATE_PROXIN1:
                                 case PRESSURE_HEURISTIC_STATE_PROXIN2:
-                                    threshold->heuristic_state = (pressure_heuristic_state)(threshold->heuristic_state + 1);
+                                    pressure.heuristic_state = (pressure_heuristic_enum)(pressure.heuristic_state + 1);
                                     return;
                                 case PRESSURE_HEURISTIC_STATE_DECIDE:
-                                    threshold->heuristic_state = (pressure_heuristic_state)(threshold->heuristic_state + 1);
-                                    units = pressure_offset_to_absinfo(threshold->offset, pressure);
-                                    offset = threshold->offset;
+                                    pressure.heuristic_state = (pressure_heuristic_enum)(pressure.heuristic_state + 1);
+                                    units = pressure_abs_info.pressure_offset_to_absinfo(pressure.threshold_offset);
+                                    offset = pressure.threshold_offset;
                                     break;
                                 case PRESSURE_HEURISTIC_STATE_DONE:
                                     return;
                             }
                         }
-                        if (units > pressure->minimum)
+                        if (units > pressure_abs_info.minimum)
                         {
                             if (offset > 0.5) log("Ignoring pressure offset greater than 50 percents detected on tool %s% (serial %#x%)", tablet_tool_type_to_string(tool->type), tool->serial);
                             else              log("Pressure offset detected on tool %s% (serial %#x%)", tablet_tool_type_to_string(tool->type), tool->serial);
-                            set_pressure_offset(threshold, offset);
+                            pressure.set_pressure_offset(offset);
                         }
                     }
                     void detect_tool_contact(libinput_tablet_tool_sptr tool)
@@ -16585,15 +16540,15 @@ namespace netxs::lixx // li++, libinput++.
                             {
                                 log("Invalid status: leaving contact");
                             }
-                            if (auto p = tablet.libevdev_get_abs_info(ABS_PRESSURE))
+                            if (auto& pressure_abs_info = tablet.libevdev_get_abs_info(ABS_PRESSURE))
                             {
-                                auto pressure = p->value;
-                                auto threshold = tablet_tool_get_threshold(tool);
-                                if (pressure <= threshold->threshold.min && (tablet.status & TABLET_TOOL_IN_CONTACT))
+                                auto pressure_value = pressure_abs_info.value;
+                                auto& pressure = tool->pressure;
+                                if (pressure_value <= pressure.threshold.min && (tablet.status & TABLET_TOOL_IN_CONTACT))
                                 {
                                     tablet.status |= TABLET_TOOL_LEAVING_CONTACT;
                                 }
-                                else if (pressure >= threshold->threshold.max && !(tablet.status & TABLET_TOOL_IN_CONTACT))
+                                else if (pressure_value >= pressure.threshold.max && !(tablet.status & TABLET_TOOL_IN_CONTACT))
                                 {
                                     tablet.status |= TABLET_TOOL_ENTERING_CONTACT;
                                 }
@@ -16633,9 +16588,9 @@ namespace netxs::lixx // li++, libinput++.
                                      || tablet.changed_axes_bits[LIBINPUT_TABLET_TOOL_AXIS_Y])
                                     {
                                         auto& absinfo_x = tablet.ud_device.abs.absinfo_x;
-                                        tablet.axes.point.x = tablet.rotation.rotate ? absinfo_x->invert_axis() : absinfo_x->value;
                                         auto& absinfo_y = tablet.ud_device.abs.absinfo_y;
-                                        tablet.axes.point.y = tablet.rotation.rotate ? absinfo_y->invert_axis() : absinfo_y->value;
+                                        tablet.axes.point.x = tablet.rotation.rotate ? absinfo_x.invert_axis() : absinfo_x.value;
+                                        tablet.axes.point.y = tablet.rotation.rotate ? absinfo_y.invert_axis() : absinfo_y.value;
                                         // Calibration and area are currently mutually exclusive so one of those is a noop.
                                         tablet.evdev_transform_absolute(tablet.axes.point);
                                         apply_tablet_area(tablet.axes.point);
@@ -16660,27 +16615,13 @@ namespace netxs::lixx // li++, libinput++.
                                 if (!accel) return {};
                                 else        return tablet.pointer_filter->filter_dispatch(accel, tool.get(), stamp);
                             }
-                                fp64 normalize_pressure(libinput_tablet_tool_pressure_threshold* threshold, si32 abs_value)
-                                {
-                                    // Note: the upper threshold takes the offset into account so that
-                                    //            |- 4% -|
-                                    // min |------X------X-------------------------| max
-                                    //            |      |
-                                    //            |      + upper threshold / tip trigger
-                                    //            +- offset and lower threshold
-                                    //
-                                    // The axis is scaled into the range [lower, max] so that the lower threshold is 0 pressure.
-                                    auto abs = threshold->abs_pressure;
-                                    abs.minimum = threshold->threshold.min;
-                                    return abs.absinfo_normalize_value(abs_value);
-                                }
                             void tablet_update_pressure(libinput_tablet_tool_sptr tool)
                             {
-                                auto abs = tablet.libevdev_get_abs_info(ABS_PRESSURE);
-                                if (abs && tablet.changed_axes_bits[LIBINPUT_TABLET_TOOL_AXIS_PRESSURE])
+                                auto& pressure_abs_info = tablet.libevdev_get_abs_info(ABS_PRESSURE);
+                                if (pressure_abs_info && tablet.changed_axes_bits[LIBINPUT_TABLET_TOOL_AXIS_PRESSURE])
                                 {
-                                    auto threshold = tablet_tool_get_threshold(tool);
-                                    tablet.axes.pressure = normalize_pressure(threshold, abs->value);
+                                    auto& pressure = tool->pressure;
+                                    tablet.axes.pressure = pressure.normalize_pressure(pressure_abs_info.value);
                                 }
                             }
                             void tablet_update_distance()
@@ -16688,8 +16629,8 @@ namespace netxs::lixx // li++, libinput++.
                                 if (!tablet.libevdev_has_event_code<EV_ABS>(ABS_DISTANCE)) return;
                                 if (tablet.changed_axes_bits[LIBINPUT_TABLET_TOOL_AXIS_DISTANCE])
                                 {
-                                    auto absinfo = tablet.libevdev_get_abs_info(ABS_DISTANCE);
-                                    tablet.axes.distance = absinfo->absinfo_normalize(); // Normalize distance.
+                                    auto& absinfo = tablet.libevdev_get_abs_info(ABS_DISTANCE);
+                                    tablet.axes.distance = absinfo.absinfo_normalize(); // Normalize distance.
                                 }
                             }
                             void tablet_update_slider()
@@ -16697,18 +16638,18 @@ namespace netxs::lixx // li++, libinput++.
                                 if (!tablet.libevdev_has_event_code<EV_ABS>(ABS_WHEEL)) return;
                                 if (tablet.changed_axes_bits[LIBINPUT_TABLET_TOOL_AXIS_SLIDER])
                                 {
-                                    auto absinfo = tablet.libevdev_get_abs_info(ABS_WHEEL);
-                                    tablet.axes.slider = absinfo->absinfo_normalize() * 2 - 1; // Normalize slider.
+                                    auto& absinfo = tablet.libevdev_get_abs_info(ABS_WHEEL);
+                                    tablet.axes.slider = absinfo.absinfo_normalize() * 2 - 1; // Normalize slider.
                                 }
                             }
-                                fp64 adjust_tilt(abs_info_t const* absinfo)
+                                fp64 adjust_tilt(abs_info_t const& absinfo)
                                 {
-                                    auto value = absinfo->absinfo_normalize();
+                                    auto value = absinfo.absinfo_normalize();
                                     auto WACOM_MAX_DEGREES = 64;
                                     // If resolution is nonzero, it's in units/radian. But require a min/max less/greater than zero so we can assume 0 is the center.
-                                    if (absinfo->resolution != 0 && absinfo->maximum > 0 && absinfo->minimum < 0)
+                                    if (absinfo.resolution != 0 && absinfo.maximum > 0 && absinfo.minimum < 0)
                                     {
-                                        value = netxs::rad2deg((fp64)absinfo->value / absinfo->resolution);
+                                        value = netxs::rad2deg((fp64)absinfo.value / absinfo.resolution);
                                     }
                                     else // Wacom supports physical [-64, 64] degrees, so map to that by default. If other tablets have a different physical range or nonzero physical offsets, they need extra treatment here.
                                     {
@@ -16728,9 +16669,9 @@ namespace netxs::lixx // li++, libinput++.
                                 if (tablet.changed_axes_bits[LIBINPUT_TABLET_TOOL_AXIS_TILT_X]
                                  || tablet.changed_axes_bits[LIBINPUT_TABLET_TOOL_AXIS_TILT_Y])
                                 {
-                                    auto absinfo_x = tablet.libevdev_get_abs_info(ABS_TILT_X);
+                                    auto& absinfo_x = tablet.libevdev_get_abs_info(ABS_TILT_X);
+                                    auto& absinfo_y = tablet.libevdev_get_abs_info(ABS_TILT_Y);
                                     tablet.axes.tilt.x = adjust_tilt(absinfo_x);
-                                    auto absinfo_y = tablet.libevdev_get_abs_info(ABS_TILT_Y);
                                     tablet.axes.tilt.y = adjust_tilt(absinfo_y);
                                     if (tablet.dev_left_handed.enabled)
                                     {
@@ -16754,9 +16695,9 @@ namespace netxs::lixx // li++, libinput++.
                                     tablet.axes.wheel_discrete = 0;
                                 }
                             }
-                                    fp64 convert_to_degrees(abs_info_t const* absinfo, fp64 offset)
+                                    fp64 convert_to_degrees(abs_info_t const& absinfo, fp64 offset)
                                     {
-                                        auto value = (absinfo->value - absinfo->minimum) / absinfo->absinfo_range(); // Range is [0, 360[, i.e. range + 1.
+                                        auto value = (absinfo.value - absinfo.minimum) / absinfo.absinfo_range(); // Range is [0, 360[, i.e. range + 1.
                                         return std::fmod(value * 360.0 + offset, 360.0);
                                     }
                                 void tablet_update_artpen_rotation()
@@ -16764,7 +16705,7 @@ namespace netxs::lixx // li++, libinput++.
                                     if (tablet.libevdev_has_event_code<EV_ABS>(ABS_Z)
                                         && tablet.changed_axes_bits[LIBINPUT_TABLET_TOOL_AXIS_ROTATION_Z])
                                     {
-                                        auto absinfo = tablet.libevdev_get_abs_info(ABS_Z);
+                                        auto& absinfo = tablet.libevdev_get_abs_info(ABS_Z);
                                         tablet.axes.rotation = convert_to_degrees(absinfo, 90); // Artpen has 0 with buttons pointing east.
                                     }
                                 }
@@ -16939,7 +16880,7 @@ namespace netxs::lixx // li++, libinput++.
                         {
                             if (tablet.status & TABLET_TOOL_ENTERING_PROXIMITY)
                             {
-                                tablet.tablet_notify_proximity(stamp, tool, LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_IN, tablet.changed_axes_bits, axes, &tablet.area.x, &tablet.area.y);
+                                tablet.tablet_notify_proximity(stamp, tool, LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_IN, tablet.changed_axes_bits, axes, tablet.area.x, tablet.area.y);
                                 tablet.status &= ~TABLET_TOOL_ENTERING_PROXIMITY;
                                 tablet.status &= ~TABLET_AXES_UPDATED;
                                 tablet_reset_changed_axes();
@@ -16956,14 +16897,14 @@ namespace netxs::lixx // li++, libinput++.
                         {
                             if ((tablet.status & TABLET_TOOL_LEAVING_PROXIMITY) && !(tablet.status & TABLET_TOOL_OUTSIDE_AREA))
                             {
-                                tablet.tablet_notify_proximity(stamp, tool, LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_OUT, tablet.changed_axes_bits, axes, &tablet.area.x, &tablet.area.y);
+                                tablet.tablet_notify_proximity(stamp, tool, LIBINPUT_TABLET_TOOL_PROXIMITY_STATE_OUT, tablet.changed_axes_bits, axes, tablet.area.x, tablet.area.y);
                             }
                         }
                         bool tablet_send_tip(libinput_tablet_tool_sptr tool, tablet_axes& axes, time stamp)
                         {
                             if (tablet.status & TABLET_TOOL_ENTERING_CONTACT)
                             {
-                                tablet.tablet_notify_tip(stamp, tool, LIBINPUT_TABLET_TOOL_TIP_DOWN, tablet.changed_axes_bits, axes, &tablet.area.x, &tablet.area.y);
+                                tablet.tablet_notify_tip(stamp, tool, LIBINPUT_TABLET_TOOL_TIP_DOWN, tablet.changed_axes_bits, axes, tablet.area.x, tablet.area.y);
                                 tablet.status &= ~TABLET_AXES_UPDATED;
                                 tablet.status &= ~TABLET_TOOL_ENTERING_CONTACT;
                                 tablet.status |= TABLET_TOOL_IN_CONTACT;
@@ -16974,7 +16915,7 @@ namespace netxs::lixx // li++, libinput++.
                             }
                             if (tablet.status & TABLET_TOOL_LEAVING_CONTACT)
                             {
-                                tablet.tablet_notify_tip(stamp, tool, LIBINPUT_TABLET_TOOL_TIP_UP, tablet.changed_axes_bits, axes, &tablet.area.x, &tablet.area.y);
+                                tablet.tablet_notify_tip(stamp, tool, LIBINPUT_TABLET_TOOL_TIP_UP, tablet.changed_axes_bits, axes, tablet.area.x, tablet.area.y);
                                 tablet.status &= ~TABLET_AXES_UPDATED;
                                 tablet.status &= ~TABLET_TOOL_LEAVING_CONTACT;
                                 tablet.status &= ~TABLET_TOOL_IN_CONTACT;
@@ -16990,7 +16931,7 @@ namespace netxs::lixx // li++, libinput++.
                             if (!(tablet.status & TABLET_AXES_UPDATED)) return;
                             auto tip_state = (tablet.status & TABLET_TOOL_IN_CONTACT) ? LIBINPUT_TABLET_TOOL_TIP_DOWN
                                                                                       : LIBINPUT_TABLET_TOOL_TIP_UP;
-                            tablet.tablet_notify_axis(stamp, tool, tip_state, tablet.changed_axes_bits, axes, &tablet.area.x, &tablet.area.y);
+                            tablet.tablet_notify_axis(stamp, tool, tip_state, tablet.changed_axes_bits, axes, tablet.area.x, tablet.area.y);
                             tablet.status &= ~TABLET_AXES_UPDATED;
                             tablet_reset_changed_axes();
                             axes.delta.x = 0;
@@ -17004,7 +16945,7 @@ namespace netxs::lixx // li++, libinput++.
                                     {
                                         if (buttons[code])
                                         {
-                                            tablet.tablet_notify_button(stamp, tool, tip_state, tablet.axes, code, state, &tablet.area.x, &tablet.area.y);
+                                            tablet.tablet_notify_button(stamp, tool, tip_state, tablet.axes, code, state, tablet.area.x, tablet.area.y);
                                         }
                                     }
                                 }
@@ -17057,17 +16998,17 @@ namespace netxs::lixx // li++, libinput++.
                         void sanitize_pressure_distance(libinput_tablet_tool_sptr tool)
                         {
                             // Note: for pressure/distance sanitization we use the real pressure axis, not our configured one.
-                            auto distance = tablet.libevdev_get_abs_info(ABS_DISTANCE);
-                            auto pressure = tablet.libevdev_get_abs_info(ABS_PRESSURE);
-                            if (!pressure || !distance) return;
+                            auto& distance_abs_info = tablet.libevdev_get_abs_info(ABS_DISTANCE);
+                            auto& pressure_abs_info = tablet.libevdev_get_abs_info(ABS_PRESSURE);
+                            if (!pressure_abs_info || !distance_abs_info) return;
                             auto pressure_changed = tablet.changed_axes_bits[LIBINPUT_TABLET_TOOL_AXIS_PRESSURE];
                             auto distance_changed = tablet.changed_axes_bits[LIBINPUT_TABLET_TOOL_AXIS_DISTANCE];
                             if (!pressure_changed && !distance_changed) return;
                             // Note: this is an arbitrary "in contact" decision rather than "tip down". We use the lower threshold as minimum pressure value, anything less than that gets filtered away.
-                            auto threshold = tablet_tool_get_threshold(tool);
-                            auto tool_in_contact = pressure->value > threshold->threshold.min;
-                            if (distance && distance->value > distance->minimum // Keep distance and pressure mutually exclusive.
-                                         && pressure->value > pressure->minimum)
+                            auto& pressure = tool->pressure;
+                            auto tool_in_contact = pressure_abs_info.value > pressure.threshold.min;
+                            if (distance_abs_info && distance_abs_info.value > distance_abs_info.minimum // Keep distance and pressure mutually exclusive.
+                                                  && pressure_abs_info.value > pressure_abs_info.minimum)
                             {
                                 if (tool_in_contact)
                                 {
@@ -17139,12 +17080,12 @@ namespace netxs::lixx // li++, libinput++.
                         {
                             tablet.area.have_area = tablet.area.want_area;
                             log("tablet-area: area is %area%", tablet.area.have_area);
-                            auto absx = tablet.ud_device.abs.absinfo_x;
-                            auto absy = tablet.ud_device.abs.absinfo_y;
-                            tablet.area.x.minimum = absx->axis_range_percentage(100 * (tablet.area.have_area.coor.x));
-                            tablet.area.x.maximum = absx->axis_range_percentage(100 * (tablet.area.have_area.coor.x + tablet.area.have_area.size.x));
-                            tablet.area.y.minimum = absy->axis_range_percentage(100 * (tablet.area.have_area.coor.y));
-                            tablet.area.y.maximum = absy->axis_range_percentage(100 * (tablet.area.have_area.coor.y + tablet.area.have_area.size.y));
+                            auto& absx = tablet.ud_device.abs.absinfo_x;
+                            auto& absy = tablet.ud_device.abs.absinfo_y;
+                            tablet.area.x.minimum = absx.axis_range_percentage(100 * (tablet.area.have_area.coor.x));
+                            tablet.area.x.maximum = absx.axis_range_percentage(100 * (tablet.area.have_area.coor.x + tablet.area.have_area.size.x));
+                            tablet.area.y.minimum = absy.axis_range_percentage(100 * (tablet.area.have_area.coor.y));
+                            tablet.area.y.maximum = absy.axis_range_percentage(100 * (tablet.area.have_area.coor.y + tablet.area.have_area.size.y));
                         }
                     }
                 void tablet_flush(time stamp)
@@ -17185,7 +17126,7 @@ namespace netxs::lixx // li++, libinput++.
                                 // We allow a margin of 3% (6mm on a 200mm tablet) to be "within"
                                 // the area - there we clip to the area but do not ignore the
                                 // sequence.
-                                const auto point = si32_coor{ tablet.ud_device.abs.absinfo_x->value, tablet.ud_device.abs.absinfo_y->value };
+                                const auto point = si32_coor{ tablet.ud_device.abs.absinfo_x.value, tablet.ud_device.abs.absinfo_y.value };
                                 const auto margin = 0.03;
                                 if (is_inside_area(point, margin))
                                 {
@@ -17466,7 +17407,7 @@ namespace netxs::lixx // li++, libinput++.
                     // fix it if we run into a device where that isn't the case.
                     for (ui32 axis = ABS_TILT_X; axis <= ABS_TILT_Y; axis++)
                     {
-                        auto abs = *tablet.libevdev_get_abs_info(axis);
+                        auto abs = tablet.libevdev_get_abs_info(axis);
                         if (abs.resolution == 0) // Don't touch axes reporting radians.
                         {
                             if ((si32)abs.absinfo_range() % 2 != 1)
@@ -17519,8 +17460,8 @@ namespace netxs::lixx // li++, libinput++.
                 {
                     tablet.area.have_area = fp64_rect{{ 0.0, 0.0 }, { 1.0, 1.0 }};
                     tablet.area.want_area = tablet.area.have_area;
-                    tablet.area.x = *tablet.ud_device.abs.absinfo_x;
-                    tablet.area.y = *tablet.ud_device.abs.absinfo_y;
+                    tablet.area.x = tablet.ud_device.abs.absinfo_x;
+                    tablet.area.y = tablet.ud_device.abs.absinfo_y;
                     if (!tablet.libevdev_has_property(INPUT_PROP_DIRECT))
                     {
                         tablet.config.area = &tablet.area.config;
@@ -17555,7 +17496,7 @@ namespace netxs::lixx // li++, libinput++.
                     }
                 void tablet_init_accel()
                 {
-                    auto resolution = si32_coor{ tablet.ud_device.abs.absinfo_x->resolution, tablet.ud_device.abs.absinfo_y->resolution };
+                    auto resolution = si32_coor{ tablet.ud_device.abs.absinfo_x.resolution, tablet.ud_device.abs.absinfo_y.resolution };
                     auto filter = ptr::shared<tablet_accelerator_flat>(resolution);
                     tablet.evdev_device_init_pointer_acceleration(filter);
                     // We override the profile hooks for accel configuration with hooks that don't allow selection of profiles.
@@ -17685,7 +17626,7 @@ namespace netxs::lixx // li++, libinput++.
                     auto is_display_tablet = tablet_is_display_tablet();
                     if (!tablet.libevdev_has_event_code<EV_KEY>(BTN_TOOL_PEN))
                     {
-                        tablet.ud_device.libevdev_enable_event_code<EV_KEY>(BTN_TOOL_PEN, nullptr);
+                        tablet.ud_device.libevdev_enable_event_code<EV_KEY>(BTN_TOOL_PEN);
                         tablet.quirks.proximity_out_forced = true;
                     }
                     if (tablet.libevdev_get_id_vendor() != lixx::vendor_id_wacom) // Our rotation code only works with Wacoms, let's wait until someone shouts.
@@ -19214,17 +19155,17 @@ namespace netxs::lixx // li++, libinput++.
                     si32_rect evdev_phys_rect_to_units(fp64_rect mm)
                     {
                         auto units = si32_rect{};
-                        if (generic.ud_device.abs.absinfo_x == nullptr || generic.ud_device.abs.absinfo_y == nullptr)
+                        if (!generic.ud_device.abs.absinfo_x || !generic.ud_device.abs.absinfo_y)
                         {
-                            log("%s%: is not an abs device", generic.ud_device.devname);
+                            log("%s%: is not an abs device (4)", generic.ud_device.devname);
                             return units;
                         }
-                        auto absx = generic.ud_device.abs.absinfo_x;
-                        auto absy = generic.ud_device.abs.absinfo_y;
-                        units.coor.x = mm.coor.x * absx->resolution + absx->minimum;
-                        units.coor.y = mm.coor.y * absy->resolution + absy->minimum;
-                        units.size.x = mm.size.x * absx->resolution;
-                        units.size.y = mm.size.y * absy->resolution;
+                        auto& absx = generic.ud_device.abs.absinfo_x;
+                        auto& absy = generic.ud_device.abs.absinfo_y;
+                        units.coor.x = mm.coor.x * absx.resolution + absx.minimum;
+                        units.coor.y = mm.coor.y * absy.resolution + absy.minimum;
+                        units.size.x = mm.size.x * absx.resolution;
+                        units.size.y = mm.size.y * absy.resolution;
                         return units;
                     }
                 void fallback_interface_update_rect(fp64_rect phys_area)
@@ -19403,8 +19344,8 @@ namespace netxs::lixx // li++, libinput++.
                 if (li_device->libevdev_has_event_code<EV_ABS>(ABS_X)
                  && li_device->libevdev_has_event_code<EV_ABS>(ABS_Y))
                 {
-                    generic.abs.point.x = li_device->ud_device.abs.absinfo_x->value;
-                    generic.abs.point.y = li_device->ud_device.abs.absinfo_y->value;
+                    generic.abs.point.x = li_device->ud_device.abs.absinfo_x.value;
+                    generic.abs.point.y = li_device->ud_device.abs.absinfo_y.value;
                     generic.abs.seat_slot = -1;
                     li_device->evdev_device_init_abs_range_warnings();
                 }
@@ -19492,12 +19433,11 @@ namespace netxs::lixx // li++, libinput++.
                 }
                 generic.mt.slot = active_slot;
                 generic.mt.has_palm = li_device->libevdev_has_event_code<EV_ABS>(ABS_MT_TOOL_TYPE);
-                if (li_device->ud_device.abs.absinfo_x       && li_device->ud_device.abs.absinfo_y)
-                if (li_device->ud_device.abs.absinfo_x->fuzz || li_device->ud_device.abs.absinfo_y->fuzz)
+                if (li_device->ud_device.abs.absinfo_x.fuzz || li_device->ud_device.abs.absinfo_y.fuzz)
                 {
                     generic.mt.want_hysteresis = true;
-                    generic.mt.hysteresis_margin.x = li_device->ud_device.abs.absinfo_x->fuzz / 2;
-                    generic.mt.hysteresis_margin.y = li_device->ud_device.abs.absinfo_y->fuzz / 2;
+                    generic.mt.hysteresis_margin.x = li_device->ud_device.abs.absinfo_x.fuzz / 2;
+                    generic.mt.hysteresis_margin.y = li_device->ud_device.abs.absinfo_y.fuzz / 2;
                 }
                 return 0;
             }

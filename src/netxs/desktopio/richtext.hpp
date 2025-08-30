@@ -571,11 +571,11 @@ namespace netxs::ui
             : core{ std::forward<core>(s) }
         { }
 
-        auto length() const                                     { return size().x;                         }
-        auto shadow() const                                     { return shot{ *this };                    }
-        auto substr(si32 at, si32 width = netxs::si32max) const { return shadow().substr(at, width);       }
-        void trimto(si32 max_size)                              { if (length() > max_size) crop(max_size); }
-        void resize(si32 oversize)                              { if (oversize > length()) crop(oversize); }
+        auto length() const                                     { return size().x;                            }
+        auto shadow() const                                     { return shot{ *this };                       }
+        auto substr(si32 at, si32 width = netxs::si32max) const { return shadow().substr(at, width);          }
+        void trimto(si32 max_size, cell const& c = {})          { if (length() > max_size) crop(max_size, c); }
+        void resize(si32 oversize, cell const& c = {})          { if (oversize > length()) crop(oversize, c); }
         auto take_piece(si32 at, si32 width = netxs::si32max) const
         {
             if (width == netxs::si32max) width = length() - at;
@@ -643,10 +643,10 @@ namespace netxs::ui
             while (dst != end) *dst++ = blank;
         }
         template<class Span, class Shader>
-        void splice(si32 at, Span const& fragment, Shader fuse)
+        void splice(si32 at, Span const& fragment, Shader fuse, cell const& c = {})
         {
             auto len = fragment.length();
-            rich::resize(len + at);
+            rich::resize(len + at, c);
             auto ptr = begin();
             auto dst = ptr + at;
             auto end = dst + len;
@@ -888,10 +888,10 @@ namespace netxs::ui
         }
         // rich: Splice proto with auto grow.
         template<bool Copy = faux, class Span, class Shader>
-        void splice(si32 at, si32 count, Span const& proto, Shader fuse)
+        void splice(si32 at, si32 count, Span const& proto, Shader fuse, cell const& c = {})
         {
             if (count <= 0) return;
-            rich::resize(at + count);
+            rich::resize(at + count, c);
             auto end = begin() + at;
             auto dst = end + count;
             auto src = proto.end();
