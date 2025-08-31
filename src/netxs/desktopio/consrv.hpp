@@ -1696,6 +1696,8 @@ struct impl : consrv
         auto readevents(Payload& packet, cdrw& answer)
         {
             if (!server.size_check(packet.echosz, answer.sendoffset())) return;
+            // Test unstable stdin.
+            //os::sleep(150ms);
             auto avail = packet.echosz - answer.sendoffset();
             auto limit = avail / (ui32)sizeof(recbuf.front());
             if (server.io_log) log("\tuser limit: ", limit);
@@ -1703,8 +1705,9 @@ struct impl : consrv
             if (packet.input.utf16)
             {
                 recbuf.clear();
-                recbuf.reserve(count());
-                auto tail = head + std::min(limit, count());
+                auto mx = count();//std::min(2u, (ui32)count());
+                recbuf.reserve(mx);
+                auto tail = head + std::min(limit, mx);
                 while (head != tail)
                 {
                     recbuf.emplace_back(*head++);
