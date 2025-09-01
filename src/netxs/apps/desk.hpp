@@ -158,7 +158,7 @@ namespace netxs::app::desk
                         }
                     };
                 });
-            auto label_format = [](view utf8){ return ansi::add(utf8).mgl(0).wrp(wrap::off).jet(bias::left).nil(); };
+            static auto label_format = [](view utf8){ return ansi::add(utf8).mgl(0).wrp(wrap::off).jet(bias::left).nil(); };
             auto app_label = item_area->attach(slot::_1, ui::item::ctor(label_format(current_title)))
                 ->active()
                 //todo taskbar keybd navigation
