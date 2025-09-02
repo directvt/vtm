@@ -472,7 +472,7 @@ namespace netxs::ansi
         template<class ...Args>
         auto& err(Args&&... data) { return pushsgr().fgc(redlt).add(std::forward<Args>(data)...).popsgr(); } // basevt: Add error message.
         // basevt: Ansify/textify content of specified region.
-        template<bool UseSGR = true, bool Initial = true, bool Finalize = true>
+        template<bool UseSGR = true, bool Initial = true, bool Finalize = true, bool Select_11_only = true>
         auto& s11n(core const& canvas, rect region, cell& state)
         {
             auto allfx = [&](cell const& c)
@@ -482,7 +482,14 @@ namespace netxs::ansi
                 c.scan_attr<svga::vtrgb, UseSGR>(state, block);
                 if (w == 0 || h == 0 || y != 1 || x != 1 || utf8.empty() || (byte)utf8.front() < 32) // 2D fragment is either non-standard or empty or C0.
                 {
-                    add(" "sv);
+                    if constexpr (Select_11_only)
+                    {
+                        if (y > 1 || x > 2) add(' ');
+                    }
+                    else
+                    {
+                        add(' ');
+                    }
                 }
                 else
                 {
@@ -505,17 +512,17 @@ namespace netxs::ansi
             }
             return block;
         }
-        template<bool UseSGR = true, bool Initial = true, bool Finalize = true>
+        template<bool UseSGR = true, bool Initial = true, bool Finalize = true, bool Select_11_only = true>
         auto& s11n(core const& canvas, rect region) // basevt: Ansify/textify content of specified region.
         {
             auto state = cell{};
-            return s11n<UseSGR, Initial, Finalize>(canvas, region, state);
+            return s11n<UseSGR, Initial, Finalize, Select_11_only>(canvas, region, state);
         }
-        template<bool UseSGR = true, bool Initial = true, bool Finalize = true>
+        template<bool UseSGR = true, bool Initial = true, bool Finalize = true, bool Select_11_only = true>
         auto& s11n(core const& canvas, cell& state) // basevt: Ansify/textify all content.
         {
             auto region = rect{ -dot_mx / 2, dot_mx };
-            return s11n<UseSGR, Initial, Finalize>(canvas, region, state);
+            return s11n<UseSGR, Initial, Finalize, Select_11_only>(canvas, region, state);
         }
     };
 
@@ -881,10 +888,10 @@ namespace netxs::ansi
         }
     };
 
-    template<bool UseSGR = true, bool Initial = true, bool Finalize = true>
+    template<bool UseSGR = true, bool Initial = true, bool Finalize = true, bool Select_11_only = true>
     auto s11n(core const& canvas, rect region) // ansi: Ansify/textify content of specified region.
     {
-        return escx{}.s11n<UseSGR, Initial, Finalize>(canvas, region);
+        return escx{}.s11n<UseSGR, Initial, Finalize, Select_11_only>(canvas, region);
     }
     template<class ...Args>
     auto clipbuf(Args&&... data) { return escx{}.clipbuf(std::forward<Args>(data)...); } // ansi: Set clipboard.

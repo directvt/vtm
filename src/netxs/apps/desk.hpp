@@ -38,12 +38,18 @@ namespace netxs::app::desk
         EVENTPACK( desk::events, ui::e2::extra::slot2 )
         {
             EVENT_XS( usrs, netxs::sptr<desk::usrs> ), // List of connected users.
-            EVENT_XS( apps, netxs::sptr<desk::apps> ), // List of running apps.
             EVENT_XS( menu, netxs::sptr<desk::menu> ), // List of registered apps.
             EVENT_XS( exec, spec                    ), // Request to run app.
             EVENT_XS( quit, bool                    ), // Request to close all instances.
+            GROUP_XS( apps, netxs::sptr<desk::apps> ),
             GROUP_XS( ui  , text                    ),
 
+            SUBSET_XS( apps )
+            {
+                EVENT_XS( applist, netxs::sptr<desk::apps> ), // request: Take a list of running apps.
+                EVENT_XS( created, netxs::ui::sptr         ), // release: App window created.
+                EVENT_XS( removed, netxs::ui::sptr         ), // release: App window removed.
+            };
             SUBSET_XS( ui )
             {
                 EVENT_XS( sync    , bool        ),
@@ -707,7 +713,7 @@ namespace netxs::app::desk
                     boss.LISTEN(tier::anycast, e2::form::upon::started, root_ptr)
                     {
                         auto world_ptr = world.This();
-                        auto apps = boss.attach_element(desk::events::apps, world_ptr, apps_template);
+                        auto apps = boss.attach_element(desk::events::apps::applist, world_ptr, apps_template);
                     };
                 });
             auto users_area = apps_users->attach(slot::_2, ui::list::ctor());

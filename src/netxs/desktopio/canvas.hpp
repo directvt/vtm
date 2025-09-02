@@ -1827,18 +1827,43 @@ namespace netxs
             return w > 1 && w == /*x*/(st.mosaic() & cell::body::x_bits);
         }
         // cell: Convert to text. Ignore right half. Convert binary clusters (eg: ^C -> 0x03).
+        template<bool Select_11_only = faux>
         void scan(text& dest) const
         {
             auto [w, h, x, y] = whxy();
-            if (w == 0 || h != 1 || x != 1) dest += whitespace;
+            if constexpr (Select_11_only)
+            {
+                if (x == 1 && y == 1)
+                {
+                    auto shadow = gc.get();
+                    if (shadow.size() == 2 && shadow.front() == '^')
+                    {
+                        dest += shadow[1] & (' ' - 1);
+                    }
+                    else
+                    {
+                        dest += shadow;
+                    }
+                }
+            }
             else
             {
-                auto shadow = gc.get();
-                if (shadow.size() == 2 && shadow.front() == '^')
+                if (w == 0 || h != 1 || x != 1)
                 {
-                    dest += shadow[1] & (' ' - 1);
+                    dest += whitespace;
                 }
-                else dest += shadow;
+                else
+                {
+                    auto shadow = gc.get();
+                    if (shadow.size() == 2 && shadow.front() == '^')
+                    {
+                        dest += shadow[1] & (' ' - 1);
+                    }
+                    else
+                    {
+                        dest += shadow;
+                    }
+                }
             }
         }
         // cell: Convert non-printable chars to escaped.
@@ -2937,15 +2962,17 @@ namespace netxs
         {
             netxs::onrect(*this, region, fx);
         }
+        template<bool Select_11_only = true>
         void utf8(netxs::text& crop) // core: Convert to raw utf-8 text. Ignore right halves.
         {
-            each([&](cell& c){ c.scan(crop); });
+            each([&](cell& c){ c.scan<Select_11_only>(crop); });
         }
+        template<bool Select_11_only = true>
         auto utf8() // core: Convert to raw utf-8 text. Ignore right halves.
         {
             auto crop = netxs::text{};
             crop.reserve(canvas.size());
-            each([&](cell& c){ c.scan(crop); });
+            each([&](cell& c){ c.scan<Select_11_only>(crop); });
             return crop;
         }
         auto copy(body& target) const // core: Copy only body of the canvas to the specified body bitmap.
