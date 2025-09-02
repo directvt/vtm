@@ -108,54 +108,58 @@ namespace netxs::app::tile
                 auto coor = twod{ new_area.size.x + 2/*resize grip width*/, 0 };
                 client->base::moveto(coor);
             };
-            boss.LISTEN(tier::release, tile::events::enlist, object, memo)
+            boss.LISTEN(tier::release, tile::events::enlist, data_src_sptr, memo)
             {
-                auto label = [](auto data_src_sptr, auto header)
-                {
-                    auto active_color = skin::color(tone::active);
-                    auto focused_color = skin::color(tone::focused);
-                    auto cF = focused_color;
-                    auto cE = active_color;
-                    return ui::item::ctor(header.empty() ? "- no title -" : header)
-                        ->setpad({ 1, 1 })
-                        ->active(cE)
-                        ->shader(cF, e2::form::state::focus::count, data_src_sptr)
-                        ->shader(cell::shaders::xlight, e2::form::state::hover)
-                        ->invoke([&](auto& boss)
+                auto active_color = skin::color(tone::active);
+                auto focused_color = skin::color(tone::focused);
+                auto cF = focused_color;
+                auto cE = active_color;
+                auto current_title = data_src_sptr->base::signal(tier::request, e2::form::prop::ui::header);
+                static auto label_format = [](view utf8){ return utf8.empty() ? "- no title -"sv : utf8; };
+                client->attach(ui::item::ctor(label_format(current_title)))
+                    ->setpad({ 1, 1 })
+                    ->active(cE)
+                    ->shader(cF, e2::form::state::focus::count, data_src_sptr)
+                    ->shader(cell::shaders::xlight, e2::form::state::hover)
+                    ->invoke([&](auto& boss)
+                    {
+                        auto& data_shadow = boss.base::field(ptr::shadow(data_src_sptr));
+                        boss.depend(data_src_sptr);
+                        data_src_sptr->LISTEN(tier::release, e2::form::prop::ui::header, new_title, boss.sensors)
                         {
-                            auto& data_shadow = boss.base::field(ptr::shadow(data_src_sptr));
-                            boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
+                            boss.set(label_format(new_title));
+                            client->resize();
+                        };
+                        boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
+                        {
+                            parent->resize();
+                        };
+                        boss.LISTEN(tier::release, e2::form::upon::vtree::detached, parent)
+                        {
+                            parent->resize(); // Rebuild list.
+                        };
+                        data_src_sptr->LISTEN(tier::release, tile::events::delist, f, boss.sensors)
+                        {
+                            boss.base::detach(); // Destroy itself.
+                        };
+                        boss.on(tier::mouserelease, input::key::MouseAny, [&](hids& gear)
+                        {
+                            if ((gear.cause & 0x00FF) && !gear.dragged) // Button events only.
+                            if (auto data_ptr = data_shadow.lock())
                             {
-                                parent->resize();
-                            };
-                            boss.LISTEN(tier::release, e2::form::upon::vtree::detached, parent)
-                            {
-                                parent->resize(); // Rebuild list.
-                            };
-                            data_src_sptr->LISTEN(tier::release, tile::events::delist, f, boss.sensors)
-                            {
-                                boss.base::detach(); // Destroy itself.
-                            };
-                            boss.on(tier::mouserelease, input::key::MouseAny, [&](hids& gear)
-                            {
-                                if ((gear.cause & 0x00FF) && !gear.dragged) // Button events only.
-                                if (auto data_ptr = data_shadow.lock())
-                                {
-                                    auto& data_src = *data_ptr;
-                                    gear.forward(tier::mouserelease, data_src);
-                                    gear.dismiss();
-                                }
-                            });
-                            boss.LISTEN(tier::release, e2::form::state::mouse, hovered)
-                            {
-                                if (auto data_ptr = data_shadow.lock())
-                                {
-                                    data_ptr->base::signal(tier::release, e2::form::state::highlight, hovered);
-                                }
-                            };
+                                auto& data_src = *data_ptr;
+                                gear.forward(tier::mouserelease, data_src);
+                                gear.dismiss();
+                            }
                         });
-                };
-                client->attach_element(e2::form::prop::ui::header, object, label);
+                        boss.LISTEN(tier::release, e2::form::state::mouse, hovered)
+                        {
+                            if (auto data_ptr = data_shadow.lock())
+                            {
+                                data_ptr->base::signal(tier::release, e2::form::state::highlight, hovered);
+                            }
+                        };
+                    });
             };
             boss.LISTEN(tier::release, e2::render::any, parent_canvas, memo)
             {

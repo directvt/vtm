@@ -1017,11 +1017,13 @@ namespace netxs::app::vtm
                 {
                     apps_list.erase(menuid);
                 }
-                base::signal(tier::release, desk::events::apps, apps_list_ptr); // Update taskbar app list.
+                world_ptr->base::signal(tier::release, desk::events::apps::applist, apps_list_ptr); // Update taskbar app list.
+                //world_ptr->base::signal(tier::release, desk::events::apps::removed, what_copy); // Update taskbar app list.
             };
             auto root_ptr = is_handoff ? sptr{} : what.applet;
             window_ptr->base::broadcast(tier::anycast, e2::form::upon::started, root_ptr);
-            base::signal(tier::release, desk::events::apps, apps_list_ptr);
+            base::signal(tier::release, desk::events::apps::applist, apps_list_ptr);
+            //base::signal(tier::release, desk::events::apps::created, what_copy);
             window_ptr->base::reflow();
             return window_ptr;
         }
@@ -1417,7 +1419,7 @@ namespace netxs::app::vtm
             {
                 usrs_ptr = usrs_list_ptr;
             };
-            LISTEN(tier::request, desk::events::apps, apps_ptr)
+            LISTEN(tier::request, desk::events::apps::applist, apps_ptr)
             {
                 apps_ptr = apps_list_ptr;
             };

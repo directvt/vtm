@@ -38,12 +38,18 @@ namespace netxs::app::desk
         EVENTPACK( desk::events, ui::e2::extra::slot2 )
         {
             EVENT_XS( usrs, netxs::sptr<desk::usrs> ), // List of connected users.
-            EVENT_XS( apps, netxs::sptr<desk::apps> ), // List of running apps.
             EVENT_XS( menu, netxs::sptr<desk::menu> ), // List of registered apps.
             EVENT_XS( exec, spec                    ), // Request to run app.
             EVENT_XS( quit, bool                    ), // Request to close all instances.
+            GROUP_XS( apps, netxs::sptr<desk::apps> ),
             GROUP_XS( ui  , text                    ),
 
+            SUBSET_XS( apps )
+            {
+                EVENT_XS( applist, netxs::sptr<desk::apps> ), // request: Take a list of running apps.
+                EVENT_XS( created, netxs::ui::sptr         ), // release: App window created.
+                EVENT_XS( removed, netxs::ui::sptr         ), // release: App window removed.
+            };
             SUBSET_XS( ui )
             {
                 EVENT_XS( sync    , bool        ),
@@ -64,7 +70,7 @@ namespace netxs::app::desk
 
     namespace
     {
-        auto app_template = [](auto& data_src, auto const& utf8)
+        auto app_template = [](auto& data_src)
         {
             auto tall = si32{ skin::globals().menuwide };
             auto focused_color   = skin::globals().focused;
@@ -75,6 +81,7 @@ namespace netxs::app::desk
             auto cE = active_color;
             auto c1 = danger_color;
             auto cF = focused_color;
+            auto current_title = data_src->base::signal(tier::request, e2::form::prop::ui::title);
             auto item_area = ui::fork::ctor(axis::X, 0, 1, 0);
             auto& src_wptr = item_area->base::field(ptr::shadow(data_src));
             item_area->active(cE)
@@ -157,7 +164,8 @@ namespace netxs::app::desk
                         }
                     };
                 });
-            auto app_label = item_area->attach(slot::_1, ui::item::ctor(ansi::add(utf8).mgl(0).wrp(wrap::off).jet(bias::left)))
+            static auto label_format = [](view utf8){ return ansi::add(utf8).mgl(0).wrp(wrap::off).jet(bias::left).nil(); };
+            auto app_label = item_area->attach(slot::_1, ui::item::ctor(label_format(current_title)))
                 ->active()
                 //todo taskbar keybd navigation
                 //->template plugin<pro::focus>(pro::focus::mode::focused)
@@ -167,7 +175,14 @@ namespace netxs::app::desk
                 ->template plugin<pro::notes>(skin::globals().NsTaskbarAppsApp_tooltip)
                 ->flexible()
                 ->drawdots()
-                ->shader(cF, e2::form::state::focus::count, data_src);
+                ->shader(cF, e2::form::state::focus::count, data_src)
+                ->invoke([&](auto& boss)
+                {
+                    data_src->LISTEN(tier::release, e2::form::prop::ui::title, new_title, boss.sensors)
+                    {
+                        boss.set(label_format(new_title));
+                    };
+                });
             auto app_close = item_area->attach(slot::_2, ui::item::ctor("×"))
                 ->active()
                 ->shader(c1, e2::form::state::hover)
@@ -380,20 +395,12 @@ namespace netxs::app::desk
                                 gear.dismiss(true);
                             });
                         });
-                    //todo do not recreate a whole dom on every minor update
-                    //log(ansi::err("apps recreated"));
-                    insts->attach_collection(e2::form::prop::ui::title, inst_ptr_list, app_template, [&](auto inst_ptr)
+                    for (auto& inst_ptr : inst_ptr_list)
                     {
-                        auto& window = *inst_ptr;
-                        auto& boss = *block;
-                        boss.LISTEN(tier::release, desk::events::ui::focus::any, gear, window.sensors)
-                        {
-                            //log(ansi::err("desk::events::ui::focus::any"));
-                            auto deed = boss.bell::protos();
-                                 if (deed == desk::events::ui::focus::set.id) pro::focus::set(window.This(), gear.id, solo::off);
-                            else if (deed == desk::events::ui::focus::off.id) pro::focus::off(window.This(), gear.id);
-                        };
-                    });
+                        auto taskbar_item_ptr = app_template(inst_ptr)
+                                                ->depend(inst_ptr);
+                        insts->attach(taskbar_item_ptr);
+                    }
                 }
             }
             return apps;
@@ -706,7 +713,7 @@ namespace netxs::app::desk
                     boss.LISTEN(tier::anycast, e2::form::upon::started, root_ptr)
                     {
                         auto world_ptr = world.This();
-                        auto apps = boss.attach_element(desk::events::apps, world_ptr, apps_template);
+                        auto apps = boss.attach_element(desk::events::apps::applist, world_ptr, apps_template);
                     };
                 });
             auto users_area = apps_users->attach(slot::_2, ui::list::ctor());

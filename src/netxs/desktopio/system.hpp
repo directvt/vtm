@@ -31,13 +31,12 @@
     #include <spawn.h>      // ::exec
     #include <unistd.h>     // ::gethostname(), ::getpid(), ::read()
     #include <sys/param.h>  //
-    #include <sys/types.h>  // ::getaddrinfo
+    #include <sys/types.h>  // ::getaddrinfo(), ::sysctl()
     #include <sys/socket.h> // ::shutdown() ::socket(2)
     #include <netdb.h>      //
     //#include <arpa/inet.h>  // ::inet_ntop() ?This may require dynamic linking. #GH696
 
     #include <stdio.h>
-    #include <unistd.h>     // ::read()
     #include <sys/un.h>
     #include <stdlib.h>
 
@@ -47,7 +46,6 @@
     #include <sys/wait.h>   // ::waitpid
     #include <syslog.h>     // syslog, daemonize
 
-    #include <sys/types.h>
     #include <sys/stat.h>   // ::chmod()
     #include <fcntl.h>      // ::splice()
 
@@ -69,7 +67,6 @@
     #if defined(__APPLE__)
         #include <mach-o/dyld.h>    // ::_NSGetExecutablePath()
     #elif defined(__BSD__)
-        #include <sys/types.h>  // ::sysctl()
         #include <sys/sysctl.h>
     #endif
 
