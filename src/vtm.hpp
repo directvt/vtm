@@ -623,7 +623,7 @@ namespace netxs::app::vtm
                 base::plugin<pro::mouse>();
                 base::plugin<pro::d_n_d>();
                 base::plugin<pro::ghost>();
-                auto& title = base::plugin<pro::title>(what.applet->base::property("window.header"), what.applet->base::property("window.footer"));
+                auto& title = base::plugin<pro::title>(what.applet->base::property("applet.header"), what.applet->base::property("applet.footer"));
                 base::plugin<pro::sizer>();
                 base::plugin<pro::frame>();
                 base::plugin<pro::light>();
@@ -632,6 +632,7 @@ namespace netxs::app::vtm
                 base::limits(dot_11);
                 base::kind(base::reflow_root);
                 base::root(true);
+                base::property("window.menuid") = what.applet->base::property("applet.menuid");
                 LISTEN(tier::preview, e2::command::gui, gui_cmd)
                 {
                     auto hit = true;
@@ -780,14 +781,19 @@ namespace netxs::app::vtm
                     fast_quit = true;
                     base::signal(tier::anycast, e2::form::proceed::quit::one, true); // Schedule a cleanup.
                 };
-                LISTEN(tier::release, e2::form::upon::vtree::detached, parent_ptr)
+                LISTEN(tier::release, e2::form::upon::vtree::detached, world_ptr)
                 {
-                    if (!fast_quit && parent_ptr)
+                    if (world_ptr)
                     {
-                        parent_ptr->base::enqueue([&](auto& boss)
+                        if (!fast_quit)
                         {
-                            boss.base::cleanup();
-                        });
+                            world_ptr->base::enqueue([&](auto& boss)
+                            {
+                                boss.base::cleanup();
+                            });
+                        }
+                        auto window_ptr = This();
+                        world_ptr->base::signal(tier::release, desk::events::apps::removed, window_ptr); // Update taskbar app list.
                     }
                 };
 
@@ -977,53 +983,17 @@ namespace netxs::app::vtm
             auto window_ptr = window_t::ctor(*this, what);
             attach(window_ptr);
 
-            auto& menuid = what.applet->base::property("window.menuid");
-            auto& cfg = menu_list[menuid];
-            auto& [fixed_menu_item, inst_list] = apps_list[menuid];
-            fixed_menu_item = !cfg.hidden;
-            inst_list.push_back(window_ptr);
-            auto& inst_list_iter = window_ptr->base::field(std::prev(inst_list.end()));
-            if constexpr (debugmode) log(prompt::hall, "App type: ", utf::debase(cfg.type), ", menu item id: ", utf::debase(menuid));
-
-            auto& applet_area = what.applet->base::bind_property("window.area", *window_ptr, e2::area);
+            auto& cfg = menu_list[what.menuid];
+            auto& applet_area = what.applet->base::bind_property("applet.area", *window_ptr, e2::area);
                  if (applet_area)                 window_ptr->base::extend(applet_area);
             else if (cfg.winsize && !what.forced) window_ptr->base::extend({ what.square.coor, cfg.winsize });
             else if (what.square)                 window_ptr->base::extend(what.square);
 
             window_ptr->attach(what.applet);
 
-            auto& window = *window_ptr;
-            window.LISTEN(tier::release, e2::form::upon::vtree::detached, world_ptr, -, (menuid))
-            {
-                if (base::subset.size()) // Pass focus to the top most object.
-                {
-                    auto last_ptr = base::subset.back();
-                    auto gear_id_list = window.base::riseup(tier::request, e2::form::state::keybd::enlist);
-                    for (auto gear_id : gear_id_list)
-                    {
-                        if (auto gear_ptr = base::getref<hids>(gear_id))
-                        {
-                            auto gear_test = base::signal(tier::request, e2::form::state::keybd::next, { gear_id, 0 });
-                            if (gear_test.second == 1) // If it is the last focused item.
-                            {
-                                pro::focus::set(last_ptr, gear_id, solo::off);
-                            }
-                        }
-                    }
-                }
-                auto& [fixed_menu_item, inst_list] = apps_list[menuid];
-                inst_list.erase(inst_list_iter);
-                if (!fixed_menu_item && inst_list.empty()) // Remove non-fixed menu group if it is empty.
-                {
-                    apps_list.erase(menuid);
-                }
-                world_ptr->base::signal(tier::release, desk::events::apps::applist, apps_list_ptr); // Update taskbar app list.
-                //world_ptr->base::signal(tier::release, desk::events::apps::removed, what_copy); // Update taskbar app list.
-            };
             auto root_ptr = is_handoff ? sptr{} : what.applet;
             window_ptr->base::broadcast(tier::anycast, e2::form::upon::started, root_ptr);
-            base::signal(tier::release, desk::events::apps::applist, apps_list_ptr);
-            //base::signal(tier::release, desk::events::apps::created, what_copy);
+            base::signal(tier::release, desk::events::apps::created, window_ptr); // Update taskbar and running app list.
             window_ptr->base::reflow();
             return window_ptr;
         }
@@ -1396,6 +1366,47 @@ namespace netxs::app::vtm
             {
                 world_ptr = base::This();
             };
+            LISTEN(tier::release, desk::events::apps::created, window_ptr)
+            {
+                auto& window = *window_ptr;
+                auto& menuid = window.base::property("window.menuid");
+                auto& cfg = menu_list[menuid];
+                auto& [fixed_menu_item, inst_list] = apps_list[menuid];
+                fixed_menu_item = !cfg.hidden;
+                inst_list.push_back(window_ptr);
+                if constexpr (debugmode) log(prompt::hall, "App type: ", utf::debase(cfg.type), ", menu item id: ", utf::debase(menuid));
+                //todo drop
+                base::signal(tier::release, desk::events::apps::applist, apps_list_ptr);
+            };
+            LISTEN(tier::release, desk::events::apps::removed, window_ptr)
+            {
+                auto& window = *window_ptr;
+                if (base::subset.size()) // Pass focus to the top most object.
+                {
+                    auto last_ptr = base::subset.back();
+                    auto gear_id_list = window.base::riseup(tier::request, e2::form::state::keybd::enlist);
+                    for (auto gear_id : gear_id_list)
+                    {
+                        if (auto gear_ptr = base::getref<hids>(gear_id))
+                        {
+                            auto gear_test = base::signal(tier::request, e2::form::state::keybd::next, { gear_id, 0 });
+                            if (gear_test.second == 1) // If it is the last focused item.
+                            {
+                                pro::focus::set(last_ptr, gear_id, solo::off);
+                            }
+                        }
+                    }
+                }
+                auto& menuid = window.base::property("window.menuid");
+                auto& [fixed_menu_item, inst_list] = apps_list[menuid];
+                inst_list.remove(window_ptr);
+                if (!fixed_menu_item && inst_list.empty()) // Remove non-fixed menu group if it is empty.
+                {
+                    apps_list.erase(menuid);
+                }
+                //todo drop
+                base::signal(tier::release, desk::events::apps::applist, apps_list_ptr); // Update taskbar app list.
+            };
 
             LISTEN(tier::request, vtm::events::apptype, what)
             {
@@ -1406,9 +1417,9 @@ namespace netxs::app::vtm
             {
                 auto& setup = menu_list[what.menuid];
                 what.applet = app::shared::builder(setup.type)(setup.appcfg, config);
-                what.applet->base::property("window.menuid") = what.menuid;
-                what.applet->base::bind_property<tier::preview>("window.header", *what.applet, e2::form::prop::ui::header) = setup.title;
-                what.applet->base::bind_property<tier::preview>("window.footer", *what.applet, e2::form::prop::ui::footer) = setup.footer;
+                what.applet->base::property("applet.menuid") = what.menuid;
+                what.applet->base::bind_property<tier::preview>("applet.header", *what.applet, e2::form::prop::ui::header) = setup.title;
+                what.applet->base::bind_property<tier::preview>("applet.footer", *what.applet, e2::form::prop::ui::footer) = setup.footer;
                 app::shared::applet_kb_navigation(config, what.applet);
             };
             LISTEN(tier::general, e2::conio::logs, utf8) // Forward logs from brokers.
@@ -1753,8 +1764,8 @@ namespace netxs::app::vtm
             {
                 if (memo.empty()) return;
                 memo.clear();
-                usergate.base::riseup(tier::preview, e2::form::prop::ui::header, std::move(usergate.base::property("window.saved_header")));
-                usergate.base::riseup(tier::preview, e2::form::prop::ui::footer, std::move(usergate.base::property("window.saved_footer")));
+                usergate.base::riseup(tier::preview, e2::form::prop::ui::header, std::move(usergate.base::property("applet.saved_header")));
+                usergate.base::riseup(tier::preview, e2::form::prop::ui::footer, std::move(usergate.base::property("applet.saved_footer")));
                 auto applet_ptr = usergate.base::subset.back();
                 auto gear_id_list = pro::focus::cut(applet_ptr);
                 applet_ptr->base::detach();
@@ -1782,10 +1793,10 @@ namespace netxs::app::vtm
                     new_pos.coor -= usergate.base::coor();
                     applet.base::extend(new_pos);
 
-                    auto newhead = applet.base::property("window.header");
-                    auto newfoot = applet.base::property("window.footer");
-                    usergate.base::property("window.saved_header") = usergate.base::riseup(tier::request, e2::form::prop::ui::header);
-                    usergate.base::property("window.saved_footer") = usergate.base::riseup(tier::request, e2::form::prop::ui::footer);
+                    auto newhead = applet.base::property("applet.header");
+                    auto newfoot = applet.base::property("applet.footer");
+                    usergate.base::property("applet.saved_header") = usergate.base::riseup(tier::request, e2::form::prop::ui::header);
+                    usergate.base::property("applet.saved_footer") = usergate.base::riseup(tier::request, e2::form::prop::ui::footer);
                     usergate.base::riseup(tier::preview, e2::form::prop::ui::header, newhead);
                     usergate.base::riseup(tier::preview, e2::form::prop::ui::footer, newfoot);
 

@@ -194,7 +194,7 @@ namespace netxs::app::tile
         auto app_window = [](auto& what)
         {
             return ui::fork::ctor(axis::Y)
-                    ->template plugin<pro::title>(what.applet->base::property("window.header"), what.applet->base::property("window.footer"), true, faux, true)
+                    ->template plugin<pro::title>(what.applet->base::property("applet.header"), what.applet->base::property("applet.footer"), true, faux, true)
                     ->template plugin<pro::light>() //todo gcc requires template keyword
                     ->template plugin<pro::focus>()
                     ->limits({ 10, -1 }, { -1, -1 })
@@ -217,8 +217,8 @@ namespace netxs::app::tile
 
                                 // Take current title.
                                 auto what = vtm::events::handoff.param();
-                                auto& header = applet.base::property("window.header");
-                                if (header.empty()) header = applet.base::property("window.menuid");
+                                auto& header = applet.base::property("applet.header");
+                                if (header.empty()) header = applet.base::property("applet.menuid");
 
                                 // Get creator.
                                 auto world_ptr = boss.base::signal(tier::general, e2::config::creator);
@@ -227,7 +227,7 @@ namespace netxs::app::tile
                                 // Take coor.
                                 gear.coord -= applet.base::coor(); // Rebase mouse coor.
                                 gear.click -= applet.base::coor(); // Rebase mouse click.
-                                auto& applet_area = applet.base::template property<rect>("window.area");
+                                auto& applet_area = applet.base::template property<rect>("applet.area");
                                 if (!applet_area) applet_area.size = applet.base::size();
                                 auto coor = dot_00;
                                 applet.base::global(coor);
@@ -270,7 +270,7 @@ namespace netxs::app::tile
                         };
                     })
                     ->branch(slot::_1, ui::postfx<cell::shaders::contrast>::ctor()
-                        ->upload(what.applet->base::property("window.header"))
+                        ->upload(what.applet->base::property("applet.header"))
                         ->shader(cell::shaders::text(cell{ whitespace }))
                         ->invoke([&](auto& boss)
                         {
