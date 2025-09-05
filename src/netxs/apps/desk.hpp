@@ -228,7 +228,7 @@ namespace netxs::app::desk
                 });
             return item_area;
         };
-        auto apps_template = [](auto& data_src, auto& apps_map_ptr)
+        auto apps_template = [](auto& world_ptr, auto& apps_map_ptr)
         {
             auto tall = si32{ skin::globals().menuwide };
             auto inactive_color  = skin::globals().inactive;
@@ -237,6 +237,7 @@ namespace netxs::app::desk
             auto c1 = danger_color;
             auto c9 = selected_color;
             auto cA = inactive_color;
+            auto& world_inst = *world_ptr;
 
             auto apps = ui::list::ctor()
                 ->invoke([&](auto& boss)
@@ -249,10 +250,33 @@ namespace netxs::app::desk
                         auto state = boss.base::riseup(tier::request, desk::events::ui::toggle);
                         boss.base::riseup(tier::anycast, desk::events::ui::recalc, state);
                     };
+                    //auto& menu_list = boss.base::field();
+                    //auto& apps_list = boss.base::field();
+                    //auto& inst_list = boss.base::field();
+                    //world_inst.LISTEN(tier::release, desk::events::apps::created, window_ptr, boss.sensors)
+                    //{
+                    //    auto& window = *window_ptr;
+                    //    auto& menuid = window.base::property("window.menuid");
+                    //    auto& cfg = menu_list[menuid];
+                    //    auto& [fixed_menu_item, inst_list] = apps_list[menuid];
+                    //    fixed_menu_item = !cfg.hidden;
+                    //    inst_list.push_back(window_ptr);
+                    //};
+                    //world_inst.LISTEN(tier::release, desk::events::apps::removed, window_ptr, boss.sensors)
+                    //{
+                    //    auto& window = *window_ptr;
+                    //    auto& menuid = window.base::property("window.menuid");
+                    //    auto& [fixed_menu_item, inst_list] = apps_list[menuid];
+                    //    inst_list.remove(window_ptr);
+                    //    if (!fixed_menu_item && inst_list.empty()) // Remove non-fixed menu group if it is empty.
+                    //    {
+                    //        apps_list.erase(menuid);
+                    //    }
+                    //};
                 });
 
             auto def_note = skin::globals().NsTaskbarApps_deftooltip;
-            auto conf_list_ptr = data_src->base::riseup(tier::request, desk::events::menu);
+            auto conf_list_ptr = world_inst.base::riseup(tier::request, desk::events::menu);
             if (!conf_list_ptr || !apps_map_ptr) return apps;
             auto& conf_list = *conf_list_ptr;
             auto& apps_map = *apps_map_ptr;
@@ -313,15 +337,12 @@ namespace netxs::app::desk
                             }
                             boss.base::signal(tier::anycast, desk::events::ui::selected, inst_id);
                             static auto offset = dot_00; // static: Share initial offset between all instances.
-                            if (auto world_ptr = boss.base::signal(tier::general, e2::config::creator))
-                            {
-                                auto current_viewport = gear.owner.base::signal(tier::request, e2::form::prop::viewport);
-                                offset = (offset + dot_21 * 2) % std::max(dot_11, current_viewport.size * 7 / 32);
-                                gear.slot.coor = current_viewport.coor + offset + current_viewport.size * 1 / 32 + dot_11;
-                                gear.slot.size = current_viewport.size * 3 / 4;
-                                gear.slot_forced = faux;
-                                world_ptr->base::riseup(tier::request, e2::form::proceed::createby, gear);
-                            }
+                            auto current_viewport = gear.owner.base::signal(tier::request, e2::form::prop::viewport);
+                            offset = (offset + dot_21 * 2) % std::max(dot_11, current_viewport.size * 7 / 32);
+                            gear.slot.coor = current_viewport.coor + offset + current_viewport.size * 1 / 32 + dot_11;
+                            gear.slot.size = current_viewport.size * 3 / 4;
+                            gear.slot_forced = faux;
+                            world_inst.base::riseup(tier::request, e2::form::proceed::createby, gear);
                             gear.dismiss(true);
                         });
                     });
@@ -397,6 +418,8 @@ namespace netxs::app::desk
                         });
                     for (auto& inst_ptr : inst_ptr_list)
                     {
+                        //todo
+                        //auto taskbar_item_ptr = app_template(inst_ptr);
                         auto taskbar_item_ptr = app_template(inst_ptr)
                                                 ->depend(inst_ptr);
                         insts->attach(taskbar_item_ptr);
@@ -714,6 +737,9 @@ namespace netxs::app::desk
                     {
                         auto world_ptr = world.This();
                         auto apps = boss.attach_element(desk::events::apps::applist, world_ptr, apps_template);
+                        //todo
+                        //auto apps = world_ptr->base::signal(tier::request, desk::events::apps::applist);
+                        //world_ptr->attach(apps_template(world_ptr, apps));
                     };
                 });
             auto users_area = apps_users->attach(slot::_2, ui::list::ctor());

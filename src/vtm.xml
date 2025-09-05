@@ -131,7 +131,7 @@ R"==(
             <height=1/>  <!-- Desktop space reserved on top. -->
         </panel>
         <background>  <!-- Desktop background. -->
-            <color fgc=whitedk bgc= #00007f80/>  <!-- Desktop background color. -->
+            <color fgc=whitedk bgc= #00003f80/>  <!-- Desktop background color. -->
             <tile=""/>                           <!-- Truecolor ANSI-art can be used here. -->
         </background>
     </desktop>

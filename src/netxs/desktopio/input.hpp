@@ -447,9 +447,9 @@ namespace netxs::input
                             return is_released;
                         });
                         auto sign = !!k.keystat;
-                        if (vk_valid && k.cluster.size() && k.cluster.front() != '\0')
+                        if (k.cluster.size() && k.cluster.front() != '\0')
                         {
-                            k.chchord = k.vkchord;
+                            if (vk_valid) k.chchord = k.vkchord;
                             push_cluster(sign, k.chchord, k.cluster);
                         }
                         push_keyid(sign, k.vkchord, k.keycode);

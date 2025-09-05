@@ -3070,33 +3070,30 @@ namespace netxs::ui
                                                 : k.payload == input::keybd::type::imeanons ? "IME composition"
                                                 : k.payload == input::keybd::type::imeinput ? "IME input"
                                                 : k.payload == input::keybd::type::kblayout ? "keyboard layout" : "unknown payload";
-                    if (k.vkchord.length())
+                    auto t = text{};
+                    if (k.keystat != input::key::repeated)
                     {
-                        auto t = text{};
-                        if (k.vkchord.size() && k.keystat != input::key::repeated)
-                        {
-                            auto vkchord =     input::key::kmap::to_string(k.vkchord, faux);
-                            auto scchord =     input::key::kmap::to_string(k.scchord, faux);
-                            auto chchord =     input::key::kmap::to_string(k.chchord, faux);
-                            auto gen_vkchord = input::key::kmap::to_string(k.vkchord, true);
-                            auto gen_chchord = input::key::kmap::to_string(k.chchord, true);
-                            //log("Keyboard chords: %%  %%  %%", utf::buffer_to_hex(gear.vkchord), utf::buffer_to_hex(gear.scchord), utf::buffer_to_hex(gear.chchord),
-                            if (vkchord.size()) t += (t.size() ? "  " : "") + (vkchord == gen_vkchord ? vkchord : gen_vkchord + "  " + vkchord);
-                            if (chchord.size()) t += (t.size() ? "  " : "") + (chchord == gen_chchord ? chchord : gen_chchord + "  " + chchord);
-                            if (scchord.size()) t += (t.size() ? "  " : "") + scchord;
-                        }
-                        else if (k.cluster.length()) //todo revise
-                        {
-                            for (byte c : k.cluster)
-                            {
-                                     if (c <  0x20) t += "^" + utf::to_utf_from_code(c + 0x40);
-                                else if (c == 0x7F) t += "\\x7F";
-                                else if (c == 0x20) t += "\\x20";
-                                else                t.push_back(c);
-                            }
-                        }
-                        if (t.size()) status[prop::key_chord] = t;
+                        auto vkchord =     input::key::kmap::to_string(k.vkchord, faux);
+                        auto scchord =     input::key::kmap::to_string(k.scchord, faux);
+                        auto chchord =     input::key::kmap::to_string(k.chchord, faux);
+                        auto gen_vkchord = input::key::kmap::to_string(k.vkchord, true);
+                        auto gen_chchord = input::key::kmap::to_string(k.chchord, true);
+                        //log("Keyboard chords: %%  %%  %%", utf::buffer_to_hex(gear.vkchord), utf::buffer_to_hex(gear.scchord), utf::buffer_to_hex(gear.chchord),
+                        if (vkchord.size()) t += (t.size() ? "  " : "") + (vkchord == gen_vkchord ? vkchord : gen_vkchord + "  " + vkchord);
+                        if (chchord.size()) t += (t.size() ? "  " : "") + (chchord == gen_chchord ? chchord : gen_chchord + "  " + chchord);
+                        if (scchord.size()) t += (t.size() ? "  " : "") + scchord;
                     }
+                    else if (k.cluster.length()) //todo revise
+                    {
+                        for (byte c : k.cluster)
+                        {
+                                 if (c <  0x20) t += "^" + utf::to_utf_from_code(c + 0x40);
+                            else if (c == 0x7F) t += "\\x7F";
+                            else if (c == 0x20) t += "\\x20";
+                            else                t.push_back(c);
+                        }
+                    }
+                    if (t.size()) status[prop::key_chord] = t;
                     boss.base::deface();
                 };
             }
