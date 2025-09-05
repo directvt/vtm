@@ -147,7 +147,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_DEBUG",
-          "value": "-O0 -DDEBUG -static -pthread -g",
+          "value": "-O0 -DDEBUG -static -pthread -g -Wno-missing-field-initializers",
           "type": "STRING"
         },
         {
@@ -157,12 +157,12 @@
         },
         {
           "name": "CMAKE_CXX_COMPILER",
-          "value": "/bin/aarch64-linux-gnu-g++",
+          "value": "/bin/aarch64-linux-gnu-g++-12",
           "type": "STRING"
         },
         {
           "name": "CMAKE_C_COMPILER",
-          "value": "/bin/aarch64-linux-gnu-gcc",
+          "value": "/bin/aarch64-linux-gnu-gcc-12",
           "type": "STRING"
         }
       ],

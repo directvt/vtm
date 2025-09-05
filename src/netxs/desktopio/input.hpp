@@ -449,7 +449,7 @@ namespace netxs::input
                         auto sign = !!k.keystat;
                         if (k.cluster.size() && k.cluster.front() != '\0')
                         {
-                            if (vk_valid) k.chchord = k.vkchord;
+                            k.chchord = k.vkchord; // The main part of the chchord is the same as in vkchord.
                             push_cluster(sign, k.chchord, k.cluster);
                         }
                         push_keyid(sign, k.vkchord, k.keycode);
