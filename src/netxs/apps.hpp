@@ -720,7 +720,7 @@ namespace netxs::app::shared
                     if (i == 4) break;
                     if (i == 1)
                     {
-                        if (is_key_event && gear.vkchord.size())
+                        if (is_key_event && (gear.vkchord.size() || gear.chchord.size() || gear.scchord.size()))
                         {
                             auto& dst = gear.keystat ? pressed : released;
                             auto generic = input::key::kmap::to_string(gear.vkchord, true);
