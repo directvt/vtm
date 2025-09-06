@@ -2122,6 +2122,8 @@ namespace netxs::gui
         regs  fields; // winbase: Text input field list.
         link  stream; // winbase: DirectVT event proxy.
         kmap  chords; // winbase: Pressed key table (key chord).
+        bool  fake_ctrl; // winbase: Fake ctrl key event on AltGr press/release (non-US kb layouts).
+        bool  wait_ralt; // winbase: Wait RightAlt right after the fake LeftCtrl.
 
         winbase(auth& indexer, std::list<text>& font_names, si32 cell_height, bool antialiasing, span blink_rate, twod grip_cell)
             : base{ indexer },
@@ -2151,7 +2153,9 @@ namespace netxs::gui
               heldby{ 0x0 },
               whlacc{ 0.f },
               wdelta{ 24.f },
-              stream{ *this, *os::dtvt::client }
+              stream{ *this, *os::dtvt::client },
+              fake_ctrl{ faux },
+              wait_ralt{ faux }
         { }
 
         virtual bool layer_create(layer& s, winbase* host_ptr = nullptr, twod win_coord = {}, twod grid_size = {}, dent border_dent = {}, twod cell_size = {}) = 0;
@@ -2214,10 +2218,16 @@ namespace netxs::gui
         }
         void print_vkstat(text s)
         {
-            s += "\n"s;
+            s += "\n    x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 xA xB xC xD xE xF"s;
             auto i = 0;
             for (auto k : vkstat)
             {
+                if (i % 16 == 0)
+                {
+                    s += "\n ";
+                    utf::to_hex<true>(i, s, 2);
+                    s += ' ';
+                }
                      if (k == 0x80) s += ansi::fgc(tint::greenlt);
                 else if (k == 0x01) s += ansi::fgc(tint::yellowlt);
                 else if (k == 0x81) s += ansi::fgc(tint::cyanlt);
@@ -2225,7 +2235,6 @@ namespace netxs::gui
                 else                s += ansi::nil();
                 s += utf::to_hex(k) + ' ';
                 i++;
-                if (i % 16 == 0)s += '\n';
             }
             log(s);
         }
@@ -3079,10 +3088,20 @@ namespace netxs::gui
             }
             else
             {
+                if (fake_ctrl && wait_ralt) // RAlt is expected right after the fake LCtrl when AltGr is pressed.
+                {
+                    wait_ralt = faux;
+                    auto is_ralt = scancod == input::key::map::data(input::key::RightAlt).scan/*0x38*/ && extflag; // RAlt.
+                    if (!is_ralt) // If something else comes instead of RAlt, it means that the LCtrl key was actually pressed.
+                    {
+                        fake_ctrl = faux;
+                        keybd_send_state(vkey::control, input::key::pressed, input::key::map::data(input::key::LeftCtrl).scan/*0x1d*/); // Send LCtrl actually pressed.
+                    }
+                }
                 if (keybd_test_toggled(vkey::numlock )) state |= input::hids::NumLock, cs |= input::key::NumLockMode;
                 if (keybd_test_toggled(vkey::capslock)) state |= input::hids::CapsLock;
                 if (keybd_test_toggled(vkey::scrllock)) state |= input::hids::ScrlLock;
-                if (keybd_test_pressed(vkey::lcontrol)) state |= input::hids::LCtrl;
+                if (keybd_test_pressed(vkey::lcontrol) && !fake_ctrl) state |= input::hids::LCtrl;
                 if (keybd_test_pressed(vkey::rcontrol)) state |= input::hids::RCtrl;
                 if (keybd_test_pressed(vkey::lalt    )) state |= input::hids::LAlt;
                 if (keybd_test_pressed(vkey::ralt    )) state |= input::hids::RAlt;
@@ -3145,6 +3164,30 @@ namespace netxs::gui
                     //log(" keymod=%%", utf::to_hex(keymod));
                     if (virtcod == vkey::shift) return;
                     state = keymod;
+                }
+                else if (scancod == input::key::map::data(input::key::LeftCtrl).scan/*0x1d*/ && !extflag) // Filter fake LeftCtrl messages when AltGr pressed/repeated/released (non-US kb layouts).
+                {
+                    if (keystat == input::key::pressed)
+                    {
+                        //if constexpr (debugmode) log("Left ctrl pressed");
+                        fake_ctrl = !(state & input::hids::RAlt) && keybd_read_pressed(vkey::ralt); // Actually AltGr is pressed.
+                    }
+                    else if (keystat == input::key::released)
+                    {
+                        //if constexpr (debugmode) log("Left ctrl released");
+                        fake_ctrl = (state & input::hids::RAlt) && !keybd_read_pressed(vkey::ralt); // Actually AltGr is released.
+                    }
+                    else // Actually AltGr is repeated if fake_ctrl==true.
+                    {
+                        //if constexpr (debugmode) log("Left ctrl repeated");
+                    }
+                    if (fake_ctrl) // Filter input::key::repeated events as well.
+                    {
+                        if constexpr (debugmode) log("Fake left ctrl key '%%' event filtered", keystat == input::key::pressed ? "pressed" : keystat == input::key::released ? "released" : "repeated");
+                        fake_ctrl = keystat != input::key::released; // Zeroize flag on release.
+                        wait_ralt = fake_ctrl;
+                        return;
+                    }
                 }
             }
             auto changed = std::exchange(keymod, state) != keymod || synth;
