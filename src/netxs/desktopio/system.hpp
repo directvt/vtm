@@ -1580,7 +1580,7 @@ namespace netxs::os
 
             static auto sigset = ::sigset_t{};
             static auto backup = ::sigset_t{};
-            static auto sigrtmin = SIGRTMIN;
+            static auto sigrtmin = SIGALRM; // SIGRTMIN is absent on macOS.
             static auto listener = [] // This initialization must be performed in the main (first ever) thread at startup in order to properly set the thread's inherited sigmask.
             {
                 auto action = [](auto){ };
