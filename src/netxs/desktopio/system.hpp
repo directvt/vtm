@@ -5963,7 +5963,7 @@ namespace netxs::os
                 auto t_proc = [&]
                 {
                     auto discard = ui64{};
-                    ::read(timefd, &discard, sizeof(discard));
+                    os::recv(timefd, &discard, sizeof(discard));
                     if (input_buffer.size())
                     {
                         detect_key(input_buffer);
