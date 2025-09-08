@@ -2051,7 +2051,7 @@ namespace netxs::input
             {
                 auto s = keybd::ctlstat;
                 auto v = keybd::keycode & -2; // Generic keys only
-                auto c = keybd::cluster.empty() ? 0 : keybd::cluster.front();
+                auto c = keybd::cluster.empty() ? 0 : (byte)keybd::cluster.front();
 
                 if (s & hids::LCtrl && s & hids::RAlt) // This combination is already translated.
                 {
@@ -2096,10 +2096,16 @@ namespace netxs::input
 
                 if (auto it_alone = alone_key.find(v); it_alone != alone_key.end())
                 {
-                    if (v >= key::KeyEnd && v <= key::KeyDownArrow) it_alone->second[1] = decckm ? 'O' : '[';
+                    if (v >= key::KeyEnd && v <= key::KeyDownArrow)
+                    {
+                        it_alone->second[1] = decckm ? 'O' : '[';
+                    }
                     return it_alone->second;
                 }
-                else if (c) return keybd::cluster;
+                else if (c)
+                {
+                    return keybd::cluster;
+                }
             }
             return text{};
         }

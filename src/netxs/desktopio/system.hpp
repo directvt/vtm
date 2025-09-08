@@ -27,13 +27,14 @@
 
 #else
 
-    #include <errno.h>      // ::errno
-    #include <spawn.h>      // ::exec
-    #include <unistd.h>     // ::gethostname(), ::getpid(), ::read()
-    #include <sys/param.h>  //
-    #include <sys/types.h>  // ::getaddrinfo(), ::sysctl()
-    #include <sys/socket.h> // ::shutdown() ::socket(2)
-    #include <netdb.h>      //
+    #include <errno.h>       // ::errno
+    #include <spawn.h>       // ::exec
+    #include <unistd.h>      // ::gethostname(), ::getpid(), ::read()
+    #include <sys/param.h>   //
+    #include <sys/types.h>   // ::getaddrinfo(), ::sysctl()
+    #include <sys/socket.h>  // ::shutdown() ::socket(2)
+    #include <sys/timerfd.h> // ::timerfd_create() ::timerfd_settime()
+    #include <netdb.h>       //
     //#include <arpa/inet.h>  // ::inet_ntop() ?This may require dynamic linking. #GH696
 
     #include <stdio.h>
@@ -123,7 +124,8 @@ namespace netxs::os
         using pidt = pid_t;
         using fd_t = int;
         using tios = ::termios;
-        static const auto invalid_fd = fd_t{ -1            };
+        static constexpr auto clock_type = CLOCK_MONOTONIC;
+        static constexpr auto invalid_fd = fd_t{ -1 };
         static auto stdin_fd  = fd_t{ STDIN_FILENO  };
         static auto stdout_fd = fd_t{ STDOUT_FILENO };
         static auto stderr_fd = fd_t{ STDERR_FILENO };
@@ -5182,9 +5184,18 @@ namespace netxs::os
 
             #else
 
+                static constexpr auto timeout = ::itimerspec{ .it_value{ .tv_nsec = datetime::round<ui64, std::chrono::nanoseconds>(100ms) } };
+                static constexpr auto disarms = ::itimerspec{};
                 auto micefd = os::invalid_fd;
+                auto timefd = ::timerfd_create(os::clock_type, TFD_CLOEXEC | TFD_NONBLOCK);
                 auto buffer = text(os::pipebuf, '\0');
                 auto sig_fd = os::signals::fd{};
+                auto input_buffer = text{};
+                auto paste_not_complete = faux;
+                auto set_timer = [&](auto& ts)
+                {
+                    ok(::timerfd_settime(timefd, {}, &ts, nullptr), "::timerfd_settime(timeout)", os::unexpected);
+                };
                 auto get_kb_state = []
                 {
                     auto state = si32{ 0 };
@@ -5257,16 +5268,24 @@ namespace netxs::os
                     mousevtim,
                 };
                 static const auto style_cmd = "\033[" + std::to_string(ansi::ccc_stl) + ":";
-                auto take_sequence = [](qiew& cache) // s.size() always > 1.
+                auto take_sequence = [](qiew& cache)
                 {
                     auto s = cache;
                     auto t = type::undef;
                     auto incomplete = faux;
-                    if (s.size() > 2) // ESC [ == Alt+[   ESC O == Alt+Shift+O
+                    auto head = s.begin() + 1; // Pop Esc.
+                    auto tail = s.end();
+                    auto c = *head; // cache.size() > 1.
+                    if (s.size() == 2)
                     {
-                        auto head = s.begin() + 1; // Pop Esc.
-                        auto tail = s.end();
-                        auto c = *head++;
+                        if (c == '[' || c == 'O' || c == '_') // ESC [ == Alt+[   ESC O == Alt+Shift+O
+                        {
+                            incomplete = true;
+                        }
+                    }
+                    else // s.size() > 2
+                    {
+                        head++;
                         if (c == '[') // CSI: ESC [ pn;...;pn cmd
                         {
                             while (head != tail) // Looking for CSI command.
@@ -5306,9 +5325,20 @@ namespace netxs::os
                                 s = s.substr(0, len);
                             }
                         }
-                        else if (c == 'O') // SS3: ESC O byte
+                        else if (c == 'O') // SS3: ESC O byte  or  ESC O n ; m [PQRS]
                         {
-                            s = s.substr(0, 3);
+                            while (head != tail) // Looking for P Q R or S.
+                            {
+                                auto c3 = *head;
+                                if (c3 >= 'P' && c3 <= 'S') break;
+                                head++;
+                            }
+                            if (head == tail) incomplete = true;
+                            else
+                            {
+                                ++head;
+                                s = qiew{ s.begin(), head };
+                            }
                         }
                         else if (c == '_') // APC: ESC _ payload ST
                         {
@@ -5344,7 +5374,14 @@ namespace netxs::os
                         else // ESC cluster == Alt+cluster
                         {
                             auto cluster = utf::cluster<true>(s.substr(1));
-                            s = s.substr(0, cluster.attr.utf8len + 1);
+                            if (!cluster.attr.correct && s.size() == cluster.attr.utf8len + 1) // UTF-8 character is not complete.
+                            {
+                                incomplete = true;
+                            }
+                            else
+                            {
+                                s = s.substr(0, cluster.attr.utf8len + 1);
+                            }
                         }
                     }
                     if (!incomplete)
@@ -5369,6 +5406,10 @@ namespace netxs::os
                         { key::KeyDownArrow,  "\033[1; B"  },
                         { key::KeyInsert,     "\033[2; ~"  },
                         { key::KeyDelete,     "\033[3; ~"  },
+                        { key::F1,            "\033O1; P"  }, // adb shell specific (ESC O ...)
+                        { key::F2,            "\033O1; Q"  }, //
+                        { key::F3,            "\033O1; R"  }, //
+                        { key::F4,            "\033O1; S"  }, //
                         { key::F1,            "\033[1; P"  },
                         { key::F2,            "\033[1; Q"  },
                         { key::F3,            "\033[1; R"  },
@@ -5390,7 +5431,7 @@ namespace netxs::os
                         { "\x00"s     , { " ",    key::Space         | hids::LCtrl  << 8 }},
                         { "\x08"      , { "\x7f", key::Backspace     | hids::LCtrl  << 8 }},
                         { "\033\x08"  , { "",     key::Backspace     | hids::AltGr  << 8 }},
-                        //{ "\033[Z"    , { "",     key::Tab           | hids::LShift << 8 }}, // Alt+Shift+Z
+                        { "\033[Z"    , { "",     key::Tab           | hids::LShift << 8 }}, //todo: revise Alt+Shift+Z ?
                         { "\033[1;3I" , { "",     key::Tab           | hids::LAlt   << 8 }},
                         { "\033\033"  , { "",     key::Esc           | hids::LAlt   << 8 }},
                         { "\x7f"      , { "\x08", key::Backspace                         }},
@@ -5643,11 +5684,14 @@ namespace netxs::os
                         std::swap(k.scancod, scancod);
                     }
                 };
-
-                auto parser = [&, input = text{}, paste_not_complete = faux](view accum) mutable
+                auto parser = [&](view accum)
                 {
-                    input += accum;
-                    auto cache = qiew{ input };
+                    if (input_buffer.size() && !paste_not_complete)
+                    {
+                        set_timer(disarms);
+                    }
+                    input_buffer += accum;
+                    auto cache = qiew{ input_buffer };
                     while (cache.size())
                     {
                         if (paste_not_complete)
@@ -5679,15 +5723,19 @@ namespace netxs::os
                                 break;
                             }
                         }
-                        else if (cache.size() == 1)
-                        {
-                            detect_key(cache);
-                            cache.clear();
-                        }
                         else if (cache.front() == '\033')
                         {
+                            if (cache.size() == 1) // Ambiguous state, need to wait some time for additional input.
+                            {
+                                set_timer(timeout);
+                                break;
+                            }
                             auto [t, s, incomplete] = take_sequence(cache);
-                            if (incomplete) break;
+                            if (incomplete)
+                            {
+                                set_timer(timeout);
+                                break;
+                            }
                             else if (t == type::mousevtim) // vt-input-mode report:  ESC _ payload ST
                             {
                                 utf::split<true>(s, ';', [&](qiew frag)
@@ -5854,7 +5902,7 @@ namespace netxs::os
                             }
                             else if (t == type::style) // Line style report:  ESC [ std::to_string(ansi::ccc_stl) : n p
                             {
-                                auto tmp = s.substr(style_cmd.size());
+                                auto tmp = s.substr(style_cmd.size()); // Pop style_cmd's ESC+prefix
                                 if (auto format = utf::to_int(tmp))
                                 {
                                     style(deco{ format.value() });
@@ -5885,14 +5933,42 @@ namespace netxs::os
                                 detect_key(s);
                             }
                         }
+                        else if (!utf::firstbyte(cache.front())) // The first byte is not UTF-8.
+                        {
+                            auto head = cache.begin() + 1;
+                            auto tail = cache.end();
+                            while (head != tail && !utf::firstbyte(*head++)) { } // Eat all non-UTF-8 first bytes.
+                            auto non_utf8 = qiew{ cache.begin(), head };
+                            cache.remove_prefix(non_utf8.size());
+                            detect_key(non_utf8);
+                            if constexpr (debugmode) log("%%The first byte is not UTF-8: ", prompt::os, ansi::hi(utf::debase437(non_utf8)));
+                        }
                         else
                         {
                             auto cluster = utf::cluster<true>(cache);
-                            detect_key(cluster.text);
-                            cache.remove_prefix(cluster.attr.utf8len);
+                            if (!cluster.attr.correct && cache.size() == cluster.attr.utf8len) // UTF-8 character is not complete.
+                            {
+                                set_timer(timeout);
+                                break;
+                            }
+                            else
+                            {
+                                cache.remove_prefix(cluster.attr.utf8len);
+                                detect_key(cluster.text);
+                            }
                         }
                     }
-                    input = cache;
+                    input_buffer = cache;
+                };
+                auto t_proc = [&]
+                {
+                    auto discard = ui64{};
+                    ::read(timefd, &discard, sizeof(discard));
+                    if (input_buffer.size())
+                    {
+                        detect_key(input_buffer);
+                        input_buffer.clear();
+                    }
                 };
                 auto h_proc = [&]
                 {
@@ -6064,8 +6140,10 @@ namespace netxs::os
                     io::select(os::stdin_fd, h_proc,
                                sig_fd,       s_proc,
                                micefd,       m_proc,
+                               timefd,       t_proc,
                                alarm,        f_proc);
                 }
+                os::close(timefd);
                 #if defined(__linux__)
                 lixx::uninitialize();
                 #endif

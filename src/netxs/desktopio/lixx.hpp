@@ -917,7 +917,6 @@ namespace netxs::lixx // li++, libinput++.
     static constexpr auto hold_and_motion_threshold             = 0.5; // mm.
     static constexpr auto tablet_history_length                 = 4;
 
-    static constexpr auto clock_type     = CLOCK_MONOTONIC;
     static constexpr auto max_slots      = 0x100;
     static constexpr auto min_queue_size = 0x100;
     static constexpr auto abs_mt_min     = ABS_MT_SLOT;
@@ -2682,6 +2681,13 @@ namespace netxs::lixx // li++, libinput++.
         time                             next_expiry{};
         std::vector<event_source_sptr>   source_destroy_list;
 
+        libinput_timer_host() = default;
+        ~libinput_timer_host()
+        {
+            os::close(fd);
+            os::close(epoll_fd);
+        }
+
         void clear()
         {
             active.clear();
@@ -2801,7 +2807,7 @@ namespace netxs::lixx // li++, libinput++.
         }
         bool libinput_timer_subsys_init()
         {
-            fd = ::timerfd_create(lixx::clock_type, TFD_CLOEXEC | TFD_NONBLOCK);
+            fd = ::timerfd_create(os::clock_type, TFD_CLOEXEC | TFD_NONBLOCK);
             if (fd < 0)
             {
                 os::close(epoll_fd);
@@ -3677,7 +3683,7 @@ namespace netxs::lixx // li++, libinput++.
                 fd = new_fd;
                 if (fd != os::invalid_fd)
                 {
-                    return ::ioctl(fd, EVIOCSCLOCKID, &lixx::clock_type) ? -errno : 0;
+                    return ::ioctl(fd, EVIOCSCLOCKID, &os::clock_type) ? -errno : 0;
                 }
                 return 0;
             }
@@ -3801,7 +3807,7 @@ namespace netxs::lixx // li++, libinput++.
             devname.assign(256, '\0');
             phys.assign(256, '\0');
             uniq.assign(256, '\0');
-            auto rc = (0 <= ::ioctl(new_fd, EVIOCSCLOCKID, &lixx::clock_type))
+            auto rc = (0 <= ::ioctl(new_fd, EVIOCSCLOCKID, &os::clock_type))
                    && (0 <= ::ioctl(new_fd, EVIOCGBIT(0,      sizeof(ev_bits)),    &ev_bits       ))
                    && (0 <= ::ioctl(new_fd, EVIOCGNAME(devname.size() - 1),        devname.data() ))                    && trim(devname)
                    && (0 <= ::ioctl(new_fd, EVIOCGPHYS(phys.size() - 1),           phys.data()    ) || errno == ENOENT) && trim(phys)

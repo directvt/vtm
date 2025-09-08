@@ -7337,7 +7337,7 @@ namespace netxs::ui
             altbuf.resize_viewport(target->panel);
             target = &altbuf;
         }
-        // term: Reset termnail parameters. (DECRST).
+        // term: Reset terminal parameters. (DECRST).
         void _decrst(si32 n)
         {
             switch (n)
