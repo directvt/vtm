@@ -30,6 +30,7 @@
 // DEALINGS IN THE SOFTWARE.
 
 #include <sys/epoll.h>   // ::epoll_create1()
+//todo use SIGEV_SIGNAL instead of timerfd_create
 #include <sys/timerfd.h> // ::timerfd_create() ::timerfd_settime()
 #include <sys/stat.h>    // ::fstat()
 #include <linux/input.h> // EV_*

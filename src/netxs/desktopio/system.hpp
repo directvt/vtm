@@ -33,7 +33,6 @@
     #include <sys/param.h>   //
     #include <sys/types.h>   // ::getaddrinfo(), ::sysctl()
     #include <sys/socket.h>  // ::shutdown() ::socket(2)
-    #include <sys/timerfd.h> // ::timerfd_create() ::timerfd_settime()
     #include <netdb.h>       //
     //#include <arpa/inet.h>  // ::inet_ntop() ?This may require dynamic linking. #GH696
 
@@ -1581,6 +1580,7 @@ namespace netxs::os
 
             static auto sigset = ::sigset_t{};
             static auto backup = ::sigset_t{};
+            static auto sigrtmin = SIGRTMIN;
             static auto listener = [] // This initialization must be performed in the main (first ever) thread at startup in order to properly set the thread's inherited sigmask.
             {
                 auto action = [](auto){ };
@@ -1589,10 +1589,12 @@ namespace netxs::os
                 forced_EINTR.sa_handler = action;
                 ::sigaction(SIGUSR2, &forced_EINTR, nullptr); // Readfile interruptor.
                 ::signal(SIGWINCH, action); // BSD systems require a dummy action for this signal.
+                ::signal(sigrtmin, action); // BSD systems require a dummy action for this signal.
                 ::signal(SIGPIPE, SIG_IGN); // Ignore writing to a broken pipe.
                 sigemptyset(&sigset);
                 sigemptyset(&backup);
                 sigaddset(&sigset, SIGWINCH);
+                sigaddset(&sigset, sigrtmin); // Timer timeout.
                 sigaddset(&sigset, SIGINT);
                 sigaddset(&sigset, SIGHUP);
                 sigaddset(&sigset, SIGTERM); // System shutdown.
@@ -1604,6 +1606,7 @@ namespace netxs::os
                     ::signal(SIGPIPE,  SIG_DFL);
                     ::signal(SIGUSR2,  SIG_DFL);
                     ::signal(SIGWINCH, SIG_DFL);
+                    ::signal(sigrtmin, SIG_DFL);
                 };
                 return std::unique_ptr<decltype(backup), decltype(deleter)>(&backup);
             }();
@@ -1627,9 +1630,9 @@ namespace netxs::os
                     ok(::fcntl(handle[1], F_SETFL, ::fcntl(handle[1], F_GETFL) | O_NONBLOCK), "::fcntl(h, O_NONBLOCK)", os::unexpected);
                     thread = std::thread{ [&]
                     {
-                        auto signal = sigt{};
                         while (true)
                         {
+                            auto signal = sigt{ -1 };
                             ::sigwait(&signals::sigset, &signal);
                             if (signal == SIGUSR1 && !active) break;
                             if (signal > 0) ok(::write(handle[1], &signal, sizeof(signal)), "::write(h[1])", os::unexpected);
@@ -5187,14 +5190,19 @@ namespace netxs::os
                 static constexpr auto timeout = ::itimerspec{ .it_value{ .tv_nsec = datetime::round<ui64, std::chrono::nanoseconds>(100ms) } };
                 static constexpr auto disarms = ::itimerspec{};
                 auto micefd = os::invalid_fd;
-                auto timefd = ::timerfd_create(os::clock_type, TFD_CLOEXEC | TFD_NONBLOCK);
                 auto buffer = text(os::pipebuf, '\0');
                 auto sig_fd = os::signals::fd{};
                 auto input_buffer = text{};
                 auto paste_not_complete = faux;
+                auto timer_id = ::timer_t{};
+                auto sev = ::sigevent{};
+                sev.sigev_notify = SIGEV_SIGNAL;
+                sev.sigev_signo = os::signals::sigrtmin;
+                sev.sigev_value.sival_ptr = &timer_id;
+                ok(::timer_create(os::clock_type, &sev, &timer_id));
                 auto set_timer = [&](auto& ts)
                 {
-                    ok(::timerfd_settime(timefd, {}, &ts, nullptr), "::timerfd_settime(timeout)", os::unexpected);
+                    ok(::timer_settime(timer_id, {}, &ts, nullptr), "::timer_settime(timerid)", os::unexpected);
                 };
                 auto get_kb_state = []
                 {
@@ -5276,7 +5284,11 @@ namespace netxs::os
                     auto head = s.begin() + 1; // Pop Esc.
                     auto tail = s.end();
                     auto c = *head; // cache.size() > 1.
-                    if (s.size() == 2)
+                    if (c == '\x1b') // ESC ESC
+                    {
+                        s = s.substr(0, 1);
+                    }
+                    else if (s.size() == 2)
                     {
                         if (c == '[' || c == 'O' || c == '_') // ESC [ == Alt+[   ESC O == Alt+Shift+O
                         {
@@ -5960,16 +5972,6 @@ namespace netxs::os
                     }
                     input_buffer = cache;
                 };
-                auto t_proc = [&]
-                {
-                    auto discard = ui64{};
-                    io::recv(timefd, &discard, sizeof(discard));
-                    if (input_buffer.size())
-                    {
-                        detect_key(input_buffer);
-                        input_buffer.clear();
-                    }
-                };
                 auto h_proc = [&]
                 {
                     if (auto data = io::recv(os::stdin_fd, buffer))
@@ -6118,15 +6120,25 @@ namespace netxs::os
                     auto signal = sigt{};
                     if (io::recv(sig_fd, &signal, sizeof(signal)))
                     {
-                        switch (signal)
+                        if (signal == SIGWINCH)
                         {
-                            case SIGWINCH: w.winsize = dtvt::consize(); winsz(w); break;
-                            case SIGINT:  // App close.
-                            case SIGHUP:  // App close.
-                            case SIGTERM: // System shutdown.
-                                if constexpr (debugmode) log("%%Process %pid% received signal %signo%", prompt::tty, os::process::id.first, signal);
-                                alive = faux;
-                            default: break;
+                            w.winsize = dtvt::consize();
+                            winsz(w);
+                        }
+                        else if (signal == os::signals::sigrtmin)
+                        {
+                            if (input_buffer.size())
+                            {
+                                detect_key(input_buffer);
+                                input_buffer.clear();
+                            }
+                        }
+                        else if (signal == SIGINT   // App close.
+                              || signal == SIGHUP   // App close.
+                              || signal == SIGTERM) // System shutdown.
+                        {
+                            if constexpr (debugmode) log("%%Process %pid% received signal %signo%", prompt::tty, os::process::id.first, signal);
+                            alive = faux;
                         }
                     }
                 };
@@ -6140,10 +6152,8 @@ namespace netxs::os
                     io::select(os::stdin_fd, h_proc,
                                sig_fd,       s_proc,
                                micefd,       m_proc,
-                               timefd,       t_proc,
                                alarm,        f_proc);
                 }
-                os::close(timefd);
                 #if defined(__linux__)
                 lixx::uninitialize();
                 #endif
