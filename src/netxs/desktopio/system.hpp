@@ -1580,7 +1580,6 @@ namespace netxs::os
 
             static auto sigset = ::sigset_t{};
             static auto backup = ::sigset_t{};
-            static auto sigrtmin = SIGALRM; // SIGRTMIN is absent on macOS.
             static auto listener = [] // This initialization must be performed in the main (first ever) thread at startup in order to properly set the thread's inherited sigmask.
             {
                 auto action = [](auto){ };
@@ -1589,12 +1588,10 @@ namespace netxs::os
                 forced_EINTR.sa_handler = action;
                 ::sigaction(SIGUSR2, &forced_EINTR, nullptr); // Readfile interruptor.
                 ::signal(SIGWINCH, action); // BSD systems require a dummy action for this signal.
-                ::signal(sigrtmin, action); // BSD systems require a dummy action for this signal.
                 ::signal(SIGPIPE, SIG_IGN); // Ignore writing to a broken pipe.
                 sigemptyset(&sigset);
                 sigemptyset(&backup);
                 sigaddset(&sigset, SIGWINCH);
-                sigaddset(&sigset, sigrtmin); // Timer timeout.
                 sigaddset(&sigset, SIGINT);
                 sigaddset(&sigset, SIGHUP);
                 sigaddset(&sigset, SIGTERM); // System shutdown.
@@ -1606,7 +1603,6 @@ namespace netxs::os
                     ::signal(SIGPIPE,  SIG_DFL);
                     ::signal(SIGUSR2,  SIG_DFL);
                     ::signal(SIGWINCH, SIG_DFL);
-                    ::signal(sigrtmin, SIG_DFL);
                 };
                 return std::unique_ptr<decltype(backup), decltype(deleter)>(&backup);
             }();
@@ -1807,27 +1803,43 @@ namespace netxs::os
 
             #endif
         }
-        template<bool NonBlocked = faux, class ...Args>
-        void select(Args&&... args)
+        template<class ...Args>
+        void select(span timeout, auto&& timeout_proc, Args&&... args)
         {
             #if defined(_WIN32)
 
-                static constexpr auto timeout = NonBlocked ? 0 /*milliseconds*/ : INFINITE;
+                auto timeval = timeout == netxs::maxspan ? INFINITE : datetime::round<si32, std::chrono::milliseconds>(timeout);
                 auto socks = _fd_set(std::forward<Args>(args)...);
                 // Note: ::WaitForMultipleObjects() does not work with pipes (DirectVT).
-                auto yield = ::WaitForMultipleObjects((DWORD)socks.size(), socks.data(), FALSE, timeout);
-                yield -= WAIT_OBJECT_0;
-                _handle(yield, std::forward<Args>(args)...);
+                auto yield = ::WaitForMultipleObjects((DWORD)socks.size(), socks.data(), FALSE, timeval);
+                if (yield == WAIT_TIMEOUT) // Timeout.
+                {
+                    timeout_proc();
+                }
+                else
+                {
+                    yield -= WAIT_OBJECT_0;
+                    _handle(yield, std::forward<Args>(args)...);
+                }
 
             #else
 
-                auto timeval = ::timeval{ .tv_sec = 0, .tv_usec = 0 };
-                auto timeout = NonBlocked ? &timeval/*returns immediately*/ : nullptr;
+                auto ssec = datetime::round<decltype(::timeval{}.tv_sec), std::chrono::seconds>(timeout);
+                auto usec = datetime::round<decltype(::timeval{}.tv_usec), std::chrono::microseconds>(timeout - std::chrono::seconds{ ssec });
+                auto timeval = ::timeval{ .tv_sec = ssec, .tv_usec = usec };
+                auto timeval_ptr = timeout == netxs::maxspan ? nullptr : &timeval;
                 auto socks = fd_set{};
                 FD_ZERO(&socks);
                 auto nfds = 1 + _fd_set(socks, std::forward<Args>(args)...);
-                auto count = ::select(nfds, &socks, 0, 0, timeout);
-                _select(count, socks, std::forward<Args>(args)...);
+                auto count = ::select(nfds, &socks, 0, 0, timeval_ptr);
+                if (count == 0) // Timeout.
+                {
+                    timeout_proc();
+                }
+                else
+                {
+                    _select(count, socks, std::forward<Args>(args)...);
+                }
 
             #endif
         }
@@ -1840,7 +1852,7 @@ namespace netxs::os
                 while (true)
                 {
                     auto empty = true;
-                    io::select<true>(os::stdin_fd, [&]{
+                    io::select(span{}, noop{}, os::stdin_fd, [&]{
                         empty = flush.size() != io::recv(os::stdin_fd, flush).length(); });
                     if (empty) break;
                 }
@@ -3443,7 +3455,8 @@ namespace netxs::os
                     {
                         signal.flush();
                     };
-                    io::select(handle.r, h_proc,
+                    io::select(netxs::maxspan, noop{},
+                               handle.r, h_proc,
                                signal  , f_proc);
 
                 #endif
@@ -3884,8 +3897,8 @@ namespace netxs::os
                     });
                 };
                 haspty = ::isatty(os::stdin_fd);
-                haspty ? proc([&](auto... args){ return io::select<true>(args...); })
-                       : proc([&](auto... args){ return io::select<faux>(args...); });
+                haspty ? proc([&](auto... args){ return io::select(netxs::span{},  noop{}, args...); })  // Nonblocking.
+                       : proc([&](auto... args){ return io::select(netxs::maxspan, noop{}, args...); }); // Blocking.
 
             #endif
             if (cfsize)
@@ -5187,23 +5200,14 @@ namespace netxs::os
 
             #else
 
-                static constexpr auto timeout = ::itimerspec{ .it_value{ .tv_nsec = datetime::round<ui64, std::chrono::nanoseconds>(100ms) } };
-                static constexpr auto disarms = ::itimerspec{};
+                static constexpr auto waitio = 100ms;
+                static constexpr auto disarm = netxs::maxspan;
+                auto timeout = span{};
                 auto micefd = os::invalid_fd;
                 auto buffer = text(os::pipebuf, '\0');
                 auto sig_fd = os::signals::fd{};
                 auto input_buffer = text{};
                 auto paste_not_complete = faux;
-                auto timer_id = ::timer_t{};
-                auto sev = ::sigevent{};
-                sev.sigev_notify = SIGEV_SIGNAL;
-                sev.sigev_signo = os::signals::sigrtmin;
-                sev.sigev_value.sival_ptr = &timer_id;
-                ok(::timer_create(os::clock_type, &sev, &timer_id));
-                auto set_timer = [&](auto& ts)
-                {
-                    ok(::timer_settime(timer_id, {}, &ts, nullptr), "::timer_settime(timerid)", os::unexpected);
-                };
                 auto get_kb_state = []
                 {
                     auto state = si32{ 0 };
@@ -5700,7 +5704,7 @@ namespace netxs::os
                 {
                     if (input_buffer.size() && !paste_not_complete)
                     {
-                        set_timer(disarms);
+                        timeout = disarm;
                     }
                     input_buffer += accum;
                     auto cache = qiew{ input_buffer };
@@ -5739,13 +5743,13 @@ namespace netxs::os
                         {
                             if (cache.size() == 1) // Ambiguous state, need to wait some time for additional input.
                             {
-                                set_timer(timeout);
+                                timeout = waitio;
                                 break;
                             }
                             auto [t, s, incomplete] = take_sequence(cache);
                             if (incomplete)
                             {
-                                set_timer(timeout);
+                                timeout = waitio;
                                 break;
                             }
                             else if (t == type::mousevtim) // vt-input-mode report:  ESC _ payload ST
@@ -5960,7 +5964,7 @@ namespace netxs::os
                             auto cluster = utf::cluster<true>(cache);
                             if (!cluster.attr.correct && cache.size() == cluster.attr.utf8len) // UTF-8 character is not complete.
                             {
-                                set_timer(timeout);
+                                timeout = waitio;
                                 break;
                             }
                             else
@@ -5971,6 +5975,14 @@ namespace netxs::os
                         }
                     }
                     input_buffer = cache;
+                };
+                auto t_proc = [&]
+                {
+                    if (input_buffer.size())
+                    {
+                        detect_key(input_buffer);
+                        input_buffer.clear();
+                    }
                 };
                 auto h_proc = [&]
                 {
@@ -6125,14 +6137,6 @@ namespace netxs::os
                             w.winsize = dtvt::consize();
                             winsz(w);
                         }
-                        else if (signal == os::signals::sigrtmin)
-                        {
-                            if (input_buffer.size())
-                            {
-                                detect_key(input_buffer);
-                                input_buffer.clear();
-                            }
-                        }
                         else if (signal == SIGINT   // App close.
                               || signal == SIGHUP   // App close.
                               || signal == SIGTERM) // System shutdown.
@@ -6149,7 +6153,8 @@ namespace netxs::os
 
                 while (alive)
                 {
-                    io::select(os::stdin_fd, h_proc,
+                    io::select(timeout,      t_proc,
+                               os::stdin_fd, h_proc,
                                sig_fd,       s_proc,
                                micefd,       m_proc,
                                alarm,        f_proc);
