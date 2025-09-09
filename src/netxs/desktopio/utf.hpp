@@ -1285,12 +1285,20 @@ namespace netxs::utf
         }
         return length;
     }
+    // utf: Check if the first byte is utf-8.
+    bool firstbyte(char c)
+    {
+        return !(c & 0b1'0000000)
+             || (c & 0b111'00000) == 0b110'00000
+             || (c & 0b1111'0000) == 0b1110'0000
+             || (c & 0b11111'000) == 0b11110'000;
+    }
     // utf: Check utf-8 integrity (last codepoint) and cut off the invalid bytes at the end.
     void purify(view& utf8)
     {
         auto head = utf8.rend();
         auto tail = utf8.rbegin();
-        while (tail != head && (*tail & 0xc0) == 0x80) // Find first byte.
+        while (tail != head && (*tail & 0xc0) == 0x80) // Find the first byte.
         {
             ++tail;
         }
@@ -1303,7 +1311,7 @@ namespace netxs::utf
                 utf8 = utf8.substr(0, p);
             }
         }
-        else // Bad UTF-8 encoding
+        else // Bad UTF-8 encoding: The first byte is not found.
         {
             //Recycle all bad bytes (log?).
         }
