@@ -3098,6 +3098,7 @@ namespace netxs::gui
                         keybd_send_state(vkey::control, input::key::pressed, input::key::map::data(input::key::LeftCtrl).scan/*0x1d*/); // Send LCtrl actually pressed.
                     }
                 }
+                if (fake_ctrl                         ) state |= input::hids::AltGr;
                 if (keybd_test_toggled(vkey::numlock )) state |= input::hids::NumLock, cs |= input::key::NumLockMode;
                 if (keybd_test_toggled(vkey::capslock)) state |= input::hids::CapsLock;
                 if (keybd_test_toggled(vkey::scrllock)) state |= input::hids::ScrlLock;

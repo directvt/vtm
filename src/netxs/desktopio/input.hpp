@@ -1323,11 +1323,12 @@ namespace netxs::input
             NumLock      = 1 << 12, // ⇭ Num Lock
             CapsLock     = 1 << 13, // ⇪ Caps Lock
             ScrlLock     = 1 << 14, // ⇳ Scroll Lock (⤓)
-            AltGr        = LAlt   | LCtrl,
+            AltGr        = 1 << 15, // AltGr on non-us keyboard
+            LCtrlAlt     = LAlt   | LCtrl,
             anyCtrl      = LCtrl  | RCtrl,
             anyAlt       = LAlt   | RAlt,
             anyShift     = LShift | RShift,
-            anyAltGr     = anyAlt | anyCtrl,
+            anyCtrlAlt   = anyAlt | anyCtrl,
             anyWin       = LWin   | RWin,
             anyMod       = anyAlt | anyCtrl | anyShift | anyWin,
         };
@@ -1397,27 +1398,27 @@ namespace netxs::input
         {
             return std::unordered_map<si32, text>
             {
-                { key::KeyEnter  | hids::anyCtrl  << 8, { "\x0a"      }},
-                { key::Backspace | hids::anyCtrl  << 8, { "\x08"      }},
-                { key::Backspace | hids::anyAlt   << 8, { "\033\x7f"  }},
-                { key::Backspace | hids::anyAltGr << 8, { "\033\x08"  }},
-                { key::Tab       | hids::anyCtrl  << 8, { "\t"        }},
-                { key::Tab       | hids::anyShift << 8, { "\033[Z"    }},
-                { key::Tab       | hids::anyAlt   << 8, { "\033[1;3I" }},
-                { key::Esc       | hids::anyAlt   << 8, { "\033\033"  }},
-                { key::Key1      | hids::anyCtrl  << 8, { "1"         }},
-                { key::Key3      | hids::anyCtrl  << 8, { "\x1b"      }},
-                { key::Key4      | hids::anyCtrl  << 8, { "\x1c"      }},
-                { key::Key5      | hids::anyCtrl  << 8, { "\x1d"      }},
-                { key::Key6      | hids::anyCtrl  << 8, { "\x1e"      }},
-                { key::Key7      | hids::anyCtrl  << 8, { "\x1f"      }},
-                { key::Key8      | hids::anyCtrl  << 8, { "\x7f"      }},
-                { key::Key9      | hids::anyCtrl  << 8, { "9"         }},
-                { key::KeySlash  | hids::anyCtrl  << 8, { "\x1f"      }},
-                { slash          | hids::anyAltGr << 8, { "\033\x1f"  }},
-                { slash          | hids::anyCtrl  << 8, { "\x1f"      }},
-                { quest          | hids::anyAltGr << 8, { "\033\x7f"  }},
-                { quest          | hids::anyCtrl  << 8, { "\x7f"      }},
+                { key::KeyEnter  | hids::anyCtrl    << 8, { "\x0a"      }},
+                { key::Backspace | hids::anyCtrl    << 8, { "\x08"      }},
+                { key::Backspace | hids::anyAlt     << 8, { "\033\x7f"  }},
+                { key::Backspace | hids::anyCtrlAlt << 8, { "\033\x08"  }},
+                { key::Tab       | hids::anyCtrl    << 8, { "\t"        }},
+                { key::Tab       | hids::anyShift   << 8, { "\033[Z"    }},
+                { key::Tab       | hids::anyAlt     << 8, { "\033[1;3I" }},
+                { key::Esc       | hids::anyAlt     << 8, { "\033\033"  }},
+                { key::Key1      | hids::anyCtrl    << 8, { "1"         }},
+                { key::Key3      | hids::anyCtrl    << 8, { "\x1b"      }},
+                { key::Key4      | hids::anyCtrl    << 8, { "\x1c"      }},
+                { key::Key5      | hids::anyCtrl    << 8, { "\x1d"      }},
+                { key::Key6      | hids::anyCtrl    << 8, { "\x1e"      }},
+                { key::Key7      | hids::anyCtrl    << 8, { "\x1f"      }},
+                { key::Key8      | hids::anyCtrl    << 8, { "\x7f"      }},
+                { key::Key9      | hids::anyCtrl    << 8, { "9"         }},
+                { key::KeySlash  | hids::anyCtrl    << 8, { "\x1f"      }},
+                { slash          | hids::anyCtrlAlt << 8, { "\033\x1f"  }},
+                { slash          | hids::anyCtrl    << 8, { "\x1f"      }},
+                { quest          | hids::anyCtrlAlt << 8, { "\033\x7f"  }},
+                { quest          | hids::anyCtrl    << 8, { "\x7f"      }},
             };
         }
 
@@ -2053,7 +2054,7 @@ namespace netxs::input
                 auto v = keybd::keycode & -2; // Generic keys only
                 auto c = keybd::cluster.empty() ? 0 : (byte)keybd::cluster.front();
 
-                if (s & hids::LCtrl && s & hids::RAlt) // This combination is already translated.
+                if (s & hids::AltGr || (s & hids::LCtrl && s & hids::RAlt)) // This combination is already translated.
                 {
                     s &= ~(hids::LCtrl | hids::RAlt);
                 }
