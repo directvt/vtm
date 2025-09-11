@@ -1078,7 +1078,10 @@ struct impl : consrv
             if (toWIDE.empty()) toWIDE.push_back(0);
             auto c = toWIDE.front();
 
-            auto ctrls = os::nt::ms_kbstate(gear.ctlstat) | (gear.extflag ? ENHANCED_KEY : 0);
+            auto altgr_not_released = gear.ctlstat & input::hids::AltGr && (gear.keystat != input::key::released || gear.keycode != input::key::RightAlt);
+            auto ctrls = os::nt::ms_kbstate(gear.ctlstat)
+                       | (gear.extflag ? ENHANCED_KEY : 0)
+                       | (altgr_not_released ? LEFT_CTRL_PRESSED : 0);
             if (toWIDE.size() > 1) // Surrogate pair special case (not a clipboard paste, see generate(wiew wstr, ui32 s = 0)).
             {
                 if (gear.keystat)
@@ -1097,7 +1100,18 @@ struct impl : consrv
                     auto yield = gear.interpret(decckm);
                     if (yield.size()) generate(yield);
                 }
-                else generate(c, ctrls, gear.virtcod, gear.keystat, gear.scancod);
+                else
+                {
+                    if (gear.ctlstat & input::hids::AltGr && gear.keycode == input::key::RightAlt) // Generate fake LeftCtrl events on AltGr activity.
+                    {
+                        auto lctrl = input::key::map::data(input::key::LeftCtrl);
+                        auto pre_ctrls = ctrls;
+                        if (gear.keystat == input::key::pressed ) pre_ctrls &= ~(RIGHT_ALT_PRESSED | ENHANCED_KEY); // AltGr is not pressed yet.
+                        else                                      pre_ctrls = (pre_ctrls & ~ENHANCED_KEY) | RIGHT_ALT_PRESSED; // AltGr is still pressed.
+                        generate(c, pre_ctrls, lctrl.vkey, gear.keystat, lctrl.scan); // Restore the LeftCtrl+RightAlt state for AltGr.
+                    }
+                    generate(c, ctrls, gear.virtcod, gear.keystat, gear.scancod);
+                }
             }
 
             if (c == ansi::c0_etx)
