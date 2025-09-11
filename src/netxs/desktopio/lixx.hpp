@@ -5934,8 +5934,10 @@ namespace netxs::lixx // li++, libinput++.
         }
         void enumerate_active_devices(auto proc)
         {
-            for (auto d : device_list)
+            auto iter = device_list.begin();
+            while (iter != device_list.end())
             {
+                auto d = *iter++;
                 if (!proc(d)) break;
             }
         }
@@ -19781,7 +19783,7 @@ namespace netxs::lixx // li++, libinput++.
             li_device->evdev_notify_added_device();
             li_device->evdev_read_calibration_prop();
         }
-        else
+        else if (li_device)
         {
             if constexpr (debugmode)
             {
