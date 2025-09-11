@@ -19781,7 +19781,7 @@ namespace netxs::lixx // li++, libinput++.
             li_device->evdev_notify_added_device();
             li_device->evdev_read_calibration_prop();
         }
-        else
+        else if (li_device)
         {
             if constexpr (debugmode)
             {
