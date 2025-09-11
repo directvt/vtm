@@ -6885,7 +6885,7 @@ namespace netxs::lixx // li++, libinput++.
         }
         void evdev_device_dispatch_frame(evdev_frame& frame)
         {
-            for (auto& ev :  frame.ev_events)
+            for (auto& ev : frame.ev_events)
             {
                 evdev_device_dispatch_one(ev, frame.stamp);
             }
