@@ -5934,8 +5934,10 @@ namespace netxs::lixx // li++, libinput++.
         }
         void enumerate_active_devices(auto proc)
         {
-            for (auto d : device_list)
+            auto iter = device_list.begin();
+            while (iter != device_list.end())
             {
+                auto d = *iter++;
                 if (!proc(d)) break;
             }
         }
