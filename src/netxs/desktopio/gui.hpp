@@ -3098,7 +3098,11 @@ namespace netxs::gui
                         keybd_send_state(vkey::control, input::key::pressed, input::key::map::data(input::key::LeftCtrl).scan/*0x1d*/); // Send LCtrl actually pressed.
                     }
                 }
-                if (fake_ctrl                         ) state |= input::hids::AltGr;
+                if (fake_ctrl) state |= input::hids::AltGr; // Keep AltGr flag even if RightAlt released.
+                if (fake_ctrl && keystat == input::key::released && scancod == input::key::map::data(input::key::RightAlt).scan) // Clear the AltGr state.
+                {
+                    fake_ctrl = faux;
+                }
                 if (keybd_test_toggled(vkey::numlock )) state |= input::hids::NumLock, cs |= input::key::NumLockMode;
                 if (keybd_test_toggled(vkey::capslock)) state |= input::hids::CapsLock;
                 if (keybd_test_toggled(vkey::scrllock)) state |= input::hids::ScrlLock;
@@ -3170,23 +3174,22 @@ namespace netxs::gui
                 {
                     if (keystat == input::key::pressed)
                     {
-                        //if constexpr (debugmode) log("Left ctrl pressed");
+                        //if constexpr (debugmode) log("Fake LeftCtrl pressed");
                         fake_ctrl = !(state & input::hids::RAlt) && keybd_read_pressed(vkey::ralt); // Actually AltGr is pressed.
                     }
                     else if (keystat == input::key::released)
                     {
-                        //if constexpr (debugmode) log("Left ctrl released");
+                        //if constexpr (debugmode) log("Fake LeftCtrl released");
                         fake_ctrl = (state & input::hids::RAlt) && !keybd_read_pressed(vkey::ralt); // Actually AltGr is released.
                     }
                     else // Actually AltGr is repeated if fake_ctrl==true.
                     {
-                        //if constexpr (debugmode) log("Left ctrl repeated");
+                        //if constexpr (debugmode) log("Fake LeftCtrl repeated");
                     }
                     if (fake_ctrl) // Filter input::key::repeated events as well.
                     {
                         if constexpr (debugmode) log("Fake left ctrl key '%%' event filtered", keystat == input::key::pressed ? "pressed" : keystat == input::key::released ? "released" : "repeated");
-                        fake_ctrl = keystat != input::key::released; // Zeroize flag on release.
-                        wait_ralt = fake_ctrl;
+                        wait_ralt = keystat != input::key::released; // Zeroize flag on release.
                         return;
                     }
                 }
