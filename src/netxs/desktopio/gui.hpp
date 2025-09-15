@@ -2876,6 +2876,7 @@ namespace netxs::gui
                 stream.m.hzwheel = hz;
                 stream.m.wheelfp = wheelfp;
                 stream.m.wheelsi = wheelsi;
+                stream.m.enabled = hids::stat::ok;
                 stream.mouse(stream.m);
                 stream.m.hzwheel = {};
                 stream.m.wheelfp = {};
@@ -2890,7 +2891,6 @@ namespace netxs::gui
             stream.m.enabled = hids::stat::halt;
             if (!mfocus.focused()) stream.m.ctlstat &= input::hids::NumLock | input::hids::CapsLock | input::hids::ScrlLock;
             stream.mouse(stream.m);
-            stream.m.enabled = hids::stat::ok;
         }
         void mouse_leave()
         {
@@ -2966,6 +2966,7 @@ namespace netxs::gui
                     stream.m.changed++;
                     stream.m.timecod = datetime::now();
                     stream.m.ctlstat = get_mods_state();
+                    stream.m.enabled = hids::stat::ok;
                     stream.mouse(stream.m);
                 }
             }
@@ -3035,6 +3036,7 @@ namespace netxs::gui
                     stream.m.changed++;
                     stream.m.timecod = datetime::now();
                     stream.m.ctlstat = get_mods_state();
+                    stream.m.enabled = hids::stat::ok;
                     stream.mouse(stream.m);
                 }
                 return;
@@ -3046,6 +3048,7 @@ namespace netxs::gui
                 stream.m.changed++;
                 stream.m.timecod = datetime::now();
                 stream.m.ctlstat = get_mods_state();
+                stream.m.enabled = hids::stat::ok;
                 stream.mouse(stream.m);
             }
             else
@@ -3196,7 +3199,7 @@ namespace netxs::gui
             }
             auto changed = std::exchange(keymod, state) != keymod || synth;
             auto& gear = *stream.gears;
-            if (changed || gear.ctlstat != keymod)
+            if ((changed || gear.ctlstat != keymod) && stream.m.enabled == hids::stat::ok)
             {
                 gear.ctlstat = keymod;
                 stream.m.ctlstat = keymod;
