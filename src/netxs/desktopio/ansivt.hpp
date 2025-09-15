@@ -549,6 +549,7 @@ namespace netxs::ansi
             return add(other);
         }
 
+        auto& clear() { text::clear(); return *this; }
         auto& shellmouse(bool b) // escx: Mouse shell integration on/off.
         {
             return add(b ? "\033[?1000;1006h"

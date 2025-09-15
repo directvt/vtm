@@ -31,7 +31,6 @@ namespace netxs::app::desk
 
     using menu = utf::unordered_map<text, spec>;
     using usrs = std::list<ui::sptr>;
-    using apps = generics::imap<text, std::pair<bool, usrs>>;
 
     namespace events
     {
@@ -41,14 +40,17 @@ namespace netxs::app::desk
             EVENT_XS( menu, netxs::sptr<desk::menu> ), // List of registered apps.
             EVENT_XS( exec, spec                    ), // Request to run app.
             EVENT_XS( quit, bool                    ), // Request to close all instances.
-            GROUP_XS( apps, netxs::sptr<desk::apps> ),
+            GROUP_XS( apps, netxs::ui::sptr         ),
             GROUP_XS( ui  , text                    ),
 
             SUBSET_XS( apps )
             {
-                EVENT_XS( applist, netxs::sptr<desk::apps> ), // request: Take a list of running apps.
-                EVENT_XS( created, netxs::ui::sptr         ), // release: App window created.
-                EVENT_XS( removed, netxs::ui::sptr         ), // release: App window removed.
+                EVENT_XS( getmodel, netxs::ui::sptr ), // request: Request the current taskbar model (root_sptr).
+                EVENT_XS( created , netxs::ui::sptr ), // release: App window created.
+                EVENT_XS( removed , netxs::ui::sptr ), // release: App window removed.
+                EVENT_XS( enlist  , netxs::ui::sptr ), // release: App group added by new_appmodel_ptr.
+                EVENT_XS( delist  , netxs::ui::sptr ), // release: App group removed by new_appmodel_ptr.
+                EVENT_XS( title   , text            ), // release: Window title changed.
             };
             SUBSET_XS( ui )
             {
@@ -70,7 +72,7 @@ namespace netxs::app::desk
 
     namespace
     {
-        auto app_template = [](auto& data_src)
+        auto app_template = [](auto new_appmodel_ptr)
         {
             auto tall = si32{ skin::globals().menuwide };
             auto focused_color   = skin::globals().focused;
@@ -81,9 +83,13 @@ namespace netxs::app::desk
             auto cE = active_color;
             auto c1 = danger_color;
             auto cF = focused_color;
-            auto current_title = data_src->base::signal(tier::request, e2::form::prop::ui::title);
+            auto& new_app = *new_appmodel_ptr;
+            auto& current_title = new_app.base::property<ansi::escx>("window.title");
+            auto& window_wptr = new_app.base::property<ui::wptr>("window.wptr");
+            auto window_ptr = window_wptr.lock();
             auto item_area = ui::fork::ctor(axis::X, 0, 1, 0);
-            auto& src_wptr = item_area->base::field(ptr::shadow(data_src));
+            item_area->depend(window_ptr);
+            auto& window = *window_ptr;
             item_area->active(cE)
                 ->shader(cell::shaders::xlight, e2::form::state::hover)
                 ->shader<tier::release, e2::postrender>(cell::shaders::disabled, e2::form::state::disabled)
@@ -93,63 +99,55 @@ namespace netxs::app::desk
                 {
                     boss.on(tier::mouserelease, input::key::LeftDoubleClick, [&](hids& gear)
                     {
-                        if (auto data_src = src_wptr.lock())
+                        if (gear.meta(hids::anyAlt)) // Pull window.
                         {
-                            auto& window = *data_src;
-                            if (gear.meta(hids::anyAlt)) // Pull window.
+                            window.base::riseup(tier::preview, e2::form::layout::expose);
+                            auto viewport = gear.owner.base::signal(tier::request, e2::form::prop::viewport);
+                            window.base::signal(tier::preview, e2::form::layout::appear, viewport.center()); // Pull window.
+                            if (window.hidden) // Restore if minimized.
                             {
-                                window.base::riseup(tier::preview, e2::form::layout::expose);
-                                auto viewport = gear.owner.base::signal(tier::request, e2::form::prop::viewport);
-                                window.base::signal(tier::preview, e2::form::layout::appear, viewport.center()); // Pull window.
-                                if (window.hidden) // Restore if minimized.
-                                {
-                                    window.base::signal(tier::preview, e2::form::size::minimize, gear);
-                                }
-                                else pro::focus::set(data_src, gear.id, solo::on);
+                                window.base::signal(tier::preview, e2::form::size::minimize, gear);
                             }
-                            else // Jump to window.
-                            {
-                                gear.owner.base::signal(tier::release, e2::form::layout::jumpto, window);
-                            }
-                            gear.dismiss();
+                            else pro::focus::set(window.This(), gear.id, solo::on);
                         }
+                        else // Jump to window.
+                        {
+                            gear.owner.base::signal(tier::release, e2::form::layout::jumpto, window);
+                        }
+                        gear.dismiss();
                     });
                     boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
                     {
-                        if (auto data_src = src_wptr.lock())
+                        if (gear.meta(hids::anyCtrl)) // Toggle group focus.
                         {
-                            auto& window = *data_src;
-                            if (gear.meta(hids::anyCtrl)) // Toggle group focus.
+                            if (pro::focus::test(window, gear))
                             {
-                                if (pro::focus::test(window, gear))
-                                {
-                                    pro::focus::off(data_src, gear.id); // Remove focus if focused.
-                                }
-                                else // Expose and set group focus.
-                                {
-                                    window.base::riseup(tier::preview, e2::form::layout::expose);
-                                    if (window.hidden) // Restore if minimized.
-                                    {
-                                        window.base::signal(tier::preview, e2::form::size::minimize, gear);
-                                    }
-                                    pro::focus::set(data_src, gear.id, solo::off);
-                                }
-                                gear.dismiss(true); // Suppress double click.
+                                pro::focus::off(window.This(), gear.id); // Remove focus if focused.
                             }
-                            else if (gear.meta(hids::anyAlt)) // Skip it and wait for Alt+Dblclick.
-                            {
-                                gear.dismiss();
-                            }
-                            else // Set unique focus.
+                            else // Expose and set group focus.
                             {
                                 window.base::riseup(tier::preview, e2::form::layout::expose);
                                 if (window.hidden) // Restore if minimized.
                                 {
                                     window.base::signal(tier::preview, e2::form::size::minimize, gear);
                                 }
-                                else pro::focus::set(data_src, gear.id, solo::on);
-                                gear.dismiss();
+                                pro::focus::set(window.This(), gear.id, solo::off);
                             }
+                            gear.dismiss(true); // Suppress double click.
+                        }
+                        else if (gear.meta(hids::anyAlt)) // Skip it and wait for Alt+Dblclick.
+                        {
+                            gear.dismiss();
+                        }
+                        else // Set unique focus.
+                        {
+                            window.base::riseup(tier::preview, e2::form::layout::expose);
+                            if (window.hidden) // Restore if minimized.
+                            {
+                                window.base::signal(tier::preview, e2::form::size::minimize, gear);
+                            }
+                            else pro::focus::set(window.This(), gear.id, solo::on);
+                            gear.dismiss();
                         }
                     });
                     boss.on(tier::mouserelease, input::key::RightClick, [&](hids& /*gear*/)
@@ -158,14 +156,10 @@ namespace netxs::app::desk
                     });
                     boss.LISTEN(tier::release, e2::form::state::mouse, hovered)
                     {
-                        if (auto data_src = src_wptr.lock())
-                        {
-                            data_src->base::signal(tier::release, e2::form::state::highlight, hovered);
-                        }
+                        window.base::signal(tier::release, e2::form::state::highlight, hovered);
                     };
                 });
-            static auto label_format = [](view utf8){ return ansi::add(utf8).mgl(0).wrp(wrap::off).jet(bias::left).nil(); };
-            auto app_label = item_area->attach(slot::_1, ui::item::ctor(label_format(current_title)))
+            auto app_label = item_area->attach(slot::_1, ui::item::ctor(current_title))
                 ->active()
                 //todo taskbar keybd navigation
                 //->template plugin<pro::focus>(pro::focus::mode::focused)
@@ -175,12 +169,12 @@ namespace netxs::app::desk
                 ->template plugin<pro::notes>(skin::globals().NsTaskbarAppsApp_tooltip)
                 ->flexible()
                 ->drawdots()
-                ->shader(cF, e2::form::state::focus::count, data_src)
+                ->shader(cF, e2::form::state::focus::count, window_ptr)
                 ->invoke([&](auto& boss)
                 {
-                    data_src->LISTEN(tier::release, e2::form::prop::ui::title, new_title, boss.sensors)
+                    new_app.LISTEN(tier::release, desk::events::apps::title, app_title, boss.sensors)
                     {
-                        boss.set(label_format(new_title));
+                        boss.set(app_title);
                     };
                 });
             auto app_close = item_area->attach(slot::_2, ui::item::ctor("×"))
@@ -204,31 +198,25 @@ namespace netxs::app::desk
                             boss.base::reflow();
                         }
                     };
-                    item_area->LISTEN(tier::release, e2::form::upon::vtree::attached, parent, boss.sensors)
+                    item_area->LISTEN(tier::release, e2::form::upon::vtree::attached, app_list_block, boss.sensors)
                     {
-                        parent->LISTEN(tier::release, desk::events::quit, fast, boss.sensors)
+                        app_list_block->LISTEN(tier::release, desk::events::quit, fast, boss.sensors) // Close all apps in a block.
                         {
-                            if (auto data_src = src_wptr.lock())
+                            window.base::enqueue([&](auto& /*boss*/) // Enqueue in order to pass focus one by one.
                             {
-                                data_src->base::enqueue([&](auto& data_inst) // Enqueue in order to pass focus one by one.
-                                {
-                                    data_inst.base::signal(tier::anycast, e2::form::proceed::quit::one, fast); // Show closing process.
-                                });
-                            }
+                                window.base::signal(tier::anycast, e2::form::proceed::quit::one, fast); // Show closing process.
+                            });
                         };
                     };
                     boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
                     {
-                        if (auto data_src = src_wptr.lock())
-                        {
-                            data_src->base::signal(tier::anycast, e2::form::proceed::quit::one, faux); // Show closing process.
-                            gear.dismiss(true);
-                        }
+                        window.base::signal(tier::anycast, e2::form::proceed::quit::one, faux); // Show closing process.
+                        gear.dismiss(true);
                     });
                 });
             return item_area;
         };
-        auto apps_template = [](auto& world_ptr, auto& apps_map_ptr)
+        auto app_group_template = [](auto menumodel_item_ptr)
         {
             auto tall = si32{ skin::globals().menuwide };
             auto inactive_color  = skin::globals().inactive;
@@ -237,82 +225,32 @@ namespace netxs::app::desk
             auto c1 = danger_color;
             auto c9 = selected_color;
             auto cA = inactive_color;
-            auto& world_inst = *world_ptr;
-
-            auto apps = ui::list::ctor()
-                ->invoke([&](auto& boss)
-                {
-                    boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
-                    {
-                        auto current_default = boss.base::riseup(tier::request, e2::data::changed);
-                        boss.base::signal(tier::anycast, desk::events::ui::selected, current_default);
-                        //todo combine anycasts (update on user disconnect)
-                        auto state = boss.base::riseup(tier::request, desk::events::ui::toggle);
-                        boss.base::riseup(tier::anycast, desk::events::ui::recalc, state);
-                    };
-                    //auto& menu_list = boss.base::field();
-                    //auto& apps_list = boss.base::field();
-                    //auto& inst_list = boss.base::field();
-                    //world_inst.LISTEN(tier::release, desk::events::apps::created, window_ptr, boss.sensors)
-                    //{
-                    //    auto& window = *window_ptr;
-                    //    auto& menuid = window.base::property("window.menuid");
-                    //    auto& cfg = menu_list[menuid];
-                    //    auto& [fixed_menu_item, inst_list] = apps_list[menuid];
-                    //    fixed_menu_item = !cfg.hidden;
-                    //    inst_list.push_back(window_ptr);
-                    //};
-                    //world_inst.LISTEN(tier::release, desk::events::apps::removed, window_ptr, boss.sensors)
-                    //{
-                    //    auto& window = *window_ptr;
-                    //    auto& menuid = window.base::property("window.menuid");
-                    //    auto& [fixed_menu_item, inst_list] = apps_list[menuid];
-                    //    inst_list.remove(window_ptr);
-                    //    if (!fixed_menu_item && inst_list.empty()) // Remove non-fixed menu group if it is empty.
-                    //    {
-                    //        apps_list.erase(menuid);
-                    //    }
-                    //};
-                });
-
             auto def_note = skin::globals().NsTaskbarApps_deftooltip;
-            auto conf_list_ptr = world_inst.base::riseup(tier::request, desk::events::menu);
-            if (!conf_list_ptr || !apps_map_ptr) return apps;
-            auto& conf_list = *conf_list_ptr;
-            auto& apps_map = *apps_map_ptr;
-            //todo optimize: use a branch_template for sublist instead of recreating whole app list
-            for (auto const& [class_id, stat_inst_ptr_list] : apps_map)
+            auto& menuid_prop = menumodel_item_ptr->base::property("window.menuid");
+            auto& appcfg_prop = menumodel_item_ptr->base::property<desk::spec>("window.appcfg");
+            auto& menumodel_item = *menumodel_item_ptr;
+            auto inst_id = menuid_prop;
+            auto& conf = appcfg_prop;
+            auto& obj_desc = conf.label;
+            auto& obj_note = conf.tooltip;
+            auto menuitem_ptr = ui::sptr{};
+            if (conf.splitter)
             {
-                auto& [state, inst_ptr_list] = stat_inst_ptr_list;
-                auto inst_id = class_id;
-                auto conf_it = conf_list.find(class_id);
-                if (conf_it == conf_list.end()) conf_it = conf_list.insert({ class_id, { .menuid = class_id }}).first; // Empty menu case (vtm.del()).
-                if (conf_it->second.label.empty()) // Avoid using empty groups.
-                {
-                    auto& conf = conf_it->second;
-                    conf.label = ansi::err(ansi::stk(1), class_id, ansi::stk(0));
-                    conf.hidden = true;
-                }
-                auto& conf = conf_it->second;
-                auto& obj_desc = conf.label;
-                auto& obj_note = conf.tooltip;
-                if (conf.splitter)
-                {
-                    auto item_area = apps->attach(ui::item::ctor(obj_desc))
-                        ->active() // Set active to enable tooltips.
-                        ->flexible()
-                        ->accented()
-                        ->colors(cA)
-                        ->setpad({ 0, 0, tall, tall }, { 0, 0, -tall, 0 })
-                        ->template plugin<pro::notes>(obj_note);
-                    continue;
-                }
-                auto head_fork = ui::fork::ctor(axis::X, 0, 1, 0);
-                auto block = apps->attach(ui::list::ctor())
-                    ->shader(cell::shaders::xlight, e2::form::state::hover, head_fork)
+                menuitem_ptr = ui::item::ctor(obj_desc)
+                    ->active() // Set active to enable tooltips.
+                    ->flexible()
+                    ->accented()
+                    ->colors(cA)
+                    ->setpad({ 0, 0, tall, tall }, { 0, 0, -tall, 0 })
+                    ->template plugin<pro::notes>(obj_note);
+            }
+            else
+            {
+                auto head_fork_ptr = ui::fork::ctor(axis::X, 0, 1, 0);
+                auto block_ptr = ui::list::ctor()
+                    ->shader(cell::shaders::xlight, e2::form::state::hover, head_fork_ptr)
                     ->setpad({ 0, 0, 0, 0 }, { 0, 0, -tall, 0 });
-                if (!state) block->depend_on_collection(inst_ptr_list); // Remove not pinned apps, like Info.
-                block->attach(head_fork)
+                block_ptr->attach(head_fork_ptr)
                     ->active()
                     ->template plugin<pro::notes>(obj_note.empty() ? def_note : obj_note)
                     ->invoke([&](auto& boss)
@@ -342,11 +280,11 @@ namespace netxs::app::desk
                             gear.slot.coor = current_viewport.coor + offset + current_viewport.size * 1 / 32 + dot_11;
                             gear.slot.size = current_viewport.size * 3 / 4;
                             gear.slot_forced = faux;
-                            world_inst.base::riseup(tier::request, e2::form::proceed::createby, gear);
+                            menumodel_item.base::signal(tier::request, e2::form::proceed::createby, gear);
                             gear.dismiss(true);
                         });
                     });
-                auto head = head_fork->attach(slot::_1, ui::item::ctor(obj_desc)
+                auto head = head_fork_ptr->attach(slot::_1, ui::item::ctor(obj_desc)
                     ->flexible())
                     ->setpad({ 0, 0, tall, tall })
                     ->invoke([&](auto& boss)
@@ -360,73 +298,122 @@ namespace netxs::app::desk
                             boss.base::deface();
                         };
                     });
-                if (auto count = inst_ptr_list.size())
-                {
-                    auto& isfolded = conf.folded;
-                    auto insts = block->attach(ui::list::ctor())
-                        ->setpad({ 0, 0, tall, 0 }, { 0, 0, -tall * 2, 0 });
-                    auto bttn_rail = head_fork->attach(slot::_2, ui::rail::ctor(axes::X_only, axes::all, axes::none))
-                        ->limits({ 5, -1 }, { 5, -1 })
-                        ->invoke([&](auto& boss)
-                        {
-                            boss.LISTEN(tier::release, e2::form::state::mouse, hovered)
-                            {
-                                if (!hovered)
-                                {
-                                    boss.base::riseup(tier::preview, e2::form::upon::scroll::to_top::v);
-                                }
-                            };
-                        });
-                    auto bttn_fork = bttn_rail->attach(ui::fork::ctor(axis::X));
-                    auto fold_bttn = bttn_fork->attach(slot::_1, ui::item::ctor(isfolded ? "…" : "<"))
-                        ->setpad({ 2, 2, tall, tall })
-                        ->active()
-                        ->shader(cell::shaders::xlight, e2::form::state::hover)
-                        ->template plugin<pro::notes>(skin::globals().NsTaskbarApps_toggletooltip)
-                        ->invoke([&](auto& boss)
-                        {
-                            insts->base::hidden = isfolded;
-                            auto insts_shadow = ptr::shadow(insts);
-                            boss.on(tier::mouserelease, input::key::LeftClick, [&, insts_shadow](hids& gear)
-                            {
-                                if (auto insts = insts_shadow.lock())
-                                {
-                                    isfolded = !isfolded;
-                                    boss.set(isfolded ? "…" : "<");
-                                    insts->base::hidden = isfolded;
-                                    insts->base::reflow();
-                                }
-                                gear.dismiss(true);
-                            });
-                        });
-                    auto drop_bttn = bttn_fork->attach(slot::_2, ui::item::ctor("×"))
-                        ->setpad({ 2, 2, tall, tall })
-                        ->active()
-                        ->shader(c1, e2::form::state::hover)
-                        ->template plugin<pro::notes>(skin::globals().NsTaskbarApps_groupclosetooltip)
-                        ->invoke([&](auto& boss)
-                        {
-                            auto insts_shadow = ptr::shadow(insts);
-                            boss.on(tier::mouserelease, input::key::LeftClick, [&, insts_shadow](hids& gear)
-                            {
-                                if (auto insts = insts_shadow.lock())
-                                {
-                                    insts->base::signal(tier::release, desk::events::quit, faux); // Show closing process.
-                                }
-                                gear.dismiss(true);
-                            });
-                        });
-                    for (auto& inst_ptr : inst_ptr_list)
+                auto& isfolded = conf.folded;
+                auto insts_ptr = block_ptr->attach(ui::list::ctor())
+                    ->setpad({ 0, 0, tall, 0 }, { 0, 0, -tall * 2, 0 });
+                auto& insts = *insts_ptr;
+                auto bttn_rail_ptr = head_fork_ptr->attach(slot::_2, ui::rail::ctor(axes::X_only, axes::all, axes::none))
+                    ->limits({ 5, -1 }, { 5, -1 })
+                    ->invoke([&](auto& boss)
                     {
-                        //todo
-                        //auto taskbar_item_ptr = app_template(inst_ptr);
-                        auto taskbar_item_ptr = app_template(inst_ptr)
-                                                ->depend(inst_ptr);
-                        insts->attach(taskbar_item_ptr);
-                    }
+                        boss.LISTEN(tier::release, e2::form::state::mouse, hovered)
+                        {
+                            if (!hovered)
+                            {
+                                boss.base::riseup(tier::preview, e2::form::upon::scroll::to_top::v);
+                            }
+                        };
+                    });
+                auto& bttn_rail = *bttn_rail_ptr;
+                auto bttn_fork_ptr = bttn_rail.attach(ui::fork::ctor(axis::X));
+                auto& bttn_fork = *bttn_fork_ptr;
+                auto fold_bttn = bttn_fork.attach(slot::_1, ui::item::ctor(isfolded ? "…" : "<"))
+                    ->setpad({ 2, 2, tall, tall })
+                    ->active()
+                    ->shader(cell::shaders::xlight, e2::form::state::hover)
+                    ->template plugin<pro::notes>(skin::globals().NsTaskbarApps_toggletooltip)
+                    ->invoke([&](auto& boss)
+                    {
+                        insts.base::hidden = isfolded;
+                        boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
+                        {
+                            isfolded = !isfolded;
+                            boss.set(isfolded ? "…" : "<");
+                            insts.base::hidden = isfolded;
+                            insts.base::reflow();
+                            gear.dismiss(true);
+                        });
+                    });
+                auto drop_bttn = bttn_fork.attach(slot::_2, ui::item::ctor("×"))
+                    ->setpad({ 2, 2, tall, tall })
+                    ->active()
+                    ->shader(c1, e2::form::state::hover)
+                    ->template plugin<pro::notes>(skin::globals().NsTaskbarApps_groupclosetooltip)
+                    ->invoke([&](auto& boss)
+                    {
+                        boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
+                        {
+                            insts.base::signal(tier::release, desk::events::quit, faux); // Show closing process.
+                            gear.dismiss(true);
+                        });
+                    });
+                bttn_rail.base::hidden = !menumodel_item.subset.size();
+                for (auto& new_appmodel_ptr : menumodel_item.subset)
+                {
+                    insts.attach(app_template(new_appmodel_ptr));
                 }
+                auto& block = *block_ptr;
+                menumodel_item.LISTEN(tier::release, desk::events::apps::created, new_appmodel_ptr, block.sensors)
+                {
+                    auto running_app_label_ptr = insts.attach(app_template(new_appmodel_ptr));
+                    bttn_rail.base::hidden = !menumodel_item.subset.size();
+                    running_app_label_ptr->base::reflow();
+                };
+                menumodel_item.LISTEN(tier::release, desk::events::apps::removed, new_appmodel_ptr, block.sensors)
+                {
+                    //todo pass focus to the prev item
+                    bttn_rail.base::hidden = !menumodel_item.subset.size();
+                    block.base::enqueue([&](auto& /*boss*/)
+                    {
+                        block.base::reflow();
+                    });
+                };
+                menuitem_ptr = block_ptr;
             }
-            return apps;
+            menuitem_ptr->base::property("window.menuid") = menuid_prop;
+            return menuitem_ptr;
+        };
+        auto create_app_list = [](auto& world)
+        {
+            auto apps_ptr = ui::list::ctor();
+            auto& app_model = *world.base::signal(tier::request, desk::events::apps::getmodel);
+            for (auto& menumodel_item_ptr : app_model.subset)
+            {
+                apps_ptr->attach(app_group_template(menumodel_item_ptr));
+            }
+            apps_ptr->invoke([&](auto& boss)
+            {
+                boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
+                {
+                    auto current_default = boss.base::riseup(tier::request, e2::data::changed);
+                    boss.base::signal(tier::anycast, desk::events::ui::selected, current_default);
+                    //todo combine anycasts (update on user disconnect)
+                    auto state = boss.base::riseup(tier::request, desk::events::ui::toggle);
+                    boss.base::riseup(tier::anycast, desk::events::ui::recalc, state);
+                };
+                app_model.LISTEN(tier::release, desk::events::apps::enlist, menumodel_item_ptr, boss.sensors)
+                {
+                    boss.attach(app_group_template(menumodel_item_ptr));
+                };
+                app_model.LISTEN(tier::release, desk::events::apps::delist, menumodel_item_ptr, boss.sensors)
+                {
+                    //todo pass focus to the prev item
+                    auto& menuid_prop = menumodel_item_ptr->base::property("window.menuid");
+                    for (auto menuitem_ptr : boss.subset)
+                    {
+                        if (menuitem_ptr->base::property("window.menuid") == menuid_prop)
+                        {
+                            boss.remove(menuitem_ptr);
+                            boss.base::enqueue([&](auto& /*boss*/)
+                            {
+                                boss.base::reflow();
+                            });
+                            break;
+                        }
+                    }
+                };
+            });
+            return apps_ptr;
         };
 
         auto build = [](eccc usrcfg, settings& config)
@@ -489,7 +476,7 @@ namespace netxs::app::desk
                     ->template plugin<pro::notes>(skin::globals().NsUser_tooltip);
                 return user;
             };
-            auto branch_template = [user_template](auto& /*data_src*/, auto& usr_list)
+            auto user_list_template = [user_template](auto& /*data_src*/, auto& usr_list)
             {
                 auto tall = si32{ skin::globals().menuwide };
                 auto users = ui::list::ctor()
@@ -735,11 +722,7 @@ namespace netxs::app::desk
                 {
                     boss.LISTEN(tier::anycast, e2::form::upon::started, root_ptr)
                     {
-                        auto world_ptr = world.This();
-                        auto apps = boss.attach_element(desk::events::apps::applist, world_ptr, apps_template);
-                        //todo
-                        //auto apps = world_ptr->base::signal(tier::request, desk::events::apps::applist);
-                        //world_ptr->attach(apps_template(world_ptr, apps));
+                        boss.attach(create_app_list(world));
                     };
                 });
             auto users_area = apps_users->attach(slot::_2, ui::list::ctor());
@@ -763,10 +746,10 @@ namespace netxs::app::desk
                 ->invoke([&](auto& boss)
                 {
                     boss.base::hidden = userlist_hidden;
-                    boss.LISTEN(tier::anycast, e2::form::upon::started, root_ptr, -, (branch_template))
+                    boss.LISTEN(tier::anycast, e2::form::upon::started, root_ptr, -, (user_list_template))
                     {
                         auto world_ptr = world.This();
-                        auto users = boss.attach_element(desk::events::usrs, world_ptr, branch_template);
+                        auto users = boss.attach_element(desk::events::usrs, world_ptr, user_list_template);
                     };
                 });
             bttn->invoke([&](auto& boss)

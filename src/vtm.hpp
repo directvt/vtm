@@ -967,13 +967,28 @@ namespace netxs::app::vtm
         pro::maker& maker; // hall: Window creator using drag and drop (right drag).
         pro::robot& robot; // hall: Animation controller.
 
-        netxs::sptr<desk::apps> apps_list_ptr = ptr::shared<desk::apps>();
+        netxs::ui::sptr app_model_ptr = ptr::shared<ui::base>(ui::tui_domain());
         netxs::sptr<desk::usrs> usrs_list_ptr = ptr::shared<desk::usrs>();
         netxs::sptr<desk::menu> menu_list_ptr = ptr::shared<desk::menu>();
-        desk::apps& apps_list = *apps_list_ptr;
+        ui::base& app_model = *app_model_ptr;
         desk::usrs& usrs_list = *usrs_list_ptr;
         desk::menu& menu_list = *menu_list_ptr;
 
+        auto& get_menuitem_cfg(qiew menuid)
+        {
+            auto iter = menu_list.find(menuid);
+            if (iter == menu_list.end()) // Empty menu (vtm.del()).
+            {
+                iter = menu_list.insert({ menuid, { .menuid = menuid }}).first;
+            }
+            if (iter->second.label.empty()) // Don't use empty groups.
+            {
+                auto& cfg = iter->second;
+                cfg.label = ansi::err(ansi::stk(1), menuid, ansi::stk(0));
+                cfg.hidden = true;
+            }
+            return iter->second;
+        }
         auto create_window(applink& what, bool is_handoff = faux)
         {
             if (!is_handoff)
@@ -983,7 +998,7 @@ namespace netxs::app::vtm
             auto window_ptr = window_t::ctor(*this, what);
             attach(window_ptr);
 
-            auto& cfg = menu_list[what.menuid];
+            auto& cfg = get_menuitem_cfg(what.menuid);
             auto& applet_area = what.applet->base::bind_property("applet.area", *window_ptr, e2::area);
                  if (applet_area)                 window_ptr->base::extend(applet_area);
             else if (cfg.winsize && !what.forced) window_ptr->base::extend({ what.square.coor, cfg.winsize });
@@ -1118,6 +1133,80 @@ namespace netxs::app::vtm
             }
             return true;
         }
+        auto app_model_add(view menuid, desk::spec& conf_rec)
+        {
+            // app_model (subset; event(tier::release, desk::events::apps::enlist, menumodel_item_ptr)
+            //              │     event(tier::release, desk::events::apps::delist, menumodel_item_ptr))
+            //              │
+            //              ├─ menumodel_item_1 (subset; props: "window.menuid"<text>, "window.appcfg"<desk::spec>
+            //              │                      │     event(tier::request, e2::form::proceed::createby, gear)
+            //              │                      │     event(tier::release, desk::events::apps::created, new_appmodel_ptr)
+            //              │                      │     event(tier::release, desk::events::apps::removed, new_appmodel_ptr))
+            //              │                      │
+            //              │                      ├─ running_app_1 (props: "window.title"<text>, "window.wptr"<wptr>
+            //              │                      │                 event(tier::release, desk::events::apps::title, window_title))
+            //              │                      ├─ ...
+            //              │                      └─ running_app_M
+            //              ├─ ...
+            //              ├─ menumodel_item_i (subset)
+            //              ├─ ...
+            //              └─ menumodel_item_N (subset)
+            auto menumodel_item_ptr = app_model.attach(ptr::shared<ui::base>(ui::tui_domain()));
+            menumodel_item_ptr->LISTEN(tier::request, e2::form::proceed::createby, gear)
+            {
+                //todo set gear.menuid = menuid;
+                base::signal(tier::request, e2::form::proceed::createby, gear);
+            };
+            auto& menuid_prop = menumodel_item_ptr->base::property("window.menuid");
+            auto& appcfg_prop = menumodel_item_ptr->base::property<desk::spec>("window.appcfg");
+            menuid_prop = menuid;
+            appcfg_prop = conf_rec;
+            if (menu_list.find(menuid) == menu_list.end()) // Sync with menu_list.
+            {
+                menu_list.emplace(menuid, appcfg_prop);
+            }
+            return menumodel_item_ptr;
+        }
+        //todo revise
+        auto& app_model_get(view menuid, desk::spec& appcfg)
+        {
+            auto menumodel_item_ptr = netxs::sptr<ui::base>{};
+            for (auto& app_ptr : app_model.subset)
+            {
+                auto& menuid_prop = app_ptr->base::property("window.menuid");
+                if (menuid_prop == menuid)
+                {
+                    menumodel_item_ptr = app_ptr;
+                    break;
+                }
+            }
+            if (!menumodel_item_ptr)
+            {
+                menumodel_item_ptr = app_model_add(menuid, appcfg);
+                app_model.base::signal(tier::release, desk::events::apps::enlist, menumodel_item_ptr);
+            }
+            return *menumodel_item_ptr;
+        }
+        auto& app_model_get(view menuid)
+        {
+            auto menumodel_item_ptr = netxs::sptr<ui::base>{};
+            for (auto& app_ptr : app_model.subset)
+            {
+                auto& menuid_prop = app_ptr->base::property("window.menuid");
+                if (menuid_prop == menuid)
+                {
+                    menumodel_item_ptr = app_ptr;
+                    break;
+                }
+            }
+            if (!menumodel_item_ptr)
+            {
+                auto& cfg = get_menuitem_cfg(menuid);
+                menumodel_item_ptr = app_model_add(menuid, cfg);
+                app_model.base::signal(tier::release, desk::events::apps::enlist, menumodel_item_ptr);
+            }
+            return *menumodel_item_ptr;
+        }
 
     public:
         static constexpr auto classname = basename::desktop;
@@ -1203,7 +1292,7 @@ namespace netxs::app::vtm
                                                 if (gear_id)
                                                 {
                                                     auto& current_default = gear.owner.base::property("desktop.selected");
-                                                    appspec = menu_list[current_default];
+                                                    appspec = get_menuitem_cfg(current_default);
                                                     appspec.fixed = faux;
                                                     appspec.menuid = current_default;
                                                     appspec.gear_id = gear_id;
@@ -1227,9 +1316,10 @@ namespace netxs::app::vtm
                                                 auto item_ptr = appconf.document.root_ptr;
                                                 auto menuid = config.settings::take_value_from(item_ptr, attr::id, ""s);
                                                 auto taskbar_context = config.settings::push_context(path::taskbar);
-                                                if (menu_list.contains(menuid))
+                                                auto iter = menu_list.find(menuid);
+                                                if (iter != menu_list.end())
                                                 {
-                                                    auto& appbase = menu_list[menuid];
+                                                    auto& appbase = iter->second;
                                                     if (appbase.fixed) hall::loadspec(appspec, appbase, item_ptr, menuid);
                                                     else               hall::loadspec(appspec, appspec, item_ptr, menuid);
                                                 }
@@ -1323,9 +1413,9 @@ namespace netxs::app::vtm
                     else                 free_list.emplace_back(std::move(conf_rec.menuid), std::move(conf_rec));
                 }
             }
-            for (auto& [menuid, conf_rec] : free_list)
+            for (auto& [menuid, conf_rec] : free_list) // Build app_model for taskbar.
             {
-                apps_list[menuid];
+                app_model_add(menuid, conf_rec);
                 menu_list.emplace(std::move(menuid), std::move(conf_rec));
             }
             for (auto& [menuid, conf_rec] : temp_list)
@@ -1370,13 +1460,21 @@ namespace netxs::app::vtm
             {
                 auto& window = *window_ptr;
                 auto& menuid = window.base::property("window.menuid");
-                auto& cfg = menu_list[menuid];
-                auto& [fixed_menu_item, inst_list] = apps_list[menuid];
-                fixed_menu_item = !cfg.hidden;
-                inst_list.push_back(window_ptr);
-                if constexpr (debugmode) log(prompt::hall, "App type: ", utf::debase(cfg.type), ", menu item id: ", utf::debase(menuid));
-                //todo drop
-                base::signal(tier::release, desk::events::apps::applist, apps_list_ptr);
+                auto& menumodel_item = app_model_get(menuid);
+                auto& appcfg_prop = menumodel_item.base::property<desk::spec>("window.appcfg");
+                auto new_appmodel_ptr = menumodel_item.attach(ptr::shared<ui::base>(ui::tui_domain()));
+                auto& new_app = *new_appmodel_ptr;
+                auto& app_title = new_app.base::property("window.title", ansi::escx{});
+                auto& window_wptr = new_app.base::property<ui::wptr>("window.wptr");
+                window_wptr = ptr::shadow(window_ptr);
+                app_title = window_ptr->base::signal(tier::request, e2::form::prop::ui::title);
+                window_ptr->LISTEN(tier::release, e2::form::prop::ui::title, new_title) // Convert title to the taskbar item label format before forwarding.
+                {
+                    app_title.clear().add(new_title).mgl(0).wrp(wrap::off).jet(bias::left).nil();
+                    new_app.base::signal(tier::release, desk::events::apps::title, app_title);
+                };
+                menumodel_item.base::signal(tier::release, desk::events::apps::created, new_appmodel_ptr);
+                if constexpr (debugmode) log(prompt::hall, "App type: ", utf::debase(appcfg_prop.type), ", menu item id: ", utf::debase(menuid));
             };
             LISTEN(tier::release, desk::events::apps::removed, window_ptr)
             {
@@ -1398,28 +1496,39 @@ namespace netxs::app::vtm
                     }
                 }
                 auto& menuid = window.base::property("window.menuid");
-                auto& [fixed_menu_item, inst_list] = apps_list[menuid];
-                inst_list.remove(window_ptr);
-                if (!fixed_menu_item && inst_list.empty()) // Remove non-fixed menu group if it is empty.
+                auto& menumodel_item = app_model_get(menuid);
+                auto menumodel_item_ptr = menumodel_item.This();
+                auto& appcfg_prop = menumodel_item.base::property<desk::spec>("window.appcfg");
+                auto fixed_menu_item = appcfg_prop.fixed;
+                for (auto w_ptr : menumodel_item.subset)
                 {
-                    apps_list.erase(menuid);
+                    auto& window_wptr = w_ptr->base::property<ui::wptr>("window.wptr");
+                    if (ptr::is_equal(window_wptr, window_ptr))
+                    {
+                        menumodel_item.remove(w_ptr);
+                        menumodel_item.base::signal(tier::release, desk::events::apps::removed, w_ptr);
+                        if (!fixed_menu_item && menumodel_item.subset.empty()) // Remove non-fixed menu group if it is empty.
+                        {
+                            app_model.base::signal(tier::release, desk::events::apps::delist, menumodel_item_ptr);
+                            app_model.remove(menumodel_item_ptr);
+                        }
+                        break;
+                    }
                 }
-                //todo drop
-                base::signal(tier::release, desk::events::apps::applist, apps_list_ptr); // Update taskbar app list.
             };
 
             LISTEN(tier::request, vtm::events::apptype, what)
             {
-                auto& setup = menu_list[what.menuid];
-                what.type = setup.type;
+                auto& cfg = get_menuitem_cfg(what.menuid);
+                what.type = cfg.type;
             };
             LISTEN(tier::request, vtm::events::newapp, what)
             {
-                auto& setup = menu_list[what.menuid];
-                what.applet = app::shared::builder(setup.type)(setup.appcfg, config);
+                auto& cfg = get_menuitem_cfg(what.menuid);
+                what.applet = app::shared::builder(cfg.type)(cfg.appcfg, config);
                 what.applet->base::property("applet.menuid") = what.menuid;
-                what.applet->base::bind_property<tier::preview>("applet.header", *what.applet, e2::form::prop::ui::header) = setup.title;
-                what.applet->base::bind_property<tier::preview>("applet.footer", *what.applet, e2::form::prop::ui::footer) = setup.footer;
+                what.applet->base::bind_property<tier::preview>("applet.header", *what.applet, e2::form::prop::ui::header) = cfg.title;
+                what.applet->base::bind_property<tier::preview>("applet.footer", *what.applet, e2::form::prop::ui::footer) = cfg.footer;
                 app::shared::applet_kb_navigation(config, what.applet);
             };
             LISTEN(tier::general, e2::conio::logs, utf8) // Forward logs from brokers.
@@ -1430,9 +1539,9 @@ namespace netxs::app::vtm
             {
                 usrs_ptr = usrs_list_ptr;
             };
-            LISTEN(tier::request, desk::events::apps::applist, apps_ptr)
+            LISTEN(tier::request, desk::events::apps::getmodel, apps_ptr)
             {
-                apps_ptr = apps_list_ptr;
+                apps_ptr = app_model_ptr;
             };
             LISTEN(tier::request, desk::events::menu, menu_ptr)
             {
@@ -1513,8 +1622,8 @@ namespace netxs::app::vtm
                 auto wincoor = appspec.wincoor;
                 auto winsize = appspec.winsize;
 
-                apps_list[menu_id];
-                auto& appbase = menu_list[menu_id];
+                auto& menumodel_item = app_model_get(menu_id, appspec);
+                auto& appbase = menumodel_item.base::property<desk::spec>("window.appcfg");
                 auto fixed = appbase.fixed && !appspec.fixed;
                 if (fixed) std::swap(appbase, appspec); // Don't modify the base menuitem by the temp appspec.
                 else       appbase = appspec;
@@ -1570,7 +1679,7 @@ namespace netxs::app::vtm
                     //};
                     pro::focus::set(window, gear.id, solo::on);
                     window->base::signal(tier::anycast, e2::form::upon::created, gear); // Tile should change the menu item.
-                    auto& cfg = menu_list[what.menuid];
+                    auto& cfg = get_menuitem_cfg(what.menuid);
                          if (cfg.winform == winstate::maximized)  window->base::signal(tier::preview, e2::form::size::enlarge::maximize, gear);
                     else if (cfg.winform == winstate::fullscreen) window->base::signal(tier::preview, e2::form::size::enlarge::fullscreen, gear);
                     else if (cfg.winform == winstate::minimized)  window->base::signal(tier::preview, e2::form::size::minimize, gear);
