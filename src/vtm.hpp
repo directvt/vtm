@@ -2050,7 +2050,6 @@ namespace netxs::app::vtm
             app::shared::applet_kb_navigation(config, deskmenu_ptr);
             usergate.attach(std::move(deskmenu_ptr));
             usergate.base::extend({ vport, usrcfg.win }); // Restore user's last position.
-            pro::focus::set(This(), id_t{}, solo::off);
             lock.unlock();
             usergate.launch();
             base::deface();

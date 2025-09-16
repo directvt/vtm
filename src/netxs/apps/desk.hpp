@@ -222,6 +222,8 @@ namespace netxs::app::desk
             auto inactive_color  = skin::globals().inactive;
             auto selected_color  = skin::globals().selected;
             auto danger_color    = skin::globals().danger;
+            auto highlight_color = cell{ skin::globals().winfocus };
+            auto c3 = highlight_color;
             auto c1 = danger_color;
             auto c9 = selected_color;
             auto cA = inactive_color;
@@ -252,6 +254,10 @@ namespace netxs::app::desk
                     ->setpad({ 0, 0, 0, 0 }, { 0, 0, -tall, 0 });
                 block_ptr->attach(head_fork_ptr)
                     ->active()
+                    //todo taskbar keybd navigation
+                    ->template plugin<pro::focus>(pro::focus::mode::focused)
+                    ->template plugin<pro::keybd>()
+                    ->shader(c3, e2::form::state::focus::count)
                     ->template plugin<pro::notes>(obj_note.empty() ? def_note : obj_note)
                     ->invoke([&](auto& boss)
                     {
@@ -433,12 +439,12 @@ namespace netxs::app::desk
             auto bttn_min_size = twod{ 40, 1 + tall * 2 };
             auto bttn_max_size = twod{ -1, 1 + tall * 2 };
 
-            auto window = ui::fork::ctor(axis::Y, 0, 0, 1);
+            auto desklayout_ptr = ui::fork::ctor(axis::Y, 0, 0, 1);
             auto panel_top = config.settings::take("/config/desktop/panel/height", 1);
             auto panel_env = config.settings::take("/config/desktop/panel/env", ""s);
             auto panel_cwd = config.settings::take("/config/desktop/panel/cwd", ""s);
             auto panel_cmd = config.settings::take("/config/desktop/panel/cmd", ""s);
-            auto panel = window->attach(slot::_1, ui::cake::ctor());
+            auto panel = desklayout_ptr->attach(slot::_1, ui::cake::ctor());
             if (panel_cmd.size())
             {
                 auto panel_cfg = eccc{ .env = panel_env,
@@ -459,7 +465,7 @@ namespace netxs::app::desk
             else
             {
                 log(prompt::desk, "Bad user ID=", user_id__view);
-                return window;
+                return desklayout_ptr;
             }
 
             auto user_template = [my_id](auto& data_src, auto const& utf8)
@@ -485,17 +491,17 @@ namespace netxs::app::desk
                 return users;
             };
 
-            auto& size_config = window->base::field(std::tuple{ menu_max_conf, menu_min_conf, faux });
+            auto& size_config = desklayout_ptr->base::field(std::tuple{ menu_max_conf, menu_min_conf, faux });
             //todo Apple Clang don't get it.
             //auto& [menu_max_size, menu_min_size, active] = size_config;
             auto& menu_max_size = std::get<0>(size_config);
             auto& menu_min_size = std::get<1>(size_config);
             auto& active        = std::get<2>(size_config);
 
-            auto world_ptr = window->base::signal(tier::general, e2::config::creator);
-            if (!world_ptr) return window;
+            auto world_ptr = desklayout_ptr->base::signal(tier::general, e2::config::creator);
+            if (!world_ptr) return desklayout_ptr;
             auto& world = *world_ptr;
-            window->invoke([&](auto& boss) mutable
+            desklayout_ptr->invoke([&](auto& boss) mutable
             {
                 boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent_ptr, -, (usrcfg))
                 {
@@ -546,7 +552,7 @@ namespace netxs::app::desk
                     };
                 };
             });
-            auto ground = window->attach(slot::_2, ui::cake::ctor());
+            auto ground = desklayout_ptr->attach(slot::_2, ui::cake::ctor());
             auto ver_label = ground->attach(ui::item::ctor(utf::concat(app::shared::version)))
                 ->active(cell{}.fgc(whitedk).bgc(argb::active_transparent))
                 ->shader(c8, e2::form::state::hover)
@@ -645,6 +651,11 @@ namespace netxs::app::desk
                     {
                         boss.base::riseup(tier::preview, desk::events::ui::toggle, !active);
                     });
+                    boss.LISTEN(tier::release, e2::form::state::focus::count, count)
+                    {
+                        auto is_active = !!count;
+                        boss.base::riseup(tier::preview, desk::events::ui::toggle, is_active);
+                    };
                     boss.LISTEN(tier::release, e2::form::state::mouse, hovered)
                     {
                         auto& timer = boss.base::template plugin<pro::timer>();
@@ -722,7 +733,24 @@ namespace netxs::app::desk
                 {
                     boss.LISTEN(tier::anycast, e2::form::upon::started, root_ptr)
                     {
-                        boss.attach(create_app_list(world));
+                        auto app_list_ptr = create_app_list(world);
+                        boss.attach(app_list_ptr);
+                        auto& app_list = *app_list_ptr;
+                        boss.base::enqueue([&](auto& /*boss*/) // Set default focus.
+                        {
+                            auto current_default = boss.base::riseup(tier::request, e2::data::changed);
+                            for (auto& menuitem_ptr : app_list.subset) // Set default focus to the default menu item.
+                            {
+                                auto& item_menuid = menuitem_ptr->base::property("window.menuid");
+                                if (item_menuid == current_default && menuitem_ptr->subset.size())
+                                {
+                                    auto& head_fork_ptr = menuitem_ptr->subset.front();
+                                    pro::focus::set(head_fork_ptr, id_t{}, solo::on, true);
+                                    break;
+                                }
+                            }
+                            pro::focus::set(world.This(), id_t{}, solo::on, true); // Then set default focus to the world.
+                        });
                     };
                 });
             auto users_area = apps_users->attach(slot::_2, ui::list::ctor());
@@ -816,7 +844,7 @@ namespace netxs::app::desk
             auto shutdown = shutdown_park->attach(ui::item::ctor(skin::globals().NsShutdown_label))
                 ->setpad({ 1 + tall, 1 + tall, tall, tall })
                 ->alignment({ snap::tail, snap::center });
-            return window;
+            return desklayout_ptr;
         };
     }
 
