@@ -162,8 +162,8 @@ namespace netxs::app::desk
             auto app_label = item_area->attach(slot::_1, ui::item::ctor(current_title))
                 ->active()
                 //todo taskbar keybd navigation
-                //->template plugin<pro::focus>(pro::focus::mode::focused)
-                //->template plugin<pro::keybd>()
+                ->template plugin<pro::focus>(pro::focus::mode::focused)
+                ->template plugin<pro::keybd>()
                 ->shader(c3, e2::form::state::focus::count)
                 ->setpad({ tall + 1, 0, tall, tall })
                 ->template plugin<pro::notes>(skin::globals().NsTaskbarAppsApp_tooltip)
@@ -423,7 +423,7 @@ namespace netxs::app::desk
             auto danger_color    = skin::globals().danger;
             auto highlight_color = cell{ skin::globals().winfocus };
             auto c8 = cell{}.bgc(argb::active_transparent).fgc(highlight_color.bgc());
-            //auto c3 = highlight_color;
+            auto c3 = highlight_color;
             auto cA = inactive_color;
             auto c1 = danger_color;
 
@@ -578,8 +578,8 @@ namespace netxs::app::desk
             auto taskbar_grips = taskbar_viewport->attach(slot::_1, ui::fork::ctor(axis::X))
                 ->limits({ menu_min_size, -1 }, { menu_min_size, -1 })
                 //todo taskbar keybd navigation
-                //->plugin<pro::focus>()
-                //->plugin<pro::keybd>()
+                ->plugin<pro::focus>()
+                ->plugin<pro::keybd>()
                 ->plugin<pro::timer>()
                 ->plugin<pro::acryl>()
                 ->plugin<pro::cache>()
@@ -667,8 +667,8 @@ namespace netxs::app::desk
                 ->template plugin<pro::notes>(skin::globals().NsTaskbarGrips_tooltip)
                 ->active()
                 //todo taskbar keybd navigation
-                //->template plugin<pro::focus>(pro::focus::mode::focusable)
-                //->shader(c3, e2::form::state::focus::count)
+                ->template plugin<pro::focus>(pro::focus::mode::focusable)
+                ->shader(c3, e2::form::state::focus::count)
                 ->shader(cell::shaders::xlight, e2::form::state::hover)
                 ->invoke([&](auto& boss)
                 {
