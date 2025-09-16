@@ -179,6 +179,10 @@ namespace netxs::app::desk
                 });
             auto app_close = item_area->attach(slot::_2, ui::item::ctor("×"))
                 ->active()
+                //todo taskbar keybd navigation
+                ->template plugin<pro::focus>(pro::focus::mode::focused)
+                ->template plugin<pro::keybd>()
+                ->shader(c3, e2::form::state::focus::count)
                 ->shader(c1, e2::form::state::hover)
                 ->setpad({ 2, 2, tall, tall })
                 ->template plugin<pro::notes>(skin::globals().NsTaskbarAppsClose_tooltip)
@@ -252,7 +256,10 @@ namespace netxs::app::desk
                 auto block_ptr = ui::list::ctor()
                     ->shader(cell::shaders::xlight, e2::form::state::hover, head_fork_ptr)
                     ->setpad({ 0, 0, 0, 0 }, { 0, 0, -tall, 0 });
-                block_ptr->attach(head_fork_ptr)
+                block_ptr->attach(head_fork_ptr);
+                auto head = head_fork_ptr->attach(slot::_1, ui::item::ctor(obj_desc))
+                    ->flexible()
+                    ->setpad({ 0, 0, tall, tall })
                     ->active()
                     //todo taskbar keybd navigation
                     ->template plugin<pro::focus>(pro::focus::mode::focused)
@@ -261,8 +268,17 @@ namespace netxs::app::desk
                     ->template plugin<pro::notes>(obj_note.empty() ? def_note : obj_note)
                     ->invoke([&](auto& boss)
                     {
+                        auto boss_shadow = ptr::shadow(boss.This());
+                        boss.LISTEN(tier::anycast, desk::events::ui::selected, data, -, (inst_id, obj_desc, c9))
+                        {
+                            auto selected = inst_id == data;
+                            boss.brush(selected ? c9 : cell{});
+                            boss.set(obj_desc);
+                            boss.base::deface();
+                        };
                         boss.on(tier::mouserelease, input::key::RightClick, [&, inst_id](hids& gear)
                         {
+                            pro::focus::set(boss.This(), gear.id, solo::on);
                             boss.base::signal(tier::anycast, desk::events::ui::selected, inst_id);
                             gear.dismiss(true);
                         });
@@ -273,8 +289,8 @@ namespace netxs::app::desk
                                 if (gear.meta(hids::anyCtrl)) // Toggle group focus.
                                 {
                                     group_focus = !group_focus;
-                                    if (group_focus) boss.base::signal(tier::release, desk::events::ui::focus::set, gear);
-                                    else             boss.base::signal(tier::release, desk::events::ui::focus::off, gear);
+                                    if (group_focus) boss.base::riseup(tier::release, desk::events::ui::focus::set, gear);
+                                    else             boss.base::riseup(tier::release, desk::events::ui::focus::off, gear);
                                 }
                                 gear.dismiss(true);
                                 return;
@@ -289,20 +305,6 @@ namespace netxs::app::desk
                             menumodel_item.base::signal(tier::request, e2::form::proceed::createby, gear);
                             gear.dismiss(true);
                         });
-                    });
-                auto head = head_fork_ptr->attach(slot::_1, ui::item::ctor(obj_desc)
-                    ->flexible())
-                    ->setpad({ 0, 0, tall, tall })
-                    ->invoke([&](auto& boss)
-                    {
-                        auto boss_shadow = ptr::shadow(boss.This());
-                        boss.LISTEN(tier::anycast, desk::events::ui::selected, data, -, (inst_id, obj_desc, c9))
-                        {
-                            auto selected = inst_id == data;
-                            boss.brush(selected ? c9 : cell{});
-                            boss.set(obj_desc);
-                            boss.base::deface();
-                        };
                     });
                 auto& isfolded = conf.folded;
                 auto insts_ptr = block_ptr->attach(ui::list::ctor())
@@ -326,6 +328,10 @@ namespace netxs::app::desk
                 auto fold_bttn = bttn_fork.attach(slot::_1, ui::item::ctor(isfolded ? "…" : "<"))
                     ->setpad({ 2, 2, tall, tall })
                     ->active()
+                    //todo taskbar keybd navigation
+                    ->template plugin<pro::focus>(pro::focus::mode::focused)
+                    ->template plugin<pro::keybd>()
+                    ->shader(c3, e2::form::state::focus::count)
                     ->shader(cell::shaders::xlight, e2::form::state::hover)
                     ->template plugin<pro::notes>(skin::globals().NsTaskbarApps_toggletooltip)
                     ->invoke([&](auto& boss)
@@ -343,6 +349,10 @@ namespace netxs::app::desk
                 auto drop_bttn = bttn_fork.attach(slot::_2, ui::item::ctor("×"))
                     ->setpad({ 2, 2, tall, tall })
                     ->active()
+                    //todo taskbar keybd navigation
+                    ->template plugin<pro::focus>(pro::focus::mode::focused)
+                    ->template plugin<pro::keybd>()
+                    ->shader(c3, e2::form::state::focus::count)
                     ->shader(c1, e2::form::state::hover)
                     ->template plugin<pro::notes>(skin::globals().NsTaskbarApps_groupclosetooltip)
                     ->invoke([&](auto& boss)
