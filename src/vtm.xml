@@ -244,21 +244,8 @@ R"==(
             <script=RollFontsForward       on="Ctrl+Shift+F12"                   />
             <script=ResetWheelAccumulator  on="preview:-Ctrl"                    />
             <script=ToggleDebugOverlay     on="Space-Backspace | Backspace-Space"/>
-)=="
-#if defined (WIN32)
-R"==(
-            <script=FocusTaskBar           on="Esc+F1"                           />
-)=="
-#else
-R"==(
-            <script=FocusTaskBar           on="Alt+Z"                            />
-)=="
-#endif
-R"==(
+            <script=FocusTaskbar           on="Esc+F1 | Alt+Z"                   />
         </gate>
-        <taskbar script*>  <!-- Taskbar bindings. -->
-            <script=FocusTaskBar on="-Esc"/>
-        </taskbar>
         <desktop script*>  <!-- Desktop bindings. -->
             <script=FocusPrevWindow on="Ctrl+PageUp"  />
             <script=FocusNextWindow on="Ctrl+PageDown"/>
@@ -267,6 +254,22 @@ R"==(
             <script=RunApplication  on="Alt+Shift+N"  />
             <script=RunInfoPage     on="Esc+I"        />
         </desktop>
+        <taskbar=desktop script*>  <!-- Taskbar bindings (including desktop bindings). -->
+            <script=FocusTaskbar          on="-Esc | -Alt"/>
+            <script=FocusLeftTaskbarItem  on="LeftArrow"/>
+            <script=FocusRightTaskbarItem on="RightArrow"/>
+            <script=FocusPrevTaskbarItem  on="UpArrow"/>
+            <script=FocusNextTaskbarItem  on="DownArrow"/>
+            <script=FocusPrevTaskbarPage  on="PageUp"/>
+            <script=FocusNextTaskbarPage  on="PageDown"/>
+            <script=FocusPrevTaskbarGroup on="Shift+Tab"/>
+            <script=FocusNextTaskbarGroup on="Tab"/>
+            <script=FocusTaskbarTop       on="Home"/>
+            <script=FocusTaskbarEnd       on="End"/>
+            <script=DecreaseTaskbarWidth  on="Ctrl+LeftArrow"/>
+            <script=IncreaseTaskbarWidth  on="Ctrl+RightArrow"/>
+            <script=ActivateTaskbarItem   on="Space | Enter"/>
+        </taskbar>
         <applet script*>  <!-- Applet bindings. -->
             <script=AlwaysOnTopApplet     on="Esc+T"                                              />
             <script=CloseApplet           on="Esc+W"                                              />
@@ -1094,7 +1097,7 @@ R"==(
     <RunInfoPage           ="vtm.desktop.Run({ title='Info-page', hidden=true, label='Info', type='info' });"/>  <!-- Run Info-page. -->
     <FocusPrevWindow       ="vtm.desktop.FocusNextWindow(-1);"/>  <!-- Switch focus to the prev window. -->
     <FocusNextWindow       ="vtm.desktop.FocusNextWindow( 1);"/>  <!-- Switch focus to the next window. -->
-    <FocusTaskBar          ="if (vtm.gear.Focus(vtm.taskbar)) then vtm.gear.Focus(vtm.desktop) end;"/>  <!-- Set input focus to the taskbar or return focus back to the desktop. -->
+    <FocusTaskbar          ="if (vtm.gear.Focus(vtm.taskbar)) then vtm.gear.Focus(vtm.desktop) end;"/>  <!-- Set input focus to the taskbar or return focus back to the desktop. -->
 
     <AlwaysOnTopApplet     ="vtm.applet.ZOrder(vtm.applet.ZOrder()==1 and 0 or 1);"/>  <!-- Request to toggle z-order window attribute. -1: backmost; 0: plain; 1: topmost. -->
     <CloseApplet           ="vtm.applet.Close();"/>            <!-- Request to Close window. -->
@@ -1180,5 +1183,19 @@ R"==(
     <TerminalStdioLog                  ="vtm.terminal.LogMode(vtm.terminal.LogMode()==1 and 0 or 1);"/>            <!-- Toggle stdin/stdout logging. -->
     <TerminalRestart                   ="vtm.terminal.Restart();"/>                    <!-- Terminate runnning console apps and restart current session. -->
     <IgnoreAltbuf                      ="if (vtm.terminal.AltbufMode()) then vtm.terminal.ForwardKeys(); return; end;"/>  <!-- Forward the last key event to the terminal if the alternate buffer is active. -->
+
+    <FocusLeftTaskbarItem  ="vtm.taskbar.FocusNearItem(-1)"/>
+    <FocusRightTaskbarItem ="vtm.taskbar.FocusNearItem(1)"/>
+    <FocusPrevTaskbarItem  ="vtm.taskbar.FocusByItem(-1)"/>
+    <FocusNextTaskbarItem  ="vtm.taskbar.FocusByItem(1)"/>
+    <FocusPrevTaskbarPage  ="vtm.taskbar.FocusByPage(-1)"/>
+    <FocusNextTaskbarPage  ="vtm.taskbar.FocusByPage(1)"/>
+    <FocusPrevTaskbarGroup ="vtm.taskbar.FocusByGroup(-1)"/>
+    <FocusNextTaskbarGroup ="vtm.taskbar.FocusByGroup(1)"/>
+    <FocusTaskbarTop       ="vtm.taskbar.FocusTop()"/>
+    <FocusTaskbarEnd       ="vtm.taskbar.FocusEnd()"/>
+    <DecreaseTaskbarWidth  ="vtm.taskbar.ChangeWidth(-1)"/>
+    <IncreaseTaskbarWidth  ="vtm.taskbar.ChangeWidth(1)"/>
+    <ActivateTaskbarItem   ="vtm.taskbar.ActivateItem()"/>
 </Scripting>
 )=="

@@ -688,8 +688,8 @@ namespace netxs::app::desk
                 ->template plugin<pro::notes>(skin::globals().NsTaskbarGrips_tooltip)
                 ->active()
                 //todo taskbar keybd navigation
-                ->template plugin<pro::focus>(pro::focus::mode::focusable)
-                ->shader(c3, e2::form::state::focus::count)
+                //->template plugin<pro::focus>(pro::focus::mode::focusable) //todo revise: no need to focus taskbar resize grip
+                //->shader(c3, e2::form::state::focus::count)
                 ->shader(cell::shaders::xlight, e2::form::state::hover)
                 ->invoke([&](auto& boss)
                 {

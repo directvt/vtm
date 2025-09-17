@@ -23,7 +23,7 @@
   </tr>
 </thead>
 <tbody>
-  <tr><th>Esc+F1 ¹ (Alt+Z on non-Windows platforms)</th>      <td colspan="9">Focus taskbar</td></tr>
+  <tr><th>Esc+F1 ¹ / Alt+Z</th>                               <td colspan="9">Focus taskbar</td></tr>
   <tr><th>Esc+I</th>                                          <td colspan="9">Open Info-page</td></tr>
   <tr><th>Ctrl-Alt (Alt+Shift+B on non-Windows platforms)</th><td colspan="9">Toggle exclusive keyboard mode</td></tr>
   <tr><th>Alt+Shift+N</th>                                    <td colspan="9">Run app</td></tr>

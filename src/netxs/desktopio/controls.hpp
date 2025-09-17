@@ -1910,21 +1910,24 @@ namespace netxs::ui
                 {
                     auto sent = faux;
                     auto& chain = get_chain(gear.id);
-                    auto handled = gear.handled;
-                    auto new_handled = handled;
                     chain.foreach([&](auto& nexthop, auto& status)
                     {
                         if (status == state::live)
                         {
                             sent = true;
-                            gear.handled = handled;
                             nexthop->base::signal(tier::preview, input::events::keybd::post, gear);
-                            new_handled |= gear.handled;
                         }
                     });
-                    gear.handled = new_handled;
                     if (!sent && node_type != mode::relay) // Send key::post event back. The relays themselves will later send it back.
                     {
+                        if constexpr (debugmode)
+                        {
+                            //auto generic = input::key::kmap::to_string(gear.vkchord, true);
+                            //if (generic == "Alt+Shift+N")
+                            //{
+                            //    auto i = 0;
+                            //}
+                        }
                         auto parent_ptr = boss.base::This();
                         while ((!gear.handled || gear.keystat == input::key::released) && parent_ptr) // Always pass released key events.
                         {
