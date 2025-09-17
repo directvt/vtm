@@ -162,7 +162,7 @@ namespace netxs::app::desk
             auto app_label = item_area->attach(slot::_1, ui::item::ctor(current_title))
                 ->active()
                 //todo taskbar keybd navigation
-                ->template plugin<pro::focus>(pro::focus::mode::focused)
+                ->template plugin<pro::focus>(pro::focus::mode::focused, true, faux)
                 ->template plugin<pro::keybd>()
                 ->shader(c3, e2::form::state::focus::count)
                 ->setpad({ tall + 1, 0, tall, tall })
@@ -180,7 +180,7 @@ namespace netxs::app::desk
             auto app_close = item_area->attach(slot::_2, ui::item::ctor("×"))
                 ->active()
                 //todo taskbar keybd navigation
-                ->template plugin<pro::focus>(pro::focus::mode::focused)
+                ->template plugin<pro::focus>(pro::focus::mode::focused, true, faux)
                 ->template plugin<pro::keybd>()
                 ->shader(c3, e2::form::state::focus::count)
                 ->shader(c1, e2::form::state::hover)
@@ -257,12 +257,12 @@ namespace netxs::app::desk
                     ->shader(cell::shaders::xlight, e2::form::state::hover, head_fork_ptr)
                     ->setpad({ 0, 0, 0, 0 }, { 0, 0, -tall, 0 });
                 block_ptr->attach(head_fork_ptr);
-                auto head = head_fork_ptr->attach(slot::_1, ui::item::ctor(obj_desc))
+                auto head_ptr = head_fork_ptr->attach(slot::_1, ui::item::ctor(obj_desc))
                     ->flexible()
                     ->setpad({ 0, 0, tall, tall })
                     ->active()
                     //todo taskbar keybd navigation
-                    ->template plugin<pro::focus>(pro::focus::mode::focused)
+                    ->template plugin<pro::focus>(pro::focus::mode::focused, true, faux)
                     ->template plugin<pro::keybd>()
                     ->shader(c3, e2::form::state::focus::count)
                     ->template plugin<pro::notes>(obj_note.empty() ? def_note : obj_note)
@@ -329,7 +329,7 @@ namespace netxs::app::desk
                     ->setpad({ 2, 2, tall, tall })
                     ->active()
                     //todo taskbar keybd navigation
-                    ->template plugin<pro::focus>(pro::focus::mode::focused)
+                    ->template plugin<pro::focus>(pro::focus::mode::focused, true, faux)
                     ->template plugin<pro::keybd>()
                     ->shader(c3, e2::form::state::focus::count)
                     ->shader(cell::shaders::xlight, e2::form::state::hover)
@@ -350,7 +350,7 @@ namespace netxs::app::desk
                     ->setpad({ 2, 2, tall, tall })
                     ->active()
                     //todo taskbar keybd navigation
-                    ->template plugin<pro::focus>(pro::focus::mode::focused)
+                    ->template plugin<pro::focus>(pro::focus::mode::focused, true, faux)
                     ->template plugin<pro::keybd>()
                     ->shader(c3, e2::form::state::focus::count)
                     ->shader(c1, e2::form::state::hover)
@@ -755,7 +755,11 @@ namespace netxs::app::desk
                                 if (item_menuid == current_default && menuitem_ptr->subset.size())
                                 {
                                     auto& head_fork_ptr = menuitem_ptr->subset.front();
-                                    pro::focus::set(head_fork_ptr, id_t{}, solo::on, true);
+                                    if (head_fork_ptr->subset.size()) // Focus app group label.
+                                    {
+                                        auto& head_ptr = head_fork_ptr->subset.front();
+                                        pro::focus::set(head_ptr, id_t{}, solo::on, true);
+                                    }
                                     break;
                                 }
                             }

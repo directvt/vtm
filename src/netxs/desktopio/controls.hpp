@@ -1865,7 +1865,7 @@ namespace netxs::ui
             }
 
             focus(base&&) = delete;
-            focus(base& boss, si32 focus_mode = mode::hub, bool set_default_focus = true)
+            focus(base& boss, si32 focus_mode = mode::hub, bool set_default_focus = true, bool focus_on_click = true)
                 : skill{ boss },
                   node_type{ focus_mode }
             {
@@ -1880,7 +1880,7 @@ namespace netxs::ui
                     };
                 }
                 //todo unify. pro::focus: Set unique focus on left click. Set group focus on Ctrl+LeftClick.
-                boss.on(tier::mouserelease, input::key::LeftClick, memo, [&](hids& gear)
+                if (focus_on_click) boss.on(tier::mouserelease, input::key::LeftClick, memo, [&](hids& gear)
                 {
                     if (!gear) return;
                     if (gear.meta(hids::anyCtrl))
