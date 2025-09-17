@@ -591,6 +591,7 @@ Standard object names
 |                 |                          | `vtm.applet.Restore()`                             | Restore applet window.
 |`gear`           | User mouse and keyboard  | `vtm.gear.IsKeyRepeated() -> bool`                 | Returns true if the keyboard event is a key-repeat generated event.
 |                 |                          | `vtm.gear.SetHandled()`                            | Set that the event is processed, and stop further processing.
+|                 |                          | `vtm.gear.Interrupt()`                             | Interrupt the key event processing.
 |                 |                          | `vtm.gear.RepeatWhilePressed(ref ObjectId)`        | Capture the mouse by ObjectId and trigger the mouse button pressed event to repeat while pressed.
 |                 |                          | `vtm.gear.Focus(ref ObjectId) -> bool`             | Set input focus to the object. Returns true if focus is already set.
 |`desktop`        | Desktop environment      | `vtm.desktop.Cleanup(bool b)`                      | Clean up temporary internal structures of the desktop environment and optionally report the state of registry objects.

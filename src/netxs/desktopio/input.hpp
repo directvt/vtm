@@ -65,10 +65,11 @@ namespace netxs::input
         static constexpr auto ExtendedKey = 0x0100;
         static constexpr auto NumLockMode = 0x0020;
 
-        static constexpr auto _counter = __COUNTER__ + 1;
-        static constexpr auto released = __COUNTER__ - _counter;
-        static constexpr auto pressed  = __COUNTER__ - _counter;
-        static constexpr auto repeated = __COUNTER__ - _counter;
+        static constexpr auto _counter    = __COUNTER__ + 1;
+        static constexpr auto released    = __COUNTER__ - _counter;
+        static constexpr auto pressed     = __COUNTER__ - _counter;
+        static constexpr auto repeated    = __COUNTER__ - _counter;
+        static constexpr auto interrupted = __COUNTER__ - _counter;
 
         static constexpr auto generic_sign   = 0xF0;
         static constexpr auto scancode_sign  = 0x80;
