@@ -602,8 +602,17 @@ namespace netxs::app::desk
                         parent_canvas.fill(vert_line, cell::shaders::shadow(ui::pro::ghost::x1y1_x1y2_x1y3));
                     };
                 });
-            auto taskbar_grips = taskbar_viewport->attach(slot::_1, ui::fork::ctor(axis::X))
-                ->limits({ menu_min_size, -1 }, { menu_min_size, -1 })
+            auto taskbar_grips_ptr = taskbar_viewport->attach(slot::_1, ui::fork::ctor(axis::X));
+            auto& taskbar_grips = *taskbar_grips_ptr;
+            auto& change_taskbar_width = taskbar_grips.base::field([&](si32 delta)
+            {
+                taskbar_grips.base::min_sz.x = std::max(1, taskbar_grips.base::min_sz.x + delta);
+                taskbar_grips.base::max_sz.x = taskbar_grips.base::min_sz.x;
+                active ? menu_max_size = taskbar_grips.base::min_sz.x
+                       : menu_min_size = taskbar_grips.base::min_sz.x;
+                taskbar_grips.base::reflow();
+            });
+            taskbar_grips_ptr->limits({ menu_min_size, -1 }, { menu_min_size, -1 })
                 //todo taskbar keybd navigation
                 ->plugin<pro::focus>()
                 ->plugin<pro::keybd>()
@@ -676,8 +685,7 @@ namespace netxs::app::desk
                                                 {
                                                     auto& gear = luafx.get_gear();
                                                     auto delta = luafx.get_args_or(1, si32{ 1 });
-                                                    //
-                                                    delta = 0;
+                                                    change_taskbar_width(delta);
                                                     gear.set_handled();
                                                     luafx.set_return();
                                                 }},
@@ -733,7 +741,7 @@ namespace netxs::app::desk
                         timer.actify(faux, skin::globals().menu_timeout, toggle);
                     };
                 });
-            auto grips = taskbar_grips->attach(slot::_2, ui::mock::ctor())
+            auto grips = taskbar_grips.attach(slot::_2, ui::mock::ctor())
                 ->limits({ 1, -1 }, { 1, -1 })
                 ->template plugin<pro::notes>(skin::globals().NsTaskbarGrips_tooltip)
                 ->active()
@@ -752,16 +760,9 @@ namespace netxs::app::desk
                     };
                     boss.LISTEN(tier::release, e2::form::drag::pull::_<hids::buttons::left>, gear)
                     {
-                        if (auto taskbar_grips = boss.base::parent())
+                        if (auto delta = (twod{ gear.coord } - twod{ drag_origin })[axis::X])
                         {
-                            if (auto delta = (twod{ gear.coord } - twod{ drag_origin })[axis::X])
-                            {
-                                taskbar_grips->base::min_sz.x = std::max(1, taskbar_grips->base::min_sz.x + delta);
-                                taskbar_grips->base::max_sz.x = taskbar_grips->base::min_sz.x;
-                                active ? menu_max_size = taskbar_grips->base::min_sz.x
-                                       : menu_min_size = taskbar_grips->base::min_sz.x;
-                                taskbar_grips->base::reflow();
-                            }
+                            change_taskbar_width(delta);
                         }
                     };
                     boss.LISTEN(tier::release, desk::events::ui::sync, state)
@@ -781,7 +782,7 @@ namespace netxs::app::desk
                         boss.base::signal(tier::release, desk::events::ui::sync, true);
                     };
                 });
-            auto taskbar_park = taskbar_grips->attach(slot::_1, ui::cake::ctor());
+            auto taskbar_park = taskbar_grips.attach(slot::_1, ui::cake::ctor());
             auto taskbar = taskbar_park->attach(ui::fork::ctor(axis::Y)->alignment({ snap::head, snap::head }, { snap::head, snap::tail }));
             auto apps_users = taskbar->attach(slot::_1, ui::fork::ctor(axis::Y, 0, 100))
                 ->setpad({}, { 0, 0, 0, -tall }); // To place above Disconnect button.
