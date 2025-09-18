@@ -1185,6 +1185,13 @@ namespace netxs::ui
             }
             return *(std::any_cast<T>(iter->second.get()));
         }
+        // base: Return true if an object has the specified plugin.
+        template<class T>
+        auto has_plugin()
+        {
+            auto iter = fields.find(plugin_name<T>());
+            return iter != fields.end();
+        }
         // base: Return a reference to a plugin of the specified type. Create an instance of the specified plugin using the specified arguments if it does not exist.
         template<class T, class ...Args>
         auto& plugin(Args&&... args)

@@ -622,84 +622,6 @@ namespace netxs::app::desk
                 ->active(menu_bg_color)
                 ->invoke([&](auto& boss)
                 {
-                    auto& luafx = boss.bell::indexer.luafx;
-                    auto& focus = boss.base::plugin<pro::focus>();
-                    auto& bindings = boss.base::template property<input::bindings::vector>("taskbar.bindings"); // Apple clang requires template.
-                    auto applet_context = config.settings::push_context("/config/events/taskbar/");
-                    auto script_list = config.settings::take_ptr_list_for_name("script");
-                    bindings = input::bindings::load(config, script_list);
-                    input::bindings::keybind(boss, bindings);
-                    boss.base::add_methods(basename::taskbar,
-                    {
-                        { "FocusNearItem",      [&] // (-1/1)
-                                                {
-                                                    auto& gear = luafx.get_gear();
-                                                    auto step = luafx.get_args_or(1, si32{ 1 });
-                                                    //
-                                                    step = 0;
-                                                    gear.set_handled();
-                                                    luafx.set_return();
-                                                }},
-                        { "FocusByItem",        [&] // (-1/1)
-                                                {
-                                                    auto& gear = luafx.get_gear();
-                                                    auto step = luafx.get_args_or(1, si32{ 1 });
-                                                    //
-                                                    step = 0;
-                                                    gear.set_handled();
-                                                    luafx.set_return();
-                                                }},
-                        { "FocusByPage",        [&] // (-1/1)
-                                                {
-                                                    auto& gear = luafx.get_gear();
-                                                    auto step = luafx.get_args_or(1, si32{ 1 });
-                                                    //
-                                                    step = 0;
-                                                    gear.set_handled();
-                                                    luafx.set_return();
-                                                }},
-                        { "FocusByGroup",       [&] // (-1/1)
-                                                {
-                                                    auto& gear = luafx.get_gear();
-                                                    auto step = luafx.get_args_or(1, si32{ 1 });
-                                                    //
-                                                    step = 0;
-                                                    gear.set_handled();
-                                                    luafx.set_return();
-                                                }},
-                        { "FocusTop",           [&]
-                                                {
-                                                    auto& gear = luafx.get_gear();
-                                                    //
-                                                    gear.set_handled();
-                                                    luafx.set_return();
-                                                }},
-                        { "FocusEnd",           [&]
-                                                {
-                                                    auto& gear = luafx.get_gear();
-                                                    //
-                                                    gear.set_handled();
-                                                    luafx.set_return();
-                                                }},
-                        { "ChangeWidthByStep",  [&] // (-1/1)
-                                                {
-                                                    auto& gear = luafx.get_gear();
-                                                    auto delta = luafx.get_args_or(1, si32{ 1 });
-                                                    change_taskbar_width(delta);
-                                                    gear.set_handled();
-                                                    luafx.set_return();
-                                                }},
-                        { "ActivateItem",       [&]
-                                                {
-                                                    auto& gear = luafx.get_gear();
-                                                    focus.for_each_focused_leaf(gear, [&](auto& focused_item)
-                                                    {
-                                                        focused_item.base::signal(tier::request, desk::events::ui::activate, gear);
-                                                    });
-                                                    gear.set_handled();
-                                                    luafx.set_return();
-                                                }},
-                    });
                     boss.LISTEN(tier::request, desk::events::ui::toggle, state)
                     {
                         state = active;
@@ -787,7 +709,7 @@ namespace netxs::app::desk
             auto apps_users = taskbar->attach(slot::_1, ui::fork::ctor(axis::Y, 0, 100))
                 ->setpad({}, { 0, 0, 0, -tall }); // To place above Disconnect button.
             auto applist_area = apps_users->attach(slot::_1, ui::cake::ctor());
-            auto tasks_scrl = applist_area->attach(ui::rail::ctor(axes::Y_only))
+            auto tasks_scrl_ptr = applist_area->attach(ui::rail::ctor(axes::Y_only))
                 ->plugin<pro::notes>(skin::globals().NsTaskbar_tooltip)
                 ->active()
                 ->invoke([&](auto& boss)
@@ -818,6 +740,7 @@ namespace netxs::app::desk
                         });
                     };
                 });
+            auto& tasks_scrl = *tasks_scrl_ptr;
             auto users_area = apps_users->attach(slot::_2, ui::list::ctor());
             auto label_bttn = users_area->attach(ui::fork::ctor(axis::X))
                                         ->active() // Make it active for tooltip.
@@ -882,7 +805,7 @@ namespace netxs::app::desk
             bttns_cake->attach(app::shared::underlined_hz_scrollbar(bttns_area));
             auto bttns = bttns_area->attach(ui::fork::ctor(axis::X))
                 ->limits(bttn_min_size, bttn_max_size);
-            auto disconnect_park = bttns->attach(slot::_1, ui::cake::ctor())
+            auto disconnect_park_ptr = bttns->attach(slot::_1, ui::cake::ctor())
                 ->active()
                 //todo taskbar keybd navigation
                 ->template plugin<pro::focus>(pro::focus::mode::focused, true, faux)
@@ -899,7 +822,8 @@ namespace netxs::app::desk
                         gear.dismiss(true);
                     });
                 });
-            auto disconnect = disconnect_park->attach(ui::item::ctor(skin::globals().NsDisconnect_label))
+            auto& disconnect_park = *disconnect_park_ptr;
+            auto disconnect = disconnect_park.attach(ui::item::ctor(skin::globals().NsDisconnect_label))
                 ->setpad({ 1 + tall, 1 + tall, tall, tall })
                 ->alignment({ snap::head, snap::center });
             auto shutdown_park = bttns->attach(slot::_2, ui::cake::ctor())
@@ -921,6 +845,108 @@ namespace netxs::app::desk
             auto shutdown = shutdown_park->attach(ui::item::ctor(skin::globals().NsShutdown_label))
                 ->setpad({ 1 + tall, 1 + tall, tall, tall })
                 ->alignment({ snap::tail, snap::center });
+
+            taskbar_grips.invoke([&](auto& boss)
+            {
+                auto& luafx = boss.bell::indexer.luafx;
+                auto& focus = boss.base::plugin<pro::focus>();
+                auto& bindings = boss.base::template property<input::bindings::vector>("taskbar.bindings"); // Apple clang requires template.
+                auto applet_context = config.settings::push_context("/config/events/taskbar/");
+                auto script_list = config.settings::take_ptr_list_for_name("script");
+                bindings = input::bindings::load(config, script_list);
+                input::bindings::keybind(boss, bindings);
+                boss.base::add_methods(basename::taskbar,
+                {
+                    { "FocusNearItem",      [&] // (-1/1)
+                                            {
+                                                auto& gear = luafx.get_gear();
+                                                auto step = luafx.get_args_or(1, si32{ 1 });
+                                                //
+                                                step = 0;
+                                                gear.set_handled();
+                                                luafx.set_return();
+                                            }},
+                    { "FocusByItem",        [&] // (-1/1)
+                                            {
+                                                auto& gear = luafx.get_gear();
+                                                auto step = luafx.get_args_or(1, si32{ 1 });
+                                                //
+                                                step = 0;
+                                                gear.set_handled();
+                                                luafx.set_return();
+                                            }},
+                    { "FocusByPage",        [&] // (-1/1)
+                                            {
+                                                auto& gear = luafx.get_gear();
+                                                auto step = luafx.get_args_or(1, si32{ 1 });
+                                                //
+                                                step = 0;
+                                                gear.set_handled();
+                                                luafx.set_return();
+                                            }},
+                    { "FocusByGroup",       [&] // (-1/1)
+                                            {
+                                                auto& gear = luafx.get_gear();
+                                                auto step = luafx.get_args_or(1, si32{ 1 });
+                                                //
+                                                step = 0;
+                                                gear.set_handled();
+                                                luafx.set_return();
+                                            }},
+                    { "FocusTop",           [&]
+                                            {
+                                                auto& gear = luafx.get_gear();
+                                                if (tasks_scrl.subset.size())
+                                                if (auto app_list_ptr = tasks_scrl.subset.front())
+                                                {
+                                                    auto& app_list = *app_list_ptr;
+                                                    for (auto& menuitem_ptr : app_list.subset) // Select the first focusable item from the app list.
+                                                    {
+                                                        if (menuitem_ptr && menuitem_ptr->subset.size())
+                                                        {
+                                                            auto& head_fork_ptr = menuitem_ptr->subset.front();
+                                                            if (head_fork_ptr && head_fork_ptr->subset.size()) // Focus app group label.
+                                                            {
+                                                                auto& head_ptr = head_fork_ptr->subset.front();
+                                                                if (head_ptr && head_ptr->base::has_plugin<pro::focus>())
+                                                                {
+                                                                    pro::focus::set(head_ptr, gear.id, solo::on);
+                                                                    break;
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                                gear.set_handled();
+                                                luafx.set_return();
+                                            }},
+                    { "FocusEnd",           [&]
+                                            {
+                                                auto& gear = luafx.get_gear();
+                                                pro::focus::set(disconnect_park.This(), gear.id, solo::on);
+                                                gear.set_handled();
+                                                luafx.set_return();
+                                            }},
+                    { "ChangeWidthByStep",  [&] // (-1/1)
+                                            {
+                                                auto& gear = luafx.get_gear();
+                                                auto delta = luafx.get_args_or(1, si32{ 1 });
+                                                change_taskbar_width(delta);
+                                                gear.set_handled();
+                                                luafx.set_return();
+                                            }},
+                    { "ActivateItem",       [&]
+                                            {
+                                                auto& gear = luafx.get_gear();
+                                                focus.for_each_focused_leaf(gear, [&](auto& focused_item)
+                                                {
+                                                    focused_item.base::signal(tier::request, desk::events::ui::activate, gear);
+                                                });
+                                                gear.set_handled();
+                                                luafx.set_return();
+                                            }},
+                });
+            });
             return desklayout_ptr;
         };
     }
