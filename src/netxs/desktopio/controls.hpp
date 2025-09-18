@@ -1673,9 +1673,12 @@ namespace netxs::ui
                     auto head = next.begin();
                     while (head != next.end())
                     {
-                        if (auto nexthop = head->next_wptr.lock(); nexthop && (proc(nexthop, head->status), nexthop))
+                        if (auto nexthop_ptr = head->next_wptr.lock())
                         {
+                            auto& nexthop = *nexthop_ptr;
+                            auto& status = head->status;
                             head++;
+                            proc(nexthop, status);
                         }
                         else
                         {
@@ -1863,6 +1866,31 @@ namespace netxs::ui
                 auto result = iter != gears.end() && iter->second.active == state::live;
                 return result;
             }
+            void for_each_focused_leaf(input::hids& gear, auto&& proc)
+            {
+                auto iter = gears.find(gear.id);
+                if (iter != gears.end())
+                {
+                    auto& chain = iter->second;
+                    if (chain.active == state::live)
+                    {
+                        auto is_leaf = true;
+                        chain.foreach([&](auto& nexthop, auto& status)
+                        {
+                            if (status == state::live)
+                            {
+                                is_leaf = faux;
+                                auto& nexthop_focus = nexthop.base::plugin<pro::focus>();
+                                nexthop_focus.for_each_focused_leaf(gear, proc);
+                            }
+                        });
+                        if (is_leaf)
+                        {
+                            proc(boss);
+                        }
+                    }
+                }
+            }
 
             focus(base&&) = delete;
             focus(base& boss, si32 focus_mode = mode::hub, bool set_default_focus = true, bool focus_on_click = true)
@@ -1915,7 +1943,7 @@ namespace netxs::ui
                         if (status == state::live)
                         {
                             sent = true;
-                            nexthop->base::signal(tier::preview, input::events::keybd::post, gear);
+                            nexthop.base::signal(tier::preview, input::events::keybd::post, gear);
                         }
                     });
                     if (!sent && node_type != mode::relay) // Send key::post event back. The relays themselves will later send it back.
@@ -1949,7 +1977,7 @@ namespace netxs::ui
                             if (status == state::live)
                             {
                                 status = state::idle;
-                                nexthop->base::signal(tier::release, input::events::focus::set::off, seed);
+                                nexthop.base::signal(tier::release, input::events::focus::set::off, seed);
                             }
                         });
                     }
@@ -1974,7 +2002,7 @@ namespace netxs::ui
                         }
                         chain.foreach([&](auto& nexthop, auto& /*status*/)
                         {
-                            nexthop->base::signal(tier::request, input::events::focus::dup, seed);
+                            nexthop.base::signal(tier::request, input::events::focus::dup, seed);
                         });
                     }
                 };
@@ -2010,7 +2038,7 @@ namespace netxs::ui
                             {
                                 status = state::live;
                                 seed.item = boss.This();
-                                nexthop->base::signal(tier::release, input::events::focus::set::on, seed);
+                                nexthop.base::signal(tier::release, input::events::focus::set::on, seed);
                             }
                         });
                     }
@@ -2039,7 +2067,7 @@ namespace netxs::ui
                                     if (status == state::live)
                                     {
                                         status = state::dead;
-                                        nexthop->base::signal(tier::release, input::events::focus::set::off, seed);
+                                        nexthop.base::signal(tier::release, input::events::focus::set::off, seed);
                                     }
                                 });
                             }
@@ -2054,7 +2082,7 @@ namespace netxs::ui
                             auto exists = faux;
                             chain.foreach([&](auto& nexthop, auto& status)
                             {
-                                if (nexthop == seed.item)
+                                if (&nexthop == seed.item.get())
                                 {
                                     status = state::live;
                                     exists = true;
@@ -2062,7 +2090,7 @@ namespace netxs::ui
                                 else
                                 {
                                     status = state::dead;
-                                    nexthop->base::signal(tier::release, input::events::focus::set::off, seed);
+                                    nexthop.base::signal(tier::release, input::events::focus::set::off, seed);
                                 }
                             });
                             if (!exists)
@@ -2124,7 +2152,7 @@ namespace netxs::ui
                         auto last_step = chain.next.size() > 1 || focusable;
                         chain.foreach([&](auto& nexthop, auto& status)
                         {
-                            if (nexthop == seed.item)
+                            if (&nexthop == seed.item.get())
                             {
                                 status = last_step ? state::dead : state::idle;
                             }

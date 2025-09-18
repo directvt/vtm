@@ -1194,8 +1194,8 @@ R"==(
     <FocusNextTaskbarGroup ="vtm.taskbar.FocusByGroup(1)"/>
     <FocusTaskbarTop       ="vtm.taskbar.FocusTop()"/>
     <FocusTaskbarEnd       ="vtm.taskbar.FocusEnd()"/>
-    <DecreaseTaskbarWidth  ="vtm.taskbar.ChangeWidth(-1)"/>
-    <IncreaseTaskbarWidth  ="vtm.taskbar.ChangeWidth(1)"/>
+    <DecreaseTaskbarWidth  ="vtm.taskbar.ChangeWidthByStep(-1)"/>
+    <IncreaseTaskbarWidth  ="vtm.taskbar.ChangeWidthByStep(1)"/>
     <ActivateTaskbarItem   ="vtm.taskbar.ActivateItem()"/>
 </Scripting>
 )=="

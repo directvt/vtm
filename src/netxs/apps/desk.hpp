@@ -59,6 +59,7 @@ namespace netxs::app::desk
                 EVENT_XS( toggle  , bool        ), // Request taskbar toggle.
                 EVENT_XS( recalc  , bool        ), // Request taskbar recalc.
                 EVENT_XS( id      , id_t        ), // Request owner id.
+                EVENT_XS( activate, input::hids ), // Request to run default app.
                 GROUP_XS( focus   , input::hids ),
 
                 SUBSET_XS( focus )
@@ -296,6 +297,11 @@ namespace netxs::app::desk
                                 return;
                             }
                             boss.base::signal(tier::anycast, desk::events::ui::selected, inst_id);
+                            boss.base::signal(tier::request, desk::events::ui::activate, gear);
+                            gear.dismiss(true);
+                        });
+                        boss.LISTEN(tier::request, desk::events::ui::activate, gear)
+                        {
                             static auto offset = dot_00; // static: Share initial offset between all instances.
                             auto current_viewport = gear.owner.base::signal(tier::request, e2::form::prop::viewport);
                             offset = (offset + dot_21 * 2) % std::max(dot_11, current_viewport.size * 7 / 32);
@@ -303,8 +309,7 @@ namespace netxs::app::desk
                             gear.slot.size = current_viewport.size * 3 / 4;
                             gear.slot_forced = faux;
                             menumodel_item.base::signal(tier::request, e2::form::proceed::createby, gear);
-                            gear.dismiss(true);
-                        });
+                        };
                     });
                 auto& isfolded = conf.folded;
                 auto insts_ptr = block_ptr->attach(ui::list::ctor())
@@ -439,7 +444,7 @@ namespace netxs::app::desk
             auto danger_color    = skin::globals().danger;
             auto highlight_color = cell{ skin::globals().winfocus };
             auto c8 = cell{}.bgc(argb::active_transparent).fgc(highlight_color.bgc());
-            auto c3 = highlight_color;
+            //auto c3 = highlight_color;
             auto cA = inactive_color;
             auto c1 = danger_color;
 
@@ -602,7 +607,8 @@ namespace netxs::app::desk
                 ->active(menu_bg_color)
                 ->invoke([&](auto& boss)
                 {
-                    //auto& luafx = boss.bell::indexer.luafx;
+                    auto& luafx = boss.bell::indexer.luafx;
+                    auto& focus = boss.base::plugin<pro::focus>();
                     auto& bindings = boss.base::template property<input::bindings::vector>("taskbar.bindings"); // Apple clang requires template.
                     auto applet_context = config.settings::push_context("/config/events/taskbar/");
                     auto script_list = config.settings::take_ptr_list_for_name("script");
@@ -640,6 +646,75 @@ namespace netxs::app::desk
                                                     //gui_cmd.args.emplace_back(luafx.get_args_or(4, si32{ 0 }));
                                                     //boss.base::riseup(tier::preview, e2::command::gui, gui_cmd);
                                                     //luafx.set_return();
+                                                }},
+                        { "FocusNearItem",      [&] // (-1/1)
+                                                {
+                                                    auto& gear = luafx.get_gear();
+                                                    auto step = luafx.get_args_or(1, si32{ 1 });
+                                                    //
+                                                    step = 0;
+                                                    gear.set_handled();
+                                                    luafx.set_return();
+                                                }},
+                        { "FocusByItem",        [&] // (-1/1)
+                                                {
+                                                    auto& gear = luafx.get_gear();
+                                                    auto step = luafx.get_args_or(1, si32{ 1 });
+                                                    //
+                                                    step = 0;
+                                                    gear.set_handled();
+                                                    luafx.set_return();
+                                                }},
+                        { "FocusByPage",        [&] // (-1/1)
+                                                {
+                                                    auto& gear = luafx.get_gear();
+                                                    auto step = luafx.get_args_or(1, si32{ 1 });
+                                                    //
+                                                    step = 0;
+                                                    gear.set_handled();
+                                                    luafx.set_return();
+                                                }},
+                        { "FocusByGroup",       [&] // (-1/1)
+                                                {
+                                                    auto& gear = luafx.get_gear();
+                                                    auto step = luafx.get_args_or(1, si32{ 1 });
+                                                    //
+                                                    step = 0;
+                                                    gear.set_handled();
+                                                    luafx.set_return();
+                                                }},
+                        { "FocusTop",           [&]
+                                                {
+                                                    auto& gear = luafx.get_gear();
+                                                    //
+                                                    gear.set_handled();
+                                                    luafx.set_return();
+                                                }},
+                        { "FocusEnd",           [&]
+                                                {
+                                                    auto& gear = luafx.get_gear();
+                                                    //
+                                                    gear.set_handled();
+                                                    luafx.set_return();
+                                                }},
+                        { "ChangeWidthByStep",  [&] // (-1/1)
+                                                {
+                                                    auto& gear = luafx.get_gear();
+                                                    auto delta = luafx.get_args_or(1, si32{ 1 });
+                                                    //
+                                                    delta = 0;
+                                                    gear.set_handled();
+                                                    luafx.set_return();
+                                                }},
+                        { "ActivateItem",       [&]
+                                                {
+                                                    auto& gear = luafx.get_gear();
+                                                    focus.for_each_focused_leaf(gear, [&](auto& focused_item)
+                                                    {
+                                                        focused_item.base::signal(tier::request, desk::events::ui::activate, gear);
+                                                    });
+                                                    gear.set_handled();
+                                                    luafx.set_return();
                                                 }},
                     });
                     boss.LISTEN(tier::request, desk::events::ui::toggle, state)

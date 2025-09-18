@@ -600,6 +600,14 @@ Standard object names
 |                 |                          | `vtm.desktop.Disconnect()`                         | Disconnect the current desktop user.
 |                 |                          | `vtm.desktop.Run({ lua_table })`                   | Run the specified applet.
 |                 |                          | `vtm.desktop.FocusNextWindow(int n)`               | Set focus to the next (n=1) or previous (n=-1) desktop window.
+|`taskbar`        | Desktop taskbar          | `vtm.taskbar.ActivateItem()`                       | Activate the focused UI element on the taskbar.
+|                 |                          | `vtm.taskbar.FocusNearItem(int n)`                 | Set focus to the left (n=-1) or right (n=1) UI element on the taskbar.
+|                 |                          | `vtm.taskbar.FocusByItem(int n)`                   | Set focus to the next (n=1) or previous (n=-1) UI element on the taskbar.
+|                 |                          | `vtm.taskbar.FocusByPage(int n)`                   | Set focus to a UI element on the next (n=1) or previous (n=-1) page of the taskbar item list.
+|                 |                          | `vtm.taskbar.FocusByGroup(int n)`                  | Set focus to a UI element in the next (n=1) or previous (n=-1) group of elements on the taskbar.
+|                 |                          | `vtm.taskbar.FocusTop()`                           | Set focus to the first (top) focusable UI element among the elements on the taskbar.
+|                 |                          | `vtm.taskbar.FocusEnd()`                           | Set focus to the last (bottom) focusable UI element among the elements on the taskbar.
+|                 |                          | `vtm.taskbar.ChangeWidthByStep(int n)`             | Change the taskbar width by step n.
 |`tile`           | Tiling window manager    | `vtm.tile.FocusNextPaneOrGrip(int n)`              | Set focus to the next (n=1) or previous (n=-1) tile's pane or pane splitter.
 |                 |                          | `vtm.tile.FocusNextPane(int n)`                    | Set focus to the next (n=1) or previous (n=-1) tile's pane.
 |                 |                          | `vtm.tile.FocusNextGrip(int n)`                    | Set focus to the next (n=1) or previous (n=-1) pane splitter.
@@ -1958,8 +1966,8 @@ Notes
     <FocusNextTaskbarGroup ="vtm.taskbar.FocusByGroup(1)"/>
     <FocusTaskbarTop       ="vtm.taskbar.FocusTop()"/>
     <FocusTaskbarEnd       ="vtm.taskbar.FocusEnd()"/>
-    <DecreaseTaskbarWidth  ="vtm.taskbar.ChangeWidth(-1)"/>
-    <IncreaseTaskbarWidth  ="vtm.taskbar.ChangeWidth(1)"/>
+    <DecreaseTaskbarWidth  ="vtm.taskbar.ChangeWidthByStep(-1)"/>
+    <IncreaseTaskbarWidth  ="vtm.taskbar.ChangeWidthByStep(1)"/>
     <ActivateTaskbarItem   ="vtm.taskbar.ActivateItem()"/>
 </Scripting>
 ```
