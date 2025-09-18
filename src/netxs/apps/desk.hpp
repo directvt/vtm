@@ -304,12 +304,12 @@ namespace netxs::app::desk
                                 gear.dismiss(true);
                                 return;
                             }
-                            boss.base::signal(tier::anycast, desk::events::ui::selected, inst_id);
                             boss.base::signal(tier::request, desk::events::ui::activate, gear);
                             gear.dismiss(true);
                         });
-                        boss.LISTEN(tier::request, desk::events::ui::activate, gear)
+                        boss.LISTEN(tier::request, desk::events::ui::activate, gear, -, (inst_id))
                         {
+                            boss.base::signal(tier::anycast, desk::events::ui::selected, inst_id);
                             static auto offset = dot_00; // static: Share initial offset between all instances.
                             auto current_viewport = gear.owner.base::signal(tier::request, e2::form::prop::viewport);
                             offset = (offset + dot_21 * 2) % std::max(dot_11, current_viewport.size * 7 / 32);
@@ -894,8 +894,11 @@ namespace netxs::app::desk
                                             {
                                                 auto& gear = luafx.get_gear();
                                                 auto step = luafx.get_args_or(1, si32{ 1 });
-                                                //
-                                                step = 0;
+                                                focus.for_first_focused_leaf(gear, [&](auto& focused_item)
+                                                {
+                                                    auto& item_focus = focused_item.base::plugin<pro::focus>();
+                                                    item_focus.focus_next(gear, step);
+                                                });
                                                 gear.set_handled();
                                                 luafx.set_return();
                                             }},
@@ -962,7 +965,7 @@ namespace netxs::app::desk
                     { "ActivateItem",       [&]
                                             {
                                                 auto& gear = luafx.get_gear();
-                                                focus.for_each_focused_leaf(gear, [&](auto& focused_item)
+                                                focus.for_first_focused_leaf(gear, [&](auto& focused_item)
                                                 {
                                                     focused_item.base::signal(tier::request, desk::events::ui::activate, gear);
                                                 });

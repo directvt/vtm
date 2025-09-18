@@ -1670,6 +1670,7 @@ namespace netxs::ui
                 template<class P>
                 auto foreach(P proc)
                 {
+                    static constexpr auto Plain = std::is_same_v<void, std::invoke_result_t<decltype(proc), base&, si32&>>;
                     auto head = next.begin();
                     while (head != next.end())
                     {
@@ -1678,7 +1679,14 @@ namespace netxs::ui
                             auto& nexthop = *nexthop_ptr;
                             auto& status = head->status;
                             head++;
-                            proc(nexthop, status);
+                            if constexpr (Plain)
+                            {
+                                proc(nexthop, status);
+                            }
+                            else
+                            {
+                                if (!proc(nexthop, status)) break;
+                            }
                         }
                         else
                         {
@@ -1866,7 +1874,7 @@ namespace netxs::ui
                 auto result = iter != gears.end() && iter->second.active == state::live;
                 return result;
             }
-            void for_each_focused_leaf(input::hids& gear, auto&& proc)
+            void for_first_focused_leaf(input::hids& gear, auto&& proc)
             {
                 auto iter = gears.find(gear.id);
                 if (iter != gears.end())
@@ -1881,14 +1889,29 @@ namespace netxs::ui
                             {
                                 is_leaf = faux;
                                 auto& nexthop_focus = nexthop.base::plugin<pro::focus>();
-                                nexthop_focus.for_each_focused_leaf(gear, proc);
+                                nexthop_focus.for_first_focused_leaf(gear, proc);
+                                return faux;
                             }
+                            else return true;
                         });
                         if (is_leaf)
                         {
                             proc(boss);
                         }
                     }
+                }
+            }
+            void focus_next(input::hids& gear, si32 step)
+            {
+                auto next_ptr = boss.base::get_next();
+                while (next_ptr)
+                {
+                    if (next_ptr->has_plugin<pro::focus>())
+                    {
+                        pro::focus::set(next_ptr, gear.id, solo::on);
+                        break;
+                    }
+                    next_ptr = next_ptr->base::get_next();
                 }
             }
 
