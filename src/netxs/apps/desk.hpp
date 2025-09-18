@@ -444,7 +444,7 @@ namespace netxs::app::desk
             auto danger_color    = skin::globals().danger;
             auto highlight_color = cell{ skin::globals().winfocus };
             auto c8 = cell{}.bgc(argb::active_transparent).fgc(highlight_color.bgc());
-            //auto c3 = highlight_color;
+            auto c3 = highlight_color;
             auto cA = inactive_color;
             auto c1 = danger_color;
 
@@ -487,12 +487,18 @@ namespace netxs::app::desk
             {
                 auto tall = si32{ skin::globals().menuwide };
                 auto active_color    = skin::globals().active;
+                auto highlight_color = cell{ skin::globals().winfocus };
+                auto c3 = highlight_color;
                 auto cE = active_color;
                 auto user = ui::item::ctor(escx(" &").nil().add(" ").wrp(wrap::off)
                         .fgx(data_src->id == my_id ? cE.fgc() : argb{}).add(utf8).nil())
                     ->flexible()
                     ->setpad({ 1, 0, tall, tall }, { 0, 0, -tall, 0 })
                     ->active()
+                    //todo taskbar keybd navigation
+                    ->template plugin<pro::focus>(pro::focus::mode::focused, true, faux)
+                    ->template plugin<pro::keybd>()
+                    ->shader(c3, e2::form::state::focus::count)
                     ->shader(cell::shaders::xlight, e2::form::state::hover)
                     ->template plugin<pro::notes>(skin::globals().NsUser_tooltip);
                 return user;
@@ -616,37 +622,6 @@ namespace netxs::app::desk
                     input::bindings::keybind(boss, bindings);
                     boss.base::add_methods(basename::taskbar,
                     {
-                        { "FocusNext",          [&]
-                                                {
-                                                    //auto gui_cmd = e2::command::gui.param();
-                                                    //auto& gear = luafx.get_gear();
-                                                    //if (gear.is_real())
-                                                    //{
-                                                    //    gui_cmd.gear_id = gear.id;
-                                                    //    gear.set_handled();
-                                                    //}
-                                                    //gui_cmd.cmd_id = syscmd::focusnextwindow;
-                                                    //gui_cmd.args.emplace_back(luafx.get_args_or(1, si32{ 1 }));
-                                                    //boss.base::riseup(tier::preview, e2::command::gui, gui_cmd);
-                                                    //luafx.set_return();
-                                                }},
-                        { "Warp",               [&]
-                                                {
-                                                    //auto gui_cmd = e2::command::gui.param();
-                                                    //auto& gear = luafx.get_gear();
-                                                    //if (gear.is_real())
-                                                    //{
-                                                    //    gui_cmd.gear_id = gear.id;
-                                                    //    gear.set_handled();
-                                                    //}
-                                                    //gui_cmd.cmd_id = syscmd::warpwindow;
-                                                    //gui_cmd.args.emplace_back(luafx.get_args_or(1, si32{ 0 }));
-                                                    //gui_cmd.args.emplace_back(luafx.get_args_or(2, si32{ 0 }));
-                                                    //gui_cmd.args.emplace_back(luafx.get_args_or(3, si32{ 0 }));
-                                                    //gui_cmd.args.emplace_back(luafx.get_args_or(4, si32{ 0 }));
-                                                    //boss.base::riseup(tier::preview, e2::command::gui, gui_cmd);
-                                                    //luafx.set_return();
-                                                }},
                         { "FocusNearItem",      [&] // (-1/1)
                                                 {
                                                     auto& gear = luafx.get_gear();
@@ -855,6 +830,10 @@ namespace netxs::app::desk
             auto userlist_hidden = true;
             auto bttn = label_bttn->attach(slot::_2, ui::item::ctor(userlist_hidden ? "…" : "<"))
                 ->active()
+                //todo taskbar keybd navigation
+                ->template plugin<pro::focus>(pro::focus::mode::focused, true, faux)
+                ->template plugin<pro::keybd>()
+                ->shader(c3, e2::form::state::focus::count)
                 ->shader(cell::shaders::xlight, e2::form::state::hover)
                 ->plugin<pro::notes>(skin::globals().NsToggle_tooltip)
                 ->setpad({ 2, 2, tall, tall });
@@ -904,6 +883,10 @@ namespace netxs::app::desk
                 ->limits(bttn_min_size, bttn_max_size);
             auto disconnect_park = bttns->attach(slot::_1, ui::cake::ctor())
                 ->active()
+                //todo taskbar keybd navigation
+                ->template plugin<pro::focus>(pro::focus::mode::focused, true, faux)
+                ->template plugin<pro::keybd>()
+                ->shader(c3, e2::form::state::focus::count)
                 ->shader(cell::shaders::xlight, e2::form::state::hover)
                 ->plugin<pro::notes>(skin::globals().NsDisconnect_tooltip)
                 ->invoke([&, name = text{ username_view }](auto& boss)
@@ -920,6 +903,10 @@ namespace netxs::app::desk
                 ->alignment({ snap::head, snap::center });
             auto shutdown_park = bttns->attach(slot::_2, ui::cake::ctor())
                 ->active()
+                //todo taskbar keybd navigation
+                ->template plugin<pro::focus>(pro::focus::mode::focused, true, faux)
+                ->template plugin<pro::keybd>()
+                ->shader(c3, e2::form::state::focus::count)
                 ->shader(c1, e2::form::state::hover)
                 ->plugin<pro::notes>(skin::globals().NsShutdown_tooltip)
                 ->invoke([&](auto& boss)
