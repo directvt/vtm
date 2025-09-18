@@ -142,15 +142,19 @@ namespace netxs::app::desk
                         }
                         else // Set unique focus.
                         {
-                            window.base::riseup(tier::preview, e2::form::layout::expose);
-                            if (window.hidden) // Restore if minimized.
-                            {
-                                window.base::signal(tier::preview, e2::form::size::minimize, gear);
-                            }
-                            else pro::focus::set(window.This(), gear.id, solo::on);
+                            boss.base::signal(tier::request, desk::events::ui::activate, gear);
                             gear.dismiss();
                         }
                     });
+                    boss.LISTEN(tier::request, desk::events::ui::activate, gear) // Set unique focus.
+                    {
+                        window.base::riseup(tier::preview, e2::form::layout::expose);
+                        if (window.hidden) // Restore if minimized.
+                        {
+                            window.base::signal(tier::preview, e2::form::size::minimize, gear);
+                        }
+                        else pro::focus::set(window.This(), gear.id, solo::on);
+                    };
                     boss.on(tier::mouserelease, input::key::RightClick, [&](hids& /*gear*/)
                     {
                         // Reserved for context menu.
@@ -215,9 +219,13 @@ namespace netxs::app::desk
                     };
                     boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
                     {
-                        window.base::signal(tier::anycast, e2::form::proceed::quit::one, faux); // Show closing process.
+                        boss.base::signal(tier::request, desk::events::ui::activate, gear);
                         gear.dismiss(true);
                     });
+                    boss.LISTEN(tier::request, desk::events::ui::activate, gear)
+                    {
+                        window.base::signal(tier::anycast, e2::form::proceed::quit::one, faux); // Show closing process.
+                    };
                 });
             return item_area;
         };
@@ -344,12 +352,16 @@ namespace netxs::app::desk
                         insts.base::hidden = isfolded;
                         boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
                         {
+                            boss.base::signal(tier::request, desk::events::ui::activate, gear);
+                            gear.dismiss(true);
+                        });
+                        boss.LISTEN(tier::request, desk::events::ui::activate, gear)
+                        {
                             isfolded = !isfolded;
                             boss.set(isfolded ? "…" : "<");
                             insts.base::hidden = isfolded;
                             insts.base::reflow();
-                            gear.dismiss(true);
-                        });
+                        };
                     });
                 auto drop_bttn = bttn_fork.attach(slot::_2, ui::item::ctor("×"))
                     ->setpad({ 2, 2, tall, tall })
@@ -364,9 +376,13 @@ namespace netxs::app::desk
                     {
                         boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
                         {
-                            insts.base::signal(tier::release, desk::events::quit, faux); // Show closing process.
+                            boss.base::signal(tier::request, desk::events::ui::activate, gear);
                             gear.dismiss(true);
                         });
+                        boss.LISTEN(tier::request, desk::events::ui::activate, gear)
+                        {
+                            insts.base::signal(tier::release, desk::events::quit, faux); // Show closing process.
+                        };
                     });
                 bttn_rail.base::hidden = !menumodel_item.subset.size();
                 for (auto& new_appmodel_ptr : menumodel_item.subset)
@@ -752,7 +768,7 @@ namespace netxs::app::desk
                 ->setpad({ 0, 0, tall, tall })
                 ->limits({ 5, -1 });
             auto userlist_hidden = true;
-            auto bttn = label_bttn->attach(slot::_2, ui::item::ctor(userlist_hidden ? "…" : "<"))
+            auto bttn_ptr = label_bttn->attach(slot::_2, ui::item::ctor(userlist_hidden ? "…" : "<"))
                 ->active()
                 //todo taskbar keybd navigation
                 ->template plugin<pro::focus>(pro::focus::mode::focused, true, faux)
@@ -761,7 +777,7 @@ namespace netxs::app::desk
                 ->shader(cell::shaders::xlight, e2::form::state::hover)
                 ->plugin<pro::notes>(skin::globals().NsToggle_tooltip)
                 ->setpad({ 2, 2, tall, tall });
-            auto userlist_area = users_area->attach(ui::cake::ctor())
+            auto userlist_area_ptr = users_area->attach(ui::cake::ctor())
                 ->setpad({}, { 0, 0, -tall, 0 }) // To place above the admins/users label.
                 ->invoke([&](auto& boss)
                 {
@@ -772,22 +788,22 @@ namespace netxs::app::desk
                         auto users = boss.attach_element(desk::events::usrs, world_ptr, user_list_template);
                     };
                 });
-            bttn->invoke([&](auto& boss)
+            bttn_ptr->invoke([&](auto& boss)
             {
-                auto userlist_area_shadow = ptr::shadow(userlist_area);
-                auto bttn_shadow = ptr::shadow(bttn);
-                boss.on(tier::mouserelease, input::key::LeftClick, [&, userlist_area_shadow, bttn_shadow](hids& gear)
+                auto& userlist_area = *userlist_area_ptr;
+                auto& bttn = *bttn_ptr;
+                boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
                 {
-                    if (auto bttn = bttn_shadow.lock())
-                    if (auto userlist_area = userlist_area_shadow.lock())
-                    {
-                        auto& hidden = userlist_area->base::hidden;
-                        hidden = !hidden;
-                        bttn->set(hidden ? "…" : "<");
-                        userlist_area->base::reflow();
-                    }
+                    boss.base::signal(tier::request, desk::events::ui::activate, gear);
                     gear.dismiss(true);
                 });
+                boss.LISTEN(tier::request, desk::events::ui::activate, gear)
+                {
+                    auto& hidden = userlist_area.base::hidden;
+                    hidden = !hidden;
+                    bttn.set(hidden ? "…" : "<");
+                    userlist_area.base::reflow();
+                };
             });
             auto bttns_cake = taskbar->attach(slot::_2, ui::cake::ctor());
             auto bttns_area = bttns_cake->attach(ui::rail::ctor(axes::X_only))
@@ -817,10 +833,14 @@ namespace netxs::app::desk
                 {
                     boss.on(tier::mouserelease, input::key::LeftClick, [&, name](hids& gear)
                     {
-                        log("%%User %name% disconnected", prompt::desk, name);
-                        gear.owner.base::signal(tier::preview, e2::conio::quit);
+                        boss.base::signal(tier::request, desk::events::ui::activate, gear);
                         gear.dismiss(true);
                     });
+                    boss.LISTEN(tier::request, desk::events::ui::activate, gear)
+                    {
+                        log("%%User %name% disconnected", prompt::desk, name);
+                        gear.owner.base::signal(tier::preview, e2::conio::quit);
+                    };
                 });
             auto& disconnect_park = *disconnect_park_ptr;
             auto disconnect = disconnect_park.attach(ui::item::ctor(skin::globals().NsDisconnect_label))
@@ -838,9 +858,13 @@ namespace netxs::app::desk
                 {
                     boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
                     {
-                        boss.base::signal(tier::general, e2::shutdown, utf::concat(prompt::desk, "Server shutdown"));
+                        boss.base::signal(tier::request, desk::events::ui::activate, gear);
                         gear.dismiss(true);
                     });
+                    boss.LISTEN(tier::request, desk::events::ui::activate, gear)
+                    {
+                        boss.base::signal(tier::general, e2::shutdown, utf::concat(prompt::desk, "Server shutdown"));
+                    };
                 });
             auto shutdown = shutdown_park->attach(ui::item::ctor(skin::globals().NsShutdown_label))
                 ->setpad({ 1 + tall, 1 + tall, tall, tall })
