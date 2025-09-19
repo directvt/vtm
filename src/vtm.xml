@@ -1184,6 +1184,29 @@ R"==(
     <TerminalRestart                   ="vtm.terminal.Restart();"/>                    <!-- Terminate runnning console apps and restart current session. -->
     <IgnoreAltbuf                      ="if (vtm.terminal.AltbufMode()) then vtm.terminal.ForwardKeys(); return; end;"/>  <!-- Forward the last key event to the terminal if the alternate buffer is active. -->
 
+    <!-- Taskbar focus layout.
+            Splitter(not focusable)
+            AppGroup(weight=100)  CollapseButton(10) CloseAllButton(10)
+                RunningApp(50)  CloseButton(10)
+            ...
+            AppGroup(100)
+            UserListHeader(not focusable)  UserListCollapseButton(100)
+                UserLabel(50)
+                ...
+                UserLabel(50)
+            DisconnectButton(100)  ShutdownButton(10)
+        Keyboard focus switching logic.
+            DownArrow   Move to the next focusable element with a weight of at least 50, skipping elements with a lower weight.
+            UpArrow     Move to the prev focusable element with a weight of at least 50, skipping elements with a lower weight.
+            RightArrow  Move to the next focusable element with a weight of at least 10, skipping elements with a lower weight
+            LeftArrow   Move to the prev focusable element with a weight no less than the CURRENT one, skipping elements with a lower weight.
+            Tab         Move to the next focusable element with a weight of at least 100, skipping elements with a lower weight.
+            Shift+Tab   Move to the prev focusable element with a weight of at least 100, skipping elements with a lower weight.
+            PageDown    Move to the next focusable element skipping N elements with weight >= 50, where N=taskbar_height/(2*line_height).
+            PageUp      Move to the prev focusable element skipping N elements with weight >= 50, where N=taskbar_height/(2*line_height).
+            Home        Move to the first(top) focusable element with a weight of at least 100 in the visual tree.
+            End         Move to the last(bottom) focusable element with a weight of at least 100 in the visual tree.
+    -->
     <FocusLeftTaskbarItem  ="vtm.taskbar.FocusNearItem(-1)"/>
     <FocusRightTaskbarItem ="vtm.taskbar.FocusNearItem(1)"/>
     <FocusPrevTaskbarItem  ="vtm.taskbar.FocusByItem(-1)"/>
