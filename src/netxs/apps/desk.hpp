@@ -191,25 +191,33 @@ namespace netxs::app::desk
                 //todo taskbar keybd navigation
                 ->template plugin<pro::focus>(pro::focus::mode::focused, true, faux, weight_ui_button)
                 ->template plugin<pro::keybd>()
-                ->shader(c3, e2::form::state::focus::count)
+                ->shader(c1, e2::form::state::focus::count)
                 ->shader(c1, e2::form::state::hover)
                 ->setpad({ 2, 2, tall, tall })
                 ->template plugin<pro::notes>(skin::globals().NsTaskbarAppsClose_tooltip)
                 ->invoke([&](auto& boss)
                 {
                     boss.base::hidden = true;
-                    item_area->LISTEN(tier::release, e2::form::state::mouse, hovered)
+                    auto& reveal_button = boss.base::field([&](bool visible)
                     {
                         //auto unfolded = boss.base::riseup(tier::request, desk::events::ui::toggle);
                         //auto hidden = !unfolded || !hover;
                         //auto folded = item_area_inst.base::size().x <= boss.base::size().x * 2;
                         //auto hidden = folded || !hover;
-                        auto hidden = !hovered;
+                        auto hidden = !visible;
                         if (boss.base::hidden != hidden)
                         {
                             boss.base::hidden = hidden;
                             boss.base::reflow();
                         }
+                    });
+                    item_area->LISTEN(tier::release, e2::form::state::mouse, hovered)
+                    {
+                        reveal_button(hovered);
+                    };
+                    boss.LISTEN(tier::release, e2::form::state::focus::count, count)
+                    {
+                        reveal_button(count);
                     };
                     item_area->LISTEN(tier::release, e2::form::upon::vtree::attached, app_list_block, boss.sensors)
                     {
