@@ -1913,8 +1913,12 @@ namespace netxs::ui
                 {
                     if (next_ptr->has_plugin<pro::focus>())
                     {
-                        pro::focus::set(next_ptr, gear.id, solo::on);
-                        break;
+                        auto& focus = next_ptr->base::plugin<pro::focus>();
+                        if (focus.node_type == mode::focused)
+                        {
+                            pro::focus::set(next_ptr, gear.id, solo::on);
+                            break;
+                        }
                     }
                     next_ptr = next_ptr->base::get_next();
                 }

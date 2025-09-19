@@ -333,6 +333,7 @@ namespace netxs::app::desk
                     });
                 auto& isfolded = conf.folded;
                 auto insts_ptr = block_ptr->attach(ui::list::ctor())
+                    ->template plugin<pro::focus>()
                     ->setpad({ 0, 0, tall, 0 }, { 0, 0, -tall * 2, 0 });
                 auto& insts = *insts_ptr;
                 auto bttn_rail_ptr = head_fork_ptr->attach(slot::_2, ui::rail::ctor(axes::X_only, axes::all, axes::none))
@@ -373,6 +374,16 @@ namespace netxs::app::desk
                             boss.set(isfolded ? "…" : "<");
                             insts.base::hidden = isfolded;
                             insts.base::reflow();
+                        };
+                        insts.LISTEN(tier::release, e2::form::state::focus::count, count, boss.sensors)
+                        {
+                            if (isfolded && count)
+                            {
+                                isfolded = !isfolded;
+                                boss.set(isfolded ? "…" : "<");
+                                insts.base::hidden = isfolded;
+                                insts.base::reflow();
+                            }
                         };
                     });
                 auto drop_bttn = bttn_fork.attach(slot::_2, ui::item::ctor("×"))
@@ -794,8 +805,10 @@ namespace netxs::app::desk
                 ->shader(cell::shaders::xlight, e2::form::state::hover)
                 ->plugin<pro::notes>(skin::globals().NsToggle_tooltip)
                 ->setpad({ 2, 2, tall, tall });
+            auto& bttn = *bttn_ptr;
             auto userlist_area_ptr = users_area->attach(ui::cake::ctor())
                 ->setpad({}, { 0, 0, -tall, 0 }) // To place above the admins/users label.
+                ->template plugin<pro::focus>()
                 ->invoke([&](auto& boss)
                 {
                     boss.base::hidden = userlist_hidden;
@@ -804,11 +817,20 @@ namespace netxs::app::desk
                         auto world_ptr = world.This();
                         auto users = boss.attach_element(desk::events::usrs, world_ptr, user_list_template);
                     };
+                    boss.LISTEN(tier::release, e2::form::state::focus::count, count)
+                    {
+                        auto& hidden = boss.base::hidden;
+                        if (hidden && count)
+                        {
+                            hidden = !hidden;
+                            bttn.set(hidden ? "…" : "<");
+                            boss.base::reflow();
+                        }
+                    };
                 });
             bttn_ptr->invoke([&](auto& boss)
             {
                 auto& userlist_area = *userlist_area_ptr;
-                auto& bttn = *bttn_ptr;
                 boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
                 {
                     boss.base::signal(tier::request, desk::events::ui::activate, gear);
