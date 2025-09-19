@@ -392,7 +392,7 @@ namespace netxs::app::desk
                     //todo taskbar keybd navigation
                     ->template plugin<pro::focus>(pro::focus::mode::focused, true, faux, weight_ui_button)
                     ->template plugin<pro::keybd>()
-                    ->shader(c3, e2::form::state::focus::count)
+                    ->shader(c1, e2::form::state::focus::count)
                     ->shader(c1, e2::form::state::hover)
                     ->template plugin<pro::notes>(skin::globals().NsTaskbarApps_groupclosetooltip)
                     ->invoke([&](auto& boss)

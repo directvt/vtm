@@ -769,8 +769,8 @@ namespace netxs::ui
             }
             return netxs::sptr<T>{};
         }
-        // base: .
-        auto _get_next()
+        // base: Return the next object in visual tree.
+        sptr get_next()
         {
             auto next_item_ptr = sptr{};
             if (auto parent_ptr = base::parent())
@@ -781,24 +781,21 @@ namespace netxs::ui
                     if (auto next_ptr = *next_item_iter)
                     {
                         next_item_ptr = next_ptr;
+                        while (next_item_ptr && next_item_ptr->subset.size())
+                        {
+                            next_item_ptr = next_item_ptr->subset.front();
+                        }
                         break;
                     }
-                    next_item_iter = std::next(next_item_iter);
+                    ++next_item_iter;
                 }
-            }
-            return next_item_ptr;
-        }
-        // base: Return the next object in visual tree.
-        sptr get_next()
-        {
-            auto next_item_ptr = _get_next();
-            if (!next_item_ptr)
-            if (auto parent_ptr = base::parent())
-            {
-                next_item_ptr = parent_ptr->get_next();
-                while (next_item_ptr && next_item_ptr->subset.size())
+                if (!next_item_ptr)
                 {
-                    next_item_ptr = next_item_ptr->subset.front();
+                    next_item_ptr = parent_ptr->get_next();
+                    while (next_item_ptr && next_item_ptr->subset.size())
+                    {
+                        next_item_ptr = next_item_ptr->subset.front();
+                    }
                 }
             }
             return next_item_ptr;
