@@ -73,6 +73,10 @@ namespace netxs::app::desk
 
     namespace
     {
+        static constexpr auto weight_app_group = 100;
+        static constexpr auto weight_app_label = 50;
+        static constexpr auto weight_ui_button = 10;
+
         auto app_template = [](auto new_appmodel_ptr)
         {
             auto tall = si32{ skin::globals().menuwide };
@@ -167,7 +171,7 @@ namespace netxs::app::desk
             auto app_label = item_area->attach(slot::_1, ui::item::ctor(current_title))
                 ->active()
                 //todo taskbar keybd navigation
-                ->template plugin<pro::focus>(pro::focus::mode::focused, true, faux)
+                ->template plugin<pro::focus>(pro::focus::mode::focused, true, faux, weight_app_label)
                 ->template plugin<pro::keybd>()
                 ->shader(c3, e2::form::state::focus::count)
                 ->setpad({ tall + 1, 0, tall, tall })
@@ -185,7 +189,7 @@ namespace netxs::app::desk
             auto app_close = item_area->attach(slot::_2, ui::item::ctor("×"))
                 ->active()
                 //todo taskbar keybd navigation
-                ->template plugin<pro::focus>(pro::focus::mode::focused, true, faux)
+                ->template plugin<pro::focus>(pro::focus::mode::focused, true, faux, weight_ui_button)
                 ->template plugin<pro::keybd>()
                 ->shader(c3, e2::form::state::focus::count)
                 ->shader(c1, e2::form::state::hover)
@@ -271,7 +275,7 @@ namespace netxs::app::desk
                     ->setpad({ 0, 0, tall, tall })
                     ->active()
                     //todo taskbar keybd navigation
-                    ->template plugin<pro::focus>(pro::focus::mode::focused, true, faux)
+                    ->template plugin<pro::focus>(pro::focus::mode::focused, true, faux, weight_app_group)
                     ->template plugin<pro::keybd>()
                     ->shader(c3, e2::form::state::focus::count)
                     ->template plugin<pro::notes>(obj_note.empty() ? def_note : obj_note)
@@ -342,7 +346,7 @@ namespace netxs::app::desk
                     ->setpad({ 2, 2, tall, tall })
                     ->active()
                     //todo taskbar keybd navigation
-                    ->template plugin<pro::focus>(pro::focus::mode::focused, true, faux)
+                    ->template plugin<pro::focus>(pro::focus::mode::focused, true, faux, weight_ui_button)
                     ->template plugin<pro::keybd>()
                     ->shader(c3, e2::form::state::focus::count)
                     ->shader(cell::shaders::xlight, e2::form::state::hover)
@@ -367,7 +371,7 @@ namespace netxs::app::desk
                     ->setpad({ 2, 2, tall, tall })
                     ->active()
                     //todo taskbar keybd navigation
-                    ->template plugin<pro::focus>(pro::focus::mode::focused, true, faux)
+                    ->template plugin<pro::focus>(pro::focus::mode::focused, true, faux, weight_ui_button)
                     ->template plugin<pro::keybd>()
                     ->shader(c3, e2::form::state::focus::count)
                     ->shader(c1, e2::form::state::hover)
@@ -512,7 +516,7 @@ namespace netxs::app::desk
                     ->setpad({ 1, 0, tall, tall }, { 0, 0, -tall, 0 })
                     ->active()
                     //todo taskbar keybd navigation
-                    ->template plugin<pro::focus>(pro::focus::mode::focused, true, faux)
+                    ->template plugin<pro::focus>(pro::focus::mode::focused, true, faux, weight_app_label)
                     ->template plugin<pro::keybd>()
                     ->shader(c3, e2::form::state::focus::count)
                     ->shader(cell::shaders::xlight, e2::form::state::hover)
@@ -662,21 +666,26 @@ namespace netxs::app::desk
                         auto is_active = !!count;
                         boss.base::riseup(tier::preview, desk::events::ui::toggle, is_active);
                     };
+                    auto& timer = boss.base::plugin<pro::timer>();
                     boss.LISTEN(tier::release, e2::form::state::mouse, hovered)
                     {
-                        auto& timer = boss.base::template plugin<pro::timer>();
                         if (hovered)
                         {
                             timer.pacify(faux);
-                            return;
                         }
-                        // Only when mouse leaving.
-                        auto toggle = [&](auto state)
+                        else
                         {
-                            boss.base::riseup(tier::preview, desk::events::ui::toggle, state);
-                            return faux; // One shot call.
-                        };
-                        timer.actify(faux, skin::globals().menu_timeout, toggle);
+                            auto count = boss.base::signal(tier::request, e2::form::state::focus::count);
+                            if (count == 0) // Only when mouse leaving and unfocused.
+                            {
+                                auto toggle = [&](auto state)
+                                {
+                                    boss.base::riseup(tier::preview, desk::events::ui::toggle, state);
+                                    return faux; // One shot call.
+                                };
+                                timer.actify(faux, skin::globals().menu_timeout, toggle);
+                            }
+                        }
                     };
                 });
             auto grips = taskbar_grips.attach(slot::_2, ui::mock::ctor())
@@ -771,7 +780,7 @@ namespace netxs::app::desk
             auto bttn_ptr = label_bttn->attach(slot::_2, ui::item::ctor(userlist_hidden ? "…" : "<"))
                 ->active()
                 //todo taskbar keybd navigation
-                ->template plugin<pro::focus>(pro::focus::mode::focused, true, faux)
+                ->template plugin<pro::focus>(pro::focus::mode::focused, true, faux, weight_app_group)
                 ->template plugin<pro::keybd>()
                 ->shader(c3, e2::form::state::focus::count)
                 ->shader(cell::shaders::xlight, e2::form::state::hover)
@@ -824,7 +833,7 @@ namespace netxs::app::desk
             auto disconnect_park_ptr = bttns->attach(slot::_1, ui::cake::ctor())
                 ->active()
                 //todo taskbar keybd navigation
-                ->template plugin<pro::focus>(pro::focus::mode::focused, true, faux)
+                ->template plugin<pro::focus>(pro::focus::mode::focused, true, faux, weight_app_group)
                 ->template plugin<pro::keybd>()
                 ->shader(c3, e2::form::state::focus::count)
                 ->shader(cell::shaders::xlight, e2::form::state::hover)
@@ -849,7 +858,7 @@ namespace netxs::app::desk
             auto shutdown_park = bttns->attach(slot::_2, ui::cake::ctor())
                 ->active()
                 //todo taskbar keybd navigation
-                ->template plugin<pro::focus>(pro::focus::mode::focused, true, faux)
+                ->template plugin<pro::focus>(pro::focus::mode::focused, true, faux, weight_ui_button)
                 ->template plugin<pro::keybd>()
                 ->shader(c3, e2::form::state::focus::count)
                 ->shader(c1, e2::form::state::hover)
@@ -881,42 +890,16 @@ namespace netxs::app::desk
                 input::bindings::keybind(boss, bindings);
                 boss.base::add_methods(basename::taskbar,
                 {
-                    { "FocusNearItem",      [&] // (-1/1)
+                    { "FocusNextItem",      [&] // (si32 n, si32 w)
                                             {
                                                 auto& gear = luafx.get_gear();
-                                                auto step = luafx.get_args_or(1, si32{ 1 });
-                                                //
-                                                step = 0;
-                                                gear.set_handled();
-                                                luafx.set_return();
-                                            }},
-                    { "FocusByItem",        [&] // (-1/1)
-                                            {
-                                                auto& gear = luafx.get_gear();
-                                                auto step = luafx.get_args_or(1, si32{ 1 });
+                                                auto n = luafx.get_args_or(1, si32{ 1 });
+                                                auto w = luafx.get_args_or(2, si32{ 0 });
                                                 focus.for_first_focused_leaf(gear, [&](auto& focused_item)
                                                 {
                                                     auto& item_focus = focused_item.base::plugin<pro::focus>();
-                                                    item_focus.focus_next(gear, step);
+                                                    item_focus.focus_next(gear, n, w);
                                                 });
-                                                gear.set_handled();
-                                                luafx.set_return();
-                                            }},
-                    { "FocusByPage",        [&] // (-1/1)
-                                            {
-                                                auto& gear = luafx.get_gear();
-                                                auto step = luafx.get_args_or(1, si32{ 1 });
-                                                //
-                                                step = 0;
-                                                gear.set_handled();
-                                                luafx.set_return();
-                                            }},
-                    { "FocusByGroup",       [&] // (-1/1)
-                                            {
-                                                auto& gear = luafx.get_gear();
-                                                auto step = luafx.get_args_or(1, si32{ 1 });
-                                                //
-                                                step = 0;
                                                 gear.set_handled();
                                                 luafx.set_return();
                                             }},
@@ -971,6 +954,24 @@ namespace netxs::app::desk
                                                 });
                                                 gear.set_handled();
                                                 luafx.set_return();
+                                            }},
+                    { "GetHeight",          [&]
+                                            {
+                                                auto& gear = luafx.get_gear();
+                                                auto viewport = gear.owner.base::signal(tier::request, e2::form::prop::viewport);
+                                                auto h1 = std::max(viewport.size.y, 1);     // Taskbar height.
+                                                auto h2 = skin::globals().menuwide ? 2 : 1; // Taskbar line height.
+                                                luafx.set_return(h1, h2);
+                                            }},
+                    { "GetFocusedWeight",   [&]
+                                            {
+                                                auto& gear = luafx.get_gear();
+                                                auto focused_weight = 0;
+                                                focus.for_first_focused_leaf(gear, [&](auto& focused_item)
+                                                {
+                                                    focused_weight = focused_item.base::plugin<pro::focus>().get_weight();
+                                                });
+                                                luafx.set_return(focused_weight);
                                             }},
                 });
             });

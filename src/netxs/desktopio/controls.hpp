@@ -1701,11 +1701,12 @@ namespace netxs::ui
                   skill::memo;
 
             //todo kb navigation type: transit, cyclic, plain, disabled, closed
-            umap gears; // focus: Registered gears.
+            umap gears;     // focus: Registered gears.
             si32 node_type; // focus: .
-            si32 count{}; // focus: The number of active gears.
-            si64 treeid = datetime::uniqueid(); // focus: .
-            ui64 digest = ui64{}; // focus: .
+            si32 count;     // focus: The number of active gears.
+            si64 treeid;    // focus: .
+            ui64 digest;    // focus: .
+            si32 weight;    // focus: Focusable object weight.
 
             auto add_chain(id_t gear_id, chain_t new_chain = { .active = state::dead })
             {
@@ -1901,7 +1902,11 @@ namespace netxs::ui
                     }
                 }
             }
-            void focus_next(input::hids& gear, si32 step)
+            auto get_weight()
+            {
+                return weight;
+            }
+            void focus_next(input::hids& gear, si32 step, si32 weight_threshold)
             {
                 auto next_ptr = boss.base::get_next();
                 while (next_ptr)
@@ -1916,9 +1921,13 @@ namespace netxs::ui
             }
 
             focus(base&&) = delete;
-            focus(base& boss, si32 focus_mode = mode::hub, bool set_default_focus = true, bool focus_on_click = true)
-                : skill{ boss },
-                  node_type{ focus_mode }
+            focus(base& boss, si32 focus_mode = mode::hub, bool set_default_focus = true, bool focus_on_click = true, si32 weight = 0)
+                :   skill{ boss                 },
+                node_type{ focus_mode           },
+                    count{ 0                    },
+                   treeid{ datetime::uniqueid() },
+                   digest{ 0                    },
+                   weight{ weight               }
             {
                 if (set_default_focus && (node_type == mode::focused || node_type == mode::active || node_type == mode::relay)) // Pave default focus path at startup.
                 {
