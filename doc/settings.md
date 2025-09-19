@@ -601,10 +601,7 @@ Standard object names
 |                 |                          | `vtm.desktop.Run({ lua_table })`                   | Run the specified applet.
 |                 |                          | `vtm.desktop.FocusNextWindow(int n)`               | Set focus to the next (n=1) or previous (n=-1) desktop window.
 |`taskbar`        | Desktop taskbar          | `vtm.taskbar.ActivateItem()`                       | Activate the focused UI element on the taskbar.
-|                 |                          | `vtm.taskbar.FocusNearItem(int n)`                 | Set focus to the left (n=-1) or right (n=1) UI element on the taskbar.
-|                 |                          | `vtm.taskbar.FocusByItem(int n)`                   | Set focus to the next (n=1) or previous (n=-1) UI element on the taskbar.
-|                 |                          | `vtm.taskbar.FocusByPage(int n)`                   | Set focus to a UI element on the next (n=1) or previous (n=-1) page of the taskbar item list.
-|                 |                          | `vtm.taskbar.FocusByGroup(int n)`                  | Set focus to a UI element in the next (n=1) or previous (n=-1) group of elements on the taskbar.
+|                 |                          | `vtm.taskbar.FocusNextItem(si32 n, si32 w)`        | Move to the next(n>0)/prev(n<0) focusable element with a weight of at least `w`, skipping (std::abs(n)-1) elements with weight >= `w` and all elements with a lower weight.
 |                 |                          | `vtm.taskbar.FocusTop()`                           | Set focus to the first (top) focusable UI element among the elements on the taskbar.
 |                 |                          | `vtm.taskbar.FocusEnd()`                           | Set focus to the last (bottom) focusable UI element among the elements on the taskbar.
 |                 |                          | `vtm.taskbar.ChangeWidthByStep(int n)`             | Change the taskbar width by step n.
