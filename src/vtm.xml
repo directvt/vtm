@@ -1212,8 +1212,8 @@ R"==(
     <FocusRightTaskbarItem ="vtm.taskbar.FocusNextItem( 1, 10);"/>
     <FocusPrevTaskbarItem  ="vtm.taskbar.FocusNextItem(-1, 50);"/>
     <FocusNextTaskbarItem  ="vtm.taskbar.FocusNextItem( 1, 50);"/>
-    <FocusPrevTaskbarPage  ="vtm.taskbar.FocusNextItem(-h, 50);"/>
-    <FocusNextTaskbarPage  ="vtm.taskbar.FocusNextItem( h, 50);"/>
+    <FocusPrevTaskbarPage  ="local h1,h2=vtm.taskbar.GetHeight(); vtm.taskbar.FocusNextItem(-h1/(2*h2), 50);"/>
+    <FocusNextTaskbarPage  ="local h1,h2=vtm.taskbar.GetHeight(); vtm.taskbar.FocusNextItem( h1/(2*h2), 50);"/>
     <FocusPrevTaskbarGroup ="vtm.taskbar.FocusNextItem(-1, 100);"/>
     <FocusNextTaskbarGroup ="vtm.taskbar.FocusNextItem( 1, 100);"/>
     <FocusTaskbarTop       ="vtm.taskbar.FocusTop();"/>
