@@ -931,15 +931,16 @@ namespace netxs::app::desk
                 input::bindings::keybind(boss, bindings);
                 boss.base::add_methods(basename::taskbar,
                 {
-                    { "FocusNextItem",      [&] // (si32 n, si32 w)
+                    { "FocusNextItem",      [&] // (si32 n, si32 min_w, si32 max_w = si32max)
                                             {
                                                 auto& gear = luafx.get_gear();
-                                                auto n = luafx.get_args_or(1, si32{ 1 });
-                                                auto w = luafx.get_args_or(2, si32{ 0 });
+                                                auto count = luafx.get_args_or(1, si32{ 1 });
+                                                auto min_w = luafx.get_args_or(2, si32{ 0 });
+                                                auto max_w = luafx.get_args_or(3, si32max);
                                                 focus.for_first_focused_leaf(gear, [&](auto& focused_item)
                                                 {
                                                     auto& item_focus = focused_item.base::plugin<pro::focus>();
-                                                    item_focus.focus_next(gear, n, w);
+                                                    item_focus.focus_next(gear, count, min_w, max_w);
                                                 });
                                                 gear.set_handled();
                                                 luafx.set_return();

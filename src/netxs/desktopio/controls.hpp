@@ -1906,7 +1906,7 @@ namespace netxs::ui
             {
                 return weight;
             }
-            void focus_next(input::hids& gear, si32 step, si32 weight_threshold)
+            void focus_next(input::hids& gear, si32 n, si32 min_w, si32 max_w = si32max)
             {
                 auto next_ptr = boss.base::get_next();
                 while (next_ptr)

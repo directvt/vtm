@@ -1206,10 +1206,10 @@ R"==(
             PageUp      Move to the prev focusable element skipping N elements with weight >= 50, where N=taskbar_height/(2*line_height).
             Home        Move to the first(top) focusable element with a weight of at least 100 in the visual tree.
             End         Move to the last(bottom) focusable element with a weight of at least 100 in the visual tree.
-        vtm.taskbar.FocusNextItem(si32 n, si32 w); // Move to the next(n>0)/prev(n<0) focusable element with a weight of at least `w`, skipping (std::abs(n)-1) elements with weight >= `w` and all elements with a lower weight.
+        vtm.taskbar.FocusNextItem(si32 n, si32 min_w, si32 max_w = si32max); // Move to the next(n>0)/prev(n<0) focusable element with `min_w` <= weight <= `max_w`, skipping (std::abs(n)-1) elements with `min_w` <= weight <= `max_w` and all elements with weight < `min_w`.
     -->
     <FocusLeftTaskbarItem  ="local w=vtm.taskbar.GetFocusedWeight(); vtm.taskbar.FocusNextItem(-1, w);"/>
-    <FocusRightTaskbarItem ="vtm.taskbar.FocusNextItem( 1, 10);"/>
+    <FocusRightTaskbarItem ="vtm.taskbar.FocusNextItem( 1, 10, 10);"/>
     <FocusPrevTaskbarItem  ="vtm.taskbar.FocusNextItem(-1, 50);"/>
     <FocusNextTaskbarItem  ="vtm.taskbar.FocusNextItem( 1, 50);"/>
     <FocusPrevTaskbarPage  ="local h1,h2=vtm.taskbar.GetHeight(); vtm.taskbar.FocusNextItem(-h1/(2*h2), 50);"/>

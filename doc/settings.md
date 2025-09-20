@@ -601,7 +601,7 @@ Standard object names
 |                 |                          | `vtm.desktop.Run({ lua_table })`                   | Run the specified applet.
 |                 |                          | `vtm.desktop.FocusNextWindow(int n)`               | Set focus to the next (n=1) or previous (n=-1) desktop window.
 |`taskbar`        | Desktop taskbar          | `vtm.taskbar.ActivateItem()`                       | Activate the focused UI element on the taskbar.
-|                 |                          | `vtm.taskbar.FocusNextItem(si32 n, si32 w)`        | Move to the next(n>0)/prev(n<0) focusable element with a weight of at least `w`, skipping (std::abs(n)-1) elements with weight >= `w` and all elements with a lower weight.
+|                 |                          | `vtm.taskbar.FocusNextItem(si32 n, si32 min_w, si32 max_w = si32max)` | Move to the next(n>0)/prev(n<0) focusable element with `min_w` <= weight <= `max_w`, skipping (std::abs(n)-1) elements with `min_w` <= weight <= `max_w` and all elements with weight < `min_w`.
 |                 |                          | `vtm.taskbar.FocusTop()`                           | Set focus to the first (top) focusable UI element among the elements on the taskbar.
 |                 |                          | `vtm.taskbar.FocusEnd()`                           | Set focus to the last (bottom) focusable UI element among the elements on the taskbar.
 |                 |                          | `vtm.taskbar.ChangeWidthByStep(int n)`             | Change the taskbar width by step n.
@@ -1955,18 +1955,42 @@ Notes
     <TerminalRestart                   ="vtm.terminal.Restart();"/>                    <!-- Terminate runnning console apps and restart current session. -->
     <IgnoreAltbuf                      ="if (vtm.terminal.AltbufMode()) then vtm.terminal.ForwardKeys(); return; end;"/>  <!-- Forward the last key event to the terminal if the alternate buffer is active. -->
 
-    <FocusLeftTaskbarItem  ="vtm.taskbar.FocusNearItem(-1)"/>
-    <FocusRightTaskbarItem ="vtm.taskbar.FocusNearItem(1)"/>
-    <FocusPrevTaskbarItem  ="vtm.taskbar.FocusByItem(-1)"/>
-    <FocusNextTaskbarItem  ="vtm.taskbar.FocusByItem(1)"/>
-    <FocusPrevTaskbarPage  ="vtm.taskbar.FocusByPage(-1)"/>
-    <FocusNextTaskbarPage  ="vtm.taskbar.FocusByPage(1)"/>
-    <FocusPrevTaskbarGroup ="vtm.taskbar.FocusByGroup(-1)"/>
-    <FocusNextTaskbarGroup ="vtm.taskbar.FocusByGroup(1)"/>
-    <FocusTaskbarTop       ="vtm.taskbar.FocusTop()"/>
-    <FocusTaskbarEnd       ="vtm.taskbar.FocusEnd()"/>
-    <DecreaseTaskbarWidth  ="vtm.taskbar.ChangeWidthByStep(-1)"/>
-    <IncreaseTaskbarWidth  ="vtm.taskbar.ChangeWidthByStep(1)"/>
-    <ActivateTaskbarItem   ="vtm.taskbar.ActivateItem()"/>
+    <!-- Taskbar focus layout.
+            Splitter(not focusable)
+            AppGroup(weight=100)  CollapseButton(10) CloseAllButton(10)
+                RunningApp(50)  CloseButton(10)
+            ...
+            AppGroup(100)
+            UserListHeader(not focusable)  UserListCollapseButton(100)
+                UserLabel(50)
+                ...
+                UserLabel(50)
+            DisconnectButton(100)  ShutdownButton(10)
+        Keyboard focus switching logic.
+            DownArrow   Move to the next focusable element with a weight of at least 50, skipping elements with a lower weight.
+            UpArrow     Move to the prev focusable element with a weight of at least 50, skipping elements with a lower weight.
+            RightArrow  Move to the next focusable element with a weight of at least 10, skipping elements with a lower weight
+            LeftArrow   Move to the prev focusable element with a weight no less than the CURRENT one, skipping elements with a lower weight.
+            Tab         Move to the next focusable element with a weight of at least 100, skipping elements with a lower weight.
+            Shift+Tab   Move to the prev focusable element with a weight of at least 100, skipping elements with a lower weight.
+            PageDown    Move to the next focusable element skipping N elements with weight >= 50, where N=taskbar_height/(2*line_height).
+            PageUp      Move to the prev focusable element skipping N elements with weight >= 50, where N=taskbar_height/(2*line_height).
+            Home        Move to the first(top) focusable element with a weight of at least 100 in the visual tree.
+            End         Move to the last(bottom) focusable element with a weight of at least 100 in the visual tree.
+        vtm.taskbar.FocusNextItem(si32 n, si32 min_w, si32 max_w = si32max); // Move to the next(n>0)/prev(n<0) focusable element with `min_w` <= weight <= `max_w`, skipping (std::abs(n)-1) elements with `min_w` <= weight <= `max_w` and all elements with weight < `min_w`.
+    -->
+    <FocusLeftTaskbarItem  ="local w=vtm.taskbar.GetFocusedWeight(); vtm.taskbar.FocusNextItem(-1, w);"/>
+    <FocusRightTaskbarItem ="vtm.taskbar.FocusNextItem( 1, 10, 10);"/>
+    <FocusPrevTaskbarItem  ="vtm.taskbar.FocusNextItem(-1, 50);"/>
+    <FocusNextTaskbarItem  ="vtm.taskbar.FocusNextItem( 1, 50);"/>
+    <FocusPrevTaskbarPage  ="local h1,h2=vtm.taskbar.GetHeight(); vtm.taskbar.FocusNextItem(-h1/(2*h2), 50);"/>
+    <FocusNextTaskbarPage  ="local h1,h2=vtm.taskbar.GetHeight(); vtm.taskbar.FocusNextItem( h1/(2*h2), 50);"/>
+    <FocusPrevTaskbarGroup ="vtm.taskbar.FocusNextItem(-1, 100);"/>
+    <FocusNextTaskbarGroup ="vtm.taskbar.FocusNextItem( 1, 100);"/>
+    <FocusTaskbarTop       ="vtm.taskbar.FocusTop();"/>
+    <FocusTaskbarEnd       ="vtm.taskbar.FocusEnd();"/>
+    <DecreaseTaskbarWidth  ="vtm.taskbar.ChangeWidthByStep(-1);"/>
+    <IncreaseTaskbarWidth  ="vtm.taskbar.ChangeWidthByStep(1);"/>
+    <ActivateTaskbarItem   ="vtm.taskbar.ActivateItem();"/>
 </Scripting>
 ```
