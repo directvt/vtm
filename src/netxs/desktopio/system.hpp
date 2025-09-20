@@ -4159,7 +4159,7 @@ namespace netxs::os
                                               : dtvt::vtmode & ui::console::nt16  ? "Win32 Console API 16-color"
                                               : dtvt::vtmode & ui::console::vt256 ? "xterm 256-color"
                                               : dtvt::vtmode & ui::console::vtrgb ? "xterm truecolor"
-                                                                                  : "xterm VT2D (truecolor with 2D Character Geometry support)");
+                                                                                  : "xterm VT2D (TrueColor with 2D Character Geometry)");
                 log(prompt::os, "Mouse mode: ", dtvt::vtmode & ui::console::mouse ? "Kernel input device"
                                               : dtvt::vtmode & ui::console::nt    ? "Win32 Console API"
                                                                                   : "VT-style");
@@ -4319,7 +4319,7 @@ namespace netxs::os
                 if constexpr (debugmode) log(prompt::dtvt, "Writing thread started", ' ', utf::to_hex_0x(std::this_thread::get_id()));
                 auto cache = text{};
                 auto guard = std::unique_lock{ writemtx };
-                while ((void)writesyn.wait(guard, [&]{ return writebuf.size() || !attached; }), attached)
+                while (attached && ((void)writesyn.wait(guard, [&]{ return writebuf.size() || !attached; }), attached))
                 {
                     std::swap(cache, writebuf);
                     guard.unlock();
@@ -4363,7 +4363,8 @@ namespace netxs::os
                         directvt::binary::stream::reading_loop(termlink, receiver);
                         if constexpr (debugmode) log(prompt::dtvt, "Reading thread ended", ' ', utf::to_hex_0x(std::this_thread::get_id()));
 
-                        if (attached.exchange(faux)) writesyn.notify_one(); // Interrupt writing thread.
+                        attached.exchange(faux);
+                        writesyn.notify_one(); // Interrupt writing thread.
                         if constexpr (debugmode) log(prompt::dtvt, "Writing thread joining", ' ', utf::to_hex_0x(stdinput.get_id()));
                         stdwrite.join();
                         log("%%Process '%cmd%' disconnected", prompt::dtvt, ansi::hi(utf::debase437(cmd)));
