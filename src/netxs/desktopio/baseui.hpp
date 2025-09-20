@@ -770,35 +770,28 @@ namespace netxs::ui
             return netxs::sptr<T>{};
         }
         // base: Return the next object in visual tree.
-        sptr get_next()
+        auto get_next()
         {
-            auto next_item_ptr = sptr{};
-            if (auto parent_ptr = base::parent())
+            for (auto& next_ptr : base::subset)
             {
-                auto next_item_iter = std::next(base::holder);
-                while (next_item_iter != parent_ptr->subset.end())
+                if (next_ptr) return next_ptr;
+            }
+            auto parent_ptr = base::parent();
+            auto current_ptr = base::This();
+            while (parent_ptr)
+            {
+                auto next_item_iter = std::next(current_ptr->base::holder);
+                while (next_item_iter != parent_ptr->base::subset.end())
                 {
                     if (auto next_ptr = *next_item_iter)
                     {
-                        next_item_ptr = next_ptr;
-                        while (next_item_ptr && next_item_ptr->subset.size())
-                        {
-                            next_item_ptr = next_item_ptr->subset.front();
-                        }
-                        break;
+                        return next_ptr;
                     }
                     ++next_item_iter;
                 }
-                if (!next_item_ptr)
-                {
-                    next_item_ptr = parent_ptr->get_next();
-                    while (next_item_ptr && next_item_ptr->subset.size())
-                    {
-                        next_item_ptr = next_item_ptr->subset.front();
-                    }
-                }
+                current_ptr = std::exchange(parent_ptr, parent_ptr->base::parent());
             }
-            return next_item_ptr;
+            return sptr{};
         }
         // base: Update scripting context. Run on anycast, e2::form::upon::started.
         void update_scripting_context()
