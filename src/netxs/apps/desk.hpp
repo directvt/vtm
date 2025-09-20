@@ -351,11 +351,12 @@ namespace netxs::app::desk
                 auto& bttn_rail = *bttn_rail_ptr;
                 auto bttn_fork_ptr = bttn_rail.attach(ui::fork::ctor(axis::X));
                 auto& bttn_fork = *bttn_fork_ptr;
-                auto fold_bttn = bttn_fork.attach(slot::_1, ui::item::ctor(isfolded ? "…" : "<"))
+                bttn_rail.base::hidden = !menumodel_item.subset.size();
+                auto fold_bttn_ptr = bttn_fork.attach(slot::_1, ui::item::ctor(isfolded ? "…" : "<"))
                     ->setpad({ 2, 2, tall, tall })
                     ->active()
                     //todo taskbar keybd navigation
-                    ->template plugin<pro::focus>(pro::focus::mode::focused, true, faux, weight_ui_button)
+                    ->template plugin<pro::focus>(bttn_rail.base::hidden ? pro::focus::mode::focusable : pro::focus::mode::focused, true, faux, weight_ui_button) // Skip (make it just focusable) this item when moving focus if there are no apps running.
                     ->template plugin<pro::keybd>()
                     ->shader(c3, e2::form::state::focus::count)
                     ->shader(cell::shaders::xlight, e2::form::state::hover)
@@ -386,11 +387,11 @@ namespace netxs::app::desk
                             }
                         };
                     });
-                auto drop_bttn = bttn_fork.attach(slot::_2, ui::item::ctor("×"))
+                auto drop_bttn_ptr = bttn_fork.attach(slot::_2, ui::item::ctor("×"))
                     ->setpad({ 2, 2, tall, tall })
                     ->active()
                     //todo taskbar keybd navigation
-                    ->template plugin<pro::focus>(pro::focus::mode::focused, true, faux, weight_ui_button)
+                    ->template plugin<pro::focus>(bttn_rail.base::hidden ? pro::focus::mode::focusable : pro::focus::mode::focused, true, faux, weight_ui_button) // Skip (make it just focusable) this item when moving focus if there are no apps running.
                     ->template plugin<pro::keybd>()
                     ->shader(c1, e2::form::state::focus::count)
                     ->shader(c1, e2::form::state::hover)
@@ -407,22 +408,32 @@ namespace netxs::app::desk
                             insts.base::signal(tier::release, desk::events::quit, faux); // Show closing process.
                         };
                     });
-                bttn_rail.base::hidden = !menumodel_item.subset.size();
                 for (auto& new_appmodel_ptr : menumodel_item.subset)
                 {
                     insts.attach(app_template(new_appmodel_ptr));
                 }
                 auto& block = *block_ptr;
+                auto& fold_bttn_focus = fold_bttn_ptr->base::plugin<pro::focus>();
+                auto& drop_bttn_focus = drop_bttn_ptr->base::plugin<pro::focus>();
+                auto& update_focusability = menumodel_item.base::field([&]
+                {
+                    if (std::exchange(bttn_rail.base::hidden, !menumodel_item.subset.size()) != bttn_rail.base::hidden)
+                    {
+                        auto bttn_focusability = bttn_rail.base::hidden ? pro::focus::mode::focusable : pro::focus::mode::focused;
+                        fold_bttn_focus.set_mode(bttn_focusability);
+                        drop_bttn_focus.set_mode(bttn_focusability);
+                    }
+                });
                 menumodel_item.LISTEN(tier::release, desk::events::apps::created, new_appmodel_ptr, block.sensors)
                 {
                     auto running_app_label_ptr = insts.attach(app_template(new_appmodel_ptr));
-                    bttn_rail.base::hidden = !menumodel_item.subset.size();
+                    update_focusability();
                     running_app_label_ptr->base::reflow();
                 };
                 menumodel_item.LISTEN(tier::release, desk::events::apps::removed, new_appmodel_ptr, block.sensors)
                 {
                     //todo pass focus to the prev item
-                    bttn_rail.base::hidden = !menumodel_item.subset.size();
+                    update_focusability();
                     block.base::enqueue([&](auto& /*boss*/)
                     {
                         block.base::reflow();

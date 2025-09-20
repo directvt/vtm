@@ -1923,6 +1923,10 @@ namespace netxs::ui
                     next_ptr = next_ptr->base::get_next();
                 }
             }
+            void set_mode(si32 focus_mode)
+            {
+                node_type = focus_mode;
+            }
 
             focus(base&&) = delete;
             focus(base& boss, si32 focus_mode = mode::hub, bool set_default_focus = true, bool focus_on_click = true, si32 weight = 0)
