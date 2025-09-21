@@ -2057,6 +2057,7 @@ namespace netxs::app::vtm
             selected_item = usergate_selected_item;
             usrs_list.erase(usrs_list_iter);
             users.erase(users_iter);
+            base::signal(tier::release, desk::events::usrs, usrs_list_ptr);
         }
         // hall: Shutdown.
         void stop()
