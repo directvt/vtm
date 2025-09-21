@@ -59,7 +59,7 @@ namespace netxs::app::desk
                 EVENT_XS( toggle  , bool        ), // Request taskbar toggle.
                 EVENT_XS( recalc  , bool        ), // Request taskbar recalc.
                 EVENT_XS( id      , id_t        ), // Request owner id.
-                EVENT_XS( activate, input::hids ), // Request to run default app.
+                EVENT_XS( activate, input::hids ), // Release: Activate object (same as click in most cases).
                 GROUP_XS( focus   , input::hids ),
 
                 SUBSET_XS( focus )
@@ -92,10 +92,11 @@ namespace netxs::app::desk
             auto& current_title = new_app.base::property<ansi::escx>("window.title");
             auto& window_wptr = new_app.base::property<ui::wptr>("window.wptr");
             auto window_ptr = window_wptr.lock();
-            auto item_area = ui::fork::ctor(axis::X, 0, 1, 0);
-            item_area->depend(window_ptr);
+            auto item_area_ptr = ui::fork::ctor(axis::X, 0, 1, 0);
+            item_area_ptr->depend(window_ptr);
+            auto& item_area = *item_area_ptr;
             auto& window = *window_ptr;
-            item_area->active(cE)
+            item_area_ptr->active(cE)
                 ->shader(cell::shaders::xlight, e2::form::state::hover)
                 ->shader<tier::release, e2::postrender>(cell::shaders::disabled, e2::form::state::disabled)
                 ->plugin<pro::notes>()
@@ -146,18 +147,21 @@ namespace netxs::app::desk
                         }
                         else // Set unique focus.
                         {
-                            boss.base::signal(tier::request, desk::events::ui::activate, gear);
+                            boss.base::signal(tier::release, desk::events::ui::activate, gear);
                             gear.dismiss();
                         }
                     });
-                    boss.LISTEN(tier::request, desk::events::ui::activate, gear) // Set unique focus.
+                    boss.LISTEN(tier::release, desk::events::ui::activate, gear) // Set unique focus.
                     {
                         window.base::riseup(tier::preview, e2::form::layout::expose);
                         if (window.hidden) // Restore if minimized.
                         {
                             window.base::signal(tier::preview, e2::form::size::minimize, gear);
                         }
-                        else pro::focus::set(window.This(), gear.id, solo::on);
+                        else
+                        {
+                            pro::focus::set(window.This(), gear.id, solo::on);
+                        }
                     };
                     boss.on(tier::mouserelease, input::key::RightClick, [&](hids& /*gear*/)
                     {
@@ -168,7 +172,7 @@ namespace netxs::app::desk
                         window.base::signal(tier::release, e2::form::state::highlight, hovered);
                     };
                 });
-            auto app_label = item_area->attach(slot::_1, ui::item::ctor(current_title))
+            auto app_label = item_area.attach(slot::_1, ui::item::ctor(current_title))
                 ->active()
                 //todo taskbar keybd navigation
                 ->template plugin<pro::focus>(pro::focus::mode::focused, true, faux, weight_app_label)
@@ -186,7 +190,7 @@ namespace netxs::app::desk
                         boss.set(app_title);
                     };
                 });
-            auto app_close = item_area->attach(slot::_2, ui::item::ctor("×"))
+            auto app_close = item_area.attach(slot::_2, ui::item::ctor("×"))
                 ->active()
                 //todo taskbar keybd navigation
                 ->template plugin<pro::focus>(pro::focus::mode::focused, true, faux, weight_ui_button)
@@ -211,7 +215,7 @@ namespace netxs::app::desk
                             boss.base::reflow();
                         }
                     });
-                    item_area->LISTEN(tier::release, e2::form::state::mouse, hovered)
+                    item_area.LISTEN(tier::release, e2::form::state::mouse, hovered)
                     {
                         reveal_button(hovered);
                     };
@@ -219,7 +223,7 @@ namespace netxs::app::desk
                     {
                         reveal_button(count);
                     };
-                    item_area->LISTEN(tier::release, e2::form::upon::vtree::attached, app_list_block, boss.sensors)
+                    item_area.LISTEN(tier::release, e2::form::upon::vtree::attached, app_list_block, boss.sensors)
                     {
                         app_list_block->LISTEN(tier::release, desk::events::quit, fast, boss.sensors) // Close all apps in a block.
                         {
@@ -231,15 +235,15 @@ namespace netxs::app::desk
                     };
                     boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
                     {
-                        boss.base::signal(tier::request, desk::events::ui::activate, gear);
+                        boss.base::signal(tier::release, desk::events::ui::activate, gear);
                         gear.dismiss(true);
                     });
-                    boss.LISTEN(tier::request, desk::events::ui::activate, gear)
+                    boss.LISTEN(tier::release, desk::events::ui::activate, gear)
                     {
                         window.base::signal(tier::anycast, e2::form::proceed::quit::one, faux); // Show closing process.
                     };
                 });
-            return item_area;
+            return item_area_ptr;
         };
         auto app_group_template = [](auto menumodel_item_ptr)
         {
@@ -316,10 +320,10 @@ namespace netxs::app::desk
                                 gear.dismiss(true);
                                 return;
                             }
-                            boss.base::signal(tier::request, desk::events::ui::activate, gear);
+                            boss.base::signal(tier::release, desk::events::ui::activate, gear);
                             gear.dismiss(true);
                         });
-                        boss.LISTEN(tier::request, desk::events::ui::activate, gear, -, (inst_id))
+                        boss.LISTEN(tier::release, desk::events::ui::activate, gear, -, (inst_id))
                         {
                             boss.base::signal(tier::anycast, desk::events::ui::selected, inst_id);
                             static auto offset = dot_00; // static: Share initial offset between all instances.
@@ -366,10 +370,10 @@ namespace netxs::app::desk
                         insts.base::hidden = isfolded;
                         boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
                         {
-                            boss.base::signal(tier::request, desk::events::ui::activate, gear);
+                            boss.base::signal(tier::release, desk::events::ui::activate, gear);
                             gear.dismiss(true);
                         });
-                        boss.LISTEN(tier::request, desk::events::ui::activate, gear)
+                        boss.LISTEN(tier::release, desk::events::ui::activate, gear)
                         {
                             isfolded = !isfolded;
                             boss.set(isfolded ? "…" : "<");
@@ -400,10 +404,10 @@ namespace netxs::app::desk
                     {
                         boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
                         {
-                            boss.base::signal(tier::request, desk::events::ui::activate, gear);
+                            boss.base::signal(tier::release, desk::events::ui::activate, gear);
                             gear.dismiss(true);
                         });
-                        boss.LISTEN(tier::request, desk::events::ui::activate, gear)
+                        boss.LISTEN(tier::release, desk::events::ui::activate, gear)
                         {
                             insts.base::signal(tier::release, desk::events::quit, faux); // Show closing process.
                         };
@@ -851,10 +855,10 @@ namespace netxs::app::desk
                 auto& userlist_area = *userlist_area_ptr;
                 boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
                 {
-                    boss.base::signal(tier::request, desk::events::ui::activate, gear);
+                    boss.base::signal(tier::release, desk::events::ui::activate, gear);
                     gear.dismiss(true);
                 });
-                boss.LISTEN(tier::request, desk::events::ui::activate, gear)
+                boss.LISTEN(tier::release, desk::events::ui::activate, gear)
                 {
                     auto& hidden = userlist_area.base::hidden;
                     hidden = !hidden;
@@ -890,10 +894,10 @@ namespace netxs::app::desk
                 {
                     boss.on(tier::mouserelease, input::key::LeftClick, [&, name](hids& gear)
                     {
-                        boss.base::signal(tier::request, desk::events::ui::activate, gear);
+                        boss.base::signal(tier::release, desk::events::ui::activate, gear);
                         gear.dismiss(true);
                     });
-                    boss.LISTEN(tier::request, desk::events::ui::activate, gear)
+                    boss.LISTEN(tier::release, desk::events::ui::activate, gear)
                     {
                         log("%%User %name% disconnected", prompt::desk, name);
                         gear.owner.base::signal(tier::preview, e2::conio::quit);
@@ -915,10 +919,10 @@ namespace netxs::app::desk
                 {
                     boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
                     {
-                        boss.base::signal(tier::request, desk::events::ui::activate, gear);
+                        boss.base::signal(tier::release, desk::events::ui::activate, gear);
                         gear.dismiss(true);
                     });
-                    boss.LISTEN(tier::request, desk::events::ui::activate, gear)
+                    boss.LISTEN(tier::release, desk::events::ui::activate, gear)
                     {
                         boss.base::signal(tier::general, e2::shutdown, utf::concat(prompt::desk, "Server shutdown"));
                     };
@@ -1001,7 +1005,7 @@ namespace netxs::app::desk
                                                 auto& gear = luafx.get_gear();
                                                 focus.for_first_focused_leaf(gear, [&](auto& focused_item)
                                                 {
-                                                    focused_item.base::signal(tier::request, desk::events::ui::activate, gear);
+                                                    focused_item.base::riseup(tier::release, desk::events::ui::activate, gear);
                                                 });
                                                 gear.set_handled();
                                                 luafx.set_return();
