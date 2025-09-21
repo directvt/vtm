@@ -256,23 +256,11 @@ namespace netxs::events
             auto& source_ctx = indexer.context_ref.get();
             if (object_name == "config")
             {
-                log("object_name=", object_name);
+                //log("object_name=", object_name);
                 ::lua_pushlightuserdata(lua, &indexer.config); // Push address of the config instance.
                 ::luaL_setmetatable(lua, "cfg_submetaindex"); // Set the cfg_submetaindex for table at -1.
                 return 1;
             }
-            //else if (object_name == "desktop") //todo unify (use set_multihome)
-            //{
-            //    log("object_name=", object_name);
-            //    auto iter = indexer.objects.find(1);
-            //    if (iter != indexer.objects.end())
-            //    {
-            //        auto world_ptr = &(iter->second.get());
-            //        ::lua_pushlightuserdata(lua, world_ptr); // Push address of the world instance.
-            //        ::luaL_setmetatable(lua, "cfg_submetaindex"); // Set the cfg_submetaindex for table at -1.
-            //        return 1;
-            //    }
-            //}
             else if (auto target_ptr = indexer.get_target(source_ctx, object_name))
             {
                 //if constexpr (debugmode) log("       selected: ", netxs::events::script_ref::to_string(target_ptr->scripting_context));
@@ -280,6 +268,18 @@ namespace netxs::events
                 ::luaL_setmetatable(lua, "vtm_submetaindex"); // Set the vtm_submetaindex for table at -1.
                 //todo keep target_ptr locked until we are inside the lua
                 return 1;
+            }
+            else if (object_name == "desktop") //todo unify (use set_multihome)
+            {
+                //log("object_name=", object_name);
+                auto iter = indexer.objects.find(1);
+                if (iter != indexer.objects.end())
+                {
+                    auto world_ptr = &(iter->second.get());
+                    ::lua_pushlightuserdata(lua, world_ptr); // Push address of the world instance.
+                    ::luaL_setmetatable(lua, "cfg_submetaindex"); // Set the cfg_submetaindex for table at -1.
+                    return 1;
+                }
             }
             log("%%No 'vtm.%%' object found", prompt::lua, object_name);
             return 0;
