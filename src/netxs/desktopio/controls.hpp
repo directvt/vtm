@@ -1745,7 +1745,7 @@ namespace netxs::ui
                 }
                 return iter->second;
             }
-            bool notify_focus_state(si32 active, chain_t& chain, id_t gear_id)
+            bool notify_focus_state(si32 active, chain_t& chain, id_t gear_id, bool is_leaf = faux)
             {
                 auto changed = (chain.active == state::live) != (active == state::live);
                 chain.active = active;
@@ -1755,13 +1755,22 @@ namespace netxs::ui
                     {
                         count++;
                         boss.base::signal(tier::release, e2::form::state::focus::on, gear_id);
+                        boss.base::signal(tier::release, e2::form::state::focus::count, count);
+                        if (is_leaf && weight) // Notify to scroll to focused item.
+                        {
+                            auto info = rack{ .window = boss.area() };
+                            auto offset = dot_00;
+                            boss.base::global(offset);
+                            info.window.coor = -(offset + boss.base::intpad.corner());
+                            boss.base::riseup(tier::preview, e2::form::upon::scroll::to_box, info);
+                        }
                     }
                     else
                     {
                         count--;
                         boss.base::signal(tier::release, e2::form::state::focus::off, gear_id);
+                        boss.base::signal(tier::release, e2::form::state::focus::count, count);
                     }
-                    boss.base::signal(tier::release, e2::form::state::focus::count, count);
                     //if constexpr (debugmode) log("Focus %set% <object:%id%>", active == state::live ? "set" : "off", boss.id);
                 }
                 return changed;
@@ -2050,9 +2059,9 @@ namespace netxs::ui
                 boss.LISTEN(tier::release, input::events::focus::set::on, seed, memo)
                 {
                     auto iter = gears.find(seed.gear_id);
+                    auto first_step = !seed.item; // No focused item yet. We are in the the first riseup iteration (pro::focus::set just called and catched the first plugin<pro::focus> owner). A focus leaf is not necessarily a visual tree leaf.
                     if (iter == gears.end()) // No route to inside.
                     {
-                        auto first_step = !seed.item; // No focused item yet. We are in the the first riseup iteration (pro::focus::set just called and catched the first plugin<pro::focus> owner). A focus leaf is not necessarily a visual tree leaf.
                         if (seed.gear_id && first_step && (iter = gears.find(id_t{}), iter != gears.end())) // Check if the default chain exists.
                         {
                             boss.base::signal(tier::request, input::events::focus::dup, seed);
@@ -2068,7 +2077,7 @@ namespace netxs::ui
                     }
                     auto& chain = iter->second;
                     auto prev_state = chain.active;
-                    notify_focus_state(state::live, chain, seed.gear_id);
+                    notify_focus_state(state::live, chain, seed.gear_id, first_step);
                     if (node_type != mode::relay)
                     {
                         auto allow_focusize = node_type == mode::focused || node_type == mode::focusable;
@@ -2111,7 +2120,7 @@ namespace netxs::ui
                                     }
                                 });
                             }
-                            notify_focus_state(state::live, chain, seed.gear_id);
+                            notify_focus_state(state::live, chain, seed.gear_id, true);
                         }
                     }
                     else // Build focus tree (we are in the middle of the focus tree).
@@ -2214,7 +2223,7 @@ namespace netxs::ui
                 boss.LISTEN(tier::request, input::events::focus::add, seed, memo)
                 {
                     auto& chain = get_chain(seed.gear_id);
-                    notify_focus_state(state::live, chain, seed.gear_id);
+                    notify_focus_state(state::live, chain, seed.gear_id, true);
                     if (auto parent = boss.base::parent())
                     {
                         seed.item = boss.This();
@@ -4236,6 +4245,42 @@ namespace netxs::ui
         {
             return base::subset.empty() || !base::subset.back();
         }
+        // rail: .
+        void move_to_box(rack& info)
+        {
+            auto viewport_area = base::area();
+            auto offset = dot_00;
+            base::global(offset);
+            viewport_area.coor = -(offset + base::intpad.corner());
+            auto focused_area = info.window;
+            auto delta = dot_00;
+            for (auto xy : { axis::X, axis::Y })
+            {
+                if (viewport_area.coor[xy] > focused_area.coor[xy])
+                {
+                    delta[xy] = viewport_area.coor[xy] - focused_area.coor[xy];
+                }
+                else
+                {
+                    auto trimmed_size = std::min(focused_area.size[xy], viewport_area.size[xy]);
+                    auto focused_last = focused_area.coor[xy] + trimmed_size;
+                    auto viewport_last = viewport_area.coor[xy] + viewport_area.size[xy];
+                    if (focused_last > viewport_last)
+                    {
+                        delta[xy] = viewport_last - focused_last;
+                    }
+                }
+            }
+            if (delta)
+            {
+                info.window.coor += delta;
+                scroll(delta);
+            }
+            if (auto parent_ptr = base::parent())
+            {
+                parent_ptr->base::riseup(tier::preview, e2::form::upon::scroll::to_box, info);
+            }
+        }
 
     protected:
         // rail: Resize nested object with scroll bounds checking.
@@ -4286,6 +4331,7 @@ namespace netxs::ui
                     case e2::form::upon::scroll::cancel::v.id: cancel<X, true>(); cancel<Y, true>();                     break;
                     case e2::form::upon::scroll::cancel::x.id: cancel<X, true>();                                        break;
                     case e2::form::upon::scroll::cancel::y.id: cancel<Y, true>();                                        break;
+                    case e2::form::upon::scroll::to_box.id:    move_to_box(info); return;
                     default: break;
                 }
                 if (delta) scroll(delta);

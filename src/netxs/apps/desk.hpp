@@ -407,6 +407,13 @@ namespace netxs::app::desk
                         {
                             insts.base::signal(tier::release, desk::events::quit, faux); // Show closing process.
                         };
+                        boss.LISTEN(tier::release, e2::form::state::focus::count, count)
+                        {
+                            if (count == 0)
+                            {
+                                boss.base::riseup(tier::preview, e2::form::upon::scroll::to_top::v);
+                            }
+                        };
                     });
                 for (auto& new_appmodel_ptr : menumodel_item.subset)
                 {

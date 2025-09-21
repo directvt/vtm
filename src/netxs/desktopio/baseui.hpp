@@ -314,6 +314,7 @@ namespace netxs::events::userland
                     };
                     SUBSET_XS( scroll )
                     {
+                        EVENT_XS( to_box, rack ), // Scroll to the specified box (rack::window).
                         GROUP_XS( to_top, rack ), // Scroll to top.
                         GROUP_XS( to_end, rack ), // Scroll to end.
                         GROUP_XS( bycoor, rack ), // Scroll absolute.
@@ -1107,6 +1108,7 @@ namespace netxs::ui
         // base: Calculate global coordinate.
         void global(auto& coor)
         {
+            //todo revise: negate values (+base::intpad.corner())
             coor -= base::region.coor + base::intpad.corner();
             if (base::family == base::reflow_root) return;
             auto parent_ptr = base::parent();

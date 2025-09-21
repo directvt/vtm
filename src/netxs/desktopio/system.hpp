@@ -4319,8 +4319,8 @@ namespace netxs::os
                 if constexpr (debugmode) log(prompt::dtvt, "Writing thread started", ' ', utf::to_hex_0x(std::this_thread::get_id()));
                 auto cache = text{};
                 auto guard = std::unique_lock{ writemtx };
-                //todo revise writing thread sync
-                while (attached && ((void)writesyn.wait(guard, [&]{ return writebuf.size() || !attached; }), attached))
+                //todo revise writing thread sync (sometimes thread::join causes deadlock)
+                while ((void)writesyn.wait(guard, [&]{ return writebuf.size() || !attached; }), attached)
                 {
                     std::swap(cache, writebuf);
                     guard.unlock();
@@ -4365,7 +4365,7 @@ namespace netxs::os
                         if constexpr (debugmode) log(prompt::dtvt, "Reading thread ended", ' ', utf::to_hex_0x(std::this_thread::get_id()));
 
                         attached.exchange(faux);
-                        //todo revise writing thread sync
+                        //todo revise writing thread sync (sometimes thread::join causes deadlock)
                         writesyn.notify_one(); // Interrupt writing thread.
                         if constexpr (debugmode) log(prompt::dtvt, "Writing thread joining", ' ', utf::to_hex_0x(stdinput.get_id()));
                         stdwrite.join();
