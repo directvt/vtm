@@ -261,6 +261,18 @@ namespace netxs::events
                 ::luaL_setmetatable(lua, "cfg_submetaindex"); // Set the cfg_submetaindex for table at -1.
                 return 1;
             }
+            else if (object_name == "desktop") //todo unify (use set_multihome)
+            {
+                log("object_name=", object_name);
+                auto iter = indexer.objects.find(1);
+                if (iter != indexer.objects.end())
+                {
+                    auto world_ptr = &(iter->second.get());
+                    ::lua_pushlightuserdata(lua, world_ptr); // Push address of the world instance.
+                    ::luaL_setmetatable(lua, "cfg_submetaindex"); // Set the cfg_submetaindex for table at -1.
+                    return 1;
+                }
+            }
             else if (auto target_ptr = indexer.get_target(source_ctx, object_name))
             {
                 //if constexpr (debugmode) log("       selected: ", netxs::events::script_ref::to_string(target_ptr->scripting_context));
