@@ -955,6 +955,7 @@ namespace netxs::app::desk
                     { "FocusTop",           [&]
                                             {
                                                 auto& gear = luafx.get_gear();
+                                                tasks_scrl.base::riseup(tier::preview, e2::form::upon::scroll::to_top::v);
                                                 if (tasks_scrl.subset.size())
                                                 if (auto app_list_ptr = tasks_scrl.subset.front())
                                                 {
@@ -982,6 +983,7 @@ namespace netxs::app::desk
                     { "FocusEnd",           [&]
                                             {
                                                 auto& gear = luafx.get_gear();
+                                                tasks_scrl.base::riseup(tier::preview, e2::form::upon::scroll::to_end::v);
                                                 pro::focus::set(disconnect_park.This(), gear.id, solo::on);
                                                 gear.set_handled();
                                                 luafx.set_return();
