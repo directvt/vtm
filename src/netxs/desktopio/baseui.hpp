@@ -794,6 +794,30 @@ namespace netxs::ui
             }
             return sptr{};
         }
+        // base: Return the previous object in visual tree.
+        auto get_prev()
+        {
+            for (auto& next_ptr : base::subset)
+            {
+                if (next_ptr) return next_ptr;
+            }
+            auto parent_ptr = base::parent();
+            auto current_ptr = base::This();
+            while (parent_ptr)
+            {
+                auto next_item_iter = std::next(current_ptr->base::holder);
+                while (next_item_iter != parent_ptr->base::subset.end())
+                {
+                    if (auto next_ptr = *next_item_iter)
+                    {
+                        return next_ptr;
+                    }
+                    ++next_item_iter;
+                }
+                current_ptr = std::exchange(parent_ptr, parent_ptr->base::parent());
+            }
+            return sptr{};
+        }
         // base: Update scripting context. Run on anycast, e2::form::upon::started.
         void update_scripting_context()
         {

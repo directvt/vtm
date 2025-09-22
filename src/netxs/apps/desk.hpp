@@ -89,8 +89,8 @@ namespace netxs::app::desk
             auto c1 = danger_color;
             auto cF = focused_color;
             auto& new_app = *new_appmodel_ptr;
-            auto& current_title = new_app.base::property<ansi::escx>("window.title");
-            auto& window_wptr = new_app.base::property<ui::wptr>("window.wptr");
+            auto& current_title = new_app.base::template property<ansi::escx>("window.title"); //todo Apple clang requires templtate
+            auto& window_wptr = new_app.base::template property<ui::wptr>("window.wptr");      //
             auto window_ptr = window_wptr.lock();
             auto item_area_ptr = ui::fork::ctor(axis::X, 0, 1, 0);
             item_area_ptr->depend(window_ptr);
@@ -258,7 +258,7 @@ namespace netxs::app::desk
             auto cA = inactive_color;
             auto def_note = skin::globals().NsTaskbarApps_deftooltip;
             auto& menuid_prop = menumodel_item_ptr->base::property("window.menuid");
-            auto& appcfg_prop = menumodel_item_ptr->base::property<desk::spec>("window.appcfg");
+            auto& appcfg_prop = menumodel_item_ptr->base::template property<desk::spec>("window.appcfg"); //todo Apple clang requires templtate
             auto& menumodel_item = *menumodel_item_ptr;
             auto inst_id = menuid_prop;
             auto& conf = appcfg_prop;
@@ -424,8 +424,8 @@ namespace netxs::app::desk
                     insts.attach(app_template(new_appmodel_ptr));
                 }
                 auto& block = *block_ptr;
-                auto& fold_bttn_focus = fold_bttn_ptr->base::plugin<pro::focus>();
-                auto& drop_bttn_focus = drop_bttn_ptr->base::plugin<pro::focus>();
+                auto& fold_bttn_focus = fold_bttn_ptr->base::template plugin<pro::focus>(); //todo Apple clang requires templtate
+                auto& drop_bttn_focus = drop_bttn_ptr->base::template plugin<pro::focus>(); //
                 auto& update_focusability = menumodel_item.base::field([&]
                 {
                     if (std::exchange(bttn_rail.base::hidden, !menumodel_item.subset.size()) != bttn_rail.base::hidden)
@@ -707,7 +707,7 @@ namespace netxs::app::desk
                         auto is_active = !!count;
                         boss.base::riseup(tier::preview, desk::events::ui::toggle, is_active);
                     };
-                    auto& timer = boss.base::plugin<pro::timer>();
+                    auto& timer = boss.base::template plugin<pro::timer>(); //todo Apple clang requires templtate
                     boss.LISTEN(tier::release, e2::form::state::mouse, hovered)
                     {
                         if (hovered)
@@ -934,8 +934,8 @@ namespace netxs::app::desk
             taskbar_grips.invoke([&](auto& boss)
             {
                 auto& luafx = boss.bell::indexer.luafx;
-                auto& focus = boss.base::plugin<pro::focus>();
-                auto& bindings = boss.base::template property<input::bindings::vector>("taskbar.bindings"); // Apple clang requires template.
+                auto& focus = boss.base::template plugin<pro::focus>(); //todo Apple clang requires templtate
+                auto& bindings = boss.base::template property<input::bindings::vector>("taskbar.bindings"); //todo Apple clang requires template
                 auto applet_context = config.settings::push_context("/config/events/taskbar/");
                 auto script_list = config.settings::take_ptr_list_for_name("script");
                 bindings = input::bindings::load(config, script_list);
@@ -950,7 +950,7 @@ namespace netxs::app::desk
                                                 auto max_w = luafx.get_args_or(3, si32max);
                                                 focus.for_first_focused_leaf(gear, [&](auto& focused_item)
                                                 {
-                                                    auto& item_focus = focused_item.base::plugin<pro::focus>();
+                                                    auto& item_focus = focused_item.base::template plugin<pro::focus>(); //todo Apple clang requires templtate
                                                     item_focus.focus_next(gear, count, min_w, max_w);
                                                 });
                                                 gear.set_handled();
@@ -1024,7 +1024,7 @@ namespace netxs::app::desk
                                                 auto focused_weight = 0;
                                                 focus.for_first_focused_leaf(gear, [&](auto& focused_item)
                                                 {
-                                                    focused_weight = focused_item.base::plugin<pro::focus>().get_weight();
+                                                    focused_weight = focused_item.base::template plugin<pro::focus>().get_weight(); //todo Apple clang requires templtate
                                                 });
                                                 luafx.set_return(focused_weight);
                                             }},

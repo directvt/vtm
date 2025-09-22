@@ -1910,7 +1910,7 @@ namespace netxs::ui
                             if (status == state::live)
                             {
                                 is_leaf = faux;
-                                auto& nexthop_focus = nexthop.base::plugin<pro::focus>();
+                                auto& nexthop_focus = nexthop.base::template plugin<pro::focus>(); //todo Apple clang requires templtate
                                 nexthop_focus.for_first_focused_leaf(gear, proc);
                                 return faux;
                             }
@@ -1927,22 +1927,47 @@ namespace netxs::ui
             {
                 return weight;
             }
+            auto get_type()
+            {
+                return node_type;
+            }
             void focus_next(input::hids& gear, si32 n, si32 min_w, si32 max_w = si32max)
             {
-                auto next_ptr = boss.base::get_next();
-                while (next_ptr)
+                if (!n) return;
+                auto set_focus = [&](auto get_next)
                 {
-                    if (next_ptr->has_plugin<pro::focus>())
+                    auto last_found_ptr = sptr{};
+                    auto next_ptr = get_next(boss);
+                    auto count = std::abs(n);
+                    while (next_ptr)
                     {
-                        auto& focus = next_ptr->base::plugin<pro::focus>();
-                        if (focus.node_type == mode::focused)
+                        if (next_ptr->has_plugin<pro::focus>())
                         {
-                            pro::focus::set(next_ptr, gear.id, solo::on);
-                            break;
+                            auto& focus = next_ptr->base::plugin<pro::focus>();
+                            if (focus.get_type() == mode::focused)
+                            {
+                                auto w = focus.get_weight();
+                                if (w >= min_w)
+                                {
+                                    if (w > max_w && last_found_ptr)
+                                    {
+                                        pro::focus::set(last_found_ptr, gear.id, solo::on);
+                                        break;
+                                    }
+                                    else if (--count == 0)
+                                    {
+                                        pro::focus::set(next_ptr, gear.id, solo::on);
+                                        break;
+                                    }
+                                    last_found_ptr = next_ptr;
+                                }
+                            }
                         }
+                        next_ptr = get_next(*next_ptr);
                     }
-                    next_ptr = next_ptr->base::get_next();
-                }
+                };
+                n > 0 ? set_focus([](auto& item){ return item.base::get_next(); })
+                      : set_focus([](auto& item){ return item.base::get_prev(); });
             }
             void set_mode(si32 focus_mode)
             {
