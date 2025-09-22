@@ -24,6 +24,22 @@
 </thead>
 <tbody>
   <tr><th>Esc+F1 ¹ / Alt+Z</th>                               <td colspan="9">Focus taskbar</td></tr>
+
+  <tr><th>Esc | Alt</th>                                      <td colspan="3">Unfocus taskbar</td><td colspan="6"></td></tr>
+  <tr><th>LeftArrow</th>                                      <td colspan="3">Focus left item</td><td colspan="6"></td></tr>
+  <tr><th>RightArrow</th>                                     <td colspan="3">Focus right item</td><td colspan="6"></td></tr>
+  <tr><th>UpArrow</th>                                        <td colspan="3">Focus the previous item</td><td colspan="6"></td></tr>
+  <tr><th>DownArrow</th>                                      <td colspan="3">Focus the next item</td><td colspan="6"></td></tr>
+  <tr><th>PageUp</th>                                         <td colspan="3">Move focus half a page up</td><td colspan="6"></td></tr>
+  <tr><th>PageDown</th>                                       <td colspan="3">Move focus half a page down</td><td colspan="6"></td></tr>
+  <tr><th>Shift+Tab</th>                                      <td colspan="3">Focus the previous item group</td><td colspan="6"></td></tr>
+  <tr><th>Tab</th>                                            <td colspan="3">Focus the next item group</td><td colspan="6"></td></tr>
+  <tr><th>Home</th>                                           <td colspan="3">Move focus to the top</td><td colspan="6"></td></tr>
+  <tr><th>End</th>                                            <td colspan="3">Move focus to the bottom</td><td colspan="6"></td></tr>
+  <tr><th>Ctrl+LeftArrow</th>                                 <td colspan="3">Decrease taskbar width</td><td colspan="6"></td></tr>
+  <tr><th>Ctrl+RightArrow</th>                                <td colspan="3">Increase taskbar width</td><td colspan="6"></td></tr>
+  <tr><th>Space | Enter</th>                                  <td colspan="3">Activate focused item</td><td colspan="6"></td></tr>
+
   <tr><th>Esc+I</th>                                          <td colspan="9">Open Info-page</td></tr>
   <tr><th>Ctrl-Alt (Alt+Shift+B on non-Windows platforms)</th><td colspan="9">Toggle exclusive keyboard mode</td></tr>
   <tr><th>Alt+Shift+N</th>                                    <td colspan="9">Run app</td></tr>
