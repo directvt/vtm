@@ -355,7 +355,11 @@ namespace netxs::events
         static constexpr auto is_cstring_v = requires{ static_cast<const char*>(fallback); };
 
         auto type = ::lua_type(lua, idx);
-        if (type != LUA_TNIL)
+        if (type == LUA_TNONE)
+        {
+            return fallback;
+        }
+        else if (type != LUA_TNIL)
         {
                  if constexpr (std::is_same_v<std::decay_t<T>, bool>) return (T)::lua_toboolean(lua, idx);
             else if constexpr (is_string_v || is_cstring_v)           return luna::vtmlua_torawstring(lua, idx);
@@ -1949,9 +1953,12 @@ namespace netxs::ui
                                 auto w = focus.get_weight();
                                 if (w >= min_w)
                                 {
-                                    if (w > max_w && last_found_ptr)
+                                    if (w > max_w)
                                     {
-                                        pro::focus::set(last_found_ptr, gear.id, solo::on);
+                                        if (last_found_ptr)
+                                        {
+                                            pro::focus::set(last_found_ptr, gear.id, solo::on);
+                                        }
                                         break;
                                     }
                                     else if (--count == 0)
