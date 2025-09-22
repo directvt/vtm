@@ -797,24 +797,22 @@ namespace netxs::ui
         // base: Return the previous object in visual tree.
         auto get_prev()
         {
-            for (auto& next_ptr : base::subset)
+            if (auto parent_ptr = base::parent())
             {
-                if (next_ptr) return next_ptr;
-            }
-            auto parent_ptr = base::parent();
-            auto current_ptr = base::This();
-            while (parent_ptr)
-            {
-                auto next_item_iter = std::next(current_ptr->base::holder);
-                while (next_item_iter != parent_ptr->base::subset.end())
+                auto prev_item_iter = base::holder;
+                while (prev_item_iter != parent_ptr->base::subset.begin())
                 {
-                    if (auto next_ptr = *next_item_iter)
+                    --prev_item_iter;
+                    if (auto prev_ptr = *prev_item_iter)
                     {
-                        return next_ptr;
+                        while (prev_ptr->base::subset.size() && prev_ptr->base::subset.back())
+                        {
+                            prev_ptr = prev_ptr->base::subset.back();
+                        }
+                        return prev_ptr;
                     }
-                    ++next_item_iter;
                 }
-                current_ptr = std::exchange(parent_ptr, parent_ptr->base::parent());
+                return parent_ptr;
             }
             return sptr{};
         }
