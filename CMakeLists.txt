@@ -40,7 +40,7 @@ file(GLOB lua_src CONFIGURE_DEPENDS ${lua_SOURCE_DIR}/src/*.c)
 list(REMOVE_ITEM lua_src ${lua_SOURCE_DIR}/src/lua.c ${lua_SOURCE_DIR}/src/luac.c)
 add_library(lua ${lua_src})
 target_include_directories(lua PUBLIC ${lua_SOURCE_DIR}/src)
-target_sources(lua PRIVATE ${lua_src})
+target_sources(lua PUBLIC ${lua_src})
 
 add_executable(vtm "src/vtm.cpp" ${WIN32_RESOURCES})
 # add_executable(term "src/netxs/apps/term.cpp")

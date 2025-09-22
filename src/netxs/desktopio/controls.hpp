@@ -363,9 +363,9 @@ namespace netxs::events
         {
                  if constexpr (std::is_same_v<std::decay_t<T>, bool>) return (T)::lua_toboolean(lua, idx);
             else if constexpr (is_string_v || is_cstring_v)           return luna::vtmlua_torawstring(lua, idx);
-            else if constexpr (std::is_integral_v<T>)                 return (T)::lua_tointeger(lua, idx);
+            else if constexpr (std::is_integral_v<T>)                 return (T)::lua_tonumber(lua, idx);
             else if constexpr (std::is_floating_point_v<T>)           return (T)::lua_tonumber(lua, idx);
-            else if constexpr (std::is_same_v<std::decay_t<T>, twod>) return twod{ ::lua_tointeger(lua, idx), ::lua_tointeger(lua, idx + 1) };
+            else if constexpr (std::is_same_v<std::decay_t<T>, twod>) return twod{ ::lua_tonumber(lua, idx), ::lua_tonumber(lua, idx + 1) };
             else if constexpr (std::is_same_v<std::decay_t<T>, sptr<ui::base>>)
             {
                 if (auto ptr = (ui::base*)::lua_touserdata(lua, idx)) // Get ui::base*.
@@ -1955,10 +1955,6 @@ namespace netxs::ui
                                 {
                                     if (w > max_w)
                                     {
-                                        if (last_found_ptr)
-                                        {
-                                            pro::focus::set(last_found_ptr, gear.id, solo::on);
-                                        }
                                         break;
                                     }
                                     else if (--count == 0)
@@ -1971,6 +1967,10 @@ namespace netxs::ui
                             }
                         }
                         next_ptr = get_next(*next_ptr);
+                    }
+                    if (last_found_ptr)
+                    {
+                        pro::focus::set(last_found_ptr, gear.id, solo::on);
                     }
                 };
                 n > 0 ? set_focus([](auto& item){ return item.base::get_next(); })
