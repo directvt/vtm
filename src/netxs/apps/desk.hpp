@@ -892,12 +892,12 @@ namespace netxs::app::desk
                 ->plugin<pro::notes>(skin::globals().NsDisconnect_tooltip)
                 ->invoke([&, name = text{ username_view }](auto& boss)
                 {
-                    boss.on(tier::mouserelease, input::key::LeftClick, [&, name](hids& gear)
+                    boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
                     {
                         boss.base::signal(tier::release, desk::events::ui::activate, gear);
                         gear.dismiss(true);
                     });
-                    boss.LISTEN(tier::release, desk::events::ui::activate, gear)
+                    boss.LISTEN(tier::release, desk::events::ui::activate, gear, -, (name))
                     {
                         log("%%User %name% disconnected", prompt::desk, name);
                         gear.owner.base::signal(tier::preview, e2::conio::quit);
