@@ -1941,7 +1941,7 @@ namespace netxs::ui
                     auto count = std::abs(n);
                     while (next_ptr)
                     {
-                        if (next_ptr->has_plugin<pro::focus>())
+                        if (next_ptr->template has_plugin<pro::focus>())
                         {
                             auto& focus = next_ptr->base::plugin<pro::focus>();
                             if (focus.get_type() == mode::focused)
