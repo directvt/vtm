@@ -314,6 +314,7 @@ namespace netxs::events::userland
                     };
                     SUBSET_XS( scroll )
                     {
+                        EVENT_XS( to_box, rack ), // Scroll to the specified box (rack::window).
                         GROUP_XS( to_top, rack ), // Scroll to top.
                         GROUP_XS( to_end, rack ), // Scroll to end.
                         GROUP_XS( bycoor, rack ), // Scroll absolute.
@@ -769,6 +770,52 @@ namespace netxs::ui
             }
             return netxs::sptr<T>{};
         }
+        // base: Return the next object in visual tree.
+        auto get_next()
+        {
+            for (auto& next_ptr : base::subset)
+            {
+                if (next_ptr) return next_ptr;
+            }
+            auto parent_ptr = base::parent();
+            auto current_ptr = base::This();
+            while (parent_ptr)
+            {
+                auto next_item_iter = std::next(current_ptr->base::holder);
+                while (next_item_iter != parent_ptr->base::subset.end())
+                {
+                    if (auto next_ptr = *next_item_iter)
+                    {
+                        return next_ptr;
+                    }
+                    ++next_item_iter;
+                }
+                current_ptr = std::exchange(parent_ptr, parent_ptr->base::parent());
+            }
+            return sptr{};
+        }
+        // base: Return the previous object in visual tree.
+        auto get_prev()
+        {
+            if (auto parent_ptr = base::parent())
+            {
+                auto prev_item_iter = base::holder;
+                while (prev_item_iter != parent_ptr->base::subset.begin())
+                {
+                    --prev_item_iter;
+                    if (auto prev_ptr = *prev_item_iter)
+                    {
+                        while (prev_ptr->base::subset.size() && prev_ptr->base::subset.back())
+                        {
+                            prev_ptr = prev_ptr->base::subset.back();
+                        }
+                        return prev_ptr;
+                    }
+                }
+                return parent_ptr;
+            }
+            return sptr{};
+        }
         // base: Update scripting context. Run on anycast, e2::form::upon::started.
         void update_scripting_context()
         {
@@ -1083,6 +1130,7 @@ namespace netxs::ui
         // base: Calculate global coordinate.
         void global(auto& coor)
         {
+            //todo revise: negate values (+base::intpad.corner())
             coor -= base::region.coor + base::intpad.corner();
             if (base::family == base::reflow_root) return;
             auto parent_ptr = base::parent();
@@ -1184,6 +1232,13 @@ namespace netxs::ui
                 iter = fields.emplace(plugin_name<T>(), ptr::shared(std::make_any<T>(boss, std::forward<Args>(args)...))).first;
             }
             return *(std::any_cast<T>(iter->second.get()));
+        }
+        // base: Return true if an object has the specified plugin.
+        template<class T>
+        auto has_plugin()
+        {
+            auto iter = fields.find(plugin_name<T>());
+            return iter != fields.end();
         }
         // base: Return a reference to a plugin of the specified type. Create an instance of the specified plugin using the specified arguments if it does not exist.
         template<class T, class ...Args>

@@ -591,6 +591,7 @@ Standard object names
 |                 |                          | `vtm.applet.Restore()`                             | Restore applet window.
 |`gear`           | User mouse and keyboard  | `vtm.gear.IsKeyRepeated() -> bool`                 | Returns true if the keyboard event is a key-repeat generated event.
 |                 |                          | `vtm.gear.SetHandled()`                            | Set that the event is processed, and stop further processing.
+|                 |                          | `vtm.gear.Interrupt()`                             | Interrupt the key event processing.
 |                 |                          | `vtm.gear.RepeatWhilePressed(ref ObjectId)`        | Capture the mouse by ObjectId and trigger the mouse button pressed event to repeat while pressed.
 |                 |                          | `vtm.gear.Focus(ref ObjectId) -> bool`             | Set input focus to the object. Returns true if focus is already set.
 |`desktop`        | Desktop environment      | `vtm.desktop.Cleanup(bool b)`                      | Clean up temporary internal structures of the desktop environment and optionally report the state of registry objects.
@@ -599,6 +600,13 @@ Standard object names
 |                 |                          | `vtm.desktop.Disconnect()`                         | Disconnect the current desktop user.
 |                 |                          | `vtm.desktop.Run({ lua_table })`                   | Run the specified applet.
 |                 |                          | `vtm.desktop.FocusNextWindow(int n)`               | Set focus to the next (n=1) or previous (n=-1) desktop window.
+|`taskbar`        | Desktop taskbar          | `vtm.taskbar.ActivateItem()`                       | Activate the focused UI element on the taskbar.
+|                 |                          | `vtm.taskbar.FocusNextItem(si32 n, si32 min_w, si32 max_w = si32max)` | Move to the next(n>0)/prev(n<0) focusable element with `min_w` <= weight <= `max_w`, skipping (std::abs(n)-1) elements with `min_w` <= weight <= `max_w` and all elements with weight < `min_w`.
+|                 |                          | `vtm.taskbar.FocusTop()`                           | Set focus to the first (top) focusable UI element among the elements on the taskbar.
+|                 |                          | `vtm.taskbar.FocusEnd()`                           | Set focus to the last (bottom) focusable UI element among the elements on the taskbar.
+|                 |                          | `vtm.taskbar.ChangeWidthByStep(int n)`             | Change the taskbar width by step n.
+|                 |                          | `vtm.taskbar.GetFocusedWeight() -> si32 w`         | Get the weight of the focused taskbar element.
+|                 |                          | `vtm.taskbar.GetHeight() -> si32 h1, h2`           | Get taskbar height (h1) and line height (h2).
 |`tile`           | Tiling window manager    | `vtm.tile.FocusNextPaneOrGrip(int n)`              | Set focus to the next (n=1) or previous (n=-1) tile's pane or pane splitter.
 |                 |                          | `vtm.tile.FocusNextPane(int n)`                    | Set focus to the next (n=1) or previous (n=-1) tile's pane.
 |                 |                          | `vtm.tile.FocusNextGrip(int n)`                    | Set focus to the next (n=1) or previous (n=-1) pane splitter.
@@ -912,7 +920,7 @@ Notes
             <height=1/>  <!-- Desktop space reserved on top. -->
         </panel>
         <background>  <!-- Desktop background. -->
-            <color fgc=whitedk bgc= #00007f80/>  <!-- Desktop background color. -->
+            <color fgc=whitedk bgc= #00003f80/>  <!-- Desktop background color. -->
             <tile=""/>                           <!-- Truecolor ANSI-art can be used here. -->
         </background>
     </desktop>
@@ -1021,12 +1029,8 @@ Notes
             <script=RollFontsForward       on="Ctrl+Shift+F12"                   />
             <script=ResetWheelAccumulator  on="preview:-Ctrl"                    />
             <script=ToggleDebugOverlay     on="Space-Backspace | Backspace-Space"/>
-            <script=FocusTaskBar           on="Esc+F1"                           />
-            <script=FocusTaskBar           on="Alt+Z"                            />
+            <script=FocusTaskbar           on="Esc+F1 | Alt+Z"                   />
         </gate>
-        <taskbar script*>  <!-- Taskbar bindings. -->
-            <script=FocusTaskBar on="-Esc"/>
-        </taskbar>
         <desktop script*>  <!-- Desktop bindings. -->
             <script=FocusPrevWindow on="Ctrl+PageUp"  />
             <script=FocusNextWindow on="Ctrl+PageDown"/>
@@ -1035,6 +1039,22 @@ Notes
             <script=RunApplication  on="Alt+Shift+N"  />
             <script=RunInfoPage     on="Esc+I"        />
         </desktop>
+        <taskbar=desktop script*>  <!-- Taskbar bindings (including desktop bindings). -->
+            <script=FocusTaskbar          on="-Esc | -Alt"/>
+            <script=FocusLeftTaskbarItem  on="LeftArrow"/>
+            <script=FocusRightTaskbarItem on="RightArrow"/>
+            <script=FocusPrevTaskbarItem  on="UpArrow"/>
+            <script=FocusNextTaskbarItem  on="DownArrow"/>
+            <script=FocusPrevTaskbarPage  on="PageUp"/>
+            <script=FocusNextTaskbarPage  on="PageDown"/>
+            <script=FocusPrevTaskbarGroup on="Shift+Tab"/>
+            <script=FocusNextTaskbarGroup on="Tab"/>
+            <script=FocusTaskbarTop       on="Home"/>
+            <script=FocusTaskbarEnd       on="End"/>
+            <script=DecreaseTaskbarWidth  on="Ctrl+LeftArrow"/>
+            <script=IncreaseTaskbarWidth  on="Ctrl+RightArrow"/>
+            <script=ActivateTaskbarItem   on="Space | Enter"/>
+        </taskbar>
         <applet script*>  <!-- Applet bindings. -->
             <script=AlwaysOnTopApplet     on="Esc+T"                                              />
             <script=CloseApplet           on="Esc+W"                                              />
@@ -1848,7 +1868,7 @@ Notes
     <RunInfoPage           ="vtm.desktop.Run({ title='Info-page', hidden=true, label='Info', type='info' });"/>  <!-- Run Info-page. -->
     <FocusPrevWindow       ="vtm.desktop.FocusNextWindow(-1);"/>  <!-- Switch focus to the prev window. -->
     <FocusNextWindow       ="vtm.desktop.FocusNextWindow( 1);"/>  <!-- Switch focus to the next window. -->
-    <FocusTaskBar          ="if (vtm.gear.Focus(vtm.taskbar)) then vtm.gear.Focus(vtm.desktop) end;"/>  <!-- Set input focus to the taskbar or return focus back to the desktop. -->
+    <FocusTaskbar          ="if (vtm.gear.Focus(vtm.taskbar)) then vtm.gear.Focus(vtm.desktop); vtm.gear.Interrupt(); end;"/>  <!-- Set input focus to the taskbar or return focus back to the desktop. -->
 
     <AlwaysOnTopApplet     ="vtm.applet.ZOrder(vtm.applet.ZOrder()==1 and 0 or 1);"/>  <!-- Request to toggle z-order window attribute. -1: backmost; 0: plain; 1: topmost. -->
     <CloseApplet           ="vtm.applet.Close();"/>            <!-- Request to Close window. -->
@@ -1934,5 +1954,43 @@ Notes
     <TerminalStdioLog                  ="vtm.terminal.LogMode(vtm.terminal.LogMode()==1 and 0 or 1);"/>            <!-- Toggle stdin/stdout logging. -->
     <TerminalRestart                   ="vtm.terminal.Restart();"/>                    <!-- Terminate runnning console apps and restart current session. -->
     <IgnoreAltbuf                      ="if (vtm.terminal.AltbufMode()) then vtm.terminal.ForwardKeys(); return; end;"/>  <!-- Forward the last key event to the terminal if the alternate buffer is active. -->
+
+    <!-- Taskbar focus layout.
+            Splitter(not focusable)
+            AppGroup(weight=100)  CollapseButton(10) CloseAllButton(10)
+                RunningApp(50)  CloseButton(10)
+            ...
+            AppGroup(100)
+            UserListHeader(not focusable)  UserListCollapseButton(100)
+                UserLabel(50)
+                ...
+                UserLabel(50)
+            DisconnectButton(100)  ShutdownButton(10)
+        Keyboard focus switching logic.
+            DownArrow   Move to the next focusable element with a weight of at least 50, skipping elements with a lower weight.
+            UpArrow     Move to the prev focusable element with a weight of at least 50, skipping elements with a lower weight.
+            RightArrow  Move to the next focusable element with a weight of at least 10, skipping elements with a lower weight
+            LeftArrow   Move to the prev focusable element with a weight no less than the CURRENT one, skipping elements with a lower weight.
+            Tab         Move to the next focusable element with a weight of at least 100, skipping elements with a lower weight.
+            Shift+Tab   Move to the prev focusable element with a weight of at least 100, skipping elements with a lower weight.
+            PageDown    Move to the next focusable element skipping N elements with weight >= 50, where N=taskbar_height/(2*line_height).
+            PageUp      Move to the prev focusable element skipping N elements with weight >= 50, where N=taskbar_height/(2*line_height).
+            Home        Move to the first(top) focusable element with a weight of at least 100 in the visual tree.
+            End         Move to the last(bottom) focusable element with a weight of at least 100 in the visual tree.
+        vtm.taskbar.FocusNextItem(si32 n, si32 min_w, si32 max_w = si32max); // Move to the next(n>0)/prev(n<0) focusable element with `min_w` <= weight <= `max_w`, skipping (std::abs(n)-1) elements with `min_w` <= weight <= `max_w` and all elements with weight < `min_w`.
+    -->
+    <FocusLeftTaskbarItem  ="local w=vtm.taskbar.GetFocusedWeight(); vtm.taskbar.FocusNextItem(-1, w);"/>
+    <FocusRightTaskbarItem ="vtm.taskbar.FocusNextItem( 1, 10, 10);"/>
+    <FocusPrevTaskbarItem  ="vtm.taskbar.FocusNextItem(-1, 50);"/>
+    <FocusNextTaskbarItem  ="vtm.taskbar.FocusNextItem( 1, 50);"/>
+    <FocusPrevTaskbarPage  ="local h1,h2=vtm.taskbar.GetHeight(); vtm.taskbar.FocusNextItem(-h1/(2*h2), 50);"/>
+    <FocusNextTaskbarPage  ="local h1,h2=vtm.taskbar.GetHeight(); vtm.taskbar.FocusNextItem( h1/(2*h2), 50);"/>
+    <FocusPrevTaskbarGroup ="vtm.taskbar.FocusNextItem(-1, 100);"/>
+    <FocusNextTaskbarGroup ="vtm.taskbar.FocusNextItem( 1, 100);"/>
+    <FocusTaskbarTop       ="vtm.taskbar.FocusTop();"/>
+    <FocusTaskbarEnd       ="vtm.taskbar.FocusEnd();"/>
+    <DecreaseTaskbarWidth  ="vtm.taskbar.ChangeWidthByStep(-1);"/>
+    <IncreaseTaskbarWidth  ="vtm.taskbar.ChangeWidthByStep(1);"/>
+    <ActivateTaskbarItem   ="vtm.taskbar.ActivateItem();"/>
 </Scripting>
 ```

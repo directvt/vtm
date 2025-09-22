@@ -31,7 +31,6 @@ namespace netxs::app::desk
 
     using menu = utf::unordered_map<text, spec>;
     using usrs = std::list<ui::sptr>;
-    using apps = generics::imap<text, std::pair<bool, usrs>>;
 
     namespace events
     {
@@ -41,14 +40,17 @@ namespace netxs::app::desk
             EVENT_XS( menu, netxs::sptr<desk::menu> ), // List of registered apps.
             EVENT_XS( exec, spec                    ), // Request to run app.
             EVENT_XS( quit, bool                    ), // Request to close all instances.
-            GROUP_XS( apps, netxs::sptr<desk::apps> ),
+            GROUP_XS( apps, netxs::ui::sptr         ),
             GROUP_XS( ui  , text                    ),
 
             SUBSET_XS( apps )
             {
-                EVENT_XS( applist, netxs::sptr<desk::apps> ), // request: Take a list of running apps.
-                EVENT_XS( created, netxs::ui::sptr         ), // release: App window created.
-                EVENT_XS( removed, netxs::ui::sptr         ), // release: App window removed.
+                EVENT_XS( getmodel, netxs::ui::sptr ), // request: Request the current taskbar model (root_sptr).
+                EVENT_XS( created , netxs::ui::sptr ), // release: App window created.
+                EVENT_XS( removed , netxs::ui::sptr ), // release: App window removed.
+                EVENT_XS( enlist  , netxs::ui::sptr ), // release: App group added by new_appmodel_ptr.
+                EVENT_XS( delist  , netxs::ui::sptr ), // release: App group removed by new_appmodel_ptr.
+                EVENT_XS( title   , text            ), // release: Window title changed.
             };
             SUBSET_XS( ui )
             {
@@ -57,6 +59,7 @@ namespace netxs::app::desk
                 EVENT_XS( toggle  , bool        ), // Request taskbar toggle.
                 EVENT_XS( recalc  , bool        ), // Request taskbar recalc.
                 EVENT_XS( id      , id_t        ), // Request owner id.
+                EVENT_XS( activate, input::hids ), // Release: Activate object (same as click in most cases).
                 GROUP_XS( focus   , input::hids ),
 
                 SUBSET_XS( focus )
@@ -70,7 +73,11 @@ namespace netxs::app::desk
 
     namespace
     {
-        auto app_template = [](auto& data_src)
+        static constexpr auto weight_app_group = 100;
+        static constexpr auto weight_app_label = 50;
+        static constexpr auto weight_ui_button = 10;
+
+        auto app_template = [](auto new_appmodel_ptr)
         {
             auto tall = si32{ skin::globals().menuwide };
             auto focused_color   = skin::globals().focused;
@@ -81,10 +88,15 @@ namespace netxs::app::desk
             auto cE = active_color;
             auto c1 = danger_color;
             auto cF = focused_color;
-            auto current_title = data_src->base::signal(tier::request, e2::form::prop::ui::title);
-            auto item_area = ui::fork::ctor(axis::X, 0, 1, 0);
-            auto& src_wptr = item_area->base::field(ptr::shadow(data_src));
-            item_area->active(cE)
+            auto& new_app = *new_appmodel_ptr;
+            auto& current_title = new_app.base::template property<ansi::escx>("window.title"); //todo Apple clang requires templtate
+            auto& window_wptr = new_app.base::template property<ui::wptr>("window.wptr");      //
+            auto window_ptr = window_wptr.lock();
+            auto item_area_ptr = ui::fork::ctor(axis::X, 0, 1, 0);
+            item_area_ptr->depend(window_ptr);
+            auto& item_area = *item_area_ptr;
+            auto& window = *window_ptr;
+            item_area_ptr->active(cE)
                 ->shader(cell::shaders::xlight, e2::form::state::hover)
                 ->shader<tier::release, e2::postrender>(cell::shaders::disabled, e2::form::state::disabled)
                 ->plugin<pro::notes>()
@@ -93,262 +105,192 @@ namespace netxs::app::desk
                 {
                     boss.on(tier::mouserelease, input::key::LeftDoubleClick, [&](hids& gear)
                     {
-                        if (auto data_src = src_wptr.lock())
+                        if (gear.meta(hids::anyAlt)) // Pull window.
                         {
-                            auto& window = *data_src;
-                            if (gear.meta(hids::anyAlt)) // Pull window.
+                            window.base::riseup(tier::preview, e2::form::layout::expose);
+                            auto viewport = gear.owner.base::signal(tier::request, e2::form::prop::viewport);
+                            window.base::signal(tier::preview, e2::form::layout::appear, viewport.center()); // Pull window.
+                            if (window.hidden) // Restore if minimized.
                             {
-                                window.base::riseup(tier::preview, e2::form::layout::expose);
-                                auto viewport = gear.owner.base::signal(tier::request, e2::form::prop::viewport);
-                                window.base::signal(tier::preview, e2::form::layout::appear, viewport.center()); // Pull window.
-                                if (window.hidden) // Restore if minimized.
-                                {
-                                    window.base::signal(tier::preview, e2::form::size::minimize, gear);
-                                }
-                                else pro::focus::set(data_src, gear.id, solo::on);
+                                window.base::signal(tier::preview, e2::form::size::minimize, gear);
                             }
-                            else // Jump to window.
-                            {
-                                gear.owner.base::signal(tier::release, e2::form::layout::jumpto, window);
-                            }
-                            gear.dismiss();
+                            else pro::focus::set(window.This(), gear.id, solo::on);
                         }
+                        else // Jump to window.
+                        {
+                            gear.owner.base::signal(tier::release, e2::form::layout::jumpto, window);
+                        }
+                        gear.dismiss();
                     });
                     boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
                     {
-                        if (auto data_src = src_wptr.lock())
+                        if (gear.meta(hids::anyCtrl)) // Toggle group focus.
                         {
-                            auto& window = *data_src;
-                            if (gear.meta(hids::anyCtrl)) // Toggle group focus.
+                            if (pro::focus::test(window, gear))
                             {
-                                if (pro::focus::test(window, gear))
-                                {
-                                    pro::focus::off(data_src, gear.id); // Remove focus if focused.
-                                }
-                                else // Expose and set group focus.
-                                {
-                                    window.base::riseup(tier::preview, e2::form::layout::expose);
-                                    if (window.hidden) // Restore if minimized.
-                                    {
-                                        window.base::signal(tier::preview, e2::form::size::minimize, gear);
-                                    }
-                                    pro::focus::set(data_src, gear.id, solo::off);
-                                }
-                                gear.dismiss(true); // Suppress double click.
+                                pro::focus::off(window.This(), gear.id); // Remove focus if focused.
                             }
-                            else if (gear.meta(hids::anyAlt)) // Skip it and wait for Alt+Dblclick.
-                            {
-                                gear.dismiss();
-                            }
-                            else // Set unique focus.
+                            else // Expose and set group focus.
                             {
                                 window.base::riseup(tier::preview, e2::form::layout::expose);
                                 if (window.hidden) // Restore if minimized.
                                 {
                                     window.base::signal(tier::preview, e2::form::size::minimize, gear);
                                 }
-                                else pro::focus::set(data_src, gear.id, solo::on);
-                                gear.dismiss();
+                                pro::focus::set(window.This(), gear.id, solo::off);
                             }
+                            gear.dismiss(true); // Suppress double click.
+                        }
+                        else if (gear.meta(hids::anyAlt)) // Skip it and wait for Alt+Dblclick.
+                        {
+                            gear.dismiss();
+                        }
+                        else // Set unique focus.
+                        {
+                            boss.base::signal(tier::release, desk::events::ui::activate, gear);
+                            gear.dismiss();
                         }
                     });
+                    boss.LISTEN(tier::release, desk::events::ui::activate, gear) // Set unique focus.
+                    {
+                        window.base::riseup(tier::preview, e2::form::layout::expose);
+                        if (window.hidden) // Restore if minimized.
+                        {
+                            window.base::signal(tier::preview, e2::form::size::minimize, gear);
+                        }
+                        else
+                        {
+                            pro::focus::set(window.This(), gear.id, solo::on);
+                        }
+                    };
                     boss.on(tier::mouserelease, input::key::RightClick, [&](hids& /*gear*/)
                     {
                         // Reserved for context menu.
                     });
                     boss.LISTEN(tier::release, e2::form::state::mouse, hovered)
                     {
-                        if (auto data_src = src_wptr.lock())
-                        {
-                            data_src->base::signal(tier::release, e2::form::state::highlight, hovered);
-                        }
+                        window.base::signal(tier::release, e2::form::state::highlight, hovered);
                     };
                 });
-            static auto label_format = [](view utf8){ return ansi::add(utf8).mgl(0).wrp(wrap::off).jet(bias::left).nil(); };
-            auto app_label = item_area->attach(slot::_1, ui::item::ctor(label_format(current_title)))
+            auto app_label = item_area.attach(slot::_1, ui::item::ctor(current_title))
                 ->active()
                 //todo taskbar keybd navigation
-                //->template plugin<pro::focus>(pro::focus::mode::focused)
-                //->template plugin<pro::keybd>()
+                ->template plugin<pro::focus>(pro::focus::mode::focused, true, faux, weight_app_label)
+                ->template plugin<pro::keybd>()
                 ->shader(c3, e2::form::state::focus::count)
                 ->setpad({ tall + 1, 0, tall, tall })
                 ->template plugin<pro::notes>(skin::globals().NsTaskbarAppsApp_tooltip)
                 ->flexible()
                 ->drawdots()
-                ->shader(cF, e2::form::state::focus::count, data_src)
+                ->shader(cF, e2::form::state::focus::count, window_ptr)
                 ->invoke([&](auto& boss)
                 {
-                    data_src->LISTEN(tier::release, e2::form::prop::ui::title, new_title, boss.sensors)
+                    new_app.LISTEN(tier::release, desk::events::apps::title, app_title, boss.sensors)
                     {
-                        boss.set(label_format(new_title));
+                        boss.set(app_title);
                     };
                 });
-            auto app_close = item_area->attach(slot::_2, ui::item::ctor("×"))
+            auto app_close = item_area.attach(slot::_2, ui::item::ctor("×"))
                 ->active()
+                //todo taskbar keybd navigation
+                ->template plugin<pro::focus>(pro::focus::mode::focused, true, faux, weight_ui_button)
+                ->template plugin<pro::keybd>()
+                ->shader(c1, e2::form::state::focus::count)
                 ->shader(c1, e2::form::state::hover)
                 ->setpad({ 2, 2, tall, tall })
                 ->template plugin<pro::notes>(skin::globals().NsTaskbarAppsClose_tooltip)
                 ->invoke([&](auto& boss)
                 {
                     boss.base::hidden = true;
-                    item_area->LISTEN(tier::release, e2::form::state::mouse, hovered)
+                    auto& reveal_button = boss.base::field([&](bool visible)
                     {
                         //auto unfolded = boss.base::riseup(tier::request, desk::events::ui::toggle);
                         //auto hidden = !unfolded || !hover;
                         //auto folded = item_area_inst.base::size().x <= boss.base::size().x * 2;
                         //auto hidden = folded || !hover;
-                        auto hidden = !hovered;
+                        auto hidden = !visible;
                         if (boss.base::hidden != hidden)
                         {
                             boss.base::hidden = hidden;
                             boss.base::reflow();
                         }
-                    };
-                    item_area->LISTEN(tier::release, e2::form::upon::vtree::attached, parent, boss.sensors)
+                    });
+                    item_area.LISTEN(tier::release, e2::form::state::mouse, hovered)
                     {
-                        parent->LISTEN(tier::release, desk::events::quit, fast, boss.sensors)
+                        reveal_button(hovered);
+                    };
+                    boss.LISTEN(tier::release, e2::form::state::focus::count, count)
+                    {
+                        reveal_button(count);
+                    };
+                    item_area.LISTEN(tier::release, e2::form::upon::vtree::attached, app_list_block, boss.sensors)
+                    {
+                        app_list_block->LISTEN(tier::release, desk::events::quit, fast, boss.sensors) // Close all apps in a block.
                         {
-                            if (auto data_src = src_wptr.lock())
+                            window.base::enqueue([&](auto& /*boss*/) // Enqueue in order to pass focus one by one.
                             {
-                                data_src->base::enqueue([&](auto& data_inst) // Enqueue in order to pass focus one by one.
-                                {
-                                    data_inst.base::signal(tier::anycast, e2::form::proceed::quit::one, fast); // Show closing process.
-                                });
-                            }
+                                window.base::signal(tier::anycast, e2::form::proceed::quit::one, fast); // Show closing process.
+                            });
                         };
                     };
                     boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
                     {
-                        if (auto data_src = src_wptr.lock())
-                        {
-                            data_src->base::signal(tier::anycast, e2::form::proceed::quit::one, faux); // Show closing process.
-                            gear.dismiss(true);
-                        }
+                        boss.base::signal(tier::release, desk::events::ui::activate, gear);
+                        gear.dismiss(true);
                     });
+                    boss.LISTEN(tier::release, desk::events::ui::activate, gear)
+                    {
+                        window.base::signal(tier::anycast, e2::form::proceed::quit::one, faux); // Show closing process.
+                    };
                 });
-            return item_area;
+            return item_area_ptr;
         };
-        auto apps_template = [](auto& world_ptr, auto& apps_map_ptr)
+        auto app_group_template = [](auto menumodel_item_ptr)
         {
             auto tall = si32{ skin::globals().menuwide };
             auto inactive_color  = skin::globals().inactive;
             auto selected_color  = skin::globals().selected;
             auto danger_color    = skin::globals().danger;
+            auto highlight_color = cell{ skin::globals().winfocus };
+            auto c3 = highlight_color;
             auto c1 = danger_color;
             auto c9 = selected_color;
             auto cA = inactive_color;
-            auto& world_inst = *world_ptr;
-
-            auto apps = ui::list::ctor()
-                ->invoke([&](auto& boss)
-                {
-                    boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
-                    {
-                        auto current_default = boss.base::riseup(tier::request, e2::data::changed);
-                        boss.base::signal(tier::anycast, desk::events::ui::selected, current_default);
-                        //todo combine anycasts (update on user disconnect)
-                        auto state = boss.base::riseup(tier::request, desk::events::ui::toggle);
-                        boss.base::riseup(tier::anycast, desk::events::ui::recalc, state);
-                    };
-                    //auto& menu_list = boss.base::field();
-                    //auto& apps_list = boss.base::field();
-                    //auto& inst_list = boss.base::field();
-                    //world_inst.LISTEN(tier::release, desk::events::apps::created, window_ptr, boss.sensors)
-                    //{
-                    //    auto& window = *window_ptr;
-                    //    auto& menuid = window.base::property("window.menuid");
-                    //    auto& cfg = menu_list[menuid];
-                    //    auto& [fixed_menu_item, inst_list] = apps_list[menuid];
-                    //    fixed_menu_item = !cfg.hidden;
-                    //    inst_list.push_back(window_ptr);
-                    //};
-                    //world_inst.LISTEN(tier::release, desk::events::apps::removed, window_ptr, boss.sensors)
-                    //{
-                    //    auto& window = *window_ptr;
-                    //    auto& menuid = window.base::property("window.menuid");
-                    //    auto& [fixed_menu_item, inst_list] = apps_list[menuid];
-                    //    inst_list.remove(window_ptr);
-                    //    if (!fixed_menu_item && inst_list.empty()) // Remove non-fixed menu group if it is empty.
-                    //    {
-                    //        apps_list.erase(menuid);
-                    //    }
-                    //};
-                });
-
             auto def_note = skin::globals().NsTaskbarApps_deftooltip;
-            auto conf_list_ptr = world_inst.base::riseup(tier::request, desk::events::menu);
-            if (!conf_list_ptr || !apps_map_ptr) return apps;
-            auto& conf_list = *conf_list_ptr;
-            auto& apps_map = *apps_map_ptr;
-            //todo optimize: use a branch_template for sublist instead of recreating whole app list
-            for (auto const& [class_id, stat_inst_ptr_list] : apps_map)
+            auto& menuid_prop = menumodel_item_ptr->base::property("window.menuid");
+            auto& appcfg_prop = menumodel_item_ptr->base::template property<desk::spec>("window.appcfg"); //todo Apple clang requires templtate
+            auto& menumodel_item = *menumodel_item_ptr;
+            auto inst_id = menuid_prop;
+            auto& conf = appcfg_prop;
+            auto& obj_desc = conf.label;
+            auto& obj_note = conf.tooltip;
+            auto menuitem_ptr = ui::sptr{};
+            if (conf.splitter)
             {
-                auto& [state, inst_ptr_list] = stat_inst_ptr_list;
-                auto inst_id = class_id;
-                auto conf_it = conf_list.find(class_id);
-                if (conf_it == conf_list.end()) conf_it = conf_list.insert({ class_id, { .menuid = class_id }}).first; // Empty menu case (vtm.del()).
-                if (conf_it->second.label.empty()) // Avoid using empty groups.
-                {
-                    auto& conf = conf_it->second;
-                    conf.label = ansi::err(ansi::stk(1), class_id, ansi::stk(0));
-                    conf.hidden = true;
-                }
-                auto& conf = conf_it->second;
-                auto& obj_desc = conf.label;
-                auto& obj_note = conf.tooltip;
-                if (conf.splitter)
-                {
-                    auto item_area = apps->attach(ui::item::ctor(obj_desc))
-                        ->active() // Set active to enable tooltips.
-                        ->flexible()
-                        ->accented()
-                        ->colors(cA)
-                        ->setpad({ 0, 0, tall, tall }, { 0, 0, -tall, 0 })
-                        ->template plugin<pro::notes>(obj_note);
-                    continue;
-                }
-                auto head_fork = ui::fork::ctor(axis::X, 0, 1, 0);
-                auto block = apps->attach(ui::list::ctor())
-                    ->shader(cell::shaders::xlight, e2::form::state::hover, head_fork)
+                menuitem_ptr = ui::item::ctor(obj_desc)
+                    ->active() // Set active to enable tooltips.
+                    ->flexible()
+                    ->accented()
+                    ->colors(cA)
+                    ->setpad({ 0, 0, tall, tall }, { 0, 0, -tall, 0 })
+                    ->template plugin<pro::notes>(obj_note);
+            }
+            else
+            {
+                auto head_fork_ptr = ui::fork::ctor(axis::X, 0, 1, 0);
+                auto block_ptr = ui::list::ctor()
+                    ->shader(cell::shaders::xlight, e2::form::state::hover, head_fork_ptr)
                     ->setpad({ 0, 0, 0, 0 }, { 0, 0, -tall, 0 });
-                if (!state) block->depend_on_collection(inst_ptr_list); // Remove not pinned apps, like Info.
-                block->attach(head_fork)
-                    ->active()
-                    ->template plugin<pro::notes>(obj_note.empty() ? def_note : obj_note)
-                    ->invoke([&](auto& boss)
-                    {
-                        boss.on(tier::mouserelease, input::key::RightClick, [&, inst_id](hids& gear)
-                        {
-                            boss.base::signal(tier::anycast, desk::events::ui::selected, inst_id);
-                            gear.dismiss(true);
-                        });
-                        boss.on(tier::mouserelease, input::key::LeftClick, [&, inst_id, group_focus = faux](hids& gear) mutable
-                        {
-                            if (gear.meta(hids::anyCtrl | hids::anyAlt | hids::anyShift | hids::anyWin)) // Not supported with any modifier but Ctrl.
-                            {
-                                if (gear.meta(hids::anyCtrl)) // Toggle group focus.
-                                {
-                                    group_focus = !group_focus;
-                                    if (group_focus) boss.base::signal(tier::release, desk::events::ui::focus::set, gear);
-                                    else             boss.base::signal(tier::release, desk::events::ui::focus::off, gear);
-                                }
-                                gear.dismiss(true);
-                                return;
-                            }
-                            boss.base::signal(tier::anycast, desk::events::ui::selected, inst_id);
-                            static auto offset = dot_00; // static: Share initial offset between all instances.
-                            auto current_viewport = gear.owner.base::signal(tier::request, e2::form::prop::viewport);
-                            offset = (offset + dot_21 * 2) % std::max(dot_11, current_viewport.size * 7 / 32);
-                            gear.slot.coor = current_viewport.coor + offset + current_viewport.size * 1 / 32 + dot_11;
-                            gear.slot.size = current_viewport.size * 3 / 4;
-                            gear.slot_forced = faux;
-                            world_inst.base::riseup(tier::request, e2::form::proceed::createby, gear);
-                            gear.dismiss(true);
-                        });
-                    });
-                auto head = head_fork->attach(slot::_1, ui::item::ctor(obj_desc)
-                    ->flexible())
+                block_ptr->attach(head_fork_ptr);
+                auto head_ptr = head_fork_ptr->attach(slot::_1, ui::item::ctor(obj_desc))
+                    ->flexible()
                     ->setpad({ 0, 0, tall, tall })
+                    ->active()
+                    //todo taskbar keybd navigation
+                    ->template plugin<pro::focus>(pro::focus::mode::focused, true, faux, weight_app_group)
+                    ->template plugin<pro::keybd>()
+                    ->shader(c3, e2::form::state::focus::count)
+                    ->template plugin<pro::notes>(obj_note.empty() ? def_note : obj_note)
                     ->invoke([&](auto& boss)
                     {
                         auto boss_shadow = ptr::shadow(boss.This());
@@ -359,74 +301,201 @@ namespace netxs::app::desk
                             boss.set(obj_desc);
                             boss.base::deface();
                         };
+                        boss.on(tier::mouserelease, input::key::RightClick, [&, inst_id](hids& gear)
+                        {
+                            pro::focus::set(boss.This(), gear.id, solo::on);
+                            boss.base::signal(tier::anycast, desk::events::ui::selected, inst_id);
+                            gear.dismiss(true);
+                        });
+                        boss.on(tier::mouserelease, input::key::LeftClick, [&, inst_id, group_focus = faux](hids& gear) mutable
+                        {
+                            if (gear.meta(hids::anyCtrl | hids::anyAlt | hids::anyShift | hids::anyWin)) // Not supported with any modifier but Ctrl.
+                            {
+                                if (gear.meta(hids::anyCtrl)) // Toggle group focus.
+                                {
+                                    group_focus = !group_focus;
+                                    if (group_focus) boss.base::riseup(tier::release, desk::events::ui::focus::set, gear);
+                                    else             boss.base::riseup(tier::release, desk::events::ui::focus::off, gear);
+                                }
+                                gear.dismiss(true);
+                                return;
+                            }
+                            boss.base::signal(tier::release, desk::events::ui::activate, gear);
+                            gear.dismiss(true);
+                        });
+                        boss.LISTEN(tier::release, desk::events::ui::activate, gear, -, (inst_id))
+                        {
+                            boss.base::signal(tier::anycast, desk::events::ui::selected, inst_id);
+                            static auto offset = dot_00; // static: Share initial offset between all instances.
+                            auto current_viewport = gear.owner.base::signal(tier::request, e2::form::prop::viewport);
+                            offset = (offset + dot_21 * 2) % std::max(dot_11, current_viewport.size * 7 / 32);
+                            gear.slot.coor = current_viewport.coor + offset + current_viewport.size * 1 / 32 + dot_11;
+                            gear.slot.size = current_viewport.size * 3 / 4;
+                            gear.slot_forced = faux;
+                            menumodel_item.base::signal(tier::request, e2::form::proceed::createby, gear);
+                        };
                     });
-                if (auto count = inst_ptr_list.size())
-                {
-                    auto& isfolded = conf.folded;
-                    auto insts = block->attach(ui::list::ctor())
-                        ->setpad({ 0, 0, tall, 0 }, { 0, 0, -tall * 2, 0 });
-                    auto bttn_rail = head_fork->attach(slot::_2, ui::rail::ctor(axes::X_only, axes::all, axes::none))
-                        ->limits({ 5, -1 }, { 5, -1 })
-                        ->invoke([&](auto& boss)
-                        {
-                            boss.LISTEN(tier::release, e2::form::state::mouse, hovered)
-                            {
-                                if (!hovered)
-                                {
-                                    boss.base::riseup(tier::preview, e2::form::upon::scroll::to_top::v);
-                                }
-                            };
-                        });
-                    auto bttn_fork = bttn_rail->attach(ui::fork::ctor(axis::X));
-                    auto fold_bttn = bttn_fork->attach(slot::_1, ui::item::ctor(isfolded ? "…" : "<"))
-                        ->setpad({ 2, 2, tall, tall })
-                        ->active()
-                        ->shader(cell::shaders::xlight, e2::form::state::hover)
-                        ->template plugin<pro::notes>(skin::globals().NsTaskbarApps_toggletooltip)
-                        ->invoke([&](auto& boss)
-                        {
-                            insts->base::hidden = isfolded;
-                            auto insts_shadow = ptr::shadow(insts);
-                            boss.on(tier::mouserelease, input::key::LeftClick, [&, insts_shadow](hids& gear)
-                            {
-                                if (auto insts = insts_shadow.lock())
-                                {
-                                    isfolded = !isfolded;
-                                    boss.set(isfolded ? "…" : "<");
-                                    insts->base::hidden = isfolded;
-                                    insts->base::reflow();
-                                }
-                                gear.dismiss(true);
-                            });
-                        });
-                    auto drop_bttn = bttn_fork->attach(slot::_2, ui::item::ctor("×"))
-                        ->setpad({ 2, 2, tall, tall })
-                        ->active()
-                        ->shader(c1, e2::form::state::hover)
-                        ->template plugin<pro::notes>(skin::globals().NsTaskbarApps_groupclosetooltip)
-                        ->invoke([&](auto& boss)
-                        {
-                            auto insts_shadow = ptr::shadow(insts);
-                            boss.on(tier::mouserelease, input::key::LeftClick, [&, insts_shadow](hids& gear)
-                            {
-                                if (auto insts = insts_shadow.lock())
-                                {
-                                    insts->base::signal(tier::release, desk::events::quit, faux); // Show closing process.
-                                }
-                                gear.dismiss(true);
-                            });
-                        });
-                    for (auto& inst_ptr : inst_ptr_list)
+                auto& isfolded = conf.folded;
+                auto insts_ptr = block_ptr->attach(ui::list::ctor())
+                    ->template plugin<pro::focus>()
+                    ->setpad({ 0, 0, tall, 0 }, { 0, 0, -tall * 2, 0 });
+                auto& insts = *insts_ptr;
+                auto bttn_rail_ptr = head_fork_ptr->attach(slot::_2, ui::rail::ctor(axes::X_only, axes::all, axes::none))
+                    ->limits({ 5, -1 }, { 5, -1 })
+                    ->invoke([&](auto& boss)
                     {
-                        //todo
-                        //auto taskbar_item_ptr = app_template(inst_ptr);
-                        auto taskbar_item_ptr = app_template(inst_ptr)
-                                                ->depend(inst_ptr);
-                        insts->attach(taskbar_item_ptr);
-                    }
+                        boss.LISTEN(tier::release, e2::form::state::mouse, hovered)
+                        {
+                            if (!hovered)
+                            {
+                                boss.base::riseup(tier::preview, e2::form::upon::scroll::to_top::v);
+                            }
+                        };
+                    });
+                auto& bttn_rail = *bttn_rail_ptr;
+                auto bttn_fork_ptr = bttn_rail.attach(ui::fork::ctor(axis::X));
+                auto& bttn_fork = *bttn_fork_ptr;
+                bttn_rail.base::hidden = !menumodel_item.subset.size();
+                auto fold_bttn_ptr = bttn_fork.attach(slot::_1, ui::item::ctor(isfolded ? "…" : "<"))
+                    ->setpad({ 2, 2, tall, tall })
+                    ->active()
+                    //todo taskbar keybd navigation
+                    ->template plugin<pro::focus>(bttn_rail.base::hidden ? pro::focus::mode::focusable : pro::focus::mode::focused, true, faux, weight_ui_button) // Skip (make it just focusable) this item when moving focus if there are no apps running.
+                    ->template plugin<pro::keybd>()
+                    ->shader(c3, e2::form::state::focus::count)
+                    ->shader(cell::shaders::xlight, e2::form::state::hover)
+                    ->template plugin<pro::notes>(skin::globals().NsTaskbarApps_toggletooltip)
+                    ->invoke([&](auto& boss)
+                    {
+                        insts.base::hidden = isfolded;
+                        boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
+                        {
+                            boss.base::signal(tier::release, desk::events::ui::activate, gear);
+                            gear.dismiss(true);
+                        });
+                        boss.LISTEN(tier::release, desk::events::ui::activate, gear)
+                        {
+                            isfolded = !isfolded;
+                            boss.set(isfolded ? "…" : "<");
+                            insts.base::hidden = isfolded;
+                            insts.base::reflow();
+                        };
+                        insts.LISTEN(tier::release, e2::form::state::focus::count, count, boss.sensors)
+                        {
+                            if (isfolded && count)
+                            {
+                                isfolded = !isfolded;
+                                boss.set(isfolded ? "…" : "<");
+                                insts.base::hidden = isfolded;
+                                insts.base::reflow();
+                            }
+                        };
+                    });
+                auto drop_bttn_ptr = bttn_fork.attach(slot::_2, ui::item::ctor("×"))
+                    ->setpad({ 2, 2, tall, tall })
+                    ->active()
+                    //todo taskbar keybd navigation
+                    ->template plugin<pro::focus>(bttn_rail.base::hidden ? pro::focus::mode::focusable : pro::focus::mode::focused, true, faux, weight_ui_button) // Skip (make it just focusable) this item when moving focus if there are no apps running.
+                    ->template plugin<pro::keybd>()
+                    ->shader(c1, e2::form::state::focus::count)
+                    ->shader(c1, e2::form::state::hover)
+                    ->template plugin<pro::notes>(skin::globals().NsTaskbarApps_groupclosetooltip)
+                    ->invoke([&](auto& boss)
+                    {
+                        boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
+                        {
+                            boss.base::signal(tier::release, desk::events::ui::activate, gear);
+                            gear.dismiss(true);
+                        });
+                        boss.LISTEN(tier::release, desk::events::ui::activate, gear)
+                        {
+                            insts.base::signal(tier::release, desk::events::quit, faux); // Show closing process.
+                        };
+                        boss.LISTEN(tier::release, e2::form::state::focus::count, count)
+                        {
+                            if (count == 0)
+                            {
+                                boss.base::riseup(tier::preview, e2::form::upon::scroll::to_top::v);
+                            }
+                        };
+                    });
+                for (auto& new_appmodel_ptr : menumodel_item.subset)
+                {
+                    insts.attach(app_template(new_appmodel_ptr));
                 }
+                auto& block = *block_ptr;
+                auto& fold_bttn_focus = fold_bttn_ptr->base::template plugin<pro::focus>(); //todo Apple clang requires templtate
+                auto& drop_bttn_focus = drop_bttn_ptr->base::template plugin<pro::focus>(); //
+                auto& update_focusability = menumodel_item.base::field([&]
+                {
+                    if (std::exchange(bttn_rail.base::hidden, !menumodel_item.subset.size()) != bttn_rail.base::hidden)
+                    {
+                        auto bttn_focusability = bttn_rail.base::hidden ? pro::focus::mode::focusable : pro::focus::mode::focused;
+                        fold_bttn_focus.set_mode(bttn_focusability);
+                        drop_bttn_focus.set_mode(bttn_focusability);
+                    }
+                });
+                menumodel_item.LISTEN(tier::release, desk::events::apps::created, new_appmodel_ptr, block.sensors)
+                {
+                    auto running_app_label_ptr = insts.attach(app_template(new_appmodel_ptr));
+                    update_focusability();
+                    running_app_label_ptr->base::reflow();
+                };
+                menumodel_item.LISTEN(tier::release, desk::events::apps::removed, new_appmodel_ptr, block.sensors)
+                {
+                    //todo pass focus to the prev item
+                    update_focusability();
+                    block.base::enqueue([&](auto& /*boss*/)
+                    {
+                        block.base::reflow();
+                    });
+                };
+                menuitem_ptr = block_ptr;
             }
-            return apps;
+            menuitem_ptr->base::property("window.menuid") = menuid_prop;
+            return menuitem_ptr;
+        };
+        auto create_app_list = [](auto& world)
+        {
+            auto apps_ptr = ui::list::ctor();
+            auto& app_model = *world.base::signal(tier::request, desk::events::apps::getmodel);
+            for (auto& menumodel_item_ptr : app_model.subset)
+            {
+                apps_ptr->attach(app_group_template(menumodel_item_ptr));
+            }
+            apps_ptr->invoke([&](auto& boss)
+            {
+                boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
+                {
+                    auto current_default = boss.base::riseup(tier::request, e2::data::changed);
+                    boss.base::signal(tier::anycast, desk::events::ui::selected, current_default);
+                    //todo combine anycasts (update on user disconnect)
+                    auto state = boss.base::riseup(tier::request, desk::events::ui::toggle);
+                    boss.base::riseup(tier::anycast, desk::events::ui::recalc, state);
+                };
+                app_model.LISTEN(tier::release, desk::events::apps::enlist, menumodel_item_ptr, boss.sensors)
+                {
+                    boss.attach(app_group_template(menumodel_item_ptr));
+                };
+                app_model.LISTEN(tier::release, desk::events::apps::delist, menumodel_item_ptr, boss.sensors)
+                {
+                    //todo pass focus to the prev item
+                    auto& menuid_prop = menumodel_item_ptr->base::property("window.menuid");
+                    for (auto menuitem_ptr : boss.subset)
+                    {
+                        if (menuitem_ptr->base::property("window.menuid") == menuid_prop)
+                        {
+                            boss.remove(menuitem_ptr);
+                            boss.base::enqueue([&](auto& /*boss*/)
+                            {
+                                boss.base::reflow();
+                            });
+                            break;
+                        }
+                    }
+                };
+            });
+            return apps_ptr;
         };
 
         auto build = [](eccc usrcfg, settings& config)
@@ -436,7 +505,7 @@ namespace netxs::app::desk
             auto danger_color    = skin::globals().danger;
             auto highlight_color = cell{ skin::globals().winfocus };
             auto c8 = cell{}.bgc(argb::active_transparent).fgc(highlight_color.bgc());
-            //auto c3 = highlight_color;
+            auto c3 = highlight_color;
             auto cA = inactive_color;
             auto c1 = danger_color;
 
@@ -446,12 +515,12 @@ namespace netxs::app::desk
             auto bttn_min_size = twod{ 40, 1 + tall * 2 };
             auto bttn_max_size = twod{ -1, 1 + tall * 2 };
 
-            auto window = ui::fork::ctor(axis::Y, 0, 0, 1);
+            auto desklayout_ptr = ui::fork::ctor(axis::Y, 0, 0, 1);
             auto panel_top = config.settings::take("/config/desktop/panel/height", 1);
             auto panel_env = config.settings::take("/config/desktop/panel/env", ""s);
             auto panel_cwd = config.settings::take("/config/desktop/panel/cwd", ""s);
             auto panel_cmd = config.settings::take("/config/desktop/panel/cmd", ""s);
-            auto panel = window->attach(slot::_1, ui::cake::ctor());
+            auto panel = desklayout_ptr->attach(slot::_1, ui::cake::ctor());
             if (panel_cmd.size())
             {
                 auto panel_cfg = eccc{ .env = panel_env,
@@ -472,24 +541,30 @@ namespace netxs::app::desk
             else
             {
                 log(prompt::desk, "Bad user ID=", user_id__view);
-                return window;
+                return desklayout_ptr;
             }
 
             auto user_template = [my_id](auto& data_src, auto const& utf8)
             {
                 auto tall = si32{ skin::globals().menuwide };
                 auto active_color    = skin::globals().active;
+                auto highlight_color = cell{ skin::globals().winfocus };
+                auto c3 = highlight_color;
                 auto cE = active_color;
                 auto user = ui::item::ctor(escx(" &").nil().add(" ").wrp(wrap::off)
                         .fgx(data_src->id == my_id ? cE.fgc() : argb{}).add(utf8).nil())
                     ->flexible()
                     ->setpad({ 1, 0, tall, tall }, { 0, 0, -tall, 0 })
                     ->active()
+                    //todo taskbar keybd navigation
+                    ->template plugin<pro::focus>(pro::focus::mode::focused, true, faux, weight_app_label)
+                    ->template plugin<pro::keybd>()
+                    ->shader(c3, e2::form::state::focus::count)
                     ->shader(cell::shaders::xlight, e2::form::state::hover)
                     ->template plugin<pro::notes>(skin::globals().NsUser_tooltip);
                 return user;
             };
-            auto branch_template = [user_template](auto& /*data_src*/, auto& usr_list)
+            auto user_list_template = [user_template](auto& /*data_src*/, auto& usr_list)
             {
                 auto tall = si32{ skin::globals().menuwide };
                 auto users = ui::list::ctor()
@@ -498,17 +573,17 @@ namespace netxs::app::desk
                 return users;
             };
 
-            auto& size_config = window->base::field(std::tuple{ menu_max_conf, menu_min_conf, faux });
+            auto& size_config = desklayout_ptr->base::field(std::tuple{ menu_max_conf, menu_min_conf, faux });
             //todo Apple Clang don't get it.
             //auto& [menu_max_size, menu_min_size, active] = size_config;
             auto& menu_max_size = std::get<0>(size_config);
             auto& menu_min_size = std::get<1>(size_config);
             auto& active        = std::get<2>(size_config);
 
-            auto world_ptr = window->base::signal(tier::general, e2::config::creator);
-            if (!world_ptr) return window;
+            auto world_ptr = desklayout_ptr->base::signal(tier::general, e2::config::creator);
+            if (!world_ptr) return desklayout_ptr;
             auto& world = *world_ptr;
-            window->invoke([&](auto& boss) mutable
+            desklayout_ptr->invoke([&](auto& boss) mutable
             {
                 boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent_ptr, -, (usrcfg))
                 {
@@ -559,7 +634,7 @@ namespace netxs::app::desk
                     };
                 };
             });
-            auto ground = window->attach(slot::_2, ui::cake::ctor());
+            auto ground = desklayout_ptr->attach(slot::_2, ui::cake::ctor());
             auto ver_label = ground->attach(ui::item::ctor(utf::concat(app::shared::version)))
                 ->active(cell{}.fgc(whitedk).bgc(argb::active_transparent))
                 ->shader(c8, e2::form::state::hover)
@@ -588,57 +663,26 @@ namespace netxs::app::desk
                         parent_canvas.fill(vert_line, cell::shaders::shadow(ui::pro::ghost::x1y1_x1y2_x1y3));
                     };
                 });
-            auto taskbar_grips = taskbar_viewport->attach(slot::_1, ui::fork::ctor(axis::X))
-                ->limits({ menu_min_size, -1 }, { menu_min_size, -1 })
+            auto taskbar_grips_ptr = taskbar_viewport->attach(slot::_1, ui::fork::ctor(axis::X));
+            auto& taskbar_grips = *taskbar_grips_ptr;
+            auto& change_taskbar_width = taskbar_grips.base::field([&](si32 delta)
+            {
+                taskbar_grips.base::min_sz.x = std::max(1, taskbar_grips.base::min_sz.x + delta);
+                taskbar_grips.base::max_sz.x = taskbar_grips.base::min_sz.x;
+                active ? menu_max_size = taskbar_grips.base::min_sz.x
+                       : menu_min_size = taskbar_grips.base::min_sz.x;
+                taskbar_grips.base::reflow();
+            });
+            taskbar_grips_ptr->limits({ menu_min_size, -1 }, { menu_min_size, -1 })
                 //todo taskbar keybd navigation
-                //->plugin<pro::focus>()
-                //->plugin<pro::keybd>()
+                ->plugin<pro::focus>()
+                ->plugin<pro::keybd>()
                 ->plugin<pro::timer>()
                 ->plugin<pro::acryl>()
                 ->plugin<pro::cache>()
                 ->active(menu_bg_color)
                 ->invoke([&](auto& boss)
                 {
-                    //auto& luafx = boss.bell::indexer.luafx;
-                    auto& bindings = boss.base::template property<input::bindings::vector>("taskbar.bindings"); // Apple clang requires template.
-                    auto applet_context = config.settings::push_context("/config/events/taskbar/");
-                    auto script_list = config.settings::take_ptr_list_for_name("script");
-                    bindings = input::bindings::load(config, script_list);
-                    input::bindings::keybind(boss, bindings);
-                    boss.base::add_methods(basename::taskbar,
-                    {
-                        { "FocusNext",          [&]
-                                                {
-                                                    //auto gui_cmd = e2::command::gui.param();
-                                                    //auto& gear = luafx.get_gear();
-                                                    //if (gear.is_real())
-                                                    //{
-                                                    //    gui_cmd.gear_id = gear.id;
-                                                    //    gear.set_handled();
-                                                    //}
-                                                    //gui_cmd.cmd_id = syscmd::focusnextwindow;
-                                                    //gui_cmd.args.emplace_back(luafx.get_args_or(1, si32{ 1 }));
-                                                    //boss.base::riseup(tier::preview, e2::command::gui, gui_cmd);
-                                                    //luafx.set_return();
-                                                }},
-                        { "Warp",               [&]
-                                                {
-                                                    //auto gui_cmd = e2::command::gui.param();
-                                                    //auto& gear = luafx.get_gear();
-                                                    //if (gear.is_real())
-                                                    //{
-                                                    //    gui_cmd.gear_id = gear.id;
-                                                    //    gear.set_handled();
-                                                    //}
-                                                    //gui_cmd.cmd_id = syscmd::warpwindow;
-                                                    //gui_cmd.args.emplace_back(luafx.get_args_or(1, si32{ 0 }));
-                                                    //gui_cmd.args.emplace_back(luafx.get_args_or(2, si32{ 0 }));
-                                                    //gui_cmd.args.emplace_back(luafx.get_args_or(3, si32{ 0 }));
-                                                    //gui_cmd.args.emplace_back(luafx.get_args_or(4, si32{ 0 }));
-                                                    //boss.base::riseup(tier::preview, e2::command::gui, gui_cmd);
-                                                    //luafx.set_return();
-                                                }},
-                    });
                     boss.LISTEN(tier::request, desk::events::ui::toggle, state)
                     {
                         state = active;
@@ -658,29 +702,39 @@ namespace netxs::app::desk
                     {
                         boss.base::riseup(tier::preview, desk::events::ui::toggle, !active);
                     });
+                    boss.LISTEN(tier::release, e2::form::state::focus::count, count)
+                    {
+                        auto is_active = !!count;
+                        boss.base::riseup(tier::preview, desk::events::ui::toggle, is_active);
+                    };
+                    auto& timer = boss.base::template plugin<pro::timer>(); //todo Apple clang requires templtate
                     boss.LISTEN(tier::release, e2::form::state::mouse, hovered)
                     {
-                        auto& timer = boss.base::template plugin<pro::timer>();
                         if (hovered)
                         {
                             timer.pacify(faux);
-                            return;
                         }
-                        // Only when mouse leaving.
-                        auto toggle = [&](auto state)
+                        else
                         {
-                            boss.base::riseup(tier::preview, desk::events::ui::toggle, state);
-                            return faux; // One shot call.
-                        };
-                        timer.actify(faux, skin::globals().menu_timeout, toggle);
+                            auto count = boss.base::signal(tier::request, e2::form::state::focus::count);
+                            if (count == 0) // Only when mouse leaving and unfocused.
+                            {
+                                auto toggle = [&](auto state)
+                                {
+                                    boss.base::riseup(tier::preview, desk::events::ui::toggle, state);
+                                    return faux; // One shot call.
+                                };
+                                timer.actify(faux, skin::globals().menu_timeout, toggle);
+                            }
+                        }
                     };
                 });
-            auto grips = taskbar_grips->attach(slot::_2, ui::mock::ctor())
+            auto grips = taskbar_grips.attach(slot::_2, ui::mock::ctor())
                 ->limits({ 1, -1 }, { 1, -1 })
                 ->template plugin<pro::notes>(skin::globals().NsTaskbarGrips_tooltip)
                 ->active()
                 //todo taskbar keybd navigation
-                //->template plugin<pro::focus>(pro::focus::mode::focusable)
+                //->template plugin<pro::focus>(pro::focus::mode::focusable) //todo revise: no need to focus taskbar resize grip
                 //->shader(c3, e2::form::state::focus::count)
                 ->shader(cell::shaders::xlight, e2::form::state::hover)
                 ->invoke([&](auto& boss)
@@ -694,16 +748,9 @@ namespace netxs::app::desk
                     };
                     boss.LISTEN(tier::release, e2::form::drag::pull::_<hids::buttons::left>, gear)
                     {
-                        if (auto taskbar_grips = boss.base::parent())
+                        if (auto delta = (twod{ gear.coord } - twod{ drag_origin })[axis::X])
                         {
-                            if (auto delta = (twod{ gear.coord } - twod{ drag_origin })[axis::X])
-                            {
-                                taskbar_grips->base::min_sz.x = std::max(1, taskbar_grips->base::min_sz.x + delta);
-                                taskbar_grips->base::max_sz.x = taskbar_grips->base::min_sz.x;
-                                active ? menu_max_size = taskbar_grips->base::min_sz.x
-                                       : menu_min_size = taskbar_grips->base::min_sz.x;
-                                taskbar_grips->base::reflow();
-                            }
+                            change_taskbar_width(delta);
                         }
                     };
                     boss.LISTEN(tier::release, desk::events::ui::sync, state)
@@ -723,25 +770,43 @@ namespace netxs::app::desk
                         boss.base::signal(tier::release, desk::events::ui::sync, true);
                     };
                 });
-            auto taskbar_park = taskbar_grips->attach(slot::_1, ui::cake::ctor());
+            auto taskbar_park = taskbar_grips.attach(slot::_1, ui::cake::ctor());
             auto taskbar = taskbar_park->attach(ui::fork::ctor(axis::Y)->alignment({ snap::head, snap::head }, { snap::head, snap::tail }));
             auto apps_users = taskbar->attach(slot::_1, ui::fork::ctor(axis::Y, 0, 100))
                 ->setpad({}, { 0, 0, 0, -tall }); // To place above Disconnect button.
             auto applist_area = apps_users->attach(slot::_1, ui::cake::ctor());
-            auto tasks_scrl = applist_area->attach(ui::rail::ctor(axes::Y_only))
+            auto tasks_scrl_ptr = applist_area->attach(ui::rail::ctor(axes::Y_only))
                 ->plugin<pro::notes>(skin::globals().NsTaskbar_tooltip)
                 ->active()
                 ->invoke([&](auto& boss)
                 {
                     boss.LISTEN(tier::anycast, e2::form::upon::started, root_ptr)
                     {
-                        auto world_ptr = world.This();
-                        auto apps = boss.attach_element(desk::events::apps::applist, world_ptr, apps_template);
-                        //todo
-                        //auto apps = world_ptr->base::signal(tier::request, desk::events::apps::applist);
-                        //world_ptr->attach(apps_template(world_ptr, apps));
+                        auto app_list_ptr = create_app_list(world);
+                        boss.attach(app_list_ptr);
+                        auto& app_list = *app_list_ptr;
+                        boss.base::enqueue([&](auto& /*boss*/) // Set default focus.
+                        {
+                            auto current_default = boss.base::riseup(tier::request, e2::data::changed);
+                            for (auto& menuitem_ptr : app_list.subset) // Set default focus to the default menu item.
+                            {
+                                auto& item_menuid = menuitem_ptr->base::property("window.menuid");
+                                if (item_menuid == current_default && menuitem_ptr->subset.size())
+                                {
+                                    auto& head_fork_ptr = menuitem_ptr->subset.front();
+                                    if (head_fork_ptr->subset.size()) // Focus app group label.
+                                    {
+                                        auto& head_ptr = head_fork_ptr->subset.front();
+                                        pro::focus::set(head_ptr, id_t{}, solo::on, true);
+                                    }
+                                    break;
+                                }
+                            }
+                            pro::focus::set(world.This(), id_t{}, solo::on, true); // Then set default focus to the world.
+                        });
                     };
                 });
+            auto& tasks_scrl = *tasks_scrl_ptr;
             auto users_area = apps_users->attach(slot::_2, ui::list::ctor());
             auto label_bttn = users_area->attach(ui::fork::ctor(axis::X))
                                         ->active() // Make it active for tooltip.
@@ -753,38 +818,53 @@ namespace netxs::app::desk
                 ->setpad({ 0, 0, tall, tall })
                 ->limits({ 5, -1 });
             auto userlist_hidden = true;
-            auto bttn = label_bttn->attach(slot::_2, ui::item::ctor(userlist_hidden ? "…" : "<"))
+            auto bttn_ptr = label_bttn->attach(slot::_2, ui::item::ctor(userlist_hidden ? "…" : "<"))
                 ->active()
+                //todo taskbar keybd navigation
+                ->template plugin<pro::focus>(pro::focus::mode::focused, true, faux, weight_app_group)
+                ->template plugin<pro::keybd>()
+                ->shader(c3, e2::form::state::focus::count)
                 ->shader(cell::shaders::xlight, e2::form::state::hover)
                 ->plugin<pro::notes>(skin::globals().NsToggle_tooltip)
                 ->setpad({ 2, 2, tall, tall });
-            auto userlist_area = users_area->attach(ui::cake::ctor())
+            auto& bttn = *bttn_ptr;
+            auto userlist_area_ptr = users_area->attach(ui::cake::ctor())
                 ->setpad({}, { 0, 0, -tall, 0 }) // To place above the admins/users label.
+                ->template plugin<pro::focus>()
                 ->invoke([&](auto& boss)
                 {
                     boss.base::hidden = userlist_hidden;
-                    boss.LISTEN(tier::anycast, e2::form::upon::started, root_ptr, -, (branch_template))
+                    boss.LISTEN(tier::anycast, e2::form::upon::started, root_ptr, -, (user_list_template))
                     {
                         auto world_ptr = world.This();
-                        auto users = boss.attach_element(desk::events::usrs, world_ptr, branch_template);
+                        auto users = boss.attach_element(desk::events::usrs, world_ptr, user_list_template);
+                    };
+                    boss.LISTEN(tier::release, e2::form::state::focus::count, count)
+                    {
+                        auto& hidden = boss.base::hidden;
+                        if (hidden && count)
+                        {
+                            hidden = !hidden;
+                            bttn.set(hidden ? "…" : "<");
+                            boss.base::reflow();
+                        }
                     };
                 });
-            bttn->invoke([&](auto& boss)
+            bttn_ptr->invoke([&](auto& boss)
             {
-                auto userlist_area_shadow = ptr::shadow(userlist_area);
-                auto bttn_shadow = ptr::shadow(bttn);
-                boss.on(tier::mouserelease, input::key::LeftClick, [&, userlist_area_shadow, bttn_shadow](hids& gear)
+                auto& userlist_area = *userlist_area_ptr;
+                boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
                 {
-                    if (auto bttn = bttn_shadow.lock())
-                    if (auto userlist_area = userlist_area_shadow.lock())
-                    {
-                        auto& hidden = userlist_area->base::hidden;
-                        hidden = !hidden;
-                        bttn->set(hidden ? "…" : "<");
-                        userlist_area->base::reflow();
-                    }
+                    boss.base::signal(tier::release, desk::events::ui::activate, gear);
                     gear.dismiss(true);
                 });
+                boss.LISTEN(tier::release, desk::events::ui::activate, gear)
+                {
+                    auto& hidden = userlist_area.base::hidden;
+                    hidden = !hidden;
+                    bttn.set(hidden ? "…" : "<");
+                    userlist_area.base::reflow();
+                };
             });
             auto bttns_cake = taskbar->attach(slot::_2, ui::cake::ctor());
             auto bttns_area = bttns_cake->attach(ui::rail::ctor(axes::X_only))
@@ -802,38 +882,155 @@ namespace netxs::app::desk
             bttns_cake->attach(app::shared::underlined_hz_scrollbar(bttns_area));
             auto bttns = bttns_area->attach(ui::fork::ctor(axis::X))
                 ->limits(bttn_min_size, bttn_max_size);
-            auto disconnect_park = bttns->attach(slot::_1, ui::cake::ctor())
+            auto disconnect_park_ptr = bttns->attach(slot::_1, ui::cake::ctor())
                 ->active()
+                //todo taskbar keybd navigation
+                ->template plugin<pro::focus>(pro::focus::mode::focused, true, faux, weight_app_group)
+                ->template plugin<pro::keybd>()
+                ->shader(c3, e2::form::state::focus::count)
                 ->shader(cell::shaders::xlight, e2::form::state::hover)
                 ->plugin<pro::notes>(skin::globals().NsDisconnect_tooltip)
                 ->invoke([&, name = text{ username_view }](auto& boss)
                 {
                     boss.on(tier::mouserelease, input::key::LeftClick, [&, name](hids& gear)
                     {
-                        log("%%User %name% disconnected", prompt::desk, name);
-                        gear.owner.base::signal(tier::preview, e2::conio::quit);
+                        boss.base::signal(tier::release, desk::events::ui::activate, gear);
                         gear.dismiss(true);
                     });
+                    boss.LISTEN(tier::release, desk::events::ui::activate, gear)
+                    {
+                        log("%%User %name% disconnected", prompt::desk, name);
+                        gear.owner.base::signal(tier::preview, e2::conio::quit);
+                    };
                 });
-            auto disconnect = disconnect_park->attach(ui::item::ctor(skin::globals().NsDisconnect_label))
+            auto& disconnect_park = *disconnect_park_ptr;
+            auto disconnect = disconnect_park.attach(ui::item::ctor(skin::globals().NsDisconnect_label))
                 ->setpad({ 1 + tall, 1 + tall, tall, tall })
                 ->alignment({ snap::head, snap::center });
             auto shutdown_park = bttns->attach(slot::_2, ui::cake::ctor())
                 ->active()
+                //todo taskbar keybd navigation
+                ->template plugin<pro::focus>(pro::focus::mode::focused, true, faux, weight_ui_button)
+                ->template plugin<pro::keybd>()
+                ->shader(c1, e2::form::state::focus::count)
                 ->shader(c1, e2::form::state::hover)
                 ->plugin<pro::notes>(skin::globals().NsShutdown_tooltip)
                 ->invoke([&](auto& boss)
                 {
                     boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
                     {
-                        boss.base::signal(tier::general, e2::shutdown, utf::concat(prompt::desk, "Server shutdown"));
+                        boss.base::signal(tier::release, desk::events::ui::activate, gear);
                         gear.dismiss(true);
                     });
+                    boss.LISTEN(tier::release, desk::events::ui::activate, gear)
+                    {
+                        boss.base::signal(tier::general, e2::shutdown, utf::concat(prompt::desk, "Server shutdown"));
+                    };
                 });
             auto shutdown = shutdown_park->attach(ui::item::ctor(skin::globals().NsShutdown_label))
                 ->setpad({ 1 + tall, 1 + tall, tall, tall })
                 ->alignment({ snap::tail, snap::center });
-            return window;
+
+            taskbar_grips.invoke([&](auto& boss)
+            {
+                auto& luafx = boss.bell::indexer.luafx;
+                auto& focus = boss.base::template plugin<pro::focus>(); //todo Apple clang requires templtate
+                auto& bindings = boss.base::template property<input::bindings::vector>("taskbar.bindings"); //todo Apple clang requires template
+                auto applet_context = config.settings::push_context("/config/events/taskbar/");
+                auto script_list = config.settings::take_ptr_list_for_name("script");
+                bindings = input::bindings::load(config, script_list);
+                input::bindings::keybind(boss, bindings);
+                boss.base::add_methods(basename::taskbar,
+                {
+                    { "FocusNextItem",      [&] // (si32 n, si32 min_w, si32 max_w = si32max)
+                                            {
+                                                auto& gear = luafx.get_gear();
+                                                auto count = luafx.get_args_or(1, si32{ 1 });
+                                                auto min_w = luafx.get_args_or(2, si32{ 0 });
+                                                auto max_w = luafx.get_args_or(3, si32max);
+                                                focus.for_first_focused_leaf(gear, [&](auto& focused_item)
+                                                {
+                                                    auto& item_focus = focused_item.base::template plugin<pro::focus>(); //todo Apple clang requires templtate
+                                                    item_focus.focus_next(gear, count, min_w, max_w);
+                                                });
+                                                gear.set_handled();
+                                                luafx.set_return();
+                                            }},
+                    { "FocusTop",           [&]
+                                            {
+                                                auto& gear = luafx.get_gear();
+                                                tasks_scrl.base::riseup(tier::preview, e2::form::upon::scroll::to_top::v);
+                                                if (tasks_scrl.subset.size())
+                                                if (auto app_list_ptr = tasks_scrl.subset.front())
+                                                {
+                                                    auto& app_list = *app_list_ptr;
+                                                    for (auto& menuitem_ptr : app_list.subset) // Select the first focusable item from the app list.
+                                                    {
+                                                        if (menuitem_ptr && menuitem_ptr->subset.size())
+                                                        {
+                                                            auto& head_fork_ptr = menuitem_ptr->subset.front();
+                                                            if (head_fork_ptr && head_fork_ptr->subset.size()) // Focus app group label.
+                                                            {
+                                                                auto& head_ptr = head_fork_ptr->subset.front();
+                                                                if (head_ptr && head_ptr->base::has_plugin<pro::focus>())
+                                                                {
+                                                                    pro::focus::set(head_ptr, gear.id, solo::on);
+                                                                    break;
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                                gear.set_handled();
+                                                luafx.set_return();
+                                            }},
+                    { "FocusEnd",           [&]
+                                            {
+                                                auto& gear = luafx.get_gear();
+                                                tasks_scrl.base::riseup(tier::preview, e2::form::upon::scroll::to_end::v);
+                                                pro::focus::set(disconnect_park.This(), gear.id, solo::on);
+                                                gear.set_handled();
+                                                luafx.set_return();
+                                            }},
+                    { "ChangeWidthByStep",  [&] // (-1/1)
+                                            {
+                                                auto& gear = luafx.get_gear();
+                                                auto delta = luafx.get_args_or(1, si32{ 1 });
+                                                change_taskbar_width(delta);
+                                                gear.set_handled();
+                                                luafx.set_return();
+                                            }},
+                    { "ActivateItem",       [&]
+                                            {
+                                                auto& gear = luafx.get_gear();
+                                                focus.for_first_focused_leaf(gear, [&](auto& focused_item)
+                                                {
+                                                    focused_item.base::riseup(tier::release, desk::events::ui::activate, gear);
+                                                });
+                                                gear.set_handled();
+                                                luafx.set_return();
+                                            }},
+                    { "GetHeight",          [&]
+                                            {
+                                                auto& gear = luafx.get_gear();
+                                                auto viewport = gear.owner.base::signal(tier::request, e2::form::prop::viewport);
+                                                auto h1 = std::max(viewport.size.y, 1);     // Taskbar height.
+                                                auto h2 = skin::globals().menuwide ? 2 : 1; // Taskbar line height.
+                                                luafx.set_return(h1, h2);
+                                            }},
+                    { "GetFocusedWeight",   [&]
+                                            {
+                                                auto& gear = luafx.get_gear();
+                                                auto focused_weight = 0;
+                                                focus.for_first_focused_leaf(gear, [&](auto& focused_item)
+                                                {
+                                                    focused_weight = focused_item.base::template plugin<pro::focus>().get_weight(); //todo Apple clang requires templtate
+                                                });
+                                                luafx.set_return(focused_weight);
+                                            }},
+                });
+            });
+            return desklayout_ptr;
         };
     }
 

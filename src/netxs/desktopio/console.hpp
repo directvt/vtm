@@ -505,6 +505,13 @@ namespace netxs::ui
                                             auto repeated = gear.keystat == input::key::repeated;
                                             luafx.set_return(repeated);
                                         }},
+                    { "Interrupt",      [&]
+                                        {
+                                            gear.keystat = input::key::interrupted;
+                                            gear.set_handled();
+                                            gear.indexer.expire();
+                                            luafx.set_return();
+                                        }},
                     { "SetHandled",     [&]
                                         {
                                             auto dismiss = luafx.get_args_or(1, faux);

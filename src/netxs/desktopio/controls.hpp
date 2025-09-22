@@ -256,7 +256,7 @@ namespace netxs::events
             auto& source_ctx = indexer.context_ref.get();
             if (object_name == "config")
             {
-                log("object_name=", object_name);
+                //log("object_name=", object_name);
                 ::lua_pushlightuserdata(lua, &indexer.config); // Push address of the config instance.
                 ::luaL_setmetatable(lua, "cfg_submetaindex"); // Set the cfg_submetaindex for table at -1.
                 return 1;
@@ -268,6 +268,18 @@ namespace netxs::events
                 ::luaL_setmetatable(lua, "vtm_submetaindex"); // Set the vtm_submetaindex for table at -1.
                 //todo keep target_ptr locked until we are inside the lua
                 return 1;
+            }
+            else if (object_name == "desktop") //todo unify (use set_multihome)
+            {
+                //log("object_name=", object_name);
+                auto iter = indexer.objects.find(1);
+                if (iter != indexer.objects.end())
+                {
+                    auto world_ptr = &(iter->second.get());
+                    ::lua_pushlightuserdata(lua, world_ptr); // Push address of the world instance.
+                    ::luaL_setmetatable(lua, "cfg_submetaindex"); // Set the cfg_submetaindex for table at -1.
+                    return 1;
+                }
             }
             log("%%No 'vtm.%%' object found", prompt::lua, object_name);
             return 0;
@@ -343,13 +355,17 @@ namespace netxs::events
         static constexpr auto is_cstring_v = requires{ static_cast<const char*>(fallback); };
 
         auto type = ::lua_type(lua, idx);
-        if (type != LUA_TNIL)
+        if (type == LUA_TNONE)
+        {
+            return fallback;
+        }
+        else if (type != LUA_TNIL)
         {
                  if constexpr (std::is_same_v<std::decay_t<T>, bool>) return (T)::lua_toboolean(lua, idx);
             else if constexpr (is_string_v || is_cstring_v)           return luna::vtmlua_torawstring(lua, idx);
-            else if constexpr (std::is_integral_v<T>)                 return (T)::lua_tointeger(lua, idx);
+            else if constexpr (std::is_integral_v<T>)                 return (T)::lua_tonumber(lua, idx);
             else if constexpr (std::is_floating_point_v<T>)           return (T)::lua_tonumber(lua, idx);
-            else if constexpr (std::is_same_v<std::decay_t<T>, twod>) return twod{ ::lua_tointeger(lua, idx), ::lua_tointeger(lua, idx + 1) };
+            else if constexpr (std::is_same_v<std::decay_t<T>, twod>) return twod{ ::lua_tonumber(lua, idx), ::lua_tonumber(lua, idx + 1) };
             else if constexpr (std::is_same_v<std::decay_t<T>, sptr<ui::base>>)
             {
                 if (auto ptr = (ui::base*)::lua_touserdata(lua, idx)) // Get ui::base*.
@@ -1670,12 +1686,23 @@ namespace netxs::ui
                 template<class P>
                 auto foreach(P proc)
                 {
+                    static constexpr auto Plain = std::is_same_v<void, std::invoke_result_t<decltype(proc), base&, si32&>>;
                     auto head = next.begin();
                     while (head != next.end())
                     {
-                        if (auto nexthop = head->next_wptr.lock(); nexthop && (proc(nexthop, head->status), nexthop))
+                        if (auto nexthop_ptr = head->next_wptr.lock())
                         {
+                            auto& nexthop = *nexthop_ptr;
+                            auto& status = head->status;
                             head++;
+                            if constexpr (Plain)
+                            {
+                                proc(nexthop, status);
+                            }
+                            else
+                            {
+                                if (!proc(nexthop, status)) break;
+                            }
                         }
                         else
                         {
@@ -1690,11 +1717,12 @@ namespace netxs::ui
                   skill::memo;
 
             //todo kb navigation type: transit, cyclic, plain, disabled, closed
-            umap gears; // focus: Registered gears.
+            umap gears;     // focus: Registered gears.
             si32 node_type; // focus: .
-            si32 count{}; // focus: The number of active gears.
-            si64 treeid = datetime::uniqueid(); // focus: .
-            ui64 digest = ui64{}; // focus: .
+            si32 count;     // focus: The number of active gears.
+            si64 treeid;    // focus: .
+            ui64 digest;    // focus: .
+            si32 weight;    // focus: Focusable object weight.
 
             auto add_chain(id_t gear_id, chain_t new_chain = { .active = state::dead })
             {
@@ -1733,7 +1761,7 @@ namespace netxs::ui
                 }
                 return iter->second;
             }
-            bool notify_focus_state(si32 active, chain_t& chain, id_t gear_id)
+            bool notify_focus_state(si32 active, chain_t& chain, id_t gear_id, bool is_leaf = faux)
             {
                 auto changed = (chain.active == state::live) != (active == state::live);
                 chain.active = active;
@@ -1743,13 +1771,22 @@ namespace netxs::ui
                     {
                         count++;
                         boss.base::signal(tier::release, e2::form::state::focus::on, gear_id);
+                        boss.base::signal(tier::release, e2::form::state::focus::count, count);
+                        if (is_leaf && weight) // Notify to scroll to focused item.
+                        {
+                            auto info = rack{ .window = boss.area() };
+                            auto offset = dot_00;
+                            boss.base::global(offset);
+                            info.window.coor = -(offset + boss.base::intpad.corner());
+                            boss.base::riseup(tier::preview, e2::form::upon::scroll::to_box, info);
+                        }
                     }
                     else
                     {
                         count--;
                         boss.base::signal(tier::release, e2::form::state::focus::off, gear_id);
+                        boss.base::signal(tier::release, e2::form::state::focus::count, count);
                     }
-                    boss.base::signal(tier::release, e2::form::state::focus::count, count);
                     //if constexpr (debugmode) log("Focus %set% <object:%id%>", active == state::live ? "set" : "off", boss.id);
                 }
                 return changed;
@@ -1863,11 +1900,95 @@ namespace netxs::ui
                 auto result = iter != gears.end() && iter->second.active == state::live;
                 return result;
             }
+            void for_first_focused_leaf(input::hids& gear, auto&& proc)
+            {
+                auto iter = gears.find(gear.id);
+                if (iter != gears.end())
+                {
+                    auto& chain = iter->second;
+                    if (chain.active == state::live)
+                    {
+                        auto is_leaf = true;
+                        chain.foreach([&](auto& nexthop, auto& status)
+                        {
+                            if (status == state::live)
+                            {
+                                is_leaf = faux;
+                                auto& nexthop_focus = nexthop.base::template plugin<pro::focus>(); //todo Apple clang requires templtate
+                                nexthop_focus.for_first_focused_leaf(gear, proc);
+                                return faux;
+                            }
+                            else return true;
+                        });
+                        if (is_leaf)
+                        {
+                            proc(boss);
+                        }
+                    }
+                }
+            }
+            auto get_weight()
+            {
+                return weight;
+            }
+            auto get_type()
+            {
+                return node_type;
+            }
+            void focus_next(input::hids& gear, si32 n, si32 min_w, si32 max_w = si32max)
+            {
+                if (!n) return;
+                auto set_focus = [&](auto get_next)
+                {
+                    auto last_found_ptr = sptr{};
+                    auto next_ptr = get_next(boss);
+                    auto count = std::abs(n);
+                    while (next_ptr)
+                    {
+                        if (next_ptr->base::template has_plugin<pro::focus>())
+                        {
+                            auto& focus = next_ptr->base::template plugin<pro::focus>();
+                            if (focus.get_type() == mode::focused)
+                            {
+                                auto w = focus.get_weight();
+                                if (w >= min_w)
+                                {
+                                    if (w > max_w)
+                                    {
+                                        break;
+                                    }
+                                    else if (--count == 0)
+                                    {
+                                        pro::focus::set(next_ptr, gear.id, solo::on);
+                                        break;
+                                    }
+                                    last_found_ptr = next_ptr;
+                                }
+                            }
+                        }
+                        next_ptr = get_next(*next_ptr);
+                    }
+                    if (last_found_ptr)
+                    {
+                        pro::focus::set(last_found_ptr, gear.id, solo::on);
+                    }
+                };
+                n > 0 ? set_focus([](auto& item){ return item.base::get_next(); })
+                      : set_focus([](auto& item){ return item.base::get_prev(); });
+            }
+            void set_mode(si32 focus_mode)
+            {
+                node_type = focus_mode;
+            }
 
             focus(base&&) = delete;
-            focus(base& boss, si32 focus_mode = mode::hub, bool set_default_focus = true)
-                : skill{ boss },
-                  node_type{ focus_mode }
+            focus(base& boss, si32 focus_mode = mode::hub, bool set_default_focus = true, bool focus_on_click = true, si32 weight = 0)
+                :   skill{ boss                 },
+                node_type{ focus_mode           },
+                    count{ 0                    },
+                   treeid{ datetime::uniqueid() },
+                   digest{ 0                    },
+                   weight{ weight               }
             {
                 if (set_default_focus && (node_type == mode::focused || node_type == mode::active || node_type == mode::relay)) // Pave default focus path at startup.
                 {
@@ -1880,7 +2001,7 @@ namespace netxs::ui
                     };
                 }
                 //todo unify. pro::focus: Set unique focus on left click. Set group focus on Ctrl+LeftClick.
-                boss.on(tier::mouserelease, input::key::LeftClick, memo, [&](hids& gear)
+                if (focus_on_click) boss.on(tier::mouserelease, input::key::LeftClick, memo, [&](hids& gear)
                 {
                     if (!gear) return;
                     if (gear.meta(hids::anyCtrl))
@@ -1910,21 +2031,24 @@ namespace netxs::ui
                 {
                     auto sent = faux;
                     auto& chain = get_chain(gear.id);
-                    auto handled = gear.handled;
-                    auto new_handled = handled;
                     chain.foreach([&](auto& nexthop, auto& status)
                     {
                         if (status == state::live)
                         {
                             sent = true;
-                            gear.handled = handled;
-                            nexthop->base::signal(tier::preview, input::events::keybd::post, gear);
-                            new_handled |= gear.handled;
+                            nexthop.base::signal(tier::preview, input::events::keybd::post, gear);
                         }
                     });
-                    gear.handled = new_handled;
                     if (!sent && node_type != mode::relay) // Send key::post event back. The relays themselves will later send it back.
                     {
+                        if constexpr (debugmode)
+                        {
+                            //auto generic = input::key::kmap::to_string(gear.vkchord, true);
+                            //if (generic == "Alt+Shift+N")
+                            //{
+                            //    auto i = 0;
+                            //}
+                        }
                         auto parent_ptr = boss.base::This();
                         while ((!gear.handled || gear.keystat == input::key::released) && parent_ptr) // Always pass released key events.
                         {
@@ -1946,7 +2070,7 @@ namespace netxs::ui
                             if (status == state::live)
                             {
                                 status = state::idle;
-                                nexthop->base::signal(tier::release, input::events::focus::set::off, seed);
+                                nexthop.base::signal(tier::release, input::events::focus::set::off, seed);
                             }
                         });
                     }
@@ -1971,7 +2095,7 @@ namespace netxs::ui
                         }
                         chain.foreach([&](auto& nexthop, auto& /*status*/)
                         {
-                            nexthop->base::signal(tier::request, input::events::focus::dup, seed);
+                            nexthop.base::signal(tier::request, input::events::focus::dup, seed);
                         });
                     }
                 };
@@ -1979,9 +2103,9 @@ namespace netxs::ui
                 boss.LISTEN(tier::release, input::events::focus::set::on, seed, memo)
                 {
                     auto iter = gears.find(seed.gear_id);
+                    auto first_step = !seed.item; // No focused item yet. We are in the the first riseup iteration (pro::focus::set just called and catched the first plugin<pro::focus> owner). A focus leaf is not necessarily a visual tree leaf.
                     if (iter == gears.end()) // No route to inside.
                     {
-                        auto first_step = !seed.item; // No focused item yet. We are in the the first riseup iteration (pro::focus::set just called and catched the first plugin<pro::focus> owner). A focus leaf is not necessarily a visual tree leaf.
                         if (seed.gear_id && first_step && (iter = gears.find(id_t{}), iter != gears.end())) // Check if the default chain exists.
                         {
                             boss.base::signal(tier::request, input::events::focus::dup, seed);
@@ -1997,7 +2121,7 @@ namespace netxs::ui
                     }
                     auto& chain = iter->second;
                     auto prev_state = chain.active;
-                    notify_focus_state(state::live, chain, seed.gear_id);
+                    notify_focus_state(state::live, chain, seed.gear_id, first_step);
                     if (node_type != mode::relay)
                     {
                         auto allow_focusize = node_type == mode::focused || node_type == mode::focusable;
@@ -2007,7 +2131,7 @@ namespace netxs::ui
                             {
                                 status = state::live;
                                 seed.item = boss.This();
-                                nexthop->base::signal(tier::release, input::events::focus::set::on, seed);
+                                nexthop.base::signal(tier::release, input::events::focus::set::on, seed);
                             }
                         });
                     }
@@ -2036,11 +2160,11 @@ namespace netxs::ui
                                     if (status == state::live)
                                     {
                                         status = state::dead;
-                                        nexthop->base::signal(tier::release, input::events::focus::set::off, seed);
+                                        nexthop.base::signal(tier::release, input::events::focus::set::off, seed);
                                     }
                                 });
                             }
-                            notify_focus_state(state::live, chain, seed.gear_id);
+                            notify_focus_state(state::live, chain, seed.gear_id, true);
                         }
                     }
                     else // Build focus tree (we are in the middle of the focus tree).
@@ -2051,7 +2175,7 @@ namespace netxs::ui
                             auto exists = faux;
                             chain.foreach([&](auto& nexthop, auto& status)
                             {
-                                if (nexthop == seed.item)
+                                if (&nexthop == seed.item.get())
                                 {
                                     status = state::live;
                                     exists = true;
@@ -2059,7 +2183,7 @@ namespace netxs::ui
                                 else
                                 {
                                     status = state::dead;
-                                    nexthop->base::signal(tier::release, input::events::focus::set::off, seed);
+                                    nexthop.base::signal(tier::release, input::events::focus::set::off, seed);
                                 }
                             });
                             if (!exists)
@@ -2121,7 +2245,7 @@ namespace netxs::ui
                         auto last_step = chain.next.size() > 1 || focusable;
                         chain.foreach([&](auto& nexthop, auto& status)
                         {
-                            if (nexthop == seed.item)
+                            if (&nexthop == seed.item.get())
                             {
                                 status = last_step ? state::dead : state::idle;
                             }
@@ -2143,7 +2267,7 @@ namespace netxs::ui
                 boss.LISTEN(tier::request, input::events::focus::add, seed, memo)
                 {
                     auto& chain = get_chain(seed.gear_id);
-                    notify_focus_state(state::live, chain, seed.gear_id);
+                    notify_focus_state(state::live, chain, seed.gear_id, true);
                     if (auto parent = boss.base::parent())
                     {
                         seed.item = boss.This();
@@ -4165,6 +4289,42 @@ namespace netxs::ui
         {
             return base::subset.empty() || !base::subset.back();
         }
+        // rail: .
+        void move_to_box(rack& info)
+        {
+            auto viewport_area = base::area();
+            auto offset = dot_00;
+            base::global(offset);
+            viewport_area.coor = -(offset + base::intpad.corner());
+            auto focused_area = info.window;
+            auto delta = dot_00;
+            for (auto xy : { axis::X, axis::Y })
+            {
+                if (viewport_area.coor[xy] > focused_area.coor[xy])
+                {
+                    delta[xy] = viewport_area.coor[xy] - focused_area.coor[xy];
+                }
+                else
+                {
+                    auto trimmed_size = std::min(focused_area.size[xy], viewport_area.size[xy]);
+                    auto focused_last = focused_area.coor[xy] + trimmed_size;
+                    auto viewport_last = viewport_area.coor[xy] + viewport_area.size[xy];
+                    if (focused_last > viewport_last)
+                    {
+                        delta[xy] = viewport_last - focused_last;
+                    }
+                }
+            }
+            if (delta)
+            {
+                info.window.coor += delta;
+                scroll(delta);
+            }
+            if (auto parent_ptr = base::parent())
+            {
+                parent_ptr->base::riseup(tier::preview, e2::form::upon::scroll::to_box, info);
+            }
+        }
 
     protected:
         // rail: Resize nested object with scroll bounds checking.
@@ -4215,6 +4375,7 @@ namespace netxs::ui
                     case e2::form::upon::scroll::cancel::v.id: cancel<X, true>(); cancel<Y, true>();                     break;
                     case e2::form::upon::scroll::cancel::x.id: cancel<X, true>();                                        break;
                     case e2::form::upon::scroll::cancel::y.id: cancel<Y, true>();                                        break;
+                    case e2::form::upon::scroll::to_box.id:    move_to_box(info); return;
                     default: break;
                 }
                 if (delta) scroll(delta);
