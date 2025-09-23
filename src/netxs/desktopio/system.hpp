@@ -4409,6 +4409,7 @@ namespace netxs::os
                     //    writesyn.notify_one(); // Interrupt writing thread.
                     //    termlink->abort(termlink->stdinput); // Interrupt reading thread.
                     //}
+                    attached.exchange(faux);
                     writesyn.notify_one();
                     if (io_log) log(prompt::vtty, "Writing thread joining", ' ', utf::to_hex_0x(stdwrite.get_id()));
                     stdwrite.join();
