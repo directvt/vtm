@@ -23,7 +23,7 @@
   </tr>
 </thead>
 <tbody>
-  <tr><th>Esc+F1 ¹ / Alt+Z</th>                               <td colspan="9">Focus taskbar</td></tr>
+  <tr><th>Esc+F1 ¹ (Alt+Z on non-Windows platforms)</th>      <td colspan="9">Focus taskbar</td></tr>
 
   <tr><th>Esc | Alt</th>                                      <td colspan="3">Unfocus taskbar</td><td colspan="6"></td></tr>
   <tr><th>LeftArrow</th>                                      <td colspan="3">Focus left item</td><td colspan="6"></td></tr>

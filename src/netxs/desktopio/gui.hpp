@@ -3199,13 +3199,16 @@ namespace netxs::gui
             }
             auto changed = std::exchange(keymod, state) != keymod || synth;
             auto& gear = *stream.gears;
-            if ((changed || gear.ctlstat != keymod) && stream.m.enabled == hids::stat::ok)
+            if ((changed || gear.ctlstat != keymod))
             {
                 gear.ctlstat = keymod;
-                stream.m.ctlstat = keymod;
-                stream.m.timecod = datetime::now();
-                stream.m.changed++;
-                stream.mouse(stream.m); // Fire mouse event to update kb modifiers.
+                if (stream.m.enabled == hids::stat::ok)
+                {
+                    stream.m.ctlstat = keymod;
+                    stream.m.timecod = datetime::now();
+                    stream.m.changed++;
+                    stream.mouse(stream.m); // Fire mouse event to update kb modifiers.
+                }
             }
             gear.payload = input::keybd::type::keypress;
             gear.extflag = extflag;

@@ -902,7 +902,7 @@ Notes
             </autorun>
             <width>  <!-- Taskbar menu width. -->
                 <folded=18/>
-                <expanded=40/>
+                <expanded=41/>
             </width>
             <timeout=250ms/>  <!-- Taskbar collaplse timeout after mouse leave. -->
             <colors>
@@ -1029,9 +1029,10 @@ Notes
             <script=RollFontsForward       on="Ctrl+Shift+F12"                   />
             <script=ResetWheelAccumulator  on="preview:-Ctrl"                    />
             <script=ToggleDebugOverlay     on="Space-Backspace | Backspace-Space"/>
-            <script=FocusTaskbar           on="Esc+F1 | Alt+Z"                   />
         </gate>
         <desktop script*>  <!-- Desktop bindings. -->
+            <script=FocusTaskbar    on="Esc+F1"       />
+            <script=FocusTaskbar    on="Alt+Z"        />
             <script=FocusPrevWindow on="Ctrl+PageUp"  />
             <script=FocusNextWindow on="Ctrl+PageDown"/>
             <script=Disconnect      on="Shift+F7"     />

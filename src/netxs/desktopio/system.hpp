@@ -5043,13 +5043,16 @@ namespace netxs::os
                             else if (modstat.changed)
                             {
                                 k.ctlstat = kbmod;
-                                m.ctlstat = kbmod;
-                                m.hzwheel = faux;
-                                m.wheelfp = 0;
-                                m.wheelsi = 0;
-                                m.timecod = datetime::now();
-                                m.changed++;
-                                mouse(m); // Fire mouse event to update kb modifiers.
+                                if (m.enabled == input::hids::stat::ok)
+                                {
+                                    m.ctlstat = kbmod;
+                                    m.hzwheel = faux;
+                                    m.wheelfp = 0;
+                                    m.wheelsi = 0;
+                                    m.timecod = datetime::now();
+                                    m.changed++;
+                                    mouse(m); // Fire mouse event to update kb modifiers.
+                                }
                             }
                             if (utf::to_code(r.Event.KeyEvent.uChar.UnicodeChar, point))
                             {
@@ -5117,7 +5120,6 @@ namespace netxs::os
                                         m.timecod = datetime::now();
                                         m.enabled = input::hids::stat::halt; // Send a mouse halt event.
                                         mouse(m);
-                                        m.enabled = input::hids::stat::ok;
                                     }
                                     break;
                                 case nt::console::event::style:
@@ -5172,6 +5174,7 @@ namespace netxs::os
                                     {
                                         m.changed++;
                                         m.timecod = datetime::now();
+                                        m.enabled = input::hids::stat::ok;
                                         mouse(m);
                                     }
                                 }
@@ -5181,6 +5184,7 @@ namespace netxs::os
                             {
                                 m.changed++;
                                 m.timecod = datetime::now();
+                                m.enabled = input::hids::stat::ok;
                                 mouse(m);
                             }
                         }
@@ -5821,16 +5825,9 @@ namespace netxs::os
                                 });
                                 m.changed++;
                                 m.timecod = datetime::now();
-                                if (std::isnan(m.coordxy.x))
-                                {
-                                    m.enabled = input::hids::stat::halt; // Send a mouse halt event.
-                                    mouse(m);
-                                    m.enabled = input::hids::stat::ok;
-                                }
-                                else
-                                {
-                                    mouse(m);
-                                }
+                                m.enabled = std::isnan(m.coordxy.x) ? input::hids::stat::halt // Send a mouse halt event.
+                                                                    : input::hids::stat::ok;
+                                mouse(m);
                             }
                             else if (t == type::mouse) // SGR mouse report:  ESC [ < ctrl ; xpos ; ypos M
                             {
@@ -5853,7 +5850,7 @@ namespace netxs::os
                                 auto ctl = ctrl.value();
 
                                 m.timecod = timecode;
-                                m.enabled = {};
+                                m.enabled = input::hids::stat::ok;
                                 m.hzwheel = {};
                                 m.wheelfp = {};
                                 m.wheelsi = {};
@@ -5996,13 +5993,16 @@ namespace netxs::os
                             if (k.ctlstat != kbmod)
                             {
                                 k.ctlstat = kbmod;
-                                m.ctlstat = kbmod;
-                                m.hzwheel = faux;
-                                m.wheelfp = 0;
-                                m.wheelsi = 0;
-                                m.timecod = datetime::now();
-                                m.changed++;
-                                mouse(m); // Fire mouse event to update kb modifiers.
+                                if (m.enabled == input::hids::stat::ok)
+                                {
+                                    m.ctlstat = kbmod;
+                                    m.hzwheel = faux;
+                                    m.wheelfp = 0;
+                                    m.wheelsi = 0;
+                                    m.timecod = datetime::now();
+                                    m.changed++;
+                                    mouse(m); // Fire mouse event to update kb modifiers.
+                                }
                             }
                         }
                         parser(data);
@@ -6095,6 +6095,7 @@ namespace netxs::os
                             m.coordxy = mcoord / scale;
                             m.buttons = bttns;
                             m.ctlstat = k.ctlstat;
+                            m.enabled = input::hids::stat::ok;
                             if (wheelfp)
                             {
                                 if (wheelfp.x)
