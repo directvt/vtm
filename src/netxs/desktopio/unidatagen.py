@@ -15,8 +15,8 @@ import datetime
 import collections
 
 UNICODESPACE = 0x110000
-#ROOTURL = "https://www.unicode.org/Public/UNIDATA"
-ROOTURL = "https://www.unicode.org/Public/draft/UCD/ucd/"
+ROOTURL = "https://www.unicode.org/Public/UNIDATA"
+#ROOTURL = "https://www.unicode.org/Public/draft/UCD/ucd/"
 DATA_SOURCE = { 'GCBREAK' : (ROOTURL + '/auxiliary/GraphemeBreakProperty.txt',
                              ['CODERANGE', 'BREAK_CLASS']),
                 'EAWIDTH' : (ROOTURL + '/EastAsianWidth.txt',
@@ -121,6 +121,7 @@ WCWIDTHS = { 'zerowidth' : ['zero', 'non-printable' ],
 
 CUSTOMIZE = [('0200B',        'zero', 'Nonspacing_Mark', 'Extend'), # ZWSP, ZERO WIDTH SPACE is always part of grapheme cluster and can't be the first
              ('0200C',        'zero', 'Nonspacing_Mark', 'Extend'), # ZWNJ, ZERO WIDTH NON-JOINER is always part of grapheme cluster and can't be the first
+             ('0FE0F',        'wide', 'Nonspacing_Mark', 'Extend'), # VS16 changes width of the base character to 'wide'.
              ('D0000..D0FFF', 'zero', 'Nonspacing_Mark', 'Extend')]
 #def gc(x):
 #    return x * (x + 1) / 2 + 1
