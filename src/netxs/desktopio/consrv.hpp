@@ -2345,8 +2345,12 @@ struct impl : consrv
         {
             if (handle_ptr->link == &uiterm.target)
             {
-                     if (uiterm.target == &uiterm.normal) unsync |= proc(uiterm.normal);
-                else if (uiterm.target == &uiterm.altbuf) unsync |= proc(uiterm.altbuf);
+                if (uiterm.target == &uiterm.normal) unsync |= proc(uiterm.normal);
+                else
+                {
+                    auto& target_buffer = *(decltype(uiterm.altbuf)*)uiterm.target;
+                    unsync |= proc(target_buffer);
+                }
                 return true;
             }
             else
@@ -3839,6 +3843,7 @@ struct impl : consrv
             auto handle_ptr = (hndl*)packet.target;
             if (handle_ptr->link == &uiterm.target) // Restore original buffer mode.
             {
+                log("\t  restore original buffer mode to ", altmod ? "'altbuf'" : "'normal'");
                 auto& console = *uiterm.target;
                 if (altmod) uiterm.reset_to_altbuf(console);
                 else        uiterm.reset_to_normal(console);
@@ -3846,10 +3851,12 @@ struct impl : consrv
             else // Switch to additional buffer.
             {
                 auto window_ptr = select_buffer(packet.target);
+                log("\t  switch to additional buffer (%%)", window_ptr);
                 if (!window_ptr) return;
                 if (uiterm.target == &uiterm.normal || uiterm.target == &uiterm.altbuf) // Save/update original buffer mode.
                 {
                     altmod = uiterm.target == &uiterm.altbuf;
+                    log("\t  prev mode was ", altmod ? "'altbuf'" : "'normal'");
                 }
                 auto& console = *window_ptr;
                 uiterm.reset_to_altbuf(console);

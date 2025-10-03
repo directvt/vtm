@@ -303,7 +303,6 @@ namespace netxs::app::desk
                         };
                         boss.on(tier::mouserelease, input::key::RightClick, [&, inst_id](hids& gear)
                         {
-                            pro::focus::set(boss.This(), gear.id, solo::on);
                             boss.base::signal(tier::anycast, desk::events::ui::selected, inst_id);
                             gear.dismiss(true);
                         });
