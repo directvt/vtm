@@ -627,7 +627,12 @@ namespace netxs::ui
                 {
                     case 0:
                     default:
-                        queue.add("\x1b[?1;2;10060c"); // Announce support for \e[?10060h mode.
+                        // 61: VT Level 1 conformance
+                        // 22: Color text
+                        // 28: Rectangular area operations
+                        // 52: Clipboard operations
+                        // 10060c: VT2D
+                        queue.add("\x1b[?61;22;28;52;10060c");
                         break;
                 }
                 owner.answer(queue);
