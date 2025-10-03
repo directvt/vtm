@@ -7154,8 +7154,12 @@ namespace netxs::ui
             {
                 area.coor = {};
                 fragment.area(area);
-                     if (target == &normal) write_block(normal, fragment, coor, src_area, cell::shaders::full);
-                else if (target == &altbuf) write_block(altbuf, fragment, coor, src_area, cell::shaders::full);
+                if (target == &normal) write_block(normal, fragment, coor, src_area, cell::shaders::full);
+                else
+                {
+                    auto& target_buffer = *(alt_screen*)target;
+                    write_block(target_buffer, fragment, coor, src_area, cell::shaders::full);
+                }
             }
             else
             {
@@ -7935,7 +7939,7 @@ namespace netxs::ui
                 else
                 {
                     if (gear.meta(hids::anyCtrl)) return; // Ctrl+Wheel is reserved for zooming.
-                    if (altscr && target == &altbuf)
+                    if (altscr && target != &normal)
                     {
                         if (gear.whlsi)
                         {
@@ -8231,12 +8235,15 @@ namespace netxs::ui
             if (auto width = cooked.length())
             {
                 auto& proto = cooked.pick();
-                auto& brush = target == &normal ? normal.parser::brush
-                                                : altbuf.parser::brush;
+                auto& brush = target->parser::brush;
                 cooked.each([&](cell& c){ c.meta(brush); });
                 //todo split by char height and do _data2d(...) for each
                 if (target == &normal) normal._data(width, proto, fx);
-                else                   altbuf._data(width, proto, fx);
+                else
+                {
+                    auto& target_buffer = *(alt_screen*)target;
+                    target_buffer._data(width, proto, fx);
+                }
             }
         }
         // term: Move composition cursor (imebox.caret) inside viewport with wordwrapping.
