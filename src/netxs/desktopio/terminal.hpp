@@ -631,7 +631,7 @@ namespace netxs::ui
                         // 22: Color text
                         // 28: Rectangular area operations
                         // 52: Clipboard operations
-                        // 10060c: VT2D
+                        // 10060: VT2D
                         queue.add("\x1b[?61;22;28;52;10060c");
                         break;
                 }
