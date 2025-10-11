@@ -311,7 +311,7 @@ namespace netxs::events
     }
     void luna::read_args(si32 index, auto add_item)
     {
-        if (lua_istable(lua, index))
+        if (::lua_type(lua, index) == LUA_TTABLE)
         {
             ::lua_pushnil(lua); // Push prev key.
             while (::lua_next(lua, index)) // Table is in the stack at index. { "<item " + text{ table } + " />" }
@@ -320,7 +320,7 @@ namespace netxs::events
                 if (!key.empty()) // Allow stringable keys only.
                 {
                     auto val = luna::vtmlua_torawstring(lua, -1);
-                    if (val.empty() && lua_istable(lua, -1)) // Extract item list.
+                    if (val.empty() && ::lua_type(lua, -1) == LUA_TTABLE) // Extract item list.
                     {
                         ::lua_pushnil(lua); // Push prev key.
                         while (::lua_next(lua, -2)) // Table is in the stack at index -2. { "<key="key2=val2"/>" }
@@ -414,22 +414,35 @@ namespace netxs::events
         indexer.context_ref = context;
         indexer.script_param = std::ref((T&)param);
 
-        ::lua_settop(lua, 0);
-        auto error = ::luaL_loadbuffer(lua, script_body.data(), script_body.size(), "script body")
-                  || ::lua_pcall(lua, 0, 0, 0);
+        auto error = faux;
+        auto [ok, lua_fx_id] = push_function_id(script_body);
+        if (ok)
+        {
+            if (::lua_rawget(lua, -2) == LUA_TFUNCTION) // It is precompiled.
+            {
+                //if constexpr (debugmode) log("It is precompiled");
+                error = ::lua_pcall(lua, 0, 0, 0);
+            }
+            else // It is not precompiled.
+            {
+                //if constexpr (debugmode) log("It is not precompiled");
+                error = ::luaL_loadbuffer(lua, script_body.data(), script_body.size(), "script body")
+                     || ::lua_pcall(lua, 0, 0, 0);
+            }
+        }
         indexer.script_param.reset();
         auto result = text{};
         if (error)
         {
             result = ::lua_tostring(lua, -1);
             log("%%%msg%", prompt::lua, ansi::err(result));
-            ::lua_pop(lua, 1);  // Pop error message from stack.
+            //::lua_pop(lua, 1);  // Pop error message from stack.
         }
         else if (::lua_gettop(lua))
         {
             result = luna::vtmlua_torawstring(lua, -1);
-            ::lua_settop(lua, 0);
         }
+        ::lua_settop(lua, 0);
         return result;
     }
     text luna::run_script(ui::base& boss, view script_body)
@@ -456,6 +469,79 @@ namespace netxs::events
         log(ansi::clr(yellowlt, shadow), "\n", prompt::lua, result);
         script.cmd = utf::concat(shadow, "\n", prompt::lua, result);
     }
+    auto luna::push_function_id(view script_body)
+    {
+        ::lua_settop(lua, 0);
+        // Get a table of precompiled functions from the registry.
+        ::lua_pushstring(lua, "precompiled"); // Push internal registry key 'precompiled'.
+        if (::lua_gettable(lua, LUA_REGISTRYINDEX) == LUA_TTABLE) // Retrieve address of 'precompiled' and push it to the stack at -1.
+        {
+            auto script_id = script_body.data();
+            auto memory_id = reinterpret_cast<char const*>(&script_id);
+            auto lua_fx_id = view{ memory_id, sizeof(script_id) };
+            //if constexpr (debugmode) log("Function id='%%'", utf::debase437(lua_fx_id));
+            ::lua_pushlstring(lua, lua_fx_id.data(), lua_fx_id.size());
+            return std::pair{ true, lua_fx_id };
+        }
+        else
+        {
+            log("%%The table of precompiled functions is missing", prompt::lua);
+            ::lua_settop(lua, 0);
+            return std::pair{ faux, view{} };
+        }
+    }
+    bool luna::precompile_function(sptr<text>& script_body_ptr)
+    {
+        auto precompiled = faux;
+        if (script_body_ptr && script_body_ptr->size())
+        {
+            auto& script_body = *script_body_ptr;
+            auto [ok, lua_fx_id] = push_function_id(script_body);
+            if (ok)
+            {
+                if (::lua_rawget(lua, -2) == LUA_TFUNCTION) // It is already precompiled.
+                {
+                    //if constexpr (debugmode) log("The script is already precompiled");
+                    precompiled = true;
+                }
+                else // It is not precompiled yet.
+                {
+                    ::lua_pop(lua, 1);  // Pop nil after the ::lua_rawget() call.
+                    ::lua_pushlstring(lua, lua_fx_id.data(), lua_fx_id.size()); // Push fx id again.
+                    auto error = ::luaL_loadbuffer(lua, script_body.data(), script_body.size(), "precompilation");
+                    if (error)
+                    {
+                        auto result = ::lua_tostring(lua, -1);
+                        log("%%Precompilation error: %msg%", prompt::lua, ansi::err(result));
+                        ::lua_pop(lua, 1);  // Pop error message from stack.
+                    }
+                    else
+                    {
+                        //if constexpr (debugmode) log("Script precompilation is done");
+                        ::lua_rawset(lua, -3);
+                        precompiled = true;
+                    }
+                }
+                ::lua_settop(lua, 0);
+            }
+        }
+        return precompiled;
+    }
+    void luna::remove_function(sptr<text>& script_body_ptr)
+    {
+        if (script_body_ptr && script_body_ptr->size() && script_body_ptr.use_count() == 1)
+        {
+            auto& script_body = *script_body_ptr;
+            auto [ok, lua_fx_id] = push_function_id(script_body);
+            if (ok)
+            {
+                ::lua_pushnil(lua);
+                ::lua_rawset(lua, -3);
+                ::lua_settop(lua, 0);
+                //if constexpr (debugmode) log("Function id='%%' removed", utf::debase437(lua_fx_id));
+            }
+        }
+    }
 
     luna::luna(auth& indexer)
         : indexer{ indexer },
@@ -472,6 +558,11 @@ namespace netxs::events
         ::lua_pushlightuserdata(lua, &indexer); // Push the 'indexer' address as a record value.
         ::lua_settable(lua, LUA_REGISTRYINDEX); // Set internal registry['indexer'] = &indexer.
 
+        // Set 'precompiled' internal object.
+        ::lua_pushstring(lua, "precompiled"); // Push internal registry key 'precompiled' name.
+        ::lua_createtable(lua, 0, 100); // 100 is a hint for the number of non-sequential (associative array-like) elements the table will have.
+        ::lua_settable(lua, LUA_REGISTRYINDEX); // Set internal registry['precompiled'] = <precompiled function table>.
+
         // Define 'vtm' redirecting metatable.
         static auto vtm_metaindex = std::to_array<luaL_Reg>({{ "__index",    luna::vtmlua_vtm_index },
                                                              { "__tostring", luna::vtmlua_object2string },
@@ -479,7 +570,7 @@ namespace netxs::events
                                                              { nullptr, nullptr }});
         ::luaL_newmetatable(lua, "vtm_metaindex"); // Create a new metatable in registry and push it to the stack.
         ::luaL_setfuncs(lua, vtm_metaindex.data(), 0); // Assign metamethods for the table which at the top of the stack.
-            ::lua_newtable(lua); // Create and push new "vtm.*" global table.
+            ::lua_createtable(lua, 0, 0); // Create and push new "vtm.*" global table.
             ::luaL_setmetatable(lua, "vtm_metaindex"); // Set the metatable for table at -1.
             ::lua_setglobal(lua, basename::vtm.data()); // Set global var "vtm". Pop "vtm".
 
@@ -498,6 +589,20 @@ namespace netxs::events
     luna::~luna()
     {
         if (lua) ::lua_close(lua);
+    }
+
+    script_ref::script_ref(auth& indexer, context_t& context, sptr<text> script_body_ptr)
+        : indexer{ indexer },
+          context{ context },
+          script_body_ptr{ script_body_ptr },
+          precompiled{ indexer.luafx.precompile_function(script_body_ptr) }
+    { }
+    script_ref::~script_ref()
+    {
+        if (precompiled)
+        {
+            indexer.luafx.remove_function(script_body_ptr);
+        }
     }
 
     auth::auth(bool use_timer)
