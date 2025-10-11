@@ -32,17 +32,17 @@ namespace netxs::events
     {
         // Forward execution order: Execute concrete event  first. Preserve subscription order. Forward means from particular to general: 1. event::group::item, 2. event::group::any
         // Reverse execution order: Execute global   events first. Preserve subscription order. Reverse means from general to particular: 1. event::group::any,  2. event::group::item
-        static constexpr auto counter = __COUNTER__ + 1;
-        static constexpr auto release = __COUNTER__ - counter; // events: Run forwrad handlers with fixed param.
-        static constexpr auto preview = __COUNTER__ - counter; // events: Run reverse handlers with fixed a param intended to change.
-        static constexpr auto request = __COUNTER__ - counter; // events: Run forwrad a handler that provides the current value of the param. To avoid being overridden, the handler should be the only one.
-        static constexpr auto anycast = __COUNTER__ - counter; // events: Run reverse handlers along the entire visual tree.
-        static constexpr auto general = __COUNTER__ - counter; // events: Run forwrad handlers for all objects.
-        static constexpr auto mousepreview = __COUNTER__ - counter; // events: Run in subscription order for all objects.
-        static constexpr auto mouserelease = __COUNTER__ - counter; // events: Run in subscription order for all objects.
-        static constexpr auto keybdpreview = __COUNTER__ - counter; // events: Run in subscription order for all objects.
-        static constexpr auto keybdrelease = __COUNTER__ - counter; // events: Run in subscription order for all objects.
-        static constexpr auto unknown = __COUNTER__ - counter; // events: .
+        static constexpr auto counter      = __COUNTER__ + 1;
+        static constexpr auto release      = __COUNTER__ - counter; // events: Run forwrad handlers with fixed param.
+        static constexpr auto preview      = __COUNTER__ - counter; // events: Run reverse handlers with fixed a param intended to change.
+        static constexpr auto request      = __COUNTER__ - counter; // events: Run forwrad a handler that provides the current value of the param. To avoid being overridden, the handler should be the only one.
+        static constexpr auto anycast      = __COUNTER__ - counter; // events: Run reverse handlers along the entire visual tree.
+        static constexpr auto general      = __COUNTER__ - counter; // events: Run forwrad handlers for all objects.
+        static constexpr auto mousepreview = __COUNTER__ - counter; // events: Run in subscription order for object tree.
+        static constexpr auto mouserelease = __COUNTER__ - counter; // events: Run in subscription order for object tree.
+        static constexpr auto keybdpreview = __COUNTER__ - counter; // events: Run in subscription order for focused objects.
+        static constexpr auto keybdrelease = __COUNTER__ - counter; // events: Run in subscription order for focused objects.
+        static constexpr auto unknown      = __COUNTER__ - counter; // events: .
         static constexpr auto str = std::to_array({ "release"sv,
                                                     "preview"sv,
                                                     "request"sv,
@@ -169,6 +169,9 @@ namespace netxs::events
         text run(context_t& context, view script_body, Arg&& param = {});
         text run_script(ui::base& object, view script_body);
         void run_ext_script(ui::base& object, auto& script);
+        std::pair<bool, view> push_function_id(view script_body);
+        bool precompile_function(sptr<text>& script_body_ptr);
+        void remove_function(sptr<text>& script_body_ptr);
 
         luna(auth& indexer);
         ~luna();
@@ -176,18 +179,18 @@ namespace netxs::events
 
     struct script_ref
     {
-        std::reference_wrapper<context_t> context; // Hierarchical location index of the script owner.
-        sptr<text>                        script_body_ptr; // Script body sptr.
+        auth&                             indexer; // script_ref: Global object indexer.
+        std::reference_wrapper<context_t> context; // script_ref: Hierarchical location index of the script owner.
+        sptr<text>                        script_body_ptr; // script_ref: Script body sptr.
+        bool                              precompiled{}; // script_ref: .
 
         static text to_string(context_t& context);
 
-        script_ref(context_t& context, sptr<text> script_body_ptr)
-            : context{ context },
-              script_body_ptr{ script_body_ptr }
+        script_ref(auth& indexer, context_t& context, sptr<text> script_body_ptr);
+        script_ref(auth& indexer, context_t& context, auto&& script_body_ptr)
+            : script_ref{ indexer, context, ptr::shared<text>(script_body_ptr) }
         { }
-        script_ref(context_t& context, auto&& script_body_ptr)
-            : script_ref{ context, ptr::shared<text>(script_body_ptr) }
-        { }
+        ~script_ref();
     };
 
     template<class Arg>
@@ -224,8 +227,8 @@ namespace netxs::events
         {
             if (script_ptr && script_ptr->script_body_ptr)
             {
-                auto& [context, script_body_ptr] = *script_ptr;
-                auto& script_body = *script_body_ptr;
+                auto& context     = script_ptr->context;
+                auto& script_body = *(script_ptr->script_body_ptr);
                 luafx.run(context, script_body, param);
             }
             else if (auto& proc = get_inst<Arg>())
@@ -888,7 +891,6 @@ namespace netxs
     using netxs::events::tier;
     using netxs::events::hook;
     using netxs::events::wook;
-    //using netxs::events::sref;
     using netxs::events::script_ref;
 }
 namespace std
