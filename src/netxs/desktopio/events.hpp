@@ -169,7 +169,7 @@ namespace netxs::events
         text run(context_t& context, view script_body, Arg&& param = {});
         text run_script(ui::base& object, view script_body);
         void run_ext_script(ui::base& object, auto& script);
-        auto push_function_id(view script_body) -> std::pair<bool, view>;
+        std::pair<bool, view> push_function_id(view script_body);
         bool precompile_function(sptr<text>& script_body_ptr);
         void remove_function(sptr<text>& script_body_ptr);
 

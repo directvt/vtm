@@ -469,7 +469,7 @@ namespace netxs::events
         log(ansi::clr(yellowlt, shadow), "\n", prompt::lua, result);
         script.cmd = utf::concat(shadow, "\n", prompt::lua, result);
     }
-    auto luna::push_function_id(view script_body)
+    std::pair<bool, view> luna::push_function_id(view script_body)
     {
         ::lua_settop(lua, 0);
         // Get a table of precompiled functions from the registry.
