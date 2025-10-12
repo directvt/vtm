@@ -50,11 +50,12 @@ namespace netxs::datetime
     auto breakdown(span t)
     {
         auto days         = datetime::round<ui32, std::chrono::        days>(t);
-        auto hours        = datetime::round<ui32, std::chrono::       hours>(t -= std::chrono::   days{ days    });
-        auto minutes      = datetime::round<ui32, std::chrono::     minutes>(t -= std::chrono::  hours{ hours   });
-        auto seconds      = datetime::round<ui32, std::chrono::     seconds>(t -= std::chrono::minutes{ minutes });
-        auto milliseconds = datetime::round<ui32, std::chrono::milliseconds>(t -= std::chrono::seconds{ seconds });
-        return std::tuple{ days, hours, minutes, seconds, milliseconds };
+        auto hours        = datetime::round<ui32, std::chrono::       hours>(t -= std::chrono::        days{ days    });
+        auto minutes      = datetime::round<ui32, std::chrono::     minutes>(t -= std::chrono::       hours{ hours   });
+        auto seconds      = datetime::round<ui32, std::chrono::     seconds>(t -= std::chrono::     minutes{ minutes });
+        auto milliseconds = datetime::round<ui32, std::chrono::milliseconds>(t -= std::chrono::     seconds{ seconds });
+        auto microseconds = datetime::round<ui32, std::chrono::microseconds>(t -= std::chrono::milliseconds{ milliseconds });
+        return std::tuple{ days, hours, minutes, seconds, milliseconds, microseconds };
     }
     auto breakdown(time t)
     {

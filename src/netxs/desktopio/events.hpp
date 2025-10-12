@@ -229,7 +229,10 @@ namespace netxs::events
             {
                 auto& context = script_ptr->context;
                 auto& [ref_count, script_body] = *(script_ptr->script_body_ptr);
+                //auto start = datetime::now();
                 luafx.run(context, script_body, param);
+                //auto [days, hours, mins, secs, msecs, micro] = datetime::breakdown(datetime::now() - start);
+                //log("Exec duration: %sec%.%msec%.%micro%", secs, msecs, micro);
             }
             else if (auto& proc = get_inst<Arg>())
             {
