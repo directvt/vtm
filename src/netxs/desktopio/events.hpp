@@ -169,9 +169,10 @@ namespace netxs::events
         text run(context_t& context, view script_body, Arg&& param = {});
         text run_script(ui::base& object, view script_body);
         void run_ext_script(ui::base& object, auto& script);
-        std::pair<bool, view> push_function_id(view script_body);
-        bool precompile_function(sptr<text>& script_body_ptr);
-        void remove_function(sptr<text>& script_body_ptr);
+        si32 get_table_size();
+        bool push_function_id(view script_body);
+        void precompile_function(sptr<std::pair<ui64, text>>& script_body_ptr);
+        void remove_function(sptr<std::pair<ui64, text>>& script_body_ptr);
 
         luna(auth& indexer);
         ~luna();
@@ -181,14 +182,13 @@ namespace netxs::events
     {
         auth&                             indexer; // script_ref: Global object indexer.
         std::reference_wrapper<context_t> context; // script_ref: Hierarchical location index of the script owner.
-        sptr<text>                        script_body_ptr; // script_ref: Script body sptr.
-        bool                              precompiled{}; // script_ref: .
+        sptr<std::pair<ui64, text>>       script_body_ptr; // script_ref: Script body sptr.
 
         static text to_string(context_t& context);
 
-        script_ref(auth& indexer, context_t& context, sptr<text> script_body_ptr);
-        script_ref(auth& indexer, context_t& context, auto&& script_body_ptr)
-            : script_ref{ indexer, context, ptr::shared<text>(script_body_ptr) }
+        script_ref(auth& indexer, context_t& context, sptr<std::pair<ui64, text>> script_body_ptr);
+        script_ref(auth& indexer, context_t& context, auto&& script_body)
+            : script_ref{ indexer, context, ptr::shared(std::pair<ui64, text>{ 0, script_body }) }
         { }
         ~script_ref();
     };
@@ -227,8 +227,8 @@ namespace netxs::events
         {
             if (script_ptr && script_ptr->script_body_ptr)
             {
-                auto& context     = script_ptr->context;
-                auto& script_body = *(script_ptr->script_body_ptr);
+                auto& context = script_ptr->context;
+                auto& [ref_count, script_body] = *(script_ptr->script_body_ptr);
                 luafx.run(context, script_body, param);
             }
             else if (auto& proc = get_inst<Arg>())
