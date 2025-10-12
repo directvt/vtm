@@ -466,20 +466,7 @@ namespace netxs::xml
                     //}
                 }
 
-                auto count = 1;
-                auto width = 0_sz;
-                auto total = lines();
-                while (total)
-                {
-                    total /= 10;
-                    width++;
-                }
-                auto numerate = [&]
-                {
-                    return ansi::pushsgr().fgc(liter_fg) + utf::adjust(std::to_string(count++), width, ' ', true) + ": " + ansi::popsgr();
-                };
-                yield = numerate() + yield;
-                utf::for_each(yield, "\n", [&]{ return "\n" + numerate(); });
+                yield.numerate_lines(liter_fg);
                 yield.add('\n');
                 return yield;
             }

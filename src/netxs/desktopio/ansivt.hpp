@@ -887,6 +887,24 @@ namespace netxs::ansi
             }
             return *this;
         }
+        auto& numerate_lines(argb liter_fg)
+        {
+            auto count = 1;
+            auto width = 0_sz;
+            auto total = std::count(text::begin(), text::end(), '\n');
+            while (total)
+            {
+                total /= 10;
+                width++;
+            }
+            auto numerate = [&]
+            {
+                return escx{}.pushsgr().fgc(liter_fg).add(utf::adjust(std::to_string(count++), width, ' ', true), ": ").popsgr();
+            };
+            *this = numerate().add(*this);
+            utf::for_each(*this, "\n", [&]{ return "\n" + numerate(); });
+            return *this;
+        }
     };
 
     template<bool UseSGR = true, bool Initial = true, bool Finalize = true, bool Select_11_only = true>

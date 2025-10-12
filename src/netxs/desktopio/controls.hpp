@@ -434,7 +434,7 @@ namespace netxs::events
         if (error)
         {
             result = ::lua_tostring(lua, -1);
-            log("%%%msg%", prompt::lua, ansi::err(result));
+            log("%%script compilation failed:\n%body%\n%msg%\n", prompt::lua, ansi::hi(ansi::add(script_body).numerate_lines(blacklt)), ansi::err(result));
             //::lua_pop(lua, 1);  // Pop error message from stack.
         }
         else if (::lua_gettop(lua))
@@ -519,11 +519,11 @@ namespace netxs::events
                     else // It is not precompiled yet.
                     {
                         ::lua_pop(lua, 1);  // Pop nil after the ::lua_rawget() call.
-                        auto error = ::luaL_loadbuffer(lua, script_body.data(), script_body.size(), "precompilation");
+                        auto error = ::luaL_loadbuffer(lua, script_body.data(), script_body.size(), "script");
                         if (error)
                         {
                             auto result = ::lua_tostring(lua, -1);
-                            log("%%Precompilation error: %msg%", prompt::lua, ansi::err(result));
+                            log("%%script precompilation failed:\n%body%\n%msg%\n", prompt::lua, ansi::hi(ansi::add(script_body).numerate_lines(blacklt)), ansi::err(result));
                             ::lua_pop(lua, 1);  // Pop error message from stack.
                         }
                         else
