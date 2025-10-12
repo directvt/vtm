@@ -2117,9 +2117,9 @@ namespace netxs::input
     {
         struct binding_t
         {
-            text              chord;
-            txts              sources; // Event source list.
-            netxs::sptr<text> script_ptr;
+            text                               chord;
+            txts                               sources; // Event source list.
+            netxs::sptr<std::pair<ui64, text>> script_ptr;
         };
         using vector = std::vector<binding_t>;
 
@@ -2167,12 +2167,12 @@ namespace netxs::input
             {
                 if (sources.empty())
                 {
-                    //log("Set handler for event_id:%% script: %%", event_id, ansi::hi(*(script_ptr->script_body_ptr)));
+                    //log("Set handler for event_id:%% script: %%", event_id, ansi::hi(script_ptr->script_body_ptr->second));
                     boss.bell::submit_generic(tier_id, event_id, script_ptr);
                 }
                 else //todo revise: too hacky
                 {
-                    //log("Deferred setting handler on '%target%' for script: ", sources.front(), ansi::hi(*(script_ptr->script_body_ptr)));
+                    //log("Deferred setting handler on '%target%' for script: ", sources.front(), ansi::hi(script_ptr->script_body_ptr->second));
                     auto& indexer = boss.indexer;
                     indexer._null_gear_sptr->ui::base::enqueue([&, id = boss.id, tier_id, event_id, sources, script_ptr](auto& /*gear_0*/) // Subscribe on sources (with boss.sensors).
                     {
@@ -2180,7 +2180,7 @@ namespace netxs::input
                         {
                             for (auto& src_name : sources)
                             {
-                                //log("Set handler on '%target%' for script: ", src_name, ansi::hi(*(script_ptr->script_body_ptr)));
+                                //log("Set handler on '%target%' for script: ", src_name, ansi::hi(script_ptr->script_body_ptr->second));
                                 if (auto target_ptr = indexer.get_target(boss_ptr->scripting_context, src_name))
                                 {
                                     target_ptr->bell::submit_generic(tier_id, event_id, boss_ptr->sensors, script_ptr);
@@ -2203,7 +2203,7 @@ namespace netxs::input
             if (chords.size())
             {
                 auto script_ptr = ptr::shared<script_ref>(boss.indexer, boss.scripting_context, script_body);
-                auto reset_handler = !(script_ptr->script_body_ptr && script_ptr->script_body_ptr->size());
+                auto reset_handler = !(script_ptr->script_body_ptr && script_ptr->script_body_ptr->second.size());
                 for (auto& binary_chord : chords) if (binary_chord.size()) // Scripts always store their sensors at the boss side, since the lifetime of base::scripting_context depends on the boss.
                 {
                     auto k = (byte)binary_chord.front();
@@ -2258,7 +2258,7 @@ namespace netxs::input
             {
                 //todo revise
                 //auto script_context = config.settings::push_context(script_ptr);
-                auto script_body_ptr = ptr::shared(config.settings::take_value(script_ptr));
+                auto script_body_ptr = ptr::shared(std::pair<ui64, text>{ 0, config.settings::take_value(script_ptr) });
                 auto on_ptr_list = config.settings::take_ptr_list_of(script_ptr, "on");
                 for (auto event_ptr : on_ptr_list)
                 {
@@ -2268,7 +2268,7 @@ namespace netxs::input
                     //{
                     //    for (auto& sourse : sources)
                     //    {
-                    //         log("chord='%%' \tpreview=%% source='%%' script=%%", on_rec, (si32)preview, source, ansi::hi(*script_body_ptr));
+                    //         log("chord='%%' \tpreview=%% source='%%' script=%%", on_rec, (si32)preview, source, ansi::hi(script_body_ptr->second));
                     //    }
                     //}
                     bindings.push_back({ .chord = std::move(on_rec), .sources = std::move(sources), .script_ptr = script_body_ptr });

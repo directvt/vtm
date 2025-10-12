@@ -415,8 +415,7 @@ namespace netxs::events
         indexer.script_param = std::ref((T&)param);
 
         auto error = faux;
-        auto [ok, lua_fx_id] = push_function_id(script_body);
-        if (ok)
+        if (push_function_id(script_body))
         {
             if (::lua_rawget(lua, -2) == LUA_TFUNCTION) // It is precompiled.
             {
@@ -469,7 +468,19 @@ namespace netxs::events
         log(ansi::clr(yellowlt, shadow), "\n", prompt::lua, result);
         script.cmd = utf::concat(shadow, "\n", prompt::lua, result);
     }
-    std::pair<bool, view> luna::push_function_id(view script_body)
+    // Return the length of the stack top table.
+    si32 luna::get_table_size()
+    {
+        auto count = 0;
+        ::lua_pushnil(lua); // Push nil to start the iteration.
+        while (::lua_next(lua, -2) != 0)
+        {
+            count++; // Key is at -2, value at -1.
+            ::lua_pop(lua, 1); // Pop the value, leaving the key for the next iteration.
+        }
+        return count;
+    }
+    bool luna::push_function_id(view script_body)
     {
         ::lua_settop(lua, 0);
         // Get a table of precompiled functions from the registry.
@@ -481,64 +492,67 @@ namespace netxs::events
             auto lua_fx_id = view{ memory_id, sizeof(script_id) };
             //if constexpr (debugmode) log("Function id='%%'", utf::debase437(lua_fx_id));
             ::lua_pushlstring(lua, lua_fx_id.data(), lua_fx_id.size());
-            return std::pair{ true, lua_fx_id };
+            return true;
         }
         else
         {
             log("%%The table of precompiled functions is missing", prompt::lua);
             ::lua_settop(lua, 0);
-            return std::pair{ faux, view{} };
+            return faux;
         }
     }
-    bool luna::precompile_function(sptr<text>& script_body_ptr)
+    void luna::precompile_function(sptr<std::pair<ui64, text>>& script_body_ptr)
     {
-        auto precompiled = faux;
-        if (script_body_ptr && script_body_ptr->size())
+        if (script_body_ptr)
         {
-            auto& script_body = *script_body_ptr;
-            auto [ok, lua_fx_id] = push_function_id(script_body);
-            if (ok)
+            auto& [ref_count, script_body] = *script_body_ptr;
+            if (script_body.size())
             {
-                if (::lua_rawget(lua, -2) == LUA_TFUNCTION) // It is already precompiled.
+                if (push_function_id(script_body))
                 {
-                    //if constexpr (debugmode) log("The script is already precompiled");
-                    precompiled = true;
-                }
-                else // It is not precompiled yet.
-                {
-                    ::lua_pop(lua, 1);  // Pop nil after the ::lua_rawget() call.
-                    ::lua_pushlstring(lua, lua_fx_id.data(), lua_fx_id.size()); // Push fx id again.
-                    auto error = ::luaL_loadbuffer(lua, script_body.data(), script_body.size(), "precompilation");
-                    if (error)
+                    ::lua_pushvalue(lua, -1); // Duplicate lua_fx_id string.
+                    if (::lua_rawget(lua, -3) == LUA_TFUNCTION) // It is already precompiled.
                     {
-                        auto result = ::lua_tostring(lua, -1);
-                        log("%%Precompilation error: %msg%", prompt::lua, ansi::err(result));
-                        ::lua_pop(lua, 1);  // Pop error message from stack.
+                        //if constexpr (debugmode) log("The script is already precompiled");
+                        ++ref_count;
                     }
-                    else
+                    else // It is not precompiled yet.
                     {
-                        //if constexpr (debugmode) log("Script precompilation is done");
-                        ::lua_rawset(lua, -3);
-                        precompiled = true;
+                        ::lua_pop(lua, 1);  // Pop nil after the ::lua_rawget() call.
+                        auto error = ::luaL_loadbuffer(lua, script_body.data(), script_body.size(), "precompilation");
+                        if (error)
+                        {
+                            auto result = ::lua_tostring(lua, -1);
+                            log("%%Precompilation error: %msg%", prompt::lua, ansi::err(result));
+                            ::lua_pop(lua, 1);  // Pop error message from stack.
+                        }
+                        else
+                        {
+                            //if constexpr (debugmode) log("Script precompilation is done");
+                            ::lua_rawset(lua, -3);
+                            //if constexpr (debugmode) log("Add: Precompiled function counter: %%", get_table_size());
+                            ++ref_count;
+                        }
                     }
+                    ::lua_settop(lua, 0);
                 }
-                ::lua_settop(lua, 0);
             }
         }
-        return precompiled;
     }
-    void luna::remove_function(sptr<text>& script_body_ptr)
+    void luna::remove_function(sptr<std::pair<ui64, text>>& script_body_ptr)
     {
-        if (script_body_ptr && script_body_ptr->size() && script_body_ptr.use_count() == 1)
+        if (script_body_ptr)
         {
-            auto& script_body = *script_body_ptr;
-            auto [ok, lua_fx_id] = push_function_id(script_body);
-            if (ok)
+            auto& [ref_count, script_body] = *script_body_ptr;
+            if (ref_count && --ref_count == 0)
             {
-                ::lua_pushnil(lua);
-                ::lua_rawset(lua, -3);
-                ::lua_settop(lua, 0);
-                //if constexpr (debugmode) log("Function id='%%' removed", utf::debase437(lua_fx_id));
+                if (push_function_id(script_body))
+                {
+                    ::lua_pushnil(lua);
+                    ::lua_rawset(lua, -3); // Remove rec from the table (because of nil) and pop key and val from stack.
+                    //if constexpr (debugmode) log("Drop: Precompiled function counter: %%", get_table_size());
+                    ::lua_settop(lua, 0);
+                }
             }
         }
     }
@@ -591,18 +605,16 @@ namespace netxs::events
         if (lua) ::lua_close(lua);
     }
 
-    script_ref::script_ref(auth& indexer, context_t& context, sptr<text> script_body_ptr)
+    script_ref::script_ref(auth& indexer, context_t& context, sptr<std::pair<ui64, text>> script_body_ptr)
         : indexer{ indexer },
           context{ context },
-          script_body_ptr{ script_body_ptr },
-          precompiled{ indexer.luafx.precompile_function(script_body_ptr) }
-    { }
+          script_body_ptr{ script_body_ptr }
+    {
+        indexer.luafx.precompile_function(script_body_ptr);
+    }
     script_ref::~script_ref()
     {
-        if (precompiled)
-        {
-            indexer.luafx.remove_function(script_body_ptr);
-        }
+        indexer.luafx.remove_function(script_body_ptr);
     }
 
     auth::auth(bool use_timer)
