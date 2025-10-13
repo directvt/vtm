@@ -600,7 +600,7 @@ namespace netxs::app::shared
                                 ->limits({ -1,-1 }, { -1,-1 });
             static const auto data = []
             {
-                auto [days, hours, mins, secs, msecs] = datetime::breakdown(datetime::now() - os::process::id.second);
+                auto [days, hours, mins, secs, msecs, micro] = datetime::breakdown(datetime::now() - os::process::id.second);
                 auto uptime = (days  ? std::to_string(days)  + skin::globals().NsInfoUptime_d + " " : ""s)
                             + (hours ? std::to_string(hours) + skin::globals().NsInfoUptime_h + " " : ""s)
                             + (mins  ? std::to_string(mins)  + skin::globals().NsInfoUptime_m + " " : ""s)

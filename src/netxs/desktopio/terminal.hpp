@@ -1388,7 +1388,7 @@ namespace netxs::ui
                     auto nothing = match.each([](auto& c){ return !c.isspc(); });
                     if (nothing) match = {};
                 }
-                ++alive;
+                alive = datetime::uniqueid();
             }
             // bufferbase: Ping selection state if is available.
             void selection_review()
