@@ -8,7 +8,7 @@
 #include "xml.hpp"
 
 //todo Workaround for i386 linux targets, https://sourceware.org/bugzilla/show_bug.cgi?id=31775
-#if defined(__i386__) && defined(__linux__)
+#if defined(__i386__) && defined(__linux__) && !defined(__ANDROID__)
     extern long double fmodl(long double a, long double b);
     double fmod(double a, double b) { return fmodl(a, b); }
     float  fmod(float  a, float  b) { return fmodl(a, b); }

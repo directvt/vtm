@@ -243,7 +243,7 @@ In ANSI/VT IO mode, vtm process parses input from multiple standard sources, and
     - SIGINT events are forwarded to the process lifetime control channel to perform graceful exit.
     - SIGHUP events are forwarded to the process lifetime control channel to perform graceful exit.
     - SIGTERM events are forwarded to the process lifetime control channel to perform graceful exit.
-- PS/2 Mouse device (Linux VGA Console only)
+- PS/2 Mouse device (Linux VGA Console (in-kernel console) only)
     - `/dev/input/mice`: Received ImPS/2 mouse protocol events are decoded and forwarded to the mouse event channel.
     - `/dev/input/mice.vtm` (used in case of inaccessibility of `/dev/input/mice`)
 

@@ -59,9 +59,9 @@
             #include <linux/kd.h>   // ::console_ioctl()
         #else
             #include <sys/kd.h>     // ::console_ioctl()
+            #include <linux/input.h>// mouse button codes: BTN_LEFT ...
         #endif
         #include <linux/keyboard.h> // ::keyb_ioctl()
-        #include <linux/input.h>    // mouse button codes: BTN_LEFT ...
     #endif
 
     #if defined(__APPLE__)
@@ -4770,7 +4770,7 @@ namespace netxs::os
                 }
             });
         }
-        #if defined(__linux__)
+        #if defined(__linux__) && !defined(__ANDROID__)
     }
 }
         #include "lixx.hpp" // libinput++
@@ -5262,7 +5262,7 @@ namespace netxs::os
                     #endif
                     return state;
                 };
-                #if defined(__linux__)
+                #if defined(__linux__) && !defined(__ANDROID__)
                 if (dtvt::vtmode & ui::console::mouse) // Trying to get direct mouse access.
                 {
                     if (auto li = lixx::initialize())
@@ -6016,7 +6016,7 @@ namespace netxs::os
                                   timecod = time{},
                                   dev_map = std::unordered_map<arch, si32>{}]() mutable
                 {
-                    #if defined(__linux__)
+                    #if defined(__linux__) && !defined(__ANDROID__)
                     using namespace netxs::lixx;
                     lixx::li->libinput_dispatch();
                     while (true)
@@ -6163,7 +6163,7 @@ namespace netxs::os
                                micefd,       m_proc,
                                alarm,        f_proc);
                 }
-                #if defined(__linux__)
+                #if defined(__linux__) && !defined(__ANDROID__)
                 lixx::uninitialize();
                 #endif
 

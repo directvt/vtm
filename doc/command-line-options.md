@@ -25,7 +25,7 @@ Option                  | Description
 `-i`, `--install`       | Perform system-wide installation. Allow Desktop Server to run in user context in Session 0 on Windows.<br>Placing Desktop Server in Session 0 allows console applications to run independently of the user's GUI login session. Note: This prevents GUI applications from running from the vtm desktop environment. See "Session 0 Isolation" on the Web for details.<br>Elevated privileges required.
 `-u`, `--uninstall`     | Perform system-wide deinstallation.<br>Elevated privileges required.
 `-0`, `--session0`      | Use Session 0 to run Desktop Server in background. For Windows only.
-`-a`, `--mouse [mode]`  | Set/reset persistent access to mouse devices for all users on Linux platform.<br>Run `sudo vtm --mouse 0` to reset access.<br>Elevated privileges required.
+`-a`, `--mouse [mode]`  | Set/reset persistent access to mouse devices for all users on Linux platform (excluding Android).<br>Run `sudo vtm --mouse 0` to reset access.<br>Elevated privileges required.
 `-q`, `--quiet`         | Disable logging.
 `-x`, `--script <cmds>` | Specifies script commands to be run by the desktop when ready.
 `-c`, `--config <file>` | Specifies a settings file to load or plain xml-data to merge.
@@ -52,17 +52,17 @@ The plain xml-data could be specified in place of `<file>` in `--config <file>` 
   vtm -c "<config/terminal/scrollback size=1000000/>" -r term
   ```
 
-#### Linux VGA Console
+#### Linux VGA Console (in-kernel console)
 
-In order to use a mouse or touchpad in Linux VGA Console, you must grant the user access to the mouse device. By default, only privileged users and users of the `input` group have access. To grant temporary access, use the command:
+In order to use a mouse or touchpad in Linux VGA Console, you must grant the user access to mouse/pointing devices. By default, only privileged users and users of the `input` group have access. To grant all users permanent access to all pointing devices, use the command:
+
 - ```
-  sudo vtm --SetMouseAccess
+  sudo vtm --mouse
   ```
-To grant permanent access, you must assign the appropriate access rights to the `/dev/input/eventN` files associated with the mouse devices. The device associations could be found using the following command:
+To reset permanent access, use the command:
 - ```
-  cat /proc/bus/input/devices
+  sudo vtm --mouse 0
   ```
-Note: The `/dev/input/eventN` files are temporary, created by `udev` each time the system starts.
 
 ### Desktop Applets
 
