@@ -108,12 +108,12 @@ jobs:
       if: matrix.os != 'windows-latest'
       run: |
         7z a -ttar vtm_${{ matrix.platform }}_${{ matrix.arch }}.tar ${{ steps.strings.outputs.bin }}/vtm
-        7z -mx9 -stl -y -r -t7z vtm_${{ matrix.platform }}_${{ matrix.arch }}.tar.7z vtm_${{ matrix.platform }}_${{ matrix.arch }}.tar
+        7z a -mx9 -stl -y -r -t7z vtm_${{ matrix.platform }}_${{ matrix.arch }}.tar.7z vtm_${{ matrix.platform }}_${{ matrix.arch }}.tar
 
     - name: Pack (Windows)
       if: matrix.os == 'windows-latest'
       run: |
-        7z -mx9 -stl -y -r -t7z vtm_${{ matrix.platform }}_${{ matrix.arch }}.7z ${{ steps.strings.outputs.bin }}/Release/vtm.exe
+        7z a -ssp -mx9 -stl -y -r -t7z vtm_${{ matrix.platform }}_${{ matrix.arch }}.7z ${{ steps.strings.outputs.bin }}/Release/vtm.exe
 
     - name: Upload Artifact (POSIX)
       if: matrix.os != 'windows-latest'
