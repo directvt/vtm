@@ -740,7 +740,12 @@ namespace netxs::input
         ui64 digest{}; // foci: Incrementing event number to avoid refocusing when connecting recursively.
     };
 
-    using multihome_t = std::pair<wptr, wptr>;
+    struct multihome_t
+    {
+        wptr                      world_wptr;  // multihome_t: World reference.
+        wptr                      parent_wptr; // multihome_t: Current world's parent.
+        std::list<sptr>::iterator holder;      // multihome_t: Iterator on parent's subset list.
+    };
 
     // input: Mouse tracker.
     struct mouse
@@ -1624,10 +1629,10 @@ namespace netxs::input
         }
         void set_multihome()
         {
-            auto [world_wptr, parent_wptr] = multihome;
-            if (auto world_ptr = world_wptr.lock())
+            if (auto world_ptr = multihome.world_wptr.lock())
             {
-                world_ptr->base::father = parent_wptr;
+                world_ptr->base::father = multihome.parent_wptr;
+                world_ptr->base::holder = multihome.holder;
             }
             bell::indexer.luafx.set_gear(*this);
         }
@@ -2178,10 +2183,11 @@ namespace netxs::input
                     {
                         if (auto boss_ptr = indexer._null_gear_sptr->getref(id)) // The boss may already be deleted.
                         {
+                            auto& scripting_context = boss_ptr->get_scripting_context();
                             for (auto& src_name : sources)
                             {
                                 //log("Set handler on '%target%' for script: ", src_name, ansi::hi(script_ptr->script_body_ptr->second));
-                                if (auto target_ptr = indexer.get_target(boss_ptr->scripting_context, src_name))
+                                if (auto target_ptr = indexer.get_target(scripting_context, src_name))
                                 {
                                     target_ptr->bell::submit_generic(tier_id, event_id, boss_ptr->sensors, script_ptr);
                                 }
@@ -2202,7 +2208,7 @@ namespace netxs::input
             auto [chords, is_preview] = input::bindings::get_chords(chord_str);
             if (chords.size())
             {
-                auto script_ptr = ptr::shared<script_ref>(boss.indexer, boss.scripting_context, script_body);
+                auto script_ptr = ptr::shared<script_ref>(boss.indexer, boss, script_body);
                 auto reset_handler = !(script_ptr->script_body_ptr && script_ptr->script_body_ptr->second.size());
                 for (auto& binary_chord : chords) if (binary_chord.size()) // Scripts always store their sensors at the boss side, since the lifetime of base::scripting_context depends on the boss.
                 {

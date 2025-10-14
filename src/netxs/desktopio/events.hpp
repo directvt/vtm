@@ -167,7 +167,8 @@ namespace netxs::events
         void run_with_gear(auto proc);
         template<class Arg = noop>
         text run(context_t& context, view script_body, Arg&& param = {});
-        text run_script(ui::base& object, view script_body);
+        template<class Arg = noop>
+        text run_script(ui::base& object, view script_body, Arg&& param = {});
         void run_ext_script(ui::base& object, auto& script);
         si32 get_table_size();
         bool push_function_id(view script_body);
@@ -180,15 +181,15 @@ namespace netxs::events
 
     struct script_ref
     {
-        auth&                             indexer; // script_ref: Global object indexer.
-        std::reference_wrapper<context_t> context; // script_ref: Hierarchical location index of the script owner.
+        auth&                             indexer;         // script_ref: Global object indexer.
+        std::reference_wrapper<ui::base>  boss_ref;        // script_ref: Script execution context.
         sptr<std::pair<ui64, text>>       script_body_ptr; // script_ref: Script body sptr.
 
         static text to_string(context_t& context);
 
-        script_ref(auth& indexer, context_t& context, sptr<std::pair<ui64, text>> script_body_ptr);
-        script_ref(auth& indexer, context_t& context, auto&& script_body)
-            : script_ref{ indexer, context, ptr::shared(std::pair<ui64, text>{ 0, script_body }) }
+        script_ref(auth& indexer, std::reference_wrapper<ui::base> boss_ref, sptr<std::pair<ui64, text>> script_body_ptr);
+        script_ref(auth& indexer, std::reference_wrapper<ui::base> boss_ref, auto&& script_body)
+            : script_ref{ indexer, boss_ref, ptr::shared(std::pair<ui64, text>{ 0, script_body }) }
         { }
         ~script_ref();
     };
@@ -227,10 +228,10 @@ namespace netxs::events
         {
             if (script_ptr && script_ptr->script_body_ptr)
             {
-                auto& context = script_ptr->context;
+                auto& boss = script_ptr->boss_ref.get();
                 auto& [ref_count, script_body] = *(script_ptr->script_body_ptr);
                 //auto start = datetime::now();
-                luafx.run(context, script_body, param);
+                luafx.run_script(boss, script_body, param);
                 //auto [days, hours, mins, secs, msecs, micro] = datetime::breakdown(datetime::now() - start);
                 //log("Exec duration: %sec%.%msec%.%micro%", secs, msecs, micro);
             }
@@ -288,7 +289,7 @@ namespace netxs::events
         std::unordered_map<id_t, std::reference_wrapper<ui::base>>  objects; // auth: Map of objects by object id.
         clasess_umap                              classes; // auth: Map of classes by classname.
         context_t                                 context; // auth: Default context.
-        std::reference_wrapper<context_t>         context_ref; // auth: .
+        std::vector<std::reference_wrapper<context_t>> context_refs; // auth: .
         fmap                                      general;
         generics::jobs<wptr<ui::base>>            agent;
         luna                                      luafx;
@@ -303,7 +304,7 @@ namespace netxs::events
         sptr<input::hids>                         _null_gear_sptr; // auth: Fallback gear sptr.
         core                                      _null_idmap; // auth: Fallback gear idmap.
         std::reference_wrapper<input::hids>       active_gear_ref; // auth: Active gear.
-        std::any                                  script_param; // auth: .
+        std::vector<std::any>                     script_param; // auth: .
         utf::unordered_map<text, hint>            keybd_chords; // auth: Registered keyboard chords.
         hint                                      chord_index{}; // auth: Next available keybd chord index.
         hint                                      anykey_event{};
@@ -828,11 +829,6 @@ namespace netxs::events
                     return faux;
                 });
             }
-        }
-        // bell: .
-        void _signal(si32 Tier, hint event, auto& param)
-        {
-            indexer.notify(Tier, reactor, event, param);
         }
         auto accomplished()
         {

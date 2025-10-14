@@ -543,8 +543,7 @@ namespace netxs::ui
                                             luafx.set_return(is_focused);
                                         }},
                 });
-                gear.base::father = This();            // Gear has a fixed parent.
-                gear.base::update_scripting_context(); //
+                gear.base::father = This(); // Gear has a fixed parent.
             }
             auto& [ext_gear_id, gear_ptr] = *gear_it;
             auto& gear = *gear_ptr;
@@ -904,7 +903,7 @@ namespace netxs::ui
             canvas.face::area(base::area());
             LISTEN(tier::release, e2::form::proceed::multihome, world_ptr)
             {
-                multihome = { world_ptr, world_ptr->base::father };
+                multihome = input::multihome_t{ .world_wptr = world_ptr, .parent_wptr = world_ptr->base::father, .holder = world_ptr->base::holder };
             };
             LISTEN(tier::release, e2::command::printscreen, gear)
             {
@@ -1040,7 +1039,6 @@ namespace netxs::ui
             };
             LISTEN(tier::anycast, e2::form::upon::started, root_ptr)
             {
-                base::update_scripting_context(); // Gate has no parents.
                 if (props.debug_overlay) debug.start();
                 base::signal(tier::release, e2::form::prop::name, props.title);
                 //todo revise

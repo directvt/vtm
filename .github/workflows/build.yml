@@ -106,14 +106,21 @@ jobs:
 
     - name: Pack (POSIX)
       if: matrix.os != 'windows-latest'
-      run: 7z a -ttar vtm_${{ matrix.platform }}_${{ matrix.arch }}.tar ${{ steps.strings.outputs.bin }}/vtm
+      run: |
+        7z a -ttar vtm_${{ matrix.platform }}_${{ matrix.arch }}.tar ${{ steps.strings.outputs.bin }}/vtm
+        7z a -mx9 -stl -y -r -t7z vtm_${{ matrix.platform }}_${{ matrix.arch }}.tar.7z vtm_${{ matrix.platform }}_${{ matrix.arch }}.tar
+
+    - name: Pack (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        7z a -ssp -mx9 -stl -y -r -t7z vtm_${{ matrix.platform }}_${{ matrix.arch }}.7z ${{ steps.strings.outputs.bin }}/Release/vtm.exe
 
     - name: Upload Artifact (POSIX)
       if: matrix.os != 'windows-latest'
       uses: actions/upload-artifact@main
       with:
         name: vtm_${{ matrix.platform }}_${{ matrix.arch }}
-        path: vtm_${{ matrix.platform }}_${{ matrix.arch }}.tar
+        path: vtm_${{ matrix.platform }}_${{ matrix.arch }}.tar.7z
 
     - name: Upload Symbols (Windows)
       if: matrix.os == 'windows-latest'
@@ -127,4 +134,4 @@ jobs:
       uses: actions/upload-artifact@main
       with:
         name: vtm_${{ matrix.platform }}_${{ matrix.arch }}
-        path: ${{ steps.strings.outputs.bin }}/Release/vtm.exe
+        path: vtm_${{ matrix.platform }}_${{ matrix.arch }}.7z

@@ -10,7 +10,7 @@ namespace netxs::events
     text script_ref::to_string(context_t& context)
     {
         auto crop = text{};
-        for (auto ptr : context)
+        for (auto ptr : context | std::views::reverse)
         {
             crop += utf::bytes2shades(view{ (char*)&ptr, sizeof(void*) });
             crop += '-';
@@ -219,9 +219,9 @@ namespace netxs::events
     {
         return luna::vtmlua_run_with_indexer(lua, [&](auth& indexer)
         {
-            auto& param = indexer.script_param;
-            if (param.has_value())
+            if (indexer.script_param.size() && indexer.script_param.back().has_value())
             {
+                auto& param = indexer.script_param.back();
                      if (param.type() == typeid(std::reference_wrapper<time>)) return luna::vtmlua_push_value(lua, std::any_cast<std::reference_wrapper<time>>(param).get());
                 else if (param.type() == typeid(std::reference_wrapper<bool>)) return luna::vtmlua_push_value(lua, std::any_cast<std::reference_wrapper<bool>>(param).get());
                 else if (param.type() == typeid(std::reference_wrapper<text>)) return luna::vtmlua_push_value(lua, std::any_cast<std::reference_wrapper<text>>(param).get());
@@ -253,7 +253,7 @@ namespace netxs::events
         return luna::vtmlua_run_with_indexer(lua, [&](auth& indexer)
         {
             auto object_name = luna::vtmlua_torawstring(lua, 2);
-            auto& source_ctx = indexer.context_ref.get();
+            auto& source_ctx = indexer.context_refs.back().get();
             if (object_name == "config")
             {
                 //log("object_name=", object_name);
@@ -263,23 +263,11 @@ namespace netxs::events
             }
             else if (auto target_ptr = indexer.get_target(source_ctx, object_name))
             {
-                //if constexpr (debugmode) log("       selected: ", netxs::events::script_ref::to_string(target_ptr->scripting_context));
+                //if constexpr (debugmode) log("       selected: ", netxs::events::script_ref::to_string(target_ptr->get_scripting_context()));
                 ::lua_pushlightuserdata(lua, target_ptr); // Push object ptr.
                 ::luaL_setmetatable(lua, "vtm_submetaindex"); // Set the vtm_submetaindex for table at -1.
                 //todo keep target_ptr locked until we are inside the lua
                 return 1;
-            }
-            else if (object_name == "desktop") //todo unify (use set_multihome)
-            {
-                //log("object_name=", object_name);
-                auto iter = indexer.objects.find(1);
-                if (iter != indexer.objects.end())
-                {
-                    auto world_ptr = &(iter->second.get());
-                    ::lua_pushlightuserdata(lua, world_ptr); // Push address of the world instance.
-                    ::luaL_setmetatable(lua, "cfg_submetaindex"); // Set the cfg_submetaindex for table at -1.
-                    return 1;
-                }
             }
             log("%%No 'vtm.%%' object found", prompt::lua, object_name);
             return 0;
@@ -411,8 +399,8 @@ namespace netxs::events
         //if constexpr (std::is_same_v<T, noop>) log("%%script:\n%pads%%script%", prompt::lua, prompt::pads, ansi::hi(script_body));
         //else                                   log("%%script:\n%pads%%script%\n  with arg: %%", prompt::lua, prompt::pads, ansi::hi(script_body), param);
 
-        indexer.context_ref = context;
-        indexer.script_param = std::ref((T&)param);
+        indexer.context_refs.push_back(context);
+        indexer.script_param.push_back(std::ref((T&)param));
 
         auto error = faux;
         if (push_function_id(script_body))
@@ -429,7 +417,9 @@ namespace netxs::events
                      || ::lua_pcall(lua, 0, 0, 0);
             }
         }
-        indexer.script_param.reset();
+
+        indexer.context_refs.pop_back();
+        indexer.script_param.pop_back();
         auto result = text{};
         if (error)
         {
@@ -444,9 +434,9 @@ namespace netxs::events
         ::lua_settop(lua, 0);
         return result;
     }
-    text luna::run_script(ui::base& boss, view script_body)
+    text luna::run_script(ui::base& boss, view script_body, auto&& param)
     {
-        return run(boss.scripting_context, script_body);
+        return run(boss.get_scripting_context(), script_body, param);
     }
     void luna::run_ext_script(ui::base& boss, auto& script)
     {
@@ -605,9 +595,9 @@ namespace netxs::events
         if (lua) ::lua_close(lua);
     }
 
-    script_ref::script_ref(auth& indexer, context_t& context, sptr<std::pair<ui64, text>> script_body_ptr)
+    script_ref::script_ref(auth& indexer, std::reference_wrapper<ui::base> boss_ref, sptr<std::pair<ui64, text>> script_body_ptr)
         : indexer{ indexer },
-          context{ context },
+          boss_ref{ boss_ref },
           script_body_ptr{ script_body_ptr }
     {
         indexer.luafx.precompile_function(script_body_ptr);
@@ -619,7 +609,7 @@ namespace netxs::events
 
     auth::auth(bool use_timer)
         : next_id{ 0 },
-          context_ref{ context },
+          context_refs{ context },
           luafx{ *this },
           quartz{ *this },
           e2_timer_tick_id{ ui::e2::timer::tick.id },
@@ -679,28 +669,28 @@ namespace netxs::events
                 while (head != tail)
                 {
                     auto& boss = head->get();
-                    auto& target_ctx = boss.scripting_context;
+                    auto& target_ctx = boss.get_scripting_context();
                     //if constexpr (debugmode) log(" target context: ", netxs::events::script_ref::to_string(target_ctx));
                     if (target_ctx.empty() // The object is outside the DOM.
-                        || source_ctx.back() == target_ctx.back()) // Target is the source itself.
+                     || source_ctx.front() == target_ctx.front()) // Target is the source itself.
                     {
                         target_ptr = &boss;
                         iter2 = head;
                         break;
                     }
-                    auto dst_head = target_ctx.begin();
-                    auto dst_tail = target_ctx.end();
-                    auto src_head = source_ctx.begin();
-                    auto src_tail = source_ctx.end();
+                    auto dst_head = target_ctx.rbegin();
+                    auto dst_tail = target_ctx.rend();
+                    auto src_head = source_ctx.rbegin();
+                    auto src_tail = source_ctx.rend();
                     auto source_ctx_begin = src_head;
+                    //todo don't use context - just iterate over parents
                     while (src_head != src_tail && dst_head != dst_tail && *src_head == *dst_head)
                     {
                         ++src_head;
                         ++dst_head;
                     }
                     auto m = (si32)(src_head - source_ctx_begin);
-                    if (m > closeness
-                        || (m == closeness && target_ctx.size() < target_size))
+                    if (m > closeness || (m == closeness && target_ctx.size() < target_size))
                     {
                         closeness = m;
                         target_size = target_ctx.size();
@@ -3572,12 +3562,7 @@ namespace netxs::ui
 
         form()
             : base{ ui::tui_domain() }
-        {
-            LISTEN(tier::anycast, e2::form::upon::started, root_ptr)
-            {
-                base::update_scripting_context(); // Update scripting context on every reattachement.
-            };
-        }
+        { }
     };
 
     // controls: Splitter.
