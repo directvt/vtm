@@ -904,7 +904,7 @@ namespace netxs::ui
             canvas.face::area(base::area());
             LISTEN(tier::release, e2::form::proceed::multihome, world_ptr)
             {
-                multihome = { world_ptr, world_ptr->base::father };
+                multihome = input::multihome_t{ .world_wptr = world_ptr, .parent_wptr = world_ptr->base::father, .holder = world_ptr->base::holder };
             };
             LISTEN(tier::release, e2::command::printscreen, gear)
             {

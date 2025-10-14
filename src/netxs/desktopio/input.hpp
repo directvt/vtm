@@ -740,7 +740,12 @@ namespace netxs::input
         ui64 digest{}; // foci: Incrementing event number to avoid refocusing when connecting recursively.
     };
 
-    using multihome_t = std::pair<wptr, wptr>;
+    struct multihome_t
+    {
+        wptr                      world_wptr;  // multihome_t: World reference.
+        wptr                      parent_wptr; // multihome_t: Current world's parent.
+        std::list<sptr>::iterator holder;      // multihome_t: Iterator on parent's subset list.
+    };
 
     // input: Mouse tracker.
     struct mouse
@@ -1624,10 +1629,10 @@ namespace netxs::input
         }
         void set_multihome()
         {
-            auto [world_wptr, parent_wptr] = multihome;
-            if (auto world_ptr = world_wptr.lock())
+            if (auto world_ptr = multihome.world_wptr.lock())
             {
-                world_ptr->base::father = parent_wptr;
+                world_ptr->base::father = multihome.parent_wptr;
+                world_ptr->base::holder = multihome.holder;
             }
             bell::indexer.luafx.set_gear(*this);
         }
