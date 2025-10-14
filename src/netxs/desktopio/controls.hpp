@@ -269,18 +269,6 @@ namespace netxs::events
                 //todo keep target_ptr locked until we are inside the lua
                 return 1;
             }
-            else if (object_name == "desktop") //todo unify (use set_multihome)
-            {
-                //log("object_name=", object_name);
-                auto iter = indexer.objects.find(1);
-                if (iter != indexer.objects.end())
-                {
-                    auto world_ptr = &(iter->second.get());
-                    ::lua_pushlightuserdata(lua, world_ptr); // Push address of the world instance.
-                    ::luaL_setmetatable(lua, "cfg_submetaindex"); // Set the cfg_submetaindex for table at -1.
-                    return 1;
-                }
-            }
             log("%%No 'vtm.%%' object found", prompt::lua, object_name);
             return 0;
         });
@@ -665,6 +653,7 @@ namespace netxs::events
         {
             auto& subclass = *(iter->second);
             auto& subobjects = subclass.objects;
+            //todo build context in place
             if (source_ctx.empty() && !subobjects.empty()) // The object is outside the DOM.
             {
                 target_ptr = &(subobjects.front().get()); // Take the first available.
@@ -682,7 +671,7 @@ namespace netxs::events
                     auto& target_ctx = boss.scripting_context;
                     //if constexpr (debugmode) log(" target context: ", netxs::events::script_ref::to_string(target_ctx));
                     if (target_ctx.empty() // The object is outside the DOM.
-                        || source_ctx.back() == target_ctx.back()) // Target is the source itself.
+                     || source_ctx.back() == target_ctx.back()) // Target is the source itself.
                     {
                         target_ptr = &boss;
                         iter2 = head;
@@ -693,14 +682,14 @@ namespace netxs::events
                     auto src_head = source_ctx.begin();
                     auto src_tail = source_ctx.end();
                     auto source_ctx_begin = src_head;
+                    //todo don't use context - just iterate over parents
                     while (src_head != src_tail && dst_head != dst_tail && *src_head == *dst_head)
                     {
                         ++src_head;
                         ++dst_head;
                     }
                     auto m = (si32)(src_head - source_ctx_begin);
-                    if (m > closeness
-                        || (m == closeness && target_ctx.size() < target_size))
+                    if (m > closeness || (m == closeness && target_ctx.size() < target_size))
                     {
                         closeness = m;
                         target_size = target_ctx.size();
