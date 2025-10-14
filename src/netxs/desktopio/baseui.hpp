@@ -735,7 +735,7 @@ namespace netxs::ui
             netxs::events::vtm_class::list::iterator class_iterator; // base: class_metadata.objects std::list iterator.
         };
         utf::unordered_map<text, base_class> base_classes; // base: Base classes map by classname.
-        netxs::events::context_t             scripting_context; // base: List of ids of all ancestors.
+        netxs::events::context_t             scripting_context; // base: Temp buffer for the list of ids of all ancestors.
 
         struct mfocus_node
         {
@@ -817,35 +817,6 @@ namespace netxs::ui
             return sptr{};
         }
         // base: Update scripting context. Run on anycast, e2::form::upon::started.
-        void update_scripting_context()
-        {
-            if (auto parent_ptr = base::parent())
-            {
-                base::scripting_context = parent_ptr->scripting_context;
-            }
-            base::scripting_context.emplace_back(this);
-            //todo Sort all base::base_classes.* references.
-            //for (auto& [classname, base_class_metadata] : base_classes)
-            //{
-            //    if (base_class_metadata.class_metadata)
-            //    {
-            //        auto& objects = base_class_metadata.class_metadata->objects;
-            //        auto objects_iterator = base_class_metadata.class_iterator;
-            //        auto head = objects.begin();
-            //        auto tail = objects.end();
-            //        auto next = std::next(objects_iterator);
-            //        if (next != tail)
-            //        {
-            //            // Find valid next.
-            //        }
-            //        if (objects_iterator != head)
-            //        {
-            //            // Find valid prev.
-            //            auto prev = std::prev(objects_iterator);
-            //        }
-            //    }
-            //}
-        }
         // base: Enqueue task.
         template<bool Sync = true>
         void enqueue(netxs::events::fx<ui::base> proc)
@@ -871,6 +842,23 @@ namespace netxs::ui
             return std::pair{ ref_count, del_count };
         }
         // base: Cleanup expired weak references.
+        auto& get_scripting_context()
+        {
+            base::scripting_context.clear();
+            base::scripting_context.push_back(this);
+            auto parent_ptr = base::father.lock();
+            while (parent_ptr)
+            {
+                base::scripting_context.push_back(parent_ptr.get());
+                if (auto next_parent_ptr = parent_ptr->base::father.lock())
+                {
+                    parent_ptr = next_parent_ptr;
+                }
+                else break;
+            }
+            return base::scripting_context;
+        }
+        // base: Cleanup expired weak references.
         void cleanup(bool show_details = faux)
         {
             if (show_details)
@@ -890,7 +878,7 @@ namespace netxs::ui
                     for (auto& boss_ref : v->objects)
                     {
                         auto& boss = boss_ref.get();
-                        log("context: %ctx%", netxs::events::script_ref::to_string(boss.scripting_context));
+                        log("context: %ctx%", netxs::events::script_ref::to_string(boss.base::get_scripting_context()));
                     }
                 }
             }
@@ -911,7 +899,7 @@ namespace netxs::ui
         void broadcast(si32 Tier, hint event, auto&& param, bool forced = true)
         {
             auto lock = bell::sync();
-            bell::_signal(Tier, event, param);
+            indexer.notify(Tier, reactor, event, param);
             for (auto item_ptr : base::subset)
             {
                 if (item_ptr && (forced || !item_ptr->master))
@@ -942,7 +930,7 @@ namespace netxs::ui
             }
             else
             {
-                bell::_signal(Tier, event, param);
+                indexer.notify(Tier, reactor, event, param);
             }
         }
         // base: Fire an event.

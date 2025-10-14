@@ -2183,10 +2183,11 @@ namespace netxs::input
                     {
                         if (auto boss_ptr = indexer._null_gear_sptr->getref(id)) // The boss may already be deleted.
                         {
+                            auto& scripting_context = boss_ptr->get_scripting_context();
                             for (auto& src_name : sources)
                             {
                                 //log("Set handler on '%target%' for script: ", src_name, ansi::hi(script_ptr->script_body_ptr->second));
-                                if (auto target_ptr = indexer.get_target(boss_ptr->scripting_context, src_name))
+                                if (auto target_ptr = indexer.get_target(scripting_context, src_name))
                                 {
                                     target_ptr->bell::submit_generic(tier_id, event_id, boss_ptr->sensors, script_ptr);
                                 }
@@ -2207,7 +2208,7 @@ namespace netxs::input
             auto [chords, is_preview] = input::bindings::get_chords(chord_str);
             if (chords.size())
             {
-                auto script_ptr = ptr::shared<script_ref>(boss.indexer, boss.scripting_context, script_body);
+                auto script_ptr = ptr::shared<script_ref>(boss.indexer, boss, script_body);
                 auto reset_handler = !(script_ptr->script_body_ptr && script_ptr->script_body_ptr->second.size());
                 for (auto& binary_chord : chords) if (binary_chord.size()) // Scripts always store their sensors at the boss side, since the lifetime of base::scripting_context depends on the boss.
                 {
