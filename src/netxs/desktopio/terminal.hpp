@@ -9093,7 +9093,8 @@ namespace netxs::ui
                         gear.keybd::scevent = owner.indexer.get_kbchord_hint(k.scchord);
                         gear.keybd::chevent = owner.indexer.get_kbchord_hint(k.chchord);
                         k.syncto(gear);
-                        owner.base::riseup(tier::release, input::events::keybd::post, gear, true);
+                        //owner.base::riseup(tier::release, input::events::keybd::post, gear, true);
+                        pro::keybd::forward_release(owner, gear);
                     }
                 }
             };
