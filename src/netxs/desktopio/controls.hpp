@@ -1735,6 +1735,71 @@ namespace netxs::ui
             }
         };
 
+        // pro: Keyboard events.
+        class keybd
+            : public skill
+        {
+            using skill::boss,
+                  skill::memo;
+
+            std::unordered_map<id_t, time> last_key; // keybd: .
+            si64 instance_id; // keybd: .
+
+        public:
+            static void forward_release(base& boss, hids& gear)
+            {
+                auto parent_ptr = boss.base::This();
+                while ((!gear.handled || gear.keystat == input::key::released) && parent_ptr) // Always pass released key events. Stop on gear.timecod > last_key[gear.id] in pro::keybd (gear.handled).
+                {
+                    parent_ptr->base::signal(tier::release, input::events::keybd::post, gear);
+                    parent_ptr = parent_ptr->base::parent();
+                }
+            }
+
+            keybd(base&&) = delete;
+            keybd(base& boss)
+                : skill{ boss },
+                  instance_id{ datetime::now().time_since_epoch().count() }
+            {
+                boss.LISTEN(tier::general, input::events::die, gear, memo)
+                {
+                    last_key.erase(gear.id);
+                };
+                boss.LISTEN(tier::release, input::events::keybd::any, gear, memo)
+                {
+                    gear.shared_event = gear.touched && gear.touched != instance_id;
+                    auto& timecod = last_key[gear.id];
+                    if (gear.timecod > timecod)
+                    {
+                        timecod = gear.timecod;
+                        if (gear.payload == input::keybd::type::keypress && gear.keystat != input::key::interrupted)
+                        {
+                            if (!gear.handled) input::bindings::dispatch(boss, instance_id, gear, tier::keybdrelease, boss.indexer.anykey_event);
+                            if (!gear.handled) input::bindings::dispatch(boss, instance_id, gear, tier::keybdrelease, gear.vkevent);
+                            if (!gear.handled) input::bindings::dispatch(boss, instance_id, gear, tier::keybdrelease, gear.chevent);
+                            if (!gear.handled) input::bindings::dispatch(boss, instance_id, gear, tier::keybdrelease, gear.scevent);
+                        }
+                    }
+                    else
+                    {
+                        gear.set_handled(faux); // faux: Set handled for keybd only.
+                        gear.keystat = input::key::interrupted; // Forward gear.keystat == input::key::released only once.
+                    }
+                };
+                boss.LISTEN(tier::preview, input::events::keybd::any, gear, memo)
+                {
+                    gear.shared_event = gear.touched && gear.touched != instance_id;
+                    if (gear.payload == input::keybd::type::keypress)
+                    {
+                        if (!gear.touched && !gear.handled) input::bindings::dispatch(boss, instance_id, gear, tier::keybdpreview, gear.vkevent);
+                        if (!gear.touched && !gear.handled) input::bindings::dispatch(boss, instance_id, gear, tier::keybdpreview, gear.chevent);
+                        if (!gear.touched && !gear.handled) input::bindings::dispatch(boss, instance_id, gear, tier::keybdpreview, gear.scevent);
+                        if (!gear.touched && !gear.handled) input::bindings::dispatch(boss, instance_id, gear, tier::keybdpreview, boss.indexer.anykey_event);
+                    }
+                };
+            }
+        };
+
         // pro: Text input focus tree.
         class focus
             : public skill
@@ -2138,15 +2203,28 @@ namespace netxs::ui
                 {
                     auto sent = faux;
                     auto& chain = get_chain(gear.id);
+                    auto in_keystat = gear.keystat;
+                    auto ou_keystat = gear.keystat;
+                    auto in_handled = gear.handled;
+                    auto ou_handled = gear.handled;
                     chain.foreach([&](auto& nexthop, auto& status)
                     {
                         if (status == state::live)
                         {
                             sent = true;
+                            gear.handled = in_handled; // Split handled state.
+                            gear.keystat = in_keystat; // Split keystat state.
                             nexthop.base::signal(tier::preview, input::events::keybd::post, gear);
+                            ou_handled |= gear.handled; // Combine handled state.
+                            if (gear.keystat == input::key::interrupted)
+                            {
+                                ou_keystat = gear.keystat;
+                            }
                         }
                     });
-                    if (!sent && node_type != mode::relay) // Send key::post event back. The relays themselves will later send it back.
+                    gear.handled = ou_handled;
+                    gear.keystat = ou_keystat;
+                    if (!sent && node_type != mode::relay) // Send key::post event back. The relays themselves will send it back later.
                     {
                         if constexpr (debugmode)
                         {
@@ -2156,12 +2234,7 @@ namespace netxs::ui
                             //    auto i = 0;
                             //}
                         }
-                        auto parent_ptr = boss.base::This();
-                        while ((!gear.handled || gear.keystat == input::key::released) && parent_ptr) // Always pass released key events.
-                        {
-                            parent_ptr->base::signal(tier::release, input::events::keybd::post, gear);
-                            parent_ptr = parent_ptr->base::parent();
-                        }
+                        pro::keybd::forward_release(boss, gear);
                     }
                 };
                 // all tier::previews going to outside (upstream)
@@ -2588,60 +2661,6 @@ namespace netxs::ui
                     });
                     boss.dup_handler(tier::general, input::events::halt.id, dragmemo_button.back());
                 }
-            }
-        };
-
-        // pro: Keyboard events.
-        class keybd
-            : public skill
-        {
-            using skill::boss,
-                  skill::memo;
-
-            std::unordered_map<id_t, time> last_key; // keybd: .
-            si64 instance_id; // keybd: .
-
-        public:
-            keybd(base&&) = delete;
-            keybd(base& boss)
-                : skill{ boss },
-                  instance_id{ datetime::now().time_since_epoch().count() }
-            {
-                boss.LISTEN(tier::general, input::events::die, gear, memo)
-                {
-                    last_key.erase(gear.id);
-                };
-                boss.LISTEN(tier::release, input::events::keybd::any, gear, memo)
-                {
-                    gear.shared_event = gear.touched && gear.touched != instance_id;
-                    auto& timecod = last_key[gear.id];
-                    if (gear.timecod > timecod)
-                    {
-                        timecod = gear.timecod;
-                        if (gear.payload == input::keybd::type::keypress)
-                        {
-                            if (!gear.handled) input::bindings::dispatch(boss, instance_id, gear, tier::keybdrelease, boss.indexer.anykey_event);
-                            if (!gear.handled) input::bindings::dispatch(boss, instance_id, gear, tier::keybdrelease, gear.vkevent);
-                            if (!gear.handled) input::bindings::dispatch(boss, instance_id, gear, tier::keybdrelease, gear.chevent);
-                            if (!gear.handled) input::bindings::dispatch(boss, instance_id, gear, tier::keybdrelease, gear.scevent);
-                        }
-                    }
-                    else
-                    {
-                        gear.set_handled(faux); // faux: Set handled for keybd only.
-                    }
-                };
-                boss.LISTEN(tier::preview, input::events::keybd::any, gear, memo)
-                {
-                    gear.shared_event = gear.touched && gear.touched != instance_id;
-                    if (gear.payload == input::keybd::type::keypress)
-                    {
-                        if (!gear.touched && !gear.handled) input::bindings::dispatch(boss, instance_id, gear, tier::keybdpreview, gear.vkevent);
-                        if (!gear.touched && !gear.handled) input::bindings::dispatch(boss, instance_id, gear, tier::keybdpreview, gear.chevent);
-                        if (!gear.touched && !gear.handled) input::bindings::dispatch(boss, instance_id, gear, tier::keybdpreview, gear.scevent);
-                        if (!gear.touched && !gear.handled) input::bindings::dispatch(boss, instance_id, gear, tier::keybdpreview, boss.indexer.anykey_event);
-                    }
-                };
             }
         };
 
