@@ -2889,6 +2889,10 @@ namespace netxs::gui
             stream.m.timecod = datetime::now();
             stream.m.enabled = hids::stat::halt;
             if (!mfocus.focused()) stream.m.ctlstat &= input::hids::NumLock | input::hids::CapsLock | input::hids::ScrlLock;
+            if (std::exchange(stream.gears->tooltip.visible, faux)) // Hide all active tooltips on mouse leave.
+            {
+                update_tooltip();
+            }
             stream.mouse(stream.m);
         }
         void mouse_leave()
