@@ -13,7 +13,7 @@
     - [Output](#output)
 - [Desktop structure](#desktop-structure)
   - [Desktop objects](#desktop-objects)
-- [Usage scenarios](#usage-scenarios)
+- [Quick start](#quick-start)
   - [Local usage](#local-usage)
     - [Run vtm desktop](#run-vtm-desktop)
     - [Run Terminal Console standalone](#run-terminal-console-standalone)
@@ -27,7 +27,8 @@
     - [Run remote vtm desktop in DirectVT IO mode using inetd + ncat](#run-remote-vtm-desktop-in-directvt-io-mode-using-inetd--ncat-posix-only-unencrypted-for-private-use-only)
     - [Local standard I/O redirection using socat](#local-standard-io-redirection-using-socat-posix-only)
   - [Standard I/O stream monitoring](#standard-io-stream-monitoring)
-- [Desktop taskbar customization](#desktop-taskbar-customization)
+  - [Desktop taskbar menu customization](#desktop-taskbar-menu-customization)
+  - [Keyboard hacking](#keyboard-hacking)
 - [Desktop Live Panel](panel.md)
 - [Desktop objects and built-in applications](apps.md)
 
@@ -321,7 +322,7 @@ Desktop Region Marker<br>`site`         | A transparent resizable frame for ma
 
 Do not confuse the `Desktop Applet` names with the desktop object names, even though they are the same literally, e.g. `vtty` and `term`. Desktop objects of the same name as Desktop Applets are wrappers for heavy desktop objects that should be launched in parallel vtm processes.
 
-# Usage scenarios
+# Quick start
 
 ## Local usage
 
@@ -464,47 +465,82 @@ The following examples assume that vtm is installed on both the local and remote
     # Note: Make sure `socat` is installed.
     ```
 
-
 ## Standard I/O stream monitoring
 
-Vtm allows developers to visualize standard input/output streams of the running CUI applications. Launched in the `Log Monitor` mode, vtm will log the event stream of each terminal window with the `Logs` switch enabled.
+It is possible to visualize standard input/output streams of the running CUI applications. Launched in the `Log Monitor` mode (`vtm -m`), vtm will log the event stream of each terminal window with the `Logs` switch enabled.
 
 Important: Avoid enabling the `Logs` switch in the terminal window hosting the `Log Monitor` process running, this may lead to recursive event logging of event logging with unpredictable results.
 
-## Desktop taskbar customization
+## Desktop taskbar menu customization
 
 The taskbar menu can be configured using a settings file `~/.config/vtm/settings.xml` (`%USERPROFILE%\.config\vtm\settings.xml` on Windows):
 ```xml
 <config>
     <desktop>
         <taskbar>
-            <!-- <item*/> --> <!-- Clear default item list -->
+            <!-- <item*/> --> <!-- Uncomment to clear default item list. -->
             <item splitter label="Remote Access"/>
 
-            <item id="Run remote vtm desktop in DirectVT IO mode over SSH" type=dtty cmd="ssh user@server vtm"/>
-            <item id="Run console app in remote terminal over SSH"         type=dtty cmd="ssh user@server vtm -r term </path/to/console/app...>"/>
-            <item id="Run console app remotely over SSH w/o extra UI"      type=dtty cmd="ssh user@server vtm </path/to/console/app...>"/>
+            <item id="Run remote vtm desktop in DirectVT IO mode over SSH" type="dtty" cmd="ssh user@server vtm"/>
+            <item id="Run console app in remote terminal over SSH"         type="dtty" cmd="ssh user@server vtm -r term </path/to/console/app...>"/>
+            <item id="Run console app remotely over SSH w/o extra UI"      type="dtty" cmd="ssh user@server vtm </path/to/console/app...>"/>
 
             <item splitter label="Another Examples"/>
 
-            <item id="Far Manager"             type=vtty cmd="far"/>
-            <item id="Far Manager in terminal" type=dtvt cmd="$0 -r term far"/>
+            <item id="Far Manager"             type="vtty" cmd="far"/>
+            <item id="Far Manager in terminal" type="dtvt" cmd="$0 -r term far"/>
 
-            <item id="Midnight Commander"             type=vtty cmd="mc"/>
-            <item id="Midnight Commander in terminal" type=dtvt cmd="$0 -r term mc"/>
+            <item id="Midnight Commander"             type="vtty" cmd="mc"/>
+            <item id="Midnight Commander in terminal" type="dtvt" cmd="$0 -r term mc"/>
 
-            <item id="Remote cmd in terminal over SSH" type=dtty cmd="ssh user@server vtm -r term cmd"/>
-            <item id="Remote cmd over SSH"             type=dtty cmd="ssh user@server vtm cmd"/>
-            <item id="Remote Far Manager over SSH"     type=dtty cmd="ssh user@server vtm far"/>
-            <item id="Remote wsl over SSH"             type=dtty cmd="ssh user@server vtm wsl"/>
-            <item id="Remote mc over SSH"              type=dtty cmd="ssh user@server vtm mc"/>
-            <item id="Remote wsl mc over SSH"          type=dtty cmd="ssh user@server vtm wsl mc"/>
+            <item id="Remote cmd in terminal over SSH" type="dtty" cmd="ssh user@server vtm -r term cmd"/>
+            <item id="Remote cmd over SSH"             type="dtty" cmd="ssh user@server vtm cmd"/>
+            <item id="Remote Far Manager over SSH"     type="dtty" cmd="ssh user@server vtm far"/>
+            <item id="Remote wsl over SSH"             type="dtty" cmd="ssh user@server vtm wsl"/>
+            <item id="Remote mc over SSH"              type="dtty" cmd="ssh user@server vtm mc"/>
+            <item id="Remote wsl mc over SSH"          type="dtty" cmd="ssh user@server vtm wsl mc"/>
         </taskbar>
     </desktop>
 </config>
 ```
 
-#### 28 Feb 2025: This functionality is under development.
+## Keyboard hacking
+
+It is possible to emulate the tmux-like keyboard prefix approach by using a global variable in the Lua-scripting runtime space. As an example, the following configuration adds the keyboard shortcut `Ctrl+B` as a toggle for an additional keyboard mode (coupled with a user-defined boolean variable named `kbmodifier`) that allows windows to be moved directly using the arrow keys:
+
+- `~/.config/vtm/settings.xml`:
+  ```xml
+  <config>
+      <events>
+          <applet> <!-- Key bindings for the application window. -->
+              <if_mod_on="if (not kbmodifier) then return; end;"/> <!-- `if_mod_on` macro definition. Do nothing if `kbmodifier` is false. -->
+              <script="kbmodifier = not kbmodifier; log('kbmodifier=', kbmodifier);" on="Ctrl+B"/> <!-- Emulate tmux-like prefix key. The expression `log('kbmodifier=', kbmodifier);` is for debugging purposes only (the output is visible in the `Log Monitor`). -->
+              <script=if_mod_on | MoveAppletLeft        on="preview:LeftArrow" /> <!-- The ` | ` operator concatenates script fragments/macros. -->
+              <script=if_mod_on | MoveAppletRight       on="preview:RightArrow"/> <!-- Use "preview:..." to get the key event before the terminal/application. -->
+              <script=if_mod_on | MoveAppletUp          on="preview:UpArrow"   /> <!-- When kbmodifier is true, you can move windows using the arrow keys. -->
+              <script=if_mod_on | MoveAppletDown        on="preview:DownArrow" /> <!-- Macros like `MoveApplet...` are defined in the default configuration. You can list them with `vtm -l`. -->
+              <script=if_mod_on | MoveAppletTopLeft     on="LeftArrow+UpArrow    | UpArrow+LeftArrow"   /> <!-- Simultaneous key presses should also be processed if supported. -->
+              <script=if_mod_on | MoveAppletBottomLeft  on="LeftArrow+DownArrow  | DownArrow+LeftArrow" /> <!-- It is convenient to specify multiple keyboard shortcuts in one definition separated by `|`. -->
+              <script=if_mod_on | MoveAppletTopRight    on="RightArrow+UpArrow   | UpArrow+RightArrow"  />
+              <script=if_mod_on | MoveAppletBottomRight on="RightArrow+DownArrow | DownArrow+RightArrow"/>
+              <script=if_mod_on | IncreaseAppletWidth   on="Ctrl+RightArrow"                            />
+              <script=if_mod_on | DecreaseAppletWidth   on="Ctrl+LeftArrow"                             />
+              <script=if_mod_on | IncreaseAppletHeight  on="Ctrl+DownArrow"                             />
+              <script=if_mod_on | DecreaseAppletHeight  on="Ctrl+UpArrow"                               />
+          </applet>
+      </events>
+  </config>
+  ```
+
+# Desktop Live Panel
+
+- [Desktop Live Panel](panel.md)
+
+# Desktop objects and built-in applications
+
+- [Desktop objects and built-in applications](apps.md)
+
+#### 28 Feb 2025: The following functionality is under development:
 
 Additionally, the taskbar menu of the running desktop can be configured using shell piped redirection by sending script commands to the running vtm desktop:
 ```
@@ -527,11 +563,3 @@ echo "vtm.taskbar.Selected('Term')" | vtm
 # Run window with terminals
 echo "vtm.desktop.Run({ id='Tile' })" | vtm
 ```
-
-# Desktop Live Panel
-
-- [Desktop Live Panel](panel.md)
-
-# Desktop objects and built-in applications
-
-- [Desktop objects and built-in applications](apps.md)
