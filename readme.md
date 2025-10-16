@@ -39,6 +39,7 @@ Linux platform notes:
 
 # Documentation
 
+- [Quick start](doc/architecture.md#quick-start)
 - [Architecture](doc/architecture.md)
 - [Building from source](doc/build.md)
 - [Command-line options](doc/command-line-options.md)
