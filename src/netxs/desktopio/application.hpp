@@ -642,14 +642,6 @@ namespace netxs::app::shared
         return  [&](eccc appcfg, settings& config)
                 {
                     auto applet_ptr = builder_proc(appcfg, config);
-                    auto& applet = *applet_ptr;
-                    applet.LISTEN(tier::anycast, e2::form::upon::started, root_ptr)
-                    {
-                        applet.base::enqueue([&](auto&)
-                        {
-                            applet.base::signal(tier::release, e2::form::upon::started, root_ptr); // Fire a release started event after all initializations.
-                        });
-                    };
                     return applet_ptr;
                 };
     }
