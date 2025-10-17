@@ -335,7 +335,7 @@ Vtm can function perfectly well without explicit installation. However, for ease
   sudo vtm --install
   ```
 
-Note: Mouse support in the Linux VGA Console (in-kernel console) requires direct access to mouse devices. The command `sudo vtm --mouse` grants access to pointing devices for all users (chmod 0666).
+Note: Mouse support in the Linux VGA Console (in-kernel console) requires direct access to mouse devices. The command `sudo vtm --mouse` grants access to pointing devices for all users.
 
 ### Run vtm desktop
 

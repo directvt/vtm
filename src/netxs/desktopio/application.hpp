@@ -22,7 +22,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v2025.10.16";
+    static const auto version = "v2025.10.17";
     static const auto repository = "https://github.com/directvt/vtm";
     static const auto usr_config = "~/.config/vtm/settings.xml"s;
     static const auto sys_config = "/etc/vtm/settings.xml"s;
@@ -642,6 +642,14 @@ namespace netxs::app::shared
         return  [&](eccc appcfg, settings& config)
                 {
                     auto applet_ptr = builder_proc(appcfg, config);
+                    auto& applet = *applet_ptr;
+                    applet.LISTEN(tier::anycast, e2::form::upon::started, root_ptr)
+                    {
+                        applet.base::enqueue([&](auto&) // Enqueue the trigger to window menu update.
+                        {
+                            applet.base::signal(tier::release, e2::form::upon::started); // Fire a release started event after all initializations.
+                        });
+                    };
                     return applet_ptr;
                 };
     }
