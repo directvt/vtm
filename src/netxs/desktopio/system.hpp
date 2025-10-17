@@ -1416,7 +1416,7 @@ namespace netxs::os
             }
             else
             {
-                os::close(w); // Wriite end should be closed first.
+                os::close(w); // Write end should be closed first.
                 os::close(r);
             }
         }
