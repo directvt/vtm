@@ -642,6 +642,14 @@ namespace netxs::app::shared
         return  [&](eccc appcfg, settings& config)
                 {
                     auto applet_ptr = builder_proc(appcfg, config);
+                    auto& applet = *applet_ptr;
+                    applet.LISTEN(tier::anycast, e2::form::upon::started, root_ptr)
+                    {
+                        applet.base::enqueue([&](auto&) // Enqueue the trigger to window menu update.
+                        {
+                            applet.base::signal(tier::release, e2::form::upon::started); // Fire a release started event after all initializations.
+                        });
+                    };
                     return applet_ptr;
                 };
     }
