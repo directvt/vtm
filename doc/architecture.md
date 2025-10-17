@@ -335,38 +335,38 @@ Vtm can function perfectly well without explicit installation. However, for ease
   sudo vtm --install
   ```
 
-Note: To support mouse support in Linux, the VGA Console (in-kernel console) requires access to mouse devices. The command `sudo vtm --mouse` sets direct access to pointing devices for all users (chmod 0666).
+Note: Mouse support in the Linux VGA Console (in-kernel console) requires direct access to mouse devices. The command `sudo vtm --mouse` grants access to pointing devices for all users (chmod 0666).
 
 ### Run vtm desktop
 
 - Run command:
-    ```bash
-    vtm
-    ```
+  ```bash
+  vtm
+  ```
 
-Note: You can explicitly specify to run vtm inside the terminal (`vtm --tui`) or in its own GUI window (`vtm --gui`) (GUI mode is only available on Windows for now).
+Note: You can explicitly specify to run vtm inside the terminal (run `vtm --tui`) or in its own GUI window (run `vtm --gui`). GUI mode is only available on Windows for now.
 
 ### Run Terminal Console standalone
 
 - Run command:
-    ```bash
-    vtm -r term
-    ```
+  ```bash
+  vtm -r term
+  ```
 
 ### Run a CUI application standalone
 
 - Run command:
-    ```bash
-    vtm </path/to/console/app...>
-    ```
+  ```bash
+  vtm </path/to/console/app...>
+  ```
 
 ### Run a CUI application inside the Terminal Console
 
 - Run command:
-    ```bash
-    vtm -r term </path/to/console/app...>
-    # The `vtm -r term` option means to run the Terminal Console standalone to host a CUI application.
-    ```
+  ```bash
+  vtm -r term </path/to/console/app...>
+  # The `vtm -r term` option means to run the Terminal Console standalone to host a CUI application.
+  ```
 
 ## Remote access
 
@@ -379,9 +379,9 @@ The following examples assume that vtm is installed on both the local and remote
 ### Run a standalone CUI application remotely over SSH
 
 - Remote side
-    - Make sure the remote SSH server is running.
+  - Make sure the remote SSH server is running.
 - Local side
-    - Run command:
+  - Run command:
     ```bash
     vtm -r dtty ssh user@server vtm -r vtty </path/to/console/app...>
     # The `vtm -r dtty` option means to run the next statement in DirectVT&TTY console.
@@ -395,9 +395,9 @@ The following examples assume that vtm is installed on both the local and remote
 ### Run remote vtm desktop in DirectVT mode over SSH
 
 - Remote side
-    - Make sure the remote SSH server is running.
+  - Make sure the remote SSH server is running.
 - Local side
-    - Run command:
+  - Run command:
     ```bash
     vtm -r dtty ssh user@server vtm
     # The `vtm -r dtty` option means to run the next statement in DirectVT&TTY console.
@@ -412,9 +412,9 @@ The following examples assume that vtm is installed on both the local and remote
 ### Run remote vtm desktop in ANSI/VT mode over SSH
 
 - Remote side
-    - Make sure the remote SSH server is running.
+  - Make sure the remote SSH server is running.
 - Local side
-    - Run commands:
+  - Run commands:
     ```bash
     ssh user@server
     vtm
@@ -428,7 +428,7 @@ The following examples assume that vtm is installed on both the local and remote
 ### Run remote vtm desktop in DirectVT mode using `netcat` (POSIX only, unencrypted, for private use only)
 
 - Remote side
-    - Run command:
+  - Run command:
     ```bash
     ncat -l tcp_port -k -e vtm
     # ncat's option `-l tcp_port` specifies tcp port to listen.
@@ -436,7 +436,7 @@ The following examples assume that vtm is installed on both the local and remote
     # ncat's option `-e` to run vtm for every connected client.
     ```
 - Local side
-    - Run command:
+  - Run command:
     ```bash
     vtm -r dtvt ncat remote_ip remote_tcp_port
     # The `vtm -r dtvt` option means to run DirectVT Gateway to host ncat.
@@ -446,19 +446,19 @@ The following examples assume that vtm is installed on both the local and remote
 ### Run remote vtm desktop in DirectVT mode using `inetd + ncat` (POSIX only, unencrypted, for private use only)
 
 - Remote side
-    - Install `inetd`.
-    - Add the following line to the `/etc/inetd.conf`:
-        ```bash
-        tcp_port stream tcp nowait user_name /remote/side/path/to/vtm  vtm
-        # `tcp_port`: tcp port to listen.
-        # `user_name`: user login name.
-        ```
-    - Launch `inetd`:
-        ```
-        inetd
-        ```
+  - Install `inetd`.
+  - Add the following line to the `/etc/inetd.conf`:
+    ```bash
+    tcp_port stream tcp nowait user_name /remote/side/path/to/vtm  vtm
+    # `tcp_port`: tcp port to listen.
+    # `user_name`: user login name.
+    ```
+  - Launch `inetd`:
+    ```
+    inetd
+    ```
 - Local side
-    - Run command:
+  - Run command:
     ```bash
     vtm -r dtvt ncat remote_ip remote_tcp_port
     ```
@@ -466,13 +466,13 @@ The following examples assume that vtm is installed on both the local and remote
 ### Local standard I/O redirection using `socat` (POSIX only)
 
 - Host side
-    - Run commands:
+  - Run commands:
     ```
     mkfifo in && mkfifo out
     vtm >out <in
     ```
 - User side
-    - Run command:
+  - Run command:
     ```bash
     vtm -r dtvt socat open:out\!\!open:in stdin\!\!stdout
     # Note: Make sure `socat` is installed.
