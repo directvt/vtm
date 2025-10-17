@@ -2,9 +2,9 @@
 
 - [UI Concept](#ui-concept)
 - [Process model](#process-model)
-- [Runtime modes](#runtimemodes)
-- [Desktop applets](#desktopapplets)
-- [IO modes](#io-modes)
+- [Runtime modes](#runtime-modes)
+- [Desktop applets](#desktop-applets)
+- [I/O modes](#io-modes)
   - [DirectVT mode](#directvt-mode)
   - [ANSI/VT mode](#ansivt-mode)
     - [Input](#input)
@@ -13,7 +13,7 @@
     - [Output](#output)
 - [Desktop structure](#desktop-structure)
   - [Desktop objects](#desktop-objects)
-- [Quick start](#quick-start)
+- [Quickstart](#quickstart)
   - [Local usage](#local-usage)
     - [Run vtm desktop](#run-vtm-desktop)
     - [Run Terminal Console standalone](#run-terminal-console-standalone)
@@ -21,10 +21,10 @@
     - [Run a CUI application inside the Terminal Console](#run-a-cui-application-inside-the-terminal-console)
   - [Remote access](#remote-access)
     - [Run a standalone CUI application remotely over SSH](#run-a-standalone-cui-application-remotely-over-ssh)
-    - [Run remote vtm desktop in DirectVT IO mode over SSH](#run-remote-vtm-desktop-in-directvt-io-mode-over-ssh)
-    - [Run remote vtm desktop in ANSI/VT IO mode over SSH](#run-remote-vtm-desktop-in-ansivt-io-mode-over-ssh)
-    - [Run remote vtm desktop in DirectVT IO mode using netcat](#run-remote-vtm-desktop-in-directvt-io-mode-using-netcat-posix-only-unencrypted-for-private-use-only)
-    - [Run remote vtm desktop in DirectVT IO mode using inetd + ncat](#run-remote-vtm-desktop-in-directvt-io-mode-using-inetd--ncat-posix-only-unencrypted-for-private-use-only)
+    - [Run remote vtm desktop in DirectVT mode over SSH](#run-remote-vtm-desktop-in-directvt-mode-over-ssh)
+    - [Run remote vtm desktop in ANSI/VT mode over SSH](#run-remote-vtm-desktop-in-ansivt-mode-over-ssh)
+    - [Run remote vtm desktop in DirectVT mode using netcat](#run-remote-vtm-desktop-in-directvt-mode-using-netcat-posix-only-unencrypted-for-private-use-only)
+    - [Run remote vtm desktop in DirectVT mode using inetd + ncat](#run-remote-vtm-desktop-in-directvt-mode-using-inetd--ncat-posix-only-unencrypted-for-private-use-only)
     - [Local standard I/O redirection using socat](#local-standard-io-redirection-using-socat-posix-only)
   - [Standard I/O stream monitoring](#standard-io-stream-monitoring)
   - [Desktop taskbar menu customization](#desktop-taskbar-menu-customization)
@@ -179,7 +179,7 @@ graph TB
 - Multiple connected users can share a focused application, while each user can have multiple applications focused.
 - Users can disconnect from the session and reconnect later.
 - Sessions with different ids can coexist independently.
-- To maximize rendering efficiency and minimize cross-platform issues, along with character-oriented xterm-compatible IO mode called `ANSI/VT`, vtm supports an additional message-based binary IO mode called `DirectVT`.
+- To maximize rendering efficiency and minimize cross-platform issues, along with character-oriented xterm-compatible I/O mode called `ANSI/VT`, vtm supports an additional message-based binary I/O mode called `DirectVT`.
 - A typical console application integrates into the desktop using the `DirectV Gateway` window as the DirectVT connection endpoint.
   - A DirectVT-aware application directly connected to the environment can seamlessly send and receive the entire set of desktop events, as well as render themselves in binary form, avoiding expensive ANSI/VT parsing.
   - To run a non-DirectVT application, an additional vtm host process is launched in `Desktop Applet` mode with the `Teletype Console` or `Terminal Console` applet as a DirectVT bridge to the desktop environment.
@@ -188,7 +188,7 @@ graph TB
 
 ### Runtime modes
 
-Runtime mode    | IO mode                  | Environment role
+Runtime mode    | I/O mode                 | Environment role
 ----------------|--------------------------|------------------
 Desktop Applet  | auto detected            | A desktop applet of an arbitrary type running in its own process that accepts user input and renders itself. Used to place a heavy (complex) desktop object in a separate process in order to optimize desktop resource consumption.
 Desktop Client  | auto detected            | A desktop client running in its own process that forwards user input to the desktop and renders the corresponding desktop region with a taskbar overlay.
@@ -206,15 +206,15 @@ Desktop applet             | Type   | Host for
 Teletype Console (default) | `vtty` | CUI applications.
 Terminal Console           | `term` | CUI applications.
 DirectVT Gateway           | `dtvt` | DirectVT-aware applications.
-DirectVT Gateway with TTY  | `dtty` | CUI applications that redirect DirectVT flow to standard IO streams and require user input via platform's TTY.
+DirectVT Gateway with TTY  | `dtty` | CUI applications that redirect DirectVT flow to standard I/O streams and require user input via platform's TTY.
 
-## IO modes
+## I/O modes
 
-A vtm process instance running in `Desktop Client` or `Desktop Applet` mode can operate in one of two IO modes: either `ANSI/VT` mode or `DirectVT`(`dtvt`) mode.
+A vtm process instance running in `Desktop Client` or `Desktop Applet` mode can operate in one of two I/O modes: either `ANSI/VT` mode or `DirectVT`(`dtvt`) mode.
 
 ### DirectVT mode
 
-In DirectVT IO mode, vtm process multiplexes the following events:
+In DirectVT mode, vtm process multiplexes the following events:
 - Keyboard
 - Mouse
 - Focus
@@ -229,7 +229,7 @@ The DirectVT stream can be wrapped in any transport layer protocol suitable for 
 
 #### Input
 
-In ANSI/VT IO mode, vtm process parses input from multiple standard sources, and forwards it to the desktop server using the DirectVT transport. The set of input sources varies by platform.
+In ANSI/VT mode, vtm process parses input from multiple standard sources, and forwards it to the desktop server using the DirectVT transport. The set of input sources varies by platform.
 
 ##### Unix input sources
 
@@ -322,9 +322,20 @@ Desktop Region Marker<br>`site`         | A transparent resizable frame for ma
 
 Do not confuse the `Desktop Applet` names with the desktop object names, even though they are the same literally, e.g. `vtty` and `term`. Desktop objects of the same name as Desktop Applets are wrappers for heavy desktop objects that should be launched in parallel vtm processes.
 
-# Quick start
+# Quickstart
 
 ## Local usage
+
+### Installation
+
+Vtm can function perfectly well without explicit installation. However, for ease of launch, vtm can be installed (copied) to %SystemRoot% (usually `C:\Windows`) or `/usr/local/bin`, depending on the platform.
+
+- Run command:
+  ```bash
+  sudo vtm --install
+  ```
+
+Note: To support mouse support in Linux, the VGA Console (in-kernel console) requires access to mouse devices. The command `sudo vtm --mouse` sets direct access to pointing devices for all users (chmod 0666).
 
 ### Run vtm desktop
 
@@ -332,6 +343,8 @@ Do not confuse the `Desktop Applet` names with the desktop object names, even th
     ```bash
     vtm
     ```
+
+Note: You can explicitly specify to run vtm inside the terminal (`vtm --tui`) or in its own GUI window (`vtm --gui`) (GUI mode is only available on Windows for now).
 
 ### Run Terminal Console standalone
 
@@ -359,14 +372,14 @@ Do not confuse the `Desktop Applet` names with the desktop object names, even th
 
 In general, the local and remote platforms may be different.
 
-When the DirectVT IO mode is used, all keyboard, mouse and other input events are transmitted between hosts in a binary endianness-aware form.
+When the DirectVT mode is used, all keyboard, mouse and other input events are transmitted between hosts in a binary form.
 
 The following examples assume that vtm is installed on both the local and remote sides.
 
 ### Run a standalone CUI application remotely over SSH
 
 - Remote side
-    - Run SSH-server if it is not running.
+    - Make sure the remote SSH server is running.
 - Local side
     - Run command:
     ```bash
@@ -379,10 +392,10 @@ The following examples assume that vtm is installed on both the local and remote
     vtm ssh user@server vtm </path/to/console/app...>
     ```
 
-### Run remote vtm desktop in DirectVT IO mode over SSH
+### Run remote vtm desktop in DirectVT mode over SSH
 
 - Remote side
-    - Run SSH-server if it is not running.
+    - Make sure the remote SSH server is running.
 - Local side
     - Run command:
     ```bash
@@ -396,10 +409,10 @@ The following examples assume that vtm is installed on both the local and remote
     # The `-r dtty` option is auto added if the first command-line argument starts with `ssh` keyword.
     ```
 
-### Run remote vtm desktop in ANSI/VT IO mode over SSH
+### Run remote vtm desktop in ANSI/VT mode over SSH
 
 - Remote side
-    - Run SSH-server if it is not running.
+    - Make sure the remote SSH server is running.
 - Local side
     - Run commands:
     ```bash
@@ -409,10 +422,10 @@ The following examples assume that vtm is installed on both the local and remote
     or
     ```bash
     ssh -t user@server vtm
-    # The ssh's `ssh -t ...` option is required to allocate TTY on remote host.
+    # The ssh's `ssh -t ...` option is required to force TTY allocation on the remote host.
     ```
 
-### Run remote vtm desktop in DirectVT IO mode using `netcat` (POSIX only, unencrypted, for private use only)
+### Run remote vtm desktop in DirectVT mode using `netcat` (POSIX only, unencrypted, for private use only)
 
 - Remote side
     - Run command:
@@ -430,7 +443,7 @@ The following examples assume that vtm is installed on both the local and remote
     # Note: Make sure `ncat` is installed.
     ```
 
-### Run remote vtm desktop in DirectVT IO mode using `inetd + ncat` (POSIX only, unencrypted, for private use only)
+### Run remote vtm desktop in DirectVT mode using `inetd + ncat` (POSIX only, unencrypted, for private use only)
 
 - Remote side
     - Install `inetd`.
@@ -481,7 +494,7 @@ The taskbar menu can be configured using a settings file `~/.config/vtm/settings
             <!-- <item*/> --> <!-- Uncomment to clear default item list. -->
             <item splitter label="Remote Access"/>
 
-            <item id="Run remote vtm desktop in DirectVT IO mode over SSH" type="dtty" cmd="ssh user@server vtm"/>
+            <item id="Run remote vtm desktop in DirectVT mode over SSH"    type="dtty" cmd="ssh user@server vtm"/>
             <item id="Run console app in remote terminal over SSH"         type="dtty" cmd="ssh user@server vtm -r term </path/to/console/app...>"/>
             <item id="Run console app remotely over SSH w/o extra UI"      type="dtty" cmd="ssh user@server vtm </path/to/console/app...>"/>
 
