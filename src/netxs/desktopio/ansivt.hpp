@@ -1492,10 +1492,12 @@ namespace netxs::ansi
         // vt_parser: Static UTF-8/ANSI parser.
         void parse(view utf8, T*& client)
         {
+            auto decsg = client->decsg;
             auto s = [&](auto const& traits, qiew utf8)
             {
                 client->defer = faux;
                 intro.execute(traits.control, utf8, client); // Make one iteration using firstcmd and return.
+                decsg = client->decsg; // Sync DECSG mode if buffer/client changed. //todo Should we make it shared among buffers?
                 return utf8;
             };
             auto y = [&](auto const& cluster)
@@ -1508,7 +1510,7 @@ namespace netxs::ansi
                 client->ascii(plain);
                 client->defer = true;
             };
-            utf::decode(s, y, a, utf8, client->decsg);
+            utf::decode(s, y, a, utf8, decsg);
             client->flush();
         }
         // vt_parser: Static UTF-8/ANSI parser proc.
