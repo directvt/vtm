@@ -512,6 +512,11 @@ namespace netxs::ui
                                             gear.indexer.expire();
                                             luafx.set_return();
                                         }},
+                    { "Bypass",         [&]
+                                        {
+                                            gear.touched = {};
+                                            luafx.set_return(true);
+                                        }},
                     { "SetHandled",     [&]
                                         {
                                             auto dismiss = luafx.get_args_or(1, faux);

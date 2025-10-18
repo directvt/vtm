@@ -398,7 +398,7 @@ The syntax for defining event bindings is:
 
 ```xml
 <dom_element1>
-    <script="script body" on="EventID1" ... on="preview:EventId2" ...>
+    <script="script body" prerun="prerun script body" on="EventID1" ... on="preview:EventId2" ...>
         <on="EventID"/>
         <on="EventID" source="OptionalEventSourceObjectID"/>
         ...
@@ -416,6 +416,7 @@ Tag                 | Belongs to           | Value           | Description
 `<dom_element>`     |                      | ObjectID        | Visual tree object id.
 `id`                | `<dom_element>`      | UTF-8 string    | Additional id for the visual tree object.
 `script`            | `<dom_element>`      | UTF-8 string    | A Lua script that will be executed when the events specified by the `on` tags occur.
+`prerun`            | `script`             | UTF-8 string    | A Lua script that will be executed during pre-polling prior the non-preview keyboard events specified in the `on` tags occurs. This is mostly used to indicate that the event is not expected on the source object.
 `on`                | `script`             | EventID         | Specific event id text string.
 `source`            | `on`                 | ObjectID        | Visual tree object id.
 
@@ -594,6 +595,7 @@ Standard object names
 |                 |                          | `vtm.gear.Interrupt()`                             | Interrupt the key event processing.
 |                 |                          | `vtm.gear.RepeatWhilePressed(ref ObjectId)`        | Capture the mouse by ObjectId and trigger the mouse button pressed event to repeat while pressed.
 |                 |                          | `vtm.gear.Focus(ref ObjectId) -> bool`             | Set input focus to the object. Returns true if focus is already set.
+|                 |                          | `vtm.gate.Bypass() -> bool`                        | Indicates that the keyboard event being processed is not expected by this object. Used by the `prerun` function inside `script` to bypass tier::keybdrelease events. Always return true.
 |`desktop`        | Desktop environment      | `vtm.desktop.Cleanup(bool b)`                      | Clean up temporary internal structures of the desktop environment and optionally report the state of registry objects.
 |                 |                          | `vtm.desktop.EventList()`                          | Print all available generic event IDs.
 |                 |                          | `vtm.desktop.Shutdown()`                           | Close all windows and shutdown the desktop.
@@ -666,14 +668,15 @@ Standard object names
 
 Key bindings:
 
-Configuration                                                  | Interpretation
----------------------------------------------------------------|-----------------
-`<script=ScriptReference on="Key+Chord"/>`                     | Append existing bindings using an indirect reference (the `ScriptReference` variable without quotes).
-`<script="text"  on="Key+Chord \| Another+Chord"/>`            | Append existing bindings for `Key+Chord | Another+Chord`.
-`<script="text"  on="Key+Chord"/>`                             | Append existing bindings with the directly specified Lua script body.
-`<script="text"><on="Key+Chord" source="ObjectID"/></script>`  | Binding to an event source using a specific ObjectID.
-`<script=""      on="Key+Chord"/>`                             | Remove all existing bindings for the specified key combination "Key+Chord".
-`<script="..."   on=""         />`                             | Do nothing.
+Configuration                                                | Interpretation
+-------------------------------------------------------------|-----------------
+`<script=ScriptReference on="KeyChord"/>`                    | Append existing bindings using an indirect reference (the `ScriptReference` variable without quotes).
+`<script="..."  on="KeyChord \| AnotherChord"/>`             | Append existing bindings for `KeyChord | AnotherChord`.
+`<script="..."  on="KeyChord"/>`                             | Append existing bindings with the directly specified Lua script body.
+`<script="..."><on="KeyChord" source="ObjectID"/></script>`  | Binding to an event source using a specific `ObjectID`.
+`<script=""     on="KeyChord"/>`                             | Remove all existing bindings for the specified key combination `KeyChord`.
+`<script="..."  on="KeyChord" prerun="if (something) vtm.gear.Bypass() end"/>` | Bypass the `KeyChord` event if something. Works only with non-preview KeyChords.
+`<script="..."  on=""         />`                            | Do nothing.
 
 EventId's:
 
@@ -1143,7 +1146,7 @@ Notes
             <script="vtm.defapp.ShowClosingPreview(faux);"                                            on="Any"         /> <!-- Preview for "Any" is always triggered after all other previews. Non-preview "Any" is triggered before all other keys. -->
             <script="if (not vtm.gear.IsKeyRepeated()) then vtm.defapp.ShowClosingPreview(true); end" on="Esc"         /> <!-- Window pred-close action (close when releasing the Esc key). -->
             <script="if (vtm.defapp.ShowClosingPreview()) then vtm.defapp.Close() end"                on="preview:-Esc"/> <!-- Close the window on Esc release. -->
-            <script="if (vtm.defapp.ShowClosingPreview()) then local focus_count=vtm(); vtm.defapp.ShowClosingPreview(focus_count~=0) end" source="applet" on="release:e2::form::state::focus::count" /> <!-- Disable window closing preview when focus is lost. -->
+            <script="if (vtm.defapp.ShowClosingPreview()) then local focus_count=vtm(); vtm.defapp.ShowClosingPreview(focus_count~=0) end" on="release:e2::form::state::focus::count" /> <!-- Disable window closing preview when focus is lost. -->
             <script="vtm.defapp.ScrollViewportByPage( 0, 1)"                                          on="PageUp"      />
             <script="vtm.defapp.ScrollViewportByPage( 0,-1)"                                          on="PageDown"    />
             <script="vtm.defapp.ScrollViewportByStep( 0, 3)"                                          on="UpArrow"     />

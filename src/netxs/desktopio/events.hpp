@@ -42,6 +42,7 @@ namespace netxs::events
         static constexpr auto mouserelease = __COUNTER__ - counter; // events: Run in subscription order for object tree.
         static constexpr auto keybdpreview = __COUNTER__ - counter; // events: Run in subscription order for focused objects.
         static constexpr auto keybdrelease = __COUNTER__ - counter; // events: Run in subscription order for focused objects.
+        static constexpr auto keybd_prerun = __COUNTER__ - counter; // events: Run in subscription order for focused objects (fires during keybdpreview stage; subscribers can reset gear.touch if their current keybdrelease subscription is not confirmed).
         static constexpr auto unknown      = __COUNTER__ - counter; // events: .
         static constexpr auto str = std::to_array({ "release"sv,
                                                     "preview"sv,
@@ -52,12 +53,14 @@ namespace netxs::events
                                                     "mouserelease"sv,
                                                     "keybdpreview"sv,
                                                     "keybdrelease"sv,
+                                                    "keybd_prerun"sv,
                                                     "unknown"sv, });
         static constexpr auto order = std::to_array({ feed::fwd,
                                                       feed::rev,
                                                       feed::fwd,
                                                       feed::rev,
                                                       feed::fwd,
+                                                      feed::none,
                                                       feed::none,
                                                       feed::none,
                                                       feed::none,

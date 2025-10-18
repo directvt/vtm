@@ -2125,6 +2125,7 @@ namespace netxs::input
             text                               chord;
             txts                               sources; // Event source list.
             netxs::sptr<std::pair<ui64, text>> script_ptr;
+            netxs::sptr<std::pair<ui64, text>> prerun_ptr;
         };
         using vector = std::vector<binding_t>;
 
@@ -2202,13 +2203,14 @@ namespace netxs::input
                 }
             }
         }
-        auto keybind(base& boss, qiew chord_str, auto&& script_body, txts const& sources = {})
+        auto keybind(base& boss, qiew chord_str, auto&& script_body, netxs::sptr<std::pair<ui64, text>> prerun_body = {}, txts const& sources = {})
         {
             if (!chord_str) return;
             auto [chords, is_preview] = input::bindings::get_chords(chord_str);
             if (chords.size())
             {
                 auto script_ptr = ptr::shared<script_ref>(boss.indexer, boss, script_body);
+                auto prerun_ptr = prerun_body ? ptr::shared<script_ref>(boss.indexer, boss, prerun_body) : netxs::sptr<script_ref>{};
                 auto reset_handler = !(script_ptr->script_body_ptr && script_ptr->script_body_ptr->second.size());
                 for (auto& binary_chord : chords) if (binary_chord.size()) // Scripts always store their sensors at the boss side, since the lifetime of base::scripting_context depends on the boss.
                 {
@@ -2237,6 +2239,10 @@ namespace netxs::input
                         auto event_id = boss.indexer.get_kbchord_hint(binary_chord);
                         auto tier_id = is_preview ? tier::keybdpreview : tier::keybdrelease;
                         set_handler(reset_handler, boss, tier_id, event_id, sources, script_ptr);
+                        if (prerun_ptr)
+                        {
+                            set_handler(reset_handler, boss, tier::keybd_prerun, event_id, sources, prerun_ptr);
+                        }
                     }
                 }
             }
@@ -2245,7 +2251,7 @@ namespace netxs::input
         {
             for (auto& r : bindings)
             {
-                keybind(boss, r.chord, r.script_ptr, r.sources);
+                keybind(boss, r.chord, r.script_ptr, r.prerun_ptr, r.sources);
             }
         }
         void dispatch(auto& boss, auto& instance_id, hids& gear, si32 tier_id, hint event_id)
@@ -2255,6 +2261,7 @@ namespace netxs::input
                 && boss.bell::has_handlers(tier::keybdrelease, event_id))
             {
                 gear.touched = instance_id;
+                boss.base::signal(tier::keybd_prerun, event_id, gear);
             }
         }
         auto load(settings& config, auto& script_list)
@@ -2265,6 +2272,7 @@ namespace netxs::input
                 //todo revise
                 //auto script_context = config.settings::push_context(script_ptr);
                 auto script_body_ptr = ptr::shared(std::pair<ui64, text>{ 0, config.settings::take_value(script_ptr) });
+                auto prerun_body_ptr = ptr::shared(std::pair<ui64, text>{ 0, config.settings::take_value_from(script_ptr, "prerun", ""s) });
                 auto on_ptr_list = config.settings::take_ptr_list_of(script_ptr, "on");
                 for (auto event_ptr : on_ptr_list)
                 {
@@ -2277,7 +2285,7 @@ namespace netxs::input
                     //         log("chord='%%' \tpreview=%% source='%%' script=%%", on_rec, (si32)preview, source, ansi::hi(script_body_ptr->second));
                     //    }
                     //}
-                    bindings.push_back({ .chord = std::move(on_rec), .sources = std::move(sources), .script_ptr = script_body_ptr });
+                    bindings.push_back({ .chord = std::move(on_rec), .sources = std::move(sources), .script_ptr = script_body_ptr, .prerun_ptr = prerun_body_ptr });
                 }
             }
             return bindings;

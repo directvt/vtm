@@ -525,21 +525,25 @@ It is possible to emulate the tmux-like keyboard prefix approach by using a glob
   ```xml
   <config>
       <events>
-          <applet> <!-- Key bindings for the application window. -->
-              <if_mod_on="if (not kbmodifier) then return; end;"/> <!-- `if_mod_on` macro definition. Do nothing if `kbmodifier` is false. -->
+          <desktop>
               <script="kbmodifier = not kbmodifier; log('kbmodifier=', kbmodifier);" on="Ctrl+B"/> <!-- Emulate tmux-like prefix key. The expression `log('kbmodifier=', kbmodifier);` is for debugging purposes only (the output is visible in the `Log Monitor`). -->
-              <script=if_mod_on | MoveAppletLeft        on="preview: LeftArrow" /> <!-- The ` | ` operator concatenates script fragments/macros. -->
-              <script=if_mod_on | MoveAppletRight       on="preview: RightArrow"/> <!-- Use "preview:..." to get the key event before the terminal/application. -->
-              <script=if_mod_on | MoveAppletUp          on="preview: UpArrow"   /> <!-- When kbmodifier is true, you can move windows using the arrow keys. -->
-              <script=if_mod_on | MoveAppletDown        on="preview: DownArrow" /> <!-- Macros like `MoveApplet...` are defined in the default configuration. You can list them with `vtm -l`. -->
-              <script=if_mod_on | MoveAppletTopLeft     on="preview: LeftArrow+UpArrow    | UpArrow+LeftArrow"   /> <!-- Simultaneous key presses should also be processed if supported. -->
-              <script=if_mod_on | MoveAppletBottomLeft  on="preview: LeftArrow+DownArrow  | DownArrow+LeftArrow" /> <!-- It is convenient to specify multiple keyboard shortcuts in one definition separated by `|`. -->
-              <script=if_mod_on | MoveAppletTopRight    on="preview: RightArrow+UpArrow   | UpArrow+RightArrow"  />
-              <script=if_mod_on | MoveAppletBottomRight on="preview: RightArrow+DownArrow | DownArrow+RightArrow"/>
-              <script=if_mod_on | IncreaseAppletWidth   on="preview: Ctrl+RightArrow"                            />
-              <script=if_mod_on | DecreaseAppletWidth   on="preview: Ctrl+LeftArrow"                             />
-              <script=if_mod_on | IncreaseAppletHeight  on="preview: Ctrl+DownArrow"                             />
-              <script=if_mod_on | DecreaseAppletHeight  on="preview: Ctrl+UpArrow"                               />
+          </desktop>
+          <applet> <!-- Key bindings for the application window. -->
+              <KeyFilter="if (not kbmodifier and vtm.gear.Bypass()) then return; end; "/> <!-- `KeyFilter` macro. Do nothing if `kbmodifier` is false. Calling vtm.gear.Bypass() always returns true. -->
+              <script=KeyFilter | MoveAppletLeft         prerun=KeyFilter on="LeftArrow"                                  /> <!-- The ` | ` operator concatenates script fragments/macros. If for some reason the keyboard event is not processed by anyone, it will then return and fire on this object, so the KeyFilter is also reused at the beginning of the `script="..."`. -->
+              <script=KeyFilter | MoveAppletRight        prerun=KeyFilter on="RightArrow"                                 /> <!-- The `prerun` attribute contains a Lua script that will be executed during pre-polling to filter out key events. -->
+              <script=KeyFilter | MoveAppletUp           prerun=KeyFilter on="UpArrow"                                    /> <!-- When kbmodifier is true, you can move windows using the arrow keys. -->
+              <script=KeyFilter | MoveAppletDown         prerun=KeyFilter on="DownArrow"                                  /> <!-- Macros like `MoveApplet...` are defined in the default configuration. You can list them with `vtm -l`. -->
+              <script=KeyFilter | MoveAppletTopLeft      prerun=KeyFilter on="LeftArrow+UpArrow    | UpArrow+LeftArrow"   /> <!-- Simultaneous key presses should also be processed if supported. -->
+              <script=KeyFilter | MoveAppletBottomLeft   prerun=KeyFilter on="LeftArrow+DownArrow  | DownArrow+LeftArrow" /> <!-- It is convenient to specify multiple keyboard shortcuts in one definition separated by `|`. -->
+              <script=KeyFilter | MoveAppletTopRight     prerun=KeyFilter on="RightArrow+UpArrow   | UpArrow+RightArrow"  />
+              <script=KeyFilter | MoveAppletBottomRight  prerun=KeyFilter on="RightArrow+DownArrow | DownArrow+RightArrow"/>
+              <script=KeyFilter | IncreaseAppletWidth    prerun=KeyFilter on="Ctrl+RightArrow"                            />
+              <script=KeyFilter | DecreaseAppletWidth    prerun=KeyFilter on="Ctrl+LeftArrow"                             />
+              <script=KeyFilter | IncreaseAppletHeight   prerun=KeyFilter on="Ctrl+DownArrow"                             />
+              <script=KeyFilter | DecreaseAppletHeight   prerun=KeyFilter on="Ctrl+UpArrow"                               />
+              <script=KeyFilter | FocusPrevWindow        prerun=KeyFilter on="PageUp"                                     />
+              <script=KeyFilter | FocusNextWindow        prerun=KeyFilter on="PageDown"                                   />
           </applet>
       </events>
   </config>
