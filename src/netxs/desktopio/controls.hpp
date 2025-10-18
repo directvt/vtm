@@ -1759,7 +1759,7 @@ namespace netxs::ui
             keybd(base&&) = delete;
             keybd(base& boss)
                 : skill{ boss },
-                  instance_id{ datetime::now().time_since_epoch().count() }
+                  instance_id{ datetime::uniqueid() }
             {
                 boss.LISTEN(tier::general, input::events::die, gear, memo)
                 {

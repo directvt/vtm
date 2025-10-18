@@ -891,7 +891,7 @@ namespace netxs::ansi
         {
             auto count = 1;
             auto width = 0_sz;
-            auto total = std::count(text::begin(), text::end(), '\n');
+            auto total = std::count(text::begin(), text::end(), '\n') + 1;
             while (total)
             {
                 total /= 10;
