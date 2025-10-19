@@ -773,6 +773,7 @@ namespace netxs::ui
         {
             auto root_ptr = This();
             base::signal(tier::anycast, e2::form::upon::started, root_ptr); // Make all stuff ready to receive input.
+            base::signal(tier::release, e2::form::upon::started, root_ptr); // Notify that gate is running.
             directvt::binary::stream::reading_loop(canal, [&](view data){ conio.s11n::sync(data); });
             conio.s11n::stop(); // Wake up waiting dtvt objects, if any.
             if constexpr (debugmode) log(prompt::gate, "DirectVT session closed");
