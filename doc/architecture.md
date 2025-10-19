@@ -519,31 +519,38 @@ The taskbar menu can be configured using a settings file `~/.config/vtm/settings
 
 ## Keyboard hacking
 
-It is possible to emulate the tmux-like keyboard prefix approach by using a global variable in the Lua-scripting runtime space. As an example, the following configuration adds the keyboard shortcut `Ctrl+B` as a toggle for an additional keyboard mode (coupled with a user-defined boolean variable named `kbmodifier`) that allows windows to be moved directly using the arrow keys:
+It is possible to emulate the tmux-like keyboard prefix approach by using a global variable in the Lua-scripting runspace. As an example, the following configuration adds the keyboard shortcut `Ctrl+B` as a toggle for an additional keyboard mode (coupled with a user-defined variable named `kbmodifier` - a table of Boolean values ​​unique to each connected user: `kbmodifier[vtm.gear]`) that allows windows to be moved directly using the arrow keys:
 
 - `~/.config/vtm/settings.xml`:
   ```xml
   <config>
       <events>
+          <gate>
+              <script="if kbmodifier == nil then kbmodifier = {}; end;" on="release: e2::form::upon::started"/> <!-- Initialize `kbmodifier` table if it is not initialized. -->
+          </gate>
           <desktop>
-              <script="kbmodifier = not kbmodifier; log('kbmodifier=', kbmodifier);" on="Ctrl+B"/> <!-- Emulate tmux-like prefix key. The expression `log('kbmodifier=', kbmodifier);` is for debugging purposes only (the output is visible in the `Log Monitor`). -->
+              <script="kbmodifier[vtm.gear] = not kbmodifier[vtm.gear]; log('kbmodifier[', vtm.gear, ']=', kbmodifier[vtm.gear]);" on="Ctrl+B"/> <!-- Emulate tmux-like prefix key. Store the mode state value in the `kbmodifier` table using a unique vtm.gear (keyboard/mouse device) value for each user. The expression `log(...);` is for debugging purposes only (the output is visible in the `Log Monitor`). -->
+              <script="" on="Alt+Z"        /> <!-- Unbind existing FocusTaskbar binding.    -->
+              <script="" on="Ctrl+PageUp"  /> <!-- Unbind existing FocusPrevWindow binding. -->
+              <script="" on="Ctrl+PageDown"/> <!-- Unbind existing FocusNextWindow binding. -->
           </desktop>
           <applet> <!-- Key bindings for the application window. -->
-              <KeyFilter="if (not kbmodifier and vtm.gear.Bypass()) then return; end; "/> <!-- `KeyFilter` macro. Do nothing if `kbmodifier` is false. Calling vtm.gear.Bypass() always returns true. -->
-              <script=KeyFilter | MoveAppletLeft         prerun=KeyFilter on="LeftArrow"                                  /> <!-- The ` | ` operator concatenates script fragments/macros. If for some reason the keyboard event is not processed by anyone, it will then return and fire on this object, so the KeyFilter is also reused at the beginning of the `script="..."`. -->
-              <script=KeyFilter | MoveAppletRight        prerun=KeyFilter on="RightArrow"                                 /> <!-- The `prerun` attribute contains a Lua script that will be executed during pre-polling to filter out key events. -->
-              <script=KeyFilter | MoveAppletUp           prerun=KeyFilter on="UpArrow"                                    /> <!-- When kbmodifier is true, you can move windows using the arrow keys. -->
-              <script=KeyFilter | MoveAppletDown         prerun=KeyFilter on="DownArrow"                                  /> <!-- Macros like `MoveApplet...` are defined in the default configuration. You can list them with `vtm -l`. -->
-              <script=KeyFilter | MoveAppletTopLeft      prerun=KeyFilter on="LeftArrow+UpArrow    | UpArrow+LeftArrow"   /> <!-- Simultaneous key presses should also be processed if supported. -->
-              <script=KeyFilter | MoveAppletBottomLeft   prerun=KeyFilter on="LeftArrow+DownArrow  | DownArrow+LeftArrow" /> <!-- It is convenient to specify multiple keyboard shortcuts in one definition separated by `|`. -->
-              <script=KeyFilter | MoveAppletTopRight     prerun=KeyFilter on="RightArrow+UpArrow   | UpArrow+RightArrow"  />
-              <script=KeyFilter | MoveAppletBottomRight  prerun=KeyFilter on="RightArrow+DownArrow | DownArrow+RightArrow"/>
-              <script=KeyFilter | IncreaseAppletWidth    prerun=KeyFilter on="Ctrl+RightArrow"                            />
-              <script=KeyFilter | DecreaseAppletWidth    prerun=KeyFilter on="Ctrl+LeftArrow"                             />
-              <script=KeyFilter | IncreaseAppletHeight   prerun=KeyFilter on="Ctrl+DownArrow"                             />
-              <script=KeyFilter | DecreaseAppletHeight   prerun=KeyFilter on="Ctrl+UpArrow"                               />
-              <script=KeyFilter | FocusPrevWindow        prerun=KeyFilter on="PageUp"                                     />
-              <script=KeyFilter | FocusNextWindow        prerun=KeyFilter on="PageDown"                                   />
+              <KeyFilter=prerun prerun="if (not kbmodifier[vtm.gear] and vtm.gear.Bypass()) then return; end; "/> <!-- `KeyFilter` macro. Do nothing if `kbmodifier[vtm.gear]` is false. Calling vtm.gear.Bypass() always returns true. -->
+              <script=KeyFilter | MoveAppletLeft         on="LeftArrow"                                  /> <!-- The ` | ` operator concatenates script fragments/macros. If for some reason the keyboard event is not processed by anyone, it will then return and fire on this object, so the KeyFilter's script is also reused at the beginning of the `script="..."`. -->
+              <script=KeyFilter | MoveAppletRight        on="RightArrow"                                 /> <!-- The `prerun` attribute (inherited from KeyFilter) contains a Lua script that will be executed during pre-polling to filter out key events. -->
+              <script=KeyFilter | MoveAppletUp           on="UpArrow"                                    /> <!-- When `kbmodifier[vtm.gear]` is true, you can move windows using the arrow keys. -->
+              <script=KeyFilter | MoveAppletDown         on="DownArrow"                                  /> <!-- Macros like `MoveApplet...` are defined in the default configuration. You can list them with `vtm -l`. -->
+              <script=KeyFilter | MoveAppletTopLeft      on="LeftArrow+UpArrow    | UpArrow+LeftArrow"   /> <!-- Simultaneous key presses should also be processed if supported. -->
+              <script=KeyFilter | MoveAppletBottomLeft   on="LeftArrow+DownArrow  | DownArrow+LeftArrow" /> <!-- It is convenient to specify multiple keyboard shortcuts in one definition separated by `|`. -->
+              <script=KeyFilter | MoveAppletTopRight     on="RightArrow+UpArrow   | UpArrow+RightArrow"  />
+              <script=KeyFilter | MoveAppletBottomRight  on="RightArrow+DownArrow | DownArrow+RightArrow"/>
+              <script=KeyFilter | IncreaseAppletWidth    on="Ctrl+RightArrow"                            />
+              <script=KeyFilter | DecreaseAppletWidth    on="Ctrl+LeftArrow"                             />
+              <script=KeyFilter | IncreaseAppletHeight   on="Ctrl+DownArrow"                             />
+              <script=KeyFilter | DecreaseAppletHeight   on="Ctrl+UpArrow"                               />
+              <script=KeyFilter | FocusPrevWindow        on="PageUp"                                     />
+              <script=KeyFilter | FocusNextWindow        on="PageDown"                                   />
+              <script=KeyFilter | FocusTaskbar           on="preview: -Esc"                              /> <!-- Focus taskbar on Esc unpress. The `on="Esc"` combination is busy in bindings like `"Esc+..."`. -->
           </applet>
       </events>
   </config>
