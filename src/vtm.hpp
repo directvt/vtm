@@ -1801,6 +1801,7 @@ namespace netxs::app::vtm
         // hall: Autorun apps from config.
         void autorun()
         {
+            base::signal(tier::release, e2::form::upon::started); // Notify that desktop is running.
             auto& config = bell::indexer.config;
             auto what = applink{};
             auto autorun_context = config.settings::push_context(path::autorun);
