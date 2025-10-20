@@ -828,6 +828,11 @@ namespace netxs::ui
             input::bindings::keybind(*this, bindings);
             base::add_methods(basename::gate,
             {
+                { "Deface",                 [&]
+                                            {
+                                                base::deface();
+                                                luafx.set_return();
+                                            }},
                 { "SetOverlay",             [&]
                                             {
                                                 auto overlay_index = luafx.get_args_or(1, 0);

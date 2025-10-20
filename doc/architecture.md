@@ -530,7 +530,8 @@ It is possible to emulate the tmux-like keyboard prefix approach by using a glob
               <script="kbmodifier[vtm.gate] = nil;"                     on="release: e2::form::upon::stopped"/> <!-- Remove user specific kbmodifier state on user disconnect. -->
           </gate>
           <desktop>
-              <script="kbmodifier[vtm.gate] = not kbmodifier[vtm.gate]; log('kbmodifier[', vtm.gate, ']=', kbmodifier[vtm.gate]);" on="Ctrl+B"/> <!-- Emulate tmux-like prefix key. Store the mode state value in the `kbmodifier` table using a unique vtm.gate (connected user's console) value for each user. The expression `log(...);` is for debugging purposes only (the output is visible in the `Log Monitor`). -->
+              <SetMark="vtm.gate.SetOverlay(0, kbmodifier[vtm.gate] and '\\n\e[11:2p\e[41mB' or ''); vtm.gate.Deface();"/> <!-- `SetMark` macro. If the kbmodifier is active, draw a visual red "B" mark near the right side of the viewport. -->
+              <script="kbmodifier[vtm.gate] = not kbmodifier[vtm.gate];" | SetMark  on="Ctrl+B"/> <!-- Emulate tmux-like prefix key. Store the mode state value in the `kbmodifier` table using a unique vtm.gate (keyboard/mouse device) value for each user. The expression `log(...);` is for debugging purposes only (the output is visible in the `Log Monitor`). -->
               <script="" on="Alt+Z"        /> <!-- Unbind existing FocusTaskbar binding.    -->
               <script="" on="Ctrl+PageUp"  /> <!-- Unbind existing FocusPrevWindow binding. -->
               <script="" on="Ctrl+PageDown"/> <!-- Unbind existing FocusNextWindow binding. -->
