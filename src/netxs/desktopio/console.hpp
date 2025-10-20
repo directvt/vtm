@@ -769,15 +769,26 @@ namespace netxs::ui
             fire(input::key::MouseMove);
         }
         // gate: Rx loop.
-        void launch()
+        void launch(auto& lock)
         {
             auto root_ptr = This();
             base::signal(tier::anycast, e2::form::upon::started, root_ptr); // Make all stuff ready to receive input.
-            base::signal(tier::release, e2::form::upon::started, root_ptr); // Notify that gate is running.
+            base::signal(tier::release, e2::form::upon::started, root_ptr); // Notify that the gate is running.
             directvt::binary::stream::reading_loop(canal, [&](view data){ conio.s11n::sync(data); });
             conio.s11n::stop(); // Wake up waiting dtvt objects, if any.
             if constexpr (debugmode) log(prompt::gate, "DirectVT session closed");
-            base::signal(tier::release, e2::form::upon::stopped, true);
+            lock.lock();
+                if (gears.size())
+                if (auto& gear_ptr = gears.begin()->second)
+                {
+                    gear_ptr->set_multihome();
+                }
+                base::signal(tier::release, e2::form::upon::stopped, root_ptr); // Notify that the gate is closed.
+                base::signal(tier::anycast, e2::form::proceed::quit::one, true);
+                disconnect();
+                paint.stop();
+                bell::sensors.clear();
+            lock.unlock();
         }
 
         //todo revise
@@ -1027,13 +1038,6 @@ namespace netxs::ui
             LISTEN(tier::release, e2::conio::pointer, pointer)
             {
                 props.legacy_mode |= pointer ? ui::console::mouse : 0;
-            };
-            LISTEN(tier::release, e2::form::upon::stopped, fast) // Reading loop ends.
-            {
-                base::signal(tier::anycast, e2::form::proceed::quit::one, fast);
-                disconnect();
-                paint.stop();
-                bell::sensors.clear();
             };
             LISTEN(tier::preview, e2::conio::quit, deal) // Disconnect.
             {

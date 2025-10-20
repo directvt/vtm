@@ -2052,7 +2052,7 @@ namespace netxs::app::vtm
             usergate.attach(std::move(deskmenu_ptr));
             usergate.base::extend({ vport, usrcfg.win }); // Restore user's last position.
             lock.unlock();
-            usergate.launch();
+            usergate.launch(lock);
             base::deface();
             vport = usergate.base::coor();
             selected_item = usergate_selected_item;

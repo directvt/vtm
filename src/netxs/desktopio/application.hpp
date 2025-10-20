@@ -1001,7 +1001,7 @@ namespace netxs::app::shared
         app::shared::applet_kb_navigation(config, applet_ptr);
         gate.attach(std::move(applet_ptr));
         ui_lock.unlock();
-        gate.launch();
+        gate.launch(ui_lock);
         gate.base::dequeue();
         ui_lock.lock();
         gate_ptr.reset();
