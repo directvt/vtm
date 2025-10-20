@@ -966,6 +966,7 @@ namespace netxs::app::vtm
         netxs::generics::pool async; // hall: Thread pool for parallel task execution.
         pro::maker& maker; // hall: Window creator using drag and drop (right drag).
         pro::robot& robot; // hall: Animation controller.
+        std::map<si32, ui::page> hall_overlays; // hall: User defined overlays (for Lua scripting output).
 
         netxs::ui::sptr app_model_ptr = ptr::shared<ui::base>(ui::tui_domain());
         netxs::sptr<desk::usrs> usrs_list_ptr = ptr::shared<desk::usrs>();
@@ -1216,6 +1217,31 @@ namespace netxs::app::vtm
             input::bindings::keybind(*this, bindings);
             base::add_methods(basename::desktop,
             {
+                { "SetOverlay",         [&]
+                                        {
+                                            auto overlay_index = luafx.get_args_or(1, 0);
+                                            auto overlay_thing = luafx.get_args_or(2, ""s);
+                                            auto iter = hall_overlays.find(overlay_index);
+                                            if (overlay_thing.empty()) // Drop overlay.
+                                            {
+                                                if (iter != hall_overlays.end())
+                                                {
+                                                    hall_overlays.erase(iter);
+                                                }
+                                            }
+                                            else // Set overlay.
+                                            {
+                                                if (iter == hall_overlays.end())
+                                                {
+                                                    hall_overlays[overlay_index] = overlay_thing;
+                                                }
+                                                else
+                                                {
+                                                    iter->second = overlay_thing;
+                                                }
+                                            }
+                                            luafx.set_return();
+                                        }},
                 { "Cleanup",            [&]
                                         {
                                             auto show_details = luafx.get_args_or(1, faux);
@@ -1726,6 +1752,14 @@ namespace netxs::app::vtm
                 auto clip = parent_canvas.clip();         // Draw world without clipping. Wolrd has no size.
                 parent_canvas.clip(parent_canvas.area()); //
 
+                auto overlay_iter = hall_overlays.begin();
+                while (overlay_iter != hall_overlays.end() && overlay_iter->first < 0) // Draw background (index < 0) overlays.
+                {
+                    parent_canvas.cup(dot_00);
+                    parent_canvas.output(overlay_iter->second, cell::shaders::fuse);
+                    overlay_iter++;
+                }
+
                 if (users.size() > 1) // Draw users.
                 {
                     static auto color = tone{ tone::brighter, tone::shadower };
@@ -1767,6 +1801,12 @@ namespace netxs::app::vtm
                         }
                         layer.clear();
                     }
+                }
+                while (overlay_iter != hall_overlays.end()) // Draw foreground (index >= 0) overlays.
+                {
+                    parent_canvas.cup(dot_00);
+                    parent_canvas.output(overlay_iter->second, cell::shaders::fuse);
+                    overlay_iter++;
                 }
                 for (auto& [user_ptr, uname] : users) // Draw user mouse pointers.
                 {

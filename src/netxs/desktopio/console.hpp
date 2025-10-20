@@ -475,6 +475,7 @@ namespace netxs::ui
         bool       yield; // gate: Indicator that the current frame has been successfully sent.
         bool       fullscreen; // gate: .
         face       canvas; // gate: .
+        std::map<si32, ui::page> gate_overlays; // gate: User defined overlays (for Lua scripting output).
         std::unordered_map<id_t, netxs::sptr<hids>> gears; // gate: .
         pro::debug& debug;
         input::multihome_t& multihome;
@@ -700,6 +701,13 @@ namespace netxs::ui
                         //todo cache background
                         canvas.tile(props.background_image, cell::shaders::fuse);
                     }
+                    auto overlay_iter = gate_overlays.begin();
+                    while (overlay_iter != gate_overlays.end() && overlay_iter->first < 0) // Draw background (index < 0) overlays.
+                    {
+                        canvas.cup(dot_00);
+                        canvas.output(overlay_iter->second, cell::shaders::fuse);
+                        overlay_iter++;
+                    }
                     if (base::subset.size())
                     {
                         base::subset.back()->render(canvas);
@@ -727,6 +735,12 @@ namespace netxs::ui
                             bgc.mix(mark);
                             c.bgc(bgc);
                         });
+                    }
+                    while (overlay_iter != gate_overlays.end()) // Draw foreground (index < 0) overlays.
+                    {
+                        canvas.cup(dot_00);
+                        canvas.output(overlay_iter->second, cell::shaders::fuse);
+                        overlay_iter++;
                     }
                 }
                 if (props.legacy_mode & ui::console::mouse) // Render our mouse pointer.
@@ -779,7 +793,7 @@ namespace netxs::ui
             if constexpr (debugmode) log(prompt::gate, "DirectVT session closed");
             lock.lock();
                 if (gears.size())
-                if (auto& gear_ptr = gears.begin()->second)
+                if (auto& gear_ptr = gears.begin()->second) // Select any gear in order to set multihome state.
                 {
                     gear_ptr->set_multihome();
                 }
@@ -814,6 +828,31 @@ namespace netxs::ui
             input::bindings::keybind(*this, bindings);
             base::add_methods(basename::gate,
             {
+                { "SetOverlay",             [&]
+                                            {
+                                                auto overlay_index = luafx.get_args_or(1, 0);
+                                                auto overlay_thing = luafx.get_args_or(2, ""s);
+                                                auto iter = gate_overlays.find(overlay_index);
+                                                if (overlay_thing.empty()) // Drop overlay.
+                                                {
+                                                    if (iter != gate_overlays.end())
+                                                    {
+                                                        gate_overlays.erase(iter);
+                                                    }
+                                                }
+                                                else // Set overlay.
+                                                {
+                                                    if (iter == gate_overlays.end())
+                                                    {
+                                                        gate_overlays[overlay_index] = overlay_thing;
+                                                    }
+                                                    else
+                                                    {
+                                                        iter->second = overlay_thing;
+                                                    }
+                                                }
+                                                luafx.set_return();
+                                            }},
                 { "Disconnect",             [&]
                                             {
                                                 auto& gear = luafx.get_gear();

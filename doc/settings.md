@@ -582,6 +582,7 @@ Standard object names
 |                 |                          | `vtm.gate.WheelAccumReset()`                       | Reset floating point step accumulator for mouse wheel.
 |                 |                          | `vtm.gate.CellHeightReset()`                       | Resets the cell height to the value specified in the settings.
 |                 |                          | `vtm.gate.AntialiasingMode() -> int`               | Toggle anti-aliasing mode.
+|                 |                          | `vtm.gate.SetOverlay(int index, string s)`         | Set user's console visual overlay. Remove overlay for index `index` if `s` is empty. The overlay will be rendered behind everything (background) if index < 0.
 |`applet`         | Running applet           | `vtm.applet.Warp(int l, int r, int t, int b)`      | Request to deform the applet window. The parameters specify four deltas for the left, right, top and bottom sides of the applet window.
 |                 |                          | `vtm.applet.ZOrder() -> int`                       | Request the current z-order state of the applet window.
 |                 |                          | `vtm.applet.ZOrder(int n) -> int`                  | Set the current z-order state for the applet window. -1: backmost; 0: normal; 1: topmost.
@@ -602,6 +603,7 @@ Standard object names
 |                 |                          | `vtm.desktop.Disconnect()`                         | Disconnect the current desktop user.
 |                 |                          | `vtm.desktop.Run({ lua_table })`                   | Run the specified applet.
 |                 |                          | `vtm.desktop.FocusNextWindow(int n)`               | Set focus to the next (n=1) or previous (n=-1) desktop window.
+|                 |                          | `vtm.desktop.SetOverlay(int index, string s)`      | Set desktop visual overlay for all users. Remove overlay for index `index` if `s` is empty. The overlay will be rendered behind everything (background) if index < 0.
 |`taskbar`        | Desktop taskbar          | `vtm.taskbar.ActivateItem()`                       | Activate the focused UI element on the taskbar.
 |                 |                          | `vtm.taskbar.FocusNextItem(si32 n, si32 min_w, si32 max_w = si32max)` | Move to the next(n>0)/prev(n<0) focusable element with `min_w` <= weight <= `max_w`, skipping (std::abs(n)-1) elements with `min_w` <= weight <= `max_w` and all elements with weight < `min_w`.
 |                 |                          | `vtm.taskbar.FocusTop()`                           | Set focus to the first (top) focusable UI element among the elements on the taskbar.
