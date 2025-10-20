@@ -501,6 +501,10 @@ namespace netxs::ui
                 auto& luafx = bell::indexer.luafx;
                 gear.base::add_methods(basename::gear,
                 {
+                    { "GetCoord",       [&]
+                                        {
+                                            luafx.set_return(gear.coord.x, gear.coord.y);
+                                        }},
                     { "IsKeyRepeated",  [&]
                                         {
                                             auto repeated = gear.keystat == input::key::repeated;

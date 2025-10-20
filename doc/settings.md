@@ -597,7 +597,8 @@ Standard object names
 |                 |                          | `vtm.gear.Interrupt()`                             | Interrupt the key event processing.
 |                 |                          | `vtm.gear.RepeatWhilePressed(ref ObjectId)`        | Capture the mouse by ObjectId and trigger the mouse button pressed event to repeat while pressed.
 |                 |                          | `vtm.gear.Focus(ref ObjectId) -> bool`             | Set input focus to the object. Returns true if focus is already set.
-|                 |                          | `vtm.gate.Bypass() -> bool`                        | Indicates that the keyboard event being processed is not expected by this object. Used by the `prerun` function inside `script` to bypass tier::keybdrelease events. Always return true.
+|                 |                          | `vtm.gear.Bypass() -> bool`                        | Indicates that the keyboard event being processed is not expected by this object. Used by the `prerun` function inside `script` to bypass tier::keybdrelease events. Always return true.
+|                 |                          | `vtm.gear.GetCoord() -> fp32, fp32`                | Get mouse pointer 32-bit floating point coordinates.
 |`desktop`        | Desktop environment      | `vtm.desktop.Cleanup(bool b)`                      | Clean up temporary internal structures of the desktop environment and optionally report the state of registry objects.
 |                 |                          | `vtm.desktop.EventList()`                          | Print all available generic event IDs.
 |                 |                          | `vtm.desktop.Shutdown()`                           | Close all windows and shutdown the desktop.
