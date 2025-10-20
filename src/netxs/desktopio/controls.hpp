@@ -551,7 +551,24 @@ namespace netxs::events
         : indexer{ indexer },
           lua{ ::luaL_newstate() }
     {
-        ::luaL_openlibs(lua);
+        auto allowed_libs = std::to_array<luaL_Reg>(
+        {
+            { LUA_GNAME      , ::luaopen_base      },
+            { LUA_COLIBNAME  , ::luaopen_coroutine },
+            { LUA_TABLIBNAME , ::luaopen_table     },
+            { LUA_STRLIBNAME , ::luaopen_string    },
+            { LUA_MATHLIBNAME, ::luaopen_math      },
+            { LUA_UTF8LIBNAME, ::luaopen_utf8      },
+            //{ LUA_LOADLIBNAME, ::luaopen_package   },
+            //{ LUA_IOLIBNAME,   ::luaopen_io        },
+            //{ LUA_OSLIBNAME,   ::luaopen_os        },
+            //{ LUA_DBLIBNAME,   ::luaopen_debug     },
+        });
+        for (auto& lib : allowed_libs)
+        {
+            ::luaL_requiref(lua, lib.name, lib.func, 1);
+            ::lua_pop(lua, 1); // Remove lib from stack.
+        }
 
         // Set 'log' function.
         ::lua_pushcclosure(lua, luna::vtmlua_log, 0);
