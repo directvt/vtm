@@ -475,6 +475,7 @@ namespace netxs::ui
         bool       yield; // gate: Indicator that the current frame has been successfully sent.
         bool       fullscreen; // gate: .
         face       canvas; // gate: .
+        std::map<si32, ui::page> gate_overlays; // gate: User defined overlays (for Lua scripting output).
         std::unordered_map<id_t, netxs::sptr<hids>> gears; // gate: .
         pro::debug& debug;
         input::multihome_t& multihome;
@@ -700,6 +701,13 @@ namespace netxs::ui
                         //todo cache background
                         canvas.tile(props.background_image, cell::shaders::fuse);
                     }
+                    auto overlay_iter = gate_overlays.begin();
+                    while (overlay_iter != gate_overlays.end() && overlay_iter->first < 0) // Draw background (index < 0) overlays.
+                    {
+                        canvas.cup(dot_00);
+                        canvas.output(overlay_iter->second, cell::shaders::fuse);
+                        overlay_iter++;
+                    }
                     if (base::subset.size())
                     {
                         base::subset.back()->render(canvas);
@@ -727,6 +735,12 @@ namespace netxs::ui
                             bgc.mix(mark);
                             c.bgc(bgc);
                         });
+                    }
+                    while (overlay_iter != gate_overlays.end()) // Draw foreground (index < 0) overlays.
+                    {
+                        canvas.cup(dot_00);
+                        canvas.output(overlay_iter->second, cell::shaders::fuse);
+                        overlay_iter++;
                     }
                 }
                 if (props.legacy_mode & ui::console::mouse) // Render our mouse pointer.
@@ -769,15 +783,26 @@ namespace netxs::ui
             fire(input::key::MouseMove);
         }
         // gate: Rx loop.
-        void launch()
+        void launch(auto& lock)
         {
             auto root_ptr = This();
             base::signal(tier::anycast, e2::form::upon::started, root_ptr); // Make all stuff ready to receive input.
-            base::signal(tier::release, e2::form::upon::started, root_ptr); // Notify that gate is running.
+            base::signal(tier::release, e2::form::upon::started, root_ptr); // Notify that the gate is running.
             directvt::binary::stream::reading_loop(canal, [&](view data){ conio.s11n::sync(data); });
             conio.s11n::stop(); // Wake up waiting dtvt objects, if any.
             if constexpr (debugmode) log(prompt::gate, "DirectVT session closed");
-            base::signal(tier::release, e2::form::upon::stopped, true);
+            lock.lock();
+                if (gears.size())
+                if (auto& gear_ptr = gears.begin()->second) // Select any gear in order to set multihome state.
+                {
+                    gear_ptr->set_multihome();
+                }
+                base::signal(tier::release, e2::form::upon::stopped, root_ptr); // Notify that the gate is closed.
+                base::signal(tier::anycast, e2::form::proceed::quit::one, true);
+                disconnect();
+                paint.stop();
+                bell::sensors.clear();
+            lock.unlock();
         }
 
         //todo revise
@@ -803,6 +828,36 @@ namespace netxs::ui
             input::bindings::keybind(*this, bindings);
             base::add_methods(basename::gate,
             {
+                { "Deface",                 [&]
+                                            {
+                                                base::deface();
+                                                luafx.set_return();
+                                            }},
+                { "SetOverlay",             [&]
+                                            {
+                                                auto overlay_index = luafx.get_args_or(1, 0);
+                                                auto overlay_thing = luafx.get_args_or(2, ""s);
+                                                auto iter = gate_overlays.find(overlay_index);
+                                                if (overlay_thing.empty()) // Drop overlay.
+                                                {
+                                                    if (iter != gate_overlays.end())
+                                                    {
+                                                        gate_overlays.erase(iter);
+                                                    }
+                                                }
+                                                else // Set overlay.
+                                                {
+                                                    if (iter == gate_overlays.end())
+                                                    {
+                                                        gate_overlays[overlay_index] = overlay_thing;
+                                                    }
+                                                    else
+                                                    {
+                                                        iter->second = overlay_thing;
+                                                    }
+                                                }
+                                                luafx.set_return();
+                                            }},
                 { "Disconnect",             [&]
                                             {
                                                 auto& gear = luafx.get_gear();
@@ -1027,13 +1082,6 @@ namespace netxs::ui
             LISTEN(tier::release, e2::conio::pointer, pointer)
             {
                 props.legacy_mode |= pointer ? ui::console::mouse : 0;
-            };
-            LISTEN(tier::release, e2::form::upon::stopped, fast) // Reading loop ends.
-            {
-                base::signal(tier::anycast, e2::form::proceed::quit::one, fast);
-                disconnect();
-                paint.stop();
-                bell::sensors.clear();
             };
             LISTEN(tier::preview, e2::conio::quit, deal) // Disconnect.
             {

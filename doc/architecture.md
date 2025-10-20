@@ -519,7 +519,7 @@ The taskbar menu can be configured using a settings file `~/.config/vtm/settings
 
 ## Keyboard hacking
 
-It is possible to emulate the tmux-like keyboard prefix approach by using a global variable in the Lua-scripting runspace. As an example, the following configuration adds the keyboard shortcut `Ctrl+B` as a toggle for an additional keyboard mode (coupled with a user-defined variable named `kbmodifier` - a table of Boolean values ​​unique to each connected user: `kbmodifier[vtm.gear]`) that allows windows to be moved directly using the arrow keys:
+It is possible to emulate the tmux-like keyboard prefix approach by using a global variable in the Lua-scripting runspace. As an example, the following configuration adds the keyboard shortcut `Ctrl+B` as a toggle for an additional keyboard mode (coupled with a user-defined variable named `kbmodifier` - a table of Boolean values ​​unique to each connected user: `kbmodifier[vtm.gate]`) that allows windows to be moved directly using the arrow keys:
 
 - `~/.config/vtm/settings.xml`:
   ```xml
@@ -527,18 +527,20 @@ It is possible to emulate the tmux-like keyboard prefix approach by using a glob
       <events>
           <gate>
               <script="if kbmodifier == nil then kbmodifier = {}; end;" on="release: e2::form::upon::started"/> <!-- Initialize `kbmodifier` table if it is not initialized. -->
+              <script="kbmodifier[vtm.gate] = nil;"                     on="release: e2::form::upon::stopped"/> <!-- Remove user specific kbmodifier state on user disconnect. -->
           </gate>
           <desktop>
-              <script="kbmodifier[vtm.gear] = not kbmodifier[vtm.gear]; log('kbmodifier[', vtm.gear, ']=', kbmodifier[vtm.gear]);" on="Ctrl+B"/> <!-- Emulate tmux-like prefix key. Store the mode state value in the `kbmodifier` table using a unique vtm.gear (keyboard/mouse device) value for each user. The expression `log(...);` is for debugging purposes only (the output is visible in the `Log Monitor`). -->
+              <SetMark="vtm.gate.SetOverlay(0, kbmodifier[vtm.gate] and '\\n\e[11:2p\e[41mB' or ''); vtm.gate.Deface();"/> <!-- `SetMark` macro. If the kbmodifier is active, draw a visual red "B" mark near the right side of the viewport. -->
+              <script="kbmodifier[vtm.gate] = not kbmodifier[vtm.gate];" | SetMark  on="Ctrl+B"/> <!-- Emulate tmux-like prefix key. Store the mode state value in the `kbmodifier` table using a unique vtm.gate (keyboard/mouse device) value for each user. The expression `log(...);` is for debugging purposes only (the output is visible in the `Log Monitor`). -->
               <script="" on="Alt+Z"        /> <!-- Unbind existing FocusTaskbar binding.    -->
               <script="" on="Ctrl+PageUp"  /> <!-- Unbind existing FocusPrevWindow binding. -->
               <script="" on="Ctrl+PageDown"/> <!-- Unbind existing FocusNextWindow binding. -->
           </desktop>
           <applet> <!-- Key bindings for the application window. -->
-              <KeyFilter=prerun prerun="if (not kbmodifier[vtm.gear] and vtm.gear.Bypass()) then return; end; "/> <!-- `KeyFilter` macro. Do nothing if `kbmodifier[vtm.gear]` is false. Calling vtm.gear.Bypass() always returns true. -->
+              <KeyFilter=prerun prerun="if (not kbmodifier[vtm.gate] and vtm.gear.Bypass()) then return; end; "/> <!-- `KeyFilter` macro. Do nothing if `kbmodifier[vtm.gate]` is false. Calling vtm.gear.Bypass() always returns true. -->
               <script=KeyFilter | MoveAppletLeft         on="LeftArrow"                                  /> <!-- The ` | ` operator concatenates script fragments/macros. If for some reason the keyboard event is not processed by anyone, it will then return and fire on this object, so the KeyFilter's script is also reused at the beginning of the `script="..."`. -->
               <script=KeyFilter | MoveAppletRight        on="RightArrow"                                 /> <!-- The `prerun` attribute (inherited from KeyFilter) contains a Lua script that will be executed during pre-polling to filter out key events. -->
-              <script=KeyFilter | MoveAppletUp           on="UpArrow"                                    /> <!-- When `kbmodifier[vtm.gear]` is true, you can move windows using the arrow keys. -->
+              <script=KeyFilter | MoveAppletUp           on="UpArrow"                                    /> <!-- When `kbmodifier[vtm.gate]` is true, you can move windows using the arrow keys. -->
               <script=KeyFilter | MoveAppletDown         on="DownArrow"                                  /> <!-- Macros like `MoveApplet...` are defined in the default configuration. You can list them with `vtm -l`. -->
               <script=KeyFilter | MoveAppletTopLeft      on="LeftArrow+UpArrow    | UpArrow+LeftArrow"   /> <!-- Simultaneous key presses should also be processed if supported. -->
               <script=KeyFilter | MoveAppletBottomLeft   on="LeftArrow+DownArrow  | DownArrow+LeftArrow" /> <!-- It is convenient to specify multiple keyboard shortcuts in one definition separated by `|`. -->

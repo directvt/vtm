@@ -303,7 +303,7 @@ namespace netxs::events::userland
                     EVENT_XS( resized, const rect  ), // anycast: Notify about the actual window area.
                     EVENT_XS( changed, twod        ), // Event after resize, arg: diff bw old and new size.
                     EVENT_XS( dragged, input::hids ), // Event after drag.
-                    EVENT_XS( stopped, bool        ), // release: Notify that the main reading loop has exited. arg bool: fast or not.
+                    EVENT_XS( stopped, ui::sptr    ), // release: Notify that the main reading loop has exited. arg: root_ptr.
                     GROUP_XS( vtree  , ui::sptr    ), // Visual tree events, arg: parent base_sptr.
                     GROUP_XS( scroll , rack        ), // Event after scroll.
 

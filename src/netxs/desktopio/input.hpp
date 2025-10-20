@@ -2210,7 +2210,7 @@ namespace netxs::input
             if (chords.size())
             {
                 auto script_ptr = ptr::shared<script_ref>(boss.indexer, boss, script_body);
-                auto prerun_ptr = prerun_body ? ptr::shared<script_ref>(boss.indexer, boss, prerun_body) : netxs::sptr<script_ref>{};
+                auto prerun_ptr = prerun_body && prerun_body->second.size() ? ptr::shared<script_ref>(boss.indexer, boss, prerun_body) : netxs::sptr<script_ref>{};
                 auto reset_handler = !(script_ptr->script_body_ptr && script_ptr->script_body_ptr->second.size());
                 for (auto& binary_chord : chords) if (binary_chord.size()) // Scripts always store their sensors at the boss side, since the lifetime of base::scripting_context depends on the boss.
                 {

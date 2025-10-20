@@ -22,7 +22,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v2025.10.19";
+    static const auto version = "v2025.10.20";
     static const auto repository = "https://github.com/directvt/vtm";
     static const auto usr_config = "~/.config/vtm/settings.xml"s;
     static const auto sys_config = "/etc/vtm/settings.xml"s;
@@ -1001,7 +1001,7 @@ namespace netxs::app::shared
         app::shared::applet_kb_navigation(config, applet_ptr);
         gate.attach(std::move(applet_ptr));
         ui_lock.unlock();
-        gate.launch();
+        gate.launch(ui_lock);
         gate.base::dequeue();
         ui_lock.lock();
         gate_ptr.reset();
