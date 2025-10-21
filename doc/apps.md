@@ -156,7 +156,7 @@ Note: It is possible to combine multiple command into a single sequence using a 
 
 The built-in terminal supports for in-cell UI shadows, specified using a colon-separated subparameter of the SGR 2 (faint) attribute.
 
-- `ESC [` 2 : n `m`  
+- `ESC [ 2 :` n `m`  
   where n=0-255 is a bit field to specify shadows inside the cell.
 
 The subparameter is a decimal integer from 0 to 255, the value of which corresponds to the state of the bits representing cells around the cell: In the center is the shaded cell, and around it are the shading cells.  The presence of shading cells corresponds to a bit value of 1, the absence - to a bit value of 0.
@@ -431,7 +431,7 @@ Hotkey                       | Description
     </terminal>
     <events>  <!-- The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop. The 'key*' statement here is to clear all previous bindings and start a new list. -->
         <terminal script*>  <!-- Terminal bindings. -->
-            <script=ExclusiveKeyboardMode              on="preview: Alt+Shift+B"/>
+            <script=ExclusiveKeyboardMode   on="preview: Alt+Shift+B"/>
             <script="vtm.gear.SetHandled()" on="Esc"/> <!-- Do nothing. We use the Esc key as a modifier. Its press+release events will only be sent after the key is physically released, and only if no other keys were pressed along with Esc. -->
             <script                         on="-Esc">  --  Clear selection if it is and send Esc press and release events.
                 vtm.terminal.ClearSelection()
