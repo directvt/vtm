@@ -597,7 +597,8 @@ Standard object names
 |                 |                          | `vtm.gear.Interrupt()`                             | Interrupt the key event processing.
 |                 |                          | `vtm.gear.RepeatWhilePressed(ref ObjectId)`        | Capture the mouse by ObjectId and trigger the mouse button pressed event to repeat while pressed.
 |                 |                          | `vtm.gear.Focus(ref ObjectId) -> bool`             | Set input focus to the object. Returns true if focus is already set.
-|                 |                          | `vtm.gate.Bypass() -> bool`                        | Indicates that the keyboard event being processed is not expected by this object. Used by the `prerun` function inside `script` to bypass tier::keybdrelease events. Always return true.
+|                 |                          | `vtm.gear.Bypass() -> bool`                        | Indicates that the keyboard event being processed is not expected by this object. Used by the `prerun` function inside `script` to bypass tier::keybdrelease events. Always return true.
+|                 |                          | `vtm.gear.GetCoord() -> float x, y`                | Get mouse pointer 32-bit floating point coordinates.
 |`desktop`        | Desktop environment      | `vtm.desktop.Cleanup(bool b)`                      | Clean up temporary internal structures of the desktop environment and optionally report the state of registry objects.
 |                 |                          | `vtm.desktop.EventList()`                          | Print all available generic event IDs.
 |                 |                          | `vtm.desktop.Shutdown()`                           | Close all windows and shutdown the desktop.
@@ -605,14 +606,14 @@ Standard object names
 |                 |                          | `vtm.desktop.Run({ lua_table })`                   | Run the specified applet.
 |                 |                          | `vtm.desktop.FocusNextWindow(int n)`               | Set focus to the next (n=1) or previous (n=-1) desktop window.
 |                 |                          | `vtm.desktop.SetOverlay(int index, string s)`      | Set desktop visual overlay for all users. Remove overlay for index `index` if `s` is empty. The overlay will be rendered behind everything (background) if index < 0.
-|                 |                          | `vtm.desktop.Deface()`                                | Trigger to redraw.
+|                 |                          | `vtm.desktop.Deface()`                             | Trigger to redraw.
 |`taskbar`        | Desktop taskbar          | `vtm.taskbar.ActivateItem()`                       | Activate the focused UI element on the taskbar.
-|                 |                          | `vtm.taskbar.FocusNextItem(si32 n, si32 min_w, si32 max_w = si32max)` | Move to the next(n>0)/prev(n<0) focusable element with `min_w` <= weight <= `max_w`, skipping (std::abs(n)-1) elements with `min_w` <= weight <= `max_w` and all elements with weight < `min_w`.
+|                 |                          | `vtm.taskbar.FocusNextItem(int n, int min_w, int max_w = intmax)` | Move to the next(n>0)/prev(n<0) focusable element with `min_w` <= weight <= `max_w`, skipping (std::abs(n)-1) elements with `min_w` <= weight <= `max_w` and all elements with weight < `min_w`.
 |                 |                          | `vtm.taskbar.FocusTop()`                           | Set focus to the first (top) focusable UI element among the elements on the taskbar.
 |                 |                          | `vtm.taskbar.FocusEnd()`                           | Set focus to the last (bottom) focusable UI element among the elements on the taskbar.
 |                 |                          | `vtm.taskbar.ChangeWidthByStep(int n)`             | Change the taskbar width by step n.
-|                 |                          | `vtm.taskbar.GetFocusedWeight() -> si32 w`         | Get the weight of the focused taskbar element.
-|                 |                          | `vtm.taskbar.GetHeight() -> si32 h1, h2`           | Get taskbar height (h1) and line height (h2).
+|                 |                          | `vtm.taskbar.GetFocusedWeight() -> int w`          | Get the weight of the focused taskbar element.
+|                 |                          | `vtm.taskbar.GetHeight() -> int h1, h2`            | Get taskbar height (h1) and line height (h2).
 |`tile`           | Tiling window manager    | `vtm.tile.FocusNextPaneOrGrip(int n)`              | Set focus to the next (n=1) or previous (n=-1) tile's pane or pane splitter.
 |                 |                          | `vtm.tile.FocusNextPane(int n)`                    | Set focus to the next (n=1) or previous (n=-1) tile's pane.
 |                 |                          | `vtm.tile.FocusNextGrip(int n)`                    | Set focus to the next (n=1) or previous (n=-1) pane splitter.
