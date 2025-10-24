@@ -558,7 +558,7 @@ namespace netxs::app::shared
             for (auto menuitem_ptr : menuitem_ptr_list)
             {
                 auto item = menu::item{};
-                auto menuitem_context = config.settings::push_context(menuitem_ptr);
+                auto menuitem_context = config.settings::push_context(menuitem_ptr); //todo revise
                 auto script_list = config.settings::take_ptr_list_of(menuitem_ptr, "script");
                 item.alive = script_list.size();
                 item.bindings = input::bindings::load(config, script_list);
