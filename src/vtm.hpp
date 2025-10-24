@@ -629,6 +629,7 @@ namespace netxs::app::vtm
                 base::plugin<pro::light>();
                 base::plugin<pro::focus>();
                 base::plugin<pro::keybd>();
+                bell::indexer.add_base_class(classname, *this); // Add the 'window' object as an event source.
                 base::limits(dot_11);
                 base::kind(base::reflow_root);
                 base::root(true);

@@ -1214,10 +1214,10 @@ namespace netxs::ui
         template<class T, class ...Args>
         auto& _plugin(auto& boss, Args&&... args)
         {
-            auto iter = fields.find(plugin_name<T>());
-            if (iter == fields.end())
+            auto iter = base::fields.find(base::plugin_name<T>());
+            if (iter == base::fields.end())
             {
-                iter = fields.emplace(plugin_name<T>(), ptr::shared(std::make_any<T>(boss, std::forward<Args>(args)...))).first;
+                iter = base::fields.emplace(base::plugin_name<T>(), ptr::shared(std::make_any<T>(boss, std::forward<Args>(args)...))).first;
             }
             return *(std::any_cast<T>(iter->second.get()));
         }
@@ -1225,14 +1225,25 @@ namespace netxs::ui
         template<class T>
         auto has_plugin()
         {
-            auto iter = fields.find(plugin_name<T>());
-            return iter != fields.end();
+            auto iter = base::fields.find(base::plugin_name<T>());
+            return iter != base::fields.end();
         }
         // base: Return a reference to a plugin of the specified type. Create an instance of the specified plugin using the specified arguments if it does not exist.
         template<class T, class ...Args>
         auto& plugin(Args&&... args)
         {
-            return _plugin<T>(*this, std::forward<Args>(args)...);
+            return base::_plugin<T>(*this, std::forward<Args>(args)...);
+        }
+        // base: Run proc with plugin if it is.
+        template<class T>
+        void if_plugin(auto proc)
+        {
+            auto iter = base::fields.find(base::plugin_name<T>());
+            if (iter != base::fields.end())
+            {
+                auto& plugin_inst = *(std::any_cast<T>(iter->second.get()));
+                proc(plugin_inst);
+            }
         }
         // base: Allocate an anonymous property.
         template<class T = text>

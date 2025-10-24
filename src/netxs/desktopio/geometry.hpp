@@ -408,7 +408,7 @@ namespace netxs
     static constexpr auto rect_00 = rect{ dot_00, dot_00 };
     static constexpr auto rect_11 = rect{ dot_00, dot_11 };
 
-    // geometry: Padding around the rect.
+    // geometry: Padding around the rect: l, r, t, b.
     struct dent
     {
         si32 l, r, t, b;

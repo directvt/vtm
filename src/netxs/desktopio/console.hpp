@@ -832,6 +832,11 @@ namespace netxs::ui
             input::bindings::keybind(*this, bindings);
             base::add_methods(basename::gate,
             {
+                { "GetViewport",            [&]
+                                            {
+                                                auto viewport = base::signal(tier::request, e2::form::prop::viewport);
+                                                luafx.set_return(viewport);
+                                            }},
                 { "Deface",                 [&]
                                             {
                                                 base::deface();

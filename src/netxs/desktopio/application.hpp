@@ -181,20 +181,32 @@ namespace netxs::app::shared
         input::bindings::keybind(boss, bindings);
         boss.base::add_methods(basename::applet,
         {
-            //{ "FocusNext",          [&]
-            //                        {
-            //                            auto gui_cmd = e2::command::gui.param();
-            //                            auto& gear = luafx.get_gear();
-            //                            if (gear.is_real())
-            //                            {
-            //                                gui_cmd.gear_id = gear.id;
-            //                                gear.set_handled();
-            //                            }
-            //                            gui_cmd.cmd_id = syscmd::focusnextwindow;
-            //                            gui_cmd.args.emplace_back(luafx.get_args_or(1, si32{ 1 }));
-            //                            boss.base::riseup(tier::preview, e2::command::gui, gui_cmd);
-            //                            luafx.set_return();
-            //                        }},
+            { "GetTitlesHeight",    [&]
+                                    {
+                                        auto h = 0;
+                                        auto f = 0;
+                                        if (auto parent_ptr = boss.base::parent())
+                                        {
+                                            parent_ptr->base::if_plugin<pro::title>([&](auto& title)
+                                            {
+                                                h = title.head_size.y;
+                                                f = title.foot_size.y;
+                                            });
+                                        }
+                                        luafx.set_return(h, f);
+                                    }},
+            { "GetArea",            [&]
+                                    {
+                                        if (auto parent_ptr = boss.base::parent()) // Try to get window area first.
+                                        {
+                                            auto area = parent_ptr->base::area();
+                                            luafx.set_return(area);
+                                        }
+                                        else
+                                        {
+                                            luafx.set_return(boss.base::area());
+                                        }
+                                    }},
             { "Warp",               [&]
                                     {
                                         auto gui_cmd = e2::command::gui.param();
