@@ -584,6 +584,8 @@ Standard object names
 |                 |                          | `vtm.gate.AntialiasingMode() -> int`               | Toggle anti-aliasing mode.
 |                 |                          | `vtm.gate.SetOverlay(int index, string s)`         | Set user's console visual overlay. Remove overlay for index `index` if `s` is empty. The overlay will be rendered behind everything (background) if index < 0.
 |                 |                          | `vtm.gate.Deface()`                                | Trigger to redraw.
+|                 |                          | `vtm.gate.GetViewport() -> int x, y, w, h`         | Get user's console coodinates x, y (relative to the desktop, left-top corner) and size w, h (width and height).
+|`window`         | Container for applet     | n/a                                                | The desktop container `window` can only be an event source.
 |`applet`         | Running applet           | `vtm.applet.Warp(int l, int r, int t, int b)`      | Request to deform the applet window. The parameters specify four deltas for the left, right, top and bottom sides of the applet window.
 |                 |                          | `vtm.applet.ZOrder() -> int`                       | Request the current z-order state of the applet window.
 |                 |                          | `vtm.applet.ZOrder(int n) -> int`                  | Set the current z-order state for the applet window. -1: backmost; 0: normal; 1: topmost.
@@ -592,6 +594,8 @@ Standard object names
 |                 |                          | `vtm.applet.Maximize()`                            | Maximize applet window.
 |                 |                          | `vtm.applet.Fullscreen()`                          | Fullscreen applet window.
 |                 |                          | `vtm.applet.Restore()`                             | Restore applet window.
+|                 |                          | `vtm.applet.GetArea() -> int x, y, w, h`           | Get applet window area: coodinates x, y (relative to the desktop, left-top corner) and size w, h (width and height).
+|                 |                          | `vtm.applet.GetTitlesHeight() -> int h, f`         | Get the height of the applet window's header and footer: `h` is the header, `f` is the footer.
 |`gear`           | User mouse and keyboard  | `vtm.gear.IsKeyRepeated() -> bool`                 | Returns true if the keyboard event is a key-repeat generated event.
 |                 |                          | `vtm.gear.SetHandled()`                            | Set that the event is processed, and stop further processing.
 |                 |                          | `vtm.gear.Interrupt()`                             | Interrupt the key event processing.

@@ -2276,8 +2276,9 @@ namespace netxs::input
                 auto on_ptr_list = config.settings::take_ptr_list_of(script_ptr, "on");
                 for (auto event_ptr : on_ptr_list)
                 {
-                    auto on_rec = config.settings::take_value(event_ptr); // ... on="MouseDown01" ... on="preview:Enter"... .
-                    auto sources = config.settings::take_value_list_of(event_ptr, "source");
+                    //auto on_context = config.settings::push_context(event_ptr); //todo revise
+                    auto on_rec     = config.settings::take_value(event_ptr); // ... on="MouseDown01" ... on="preview:Enter"... .
+                    auto sources    = config.settings::take_value_list_of(event_ptr, "source");
                     //if constexpr (debugmode)
                     //{
                     //    for (auto& sourse : sources)

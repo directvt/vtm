@@ -1719,6 +1719,7 @@ namespace netxs::xml
         auto take_value_list_of(sptr subsection_ptr, view attribute)
         {
             auto strings = txts{};
+            auto ctx = settings::push_context(subsection_ptr);
             settings::_take_ptr_list_of(subsection_ptr, attribute, tmpbuff);
             strings.reserve(tmpbuff.size());
             for (auto attr_ptr : tmpbuff)

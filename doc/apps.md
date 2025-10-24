@@ -140,15 +140,15 @@ The special (visible in the UI as Exclusive) terminal window mode allows all key
 
 Name         | Sequence                           | Description
 -------------|------------------------------------|------------
-`CCC_SBS`    | `ESC [` 24 : n : m : q `p`         | Set scrollback buffer parameters:<br>`n` Initial buffer size<br>`m` Grow step<br>`q` Grow limit
-`CCC_SGR`    | `ESC [` 28 : m `p`                 | Set terminal background SGR attribute:<br>`m` SGR attribute (attribute m may include subarguments separated by colons), 0 — reset all attributes, _default is 0_
-`CCC_SEL`    | `ESC [` 29 : n `p`                 | Set text selection mode:<br>`n = 0` Selection is off<br>`n = 1` Select and copy as plaintext (default)<br>`n = 2` Select and copy as ANSI/VT text<br>`n = 3` Select and copy as RTF-document<br>`n = 4` Select and copy as HTML-code<br>`n = 5` Select and copy as protected plaintext (suppressed preview, [details](https://learn.microsoft.com/en-us/windows/win32/dataxchg/clipboard-formats#cloud-clipboard-and-clipboard-history-formats))
-`CCC_PAD`    | `ESC [` 30 : n `p`                 | Set scrollback buffer left and right side padding:<br>`n` Width in cells, _max = 255, default is 0_
-`CCC_RST`    | `ESC [` 1 `p`                      | Reset all parameters to default
-`CCC_TBS`    | `ESC [` 5 : n `p`                  | Set tab length in cells:<br>`n` Length in cells, _max = 256, default is 8_
-`CCC_JET`    | `ESC [` 11 : n `p`                 | Set text alignment, _default is Left_:<br>`n = 0`<br>`n = 1` Left<br>`n = 2` Right<br>`n = 3` Center
-`CCC_WRP`    | `ESC [` 12 : n `p`                 | Set text autowrap mode, _default is On_:<br>`n = 0`<br>`n = 1` On<br>`n = 2` Off (_enables horizontal scrolling_)
-`CCC_RTL`    | `ESC [` 13 : n `p`                 | Set text right-to-left mode, _default is Off_:<br>`n = 0`<br>`n = 1` On<br>`n = 2` Off
+`CCC_SBS`    | `ESC [ 24 :` n `:` m `:` q `p`     | Set scrollback buffer parameters:<br>`n` Initial buffer size<br>`m` Grow step<br>`q` Grow limit
+`CCC_SGR`    | `ESC [ 28 :` m `p`                 | Set terminal background SGR attribute:<br>`m` SGR attribute (attribute m may include subarguments separated by colons), 0 — reset all attributes, _default is 0_
+`CCC_SEL`    | `ESC [ 29 :` n `p`                 | Set text selection mode:<br>`n = 0` Selection is off<br>`n = 1` Select and copy as plaintext (default)<br>`n = 2` Select and copy as ANSI/VT text<br>`n = 3` Select and copy as RTF-document<br>`n = 4` Select and copy as HTML-code<br>`n = 5` Select and copy as protected plaintext (suppressed preview, [details](https://learn.microsoft.com/en-us/windows/win32/dataxchg/clipboard-formats#cloud-clipboard-and-clipboard-history-formats))
+`CCC_PAD`    | `ESC [ 30 :` n `p`                 | Set scrollback buffer left and right side padding:<br>`n` Width in cells, _max = 255, default is 0_
+`CCC_RST`    | `ESC [ 1 p`                        | Reset all parameters to default
+`CCC_TBS`    | `ESC [ 5 :` n `p`                  | Set tab length in cells:<br>`n` Length in cells, _max = 256, default is 8_
+`CCC_JET`    | `ESC [ 11 :` n `p`                 | Set text alignment, _default is Left_:<br>`n = 0`<br>`n = 1` Left<br>`n = 2` Right<br>`n = 3` Center
+`CCC_WRP`    | `ESC [ 12 :` n `p`                 | Set text autowrap mode, _default is On_:<br>`n = 0`<br>`n = 1` On<br>`n = 2` Off (_enables horizontal scrolling_)
+`CCC_RTL`    | `ESC [ 13 :` n `p`                 | Set text right-to-left mode, _default is Off_:<br>`n = 0`<br>`n = 1` On<br>`n = 2` Off
 
 Note: It is possible to combine multiple command into a single sequence using a semicolon. For example, the following sequence disables line wrapping, enables text selection, and sets background to blue: `\e[12:2;29:1;28:44p` or `\e[12:2;29:1;28:48:2:0:0:255p`.
 
@@ -156,7 +156,7 @@ Note: It is possible to combine multiple command into a single sequence using a 
 
 The built-in terminal supports for in-cell UI shadows, specified using a colon-separated subparameter of the SGR 2 (faint) attribute.
 
-- `ESC [` 2 : n `m`  
+- `ESC [ 2 :` n `m`  
   where n=0-255 is a bit field to specify shadows inside the cell.
 
 The subparameter is a decimal integer from 0 to 255, the value of which corresponds to the state of the bits representing cells around the cell: In the center is the shaded cell, and around it are the shading cells.  The presence of shading cells corresponds to a bit value of 1, the absence - to a bit value of 0.
@@ -431,7 +431,7 @@ Hotkey                       | Description
     </terminal>
     <events>  <!-- The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop. The 'key*' statement here is to clear all previous bindings and start a new list. -->
         <terminal script*>  <!-- Terminal bindings. -->
-            <script=ExclusiveKeyboardMode              on="preview: Alt+Shift+B"/>
+            <script=ExclusiveKeyboardMode   on="preview: Alt+Shift+B"/>
             <script="vtm.gear.SetHandled()" on="Esc"/> <!-- Do nothing. We use the Esc key as a modifier. Its press+release events will only be sent after the key is physically released, and only if no other keys were pressed along with Esc. -->
             <script                         on="-Esc">  --  Clear selection if it is and send Esc press and release events.
                 vtm.terminal.ClearSelection()
