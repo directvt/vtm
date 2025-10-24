@@ -1538,7 +1538,11 @@ namespace netxs::ui
                 head_size = new_size;
                 foot_size = new_size;
                 if (head_live) recalc(head_page, head_size);
-                if (foot_live) recalc(foot_page, foot_size);
+                if (foot_live)
+                {
+                    recalc(foot_page, foot_size);
+                    if (foot_text.empty()) foot_size.y = 0;
+                }
             }
             void header(view newtext)
             {
