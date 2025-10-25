@@ -629,11 +629,19 @@ namespace netxs::app::vtm
                 base::plugin<pro::light>();
                 base::plugin<pro::focus>();
                 base::plugin<pro::keybd>();
-                bell::indexer.add_base_class(classname, *this); // Add the 'window' object as an event source.
                 base::limits(dot_11);
                 base::kind(base::reflow_root);
                 base::root(true);
                 base::property("window.menuid") = what.applet->base::property("applet.menuid");
+                auto& config = bell::indexer.config;
+                auto window_context = config.settings::push_context("/config/events/window/");
+                auto script_list = config.settings::take_ptr_list_for_name("script");
+                auto bindings = input::bindings::load(config, script_list);
+                input::bindings::keybind(*this, bindings);
+                base::add_methods(basename::window,  // Add the 'window' object as an event source.
+                {
+                    // n/a
+                });
                 LISTEN(tier::preview, e2::command::gui, gui_cmd)
                 {
                     auto hit = true;
