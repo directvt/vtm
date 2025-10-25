@@ -1068,7 +1068,9 @@ Notes
             <script=IncreaseTaskbarWidth  on="Ctrl+RightArrow"/>
             <script=ActivateTaskbarItem   on="Space | Enter"/>
         </taskbar>
-        <applet script*>  <!-- Applet bindings. -->
+        <window script*>  <!-- Desktop window bindings. The desktop window is a resizable/movable applet container. It serves as a source of events specific to the desktop window. -->
+        </window>
+        <applet script*>  <!-- Applet bindings. The applet can be hosted by a window, a window manager (aka tile), or it can be a standalone application (OS-level process) running either in a GUI window or in a dtvt-container, which is itself an applet. -->
             <script=AlwaysOnTopApplet     on="Esc+T"                                              />
             <script=CloseApplet           on="Esc+W"                                              />
             <script=MinimizeApplet        on="Esc+M"                                              />
@@ -1243,7 +1245,7 @@ Notes
     </Buttons>
 </Menu>
 
-<Ns=en-US>  <!-- Localization. Set it to 'Ns=en-US|en-GB' for "en-GB" locale with fallback to "en-US". -->
+<Ns=en-US>  <!-- Localization. E.g., set it to 'Ns=en-US|en-GB' for "en-GB" locale with fallback to "en-US". -->
     <en-US>
         <TextbasedDesktopEnvironment="  Text-based Desktop Environment  "/>
         <Info label="Info" title=label tooltip=" Info ">

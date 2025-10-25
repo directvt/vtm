@@ -280,7 +280,7 @@ R"==(
             <script=IncreaseTaskbarWidth  on="Ctrl+RightArrow"/>
             <script=ActivateTaskbarItem   on="Space | Enter"/>
         </taskbar>
-        <window>  <!-- Desktop window bindings. The desktop window is a resizable/movable applet container. It serves as a source of events specific to the desktop window. -->
+        <window script*>  <!-- Desktop window bindings. The desktop window is a resizable/movable applet container. It serves as a source of events specific to the desktop window. -->
         </window>
         <applet script*>  <!-- Applet bindings. The applet can be hosted by a window, a window manager (aka tile), or it can be a standalone application (OS-level process) running either in a GUI window or in a dtvt-container, which is itself an applet. -->
             <script=AlwaysOnTopApplet     on="Esc+T"                                              />
