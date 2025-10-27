@@ -4289,15 +4289,19 @@ namespace netxs::os
             text                    writebuf{};
             std::mutex              writemtx{};
             std::condition_variable writesyn{};
-            fd_t                    serverfd{};
-            fd_t                    clientfd{};
+            sptr<sock>              std_link{};
 
             operator bool () { return attached; }
 
-            void abort()
+            void abort() // Hard terminate the connection.
             {
-                os::close(serverfd); // Hard terminate connection.
-                os::close(clientfd); //
+                if (std_link)
+                {
+                    auto& server_fd = std_link->w;
+                    os::close(server_fd);
+                }
+                auto& client_fd = termlink.handle.w;
+                os::close(client_fd);
             }
             void payoff()
             {
@@ -4348,14 +4352,11 @@ namespace netxs::os
                         writebuf = config + writebuf;
                     }
                     termlink = ipc::stdcon{ m_pipe_r, m_pipe_w };
-
-                    auto cmd = connect(ptr::shared<sock>(s_pipe_r, s_pipe_w));
-
+                    std_link = ptr::shared<sock>(s_pipe_r, s_pipe_w);
+                    auto cmd = connect(std_link);
                     attached.exchange(!!termlink);
                     if (attached)
                     {
-                        serverfd = s_pipe_w;
-                        clientfd = m_pipe_w;
                         if constexpr (debugmode) log("%%DirectVT Gateway created for process '%cmd%'", prompt::dtvt, ansi::hi(utf::debase437(cmd)));
                         auto stdwrite = std::thread{ [&]{ writer(); } };
 
