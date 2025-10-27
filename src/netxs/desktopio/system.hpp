@@ -4357,7 +4357,6 @@ namespace netxs::os
                         serverfd = s_pipe_w;
                         clientfd = m_pipe_w;
                         if constexpr (debugmode) log("%%DirectVT Gateway created for process '%cmd%'", prompt::dtvt, ansi::hi(utf::debase437(cmd)));
-                        writesyn.notify_one(); // Flush temp buffer.
                         auto stdwrite = std::thread{ [&]{ writer(); } };
 
                         if constexpr (debugmode) log(prompt::dtvt, "Reading thread started", ' ', utf::to_hex_0x(std::this_thread::get_id()));
@@ -4445,7 +4444,6 @@ namespace netxs::os
                                              " cmd: "s + cfg.cmd + " "s);
                 }
                 attached.exchange(!errcode);
-                writesyn.notify_one(); // Flush temp buffer.
             }
             void writer(auto& terminal)
             {

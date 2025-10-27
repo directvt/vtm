@@ -434,6 +434,7 @@ namespace netxs::app::shared
             auto window_ptr = ui::veer::ctor()
                 ->limits(dot_11)
                 ->plugin<pro::focus>();
+            auto& order = window_ptr->base::field(true); // True: term; faux: dtvt.
             auto term_cake = ui::cake::ctor()
                 ->plugin<pro::focus>()
                 ->active(window_clr);
@@ -446,6 +447,7 @@ namespace netxs::app::shared
                 ->invoke([&](auto& boss)
                 {
                     auto& dtvt_inst = *dtvt;
+                    auto& term_inst = boss;
                     boss.defcfg.def_atexit = ui::term::commands::atexit::ask;
                     if constexpr (!debugmode) // Forced disabling of logging for the controlling terminal.
                     {
@@ -454,7 +456,16 @@ namespace netxs::app::shared
                     }
                     boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
                     {
-                        boss.base::signal(tier::preview, e2::form::proceed::quit::one, fast);
+                        auto nodtvt = order || dtvt_inst.is_nodtvt();
+                        if (nodtvt || fast)
+                        {
+                            dtvt_inst.stop(fast, faux);
+                            term_inst.close(fast, faux);
+                        }
+                        else
+                        {
+                            dtvt_inst.stop(fast, faux);
+                        }
                     };
                     boss.LISTEN(tier::preview, e2::form::proceed::quit::one, fast)
                     {
@@ -472,10 +483,6 @@ namespace netxs::app::shared
                     boss.LISTEN(tier::preview, e2::config::plugins::sizer::alive, state)
                     {
                         boss.base::riseup(tier::release, e2::config::plugins::sizer::alive, state);
-                    };
-                    boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
-                    {
-                        boss.base::signal(tier::preview, e2::form::proceed::quit::one, fast);
                     };
                     boss.LISTEN(tier::preview, e2::form::proceed::quit::one, fast)
                     {
@@ -507,7 +514,7 @@ namespace netxs::app::shared
                     {
                         boss.base::signal(tier::release, e2::form::upon::started, root_ptr);
                     };
-                    boss.LISTEN(tier::release, e2::form::global::sysstart, started, -, (order = true))
+                    boss.LISTEN(tier::release, e2::form::global::sysstart, started)
                     {
                         if (!!started == order)
                         {
@@ -522,7 +529,7 @@ namespace netxs::app::shared
                         }
                         boss.bell::passover();
                     };
-                    boss.LISTEN(tier::release, e2::form::proceed::quit::any, fast, -, (count = 2))
+                    boss.LISTEN(tier::release, e2::form::proceed::quit::any, fast, -, (count = 2)) // count = 2: Wait for term and dtvt.
                     {
                         if (--count == 0)
                         if (auto parent = boss.base::parent())
