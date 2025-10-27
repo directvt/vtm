@@ -9332,6 +9332,13 @@ namespace netxs::ui
             };
             ipccon.runapp(config, base::size(), connect, receiver, [&]{ onexit(); });
         }
+        // dtvt: Return true if application has never sent its canvas.
+        auto is_nodtvt()
+        {
+            auto lock = stream.bitmap_dtvt.freeze();
+            auto& canvas = lock.thing.image;
+            return !canvas.hash(); // Canvas never resized/received.
+        }
         // dtvt: Close dtvt-object.
         void stop(bool fast, bool notify = true)
         {
@@ -9339,13 +9346,7 @@ namespace netxs::ui
             {
                 base::signal(tier::request, e2::form::proceed::quit::one, fast);
             }
-            auto nodtvt = [&]
-            {
-                auto lock = stream.bitmap_dtvt.freeze();
-                auto& canvas = lock.thing.image;
-                return !canvas.hash(); // Canvas never resized/received.
-            }();
-            if (nodtvt) // Terminate a non-dtvt-aware application that has never sent its canvas.
+            if (is_nodtvt()) // Terminate a non-dtvt-aware application that has never sent its canvas.
             {
                 ipccon.abort();
             }

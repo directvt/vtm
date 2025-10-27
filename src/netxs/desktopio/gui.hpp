@@ -3561,9 +3561,17 @@ namespace netxs::gui
                && layer_create(blinky)
                && layer_create(header)
                && layer_create(footer)
-               && layer_create(tooltip_layer))) return;
+               && layer_create(tooltip_layer)))
+            {
+                os::dtvt::flagsz = true;
+                os::dtvt::flagsz.notify_all();
+                return;
+            }
             else
             {
+                os::dtvt::gridsz = (master.area.size - border) / std::max(cellsz, dot_11);
+                os::dtvt::flagsz = true; // Notify app::shared::splice.
+                os::dtvt::flagsz.notify_all();
                 auto lock = bell::sync();
                 normsz = master.area;
                 size_window();

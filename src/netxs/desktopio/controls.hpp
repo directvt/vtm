@@ -4199,6 +4199,8 @@ namespace netxs::ui
     class veer
         : public form<veer>
     {
+        bool inform_all;
+
     protected:
         // veer: .
         void deform(rect& new_area) override
@@ -4212,16 +4214,28 @@ namespace netxs::ui
         // veer: .
         void inform(rect new_area) override
         {
-            if (base::subset.size())
-            if (auto object = base::subset.back())
+            if (inform_all)
             {
-                object->base::notify(new_area);
+                for (auto object : base::subset)
+                {
+                    object->base::notify(new_area);
+                }
+            }
+            else
+            {
+                if (base::subset.size())
+                if (auto object = base::subset.back())
+                {
+                    object->base::notify(new_area);
+                }
             }
         }
 
     public:
         static constexpr auto classname = basename::veer;
-        veer()
+
+        veer(bool inform_all = faux)
+            : inform_all{ inform_all }
         {
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {

@@ -3794,6 +3794,7 @@ namespace netxs::os
         static auto leadin = text{}; // dtvt: The first block read from stdin.
         static auto backup = tios{}; // dtvt: Saved console state to restore at exit.
         static auto gridsz = twod{}; // dtvt: Initial window grid size.
+        static auto flagsz = flag{}; // dtvt: Initial window grid size updating flag.
         static auto client = xipc{}; // dtvt: Internal IO link.
         static auto wheelrate = 3;   // dtvt: Lines per mouse wheel step (legacy mode).
 
@@ -4289,15 +4290,19 @@ namespace netxs::os
             text                    writebuf{};
             std::mutex              writemtx{};
             std::condition_variable writesyn{};
-            fd_t                    serverfd{};
-            fd_t                    clientfd{};
+            sptr<sock>              std_link{};
 
             operator bool () { return attached; }
 
-            void abort()
+            void abort() // Hard terminate the connection.
             {
-                os::close(serverfd); // Hard terminate connection.
-                os::close(clientfd); //
+                if (std_link)
+                {
+                    auto& server_fd = std_link->w;
+                    os::close(server_fd);
+                }
+                auto& client_fd = termlink.handle.w;
+                os::close(client_fd);
             }
             void payoff()
             {
@@ -4348,16 +4353,12 @@ namespace netxs::os
                         writebuf = config + writebuf;
                     }
                     termlink = ipc::stdcon{ m_pipe_r, m_pipe_w };
-
-                    auto cmd = connect(ptr::shared<sock>(s_pipe_r, s_pipe_w));
-
+                    std_link = ptr::shared<sock>(s_pipe_r, s_pipe_w);
+                    auto cmd = connect(std_link);
                     attached.exchange(!!termlink);
                     if (attached)
                     {
-                        serverfd = s_pipe_w;
-                        clientfd = m_pipe_w;
                         if constexpr (debugmode) log("%%DirectVT Gateway created for process '%cmd%'", prompt::dtvt, ansi::hi(utf::debase437(cmd)));
-                        writesyn.notify_one(); // Flush temp buffer.
                         auto stdwrite = std::thread{ [&]{ writer(); } };
 
                         if constexpr (debugmode) log(prompt::dtvt, "Reading thread started", ' ', utf::to_hex_0x(std::this_thread::get_id()));
@@ -4445,7 +4446,6 @@ namespace netxs::os
                                              " cmd: "s + cfg.cmd + " "s);
                 }
                 attached.exchange(!errcode);
-                writesyn.notify_one(); // Flush temp buffer.
             }
             void writer(auto& terminal)
             {

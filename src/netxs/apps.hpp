@@ -431,9 +431,10 @@ namespace netxs::app::shared
         auto build_dtty = [](eccc appcfg, settings& /*config*/)
         {
             auto window_clr = skin::color(tone::window_clr);
-            auto window_ptr = ui::veer::ctor()
+            auto window_ptr = ui::veer::ctor(true /* Notify everyone on resize. */)
                 ->limits(dot_11)
                 ->plugin<pro::focus>();
+            auto& order = window_ptr->base::field(true); // True: term; faux: dtvt.
             auto term_cake = ui::cake::ctor()
                 ->plugin<pro::focus>()
                 ->active(window_clr);
@@ -446,6 +447,7 @@ namespace netxs::app::shared
                 ->invoke([&](auto& boss)
                 {
                     auto& dtvt_inst = *dtvt;
+                    auto& term_inst = boss;
                     boss.defcfg.def_atexit = ui::term::commands::atexit::ask;
                     if constexpr (!debugmode) // Forced disabling of logging for the controlling terminal.
                     {
@@ -454,7 +456,16 @@ namespace netxs::app::shared
                     }
                     boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
                     {
-                        boss.base::signal(tier::preview, e2::form::proceed::quit::one, fast);
+                        auto nodtvt = order || dtvt_inst.is_nodtvt();
+                        if (nodtvt || fast)
+                        {
+                            dtvt_inst.stop(fast, faux);
+                            term_inst.close(fast, faux);
+                        }
+                        else
+                        {
+                            dtvt_inst.stop(fast, faux);
+                        }
                     };
                     boss.LISTEN(tier::preview, e2::form::proceed::quit::one, fast)
                     {
@@ -472,10 +483,6 @@ namespace netxs::app::shared
                     boss.LISTEN(tier::preview, e2::config::plugins::sizer::alive, state)
                     {
                         boss.base::riseup(tier::release, e2::config::plugins::sizer::alive, state);
-                    };
-                    boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
-                    {
-                        boss.base::signal(tier::preview, e2::form::proceed::quit::one, fast);
                     };
                     boss.LISTEN(tier::preview, e2::form::proceed::quit::one, fast)
                     {
@@ -496,10 +503,13 @@ namespace netxs::app::shared
                     {
                         if (root_ptr) // root_ptr is empty when d_n_d.
                         {
-                            dtvt_inst.start(appcfg.cfg, [&, appcfg](auto fds)
+                            boss.base::enqueue([&](auto& /*boss*/) // Dtvt::start must be run strictly after the window reflow (to synchronize the initial size).
                             {
-                                term_inst.start(appcfg, fds);
-                                return appcfg.cmd;
+                                dtvt_inst.start(appcfg.cfg, [&](auto fds)
+                                {
+                                    term_inst.start(appcfg, fds);
+                                    return appcfg.cmd;
+                                });
                             });
                         }
                     };
@@ -507,7 +517,7 @@ namespace netxs::app::shared
                     {
                         boss.base::signal(tier::release, e2::form::upon::started, root_ptr);
                     };
-                    boss.LISTEN(tier::release, e2::form::global::sysstart, started, -, (order = true))
+                    boss.LISTEN(tier::release, e2::form::global::sysstart, started)
                     {
                         if (!!started == order)
                         {
@@ -522,7 +532,7 @@ namespace netxs::app::shared
                         }
                         boss.bell::passover();
                     };
-                    boss.LISTEN(tier::release, e2::form::proceed::quit::any, fast, -, (count = 2))
+                    boss.LISTEN(tier::release, e2::form::proceed::quit::any, fast, -, (count = 2)) // count = 2: Wait for term and dtvt.
                     {
                         if (--count == 0)
                         if (auto parent = boss.base::parent())
