@@ -964,6 +964,8 @@ namespace netxs::app::shared
     {
         if (os::dtvt::active || !(os::dtvt::vtmode & ui::console::gui))
         {
+            os::dtvt::flagsz = true;
+            os::dtvt::flagsz.notify_all();
             os::tty::splice(client);
         }
         else
@@ -1002,6 +1004,10 @@ namespace netxs::app::shared
         {
             app::shared::splice(client, gui_config);
         }};
+        if (os::dtvt::vtmode & ui::console::gui)
+        {
+            os::dtvt::flagsz.wait(faux); // Sync with gui window. Waiting for os::dtvt::gridsz update.
+        }
         auto gate_ptr = ui::gate::ctor(server, os::dtvt::vtmode);
         auto& gate = *gate_ptr;
         gate.base::resize(os::dtvt::gridsz);
@@ -1012,6 +1018,7 @@ namespace netxs::app::shared
         applet.base::kind(base::reflow_root);
         app::shared::applet_kb_navigation(config, applet_ptr);
         gate.attach(std::move(applet_ptr));
+        gate.base::reflow(); // Fit applet_ptr to the gate size. Resize all nested objects to set base::region instead of base::socket (see dtty's ui::veer).
         ui_lock.unlock();
         gate.launch(ui_lock);
         gate.base::dequeue();

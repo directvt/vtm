@@ -9459,7 +9459,6 @@ namespace netxs::ui
                 auto winsize = stream.syswinsz.freeze().thing.winsize;
                 if (ipccon && winsize != new_area.size)
                 {
-                    log("stream.syswinsz.send ", new_area.size);
                     stream.syswinsz.send(*this, 0, new_area.size, faux);
                 }
             };

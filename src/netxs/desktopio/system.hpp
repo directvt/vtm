@@ -3794,6 +3794,7 @@ namespace netxs::os
         static auto leadin = text{}; // dtvt: The first block read from stdin.
         static auto backup = tios{}; // dtvt: Saved console state to restore at exit.
         static auto gridsz = twod{}; // dtvt: Initial window grid size.
+        static auto flagsz = flag{}; // dtvt: Initial window grid size updating flag.
         static auto client = xipc{}; // dtvt: Internal IO link.
         static auto wheelrate = 3;   // dtvt: Lines per mouse wheel step (legacy mode).
 

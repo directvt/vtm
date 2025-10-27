@@ -431,7 +431,7 @@ namespace netxs::app::shared
         auto build_dtty = [](eccc appcfg, settings& /*config*/)
         {
             auto window_clr = skin::color(tone::window_clr);
-            auto window_ptr = ui::veer::ctor()
+            auto window_ptr = ui::veer::ctor(true /* Notify everyone on resize. */)
                 ->limits(dot_11)
                 ->plugin<pro::focus>();
             auto& order = window_ptr->base::field(true); // True: term; faux: dtvt.
@@ -503,10 +503,13 @@ namespace netxs::app::shared
                     {
                         if (root_ptr) // root_ptr is empty when d_n_d.
                         {
-                            dtvt_inst.start(appcfg.cfg, [&, appcfg](auto fds)
+                            boss.base::enqueue([&](auto& /*boss*/) // Dtvt::start must be run strictly after the window reflow (to synchronize the initial size).
                             {
-                                term_inst.start(appcfg, fds);
-                                return appcfg.cmd;
+                                dtvt_inst.start(appcfg.cfg, [&](auto fds)
+                                {
+                                    term_inst.start(appcfg, fds);
+                                    return appcfg.cmd;
+                                });
                             });
                         }
                     };
