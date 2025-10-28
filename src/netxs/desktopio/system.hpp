@@ -1823,14 +1823,21 @@ namespace netxs::os
 
             #else
 
-                auto ssec = datetime::round<decltype(::timeval{}.tv_sec), std::chrono::seconds>(timeout);
-                auto usec = datetime::round<decltype(::timeval{}.tv_usec), std::chrono::microseconds>(timeout - std::chrono::seconds{ ssec });
-                auto timeval = ::timeval{ .tv_sec = ssec, .tv_usec = usec };
-                auto timeval_ptr = timeout == netxs::maxspan ? nullptr : &timeval;
                 auto socks = fd_set{};
                 FD_ZERO(&socks);
                 auto nfds = 1 + _fd_set(socks, std::forward<Args>(args)...);
-                auto count = ::select(nfds, &socks, 0, 0, timeval_ptr);
+                auto count = 0;
+                if (timeout == netxs::maxspan) // Blocking call.
+                {
+                    count = ::select(nfds, &socks, 0, 0, nullptr);
+                }
+                else // Use timeout.
+                {
+                    auto ssec = datetime::round<decltype(::timeval{}.tv_sec), std::chrono::seconds>(timeout);
+                    auto usec = datetime::round<decltype(::timeval{}.tv_usec), std::chrono::microseconds>(timeout - std::chrono::seconds{ ssec });
+                    auto timeval = ::timeval{ .tv_sec = ssec, .tv_usec = usec };
+                    count = ::select(nfds, &socks, 0, 0, &timeval);
+                }
                 if (count == 0) // Timeout.
                 {
                     timeout_proc();
@@ -5209,7 +5216,7 @@ namespace netxs::os
 
                 static constexpr auto waitio = 100ms;
                 static constexpr auto disarm = netxs::maxspan;
-                auto timeout = span{};
+                auto timeout = disarm;
                 auto micefd = os::invalid_fd;
                 auto buffer = text(os::pipebuf, '\0');
                 auto sig_fd = os::signals::fd{};
@@ -5709,10 +5716,6 @@ namespace netxs::os
                 };
                 auto parser = [&](view accum)
                 {
-                    if (input_buffer.size() && !paste_not_complete)
-                    {
-                        timeout = disarm;
-                    }
                     input_buffer += accum;
                     auto cache = qiew{ input_buffer };
                     while (cache.size())
@@ -5978,6 +5981,7 @@ namespace netxs::os
                 };
                 auto t_proc = [&]
                 {
+                    timeout = disarm;
                     if (input_buffer.size())
                     {
                         detect_key(input_buffer);
@@ -5986,6 +5990,7 @@ namespace netxs::os
                 };
                 auto h_proc = [&]
                 {
+                    timeout = disarm;
                     if (auto data = io::recv(os::stdin_fd, buffer))
                     {
                         if (micefd != os::invalid_fd)
