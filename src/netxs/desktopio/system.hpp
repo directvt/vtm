@@ -1803,49 +1803,72 @@ namespace netxs::os
             #endif
         }
         template<class ...Args>
-        void select(span timeout, auto&& timeout_proc, Args&&... args)
+        void select(auto&& timeout, auto&& timeout_proc, Args&&... args)
         {
+            auto count = 0;
             #if defined(_WIN32)
 
-                auto timeval = timeout == netxs::maxspan ? INFINITE : datetime::round<si32, std::chrono::milliseconds>(timeout);
                 auto socks = _fd_set(std::forward<Args>(args)...);
                 // Note: ::WaitForMultipleObjects() does not work with pipes (DirectVT).
-                auto yield = ::WaitForMultipleObjects((DWORD)socks.size(), socks.data(), FALSE, timeval);
-                if (yield == WAIT_TIMEOUT) // Timeout.
+                if (timeout == netxs::maxspan) // Blocking call.
                 {
-                    timeout_proc();
+                    count = ::WaitForMultipleObjects((DWORD)socks.size(), socks.data(), FALSE, INFINITE);
                 }
-                else
+                else // Use timeout.
                 {
-                    yield -= WAIT_OBJECT_0;
-                    _handle(yield, std::forward<Args>(args)...);
+                    auto start = datetime::now();
+                    auto timeval = datetime::round<si32, std::chrono::milliseconds>(timeout);
+                    count = ::WaitForMultipleObjects((DWORD)socks.size(), socks.data(), FALSE, timeval);
+                    if (count == WAIT_TIMEOUT) // Timeout.
+                    {
+                        if constexpr (!std::is_const<std::remove_reference_t<decltype(timeout)>>::value) // Disarm timer.
+                        {
+                            timeout = netxs::maxspan;
+                        }
+                        timeout_proc();
+                        return;
+                    }
+                    else if constexpr (!std::is_const<std::remove_reference_t<decltype(timeout)>>::value) // Rearm timer.
+                    {
+                        timeout -= std::min(timeout, datetime::now() - start);
+                    }
                 }
+                count -= WAIT_OBJECT_0;
+                _handle(count, std::forward<Args>(args)...);
 
             #else
 
                 auto socks = fd_set{};
                 FD_ZERO(&socks);
                 auto nfds = 1 + _fd_set(socks, std::forward<Args>(args)...);
-                auto count = 0;
                 if (timeout == netxs::maxspan) // Blocking call.
                 {
                     count = ::select(nfds, &socks, 0, 0, nullptr);
                 }
                 else // Use timeout.
                 {
+                    auto start = datetime::now();
                     auto ssec = datetime::round<decltype(::timeval{}.tv_sec), std::chrono::seconds>(timeout);
                     auto usec = datetime::round<decltype(::timeval{}.tv_usec), std::chrono::microseconds>(timeout - std::chrono::seconds{ ssec });
                     auto timeval = ::timeval{ .tv_sec = ssec, .tv_usec = usec };
                     count = ::select(nfds, &socks, 0, 0, &timeval);
+                    if (count == 0) // Timeout.
+                    {
+                        //log("timeout dt=", datetime::now() - start);
+                        if constexpr (!std::is_const<std::remove_reference_t<decltype(timeout)>>::value) // Disarm timer.
+                        {
+                            //log("  reset timeout");
+                            timeout = netxs::maxspan;
+                        }
+                        timeout_proc();
+                        return;
+                    }
+                    else if constexpr (!std::is_const<std::remove_reference_t<decltype(timeout)>>::value) // Rearm timer.
+                    {
+                        timeout -= std::min(timeout, datetime::now() - start);
+                    }
                 }
-                if (count == 0) // Timeout.
-                {
-                    timeout_proc();
-                }
-                else
-                {
-                    _select(count, socks, std::forward<Args>(args)...);
-                }
+                _select(count, socks, std::forward<Args>(args)...);
 
             #endif
         }
@@ -1858,8 +1881,10 @@ namespace netxs::os
                 while (true)
                 {
                     auto empty = true;
-                    io::select(span{}, noop{}, os::stdin_fd, [&]{
-                        empty = flush.size() != io::recv(os::stdin_fd, flush).length(); });
+                    io::select(span{}, noop{}, os::stdin_fd, [&]
+                    {
+                        empty = flush.size() != io::recv(os::stdin_fd, flush).length();
+                    });
                     if (empty) break;
                 }
             #endif
@@ -5754,12 +5779,14 @@ namespace netxs::os
                             if (cache.size() == 1) // Ambiguous state, need to wait some time for additional input.
                             {
                                 timeout = waitio;
+                                //log("E. timeout=", timeout);
                                 break;
                             }
                             auto [t, s, incomplete] = take_sequence(cache);
                             if (incomplete)
                             {
                                 timeout = waitio;
+                                //log("I. timeout=", timeout);
                                 break;
                             }
                             else if (t == type::mousevtim) // vt-input-mode report:  ESC _ payload ST
@@ -5968,6 +5995,7 @@ namespace netxs::os
                             if (!cluster.attr.correct && cache.size() == cluster.attr.utf8len) // UTF-8 character is not complete.
                             {
                                 timeout = waitio;
+                                //log("C. timeout=", timeout);
                                 break;
                             }
                             else
@@ -5981,7 +6009,7 @@ namespace netxs::os
                 };
                 auto t_proc = [&]
                 {
-                    timeout = disarm;
+                    //log("T. timeout=", timeout);
                     if (input_buffer.size())
                     {
                         detect_key(input_buffer);
@@ -5990,7 +6018,8 @@ namespace netxs::os
                 };
                 auto h_proc = [&]
                 {
-                    timeout = disarm;
+                    timeout = disarm; // Disarm timer on any input.
+                    //log("H. timeout=", timeout);
                     if (auto data = io::recv(os::stdin_fd, buffer))
                     {
                         if (micefd != os::invalid_fd)
@@ -6167,6 +6196,7 @@ namespace netxs::os
                                sig_fd,       s_proc,
                                micefd,       m_proc,
                                alarm,        f_proc);
+                    //log("S. timeout=", timeout);
                 }
                 #if defined(__linux__) && !defined(__ANDROID__)
                 lixx::uninitialize();
