@@ -1661,6 +1661,7 @@ namespace netxs::directvt
                     }
                     if ((si32)defer.length() != start)
                     {
+                        defer.bgx(state.bgc()); // Restore bgc state in brush.
                         stream::block += defer;
                         defer.resize(start);
                     }
@@ -1778,6 +1779,7 @@ namespace netxs::directvt
                     }
                     if ((si32)defer.length() != start)
                     {
+                        defer.bgx(state.bgc()); // Restore bgc state in brush.
                         stream::block += defer;
                         defer.resize(start);
                     }
