@@ -2479,7 +2479,7 @@ namespace netxs
                     else
                     {
                         auto b = cursor_bgc;
-                        auto f = cursor_fgc.chan.a ? cursor_fgc : cell::shaders::contrast.invert(b);
+                        auto f = cursor_fgc.chan.a && cursor_fgc != cursor_bgc ? cursor_fgc : cell::shaders::contrast.invert(b);
                         inv(faux).fgc(f).bgc(b);
                     }
                     break;
