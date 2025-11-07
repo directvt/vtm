@@ -2468,6 +2468,7 @@ namespace netxs
             auto [cursor_bgc, cursor_fgc] = cursor_color();
             switch (st.cur())
             {
+                case text_cursor::I_bar: // Some terminals do not support colored underlining.
                 case text_cursor::block:
                     if (cursor_bgc.chan.a == 0)
                     {
@@ -2482,7 +2483,6 @@ namespace netxs
                         inv(faux).fgc(f).bgc(b);
                     }
                     break;
-                case text_cursor::I_bar:
                 case text_cursor::underline:
                     if (cursor_bgc.chan.a == 0)
                     {
