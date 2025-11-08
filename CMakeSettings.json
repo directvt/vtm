@@ -45,7 +45,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_DEBUG",
-          "value": "-O0 -DDEBUG -static -pthread -g -Wall -Wextra -Wno-missing-field-initializers",
+          "value": "-O0 -DDEBUG -static -pthread -g -Wall -Wno-unknown-pragmas -Wextra -Wno-missing-field-initializers",
           "type": "STRING"
         },
         {
@@ -110,7 +110,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_DEBUG",
-          "value": "-O0 -static -DDEBUG -pthread  -Wall -Wextra -Wno-missing-field-initializers",
+          "value": "-O0 -static -DDEBUG -pthread  -Wall -Wno-unknown-pragmas -Wextra -Wno-missing-field-initializers",
           "type": "STRING"
         },
         {
@@ -309,7 +309,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_RELEASE",
-          "value": "-O2 -DNDEBUG -pthread -static-libstdc++ -s -Wno-psabi -Wall -Wextra -Wno-missing-field-initializers",
+          "value": "-O2 -DNDEBUG -pthread -static-libstdc++ -s -Wno-psabi -Wall -Wno-unknown-pragmas -Wextra -Wno-missing-field-initializers",
           "type": "STRING"
         },
         {
@@ -347,7 +347,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_RELEASE",
-          "value": "-O2 -DNDEBUG -pthread -static-libstdc++ -s -Wall -Wextra -Wno-missing-field-initializers",
+          "value": "-O2 -DNDEBUG -pthread -static-libstdc++ -s -Wall -Wno-unknown-pragmas -Wextra -Wno-missing-field-initializers",
           "type": "STRING"
         },
         {
@@ -385,7 +385,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_RELEASE",
-          "value": "-O2 -DNDEBUG -pthread -static-libstdc++ -s -Wall -Wextra -Wno-missing-field-initializers",
+          "value": "-O2 -DNDEBUG -pthread -static-libstdc++ -s -Wall -Wno-unknown-pragmas -Wextra -Wno-missing-field-initializers",
           "type": "STRING"
         },
         {
@@ -422,7 +422,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_RELEASE",
-          "value": "-O2 -DNDEBUG -pthread -static-libstdc++ -s -Wall -Wextra -Wno-missing-field-initializers",
+          "value": "-O2 -DNDEBUG -pthread -static-libstdc++ -s -Wall -Wno-unknown-pragmas -Wextra -Wno-missing-field-initializers",
           "type": "STRING"
         },
         {
