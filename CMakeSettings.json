@@ -110,7 +110,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_DEBUG",
-          "value": "-O0 -static -DDEBUG -pthread  -Wall -Wno-unknown-pragmas -Wextra -Wno-missing-field-initializers",
+          "value": "-O0 -static -DDEBUG -pthread -Wall -Wno-unknown-pragmas -Wextra -Wno-missing-field-initializers",
           "type": "STRING"
         },
         {
