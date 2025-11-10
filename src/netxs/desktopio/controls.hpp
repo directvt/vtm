@@ -2107,7 +2107,7 @@ namespace netxs::ui
                             if (status == state::live)
                             {
                                 is_leaf = faux;
-                                auto& nexthop_focus = nexthop.base::template plugin<pro::focus>(); //todo Apple clang requires templtate
+                                auto& nexthop_focus = nexthop.base::template plugin<pro::focus>(); //todo Apple clang requires template
                                 nexthop_focus.for_first_focused_leaf(gear, proc);
                                 return faux;
                             }

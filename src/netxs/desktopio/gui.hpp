@@ -1308,7 +1308,7 @@ namespace netxs::gui
                 for (auto& m : glyf_masks) glyph_mask.area |= m.area;
                 auto l = glyph_mask.area.size.x * glyph_mask.area.size.y;
                 glyph_mask.bits.resize(l * sizeof(irgb));
-                auto raster = glyph_mask.raster<irgb>();
+                auto raster = glyph_mask.template raster<irgb>(); //todo Apple clang requires template.
                 for (auto& m : glyf_masks)
                 {
                     auto alpha_mask = netxs::raster{ m.bits, m.area };
@@ -3114,7 +3114,7 @@ namespace netxs::gui
                 {
                     fake_ctrl = faux;
                 }
-                if (keybd_test_toggled(vkey::numlock )) state |= input::hids::NumLock, cs |= input::key::NumLockMode;
+                if (keybd_test_toggled(vkey::numlock )) { state |= input::hids::NumLock; cs |= input::key::NumLockMode };
                 if (keybd_test_toggled(vkey::capslock)) state |= input::hids::CapsLock;
                 if (keybd_test_toggled(vkey::scrllock)) state |= input::hids::ScrlLock;
                 if (keybd_test_pressed(vkey::lcontrol) && !fake_ctrl) state |= input::hids::LCtrl;

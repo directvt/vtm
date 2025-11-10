@@ -77,9 +77,9 @@ int main(int argc, char* argv[])
     auto glyph_pos  = ::hb_buffer_get_glyph_positions(buf, &glyph_count);
 
     //Iterate over each glyph.
-    auto cursor_x = hb_position_t{};
-    auto cursor_y = hb_position_t{};
-    for (auto i = 0; i < glyph_count; i++)
+    [[maybe_unused]]auto cursor_x = hb_position_t{};
+    [[maybe_unused]]auto cursor_y = hb_position_t{};
+    for (auto i = 0u; i < glyph_count; i++)
     {
         [[maybe_unused]]auto glyphid  = glyph_info[i].codepoint;
         [[maybe_unused]]auto x_offset = glyph_pos[i].x_offset;
