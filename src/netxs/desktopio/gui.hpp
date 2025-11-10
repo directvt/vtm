@@ -6,77 +6,7 @@
 #include <ft2build.h>
 #include FT_FREETYPE_H
 
-#define _CRT_SECURE_NO_WARNINGS
-#define HB_NO_MT
-#define HB_NO_PRAGMA_GCC_DIAGNOSTIC_ERROR
-#undef B0 // termios.h
-#pragma warning(push)
-#pragma warning(disable: 4065) // switch statement contains 'default' but no 'case' labels
-#pragma warning(disable: 4100 4101) // 'bits': local variable is initialized but not referenced (release)
-#pragma warning(disable: 4146) // unary minus operator applied to unsigned type, result still unsigned 
-#pragma warning(disable: 4127) // conditional expression is constant 
-#pragma warning(disable: 4189) // 'bits': local variable is initialized but not referenced
-#pragma warning(disable: 4244) // '=': conversion from 'double' to 'hb_position_t', possible loss of data
-#pragma warning(disable: 4245) // '=': conversion from 'char' to 'unsigned char', signed/unsigned mismatch
-#pragma warning(disable: 4267) // '=': conversion from 'size_t' to 'int', possible loss of data
-#pragma warning(disable: 4310) // cast truncates constant value
-#pragma warning(disable: 4456) // declaration of 'current' hides previous local declaration 
-#pragma warning(disable: 4457) // declaration of 'scale' hides function parameter
-#pragma warning(disable: 4458) // declaration of 'v' hides class member 
-#pragma warning(disable: 4459) // declaration of 'table_tags' hides global declaration 
-#pragma warning(disable: 4702) // unreachable code
-    #include "harfbuzz.cc"
-#pragma warning(pop)
-#undef _CRT_SECURE_NO_WARNINGS
-#undef attach_chain
-#undef attach_type
-#undef bool_t
-#undef foreach_cluster
-#undef foreach_syllable
-#undef foreach_grapheme
-#undef foreach_group
-#undef getenv
-#undef info_cc
-#undef likely
-#undef unlikely
-#undef max
-#undef min
-#undef normalizer_glyph_index
-#undef nullref
-#undef process_item
-#undef ptr_t
-#undef ptr_d
-#undef roundf
-#undef small
-#undef static_const
-#undef syllable
-#undef use_category
-#undef APPEND
-#undef BLOB_INIT
-#undef Crap
-#undef CrapOrNull
-#undef DEFAULT_MARGIN
-#undef DEFAULT_FORE
-#undef DEFAULT_BACK
-#undef DELIMITERS
-#undef FLAG
-#undef JOINER_FLAGS
-#undef MAX_ANGLE
-#undef MAX_INPUT_SIZE
-#undef Null
-#undef REPEAT
-#undef UNSUPPORTED
-#undef USE
-#undef TAG
-
-namespace netxs
-{
-    template<byte c1, byte c2, byte c3, byte c4>
-    static constexpr auto TAG = ((ui32)c1 << 24)
-                              | ((ui32)c2 << 16)
-                              | ((ui32)c3 << 8)
-                              | ((ui32)c4 << 0);
-}
+#include <hb.hh>
 
 #if defined(_WIN32)
 
@@ -2148,14 +2078,14 @@ namespace netxs::gui
         layer header; // winbase: Layer for Header.
         layer footer; // winbase: Layer for Footer.
         layer tooltip_layer; // winbase: Layer for Tooltip.
-        std::array<std::reference_wrapper<layer>, 5> layers =
-        {
+        std::array<std::reference_wrapper<layer>, 5> layers = // gcc requires double braces on x32 platforms.
+        {{
             master,
             blinky,
             footer,
             header,
             tooltip_layer,
-        };
+        }};
         fonts fcache; // winbase: Font cache.
         glyph gcache; // winbase: Glyph cache.
         blink blinks; // winbase: Blinking layer state.

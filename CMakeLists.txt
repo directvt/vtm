@@ -31,25 +31,36 @@ else()
     #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -static -O2 -DLUA_USE_POSIX")
 endif()
 
-# HarfBuzz dependency
-FetchContent_Declare(harfbuzz
-                     URL      https://github.com/harfbuzz/harfbuzz/archive/refs/tags/12.1.0.tar.gz
-                     URL_HASH SHA256=0238bf7ada6b1fb92984f69f8b9cd66518af83cf24f7db1cfe60c772c42312d3)
-FetchContent_MakeAvailable(harfbuzz)
-file(GLOB hb_src CONFIGURE_DEPENDS ${harfbuzz_SOURCE_DIR}/src/harfbuzz.cc)
+add_executable(vtm "src/vtm.cpp" ${WIN32_RESOURCES})
+# add_executable(term "src/netxs/apps/term.cpp")
+# add_executable(calc "src/netxs/apps/calc.cpp")
+
+# Set BUILD_SHARED_LIBS to OFF globally for fetched content.
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build static libraries" FORCE)
 
 # FreeType dependency
-FetchContent_Declare(freetype
-                     GIT_REPOSITORY https://github.com/freetype/freetype.git
-                     GIT_TAG        VER-2-14-1)
-FetchContent_GetProperties(freetype)
-FetchContent_Populate(freetype)
 set(FT_DISABLE_BROTLI   ON CACHE BOOL "Disable brotli"   FORCE)
 set(FT_DISABLE_ZLIB     ON CACHE BOOL "Disable zlib"     FORCE)
 set(FT_DISABLE_BZIP2    ON CACHE BOOL "Disable bzip2"    FORCE)
 set(FT_DISABLE_PNG      ON CACHE BOOL "Disable libpng"   FORCE)
 set(FT_DISABLE_HARFBUZZ ON CACHE BOOL "Disable harfbuzz" FORCE)
-add_subdirectory(${freetype_SOURCE_DIR} ${freetype_BINARY_DIR}) # Add FreeType lib directory.
+FetchContent_Declare(freetype
+                     GIT_REPOSITORY https://github.com/freetype/freetype.git
+                     GIT_TAG        VER-2-14-1)
+FetchContent_MakeAvailable(freetype)
+
+# HarfBuzz dependency
+set(HB_NO_MT                          ON  CACHE BOOL "Single threaded"        FORCE)
+set(HB_NO_PRAGMA_GCC_DIAGNOSTIC_ERROR ON  CACHE BOOL "Disable pragma warning" FORCE)
+set(HB_HAVE_FREETYPE                  OFF CACHE BOOL "Disable freetype"       FORCE)
+set(HB_HAVE_GLIB                      OFF CACHE BOOL "Disable glib"           FORCE)
+set(HB_HAVE_GOBJECT                   OFF CACHE BOOL "Disable gobject"        FORCE)
+set(HB_HAVE_ICU                       OFF CACHE BOOL "Disable icu"            FORCE)
+set(HB_HAVE_CAIRO                     OFF CACHE BOOL "Disable cairo"          FORCE)
+FetchContent_Declare(harfbuzz
+                     URL      https://github.com/harfbuzz/harfbuzz/archive/refs/tags/12.1.0.tar.gz
+                     URL_HASH SHA256=0238bf7ada6b1fb92984f69f8b9cd66518af83cf24f7db1cfe60c772c42312d3)
+FetchContent_MakeAvailable(harfbuzz)
 
 # Lua dependency
 FetchContent_Declare(lua
@@ -58,20 +69,12 @@ FetchContent_Declare(lua
 FetchContent_MakeAvailable(lua)
 file(GLOB lua_src CONFIGURE_DEPENDS ${lua_SOURCE_DIR}/src/*.c)
 list(REMOVE_ITEM lua_src ${lua_SOURCE_DIR}/src/lua.c ${lua_SOURCE_DIR}/src/luac.c)
-add_library(lua ${lua_src})
-target_include_directories(lua PUBLIC ${lua_SOURCE_DIR}/src)
-target_sources(lua PUBLIC ${lua_src})
+add_library(lua EXCLUDE_FROM_ALL ${lua_src})
+target_include_directories(vtm PRIVATE ${lua_SOURCE_DIR}/src)
 
-add_executable(vtm "src/vtm.cpp" ${WIN32_RESOURCES})
-# add_executable(term "src/netxs/apps/term.cpp")
-# add_executable(calc "src/netxs/apps/calc.cpp")
-
-target_include_directories(vtm PRIVATE ${freetype_SOURCE_DIR}/include)
-target_include_directories(vtm PRIVATE ${harfbuzz_SOURCE_DIR}/src)
-
-target_link_libraries(vtm  PRIVATE lua  PRIVATE freetype)
-# target_link_libraries(term  PRIVATE lua  PRIVATE freetype)
-# target_link_libraries(calc  PRIVATE lua  PRIVATE freetype)
+target_link_libraries(vtm PRIVATE lua freetype harfbuzz)
+# target_link_libraries(term PRIVATE lua freetype harfbuzz)
+# target_link_libraries(calc PRIVATE lua freetype harfbuzz)
 
 if(NOT WIN32)
     install(TARGETS vtm DESTINATION bin)
