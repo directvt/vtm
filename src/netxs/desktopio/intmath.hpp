@@ -396,6 +396,11 @@ namespace netxs
                                                   : ((n - d / 2) / d);
     }
     template<class T1, class T2, class T3 = T2, class = std::enable_if_t<std::is_integral_v<T1> && std::is_integral_v<T2> && std::is_integral_v<T3>>>
+    constexpr T3 udivupper(T1 n, T2 d)
+    {
+        return 1 + (n - 1) / d;
+    }
+    template<class T1, class T2, class T3 = T2, class = std::enable_if_t<std::is_integral_v<T1> && std::is_integral_v<T2> && std::is_integral_v<T3>>>
     constexpr T3 divupper(T1 n, T2 d)
     {
         return n > 0 ? 1 + (n - 1) / d
@@ -881,7 +886,7 @@ namespace netxs
         auto&  size() const { return _area.size;     }
         auto&  coor()       { return _area.coor;     }
         auto&  coor() const { return _area.coor;     }
-        auto& operator [] (auto p) { return*(begin() + p.x + p.y * _area.size.x); }
+        auto& operator [] (auto p) { return *(begin() + p.x + p.y * _area.size.x); }
         void size(auto new_size, auto... filler)
         {
             _area.size = new_size;
