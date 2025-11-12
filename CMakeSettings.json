@@ -172,35 +172,6 @@
       "remoteCopyUseCompilerDefaults": true
     },
     {
-      "name": "PROD-Win-ARM32",
-      "generator": "Visual Studio 17 2022 ARM",
-      "configurationType": "Release",
-      "buildRoot": "${workspaceRoot}\\.vs\\build\\${name}",
-      "installRoot": "${workspaceRoot}\\.vs\\build\\install\\${name}",
-      "cmakeCommandArgs": "",
-      "buildCommandArgs": "",
-      "ctestCommandArgs": "",
-      "inheritEnvironments": [ "msvc_arm_x64" ],
-      "variables": [
-        {
-          "name": "CMAKE_CXX_FLAGS_RELEASE",
-          "value": "/DNDEBUG /MT /O2 /Zi /Zc:preprocessor /EHsc /bigobj /utf-8 /W4",
-          "type": "STRING"
-        },
-        {
-          "name": "CMAKE_C_FLAGS_RELEASE",
-          "value": "/DNDEBUG /MT /O2 /Zi /Zc:preprocessor /c",
-          "type": "STRING"
-        },
-        {
-          "name": "CMAKE_MSVC_RUNTIME_LIBRARY",
-          "value": "MultiThreaded",
-          "type": "STRING"
-        }
-      ],
-      "intelliSenseMode": "windows-msvc-arm"
-    },
-    {
       "name": "PROD-Win-ARM64",
       "generator": "Visual Studio 17 2022 ARM64",
       "configurationType": "Release",

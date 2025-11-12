@@ -2560,9 +2560,39 @@ namespace netxs::utf
         }
         return qiew{ utf8.substr(0, crop) };
     }
-    auto& operator << (std::ostream& s, time const& o)
+    template<class Period>
+    constexpr auto&& _suffix()
     {
-        auto [hours, mins, secs, milli, micro] = datetime::breakdown(o);
+             if constexpr (std::is_same_v<Period, std::atto>                   ) return "as";
+        else if constexpr (std::is_same_v<Period, std::femto>                  ) return "fs";
+        else if constexpr (std::is_same_v<Period, std::pico>                   ) return "ps";
+        else if constexpr (std::is_same_v<Period, std::nano>                   ) return "ns";
+        else if constexpr (std::is_same_v<Period, std::micro>                  ) return "us";
+        else if constexpr (std::is_same_v<Period, std::milli>                  ) return "ms";
+        else if constexpr (std::is_same_v<Period, std::centi>                  ) return "cs";
+        else if constexpr (std::is_same_v<Period, std::deci>                   ) return "ds";
+        else if constexpr (std::is_same_v<Period, std::deca>                   ) return "das";
+        else if constexpr (std::is_same_v<Period, std::hecto>                  ) return "hs";
+        else if constexpr (std::is_same_v<Period, std::kilo>                   ) return "ks";
+        else if constexpr (std::is_same_v<Period, std::mega>                   ) return "Ms";
+        else if constexpr (std::is_same_v<Period, std::giga>                   ) return "Gs";
+        else if constexpr (std::is_same_v<Period, std::tera>                   ) return "Ts";
+        else if constexpr (std::is_same_v<Period, std::peta>                   ) return "Ps";
+        else if constexpr (std::is_same_v<Period, std::exa>                    ) return "Es";
+        else if constexpr (std::is_same_v<Period, std::chrono::seconds::period>) return "s";
+        else if constexpr (std::is_same_v<Period, std::chrono::minutes::period>) return "m";
+        else if constexpr (std::is_same_v<Period, std::chrono::hours::period>  ) return "h";
+        else if constexpr (std::is_same_v<Period, std::ratio<86400>>           ) return "d";
+        else return "";
+    }
+    template<class Rep, class Period>
+    auto& operator << (std::ostream& s, std::chrono::duration<Rep, Period> d)
+    {
+        return s << d.count() << _suffix<Period>();
+    }
+    auto& operator << (std::ostream& s, time t)
+    {
+        auto [hours, mins, secs, milli, micro] = datetime::breakdown(t);
         return s << utf::adjust(std::to_string(hours), 2, '0', true) << ':'
                  << utf::adjust(std::to_string(mins ), 2, '0', true) << ':'
                  << utf::adjust(std::to_string(secs ), 2, '0', true) << '.'
