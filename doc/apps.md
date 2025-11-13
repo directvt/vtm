@@ -97,28 +97,29 @@ printf " Hello Test\r\e[44;31m\0\0\0\0\0\0\0\e[m\n"
 The built-in terminal is capable of executing Lua scripts received via APC (Application Program Command) vt-sequences. The format of the vt-sequence is as follows:
 
 ```
-ESC _ <script body> ESC \
+ESC _ lua: <script body> ESC \
 ```
 or
 ```
-ESC _ <script body> BEL
+ESC _ lua: <script body> BEL
 ```
-where: 
-- `ESC_` is the APC vt-sequence prefix.
-- `<script body>` - Lua script sent for execution.
-- `ESC\` or `BEL` - APC vt-sequence terminator.
+where:
+- `ESC_`: APC vt-sequence prefix.
+- `lua:`: case-insensitive APC payload marker.
+- `<script body>`: Lua script body.
+- `ESC\` or `BEL`: APC vt-sequence terminator.
 
 Usage examples:
 - `bash`:
   ```
   # Print the current scrollback buffer limits
-  printf "\e_local n,m,q=vtm.terminal.ScrollbackSize(); vtm.terminal.PrintLn('size=', n, ' growstep=', m, ' maxsize=', q)\e\\"
+  printf "\e_lua: local n,m,q=vtm.terminal.ScrollbackSize(); vtm.terminal.PrintLn('size=', n, ' growstep=', m, ' maxsize=', q)\e\\"
 
   # Set the scrollback buffer limit to 10K lines
-  printf "\e_vtm.terminal.ScrollbackSize(10000)\a"
+  printf "\e_lua: vtm.terminal.ScrollbackSize(10000)\a"
 
   # Maximize the terminal window
-  printf "\e_vtm.applet.Maximize()\e\\"
+  printf "\e_lua: vtm.applet.Maximize()\e\\"
   ```
 
 A complete list of available script functions can be found in [settings.md](settings.md#event-sources).
@@ -127,9 +128,9 @@ Note: The terminal parser may incorrectly detect the boundaries of a control seq
 
 Example in bash:
 ```bash
-printf "\e_vtm.terminal.PrintLn('\\e[44mHello!\\e[m')\a"
-printf "\e_vtm.terminal.PrintLn('\\\u{1b}[44mHello!\\\u{1b}[m')\a"
-printf "\e_vtm.terminal.PrintLn('\\x1b[44mHello!\\x1b[m')\a"
+printf "\e_lua: vtm.terminal.PrintLn('\\e[44mHello!\\e[m')\a"
+printf "\e_lua: vtm.terminal.PrintLn('\\\u{1b}[44mHello!\\\u{1b}[m')\a"
+printf "\e_lua: vtm.terminal.PrintLn('\\x1b[44mHello!\\x1b[m')\a"
 ```
 
 ### Special keyboard mode for terminal window to transfer all keyboard input to the terminal as is
@@ -138,17 +139,19 @@ The special (visible in the UI as Exclusive) terminal window mode allows all key
 
 ### Private control sequences
 
-Name         | Sequence                           | Description
--------------|------------------------------------|------------
-`CCC_SBS`    | `ESC [ 24 :` n `:` m `:` q `p`     | Set scrollback buffer parameters:<br>`n` Initial buffer size<br>`m` Grow step<br>`q` Grow limit
-`CCC_SGR`    | `ESC [ 28 :` m `p`                 | Set terminal background SGR attribute:<br>`m` SGR attribute (attribute m may include subarguments separated by colons), 0 — reset all attributes, _default is 0_
-`CCC_SEL`    | `ESC [ 29 :` n `p`                 | Set text selection mode:<br>`n = 0` Selection is off<br>`n = 1` Select and copy as plaintext (default)<br>`n = 2` Select and copy as ANSI/VT text<br>`n = 3` Select and copy as RTF-document<br>`n = 4` Select and copy as HTML-code<br>`n = 5` Select and copy as protected plaintext (suppressed preview, [details](https://learn.microsoft.com/en-us/windows/win32/dataxchg/clipboard-formats#cloud-clipboard-and-clipboard-history-formats))
-`CCC_PAD`    | `ESC [ 30 :` n `p`                 | Set scrollback buffer left and right side padding:<br>`n` Width in cells, _max = 255, default is 0_
-`CCC_RST`    | `ESC [ 1 p`                        | Reset all parameters to default
-`CCC_TBS`    | `ESC [ 5 :` n `p`                  | Set tab length in cells:<br>`n` Length in cells, _max = 256, default is 8_
-`CCC_JET`    | `ESC [ 11 :` n `p`                 | Set text alignment, _default is Left_:<br>`n = 0`<br>`n = 1` Left<br>`n = 2` Right<br>`n = 3` Center
-`CCC_WRP`    | `ESC [ 12 :` n `p`                 | Set text autowrap mode, _default is On_:<br>`n = 0`<br>`n = 1` On<br>`n = 2` Off (_enables horizontal scrolling_)
-`CCC_RTL`    | `ESC [ 13 :` n `p`                 | Set text right-to-left mode, _default is Off_:<br>`n = 0`<br>`n = 1` On<br>`n = 2` Off
+Note: Since `CSI p` sequences are used by other terminals, all private vt-sequences must be replaced with alternative ones using Lua scripting via APC.
+
+APC sequence                                                   | Deprecated sequence                | Description
+---------------------------------------------------------------|------------------------------------|------------
+`ESC _ lua: vtm.terminal.ScrollbackSize(` n `,` m `,` q `) ST` | `ESC [ 24 :` n `:` m `:` q `p`     | Set scrollback buffer parameters:<br>`n` Initial buffer size<br>`m` Grow step<br>`q` Grow limit
+`ESC _ lua: vtm.terminal.Print('\x1b[#{\x1b[0;` m `m'); vtm.terminal.SetBackground(); vtm.terminal.Print('\x1b[#}') ST` | `ESC [ 28 :` m `p` | Set terminal background SGR attribute:<br>`m` SGR attribute (attribute m may include subarguments separated by colons), 0 — reset all attributes, _default is 0_
+`ESC _ lua: vtm.terminal.ClipboardFormat(` n `) ST`            | `ESC [ 29 :` n `p`                 | Set text selection mode:<br>`n = 0` Selection is off<br>`n = 1` Select and copy as plaintext (default)<br>`n = 2` Select and copy as ANSI/VT text<br>`n = 3` Select and copy as RTF-document<br>`n = 4` Select and copy as HTML-code<br>`n = 5` Select and copy as protected plaintext (suppressed preview, [details](https://learn.microsoft.com/en-us/windows/win32/dataxchg/clipboard-formats#cloud-clipboard-and-clipboard-history-formats))
+`ESC _ lua: vtm.terminal.ScrollbackPadding(` n `) ST`          | `ESC [ 30 :` n `p`                 | Set scrollback buffer left and right side padding:<br>`n` Width in cells, _max = 255, default is 0_
+`ESC _ lua: vtm.terminal.ResetAttributes() ST`                 | `ESC [ 1 p`                        | Reset all parameters to default
+`ESC _ lua: vtm.terminal.TabLength(` n `) ST`                  | `ESC [ 5 :` n `p`                  | Set tab length in cells:<br>`n` Length in cells, _max = 256, default is 8_
+`ESC _ lua: vtm.terminal.LineAlignMode(` n `) ST`              | `ESC [ 11 :` n `p`                 | Set text alignment, _default is Left_:<br>`n = 0`<br>`n = 1` Left<br>`n = 2` Right<br>`n = 3` Center
+`ESC _ lua: vtm.terminal.LineWrapMode(` 0 or 1 `) ST`          | `ESC [ 12 :` n `p`                 | Set text autowrap mode, _default is On_:<br>`n = 0`<br>`n = 1` On<br>`n = 2` Off (_enables horizontal scrolling_)
+`ESC _ lua: vtm.terminal.RightToLeft(` 0 or 1 `) ST`           | `ESC [ 13 :` n `p`                 | Set text right-to-left mode, _default is Off_:<br>`n = 0`<br>`n = 1` On<br>`n = 2` Off
 
 Note: It is possible to combine multiple command into a single sequence using a semicolon. For example, the following sequence disables line wrapping, enables text selection, and sets background to blue: `\e[12:2;29:1;28:44p` or `\e[12:2;29:1;28:48:2:0:0:255p`.
 

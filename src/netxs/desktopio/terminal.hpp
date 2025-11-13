@@ -126,6 +126,11 @@ namespace netxs::ui
             X(ForwardKeys          ) /* */ \
             X(ClearScrollback      ) /* */ \
             X(ScrollbackSize       ) /* */ \
+            X(SetBackground        ) /* */ \
+            X(ResetAttributes      ) /* */ \
+            X(ScrollbackPadding    ) /* */ \
+            X(TabLength            ) /* */ \
+            X(RightToLeft          ) /* */ \
             X(EventReporting       ) /* */ \
             X(Restart              ) /* */ \
             X(Quit                 ) /* */ \
@@ -1724,10 +1729,19 @@ namespace netxs::ui
                     }
                 }
                 q = { head, tail };
-                if (script_body)
+                if (script_body.size() > ansi::apc_prefix_lua.size())
                 {
-                    auto& luafx = owner.bell::indexer.luafx;
-                    luafx.run_script(owner, script_body);
+                    auto payload_marker = text{ script_body.substr(0, ansi::apc_prefix_lua.size()) };
+                    if (utf::to_lower(payload_marker) == ansi::apc_prefix_lua)
+                    {
+                        script_body.remove_prefix(ansi::apc_prefix_lua.size());
+                        auto& luafx = owner.bell::indexer.luafx;
+                        luafx.run_script(owner, script_body);
+                    }
+                    else
+                    {
+                        log("%%Unsupported APC payload: %payload%. Please use the '%lua%' prefix for the payload.", prompt::term, ansi::hi(utf::debase437(script_body)), ansi::apc_prefix_lua);
+                    }
                 }
             }
             void msg(si32 cmd, qiew& q)
@@ -8749,6 +8763,65 @@ namespace netxs::ui
                                                             normal.resize_history(ring_size, grow_step, grow_mxsz);
                                                             luafx.set_return();
                                                         }
+                                                    }},
+                { methods::SetBackground,           [&]
+                                                    {
+                                                        target->flush();
+                                                        auto brush = target->brush;
+                                                        set_color(brush.txt('\0'));
+                                                        luafx.set_return();
+                                                    }},
+                { methods::ScrollbackPadding,       [&]
+                                                    {
+                                                        target->flush();
+                                                        auto args_count = luafx.args_count();
+                                                        if (!args_count)
+                                                        {
+                                                            luafx.set_return(target->getpad());
+                                                        }
+                                                        else
+                                                        {
+                                                            auto padding = luafx.get_args_or(1, 0);
+                                                            target->setpad(padding);
+                                                            luafx.set_return();
+                                                        }
+                                                    }},
+                { methods::TabLength,               [&]
+                                                    {
+                                                        target->flush();
+                                                        auto args_count = luafx.args_count();
+                                                        if (!args_count)
+                                                        {
+                                                            luafx.set_return(defcfg.def_tablen);
+                                                        }
+                                                        else
+                                                        {
+                                                            auto tablen = std::clamp(luafx.get_args_or(1, 8), 1, 256);
+                                                            defcfg.def_tablen = tablen;
+                                                            luafx.set_return();
+                                                        }
+                                                    }},
+                { methods::RightToLeft,             [&]
+                                                    {
+                                                        target->flush();
+                                                        auto args_count = luafx.args_count();
+                                                        if (!args_count)
+                                                        {
+                                                            luafx.set_return(!!target->brush.rtl());
+                                                        }
+                                                        else
+                                                        {
+                                                            auto rtl = luafx.get_args_or(1, faux);
+                                                            target->style.rtl(rtl ? rtol::rtl : rtol::ltr);
+                                                            target->brush.rtl(rtl);
+                                                            luafx.set_return();
+                                                        }
+                                                    }},
+                { methods::ResetAttributes,         [&]
+                                                    {
+                                                        target->flush();
+                                                        setdef();
+                                                        luafx.set_return();
                                                     }},
                 { methods::EventReporting,          [&]
                                                     {

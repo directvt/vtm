@@ -42,15 +42,15 @@ The following APC sequences set/reset/request event tracking for the specified e
 
 - Set:
   ```
-  ESC _ vtm.terminal.EventReporting("Source0", ..., "SourceN") ESC \
+  ESC _ lua: vtm.terminal.EventReporting("Source0", ..., "SourceN") ESC \
   ```
 - Reset (the event tracking is deactivated if an empty string is specified.):
   ```
-  ESC _ vtm.terminal.EventReporting("") ESC \
+  ESC _ lua: vtm.terminal.EventReporting("") ESC \
   ```
 - Get a list of active sources:
   ```
-  ESC _ src_list=vtm.terminal.EventReporting() ESC \
+  ESC _ lua: src_list=vtm.terminal.EventReporting() ESC \
   ```
 
 Sources      | Events to track
