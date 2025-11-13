@@ -8798,6 +8798,7 @@ namespace netxs::ui
                                                         {
                                                             auto tablen = std::clamp(luafx.get_args_or(1, 8), 1, 256);
                                                             defcfg.def_tablen = tablen;
+                                                            target->rtb();
                                                             luafx.set_return();
                                                         }
                                                     }},
@@ -8811,7 +8812,7 @@ namespace netxs::ui
                                                         }
                                                         else
                                                         {
-                                                            auto rtl = luafx.get_args_or(1, faux);
+                                                            auto rtl = luafx.get_args_or(1, 0);
                                                             target->style.rtl(rtl ? rtol::rtl : rtol::ltr);
                                                             target->brush.rtl(rtl);
                                                             luafx.set_return();

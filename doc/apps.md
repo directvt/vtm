@@ -149,11 +149,9 @@ APC sequence                                                   | Deprecated sequ
 `ESC _ lua: vtm.terminal.ScrollbackPadding(` n `) ST`          | `ESC [ 30 :` n `p`                 | Set scrollback buffer left and right side padding:<br>`n` Width in cells, _max = 255, default is 0_
 `ESC _ lua: vtm.terminal.ResetAttributes() ST`                 | `ESC [ 1 p`                        | Reset all parameters to default
 `ESC _ lua: vtm.terminal.TabLength(` n `) ST`                  | `ESC [ 5 :` n `p`                  | Set tab length in cells:<br>`n` Length in cells, _max = 256, default is 8_
-`ESC _ lua: vtm.terminal.LineAlignMode(` n `) ST`              | `ESC [ 11 :` n `p`                 | Set text alignment, _default is Left_:<br>`n = 0`<br>`n = 1` Left<br>`n = 2` Right<br>`n = 3` Center
-`ESC _ lua: vtm.terminal.LineWrapMode(` 0 or 1 `) ST`          | `ESC [ 12 :` n `p`                 | Set text autowrap mode, _default is On_:<br>`n = 0`<br>`n = 1` On<br>`n = 2` Off (_enables horizontal scrolling_)
-`ESC _ lua: vtm.terminal.RightToLeft(` 0 or 1 `) ST`           | `ESC [ 13 :` n `p`                 | Set text right-to-left mode, _default is Off_:<br>`n = 0`<br>`n = 1` On<br>`n = 2` Off
-
-Note: It is possible to combine multiple command into a single sequence using a semicolon. For example, the following sequence disables line wrapping, enables text selection, and sets background to blue: `\e[12:2;29:1;28:44p` or `\e[12:2;29:1;28:48:2:0:0:255p`.
+`ESC _ lua: vtm.terminal.LineAlignMode(` n - 1 `) ST`          | `ESC [ 11 :` n `p`                 | Set text alignment, _default is Left_:<br>`n = 0`<br>`n = 1` Left<br>`n = 2` Right<br>`n = 3` Center
+`ESC _ lua: vtm.terminal.LineWrapMode(` 0(off) or 1(on) `) ST` | `ESC [ 12 :` n `p`                 | Set text autowrap mode, _default is On_:<br>`n = 0`<br>`n = 1` On<br>`n = 2` Off (_enables horizontal scrolling_)
+`ESC _ lua: vtm.terminal.RightToLeft(` 0(off) or 1(on) `) ST`  | `ESC [ 13 :` n `p`                 | Set text right-to-left mode, _default is Off_:<br>`n = 0`<br>`n = 1` On<br>`n = 2` Off
 
 ### UI Shadows as SGR attribute
 

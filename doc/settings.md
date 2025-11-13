@@ -673,8 +673,8 @@ Standard object names
 |                 |                          | `vtm.terminal.ScrollbackPadding(int n)`            | Set scrollback buffer left and right side padding to `n` cells from 0 to 255.
 |                 |                          | `vtm.terminal.TabLength() -> int n`                | Get tab length in cells.
 |                 |                          | `vtm.terminal.TabLength(int n)`                    | Set tab length to `n` cells from 1 to 256. Default is 8.
-|                 |                          | `vtm.terminal.RightToLeft() -> bool m`             | Get text right-to-left mode.
-|                 |                          | `vtm.terminal.RightToLeft(bool m)`                 | Set text right-to-left mode.
+|                 |                          | `vtm.terminal.RightToLeft() -> int m`              | Get text right-to-left mode.
+|                 |                          | `vtm.terminal.RightToLeft(int m)`                  | Set text right-to-left mode.
 |                 |                          | `vtm.terminal.ResetAttributes()`                   | Reset scrollback buffer attributes (SGR attributes, line wrapping, scrollback buffer padding, line alignment, cursor form, selection copy format).
 |                 |                          | `vtm.terminal.EventReporting(string args, ...)`    | Enable event reporting for the specified sources:<br>`"keyboard"` Keyboard events<br>`"mouse"` Mouse events<br>`"focus"` Focus events<br>`"format"` Line format events<br>`"clipoard"` Clipboard events<br>`"window"` Window size and selection events<br>`"system"` System signals<br>`""` Switch event reporting off
 |                 |                          | `vtm.terminal.EventReporting()`                    | Get a list of active event sources.
