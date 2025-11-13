@@ -3,6 +3,11 @@
 
 #pragma once
 
+#include <ft2build.h>
+#include FT_FREETYPE_H
+
+#include <hb.hh>
+
 #if defined(_WIN32)
 
     #undef GetGlyphIndices
@@ -512,8 +517,8 @@ namespace netxs::gui
                         mask.area = {{ r.left, r.top }, { r.right - r.left, r.bottom - r.top }};
                         if (mask.area.size)
                         {
-                            mask.bits.resize(mask.area.size.x * mask.area.size.y);
-                            rasterizer->CreateAlphaTexture(DWRITE_TEXTURE_ALIASED_1x1, &r, mask.bits.data(), (ui32)mask.bits.size());
+                            mask.bits.resize(netxs::udivupper(mask.area.size.x * mask.area.size.y, sizeof(ui32)));
+                            rasterizer->CreateAlphaTexture(DWRITE_TEXTURE_ALIASED_1x1, &r, (byte*)mask.bits.data(), (ui32)mask.bits.size() * sizeof(ui32));
                         }
                     }
                 }
@@ -908,7 +913,7 @@ namespace netxs::gui
     struct glyph
     {
         using irgb = netxs::irgb<fp32>;
-        using vect = std::pmr::vector<byte>;
+        using vect = std::pmr::vector<ui32>; // Use ui32 for 4-byte alignment (aarch requirement).
         struct sprite
         {
             static constexpr auto undef = 0;
@@ -925,7 +930,7 @@ namespace netxs::gui
             template<class Elem>
             auto raster()
             {
-                return netxs::raster{ std::span{ (Elem*)bits.data(), bits.size() / sizeof(Elem) }, area };
+                return netxs::raster{ std::span{ (Elem*)bits.data(), bits.size() * sizeof(ui32) / sizeof(Elem) }, area };
             }
         };
         struct color_layer
@@ -983,7 +988,7 @@ namespace netxs::gui
                 auto& s = cgi_shadow.emplace_back(buffer_pool);
                 s.area = block;
                 s.type = sprite::alpha;
-                s.bits.resize(s.area.length());
+                s.bits.resize(netxs::udivupper(s.area.length(), sizeof(ui32)));
                 auto raster = s.raster<byte>();
                 auto matrix = i;
                 // Left verticals.
@@ -1146,7 +1151,7 @@ namespace netxs::gui
             auto& m = cgi_glyphs.emplace_back(buffer_pool);
             m.area = {{ 0, block.coor.y }, { width, height }};
             m.type = sprite::alpha;
-            m.bits.resize(m.area.length());
+            m.bits.resize(netxs::udivupper(m.area.length(), sizeof(ui32)));
             auto raster = m.raster<byte>();
             while (block.coor.x < width)
             {
@@ -1302,11 +1307,11 @@ namespace netxs::gui
                 glyph_mask.area = {};
                 for (auto& m : glyf_masks) glyph_mask.area |= m.area;
                 auto l = glyph_mask.area.size.x * glyph_mask.area.size.y;
-                glyph_mask.bits.resize(l * sizeof(irgb));
-                auto raster = glyph_mask.raster<irgb>();
+                glyph_mask.bits.resize(l * sizeof(irgb) / sizeof(ui32));
+                auto raster = glyph_mask.template raster<irgb>(); //todo Apple clang requires template.
                 for (auto& m : glyf_masks)
                 {
-                    auto alpha_mask = netxs::raster{ m.bits, m.area };
+                    auto alpha_mask = netxs::raster{ std::span{ (byte*)m.bits.data(), (size_t)m.area.length() }, m.area };
                     if (m.fill.a != 0.f) // Predefined sRGB color.
                     {
                         netxs::onbody(raster, alpha_mask, [fill = m.fill](irgb& dst, byte& alpha)
@@ -1342,14 +1347,14 @@ namespace netxs::gui
             if (glyph_mask.area && flipandrotate)
             {
                 //todo optimize
-                static auto buffer = std::vector<byte>{};
+                static auto buffer = std::vector<ui32>{}; // Use ui32 for 4-byte alignment (aarch requirement).
                 static constexpr auto l0 = std::to_array({ 1, -1, -1,  1, -1, 1,  1, -1 });
                 static constexpr auto l1 = std::to_array({ 1,  1, -1, -1,  1, 1, -1, -1 });
                 buffer.assign(glyph_mask.bits.begin(), glyph_mask.bits.end());
                 auto xform = [&](auto elem)
                 {
                     using type = decltype(elem);
-                    auto count = buffer.size() / sizeof(type);
+                    auto count = (size_t)glyph_mask.area.length();
                     auto src = netxs::raster{ std::span{ (type*)buffer.data(), count }, glyph_mask.area };
                     auto mx = glyph_mask.area.size.x;
                     if (swapxy)
@@ -1437,7 +1442,7 @@ namespace netxs::gui
                         dst = f_dst.blend_nonpma(f_fgc, src).linear2sRGB();
                     }
                 };
-                auto raster = netxs::raster{ glyph_mask.bits, box };
+                auto raster = netxs::raster{ std::span{ (byte*)glyph_mask.bits.data(), (size_t)glyph_mask.area.length() }, box };
                 netxs::onclip(canvas, raster, fx);
             }
         }
@@ -2073,14 +2078,14 @@ namespace netxs::gui
         layer header; // winbase: Layer for Header.
         layer footer; // winbase: Layer for Footer.
         layer tooltip_layer; // winbase: Layer for Tooltip.
-        std::array<std::reference_wrapper<layer>, 5> layers =
-        {
+        std::array<std::reference_wrapper<layer>, 5> layers = // gcc requires double braces on x32 platforms.
+        {{
             master,
             blinky,
             footer,
             header,
             tooltip_layer,
-        };
+        }};
         fonts fcache; // winbase: Font cache.
         glyph gcache; // winbase: Glyph cache.
         blink blinks; // winbase: Blinking layer state.
@@ -3109,7 +3114,7 @@ namespace netxs::gui
                 {
                     fake_ctrl = faux;
                 }
-                if (keybd_test_toggled(vkey::numlock )) state |= input::hids::NumLock, cs |= input::key::NumLockMode;
+                if (keybd_test_toggled(vkey::numlock )) { state |= input::hids::NumLock; cs |= input::key::NumLockMode; }
                 if (keybd_test_toggled(vkey::capslock)) state |= input::hids::CapsLock;
                 if (keybd_test_toggled(vkey::scrllock)) state |= input::hids::ScrlLock;
                 if (keybd_test_pressed(vkey::lcontrol) && !fake_ctrl) state |= input::hids::LCtrl;

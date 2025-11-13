@@ -22,7 +22,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v2025.11.07";
+    static const auto version = "v2025.11.13";
     static const auto repository = "https://github.com/directvt/vtm";
     static const auto usr_config = "~/.config/vtm/settings.xml"s;
     static const auto sys_config = "/etc/vtm/settings.xml"s;
@@ -641,7 +641,7 @@ namespace netxs::app::shared
             return creator;
         }
     }
-    auto builder(text app_typename)
+    static auto builder(text app_typename)
     {
         auto& map = creator();
         auto it = map.find(app_typename);
@@ -667,11 +667,11 @@ namespace netxs::app::shared
     }
     namespace load
     {
-        auto log_load(view src_path)
+        static auto log_load(view src_path)
         {
             log("%%Loading settings from %path%...", prompt::apps, src_path);
         }
-        auto load_from_file(xml::document& config_inst, qiew file_path)
+        static auto load_from_file(xml::document& config_inst, qiew file_path)
         {
             auto [config_path, config_path_str] = os::path::expand(file_path);
             if (!config_path.empty())
@@ -697,7 +697,7 @@ namespace netxs::app::shared
             }
             return faux;
         }
-        auto attach_file_list(txts& file_list, xml::document& src_cfg)
+        static auto attach_file_list(txts& file_list, xml::document& src_cfg)
         {
             auto file_ptr_list = src_cfg.take_ptr_list<true>("/include");
             if (file_ptr_list.size())
@@ -718,7 +718,7 @@ namespace netxs::app::shared
                 }
             }
         }
-        auto overlay_config(xml::document& def_cfg, xml::document& src_cfg)
+        static auto overlay_config(xml::document& def_cfg, xml::document& src_cfg)
         {
             if (src_cfg)
             {
@@ -726,7 +726,7 @@ namespace netxs::app::shared
                 def_cfg.combine_item(src_cfg.root_ptr);
             }
         }
-        void settings(xml::settings& resultant, qiew cliopt, bool print = faux)
+        static void settings(xml::settings& resultant, qiew cliopt, bool print = faux)
         {
             static auto defaults = utf::replace_all(
                 #include "../../vtm.xml"
@@ -818,7 +818,7 @@ namespace netxs::app::shared
         std::list<text> fontlist;
     };
 
-    auto get_gui_config(settings& config)
+    static auto get_gui_config(settings& config)
     {
         os::dtvt::wheelrate = config.settings::take("/config/timings/wheelrate", 3);
         auto gui_config = gui_config_t{ .winstate = config.settings::take("/config/gui/winstate", winstate::normal, app::shared::win::options),
@@ -838,7 +838,7 @@ namespace netxs::app::shared
         }
         return gui_config;
     }
-    auto get_tui_config(settings& config, ui::skin& g)
+    static auto get_tui_config(settings& config, ui::skin& g)
     {
         using namespace std::chrono;
         os::dtvt::wheelrate = config.settings::take("/config/timings/wheelrate", 3);
@@ -960,7 +960,7 @@ namespace netxs::app::shared
         g.NsMaximizeWindow_tooltip        = config.settings::take("/Ns/MaximizeWindow/tooltip"         , ""s);
         g.NsCloseWindow_tooltip           = config.settings::take("/Ns/CloseWindow/tooltip"            , ""s);
     }
-    void splice(xipc client, gui_config_t& gc)
+    static void splice(xipc client, gui_config_t& gc)
     {
         if (os::dtvt::active || !(os::dtvt::vtmode & ui::console::gui))
         {
@@ -991,7 +991,7 @@ namespace netxs::app::shared
             }
         }
     }
-    void start(text cmd, text aclass)
+    static void start(text cmd, text aclass)
     {
         //todo revise
         auto [client, server] = os::ipc::xlink();

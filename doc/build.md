@@ -2,7 +2,10 @@
 
 ## Building from source
 
-Note: As part of the build process, cmake downloads and compiles the Lua source code from https://www.lua.org.
+Note: As part of the build process, cmake downloads and compiles:
+  - The FreeType source code from https://github.com/freetype/freetype.
+  - The HarfBuzz source code from https://github.com/harfbuzz/harfbuzz.
+  - The Lua source code from https://www.lua.org.
 
 ### Unix
 

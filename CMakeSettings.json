@@ -18,7 +18,7 @@
         },
         {
           "name": "CMAKE_C_FLAGS_DEBUG",
-          "value": "/DDEBUG /MTd /c",
+          "value": "/DDEBUG /MTd /Zi /c",
           "type": "STRING"
         },
         {
@@ -45,12 +45,12 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_DEBUG",
-          "value": "-O0 -DDEBUG -static -pthread -g -Wall -Wextra -Wno-missing-field-initializers",
+          "value": "-O0 -DDEBUG -static -g -pthread -Wall -Wno-unknown-pragmas -Wextra -Wno-missing-field-initializers",
           "type": "STRING"
         },
         {
           "name": "CMAKE_C_FLAGS_DEBUG",
-          "value": "-O0 -DDEBUG -static",
+          "value": "-O0 -DDEBUG -static -g",
           "type": "STRING"
         },
         {
@@ -86,7 +86,7 @@
         },
         {
           "name": "CMAKE_C_FLAGS_DEBUG",
-          "value": "/DDEBUG /MTd /c",
+          "value": "/DDEBUG /MTd /Zi /c",
           "type": "STRING"
         },
         {
@@ -110,12 +110,12 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_DEBUG",
-          "value": "-O0 -static -DDEBUG -pthread  -Wall -Wextra -Wno-missing-field-initializers",
+          "value": "-O0 -static -DDEBUG -g -pthread -Wall -Wno-unknown-pragmas -Wextra -Wno-missing-field-initializers",
           "type": "STRING"
         },
         {
           "name": "CMAKE_C_FLAGS_DEBUG",
-          "value": "-O0 -static -DDEBUG",
+          "value": "-O0 -static -DDEBUG -g",
           "type": "STRING"
         },
         {
@@ -147,12 +147,12 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_DEBUG",
-          "value": "-O0 -DDEBUG -static -pthread -g -Wno-missing-field-initializers",
+          "value": "-O0 -DDEBUG -static -g -pthread -Wno-missing-field-initializers",
           "type": "STRING"
         },
         {
           "name": "CMAKE_C_FLAGS_DEBUG",
-          "value": "-O0 -DDEBUG -static",
+          "value": "-O0 -DDEBUG -static -g",
           "type": "STRING"
         },
         {
@@ -172,35 +172,6 @@
       "remoteCopyUseCompilerDefaults": true
     },
     {
-      "name": "PROD-Win-ARM32",
-      "generator": "Visual Studio 17 2022 ARM",
-      "configurationType": "Release",
-      "buildRoot": "${workspaceRoot}\\.vs\\build\\${name}",
-      "installRoot": "${workspaceRoot}\\.vs\\build\\install\\${name}",
-      "cmakeCommandArgs": "",
-      "buildCommandArgs": "",
-      "ctestCommandArgs": "",
-      "inheritEnvironments": [ "msvc_arm_x64" ],
-      "variables": [
-        {
-          "name": "CMAKE_CXX_FLAGS_RELEASE",
-          "value": "/DNDEBUG /MT /O2 /EHsc /bigobj /utf-8 /Zc:preprocessor /W4",
-          "type": "STRING"
-        },
-        {
-          "name": "CMAKE_C_FLAGS_RELEASE",
-          "value": "/DNDEBUG /MT /O2 /c",
-          "type": "STRING"
-        },
-        {
-          "name": "CMAKE_MSVC_RUNTIME_LIBRARY",
-          "value": "MultiThreaded",
-          "type": "STRING"
-        }
-      ],
-      "intelliSenseMode": "windows-msvc-arm"
-    },
-    {
       "name": "PROD-Win-ARM64",
       "generator": "Visual Studio 17 2022 ARM64",
       "configurationType": "Release",
@@ -213,12 +184,12 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_RELEASE",
-          "value": "/DNDEBUG /MT /O2 /EHsc /bigobj /utf-8 /Zc:preprocessor /W4",
+          "value": "/DNDEBUG /MT /O2 /Zi /Zc:preprocessor /EHsc /bigobj /utf-8 /W4",
           "type": "STRING"
         },
         {
           "name": "CMAKE_C_FLAGS_RELEASE",
-          "value": "/DNDEBUG /MT /O2 /c",
+          "value": "/DNDEBUG /MT /O2 /Zi /Zc:preprocessor /c",
           "type": "STRING"
         },
         {
@@ -242,12 +213,12 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_RELEASE",
-          "value": "/DNDEBUG /MT /O2 /EHsc /bigobj /utf-8 /Zi /Zc:preprocessor /W4",
+          "value": "/DNDEBUG /MT /O2 /Zi /Zc:preprocessor /EHsc /bigobj /utf-8 /Zi /Zc:preprocessor /W4",
           "type": "STRING"
         },
         {
           "name": "CMAKE_C_FLAGS_RELEASE",
-          "value": "/DNDEBUG /MT /O2 /c",
+          "value": "/DNDEBUG /MT /O2 /Zi /Zc:preprocessor /c",
           "type": "STRING"
         },
         {
@@ -275,12 +246,12 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_RELEASE",
-          "value": "/DNDEBUG /MT /O2 /EHsc /bigobj /utf-8 /Zi /Zc:preprocessor /W4",
+          "value": "/DNDEBUG /MT /O2 /Zi /Zc:preprocessor /EHsc /bigobj /utf-8 /W4",
           "type": "STRING"
         },
         {
           "name": "CMAKE_C_FLAGS_RELEASE",
-          "value": "/DNDEBUG /MT /O2 /c",
+          "value": "/DNDEBUG /MT /O2 /Zi /Zc:preprocessor /c",
           "type": "STRING"
         },
         {
@@ -309,7 +280,8 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_RELEASE",
-          "value": "-O2 -DNDEBUG -pthread -static-libstdc++ -s -Wno-psabi -Wall -Wextra -Wno-missing-field-initializers",
+          "comment": "# -Wno-array-bounds: harfbuzz on 32-bit platforms warning: offset '12' outside bounds of constant string [-Warray-bounds=].",
+          "value": "-O2 -DNDEBUG -pthread -static-libstdc++ -s -Wno-psabi -Wall -Wno-array-bounds -Wno-unknown-pragmas -Wextra -Wno-missing-field-initializers",
           "type": "STRING"
         },
         {
@@ -347,7 +319,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_RELEASE",
-          "value": "-O2 -DNDEBUG -pthread -static-libstdc++ -s -Wall -Wextra -Wno-missing-field-initializers",
+          "value": "-O2 -DNDEBUG -pthread -static-libstdc++ -s -Wall -Wno-unknown-pragmas -Wextra -Wno-missing-field-initializers",
           "type": "STRING"
         },
         {
@@ -385,7 +357,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_RELEASE",
-          "value": "-O2 -DNDEBUG -pthread -static-libstdc++ -s -Wall -Wextra -Wno-missing-field-initializers",
+          "value": "-O2 -DNDEBUG -pthread -static-libstdc++ -s -Wall -Wno-array-bounds -Wno-unknown-pragmas -Wextra -Wno-missing-field-initializers",
           "type": "STRING"
         },
         {
@@ -422,7 +394,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_RELEASE",
-          "value": "-O2 -DNDEBUG -pthread -static-libstdc++ -s -Wall -Wextra -Wno-missing-field-initializers",
+          "value": "-O2 -DNDEBUG -pthread -static-libstdc++ -s -Wall -Wno-unknown-pragmas -Wextra -Wno-missing-field-initializers",
           "type": "STRING"
         },
         {

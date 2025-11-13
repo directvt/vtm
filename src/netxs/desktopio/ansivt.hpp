@@ -14,7 +14,7 @@ namespace netxs::ansi
     static const auto esc_dcs     = 'P'; // ESC P ... BEL/ST
     static const auto esc_sos     = 'X'; // ESC X ... BEL/ST
     static const auto esc_pm      = '^'; // ESC ^ ... BEL/ST
-    static const auto esc_apc     = '_'; // ESC _ ... BEL/ST  The command string may consist of bit combinations in the ASCII ranges from 8 to 13 and from 32 to 126.
+    static const auto esc_apc     = '_'; // ESC _ ... BEL/ST
     static const auto esc_g0set   = '('; // ESC ( c
     static const auto esc_g1set   = ')'; // ESC ) c
     static const auto esc_g2set   = '*'; // ESC * c
@@ -260,6 +260,7 @@ namespace netxs::ansi
     static const auto paste_begin = "\033[200~"sv; // Bracketed paste begin.
     static const auto paste_end   = "\033[201~"sv; // Bracketed paste end.
 
+    static constexpr auto apc_prefix_lua           = "lua:"sv;
     static constexpr auto apc_prefix_mouse         = "event=mouse;"sv;
     static constexpr auto apc_prefix_mouse_id      = "id="sv;      // ui32
     static constexpr auto apc_prefix_mouse_kbmods  = "kbmods="sv;  // ui32

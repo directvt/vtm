@@ -668,6 +668,14 @@ Standard object names
 |                 |                          | `vtm.terminal.ClearScrollback()`                   | Clear the terminal scrollback buffer.
 |                 |                          | `vtm.terminal.ScrollbackSize() -> int n, m, q`     | Get the current scrollback buffer parameters (three integer values):<br>`n` Initial buffer size<br>`m` Grow step<br>`q` Grow limit
 |                 |                          | `vtm.terminal.ScrollbackSize(int n, int m, int q)` | Set scrollback buffer parameters:<br>`n` Initial buffer size<br>`m` Grow step<br>`q` Grow limit
+|                 |                          | `vtm.terminal.SetBackground()`                     | Set the default SGR attributes for the scrollback buffer using the current state of the SGR attributes.
+|                 |                          | `vtm.terminal.ScrollbackPadding() -> int n`        | Get scrollback buffer left and right side padding.
+|                 |                          | `vtm.terminal.ScrollbackPadding(int n)`            | Set scrollback buffer left and right side padding to `n` cells from 0 to 255.
+|                 |                          | `vtm.terminal.TabLength() -> int n`                | Get tab length in cells.
+|                 |                          | `vtm.terminal.TabLength(int n)`                    | Set tab length to `n` cells from 1 to 256. Default is 8.
+|                 |                          | `vtm.terminal.RightToLeft() -> int m`              | Get text right-to-left mode.
+|                 |                          | `vtm.terminal.RightToLeft(int m)`                  | Set text right-to-left mode.
+|                 |                          | `vtm.terminal.ResetAttributes()`                   | Reset scrollback buffer attributes (SGR attributes, line wrapping, scrollback buffer padding, line alignment, cursor form, selection copy format).
 |                 |                          | `vtm.terminal.EventReporting(string args, ...)`    | Enable event reporting for the specified sources:<br>`"keyboard"` Keyboard events<br>`"mouse"` Mouse events<br>`"focus"` Focus events<br>`"format"` Line format events<br>`"clipoard"` Clipboard events<br>`"window"` Window size and selection events<br>`"system"` System signals<br>`""` Switch event reporting off
 |                 |                          | `vtm.terminal.EventReporting()`                    | Get a list of active event sources.
 |                 |                          | `vtm.terminal.Restart()`                           | Restart the current terminal session.
