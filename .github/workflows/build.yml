@@ -2,7 +2,7 @@ name: Build binaries
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "gui-bridge" ]
   pull_request:
     branches: [ "master" ]
 
@@ -27,14 +27,14 @@ jobs:
             arch: any
             cxx: c++
             cc: cc
-            flags: '-DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 -DCMAKE_CXX_FLAGS_RELEASE="-O2 -DNDEBUG -Wall -Wno-unknown-pragmas -Wextra -Wno-missing-field-initializers -Werror"'
+            flags: '-DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 -DCMAKE_CXX_FLAGS_RELEASE="-O2 -DNDEBUG -Wall -Wextra -Wno-missing-field-initializers -Werror"'
           - os: windows-latest
             platform: windows
             cpu: Win32
             arch: x86
             cxx: cl
             cc: cl
-            flags: '-DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded" -DCMAKE_EXE_LINKER_FLAGS_RELEASE="/DEBUG /OPT:REF /OPT:ICF" -DCMAKE_C_FLAGS_RELEASE="/MT /O2 /c" -DCMAKE_CXX_FLAGS_RELEASE="/MT /O2 /DNDEBUG /Zi /Zc:preprocessor /W4" -A '
+            flags: '-DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded" -DCMAKE_EXE_LINKER_FLAGS_RELEASE="/DEBUG /OPT:REF /OPT:ICF" -DCMAKE_CXX_FLAGS_RELEASE="/MT /O2 /DNDEBUG /Zi /Zc:preprocessor /W4" -A '
           - os: windows-latest
             cxx: cl
           - os: ubuntu-22.04
@@ -60,9 +60,9 @@ jobs:
 
           - os: ubuntu-22.04
             # -Wno-array-bounds: harfbuzz on 32-bit platforms warning: offset '12' outside bounds of constant string [-Warray-bounds=].
-            flags: '-DCMAKE_C_FLAGS="-O2 -static " -DCMAKE_CXX_FLAGS_RELEASE=" -static -s -O2 -DNDEBUG -Wall -Wno-array-bounds -Wno-unknown-pragmas -Wextra -Wno-missing-field-initializers -Wno-psabi -Werror"'
+            flags: '-DCMAKE_CXX_FLAGS_RELEASE=" -static -s -O2 -DNDEBUG -Wall -Wextra -Wno-missing-field-initializers -Wno-psabi -Werror"'
           - os: windows-latest
-            flags: '-DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded" -DCMAKE_EXE_LINKER_FLAGS_RELEASE="/DEBUG /OPT:REF /OPT:ICF" -DCMAKE_C_FLAGS_RELEASE="/MT /O2 /c" -DCMAKE_CXX_FLAGS_RELEASE="/MT /O2 /DNDEBUG /Zi /Zc:preprocessor /W4" -A '
+            flags: '-DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded" -DCMAKE_EXE_LINKER_FLAGS_RELEASE="/DEBUG /OPT:REF /OPT:ICF" -DCMAKE_CXX_FLAGS_RELEASE="/MT /O2 /DNDEBUG /Zi /Zc:preprocessor /W4" -A '
 
           - os: ubuntu-22.04
             platform: linux

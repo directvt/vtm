@@ -13,6 +13,95 @@ enum class code { noaccess, noserver, nodaemon, nosrvlog, interfer, errormsg };
 
 int main(int argc, char* argv[])
 {
+    // Just test
+    auto ft = ::FT_Library{};
+    auto ft_face = ::FT_Face{};
+    auto ec = ::FT_Init_FreeType(&ft);
+    if (ec)
+    {
+        ec = 0;
+    }
+    ec = ::FT_New_Face(ft, "c:/windows/fonts/cour.ttf", 0, &ft_face );
+    if (ec == FT_Err_Unknown_File_Format)
+    {
+        //
+    }
+    else if (ec)
+    {
+        //
+    }
+    else
+    {
+        ec = ::FT_Set_Char_Size(
+                ft_face, /* handle to face object         */
+                0,       /* char_width in 1/64 of points  */
+                16 * 64, /* char_height in 1/64 of points */
+                300,     /* horizontal device resolution  */
+                300);    /* vertical device resolution    */
+        ec = ::FT_Set_Pixel_Sizes(
+                ft_face,/* handle to face object */
+                0,      /* pixel_width           */
+                16);    /* pixel_height          */
+        auto charcode = 'A';
+        auto glyph_index = ::FT_Get_Char_Index(ft_face, charcode);
+        auto load_flags = FT_LOAD_DEFAULT;
+        ec = ::FT_Load_Glyph(
+                ft_face,       /* handle to face object */
+                glyph_index,   /* glyph index           */
+                load_flags);   /* load flags, see below */
+        auto render_mode = FT_RENDER_MODE_NORMAL;
+        ec = ::FT_Render_Glyph(ft_face->glyph,  /* glyph slot  */
+                               render_mode);    /* render mode */
+    
+        auto buf = ::hb_buffer_create();
+        ::hb_buffer_add_utf8(buf, "hello", -1, 0, -1);
+    
+        //Set the script, language and direction of the buffer.
+        // If you know the direction, script, and language.
+        ::hb_buffer_set_direction(buf, HB_DIRECTION_LTR);
+        ::hb_buffer_set_script(buf, HB_SCRIPT_LATIN);
+        ::hb_buffer_set_language(buf, ::hb_language_from_string("en", -1));
+    
+        // If you don't know the direction, script, and language.
+        //hb_buffer_guess_segment_properties(buf);
+    
+        //Create a face and a font from a font file.
+        // %USERPROFILE%\AppData\Local\Microsoft\Windows\Fonts
+        // %WINDIR%\Fonts
+        auto blob = ::hb_blob_create_from_file("c:\\windows\\fonts\\cour.ttf"); /* or hb_blob_create_from_file_or_fail() */
+        if (blob)
+        {
+            auto face = ::hb_face_create(blob, 0);
+            auto font = ::hb_font_create(face);
+            ::hb_shape(font, buf, NULL, 0);
+    
+            //Get the glyph and position information.
+            unsigned int glyph_count;
+            auto glyph_info = ::hb_buffer_get_glyph_infos(buf, &glyph_count);
+            auto glyph_pos  = ::hb_buffer_get_glyph_positions(buf, &glyph_count);
+    
+            //Iterate over each glyph.
+            [[maybe_unused]]auto cursor_x = hb_position_t{};
+            [[maybe_unused]]auto cursor_y = hb_position_t{};
+            for (auto i = 0u; i < glyph_count; i++)
+            {
+                [[maybe_unused]]auto glyphid  = glyph_info[i].codepoint;
+                [[maybe_unused]]auto x_offset = glyph_pos[i].x_offset;
+                [[maybe_unused]]auto y_offset = glyph_pos[i].y_offset;
+                auto x_advance = glyph_pos[i].x_advance;
+                auto y_advance = glyph_pos[i].y_advance;
+                // draw_glyph(glyphid, cursor_x + x_offset, cursor_y + y_offset);
+                cursor_x += x_advance;
+                cursor_y += y_advance;
+            }
+            ::hb_buffer_destroy(buf);
+            ::hb_font_destroy(font);
+            ::hb_face_destroy(face);
+            ::hb_blob_destroy(blob);
+        }
+    }
+
+
     auto whoami = type::client;
     auto params = text{};
     auto cliopt = text{};
