@@ -124,6 +124,8 @@ jobs:
         -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}
         -DCMAKE_CXX_COMPILER=${{ matrix.cxx }}
         -DCMAKE_C_COMPILER=${{ matrix.cc }}
+        -DCXX=${{ matrix.cxx }}
+        -DCC=${{ matrix.cc }}
         ${{ matrix.flags }} ${{ matrix.os == 'windows-latest' && matrix.cpu || '' }}
         -DCMAKE_BUILD_TYPE=Release
         -S ${{ github.workspace }}
