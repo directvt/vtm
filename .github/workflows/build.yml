@@ -35,6 +35,7 @@ jobs:
             cxx: cl
             cc: cl
             flags: '-DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded" -DCMAKE_EXE_LINKER_FLAGS_RELEASE="/DEBUG /OPT:REF /OPT:ICF" -DCMAKE_CXX_FLAGS_RELEASE="/MT /O2 /DNDEBUG /Zi /Zc:preprocessor /W4" -A '
+            triplet: x86-windows-static
           - os: windows-latest
             cxx: cl
           - os: ubuntu-22.04
@@ -96,6 +97,8 @@ jobs:
     - name: Configure CMake
       run: >
         cmake -B ${{ steps.strings.outputs.bin }}
+        -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake
+        -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}
         -DCMAKE_CXX_COMPILER=${{ matrix.cxx }}
         -DCMAKE_C_COMPILER=${{ matrix.cc }}
         ${{ matrix.flags }} ${{ matrix.os == 'windows-latest' && matrix.cpu || '' }}
