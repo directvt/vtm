@@ -28,6 +28,7 @@ jobs:
             cxx: c++
             cc: cc
             flags: '-DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 -DCMAKE_CXX_FLAGS_RELEASE="-O2 -DNDEBUG -Wall -Wextra -Wno-missing-field-initializers -Werror"'
+            triplet: arm64-osx
           - os: windows-latest
             platform: windows
             cpu: Win32
@@ -38,26 +39,36 @@ jobs:
             triplet: x86-windows-static
           - os: windows-latest
             cxx: cl
+          - os: windows-latest
+            cpu: x64
+            triplet: x64-windows-static
+          - os: windows-latest
+            cpu: arm64
+            triplet: arm64-windows-static
           - os: ubuntu-22.04
             cpu: x64
             apt: g++-12 gcc-12
             cxx: /usr/bin/g++-12
             cc: /usr/bin/gcc-12
+            triplet: x64-linux
           - os: ubuntu-22.04
             cpu: x86
             apt: g++-12-i686-linux-gnu gcc-12-i686-linux-gnu
             cxx: /usr/bin/i686-linux-gnu-g++-12
             cc: /usr/bin/i686-linux-gnu-gcc-12
+            triplet: x86-linux
           - os: ubuntu-22.04
             cpu: arm
             apt: g++-12-arm-linux-gnueabihf gcc-12-arm-linux-gnueabihf
             cxx: /usr/bin/arm-linux-gnueabihf-g++-12
             cc: /usr/bin/arm-linux-gnueabihf-gcc-12
+            triplet: arm32-linux
           - os: ubuntu-22.04
             cpu: arm64
             apt: g++-12-aarch64-linux-gnu gcc-12-aarch64-linux-gnu
             cxx: /usr/bin/aarch64-linux-gnu-g++-12
             cc: /usr/bin/aarch64-linux-gnu-gcc-12
+            triplet: arm64-linux
 
           - os: ubuntu-22.04
             # -Wno-array-bounds: harfbuzz on 32-bit platforms warning: offset '12' outside bounds of constant string [-Warray-bounds=].
