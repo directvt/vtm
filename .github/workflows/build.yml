@@ -62,7 +62,7 @@ jobs:
             apt: g++-12-arm-linux-gnueabihf gcc-12-arm-linux-gnueabihf
             cxx: /usr/bin/arm-linux-gnueabihf-g++-12
             cc: /usr/bin/arm-linux-gnueabihf-gcc-12
-            triplet: arm32-linux
+            triplet: arm-linux
           - os: ubuntu-22.04
             cpu: arm64
             apt: g++-12-aarch64-linux-gnu gcc-12-aarch64-linux-gnu
