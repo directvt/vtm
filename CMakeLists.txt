@@ -3,10 +3,10 @@ include(FetchContent)
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
     # Note: Make sure that the path to the sources does not contain symlinks to avoid issues with vcpkg.
-    set(CMAKE_TOOLCHAIN_FILE "${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE FILEPATH "Vcpkg toolchain file")
+    set(CMAKE_TOOLCHAIN_FILE "${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE FILEPATH "vcpkg toolchain file")
 endif()
 
-project("vtm")
+project("vtm" CXX)
 # project("term")
 # project("calc")
 
@@ -39,18 +39,12 @@ add_executable(vtm "src/vtm.cpp" ${WIN32_RESOURCES})
 # add_executable(term "src/netxs/apps/term.cpp")
 # add_executable(calc "src/netxs/apps/calc.cpp")
 
-find_package(Threads  REQUIRED)
 find_package(Freetype REQUIRED)
 find_package(harfbuzz REQUIRED)
 find_package(Lua      REQUIRED)
 
 add_library(Lua::Lua INTERFACE IMPORTED)
-set_target_properties(Lua::Lua PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${LUA_INCLUDE_DIR}"
-                                          INTERFACE_LINK_LIBRARIES      "${LUA_LIBRARIES}")
-
-target_include_directories(vtm PRIVATE ${LUA_INCLUDE_DIR})
-target_include_directories(vtm PRIVATE ${Freetype_INCLUDE_DIR})
-target_include_directories(vtm PRIVATE ${harfbuzz_INCLUDE_DIR})
+set_target_properties(Lua::Lua PROPERTIES INTERFACE_LINK_LIBRARIES "${LUA_LIBRARIES}")
 
 target_link_libraries(vtm PRIVATE Lua::Lua Freetype::Freetype harfbuzz::harfbuzz)
 # target_link_libraries(term PRIVATE Lua::Lua Freetype::Freetype harfbuzz::harfbuzz)

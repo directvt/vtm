@@ -31,7 +31,7 @@ Build-time dependencies
  - `Lua` (managed by vcpkg)
  - [git](https://git-scm.com/download/win)
  - [cmake](https://learn.microsoft.com/en-us/cpp/build/cmake-projects-in-visual-studio?view=msvc-170#installation)
- - [MSVC (Desktop Development with C++ + vcpkg package manager)](https://visualstudio.microsoft.com/downloads/)
+ - [MSVC (Desktop Development with C++; vcpkg package manager)](https://visualstudio.microsoft.com/downloads/)
 
 Use Developer Command Prompt as a build environment
 
