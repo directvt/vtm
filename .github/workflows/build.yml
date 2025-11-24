@@ -129,6 +129,7 @@ jobs:
         -DCMAKE_C_COMPILER=${{ matrix.cc }}
         ${{ matrix.flags }} ${{ matrix.os == 'windows-latest' && matrix.cpu || '' }}
         -DCMAKE_BUILD_TYPE=Release
+        ${{ matrix.os == 'ubuntu-22.04' && '-DCMAKE_MAKE_PROGRAM=/usr/bin/make' || '' }} # linux-arm requires CMAKE_MAKE_PROGRAM to be set.
         -S ${{ github.workspace }}
 
     - name: Build
