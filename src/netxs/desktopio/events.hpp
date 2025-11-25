@@ -4,7 +4,7 @@
 #pragma once
 
 #include "geometry.hpp"
-#include "lua.hpp"
+#include <lua.hpp>
 #include "xml.hpp"
 
 //todo Workaround for i386 linux targets, https://sourceware.org/bugzilla/show_bug.cgi?id=31775

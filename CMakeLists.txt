@@ -46,8 +46,6 @@ find_package(Lua      REQUIRED)
 add_library(Lua::Lua INTERFACE IMPORTED)
 set_target_properties(Lua::Lua PROPERTIES INTERFACE_LINK_LIBRARIES ${LUA_LIBRARIES})
 
-target_include_directories(vtm PRIVATE "${LUA_INCLUDE_DIRS}/")
-
 target_link_libraries(vtm PRIVATE Lua::Lua Freetype::Freetype harfbuzz::harfbuzz)
 # target_link_libraries(term PRIVATE Lua::Lua Freetype::Freetype harfbuzz::harfbuzz)
 # target_link_libraries(calc PRIVATE Lua::Lua Freetype::Freetype harfbuzz::harfbuzz)
