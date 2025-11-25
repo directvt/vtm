@@ -26,7 +26,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
     # /EHsc             Tells the compiler that exceptions can only occur at a throw statement or at a function call.
     # /bigobj           Our event model spawns a large number of objects. By default, an object file can hold up to 65,279 (almost 2^16) addressable sections. This limit applies no matter which target platform is specified. /bigobj increases that address capacity to 4,294,967,296 (2^32).
     # /utf-8            All literals in our source code are in UTF-8 format.
-	# /Zc:preprocessor  Enables a new, modern preprocessor that is fully conformant to C99, C++11, and later standards.
+    # /Zc:preprocessor  Enables a new, modern preprocessor that is fully conformant to C99, C++11, and later standards.
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /O2 /EHsc /bigobj /utf-8 /Zc:preprocessor")
     set(WIN32_RESOURCES ".resources/images/vtm.rc")
 else()
@@ -44,7 +44,11 @@ find_package(harfbuzz REQUIRED)
 find_package(Lua      REQUIRED)
 
 add_library(Lua::Lua INTERFACE IMPORTED)
-set_target_properties(Lua::Lua PROPERTIES INTERFACE_LINK_LIBRARIES "${LUA_LIBRARIES}")
+set_target_properties(Lua::Lua PROPERTIES INTERFACE_LINK_LIBRARIES ${LUA_LIBRARIES})
+
+target_include_directories(vtm PRIVATE ${FREETYPE_INCLUDE_DIRS}
+                                       ${HARFBUZZ_INCLUDE_DIRS}
+                                       ${LUA_INCLUDE_DIRS})
 
 target_link_libraries(vtm PRIVATE Lua::Lua Freetype::Freetype harfbuzz::harfbuzz)
 # target_link_libraries(term PRIVATE Lua::Lua Freetype::Freetype harfbuzz::harfbuzz)
