@@ -59,12 +59,14 @@ jobs:
             triplet: x86-linux
           - os: ubuntu-22.04
             cpu: arm
+            # vcpkg requires the stock compiler for some reason (not -12).
             apt: g++-12-arm-linux-gnueabihf gcc-12-arm-linux-gnueabihf g++-arm-linux-gnueabihf gcc-arm-linux-gnueabihf
             cxx: /usr/bin/arm-linux-gnueabihf-g++-12
             cc:  /usr/bin/arm-linux-gnueabihf-gcc-12
             triplet: arm-linux
           - os: ubuntu-22.04
             cpu: arm64
+            # vcpkg requires the stock compiler for some reason (not -12).
             apt: g++-12-aarch64-linux-gnu gcc-12-aarch64-linux-gnu g++-aarch64-linux-gnu gcc-aarch64-linux-gnu
             cxx: /usr/bin/aarch64-linux-gnu-g++-12
             cc:  /usr/bin/aarch64-linux-gnu-gcc-12
@@ -104,6 +106,10 @@ jobs:
         sudo apt -y update
         sudo apt -y install ${{ matrix.apt }}
 
+    - name: Install FreeType, HarfBuzz, and Lua (macos)
+      if: matrix.os == 'macos-latest'
+      run: brew install freetype harfbuzz lua
+
     - name: Clone and Bootstrap vcpkg (win32)
       if: matrix.os == 'windows-latest'
       run: |
@@ -116,7 +122,16 @@ jobs:
         git clone https://github.com/microsoft/vcpkg.git ${{ github.workspace }}/vcpkg
         ${{ github.workspace }}/vcpkg/bootstrap-vcpkg.sh -disableMetrics
 
+    - name: Configure CMake (macos)
+      if: matrix.os == 'macos-latest'
+      run: >
+        cmake -B ${{ steps.strings.outputs.bin }}
+        ${{ matrix.flags }}
+        -DCMAKE_BUILD_TYPE=Release
+        -S ${{ github.workspace }}
+
     - name: Configure CMake
+      if: matrix.os != 'macos-latest'
       env:
         CC:  ${{ matrix.cc }}
         CXX: ${{ matrix.cxx }}
