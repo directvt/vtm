@@ -111,8 +111,8 @@ jobs:
         git clone https://github.com/microsoft/vcpkg.git ${{ github.workspace }}/vcpkg
         ${{ github.workspace }}/vcpkg/bootstrap-vcpkg.bat -disableMetrics
 
-    - name: Clone and Bootstrap vcpkg (posix)
-      if: matrix.os != 'windows-latest'
+    - name: Clone and Bootstrap vcpkg (ubuntu)
+      if: matrix.os == 'ubuntu-22.04'
       run: |
         git clone https://github.com/microsoft/vcpkg.git ${{ github.workspace }}/vcpkg
         ${{ github.workspace }}/vcpkg/bootstrap-vcpkg.sh -disableMetrics
@@ -125,11 +125,8 @@ jobs:
         cmake -B ${{ steps.strings.outputs.bin }}
         -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake
         -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}
-        -DCMAKE_CXX_COMPILER=${{ matrix.cxx }}
-        -DCMAKE_C_COMPILER=${{ matrix.cc }}
         ${{ matrix.flags }} ${{ matrix.os == 'windows-latest' && matrix.cpu || '' }}
         -DCMAKE_BUILD_TYPE=Release
-        ${{ matrix.os == 'ubuntu-22.04' && '-DCMAKE_MAKE_PROGRAM=/usr/local/bin/ninja' || '' }}
         -S ${{ github.workspace }}
 
     - name: Build
