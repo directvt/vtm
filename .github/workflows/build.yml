@@ -108,7 +108,9 @@ jobs:
 
     - name: Install FreeType, HarfBuzz, and Lua (macos)
       if: matrix.os == 'macos-latest'
-      run: brew install freetype harfbuzz lua
+      run: |
+        brew install freetype harfbuzz lua
+        find $(brew --prefix lua) -name "lua.hpp"
 
     - name: Clone and Bootstrap vcpkg (win32)
       if: matrix.os == 'windows-latest'
