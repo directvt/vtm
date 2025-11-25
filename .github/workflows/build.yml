@@ -123,6 +123,7 @@ jobs:
         CXX: ${{ matrix.cxx }}
       run: >
         cmake -B ${{ steps.strings.outputs.bin }}
+        -G "Unix Makefiles"
         -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake
         -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}
         ${{ matrix.flags }} ${{ matrix.os == 'windows-latest' && matrix.cpu || '' }}
