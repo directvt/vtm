@@ -6,7 +6,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
     set(CMAKE_TOOLCHAIN_FILE "${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE FILEPATH "vcpkg toolchain file")
 endif()
 
-project("vtm" CXX)
+project("vtm")
 # project("term")
 # project("calc")
 
