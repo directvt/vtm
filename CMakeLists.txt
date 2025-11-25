@@ -50,9 +50,6 @@ target_include_directories(vtm PRIVATE ${FREETYPE_INCLUDE_DIRS}
                                        ${HARFBUZZ_INCLUDE_DIRS}
                                        ${LUA_INCLUDE_DIR})
 
-message("LUA_INCLUDE_DIR:")
-message(${LUA_INCLUDE_DIR})
-
 target_link_libraries(vtm PRIVATE Lua::Lua Freetype::Freetype harfbuzz::harfbuzz)
 # target_link_libraries(term PRIVATE Lua::Lua Freetype::Freetype harfbuzz::harfbuzz)
 # target_link_libraries(calc PRIVATE Lua::Lua Freetype::Freetype harfbuzz::harfbuzz)
