@@ -23,12 +23,20 @@ jobs:
         include:
           - os: macos-latest
             platform: macos
-            cpu: universal
-            arch: any
+            cpu: arm64
+            arch: arm64
             cxx: c++
             cc: cc
-            flags: '-DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 -DCMAKE_CXX_FLAGS_RELEASE="-O2 -DNDEBUG -Wall -Wextra -Wno-missing-field-initializers -Werror"'
+            flags: '-DCMAKE_OSX_ARCHITECTURES="arm64" -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 -DCMAKE_CXX_FLAGS_RELEASE="-O2 -DNDEBUG -Wall -Wextra -Wno-missing-field-initializers -Werror"'
             triplet: arm64-osx
+          - os: macos-latest
+            platform: macos
+            cpu: x64
+            arch: x86_64
+            cxx: c++
+            cc: cc
+            flags: '-DCMAKE_OSX_ARCHITECTURES="x86_64" -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 -DCMAKE_CXX_FLAGS_RELEASE="-O2 -DNDEBUG -Wall -Wextra -Wno-missing-field-initializers -Werror"'
+            triplet: x64-osx
           - os: windows-latest
             platform: windows
             cpu: Win32
@@ -106,10 +114,6 @@ jobs:
         sudo apt -y update
         sudo apt -y install ${{ matrix.apt }}
 
-    - name: Install FreeType, HarfBuzz, and Lua (macos)
-      if: matrix.os == 'macos-latest'
-      run: brew install freetype harfbuzz lua
-
     - name: Clone and Bootstrap vcpkg (win32)
       if: matrix.os == 'windows-latest'
       run: |
@@ -117,22 +121,12 @@ jobs:
         ${{ github.workspace }}/vcpkg/bootstrap-vcpkg.bat -disableMetrics
 
     - name: Clone and Bootstrap vcpkg (ubuntu)
-      if: matrix.os == 'ubuntu-22.04'
+      if: matrix.os != 'windows-latest'
       run: |
         git clone https://github.com/microsoft/vcpkg.git ${{ github.workspace }}/vcpkg
         ${{ github.workspace }}/vcpkg/bootstrap-vcpkg.sh -disableMetrics
 
-    - name: Configure CMake (macos)
-      if: matrix.os == 'macos-latest'
-      run: >
-        cmake -B ${{ steps.strings.outputs.bin }}
-        ${{ matrix.flags }}
-        -DCMAKE_BUILD_TYPE=Release
-        -DCMAKE_PREFIX_PATH="/opt/homebrew"
-        -S ${{ github.workspace }}
-
     - name: Configure CMake
-      if: matrix.os != 'macos-latest'
       env:
         CC:  ${{ matrix.cc }}
         CXX: ${{ matrix.cxx }}
