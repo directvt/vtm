@@ -15,7 +15,7 @@
       // /W4               Set the compiler warning level to 4 (maximum standard level).
       "WIN32_CXX_FLAGS_DEBUG": "/MTd /DDEBUG /Zi /Ob0 /Od /RTC1 /W4",
       // /MT               Static release build (don't rely on the shared dlls).
-      // /DNDEBUG          Define the preprocessor symbol NDEBUG.
+      // /DNDEBUG          Define the preprocessor symbol NDEBUG to disable assertions.
       // /O2               Optimize speed (and code size).
       "WIN32_CXX_FLAGS_RELEASE": "/MT /O2 /DNDEBUG /Zi /W4",
       // /DEBUG     (Negative performance impact) Generate PDB files and disable certain linker-time optimizations that rely on stripping symbols or combining identical code sections.
@@ -37,7 +37,9 @@
       // -Wno-psabi  Disable warnings related to the Platform Application Binary Interface (PSABI) when using GCC.
       "LINUX_CXX_FLAGS_DEBUG":   "-O0 -g -DDEBUG",
       "LINUX_CXX_FLAGS_RELEASE": "-O2 -s -DNDEBUG -Wno-psabi",
-      "LINUX_CMAKE_TOOLCHAIN_FILE": "~/vcpkg/scripts/buildsystems/vcpkg.cmake"
+      "LINUX_CMAKE_TOOLCHAIN_FILE": "~/vcpkg/scripts/buildsystems/vcpkg.cmake",
+      // Disable dynamic loading support (dlopen) in Lua.
+      "VCPKG_CMAKE_CONFIGURE_OPTIONS": "-ULUA_USE_DLOPEN"
     }
   ],
   "configurations": [
