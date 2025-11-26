@@ -13,10 +13,8 @@ if(NOT CMAKE_BUILD_TYPE OR CMAKE_BUILD_TYPE STREQUAL "")
     set(CMAKE_BUILD_TYPE "Release" CACHE STRING "" FORCE)
 endif()
 
-if(NOT WIN32)
+if(NOT WIN32 AND NOT $ENV{LINUX_CXX_FLAGS}) # If CMakeSettings.json is not used (MS Visual Studio).
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -pthread")
-    # Uncomment for static build
-    #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static -static-libstdc++")
 endif()
 
 add_executable(vtm "src/vtm.cpp" $ENV{WIN32_RESOURCES})
@@ -28,7 +26,7 @@ find_package(harfbuzz REQUIRED)
 find_package(Lua      REQUIRED)
 
 add_library(Lua::Lua INTERFACE IMPORTED)
-set_target_properties(Lua::Lua PROPERTIES INTERFACE_LINK_LIBRARIES ${LUA_LIBRARIES})
+set_target_properties(Lua::Lua PROPERTIES INTERFACE_LINK_LIBRARIES "${LUA_LIBRARIES}")
 
 target_include_directories(vtm PRIVATE ${FREETYPE_INCLUDE_DIRS}
                                        ${HARFBUZZ_INCLUDE_DIRS}

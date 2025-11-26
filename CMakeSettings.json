@@ -6,7 +6,7 @@
       // /utf-8            All literals in our source code are in UTF-8 format.
       // /Zc:preprocessor  Enable a new, modern preprocessor that is fully conformant to C99, C++11, and later standards.
       "WIN32_CXX_FLAGS": "/EHsc /bigobj /utf-8 /Zc:preprocessor",
-      // /MTd              Static debug build (don't rely on the shared dll).
+      // /MTd              Static debug build (don't rely on the shared dlls).
       // /DDEBUG           Define the preprocessor symbol DEBUG.
       // /Zi               Generate complete debugging information (.PDB files) to allow for source-level debugging in Visual Studio.
       // /Ob0              Disable all inlining.
@@ -14,9 +14,9 @@
       // /RTC1             Enable stack frame run-time checking (local variables uninitialized) and detects when smaller variables are assigned larger values and data is lost.
       // /W4               Set the compiler warning level to 4 (maximum standard level).
       "WIN32_CXX_FLAGS_DEBUG": "/MTd /DDEBUG /Zi /Ob0 /Od /RTC1 /W4",
-      // /MT               Static release build (don't rely on the shared dll).
+      // /MT               Static release build (don't rely on the shared dlls).
       // /DNDEBUG          Define the preprocessor symbol NDEBUG.
-      // /O2               Disable all compiler optimizations.
+      // /O2               Optimize speed (and code size).
       "WIN32_CXX_FLAGS_RELEASE": "/MT /O2 /DNDEBUG /Zi /W4",
       // /DEBUG     (Negative performance impact) Generate PDB files and disable certain linker-time optimizations that rely on stripping symbols or combining identical code sections.
       // /OPT:REF   (Positive performance impact) Eliminate functions and data that are never referenced (Dead Code Elimination).
@@ -24,9 +24,20 @@
       "WIN32_EXE_LINKER_FLAGS_RELEASE": "/DEBUG /OPT:REF /OPT:ICF",
       // Set executable file built-in icon (applied in CMakeLists.txt).
       "WIN32_RESOURCES": ".resources/images/vtm.rc",
-      "LINUX_CMAKE_TOOLCHAIN_FILE": "~/vcpkg/scripts/buildsystems/vcpkg.cmake",
-      "LINUX_CXX_FLAGS_DEBUG":   "-O0 -DDEBUG -static -static-libstdc++ -g -Wall -Wextra -Wno-missing-field-initializers",
-      "LINUX_CXX_FLAGS_RELEASE": "-DNDEBUG    -static -static-libstdc++ -s -Wall -Wextra -Wno-missing-field-initializers"
+      // -static            Tell the linker to avoid dynamic libraries for all dependencies.
+      // -static-libstdc++  Statically link the standard C++ library (GNU C++ standard library).
+      // -pthread           Use POSIX Threads (Pthreads), a standard API for multithreading.
+      // -Wall -Wextra      Enable all+extra Warnings.
+      // -Wno-missing-field-initializers  Disable a specific warning about missing field initializers in C-style aggregate initializations.
+      "LINUX_CXX_FLAGS": "-static -static-libstdc++ -pthread -Wall -Wextra -Wno-missing-field-initializers",
+      // -O0  Disable all compiler optimizations.
+      // -O2  Optimize speed (and code size).
+      // -g   Generate native debugging information.
+      // -s   Strip all symbols from the output binary.
+      // -Wno-psabi  Disable warnings related to the Platform Application Binary Interface (PSABI) when using GCC.
+      "LINUX_CXX_FLAGS_DEBUG":   "-O0 -g -DDEBUG",
+      "LINUX_CXX_FLAGS_RELEASE": "-O2 -s -DNDEBUG -Wno-psabi",
+      "LINUX_CMAKE_TOOLCHAIN_FILE": "~/vcpkg/scripts/buildsystems/vcpkg.cmake"
     }
   ],
   "configurations": [
@@ -58,7 +69,7 @@
          "CC" : "/usr/bin/gcc-12"
       }],
       "variables": [
-        { "name": "CMAKE_CXX_FLAGS_DEBUG", "value": "${env.LINUX_CXX_FLAGS_DEBUG}" },
+        { "name": "CMAKE_CXX_FLAGS_DEBUG", "value": "${env.LINUX_CXX_FLAGS} ${env.LINUX_CXX_FLAGS_DEBUG}" },
         { "name": "CMAKE_TOOLCHAIN_FILE",  "value": "${env.LINUX_CMAKE_TOOLCHAIN_FILE}" },
         { "name": "VCPKG_TARGET_TRIPLET",  "value": "x64-linux" }
       ]
@@ -90,7 +101,7 @@
          "CC" : "/usr/bin/i686-linux-gnu-gcc-12"
       }],
       "variables": [
-        { "name": "CMAKE_CXX_FLAGS_DEBUG", "value": "${env.LINUX_CXX_FLAGS_DEBUG}" },
+        { "name": "CMAKE_CXX_FLAGS_DEBUG", "value": "${env.LINUX_CXX_FLAGS} ${env.LINUX_CXX_FLAGS_DEBUG}" },
         { "name": "CMAKE_TOOLCHAIN_FILE",  "value": "${env.LINUX_CMAKE_TOOLCHAIN_FILE}" },
         { "name": "VCPKG_TARGET_TRIPLET",  "value": "x86-linux" }
       ]
@@ -109,7 +120,7 @@
          "CC" : "/usr/bin/aarch64-linux-gnu-gcc-12"
       }],
       "variables": [
-        { "name": "CMAKE_CXX_FLAGS_DEBUG", "value": "${env.LINUX_CXX_FLAGS_DEBUG}" },
+        { "name": "CMAKE_CXX_FLAGS_DEBUG", "value": "${env.LINUX_CXX_FLAGS} ${env.LINUX_CXX_FLAGS_DEBUG}" },
         { "name": "CMAKE_TOOLCHAIN_FILE",  "value": "${env.LINUX_CMAKE_TOOLCHAIN_FILE}" },
         { "name": "VCPKG_TARGET_TRIPLET",  "value": "arm64-linux" }
       ]
@@ -170,7 +181,7 @@
          "CC" : "/usr/bin/arm-linux-gnueabihf-gcc-12"
       }],
       "variables": [
-        { "name": "CMAKE_CXX_FLAGS_RELEASE", "value": "${env.LINUX_CXX_FLAGS_RELEASE} -Wno-psabi" },
+        { "name": "CMAKE_CXX_FLAGS_RELEASE", "value": "${env.LINUX_CXX_FLAGS} ${env.LINUX_CXX_FLAGS_RELEASE}" },
         { "name": "CMAKE_TOOLCHAIN_FILE",    "value": "${env.LINUX_CMAKE_TOOLCHAIN_FILE}" },
         { "name": "VCPKG_TARGET_TRIPLET",    "value": "arm-linux" }
       ]
@@ -189,7 +200,7 @@
          "CC" : "/usr/bin/aarch64-linux-gnu-gcc-12"
       }],
       "variables": [
-        { "name": "CMAKE_CXX_FLAGS_RELEASE", "value": "${env.LINUX_CXX_FLAGS_RELEASE}" },
+        { "name": "CMAKE_CXX_FLAGS_RELEASE", "value": "${env.LINUX_CXX_FLAGS} ${env.LINUX_CXX_FLAGS_RELEASE}" },
         { "name": "CMAKE_TOOLCHAIN_FILE",    "value": "${env.LINUX_CMAKE_TOOLCHAIN_FILE}" },
         { "name": "VCPKG_TARGET_TRIPLET",    "value": "arm64-linux" }
       ]
@@ -208,7 +219,7 @@
          "CC" : "/usr/bin/i686-linux-gnu-gcc-12"
       }],
       "variables": [
-        { "name": "CMAKE_CXX_FLAGS_RELEASE", "value": "${env.LINUX_CXX_FLAGS_RELEASE}" },
+        { "name": "CMAKE_CXX_FLAGS_RELEASE", "value": "${env.LINUX_CXX_FLAGS} ${env.LINUX_CXX_FLAGS_RELEASE}" },
         { "name": "CMAKE_TOOLCHAIN_FILE",    "value": "${env.LINUX_CMAKE_TOOLCHAIN_FILE}" },
         { "name": "VCPKG_TARGET_TRIPLET",    "value": "x86-linux" }
       ]
@@ -227,7 +238,7 @@
          "CC" : "/usr/bin/gcc-12"
       }],
       "variables": [
-        { "name": "CMAKE_CXX_FLAGS_RELEASE", "value": "${env.CMAKE_CXX_FLAGS_RELEASE}" },
+        { "name": "CMAKE_CXX_FLAGS_RELEASE", "value": "${env.LINUX_CXX_FLAGS_RELEASE}" },
         { "name": "CMAKE_TOOLCHAIN_FILE",    "value": "${env.LINUX_CMAKE_TOOLCHAIN_FILE}" },
         { "name": "VCPKG_TARGET_TRIPLET",    "value": "x64-linux" }
       ]
