@@ -23,46 +23,67 @@ jobs:
         include:
           - os: macos-latest
             platform: macos
-            cpu: universal
-            arch: any
+            cpu: arm64
+            arch: arm64
             cxx: c++
             cc: cc
-            flags: '-DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 -DCMAKE_CXX_FLAGS_RELEASE="-O2 -DNDEBUG -Wall -Wno-unknown-pragmas -Wextra -Wno-missing-field-initializers -Werror"'
+            flags: '-DCMAKE_OSX_ARCHITECTURES="arm64" -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 -DCMAKE_CXX_FLAGS_RELEASE="-DNDEBUG -Wall -Wextra -Wno-missing-field-initializers -Werror"'
+            triplet: arm64-osx
+          - os: macos-latest
+            platform: macos
+            cpu: x64
+            arch: x86_64
+            cxx: c++
+            cc: cc
+            flags: '-DCMAKE_OSX_ARCHITECTURES="x86_64" -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 -DCMAKE_CXX_FLAGS_RELEASE="-DNDEBUG -Wall -Wextra -Wno-missing-field-initializers -Werror"'
+            triplet: x64-osx
           - os: windows-latest
             platform: windows
             cpu: Win32
             arch: x86
             cxx: cl
             cc: cl
-            flags: '-DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded" -DCMAKE_EXE_LINKER_FLAGS_RELEASE="/DEBUG /OPT:REF /OPT:ICF" -DCMAKE_C_FLAGS_RELEASE="/MT /O2 /c" -DCMAKE_CXX_FLAGS_RELEASE="/MT /O2 /DNDEBUG /Zi /Zc:preprocessor /W4" -A '
+            flags: '-DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded" -DCMAKE_EXE_LINKER_FLAGS_RELEASE="/DEBUG /OPT:REF /OPT:ICF" -DCMAKE_CXX_FLAGS_RELEASE="/MT /O2 /DNDEBUG /Zi /Zc:preprocessor /W4 /EHsc /bigobj /utf-8 /Zc:preprocessor" -A '
+            triplet: x86-windows-static
           - os: windows-latest
             cxx: cl
+          - os: windows-latest
+            cpu: x64
+            triplet: x64-windows-static
+          - os: windows-latest
+            cpu: arm64
+            triplet: arm64-windows-static
           - os: ubuntu-22.04
             cpu: x64
             apt: g++-12 gcc-12
             cxx: /usr/bin/g++-12
-            cc: /usr/bin/gcc-12
+            cc:  /usr/bin/gcc-12
+            triplet: x64-linux
           - os: ubuntu-22.04
             cpu: x86
             apt: g++-12-i686-linux-gnu gcc-12-i686-linux-gnu
             cxx: /usr/bin/i686-linux-gnu-g++-12
-            cc: /usr/bin/i686-linux-gnu-gcc-12
+            cc:  /usr/bin/i686-linux-gnu-gcc-12
+            triplet: x86-linux
           - os: ubuntu-22.04
             cpu: arm
-            apt: g++-12-arm-linux-gnueabihf gcc-12-arm-linux-gnueabihf
+            # vcpkg requires the stock compiler for some reason (not -12).
+            apt: g++-12-arm-linux-gnueabihf gcc-12-arm-linux-gnueabihf g++-arm-linux-gnueabihf gcc-arm-linux-gnueabihf
             cxx: /usr/bin/arm-linux-gnueabihf-g++-12
-            cc: /usr/bin/arm-linux-gnueabihf-gcc-12
+            cc:  /usr/bin/arm-linux-gnueabihf-gcc-12
+            triplet: arm-linux
           - os: ubuntu-22.04
             cpu: arm64
-            apt: g++-12-aarch64-linux-gnu gcc-12-aarch64-linux-gnu
+            # vcpkg requires the stock compiler for some reason (not -12).
+            apt: g++-12-aarch64-linux-gnu gcc-12-aarch64-linux-gnu g++-aarch64-linux-gnu gcc-aarch64-linux-gnu
             cxx: /usr/bin/aarch64-linux-gnu-g++-12
-            cc: /usr/bin/aarch64-linux-gnu-gcc-12
+            cc:  /usr/bin/aarch64-linux-gnu-gcc-12
+            triplet: arm64-linux
 
           - os: ubuntu-22.04
-            # -Wno-array-bounds: harfbuzz on 32-bit platforms warning: offset '12' outside bounds of constant string [-Warray-bounds=].
-            flags: '-DCMAKE_C_FLAGS="-O2 -static " -DCMAKE_CXX_FLAGS_RELEASE=" -static -s -O2 -DNDEBUG -Wall -Wno-array-bounds -Wno-unknown-pragmas -Wextra -Wno-missing-field-initializers -Wno-psabi -Werror"'
+            flags: '-DCMAKE_CXX_FLAGS_RELEASE=" -static -s -DNDEBUG -Wall -Wextra -Wno-missing-field-initializers -Wno-psabi -Werror"'
           - os: windows-latest
-            flags: '-DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded" -DCMAKE_EXE_LINKER_FLAGS_RELEASE="/DEBUG /OPT:REF /OPT:ICF" -DCMAKE_C_FLAGS_RELEASE="/MT /O2 /c" -DCMAKE_CXX_FLAGS_RELEASE="/MT /O2 /DNDEBUG /Zi /Zc:preprocessor /W4" -A '
+            flags: '-DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded" -DCMAKE_EXE_LINKER_FLAGS_RELEASE="/DEBUG /OPT:REF /OPT:ICF" -DCMAKE_CXX_FLAGS_RELEASE="/MT /O2 /DNDEBUG /Zi /Zc:preprocessor /W4 /EHsc /bigobj /utf-8 /Zc:preprocessor" -A '
 
           - os: ubuntu-22.04
             platform: linux
@@ -93,17 +114,33 @@ jobs:
         sudo apt -y update
         sudo apt -y install ${{ matrix.apt }}
 
+    - name: Clone and Bootstrap vcpkg (win32)
+      if: matrix.os == 'windows-latest'
+      run: |
+        git clone https://github.com/microsoft/vcpkg.git ${{ github.workspace }}/vcpkg
+        ${{ github.workspace }}/vcpkg/bootstrap-vcpkg.bat -disableMetrics
+
+    - name: Clone and Bootstrap vcpkg (ubuntu)
+      if: matrix.os != 'windows-latest'
+      run: |
+        git clone https://github.com/microsoft/vcpkg.git ${{ github.workspace }}/vcpkg
+        ${{ github.workspace }}/vcpkg/bootstrap-vcpkg.sh -disableMetrics
+
     - name: Configure CMake
+      env:
+        CC:  ${{ matrix.cc }}
+        CXX: ${{ matrix.cxx }}
+        WIN32_RESOURCES: ${{ matrix.os == 'windows-latest' && '.resources/images/vtm.rc' || '' }}
       run: >
         cmake -B ${{ steps.strings.outputs.bin }}
-        -DCMAKE_CXX_COMPILER=${{ matrix.cxx }}
-        -DCMAKE_C_COMPILER=${{ matrix.cc }}
+        -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake
+        -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}
         ${{ matrix.flags }} ${{ matrix.os == 'windows-latest' && matrix.cpu || '' }}
         -DCMAKE_BUILD_TYPE=Release
         -S ${{ github.workspace }}
 
     - name: Build
-      run: cmake --build ${{ steps.strings.outputs.bin }} --config Release
+      run: cmake --build ${{ steps.strings.outputs.bin }} --config Release -v
 
     - name: Pack (POSIX)
       if: matrix.os != 'windows-latest'

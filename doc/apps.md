@@ -76,7 +76,7 @@ For example, outputting a pixel-art image with transparency (pwsh):
 
 #### Text-only output
 
-Outputting plain text over other colored text while preserving all SGR attributes allows changing the text inside cells without having to re-specify the color and other SGR attributes for the output string (there may be a large number of attributes, and the one who prints may not even support it). This significantly simplifies and speeds up the output of intensively updated colored text blocks. This is achieved by using the so-called "transparent" color. The "transparent" color could be enabled by setting the following values ​​for the background color: red=255, green=255, blue=255, alpha=0.
+Outputting plain text over other colored text while preserving all SGR attributes allows changing the text inside cells without having to re-specify the color and other SGR attributes for the output string (there may be a large number of attributes, and the one who prints may not even support it). This significantly simplifies and speeds up the output of intensively updated colored text blocks. This is achieved by using the so-called "transparent" color. The "transparent" color could be enabled by setting the following values for the background color: red=255, green=255, blue=255, alpha=0.
 
 For example, replacing the string `Hello` with `World` inside a colored text line:
 ```bash
@@ -169,7 +169,7 @@ Shadow bits:  0  1  2
               5  6  7
 ```
 
-The bits are enumerated from the upper left corner row by row excluding the central shaded cell. Eight bits are used, hence the range of subparameter values ​​0-255 inclusive. This approach allows shadows to be combined with each other simply by performing a binary OR operation.
+The bits are enumerated from the upper left corner row by row excluding the central shaded cell. Eight bits are used, hence the range of subparameter values 0-255 inclusive. This approach allows shadows to be combined with each other simply by performing a binary OR operation.
 
 Shadows persist as an SGR attribute and are visible in GUI mode:
 

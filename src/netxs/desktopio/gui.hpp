@@ -6,7 +6,7 @@
 #include <ft2build.h>
 #include FT_FREETYPE_H
 
-#include <hb.hh>
+#include <hb.h>
 
 #if defined(_WIN32)
 
