@@ -2,7 +2,7 @@ name: Build binaries
 
 on:
   push:
-    branches: [ "gui-bridge" ]
+    branches: [ "master" ]
   pull_request:
     branches: [ "master" ]
 
