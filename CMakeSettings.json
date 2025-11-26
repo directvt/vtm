@@ -24,7 +24,9 @@
       "WIN32_EXE_LINKER_FLAGS_RELEASE": "/DEBUG /OPT:REF /OPT:ICF",
       // Set executable file built-in icon (applied in CMakeLists.txt).
       "WIN32_RESOURCES": ".resources/images/vtm.rc",
-      "LINUX_CMAKE_TOOLCHAIN_FILE": "~/vcpkg/scripts/buildsystems/vcpkg.cmake"
+      "LINUX_CMAKE_TOOLCHAIN_FILE": "~/vcpkg/scripts/buildsystems/vcpkg.cmake",
+      "LINUX_CXX_FLAGS_DEBUG":   "-O0 -DDEBUG -static -static-libstdc++ -g -Wall -Wextra -Wno-missing-field-initializers",
+      "LINUX_CXX_FLAGS_RELEASE": "-DNDEBUG    -static -static-libstdc++ -s -Wall -Wextra -Wno-missing-field-initializers"
     }
   ],
   "configurations": [
@@ -56,7 +58,7 @@
          "CC" : "/usr/bin/gcc-12"
       }],
       "variables": [
-        { "name": "CMAKE_CXX_FLAGS_DEBUG", "value": "-O0 -DDEBUG -static -static-libstdc++ -g -Wall -Wextra -Wno-missing-field-initializers" },
+        { "name": "CMAKE_CXX_FLAGS_DEBUG", "value": "${env.LINUX_CXX_FLAGS_DEBUG}" },
         { "name": "CMAKE_TOOLCHAIN_FILE",  "value": "${env.LINUX_CMAKE_TOOLCHAIN_FILE}" },
         { "name": "VCPKG_TARGET_TRIPLET",  "value": "x64-linux" }
       ]
@@ -88,7 +90,7 @@
          "CC" : "/usr/bin/i686-linux-gnu-gcc-12"
       }],
       "variables": [
-        { "name": "CMAKE_CXX_FLAGS_DEBUG", "value": "-O0 -static -static-libstdc++ -DDEBUG -g -Wall -Wextra -Wno-missing-field-initializers" },
+        { "name": "CMAKE_CXX_FLAGS_DEBUG", "value": "${env.LINUX_CXX_FLAGS_DEBUG}" },
         { "name": "CMAKE_TOOLCHAIN_FILE",  "value": "${env.LINUX_CMAKE_TOOLCHAIN_FILE}" },
         { "name": "VCPKG_TARGET_TRIPLET",  "value": "x86-linux" }
       ]
@@ -107,7 +109,7 @@
          "CC" : "/usr/bin/aarch64-linux-gnu-gcc-12"
       }],
       "variables": [
-        { "name": "CMAKE_CXX_FLAGS_DEBUG", "value": "-O0 -DDEBUG -static -static-libstdc++ -g -Wno-missing-field-initializers" },
+        { "name": "CMAKE_CXX_FLAGS_DEBUG", "value": "${env.LINUX_CXX_FLAGS_DEBUG}" },
         { "name": "CMAKE_TOOLCHAIN_FILE",  "value": "${env.LINUX_CMAKE_TOOLCHAIN_FILE}" },
         { "name": "VCPKG_TARGET_TRIPLET",  "value": "arm64-linux" }
       ]
@@ -168,7 +170,7 @@
          "CC" : "/usr/bin/arm-linux-gnueabihf-gcc-12"
       }],
       "variables": [
-        { "name": "CMAKE_CXX_FLAGS_RELEASE", "value": "-DNDEBUG -static -static-libstdc++ -s -Wno-psabi -Wall -Wextra -Wno-missing-field-initializers" },
+        { "name": "CMAKE_CXX_FLAGS_RELEASE", "value": "${env.LINUX_CXX_FLAGS_RELEASE} -Wno-psabi" },
         { "name": "CMAKE_TOOLCHAIN_FILE",    "value": "${env.LINUX_CMAKE_TOOLCHAIN_FILE}" },
         { "name": "VCPKG_TARGET_TRIPLET",    "value": "arm-linux" }
       ]
@@ -187,7 +189,7 @@
          "CC" : "/usr/bin/aarch64-linux-gnu-gcc-12"
       }],
       "variables": [
-        { "name": "CMAKE_CXX_FLAGS_RELEASE", "value": "-DNDEBUG -static -static-libstdc++ -s -Wall -Wextra -Wno-missing-field-initializers" },
+        { "name": "CMAKE_CXX_FLAGS_RELEASE", "value": "${env.LINUX_CXX_FLAGS_RELEASE}" },
         { "name": "CMAKE_TOOLCHAIN_FILE",    "value": "${env.LINUX_CMAKE_TOOLCHAIN_FILE}" },
         { "name": "VCPKG_TARGET_TRIPLET",    "value": "arm64-linux" }
       ]
@@ -206,7 +208,7 @@
          "CC" : "/usr/bin/i686-linux-gnu-gcc-12"
       }],
       "variables": [
-        { "name": "CMAKE_CXX_FLAGS_RELEASE", "value": "-DNDEBUG -static -static-libstdc++ -s -Wall -Wextra -Wno-missing-field-initializers" },
+        { "name": "CMAKE_CXX_FLAGS_RELEASE", "value": "${env.LINUX_CXX_FLAGS_RELEASE}" },
         { "name": "CMAKE_TOOLCHAIN_FILE",    "value": "${env.LINUX_CMAKE_TOOLCHAIN_FILE}" },
         { "name": "VCPKG_TARGET_TRIPLET",    "value": "x86-linux" }
       ]
@@ -225,7 +227,7 @@
          "CC" : "/usr/bin/gcc-12"
       }],
       "variables": [
-        { "name": "CMAKE_CXX_FLAGS_RELEASE", "value": "-DNDEBUG -static -static-libstdc++ -s -Wall -Wextra -Wno-missing-field-initializers" },
+        { "name": "CMAKE_CXX_FLAGS_RELEASE", "value": "${env.CMAKE_CXX_FLAGS_RELEASE}" },
         { "name": "CMAKE_TOOLCHAIN_FILE",    "value": "${env.LINUX_CMAKE_TOOLCHAIN_FILE}" },
         { "name": "VCPKG_TARGET_TRIPLET",    "value": "x64-linux" }
       ]
