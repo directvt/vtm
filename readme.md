@@ -2,11 +2,14 @@
 
 It is a text-based application where the entire user interface is represented by a mosaic of text cells forming a TUI matrix. The resulting TUI matrix is just rendered either into its own GUI window or into a compatible text console.
 
-It can wrap any console application and be nested indefinitely, forming a text-based desktop environment.
+There are two modes - desktop mode and terminal mode.
+- In terminal mode, it can work as a full-fledged stanalone terminal emulator. Just run `vtm -r term [<your_shell>]` or `vtm -r [<your_shell>]`.
+- In desktop mode it can wrap any console application and be nested indefinitely, forming a text-based desktop environment. Just run `vtm`.
+  <a href="https://www.youtube.com/watch?v=kofkoxGjFWQ">
+    <img width="400" alt="Demo on YouTube" src="https://user-images.githubusercontent.com/11535558/146906370-c9705579-1bbb-4e9e-8977-47312f551cc8.gif">
+  </a>
 
-<a href="https://www.youtube.com/watch?v=kofkoxGjFWQ">
-  <img width="400" alt="Demo on YouTube" src="https://user-images.githubusercontent.com/11535558/146906370-c9705579-1bbb-4e9e-8977-47312f551cc8.gif">
-</a>
+Note: Accessing via ssh with auto-DirectVT mode outperforms the classic connection. Just run `vtm ssh user@host vtm`.
 
 # Supported platforms
 
@@ -26,13 +29,13 @@ It can wrap any console application and be nested indefinitely, forming a text-b
 
 # Binary downloads
 
-![Linux](.resources/status/linux.svg)     [![Intel 64-bit](.resources/status/arch_x86_64.svg)](https://github.com/directvt/vtm/releases/latest/download/vtm_linux_x86_64.tar.7z) [![Intel 32-bit](.resources/status/arch_x86.svg)](https://github.com/directvt/vtm/releases/latest/download/vtm_linux_x86.tar.7z) [![ARM 64-bit](.resources/status/arch_arm64.svg)](https://github.com/directvt/vtm/releases/latest/download/vtm_linux_arm64.tar.7z) [![ARM 32-bit](.resources/status/arch_arm32.svg)](https://github.com/directvt/vtm/releases/latest/download/vtm_linux_arm32.tar.7z)  
-![Windows](.resources/status/windows.svg) [![Intel 64-bit](.resources/status/arch_x86_64.svg)](https://github.com/directvt/vtm/releases/latest/download/vtm_windows_x86_64.7z)  [![Intel 32-bit](.resources/status/arch_x86.svg)](https://github.com/directvt/vtm/releases/latest/download/vtm_windows_x86.7z)  [![ARM 64-bit](.resources/status/arch_arm64.svg)](https://github.com/directvt/vtm/releases/latest/download/vtm_windows_arm64.7z)  
-![macOS](.resources/status/macos.svg)     [![Universal](.resources/status/arch_any.svg)](https://github.com/directvt/vtm/releases/latest/download/vtm_macos_any.tar.7z)  
+![Linux](.resources/status/linux.svg)     [![Intel 64-bit](.resources/status/arch_x86_64.svg)](https://github.com/directvt/vtm/releases/latest/download/vtm_linux_x86_64.tar.7z) [![ARM 64-bit](.resources/status/arch_arm64.svg)](https://github.com/directvt/vtm/releases/latest/download/vtm_linux_arm64.tar.7z) [![Intel 32-bit](.resources/status/arch_x86.svg)](https://github.com/directvt/vtm/releases/latest/download/vtm_linux_x86.tar.7z) [![ARM 32-bit](.resources/status/arch_arm32.svg)](https://github.com/directvt/vtm/releases/latest/download/vtm_linux_arm32.tar.7z)  
+![Windows](.resources/status/windows.svg) [![Intel 64-bit](.resources/status/arch_x86_64.svg)](https://github.com/directvt/vtm/releases/latest/download/vtm_windows_x86_64.7z)   [![ARM 64-bit](.resources/status/arch_arm64.svg)](https://github.com/directvt/vtm/releases/latest/download/vtm_windows_arm64.7z)   [![Intel 32-bit](.resources/status/arch_x86.svg)](https://github.com/directvt/vtm/releases/latest/download/vtm_windows_x86.7z)  
+![macOS](.resources/status/macos.svg)     [![Intel 64-bit](.resources/status/arch_x86_64.svg)](https://github.com/directvt/vtm/releases/latest/download/vtm_macos_x86_64.tar.7z) [![ARM 64-bit](.resources/status/arch_arm64.svg)](https://github.com/directvt/vtm/releases/latest/download/vtm_macos_arm64.7z)  
 
 Linux platform notes:
-- The Linux binaries are statically built using gcc-12/g++-12 on an Ubuntu 22.04 system provided by Github Actions.
-- Runtime dependencies on the Linux platform:
+- Linux binaries are statically built using gcc-12/g++-12 on Ubuntu 22.04, provided by Github Actions.
+- Runtime dependencies on Linux:
   - ```
     GLIBC 2.34
     ```

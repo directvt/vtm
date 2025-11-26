@@ -519,7 +519,7 @@ The taskbar menu can be configured using a settings file `~/.config/vtm/settings
 
 ## Keyboard hacking
 
-It is possible to emulate the tmux-like keyboard prefix approach by using a global variable in the Lua-scripting runspace. As an example, the following configuration adds the keyboard shortcut `Ctrl+B` as a toggle for an additional keyboard mode (coupled with a user-defined variable named `kbmodifier` - a table of Boolean values ​​unique to each connected user: `kbmodifier[vtm.gate]`) that allows windows to be moved directly using the arrow keys:
+It is possible to emulate the tmux-like keyboard prefix approach by using a global variable in the Lua-scripting runspace. As an example, the following configuration adds the keyboard shortcut `Ctrl+B` as a toggle for an additional keyboard mode (coupled with a user-defined variable named `kbmodifier` - a table of Boolean values unique to each connected user: `kbmodifier[vtm.gate]`) that allows windows to be moved directly using the arrow keys:
 
 - `~/.config/vtm/settings.xml`:
   ```xml
