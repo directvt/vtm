@@ -130,6 +130,7 @@ jobs:
       env:
         CC:  ${{ matrix.cc }}
         CXX: ${{ matrix.cxx }}
+        WIN32_RESOURCES: ${{ matrix.os == 'windows-latest' && '.resources/images/vtm.rc' || '' }}
       run: >
         cmake -B ${{ steps.strings.outputs.bin }}
         -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake
