@@ -23,7 +23,8 @@
       // /OPT:ICF   (Positive performance impact) Enable "Identical COMDAT Folding," which tells the linker to merge identical pieces of code or read-only data.
       "WIN32_EXE_LINKER_FLAGS_RELEASE": "/DEBUG /OPT:REF /OPT:ICF",
       // Set executable file built-in icon (applied in CMakeLists.txt).
-      "WIN32_RESOURCES": ".resources/images/vtm.rc"
+      "WIN32_RESOURCES": ".resources/images/vtm.rc",
+      "LINUX_CMAKE_TOOLCHAIN_FILE": "~/vcpkg/scripts/buildsystems/vcpkg.cmake"
     }
   ],
   "configurations": [
@@ -56,7 +57,7 @@
       }],
       "variables": [
         { "name": "CMAKE_CXX_FLAGS_DEBUG", "value": "-O0 -DDEBUG -static -static-libstdc++ -g -Wall -Wextra -Wno-missing-field-initializers" },
-        { "name": "CMAKE_TOOLCHAIN_FILE",  "value": "~/vcpkg/scripts/buildsystems/vcpkg.cmake" },
+        { "name": "CMAKE_TOOLCHAIN_FILE",  "value": "${env.LINUX_CMAKE_TOOLCHAIN_FILE}" },
         { "name": "VCPKG_TARGET_TRIPLET",  "value": "x64-linux" }
       ]
     },
@@ -88,7 +89,7 @@
       }],
       "variables": [
         { "name": "CMAKE_CXX_FLAGS_DEBUG", "value": "-O0 -static -static-libstdc++ -DDEBUG -g -Wall -Wextra -Wno-missing-field-initializers" },
-        { "name": "CMAKE_TOOLCHAIN_FILE",  "value": "~/vcpkg/scripts/buildsystems/vcpkg.cmake" },
+        { "name": "CMAKE_TOOLCHAIN_FILE",  "value": "${env.LINUX_CMAKE_TOOLCHAIN_FILE}" },
         { "name": "VCPKG_TARGET_TRIPLET",  "value": "x86-linux" }
       ]
     },
@@ -107,7 +108,7 @@
       }],
       "variables": [
         { "name": "CMAKE_CXX_FLAGS_DEBUG", "value": "-O0 -DDEBUG -static -static-libstdc++ -g -Wno-missing-field-initializers" },
-        { "name": "CMAKE_TOOLCHAIN_FILE",  "value": "~/vcpkg/scripts/buildsystems/vcpkg.cmake" },
+        { "name": "CMAKE_TOOLCHAIN_FILE",  "value": "${env.LINUX_CMAKE_TOOLCHAIN_FILE}" },
         { "name": "VCPKG_TARGET_TRIPLET",  "value": "arm64-linux" }
       ]
     },
@@ -168,7 +169,7 @@
       }],
       "variables": [
         { "name": "CMAKE_CXX_FLAGS_RELEASE", "value": "-DNDEBUG -static -static-libstdc++ -s -Wno-psabi -Wall -Wextra -Wno-missing-field-initializers" },
-        { "name": "CMAKE_TOOLCHAIN_FILE",    "value": "~/vcpkg/scripts/buildsystems/vcpkg.cmake" },
+        { "name": "CMAKE_TOOLCHAIN_FILE",    "value": "${env.LINUX_CMAKE_TOOLCHAIN_FILE}" },
         { "name": "VCPKG_TARGET_TRIPLET",    "value": "arm-linux" }
       ]
     },
@@ -187,7 +188,7 @@
       }],
       "variables": [
         { "name": "CMAKE_CXX_FLAGS_RELEASE", "value": "-DNDEBUG -static -static-libstdc++ -s -Wall -Wextra -Wno-missing-field-initializers" },
-        { "name": "CMAKE_TOOLCHAIN_FILE",    "value": "~/vcpkg/scripts/buildsystems/vcpkg.cmake" },
+        { "name": "CMAKE_TOOLCHAIN_FILE",    "value": "${env.LINUX_CMAKE_TOOLCHAIN_FILE}" },
         { "name": "VCPKG_TARGET_TRIPLET",    "value": "arm64-linux" }
       ]
     },
@@ -206,7 +207,7 @@
       }],
       "variables": [
         { "name": "CMAKE_CXX_FLAGS_RELEASE", "value": "-DNDEBUG -static -static-libstdc++ -s -Wall -Wextra -Wno-missing-field-initializers" },
-        { "name": "CMAKE_TOOLCHAIN_FILE",    "value": "~/vcpkg/scripts/buildsystems/vcpkg.cmake" },
+        { "name": "CMAKE_TOOLCHAIN_FILE",    "value": "${env.LINUX_CMAKE_TOOLCHAIN_FILE}" },
         { "name": "VCPKG_TARGET_TRIPLET",    "value": "x86-linux" }
       ]
     },
@@ -225,7 +226,7 @@
       }],
       "variables": [
         { "name": "CMAKE_CXX_FLAGS_RELEASE", "value": "-DNDEBUG -static -static-libstdc++ -s -Wall -Wextra -Wno-missing-field-initializers" },
-        { "name": "CMAKE_TOOLCHAIN_FILE",    "value": "~/vcpkg/scripts/buildsystems/vcpkg.cmake" },
+        { "name": "CMAKE_TOOLCHAIN_FILE",    "value": "${env.LINUX_CMAKE_TOOLCHAIN_FILE}" },
         { "name": "VCPKG_TARGET_TRIPLET",    "value": "x64-linux" }
       ]
     }

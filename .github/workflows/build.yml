@@ -43,7 +43,6 @@ jobs:
             arch: x86
             cxx: cl
             cc: cl
-            flags: '-DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded" -DCMAKE_EXE_LINKER_FLAGS_RELEASE="/DEBUG /OPT:REF /OPT:ICF" -DCMAKE_CXX_FLAGS_RELEASE="/MT /O2 /DNDEBUG /Zi /Zc:preprocessor /W4 /EHsc /bigobj /utf-8 /Zc:preprocessor" -A '
             triplet: x86-windows-static
           - os: windows-latest
             cxx: cl
@@ -83,7 +82,7 @@ jobs:
           - os: ubuntu-22.04
             flags: '-DCMAKE_CXX_FLAGS_RELEASE=" -static -s -O2 -DNDEBUG -Wall -Wextra -Wno-missing-field-initializers -Wno-psabi -Werror"'
           - os: windows-latest
-            flags: '-DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded" -DCMAKE_EXE_LINKER_FLAGS_RELEASE="/DEBUG /OPT:REF /OPT:ICF" -DCMAKE_CXX_FLAGS_RELEASE="/MT /O2 /DNDEBUG /Zi /Zc:preprocessor /W4" -A '
+            flags: '-DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded" -DCMAKE_EXE_LINKER_FLAGS_RELEASE="/DEBUG /OPT:REF /OPT:ICF" -DCMAKE_CXX_FLAGS_RELEASE="/MT /O2 /DNDEBUG /Zi /Zc:preprocessor /W4 /EHsc /bigobj /utf-8 /Zc:preprocessor" -A '
 
           - os: ubuntu-22.04
             platform: linux
