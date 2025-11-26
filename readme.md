@@ -3,8 +3,10 @@
 It is a text-based application where the entire user interface is represented by a mosaic of text cells forming a TUI matrix. The resulting TUI matrix is just rendered either into its own GUI window or into a compatible text console.
 
 There are two modes - desktop mode and terminal mode.
-- In terminal mode, it can work as a full-fledged stanalone terminal emulator. Just run `vtm -r term [<your_shell>]` or `vtm -r [<your_shell>]`.
-- In desktop mode it can wrap any console application and be nested indefinitely, forming a text-based desktop environment. Just run `vtm`.
+- In terminal mode, it can work as a full-fledged stanalone terminal emulator.  
+  Just run `vtm -r term [<your_shell>]` or `vtm -r [<your_shell>]`.
+- In desktop mode it can wrap any console application and be nested indefinitely, forming a text-based desktop environment.  
+  Just run `vtm`.  
   <a href="https://www.youtube.com/watch?v=kofkoxGjFWQ">
     <img width="400" alt="Demo on YouTube" src="https://user-images.githubusercontent.com/11535558/146906370-c9705579-1bbb-4e9e-8977-47312f551cc8.gif">
   </a>
