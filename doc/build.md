@@ -14,10 +14,11 @@ Build-time dependencies
 
 Examples of installing dependencies:
 
-OS    | Dependency installation command
-------|--------------------------------
-Linux | `sudo apt install libfreetype-dev libharfbuzz-dev liblua5.4-dev git cmake`
-MacOS | `brew install freetype harfbuzz lua cmake`
+OS      | Dependency installation command | Notes
+--------|---------------------------------|------
+Linux   | `sudo apt install libfreetype-dev libharfbuzz-dev liblua5.4-dev git cmake`
+FreeBSD | `pkg install freetype2 harfbuzz lua54 cmake` | Best results with GCC compiler and 6GB of RAM.
+MacOS   | `brew install freetype harfbuzz lua cmake`
 
 Use any terminal as a build environment
 

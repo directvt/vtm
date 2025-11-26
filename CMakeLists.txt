@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.22)
 include(FetchContent)
 
-project("vtm")
+project("vtm" CXX)
 # project("term")
 # project("calc")
 
