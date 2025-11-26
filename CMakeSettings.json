@@ -1,4 +1,31 @@
 ﻿{
+  "environments": [
+    {
+      // /EHsc             Tell the compiler that exceptions can only occur at a throw statement or at a function call.
+      // /bigobj           Our event model spawns a large number of objects. By default, an object file can hold up to 65,279 (almost 2^16) addressable sections. This limit applies no matter which target platform is specified. /bigobj increases that address capacity to 4,294,967,296 (2^32).
+      // /utf-8            All literals in our source code are in UTF-8 format.
+      // /Zc:preprocessor  Enable a new, modern preprocessor that is fully conformant to C99, C++11, and later standards.
+      "WIN32_CXX_FLAGS": "/EHsc /bigobj /utf-8 /Zc:preprocessor",
+      // /MTd              Static debug build (don't rely on the shared dll).
+      // /DDEBUG           Define the preprocessor symbol DEBUG.
+      // /Zi               Generate complete debugging information (.PDB files) to allow for source-level debugging in Visual Studio.
+      // /Ob0              Disable all inlining.
+      // /Od               Disable all compiler optimizations.
+      // /RTC1             Enable stack frame run-time checking (local variables uninitialized) and detects when smaller variables are assigned larger values and data is lost.
+      // /W4               Set the compiler warning level to 4 (maximum standard level).
+      "WIN32_CXX_FLAGS_DEBUG": "/MTd /DDEBUG /Zi /Ob0 /Od /RTC1 /W4",
+      // /MT               Static release build (don't rely on the shared dll).
+      // /DNDEBUG          Define the preprocessor symbol NDEBUG.
+      // /O2               Disable all compiler optimizations.
+      "WIN32_CXX_FLAGS_RELEASE": "/MT /O2 /DNDEBUG /Zi /W4",
+      // /DEBUG     (Negative performance impact) Generate PDB files and disable certain linker-time optimizations that rely on stripping symbols or combining identical code sections.
+      // /OPT:REF   (Positive performance impact) Eliminate functions and data that are never referenced (Dead Code Elimination).
+      // /OPT:ICF   (Positive performance impact) Enable "Identical COMDAT Folding," which tells the linker to merge identical pieces of code or read-only data.
+      "WIN32_EXE_LINKER_FLAGS_RELEASE": "/DEBUG /OPT:REF /OPT:ICF",
+      // Set executable file built-in icon (applied in CMakeLists.txt).
+      "WIN32_RESOURCES": ".resources/images/vtm.rc"
+    }
+  ],
   "configurations": [
     {
       "name":              "1.Win-x64-Debug",
@@ -9,7 +36,7 @@
       "intelliSenseMode":  "windows-msvc-x64",
       "inheritEnvironments": [ "msvc_x64_x64" ],
       "variables": [
-        { "name": "CMAKE_CXX_FLAGS_DEBUG",      "value": "/DDEBUG /MTd /Zi /Ob0 /Od /RTC1 /W4" },
+        { "name": "CMAKE_CXX_FLAGS_DEBUG",      "value": "${env.WIN32_CXX_FLAGS_DEBUG} ${env.WIN32_CXX_FLAGS}" },
         { "name": "CMAKE_MSVC_RUNTIME_LIBRARY", "value": "MultiThreadedDebug" },
         { "name": "VCPKG_TARGET_TRIPLET",       "value": "x64-windows-static" }
       ]
@@ -41,7 +68,7 @@
       "installRoot":       "${workspaceRoot}/.vs/build/install/${name}",
       "inheritEnvironments": [ "msvc_x86_x64" ],
       "variables": [
-        { "name": "CMAKE_CXX_FLAGS_DEBUG",      "value": "/DDEBUG /MTd /Zi /Ob0 /Od /RTC1 /W4" },
+        { "name": "CMAKE_CXX_FLAGS_DEBUG",      "value": "${env.WIN32_CXX_FLAGS_DEBUG} ${env.WIN32_CXX_FLAGS}" },
         { "name": "CMAKE_MSVC_RUNTIME_LIBRARY", "value": "MultiThreadedDebug" },
         { "name": "VCPKG_TARGET_TRIPLET",       "value": "x86-windows-static" }
       ]
@@ -93,7 +120,7 @@
       "intelliSenseMode":  "windows-msvc-arm64",
       "inheritEnvironments": [ "msvc_arm64_x64" ],
       "variables": [
-        { "name": "CMAKE_CXX_FLAGS_RELEASE",    "value": "/DNDEBUG /MT /Zi /W4" },
+        { "name": "CMAKE_CXX_FLAGS_RELEASE",    "value": "${env.WIN32_CXX_FLAGS_RELEASE} ${env.WIN32_CXX_FLAGS}" },
         { "name": "CMAKE_MSVC_RUNTIME_LIBRARY", "value": "MultiThreaded" },
         { "name": "VCPKG_TARGET_TRIPLET",       "value": "arm64-windows-static" }
       ]
@@ -106,8 +133,8 @@
       "installRoot":       "${workspaceRoot}/.vs/build/install/${name}",
       "inheritEnvironments": [ "msvc_x86_x64" ],
       "variables": [
-        { "name": "CMAKE_CXX_FLAGS_RELEASE",        "value": "/DNDEBUG /MT /Zi /W4" },
-        { "name": "CMAKE_EXE_LINKER_FLAGS_RELEASE", "value": "/DEBUG /OPT:REF /OPT:ICF" },
+        { "name": "CMAKE_CXX_FLAGS_RELEASE",        "value": "${env.WIN32_CXX_FLAGS_RELEASE} ${env.WIN32_CXX_FLAGS}" },
+        { "name": "CMAKE_EXE_LINKER_FLAGS_RELEASE", "value": "${env.WIN32_EXE_LINKER_FLAGS_RELEASE}" },
         { "name": "CMAKE_MSVC_RUNTIME_LIBRARY",     "value": "MultiThreaded" },
         { "name": "VCPKG_TARGET_TRIPLET",           "value": "x86-windows-static" }
       ]
@@ -120,8 +147,8 @@
       "installRoot":       "${workspaceRoot}/.vs/build/install/${name}",
       "inheritEnvironments": [ "msvc_x64_x64" ],
       "variables": [
-        { "name": "CMAKE_CXX_FLAGS_RELEASE",        "value": "/DNDEBUG /MT /Zi /W4" },
-        { "name": "CMAKE_EXE_LINKER_FLAGS_RELEASE", "value": "/DEBUG /OPT:REF /OPT:ICF" },
+        { "name": "CMAKE_CXX_FLAGS_RELEASE",        "value": "${env.WIN32_CXX_FLAGS_RELEASE} ${env.WIN32_CXX_FLAGS}" },
+        { "name": "CMAKE_EXE_LINKER_FLAGS_RELEASE", "value": "${env.WIN32_EXE_LINKER_FLAGS_RELEASE}" },
         { "name": "CMAKE_MSVC_RUNTIME_LIBRARY",     "value": "MultiThreaded" },
         { "name": "VCPKG_TARGET_TRIPLET",           "value": "x64-windows-static" }
       ]
