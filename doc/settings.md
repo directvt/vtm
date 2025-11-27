@@ -18,7 +18,7 @@ graph TB
 
 ## TL;DR
 
-The settings are stored in the "Pure XML" file format, which looks like classical XML but with dynamic element refrencing and templating.  
+The settings are stored in the "Dynamic XML" file format, which looks like classical XML but with dynamic element refrencing and templating.  
 See [`/src/vtm.xml`](../src/vtm.xml) for example.
 
 We call the text data in the settings file "plain XML data" even though our file format is not technically XML, but only visually resembles it.
@@ -57,11 +57,11 @@ The file list is built in the following order from the following sources:
   - A case with a file reference:
     - `./vtm --config "/path/to/override_defaults.xml"` - Take the file list from the '/path/to/override_defaults.xml'.
 
-## Pure XML
+## Dynamic XML
 
 ### Differences from classical XML
 
-Pure XML is based on the XML 1.1 standard, with the following exceptions:
+Dynamic XML is based on the XML 1.1 standard, with the following exceptions:
 
  - Document encoding is UTF-8 only.
  - Any Unicode characters are allowed, including the U+0000 (null) character.
