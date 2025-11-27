@@ -806,7 +806,7 @@ Notes
 - Hardcoded settings can be found in the source file [/src/vtm.xml](../src/vtm.xml).
 - The `$0` tag will be expanded to the fully qualified current module filename at runtime.
 
-`$VTM-CONFIG=/path/to/settings.xml`.
+`$VTM_CONFIG=/path/to/settings.xml`.
 `settings.xml`:
 ```xml
 <include*/>  <!-- Clear previously defined sources. Start a new list. -->
