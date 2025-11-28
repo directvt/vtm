@@ -20,7 +20,7 @@ namespace netxs
 
     static constexpr auto whitespaces = " \t\r\n\v\f"sv;
     static constexpr auto onlydigits  = "0123456789"sv;
-    static constexpr auto sharpdigit  = "0123456789#"sv;
+    static constexpr auto sharpdigit  = "0123456789#-"sv;
     static constexpr auto alphabetic  = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"sv;
     static constexpr auto base64code  = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     static constexpr auto whitespace  = ' '; // '.';

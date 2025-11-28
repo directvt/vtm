@@ -651,7 +651,7 @@ namespace netxs::xml
             static constexpr auto view_token_first      = " \t\r\n\v\f!\"#$%&'()*+<=>?@[\\]^`{|}~;,/-.0123456789"sv; // Element name cannot contain any of [[:whitespaces:]!"#$%&'()*+,/;<=>?@[\]^`{|}~], and cannot begin with "-", ".", or a numeric digit.
             static constexpr auto view_token_delims     = " \t\r\n\v\f!\"#$%&'()*+<=>?@[\\]^`{|}~;,/"sv;
             static constexpr auto view_reference_delims = " \t\r\n\v\f!\"#$%&'()*+<=>?@[\\]^`{|}~;,"sv;
-            static constexpr auto view_digit_delims     = " \t\r\n\v\f!\"$%&'()*+<=>?@[\\]^`{|}~/"sv; // Allow '#' in digits (#rgb). Also allow ';' and ',' between digits: (123;456).
+            static constexpr auto view_digit_delims     = " \t\r\n\v\f!\"$%&'()*+<=>?@[\\]^`{|}~/"sv; // Allow '-' (-1), '#' in digits (#rgb). Also allow ';' and ',' between digits: (123;456).
             static constexpr auto view_comment_begin    = "<!--"sv;
             static constexpr auto view_comment_close    = "-->"sv;
             static constexpr auto view_close_tag        = "</"sv;
@@ -833,7 +833,7 @@ namespace netxs::xml
                     auto not_empty = true;
                     do
                     {
-                        if (what == type::quoted_text) // #quoted_text
+                        if (what == type::quoted_text) // Quoted text.
                         {
                             append_prepending_spaces();
                                 what = type::tag_value;
@@ -850,12 +850,12 @@ namespace netxs::xml
                             append_prepending_spaces();
                                 what = type::tag_value;
                                 auto is_digit = netxs::sharpdigit.find(temp.front()) != text::npos;
-                                if (is_digit) // #number
+                                if (is_digit) // [-]number or #hexnumber.
                                 {
                                     auto frag_ptr = append(type::tag_numvalue, utf::take_front(temp, view_digit_delims));
                                     item_ptr->body.push_back(frag_ptr);
                                 }
-                                else // #reference
+                                else // Reference.
                                 {
                                     auto temp2 = temp;
                                     utf::take_front(temp2, view_token_delims);
@@ -941,7 +941,7 @@ namespace netxs::xml
                     auto vbeg_ptr = page.frag_list.end();
                     while (what != type::close_tag && what != type::eof)
                     {
-                        if (what == type::quoted_text) // #quoted_text
+                        if (what == type::quoted_text) // Quoted text.
                         {
                             if (!inside_value)
                             {
@@ -977,7 +977,7 @@ namespace netxs::xml
                                     fail();
                                     break;
                                 }
-                                // #reference
+                                // Reference.
                                 what = type::tag_reference;
                                 append_prepending_spaces();
                                     auto frag_ptr = append(type::raw_reference, utf::take_front(temp, view_reference_delims));
@@ -1030,7 +1030,7 @@ namespace netxs::xml
                                     break;
                                 }
                             }
-                            if (what != type::raw_text) // #raw_text
+                            if (what != type::raw_text) // Raw text.
                             {
                                 auto raw_block = data - temp;
                                 utf::pop_back_chars(raw_block, whitespaces); // Excluding trailing spaces from the raw_text_block.

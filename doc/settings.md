@@ -18,7 +18,7 @@ graph TB
 
 ## TL;DR
 
-The settings are stored in the "Dynamic XML" file format, which looks like classical XML but with dynamic element refrencing and templating.  
+The settings are stored in the DynamicXML file format, which looks like classical XML but with dynamic element refrencing and templating.  
 See [`/src/vtm.xml`](../src/vtm.xml) for example.
 
 We call the text data in the settings file "plain XML data" even though our file format is not technically XML, but only visually resembles it.
@@ -57,11 +57,11 @@ The file list is built in the following order from the following sources:
   - A case with a file reference:
     - `./vtm --config "/path/to/override_defaults.xml"` - Take the file list from the '/path/to/override_defaults.xml'.
 
-## Dynamic XML
+## DynamicXML
 
 ### Differences from classical XML
 
-Dynamic XML is based on the XML 1.1 standard, with the following exceptions:
+DynamicXML is based on the XML 1.1 standard, with the following exceptions:
 
  - Document encoding is UTF-8 only.
  - Any Unicode characters are allowed, including the U+0000 (null) character.
@@ -76,38 +76,37 @@ Dynamic XML is based on the XML 1.1 standard, with the following exceptions:
    - `... < name ...` should not be treated as an opening tag.
  - Every element has its own text value.
    - For example, `<name="names_value" param="params_value"/>` - the `name` element has the text value `names_value`, and its `param` sub-element has the text value `params_value`.
- - All stored values are strings (the data requester decides on its side how to interpret it):
-   - `name=2000` and `name="2000"` have the same meaning.
- - All value strings, except those that begin with a decimal digit character (ASCII `0` - `9`), must be quoted with either double or single quotes (`"` U+0022 or `'` U+0027).
+ - All values are strings (the data requester decides on its side how to interpret it):
+ - All values must be quoted with either double or single quotes (`"` U+0022 or `'` U+0027). Values that begin with a decimal digit, `-`, or `#` (ASCII `-`, `#`, `0` - `9`) do not need to be quoted (`name=-2000` and `name="-2000"` have the same meaning).
  - The value string can be fragmented. Fragments can be located after the equal sign following the element name, as well as between the opening and closing tags.
  - The fragments located between the opening and closing tags can be either quoted or in raw form. The quoted form sets strict boundaries for the string value. The raw form pulls all characters between the opening and closing tags, excluding trailing whitespaces (whitespaces immediately before a nested opening tag or an element's closing tag).
  - The following compact syntax for element declaration is allowed:
    - `<node0/node1/thing name="value"/>` and `<node0><node1><thing name="value"/></node1></node0>` have the same meaning.
- - Elements can reference any other elements using relative and absolute references, in the form of an unquoted name or an XML path to the referenced element.
+ - Elements can reference any other elements using relative or absolute references, in the form of an unquoted name or an XML path to the referenced element.
    - `thing2` refers to the value `/node1/thing1` in `<node1 thing1="value1"/><node2 thing2=/node1/thing1 />`.
    - `thing2` refers to the value `thing1` within the scope of `<node1 thing1="value1"><node2 thing2=thing1 /></node1>`.
-   - Each element forms its own namespace.
+ - Each element forms its own namespace.
    - The value of an element containing relative references is obtained by traversing the element's namespace and all its surrounding namespaces until the first hit.
-   - A recursive reference is a reference encountered during the resolving of another reference.
+ - A recursive reference is a reference encountered during the resolving of another reference.
    - All recursive references are resolved starting from the element's namespace, regardless of where the recursive references are encountered.
    - Circular references are silently ignored.
  - The element reference includes all of the element's contents, including the element's value and all nested elements.
  - The element's content may include any number of substrings, as well as references to other elements, combined in the required order using the vertical bar character ASCII 0x7C `|`.
    - `<thing1="1"/><thing2="2"/><thing21=thing2 | thing1/>` and `<thing1="1"/><thing2="2"/><thing21="21"/>` have the same meaning.
- - Documents containing identical data structures allow overlaying.
+ - DynamicXML files containing identical data structures allow overlaying.
    - The values of single elements of the original structure will be updated to the values of the overlaid structure.
    - A list of elements with the same name within a scope may start with an empty element with an asterisk at the end of the name, meaning that this list will always overwrite the existing one during overlaying.
    - The destination list will be pre-cleared if any of the following conditions are met:
      - the first element in the overlay list is marked with an asterisk
      - the first element in the destination list is not marked with an asterisk
- - There is a list of escaped characters with special meaning:
+ - The following literals within values ​​have special meaning and will be expanded:
    - `\a`  ASCII 0x07 BEL
    - `\t`  ASCII 0x09 TAB
    - `\n`  ASCII 0x0A LF
    - `\r`  ASCII 0x0D CF
    - `\e`  ASCII 0x1B ESC
    - `\\`  ASCII 0x5C Backslash
-   - `\u`  A Unicode escape sequence in the form `\u{XX...}` or `\uXX...`, where `XX...` is the hexadecimal codepoint value.
+   - `\u{XX...}` or `\uXX...`  Unicode codepoint, where `XX...` is the hexadecimal value.
 
 To illustrate possible structural designs, consider the following hierarchy of elements:
 
@@ -245,7 +244,7 @@ The following forms of element declaration are equivalent:
   </document>
   ```
 
-### Compact XML syntax
+### Compact DynamicXML syntax
 
 The following declarations have the same meaning:
 
