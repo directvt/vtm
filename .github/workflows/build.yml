@@ -132,6 +132,7 @@ jobs:
       env:
         CC:  ${{ matrix.cc }}
         CXX: ${{ matrix.cxx }}
+        MACOSX_DEPLOYMENT_TARGET: 11.0
         WIN32_RESOURCES: ${{ matrix.os == 'windows-latest' && '.resources/images/vtm.rc' || '' }}
       run: >
         cmake -B ${{ steps.strings.outputs.bin }}
