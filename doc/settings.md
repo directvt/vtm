@@ -114,8 +114,7 @@ DynamicXML is a configuration language based on the XML 1.1 syntax, but with sub
    | Same-named Elements | Update Rules
    |---------------------|-------------
    | Single Element      | The values of single elements of the original structure will be updated to the values of the overlaid structure.
-   | List of Elements    | A list of elements with the same name within a scope may start with an empty element with an asterisk postfix (`<item*/>...<item .../>...<item .../>`), meaning that this list will always overwrite the existing one during overlaying.
-<br>Updating an existing list will pre-clear it if its first element is not marked with an asterisk.
+   | List of Elements    | A list of elements with the same name within a scope may start with an empty element with an asterisk postfix (`<item*/>...<item .../>...<item .../>`), meaning that this list will always overwrite the existing one during overlaying.<br>Updating an existing list will pre-clear it if its first element is not marked with an asterisk.
 
 ### Possible Structural Designs
 
