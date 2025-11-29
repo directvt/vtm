@@ -59,54 +59,65 @@ The file list is built in the following order from the following sources:
 
 ## DynamicXML
 
-### Differences from classical XML
+DynamicXML is a configuration language based on the XML 1.1 syntax, but with substantial extensions that introduce dynamic features, templating mechanisms, and data merging logic. It is designed for use as a flexible and powerful format for configuration files, rather than a universal data interchange format.
 
-DynamicXML is based on the XML 1.1 standard, with the following exceptions:
+### Differences from Classical XML 1.1
 
- - Document encoding is UTF-8 only.
- - Any Unicode characters are allowed, including the U+0000 (null) character.
- - There is no support for named XML character entities.
- - The stored data forms a hierarchical list of `name=value` pairs.
- - Multiple root elements are allowed.
- - There is no distinction between XML-attribute and XML-element, i.e. any attributes are sub-elements.
-   - Each element can be defined in any way, either using an XML-attribute or an XML-element syntax:
-     - `<... name="value" />`, `<...> <name> "value" </name> </...>`, and `<...> <name="value" /> </...>` have the same meaning.
-   - The XML-attribute `param` in `<name param="value"/>` and the XML-element `param` in `<name> <param="value"/> </name>` are semantically identical sub-elements of the `name` element.
- - No spaces are allowed between the opening angle bracket and the element name:
-   - `... < name ...` should not be treated as an opening tag.
- - Every element has its own text value.
-   - For example, `<name="names_value" param="params_value"/>` - the `name` element has the text value `names_value`, and its `param` sub-element has the text value `params_value`.
- - All values are strings (the data requester decides on its side how to interpret it):
- - All values must be quoted with either double or single quotes (`"` U+0022 or `'` U+0027). Values that begin with a decimal digit, `-`, or `#` (ASCII `-`, `#`, `0` - `9`) do not need to be quoted (`name=-2000` and `name="-2000"` have the same meaning).
- - The value string can be fragmented. Fragments can be located after the equal sign following the element name, as well as between the opening and closing tags.
- - The fragments located between the opening and closing tags can be either quoted or in raw form. The quoted form sets strict boundaries for the string value. The raw form pulls all characters between the opening and closing tags, excluding trailing whitespaces (whitespaces immediately before a nested opening tag or an element's closing tag).
- - The following compact syntax for element declaration is allowed:
-   - `<node0/node1/thing name="value"/>` and `<node0><node1><thing name="value"/></node1></node0>` have the same meaning.
- - Elements can reference any other elements using relative or absolute references, in the form of an unquoted name or an XML path to the referenced element.
-   - `thing2` refers to the value `/node1/thing1` in `<node1 thing1="value1"/><node2 thing2=/node1/thing1 />`.
-   - `thing2` refers to the value `thing1` within the scope of `<node1 thing1="value1"><node2 thing2=thing1 /></node1>`.
- - Each element forms its own namespace.
-   - The value of an element containing relative references is obtained by traversing the element's namespace and all its surrounding namespaces until the first hit.
- - A recursive reference is a reference encountered during the resolving of another reference.
-   - All recursive references are resolved starting from the element's namespace, regardless of where the recursive references are encountered.
-   - Circular references are silently ignored.
- - The element reference includes all of the element's contents, including the element's value and all nested elements.
- - The element's content may include any number of substrings, as well as references to other elements, combined in the required order using the vertical bar character ASCII 0x7C `|`.
-   - `<thing1="1"/><thing2="2"/><thing21=thing2 | thing1/>` and `<thing1="1"/><thing2="2"/><thing21="21"/>` have the same meaning.
- - DynamicXML files containing identical data structures allow overlaying.
-   - The values of single elements of the original structure will be updated to the values of the overlaid structure.
-   - A list of elements with the same name within a scope may start with an empty element with an asterisk at the end of the name, meaning that this list will always overwrite the existing one during overlaying.
-   - The destination list will be pre-cleared if any of the following conditions are met:
-     - the first element in the overlay list is marked with an asterisk
-     - the first element in the destination list is not marked with an asterisk
- - The following literals within values ​​have special meaning and will be expanded:
-   - `\a`  ASCII 0x07 BEL
-   - `\t`  ASCII 0x09 TAB
-   - `\n`  ASCII 0x0A LF
-   - `\r`  ASCII 0x0D CF
-   - `\e`  ASCII 0x1B ESC
-   - `\\`  ASCII 0x5C Backslash
-   - `\u{XX...}` or `\uXX...`  Unicode codepoint, where `XX...` is the hexadecimal value.
+1. #### Core Syntax and Structure
+
+   | Aspect                | Difference
+   |-----------------------|-----------
+   | Encoding              | Documents use **UTF-8** encoding only.
+   | Allowed Characters    | Any Unicode characters are permitted, including the **U+0000 (null)** character, which is prohibited in XML 1.1.
+   | Entities              | There is no support for named XML character entities (`&amp;`, `&lt;`, etc.).
+   | Root Elements         | The presence of **multiple root elements** within a single document is allowed.
+   | Whitespace            | No spaces are allowed between the opening angle bracket (`<`) and the element name.
+   | Semantics             | There is no distinction between an XML-attribute and an XML-element. All attributes are treated as sub-elements.<br>The notations `<... name="value" />`, `<...><name>"value"</name></...>`, and `<...><name="value" /></...>` all have identical meanings.
+
+2. #### Value Processing and Types
+
+   | Aspect                | Difference
+   |-----------------------|-----------
+   | Data Types            | Each element has its own string value. All values are stored as **strings**. The consuming application decides on its end how to interpret them (e.g., as a number or a boolean).
+   | Nested Elements       | Each element, in addition to its own string value, directly owns the nested elements.
+   | Required Quoting      | All string values, except those that begin with a decimal digit, `-`, or `#`, must be enclosed in single or double quotes.
+   | Value Fragmentation   | An element's value can be fragmented and combined both after the equals sign and between the opening and closing tags.
+   | Whitespace Handling   | Content between tags can be quoted (strict boundaries) or raw (trailing whitespace immediately before a nested or closing tag is removed).
+   | Escaping              | Special literals for control characters and Unicode sequences are supported (e.g., \t, \n, \e, \u{...}).
+
+   The following literals within values have special meaning and will be expanded:
+     - `\a`  ASCII 0x07 BEL
+     - `\t`  ASCII 0x09 TAB
+     - `\n`  ASCII 0x0A LF
+     - `\r`  ASCII 0x0D CF
+     - `\e`  ASCII 0x1B ESC
+     - `\\`  ASCII 0x5C Backslash
+     - `\u{XX...}` or `\uXX...`  Unicode codepoint, where `XX...` is the hexadecimal value.
+
+3. #### Dynamic Features: References and Templates
+
+   | Aspect                | Difference
+   |-----------------------|-----------
+   | Element References    | Elements can reference the values or entire structures of other elements using relative or absolute paths. Any unquoted non-numeric value is treated as a reference.
+   | Namespacing/Scoping   | Each element forms its own namespace (scope).
+   | Value Concatenation   | An element's content may consist of several substrings and/or references combined using the vertical bar (`\|`) operator.
+   | Inheritance           | Assigning references to elements makes the scopes of these elements inherited and directly accessible.
+   | Resolving Order       | Reference resolution works by recursively iterating through inherited scopes in the order they are assigned, then traversing the current scope and all surrounding parent scopes until the first element name match is found.
+   | Recursion and Cycles  | Recursive references are resolved starting from the element scope. Circular references are **silently ignored**.
+   | Templates             | The structures of elements containing references are templates. Template instantiation is performed from inheritance sources and surrounding elements.
+   | Compact Path Syntax   | A shorthand for nesting is supported: `<node0/node1/thing name="value"/>` is equivalent to the full tag hierarchy.
+
+4. #### Data Merging (Overlaying)
+
+   DynamicXML files support an "overlaying" mechanism where values in an overlaid document can update values in a base document.
+
+   | Same-named Elements | Update Rules
+   |---------------------|-------------
+   | Single Element      | The values of single elements of the original structure will be updated to the values of the overlaid structure.
+   | List of Elements    | A list of elements with the same name within a scope may start with an empty element with an asterisk postfix (`<item*/>...<item .../>...<item .../>`), meaning that this list will always overwrite the existing one during overlaying.
+<br>Updating an existing list will pre-clear it if its first element is not marked with an asterisk.
+
+### Possible Structural Designs
 
 To illustrate possible structural designs, consider the following hierarchy of elements:
 
@@ -244,25 +255,9 @@ The following forms of element declaration are equivalent:
   </document>
   ```
 
-### Compact DynamicXML syntax
+## VTM Configuration Overview
 
-The following declarations have the same meaning:
-
-```xml
-<config>
-    <document>
-        <thing="thing_value">
-            <name="name_value"/>
-        </thing>
-    </document>
-</config>
-```
-
-```xml
-<config/document/thing="thing_value" name="name_value"/>
-```
-
-### Vtm configuration structure
+### Configuration Structure
 
 ```xml
 <!-- Global namespace - Unresolved literals will try to be resolved from here. -->
@@ -389,7 +384,7 @@ The following item declarations are identical:
 <item ... type="dtvt" cmd="vtm -r vtty mc"/>
 ```
 
-### Event scripting
+### Event Scripting
 
 #### General syntax
 
@@ -748,7 +743,7 @@ The value of the `cfg` menu item attribute (or a whole `<config>` subsection) wi
 
 ### UI Localization
 
-The vtm user interface can be localized into any language by providing a translation and specifying the required language ID in the settings.
+The vtm user interface can be localized into any language by providing translations for the existing UI templates and assigning the required language ID to the root NS element to ensure patch inheritance.
 
 The vtm UI interface has a built-in English `en-US` and Russian `ru-RU` localization.
 
