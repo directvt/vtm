@@ -130,13 +130,13 @@ jobs:
         sudo apt -y update
         sudo apt -y install ${{ matrix.apt }}
 
-    - name: Clone and Bootstrap vcpkg (win32)
+    - name: Clone and Bootstrap vcpkg (Windows)
       if: matrix.os == 'windows-latest'
       run: |
         git clone https://github.com/microsoft/vcpkg.git ${{ github.workspace }}/vcpkg
         ${{ github.workspace }}/vcpkg/bootstrap-vcpkg.bat -disableMetrics
 
-    - name: Clone and Bootstrap vcpkg (ubuntu)
+    - name: Clone and Bootstrap vcpkg (POSIX)
       if: matrix.os != 'windows-latest'
       run: |
         git clone https://github.com/microsoft/vcpkg.git ${{ github.workspace }}/vcpkg
