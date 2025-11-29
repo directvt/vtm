@@ -25,16 +25,16 @@ jobs:
             platform: macos
             cpu: arm64
             arch: arm64
-            cxx: g++
-            cc: gcc
+            cxx: g++-15
+            cc: gcc-15
             flags: '-DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 -DCMAKE_CXX_FLAGS_RELEASE="-static -s -DNDEBUG -Wall -Wextra -Wno-missing-field-initializers -Wno-psabi -Werror"'
             triplet: arm64-osx
           - os: macos-15-intel
             platform: macos
             cpu: x64
             arch: x86_64
-            cxx: g++
-            cc: gcc
+            cxx: g++-15
+            cc: gcc-15
             flags: '-DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 -DCMAKE_CXX_FLAGS_RELEASE="-static -s -DNDEBUG -Wall -Wextra -Wno-missing-field-initializers -Wno-psabi -Werror"'
             triplet: x64-osx
           - os: windows-latest
