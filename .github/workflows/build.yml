@@ -2,7 +2,7 @@ name: Build binaries
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "gui-bridge" ]
   pull_request:
     branches: [ "master" ]
 
@@ -21,21 +21,21 @@ jobs:
           - os: windows-latest
             cpu: arm
         include:
-          - os: macos-latest
+          - os: macos-15
             platform: macos
             cpu: arm64
             arch: arm64
-            cxx: c++
-            cc: cc
-            flags: '-DCMAKE_OSX_ARCHITECTURES="arm64" -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 -DCMAKE_CXX_FLAGS_RELEASE="-DNDEBUG -Wall -Wextra -Wno-missing-field-initializers -Werror"'
+            cxx: g++
+            cc: gcc
+            flags: '-DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 -DCMAKE_CXX_FLAGS_RELEASE="-static -s -DNDEBUG -Wall -Wextra -Wno-missing-field-initializers -Wno-psabi -Werror"'
             triplet: arm64-osx
-          - os: macos-latest
+          - os: macos-15-intel
             platform: macos
             cpu: x64
             arch: x86_64
-            cxx: c++
-            cc: cc
-            flags: '-DCMAKE_OSX_ARCHITECTURES="x86_64" -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 -DCMAKE_CXX_FLAGS_RELEASE="-DNDEBUG -Wall -Wextra -Wno-missing-field-initializers -Werror"'
+            cxx: g++
+            cc: gcc
+            flags: '-DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 -DCMAKE_CXX_FLAGS_RELEASE="-static -s -DNDEBUG -Wall -Wextra -Wno-missing-field-initializers -Wno-psabi -Werror"'
             triplet: x64-osx
           - os: windows-latest
             platform: windows
