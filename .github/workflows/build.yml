@@ -36,14 +36,14 @@ jobs:
             cpu: x86
 
         include:
-          - os: macos-15
-            platform: macos
-            cpu: arm64
-            arch: arm64
-            cxx: g++-13
-            cc: gcc-13
-            flags: '-DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 -DCMAKE_CXX_FLAGS_RELEASE="-static-libstdc++ -s -DNDEBUG -Wall -Wextra -Wno-missing-field-initializers -Wno-psabi -Werror -Wno-unknown-pragmas"'
-            triplet: arm64-osx
+          #- os: macos-15
+          #  platform: macos
+          #  cpu: arm64
+          #  arch: arm64
+          #  cxx: g++-13
+          #  cc: gcc-13
+          #  flags: '-DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 -DCMAKE_CXX_FLAGS_RELEASE="-static-libstdc++ -s -DNDEBUG -Wall -Wextra -Wno-missing-field-initializers -Wno-psabi -Werror -Wno-unknown-pragmas"'
+          #  triplet: arm64-osx
           - os: macos-15-intel
             platform: macos
             cpu: x64
