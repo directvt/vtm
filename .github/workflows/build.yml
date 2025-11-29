@@ -20,22 +20,23 @@ jobs:
             cpu: x86
           - os: windows-latest
             cpu: arm
+
         include:
-          - os: macos-latest
+          - os: macos-15
             platform: macos
             cpu: arm64
             arch: arm64
-            cxx: c++
-            cc: cc
-            flags: '-DCMAKE_OSX_ARCHITECTURES="arm64" -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 -DCMAKE_CXX_FLAGS_RELEASE="-DNDEBUG -Wall -Wextra -Wno-missing-field-initializers -Werror"'
+            cxx: g++-13
+            cc: gcc-13
+            flags: '-DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 -DCMAKE_CXX_FLAGS_RELEASE="-static-libgcc -static-libstdc++ -s -DNDEBUG -Wall -Wextra -Wno-missing-field-initializers -Wno-psabi -Werror -Wno-unknown-pragmas"'
             triplet: arm64-osx
-          - os: macos-latest
+          - os: macos-15-intel
             platform: macos
             cpu: x64
             arch: x86_64
-            cxx: c++
-            cc: cc
-            flags: '-DCMAKE_OSX_ARCHITECTURES="x86_64" -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 -DCMAKE_CXX_FLAGS_RELEASE="-DNDEBUG -Wall -Wextra -Wno-missing-field-initializers -Werror"'
+            cxx: g++-13
+            cc: gcc-13
+            flags: '-DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 -DCMAKE_CXX_FLAGS_RELEASE="-static-libgcc -static-libstdc++ -s -DNDEBUG -Wall -Wextra -Wno-missing-field-initializers -Wno-psabi -Werror -Wno-unknown-pragmas"'
             triplet: x64-osx
           - os: windows-latest
             platform: windows
@@ -61,7 +62,8 @@ jobs:
             triplet: x64-linux
           - os: ubuntu-22.04
             cpu: x86
-            apt: g++-12-i686-linux-gnu gcc-12-i686-linux-gnu
+            # since 2025.11.29 vcpkg requires the stock compiler for some reason (not -12).
+            apt: g++-12-i686-linux-gnu gcc-12-i686-linux-gnu g++-i686-linux-gnu gcc-i686-linux-gnu
             cxx: /usr/bin/i686-linux-gnu-g++-12
             cc:  /usr/bin/i686-linux-gnu-gcc-12
             triplet: x86-linux
@@ -81,7 +83,7 @@ jobs:
             triplet: arm64-linux
 
           - os: ubuntu-22.04
-            flags: '-DCMAKE_CXX_FLAGS_RELEASE=" -static -s -DNDEBUG -Wall -Wextra -Wno-missing-field-initializers -Wno-psabi -Werror"'
+            flags: '-DCMAKE_CXX_FLAGS_RELEASE="-static -s -DNDEBUG -Wall -Wextra -Wno-missing-field-initializers -Wno-psabi -Werror -Wno-unknown-pragmas"'
           - os: windows-latest
             flags: '-DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded" -DCMAKE_EXE_LINKER_FLAGS_RELEASE="/DEBUG /OPT:REF /OPT:ICF" -DCMAKE_CXX_FLAGS_RELEASE="/MT /O2 /DNDEBUG /Zi /Zc:preprocessor /W4 /EHsc /bigobj /utf-8 /Zc:preprocessor" -A '
 
@@ -114,13 +116,13 @@ jobs:
         sudo apt -y update
         sudo apt -y install ${{ matrix.apt }}
 
-    - name: Clone and Bootstrap vcpkg (win32)
+    - name: Clone and Bootstrap vcpkg (Windows)
       if: matrix.os == 'windows-latest'
       run: |
         git clone https://github.com/microsoft/vcpkg.git ${{ github.workspace }}/vcpkg
         ${{ github.workspace }}/vcpkg/bootstrap-vcpkg.bat -disableMetrics
 
-    - name: Clone and Bootstrap vcpkg (ubuntu)
+    - name: Clone and Bootstrap vcpkg (POSIX)
       if: matrix.os != 'windows-latest'
       run: |
         git clone https://github.com/microsoft/vcpkg.git ${{ github.workspace }}/vcpkg
@@ -130,6 +132,7 @@ jobs:
       env:
         CC:  ${{ matrix.cc }}
         CXX: ${{ matrix.cxx }}
+        MACOSX_DEPLOYMENT_TARGET: 11.0
         WIN32_RESOURCES: ${{ matrix.os == 'windows-latest' && '.resources/images/vtm.rc' || '' }}
       run: >
         cmake -B ${{ steps.strings.outputs.bin }}

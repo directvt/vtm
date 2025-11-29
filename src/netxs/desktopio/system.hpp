@@ -2244,10 +2244,10 @@ namespace netxs::os
 
             auto success = faux;
 
-            auto& utf8 = clipdata.utf8;
-            auto& meta = clipdata.meta;
-            auto& form = clipdata.form;
-            auto& size = clipdata.size;
+            [[maybe_unused]] auto& utf8 = clipdata.utf8;
+            [[maybe_unused]] auto& meta = clipdata.meta;
+            [[maybe_unused]] auto& form = clipdata.form;
+            [[maybe_unused]] auto& size = clipdata.size;
 
             #if defined(_WIN32)
 
