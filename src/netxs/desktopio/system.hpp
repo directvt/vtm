@@ -522,7 +522,7 @@ namespace netxs::os
                 }
                 if (args.size()) mscmd.pop_back(); // Pop last space.
                 if (cmd_shim) log("%%Command line: %mscmd% (special case for cmd.exe)", prompt::os, ansi::hi(utf::debase437(mscmd)));
-                else
+                else if (mscmd.size())
                 {
                     log("%%Command line: %mscmd%", prompt::os, ansi::hi(utf::debase437(mscmd)));
                     auto original_cmd_line = utf::to_utf(mscmd);
@@ -4208,7 +4208,14 @@ namespace netxs::os
                     "\r\n\tcwd: '", cfg.cwd, "'",
                     "\r\n\tcmd: '", cfg.cmd, "'");
             };
-            #if defined(_WIN32)
+            if (cfg.cmd.empty())
+            {
+                result = faux;
+                log(prompt::dtvt, ansi::err("Error creating process: No command line specified"));
+            }
+            else
+            {
+                #if defined(_WIN32)
 
                 auto wcmd = utf::to_utf(os::nt::retokenize(cfg.cmd));
                 auto wcwd = utf::to_utf(cfg.cwd);
@@ -4255,7 +4262,7 @@ namespace netxs::os
                 }
                 else onerror();
 
-            #else
+                #else
 
                 auto p_id = os::process::sysfork(); // dtvt-app can be either a real dtvt-app or a proxy
                                                     // like SSH/netcat/inetd that forwards traffic from a real dtvt-app.
@@ -4310,7 +4317,8 @@ namespace netxs::os
                     onerror();
                 }
 
-            #endif
+                #endif
+            }
             return result;
         }
 
