@@ -26,6 +26,7 @@
     - [Run remote vtm desktop in DirectVT mode using netcat](#run-remote-vtm-desktop-in-directvt-mode-using-netcat-posix-only-unencrypted-for-private-use-only)
     - [Run remote vtm desktop in DirectVT mode using inetd + ncat](#run-remote-vtm-desktop-in-directvt-mode-using-inetd--ncat-posix-only-unencrypted-for-private-use-only)
     - [Local standard I/O redirection using socat](#local-standard-io-redirection-using-socat-posix-only)
+    - [Reverse Access using socat/winsocat](#reverse-access-using-socatwinsocat-unencrypted-for-private-use-or-over-vpn)
   - [Standard I/O stream monitoring](#standard-io-stream-monitoring)
   - [Desktop taskbar menu customization](#desktop-taskbar-menu-customization)
   - [Keyboard hacking](#keyboard-hacking)
@@ -477,6 +478,37 @@ The following examples assume that vtm is installed on both the local and remote
     vtm -r dtvt socat open:out\!\!open:in stdin\!\!stdout
     # Note: Make sure `socat` is installed.
     ```
+
+### Reverse Access using `socat`/`winsocat` (unencrypted, for private use or over VPN)
+
+The remote and local sides may differ in platform.
+
+#### Unix
+
+- Local side with ip=1.2.3.4 (waiting for a connection from a remote on port 1122tcp - a random available TCP port)
+  ```bash
+  vtm -r dtvt socat tcp-listen:1122 stdin\!\!stdout
+  ```
+- Remote side - run vtm desktop and forward its stdio to the side with ip=1.2.3.4
+  ```bash
+  socat tcp:1.2.3.4:1122 exec:"vtm"
+  ```
+
+#### Windows
+
+- Install `winsocat`:
+  ```
+  winget install winsocat
+  ```
+
+- Local side with ip=1.2.3.4 (waiting for a connection from a remote on port 1122tcp - a random available TCP port)
+  ```bash
+  vtm -r dtvt winsocat tcp-listen:1122 stdio
+  ```
+- Remote side - run vtm desktop and forward its stdio to the side with ip=1.2.3.4
+  ```bash
+  winsocat tcp:1.2.3.4:1122 exec:"vtm"
+  ```
 
 ## Standard I/O stream monitoring
 
