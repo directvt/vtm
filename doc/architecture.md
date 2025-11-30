@@ -331,43 +331,41 @@ Do not confuse the `Desktop Applet` names with the desktop object names, even th
 
 Vtm can function perfectly well without explicit installation. However, for ease of launch, vtm can be installed (copied) to %SystemRoot% (usually `C:\Windows`) or `/usr/local/bin`, depending on the platform.
 
-- Run command:
-  ```bash
-  sudo vtm --install
-  ```
+```bash
+sudo vtm --install
+```
 
-Note: Mouse support in the Linux VGA Console (in-kernel console) requires direct access to mouse devices. The command `sudo vtm --mouse` grants access to pointing devices for all users.
+#### Notes
+
+  - Mouse support in the Linux VGA Console (in-kernel console) requires direct access to mouse devices. The command `sudo vtm --mouse` grants access to pointing devices for all users.
+  - On Windows, the `vtm --install` command will also install a system service (vtm `Text-based desktop environment.`), which makes it possible to run the vtm desktop in Session-0 for connections to it from outside via ssh.
 
 ### Run vtm desktop
 
-- Run command:
-  ```bash
-  vtm
-  ```
+```bash
+vtm
+```
 
 Note: You can explicitly specify to run vtm inside the terminal (run `vtm --tui`) or in its own GUI window (run `vtm --gui`). GUI mode is only available on Windows for now.
 
 ### Run Terminal Console standalone
 
-- Run command:
-  ```bash
-  vtm -r term
-  ```
+```bash
+vtm -r term
+```
 
 ### Run a CUI application standalone
 
-- Run command:
-  ```bash
-  vtm </path/to/console/app...>
-  ```
+```bash
+vtm </path/to/console/app...>
+```
 
 ### Run a CUI application inside the Terminal Console
 
-- Run command:
-  ```bash
-  vtm -r term </path/to/console/app...>
-  # The `vtm -r term` option means to run the Terminal Console standalone to host a CUI application.
-  ```
+```bash
+vtm -r term </path/to/console/app...>
+# The `vtm -r term` option means to run the Terminal Console standalone to host a CUI application.
+```
 
 ## Remote access
 
@@ -379,70 +377,65 @@ The following examples assume that vtm is installed on both the local and remote
 
 ### Run a standalone CUI application remotely over SSH
 
-- Remote side
-  - Make sure the remote SSH server is running.
+- Remote side  
+  Make sure the remote SSH server is running.
 - Local side
-  - Run command:
-    ```bash
-    vtm -r dtty ssh user@server vtm -r vtty </path/to/console/app...>
-    # The `vtm -r dtty` option means to run the next statement in DirectVT&TTY console.
-    # The `ssh user@server vtm -r vtty` statement means to connect via ssh and launch the Teletype Console on the remote host.
-    ```
-    or
-    ```bash
-    vtm ssh user@server vtm </path/to/console/app...>
-    ```
+  ```bash
+  vtm -r dtty ssh user@server vtm -r vtty </path/to/console/app...>
+  # The `vtm -r dtty` option means to run the next statement in DirectVT&TTY console.
+  # The `ssh user@server vtm -r vtty` statement means to connect via ssh and launch the Teletype Console on the remote host.
+  ```
+  or
+  ```bash
+  vtm ssh user@server vtm </path/to/console/app...>
+  ```
 
 ### Run remote vtm desktop in DirectVT mode over SSH
 
-- Remote side
-  - Make sure the remote SSH server is running.
+- Remote side  
+  Make sure the remote SSH server is running.
 - Local side
-  - Run command:
-    ```bash
-    vtm -r dtty ssh user@server vtm
-    # The `vtm -r dtty` option means to run the next statement in DirectVT&TTY console.
-    # The `ssh user@server vtm` statement means to connect via ssh and run the vtm desktop on the remote host.
-    ```
-    or
-    ```bash
-    vtm ssh user@server vtm
-    # The `-r dtty` option is auto added if the first command-line argument starts with `ssh` keyword.
-    ```
+  ```bash
+  vtm -r dtty ssh user@server vtm
+  # The `vtm -r dtty` option means to run the next statement in DirectVT&TTY console.
+  # The `ssh user@server vtm` statement means to connect via ssh and run the vtm desktop on the remote host.
+  ```
+  or
+  ```bash
+  vtm ssh user@server vtm
+  # The `-r dtty` option is auto added if the first command-line argument starts with `ssh` keyword.
+  ```
 
 ### Run remote vtm desktop in ANSI/VT mode over SSH
 
-- Remote side
-  - Make sure the remote SSH server is running.
+- Remote side  
+  Make sure the remote SSH server is running.
 - Local side
-  - Run commands:
-    ```bash
-    ssh user@server
-    vtm
-    ```
-    or
-    ```bash
-    ssh -t user@server vtm
-    # The ssh's `ssh -t ...` option is required to force TTY allocation on the remote host.
-    ```
+  ```bash
+  ssh user@server
+  vtm
+  ```
+  or
+  ```bash
+  ssh -t user@server vtm
+  # The ssh's `ssh -t ...` option is required to force TTY allocation on the remote host.
+  ```
 
 ### Run remote vtm desktop in DirectVT mode using `netcat` (POSIX only, unencrypted, for private use only)
 
 - Remote side
-  - Run command:
-    ```bash
-    ncat -l tcp_port -k -e vtm
-    # ncat's option `-l tcp_port` specifies tcp port to listen.
-    # ncat's option `-k` to keep connection open for multiple clients.
-    # ncat's option `-e` to run vtm for every connected client.
-    ```
+  ```bash
+  ncat -l tcp_port -k -e vtm
+  # ncat's option `-l tcp_port` specifies tcp port to listen.
+  # ncat's option `-k` to keep connection open for multiple clients.
+  # ncat's option `-e` to run vtm for every connected client.
+  ```
 - Local side
-  - Run command:
-    ```bash
-    vtm -r dtvt ncat remote_ip remote_tcp_port
-    # The `vtm -r dtvt` option means to run DirectVT Gateway to host ncat.
-    # Note: Make sure `ncat` is installed.
-    ```
+  ```bash
+  vtm -r dtvt ncat remote_ip remote_tcp_port
+  # The `vtm -r dtvt` option means to run DirectVT Gateway to host ncat.
+  # Note: Make sure `ncat` is installed.
+  ```
 
 ### Run remote vtm desktop in DirectVT mode using `inetd + ncat` (POSIX only, unencrypted, for private use only)
 
@@ -459,25 +452,22 @@ The following examples assume that vtm is installed on both the local and remote
     inetd
     ```
 - Local side
-  - Run command:
-    ```bash
-    vtm -r dtvt ncat remote_ip remote_tcp_port
-    ```
+  ```bash
+  vtm -r dtvt ncat remote_ip remote_tcp_port
+  ```
 
 ### Local standard I/O redirection using `socat` (POSIX only)
 
 - Host side
-  - Run commands:
-    ```
-    mkfifo in && mkfifo out
-    vtm >out <in
-    ```
+  ```
+  mkfifo in && mkfifo out
+  vtm >out <in
+  ```
 - User side
-  - Run command:
-    ```bash
-    vtm -r dtvt socat open:out\!\!open:in stdin\!\!stdout
-    # Note: Make sure `socat` is installed.
-    ```
+  ```bash
+  vtm -r dtvt socat open:out\!\!open:in stdin\!\!stdout
+  # Note: Make sure `socat` is installed.
+  ```
 
 ### Reverse Access using `socat`/`winsocat` (unencrypted, for private use or over VPN)
 
