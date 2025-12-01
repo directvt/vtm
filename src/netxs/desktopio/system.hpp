@@ -4202,9 +4202,9 @@ namespace netxs::os
         {
             log("%%New process '%cmd%' at the %path%", prompt::dtvt, ansi::hi(utf::debase437(cfg.cmd)), cfg.cwd.empty() ? "current directory"s : "'" + utf::debase437(cfg.cwd) + "'");
             auto result = true;
-            auto onerror = [&]()
+            auto errmsg = [&]()
             {
-                log(prompt::dtvt, ansi::err("Process creation error", ' ', utf::to_hex_0x(os::error())),
+                return utf::concat(prompt::dtvt, ansi::err("Process creation error", ' ', utf::to_hex_0x(os::error())),
                     "\r\n\tcwd: '", cfg.cwd, "'",
                     "\r\n\tcmd: '", cfg.cmd, "'");
             };
@@ -4260,7 +4260,10 @@ namespace netxs::os
                     os::close(procsinf.hThread);
                     os::close(procsinf.hProcess);
                 }
-                else onerror();
+                else
+                {
+                    log(errmsg());
+                }
 
                 #else
 
@@ -4277,27 +4280,33 @@ namespace netxs::os
                         ::dup2(fds->w, STDOUT_FILENO); os::stdout_fd = STDOUT_FILENO;
                         ::dup2(fds->w, STDERR_FILENO); os::stderr_fd = STDERR_FILENO;
                         fds.reset();
+                        auto iofx = [](auto& data){ io::send(os::stdout_fd, data); };
                         if (cfg.cwd.size())
                         {
                             auto err = std::error_code{};
                             fs::current_path(cfg.cwd, err);
                             auto msg = !err ? utf::fprint("%%Change current directory to '%cwd%'", prompt::dtvt, cfg.cwd)
                                             : utf::fprint("%%%err%Failed to change current directory to '%cwd%', error code: %code%%nil%", prompt::dtvt, ansi::err(), cfg.cwd, utf::to_hex_0x(err.value()), ansi::nil());
-                            auto logs = netxs::directvt::binary::logs_t{};
-                            logs.set(os::process::id.first, os::process::id.second, msg);
-                            logs.sendfx([](auto& data){ io::send(os::stdout_fd, data); });   // Send logs to the dtvt-app hoster.
+                            auto dtvtlogs = netxs::directvt::binary::logs_t{};
+                            dtvtlogs.set(os::process::id.first, os::process::id.second, msg);
+                            dtvtlogs.sendfx(iofx); // Send logs to the dtvt-app hoster.
                         }
                         os::fdscleanup();
                         cfg.env = os::env::add(cfg.env);
                         os::signals::listener.reset();
                         os::process::execvpe(cfg.cmd, cfg.env);
-                        onerror();
+                        // Error creating process.
+                        auto dtvtlogs = netxs::directvt::binary::logs_t{};
+                        auto sysclose = netxs::directvt::binary::sysclose_t{};
+                        dtvtlogs.set(os::process::id.first, os::process::id.second, errmsg());
+                        dtvtlogs.sendfx(iofx); // Send logs to the dtvt-app hoster.
+                        sysclose.set(true);
+                        sysclose.sendfx(iofx); // Send shutdown command to the dtvt-app hoster.
                         os::process::exit<true>(0);
                     }
                     else if (p_id > 0) os::process::exit<true>(0); // Fast exit the child process and leave the grandchild process detached.
                     else
                     {
-                        onerror();
                         os::process::exit<true>(1); // Something went wrong. Fast exit anyway.
                     }
                 }
@@ -4308,13 +4317,13 @@ namespace netxs::os
                     if (WIFEXITED(stat) && WEXITSTATUS(stat) != 0)
                     {
                         result = faux;
-                        onerror(); // Catch fast exit(1).
+                        log(errmsg()); // Catch fast exit(1). Something went wrong.
                     }
                 }
                 else
                 {
                     result = faux;
-                    onerror();
+                    log(errmsg());
                 }
 
                 #endif
@@ -4395,9 +4404,9 @@ namespace netxs::os
                     termlink = ipc::stdcon{ m_pipe_r, m_pipe_w };
                     std_link = ptr::shared<sock>(s_pipe_r, s_pipe_w);
                     auto cmd = connect(std_link);
-                    attached.exchange(!!termlink);
-                    if (attached)
+                    if (cmd.size() && !!termlink)
                     {
+                        attached.exchange(true);
                         if constexpr (debugmode) log("%%DirectVT Gateway created for process '%cmd%'", prompt::dtvt, ansi::hi(utf::debase437(cmd)));
                         auto stdwrite = std::thread{ [&]{ writer(); } };
 
