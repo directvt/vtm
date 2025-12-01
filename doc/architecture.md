@@ -26,7 +26,7 @@
     - [Run remote vtm desktop in DirectVT mode using netcat](#run-remote-vtm-desktop-in-directvt-mode-using-netcat-posix-only-unencrypted-for-private-use-only)
     - [Run remote vtm desktop in DirectVT mode using inetd + ncat](#run-remote-vtm-desktop-in-directvt-mode-using-inetd--ncat-posix-only-unencrypted-for-private-use-only)
     - [Local standard I/O redirection using socat](#local-standard-io-redirection-using-socat-posix-only)
-    - [Reverse Access using socat/winsocat](#reverse-access-using-socatwinsocat-unencrypted-for-private-use-or-over-vpn)
+    - [Reverse/Forward Access using socat/winsocat](#reverseforward-access-using-socatwinsocat-unencrypted-for-private-use-or-over-vpn)
     - [SSH Reverse Tunneling using socat/winsocat](#ssh-reverse-tunneling-using-socatwinsocat)
   - [Standard I/O stream monitoring](#standard-io-stream-monitoring)
   - [Desktop taskbar menu customization](#desktop-taskbar-menu-customization)
@@ -470,7 +470,7 @@ The following examples assume that vtm is installed on both the local and remote
   # Note: Make sure `socat` is installed.
   ```
 
-### Reverse Access using `socat`/`winsocat` (unencrypted, for private use or over VPN)
+### Reverse/Forward Access using `socat`/`winsocat` (unencrypted, for private use or over VPN)
 
 The remote and local sides may differ in platform.
 
@@ -483,6 +483,17 @@ The remote and local sides may differ in platform.
 - Remote side - run vtm desktop and forward its stdio to the side with ip=1.2.3.4
   ```bash
   socat tcp:1.2.3.4:1122 exec:"vtm"
+  ```
+
+The client and server can be swapped (Forward access):
+
+- Local side (connect to 1.2.3.4:1122tcp)
+  ```bash
+  vtm -r dtvt socat tcp:1.2.3.4:1122 stdin\!\!stdout
+  ```
+- Remote side with ip=1.2.3.4 (vtm desktop waits for a connection on 1122tcp from a remote)
+  ```bash
+  socat tcp-listen:1122 exec:"vtm"
   ```
 
 #### Windows
@@ -507,13 +518,18 @@ The remote and local sides may differ in platform.
 
 #### Unix
 
-- Local side with ip=1.2.3.4 (waiting for a connection from a remote on port 1122tcp - a random available TCP port)
+- Remote side
   ```bash
-  vtm -r dtvt socat tcp-listen:1122,bind=127.0.0.1 stdin\!\!stdout  
+  # Run reverse tunnel for 1122tcp in background.
+  ssh -f -N -R 1122:localhost:1122 user@1.2.3.4
+  # Run vtm and forward its stdio streams to localhost:1122. Kill the ssh reverse tunnel after vtm exits.
+  socat tcp-listen:1122,bind=localhost exec:"vtm"; kill $(pgrep ssh)
+  # or
+  # socat exec:"vtm" tcp-listen:1122,bind=localhost; kill $(pgrep ssh)
   ```
-- Remote side - run vtm desktop and forward its stdio to the side with ip=1.2.3.4 via ssh
+- Local side with ip=1.2.3.4 (connect to the remote vtm desktop via localhost:1122tcp)
   ```bash
-  ssh -R 1122:localhost:1122 user@1.2.3.4 'socat tcp:localhost:1122 exec:"vtm"'
+  vtm -r dtvt socat tcp:localhost:1122 stdin\!\!stdout
   ```
 
 #### Windows
@@ -522,14 +538,22 @@ The remote and local sides may differ in platform.
   ```
   winget install winsocat
   ```
-
-- Local side with ip=1.2.3.4 (waiting for a connection from a remote on port 1122tcp - a random available TCP port)
-  ```bash
-  vtm -r dtvt winsocat tcp-listen:1122,bind=127.0.0.1 stdio
-  ```
-- Remote side - run vtm desktop and forward its stdio to the side with ip=1.2.3.4 via ssh
+- Remote side
   ```bash
   ssh -R 1122:localhost:1122 user@1.2.3.4 'winsocat tcp:localhost:1122 exec:"vtm"'
+
+  # Run reverse tunnel for 1122tcp in background.
+  ssh -f -N -R 1122:localhost:1122 user@1.2.3.4
+  # Run vtm and forward its stdio streams to localhost:1122. Kill the ssh reverse tunnel after vtm exits.
+  winsocat tcp-listen:1122,bind=localhost exec:"vtm"; Get-Process -Name "ssh" | Stop-Process -Force
+
+  # or
+  # winsocat exec:"vtm" tcp-listen:1122,bind=localhost; Get-Process -Name "ssh" | Stop-Process -Force
+  ```
+
+- Local side with ip=1.2.3.4 (connect to the remote vtm desktop via localhost:1122tcp)
+  ```bash
+  vtm -r dtvt winsocat tcp:localhost:1122 stdio
   ```
 
 ## Standard I/O stream monitoring
