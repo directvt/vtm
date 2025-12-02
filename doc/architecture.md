@@ -6,7 +6,7 @@
 - [Desktop applets](#desktop-applets)
 - [I/O modes](#io-modes)
   - [DirectVT mode](#directvt-mode)
-  - [ANSI/VT mode](#ansivt-mode)
+  - [Classic VT mode](#classic-vt-mode)
     - [Input](#input)
       - [Unix input sources](#unix-input-sources)
       - [MS Windows input sources](#ms-windows-input-sources)
@@ -15,19 +15,17 @@
   - [Desktop objects](#desktop-objects)
 - [Quickstart](#quickstart)
   - [Local usage](#local-usage)
+    - [Installation](#installation)
     - [Run vtm desktop](#run-vtm-desktop)
-    - [Run Terminal Console standalone](#run-terminal-console-standalone)
-    - [Run a CUI application standalone](#run-a-cui-application-standalone)
-    - [Run a CUI application inside the Terminal Console](#run-a-cui-application-inside-the-terminal-console)
+    - [Run Teletype Console](#run-teletype-console)
+    - [Run Terminal Console](#run-terminal-console)
   - [Remote access](#remote-access)
-    - [Run a standalone CUI application remotely over SSH](#run-a-standalone-cui-application-remotely-over-ssh)
-    - [Run remote vtm desktop in DirectVT mode over SSH](#run-remote-vtm-desktop-in-directvt-mode-over-ssh)
-    - [Run remote vtm desktop in ANSI/VT mode over SSH](#run-remote-vtm-desktop-in-ansivt-mode-over-ssh)
-    - [Run remote vtm desktop in DirectVT mode using netcat](#run-remote-vtm-desktop-in-directvt-mode-using-netcat-posix-only-unencrypted-for-private-use-only)
-    - [Run remote vtm desktop in DirectVT mode using inetd + ncat](#run-remote-vtm-desktop-in-directvt-mode-using-inetd--ncat-posix-only-unencrypted-for-private-use-only)
-    - [Local standard I/O redirection using socat](#local-standard-io-redirection-using-socat-posix-only)
-    - [Reverse/Forward Access using socat/winsocat](#reverseforward-access-using-socatwinsocat-unencrypted-for-private-use-or-over-vpn)
-    - [SSH Reverse Tunneling using socat/winsocat](#ssh-reverse-tunneling-using-socatwinsocat)
+    - [Run remote desktop/terminal over SSH](#run-remote-desktopterminal-over-ssh)
+    - [Remote access using `netcat`](#remote-access-using-netcat-directvt-mode-posix-only-unencrypted-for-private-use-only)
+    - [Remote access using `inetd + ncat`](#remote-access-using-inetd--ncat-posix-only-unencrypted-for-private-use-only)
+    - [Local standard I/O redirection using `socat`](#local-standard-io-redirection-using-socat-posix-only)
+    - [Remote Access using `socat`/`winsocat`](#remote-access-using-socatwinsocat-unencrypted-for-private-use-or-over-vpn)
+    - [Remote Access using `socat`/`winsocat` over SSH Reverse Tunnel](#remote-access-using-socatwinsocat-over-ssh-reverse-tunnel)
   - [Standard I/O stream monitoring](#standard-io-stream-monitoring)
   - [Desktop taskbar menu customization](#desktop-taskbar-menu-customization)
   - [Keyboard hacking](#keyboard-hacking)
@@ -181,9 +179,9 @@ graph TB
 - Multiple connected users can share a focused application, while each user can have multiple applications focused.
 - Users can disconnect from the session and reconnect later.
 - Sessions with different ids can coexist independently.
-- To maximize rendering efficiency and minimize cross-platform issues, along with character-oriented xterm-compatible I/O mode called `ANSI/VT`, vtm supports an additional message-based binary I/O mode called `DirectVT`.
+- To maximize rendering efficiency and minimize cross-platform issues, along with character-oriented xterm-compatible I/O mode called `Classic VT`, vtm supports an additional message-based binary I/O mode called `DirectVT`.
 - A typical console application integrates into the desktop using the `DirectV Gateway` window as the DirectVT connection endpoint.
-  - A DirectVT-aware application directly connected to the environment can seamlessly send and receive the entire set of desktop events, as well as render themselves in binary form, avoiding expensive ANSI/VT parsing.
+  - A DirectVT-aware application directly connected to the environment can seamlessly send and receive the entire set of desktop events, as well as render themselves in binary form, avoiding expensive Classic VT parsing.
   - To run a non-DirectVT application, an additional vtm host process is launched in `Desktop Applet` mode with the `Teletype Console` or `Terminal Console` applet as a DirectVT bridge to the desktop environment.
 - The desktop server can receive and execute script commands relayed from other vtm processes running on behalf of the session creator.
 - In the case of a vtm process with redirected standard input, all standard input is directly relayed to the desktop server as a script command flow.
@@ -212,7 +210,7 @@ DirectVT Gateway with TTY  | `dtty` | CUI applications that redirect DirectVT
 
 ## I/O modes
 
-A vtm process instance running in `Desktop Client` or `Desktop Applet` mode can operate in one of two I/O modes: either `ANSI/VT` mode or `DirectVT`(`dtvt`) mode.
+A vtm process instance running in `Desktop Client` or `Desktop Applet` mode can operate in one of two I/O modes: either `Classic VT` mode or `DirectVT`(`dtvt`) mode.
 
 ### DirectVT mode
 
@@ -227,11 +225,11 @@ In DirectVT mode, vtm process multiplexes the following events:
 
 The DirectVT stream can be wrapped in any transport layer protocol suitable for stdin/stdout transfer, such as SSH.
 
-### ANSI/VT mode
+### Classic VT mode
 
 #### Input
 
-In ANSI/VT mode, vtm process parses input from multiple standard sources, and forwards it to the desktop server using the DirectVT transport. The set of input sources varies by platform.
+In Classic VT mode, vtm process parses input from multiple standard sources, and forwards it to the desktop server using the DirectVT transport. The set of input sources varies by platform.
 
 ##### Unix input sources
 
@@ -336,117 +334,120 @@ Vtm can function perfectly well without explicit installation. However, for ease
 sudo vtm --install
 ```
 
-#### Notes
-
+Notes:
   - Mouse support in the Linux VGA Console (in-kernel console) requires direct access to mouse devices. The command `sudo vtm --mouse` grants access to pointing devices for all users.
-  - On Windows, the `vtm --install` command will also install a system service (vtm `Text-based desktop environment.`), which makes it possible to run the vtm desktop in Session-0 for connections to it from outside via ssh.
+  - On Windows, the `vtm --install` command will also install a **system service** (vtm `Text-based desktop environment.`), which makes it possible to run the vtm desktop in **Session-0** for connections to it from outside via ssh.
 
 ### Run vtm desktop
 
 ```bash
-vtm
+#  run desktop in background      ┌─ run desktop client
+#                  ─┴──────────  ─┴─
+#  ┌─ expanded to `vtm --daemon; vtm`
+# ─┴─
+  vtm
 ```
 
 Note: You can explicitly specify to run vtm inside the terminal (run `vtm --tui`) or in its own GUI window (run `vtm --gui`). GUI mode is only available on Windows for now.
 
-### Run Terminal Console standalone
+### Run Teletype Console
 
 ```bash
-vtm -r term
+#                                 ┌─ Classic VT console (Teletype, vtty) for any command or TUI App
+#                                ─┴──
+#      ┌─ expanded to `vtm --run vtty <any_command_or_tui_app>`
+# ─────┴────────────────────
+  vtm any_command_or_tui_app
 ```
 
-### Run a CUI application standalone
+### Run Terminal Console
 
 ```bash
-vtm </path/to/console/app...>
+#                                 ┌─ use Terminal Console to run any_command_or_tui_app or user default shell
+#                                ─┴──
+#      ┌─ expanded to `vtm --run term <any_command_or_tui_app or user_default_shell (if empty)>`
+# ─────┴──────────────────────────────
+  vtm -r term [any_command_or_tui_app]
 ```
 
-### Run a CUI application inside the Terminal Console
+## Remote Access
 
+- In general, the local and remote platforms may be different.
+- When the DirectVT mode is used, all keyboard, mouse and other input events are transmitted between hosts in a binary form.
+- The following examples assume that vtm is accessible via PATH on both the local and remote sides.
+
+### Run remote desktop/terminal over SSH
+
+Note: vtm (as a desktop client or standalone terminal) can be run in an existing interactive SSH session as a regular TUI application in Classic VT mode.
+
+In the Classic VT console (Teletype, Terminal), vtm always runs in Classic VT mode:
 ```bash
-vtm -r term </path/to/console/app...>
-# The `vtm -r term` option means to run the Terminal Console standalone to host a CUI application.
+#                                               ┌─ Classic VT console (Teletype, vtty) for any command or TUI App
+#                                              ─┴──
+#  ┌ ssh/ssh.exe     ┌─ expanded to `vtm --run vtty [any_remote_command_or_tui_app]`
+# ─┴─             ───┴───────────────────────────────
+  ssh user@server vtm [any_remote_command_or_tui_app]
+#                 ┬┬─  ─────────────┬───────────────
+# <─ Classic VT <─┘└<─ Classic VT <─┘
 ```
 
-## Remote access
+DirectVT mode will be automatically enabled if vtm is started inside the DirectVT console (DirectVT Gateway):
+```bash
+#    DirectVT Gateway with TTY (DirectVT console) for DirectVT content received from an external dtvt-aware process
+#                              ─┴──
+#    ┌─ expanded to `vtm --run dtty ssh`
+#    │                   ┌─ expanded to `vtm --run vtty <any_remote_command_or_tui_app>`
+# ───┴───             ───┴───────────────────────────────
+  vtm ssh user@server vtm <any_remote_command_or_tui_app>
+# ─┬─                 ┬┬   ─────────────┬───────────────
+#  └ binary DirectVT ─┘└<─ Classic VT <─┘
+```
+or with verbose syntax, allowing to use any dtvt-aware source, not just ssh
+```bash
+#  DirectVT ─┐    ┌ any ssh/ssh.exe command ┌─ Classic VT console (Teletype, vtty) for TUI App
+#   console ─┴── ─┴─────────────           ─┴──
+  vtm --run dtty ssh user@server vtm --run vtty <any_remote_command_or_tui_app>
+# ─┬────────────                 ─┬┬             ──────────────┬──────────────
+#  └─── binary DirectVT stream ───┘└<─── Classic VT stream <───┘
+```
 
-In general, the local and remote platforms may be different.
-
-When the DirectVT mode is used, all keyboard, mouse and other input events are transmitted between hosts in a binary form.
-
-The following examples assume that vtm is installed on both the local and remote sides.
-
-### Run a standalone CUI application remotely over SSH
-
-- Remote side  
-  Make sure the remote SSH server is running.
-- Local side
-  ```bash
-  vtm -r dtty ssh user@server vtm -r vtty </path/to/console/app...>
-  # The `vtm -r dtty` option means to run the next statement in DirectVT&TTY console.
-  # The `ssh user@server vtm -r vtty` statement means to connect via ssh and launch the Teletype Console on the remote host.
-  ```
-  or
-  ```bash
-  vtm ssh user@server vtm </path/to/console/app...>
-  ```
-
-### Run remote vtm desktop in DirectVT mode over SSH
-
-- Remote side  
-  Make sure the remote SSH server is running.
-- Local side
-  ```bash
-  vtm -r dtty ssh user@server vtm
-  # The `vtm -r dtty` option means to run the next statement in DirectVT&TTY console.
-  # The `ssh user@server vtm` statement means to connect via ssh and run the vtm desktop on the remote host.
-  ```
-  or
-  ```bash
+Short command to access remote vtm desktop over SSH:
+```bash
+#    ┌─ expanded to `vtm --run dtty ssh`
+#    │                 ┌─ expanded to `vtm --daemon; vtm`
+# ───┴───             ─┴─
   vtm ssh user@server vtm
-  # The `-r dtty` option is auto added if the first command-line argument starts with `ssh` keyword.
-  ```
+# ─┬─                 ─┬─
+#  └ binary DirectVT ──┘
+```
 
-### Run remote vtm desktop in ANSI/VT mode over SSH
-
-- Remote side  
-  Make sure the remote SSH server is running.
-- Local side
-  ```bash
-  ssh user@server
-  vtm
-  ```
-  or
-  ```bash
-  ssh -t user@server vtm
-  # The ssh's `ssh -t ...` option is required to force TTY allocation on the remote host.
-  ```
-
-### Run remote vtm desktop in DirectVT mode using `netcat` (POSIX only, unencrypted, for private use only)
+### Remote access using `netcat` (DirectVT mode, POSIX only, unencrypted, for private use only)
 
 - Remote side
   ```bash
-  ncat -l tcp_port -k -e vtm
-  # ncat's option `-l tcp_port` specifies tcp port to listen.
-  # ncat's option `-k` to keep connection open for multiple clients.
-  # ncat's option `-e` to run vtm for every connected client.
+    ncat -l tcp_port -k -e vtm
+  #      ─┬───────── ─┬ ─┬────
+  #       │           │  └ run vtm for every connected client
+  #       │           └ keep connection open for multiple clients
+  #       └ specifies tcp port to listen
   ```
 - Local side
   ```bash
-  vtm -r dtvt ncat remote_ip remote_tcp_port
-  # The `vtm -r dtvt` option means to run DirectVT Gateway to host ncat.
-  # Note: Make sure `ncat` is installed.
+  #         ┌─ DirectVT Gateway (dtvt) for content received from ncat
+  #        ─┴──
+    vtm -r dtvt ncat remote_ip remote_tcp_port
   ```
 
-### Run remote vtm desktop in DirectVT mode using `inetd + ncat` (POSIX only, unencrypted, for private use only)
+### Remote access using `inetd + ncat` (POSIX only, unencrypted, for private use only)
 
 - Remote side
   - Install `inetd`.
   - Add the following line to the `/etc/inetd.conf`:
     ```bash
-    tcp_port stream tcp nowait user_name /remote/side/path/to/vtm  vtm
-    # `tcp_port`: tcp port to listen.
-    # `user_name`: user login name.
+      tcp_port stream tcp nowait user_name /remote/side/path/to/vtm  vtm
+    # ──────┬─                   ─┬───────
+    #       │                     └ user login name
+    #       └ tcp port to listen
     ```
   - Launch `inetd`:
     ```
@@ -454,7 +455,9 @@ The following examples assume that vtm is installed on both the local and remote
     ```
 - Local side
   ```bash
-  vtm -r dtvt ncat remote_ip remote_tcp_port
+  #         ┌─ DirectVT Gateway (dtvt) for content received from ncat
+  #        ─┴──
+    vtm -r dtvt ncat remote_ip remote_tcp_port
   ```
 
 ### Local standard I/O redirection using `socat` (POSIX only)
@@ -466,11 +469,12 @@ The following examples assume that vtm is installed on both the local and remote
   ```
 - User side
   ```bash
-  vtm -r dtvt socat open:out\!\!open:in stdin\!\!stdout
-  # Note: Make sure `socat` is installed.
+  #         ┌─ DirectVT Gateway (dtvt) for content received from socat
+  #        ─┴──
+    vtm -r dtvt socat open:out\!\!open:in stdin\!\!stdout
   ```
 
-### Reverse/Forward Access using `socat`/`winsocat` (unencrypted, for private use or over VPN)
+### Remote Access using `socat`/`winsocat` (unencrypted, for private use or over VPN)
 
 The remote and local sides may differ in platform.
 
@@ -478,14 +482,20 @@ The remote and local sides may differ in platform.
 
 - Local side with ip=1.2.3.4 (waiting for a connection from a remote on port 1122tcp - a random available TCP port)
   ```bash
-  vtm -r dtvt socat tcp-listen:1122 stdin\!\!stdout
+  #                        ┌> relay dtvt-stream ┐
+  #                   ─────┴───────── ──────────┴────
+    vtm -r dtvt socat tcp-listen:1122 stdin\!\!stdout
+  # ─┬─────────                       ───┬───────────
+  #  └< binary DirectVT <────────────────┘
   ```
 - Remote side - run vtm desktop and forward its stdio to the side with ip=1.2.3.4
   ```bash
-  socat tcp:1.2.3.4:1122 exec:"vtm"
+    socat tcp:1.2.3.4:1122 exec:"vtm"
+  #       ─┬──────────────       ─┬─
+  #        └< relay dtvt-stream <─┘
   ```
 
-The client and server can be swapped (Forward access):
+The client and server can be swapped:
 
 - Local side (connect to 1.2.3.4:1122tcp)
   ```bash
@@ -512,24 +522,44 @@ The client and server can be swapped (Forward access):
   winsocat tcp:1.2.3.4:1122 exec:"vtm"
   ```
 
-### SSH Reverse Tunneling using `socat`/`winsocat`
+### Remote Access using `socat`/`winsocat` over SSH Reverse Tunnel
 
-The remote and local sides may differ in platform.
+Notes:
+- The remote and local sides may differ in platform.
+- Using the **localhost** name may cause connection issues with the IP address family (IPv4: `127.0.0.1` vs. IPv6: `[::1]`) between remote systems. Use an explicit IP address to avoid this.
 
 #### Unix
 
 - Remote side
   ```bash
-  # Run reverse tunnel for 1122tcp in background.
-  ssh -f -N -R 1122:localhost:1122 user@1.2.3.4
-  # Run vtm and forward its stdio streams to localhost:1122. Kill the ssh reverse tunnel after vtm exits.
-  socat tcp-listen:1122,bind=localhost exec:"vtm"; kill $(pgrep ssh)
-  # or
-  # socat exec:"vtm" tcp-listen:1122,bind=localhost; kill $(pgrep ssh)
+  #   Run reverse tunnel for 1122tcp in background
+  #                         ┌─ relay all traffic passed through 127.0.0.1:1122tcp to the remote host
+  #                ─────────┴────
+    ssh -N -R 1122:127.0.0.1:1122 user@1.2.3.4 &
+  #     ─┬ ─┬─────                ─┬────────── ┬
+  #      │  └─ listen on remote    │           └─ run in background
+  #      │                         └─ remote host
+  #      └─ do nothing on remote just listen 1122tcp
+  #
+  # Save the background process'' PID
+  ssh_tunnel_pid=$!
+  #
+  # Run vtm and forward its stdio (in dtvt format) streams to 127.0.0.1:1122
+  #            ┌──────< relay dtvt-stream <─────┐      ┌─ kill the ssh reverse tunnel after vtm exits
+  #       ─────┴────────────────────────       ─┴─   ──┴─────────────────
+    socat tcp-listen:1122,bind=127.0.0.1 exec:"vtm"; kill $ssh_tunnel_pid
+  #       ─────┬────────────────────────
+  #            └─ wait forwarded connections on 127.0.0.1:1122tcp
+  # or reversed
+  # socat exec:"vtm" tcp-listen:1122,bind=127.0.0.1; kill $ssh_tunnel_pid
   ```
-- Local side with ip=1.2.3.4 (connect to the remote vtm desktop via localhost:1122tcp)
+- Local side with ip=1.2.3.4 (connect to the remote vtm desktop via 127.0.0.1:1122tcp)
   ```bash
-  vtm -r dtvt socat tcp:localhost:1122 stdin\!\!stdout
+  #    ┌──────────< binary DirectVT <─────────────┐
+  # ───┴───────                          ─────────┴─────
+    vtm -r dtvt socat tcp:127.0.0.1:1122 stdin\!\!stdout
+  #                   ────┬───────────── ─────────┬─────
+  #                       └─> relay dtvt-stream >─┘
   ```
 
 #### Windows
@@ -539,21 +569,27 @@ The remote and local sides may differ in platform.
   winget install winsocat
   ```
 - Remote side
-  ```bash
-  ssh -R 1122:localhost:1122 user@1.2.3.4 'winsocat tcp:localhost:1122 exec:"vtm"'
-
+  ```pwsh
   # Run reverse tunnel for 1122tcp in background.
-  ssh -f -N -R 1122:localhost:1122 user@1.2.3.4
-  # Run vtm and forward its stdio streams to localhost:1122. Kill the ssh reverse tunnel after vtm exits.
-  winsocat tcp-listen:1122,bind=localhost exec:"vtm"; Get-Process -Name "ssh" | Stop-Process -Force
-
+  $process = Start-Process "ssh" "-N -R 1122:127.0.0.1:1122 user@1.2.3.4" -PassThru -WindowStyle Minimized
+  # Run vtm and forward its stdio streams to 127.0.0.1:1122. Kill the ssh reverse tunnel after vtm exits.
+  #               ┌──────< relay dtvt-stream <─────┐      ┌─ kill the ssh reverse tunnel after vtm exits
+  #          ─────┴────────────────────────       ─┴─   ──┴─────────────────────────
+    winsocat tcp-listen:1122,bind=127.0.0.1 exec:"vtm"; Stop-Process -Id $process.Id
+  #          ─────┬────────────────────────
+  #               └─ wait forwarded connections on 127.0.0.1:1122tcp
   # or
-  # winsocat exec:"vtm" tcp-listen:1122,bind=localhost; Get-Process -Name "ssh" | Stop-Process -Force
+  # winsocat exec:"vtm" tcp-listen:1122,bind=127.0.0.1; Stop-Process -Id $process.Id
   ```
-
-- Local side with ip=1.2.3.4 (connect to the remote vtm desktop via localhost:1122tcp)
-  ```bash
-  vtm -r dtvt winsocat tcp:localhost:1122 stdio
+- Local side with ip=1.2.3.4 (connect to the remote vtm desktop via 127.0.0.1:1122tcp)
+  ```pwsh
+  #    ┌───────< binary DirectVT <─────────────┐
+  # ───┴───────                             ───┴─
+    vtm -r dtvt winsocat tcp:127.0.0.1:1122 stdio
+  #                      ┬───────────────── ───┬─
+  #                      └> relay dtvt-stream >┘
+  # Kill the abandoned winsocat process (it keeps running for some reason)
+  Get-Process -Name "winsocat" | Stop-Process -Force
   ```
 
 ## Standard I/O stream monitoring
