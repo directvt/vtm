@@ -407,10 +407,21 @@ namespace netxs::app::shared
                     {
                         if (root_ptr) // root_ptr is empty when d_n_d.
                         {
-                            boss.start(appcfg.cfg, [appcfg](auto fds)
+                            boss.start(appcfg.cfg, [&, appcfg](auto fds)
                             {
-                                os::dtvt::connect(appcfg, fds);
-                                return appcfg.cmd;
+                                auto ok = os::dtvt::connect(appcfg, fds);
+                                if (!ok) // Shutdown if dtvt connection failed.
+                                {
+                                    boss.base::enqueue([&](auto& /*boss*/)
+                                    {
+                                        boss.base::signal(tier::anycast, e2::form::proceed::quit::one, true);
+                                    });
+                                    return text{};
+                                }
+                                else
+                                {
+                                    return appcfg.cmd;
+                                }
                             });
                         }
                     };
