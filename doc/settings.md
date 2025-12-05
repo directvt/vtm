@@ -59,7 +59,7 @@ The file list is built in the following order from the following sources:
 
 ## DynamicXML
 
-DynamicXML is a configuration language based on the XML 1.1 syntax, but with substantial extensions that introduce dynamic features, templating mechanisms, and data merging logic. It is designed for use as a flexible and powerful format for configuration files, rather than a universal data interchange format.
+DynamicXML is a configuration language based on the XML 1.1 syntax, but with substantial extensions that introduce dynamic features, templating mechanisms, and data merging logic. It is designed for use as a flexible and powerful format for configuration files, allows for data reuse, variable substitution, and a form of in-document dry principle (Don't Repeat Yourself).
 
 ### Differences from Classical XML 1.1
 
@@ -105,7 +105,7 @@ DynamicXML is a configuration language based on the XML 1.1 syntax, but with sub
    | Resolving Order       | Reference resolution works by recursively iterating through inherited scopes in the order they are assigned, then traversing the current scope and all surrounding parent scopes until the first element name match is found.
    | Recursion and Cycles  | Recursive references are resolved starting from the element scope. Circular references are **silently ignored**.
    | Templates             | The structures of elements containing references are templates. Template instantiation is performed from inheritance sources and surrounding elements.
-   | Compact Path Syntax   | A shorthand for nesting is supported: `<node0/node1/thing name="value"/>` is equivalent to the full tag hierarchy.
+   | Compact Syntax        | A shorthand for nesting is supported: `<node0/node1/thing name="value"/>` is equivalent to the full tag hierarchy.
 
 4. #### Data Merging (Overlaying)
 
