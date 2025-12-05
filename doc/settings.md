@@ -383,7 +383,12 @@ The following item declarations are identical:
 <item ... type="dtvt" cmd="vtm -r vtty mc"/>
 ```
 
-### Event Scripting
+### Lua Scripting
+
+- Lua scripting support is designed to solve the same problems that JavaScript solves for modern web pages, providing universal access to the UI through global objects.
+- Scripts run within a sandbox environment that is unique to each individual process and persists for the lifetime of that process.
+- The sandbox is restricted and does not have access to standard libraries such as `luaopen_package`, `luaopen_io`, `luaopen_os`, or `luaopen_debug`.
+- Scripts have universal access to the UI through global objects.
 
 #### General syntax
 
@@ -719,12 +724,13 @@ EventId                        | Description
 `on="Esc-F10"`                 | The `Esc-F10` key combination was released.
 `on="general: e2::timer::any"` | Timer event, related to the current frame rate, usually about 60 times per second.
 
-### DirectVT configuration payload received from the parent process
+### Receiving the DirectVT Configuration Payload
 
-The value of the `cfg` menu item attribute (or a whole `<config>` subsection) will be passed to the child dtvt-aware application on launch.
+The value of the `cfg` menu item attribute (or the entire `<config>` subsection) is passed to the child dtvt-aware process upon launch. The child process receives these operational parameters via an inter-process communication channel.
 
 - `settings.xml`:
   ```xml
+  <config>
     ...
     <desktop>
       <taskbar>
@@ -738,6 +744,7 @@ The value of the `cfg` menu item attribute (or a whole `<config>` subsection) wi
       </taskbar>
     </desktop>
     ...
+  </config>
   ```
 
 ### UI Localization
