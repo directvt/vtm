@@ -3525,7 +3525,7 @@ namespace netxs::os
                         //    To signal EOF to the peer and still be able
                         //    to receive pending data the peer sent.
                         //    "shutdown() doesn't actually close the file descriptor
-                        //     — it just changes its usability.
+                        //     - it just changes its usability.
                         // To free a socket descriptor, you need to use os::close().
                         // Note: .r == .w, it is a full duplex socket handle on POSIX.
                     #endif

@@ -7462,7 +7462,7 @@ namespace netxs::ui
                 case 4:     // Insert/Replace Mode (IRM) on.
                     insmod = true;
                     break;
-                case 20:    // LNM—Line Feed/New Line Mode on.
+                case 20:    // LNM-Line Feed/New Line Mode on.
                     target->set_autocr(true);
                     break;
                 default:
@@ -7477,7 +7477,7 @@ namespace netxs::ui
                 case 4:     // Insert/Replace Mode (IRM) off.
                     insmod = faux;
                     break;
-                case 20:    // LNM—Line Feed/New Line Mode off.
+                case 20:    // LNM-Line Feed/New Line Mode off.
                     target->set_autocr(faux);
                     break;
                 default:
