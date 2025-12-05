@@ -385,7 +385,7 @@ The following item declarations are identical:
 
 ### Lua Scripting
 
-- Lua scripting support is designed to solve the same problems that JavaScript solves for modern web pages, providing universal access to the UI through global objects.
+- Lua scripting support is designed to provide the same dynamic behavior as JavaScript on modern web pages, offering universal UI access through global objects.
 - Scripts run within a sandbox environment that is unique to each individual process and persists for the lifetime of that process.
 - The sandbox is restricted and does not have access to standard libraries such as `luaopen_package`, `luaopen_io`, `luaopen_os`, or `luaopen_debug`.
 - Scripts have universal access to the UI through global objects.
@@ -414,17 +414,17 @@ Tag                 | Belongs to           | Value           | Description
 `<dom_element>`     |                      | ObjectID        | Visual tree object id.
 `id`                | `<dom_element>`      | UTF-8 string    | Additional id for the visual tree object.
 `script`            | `<dom_element>`      | UTF-8 string    | A Lua script that will be executed when the events specified by the `on` tags occur.
-`prerun`            | `script`             | UTF-8 string    | A Lua script that will be executed during pre-polling prior the non-preview keyboard events specified in the `on` tags occurs. This is mostly used to indicate that the event is not expected on the source object.
+`prerun`            | `script`             | UTF-8 string    | A Lua script that will be executed during pre-polling prior the non-preview keyboard events specified in the `on` tags occur. This is mostly used to indicate that the event is not expected on the source object.
 `on`                | `script`             | EventID         | Specific event id text string.
 `source`            | `on`                 | ObjectID        | Visual tree object id.
 
 The `preview:` prefix of the EventID is an indication that event processing should be performed in reverse order - from the container to the nested objects. By default, the visual tree traversal order is from the nested objects to the container.
 
-Note: Using an empty string in the `script=""` tag with a non-empty event value specified in the `on="EventID"` tag resets all subscriptions for that EventID.
+Note: Using an empty string in the `script=""` attribute, while specifying a non-empty event value in the `on="EventID"` tag, will reset all existing subscriptions for that specific EventID.
 
 #### Keyboard events
 
-Synax:
+Syntax:
 ```
 <... on="KeyboardSpecificEvent" ...>
   or
@@ -450,11 +450,11 @@ Type        | Example                |Description
 
 Generic, literal and specific key sequences can be mixed in any order within a key chord list.
 
-The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop.
+The required key combination sequence can be generated on the Info page, by clicking the label in the lower right corner of the vtm desktop.
 
 #### Mouse events
 
-Synax:
+Syntax:
 ```
 <... on="MouseSpecificEvent" ...>
   or
@@ -500,9 +500,9 @@ The following mouse events are tracked:
 
 EventID                             | Description
 ------------------------------------|----------------------------------
-MouseDown<bbb...>                   | Button<bbb...> push down / pressed.
-MouseUp<bbb...>                     | Button<bbb...> release.
-MouseClick<bbb...>                  | Press and release button<bbb...> w/o movement.
+MouseDown<bbb...>                   | Button<bbb...> pressed down.
+MouseUp<bbb...>                     | Button<bbb...> released.
+MouseClick<bbb...>                  | Press and release button<bbb...> without movement.
 MouseDoublePress<bbb...>            | Double press by button<bbb...>.
 MouseMultiPress<bbb...>             | Multi press by button<bbb...>.
 MouseDoubleClick<bbb...>            | Double click by button<bbb...>.
@@ -544,7 +544,7 @@ MouseWheel          |                      | `0x10'00`               | The mouse
 
 #### Generic events
 
-Synax:
+Syntax:
 ```
 <... on="EventTier: Generic::Event::ID" ...>
 ```
@@ -580,7 +580,7 @@ Standard object names
 |                 |                          | `vtm.gate.WheelAccumReset()`                       | Reset floating point step accumulator for mouse wheel.
 |                 |                          | `vtm.gate.CellHeightReset()`                       | Resets the cell height to the value specified in the settings.
 |                 |                          | `vtm.gate.AntialiasingMode() -> int`               | Toggle anti-aliasing mode.
-|                 |                          | `vtm.gate.SetOverlay(int index, string s)`         | Set user's console visual overlay. Remove overlay for index `index` if `s` is empty. The overlay will be rendered behind everything (background) if index < 0.
+|                 |                          | `vtm.gate.SetOverlay(int index, string s)`         | Set user's console visual overlay. Remove the overlay for index `index` if `s` is empty. The overlay will be rendered behind everything (background) if index < 0.
 |                 |                          | `vtm.gate.Deface()`                                | Trigger to redraw.
 |                 |                          | `vtm.gate.GetViewport() -> int x, y, w, h`         | Get user's console coodinates x, y (relative to the desktop, left-top corner) and size w, h (width and height).
 |`window`         | Container for applet     | n/a                                                | The desktop container `window` can only be an event source.
@@ -592,7 +592,7 @@ Standard object names
 |                 |                          | `vtm.applet.Maximize()`                            | Maximize applet window.
 |                 |                          | `vtm.applet.Fullscreen()`                          | Fullscreen applet window.
 |                 |                          | `vtm.applet.Restore()`                             | Restore applet window.
-|                 |                          | `vtm.applet.GetArea() -> int x, y, w, h`           | Get applet window area: coodinates x, y (relative to the desktop, left-top corner) and size w, h (width and height).
+|                 |                          | `vtm.applet.GetArea() -> int x, y, w, h`           | Get applet window area: coordinates x, y (relative to the desktop, left-top corner) and size w, h (width and height).
 |                 |                          | `vtm.applet.GetTitlesHeight() -> int h, f`         | Get the height of the applet window's header and footer: `h` is the header, `f` is the footer.
 |`gear`           | User mouse and keyboard  | `vtm.gear.IsKeyRepeated() -> bool`                 | Returns true if the keyboard event is a key-repeat generated event.
 |                 |                          | `vtm.gear.SetHandled()`                            | Set that the event is processed, and stop further processing.
@@ -627,7 +627,7 @@ Standard object names
 |                 |                          | `vtm.tile.EqualizeSplitRatio()`                    | Equalize split ratio.
 |                 |                          | `vtm.tile.SetTitle()`                              | Set the window manager title.
 |                 |                          | `vtm.tile.ClosePane()`                             | Close selected panes.
-|`grip`           | Pane splitter            | `vtm.grip.MoveGrip(int x, int y)`                  | Move splitter by 2D step specified by pair { x, y }. 
+|`grip`           | Pane splitter            | `vtm.grip.MoveGrip(int x, int y)`                  | Move the splitter by the 2D step specified by the pair { x, y }. 
 |                 |                          | `vtm.grip.ResizeGrip(int n)`                       | Set splitter width to n.
 |                 |                          | `vtm.grip.FocusNextGrip(int n)`                    | Set focus to the next (n=1) or previous (n=-1) tile's splitter.
 |`terminal`       |                          | `vtm.terminal.KeyEvent({ ... })`                   | Generates a terminal key event using the specified parameters.<br>- `keystat=...,`: Pressed state. 1 - Pressed, 0 - Released.<br>- `ctlstat=...,`: Keyboard modifiers bit-field.<br>- `virtcod=...,`: Key virtual code.<br>- `scancod=...,`: Key scan code.<br>- `keycode=...,`: Physical key code.<br>- `extflag=...,`: Extended key flag.<br>- `cluster=...,`: Text cluster generated by the key.
@@ -641,7 +641,7 @@ Standard object names
 |                 |                          | `vtm.terminal.SendKey(string s)`                   | Send the text string `s` as terminal input.
 |                 |                          | `vtm.terminal.Print(auto args, ...)`               | Print the specified args to the terminal scrollback buffer.
 |                 |                          | `vtm.terminal.PrintLn(auto args, ...)`             | Print the specified args and move the text cursor to the next line.
-|                 |                          | `vtm.terminal.CopyViewport()`                      | Сopy terminal viewport to the clipboard.
+|                 |                          | `vtm.terminal.CopyViewport()`                      | Copy terminal viewport to the clipboard.
 |                 |                          | `vtm.terminal.CopySelection()`                     | Copy selected lines or the current line to the clipboard.
 |                 |                          | `vtm.terminal.PasteClipboard()`                    | Paste from clipboard.
 |                 |                          | `vtm.terminal.ClearClipboard()`                    | Reset clipboard.
@@ -655,17 +655,17 @@ Standard object names
 |                 |                          | `vtm.terminal.RedoReadline()`                      | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command.
 |                 |                          | `vtm.terminal.CwdSync(int n)`                      | Set the current working directory sync mode.
 |                 |                          | `vtm.terminal.CwdSync() -> int`                    | Get the current working directory sync mode.
-|                 |                          | `vtm.terminal.LineWrapMode(int n)`                 | Set the current line wrapping mode. Applied to the active selection if it is.<br>n=0: line wrapping is off<br>n=1: line wrapping is on
+|                 |                          | `vtm.terminal.LineWrapMode(int n)`                 | Set the current line wrapping mode. Applied to the active selection if it is.<br>n=0: line wrapping is off<br>n=1: line wrapping is on.
 |                 |                          | `vtm.terminal.LineWrapMode() -> int`               | Get the current line wrapping mode.
-|                 |                          | `vtm.terminal.LineAlignMode(int n)`                | Set the current line aligning mode. Applied to the active selection if it is.<br>n=0: left<br>n=1: right<br>n=2: center
+|                 |                          | `vtm.terminal.LineAlignMode(int n)`                | Set the current line aligning mode. Applied to the active selection if it is.<br>n=0: left<br>n=1: right<br>n=2: center.
 |                 |                          | `vtm.terminal.LineAlignMode() -> int`              | Get the current line aligning mode.
 |                 |                          | `vtm.terminal.LogMode(int n)`                      | Set the current terminal logging mode on/off.
 |                 |                          | `vtm.terminal.LogMode() -> int`                    | Get the current terminal logging mode state.
 |                 |                          | `vtm.terminal.AltbufMode(bool m)`                  | Enable/disable the alternate buffer mode (DECSET/DECRST 1049).
 |                 |                          | `vtm.terminal.AltbufMode() -> bool`                | Returns true if the alternate buffer is active.
 |                 |                          | `vtm.terminal.ClearScrollback()`                   | Clear the terminal scrollback buffer.
-|                 |                          | `vtm.terminal.ScrollbackSize() -> int n, m, q`     | Get the current scrollback buffer parameters (three integer values):<br>`n` Initial buffer size<br>`m` Grow step<br>`q` Grow limit
-|                 |                          | `vtm.terminal.ScrollbackSize(int n, int m, int q)` | Set scrollback buffer parameters:<br>`n` Initial buffer size<br>`m` Grow step<br>`q` Grow limit
+|                 |                          | `vtm.terminal.ScrollbackSize() -> int n, m, q`     | Get the current scrollback buffer parameters (three integer values):<br>`n` Initial buffer size<br>`m` Grow step<br>`q` Grow limit.
+|                 |                          | `vtm.terminal.ScrollbackSize(int n, int m, int q)` | Set scrollback buffer parameters:<br>`n` Initial buffer size<br>`m` Grow step<br>`q` Grow limit.
 |                 |                          | `vtm.terminal.SetBackground()`                     | Set the default SGR attributes for the scrollback buffer using the current state of the SGR attributes.
 |                 |                          | `vtm.terminal.ScrollbackPadding() -> int n`        | Get scrollback buffer left and right side padding.
 |                 |                          | `vtm.terminal.ScrollbackPadding(int n)`            | Set scrollback buffer left and right side padding to `n` cells from 0 to 255.
@@ -674,7 +674,7 @@ Standard object names
 |                 |                          | `vtm.terminal.RightToLeft() -> int m`              | Get text right-to-left mode.
 |                 |                          | `vtm.terminal.RightToLeft(int m)`                  | Set text right-to-left mode.
 |                 |                          | `vtm.terminal.ResetAttributes()`                   | Reset scrollback buffer attributes (SGR attributes, line wrapping, scrollback buffer padding, line alignment, cursor form, selection copy format).
-|                 |                          | `vtm.terminal.EventReporting(string args, ...)`    | Enable event reporting for the specified sources:<br>`"keyboard"` Keyboard events<br>`"mouse"` Mouse events<br>`"focus"` Focus events<br>`"format"` Line format events<br>`"clipoard"` Clipboard events<br>`"window"` Window size and selection events<br>`"system"` System signals<br>`""` Switch event reporting off
+|                 |                          | `vtm.terminal.EventReporting(string args, ...)`    | Enable event reporting for the specified sources:<br>`"keyboard"` Keyboard events<br>`"mouse"` Mouse events<br>`"focus"` Focus events<br>`"format"` Line format events<br>`"clipboard"` Clipboard events<br>`"window"` Window size and selection events<br>`"system"` System signals<br>`""` Switch event reporting off.
 |                 |                          | `vtm.terminal.EventReporting()`                    | Get a list of active event sources.
 |                 |                          | `vtm.terminal.Restart()`                           | Restart the current terminal session.
 |                 |                          | `vtm.terminal.Quit()`                              | Close terminal.
@@ -749,9 +749,9 @@ The value of the `cfg` menu item attribute (or the entire `<config>` subsection)
 
 ### UI Localization
 
-The vtm user interface can be localized into any language by providing translations for the existing UI templates and assigning the required language ID to the root NS element to ensure patch inheritance.
+The vtm user interface can be localized into any language by providing translations for existing UI templates and assigning the required language ID to the root Ns element to ensure patch inheritance. 
 
-The vtm UI interface has a built-in English `en-US` and Russian `ru-RU` localization.
+The vtm UI has built-in English (`en-US`) and Russian (`ru-RU`) localizations.
 
 For example:
 - To activate the `ru-RU` interface with fallback to `en-US` for the desktop:
@@ -764,7 +764,7 @@ For example:
   vtm --config "<Ns=en-US|ru-RU/>" --run term
   ```
 
-In order to make your own translation for vtm, you need to copy the subsection `<Ns><en-US>...</en-US></Ns>` to, say, `<Ns><it-IT>...</it-IT></Ns>` and translate the quoted string values. Then you need to update the reference for the the literal lookup from `<Ns=en-US>` to `<NS=en-US|it-IT>`. As a result, you will get a configuration like this:
+To create your own translation for vtm, copy the subsection `<Ns><en-US>...</en-US></Ns>` to, say, `<Ns><it-IT>...</it-IT></Ns>`, and translate the quoted string values. Then you need to update the reference for the literal lookup from `<Ns=en-US>` to `<Ns=en-US|it-IT>`. As a result, you will get a configuration like this:
 
 ```xml
 ...
@@ -1956,13 +1956,13 @@ Notes
     <TerminalScrollViewportOneCellLeft ="vtm.terminal.ScrollViewportByCell( 1, 0);"/>  <!-- Scroll viewport one cell to the left. -->
     <TerminalScrollViewportOneCellRight="vtm.terminal.ScrollViewportByCell(-1, 0);"/>  <!-- Scroll viewport one cell to the right. -->
     <TerminalScrollViewportToTop       ="if (not vtm.gear.IsKeyRepeated()) then vtm.terminal.ScrollViewportToTop() end;"/>  <!-- Scroll viewport to the scrollback top. -->
-    <TerminalScrollViewportToEnd       ="if (not vtm.gear.IsKeyRepeated()) then vtm.terminal.ScrollViewportToEnd() end;"/>  <!-- Scroll viewport to the scrollback top. -->
+    <TerminalScrollViewportToEnd       ="if (not vtm.gear.IsKeyRepeated()) then vtm.terminal.ScrollViewportToEnd() end;"/>  <!-- Scroll viewport to the scrollback bottom. -->
     <TerminalSendKey                   ="vtm.terminal.SendKey('test\\r');"/>           <!-- Simulating keypresses using the specified string. -->
     <TerminalOutput                    ="vtm.terminal.Print('Hello!\\n');"/>           <!-- Direct output the string to the terminal scrollback. -->
     <TerminalReset                     ="vtm.terminal.Print('\\x1b[!p');"/>            <!-- Clear scrollback and SGR-attributes. -->
     <TerminalClearScrollback           ="vtm.terminal.ClearScrollback();"/>            <!-- Clear scrollback above current line. -->
-    <TerminalCopyViewport              ="vtm.terminal.CopyViewport();"/>               <!-- Сopy viewport to clipboard. -->
-    <TerminalCopySelection             ="vtm.terminal.CopySelection();"/>              <!-- Сopy selection to clipboard. -->
+    <TerminalCopyViewport              ="vtm.terminal.CopyViewport();"/>               <!-- Copy viewport to clipboard. -->
+    <TerminalCopySelection             ="vtm.terminal.CopySelection();"/>              <!-- Copy selection to clipboard. -->
     <TerminalClipboardPaste            ="vtm.terminal.PasteClipboard();"/>             <!-- Paste from clipboard. -->
     <TerminalClipboardWipe             ="vtm.terminal.ClearClipboard();"/>             <!-- Reset clipboard. -->
     <TerminalClipboardFormat           ="vtm.terminal.ClipboardFormat((vtm.terminal.ClipboardFormat() + 1) % 6);"/>  <!-- Toggle terminal text selection copy format. 0: Disabled; 1: Plain text; 2: ANSI; 3: RTF; 4: HTML; 5: Sensitive plain text. -->
