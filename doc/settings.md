@@ -59,7 +59,7 @@ The file list is built in the following order from the following sources:
 
 ## DynamicXML
 
-DynamicXML is a configuration language based on the XML 1.1 syntax, but with substantial extensions that introduce dynamic features, templating mechanisms, and data merging logic. It is designed for use as a flexible and powerful format for configuration files, allows for data reuse, variable substitution, and a form of in-document dry principle (Don't Repeat Yourself).
+DynamicXML is a configuration language based on the XML 1.1 syntax, but with substantial extensions that introduce dynamic features, templating mechanisms, and data merging logic. It is designed as a flexible and powerful format for human-written, highly efficient configuration files, allowing for data reuse, variable substitution, and a form of in-document dry principle (Don't Repeat Yourself).
 
 ### Differences from Classical XML 1.1
 
