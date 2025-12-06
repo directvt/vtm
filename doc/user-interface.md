@@ -277,5 +277,5 @@
 
 ---
 
-¹ — Key bindings can be customized using settings.  
-² — In fullscreen mode, the GUI window reserves a 1px high area at the top for forwarding mouse events.
+¹ - Key bindings can be customized using settings.  
+² - In fullscreen mode, the GUI window reserves a 1px high area at the top for forwarding mouse events.

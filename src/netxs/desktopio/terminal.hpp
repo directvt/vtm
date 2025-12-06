@@ -1099,8 +1099,8 @@ namespace netxs::ui
 
                 // Do not use non-standard vt.
                 //vt.csier.table[csi_ccc][ccc_cup] = V{ p->cup0(q); }; // CCC_CUP
-                //vt.csier.table[csi_ccc][ccc_chx] = V{ p->chx0(q.subarg(0)); }; // CCC_СHX
-                //vt.csier.table[csi_ccc][ccc_chy] = V{ p->chy0(q.subarg(0)); }; // CCC_СHY
+                //vt.csier.table[csi_ccc][ccc_chx] = V{ p->chx0(q.subarg(0)); }; // CCC_CHX
+                //vt.csier.table[csi_ccc][ccc_chy] = V{ p->chy0(q.subarg(0)); }; // CCC_CHY
                 vt.csier.table[csi_ccc][ccc_sbs] = V{ p->owner.sbsize(q); }; // CCC_SBS: Set scrollback size.
                 vt.csier.table[csi_ccc][ccc_rst] = V{ p->owner.setdef();  }; // CCC_RST: Reset to defaults.
                 vt.csier.table[csi_ccc][ccc_sgr] = V{ p->owner.setsgr(q); }; // CCC_SGR: Set default SGR.
@@ -7462,7 +7462,7 @@ namespace netxs::ui
                 case 4:     // Insert/Replace Mode (IRM) on.
                     insmod = true;
                     break;
-                case 20:    // LNM—Line Feed/New Line Mode on.
+                case 20:    // LNM-Line Feed/New Line Mode on.
                     target->set_autocr(true);
                     break;
                 default:
@@ -7477,7 +7477,7 @@ namespace netxs::ui
                 case 4:     // Insert/Replace Mode (IRM) off.
                     insmod = faux;
                     break;
-                case 20:    // LNM—Line Feed/New Line Mode off.
+                case 20:    // LNM-Line Feed/New Line Mode off.
                     target->set_autocr(faux);
                     break;
                 default:
