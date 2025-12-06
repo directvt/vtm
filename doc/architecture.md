@@ -174,15 +174,17 @@ graph TB
 - Desktop users connect to an existing desktop session through an additional vtm process running in `Desktop Client` mode.
 - The desktop session has a unique ID, coined from the platform-specific creator UID, unless explicitly specified otherwise.
 - Only the session creator or an elevated user can access the session.
+- On Windows, any user can launch an SSH-accessible desktop session in Session 0 under their own security context (requires the vtm service installed via `vtm --install` from an elevated console).
 - The "regular" user and the "elevated" user are different independent users despite having the same username.
-- The session allows multiple access in real time.
+- The session allows multiple access **in real time**.
+- A vtm process running as a `Desktop Client` or `DirectVT Gateway` (`dtty`) has the ability to fully binary deserialize/serialize its state through arbitrary channels (like socat over ssh reverse tunnel) and does not require a running SSH server on the remote side.
 - Multiple connected users can share a focused application, while each user can have multiple applications focused.
 - Users can disconnect from the session and reconnect later.
 - Sessions with different IDs can coexist independently.
 - To maximize rendering efficiency and minimize cross-platform issues, along with the character-oriented xterm-compatible I/O mode called `Classic VT`, vtm supports an additional message-based binary I/O mode called `DirectVT`.
 - A typical console application integrates into the desktop using the `DirectVT Gateway` window as the DirectVT connection endpoint.
-    - A DirectVT-aware application directly connected to the environment can seamlessly send and receive the entire set of desktop events, as well as render itself in a binary form, avoiding expensive Classic VT parsing.
-    - To run a non-DirectVT application, an additional vtm host process is launched in `Desktop Applet` mode with the `Teletype Console` or `Terminal Console` applet as a DirectVT bridge to the desktop environment.
+  - A DirectVT-aware application directly connected to the environment can seamlessly send and receive the entire set of desktop events, as well as render itself in a binary form, avoiding expensive Classic VT parsing.
+  - To run a non-DirectVT application, an additional vtm host process is launched in `Desktop Applet` mode with the `Teletype Console` or `Terminal Console` applet as a DirectVT bridge to the desktop environment.
 - The desktop server can receive and execute script commands relayed from other vtm processes running on behalf of the session creator.
 - In the case of a vtm process with redirected standard input, all standard input is directly relayed to the desktop server as a script command flow.
 
