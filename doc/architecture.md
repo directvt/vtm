@@ -194,7 +194,7 @@ graph TB
 - The desktop has a built-in Tiling Window Manager for organizing desktop space into non-overlapping panels with Drag and Drop support for moving panels (like in web browsers).
 - The user interface supports Lua scripting, allowing scripts to be bound to various internal events via configuration settings, as well as executed directly from child processes via APC sequences.
 - The desktop server can receive and execute Lua scripts relayed from other vtm processes (running on behalf of the session creator) via a redirected standard input, or interactively executed from the attached log monitor (`vtm --monitor`).
-- In terminal emulator mode (`Teletype Console` or `Terminal Console` launched via `vtm --run term` or `vtm --run vtty`), vtm also supports the following features:
+- In terminal emulator mode (`Teletype Console` or `Terminal Console` launched via `vtm --run vtty` or `vtm --run term`), vtm also supports the following features:
   - Simultaneous output of wrapped and non-wrapped text lines of arbitrary length with horizontal scrolling.
   - An **in-process Win32 Console Server implementation**, which is independent of the standard system `conhost.exe` and compatible with **Windows 8.1** and **Windows Server 2012 Core** (including GUI mode with true-color Unicode rendering).
   - Mouse reports with floating point coordinates, where the cursor position inside a cell is normalized from 0 to 1.
