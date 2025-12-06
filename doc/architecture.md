@@ -171,7 +171,7 @@ graph TB
 
 - Vtm is a text-based application that comes with a single executable and has a number of runtime modes for running multiple instances in parallel to form the desktop environment.
 - A vtm process running in `Desktop Server` mode creates a desktop session.
-- Desktop users connect to an existing desktop session through an additional vtm process running in `Desktop Client` mode.
+- Desktop users connect to an existing desktop session through an additional vtm process running in `Desktop Client` mode. The desktop is presented to the user as a **borderless workspace that allows panning** in all **directions** (infinite desktop).
 - The desktop session has a unique ID, coined from the platform-specific creator UID, unless explicitly specified otherwise.
 - Sessions with different IDs can coexist independently.
 - Only the session creator or an elevated user can access the session.
