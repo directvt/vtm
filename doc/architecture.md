@@ -198,11 +198,21 @@ graph TB
   - Special (Exclusive) keyboard mode for the terminal window to transfer all keyboard events to the terminal as is.
   - Configurable scrollback buffer size (**100k lines by default**, limited by max_int32 and system RAM).
   - Text lookup in the scrollback buffer.
-  - Unicode character Geometry Modifiers (VT2D) with the ability to output text characters of arbitrary size and in parts (up to 16x4 cells).
+  - Unicode character Geometry Modifiers VT2D with the ability to output text characters of arbitrary size and in parts (up to 16x4 cells).
   - Stdin/stdout logging.
 - Vtm supports the creation of advanced keyboard bindings (generic: `Ctrl+Enter`, literal: `Ctrl+'\n'`, specific: `LeftCtrl+KeyEnter`, scancodes: `0x1D+0x1C`), allowing for the configuration of complex behavior, like a tmux-style prefix key for modality (e.g., toggling window movement with arrow keys).
 - The entire user interface can be localized to any language, including those with complex scripts, via a configuration file (rendering is powered by VT2D in GUI mode).
 - Vtm has a built-in logging subsystem; the log output is available via the `vtm --monitor` command.
+- Used non-standard technologies:
+  - DirectVT (binary input and UI rendering)
+  - VT2D (Unicode character Geometry Modifiers)
+  - DynamicXML (settings configuration)
+  - Lua scripting (dynamic UI)
+  - TUI Shadows (SGR attribute)
+  - VT Input Mode (floating point mouse reporting)
+  - Hybrid UI (TUI/GUI)
+  - In-process Windows Console Server (Windows 8.1 and later compatibility)
+  - Terminal with horizontal scrolling support (wrapped and un-wrapped text lines simultaneously)
 
 ### Runtime modes
 
