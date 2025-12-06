@@ -174,6 +174,8 @@ graph TB
 - Desktop users connect to an existing desktop session through an additional vtm process running in `Desktop Client` mode.
 - The desktop session has a unique ID, coined from the platform-specific creator UID, unless explicitly specified otherwise.
 - Only the session creator or an elevated user can access the session.
+- Vtm employs a hybrid TUI/GUI approach: it can render itself both into its own native GUI window and into any compatible text console or terminal.
+- The same text desktop session can be rendered for connected users into both GUI windows and terminals (`vtm --tui` and `vtm --gui flags`).
 - On Windows, any user can launch an **SSH-accessible desktop** session **in Session 0**, running under their own security context and is independent of any active graphical session (requires the vtm service installed via `vtm --install` from an elevated console).
 - Vtm incorporates its own **in-process Win32 Console Server implementation**, making it independent from the standard system `conhost.exe` and compatible with **Windows 8.1** and **Windows Server 2012 Core** (including GUI mode with true-color Unicode rendering).
 - The "regular" user and the "elevated" user are different independent users despite having the same username.
