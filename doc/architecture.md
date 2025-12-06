@@ -1,7 +1,8 @@
 # Text-based Desktop Environment Architecture
 
 - [UI Concept](#ui-concept)
-- [Process model](#process-model)
+- [Process Model](#process-model)
+- [Key Features and Architecture](#key-features-and-architecture)
 - [Runtime modes](#runtime-modes)
 - [Desktop applets](#desktop-applets)
 - [I/O modes](#io-modes)
@@ -82,7 +83,7 @@ It can wrap any console application and be nested indefinitely, forming a text-b
 
 <sup>Currently, rendering into a native GUI window is only available on the Windows platform; on Unix platforms, a terminal emulator is required.</sup>
 
-## Process model
+## Process Model
 
 ```mermaid
 graph TB
@@ -168,6 +169,8 @@ graph TB
     CS2 <-->|DirectVT I/O<br>send: Events<br>recv: Render| TS
     TS === VTMs
 ```
+
+## Key Features and Architecture
 
 - Vtm is a text-based application that comes with a single executable and has a number of runtime modes for running multiple instances in parallel to form the desktop environment.
 - A vtm process running in `Desktop Server` mode creates a desktop session.
