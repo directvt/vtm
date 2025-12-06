@@ -174,7 +174,7 @@ graph TB
 - Desktop users connect to an existing desktop session through an additional vtm process running in `Desktop Client` mode.
 - The desktop session has a unique ID, coined from the platform-specific creator UID, unless explicitly specified otherwise.
 - Only the session creator or an elevated user can access the session.
-- On Windows, any user can launch an SSH-accessible desktop session in Session 0 under their own security context (requires the vtm service installed via `vtm --install` from an elevated console).
+- On Windows, any user can launch an SSH-accessible desktop session in Session 0, running under their own security context and is independent of any active graphical session (requires the vtm service installed via `vtm --install` from an elevated console).
 - The "regular" user and the "elevated" user are different independent users despite having the same username.
 - The session allows multiple access **in real time**.
 - A vtm process running as a `Desktop Client` or `DirectVT Gateway` (`dtty`) has the ability to fully binary deserialize/serialize its state through arbitrary channels (like socat over ssh reverse tunnel) and does not require a running SSH server on the remote side.
