@@ -174,7 +174,7 @@ graph TB
 - Desktop users connect to an existing desktop session through an additional vtm process running in `Desktop Client` mode.
 - The desktop session has a unique ID, coined from the platform-specific creator UID, unless explicitly specified otherwise.
 - Only the session creator or an elevated user can access the session.
-- On Windows, any user can launch an SSH-accessible desktop session in Session 0, running under their own security context and is independent of any active graphical session (requires the vtm service installed via `vtm --install` from an elevated console).
+- On Windows, any user can launch an **SSH-accessible desktop** session **in Session 0**, running under their own security context and is independent of any active graphical session (requires the vtm service installed via `vtm --install` from an elevated console).
 - The "regular" user and the "elevated" user are different independent users despite having the same username.
 - The session allows multiple access **in real time**.
 - A vtm process running as a `Desktop Client` or `DirectVT Gateway` (`dtty`) has the ability to fully binary deserialize/serialize its state through arbitrary channels (like socat over ssh reverse tunnel) and does not require a running SSH server on the remote side.
@@ -182,6 +182,7 @@ graph TB
 - Users can disconnect from the session and reconnect later.
 - Sessions with different IDs can coexist independently.
 - To maximize rendering efficiency and minimize cross-platform issues, along with the character-oriented xterm-compatible I/O mode called `Classic VT`, vtm supports an additional message-based binary I/O mode called `DirectVT`.
+- When running in the **Linux in-kernel VGA Console** or **KMSCON** environment, vtm can directly use any kernel pointer devices (`/dev/input/eventX`) (requires persistent access configured using `sudo vtm --mouse 1`).
 - A typical console application integrates into the desktop using the `DirectVT Gateway` window as the DirectVT connection endpoint.
   - A DirectVT-aware application directly connected to the environment can seamlessly send and receive the entire set of desktop events, as well as render itself in a binary form, avoiding expensive Classic VT parsing.
   - To run a non-DirectVT application, an additional vtm host process is launched in `Desktop Applet` mode with the `Teletype Console` or `Terminal Console` applet as a DirectVT bridge to the desktop environment.
