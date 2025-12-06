@@ -188,6 +188,7 @@ graph TB
   - To run a non-DirectVT application, an additional vtm host process is launched in `Desktop Applet` mode with the `Teletype Console` or `Terminal Console` applet as a DirectVT bridge to the desktop environment.
 - The desktop server can receive and execute script commands relayed from other vtm processes running on behalf of the session creator.
 - In the case of a vtm process with redirected standard input, all standard input is directly relayed to the desktop server as a script command flow.
+- In GUI mode, vtm runs within its own graphical window, where it fully replicates its unique TUI-mode windowing mechanics, including keyboard multifocus.
 - The entire user interface can be localized to any language, including those with complex scripts, via a configuration file (rendering is powered by VT2D in GUI mode).
 - There is a built-in logging subsystem; the log output is available via the `vtm --monitor` command.
 
