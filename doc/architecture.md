@@ -191,12 +191,12 @@ graph TB
 - The desktop has a built-in Tiling Window Manager for organizing desktop space into non-overlapping panels with Drag and Drop support for moving panels (like in web browsers).
 - The user interface supports Lua scripting, allowing scripts to be bound to various internal events via configuration settings, as well as executed directly from child processes via APC sequences.
 - The desktop server can receive and execute Lua scripts relayed from other vtm processes (running on behalf of the session creator) via a redirected standard input, or interactively executed from the attached log monitor (`vtm --monitor`).
-- In terminal emulator mode (`Teletype Console` or `Terminal Console` launched via `vtm --run term` or `vtm --run vtty`), vtm also supports:
+- In terminal emulator mode (`Teletype Console` or `Terminal Console` launched via `vtm --run term` or `vtm --run vtty`), vtm also supports the following features:
   - Simultaneous output of wrapped and non-wrapped text lines of arbitrary length with horizontal scrolling.
-  - Its own **in-process Win32 Console Server implementation**, which is independent of the standard system `conhost.exe` and compatible with **Windows 8.1** and **Windows Server 2012 Core** (including GUI mode with true-color Unicode rendering).
+  - An **in-process Win32 Console Server implementation**, which is independent of the standard system `conhost.exe` and compatible with **Windows 8.1** and **Windows Server 2012 Core** (including GUI mode with true-color Unicode rendering).
   - Mouse reports with floating point coordinates, where the cursor position inside a cell is normalized from 0 to 1.
   - Special (Exclusive) keyboard mode for the terminal window to transfer all keyboard events to the terminal as is.
-  - Configurable scrollback buffer size (**100k lines by default**, limited by max_int32 and system RAM).
+  - A configurable scrollback buffer size (**100k lines by default**, limited by max_int32 and system RAM).
   - Text lookup in the scrollback buffer.
   - Unicode character Geometry Modifiers VT2D with the ability to output text characters of arbitrary size and in parts (up to 16x4 cells).
   - Stdin/stdout logging.
