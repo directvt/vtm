@@ -189,6 +189,7 @@ graph TB
   - To run a non-DirectVT application, an additional vtm host process is launched in `Desktop Applet` mode with the `Teletype Console` or `Terminal Console` applet as a DirectVT bridge to the desktop environment.
 - The user interface supports Lua scripting, allowing scripts to be bound (in settings) to various internal events, as well as executed directly from child processes via APC sequences.
 - The desktop server can receive and execute Lua scripts relayed from other vtm processes (running on behalf of the session creator) via a redirected standard input, or interactively executed from the attached log monitor (`vtm --monitor`).
+- Vtm supports the creation of advanced keyboard bindings (generic, literal, specific, scancodes), allowing for the configuration of complex behavior, like a tmux-style prefix key for modality (e.g., toggling window movement with arrow keys).
 - In GUI mode, vtm runs within its own graphical window, where it fully replicates its unique TUI-mode windowing mechanics, including keyboard multifocus.
 - The entire user interface can be localized to any language, including those with complex scripts, via a configuration file (rendering is powered by VT2D in GUI mode).
 - There is a built-in logging subsystem; the log output is available via the `vtm --monitor` command.
