@@ -31,6 +31,14 @@ sudo cmake --install bin
 vtm
 ```
 
+> Installation Note:
+> - By default, files are installed to system directories (e.g., `/usr/local/bin/`). If you want to install vtm to a user directory without using sudo (e.g., `$HOME/.local/`; ensure that this directory is added to your $PATH), use the `CMAKE_INSTALL_PREFIX` flag during the cmake configuration step:
+>    ```bash
+>    cmake . -B bin -DCMAKE_INSTALL_PREFIX=$HOME/.local
+>    cmake --build bin
+>    cmake --install bin
+>    ```
+
 ### Windows
 
 Build-time dependencies
