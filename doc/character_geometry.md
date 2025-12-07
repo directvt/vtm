@@ -1,34 +1,34 @@
-# VT2D: Unicode character Geometry Modifiers
+# VT2D: Unicode Character Geometry Modifiers
 
-A user interface based solely on monospaced Unicode characters (a concept known as a text-based user interface, or TUI) has known issues with character width detection, leading to the following limits:
+A user interface based solely on monospaced Unicode characters (a concept known as a text-based user interface, or TUI) has known limitations regarding character width and rendering, leading to the following constraints in standard terminal environments:
 
 - No way to specify a custom width for displayed characters.
-- No way to display the same characters in narrow and wide variants.
-- No way to use triple and quadruple characters along with narrow and wide.
-- Different character width assumptions across applications and terminal emulators.
+- No way to display the same characters in narrow and wide variants simultaneously.
+- No way to use triple and quadruple-width characters alongside narrow and standard-width ones.
+- Inconsistent character width assumptions across different applications and terminal emulators.
 - No way to partially display wide characters.
 - No way to display characters taller than one cell.
-- No way to display subcell sized characters.
+- No way to display subcell-sized characters.
 - No way to rotate or mirror characters.
 
 ## Character matrix
 
-Each Unicode character is a sequence of codepoints (one or more) - this is the so-called grapheme cluster. Using a font, this sequence is translated into a glyph run.
+Each Unicode character is represented by a sequence of codepoints (one or more), known as a grapheme cluster. Using a specific font, this sequence is translated into a glyph run.
 
 ![DEVA-2x1](images/deva_2x1_glyph_run_transparent.png)
 
-By defining that the graphical representation of the character is a cellular matrix (1x1 matrix consists of one fragment), the final scaling and rasterization of the glyph run can be performed in a rectangular cell matrix defined either implicitly based on the Unicode properties of the cluster codepoints, or explicitly using a modifier codepoint from the Unicode codepoint range 0xD0000-0xD08F6.
+By defining the graphical representation of a character as a cellular matrix (a 1x1 matrix consists of one fragment), the final scaling and rasterization of the glyph run can be performed within a rectangular cell matrix. This matrix is defined either implicitly based on the Unicode properties of the cluster's codepoints, or explicitly using a modifier codepoint from the Unicode private use area range U+D0000–U+D08F6.
 
 1x1 | 2x2 | 3x1
 ----|-----|-----
 ![SGR-CFA-A](images/A_1x1.png) | ![SGR-CFA-E](images/E_2x2.png) | ![SGR-CFA-Indic](images/deva_3x1.png)
 
-Matrix fragments up to 16x4 cells require at least four associated integer values, which can be packed into the Unicode codepoint space by enumerating "wh_xy" values, where:
+Matrix fragments, up to a size of 16x4 cells, require at least four associated integer values. These values can be packed into the Unicode codepoint space by enumerating "wh_xy" values, where:
   - w: Character matrix width.
   - h: Character matrix height.
   - x: Horizontal fragment selector within the matrix.
   - y: Vertical fragment selector within the matrix.
-  - For character matrices larger than 16x4, pixel graphics should be used.
+  - For character matrices larger than 16x4, standard pixel graphics should be used instead.
 
 [Table source](images/vtm_character_geometry_modifiers_16x4.xhtml)
 
@@ -36,7 +36,7 @@ Matrix fragments up to 16x4 cells require at least four associated integer value
 
 ### The resulting concept
 
-- Terminals can annotate each scrollback cell with character matrix metadata and use it to display either the entire character image or a specific fragment within the cell.
+- Terminals can annotate each scrollback cell with character matrix metadata and use it to display either the entire character image or a specific fragment within the cell boundaries.
 - Users/applications can explicitly specify the size of the character matrix (by zeroing out `_xy`) or select any fragment of it (non-zero `_xy`) by placing a specific modifier character after the grapheme cluster.
 
 Example 1. Output a 3x1 (31_00) character:
@@ -80,7 +80,7 @@ Expected result:
 
 ### Helper functions
 
-Possible implementation of helper functions for converting between modifier codepoints and character matrix parameter tuples `wh_xy`.
+A possible implementation of helper functions for converting between modifier codepoints and character matrix parameter tuples `wh_xy` is provided below.
 
 ```c++
 struct wh_xy
@@ -118,9 +118,9 @@ static wh_xy matrix(int codepoint)
 
 ## Grapheme cluster boundaries
 
-By default, grapheme clustering occurs according to `Unicode UAX #29` https://www.unicode.org/reports/tr29/#Grapheme_Cluster_Boundary_Rules.
+By default, grapheme clustering occurs according to `Unicode UAX #29` (https://www.unicode.org/reports/tr29/#Grapheme_Cluster_Boundary_Rules).
 
-To set arbitrary boundaries, the C0 control character `ASCII 0x02 STX` is used, signaling the beginning of a grapheme cluster. The closing character of a grapheme cluster in that case is always a codepoint from the range 0xD0000-0xDFFFF, which sets the dimension of the character matrix. All codepoints between STX and the closing codepoint that sets the matrix size will be included in the grapheme cluster.
+To set arbitrary boundaries, the C0 control character `ASCII 0x02 STX` is used to signal the beginning of a grapheme cluster. In this case, the cluster's closing character is always a codepoint from the range U+D0000–U+DFFFF, which also sets the dimension of the character matrix. All codepoints between STX and the closing codepoint will be included in that specific grapheme cluster.
 
 ## Another brick in the wall
 
@@ -132,7 +132,7 @@ To set arbitrary boundaries, the C0 control character `ASCII 0x02 STX` is used, 
 - https://www.unicode.org/Public/UNIDATA/StandardizedVariants.txt
 - https://www.unicode.org/reports/tr51/tr51-16.html#Direction
 
-So, let's try to play this way:
+So, we utilize the unused `VS4–VS14` range to define glyph alignment and transformation:
 
 ### Glyph run alignment inside the matrix
 
@@ -159,7 +159,7 @@ VS12 | 0xFE0B    | Rotate 270° CCW
 VS13 | 0xFE0C    | Horizontal flip
 VS14 | 0xFE0D    | Vertical flip
 
-Example functions for applying a rotation operation to the current three bits integer `state`:
+Example functions for applying a rotation operation to the current three-bit integer state:
 ```c++
 void VS10(int& state) { state = (state & 0b100) | ((state + 0b001) & 0b011); }
 void VS11(int& state) { state = (state & 0b100) | ((state + 0b010) & 0b011); }

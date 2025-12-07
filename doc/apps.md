@@ -26,7 +26,7 @@
 - Linear and rectangular text selection for copying and searching.
 - True color with alpha transparency.
 - Full [VT2D](character_geometry.md) support.
-- UI Shadows as SGR attribute.
+- TUI Shadows as SGR attribute.
 - Support for several formats of copying the selected text:
   - Plain text
   - RTF
@@ -153,7 +153,7 @@ APC sequence                                                   | Deprecated sequ
 `ESC _ lua: vtm.terminal.LineWrapMode(` 0(off) or 1(on) `) ST` | `ESC [ 12 :` n `p`                 | Set text autowrap mode, _default is On_:<br>`n = 0`<br>`n = 1` On<br>`n = 2` Off (_enables horizontal scrolling_)
 `ESC _ lua: vtm.terminal.RightToLeft(` 0(off) or 1(on) `) ST`  | `ESC [ 13 :` n `p`                 | Set text right-to-left mode, _default is Off_:<br>`n = 0`<br>`n = 1` On<br>`n = 2` Off
 
-### UI Shadows as SGR attribute
+### TUI Shadows as SGR attribute
 
 The built-in terminal supports for in-cell UI shadows, specified using a colon-separated subparameter of the SGR 2 (faint) attribute.
 
@@ -218,7 +218,7 @@ Shadows persist as an SGR attribute and are visible in GUI mode:
 
 ### VT2D support
 
-The built-in terminal supports Unicode character geometry modifiers (VT2D). See [Unicode character Geometry Modifiers](character_geometry.md) for details.
+The built-in terminal supports Unicode Character geometry modifiers (VT2D). See [Unicode Character Geometry Modifiers](character_geometry.md) for details.
 
 Example 1. Output a 3x1 (31_00) character:
   - `pwsh`

@@ -2,49 +2,55 @@ status: draft
 
 # VT Input Mode Protocol
 
-The goal of the `vt-input-mode` protocol is to make command line interactivity cross-platform.
+The goal of the `vt-input-mode` protocol is to enable cross-platform command-line interactivity.
 
 - No TTY required.
 - No OS-level signal tracking required.
 
 ## Audience
 
-Anyone who wants to:
-- Operate without TTY.
-- Share applications on LAN (using inetd, netcat, etc).
-- Track every key press and key release.
-- Track position dependent keys such as WASD.
+This protocol is intended for anyone who needs to:
+
+- Operate without a TTY.
+- Share applications over a LAN (using inetd, netcat, etc.).
+- Track every key press and key release event.
+- Track position-dependent keys such as WASD.
 - Distinguish between physical Left and Right keyboard keys.
-- Get consistent output regardless of terminal window resize.
-- Track mouse on a pixel-wise level.
-- Track mouse outside the terminal window (getting negative coordinates).
+- Get consistent output regardless of terminal window resizing.
+- Track mouse movement at a pixel-wise level.
+- Track mouse movement outside the terminal window (receiving negative coordinates).
 - Take advantage of high-resolution (fine) scrolling.
-- Track scrollback text manipulation.
-- Track application closing and system shutdown.
+- Track scrollback text manipulation events.
+- Track application closing and system shutdown events.
+
+## Limitations of Existing Approaches
 
 Existing approaches have the following drawbacks:
-- There is no uniform way to receive keyboard events.
-- Window size tracking requires platform-specific calls with no way to synchronize the output.
-- Mouse tracking modes lack support for negative coordinates, and high-resolution scrolling.
-- Bracketed paste mode does not support the transfer of binary data and data containing sequences of bracketed paste mode itself.
+
+- There is no uniform way to receive keyboard events across platforms.
+- Window size tracking requires platform-specific calls with no way to synchronize the output consistently.
+- Mouse tracking modes lack support for negative coordinates and high-resolution scrolling.
+- Bracketed paste mode does not support the transfer of binary data or data containing the bracketed paste mode sequences themselves.
 
 ## Conventions
 
-- We use HEX-form of the uint32 for the 32-bit floating point value representation (IEEE-754 32-bit binary float, Little-Endian). For example, the floating point value `3.1415f` is represented as the unsigned integer in hex `40490E56` (decimal 1078529622).
-- Space characters are not used in sequence payloads and are only used for readability of the description.
-- //todo: keyboard only: All unescaped symbols outside of this protocol should be treated as clipboard pasted data.
+- We use the HEX form of a `uint32` integer for representing the 32-bit floating-point value (**IEEE-754 32-bit binary float, Little-Endian**). For example, the floating-point value `3.1415f` is represented as the unsigned integer in hex `40490E56` (decimal `1078529622`).
+  - Note: The use of the floating-point format allows for the representation of special states such as "coordinate unavailable" (e.g., when a mouse device is disconnected) using values like `NaN` (Not a Number) or infinity.
+- Space characters are not used within sequence payloads; they are included in this description solely for readability.
+- All string data transmitted within the protocol is encoded using `UTF-8`.
+- [Clipboard/Keyboard Input]: All unescaped symbols outside the scope of this protocol should be treated as data pasted from the clipboard.
 
 ## Event tracking activation
 
-Event tracking is activated by sending an APC vt-sequence to the terminal with a script to switch the event tracking mode.
+Event tracking is activated by sending an APC VT sequence to the terminal containing a script that switches the event tracking mode.
 
-The following APC sequences set/reset/request event tracking for the specified event `"Source"`s:
+The following APC sequences are used to set, reset, or request the current event tracking mode for specified event sources:
 
 - Set:
   ```
   ESC _ lua: vtm.terminal.EventReporting("Source0", ..., "SourceN") ESC \
   ```
-- Reset (the event tracking is deactivated if an empty string is specified.):
+- Reset (the event tracking is deactivated if an empty string is specified):
   ```
   ESC _ lua: vtm.terminal.EventReporting("") ESC \
   ```
@@ -55,16 +61,17 @@ The following APC sequences set/reset/request event tracking for the specified e
 
 Sources      | Events to track
 -------------|----------------
-`"keyboard"` | Keyboard.
-`"mouse"`    | Mouse.
-`"focus"`    | Focus.
-`"format"`   | Line format.
-`"clipboard"`| Clipboard.
-`"window"`   | Window size and selection.
+`"keyboard"` | Keyboard events.
+`"mouse"`    | Mouse events.
+`"focus"`    | Focus events.
+`"format"`   | Line format changes.
+`"clipboard"`| Clipboard events.
+`"window"`   | Window size and selection events.
 `"system"`   | System signals.
-`""`         | Set event reporting off.
+`""`         | Deactivate all event reporting.
 
-/todo: keyboard only: Note: By enabling `vt-input-mode`, all current terminal modes are automatically saved (to be restored on exit) and switched to something like "raw" mode, in which input is available character by character, echoing is disabled, and all special processing of terminal input and output characters is disabled (except for `LF` to `CR+LF` conversion).
+//todo: keybd mode only
+Note: By enabling `vt-input-mode`, all current terminal modes are automatically saved (to be restored on exit) and switched to a raw input mode. In this mode, input is available character by character, echoing is disabled, and all special processing of terminal input and output characters is deactivated (except for `LF` to `CR+LF` conversion).
 
 ### Event format
 
@@ -82,7 +89,7 @@ Field             | Descriprtion
 
 - Keyboard
   ```
-  ESC _ event=keyboard ; id=<ID> ; kbmods=<KeyMods> ; keyid=<KeyId> ; pressed=<KeyDown> ; scancode=<ScanCode> ; id_chord=<HexFormString> ; ch_chord=<HexFormString> ; sc_chord=<HexFormString> ; cluster=<C0>,...,<Cn> ESC \
+  ESC _ event=keyboard ; id=<ID> ; kbmods=<KeyMods> ; keyid=<KeyId> ; pressed=<KeyDown> ; scancode=<ScanCode> ; id_chord=<HexEncodedData> ; ch_chord=<HexEncodedData> ; sc_chord=<HexEncodedData> ; cluster=<C0>,...,<Cn> ESC \
   ```
 - Mouse
   ```
@@ -113,32 +120,32 @@ Field             | Descriprtion
 ### Keyboard
 
 ```
-ESC _ event=keyboard ; id=<ID> ; kbmods=<KeyMods> ; keyid=<KeyId> ; pressed=<KeyDown> ; scancode=<ScanCode> ; id_chord=<HexFormString> ; ch_chord=<HexFormString> ; sc_chord=<HexFormString> ; cluster=<C0>,...,<Cn> ESC \
+ESC _ event=keyboard ; id=<ID> ; kbmods=<KeyMods> ; keyid=<KeyId> ; pressed=<KeyDown> ; scancode=<ScanCode> ; id_chord=<HexEncodedData> ; ch_chord=<HexEncodedData> ; sc_chord=<HexEncodedData> ; cluster=<C0>,...,<Cn> ESC \
 ```
 
-> Q: Do we need to track scancode chord? `scanchord=<Code0>,...,<CodeN>`?
+> Q: Do we need to track a scancode chord? `scanchord=<Code0>,...,<CodeN>`?
 
 Attribute                     | Description
 ------------------------------|------------
-`id=<ID>`                     | Device group id (unsigned integer).
+`id=<ID>`                     | Device group ID (unsigned integer).
 `kbmods=<KeyMods>`            | Keyboard modifiers bit field.
 `keyid=<KeyId>`               | Physical key ID.
 `pressed=<KeyDown>`           | Key state:<br>\<KeyDown\>=1 - Pressed.<br>\<KeyDown\>=0 - Released.
 `scancode=<ScanCode>`         | Scan code.
-`id_chord=<HexFormString>`    | Simultaneously pressed key id's in ascending order. //todo define format
-`ch_chord=<HexFormString>`    | Simultaneously pressed key id's and grapheme cluster at the last place representing a key press.
-`sc_chord=<HexFormString>`    | Simultaneously pressed key scancodes in ascending order.
-`cluster=<C0>,...,<Cn>`       | Codepoints of the generated string/text cluster.
+`id_chord=<HexEncodedData>`   | Simultaneously pressed key IDs in ascending order. //todo define format
+`ch_chord=<HexEncodedData>`   | Simultaneously pressed key IDs and grapheme cluster at the last place representing a key press.
+`sc_chord=<HexEncodedData>`   | Simultaneously pressed key scancodes in ascending order.
+`cluster=<C0>,...,<Cn>`       | Codepoints of the generated string/text cluster (list of decimal integers).
 
-In response to the activation of `keyboard` tracking, the application receives a vt-sequence containing keyboard modifiers state:
+In response to the activation of `keyboard` tracking, the application receives a VT sequence containing the keyboard modifiers state:
 ```
 ESC _ event=keyboard ; id=<ID> ; kbmods=<KeyMods> ESC \
 ```
 
-The full sequence is fired after every key press and key release. The sequence can contain a string generated by a keystroke as a set of codepoints: `C0 + ... + Cn`. ~~The string can be fragmented and delivered by multiple consecutive events.~~
+The full sequence is fired after every key press and key release. The sequence can contain a string generated by a keystroke as a set of codepoints: `C0` through `Cn`.
 
 //todo revise, define format
-The `xx_chord=<HexFormString>` attribute contains the set of simultaneously pressed key id's (KeyId0,...,KeyIdN) in ascending order and is used to track key combinations. It is possible to track both chord presses `+` (e.g. `Ctrl+F1`) and chord releases `-` (e.g. `Ctrl-F1` or `Ctrl-Alt`):
+The `xx_chord=<HexEncodedData>` attributes contain the set of simultaneously pressed key IDs (e.g., KeyId0,...,KeyIdN) in ascending order and are used to track key combinations (chords). It is possible to track both chord presses (`+`, e.g., `Ctrl+F1`) and chord releases (`-`, e.g., `Ctrl-F1` or `Ctrl-Alt`):
 ...
 
 #### Keyboard modifiers
@@ -364,7 +371,7 @@ ESC _ event=mouse ; id=<ID> ; kbmods=<KeyMods> ; coor=<X>,<Y> ; buttons=<ButtonS
 
 Attribute                       | Description
 --------------------------------|------------
-`id=<ID>`                       | Device group id (unsigned integer).
+`id=<ID>`                       | Device group ID (unsigned integer).
 `kbmods=<KeyMods>`              | Keyboard modifiers bit field (unsigned integer, the same value as in Keyboard event).
 `coor=<X>,<Y>`                  | 32-bit floating point coordinates of the mouse pointer relative to the console's text cell grid. The integer part corresponds to the cell coordinates, and the fractional part corresponds to the normalized position within the cell. The pointer's screen pixel coordinates can be calculated by multiplying these floating point values by the cell size. Receiving a NaN value is a signal that the mouse has left the window or disconnected.
 `buttons=<ButtonState>`         | Mouse buttons bit field (unsigned integer).
@@ -395,7 +402,7 @@ ESC _ event=focus ; id=<ID> ; state=<FocusState> ESC \
 
 Attribute            | Description
 ---------------------|------------
-`id=<ID>`            | Device group id (unsigned integer).
+`id=<ID>`            | Device group ID (unsigned integer). Identifies the specific keyboard/mouse pair that receives focus. This is necessary in a multi-user environment where multiple input sessions may exist concurrently.
 `state=<FocusState>` | Terminal window focus:<br>\<FocusState\>=1 - Focused.<br>\<FocusState\>=0 - Unfocused.
 
 In response to the activation of `focus` tracking, the application receives a vt-sequence containing current focus state.
@@ -422,9 +429,9 @@ ESC _ event=clipboard ; id=<ID> ; format=<ClipFormat> ; security=<SecLevel> ; da
 
 Attribute             | Description
 ----------------------|------------
-`id=<ID>`             | Device group id (unsigned integer).
+`id=<ID>`             | Device group ID (unsigned integer).
 `format=<ClipFormat>` | Clipboard data format.
-`security=<SecLevel>` | Security level.
+`security=<SecLevel>` | Security level bit field.
 `data=<Data>`         | Base64 encoded data.
 
 #### Clipboard data format
@@ -511,6 +518,7 @@ Signal | Description
 
 The application must respond to the terminal within 5 seconds with the same message confirming that it will close itself without being forced. After a response to Signal=0, the application can continue running and closing the terminal window will be silently aborted. In the absence of confirmation, and also in the case of Signal=1, the application will be forced to close.
 
+//todo
 ## Usage Examples
 
 ### C++20

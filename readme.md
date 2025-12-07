@@ -15,6 +15,10 @@ There are two modes - desktop mode and terminal mode.
 
 Note: Accessing via ssh with auto-DirectVT mode outperforms the classic connection. Just run `vtm ssh user@host vtm`.
 
+### Goal
+
+The main goal of the vtm project is to create a new class of **Hybrid TUI** (**HTUI**) applications, bridging the gap between **GUI** and **TUI**. These applications are capable of running from **a single executable file** both in their own graphical windows and within any text console (a feature already implemented in vtm for Windows). In addition to providing an environment for developing new applications using **DynamicXML+Lua** (a reactive UI similar to WPF or web apps), vtm also acts as a cross-platform bridge, allowing existing console and TUI applications to transparently access graphical capabilities (GUI) and advanced input (keyboard, mouse, touchpad, etc.). **A key innovation is the VT2D (Unicode Character Geometry Modifiers) technology, which solves the fundamental problem of ambiguous character widths in terminals and ensures perfect visual uniformity of the interface**.
+
 ### Details
 
 - Vtm is a text-based application that comes with a single executable and has a number of runtime modes for running multiple instances in parallel to form the desktop environment.
@@ -29,7 +33,7 @@ Note: Accessing via ssh with auto-DirectVT mode outperforms the classic connecti
 - Users can disconnect from the session and reconnect later.
 - To maximize rendering efficiency and minimize cross-platform issues, along with the character-oriented xterm-compatible I/O mode called `Classic VT`, vtm supports an additional message-based binary I/O mode called `DirectVT`.
 - Using `DirectVT` mode (when vtm is running as a `Desktop Client` or `DirectVT Gateway`), vtm has the ability to fully binary deserialize/serialize its state through arbitrary channels (like socat over SSH reverse tunnel) and does not require a running SSH server on the remote side.
-- Vtm employs a hybrid TUI/GUI approach: it can render itself into both GUI windows and terminals (`vtm --gui` and `vtm --tui` flags). Currently, rendering into a native GUI window is only available on the Windows platform.
+- Vtm employs a **Hybrid TUI** (**HTUI**) approach: it can render itself into both GUI windows and terminals (`vtm --gui` and `vtm --tui` flags). Currently, rendering into a native GUI window is only available on the Windows platform.
 - In GUI mode, vtm replicates its unique TUI-mode style and windowing mechanics, including keyboard multifocus (activated by `Ctrl+LeftClick`).
 - On Windows, any user can launch an **SSH-accessible desktop** session **in Session 0**, running under their own security context and is independent of any active graphical session (requires the vtm service installed via `vtm --install` from an elevated console).
 - When running in the **Linux in-kernel VGA Console** or **KMSCON** environment, vtm can directly use any kernel pointer devices (`/dev/input/eventX`) (requires persistent access configured using `sudo vtm --mouse 1`).
@@ -39,28 +43,28 @@ Note: Accessing via ssh with auto-DirectVT mode outperforms the classic connecti
 - The desktop has a built-in Tiling Window Manager for organizing desktop space into non-overlapping panels with Drag and Drop support for moving panels (like in web browsers).
 - The user interface supports Lua scripting, allowing scripts to be bound to various internal events via configuration settings, as well as executed directly from child processes via APC sequences.
 - The desktop server can receive and execute Lua scripts relayed from other vtm processes (running on behalf of the session creator) via a redirected standard input, or interactively executed from the attached log monitor (`vtm --monitor`).
-- In terminal emulator mode (`Teletype Console` or `Terminal Console` launched via `vtm --run term` or `vtm --run vtty`), vtm also supports the following features:
+- In terminal emulator mode (`Teletype Console` or `Terminal Console` launched via `vtm --run vtty` or `vtm --run term`), vtm also supports the following features:
   - Simultaneous output of wrapped and non-wrapped text lines of arbitrary length with horizontal scrolling.
   - An **in-process Win32 Console Server implementation**, which is independent of the standard system `conhost.exe` and compatible with **Windows 8.1** and **Windows Server 2012 Core** (including GUI mode with true-color Unicode rendering).
   - Mouse reports with floating point coordinates, where the cursor position inside a cell is normalized from 0 to 1.
   - Special (Exclusive) keyboard mode for the terminal window to transfer all keyboard events to the terminal as is.
   - A configurable scrollback buffer size (**100k lines by default**, limited by max_int32 and system RAM).
   - Text lookup in the scrollback buffer.
-  - Unicode character Geometry Modifiers VT2D with the ability to output text characters of arbitrary size and in parts (up to 16x4 cells).
+  - Unicode Character Geometry Modifiers VT2D with the ability to output text characters of arbitrary size and in parts (up to 16x4 cells).
   - Stdin/stdout logging.
 - Vtm supports the creation of advanced keyboard bindings (generic: `Ctrl+Enter`, literal: `Ctrl+'\n'`, specific: `LeftCtrl+KeyEnter`, scancodes: `0x1D+0x1C`), allowing for the configuration of complex behavior, like a tmux-style prefix key for modality (e.g., toggling window movement with arrow keys).
 - The entire user interface can be localized to any language, including those with complex scripts, via a configuration file (rendering is powered by VT2D in GUI mode).
 - Vtm has a built-in logging subsystem; the log output is available via the `vtm --monitor` command.
 - Used non-standard technologies:
-  - DirectVT (binary input and UI rendering)
-  - VT2D (Unicode character Geometry Modifiers)
-  - DynamicXML (settings configuration)
-  - Lua scripting (dynamic UI)
-  - TUI Shadows (SGR attribute)
-  - VT Input Mode (floating point mouse reporting)
-  - Hybrid UI (TUI/GUI)
-  - In-process Windows Console Server (Windows 8.1 and later compatibility)
-  - Terminal with horizontal scrolling support (wrapped and un-wrapped text lines simultaneously)
+  - [DirectVT](doc/architecture.md#io-modes) (binary input and output)
+  - [VT2D](doc/character_geometry.md) (Unicode Character Geometry Modifiers)
+  - [DynamicXML](doc/settings.md#dynamicxml) (settings configuration)
+  - [Lua scripting](doc/settings.md#lua-scripting) (reactive UI)
+  - [TUI Shadows](doc/apps.md#tui-shadows-as-sgr-attribute) (SGR attribute)
+  - [VT Input Mode](doc/vt-input-mode.md) (floating point mouse reporting)
+  - [Hybrid TUI](readme.md#hybrid-ui) (HTUI)
+  - [In-process Windows Console Server](doc/apps.md#terminal-and-teletype-console) (Windows 8.1 and later compatibility)
+  - [Terminal with horizontal scrolling support](doc/apps.md#terminal-and-teletype-console) (wrapped and un-wrapped text lines simultaneously)
 
 # Supported platforms
 
