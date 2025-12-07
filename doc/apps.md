@@ -218,7 +218,7 @@ Shadows persist as an SGR attribute and are visible in GUI mode:
 
 ### VT2D support
 
-The built-in terminal supports Unicode character geometry modifiers (VT2D). See [Unicode character Geometry Modifiers](character_geometry.md) for details.
+The built-in terminal supports Unicode Character geometry modifiers (VT2D). See [Unicode Character Geometry Modifiers](character_geometry.md) for details.
 
 Example 1. Output a 3x1 (31_00) character:
   - `pwsh`

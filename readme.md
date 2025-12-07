@@ -15,6 +15,10 @@ There are two modes - desktop mode and terminal mode.
 
 Note: Accessing via ssh with auto-DirectVT mode outperforms the classic connection. Just run `vtm ssh user@host vtm`.
 
+### Goal
+
+The main goal of the vtm project is to create a new class of **Hybrid TUI** (**HTUI**) applications, bridging the gap between **GUI** and **TUI**. These applications are capable of running from **a single executable file** both in their own graphical windows and within any text console (a feature already implemented in vtm for Windows). In addition to providing an environment for developing new applications using **DynamicXML+Lua** (a reactive UI similar to WPF or web apps), vtm also acts as a cross-platform bridge, allowing existing console and TUI applications to transparently access graphical capabilities (GUI) and advanced input (keyboard, mouse, touchpad, etc.). **A key innovation is the VT2D (Unicode Character Geometry Modifiers) technology, which solves the fundamental problem of ambiguous character widths in terminals and ensures perfect visual uniformity of the interface**.
+
 ### Details
 
 - Vtm is a text-based application that comes with a single executable and has a number of runtime modes for running multiple instances in parallel to form the desktop environment.
@@ -46,14 +50,14 @@ Note: Accessing via ssh with auto-DirectVT mode outperforms the classic connecti
   - Special (Exclusive) keyboard mode for the terminal window to transfer all keyboard events to the terminal as is.
   - A configurable scrollback buffer size (**100k lines by default**, limited by max_int32 and system RAM).
   - Text lookup in the scrollback buffer.
-  - Unicode character Geometry Modifiers VT2D with the ability to output text characters of arbitrary size and in parts (up to 16x4 cells).
+  - Unicode Character Geometry Modifiers VT2D with the ability to output text characters of arbitrary size and in parts (up to 16x4 cells).
   - Stdin/stdout logging.
 - Vtm supports the creation of advanced keyboard bindings (generic: `Ctrl+Enter`, literal: `Ctrl+'\n'`, specific: `LeftCtrl+KeyEnter`, scancodes: `0x1D+0x1C`), allowing for the configuration of complex behavior, like a tmux-style prefix key for modality (e.g., toggling window movement with arrow keys).
 - The entire user interface can be localized to any language, including those with complex scripts, via a configuration file (rendering is powered by VT2D in GUI mode).
 - Vtm has a built-in logging subsystem; the log output is available via the `vtm --monitor` command.
 - Used non-standard technologies:
   - [DirectVT](doc/architecture.md#io-modes) (binary input and output)
-  - [VT2D](doc/character_geometry.md) (Unicode character Geometry Modifiers)
+  - [VT2D](doc/character_geometry.md) (Unicode Character Geometry Modifiers)
   - [DynamicXML](doc/settings.md#dynamicxml) (settings configuration)
   - [Lua scripting](doc/settings.md#lua-scripting) (reactive UI)
   - [TUI Shadows](doc/apps.md#tui-shadows-as-sgr-attribute) (SGR attribute)
@@ -61,10 +65,6 @@ Note: Accessing via ssh with auto-DirectVT mode outperforms the classic connecti
   - [Hybrid TUI](readme.md#hybrid-ui) (HTUI)
   - [In-process Windows Console Server](doc/apps.md#terminal-and-teletype-console) (Windows 8.1 and later compatibility)
   - [Terminal with horizontal scrolling support](doc/apps.md#terminal-and-teletype-console) (wrapped and un-wrapped text lines simultaneously)
-
-### Hybrid TUI
-
-**Hybrid TUI** (**HTUI**), or Hybrid Textual User Interface, is an innovative class of software that merges the flexibility of **TUI** (Text User Interface) and the convenience of **GUI** (Graphical User Interface) within **a single executable file**. Applications in this class automatically detect their execution environment and dynamically choose the display mode, all while providing a unified user experience (UX) and visual style regardless of the platform. 
 
 # Supported platforms
 
