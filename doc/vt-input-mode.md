@@ -35,7 +35,9 @@ Existing approaches have the following drawbacks:
 ## Conventions
 
 - We use the HEX form of a `uint32` integer for representing the 32-bit floating-point value (**IEEE-754 32-bit binary float, Little-Endian**). For example, the floating-point value `3.1415f` is represented as the unsigned integer in hex `40490E56` (decimal `1078529622`).
+  - Note: The use of the floating-point format allows for the representation of special states such as "coordinate unavailable" (e.g., when a mouse device is disconnected) using values like `NaN` (Not a Number) or infinity.
 - Space characters are not used within sequence payloads; they are included in this description solely for readability.
+- All string data transmitted within the protocol is encoded using `UTF-8`.
 - [Clipboard/Keyboard Input]: All unescaped symbols outside the scope of this protocol should be treated as data pasted from the clipboard.
 
 ## Event tracking activation
@@ -133,7 +135,7 @@ Attribute                     | Description
 `id_chord=<HexFormString>`    | Simultaneously pressed key IDs in ascending order. //todo define format
 `ch_chord=<HexFormString>`    | Simultaneously pressed key IDs and grapheme cluster at the last place representing a key press.
 `sc_chord=<HexFormString>`    | Simultaneously pressed key scancodes in ascending order.
-`cluster=<C0>,...,<Cn>`       | Codepoints of the generated string/text cluster.
+`cluster=<C0>,...,<Cn>`       | Codepoints of the generated string/text cluster (list of decimal integers).
 
 In response to the activation of `keyboard` tracking, the application receives a VT sequence containing the keyboard modifiers state:
 ```
@@ -369,7 +371,7 @@ ESC _ event=mouse ; id=<ID> ; kbmods=<KeyMods> ; coor=<X>,<Y> ; buttons=<ButtonS
 
 Attribute                       | Description
 --------------------------------|------------
-`id=<ID>`                       | Device group id (unsigned integer).
+`id=<ID>`                       | Device group ID (unsigned integer).
 `kbmods=<KeyMods>`              | Keyboard modifiers bit field (unsigned integer, the same value as in Keyboard event).
 `coor=<X>,<Y>`                  | 32-bit floating point coordinates of the mouse pointer relative to the console's text cell grid. The integer part corresponds to the cell coordinates, and the fractional part corresponds to the normalized position within the cell. The pointer's screen pixel coordinates can be calculated by multiplying these floating point values by the cell size. Receiving a NaN value is a signal that the mouse has left the window or disconnected.
 `buttons=<ButtonState>`         | Mouse buttons bit field (unsigned integer).
@@ -400,7 +402,7 @@ ESC _ event=focus ; id=<ID> ; state=<FocusState> ESC \
 
 Attribute            | Description
 ---------------------|------------
-`id=<ID>`            | Device group id (unsigned integer).
+`id=<ID>`            | Device group ID (unsigned integer). Identifies the specific keyboard/mouse pair that receives focus. This is necessary in a multi-user environment where multiple input sessions may exist concurrently.
 `state=<FocusState>` | Terminal window focus:<br>\<FocusState\>=1 - Focused.<br>\<FocusState\>=0 - Unfocused.
 
 In response to the activation of `focus` tracking, the application receives a vt-sequence containing current focus state.
@@ -427,9 +429,9 @@ ESC _ event=clipboard ; id=<ID> ; format=<ClipFormat> ; security=<SecLevel> ; da
 
 Attribute             | Description
 ----------------------|------------
-`id=<ID>`             | Device group id (unsigned integer).
+`id=<ID>`             | Device group ID (unsigned integer).
 `format=<ClipFormat>` | Clipboard data format.
-`security=<SecLevel>` | Security level.
+`security=<SecLevel>` | Security level bit field.
 `data=<Data>`         | Base64 encoded data.
 
 #### Clipboard data format
