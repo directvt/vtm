@@ -29,7 +29,7 @@ Note: Accessing via ssh with auto-DirectVT mode outperforms the classic connecti
 - Users can disconnect from the session and reconnect later.
 - To maximize rendering efficiency and minimize cross-platform issues, along with the character-oriented xterm-compatible I/O mode called `Classic VT`, vtm supports an additional message-based binary I/O mode called `DirectVT`.
 - Using `DirectVT` mode (when vtm is running as a `Desktop Client` or `DirectVT Gateway`), vtm has the ability to fully binary deserialize/serialize its state through arbitrary channels (like socat over SSH reverse tunnel) and does not require a running SSH server on the remote side.
-- Vtm employs a hybrid TUI/GUI approach: it can render itself into both GUI windows and terminals (`vtm --gui` and `vtm --tui` flags). Currently, rendering into a native GUI window is only available on the Windows platform.
+- Vtm employs a **Hybrid TUI** (**HTUI**) approach: it can render itself into both GUI windows and terminals (`vtm --gui` and `vtm --tui` flags). Currently, rendering into a native GUI window is only available on the Windows platform.
 - In GUI mode, vtm replicates its unique TUI-mode style and windowing mechanics, including keyboard multifocus (activated by `Ctrl+LeftClick`).
 - On Windows, any user can launch an **SSH-accessible desktop** session **in Session 0**, running under their own security context and is independent of any active graphical session (requires the vtm service installed via `vtm --install` from an elevated console).
 - When running in the **Linux in-kernel VGA Console** or **KMSCON** environment, vtm can directly use any kernel pointer devices (`/dev/input/eventX`) (requires persistent access configured using `sudo vtm --mouse 1`).
@@ -52,15 +52,19 @@ Note: Accessing via ssh with auto-DirectVT mode outperforms the classic connecti
 - The entire user interface can be localized to any language, including those with complex scripts, via a configuration file (rendering is powered by VT2D in GUI mode).
 - Vtm has a built-in logging subsystem; the log output is available via the `vtm --monitor` command.
 - Used non-standard technologies:
-  - DirectVT (binary input and UI rendering)
-  - VT2D (Unicode character Geometry Modifiers)
-  - DynamicXML (settings configuration)
-  - Lua scripting (dynamic UI)
-  - TUI Shadows (SGR attribute)
-  - VT Input Mode (floating point mouse reporting)
-  - Hybrid UI (TUI/GUI)
-  - In-process Windows Console Server (Windows 8.1 and later compatibility)
-  - Terminal with horizontal scrolling support (wrapped and un-wrapped text lines simultaneously)
+  - [DirectVT](doc/architecture.md#io-modes) (binary input and output)
+  - [VT2D](doc/character_geometry.md) (Unicode character Geometry Modifiers)
+  - [DynamicXML](doc/settings.md#dynamicxml) (settings configuration)
+  - [Lua scripting](doc/settings.md#lua-scripting) (reactive UI)
+  - [TUI Shadows](doc/apps.md#tui-shadows-as-sgr-attribute) (SGR attribute)
+  - [VT Input Mode](doc/vt-input-mode.md) (floating point mouse reporting)
+  - [Hybrid TUI](readme.md#hybrid-ui) (HTUI)
+  - [In-process Windows Console Server](doc/apps.md#terminal-and-teletype-console) (Windows 8.1 and later compatibility)
+  - [Terminal with horizontal scrolling support](doc/apps.md#terminal-and-teletype-console) (wrapped and un-wrapped text lines simultaneously)
+
+### Hybrid TUI
+
+**Hybrid TUI** (**HTUI**), or Hybrid Textual User Interface, is an innovative class of software that merges the flexibility of **TUI** (Text User Interface) and the convenience of **GUI** (Graphical User Interface) within **a single executable file**. Applications in this class automatically detect their execution environment and dynamically choose the display mode, all while providing a unified user experience (UX) and visual style regardless of the platform. 
 
 # Supported platforms
 
