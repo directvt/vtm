@@ -232,13 +232,13 @@ graph TB
 #### Logic of HTUI Application Operation
 
   - **Environment check**:
-    - If an explicit CLI flag is specified to use TUI or GUI mode, the application will attempt to engage the specified mode.
+    - If an explicit CLI flag is specified to use TUI or GUI mode, the application will attempt to activate the specified mode.
     - If **no explicit mode is specified**, the application will attempt to launch in **GUI mode**, which provides a full range of capabilities.
-    - If the environment does not allow launching in GUI mode (for example, the application is running in Session 0), the application starts in **TUI** mode.
+    - If the GUI mode is unavailable (for example, the application is running in Session 0), the application starts in **TUI** mode.
   - **Unified Interface:**
     - In both modes, the same internal rendering logic is utilized, based on **projecting a virtual TUI matrix onto a canvas** of the graphic window or terminal, ensuring an identical visual appearance.
     - In **GUI** mode, the application renders by leveraging the full potential of VT2D and uses the native API for user input (keyboard, mouse, system events), ensuring **maximum performance and capabilities**.
-    - In **TUI** mode, the application adapts to the **limited input/output capabilities** of the terminal being used.
+    - In **TUI** mode, the application adapts to the **limited input/output capabilities** of the host terminal.
 
 ### Runtime modes
 
