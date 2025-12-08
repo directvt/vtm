@@ -225,19 +225,20 @@ graph TB
 
 | Advantage       | Over TUI | Over GUI
 |-----------------|----------|---------
-| Unified UX      | Provides full graphical rendering (e.g., fonts, mouse support) when launched from Windows Explorer. | Retains full functionality and look when launched in a remote SSH session or existing terminal.
+| Unified UX      | Provides full graphical rendering (e.g., fonts, mouse support) when launched in graphical environment. | Retains full functionality and look when launched in a remote SSH session or existing terminal.
 | Single Binary   | Does not require compiling different versions or maintaining separate executables for different modes. | Avoids the need to maintain two entirely separate codebases (terminal and graphical).
 | Flexible Launch | The user chooses how to launch the app - from the console or with a double-click - without losing functionality. | Offers the lightweight and minimalist nature of TUI apps with the capabilities of a windowed mode.
 
-#### Logic of HTUI Application Operation 
+#### Logic of HTUI Application Operation
 
-The operating principle of an HTUI application lies in intelligent auto-detection of the launch environment during startup: 
-  - **Environment Check:** The application (compiled as a console application) starts and immediately uses system calls (e.g., Windows API GetConsoleWindow and GetCurrentProcessId) to check for the presence and ownership of the current console window.
-  - **Decision Making:**
-    - **If the console is occupied by another process** (e.g., cmd.exe or bash.exe), the application activates **TUI** mode and renders its interface directly within the existing terminal.
-    - **If the console belongs only to the current process** or is absent, the application activates **GUI** mode, programmatically creates its own native graphical window, and renders that same TUI grid within it using graphic APIs.
-  - **Unified Interface:** The same internal rendering logic (such as the DirectVT approach used in the vtm project) is utilized in both modes, ensuring an identical visual appearance.
-  - **Unified Interface:** In both modes, the same internal rendering logic is utilized, based on **projecting a virtual TUI matrix onto a canvas** of the graphic window or terminal, ensuring an identical visual appearance.
+  - **Environment check**:
+    - If an explicit CLI flag is specified to use TUI or GUI mode, the application will attempt to activate the specified mode.
+    - If **no explicit mode is specified**, the application will attempt to launch in **GUI mode**, which provides a full range of capabilities.
+    - If the GUI mode is unavailable (for example, the application is running in Session 0), the application starts in **TUI** mode.
+  - **Unified Interface:**
+    - In both modes, the same internal rendering logic is utilized, based on **projecting a virtual TUI matrix onto a canvas** of the graphic window or terminal, ensuring an identical visual appearance.
+    - In **GUI** mode, the application renders by leveraging the full potential of VT2D and uses the native API for user input (keyboard, mouse, system events), ensuring **maximum performance and capabilities**.
+    - In **TUI** mode, the application adapts to the **limited input/output capabilities** of the host terminal.
 
 ### Runtime modes
 
