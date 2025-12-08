@@ -18,7 +18,7 @@ Vtm is a powerful, text-based application that creates a new class of **Hybrid T
 | Tiling Window Manager                                         | Vtm in desktop mode includes a built-in Tiling Window Manager for organizing the workspace into non-overlapping panels with Drag & Drop support.
 | Multi-User Sessions                                           | Share vtm desktop over a LAN (using inetd, netcat, or SSH).
 | [Scripting & UI](doc/settings.md#lua-scripting)               | Use the full power of [DynamicXML](doc/settings.md#dynamicxml)+Lua for customize reactive UI similar to WPF or web apps.
-| [Terminal Mode](doc/apps.md#terminal-and-teletype-console)    | A standalone terminal emulator as a wrapper for any console applications for seamless integration with the text desktop.
+| [Terminal Mode](doc/apps.md#terminal-and-teletype-console)    | A standalone terminal emulator as a wrapper for any console applications for seamless integration with the text-based desktop.
 | [Horizontal Scrolling](doc/apps.md#private-control-sequences) | Support for displaying simultaneously wrapped and non-wrapped text lines in the terminal with horizontal scrolling.
 | Windows Console Server                                        | In-process Windows Console Server own implementation on Windows and independence from `conhost.exe`.
 
