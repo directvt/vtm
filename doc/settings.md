@@ -102,7 +102,7 @@ DynamicXML is a configuration language based on the XML 1.1 syntax, but with sub
    | Namespacing/Scoping   | Each element forms its own namespace (scope).
    | Value Concatenation   | An element's content may consist of several substrings and/or references combined using the vertical bar (`\|`) operator.
    | Inheritance           | Assigning references to elements makes the scopes of these elements inherited and directly accessible.
-   | Runtime Resolution	   | All values are resolved not at the tree construction stage, but at runtime, upon application request. The application can change values within the tree during operation, thereby affecting all dependent values.
+   | Runtime Resolution    | All values are resolved not at the tree construction stage, but at runtime, upon application request. The application can change values within the tree during operation, thereby affecting all dependent values.
    | Resolving Order       | Reference resolution works by recursively iterating through inherited scopes in the order they are assigned, then traversing the current scope and all surrounding parent scopes until the first element name match is found.
    | Recursion and Cycles  | Recursive references are resolved starting from the element scope. Circular references are **silently ignored**.
    | Templates             | The structures of elements containing references are templates. Template instantiation is performed from inheritance sources and surrounding elements.
