@@ -1,5 +1,11 @@
 # Text-based Desktop Environment Architecture
 
+The main goal of the vtm project is to create a new class of **Hybrid TUI** (**HTUI**) applications where the entire user interface is represented by a mosaic of text cells forming a **TUI matrix**. The resulting TUI matrix is directly rendered either into its own **GUI window** or into a compatible **text console**, bridging the gap between **TUI** and **GUI**.
+
+**HTUI** applications are capable of running from **a single executable file** both in their own graphical windows and within any text console (a feature already implemented for Windows). These applications have a reactive UI powered by **DynamicXML+Lua** (similar to WPF with XAML+CLR or web apps with HTML+JS) with access to UI objects and the full spectrum of internal events, including keyboard, mouse, and timer events.
+
+The key technology for **HTUI** is **VT2D** (**Unicode Character Geometry Modifiers**), which allows scaling and transforming individual characters and their parts at the cell level and ensures perfect visual uniformity of the interface.
+
 - [UI Concept](#ui-concept)
 - [Process Model](#process-model)
 - [Key Features and Architecture](#key-features-and-architecture)
@@ -76,12 +82,6 @@ graph TB
     end
   end
 ```
-
-Vtm is a text-based application where the entire user interface is represented by a mosaic of text cells forming a **TUI matrix**. The resulting TUI matrix is just rendered either into its own **GUI window** or into a compatible **text console**.
-
-It can wrap any console application and be nested indefinitely, forming a text-based desktop environment.
-
-<sup>Currently, rendering into a native GUI window is only available on the Windows platform; on Unix platforms, a terminal emulator is required.</sup>
 
 ## Process Model
 
