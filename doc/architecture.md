@@ -231,12 +231,14 @@ graph TB
 
 #### Logic of HTUI Application Operation
 
-The operating principle of an HTUI application lies in intelligent auto-detection of the launch environment during startup:
   - **Environment check**:
-    - If an explicit flag is specified to use TUI or GUI mode, the application will attempt to engage the specified mode.
+    - If an explicit CLI flag is specified to use TUI or GUI mode, the application will attempt to engage the specified mode.
     - If **no explicit mode is specified**, the application will attempt to launch in **GUI mode**, which provides a full range of capabilities.
-    - If the environment does not allow launching in GUI mode (for example, the application is running in Session 0), the application starts in **TUI** mode with capabilities **limited** by the functionality of the terminal being used.
-  - **Unified Interface:** In both modes, the same internal rendering logic is utilized, based on **projecting a virtual TUI matrix onto a canvas** of the graphic window or terminal, ensuring an identical visual appearance.
+    - If the environment does not allow launching in GUI mode (for example, the application is running in Session 0), the application starts in **TUI** mode.
+  - **Unified Interface:**
+    - In both modes, the same internal rendering logic is utilized, based on **projecting a virtual TUI matrix onto a canvas** of the graphic window or terminal, ensuring an identical visual appearance.
+    - In **GUI** mode, the application renders by leveraging the full potential of VT2D and uses the native API for user input (keyboard, mouse, system events), ensuring **maximum performance and capabilities**.
+    - In **TUI** mode, the application adapts to the **limited input/output capabilities** of the terminal being used.
 
 ### Runtime modes
 
