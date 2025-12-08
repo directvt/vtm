@@ -229,13 +229,13 @@ graph TB
 | Single Binary   | Does not require compiling different versions or maintaining separate executables for different modes. | Avoids the need to maintain two entirely separate codebases (terminal and graphical).
 | Flexible Launch | The user chooses how to launch the app - from the console or with a double-click - without losing functionality. | Offers the lightweight and minimalist nature of TUI apps with the capabilities of a windowed mode.
 
-#### Logic of HTUI Application Operation 
+#### Logic of HTUI Application Operation
 
-The operating principle of an HTUI application lies in intelligent auto-detection of the launch environment during startup: 
+The operating principle of an HTUI application lies in intelligent auto-detection of the launch environment during startup:
   - **Environment check**:
     - If an explicit flag is specified to use TUI or GUI mode, the application will attempt to engage the specified mode.
     - If **no explicit mode is specified**, the application will attempt to launch in **GUI mode**, which provides a full range of capabilities.
-    - If the environment does not allow launching in GUI mode (for example, the application is running in Session 0), the application starts in **TUI** mode with capabilities **limited** by the terminal being used.
+    - If the environment does not allow launching in GUI mode (for example, the application is running in Session 0), the application starts in **TUI** mode with capabilities **limited** by the functionality of the terminal being used.
   - **Unified Interface:** In both modes, the same internal rendering logic is utilized, based on **projecting a virtual TUI matrix onto a canvas** of the graphic window or terminal, ensuring an identical visual appearance.
 
 ### Runtime modes
