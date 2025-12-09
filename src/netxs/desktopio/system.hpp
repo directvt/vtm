@@ -4198,7 +4198,7 @@ namespace netxs::os
                                                                                   : "VT-style");
             }
         }
-        auto connect(eccc cfg, fdrw fds)
+        auto create_dtvt_process(eccc cfg, fdrw fds)
         {
             log("%%New process '%cmd%' at the %path%", prompt::dtvt, ansi::hi(utf::debase437(cfg.cmd)), cfg.cwd.empty() ? "current directory"s : "'" + utf::debase437(cfg.cwd) + "'");
             auto result = true;
@@ -4259,6 +4259,21 @@ namespace netxs::os
                 {
                     os::close(procsinf.hThread);
                     os::close(procsinf.hProcess);
+
+                    //todo
+                    //os::close( procsinf.hThread );
+                    //prochndl = procsinf.hProcess;
+                    //proc_pid = procsinf.dwProcessId;
+                    //waitexit = std::thread{ [&, trailer]
+                    //{
+                    //    auto pid = proc_pid; // MSVC don't capture it.
+                    //    io::select(netxs::maxspan, noop{}, prochndl, [&terminal, pid]
+                    //    {
+                    //        if (terminal.io_log) log("%%Process %pid% terminated", prompt::vtty, pid);
+                    //    });
+                    //    trailer();
+                    //    if (terminal.io_log) log("%%Process %pid% waiter ended", prompt::vtty, pid);
+                    //}};
                 }
                 else
                 {
@@ -4389,9 +4404,9 @@ namespace netxs::os
                 }
                 if constexpr (debugmode) log(prompt::dtvt, "Writing thread ended", ' ', utf::to_hex_0x(std::this_thread::get_id()));
             }
-            void runapp(text config, twod initsize, auto connect, auto receiver, auto shutdown)
+            void run_dtvt_app(text config, twod initsize, auto connect_fx, auto receiver_fx, auto shutdown_fx)
             {
-                stdinput = std::thread{ [&, config, initsize, connect, receiver, shutdown]
+                stdinput = std::thread{ [&, config, initsize, connect_fx, receiver_fx, shutdown_fx]
                 {
                     auto [s_pipe_r, m_pipe_w] = os::ipc::newpipe();
                     auto [m_pipe_r, s_pipe_w] = os::ipc::newpipe();
@@ -4403,7 +4418,7 @@ namespace netxs::os
                     }
                     termlink = ipc::stdcon{ m_pipe_r, m_pipe_w };
                     std_link = ptr::shared<sock>(s_pipe_r, s_pipe_w);
-                    auto cmd = connect(std_link);
+                    auto cmd = connect_fx(std_link);
                     if (cmd.size() && !!termlink)
                     {
                         attached.exchange(true);
@@ -4411,7 +4426,7 @@ namespace netxs::os
                         auto stdwrite = std::thread{ [&]{ writer(); } };
 
                         if constexpr (debugmode) log(prompt::dtvt, "Reading thread started", ' ', utf::to_hex_0x(std::this_thread::get_id()));
-                        directvt::binary::stream::reading_loop(termlink, receiver);
+                        directvt::binary::stream::reading_loop(termlink, receiver_fx);
                         if constexpr (debugmode) log(prompt::dtvt, "Reading thread ended", ' ', utf::to_hex_0x(std::this_thread::get_id()));
 
                         attached.exchange(faux);
@@ -4420,7 +4435,7 @@ namespace netxs::os
                         if constexpr (debugmode) log(prompt::dtvt, "Writing thread joining", ' ', utf::to_hex_0x(stdinput.get_id()));
                         stdwrite.join();
                         log("%%Process '%cmd%' disconnected", prompt::dtvt, ansi::hi(utf::debase437(cmd)));
-                        shutdown();
+                        shutdown_fx();
                     }
                 }};
             }

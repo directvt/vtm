@@ -35,7 +35,7 @@ namespace netxs::app::terminal
         {
             if (root_ptr) // root_ptr is empty when d_n_d.
             {
-                boss.start(appcfg);
+                boss.start_term(appcfg);
             }
         };
         boss.LISTEN(tier::anycast, e2::form::upon::started, root_ptr)
