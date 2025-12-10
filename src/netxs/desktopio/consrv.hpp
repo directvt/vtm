@@ -70,9 +70,9 @@ struct consrv
         auto handle_count = 3;
         if (fdlink)
         {
-            handle_count = 2;
             startinf.StartupInfo.hStdInput  = fdlink->r;
             startinf.StartupInfo.hStdOutput = fdlink->w;
+            startinf.StartupInfo.hStdError  = fdlink->e;
         }
         else
         {

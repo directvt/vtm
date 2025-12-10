@@ -1400,8 +1400,9 @@ namespace netxs::os
 
     struct sock
     {
-        fd_t r; // sock: Read descriptor.
-        fd_t w; // sock: Send descriptor.
+        fd_t r; // sock: Stdin  descriptor.
+        fd_t w; // sock: Stdout descriptor.
+        fd_t e; // sock: Stderr descriptor.
 
         operator bool ()
         {
@@ -1419,6 +1420,7 @@ namespace netxs::os
                 os::close(w); // Write end should be closed first.
                 os::close(r);
             }
+            os::close(e);
         }
         void shutdown() // Reset writing end of the pipe to interrupt reading call.
         {
@@ -1439,29 +1441,36 @@ namespace netxs::os
         }
         friend auto& operator << (std::ostream& s, sock const& handle)
         {
-            if (handle.w != handle.r) s << utf::to_hex_0x(handle.r) << '-';
-            return                    s << utf::to_hex_0x(handle.w);
+            if (handle.w == handle.r)       s << "rw:" << utf::to_hex_0x(handle.r);
+            else                            s <<  "r:" << utf::to_hex_0x(handle.r) << "-w:" << utf::to_hex_0x(handle.w);
+            if (handle.e != os::invalid_fd) s << "-e:" << utf::to_hex_0x(handle.e);
+            return s;
         }
         auto& operator = (sock&& f)
         {
             r = f.r;
             w = f.w;
+            e = f.e;
             f.r = os::invalid_fd;
             f.w = os::invalid_fd;
+            f.e = os::invalid_fd;
             return *this;
         }
 
         sock(sock const&) = delete;
         sock(sock&& f)
             : r{ f.r },
-              w{ f.w }
+              w{ f.w },
+              e{ f.e }
         {
             f.r = os::invalid_fd;
             f.w = os::invalid_fd;
+            f.e = os::invalid_fd;
         }
-        sock(fd_t r = os::invalid_fd, fd_t w = os::invalid_fd)
+        sock(fd_t r = os::invalid_fd, fd_t w = os::invalid_fd, fd_t e = os::invalid_fd)
             : r{ r },
-              w{ w }
+              w{ w },
+              e{ e }
         { }
        ~sock()
         {
@@ -3169,9 +3178,9 @@ namespace netxs::os
                   handle{ std::move(fd) },
                   buffer(os::pipebuf, '\0')
             { }
-            stdcon(fd_t r, fd_t w)
+            stdcon(fd_t r, fd_t w, fd_t e = os::invalid_fd)
                 : pipe{ true },
-                  handle{ r, w },
+                  handle{ r, w, e },
                   buffer(os::pipebuf, '\0')
             { }
 
@@ -4207,17 +4216,11 @@ namespace netxs::os
             text                    writebuf{};
             std::mutex              writemtx{};
             std::condition_variable writesyn{};
-            sptr<sock>              std_link{};
 
             operator bool () { return attached; }
 
             void abort() // Hard terminate the connection.
             {
-                if (std_link)
-                {
-                    auto& server_fd = std_link->w;
-                    os::close(server_fd);
-                }
                 auto& client_fd = termlink.handle.w;
                 os::close(client_fd);
             }
@@ -4283,14 +4286,13 @@ namespace netxs::os
                     auto procsinf = PROCESS_INFORMATION{};
                     auto attrbuff = std::vector<byte>{};
                     auto attrsize = SIZE_T{ 0 };
-                    auto stderror = nt::duplicate(fds->w); // Not used, but handle must be filled in.
                     ::InitializeProcThreadAttributeList(nullptr, 1, 0, &attrsize);
                     attrbuff.resize(attrsize);
                     startinf.lpAttributeList = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attrbuff.data());
                     startinf.StartupInfo.dwFlags    = STARTF_USESTDHANDLES;
                     startinf.StartupInfo.hStdInput  = fds->r;
                     startinf.StartupInfo.hStdOutput = fds->w;
-                    startinf.StartupInfo.hStdError  = stderror;
+                    startinf.StartupInfo.hStdError  = fds->e;
                     result = true
                     && ::InitializeProcThreadAttributeList(startinf.lpAttributeList, 1, 0, &attrsize)
                     && ::UpdateProcThreadAttribute(startinf.lpAttributeList,
@@ -4313,7 +4315,6 @@ namespace netxs::os
                                                     : nullptr,
                                         &startinf.StartupInfo,               // lpStartupInfo (ptr to STARTUPINFO)
                                         &procsinf);                          // lpProcessInformation
-                    os::close(stderror);
                     if (result)
                     {
                         os::close(procsinf.hThread);
@@ -4351,7 +4352,7 @@ namespace netxs::os
                             ::setsid(); // Dissociate from existing controlling terminal (create a new session without a controlling terminal).
                             ::dup2(fds->r, STDIN_FILENO);  os::stdin_fd  = STDIN_FILENO;
                             ::dup2(fds->w, STDOUT_FILENO); os::stdout_fd = STDOUT_FILENO;
-                            ::dup2(fds->w, STDERR_FILENO); os::stderr_fd = STDERR_FILENO;
+                            ::dup2(fds->e, STDERR_FILENO); os::stderr_fd = STDERR_FILENO;
                             fds.reset();
                             auto iofx = [](auto& data){ io::send(os::stdout_fd, data); };
                             if (cfg.cwd.size())
@@ -4409,14 +4410,15 @@ namespace netxs::os
                 {
                     auto [s_pipe_r, m_pipe_w] = os::ipc::newpipe();
                     auto [m_pipe_r, s_pipe_w] = os::ipc::newpipe();
+                    auto [m_pipe_e, s_pipe_e] = os::ipc::newpipe();
                     io::send(m_pipe_w, directvt::binary::marker{ appcfg.cfg.size(), initsize });
                     if (appcfg.cfg.size())
                     {
                         auto guard = std::lock_guard{ writemtx };
                         writebuf = appcfg.cfg + writebuf;
                     }
-                    termlink = ipc::stdcon{ m_pipe_r, m_pipe_w };
-                    std_link = ptr::shared<sock>(s_pipe_r, s_pipe_w);
+                    termlink = ipc::stdcon{ m_pipe_r, m_pipe_w, m_pipe_e };
+                    auto std_link = ptr::shared<sock>(s_pipe_r, s_pipe_w, s_pipe_e);
                     auto cmd = text{};
                     if constexpr (std::is_same_v<decltype(connect_fx), noop>)
                     {
@@ -4433,6 +4435,7 @@ namespace netxs::os
                     {
                         cmd = connect_fx(std_link);
                     }
+                    std_link.reset();
                     if (cmd.size() && !!termlink)
                     {
                         attached.exchange(true);
