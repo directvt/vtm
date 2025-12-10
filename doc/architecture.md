@@ -41,7 +41,7 @@
 
 ### Hybrid TUI
 
-**Hybrid TUI** (**HTUI**), or Hybrid Textual User Interface, is a class of software within **a single executable file** where the entire user interface is represented by a mosaic of text cells forming a **TUI matrix** directly rendered either into its own **GUI window** or into a compatible **text console** providing a **unified user experience** regardless of the execution environment, bridging the gap between **TUI** and **GUI**.
+**Hybrid TUI** (**HTUI**), or Hybrid Textual User Interface, is a class of software within **a single executable file** where the entire user interface is represented by a mosaic of text cells forming a **TUI matrix** directly rendered either into its own **GUI window** or into a compatible **text console** providing a **unified user experience** regardless of the execution environment.
 
 The key technology for **HTUI** is **VT2D** (**Unicode Character Geometry Modifiers**), which allows scaling and transforming individual characters and their parts at the cell level and ensures perfect visual uniformity of the user interface.
 

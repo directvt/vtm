@@ -1,6 +1,6 @@
 # vtm (Virtual Terminal Multiplexer)
 
-Vtm is a text-based application that creates a new class of **Hybrid TUI** (**HTUI**) applications, bridging the gap between traditional **TUI** and **GUI**. It offers a unified experience, whether running in a native graphical window or any standard text console.
+Vtm is a text-based application that introduces a new class of **Hybrid TUI** (**HTUI**) applications, offering a unified experience within **a single executable file**, whether running in a native graphical window or any standard text console. It can wrap any console application and be nested indefinitely, forming a text-based desktop environment, bridging the gap between traditional **TUI** and **GUI**.
 
 <a href="https://www.youtube.com/watch?v=kofkoxGjFWQ">
   <img width="400" alt="Demo on YouTube" src="https://user-images.githubusercontent.com/11535558/146906370-c9705579-1bbb-4e9e-8977-47312f551cc8.gif">
@@ -8,8 +8,8 @@ Vtm is a text-based application that creates a new class of **Hybrid TUI** (**HT
 
 ## Key Features & Benefits
 
-| Feature                                                       | Benefit
-|---------------------------------------------------------------|--------
+| Feature                                                           | Benefit
+|-------------------------------------------------------------------|--------
 | **[Hybrid TUI (HTUI)](doc/architecture.md#hybrid-tui)**           | Run the **same application** seamlessly in both dedicated **GUI windows** and standard **terminals**. (GUI mode is available on Windows only for now)
 | **[Advanced Input](doc/vt-input-mode.md)**                        | **Track all** key events, **high-resolution** mouse movement and window states.
 | **[VT2D Technology](doc/character_geometry.md)**                  | **Scaling** and transformation of individual characters or their parts **at the cell level**.
@@ -23,8 +23,6 @@ Vtm is a text-based application that creates a new class of **Hybrid TUI** (**HT
 | **Windows Console Server**                                        | **In-process Windows Console Server** own implementation on Windows and **independence** from `conhost.exe`.
 
 ## Get Started
-
-Vtm can wrap any console application and be nested indefinitely, forming a text-based desktop environment.
 
 ### Desktop Mode
 
