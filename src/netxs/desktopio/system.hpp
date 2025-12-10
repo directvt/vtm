@@ -4213,6 +4213,8 @@ namespace netxs::os
             flag                    attached{};
             ipc::stdcon             termlink{};
             std::thread             stdinput{};
+            std::thread             stderror{};
+            arch                    stderrid{};
             text                    writebuf{};
             std::mutex              writemtx{};
             std::condition_variable writesyn{};
@@ -4259,6 +4261,29 @@ namespace netxs::os
                     guard.lock();
                 }
                 if constexpr (debugmode) log(prompt::dtvt, "Writing thread ended", ' ', utf::to_hex_0x(std::this_thread::get_id()));
+            }
+            void errlog()
+            {
+                if constexpr (debugmode) log(prompt::dtvt, "Errlogs thread started", ' ', utf::to_hex_0x(std::this_thread::get_id()));
+                auto cached = text{};
+                auto buffer = std::array<char, os::pipebuf>{};
+                while (attached)
+                {
+                    auto shot = io::recv(termlink.handle.e, buffer);
+                    if (shot)
+                    {
+                        cached += shot;
+                        auto crop = qiew{ cached };
+                        utf::purify(crop);
+                        if (crop)
+                        {
+                            log("%%stderr[%stderrid%]: %msg%", prompt::dtvt, stderrid, ansi::err(crop));
+                            cached.erase(0, crop.size()); // Delete processed data.
+                        }
+                    }
+                    else break;
+                }
+                if constexpr (debugmode) log(prompt::dtvt, "Errlogs thread ended", ' ', utf::to_hex_0x(std::this_thread::get_id()));
             }
             auto create_dtvt_process(eccc cfg, fdrw fds)
             {
@@ -4439,8 +4464,10 @@ namespace netxs::os
                     if (cmd.size() && !!termlink)
                     {
                         attached.exchange(true);
-                        if constexpr (debugmode) log("%%DirectVT Gateway created for process '%cmd%'", prompt::dtvt, ansi::hi(utf::debase437(cmd)));
+                        stderrid = (arch)termlink.handle.e;
+                        if constexpr (debugmode) log("%%DirectVT Gateway [%stderrid%] created for process '%cmd%'", prompt::dtvt, stderrid, ansi::hi(utf::debase437(cmd)));
                         auto stdwrite = std::thread{ [&]{ writer(); } };
+                        auto stderror = std::thread{ [&]{ errlog(); } };
 
                         if constexpr (debugmode) log(prompt::dtvt, "Reading thread started", ' ', utf::to_hex_0x(std::this_thread::get_id()));
                         directvt::binary::stream::reading_loop(termlink, receiver_fx);
@@ -4451,6 +4478,8 @@ namespace netxs::os
                         writesyn.notify_one(); // Interrupt writing thread.
                         if constexpr (debugmode) log(prompt::dtvt, "Writing thread joining", ' ', utf::to_hex_0x(stdinput.get_id()));
                         stdwrite.join();
+                        io::abort(stderror); // Interrupt io::recv.
+                        stderror.join();
                         log("%%Process '%cmd%' disconnected", prompt::dtvt, ansi::hi(utf::debase437(cmd)));
                         shutdown_fx(faux);
                     }
