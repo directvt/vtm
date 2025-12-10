@@ -9385,7 +9385,8 @@ namespace netxs::ui
             ipccon.output(data);
         }
         // dtvt: Attach a new process.
-        void start_dtvt(text config, auto connect_fx)
+        template<class T = noop>
+        void start_dtvt(eccc& appcfg, T connect_fx = {})
         {
             if (ipccon)
             {
@@ -9404,11 +9405,21 @@ namespace netxs::ui
                     stream.request_jgc(*this);
                 }
             };
-            auto shutdown_fx = [&]
+            auto shutdown_fx = [&](bool abort)
             {
-                onexit();
+                if (abort)
+                {
+                    base::enqueue([&](auto& /*boss*/)
+                    {
+                        base::signal(tier::anycast, e2::form::proceed::quit::one, true);
+                    });
+                }
+                else
+                {
+                    onexit();
+                }
             };
-            ipccon.run_dtvt_app(config, base::size(), connect_fx, receiver_fx, shutdown_fx);
+            ipccon.run_dtvt_app(appcfg, base::size(), connect_fx, receiver_fx, shutdown_fx);
         }
         // dtvt: Return true if application has never sent its canvas.
         auto is_nodtvt()

@@ -407,22 +407,7 @@ namespace netxs::app::shared
                     {
                         if (root_ptr) // root_ptr is empty when d_n_d.
                         {
-                            boss.start_dtvt(appcfg.cfg, [&, appcfg](auto fds)
-                            {
-                                auto ok = os::dtvt::create_dtvt_process(appcfg, fds);
-                                if (!ok) // Shutdown if dtvt connection failed.
-                                {
-                                    boss.base::enqueue([&](auto& /*boss*/)
-                                    {
-                                        boss.base::signal(tier::anycast, e2::form::proceed::quit::one, true);
-                                    });
-                                    return text{};
-                                }
-                                else
-                                {
-                                    return appcfg.cmd;
-                                }
-                            });
+                            boss.start_dtvt(appcfg);
                         }
                     };
                     boss.LISTEN(tier::preview, e2::config::plugins::sizer::alive, state)
@@ -514,9 +499,9 @@ namespace netxs::app::shared
                     {
                         if (root_ptr) // root_ptr is empty when d_n_d.
                         {
-                            boss.base::enqueue([&](auto& /*boss*/) // Dtvt::start must be run strictly after the window reflow (to synchronize the initial size).
+                            boss.base::enqueue([&](auto& /*boss*/) // dtvt::start_dtvt must be run strictly after the window reflow (to synchronize the initial size).
                             {
-                                dtvt_inst.start_dtvt(appcfg.cfg, [&](auto fds)
+                                dtvt_inst.start_dtvt(appcfg, [&](auto fds)
                                 {
                                     term_inst.start_term(appcfg, fds);
                                     return appcfg.cmd;
