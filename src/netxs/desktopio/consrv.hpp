@@ -147,7 +147,10 @@ struct consrv
             waitexit = std::thread{ [&, trailer]
             {
                 auto pid = proc_pid; // MSVC don't capture it.
-                io::select(netxs::maxspan, noop{}, prochndl, [&terminal, pid]{ if (terminal.io_log) log("%%Process %pid% terminated", prompt::vtty, pid); });
+                io::select(netxs::maxspan, noop{}, prochndl, [&terminal, pid]
+                {
+                    if (terminal.io_log) log("%%Process %pid% terminated", prompt::vtty, pid);
+                });
                 trailer();
                 if (terminal.io_log) log("%%Process %pid% waiter ended", prompt::vtty, pid);
             }};

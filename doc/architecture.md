@@ -1,16 +1,14 @@
 # Text-based Desktop Environment Architecture
 
-The main goal of the vtm project is to create a new class of **Hybrid TUI** (**HTUI**) applications where the entire user interface is represented by a mosaic of text cells forming a **TUI matrix**. The resulting TUI matrix is directly rendered either into its own **GUI window** or into a compatible **text console**, bridging the gap between **TUI** and **GUI**.
-
-**HTUI** applications are capable of running from **a single executable file** both in their own graphical windows and within any text console (a feature already implemented for Windows). These applications have a reactive UI powered by **DynamicXML+Lua** (similar to WPF with XAML+CLR or web apps with HTML+JS) with access to UI objects and the full spectrum of internal events, including keyboard, mouse, and timer events.
-
-The key technology for **HTUI** is **VT2D** (**Unicode Character Geometry Modifiers**), which allows scaling and transforming individual characters and their parts at the cell level and ensures perfect visual uniformity of the interface.
-
 - [UI Concept](#ui-concept)
-- [Process Model](#process-model)
-- [Key Features and Architecture](#key-features-and-architecture)
+  - [Hybrid TUI](#hybrid-tui)
+    - [Advantages of HTUI over TUI and GUI](#advantages-of-htui-over-tui-and-gui)
+    - [Logic of HTUI Application Operation](#logic-of-htui-application-operation)
+  - [Vtm as a Hybrid TUI Applications Environment](#vtm-as-a-hybrid-tui-applications-environment)
+- [Process Model Diagram](#process-model-diagram)
+- [Architecture Overview](#architecture-overview)
 - [Runtime modes](#runtime-modes)
-- [Desktop applets](#desktop-applets)
+  - [Desktop applets](#desktop-applets)
 - [I/O modes](#io-modes)
   - [DirectVT mode](#directvt-mode)
   - [Classic VT mode](#classic-vt-mode)
@@ -40,6 +38,35 @@ The key technology for **HTUI** is **VT2D** (**Unicode Character Geometry Modifi
 - [Desktop objects and built-in applications](apps.md)
 
 ## UI Concept
+
+### Hybrid TUI
+
+**Hybrid TUI** (**HTUI**), or Hybrid Textual User Interface, is a class of software within **a single executable file** where the entire user interface is represented by a mosaic of text cells forming a **TUI matrix** directly rendered either into its own **GUI window** or into a compatible **text console** providing a **unified user experience** regardless of the execution environment, bridging the gap between **TUI** and **GUI**.
+
+The key technology for **HTUI** is **VT2D** (**Unicode Character Geometry Modifiers**), which allows scaling and transforming individual characters and their parts at the cell level and ensures perfect visual uniformity of the user interface.
+
+#### Advantages of HTUI over TUI and GUI
+
+| Advantage       | Over TUI | Over GUI
+|-----------------|----------|---------
+| Unified UX      | Provides full graphical rendering (e.g., fonts, shadows, alpha blending) when launched in graphical environment. | Retains full functionality and look when launched in a remote SSH session or existing terminal.
+| Single Binary   | Does not require compiling different versions or maintaining separate executables for different modes. | Avoids the need to maintain two entirely separate codebases (terminal and graphical).
+| Flexible Launch | The user chooses how to launch the app - from the console or with a double-click - without losing functionality. | Offers the lightweight and minimalist nature of TUI apps with the capabilities of a windowed mode.
+
+#### Logic of HTUI Application Operation
+
+- **Environment check**:
+  - If an explicit CLI flag is specified to use TUI or GUI mode, the application will attempt to activate the specified mode.
+  - If **no explicit mode is specified**, the application will attempt to launch in **GUI mode**, which provides a full range of capabilities.
+  - If the GUI mode is unavailable (for example, the application is running in Session 0), the application starts in **TUI** mode.
+- **Unified Interface:**
+  - In both modes, the same internal rendering logic is utilized, based on **projecting a virtual TUI matrix onto a canvas** of the graphic window or terminal, ensuring an identical visual appearance.
+  - In **GUI** mode, the application renders by leveraging the full potential of VT2D and uses the native API for user input (keyboard, mouse, system events), ensuring **maximum performance and capabilities**.
+  - In **TUI** mode, the application adapts to the **limited input/output capabilities** of the host terminal.
+
+### Vtm as a Hybrid TUI Applications Environment
+
+The main goal of the vtm project is to form the foundation of the **Hybrid TUI Application** concept, empowering this class of applications with a reactive UI **driven by DynamicXML+Lua** (similar to WPF with XAML+CLR or web apps with HTML+JS), and to create an environment that reveals their potential.
 
 ```mermaid
 graph TB
@@ -83,7 +110,7 @@ graph TB
   end
 ```
 
-## Process Model
+## Process Model Diagram
 
 ```mermaid
 graph TB
@@ -170,7 +197,7 @@ graph TB
     TS === VTMs
 ```
 
-## Key Features and Architecture
+## Architecture Overview
 
 - Vtm is a text-based application that comes with a single executable and has a number of runtime modes for running multiple instances in parallel to form the desktop environment.
 - A vtm process running in `Desktop Server` mode creates a desktop session.
@@ -217,30 +244,7 @@ graph TB
   - In-process Windows Console Server (Windows 8.1 and later compatibility)
   - Terminal with horizontal scrolling support (wrapped and un-wrapped text lines simultaneously)
 
-### Hybrid TUI
-
-**Hybrid TUI** (**HTUI**), or Hybrid Textual User Interface, is an innovative class of software that merges the flexibility of **TUI** (Text User Interface) and the convenience of **GUI** (Graphical User Interface) within **a single executable file**. Applications in this class automatically detect their execution environment and dynamically choose the display mode, all while providing a unified user experience (UX) and visual style regardless of the platform. 
-
-#### Advantages of HTUI over TUI and GUI 
-
-| Advantage       | Over TUI | Over GUI
-|-----------------|----------|---------
-| Unified UX      | Provides full graphical rendering (e.g., fonts, mouse support) when launched in graphical environment. | Retains full functionality and look when launched in a remote SSH session or existing terminal.
-| Single Binary   | Does not require compiling different versions or maintaining separate executables for different modes. | Avoids the need to maintain two entirely separate codebases (terminal and graphical).
-| Flexible Launch | The user chooses how to launch the app - from the console or with a double-click - without losing functionality. | Offers the lightweight and minimalist nature of TUI apps with the capabilities of a windowed mode.
-
-#### Logic of HTUI Application Operation
-
-  - **Environment check**:
-    - If an explicit CLI flag is specified to use TUI or GUI mode, the application will attempt to activate the specified mode.
-    - If **no explicit mode is specified**, the application will attempt to launch in **GUI mode**, which provides a full range of capabilities.
-    - If the GUI mode is unavailable (for example, the application is running in Session 0), the application starts in **TUI** mode.
-  - **Unified Interface:**
-    - In both modes, the same internal rendering logic is utilized, based on **projecting a virtual TUI matrix onto a canvas** of the graphic window or terminal, ensuring an identical visual appearance.
-    - In **GUI** mode, the application renders by leveraging the full potential of VT2D and uses the native API for user input (keyboard, mouse, system events), ensuring **maximum performance and capabilities**.
-    - In **TUI** mode, the application adapts to the **limited input/output capabilities** of the host terminal.
-
-### Runtime modes
+## Runtime modes
 
 Runtime mode    | I/O mode                 | Environment role
 ----------------|--------------------------|------------------

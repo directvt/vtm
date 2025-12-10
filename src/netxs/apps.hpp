@@ -407,9 +407,9 @@ namespace netxs::app::shared
                     {
                         if (root_ptr) // root_ptr is empty when d_n_d.
                         {
-                            boss.start(appcfg.cfg, [&, appcfg](auto fds)
+                            boss.start_dtvt(appcfg.cfg, [&, appcfg](auto fds)
                             {
-                                auto ok = os::dtvt::connect(appcfg, fds);
+                                auto ok = os::dtvt::create_dtvt_process(appcfg, fds);
                                 if (!ok) // Shutdown if dtvt connection failed.
                                 {
                                     boss.base::enqueue([&](auto& /*boss*/)
@@ -516,9 +516,9 @@ namespace netxs::app::shared
                         {
                             boss.base::enqueue([&](auto& /*boss*/) // Dtvt::start must be run strictly after the window reflow (to synchronize the initial size).
                             {
-                                dtvt_inst.start(appcfg.cfg, [&](auto fds)
+                                dtvt_inst.start_dtvt(appcfg.cfg, [&](auto fds)
                                 {
-                                    term_inst.start(appcfg, fds);
+                                    term_inst.start_term(appcfg, fds);
                                     return appcfg.cmd;
                                 });
                             });

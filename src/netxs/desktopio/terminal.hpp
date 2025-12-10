@@ -8178,7 +8178,7 @@ namespace netxs::ui
         {
             base::riseup(tier::release, e2::form::upon::started, This());
         }
-        void start(eccc cfg, os::fdrw fds = {})
+        void start_term(eccc cfg, os::fdrw fds = {})
         {
             appcfg = cfg;
             fdlink = fds;
@@ -9385,7 +9385,7 @@ namespace netxs::ui
             ipccon.output(data);
         }
         // dtvt: Attach a new process.
-        void start(text config, auto connect)
+        void start_dtvt(text config, auto connect_fx)
         {
             if (ipccon)
             {
@@ -9396,7 +9396,7 @@ namespace netxs::ui
             nodata = {};
             stream.syswinsz.freeze().thing.winsize = {};
             active.exchange(true);
-            auto receiver = [&](view utf8)
+            auto receiver_fx = [&](view utf8)
             {
                 if (active)
                 {
@@ -9404,7 +9404,11 @@ namespace netxs::ui
                     stream.request_jgc(*this);
                 }
             };
-            ipccon.runapp(config, base::size(), connect, receiver, [&]{ onexit(); });
+            auto shutdown_fx = [&]
+            {
+                onexit();
+            };
+            ipccon.run_dtvt_app(config, base::size(), connect_fx, receiver_fx, shutdown_fx);
         }
         // dtvt: Return true if application has never sent its canvas.
         auto is_nodtvt()
