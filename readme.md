@@ -1,6 +1,6 @@
 # vtm (Virtual Terminal Multiplexer)
 
-Vtm is a text-based application that introduces a new class of **Hybrid TUI** (**HTUI**) applications, offering a unified experience within **a single executable file**, whether running in a native graphical window or any standard text console. It can wrap any console application and be nested indefinitely, forming a text-based desktop environment, bridging the gap between traditional **TUI** and **GUI**.
+Vtm is a text-based application that introduces a new class of **Hybrid TUI** (**HTUI**) software, offering a unified experience within **a single executable file**, whether running in a native graphical window or any standard text console. It can wrap any console application and be nested indefinitely, forming a **text-based desktop environment**, bridging the gap between traditional **TUI** and **GUI**.
 
 <a href="https://www.youtube.com/watch?v=kofkoxGjFWQ">
   <img width="400" alt="Demo on YouTube" src="https://user-images.githubusercontent.com/11535558/146906370-c9705579-1bbb-4e9e-8977-47312f551cc8.gif">

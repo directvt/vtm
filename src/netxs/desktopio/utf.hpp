@@ -1296,15 +1296,16 @@ namespace netxs::utf
     // utf: Check utf-8 integrity (last codepoint) and cut off the invalid bytes at the end.
     void purify(view& utf8)
     {
-        auto head = utf8.rend();
+        static constexpr auto max_utf8_bytes = (arch)4;
         auto tail = utf8.rbegin();
+        auto head = tail + std::min(utf8.size(), max_utf8_bytes); // Check the last codepoint only.
         while (tail != head && (*tail & 0xc0) == 0x80) // Find the first byte.
         {
             ++tail;
         }
         if (tail != head) // Check codepoint.
         {
-            auto p = head - tail - 1;
+            auto p = utf8.rend() - tail - 1;
             auto l = utf::cluster<true>(utf8.substr(p));
             if (!l.attr.correct)
             {
@@ -1313,7 +1314,7 @@ namespace netxs::utf
         }
         else // Bad UTF-8 encoding: The first byte is not found.
         {
-            //Recycle all bad bytes (log?).
+            //Consume all bad bytes (log?).
         }
     }
     auto substr(qiew utf8, size_t start, size_t length = text::npos)

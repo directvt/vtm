@@ -7099,7 +7099,6 @@ namespace netxs::ui
         text       imetxt; // term: IME composition preview source.
         flow       imefmt; // term: IME composition preview layout.
         eccc       appcfg; // term: Application startup inits.
-        os::fdrw   fdlink; // term: Optional DirectVT uplink.
         hook       onerun; // term: One-shot token for restart session.
         bool       rawkbd; // term: Exclusive keyboard access.
         bool       bottom_anchored; // term: Anchor scrollback content when resizing (default is anchor at bottom).
@@ -8120,7 +8119,10 @@ namespace netxs::ui
         }
         void onexit(si32 code, text msg = {}, bool exit_after_sighup = faux)
         {
-            if (exit_after_sighup) close();
+            if (exit_after_sighup)
+            {
+                close();
+            }
             else base::enqueue<faux>([&, code, msg, backup = This()](auto& /*boss*/) mutable
             {
                 ipccon.payoff(io_log);
@@ -8181,7 +8183,6 @@ namespace netxs::ui
         void start_term(eccc cfg, os::fdrw fds = {})
         {
             appcfg = cfg;
-            fdlink = fds;
             if (!ipccon)
             {
                 base::enqueue([&, backup = This()](auto& /*boss*/) mutable // We can't request the title before conio.run(), so we queue the request.
@@ -8198,7 +8199,7 @@ namespace netxs::ui
                     backup.reset(); // Backup should dtored under the lock.
                 });
                 appcfg.win = target->panel;
-                ipccon.runapp(*this, appcfg, fdlink);
+                ipccon.runapp(*this, appcfg, fds);
             }
         }
         void restart()
@@ -9340,8 +9341,7 @@ namespace netxs::ui
 
         struct msgs
         {
-            static constexpr auto no_signal    = "NO SIGNAL"sv;
-            static constexpr auto disconnected = "Disconnected"sv;
+            static constexpr auto no_signal = "NO SIGNAL"sv;
         };
 
         using vtty = os::dtvt::vtty;
@@ -9365,27 +9365,14 @@ namespace netxs::ui
                              kant, utf8, kant, '\n',
                                    pads,       '\n') };
         }
-        // dtvt: Shutdown callback handler.
-        void onexit()
-        {
-            if (!active.exchange(faux)) return;
-            base::enqueue([&](auto& /*boss*/) mutable // Unexpected disconnection.
-            {
-                auto lock = stream.bitmap_dtvt.freeze();
-                auto& canvas = lock.thing.image;
-                nodata = canvas.hash();
-                errmsg = genmsg(msgs::disconnected);
-                fallback(canvas, true);
-                base::deface();
-            });
-        }
         // dtvt: Send client data.
         void output(view data)
         {
             ipccon.output(data);
         }
         // dtvt: Attach a new process.
-        void start_dtvt(text config, auto connect_fx)
+        template<class T = noop>
+        void start_dtvt(eccc& appcfg, T connect_fx = {})
         {
             if (ipccon)
             {
@@ -9404,11 +9391,18 @@ namespace netxs::ui
                     stream.request_jgc(*this);
                 }
             };
-            auto shutdown_fx = [&]
+            auto shutdown_fx = [&]()
             {
-                onexit();
+                base::enqueue([&](auto& /*boss*/)
+                {
+                    ipccon.payoff(); // Join input thread.
+                    if constexpr (std::is_same_v<decltype(connect_fx), noop>) // ui::term manages the child process's lifetime.
+                    {
+                        base::signal(tier::anycast, e2::form::proceed::quit::one, true);
+                    }
+                });
             };
-            ipccon.run_dtvt_app(config, base::size(), connect_fx, receiver_fx, shutdown_fx);
+            ipccon.run_dtvt_app(appcfg, base::size(), connect_fx, receiver_fx, shutdown_fx);
         }
         // dtvt: Return true if application has never sent its canvas.
         auto is_nodtvt()
