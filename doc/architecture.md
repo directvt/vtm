@@ -650,8 +650,6 @@ Notes:
     vtm -r dtvt winsocat tcp:127.0.0.1:1122 stdio
   #                      ┬───────────────── ───┬─
   #                      └> relay dtvt-stream >┘
-  # Kill the abandoned winsocat process (it keeps running for some reason)
-  Get-Process -Name "winsocat" | Stop-Process -Force
   ```
 
 ## Standard I/O stream monitoring
