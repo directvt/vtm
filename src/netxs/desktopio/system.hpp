@@ -2922,7 +2922,7 @@ namespace netxs::os
 
             #endif
         }
-        void spawn([[maybe_unused]] text cmd, [[maybe_unused]]  text cwd, [[maybe_unused]]  text env)
+        void spawn([[maybe_unused]] text cmd, [[maybe_unused]] text cwd, [[maybe_unused]] text env)
         {
             #if defined(_WIN32)
             #else
@@ -4344,20 +4344,6 @@ namespace netxs::os
                     {
                         os::close(procsinf.hThread);
                         os::close(procsinf.hProcess);
-                        //todo
-                        //os::close( procsinf.hThread );
-                        //prochndl = procsinf.hProcess;
-                        //proc_pid = procsinf.dwProcessId;
-                        //waitexit = std::thread{ [&, trailer]
-                        //{
-                        //    auto pid = proc_pid; // MSVC don't capture it.
-                        //    io::select(netxs::maxspan, noop{}, prochndl, [&terminal, pid]
-                        //    {
-                        //        if (terminal.io_log) log("%%Process %pid% terminated", prompt::vtty, pid);
-                        //    });
-                        //    trailer();
-                        //    if (terminal.io_log) log("%%Process %pid% waiter ended", prompt::vtty, pid);
-                        //}};
                     }
                     else
                     {
@@ -4449,7 +4435,7 @@ namespace netxs::os
                     {
                         if (!create_dtvt_process(appcfg, std_link))
                         {
-                            shutdown_fx(true);
+                            shutdown_fx();
                         }
                         else
                         {
@@ -4460,7 +4446,7 @@ namespace netxs::os
                     {
                         cmd = connect_fx(std_link);
                     }
-                    std_link.reset();
+                    std_link.reset(); // We detect the child process termination by the closure of the handle through which we receive data from that process.
                     if (cmd.size() && !!termlink)
                     {
                         attached.exchange(true);
@@ -4481,7 +4467,7 @@ namespace netxs::os
                         io::abort(stderror); // Interrupt io::recv.
                         stderror.join();
                         log("%%Process '%cmd%' disconnected", prompt::dtvt, ansi::hi(utf::debase437(cmd)));
-                        shutdown_fx(faux);
+                        shutdown_fx();
                     }
                 }};
             }
@@ -4582,10 +4568,11 @@ namespace netxs::os
             void runapp(auto& terminal, eccc cfg, fdrw fds = {})
             {
                 signaled.exchange(faux);
-                stdwrite = std::thread{ [&, cfg, fds]
+                stdwrite = std::thread{ [&, cfg, fds]() mutable
                 {
                     if (terminal.io_log) log(prompt::vtty, "Writing thread started", ' ', utf::to_hex_0x(stdwrite.get_id()));
                     create(terminal, cfg, fds);
+                    fds.reset(); // Close client handles on server side.
                     writer(terminal);
                     if (terminal.io_log) log(prompt::vtty, "Writing thread ended", ' ', utf::to_hex_0x(stdwrite.get_id()));
                 }};
