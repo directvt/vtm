@@ -596,7 +596,9 @@ namespace netxs::ui
         }
         void fill_pointer(hids& gear, face& parent_canvas)
         {
-            static const auto idle = cell{}.txt("\xE2\x96\x88"/*\u2588 █ */).bgc(0x00).fgc(0xFF00ff00);
+            //static const auto idle = cell{}.txt("\xE2\x96\x88"/*\u2588 █ */).bgc(0x00).fgc(0xFF00ff00); // This is the only way to render a green cursor in 8+8 16-color in Linux VGA Console.
+            //static const auto idle = cell{}.txt(' ').bgc(0xFF00ff00); // Show the white cursor in Linux VGA Console, but green in yaft.
+            static const auto idle = cell{}.txt("\xE2\x96\x88"/*\u2588 █ */).bgc(0xFF00ff00).fgc(0xFF00ff00); // Boom! Show green cursor in Linux VGA Console and green in yaft.
             static const auto busy = cell{}.bgc(reddk).fgc(0xFFffffff);
             auto brush = gear.m_sys.buttons ? cell{ busy }.txt(64 + (char)gear.m_sys.buttons/*A-Z...*/)
                                             : idle;

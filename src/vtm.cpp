@@ -167,11 +167,11 @@ int main(int argc, char* argv[])
                 "\n    -t, --tui            Force TUI mode."
                 "\n    -g, --gui            Force GUI mode."
                 "\n    -i, --install        Perform system-wide installation."
-                #if defined(WIN32)
+                #if defined(_WIN32)
                 " Allow Desktop Server to run in Session 0."
                 #endif
                 "\n    -u, --uninstall      Perform system-wide deinstallation."
-                #if defined(WIN32)
+                #if defined(_WIN32)
                 "\n    -0, --session0       Use Session 0 to run Desktop Server in background."
                 #endif
                 #if defined(__linux__) && !defined(__ANDROID__)

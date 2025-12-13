@@ -4093,7 +4093,7 @@ namespace netxs::os
                     auto tty_name = text(os::pipebuf, '\0');
                     ok(::ttyname_r(os::stdout_fd, tty_name.data(), tty_name.size()), "::ttyname_r(os::stdout_fd)", os::unexpected);
                     log("%%Pseudoterminal %pts%", prompt::tty, tty_name.data());
-                    if (interactive && (term == "linux" || os::linux_console || colorterm == "kmscon"))
+                    if (interactive && (term == "linux" || os::linux_console || colorterm == "kmscon" || term == "yaft-256color"))
                     {
                         dtvt::vtmode |= ui::console::mouse;
                     }
@@ -4109,6 +4109,7 @@ namespace netxs::os
                     };
                     auto vt256colors = {
                         "rxvt-unicode-256color",
+                        "yaft-256color",
                     };
                     if (term.ends_with("16color") || term.ends_with("16colour"))
                     {
