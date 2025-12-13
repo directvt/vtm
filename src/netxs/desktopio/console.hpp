@@ -596,7 +596,8 @@ namespace netxs::ui
         }
         void fill_pointer(hids& gear, face& parent_canvas)
         {
-            static const auto idle = cell{}.txt("\xE2\x96\x88"/*\u2588 █ */).bgc(0x00).fgc(0xFF00ff00);
+            //static const auto idle = cell{}.txt("\xE2\x96\x88"/*\u2588 █ */).bgc(0x00).fgc(0xFF00ff00);
+            static const auto idle = cell{}.txt(' ').fgc(0x00).bgc(0xFF00ff00);
             static const auto busy = cell{}.bgc(reddk).fgc(0xFFffffff);
             auto brush = gear.m_sys.buttons ? cell{ busy }.txt(64 + (char)gear.m_sys.buttons/*A-Z...*/)
                                             : idle;
