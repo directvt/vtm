@@ -4100,11 +4100,11 @@ namespace netxs::os
                 #endif
                 if (colorterm != "truecolor" && colorterm != "24bit" &&  colorterm != "kmscon")
                 {
-                    auto vt16colors = { // https://github.com//termstandard/colors
+                    auto vt16colors = { // https://github.com/termstandard/colors
                         "ansi",
                         "linux",
                         "xterm-color",
-                        "dvtm", //todo track: https://github.com/martanne/dvtm/issues/10
+                        "dvtm",
                         "fbcon",
                     };
                     auto vt256colors = {
