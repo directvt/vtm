@@ -351,12 +351,12 @@ namespace netxs::xml
             {
                 auto crop = text{};
                 auto size = arch{};
-                for (auto& frag : frag_list)
+                for (auto& frag : frag_list) if (frag.kind != type::error)
                 {
                     size += frag.utf8.size();
                 }
                 crop.reserve(size);
-                for (auto& frag : frag_list)
+                for (auto& frag : frag_list) if (frag.kind != type::error)
                 {
                     crop += frag.utf8;
                 }
@@ -1096,14 +1096,15 @@ namespace netxs::xml
                                 }
                                 else
                                 {
-                                    what = type::unknown;
-                                    append(what, close_tag);
-                                    append(what, trim_frag, true);
-                                    append(what, item_name);
-                                    append(what, utf::take_front_including<faux>(temp, view_close_inline));
+                                    append(type::close_tag,    close_tag);
+                                    append(type::spaces,       trim_frag, true);
+                                    append(type::unknown,      item_name);
+                                    append(type::spaces,       utf::pop_front_chars(temp, whitespaces), true);
+                                    append(type::close_inline, utf::take_front_including<faux>(temp, view_close_inline));
                                     failed = true;
                                     fail_msg(ansi::add("Unexpected closing tag name '", item_name, "', expected: '", item_ptr->name->utf8, "'"));
                                 }
+                                what = type::close_inline;
                             }
                             else // Unexpected data.
                             {
