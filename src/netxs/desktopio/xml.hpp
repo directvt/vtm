@@ -308,8 +308,6 @@ namespace netxs::xml
         };
 
         using list = std::list<literal>;
-        using f_it = list::iterator;
-        using heap = std::vector<f_it>;
 
         struct suit
         {
@@ -476,7 +474,6 @@ namespace netxs::xml
         using sptr = netxs::sptr<elem>;
         using wptr = netxs::wptr<elem>;
         using vect = std::vector<sptr>;
-        using subs = utf::unordered_map<text, vect>;
 
         struct elem
         {
@@ -488,35 +485,23 @@ namespace netxs::xml
                 pact, // Element has compact form (<element/elem2/elem3 ... />).
             };
 
-            list& frag_list; // elem: Document fragment list.
-            f_it from; // elem: Pointer to the beginning of the semantic block.
-            f_it upto; // elem: Pointer to the end of the semantic block.
-            f_it name; // elem: Pointer to the Tag name.
-            f_it insA; // elem: Insertion point for inline subelements.
-            f_it insB; // elem: Insertion point for nested subelements.
-            std::vector<std::pair<f_it, f_it>> value_segments; // elem: List of the value fragment segments stored as pairs of iterators for begin (an empty opening frag) and end (an empty closing frag). The first segment is the value segment right after the equal sign.
-            heap body; // elem: List of pointers to value fragments.
-            subs hive; // elem: Map of Subelement lists.
-            bool base; // elem: Merge overwrite priority (clear dest list on overlaying if true).
-            form mode; // elem: Element storage form.
+            std::optional<list::iterator>  from; // elem: Pointer to the beginning of the semantic block.
+            std::optional<list::iterator>  upto; // elem: Pointer to the end of the semantic block.
+            std::optional<list::iterator>  name; // elem: Pointer to the Tag name.
+            std::optional<list::iterator>  insA; // elem: Insertion point for inline subelements.
+            std::optional<list::iterator>  insB; // elem: Insertion point for nested subelements.
+            std::vector<std::pair<list::iterator, list::iterator>> value_segments; // elem: List of the value fragment segments stored as pairs of iterators for begin (an empty opening frag) and end (an empty closing frag). The first segment is the value segment right after the equal sign.
+            std::vector<list::iterator>    body; // elem: List of pointers to value fragments.
+            utf::unordered_map<text, vect> hive; // elem: Map of Subelement lists.
             wptr parent_wptr; // elem: Weak reference to the parent element.
+            bool base{}; // elem: Merge overwrite priority (clear dest list on overlaying if true).
+            form mode{}; // elem: Element storage form.
 
-            elem(list& frag_list)
-                : frag_list{ frag_list },
-                  from{ frag_list.end() },
-                  upto{ frag_list.end() },
-                  name{ frag_list.end() },
-                  insA{ frag_list.end() },
-                  insB{ frag_list.end() },
-                  base{ faux },
-                  mode{ node }
-            { }
-
-            auto open()
+            auto open(list& frag_list)
             {
                 from = std::prev(frag_list.end());
             }
-            auto seal()
+            auto seal(list& frag_list)
             {
                 upto = std::prev(frag_list.end());
             }
@@ -536,7 +521,7 @@ namespace netxs::xml
                     || !std::ranges::equal(body, item.body, [](auto& s, auto& d){ return s->utf8 == d->utf8; });
                     //|| !std::equal(body.begin(), body.end(), item.body.begin(), [&](auto& s, auto& d){ return s->utf8 == d->utf8; });
             }
-            void sync_value(elem& item)
+            void sync_value(list& frag_list, list& item_frag_list, elem& item)
             {
                 if (item.body.size() && _unsync_body(item)) // An empty incoming body does nothing.
                 {
@@ -566,7 +551,7 @@ namespace netxs::xml
                         {
                             auto& [dst_vbeg, dst_vend] = *dst_segment_iter++;
                             auto& [src_vbeg, src_vend] = *src_segment_iter++;
-                            frag_list.splice(dst_vend, item.frag_list, std::next(src_vbeg), src_vend); // Sync the first segment as is, the stripe of frags that is located right after the equal sign.
+                            frag_list.splice(dst_vend, item_frag_list, std::next(src_vbeg), src_vend); // Sync the first segment as is, the stripe of frags that is located right after the equal sign.
                         }
                         if (dst_segment_iter == value_segments.end()) // There is no placeholders for ext value.
                         {
@@ -598,7 +583,7 @@ namespace netxs::xml
                                             //...
                                             prev_is_raw = next_is_raw;
                                         }
-                                        frag_list.splice(dst_vend, item.frag_list, next_src_vbeg, src_vend); // Sync the first segment, the stripe of frags that is located right after the equal sign.
+                                        frag_list.splice(dst_vend, item_frag_list, next_src_vbeg, src_vend); // Sync the first segment, the stripe of frags that is located right after the equal sign.
                                     }
                                 }
                             }
@@ -617,15 +602,15 @@ namespace netxs::xml
             {
                 auto crop = text{};
                 auto size = arch{};
-                auto head = from;
-                auto tail = std::next(upto);
+                auto head = *from;
+                auto tail = std::next(*upto);
                 while (head != tail)
                 {
                     auto& frag = *head++;
                     size += frag.utf8.size();
                 }
                 crop.reserve(size);
-                head = from;
+                head = *from;
                 while (head != tail)
                 {
                     auto& frag = *head++;
@@ -902,8 +887,7 @@ namespace netxs::xml
                         append(type::unknown, temp);
                         data = {};
                         temp = {};
-                        last = what;
-                        what = type::eof;
+                        last = std::exchange(what, type::eof);
                         return faux;
                     }
                     append(type::comment, utf::pop_front(temp, size));
@@ -929,7 +913,7 @@ namespace netxs::xml
             }
             void push(sptr& item_ptr, sptr& nested_ptr)
             {
-                auto& nested_name = nested_ptr->name->utf8;
+                auto& nested_name = (*nested_ptr->name)->utf8;
                 item_ptr->hive[nested_name].push_back(nested_ptr);
                 nested_ptr->parent_wptr = item_ptr;
             }
@@ -938,7 +922,7 @@ namespace netxs::xml
                 do
                 {
                     auto inside_value = faux;
-                    auto vbeg_ptr = page.frag_list.end();
+                    auto vbeg_ptr = list::iterator{};
                     while (what != type::close_tag && what != type::eof)
                     {
                         if (what == type::quoted_text) // Quoted text.
@@ -1041,20 +1025,22 @@ namespace netxs::xml
                                 item_ptr->value_segments.push_back({ vbeg_ptr2, vend_ptr2 });
                                 data.remove_prefix(raw_block.size()); // data = temp - trailing_spaces;
                             }
-                            else // Unexpected end of data.
+                            else // End of data.
                             {
-                                auto frag_ptr = append(type::unknown, data);
-                                item_ptr->body.push_back(frag_ptr);
+                                auto vbeg_ptr2 = append(type::value_begin);
+                                auto frag_ptr2 = append(type::raw_text, data);
+                                auto vend_ptr2 = append(type::value_end);
+                                item_ptr->body.push_back(frag_ptr2);
+                                item_ptr->value_segments.push_back({ vbeg_ptr2, vend_ptr2 });
                                 temp = {};
                                 data = {};
-                                last = what;
-                                what = type::eof;
+                                last = std::exchange(what, type::eof);
                                 break;
                             }
                         }
                         else if (what == type::begin_tag && deep < 30)
                         {
-                            auto nested_ptr = ptr::shared<elem>(page.frag_list);
+                            auto nested_ptr = ptr::shared<elem>();
                             read_node(nested_ptr, deep + 1);
                             push(item_ptr, nested_ptr);
                         }
@@ -1087,7 +1073,7 @@ namespace netxs::xml
                             if (what == type::token)
                             {
                                 auto item_name = utf::take_front(temp, view_token_delims);
-                                if (item_name == item_ptr->name->utf8)
+                                if (item_name == (*item_ptr->name)->utf8)
                                 {
                                     append(type::close_tag,    close_tag);
                                     append(type::spaces,       trim_frag, true);
@@ -1103,7 +1089,7 @@ namespace netxs::xml
                                     append(type::spaces,       utf::pop_front_chars(temp, whitespaces), true);
                                     append(type::close_inline, utf::take_front_including<faux>(temp, view_close_inline));
                                     failed = true;
-                                    fail_msg(ansi::add("Unexpected closing tag name '", item_name, "', expected: '", item_ptr->name->utf8, "'"));
+                                    fail_msg(ansi::add("Unexpected closing tag name '", item_name, "', expected: '", (*item_ptr->name)->utf8, "'"));
                                 }
                                 what = type::close_inline;
                             }
@@ -1143,7 +1129,7 @@ namespace netxs::xml
                 assert(what == type::begin_tag);
                 auto fire = faux;
                 append_prepending_spaces();
-                item_ptr->open();
+                item_ptr->open(page.frag_list);
                 append(type::begin_tag, utf::pop_front(temp, view_begin_tag.size())); // Append '<' to the page.
                 data = temp;
                 peek();
@@ -1163,8 +1149,8 @@ namespace netxs::xml
                         peek_forward();
                         append_prepending_spaces();
                             item_ptr->mode = elem::form::pact;
-                            auto next_ptr = ptr::shared<elem>(page.frag_list);
-                            next_ptr->open();
+                            auto next_ptr = ptr::shared<elem>();
+                            next_ptr->open(page.frag_list);
                             append(type::begin_tag); // Add begin_tag placeholder.
                         peek_forward();
                         take_pair(next_ptr, type::top_token);
@@ -1179,11 +1165,11 @@ namespace netxs::xml
                         {
                             append_prepending_spaces();
                                 data = temp;
-                                auto next_ptr = ptr::shared<elem>(page.frag_list);
+                                auto next_ptr = ptr::shared<elem>();
                                 next_ptr->mode = elem::form::attr;
-                                next_ptr->open();
+                                next_ptr->open(page.frag_list);
                                 take_pair(next_ptr, type::token);
-                                next_ptr->seal();
+                                next_ptr->seal(page.frag_list);
                                 push(item_ptr, next_ptr);
 
                         }
@@ -1218,9 +1204,9 @@ namespace netxs::xml
                     fire = true;
                 }
 
-                if (item_ptr->name == page.frag_list.end())
+                if (!item_ptr->name.has_value())
                 {
-                    auto head = page.frag_list.rbegin();//back;
+                    auto head = page.frag_list.rbegin();
                     while (true) // Reverse find a broken open tag and mark all after it as an unknown data.
                     {
                         auto& frag = *head;
@@ -1242,11 +1228,11 @@ namespace netxs::xml
                 {
                     append(type::eof);
                 }
-                item_ptr->seal();
+                item_ptr->seal(page.frag_list);
                 while (!compacted.empty()) // Close compact nodes.
                 {
                     item_ptr = compacted.back();
-                    item_ptr->seal();
+                    item_ptr->seal(page.frag_list);
                     compacted.pop_back();
                 }
             }
@@ -1259,9 +1245,9 @@ namespace netxs::xml
                   what{ type::na },
                   last{ type::na }
             {
-                root_ptr = ptr::shared<elem>(page.frag_list);
+                root_ptr = ptr::shared<elem>();
                 append(type::spaces);
-                root_ptr->open();
+                root_ptr->open(page.frag_list);
                 root_ptr->mode = elem::form::node;
                 root_ptr->name = append(type::na);
                 add_placeholder_for_absent_value(root_ptr); // Inline values placeholder.
@@ -1275,7 +1261,7 @@ namespace netxs::xml
                     read_subsections_and_close(root_ptr, deep);
                 }
                 append_prepending_spaces();
-                root_ptr->seal();
+                root_ptr->seal(page.frag_list);
                 if (page.fail)
                 {
                     log("%%Inconsistent xml data from %file%:\n%config%\n", prompt::xml, page.file.empty() ? "memory"sv : page.file, page.show());
@@ -1349,7 +1335,7 @@ namespace netxs::xml
             }
             return item_ptr_list;
         }
-        auto combine_list(vect const& list, view path)
+        auto combine_list(list& item_frag_list, vect const& list, view path)
         {
             utf::trim(path, '/');
             auto [parent_path, branch_path] = utf::split_back(path, '/');
@@ -1371,60 +1357,59 @@ namespace netxs::xml
             {
                 for (auto& dest_item_ptr : dest_list)
                 {
-                    auto from = dest_item_ptr->from;
-                    auto upto = dest_item_ptr->upto;
+                    auto from = *dest_item_ptr->from;
+                    auto upto = *dest_item_ptr->upto;
                     page.frag_list.erase(from, std::next(upto));
                 }
                 dest_list.clear();
             }
-            for (auto& item_ptr : list) if (item_ptr && item_ptr->name->utf8 == branch_path)
+            for (auto& item_ptr : list) if (item_ptr && (*item_ptr->name)->utf8 == branch_path)
             {
                 //todo unify
                 if (item_ptr->base)
                 {
                     for (auto& dest_item_ptr : dest_list)
                     {
-                        auto from = dest_item_ptr->from;
-                        auto upto = dest_item_ptr->upto;
+                        auto from = *dest_item_ptr->from;
+                        auto upto = *dest_item_ptr->upto;
                         page.frag_list.erase(from, std::next(upto));
                     }
                     dest_list.clear();
                 }
-                auto mode = item_ptr->mode;
-                auto from = item_ptr->from;
-                auto upto = item_ptr->upto;
-                auto& item_frag_list = item_ptr->frag_list;
+                auto& mode = item_ptr->mode;
+                auto& from = item_ptr->from;
+                auto& upto = item_ptr->upto;
                 auto inlined = mode == elem::form::attr;
-                auto gate = inlined ? parent_ptr->insA : parent_ptr->insB;
-                if (gate != page.frag_list.end())
-                if (from != item_frag_list.end())
-                if (upto != item_frag_list.end())
+                auto& gate = inlined ? parent_ptr->insA : parent_ptr->insB;
+                if (gate.has_value())
+                if (from.has_value())
+                if (upto.has_value())
                 {
-                    page.frag_list.splice(gate, item_frag_list, from, std::next(upto)); // Move utf8 fragments.
+                    page.frag_list.splice(*gate, item_frag_list, *from, std::next(*upto)); // Move utf8 fragments.
                     item_ptr->parent_wptr = parent_ptr;
                     dest_list.push_back(item_ptr);
                     if (inlined)
                     {
-                        if (from->utf8.empty())
+                        if ((*from)->utf8.empty())
                         {
-                            from->utf8.push_back(' '); // Add space between oldname=value and newname=value.
+                            (*from)->utf8.push_back(' '); // Add space between oldname=value and newname=value.
                         }
                     }
                     else //if (!inlined) // Prepend '\n    <' to item when inserting it to gate==insB.
                     {
-                        if (from->utf8.empty()) // Checking indent. Take indent from parent + pads if it is absent.
+                        if ((*from)->utf8.empty()) // Checking indent. Take indent from parent + pads if it is absent.
                         {
-                            if (parent_ptr->from->utf8.empty()) // Most likely this is the root namespace.
+                            if ((*parent_ptr->from)->utf8.empty()) // Most likely this is the root namespace.
                             {
-                                from->utf8 = "\n";
+                                (*from)->utf8 = "\n";
                             }
                             else // Ordinary nested item.
                             {
-                                from->utf8 = parent_ptr->from->utf8 + "    ";
+                                (*from)->utf8 = (*parent_ptr->from)->utf8 + "    ";
                             }
                         }
                         //todo revise
-                        auto next = std::next(from);
+                        auto next = std::next(*from);
                         if (next != page.frag_list.end() && next->kind == type::begin_tag) // Checking begin_tag.
                         {
                             auto shadow = view{ next->utf8 };
@@ -1436,34 +1421,35 @@ namespace netxs::xml
                     }
                     continue;
                 }
-                log("%%Unexpected format for item '%parent_path%/%item->name->utf8%'", prompt::xml, parent_path, item_ptr->name->utf8);
+                log("%%Unexpected format for item '%parent_path%/%item->name->utf8%'", prompt::xml, parent_path, (*item_ptr->name)->utf8);
             }
         }
-        void combine_item(sptr item_ptr, text path = {})
+        void combine_item(list& src_frag_list, sptr item_ptr, text path = {})
         {
             auto& item = *item_ptr;
-            auto& name = item.name->utf8;
+            auto& name = (*item.name)->utf8;
             path += "/" + name;
             auto dest_list = take_ptr_list<true>(path);
             auto is_dest_list = (dest_list.size() && dest_list.front()->base) || dest_list.size() > 1;
             if (is_dest_list || dest_list.empty())
             {
-                combine_list({ item_ptr }, path);
+                combine_list(src_frag_list, { item_ptr }, path);
             }
             else
             {
                 auto& dest_ptr = dest_list.front();
-                dest_ptr->sync_value(item);
+                auto& frag_list = page.frag_list;
+                dest_ptr->sync_value(frag_list, src_frag_list, item);
                 for (auto& [sub_name, sub_list] : item.hive) // Proceed subelements.
                 {
                     auto count = sub_list.size();
                     if (count == 1 && sub_list.front()->base == faux)
                     {
-                        combine_item(sub_list.front(), path);
+                        combine_item(src_frag_list, sub_list.front(), path);
                     }
                     else if (count) // It is a list.
                     {
-                        combine_list(sub_list, path + "/" + sub_name);
+                        combine_list(src_frag_list, sub_list, path + "/" + sub_name);
                     }
                     else
                     {
@@ -1471,6 +1457,10 @@ namespace netxs::xml
                     }
                 }
             }
+        }
+        void combine_item(document& src_cfg)
+        {
+            combine_item(src_cfg.page.frag_list, src_cfg.root_ptr);
         }
     };
 
@@ -1855,7 +1845,7 @@ namespace netxs::xml
             {
                 log("%%Settings from %file%:\n%config%", prompt::xml, filepath.empty() ? "memory"sv : filepath, tmp_config.page.show());
             }
-            document.combine_item(tmp_config.root_ptr);
+            document.combine_item(tmp_config);
         }
     };
     namespace options

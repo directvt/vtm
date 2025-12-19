@@ -723,7 +723,7 @@ namespace netxs::app::shared
             if (src_cfg)
             {
                 log(prompt::pads, "Merging settings from ", src_cfg.page.file);
-                def_cfg.combine_item(src_cfg.root_ptr);
+                def_cfg.combine_item(src_cfg);
             }
         }
         static void settings(xml::settings& resultant, qiew cliopt, bool print = faux)
