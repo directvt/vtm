@@ -22,7 +22,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v2025.12.13";
+    static const auto version = "v2025.12.19";
     static const auto repository = "https://github.com/directvt/vtm";
     static const auto usr_config = "~/.config/vtm/settings.xml"s;
     static const auto sys_config = "/etc/vtm/settings.xml"s;
@@ -723,7 +723,7 @@ namespace netxs::app::shared
             if (src_cfg)
             {
                 log(prompt::pads, "Merging settings from ", src_cfg.page.file);
-                def_cfg.combine_item(src_cfg.root_ptr);
+                def_cfg.combine_item(src_cfg);
             }
         }
         static void settings(xml::settings& resultant, qiew cliopt, bool print = faux)
