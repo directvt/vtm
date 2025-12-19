@@ -1078,6 +1078,7 @@ namespace netxs::xml
                     if (what == type::close_tag) // Proceed '</token>'.
                     {
                         item_ptr->insB = append(type::insB);
+                        add_placeholder_for_absent_value(item_ptr);
                         append_prepending_spaces();
                             auto close_tag = utf::pop_front(temp, view_close_tag.size());
                             auto trim_frag = utf::pop_front_chars(temp, whitespaces);
@@ -1126,6 +1127,7 @@ namespace netxs::xml
                     else if (what == type::eof)
                     {
                         item_ptr->insB = append(type::insB);
+                        add_placeholder_for_absent_value(item_ptr);
                         append_prepending_spaces();
                         peek_forward();
                         if (deep != 0)

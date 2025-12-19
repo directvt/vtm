@@ -2459,7 +2459,7 @@ namespace netxs::os
 
                     auto source = view{ data.data(), data.size() + 1/*trailing null*/ };
                     auto handle = ::CreateFileMappingA(os::invalid_fd, nullptr, PAGE_READWRITE, 0, (DWORD)source.size(), cfpath.c_str()); ok(handle, "::CreateFileMappingA()", os::unexpected);
-                    auto buffer = ::MapViewOfFile(handle, FILE_MAP_WRITE, 0, 0, 0);                                                          ok(buffer, "::MapViewOfFile()", os::unexpected);
+                    auto buffer = ::MapViewOfFile(handle, FILE_MAP_WRITE, 0, 0, 0);                                                       ok(buffer, "::MapViewOfFile()", os::unexpected);
                     std::copy(std::begin(source), std::end(source), (char*)buffer);
                     ok(::UnmapViewOfFile(buffer), "::UnmapViewOfFile()", os::unexpected);
                     return handle;
