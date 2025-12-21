@@ -15,6 +15,7 @@
 #include <chrono>
 #include <cmath>
 #include <condition_variable>
+#include <coroutine>
 #include <cstdint>
 #include <cstring> // std::memcpy
 #include <deque>

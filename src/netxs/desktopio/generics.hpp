@@ -1036,6 +1036,73 @@ namespace netxs::generics
             }
         }
     };
+
+    // generics: Coroutine evaluation generator (pre C++23).
+    template<class T>
+    struct generator
+    {
+        struct promise_type
+        {
+            T const* current_value;
+
+            auto get_return_object()      { return generator{ handle_type::from_promise(*this) }; }
+            auto initial_suspend()        { return std::suspend_always{}; }
+            auto final_suspend() noexcept { return std::suspend_always{}; }
+            auto unhandled_exception()    { std::terminate(); }
+            auto return_void()            { }
+            auto yield_value(T const& value)
+            {
+                current_value = std::addressof(value);
+                return std::suspend_always{};
+            }
+        };
+
+        using handle_type = std::coroutine_handle<promise_type>;
+
+        handle_type h;
+
+        generator(generator const&) = delete;
+        generator(generator&& other) noexcept
+            : h{ std::exchange(other.h, nullptr) }
+        { }
+        generator(handle_type h)
+            : h{ h }
+        { }
+        ~generator()
+        {
+            if (h) h.destroy();
+        }
+
+        struct iterator
+        {
+            handle_type h;
+            bool        done;
+
+            void operator++()                            { h.resume(); done = h.done(); }
+            auto& operator*() const                      { return *(h.promise().current_value); }
+            auto operator!=(iterator const& other) const { return done != other.done; }
+        };
+
+        auto begin()
+        {
+            if (!h) return iterator{ nullptr, true };
+            h.resume();
+            return iterator{ h, h.done() };
+        }
+        auto end()
+        {
+            return iterator{ nullptr, true };
+        }
+        static generator merge(generator g1, generator g2)
+        {
+            for (auto& item : g1) co_yield item;
+            for (auto& item : g2) co_yield item;
+        }
+        friend auto operator | (generator&& g1, generator&& g2)
+        {
+            return merge(std::move(g1), std::move(g2));
+        }
+    };
 }
 
 // generics: Map helpers.
