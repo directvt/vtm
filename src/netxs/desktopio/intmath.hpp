@@ -106,16 +106,19 @@ namespace netxs
     [[maybe_unused]] static auto _k2 = 0; // LCtrl+Alt+Wheel.
     [[maybe_unused]] static auto _k3 = 0; // RCtrl+Wheel.
 
-    struct noop
+    template<bool PredicateReturn>
+    struct base_noop
     {
         constexpr auto operator () (auto&&...)
         {
-            return faux;
+            return PredicateReturn;
             //return *this;
         }
         constexpr operator bool () const { return faux; }
-        constexpr noop(auto&&...) { }
+        constexpr base_noop(auto&&...) { }
     };
+    using noop = base_noop<faux>;
+    using always_true = base_noop<true>;
 
     enum class feed : byte { none, rev, fwd };
 
