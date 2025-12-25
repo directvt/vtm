@@ -18,6 +18,10 @@ namespace netxs
         using type = T;
         T min;
         T max;
+        friend auto& operator << (std::ostream& s, limits p)
+        {
+            return s << "{ min:" << p.min << ", max:" << p.max << " }";
+        }
     };
     // geometry: Generic 2D point.
     template<class T>
