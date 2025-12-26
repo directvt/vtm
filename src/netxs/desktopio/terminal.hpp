@@ -2589,7 +2589,7 @@ namespace netxs::ui
             {
                 bufferbase::resize_viewport(new_sz);
                 coord = std::clamp(coord, dot_00, panel - dot_11);
-                canvas.crop(panel, brush.dry());
+                canvas.crop(panel, brush.spare.dry());
             }
             // alt_screen: Return viewport height.
             si32 height() override
@@ -2637,9 +2637,9 @@ namespace netxs::ui
             void el(si32 n) override
             {
                 bufferbase::flush();
-                _el(n, canvas, coord, panel, brush.spc());
+                _el(n, canvas, coord, panel, brush.spc()); // ok
             }
-            // alt_screen: CSI n @  ICH. Insert n blanks after cursor. No wrap. Existing chars after cursor shifts to the right. Don't change cursor pos.
+            // alt_screen: CSI n @  ICH. Insert n colored blanks after cursor. No wrap. Existing chars after cursor shifts to the right. Don't change cursor pos.
             void ins(si32 n) override
             {
                 bufferbase::flush();
@@ -2647,11 +2647,11 @@ namespace netxs::ui
                 assert(coord.x >= 0);
                 canvas.insert(coord, n, brush.spc());
             }
-            // alt_screen: CSI n P  Delete (not Erase) letters under the cursor.
+            // alt_screen: CSI n P  Delete (not Erase) letters under the cursor by defclr.
             void dch(si32 n) override
             {
                 bufferbase::flush();
-                canvas.cutoff(coord, n, brush.spc());
+                canvas.cutoff(coord, n, brush.spare.spc());
             }
             // alt_screen: '\x7F'  Delete letter backward.
             void del(si32 n) override
@@ -2663,7 +2663,7 @@ namespace netxs::ui
                 {
                     wrapup();
                 }
-                canvas.backsp(coord, n, brush.spc());
+                canvas.backsp(coord, n, brush.spare.spc());
                 if (coord.y < 0) coord = dot_00;
             }
             // alt_screen: Move cursor by n in line.
@@ -2805,10 +2805,10 @@ namespace netxs::ui
                     }
                 }
             }
-            // alt_screen: Clear viewport.
+            // alt_screen: Clear viewport using current brush.
             void clear_all() override
             {
-                canvas.wipe(brush.dry());
+                canvas.wipe(brush.dry()); // ok
                 set_scroll_region(0, 0);
                 bufferbase::clear_all();
             }
@@ -2840,17 +2840,17 @@ namespace netxs::ui
                     selection_render(dest);
                 }
             }
-            // alt_screen: Remove all lines below except the current. "ED2 Erase viewport" keeps empty lines.
+            // alt_screen: Clear all lines below except the current by the current brush . "ED2 Erase viewport" keeps empty lines.
             void del_below() override
             {
-                canvas.del_below(coord, brush.spare.dry());
+                canvas.del_below(coord, brush.dry());
             }
-            // alt_screen: Clear all lines from the viewport top line to the current line.
+            // alt_screen: Clear all lines from the viewport top line to the current line by the current brush.
             void del_above() override
             {
                 auto coorx = coord.x;
                 if (coorx < panel.x) ++coord.x; // Clear the cell at the current position. See ED1 description.
-                canvas.del_above(coord, brush.spare.dry());
+                canvas.del_above(coord, brush.dry());
                 coord.x = coorx;
             }
             // alt_screen: Shift by n the scroll region.
@@ -3864,8 +3864,8 @@ namespace netxs::ui
                 // Preserve original content. The app that changed the margins is responsible for updating the content.
                 auto upnew = std::max(upmin, twod{ panel.x, sctop });
                 auto dnnew = std::max(dnmin, twod{ panel.x, scend });
-                upbox.crop(upnew, brush.dry());
-                dnbox.crop(dnnew, brush.dry());
+                upbox.crop(upnew, brush.spare.dry());
+                dnbox.crop(dnnew, brush.spare.dry());
 
                 index.resize(arena); // Use a fixed ring because new lines are added much more often than a futures feed.
                 auto away = batch.basis != batch.slide;
@@ -3873,7 +3873,7 @@ namespace netxs::ui
                 auto& curln = batch.current();
                 if (curln.wrapped() && batch.caret > curln.length()) // Dangling cursor.
                 {
-                    curln.crop(batch.caret, brush.dry());
+                    curln.crop(batch.caret, brush.spare.dry());
                     batch.recalc(curln);
                 }
 
@@ -4455,7 +4455,7 @@ namespace netxs::ui
                     if (!wraps || coord.x <= panel.x) // Extend the line if the cursor is inside the viewport.
                     {
                         width = batch.caret;
-                        curln.crop(width, brush.dry());
+                        curln.crop(width, brush.spare.dry());
                     }
                     else // Move coord.x inside viewport for wrapped lines (cursor came from another (unwrapped) line).
                     {
@@ -4463,7 +4463,7 @@ namespace netxs::ui
                         batch.caret = mapln.start + panel.x;
                         mapln.width = panel.x;
                         coord.x = panel.x;
-                        curln.crop(batch.caret, brush.dry());
+                        curln.crop(batch.caret, brush.spare.dry());
                     }
                 }
 
@@ -4564,7 +4564,7 @@ namespace netxs::ui
                 bufferbase::flush();
                 //todo revise - nul() or dry()
                 //auto blank = brush.dry();
-                auto blank = brush.spc();
+                auto blank = brush.spc(); // ok
                 if (auto ctx = get_context(coord))
                 {
                     auto  start = si32{};
@@ -4615,11 +4615,11 @@ namespace netxs::ui
                 }
                 else alt_screen::_el(n, ctx.block, coord, panel, blank);
             }
-            // scroll_buf: CSI n @  ICH. Insert n blanks after cursor. Existing chars after cursor shifts to the right. Don't change cursor pos.
+            // scroll_buf: CSI n @  ICH. Insert n colored blanks after cursor. Existing chars after cursor shifts to the right. Don't change cursor pos.
             void ins(si32 n) override
             {
                 bufferbase::flush();
-                auto blank = brush.spc();
+                auto blank = brush.spc(); // ok
                 if (auto ctx = get_context(coord))
                 {
                     n = std::min(n, panel.x - coord.x);
@@ -4634,11 +4634,11 @@ namespace netxs::ui
                 }
                 else ctx.block.insert(coord, n, blank);
             }
-            // scroll_buf: CSI n P  Delete (not Erase) letters under the cursor. Line end is filled by blanks. Length is preserved. No wrapping.
+            // scroll_buf: CSI n P  Delete (not Erase) letters under the cursor. Line end is filled by defclr. Length is preserved. No wrapping.
             void dch(si32 n) override
             {
                 bufferbase::flush();
-                auto blank = brush.spc();
+                auto blank = brush.spare.spc(); // ok
                 if (auto ctx = get_context(coord))
                 {
                     auto& curln = batch.current();
@@ -4760,7 +4760,7 @@ namespace netxs::ui
                 }
                 assert(test_coord());
             }
-            // scroll_buf: '\x7F'  Delete letters backward and move cursor back.
+            // scroll_buf: '\x7F'  Delete letters backward (by defclr) and move cursor back. Nobody do it (tested in WT, VTE).
             void del(si32 n) override
             {
                 bufferbase::flush();
@@ -4769,7 +4769,7 @@ namespace netxs::ui
                 {
                     _fwd(-n);
                     auto& curln = batch.current();
-                    curln.splice<faux>(batch.caret, n, brush.spc());
+                    curln.splice<faux>(batch.caret, n, brush.spare.spc());
                 }
             }
             // scroll_buf: Move cursor by n in line.
@@ -4862,7 +4862,7 @@ namespace netxs::ui
                     coord.x     += count;
                     if (batch.caret <= panel.x || !curln.wrapped()) // case 0.
                     {
-                        curln.splice<Copy>(start, count, proto, fuse, brush.spc());
+                        curln.splice<Copy>(start, count, proto, fuse, brush.spare.spc());
                         auto& mapln = index[coord.y];
                         assert(coord.x % panel.x == batch.caret % panel.x && mapln.index == curln.index);
                         if (coord.x > mapln.width)
@@ -4890,7 +4890,7 @@ namespace netxs::ui
                         auto curid = curln.index;
                         if (query > 0) // case 3 - complex: Cursor is outside the viewport.
                         {              // cursor overlaps some lines below and placed below the viewport.
-                            curln.resize(batch.caret, brush.spc());
+                            curln.resize(batch.caret, brush.spare.spc());
                             batch.recalc(curln);
                             if (auto n = (si32)(batch.back().index - curid))
                             {
@@ -4938,7 +4938,7 @@ namespace netxs::ui
                             auto& mapln = index[coord.y];
                             if (curid == mapln.index) // case 1 - plain: cursor is inside the current paragraph.
                             {
-                                curln.resize(batch.caret, brush.spc());
+                                curln.resize(batch.caret, brush.spare.spc());
                                 if (batch.caret - coord.x == mapln.start)
                                 {
                                     if (coord.x > mapln.width)
@@ -4964,8 +4964,8 @@ namespace netxs::ui
                                 auto  shadow = destln.wrapped() ? destln.substr(mapln.start + coord.x)
                                                                 : destln.substr(mapln.start + coord.x, std::min(panel.x, mapln.width) - coord.x);
 
-                                if constexpr (mixer) curln.resize(batch.caret +shadow.length(), brush.spc());
-                                else                 curln.splice(batch.caret, shadow, cell::shaders::full, brush.spc());
+                                if constexpr (mixer) curln.resize(batch.caret +shadow.length(), brush.spare.spc());
+                                else                 curln.splice(batch.caret, shadow, cell::shaders::full, brush.spare.spc());
 
                                 batch.recalc(curln);
                                 auto w = curln.length();
@@ -5016,7 +5016,7 @@ namespace netxs::ui
                                 assert(test_futures());
                             } // case 2 done.
                         }
-                        batch.current().splice<Copy>(start, count, proto, fuse, brush.spc());
+                        batch.current().splice<Copy>(start, count, proto, fuse, brush.spare.spc());
                     }
                     assert(coord.y >= 0 && coord.y < arena);
                     coord.y += y_top;
@@ -5071,7 +5071,7 @@ namespace netxs::ui
                     auto newlen = batch.caret + count;
                     if (newlen > curln.length())
                     {
-                        curln.crop(newlen, brush.spc());
+                        curln.crop(newlen, brush.spare.spc());
                         auto& mapln = index[coord.y - y_top];
                         mapln.width = newlen % panel.x;
                         batch.recalc(curln);
@@ -5387,7 +5387,7 @@ namespace netxs::ui
             // scroll_buf: Clear all lines from the viewport top line to the current line.
             void del_above() override
             {
-                auto blank = brush.dry();
+                auto blank = brush.dry(); // Like in altbuf.
                 auto clear = [&](twod from)
                 {
                     auto head = index.begin();
@@ -6428,7 +6428,7 @@ namespace netxs::ui
                                      { std::abs(upcur.coor.x - dncur.coor.x) + 1, selection_height(head, tail, upcur, dncur) }};
                     auto clip = rect{ dot_00, area.size };
                     auto full = rect{ -area.coor, { panel.x, area.coor.y + area.size.y }};
-                    dest.core::size(area.size, brush.dry());
+                    dest.core::size(area.size, brush.spare.dry());
                     dest.core::clip(clip);
                     dest.flow::full(full);
                     do
