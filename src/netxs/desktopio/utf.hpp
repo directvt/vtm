@@ -2085,7 +2085,7 @@ namespace netxs::utf
         utf8.remove_prefix(std::distance(utf8.begin(), head));
     }
     // utf: Trim the utf8 back.
-    void trim_back(view& utf8, char c = ' ')
+    void trim_back(auto& utf8, char c = ' ')
     {
         auto head = utf8.rbegin();
         auto tail = utf8.rend();
@@ -2093,7 +2093,17 @@ namespace netxs::utf
         {
             ++head;
         }
-        utf8.remove_suffix(std::distance(utf8.rbegin(), head));
+        if (auto count = std::distance(utf8.rbegin(), head))
+        {
+            if constexpr (requires{ utf8.remove_suffix(1); })
+            {
+                utf8.remove_suffix(count);
+            }
+            else
+            {
+                utf8.resize(utf8.size() - count);
+            }
+        }
     }
     // utf: Trim the utf8 front.
     void trim_front(view& utf8, view delims)
