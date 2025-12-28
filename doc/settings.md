@@ -677,6 +677,8 @@ Standard object names
 |                 |                          | `vtm.terminal.ResetAttributes()`                   | Reset scrollback buffer attributes (SGR attributes, line wrapping, scrollback buffer padding, line alignment, cursor form, selection copy format).
 |                 |                          | `vtm.terminal.EventReporting(string args, ...)`    | Enable event reporting for the specified sources:<br>`"keyboard"` Keyboard events<br>`"mouse"` Mouse events<br>`"focus"` Focus events<br>`"format"` Line format events<br>`"clipboard"` Clipboard events<br>`"window"` Window size and selection events<br>`"system"` System signals<br>`""` Switch event reporting off.
 |                 |                          | `vtm.terminal.EventReporting()`                    | Get a list of active event sources.
+|                 |                          | `vtm.terminal.CodePage(int n)`                     | Set input/output code page (it only makes sense on Windows).
+|                 |                          | `vtm.terminal.CodePage() -> int n`                 | Get current input/output code page (it only makes sense on Windows).
 |                 |                          | `vtm.terminal.Restart()`                           | Restart the current terminal session.
 |                 |                          | `vtm.terminal.Quit()`                              | Close terminal.
 

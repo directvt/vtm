@@ -30,6 +30,12 @@ struct consrv
     virtual void style(si32 style) = 0;
     virtual std::optional<text> get_current_line() = 0;
     virtual void sighup() = 0;
+    virtual ui32 get_cp()
+    {
+        return 65001u;
+    }
+    virtual void set_cp(ui32)
+    { }
     void cleanup(bool io_log)
     {
         if (waitexit.joinable())
@@ -2185,6 +2191,12 @@ struct impl : consrv
         return langmap;
     }
 
+    ui32 get_cp()
+    {
+        auto lock = std::lock_guard{ events.locker };
+        auto& o = outenc;
+        return o->codepage;
+    }
     void set_cp(ui32 c)
     {
         auto lock = std::lock_guard{ events.locker };
