@@ -10,7 +10,7 @@ Build-time dependencies
  - `git`
  - `FreeType`
  - `HarfBuzz`
- - `Lua`
+ - `Lua` (minimum version v5.4)
 
 Examples of installing dependencies:
 

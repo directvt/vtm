@@ -132,6 +132,7 @@ namespace netxs::ui
             X(TabLength            ) /* */ \
             X(RightToLeft          ) /* */ \
             X(EventReporting       ) /* */ \
+            X(CodePage             ) /* */ \
             X(Restart              ) /* */ \
             X(Quit                 ) /* */ \
 
@@ -8884,6 +8885,30 @@ namespace netxs::ui
                                                             exec_cmd(commands::ui::restart);
                                                             gear.set_handled();
                                                         });
+                                                    }},
+                { methods::CodePage,                [&]
+                                                    {
+                                                        target->flush();
+                                                        if (!ipccon.termlink)
+                                                        {
+                                                            luafx.set_return();
+                                                        }
+                                                        else
+                                                        {
+                                                            auto args_count = luafx.args_count();
+                                                            if (!args_count)
+                                                            {
+                                                                luafx.set_return(ipccon.termlink->get_cp());
+                                                            }
+                                                            else
+                                                            {
+                                                                if (auto codepage = luafx.get_args_or(1, 0))
+                                                                {
+                                                                    ipccon.termlink->set_cp(codepage);
+                                                                }
+                                                                luafx.set_return();
+                                                            }
+                                                        }
                                                     }},
                 { methods::Quit,                    [&]
                                                     {
