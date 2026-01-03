@@ -23,7 +23,7 @@ add_executable(vtm "src/vtm.cpp" $ENV{WIN32_RESOURCES})
 
 find_package(Freetype REQUIRED)
 find_package(harfbuzz REQUIRED)
-find_package(Lua      REQUIRED)
+find_package(Lua 5.4  REQUIRED)
 
 add_library(Lua::Lua INTERFACE IMPORTED)
 set_target_properties(Lua::Lua PROPERTIES INTERFACE_LINK_LIBRARIES "${LUA_LIBRARIES}")
