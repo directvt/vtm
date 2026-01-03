@@ -5246,6 +5246,12 @@ struct consrv : ipc::stdcon
         stdcon::stop();
         return code;
     }
+    ui32 get_cp()
+    {
+        return 65001u;
+    }
+    void set_cp(ui32)
+    { }
 };
 
 #endif
