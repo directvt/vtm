@@ -273,6 +273,26 @@ namespace netxs::events
             return 0;
         });
     }
+    si32 luna::vtmlua_terminal_index(lua_State* lua)
+    {
+        // Stack:
+        //      1. userdata (or table).
+        //      2. func name (keyname).
+        //if constexpr (debugmode) log("vtmlua_terminal_index: 1: %% 2: %%", luna::vtmlua_torawstring(lua, 1), luna::vtmlua_torawstring(lua, 2));
+        return luna::vtmlua_run_with_indexer(lua, [&](auth& indexer)
+        {
+            auto& source_ctx = indexer.context_refs.back().get();
+            if (auto target_ptr = indexer.get_target(source_ctx, "terminal"))
+            {
+                ::lua_pushlightuserdata(lua, target_ptr); // Push object ptr.
+                ::lua_pushvalue(lua, 2); // Push the func_name again for vtmlua_call_method (it is located at the index 2 in the stack).
+                ::lua_pushcclosure(lua, luna::vtmlua_call_method, 2);
+                return 1;
+            }
+            log("%%No 'vtm.%%' object found", prompt::lua, "terminal");
+            return 0;
+        });
+    }
     si32 luna::push_value(auto&& v)
     {
         return luna::vtmlua_push_value(lua, v);
@@ -584,6 +604,16 @@ namespace netxs::events
         ::lua_createtable(lua, 0, 100); // 100 is a hint for the number of non-sequential (associative array-like) elements the table will have.
         ::lua_settable(lua, LUA_REGISTRYINDEX); // Set internal registry['precompiled'] = <precompiled function table>.
 
+        // Define 'terminal' redirecting metatable (alias for vtm.terminal).
+        static auto terminal_metaindex = std::to_array<luaL_Reg>({{ "__index",    luna::vtmlua_terminal_index },
+                                                                  { "__tostring", luna::vtmlua_object2string },
+                                                                  { nullptr, nullptr }});
+        ::luaL_newmetatable(lua, "terminal_metaindex"); // Create a new metatable in registry and push it to the stack.
+        ::luaL_setfuncs(lua, terminal_metaindex.data(), 0); // Assign metamethods for the table which at the top of the stack.
+            ::lua_createtable(lua, 0, 0); // Create and push new "terminal.*" global table.
+            ::luaL_setmetatable(lua, "terminal_metaindex"); // Set the metatable for table at -1.
+            ::lua_setglobal(lua, basename::terminal.data()); // Set global var "terminal". Pop "terminal".
+
         // Define 'vtm' redirecting metatable.
         static auto vtm_metaindex = std::to_array<luaL_Reg>({{ "__index",    luna::vtmlua_vtm_index },
                                                              { "__tostring", luna::vtmlua_object2string },
@@ -595,13 +625,13 @@ namespace netxs::events
             ::luaL_setmetatable(lua, "vtm_metaindex"); // Set the metatable for table at -1.
             ::lua_setglobal(lua, basename::vtm.data()); // Set global var "vtm". Pop "vtm".
 
-        // Define sub-vtm.* redirecting metatable.
+        // Define vtm.* redirecting metatable.
         static auto vtm_submetaindex = std::to_array<luaL_Reg>({{ "__index", luna::vtmlua_vtm_subindex },
                                                                 { nullptr, nullptr }});
         ::luaL_newmetatable(lua, "vtm_submetaindex"); // Create a new metatable in registry and push it to the stack.
         ::luaL_setfuncs(lua, vtm_submetaindex.data(), 0); // Assign metamethods for the table which at the top of the stack.
 
-        // Define sub-vtm.config.* redirecting metatable.
+        // Define vtm.config.* redirecting metatable.
         static auto cfg_submetaindex = std::to_array<luaL_Reg>({{ "__index", luna::vtmlua_cfg_subindex },
                                                                 { nullptr, nullptr }});
         ::luaL_newmetatable(lua, "cfg_submetaindex"); // Create a new metatable in registry and push it to the stack.

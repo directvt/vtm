@@ -110,13 +110,16 @@ where:
 - `ESC\` or `BEL`: APC vt-sequence terminator.
 
 Usage examples:
+
+Note: The global variable `terminal` (in the Lua namespace) is an alias for `vtm.terminal`.
+
 - `bash`:
   ```
   # Print the current scrollback buffer limits
-  printf "\e_lua: local n,m,q=vtm.terminal.ScrollbackSize(); vtm.terminal.PrintLn('size=', n, ' growstep=', m, ' maxsize=', q)\e\\"
+  printf "\e_lua: local n,m,q=terminal.ScrollbackSize(); terminal.PrintLn('size=', n, ' growstep=', m, ' maxsize=', q)\e\\"
 
   # Set the scrollback buffer limit to 10K lines
-  printf "\e_lua: vtm.terminal.ScrollbackSize(10000)\a"
+  printf "\e_lua: terminal.ScrollbackSize(10000)\a"
 
   # Maximize the terminal window
   printf "\e_lua: vtm.applet.Maximize()\e\\"
@@ -128,9 +131,9 @@ Note: The terminal parser may incorrectly detect the boundaries of a control seq
 
 Example in bash:
 ```bash
-printf "\e_lua: vtm.terminal.PrintLn('\\e[44mHello!\\e[m')\a"
-printf "\e_lua: vtm.terminal.PrintLn('\\\u{1b}[44mHello!\\\u{1b}[m')\a"
-printf "\e_lua: vtm.terminal.PrintLn('\\x1b[44mHello!\\x1b[m')\a"
+printf "\e_lua: terminal.PrintLn('\\e[44mHello!\\e[m')\a"
+printf "\e_lua: terminal.PrintLn('\\\u{1b}[44mHello!\\\u{1b}[m')\a"
+printf "\e_lua: terminal.PrintLn('\\x1b[44mHello!\\x1b[m')\a"
 ```
 
 ### Special keyboard mode for terminal window to transfer all keyboard input to the terminal as is
@@ -141,17 +144,17 @@ The special (visible in the UI as Exclusive) terminal window mode allows all key
 
 Note: Since `CSI p` sequences are used by other terminals, all private vt-sequences must be replaced with alternative ones using Lua scripting via APC.
 
-APC sequence                                                   | Deprecated sequence                | Description
----------------------------------------------------------------|------------------------------------|------------
-`ESC _ lua: vtm.terminal.ScrollbackSize(` n `,` m `,` q `) ST` | `ESC [ 24 :` n `:` m `:` q `p`     | Set scrollback buffer parameters:<br>`n` Initial buffer size<br>`m` Grow step<br>`q` Grow limit
-`ESC _ lua: vtm.terminal.Print('\x1b[#{\x1b[0;` m `m'); vtm.terminal.SetBackground(); vtm.terminal.Print('\x1b[#}') ST` | `ESC [ 28 :` m `p` | Set terminal background SGR attribute:<br>`m` SGR attribute (attribute m may include subarguments separated by colons), 0 - reset all attributes, _default is 0_
-`ESC _ lua: vtm.terminal.ClipboardFormat(` n `) ST`            | `ESC [ 29 :` n `p`                 | Set text selection mode:<br>`n = 0` Selection is off<br>`n = 1` Select and copy as plaintext (default)<br>`n = 2` Select and copy as ANSI/VT text<br>`n = 3` Select and copy as RTF-document<br>`n = 4` Select and copy as HTML-code<br>`n = 5` Select and copy as protected plaintext (suppressed preview, [details](https://learn.microsoft.com/en-us/windows/win32/dataxchg/clipboard-formats#cloud-clipboard-and-clipboard-history-formats))
-`ESC _ lua: vtm.terminal.ScrollbackPadding(` n `) ST`          | `ESC [ 30 :` n `p`                 | Set scrollback buffer left and right side padding:<br>`n` Width in cells, _max = 255, default is 0_
-`ESC _ lua: vtm.terminal.ResetAttributes() ST`                 | `ESC [ 1 p`                        | Reset all parameters to default
-`ESC _ lua: vtm.terminal.TabLength(` n `) ST`                  | `ESC [ 5 :` n `p`                  | Set tab length in cells:<br>`n` Length in cells, _max = 256, default is 8_
-`ESC _ lua: vtm.terminal.LineAlignMode(` n - 1 `) ST`          | `ESC [ 11 :` n `p`                 | Set text alignment, _default is Left_:<br>`n = 0`<br>`n = 1` Left<br>`n = 2` Right<br>`n = 3` Center
-`ESC _ lua: vtm.terminal.LineWrapMode(` 0(off) or 1(on) `) ST` | `ESC [ 12 :` n `p`                 | Set text autowrap mode, _default is On_:<br>`n = 0`<br>`n = 1` On<br>`n = 2` Off (_enables horizontal scrolling_)
-`ESC _ lua: vtm.terminal.RightToLeft(` 0(off) or 1(on) `) ST`  | `ESC [ 13 :` n `p`                 | Set text right-to-left mode, _default is Off_:<br>`n = 0`<br>`n = 1` On<br>`n = 2` Off
+APC sequence                                               | Deprecated sequence                | Description
+-----------------------------------------------------------|------------------------------------|------------
+`ESC _ lua: terminal.ScrollbackSize(` n `,` m `,` q `) ST` | `ESC [ 24 :` n `:` m `:` q `p`     | Set scrollback buffer parameters:<br>`n` Initial buffer size<br>`m` Grow step<br>`q` Grow limit
+`ESC _ lua: terminal.Print('\x1b[#{\x1b[0;` m `m'); terminal.SetBackground(); terminal.Print('\x1b[#}') ST` | `ESC [ 28 :` m `p` | Set terminal background SGR attribute:<br>`m` SGR attribute (attribute m may include subarguments separated by colons), 0 - reset all attributes, _default is 0_
+`ESC _ lua: terminal.ClipboardFormat(` n `) ST`            | `ESC [ 29 :` n `p`                 | Set text selection mode:<br>`n = 0` Selection is off<br>`n = 1` Select and copy as plaintext (default)<br>`n = 2` Select and copy as ANSI/VT text<br>`n = 3` Select and copy as RTF-document<br>`n = 4` Select and copy as HTML-code<br>`n = 5` Select and copy as protected plaintext (suppressed preview, [details](https://learn.microsoft.com/en-us/windows/win32/dataxchg/clipboard-formats#cloud-clipboard-and-clipboard-history-formats))
+`ESC _ lua: terminal.ScrollbackPadding(` n `) ST`          | `ESC [ 30 :` n `p`                 | Set scrollback buffer left and right side padding:<br>`n` Width in cells, _max = 255, default is 0_
+`ESC _ lua: terminal.ResetAttributes() ST`                 | `ESC [ 1 p`                        | Reset all parameters to default
+`ESC _ lua: terminal.TabLength(` n `) ST`                  | `ESC [ 5 :` n `p`                  | Set tab length in cells:<br>`n` Length in cells, _max = 256, default is 8_
+`ESC _ lua: terminal.LineAlignMode(` n - 1 `) ST`          | `ESC [ 11 :` n `p`                 | Set text alignment, _default is Left_:<br>`n = 0`<br>`n = 1` Left<br>`n = 2` Right<br>`n = 3` Center
+`ESC _ lua: terminal.LineWrapMode(` 0(off) or 1(on) `) ST` | `ESC [ 12 :` n `p`                 | Set text autowrap mode, _default is On_:<br>`n = 0`<br>`n = 1` On<br>`n = 2` Off (_enables horizontal scrolling_)
+`ESC _ lua: terminal.RightToLeft(` 0(off) or 1(on) `) ST`  | `ESC [ 13 :` n `p`                 | Set text right-to-left mode, _default is Off_:<br>`n = 0`<br>`n = 1` On<br>`n = 2` Off
 
 ### TUI Shadows as SGR attribute
 

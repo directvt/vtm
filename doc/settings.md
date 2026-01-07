@@ -682,6 +682,8 @@ Standard object names
 |                 |                          | `vtm.terminal.Restart()`                           | Restart the current terminal session.
 |                 |                          | `vtm.terminal.Quit()`                              | Close terminal.
 
+Note: The global variable `terminal` (in the Lua namespace) is an alias for `vtm.terminal`.
+
 #### Examples
 
 Key bindings:
