@@ -6,7 +6,7 @@ Vtm is a text-based application that introduces a new class of Hybrid TUI (HTUI)
   <img width="400" alt="Demo on YouTube" src="https://user-images.githubusercontent.com/11535558/146906370-c9705579-1bbb-4e9e-8977-47312f551cc8.gif">
 </a>
 
-## Key Features & Benefits
+## Key features & benefits
 
 | Feature                                                       | Benefit
 |---------------------------------------------------------------|--------
@@ -22,17 +22,17 @@ Vtm is a text-based application that introduces a new class of Hybrid TUI (HTUI)
 | [Horizontal Scrolling](doc/apps.md#private-control-sequences) | Support for displaying simultaneously wrapped and non-wrapped text runs in the terminal with horizontal scrolling.
 | Windows Console Server                                        | In-process Windows Console Server own implementation on Windows and independence from `conhost.exe`.
 
-## Get Started
+## Get started
 
-### Desktop Mode
+### Desktop mode
 
 Run `vtm` to start the desktop environment.
 
-### Terminal Mode
+### Terminal mode
 
 Run `vtm -r term [<your_shell>]` to use vtm as a full-fledged standalone terminal emulator.
 
-### Try Auto-DirectVT via SSH
+### Try auto-DirectVT via SSH
 
 Accessing vtm via SSH with auto-DirectVT mode outperforms the classic connection:
 
