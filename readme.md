@@ -42,7 +42,7 @@ vtm ssh user@host vtm
 
 ### Demos
 
-Check Out VT2D Power (Windows only for now):
+Check out VT2D power (Windows only for now):
 
 ```bash
 vtm --run test
