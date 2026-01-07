@@ -48,15 +48,15 @@ The following APC sequences are used to set, reset, or request the current event
 
 - Set:
   ```
-  ESC _ lua: vtm.terminal.EventReporting("Source0", ..., "SourceN") ESC \
+  ESC _ lua: terminal.EventReporting("Source0", ..., "SourceN") ESC \
   ```
 - Reset (the event tracking is deactivated if an empty string is specified):
   ```
-  ESC _ lua: vtm.terminal.EventReporting("") ESC \
+  ESC _ lua: terminal.EventReporting("") ESC \
   ```
 - Get a list of active sources:
   ```
-  ESC _ lua: src_list=vtm.terminal.EventReporting() ESC \
+  ESC _ lua: src_list=terminal.EventReporting() ESC \
   ```
 
 Sources      | Events to track
