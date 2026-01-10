@@ -1296,17 +1296,34 @@ namespace netxs::gui
                 for (auto& [h, v] : fcache.fontshaper.glyf_align) h *= k;
                 k = 1.f;
             }
-            if (!f.monospaced && img_alignment.x == snap::none && !is_box_drawing)
+            if (!f.monospaced && !is_box_drawing)
             {
-                auto offset = (matrix.x - length) / 2.f;
-                if (is_rtl) base_line.x -= offset; // Centrify actual proportional glyph as is.
-                else        base_line.x += offset; //
+                auto offset = matrix.x - length; // This (using length) will allow us to seamlessly connect the two fragments.
+                if (img_alignment.x == snap::none || img_alignment.x == snap::center)
+                {
+                    if (is_rtl) base_line.x -= offset / 2.f; // Centrify actual proportional glyph as is.
+                    else        base_line.x += offset / 2.f; //
+                }
+                else if (img_alignment.x == snap::tail)
+                {
+                    if (is_rtl) base_line.x -= offset;
+                    else        base_line.x += offset;
+                }
             }
             else if (img_alignment.x != snap::none && actual_width < matrix.x)
             {
-                     if (img_alignment.x == snap::center) base_line.x += (matrix.x - actual_width) / 2.f; // Center the cell containing the glyph, not the glyph outline itself.
-                else if (img_alignment.x == snap::tail  ) base_line.x += matrix.x - actual_width;
-                //else if (img_alignment.x == snap::head  ) base_line.x = 0;
+                auto offset = matrix.x - actual_width;
+                if (img_alignment.x == snap::center)
+                {
+                    if (is_rtl) base_line.x -= offset / 2.f; // Center the cell containing the glyph, not the glyph outline itself.
+                    else        base_line.x += offset / 2.f; //
+                }
+                else if (img_alignment.x == snap::tail)
+                {
+                    if (is_rtl) base_line.x -= offset;
+                    else        base_line.x += offset;
+                }
+                //else if (img_alignment.x == snap::head) base_line.x = 0;
             }
             if (img_alignment.y != snap::none && actual_height < matrix.y)
             {
