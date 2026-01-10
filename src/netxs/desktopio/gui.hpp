@@ -438,7 +438,8 @@ namespace netxs::gui
                 u.base_descent = std::max(1.f, m.descent + m.lineGap / 2.0f);
                 // Take metrics for "x" or ".notdef" in case of missing 'x'. Note: ".notdef" is double sized ("x" is narrow) in CJK fonts.
                 //auto code_points = ui32{ 'x' };
-                auto code_points = std::to_array<ui32>({ 'W', 'i' }); // U is approximately half an emoji square in the Segoe Emoji font.
+                //auto code_points = std::to_array<ui32>({ 'W', 'i' });
+                auto code_points = std::to_array<ui32>({ 'U', 'i' }); // U is approximately half an emoji square in the Segoe Emoji font. W and M may be cut in size. This is a compromise for proportional fonts. Otherwise, emoji become too small.
                 auto glyph_index = std::array<ui16, code_points.size()>{};
                 auto glyph_metrics = std::array<DWRITE_GLYPH_METRICS, code_points.size()>{};
                 faceinst->GetGlyphIndices(code_points.data(), (ui32)code_points.size(), glyph_index.data());
