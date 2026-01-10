@@ -636,42 +636,21 @@ namespace netxs::gui
                 auto length = fp32{};
                 auto penpos = fp32{};
                 auto revpad = fp32{};
-                if (is_monospaced)
+                for (auto i = 0u; i < glyf_count; ++i)
                 {
-                    for (auto i = 0u; i < glyf_count; ++i)
-                    {
-                        auto& w = glyf_steps[i];
-                        if (w != 0) w = grid_step; // Align with our cell grid (Custom Advances).
-                        auto f = glyf_sizes[i].rightSideBearing;
-                        auto r = glyf_sizes[i].leftSideBearing;
-                        if (is_rtl) std::swap(f, r); // Convert side bearings to the rtl direction.
-                        auto fwd_bearing = w - f * transform; // Convert from design units to our scale (glyf_sizes).
-                        auto rev_bearing = -r * transform;    //
-                        auto glyphpos = penpos + glyf_align[i].advanceOffset; // It is already in our scale.
-                        auto fwd_most = glyphpos + fwd_bearing;
-                        auto rev_most = glyphpos - rev_bearing;
-                        revpad = std::min(revpad, rev_most); // Negative or 0.
-                        length = std::max(length, fwd_most);
-                        penpos += w; // It is already in our scale.
-                    }
-                }
-                else // Use original glyph metrics.
-                {
-                    for (auto i = 0u; i < glyf_count; ++i)
-                    {
-                        auto w = glyf_sizes[i].advanceWidth;
-                        auto f = glyf_sizes[i].rightSideBearing;
-                        auto r = glyf_sizes[i].leftSideBearing;
-                        if (is_rtl) std::swap(f, r); // Convert side bearings to the rtl direction.
-                        auto fwd_bearing = ((si32)w - f) * transform; // Convert from design units to our scale (glyf_sizes).
-                        auto rev_bearing = -r * transform;            //
-                        auto glyphpos = penpos + glyf_align[i].advanceOffset; // It is already in our scale.
-                        auto fwd_most = glyphpos + fwd_bearing;
-                        auto rev_most = glyphpos - rev_bearing;
-                        revpad = std::min(revpad, rev_most); // Negative or 0.
-                        length = std::max(length, fwd_most);
-                        penpos += glyf_steps[i]; // It is already in our scale.
-                    }
+                    auto& w = glyf_steps[i];
+                    if (is_monospaced && w != 0) w = grid_step; // Align pen step with our cell grid (Custom Advances).
+                    auto f = glyf_sizes[i].rightSideBearing;
+                    auto r = glyf_sizes[i].leftSideBearing;
+                    if (is_rtl) std::swap(f, r); // Convert side bearings to the rtl direction.
+                    auto fwd_bearing = w - f * transform; // Convert from design units to our scale (glyf_sizes).
+                    auto rev_bearing = -r * transform;    //
+                    auto glyphpos = penpos + glyf_align[i].advanceOffset; // It is already in our scale.
+                    auto fwd_most = glyphpos + fwd_bearing;
+                    auto rev_most = glyphpos - rev_bearing;
+                    revpad = std::min(revpad, rev_most); // Negative or 0.
+                    length = std::max(length, fwd_most);
+                    penpos += w; // It is already in our scale.
                 }
                 length += -revpad; // revpad is negative or 0.
                 return length;
