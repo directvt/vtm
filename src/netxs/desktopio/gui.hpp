@@ -569,7 +569,7 @@ namespace netxs::gui
                 : fcache{ fcache }
             { }
 
-            fp32 generate_glyph_run(std::vector<utf::prop>& codepoints, ui16 script, BOOL is_rtl, fp32 em_height, fp32 transform)
+            fp32 generate_glyph_run(std::vector<utf::prop>& codepoints, ui16 script, BOOL is_rtl, fp32 em_height, fp32 transform, bool is_monospaced, fp32 grid_step)
             {
                 //todo use otf tables directly: GSUB etc
                 //gindex.resize(codepoints.size());
@@ -636,20 +636,42 @@ namespace netxs::gui
                 auto length = fp32{};
                 auto penpos = fp32{};
                 auto revpad = fp32{};
-                for (auto i = 0u; i < glyf_count; ++i)
+                if (is_monospaced)
                 {
-                    auto w = glyf_sizes[i].advanceWidth;
-                    auto f = glyf_sizes[i].rightSideBearing;
-                    auto r = glyf_sizes[i].leftSideBearing;
-                    if (is_rtl) std::swap(f, r); // Convert side bearings to the rtl direction.
-                    auto fwd_bearing = ((si32)w - f) * transform; // Convert from design units to our scale (glyf_sizes).
-                    auto rev_bearing = -r * transform;            //
-                    auto glyphpos = penpos + glyf_align[i].advanceOffset; // It is already in our scale.
-                    auto fwd_most = glyphpos + fwd_bearing;
-                    auto rev_most = glyphpos - rev_bearing;
-                    revpad = std::min(revpad, rev_most); // Negative or 0.
-                    length = std::max(length, fwd_most);
-                    penpos += glyf_steps[i]; // It is already in our scale.
+                    for (auto i = 0u; i < glyf_count; ++i)
+                    {
+                        auto& w = glyf_steps[i];
+                        if (w != 0) w = grid_step; // Align with our cell grid (Custom Advances).
+                        auto f = glyf_sizes[i].rightSideBearing;
+                        auto r = glyf_sizes[i].leftSideBearing;
+                        if (is_rtl) std::swap(f, r); // Convert side bearings to the rtl direction.
+                        auto fwd_bearing = w - f * transform; // Convert from design units to our scale (glyf_sizes).
+                        auto rev_bearing = -r * transform;    //
+                        auto glyphpos = penpos + glyf_align[i].advanceOffset; // It is already in our scale.
+                        auto fwd_most = glyphpos + fwd_bearing;
+                        auto rev_most = glyphpos - rev_bearing;
+                        revpad = std::min(revpad, rev_most); // Negative or 0.
+                        length = std::max(length, fwd_most);
+                        penpos += w; // It is already in our scale.
+                    }
+                }
+                else // Use original glyph metrics.
+                {
+                    for (auto i = 0u; i < glyf_count; ++i)
+                    {
+                        auto w = glyf_sizes[i].advanceWidth;
+                        auto f = glyf_sizes[i].rightSideBearing;
+                        auto r = glyf_sizes[i].leftSideBearing;
+                        if (is_rtl) std::swap(f, r); // Convert side bearings to the rtl direction.
+                        auto fwd_bearing = ((si32)w - f) * transform; // Convert from design units to our scale (glyf_sizes).
+                        auto rev_bearing = -r * transform;            //
+                        auto glyphpos = penpos + glyf_align[i].advanceOffset; // It is already in our scale.
+                        auto fwd_most = glyphpos + fwd_bearing;
+                        auto rev_most = glyphpos - rev_bearing;
+                        revpad = std::min(revpad, rev_most); // Negative or 0.
+                        length = std::max(length, fwd_most);
+                        penpos += glyf_steps[i]; // It is already in our scale.
+                    }
                 }
                 length += -revpad; // revpad is negative or 0.
                 return length;
@@ -896,7 +918,7 @@ namespace netxs::gui
                     //...
                 }
             };
-            fp32 generate_glyph_run(std::vector<utf::prop>& /*codepoints*/, ui16 /*script*/, bool /*is_rtl*/, fp32 /*em_height*/, fp32 /*transform*/)
+            fp32 generate_glyph_run(std::vector<utf::prop>& /*codepoints*/, ui16 /*script*/, bool /*is_rtl*/, fp32 /*em_height*/, fp32 /*transform*/, bool /*is_monospaced*/ , fp32 /*grid_step*/)
             {
                 return fp32{};
             }
@@ -1254,6 +1276,7 @@ namespace netxs::gui
             auto base_line = f.fontface[format].base_line;
             //auto actual_sz = f.fontface[format].actual_sz;
             auto actual_height = (fp32)cellsz.y;
+            auto grid_step = (fp32)cellsz.x;
             auto mtx = c.mtx();
             auto matrix = fp2d{ mtx * cellsz };
             auto swapxy = flipandrotate & 1;
@@ -1265,14 +1288,15 @@ namespace netxs::gui
                 em_height *= f.ratio;
                 base_line *= f.ratio;
                 actual_height *= f.ratio;
+                grid_step *= f.ratio;
             }
             auto script = unidata::script(codepoints.front().cdpoint);
             auto is_rtl = script >= 100 && script <= 199;
-            auto length = fcache.fontshaper.generate_glyph_run(codepoints, script, is_rtl, em_height, transform); // Generate glyph run and get its length in pixels (fp32).
+            auto length = fcache.fontshaper.generate_glyph_run(codepoints, script, is_rtl, em_height, transform, f.monospaced, grid_step); // Generate glyph run and get its length in pixels (fp32).
             if (!length) return;
             auto actual_width = swapxy ? std::max(1.f, length) :
                         is_box_drawing ? std::max(1.f, std::floor((length / cellsz.x))) * cellsz.x
-                                       : std::max(1.f, std::ceil(((length - (mtx.x * 0.114f/*min=0.113: Bold+Italic Courier V*/) * cellsz.x) / cellsz.x))) * cellsz.x;
+                                       : std::max(1.f, std::ceil(((length - (mtx.y/*glyph scale*/ * 0.114f/*min=0.113: Bold+Italic Courier V*/) * cellsz.x) / cellsz.x))) * cellsz.x;
             auto k = 1.f;
             if (actual_width > matrix.x) // Check if the glyph exceeds the matrix width. (scale down)
             {
