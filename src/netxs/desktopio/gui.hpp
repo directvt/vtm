@@ -128,6 +128,7 @@ namespace netxs::gui
             ui32                  index{ ~0u };
             bool                  color{ faux };
             bool                  fixed{ faux }; // Preserve specified font order.
+            bool                  monospaced{ faux };
             text                  font_name;
 
             typeface() = default;
@@ -435,17 +436,19 @@ namespace netxs::gui
                 u.base_x_height = std::max(1, (si32)m.xHeight);
                 u.base_ascent = std::max(1.f, m.ascent + m.lineGap / 2.0f);
                 u.base_descent = std::max(1.f, m.descent + m.lineGap / 2.0f);
-                auto glyph_metrics = DWRITE_GLYPH_METRICS{};
                 // Take metrics for "x" or ".notdef" in case of missing 'x'. Note: ".notdef" is double sized ("x" is narrow) in CJK fonts.
                 //auto code_points = ui32{ 'x' };
-                auto code_points = ui32{ 'U' }; // U is approximately half an emoji square in the Segoe Emoji font.
-                auto glyph_index = ui16{ 0 };
-                faceinst->GetGlyphIndices(&code_points, 1, &glyph_index);
-                faceinst->GetDesignGlyphMetrics(&glyph_index, 1, &glyph_metrics, faux);
+                //auto code_points = std::to_array<ui32>({ 'W', 'i' });
+                auto code_points = std::to_array<ui32>({ 'U', 'i' }); // U is approximately half an emoji square in the Segoe Emoji font. W and M may be cut in size. This is a compromise for proportional fonts. Otherwise, emoji become too small.
+                auto glyph_index = std::array<ui16, code_points.size()>{};
+                auto glyph_metrics = std::array<DWRITE_GLYPH_METRICS, code_points.size()>{};
+                faceinst->GetGlyphIndices(code_points.data(), (ui32)code_points.size(), glyph_index.data());
+                faceinst->GetDesignGlyphMetrics(glyph_index.data(), (ui32)code_points.size(), glyph_metrics.data(), faux);
                 u.facesize.y = (fp32)std::max(2, m.ascent + m.descent + m.lineGap);
-                u.facesize.x = glyph_metrics.advanceWidth ? (fp32)glyph_metrics.advanceWidth : u.facesize.y / 2;
+                u.facesize.x = glyph_metrics[0].advanceWidth ? (fp32)glyph_metrics[0].advanceWidth : u.facesize.y / 2;
                 u.ratio = u.facesize.x / u.facesize.y;
                 u.color = iscolor(faceinst);
+                u.monospaced = glyph_metrics[0].advanceWidth == glyph_metrics[1].advanceWidth;
             }
         }
         static ui16 msscript(ui32 code) // fonts: ISO<->MS script map.
@@ -628,19 +631,27 @@ namespace netxs::gui
                                                          glyf_steps.data(),       // _Out_writes_(glyphCount) FLOAT* glyphAdvances,
                                                          glyf_align.data());      // _Out_writes_(glyphCount) DWRITE_GLYPH_OFFSET* glyphOffsets
                 if (hr != S_OK) return 0;
-                hr = faceinst->GetDesignGlyphMetrics(glyf_index.data(), glyf_count, glyf_sizes.data(), faux);
+                hr = faceinst->GetDesignGlyphMetrics(glyf_index.data(), glyf_count, glyf_sizes.data(), faux); // Non-normalized.
                 if (hr != S_OK) return 0;
                 auto length = fp32{};
                 auto penpos = fp32{};
+                auto revpad = fp32{};
                 for (auto i = 0u; i < glyf_count; ++i)
                 {
                     auto w = glyf_sizes[i].advanceWidth;
-                    auto r = glyf_sizes[i].rightSideBearing;
-                    auto bearing = ((si32)w - r) * transform;
-                    auto right_most = penpos + glyf_align[i].advanceOffset + bearing;
-                    length = std::max(length, right_most);
-                    penpos += glyf_steps[i];
+                    auto f = glyf_sizes[i].rightSideBearing;
+                    auto r = glyf_sizes[i].leftSideBearing;
+                    if (is_rtl) std::swap(f, r); // Convert side bearings to the rtl direction.
+                    auto fwd_bearing = ((si32)w - f) * transform; // Convert from design units to our scale (glyf_sizes).
+                    auto rev_bearing = -r * transform;            //
+                    auto glyphpos = penpos + glyf_align[i].advanceOffset; // It is already in our scale.
+                    auto fwd_most = glyphpos + fwd_bearing;
+                    auto rev_most = glyphpos - rev_bearing;
+                    revpad = std::min(revpad, rev_most); // Negative or 0.
+                    length = std::max(length, fwd_most);
+                    penpos += glyf_steps[i]; // It is already in our scale.
                 }
+                length += -revpad; // revpad is negative or 0.
                 return length;
             }
         };
@@ -1249,6 +1260,7 @@ namespace netxs::gui
             if (swapxy)
             {
                 std::swap(matrix.x, matrix.y);
+                std::swap(mtx.x, mtx.y);
                 transform *= f.ratio;
                 em_height *= f.ratio;
                 base_line *= f.ratio;
@@ -1256,7 +1268,7 @@ namespace netxs::gui
             }
             auto script = unidata::script(codepoints.front().cdpoint);
             auto is_rtl = script >= 100 && script <= 199;
-            auto length = fcache.fontshaper.generate_glyph_run(codepoints, script, is_rtl, em_height, transform);
+            auto length = fcache.fontshaper.generate_glyph_run(codepoints, script, is_rtl, em_height, transform); // Generate glyph run and get its length in pixels (fp32).
             if (!length) return;
             auto actual_width = swapxy ? std::max(1.f, length) :
                         is_box_drawing ? std::max(1.f, std::floor((length / cellsz.x))) * cellsz.x
@@ -1265,6 +1277,7 @@ namespace netxs::gui
             if (actual_width > matrix.x) // Check if the glyph exceeds the matrix width. (scale down)
             {
                 k = matrix.x / length;
+                length = matrix.x;
                 actual_width = matrix.x;
                 actual_height *= k;
                 em_height *= k;
@@ -1274,6 +1287,7 @@ namespace netxs::gui
             else if (actual_height < matrix.y || actual_width < matrix.x) // Check if the glyph is too small for the matrix. (scale up)
             {
                 k = std::min(matrix.x / actual_width, matrix.y / actual_height);
+                length *= k;
                 actual_width *= k;
                 actual_height *= k;
                 base_line *= k;
@@ -1282,9 +1296,15 @@ namespace netxs::gui
                 for (auto& [h, v] : fcache.fontshaper.glyf_align) h *= k;
                 k = 1.f;
             }
-            if (img_alignment.x != snap::none && actual_width < matrix.x)
+            if (!f.monospaced && img_alignment.x == snap::none && !is_box_drawing)
             {
-                     if (img_alignment.x == snap::center) base_line.x += (matrix.x - actual_width) / 2.f;
+                auto offset = (matrix.x - length) / 2.f;
+                if (is_rtl) base_line.x -= offset; // Centrify actual proportional glyph as is.
+                else        base_line.x += offset; //
+            }
+            else if (img_alignment.x != snap::none && actual_width < matrix.x)
+            {
+                     if (img_alignment.x == snap::center) base_line.x += (matrix.x - actual_width) / 2.f; // Center the cell containing the glyph, not the glyph outline itself.
                 else if (img_alignment.x == snap::tail  ) base_line.x += matrix.x - actual_width;
                 //else if (img_alignment.x == snap::head  ) base_line.x = 0;
             }
