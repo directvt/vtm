@@ -438,8 +438,9 @@ namespace netxs::gui
                 u.base_descent = std::max(1.f, m.descent + m.lineGap / 2.0f);
                 // Take metrics for "x" or ".notdef" in case of missing 'x'. Note: ".notdef" is double sized ("x" is narrow) in CJK fonts.
                 //auto code_points = ui32{ 'x' };
-                //auto code_points = std::to_array<ui32>({ 'W', 'i' });
-                auto code_points = std::to_array<ui32>({ 'U', 'i' }); // U is approximately half an emoji square in the Segoe Emoji font. W and M may be cut in size. This is a compromise for proportional fonts. Otherwise, emoji become too small.
+                u.monospaced = faceinst->IsMonospacedFont();
+                auto code_points = std::to_array<ui32>({ ' ' }); // Test W for monospaced and test U for proportional font.
+                code_points[0] = u.monospaced ? 'W' : 'U';       // U is approximately half an emoji square in the Segoe Emoji font. W and M may be cut in size. This is a compromise for proportional fonts. Otherwise, emoji become too small.
                 auto glyph_index = std::array<ui16, code_points.size()>{};
                 auto glyph_metrics = std::array<DWRITE_GLYPH_METRICS, code_points.size()>{};
                 faceinst->GetGlyphIndices(code_points.data(), (ui32)code_points.size(), glyph_index.data());
@@ -448,7 +449,6 @@ namespace netxs::gui
                 u.facesize.x = glyph_metrics[0].advanceWidth ? (fp32)glyph_metrics[0].advanceWidth : u.facesize.y / 2;
                 u.ratio = u.facesize.x / u.facesize.y;
                 u.color = iscolor(faceinst);
-                u.monospaced = glyph_metrics[0].advanceWidth == glyph_metrics[1].advanceWidth;
             }
         }
         static ui16 msscript(ui32 code) // fonts: ISO<->MS script map.
@@ -634,25 +634,37 @@ namespace netxs::gui
                 hr = faceinst->GetDesignGlyphMetrics(glyf_index.data(), glyf_count, glyf_sizes.data(), faux); // Non-normalized.
                 if (hr != S_OK) return 0;
                 auto length = fp32{};
-                auto penpos = fp32{};
-                auto revpad = fp32{};
-                for (auto i = 0u; i < glyf_count; ++i)
+                if (is_monospaced)
                 {
-                    auto& w = glyf_steps[i];
-                    if (is_monospaced && w != 0) w = grid_step; // Align pen step with our cell grid (Custom Advances).
-                    auto f = glyf_sizes[i].rightSideBearing;
-                    auto r = glyf_sizes[i].leftSideBearing;
-                    if (is_rtl) std::swap(f, r); // Convert side bearings to the rtl direction.
-                    auto fwd_bearing = w - f * transform; // Convert from design units to our scale (glyf_sizes).
-                    auto rev_bearing = -r * transform;    //
-                    auto glyphpos = penpos + glyf_align[i].advanceOffset; // It is already in our scale.
-                    auto fwd_most = glyphpos + fwd_bearing;
-                    auto rev_most = glyphpos - rev_bearing;
-                    revpad = std::min(revpad, rev_most); // Negative or 0.
-                    length = std::max(length, fwd_most);
-                    penpos += w; // It is already in our scale.
+                    for (auto i = 0u; i < glyf_count; ++i)
+                    {
+                        auto& w = glyf_steps[i];
+                        if (w) w = grid_step; // Fit to our grid.
+                        length += w;
+                    }
                 }
-                length += -revpad; // revpad is negative or 0.
+                else // Render glyphs as is.
+                {
+                    auto revpad = fp32{};
+                    auto penpos = fp32{};
+                    for (auto i = 0u; i < glyf_count; ++i)
+                    {
+                        auto w = glyf_sizes[i].advanceWidth;
+                        auto f = glyf_sizes[i].rightSideBearing;
+                        auto r = glyf_sizes[i].leftSideBearing;
+                        if (is_rtl) std::swap(f, r); // Convert side bearings to the rtl direction.
+                        auto fwd_bearing = ((si32)w - f) * transform; // Convert from design units to our scale (glyf_sizes).
+                        auto rev_bearing = -r * transform;    //
+                        auto glyphpos = penpos + glyf_align[i].advanceOffset; // It is already in our scale.
+                        auto rev_most = glyphpos - rev_bearing;
+                        auto fwd_most = glyphpos + fwd_bearing;
+                        revpad = std::min(revpad, rev_most); // Negative or 0.
+                        penpos += glyf_steps[i]; // It is already in our scale.
+                        length = std::max(length, fwd_most);
+                    }
+                    length = std::max(length, penpos);
+                    length += -revpad; // revpad is negative or 0.
+                }
                 return length;
             }
         };
