@@ -93,8 +93,9 @@ namespace netxs::app::tile
         using skill::boss,
               skill::memo;
 
-        netxs::sptr<ui::list> client;
-        si32                  window_state;
+        netxs::sptr<ui::list>    client;
+        si32                     window_state;
+        std::unordered_set<id_t> data_sources;
 
     public:
         items(base&&) = delete;
@@ -110,6 +111,7 @@ namespace netxs::app::tile
             };
             boss.LISTEN(tier::release, tile::events::enlist, data_src_sptr, memo)
             {
+                if (!data_src_sptr || data_sources.find(data_src_sptr->id) != data_sources.end()) return; // Deduplicate.
                 auto active_color = skin::color(tone::active);
                 auto focused_color = skin::color(tone::focused);
                 auto cF = focused_color;
@@ -124,6 +126,8 @@ namespace netxs::app::tile
                     ->invoke([&](auto& boss)
                     {
                         auto& data_shadow = boss.base::field(ptr::shadow(data_src_sptr));
+                        auto& data_src_id = boss.base::field(data_src_sptr->id);
+                        data_sources.insert(data_src_id);
                         boss.depend(data_src_sptr);
                         data_src_sptr->LISTEN(tier::release, e2::form::prop::ui::header, new_title, boss.sensors)
                         {
@@ -136,6 +140,7 @@ namespace netxs::app::tile
                         };
                         boss.LISTEN(tier::release, e2::form::upon::vtree::detached, parent)
                         {
+                            data_sources.erase(data_src_id);
                             parent->resize(); // Rebuild list.
                         };
                         data_src_sptr->LISTEN(tier::release, tile::events::delist, f, boss.sensors)
@@ -172,6 +177,7 @@ namespace netxs::app::tile
             };
             boss.LISTEN(tier::anycast, e2::form::upon::started, root_ptr, memo)
             {
+                data_sources.clear();
                 client->clear();
                 if (auto parent_ptr = boss.base::parent())
                 {
@@ -536,10 +542,6 @@ namespace netxs::app::tile
                             {
                                 boss.attach(item_ptr);
                                 item_ptr->base::broadcast(tier::anycast, e2::form::upon::started);
-                                if (item_ptr->base::kind() == base::client) // Restore side list item (it was deleted on detach).
-                                {
-                                    item_ptr->base::riseup(tier::release, tile::events::enlist, item_ptr);
-                                }
                             }
                             else item_ptr = boss.This();
                             pro::focus::set(boss.back(), gear_id_list, solo::off);
@@ -664,10 +666,6 @@ namespace netxs::app::tile
                         newnode->base::broadcast(tier::anycast, e2::form::upon::started);
                         pro::focus::set(slot_1->back(), gear_id_list, solo::off); // Handover all foci.
                         pro::focus::set(slot_2->back(), gear_id_list, solo::off);
-                        if (curitem->base::kind() == base::client) // Restore side list item (it was deleted on detach).
-                        {
-                            curitem->base::riseup(tier::release, tile::events::enlist, curitem);
-                        }
                     };
                     boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
                     {
