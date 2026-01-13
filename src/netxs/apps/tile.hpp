@@ -164,6 +164,7 @@ namespace netxs::app::tile
                                 data_ptr->base::signal(tier::release, e2::form::state::highlight, hovered);
                             }
                         };
+                        boss.base::resize(); // Update item's size (recalc size to apply setpad{ 1, 1 }).
                     });
             };
             boss.LISTEN(tier::release, e2::render::any, parent_canvas, memo)
