@@ -1205,6 +1205,16 @@ namespace netxs::app::vtm
             }
             return true;
         }
+        static auto expand_conf_rec(auto& conf_rec)
+        {
+            auto current_module_file = os::process::binary();
+            utf::replace_all(conf_rec.title,      "$0", current_module_file);
+            utf::replace_all(conf_rec.footer,     "$0", current_module_file);
+            utf::replace_all(conf_rec.label,      "$0", current_module_file);
+            utf::replace_all(conf_rec.tooltip,    "$0", current_module_file);
+            utf::replace_all(conf_rec.appcfg.cmd, "$0", current_module_file);
+            utf::replace_all(conf_rec.appcfg.env, "$0", current_module_file);
+        }
 
     public:
         static constexpr auto classname = basename::desktop;
@@ -1379,7 +1389,6 @@ namespace netxs::app::vtm
                                         }},
             });
 
-            auto current_module_file = os::process::binary();
             auto  free_list = std::list<std::pair<text, desk::spec>>{};
             auto  temp_list = free_list;
             auto  dflt_spec = desk::spec{ .hidden   = faux,
@@ -1401,15 +1410,6 @@ namespace netxs::app::vtm
 
             auto splitter_count = 0;
             auto auto_id = 0;
-            auto expand = [&](auto& conf_rec)
-            {
-                utf::replace_all(conf_rec.title,      "$0", current_module_file);
-                utf::replace_all(conf_rec.footer,     "$0", current_module_file);
-                utf::replace_all(conf_rec.label,      "$0", current_module_file);
-                utf::replace_all(conf_rec.tooltip,    "$0", current_module_file);
-                utf::replace_all(conf_rec.appcfg.cmd, "$0", current_module_file);
-                utf::replace_all(conf_rec.appcfg.env, "$0", current_module_file);
-            };
             auto taskbar_context = config.settings::push_context(path::taskbar);
             auto item_ptr_list = config.settings::take_ptr_list_for_name(path::item);
             for (auto item_ptr : item_ptr_list)
@@ -1428,7 +1428,7 @@ namespace netxs::app::vtm
                     auto& conf_rec = proto;
                     conf_rec.fixed = true;
                     hall::loadspec(conf_rec, conf_rec, item_ptr, menuid, is_splitter);
-                    expand(conf_rec);
+                    hall::expand_conf_rec(conf_rec);
                 }
                 else // New item.
                 {
@@ -1436,7 +1436,7 @@ namespace netxs::app::vtm
                     conf_rec.fixed = true;
                     auto& dflt = dflt_spec;  // New item.
                     hall::loadspec(conf_rec, dflt, item_ptr, menuid, is_splitter);
-                    expand(conf_rec);
+                    hall::expand_conf_rec(conf_rec);
                     if (conf_rec.hidden) temp_list.emplace_back(std::move(conf_rec.menuid), std::move(conf_rec));
                     else                 free_list.emplace_back(std::move(conf_rec.menuid), std::move(conf_rec));
                 }

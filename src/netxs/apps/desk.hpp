@@ -174,7 +174,6 @@ namespace netxs::app::desk
                 });
             auto app_label = item_area.attach(slot::_1, ui::item::ctor(current_title))
                 ->active()
-                //todo taskbar keybd navigation
                 ->template plugin<pro::focus>(pro::focus::mode::focused, true, faux, weight_app_label)
                 ->template plugin<pro::keybd>()
                 ->shader(c3, e2::form::state::focus::count)
@@ -192,7 +191,6 @@ namespace netxs::app::desk
                 });
             auto app_close = item_area.attach(slot::_2, ui::item::ctor("×"))
                 ->active()
-                //todo taskbar keybd navigation
                 ->template plugin<pro::focus>(pro::focus::mode::focused, true, faux, weight_ui_button)
                 ->template plugin<pro::keybd>()
                 ->shader(c1, e2::form::state::focus::count)
@@ -286,7 +284,6 @@ namespace netxs::app::desk
                     ->flexible()
                     ->setpad({ 0, 0, tall, tall })
                     ->active()
-                    //todo taskbar keybd navigation
                     ->template plugin<pro::focus>(pro::focus::mode::focused, true, faux, weight_app_group)
                     ->template plugin<pro::keybd>()
                     ->shader(c3, e2::form::state::focus::count)
@@ -358,7 +355,6 @@ namespace netxs::app::desk
                 auto fold_bttn_ptr = bttn_fork.attach(slot::_1, ui::item::ctor(isfolded ? "…" : "<"))
                     ->setpad({ 2, 2, tall, tall })
                     ->active()
-                    //todo taskbar keybd navigation
                     ->template plugin<pro::focus>(bttn_rail.base::hidden ? pro::focus::mode::focusable : pro::focus::mode::focused, true, faux, weight_ui_button) // Skip (make it just focusable) this item when moving focus if there are no apps running.
                     ->template plugin<pro::keybd>()
                     ->shader(c3, e2::form::state::focus::count)
@@ -393,7 +389,6 @@ namespace netxs::app::desk
                 auto drop_bttn_ptr = bttn_fork.attach(slot::_2, ui::item::ctor("×"))
                     ->setpad({ 2, 2, tall, tall })
                     ->active()
-                    //todo taskbar keybd navigation
                     ->template plugin<pro::focus>(bttn_rail.base::hidden ? pro::focus::mode::focusable : pro::focus::mode::focused, true, faux, weight_ui_button) // Skip (make it just focusable) this item when moving focus if there are no apps running.
                     ->template plugin<pro::keybd>()
                     ->shader(c1, e2::form::state::focus::count)
@@ -555,7 +550,6 @@ namespace netxs::app::desk
                     ->flexible()
                     ->setpad({ 1, 0, tall, tall }, { 0, 0, -tall, 0 })
                     ->active()
-                    //todo taskbar keybd navigation
                     ->template plugin<pro::focus>(pro::focus::mode::focused, true, faux, weight_app_label)
                     ->template plugin<pro::keybd>()
                     ->shader(c3, e2::form::state::focus::count)
@@ -673,7 +667,6 @@ namespace netxs::app::desk
                 taskbar_grips.base::reflow();
             });
             taskbar_grips_ptr->limits({ menu_min_size, -1 }, { menu_min_size, -1 })
-                //todo taskbar keybd navigation
                 ->plugin<pro::focus>()
                 ->plugin<pro::keybd>()
                 ->plugin<pro::timer>()
@@ -732,9 +725,6 @@ namespace netxs::app::desk
                 ->limits({ 1, -1 }, { 1, -1 })
                 ->template plugin<pro::notes>(skin::globals().NsTaskbarGrips_tooltip)
                 ->active()
-                //todo taskbar keybd navigation
-                //->template plugin<pro::focus>(pro::focus::mode::focusable) //todo revise: no need to focus taskbar resize grip
-                //->shader(c3, e2::form::state::focus::count)
                 ->shader(cell::shaders::xlight, e2::form::state::hover)
                 ->invoke([&](auto& boss)
                 {
@@ -772,7 +762,7 @@ namespace netxs::app::desk
             auto taskbar_park = taskbar_grips.attach(slot::_1, ui::cake::ctor());
             auto taskbar = taskbar_park->attach(ui::fork::ctor(axis::Y)->alignment({ snap::head, snap::head }, { snap::head, snap::tail }));
             auto apps_users = taskbar->attach(slot::_1, ui::fork::ctor(axis::Y, 0, 100))
-                ->setpad({}, { 0, 0, 0, -tall }); // To place above Disconnect button.
+                ->setpad({}, { 0, 0, 0, -tall }); // To place above the Disconnect button.
             auto applist_area = apps_users->attach(slot::_1, ui::cake::ctor());
             auto tasks_scrl_ptr = applist_area->attach(ui::rail::ctor(axes::Y_only))
                 ->plugin<pro::notes>(skin::globals().NsTaskbar_tooltip)
@@ -819,7 +809,6 @@ namespace netxs::app::desk
             auto userlist_hidden = true;
             auto bttn_ptr = label_bttn->attach(slot::_2, ui::item::ctor(userlist_hidden ? "…" : "<"))
                 ->active()
-                //todo taskbar keybd navigation
                 ->template plugin<pro::focus>(pro::focus::mode::focused, true, faux, weight_app_group)
                 ->template plugin<pro::keybd>()
                 ->shader(c3, e2::form::state::focus::count)
@@ -883,7 +872,6 @@ namespace netxs::app::desk
                 ->limits(bttn_min_size, bttn_max_size);
             auto disconnect_park_ptr = bttns->attach(slot::_1, ui::cake::ctor())
                 ->active()
-                //todo taskbar keybd navigation
                 ->template plugin<pro::focus>(pro::focus::mode::focused, true, faux, weight_app_group)
                 ->template plugin<pro::keybd>()
                 ->shader(c3, e2::form::state::focus::count)
@@ -908,7 +896,6 @@ namespace netxs::app::desk
                 ->alignment({ snap::head, snap::center });
             auto shutdown_park = bttns->attach(slot::_2, ui::cake::ctor())
                 ->active()
-                //todo taskbar keybd navigation
                 ->template plugin<pro::focus>(pro::focus::mode::focused, true, faux, weight_ui_button)
                 ->template plugin<pro::keybd>()
                 ->shader(c1, e2::form::state::focus::count)

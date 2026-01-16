@@ -2859,7 +2859,7 @@ namespace netxs::ui
             {
                 seltop.y += n;
                 selend.y += n;
-                canvas.scroll(top, end + 1, n, brush.spare.dry());
+                canvas.scroll(top, end + 1, n, cell{ '\0' }.bgc(brush.bgc())); // We use "BCE on scrolling" in altbuf mode only (vim).
             }
             // alt_screen: Horizontal tab.
             void tab(si32 n) override
@@ -7319,8 +7319,8 @@ namespace netxs::ui
                 case 1047: // Use alternate screen buffer.
                 case 1049: // Save cursor pos and use alternate screen buffer, clearing it first.  This control combines the effects of the 1047 and 1048  modes.
                     if (target != &normal && target != &altbuf) break; // Suppress mode change for additional screen buffers (windows console).
-                    altbuf.style = target->style;
-                    altbuf.brush = target->brush;
+                    altbuf.style = target->style; // Inherit the normal buffer brush.
+                    altbuf.brush = target->brush; //
                     altbuf.clear_all();
                     altbuf.resize_viewport(target->panel); // Reset viewport to the basis.
                     target = &altbuf;
@@ -7429,10 +7429,8 @@ namespace netxs::ui
                     target->rcp();
                     break;
                 case 1047: // Use normal screen buffer.
-                case 1049: // Use normal screen buffer and restore cursor.
+                case 1049: // Use normal screen buffer and restore cursor. Use the old normal buffer brush.
                     if (target != &normal && target != &altbuf) break; // Suppress mode change for additional screen buffers (windows console).
-                    normal.style = target->style;
-                    normal.brush = target->brush;
                     reset_to_normal(*target);
                     break;
                 case 2004: // Disable bracketed paste mode.
