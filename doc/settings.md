@@ -94,6 +94,8 @@ DynamicXML is a configuration language based on the XML 1.1 syntax, but with sub
      - `\\`  ASCII 0x5C Backslash
      - `\u{XX...}` or `\uXX...`  Unicode codepoint, where `XX...` is the hexadecimal value.
 
+   Note on Comments: Within an element, between the opening and closing tags, XML comments `<!-- ... -->` may separate value fragments or references. They are ignored during resolution and do not affect the final concatenated value.
+
 3. #### Dynamic Features: References and Templates
 
    | Aspect                | Difference
