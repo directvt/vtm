@@ -1,89 +1,89 @@
-R"==(<include*/>  <!-- Ordered list of <include="/path/to/settings.xml"/>. The settings will be loaded and overlayed in the specified order. -->
-<include="/etc/vtm/settings.xml"/>        <!-- Default system-wide settings source. The "/etc/..." path will be auto converted to the "%PROGRAMDATA%\..." on Windows. -->
-<include="~/.config/vtm/settings.xml"/>   <!-- Default user-wise settings source. -->
+R"==(<include*/>  <!-- Ordered list of <include="/path/to/settings.xml"/>. Clear previously defined include paths to start a new list. Settings are loaded and overlaid in the specified order. -->
+<include="/etc/vtm/settings.xml"/>        <!-- System-wide default settings. The "/etc/..." path is automatically mapped to "%PROGRAMDATA%\..." on Windows. -->
+<include="~/.config/vtm/settings.xml"/>   <!-- User-specific default settings. -->
 
-<!-- App configuration. -->
-<config=/Colors | /Scripting | /Macro>  <!-- Using additional namespaces: "/Colors", "/Scripting" and "/Macro". -->
-    <gui>  <!-- GUI mode related settings. (win32 platform only for now) -->
-        <antialiasing=on/>    <!-- Antialiasing of rendered glyphs. Note: Multi-layered color glyphs such as emoji are always antialiased. -->
-        <cellheight=21/>      <!-- Text cell height in physical pixels. Note: The width of the text cell depends on the primary font (the first one in the font list). -->
-        <gridsize=""/>        <!-- Window initial grid size "width,height" in text cells. If gridsize="" or gridsize=0,0, then the size of the GUI window is left to the OS window manager. -->
-        <wincoor=""/>         <!-- Window initial coordinates "x,y" (top-left corner on the desktop in physical pixels). If wincoor="", then the position of the GUI window is left to the OS window manager. -->
-        <winstate="normal"/>  <!-- Window initial state: "normal" | "maximized" | "minimized" . -->
-        <blinkrate=400ms/>    <!-- SGR5/6 attribute blink rate. Blinking will be disabled when set to zero. -->
-        <fonts>  <!-- Font fallback ordered list. The rest of the fonts available in the system will be loaded dynamically. -->
-            <font*/>  <!-- Clear previously defined fonts. Start a new list. -->
-            <font="Cascadia Mono"/>  <!-- The first font in the list: Primary font. Its metrics define the cell geometry. -->
+<!-- Application configuration. -->
+<config=/Colors | /Scripting | /Macro>  <!-- Include additional namespaces: "/Colors", "/Scripting", and "/Macro". -->
+    <gui>  <!-- GUI-specific settings (currently win32 platform only). -->
+        <antialiasing=on/>    <!-- Glyph antialiasing. Note: Multi-layered color glyphs (e.g., emojis) are always antialiased. -->
+        <cellheight=21/>      <!-- Text cell height in physical pixels. Note: Cell width is determined by the primary font (the first in the list). -->
+        <gridsize=""/>        <!-- Initial window grid size as "width,height" in text cells. If empty or "0,0", the OS window manager determines the size. -->
+        <wincoor=""/>         <!-- Initial window coordinates "x,y" (top-left corner in physical pixels). If empty, the OS window manager determines the position. -->
+        <winstate="normal"/>  <!-- Initial window state: "normal" | "maximized" | "minimized". -->
+        <blinkrate=400ms/>    <!-- Cursor/text blink rate (SGR 5/6). Set to zero to disable blinking. -->
+        <fonts>  <!-- Ordered font fallback list. Other available system fonts will be loaded dynamically. -->
+            <font*/>  <!-- Clear previously defined fonts to start a new list. -->
+            <font="Cascadia Mono"/>  <!-- Primary font: the first in the list. Its metrics define the cell geometry. -->
             <font="Courier New"/>
             <font="NSimSun"/>
             <font="Noto Sans Devanagari"/>
         </fonts>
     </gui>
     <cursor>
-        <style="bar"/>  <!-- Cursor style: "bar" | "block" | "underline" ( |  █  _ ). -->
-        <blink=400ms/>  <!-- Cursor blink period. Set to zero for a steady cursor. -->
+        <style="bar"/>  <!-- Cursor shape: "bar" | "block" | "underline" ( |  █  _ ). -->
+        <blink=400ms/>  <!-- Cursor blink interval. Set to zero for a steady cursor. -->
         <show=true/>
-        <color fgc=DefaultColor bgc=DefaultColor/>  <!-- Cursor cell color. By default, the cursor color (bgc) is set to either black or white depending on the lightness of the underlying text background. -->
+        <color fgc=DefaultColor bgc=DefaultColor/>  <!-- Cursor colors. By default, the cursor background color (bgc) is automatically set to black or white based on the brightness of the underlying text. -->
     </cursor>
-    <tooltips>  <!-- Not implemented for GUI mode. -->
+    <tooltips>  <!-- Tooltips (currently not implemented in GUI mode). -->
         <timeout=400ms/>
         <enabled=true/>
         <color fgc=pureblack bgc=purewhite/>
     </tooltips>
     <debug>
-        <logs=false/>     <!-- Enable logging. Use the Logs or vtm monitor mode (vtm -m) to see the log output. -->
-        <overlay=false/>  <!-- Show debug overlay. -->
-        <regions=false/>      <!-- Highlight UI objects boundaries. -->
+        <logs=false/>     <!-- Enable logging. Use the "Logs" app or vtm monitor mode (vtm -m) to view the output. -->
+        <overlay=false/>  <!-- Enable debug overlay. -->
+        <regions=false/>  <!-- Highlight UI object boundaries for debugging. -->
     </debug>
     <clipboard>
-        <preview enabled=false size=80,25>  <!-- Not implemented for GUI mode. -->
+        <preview enabled=false size=80,25>  <!-- Clipboard preview (currently not implemented in GUI mode). -->
             <color fgc=whitelt bgc=bluedk/>
-            <alpha=0xFF/>  <!-- Preview alpha is applied only to the ansi/rich/html text type. -->
-            <timeout=3s/>  <!-- Preview hiding timeout. Set it to zero to disable hiding. -->
-            <shadow=3  />  <!-- Preview shadow strength (0-5). -->
+            <alpha=0xFF/>  <!-- Preview transparency (alpha). Only applies to ANSI, Rich, and HTML clipboard formats. -->
+            <timeout=3s/>  <!-- Preview display duration. Set to zero to keep visible. -->
+            <shadow=3  />  <!-- Preview shadow intensity (0-5). -->
         </preview>
-        <format="html"/>  <!-- Default clipboard format for screenshots: "text" | "ansi" | "rich" | "html" | "protected" . -->
+        <format="html"/>  <!-- Default clipboard format for captures: "text" | "ansi" | "rich" | "html" | "protected". -->
     </clipboard>
-    <colors>  <!-- Along with fgc, bgc and txt, other SGR attributes (boolean) are allowed here: itc: italic, bld: bold, und: underline, inv: reverse, ovr: overline, blk: blink. -->
-        <window   fgc=whitelt   bgc= #404040          />  <!-- Color of the unfocused desktop window. -->
-        <focus    fgc=purewhite bgc= #3A528E          />  <!-- Color of the focused window. -->
-        <brighter fgc=purewhite bgc=purewhite alpha=60/>  <!-- Brighter. -->
-        <shadower               bgc= #202020B4        />  <!-- Dimmer. -->
-        <warning  fgc=whitelt   bgc=yellowdk          />  <!-- "Warning" color. -->
-        <danger   fgc=whitelt   bgc=purered           />  <!-- "Danger" color. -->
-        <action   fgc=whitelt   bgc=greenlt           />  <!-- "Action" color. -->
+    <colors>  <!-- Along with fgc, bgc, and txt, other SGR attributes (boolean) are supported: itc (italic), bld (bold), und (underline), inv (reverse), ovr (overline), and blk (blink). -->
+        <window   fgc=whitelt   bgc= #404040          />  <!-- Background color for unfocused windows. -->
+        <focus    fgc=purewhite bgc= #3A528E          />  <!-- Background color for focused windows. -->
+        <brighter fgc=purewhite bgc=purewhite alpha=60/>  <!-- Highlights (used for brightening UI elements). -->
+        <shadower               bgc= #202020B4        />  <!-- Shadows (used for dimming UI elements). -->
+        <warning  fgc=whitelt   bgc=yellowdk          />  <!-- Warning state color. -->
+        <danger   fgc=whitelt   bgc=purered           />  <!-- Danger/Error state color. -->
+        <action   fgc=whitelt   bgc=greenlt           />  <!-- Success/Action state color. -->
     </colors>
     <timings>
-        <fps=60/>  <!-- Frames per second. Maximum frequency of rendering UI updates. -->
-        <kinetic>  <!-- Kinetic scrolling. -->
-            <spd       = 10  />  <!-- Initial speed component ΔR. -->
-            <pls       = 167 />  <!-- Initial speed component ΔT. -->
-            <ccl       = 120 />  <!-- Duration in ms. -->
-            <spd_accel = 1   />  <!-- Speed accelation. -->
-            <ccl_accel = 30  />  <!-- Additional duration in ms. -->
-            <spd_max   = 100 />  <!-- Max speed. -->
-            <ccl_max   = 1000/>  <!-- Max duration in ms. -->
+        <fps=60/>  <!-- Frame rate limit (FPS). Maximum frequency for UI rendering updates. -->
+        <kinetic>  <!-- Kinetic scrolling parameters. -->
+            <spd       = 10  />  <!-- Initial speed (delta R). -->
+            <pls       = 167 />  <!-- Initial speed (delta T). -->
+            <ccl       = 120 />  <!-- Duration in milliseconds. -->
+            <spd_accel = 1   />  <!-- Speed acceleration. -->
+            <ccl_accel = 30  />  <!-- Additional duration (ms) for accelerated movement. -->
+            <spd_max   = 100 />  <!-- Maximum speed limit. -->
+            <ccl_max   = 1000/>  <!-- Maximum duration limit (ms). -->
         </kinetic>
-        <switching     = 200ms/>  <!-- Duration of an object state switching. -->
-        <deceleration  = 2s   />  <!-- Duration of stopping a moving object. -->
-        <leave_timeout = 1s   />  <!-- Timeout off the active object (e.g. after mouse leaving scrollbar). -->
-        <repeat_delay  = 500ms/>  <!-- Repeat delay. -->
-        <repeat_rate   = 30ms />  <!-- Repeat rate. -->
-        <dblclick      = 500ms/>  <!-- Mouse double click threshold. -->
-        <wheelrate     = 3    />  <!-- Lines per mouse wheel step (for Unix-like platforms). -->
+        <switching     = 200ms/>  <!-- Transition duration for UI state changes. -->
+        <deceleration  = 2s   />  <!-- Deceleration duration for moving UI elements. -->
+        <leave_timeout = 1s   />  <!-- Interaction timeout (e.g., how long a scrollbar remains active after the mouse leaves). -->
+        <repeat_delay  = 500ms/>  <!-- Key/button repeat delay. -->
+        <repeat_rate   = 30ms />  <!-- Key/button repeat rate. -->
+        <dblclick      = 500ms/>  <!-- Double-click speed threshold. -->
+        <wheelrate     = 3    />  <!-- Lines per mouse wheel step (Unix-like platforms only). -->
     </timings>
 )=="
 R"==(
     <desktop>  <!-- Desktop client settings. -->
-        <viewport coor=0,0/>  <!-- Viewport position for the first connected user. At runtime, this value is temporarily replaced with the next disconnecting user's viewport coordinates to restore the viewport position on reconnection. -->
-        <windowmax=3000x2000/>  <!-- Maximum window cell grid size. -->
-        <macstyle=false/>  <!-- Preferred window control buttons location. no: right corner (like on MS Windows), yes: left side (like on macOS). -->
-        <taskbar wide=false selected="Term">  <!-- Taskbar menu. wide: Set wide/compact menu layout; selected: Set selected taskbar menu item id. -->
-            <item*/>  <!-- Clear all previously defined items. Start a new list of items. -->
+        <viewport coor=0,0/>  <!-- Initial viewport position for the first connected user. During runtime, this value is temporarily updated with the last disconnected user's coordinates to restore their session view on reconnection. -->
+        <windowmax=3000x2000/>  <!-- Maximum grid size (width x height) in text cells. -->
+        <macstyle=false/>  <!-- Window control button placement. "0/no/false": right side (Windows-style); "1/yes/true": left side (macOS-style). -->
+        <taskbar wide=false selected="Term">  <!-- Taskbar menu. "wide": toggle between wide or compact layout; "selected": ID of the initially selected menu item. -->
+            <item*/>  <!-- Clear all previously defined items to start a new list. -->
             <item splitter  label=/Ns/Taskbar/Apps/label tooltip=/Ns/Taskbar/Apps/tooltip/>
             <item id="Term" label=/Ns/Taskbar/Terminal/label type="dtvt" title=/Ns/Taskbar/Terminal/title cmd="$0 -r term"            tooltip=/Ns/Taskbar/Terminal/tooltip/>
             <item id="Tile" label=/Ns/Taskbar/Tile/label     type="tile" title=/Ns/Taskbar/Tile/title     cmd="h1:1(Term, Term)"      tooltip=/Ns/Taskbar/Tile/tooltip/>
-            <item id="Site" label=/Ns/Taskbar/Site/label     type="site" title=/Ns/Taskbar/Site/title     cmd="@" winform="maximized" tooltip=/Ns/Taskbar/Site/tooltip/>  <!-- cmd="@" is a directive for numbering instances. -->
+            <item id="Site" label=/Ns/Taskbar/Site/label     type="site" title=/Ns/Taskbar/Site/title     cmd="@" winform="maximized" tooltip=/Ns/Taskbar/Site/tooltip/>  <!-- cmd="@" is a directive for auto-numbering instances. -->
             <item id="Logs" label=/Ns/Taskbar/Logs/label     type="dtvt" title=/Ns/Taskbar/Logs/title     cmd="$0 -q -r term $0 -m"   tooltip=/Ns/Taskbar/Logs/tooltip>
                 <config>
                     <terminal>
@@ -104,53 +104,52 @@ R"==(
                     </terminal>
                 </config>
             </item>
-            <autorun run*>  <!-- Autorun of the specified menu items: -->
-                <!-- //todo use scripting. init_script()? on="anycast:Start"?-->
+            <autorun run*>  <!-- List of menu items to launch automatically: -->
                 <!--  <run*/>             -->
-                <!--  <run id="Term" winsize=80,25  wincoor=92,31 winform=minimized />      -->  <!-- Autorun supports minimized winform only. -->
-                <!--  <run id="Term" winsize=80,25  wincoor=8,31 />                         -->
-                <!--  <run id="Term" winsize=164,25 wincoor=8,4 focused />   -->
+                <!--  <run id="Term" winsize=80,25  wincoor=92,31 winform="minimized" />  -->  <!-- Note: Autorun only supports the "minimized" value for winform. -->
+                <!--  <run id="Term" winsize=80,25  wincoor=8,31 />                       -->
+                <!--  <run id="Term" winsize=164,25 wincoor=8,4 focused />                -->
             </autorun>
-            <width>  <!-- Taskbar menu width. -->
+            <width>  <!-- Taskbar width settings. -->
                 <folded=18/>
                 <expanded=41/>
             </width>
-            <timeout=250ms/>  <!-- Taskbar collaplse timeout after mouse leave. -->
+            <timeout=250ms/>  <!-- Taskbar collapse delay after the mouse leaves. -->
             <colors>
-                <bground  fgc=whitedk bgc= #202020C0 />  <!-- Set the bgc color non-transparent (alpha to FF) to disable acrylics in taskbar. -->
-                <focused  fgc=puregreen              />  <!-- Focused taskbar item color. -->
-                <selected fgc=whitelt                />  <!-- Default taskbar item color. -->
-                <active   fgc=whitelt                />  <!-- Running taskbar item color. -->
-                <inactive fgc=blacklt bgc=Transparent/>  <!-- Blocked taskbar item color (e.g. when the app is maximized by a remote user). -->
+                <bground  fgc=whitedk bgc= #202020C0 />  <!-- Set alpha to FF (e.g., #202020FF) to disable acrylic/transparency effects in the taskbar. -->
+                <focused  fgc=puregreen              />  <!-- Focused item color. -->
+                <selected fgc=whitelt                />  <!-- Selected item color. -->
+                <active   fgc=whitelt                />  <!-- Color of running application items. -->
+                <inactive fgc=blacklt bgc=Transparent/>  <!-- Color of blocked/unavailable items (e.g., when an app is maximized by another user). -->
             </colors>
         </taskbar>
         <panel>  <!-- Desktop info panel. -->
-            <env=""/>    <!-- Environment block. -->
-            <cmd=""/>    <!-- Command-line to activate. -->
+            <env=""/>    <!-- Environment variables block. -->
+            <cmd=""/>    <!-- Command-line to execute on activation. -->
             <cwd=""/>    <!-- Working directory. -->
-            <height=1/>  <!-- Desktop space reserved on top. -->
+            <height=1/>  <!-- Reserved space at the top of the desktop. -->
         </panel>
-        <background>  <!-- Desktop background. -->
-            <color fgc=whitedk bgc= #00003f80/>  <!-- Desktop background color. -->
-            <tile=""/>                           <!-- Truecolor ANSI-art can be used here. -->
+        <background>  <!-- Desktop background settings. -->
+            <color fgc=whitedk bgc= #00003f80/>  <!-- Background color. -->
+            <tile=""/>                           <!-- Optional: Truecolor ANSI-art for the background. -->
         </background>
     </desktop>
 )==" // MSVC2022: C2026 String too big, trailing characters truncated.
 R"==(
-    <terminal>  <!-- Base settings for the built-in terminal. It can be partially overridden by the menu item's config subarg. -->
-        <sendinput=""/>  <!-- Send input on startup. E.g. sendinput="echo \"test\"\n" -->
-        <cwdsync=" cd $P\n"/>  <!-- Command to sync the current working directory. When 'Sync' is active, $P (case sensitive) will be replaced with the current path received via OSC9;9 notification. Prefixed with a space to avoid touching command history. -->
+    <terminal>  <!-- Base settings for the built-in terminal. These can be partially overridden via the menu item's "config" argument. -->
+        <sendinput=""/>  <!-- Text to send to the terminal on startup. E.g., sendinput="echo \"test\"\n". -->
+        <cwdsync=" cd $P\n"/>  <!-- Command for syncing the working directory. When "Sync" is active, $P (case-sensitive) is replaced with the path from the OSC 9;9 notification. Prefixed with a space to exclude it from the shell history. -->
         <scrollback>
-            <size=100000   />   <!-- Initial scrollback buffer size. -->
-            <growstep=0    />   <!-- Scrollback buffer grow step. The buffer behaves like a ring in case of zero. -->
-            <growlimit=0   />   <!-- Scrollback buffer grow limit. The buffer will behave like a ring when the limit is reached. If set to zero, then the limit is equal to the initial buffer size. -->
-            <maxline=65535 />   <!-- Max line length. Line splits if it exceeds the limit. -->
-            <wrap=true     />   <!-- Line wrapping mode. -->
-            <reset onkey=true onoutput=false/>  <!-- Triggers to reset scrollback viewport position. -->
-            <altscroll=true/>   <!-- Alternate scroll mode settings. -->
-            <oversize=0 opacity=0xC0/>  <!-- Scrollback horizontal (left and right) oversize. It is convenient for horizontal scrolling. -->
+            <size=100000   />   <!-- Initial scrollback buffer size (in lines). -->
+            <growstep=0    />   <!-- Scrollback buffer growth step. If set to zero, the buffer behaves as a ring buffer. -->
+            <growlimit=0   />   <!-- Scrollback buffer growth limit. Once reached, the buffer acts as a ring buffer. If zero, the limit equals the initial size. -->
+            <maxline=65535 />   <!-- Maximum line length. Lines exceeding this limit will be split. -->
+            <wrap=true     />   <!-- Enable or disable line wrapping. -->
+            <reset onkey=true onoutput=false/>  <!-- Conditions to reset the scrollback viewport position to the bottom. -->
+            <altscroll=true/>   <!-- Enable alternate scroll mode (e.g., for mouse wheel support in man/vim). -->
+            <oversize=0 opacity=0xC0/>  <!-- Horizontal scrollback padding (left and right). -->
         </scrollback>
-        <colors>  <!-- Terminal colors. -->
+        <colors>  <!-- Terminal color palette. -->
             <color0  = pureblack  />
             <color1  = reddk      />
             <color2  = greendk    />
@@ -167,23 +166,23 @@ R"==(
             <color13 = magentalt  />
             <color14 = cyanlt     />
             <color15 = whitelt    />
-            <default fgc=whitedk bgc=pureblack/>  <!-- Default/current colors (SGR49/39). -->
-            <bground = DefaultColor/>  <!-- Independent background color of the scrollback canvas. Set to 0x00ffffff(or =DefaultColor) to sync with SGR49 (default background). -->
-            <match fx="color" fgc=whitelt bgc= #007F00/>  <!-- Color of the selected text occurrences. Set an fx to use cell::shaders: "xlight" | "color" | "invert" | "reverse". -->
+            <default fgc=whitedk bgc=pureblack/>  <!-- Default terminal colors (SGR 39/49). -->
+            <bground = DefaultColor/>  <!-- Background color of the scrollback canvas. Set to 0x00ffffff or DefaultColor to sync with the default SGR 49 background. -->
+            <match fx="color" fgc=whitelt bgc= #007F00/>  <!-- Appearance of selected text matches. Available shaders (fx): "xlight", "color", "invert", "reverse". -->
             <selection>
-                <text      fx="color"  fgc=whitelt bgc=bluelt/>  <!-- Highlighting of the selected text in plaintext mode. -->
-                <protected fx="color"  fgc=whitelt bgc=bluelt/>  <!-- Note: The bgc and fgc attributes only apply to the fx=color shader. -->
+                <text      fx="color"  fgc=whitelt bgc=bluelt/>  <!-- Selection highlighting for plaintext clipboard mode. -->
+                <protected fx="color"  fgc=whitelt bgc=bluelt/>  <!-- Note: bgc and fgc attributes only apply when fx="color". -->
                 <ansi      fx="xlight" fgc=whitelt bgc=bluelt/>
                 <rich      fx="xlight" fgc=whitelt bgc=bluelt/>
                 <html      fx="xlight" fgc=whitelt bgc=bluelt/>
-                <none      fx="color"  fgc=whitedk bgc=blacklt/>  <!-- Inactive selection color. -->
+                <none      fx="color"  fgc=whitedk bgc=blacklt/>  <!-- Appearance of an inactive selection. -->
             </selection>
-            <names=/X11ColorNames>  <!-- Color names for OSC 4,10-12. -->
+            <names=/X11ColorNames>  <!-- Color name mappings for OSC 4, 10-12. -->
                 <!--  <name="New Dark Orange" rgb= #FF8C00 /> -->
             </names>
         </colors>
-        <border=0/>  <!-- Width of the left and right border of the terminal window. -->
-        <tablen=8/>  <!-- Tab length. -->
+        <border=0/>  <!-- Terminal window left and right padding (border width). -->
+        <tablen=8/>  <!-- Tab stop length. -->
         <menu item*>
             <autohide=/Menu/Defaults/autohide/>
             <slim=/Menu/Defaults/slim/>
@@ -198,15 +197,15 @@ R"==(
             <item=/Menu/Buttons/Restart/>
         </menu>
         <selection>
-            <mode=/Terminal/selection/mode/>  <!-- Clipboard copy format: "text" | "ansi" | "rich" | "html" | "protected" | "none". -->
-            <rect=/Terminal/selection/rect/>  <!-- Preferred selection form: Rectangular: true, Linear: false. -->
+            <mode=/Terminal/selection/mode/>  <!-- Default clipboard copy format: "text", "ansi", "rich", "html", "protected", or "none". -->
+            <rect=/Terminal/selection/rect/>  <!-- Preferred selection form: true (Rectangular/Block), false (Linear). -->
         </selection>
-        <atexit="auto"/>  <!-- Behavior after the last console process has terminated: "auto" | "ask" | "close" | "restart" | "retry"
-                                auto:    Stay open and ask if exit code != 0. (default)
-                                ask:     Stay open and ask.
-                                close:   Always close.
-                                restart: Restart session.
-                                retry:   Restart session if exit code != 0. -->
+        <atexit="auto"/>  <!-- Action to take after the last console process terminates:
+                                "auto":    Stay open and prompt if the exit code is non-zero (default).
+                                "ask":     Always stay open and prompt.
+                                "close":   Always close the window.
+                                "restart": Automatically restart the session.
+                                "retry":   Restart the session only if the exit code is non-zero. -->
     </terminal>
 )==" // MSVC2022: C2026 String too big, trailing characters truncated.
 R"==(
@@ -234,8 +233,8 @@ R"==(
         <menu=/Menu/Defaults>
         </menu>
     </defapp>
-    <events>  <!-- The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop. -->
-        <gate script*>  <!-- `User gate`/`standalone app` bindings. The 'script*' statement here is to clear all previous bindings and start a new list. -->
+    <events>  <!-- Key combination sequences can be generated on the "Info" page, accessible by clicking the label in the lower-right corner of the vtm desktop. -->
+        <gate script*>  <!-- "User gate" / "standalone app" bindings. Use 'script*' to clear all previous bindings and start a new list. -->
             <script=IncreaseCellHeight     on="CapsLock+UpArrow"                 />
             <script=DecreaseCellHeight     on="CapsLock+DownArrow"               />
             <script=ResetCellHeight        on="Esc+0"                            />
@@ -245,7 +244,7 @@ R"==(
             <script=ResetWheelAccumulator  on="preview:-Ctrl"                    />
             <script=ToggleDebugOverlay     on="Space-Backspace | Backspace-Space"/>
         </gate>
-        <desktop script*>  <!-- Desktop bindings. -->
+        <desktop script*>  <!-- Desktop-level bindings. -->
 )=="
 #if defined (WIN32)
 R"==(
@@ -264,7 +263,7 @@ R"==(
             <script=RunApplication  on="Alt+Shift+N"  />
             <script=RunInfoPage     on="Esc+I"        />
         </desktop>
-        <taskbar=desktop script*>  <!-- Taskbar bindings (including desktop bindings). -->
+        <taskbar=desktop script*>  <!-- Taskbar bindings ("=desktop": includes desktop-level bindings). -->
             <script=FocusTaskbar          on="-Esc | -Alt"/>
             <script=FocusLeftTaskbarItem  on="LeftArrow"/>
             <script=FocusRightTaskbarItem on="RightArrow"/>
@@ -280,9 +279,9 @@ R"==(
             <script=IncreaseTaskbarWidth  on="Ctrl+RightArrow"/>
             <script=ActivateTaskbarItem   on="Space | Enter"/>
         </taskbar>
-        <window script*>  <!-- Desktop window bindings. The desktop window is a resizable/movable applet container. It serves as a source of events specific to the desktop window. -->
+        <window script*>  <!-- Desktop window bindings. A "window" is a resizable/movable container for applets and serves as an event source for window-specific actions. -->
         </window>
-        <applet script*>  <!-- Applet bindings. The applet can be hosted by a window, a window manager (aka tile), or it can be a standalone application (OS-level process) running either in a GUI window or in a dtvt-container, which is itself an applet. -->
+        <applet script*>  <!-- Applet bindings. Applets can be hosted by a window, a window manager (aka "tile"), or run as standalone applications (OS-level processes). -->
             <script=AlwaysOnTopApplet     on="Esc+T"                                              />
             <script=CloseApplet           on="Esc+W"                                              />
             <script=MinimizeApplet        on="Esc+M"                                              />
@@ -327,7 +326,7 @@ R"==(
                 <script=TileFocusNextGrip     on="Tab"                               />
             </grip>
         </tile>
-        <terminal script*>  <!-- Terminal bindings. -->
+        <terminal script*>  <!-- Terminal-specific bindings. -->
 )=="
 #if defined (WIN32)
 R"==(
@@ -339,8 +338,8 @@ R"==(
 )=="
 #endif
 R"==(
-            <script="vtm.gear.SetHandled()" on="Esc"/> <!-- Do nothing. We use the Esc key as a modifier. Its press+release events will only be sent after the key is physically released, and only if no other keys were pressed along with Esc. -->
-            <script                         on="-Esc">  --  Clear selection if it is and send Esc press and release events.
+            <script="vtm.gear.SetHandled()" on="Esc"/> <!-- Do nothing. The Esc key is used as a modifier. Press/release events are sent only if the key is released without being combined with any other keys. -->
+            <script                         on="-Esc">  -- Clear selection (if any) and send Esc press/release events.
                 vtm.terminal.ClearSelection()
                 vtm.terminal.KeyEvent({ virtcod=0x1b, scancod=1, keystat=1, cluster='\\u{1b}' }, { virtcod=0x1b, scancod=1, keystat=0 })
             </script>
@@ -374,11 +373,11 @@ R"==(
             <script=TerminalStdioLog                   on=""                     />
             <script=TerminalRestart                    on=""                     />
         </terminal>
-        <defapp script*>  <!-- Default application bindings (e.g., Info-Page). -->
-            <script="vtm.defapp.ShowClosingPreview(faux);"                                            on="Any"         /> <!-- Preview for "Any" is always triggered after all other previews. Non-preview "Any" is triggered before all other keys. -->
-            <script="if (not vtm.gear.IsKeyRepeated()) then vtm.defapp.ShowClosingPreview(true); end" on="Esc"         /> <!-- Window pred-close action (close when releasing the Esc key). -->
-            <script="if (vtm.defapp.ShowClosingPreview()) then vtm.defapp.Close() end"                on="preview:-Esc"/> <!-- Close the window on Esc release. -->
-            <script="if (vtm.defapp.ShowClosingPreview()) then local focus_count=vtm(); vtm.defapp.ShowClosingPreview(focus_count~=0) end" on="release:e2::form::state::focus::count" /> <!-- Disable window closing preview when focus is lost. -->
+        <defapp script*>  <!-- Default application bindings (e.g., for the Info page). -->
+            <script="vtm.defapp.ShowClosingPreview(faux);"                                            on="Any"         /> <!-- "Any" preview is always triggered after all other previews. Non-preview "Any" is triggered before all other keys. -->
+            <script="if (not vtm.gear.IsKeyRepeated()) then vtm.defapp.ShowClosingPreview(true); end" on="Esc"         /> <!-- Pre-close action (highlights the close button). -->
+            <script="if (vtm.defapp.ShowClosingPreview()) then vtm.defapp.Close() end"                on="preview:-Esc"/> <!-- Closes the window on Esc release. -->
+            <script="if (vtm.defapp.ShowClosingPreview()) then local focus_count=vtm(); vtm.defapp.ShowClosingPreview(focus_count~=0) end" on="release:e2::form::state::focus::count" /> <!-- Cancel closing preview if focus is lost. -->
             <script="vtm.defapp.ScrollViewportByPage( 0, 1)"                                          on="PageUp"      />
             <script="vtm.defapp.ScrollViewportByPage( 0,-1)"                                          on="PageDown"    />
             <script="vtm.defapp.ScrollViewportByStep( 0, 3)"                                          on="UpArrow"     />
@@ -404,12 +403,12 @@ R"==(
 
 <Menu=/Scripting>
     <Defaults>
-        <autohide=false/>  <!-- Auto hide window menu items on mouse leave. -->
-        <slim=true/>       <!-- Make the window menu one cell high (slim=true) or three cells high (slim=false). -->
+        <autohide=false/>  <!-- Automatically hide window menu items when the mouse leaves. -->
+        <slim=true/>       <!-- Set the window menu height: one cell (slim=true) or three cells (slim=false). -->
     </Defaults>
     <Buttons>
-        <AlwaysOnTop script=OnLeftClick|AlwaysOnTopApplet> <!-- The default event source is the parent object, i.e. source="item" (aka vtm.item). -->
-            <script>  <!-- A binding to update the menu item label at runtime. -->
+        <AlwaysOnTop script=OnLeftClick|AlwaysOnTopApplet> <!-- The default event source is the parent object (source="item", i.e., vtm.item). -->
+            <script>  <!-- Runtime binding to update the menu item's label and tooltip. -->
                 <on="release: e2::form::upon::started" source="applet"/>
                 <on="release: e2::form::prop::zorder"  source="applet"/>
                 local is_topmost=vtm.applet.ZOrder()
@@ -468,7 +467,7 @@ R"==(
     </Buttons>
 </Menu>
 
-<Ns=en-US>  <!-- Localization. E.g., set it to 'Ns=en-US|en-GB' for "en-GB" locale with fallback to "en-US". -->
+<Ns=en-US>  <!-- Localization settings. Example: set to 'Ns=en-US|en-GB' to use "en-GB" with fallback to "en-US". -->
     <en-US>
         <TextbasedDesktopEnvironment="  Text-based Desktop Environment  "/>
         <Info label="Info" title=label tooltip=" Info ">
@@ -518,7 +517,7 @@ R"==(
                 <Emoji="Emoji"/>
                 <BoxDrawing="Box Drawing"/>
                 <LargeTypePieces="Large Type Pieces"/>
-                <Style="Styled Underline">
+                <Style="Underline Styles">
                     <SingleOverline="Single Overline"/>
                     <DoubleUnderline="Double Underline"/>
                     <SingleUnderline="Single Underline"/>
@@ -530,30 +529,30 @@ R"==(
                     <RedSingleUnderline="Red Single Underline"/>
                     <RedWavyUnderline="Red Wavy Underline"/>
                 </Style>
-                <FontStyle="Font Style">
+                <FontStyle="Font Styles">
                     <Normal="Normal"/>
                     <Blinking="Blinking"/>
                     <Bold="Bold"/>
                     <Italic="Italic"/>
                 </FontStyle>
-                <CharacterWidth="Character Width"/>
+                <CharacterWidth="Character Widths"/>
                 <VariationSelectors="Variation Selectors"/>
-                <LongestWord="The longest word in the Hindi language"/>
+                <LongestWord="The longest word in Hindi"/>
                 <RotationFlipandMirror="Rotation, Flip, and Mirror"/>
                 <CharacterMatrix="Character Matrix"/>
                 <CharacterHalves="Character Halves"/>
                 <TuiShadows="UI Shadows"/>
                 <TuiShadowsInner="Inner shadow"/>
                 <TuiShadowsOuter="Outer shadow"/>
-                <sRGBBlending="sRGB Gamma-correct Blending"/>
-                <PressCtrlCaps="Press Ctrl+CapsLock to toggle antialiasing mode on to check results."/>
+                <sRGBBlending="sRGB Gamma-Corrected Blending"/>
+                <PressCtrlCaps="Press Ctrl+CapsLock to toggle antialiasing and check the results."/>
             </SF>
         </Info>
         <AlwaysOnTop>
-            <on  label="\e[2:247;38:2:0:255:0m▀\e[2:239m \e[m" tooltip=" AlwaysOnTop on "/>
-            <off label="  "                                    tooltip=" AlwaysOnTop off "/>
+            <on  label="\e[2:247;38:2:0:255:0m▀\e[2:239m \e[m" tooltip=" AlwaysOnTop: On "/>
+            <off label="  "                                    tooltip=" AlwaysOnTop: Off "/>
         </AlwaysOnTop>
-        <ClearScrollback label="  Clear  "   tooltip=" Clear scrollback "/>
+        <ClearScrollback label="  Clear  "   tooltip=" Clear scrollback buffer "/>
         <Restart         label="  Restart  " tooltip=" Restart current terminal session "/>
         <Taskbar>
             <taskbar_tooltip>
@@ -563,21 +562,21 @@ R"==(
             </taskbar_tooltip>
             <Apps label="apps">
                 <tooltip>
-                    "\e[1m"" Default applications group                         ""\e[m\n"
-                           " It can be configured in ~/.config/vtm/settings.xml "
+                    "\e[1m"" Default applications group                      ""\e[m\n"
+                           " Can be configured in ~/.config/vtm/settings.xml "
                 </tooltip>
                 <deftooltip>
-                    " Application:                                  ""\n"
-                    "   LeftClick to start the application instance ""\n"
-                    "   RightClick to set it as default             ""\n"
-                    "   LeftDrag to move desktop viewport           "
+                    " Application:                               ""\n"
+                    "   LeftClick to launch application instance ""\n"
+                    "   RightClick to set as default             ""\n"
+                    "   LeftDrag to move desktop viewport        "
                 </deftooltip>
                 <toggletooltip>
                     " Window list disclosure toggle                  ""\n"
                     "   LeftClick to expand/collapse the window list ""\n"
-                    "   MouseWheel to switch to list closing mode    "
+                    "   MouseWheel to switch to list-closing mode    "
                 </toggletooltip>
-                <groupclosetooltip=" Close all open windows in the group "/>
+                <groupclosetooltip=" Close all open windows in this group "/>
                 <Close tooltip=" Close application window "/>
                 <App>
                    <tooltip>
@@ -596,57 +595,57 @@ R"==(
             <Site        label="Viewport Marker"   title="Site "          tooltip="\e[1m Desktop Viewport Marker        \e[m\n"|tooltip_footer/>
             <Logs        label="Log Monitor"       title="Log Monitor"    tooltip="\e[1m Log Monitor                    \e[m\n"|tooltip_footer/>
             <Grips    tooltip=" LeftDrag to adjust taskbar width "/>
-            <UserList tooltip=" List of active connections ">
+            <UserList tooltip=" Active connections ">
                 <Admins label="admins"/>
                 <Users  label="users"/>
                 <User   tooltip=" Connected user "/>
                 <Toggle tooltip=" Show/hide user list "/>
             </UserList>
-            <Disconnect  label="× Disconnect" tooltip=" Leave current session "/>
-            <Shutdown    label="× Shutdown"   tooltip=" Disconnect all users and shutdown "/>
+            <Disconnect  label="× Disconnect" tooltip=" Disconnect from the current session "/>
+            <Shutdown    label="× Shutdown"   tooltip=" Disconnect all users and shut down "/>
         </Taskbar>
         <Tile>
             <RunApplication>
                 <tooltip>
-                    " Launch application instances in active empty slots.     ""\n"
-                    " The app to run can be set by RightClick on the taskbar. "
+                    " Launch application instances in active empty slots.         ""\n"
+                    " RightClick on the taskbar menu item to set the application. "
                 </tooltip>
             </RunApplication>
-            <SelectAllPanes     tooltip=" Select all panes "                                    />
-            <SplitHorizontally  tooltip=" Split active panes horizontally "                     />
-            <SplitVertically    tooltip=" Split active panes vertically "                       />
-            <SplitOrientation   tooltip=" Change split orientation "                            />
-            <SwapPanes          tooltip=" Swap two or more panes "                              />
-            <EqualizeSplitRatio tooltip=" Equalize split ratio "                                />
-            <SetManagerTitle    tooltip=" Set tiling window manager title using clipboard data "/>
-            <ClosePane          tooltip=" Close active application "                            />
+            <SelectAllPanes     tooltip=" Select all panes "                              />
+            <SplitHorizontally  tooltip=" Split active panes horizontally "               />
+            <SplitVertically    tooltip=" Split active panes vertically "                 />
+            <SplitOrientation   tooltip=" Change split orientation "                      />
+            <SwapPanes          tooltip=" Swap two or more panes "                        />
+            <EqualizeSplitRatio tooltip=" Equalize split ratio "                          />
+            <SetManagerTitle    tooltip=" Set tiling window manager title from clipboard "/>
+            <ClosePane          tooltip=" Close active application "                      />
         </Tile>
         <FindPrev>
             <tooltip>
-                "\e[1m"" Previous match           Alt+LeftArrow  ""\e[m\n"
-                       "   Click to jump to the previous match   ""\n"
-                       "   Match clipboard data if no selection  "
+                "\e[1m"" Previous match             Alt+LeftArrow  ""\e[m\n"
+                       "   Click to jump to the previous match     ""\n"
+                       "   Matches clipboard data if no selection  "
             </tooltip>
         </FindPrev>
         <FindNext>
             <tooltip>
-                "\e[1m"" Next match              Alt+RightArrow  ""\e[m\n"
-                       "   Click to jump to the next match       ""\n"
-                       "   Match clipboard data if no selection  "
+                "\e[1m"" Next match                Alt+RightArrow  ""\e[m\n"
+                       "   Click to jump to the next match         ""\n"
+                       "   Matches clipboard data if no selection  "
             </tooltip>
         </FindNext>
         <ExclusiveKeyboard>
             <tooltip_body>
-                "\e[1m"" Toggle exclusive keyboard mode      "|state|" \e[m\n"
-                       "   Exclusive keyboard mode allows keystrokes ""\n"
-                       "   to be passed through without processing   "
+                "\e[1m"" Toggle exclusive keyboard mode   "|state|" \e[m\n"
+                       "   Keystrokes are passed through to the   ""\n"
+                       "   application without local processing   "
             </tooltip_body>
             <on  label="\e[2:247m \e[2:231;38:2:0:255:0m Exclusive \e[2:239m \e[m" state="     ON" tooltip=tooltip_body/>
             <off label="  Exclusive  "                                             state="    OFF" tooltip=tooltip_body/>
         </ExclusiveKeyboard>
         <NoWrapMode>
-            <on  label="\e[2:247m \e[2:231;38:2:0:255:0mNoWrap\e[2:239m \e[m" tooltip=" \e[1mText line wrapping mode\e[m  \n Text wrapping off        "/>
-            <off label=                               " NoWrap "              tooltip=" \e[1mText line wrapping mode\e[m  \n Text wrapping on         "/>
+            <on  label="\e[2:247m \e[2:231;38:2:0:255:0mNoWrap\e[2:239m \e[m" tooltip=" \e[1mText line wrapping\e[m  \n Wrapping off        "/>
+            <off label=                               " NoWrap "              tooltip=" \e[1mText line wrapping\e[m  \n Wrapping on         "/>
         </NoWrapMode>
         <ClipboardFormat tooltip=" Clipboard format ">
                 <textonly label=  "\e[38:2:0:255:0m  Plaintext  \e[m"/>
@@ -670,8 +669,8 @@ R"==(
         </ClipboardFormat>
         <StdioLog>
             <tooltip>
-                "\e[1m"" Console logging        ""\e[m\n"
-                       " Use Logs to see output "
+                "\e[1m"" Console logging              ""\e[m\n"
+                       " Open Logs to view the output "
             </tooltip>
             <on  label="\e[2:247m \e[2:231;38:2:0:255:0m Log \e[2:239m \e[m"/>
             <off label="  Log  "/>
@@ -693,23 +692,23 @@ R"==(
             <KeybdTest="Тест клавиатуры"/>
             <KeybdMode="Монопольный режим клавиатуры:"/>
             <KeybdToggle on=" вкл █" off="█откл "/>
-            <pressed="нажатие:"/>
-            <released="отпускание:"/>
+            <pressed="нажато:"/>
+            <released="отпущено:"/>
             <pressanykeys="<Нажмите любые клавиши>"/>
             <Generic="Обобщенный"/>
             <Literal="Цифробуквы"/>
             <Specific="Точный"/>
-            <Scancodes="Сканкоды"/>
+            <Scancodes="Скан-коды"/>
             <copied="<скопировано>"/>
             <Status>
                 "%%"
                 "\nСтатус"
                 "\n"
-                "\n                Пользователь: %user@host%"
-                "\n        Идентификатор сеанса: %pipe%"
-                "\n  Подключенных пользователей: %count%"
-                "\n   Подключенных мониторингов: %count%"
-                "\n                Время работы: %uptime%"
+                "\n              Пользователь: %user@host%"
+                "\n      Идентификатор сеанса: %pipe%"
+                "\n  Подключено пользователей: %count%"
+                "\n   Подключено мониторингов: %count%"
+                "\n              Время работы: %uptime%"
             </Status>
             <System>
                 "%%"
@@ -725,146 +724,146 @@ R"==(
             <No="Нет"/>
             <Uptime d="д" h="ч" m="м" s="с"/>
             <SF="Возможности">
-                <SubcellSize="Текст внутри ячейки"/>
+                <SubcellSize="Текст внутри ячейки (Subcell Size)"/>
                 <Latin="Латиница"/>
-                <CJK="Иероглифы"/>
-                <Thai="Тайская письменность"/>
-                <Georgian="Грузинская письменность"/>
+                <CJK="Иероглифы (CJK)"/>
+                <Thai="Тайское письмо"/>
+                <Georgian="Грузинское письмо"/>
                 <Devanagari="Деванагари"/>
                 <Arabic="Арабская вязь"/>
                 <Hebrew="Иврит"/>
                 <Emoji="Эмодзи"/>
                 <BoxDrawing="Псевдографика"/>
                 <LargeTypePieces="Составная типографика (Large Type Pieces)"/>
-                <Style="Стилизованные подчеркивания">
-                    <SingleOverline="Одинарное надчеркивание"/>
+                <Style="Стили подчеркивания">
+                    <SingleOverline="Надчеркивание"/>
                     <DoubleUnderline="Двойное подчеркивание"/>
                     <SingleUnderline="Одинарное подчеркивание"/>
-                    <DashedUnderline="Подчеркивание пунктиром"/>
-                    <DottedUnderline="Подчеркивание точками"/>
+                    <DashedUnderline="Штриховое подчеркивание"/>
+                    <DottedUnderline="Пунктирное подчеркивание"/>
                     <WavyUnderline="Волнистое подчеркивание"/>
-                    <WhiteSingleUnderline="Белое одиночное подчеркивание"/>
+                    <WhiteSingleUnderline="Белое подчеркивание"/>
                     <WhiteWavyUnderline="Белое волнистое подчеркивание"/>
-                    <RedSingleUnderline="Красное одиночное подчеркивание"/>
+                    <RedSingleUnderline="Красное подчеркивание"/>
                     <RedWavyUnderline="Красное волнистое подчеркивание"/>
                 </Style>
-                <FontStyle="Стили шрифтов">
+                <FontStyle="Стили шрифта">
                     <Normal="Обычный"/>
-                    <Blinking="Моргающий"/>
+                    <Blinking="Мигающий"/>
                     <Bold="Жирный"/>
                     <Italic="Курсив"/>
                 </FontStyle>
                 <CharacterWidth="Символы произвольной ширины"/>
-                <VariationSelectors="Цветное и монохромное отображение"/>
-                <LongestWord="Самое длинное индийское слово"/>
+                <VariationSelectors="Вариативные селекторы (Variation Selectors)"/>
+                <LongestWord="Самое длинное слово на хинди"/>
                 <RotationFlipandMirror="Вращение, переворот и отражение"/>
                 <CharacterMatrix="Матрица символов"/>
                 <CharacterHalves="Половинки символов"/>
-                <TuiShadows="Тени в пользовательском интерфейсе"/>
+                <TuiShadows="Тени интерфейса (TUI Shadows)"/>
                 <TuiShadowsInner="Внутренняя тень"/>
                 <TuiShadowsOuter="Внешняя тень"/>
-                <sRGBBlending="Гамма-корректное sRGB наложение"/>
-                <PressCtrlCaps="Чтобы посмотреть работу наложения, переключите режим антиалиасинга нажатием Ctrl+CapsLock."/>
+                <sRGBBlending="Смешивание sRGB с гамма-коррекцией"/>
+                <PressCtrlCaps="Для проверки результата переключите режим антиалиасинга нажатием Ctrl+CapsLock."/>
             </SF>
         </Info>
         <AlwaysOnTop>
-            <on  tooltip=" Поверх всех окон вкл. "/>
-            <off tooltip=" Поверх всех окон выкл. "/>
+            <on  tooltip=" Поверх всех окон: вкл. "/>
+            <off tooltip=" Поверх всех окон: выкл. "/>
         </AlwaysOnTop>
-        <ClearScrollback label="  Очистить  " tooltip=" Очистить скроллбэк буфер "/>
+        <ClearScrollback label="  Очистить  " tooltip=" Очистить буфер прокрутки (скроллбэк) "/>
         <Restart         label="  Рестарт  "  tooltip=" Перезапустить текущую сессию терминала "/>
         <Taskbar>
             <taskbar_tooltip>
-                "\e[1m"" Панель задач                                                   ""\e[m\n"
-                       "   С помощью правой кнопки мыши можно прокручивать список задач ""\n"
-                       "   С помощью левой кнопки мыши можно двигать рабочий стол       "
+                "\e[1m"" Панель задач                            ""\e[m\n"
+                       "   RightDrag — прокрутка списка задач    ""\n"
+                       "   LeftDrag — перемещение рабочего стола "
             </taskbar_tooltip>
             <Apps label="программы">
                 <tooltip>
-                    "\e[1m"" Группа приложений по-умолчанию                    ""\e[m\n"
+                    "\e[1m"" Группа приложений по умолчанию                    ""\e[m\n"
                            " Список настраивается в ~/.config/vtm/settings.xml "
                 </tooltip>
                 <deftooltip>
-                    " Приложение:                                              ""\n"
-                    "   Левый клик запускает приложение                        ""\n"
-                    "   Правый клик устанавливает приложение по-умолчанию      ""\n"
-                    "   Перетаскивание левой кнопкой мыши двигает рабочий стол "
+                    " Приложение:                                        ""\n"
+                    "   LeftClick запускает экземпляр приложения         ""\n"
+                    "   RightClick устанавливает приложение по умолчанию ""\n"
+                    "   LeftDrag перемещает рабочий стол                 "
                 </deftooltip>
                 <toggletooltip>
-                    " Кнопка скрытия списка окон                                    ""\n"
-                    "   Левый клик скрывает/раскрывает список окон                  ""\n"
-                    "   Колесо мыши переключает данную кнопку в режим закрытия окон "
+                    " Переключатель списка окон                              ""\n"
+                    "   LeftClick разворачивает/сворачивает список окон      ""\n"
+                    "   Колесо мыши переключает кнопку в режим закрытия окон "
                 </toggletooltip>
-                <groupclosetooltip=" Закрыть все приложения в этом списке "/>
+                <groupclosetooltip=" Закрыть все открытые окна в этой группе "/>
                 <Close tooltip=" Закрыть окно приложения "/>
                 <App>
                    <tooltip>
-                        " Запущенное приложение                       ""\n"
-                        "   Одинарный клик устанавливает фокус        ""\n"
-                        "   Двойной клик перемещает к окну приложения "
+                        " Активное приложение                      ""\n"
+                        "   LeftClick — установить фокус           ""\n"
+                        "   DoubleLeftClick — переместиться к окну "
                    </tooltip>
                 </App>
             </Apps>
             <tooltip_footer>
-                "   Левый клик мыши запустит это приложение      ""\n"
-                "   Правый клик сделает приложением по-умолчанию "
+                "   LeftClick — запустить приложение              ""\n"
+                "   RightClick — сделать приложением по умолчанию "
             </tooltip_footer>
-            <Terminal label="Терминал"               title=label                       tooltip="\e[1m Консоль терминала                              \e[m\n"|tooltip_footer/>
-            <Tile     label="Тайловый менеджер"      title="Тайловый оконный менеджер" tooltip="\e[1m Тайловый оконный менеджер                      \e[m\n"|tooltip_footer/>
-            <Site     label="Маркер рабочей области" title=label                       tooltip="\e[1m Маркер рабочей области                         \e[m\n"|tooltip_footer/>
-            <Logs     label="Монитор сообщений"      title=label                       tooltip="\e[1m Монитор сообщений среды                        \e[m\n"|tooltip_footer/>
-            <Grips    tooltip=" Потяните мышью для изменения ширины панели задач "/>
-            <UserList tooltip=" Список подключенных пользователей ">
+            <Terminal label="Терминал"               title=label                       tooltip="\e[1m Эмулятор терминала                              \e[m\n"|tooltip_footer/>
+            <Tile     label="Тайловый менеджер"      title="Тайловый оконный менеджер" tooltip="\e[1m Тайловый оконный менеджер                       \e[m\n"|tooltip_footer/>
+            <Site     label="Маркер рабочей области" title=label                       tooltip="\e[1m Маркер рабочей области                          \e[m\n"|tooltip_footer/>
+            <Logs     label="Монитор сообщений"      title=label                       tooltip="\e[1m Монитор системных сообщений                     \e[m\n"|tooltip_footer/>
+            <Grips    tooltip=" Тяните левой кнопкой мыши для изменения ширины панели задач "/>
+            <UserList tooltip=" Список активных подключений ">
                 <Admins label="администраторы"/>
                 <Users  label="пользователи"/>
                 <User   tooltip=" Подключенный пользователь "/>
                 <Toggle tooltip=" Показать/скрыть список пользователей "/>
             </UserList>
-            <Disconnect  label="× Отключить"        tooltip=" Отключиться и оставить текущий сеанс работающим "/>
-            <Shutdown    label="× Завершить работу" tooltip=" Отключить всех пользователей и завершить работу рабочего стола "/>
+            <Disconnect  label="× Отключить"        tooltip=" Отключиться от текущей сессии (оставить её работать) "/>
+            <Shutdown    label="× Завершить работу" tooltip=" Отключить всех пользователей и выключить сервер рабочего стола "/>
         </Taskbar>
         <Tile>
             <RunApplication>
                 <tooltip>
-                    " Запустить приложение по-умолчанию в активных незадействованных слотах  \n"
-                    " Приложение по-умолчанию выбирается с помощью правого клика на таскбаре "
+                    " Запустить приложение по умолчанию в свободных слотах       ""\n"
+                    " Приложение выбирается с помощью RightClick на панели задач "
                 </tooltip>
             </RunApplication>
-            <SelectAllPanes     tooltip=" Установить фокус на все слоты (активировать) "                    />
-            <SplitHorizontally  tooltip=" Разделить активные слоты горизонтально "                          />
-            <SplitVertically    tooltip=" Разделить активные слоты вертикально "                            />
-            <SplitOrientation   tooltip=" Повернуть разделение на 90 градусов "                             />
-            <SwapPanes          tooltip=" Поменять слоты местами по кругу "                                 />
-            <EqualizeSplitRatio tooltip=" Выровнять соотношение разделения слотов "                         />
-            <SetManagerTitle    tooltip=" Установить заголовок менеджера, используя текст из буфера обмена "/>
-            <ClosePane          tooltip=" Закрыть приложения в активных слотах "                            />
+            <SelectAllPanes     tooltip=" Установить фокус на все слоты (активировать) "    />
+            <SplitHorizontally  tooltip=" Разделить активные слоты горизонтально "          />
+            <SplitVertically    tooltip=" Разделить активные слоты вертикально "            />
+            <SplitOrientation   tooltip=" Изменить ориентацию разделения (на 90°) "         />
+            <SwapPanes          tooltip=" Поменять слоты местами по кругу "                 />
+            <EqualizeSplitRatio tooltip=" Выровнять пропорции разделения слотов "           />
+            <SetManagerTitle    tooltip=" Установить заголовок менеджера из буфера обмена " />
+            <ClosePane          tooltip=" Закрыть приложения в активных слотах "            />
         </Tile>
         <FindPrev>
             <tooltip>
-                "\e[1m"" Предыдущее совпадение                                Alt+LeftArrow ""\e[m\n"
-                       "   Переход к предыдущему совпадению по клику                        ""\n"
-                       "   При отсутствии выделенного текста, ищется текст из буфера обмена "
+                "\e[1m"" Предыдущее совпадение                          Alt+LeftArrow ""\e[m\n"
+                       "   Переход к предыдущему совпадению по клику                  ""\n"
+                       "   Если текст не выделен, используется поиск из буфера обмена "
             </tooltip>
         </FindPrev>
         <FindNext>
             <tooltip>
-                "\e[1m"" Следующее совпадение                                Alt+RightArrow ""\e[m\n"
-                       "   Переход к следующему совпадению по клику                         ""\n"
-                       "   При отсутствии выделенного текста, ищется текст из буфера обмена "
+                "\e[1m"" Следующее совпадение                          Alt+RightArrow ""\e[m\n"
+                       "   Переход к следующему совпадению по клику                   ""\n"
+                       "   Если текст не выделен, используется поиск из буфера обмена "
             </tooltip>
         </FindNext>
         <ExclusiveKeyboard>
             <tooltip_body>
                 "\e[1m"" Переключатель монопольного режима клавиатуры "|state|" \e[m\n"
-                       "   Монопольный режим позволяет напрявлять приложению  ""\n"
-                       "   нажатия клавиш напрямую, без перехвата и обработки "
+                       "   Данный режим позволяет направлять нажатия клавиш   ""\n"
+                       "   напрямую приложению, без локальной обработки       "
             </tooltip_body>
             <on  label="\e[2:247m \e[2:231;38:2:0:255:0m Монопольно \e[2:239m \e[m" state="    ВКЛ" tooltip=tooltip_body/>
             <off label=                               "  Монопольно  "              state="   ВЫКЛ" tooltip=tooltip_body/>
         </ExclusiveKeyboard>
         <NoWrapMode>
-            <on  label="\e[2:247m \e[2:231;38:2:0:255:0mРазвернуть\e[2:239m \e[m" tooltip=" \e[1mАвтоперенос строк текста\e[m  \n          Автоперенос ВЫКЛ "/>
-            <off label=                               " Развернуть "              tooltip=" \e[1mАвтоперенос строк текста\e[m  \n          Автоперенос  ВКЛ "/>
+            <on  label="\e[2:247m \e[2:231;38:2:0:255:0mРазвернуть\e[2:239m \e[m" tooltip=" \e[1mАвтоперенос строк текста\e[m  \n         Автоперенос: ВЫКЛ "/>
+            <off label=                               " Развернуть "              tooltip=" \e[1mАвтоперенос строк текста\e[m  \n         Автоперенос:  ВКЛ "/>
         </NoWrapMode>
         <ClipboardFormat tooltip=" Формат буфера обмена ">
             <textonly label=  "\e[38:2:0:255:0m  Только текст  \e[m"/>
@@ -891,14 +890,14 @@ R"==(
         </ClipboardFormat>
         <StdioLog>
             <tooltip>
-                "\e[1m"" Системные сообщения                           ""\e[m\n"
-                       " Используйте Монитор сообщений для мониторинга "
+                "\e[1m"" Журналирование консоли                   ""\e[m\n"
+                       " Откройте Монитор сообщений для просмотра "
             </tooltip>
             <on  label="\e[2:247m \e[2:231;38:2:0:255:0m Лог \e[2:239m \e[m"/>
             <off label="  Лог  "/>
         </StdioLog>
         <MinimizeWindow tooltip=" Свернуть "/>
-        <MaximizeWindow tooltip=" Максимизировать "/>
+        <MaximizeWindow tooltip=" Развернуть "/>
         <CloseWindow    tooltip=" Закрыть "/>
     </ru-RU>
 </Ns>
@@ -1061,7 +1060,6 @@ R"==(
     <name = "Light Goldenrod"     rgb = #FAFAD2 />
     <name = "Light Gray"          rgb = #D3D3D3 />
     <name = "Gainsboro"           rgb = #DCDCDC />
-    <name = "Gainsbora"           rgb = #DCDCDC />
     <name = "White Smoke"         rgb = #F5F5F5 />
     <name = "Honeydew"            rgb = #F0FFF0 />
     <name = "Mint Cream"          rgb = #F5FFFA />
@@ -1084,8 +1082,8 @@ R"==(
 
 <Terminal>
     <selection>
-        <mode="text"/>  <!-- Clipboard copy format: "text" | "ansi" | "rich" | "html" | "protected" | "none" . -->
-        <rect=false/>   <!-- Preferred selection form: Rectangular: true, Linear: false. -->
+        <mode="text"/>  <!-- Clipboard copy format: "text", "ansi", "rich", "html", "protected", "none". -->
+        <rect=false/>   <!-- Preferred selection form: true (Rectangular), false (Linear). -->
     </selection>
 </Terminal>
 )==" // MSVC2022: C2026 String too big, trailing characters truncated.
@@ -1105,120 +1103,124 @@ R"==(
                   - .grip: ...
                 - .terminal: ...  -->
     <TryToQuit             ="vtm.desktop.Shutdown('try');"/>      <!-- Shut down the desktop server if no applications are running. -->
-    <RunApplication        ="vtm.desktop.Run();"/>                <!-- Run default application. -->
-    <RunInfoPage           ="vtm.desktop.Run({ title='Info-page', hidden=true, label='Info', type='info' });"/>  <!-- Run Info-page. -->
-    <FocusPrevWindow       ="vtm.desktop.FocusNextWindow(-1);"/>  <!-- Switch focus to the prev window. -->
+    <RunApplication        ="vtm.desktop.Run();"/>                <!-- Launch the default application. -->
+    <RunInfoPage           ="vtm.desktop.Run({ title='Info-page', hidden=true, label='Info', type='info' });"/>  <!-- Open the Info page. -->
+    <FocusPrevWindow       ="vtm.desktop.FocusNextWindow(-1);"/>  <!-- Switch focus to the previous window. -->
     <FocusNextWindow       ="vtm.desktop.FocusNextWindow( 1);"/>  <!-- Switch focus to the next window. -->
-    <FocusTaskbar          ="if (vtm.gear.Focus(vtm.taskbar)) then vtm.gear.Focus(vtm.desktop); end; vtm.gear.Interrupt();"/>  <!-- Set input focus to the taskbar or return focus back to the desktop. -->
+    <FocusTaskbar          ="if (vtm.gear.Focus(vtm.taskbar)) then vtm.gear.Focus(vtm.desktop); end; vtm.gear.Interrupt();"/>  <!-- Focus the taskbar or return focus to the desktop. -->
 
-    <AlwaysOnTopApplet     ="vtm.applet.ZOrder(vtm.applet.ZOrder()==1 and 0 or 1);"/>  <!-- Request to toggle z-order window attribute. -1: backmost; 0: plain; 1: topmost. -->
-    <CloseApplet           ="vtm.applet.Close();"/>            <!-- Request to Close window. -->
-    <MinimizeApplet        ="vtm.applet.Minimize();"/>         <!-- Request to Minimize window. -->
-    <MaximizeApplet        ="vtm.applet.Maximize();"/>         <!-- Request to Maximize window. -->
-    <FullscreenApplet      ="vtm.applet.Fullscreen();"/>       <!-- Request to Maximize window to full screen. -->
-    <RestoreApplet         ="vtm.applet.Restore();"/>          <!-- Request to Restore maximized/fullscreen window. -->
-    <MoveAppletLeft        ="vtm.applet.Warp( 1,-1, 0, 0);"/>  <!-- Request to Move window to the left. WarpApplet(l, r, t, b): The parameters specify four deltas for the left, right, top and bottom sides of the window. -->
-    <MoveAppletRight       ="vtm.applet.Warp(-1, 1, 0, 0);"/>  <!-- Request to Move window to the right. -->
-    <MoveAppletUp          ="vtm.applet.Warp( 0, 0, 1,-1);"/>  <!-- Request to Move window up. -->
-    <MoveAppletDown        ="vtm.applet.Warp( 0, 0,-1, 1);"/>  <!-- Request to Move window down. -->
-    <MoveAppletTopLeft     ="vtm.applet.Warp( 2,-2, 1,-1);"/>  <!-- Request to Move window to the top-left. -->
-    <MoveAppletBottomLeft  ="vtm.applet.Warp( 2,-2,-1, 1);"/>  <!-- Request to Move window to the bottom-left. -->
-    <MoveAppletTopRight    ="vtm.applet.Warp(-2, 2, 1,-1);"/>  <!-- Request to Move window to the top-right. -->
-    <MoveAppletBottomRight ="vtm.applet.Warp(-2, 2,-1, 1);"/>  <!-- Request to Move window to the bottom-right. -->
-    <IncreaseAppletWidth   ="vtm.applet.Warp( 0, 1, 0, 0);"/>  <!-- Request to Increase window width. -->
-    <DecreaseAppletWidth   ="vtm.applet.Warp( 0,-1, 0, 0);"/>  <!-- Request to Decrease window width. -->
-    <IncreaseAppletHeight  ="vtm.applet.Warp( 0, 0, 0, 1);"/>  <!-- Request to Increase window height. -->
-    <DecreaseAppletHeight  ="vtm.applet.Warp( 0, 0, 0,-1);"/>  <!-- Request to Decrease window height. -->
+    <AlwaysOnTopApplet     ="vtm.applet.ZOrder(vtm.applet.ZOrder()==1 and 0 or 1);"/>  <!-- Toggle window Z-order attribute. -1: backmost; 0: normal; 1: topmost. -->
+    <CloseApplet           ="vtm.applet.Close();"/>            <!-- Close the window. -->
+    <MinimizeApplet        ="vtm.applet.Minimize();"/>         <!-- Minimize the window. -->
+    <MaximizeApplet        ="vtm.applet.Maximize();"/>         <!-- Maximize the window within the desktop area (does not cover the taskbar). -->
+    <FullscreenApplet      ="vtm.applet.Fullscreen();"/>       <!-- Expand the window to full screen (covers the taskbar). -->
+    <RestoreApplet         ="vtm.applet.Restore();"/>          <!-- Restore a maximized or fullscreen window. -->
+    <MoveAppletLeft        ="vtm.applet.Warp( 1,-1, 0, 0);"/>  <!-- Move the window to the left. Warp(l, r, t, b): The parameters specify deltas for the left, right, top, and bottom sides. -->
+    <MoveAppletRight       ="vtm.applet.Warp(-1, 1, 0, 0);"/>  <!-- Move the window to the right. -->
+    <MoveAppletUp          ="vtm.applet.Warp( 0, 0, 1,-1);"/>  <!-- Move the window up. -->
+    <MoveAppletDown        ="vtm.applet.Warp( 0, 0,-1, 1);"/>  <!-- Move the window down. -->
+    <MoveAppletTopLeft     ="vtm.applet.Warp( 2,-2, 1,-1);"/>  <!-- Move the window to the top-left. -->
+    <MoveAppletBottomLeft  ="vtm.applet.Warp( 2,-2,-1, 1);"/>  <!-- Move the window to the bottom-left. -->
+    <MoveAppletTopRight    ="vtm.applet.Warp(-2, 2, 1,-1);"/>  <!-- Move the window to the top-right. -->
+    <MoveAppletBottomRight ="vtm.applet.Warp(-2, 2,-1, 1);"/>  <!-- Move the window to the bottom-right. -->
+    <IncreaseAppletWidth   ="vtm.applet.Warp( 0, 1, 0, 0);"/>  <!-- Increase window width. -->
+    <DecreaseAppletWidth   ="vtm.applet.Warp( 0,-1, 0, 0);"/>  <!-- Decrease window width. -->
+    <IncreaseAppletHeight  ="vtm.applet.Warp( 0, 0, 0, 1);"/>  <!-- Increase window height. -->
+    <DecreaseAppletHeight  ="vtm.applet.Warp( 0, 0, 0,-1);"/>  <!-- Decrease window height. -->
 
-    <TileFocusPrev         ="vtm.tile.FocusNextPaneOrGrip(-1);"/>  <!-- Focus the previous pane or the split grip. -->
-    <TileFocusNext         ="vtm.tile.FocusNextPaneOrGrip( 1);"/>  <!-- Focus the next pane or the split grip. -->
+    <TileFocusPrev         ="vtm.tile.FocusNextPaneOrGrip(-1);"/>  <!-- Focus the previous pane or split grip. -->
+    <TileFocusNext         ="vtm.tile.FocusNextPaneOrGrip( 1);"/>  <!-- Focus the next pane or split grip. -->
     <TileFocusPrevPane     ="vtm.tile.FocusNextPane(-1);"/>        <!-- Focus the previous pane. -->
     <TileFocusNextPane     ="vtm.tile.FocusNextPane( 1);"/>        <!-- Focus the next pane. -->
-    <TileRunApplication    ="vtm.tile.RunApplication();"/>         <!-- Launch application instances in active empty slots. The app to run can be set by RightClick on the taskbar. -->
+    <TileRunApplication    ="vtm.tile.RunApplication();"/>         <!-- Launch application instances in active empty slots. The app to run can be set via RightClick on the taskbar. -->
     <TileSelectAllPanes    ="vtm.tile.SelectAllPanes();"/>         <!-- Select all panes. -->
     <TileSplitHorizontally ="vtm.tile.SplitPane(0);"/>             <!-- Split active panes horizontally. -->
     <TileSplitVertically   ="vtm.tile.SplitPane(1);"/>             <!-- Split active panes vertically. -->
     <TileSplitOrientation  ="vtm.tile.RotateSplit();"/>            <!-- Change split orientation. -->
     <TileSwapPanes         ="vtm.tile.SwapPanes();"/>              <!-- Swap two or more panes. -->
-    <TileEqualizeSplitRatio="vtm.tile.EqualizeSplitRatio();"/>     <!-- Equalize split ratio. -->
-    <TileSetManagerTitle   ="vtm.tile.SetTitle();"/>               <!-- Set tiling window manager title using clipboard data. -->
-    <TileClosePane         ="vtm.tile.ClosePane();"/>              <!-- Close active application. -->
+    <TileEqualizeSplitRatio="vtm.tile.EqualizeSplitRatio();"/>     <!-- Equalize the split ratio. -->
+    <TileSetManagerTitle   ="vtm.tile.SetTitle();"/>               <!-- Set the tiling window manager title using clipboard data. -->
+    <TileClosePane         ="vtm.tile.ClosePane();"/>              <!-- Close the active application. -->
     <TileMoveGripLeft      ="vtm.grip.MoveGrip(-1, 0);"/>          <!-- Move the split grip to the left. -->
     <TileMoveGripRight     ="vtm.grip.MoveGrip( 1, 0);"/>          <!-- Move the split grip to the right. -->
     <TileMoveGripUp        ="vtm.grip.MoveGrip( 0,-1);"/>          <!-- Move the split grip up. -->
     <TileMoveGripDown      ="vtm.grip.MoveGrip( 0, 1);"/>          <!-- Move the split grip down. -->
     <TileDecreaseGripWidth ="vtm.grip.ResizeGrip(-1);"/>           <!-- Decrease the split grip width. -->
     <TileIncreaseGripWidth ="vtm.grip.ResizeGrip( 1);"/>           <!-- Increase the split grip width. -->
-    <TileFocusPrevGrip     ="vtm.grip.FocusNextGrip(-1);"/>        <!-- Focus the prev split grip. -->
+    <TileFocusPrevGrip     ="vtm.grip.FocusNextGrip(-1);"/>        <!-- Focus the previous split grip. -->
     <TileFocusNextGrip     ="vtm.grip.FocusNextGrip( 1);"/>        <!-- Focus the next split grip. -->
 
-    <Disconnect            ="vtm.gate.Disconnect();"/>             <!-- Disconnect from the desktop. -->
-    <ToggleDebugOverlay    ="vtm.gate.DebugOverlay();"/>           <!-- Toggle debug overlay. -->
+    <Disconnect            ="vtm.gate.Disconnect();"/>             <!-- Disconnect from the current session. -->
+    <ToggleDebugOverlay    ="vtm.gate.DebugOverlay();"/>           <!-- Toggle the debug overlay. -->
     <IncreaseCellHeight    ="vtm.gate.IncreaseCellHeight( 1);"/>   <!-- Increase the text cell height by one pixel. -->
     <DecreaseCellHeight    ="vtm.gate.IncreaseCellHeight(-1);"/>   <!-- Decrease the text cell height by one pixel. -->
-    <ResetWheelAccumulator ="vtm.gate.WheelAccumReset();"/>        <!-- Reset wheel accumulator. -->
-    <ResetCellHeight       ="if (not vtm.gear.IsKeyRepeated()) then vtm.gate.CellHeightReset() end;"/>   <!-- Reset text cell height. -->
-    <ToggleAntialiasingMode="if (not vtm.gear.IsKeyRepeated()) then vtm.gate.AntialiasingMode() end;"/>  <!-- Toggle text antialiasing mode. -->
-    <RollFontsBackward     ="if (not vtm.gear.IsKeyRepeated()) then vtm.gate.RollFonts(-1) end;"/>       <!-- Roll font list backward. -->
-    <RollFontsForward      ="if (not vtm.gear.IsKeyRepeated()) then vtm.gate.RollFonts( 1) end;"/>       <!-- Roll font list forward. -->
+    <ResetWheelAccumulator ="vtm.gate.WheelAccumReset();"/>        <!-- Reset the wheel accumulator. -->
+    <ResetCellHeight       ="if (not vtm.gear.IsKeyRepeated()) then vtm.gate.CellHeightReset() end;"/>   <!-- Reset the text cell height. -->
+    <ToggleAntialiasingMode="if (not vtm.gear.IsKeyRepeated()) then vtm.gate.AntialiasingMode() end;"/>  <!-- Toggle the text antialiasing mode. -->
+    <RollFontsBackward     ="if (not vtm.gear.IsKeyRepeated()) then vtm.gate.RollFonts(-1) end;"/>       <!-- Cycle through the font list backward. -->
+    <RollFontsForward      ="if (not vtm.gear.IsKeyRepeated()) then vtm.gate.RollFonts( 1) end;"/>       <!-- Cycle through the font list forward. -->
 
     <ExclusiveKeyboardMode             ="vtm.terminal.ExclusiveKeyboardMode(vtm.terminal.ExclusiveKeyboardMode()==1 and 0 or 1);"/>  <!-- Toggle exclusive keyboard mode by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
-    <TerminalFindPrev                  ="vtm.terminal.FindNextMatch(-1);"/>            <!-- Highlight prev match of selected text fragment. Clipboard content is used if no active selection. -->
-    <TerminalFindNext                  ="vtm.terminal.FindNextMatch( 1);"/>            <!-- Highlight next match of selected text fragment. Clipboard content is used if no active selection. -->
-    <TerminalScrollViewportOnePageUp   ="vtm.terminal.ScrollViewportByPage( 0, 1);"/>  <!-- Scroll viewport one page up. -->
-    <TerminalScrollViewportOnePageDown ="vtm.terminal.ScrollViewportByPage( 0,-1);"/>  <!-- Scroll viewport one page down. -->
-    <TerminalScrollViewportOnePageLeft ="vtm.terminal.ScrollViewportByPage( 1, 0);"/>  <!-- Scroll viewport one page to the left. -->
-    <TerminalScrollViewportOnePageRight="vtm.terminal.ScrollViewportByPage(-1, 0);"/>  <!-- Scroll viewport one page to the right. -->
-    <TerminalScrollViewportOneLineUp   ="vtm.terminal.ScrollViewportByCell( 0, 1);"/>  <!-- Scroll viewport one line up. -->
-    <TerminalScrollViewportOneLineDown ="vtm.terminal.ScrollViewportByCell( 0,-1);"/>  <!-- Scroll viewport one line down. -->
-    <TerminalScrollViewportOneCellLeft ="vtm.terminal.ScrollViewportByCell( 1, 0);"/>  <!-- Scroll viewport one cell to the left. -->
-    <TerminalScrollViewportOneCellRight="vtm.terminal.ScrollViewportByCell(-1, 0);"/>  <!-- Scroll viewport one cell to the right. -->
-    <TerminalScrollViewportToTop       ="if (not vtm.gear.IsKeyRepeated()) then vtm.terminal.ScrollViewportToTop() end;"/>  <!-- Scroll viewport to the scrollback top. -->
-    <TerminalScrollViewportToEnd       ="if (not vtm.gear.IsKeyRepeated()) then vtm.terminal.ScrollViewportToEnd() end;"/>  <!-- Scroll viewport to the scrollback bottom. -->
-    <TerminalSendKey                   ="vtm.terminal.SendKey('test\\r');"/>           <!-- Simulating keypresses using the specified string. -->
-    <TerminalOutput                    ="vtm.terminal.Print('Hello!\\n');"/>           <!-- Direct output the string to the terminal scrollback. -->
-    <TerminalReset                     ="vtm.terminal.Print('\\x1b[!p');"/>            <!-- Clear scrollback and SGR-attributes. -->
-    <TerminalClearScrollback           ="vtm.terminal.ClearScrollback();"/>            <!-- Clear scrollback above current line. -->
-    <TerminalCopyViewport              ="vtm.terminal.CopyViewport();"/>               <!-- Copy viewport to clipboard. -->
-    <TerminalCopySelection             ="vtm.terminal.CopySelection();"/>              <!-- Copy selection to clipboard. -->
-    <TerminalClipboardPaste            ="vtm.terminal.PasteClipboard();"/>             <!-- Paste from clipboard. -->
-    <TerminalClipboardWipe             ="vtm.terminal.ClearClipboard();"/>             <!-- Reset clipboard. -->
-    <TerminalClipboardFormat           ="vtm.terminal.ClipboardFormat((vtm.terminal.ClipboardFormat() + 1) % 6);"/>  <!-- Toggle terminal text selection copy format. 0: Disabled; 1: Plain text; 2: ANSI; 3: RTF; 4: HTML; 5: Sensitive plain text. -->
-    <TerminalSelectionForm             ="vtm.terminal.SelectionForm(vtm.terminal.SelectionForm()==1 and 0 or 1);"/>  <!-- Toggle between linear and rectangular selection form. 0: linear form; 1: boxed form. -->
-    <TerminalSelectionCancel           ="vtm.terminal.ClearSelection();"/>             <!-- Deselect a selection. -->
-    <TerminalSelectionOneShot          ="vtm.terminal.OneShotSelection();"/>           <!-- One-shot toggle to copy text while mouse tracking is active. Keep selection if 'Ctrl' key is pressed. -->
-    <TerminalUndo                      ="vtm.terminal.UndoReadline();"/>               <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input. -->
-    <TerminalRedo                      ="vtm.terminal.RedoReadline();"/>               <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command. -->
-    <TerminalCwdSync                   ="vtm.terminal.CwdSync(vtm.terminal.CwdSync()==1 and 0 or 1);"/>            <!-- Toggle the current working directory sync mode. -->
-    <TerminalWrapMode                  ="vtm.terminal.LineWrapMode(vtm.terminal.LineWrapMode()==1 and 0 or 1);"/>  <!-- Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is. 0: line wrapping is off; 1: line wrapping is on. -->
-    <TerminalAlignMode                 ="vtm.terminal.LineAlignMode((vtm.terminal.LineAlignMode() + 1) % 3);"/>    <!-- Toggle terminal scrollback lines aligning mode. Applied to the active selection if it is. 0: left; 1: right; 2: center. -->
+    <TerminalFindPrev                  ="vtm.terminal.FindNextMatch(-1);"/>            <!-- Highlight the previous match of the selected text. Clipboard content is used if there is no active selection. -->
+    <TerminalFindNext                  ="vtm.terminal.FindNextMatch( 1);"/>            <!-- Highlight the next match of the selected text. Clipboard content is used if there is no active selection. -->
+    <TerminalScrollViewportOnePageUp   ="vtm.terminal.ScrollViewportByPage( 0, 1);"/>  <!-- Scroll the viewport one page up. -->
+    <TerminalScrollViewportOnePageDown ="vtm.terminal.ScrollViewportByPage( 0,-1);"/>  <!-- Scroll the viewport one page down. -->
+    <TerminalScrollViewportOnePageLeft ="vtm.terminal.ScrollViewportByPage( 1, 0);"/>  <!-- Scroll the viewport one page to the left. -->
+    <TerminalScrollViewportOnePageRight="vtm.terminal.ScrollViewportByPage(-1, 0);"/>  <!-- Scroll the viewport one page to the right. -->
+    <TerminalScrollViewportOneLineUp   ="vtm.terminal.ScrollViewportByCell( 0, 1);"/>  <!-- Scroll the viewport one line up. -->
+    <TerminalScrollViewportOneLineDown ="vtm.terminal.ScrollViewportByCell( 0,-1);"/>  <!-- Scroll the viewport one line down. -->
+    <TerminalScrollViewportOneCellLeft ="vtm.terminal.ScrollViewportByCell( 1, 0);"/>  <!-- Scroll the viewport one cell to the left. -->
+    <TerminalScrollViewportOneCellRight="vtm.terminal.ScrollViewportByCell(-1, 0);"/>  <!-- Scroll the viewport one cell to the right. -->
+    <TerminalScrollViewportToTop       ="if (not vtm.gear.IsKeyRepeated()) then vtm.terminal.ScrollViewportToTop() end;"/>  <!-- Scroll the viewport to the top of the scrollback buffer. -->
+    <TerminalScrollViewportToEnd       ="if (not vtm.gear.IsKeyRepeated()) then vtm.terminal.ScrollViewportToEnd() end;"/>  <!-- Scroll the viewport to the bottom of the scrollback buffer. -->
+    <TerminalSendKey                   ="vtm.terminal.SendKey('test\\r');"/>           <!-- Simulate keypresses using the specified string. -->
+    <TerminalOutput                    ="vtm.terminal.Print('Hello!\\n');"/>           <!-- Output a string directly to the terminal scrollback. -->
+    <TerminalReset                     ="vtm.terminal.Print('\\x1b[!p');"/>            <!-- Clear the scrollback and reset SGR attributes. -->
+    <TerminalClearScrollback           ="vtm.terminal.ClearScrollback();"/>            <!-- Clear the scrollback buffer above the current line. -->
+    <TerminalCopyViewport              ="vtm.terminal.CopyViewport();"/>               <!-- Copy the viewport content to the clipboard. -->
+    <TerminalCopySelection             ="vtm.terminal.CopySelection();"/>              <!-- Copy the selection to the clipboard. -->
+    <TerminalClipboardPaste            ="vtm.terminal.PasteClipboard();"/>             <!-- Paste from the clipboard. -->
+    <TerminalClipboardWipe             ="vtm.terminal.ClearClipboard();"/>             <!-- Clear the clipboard. -->
+    <TerminalClipboardFormat           ="vtm.terminal.ClipboardFormat((vtm.terminal.ClipboardFormat() + 1) % 6);"/>  <!-- Toggle the clipboard copy format. 0: Disabled; 1: Plaintext; 2: ANSI; 3: RTF; 4: HTML; 5: Protected. -->
+    <TerminalSelectionForm             ="vtm.terminal.SelectionForm(vtm.terminal.SelectionForm()==1 and 0 or 1);"/>  <!-- Toggle between linear and rectangular selection modes. 0: Linear; 1: Rectangular (Block). -->
+    <TerminalSelectionCancel           ="vtm.terminal.ClearSelection();"/>             <!-- Clear the current selection. -->
+    <TerminalSelectionOneShot          ="vtm.terminal.OneShotSelection();"/>           <!-- One-shot toggle to copy text while mouse tracking is active. Selection is preserved if the 'Ctrl' key is held. -->
+    <TerminalUndo                      ="vtm.terminal.UndoReadline();"/>               <!-- (Win32 Cooked mode only) Discard the last input. -->
+    <TerminalRedo                      ="vtm.terminal.RedoReadline();"/>               <!-- (Win32 Cooked mode only) Revert the last Undo command. -->
+    <TerminalCwdSync                   ="vtm.terminal.CwdSync(vtm.terminal.CwdSync()==1 and 0 or 1);"/>            <!-- Toggle the current working directory (CWD) synchronization. -->
+    <TerminalWrapMode                  ="vtm.terminal.LineWrapMode(vtm.terminal.LineWrapMode()==1 and 0 or 1);"/>  <!-- Toggle line wrapping. Applied to the active selection if it exists. 0: Off; 1: On. -->
+    <TerminalAlignMode                 ="vtm.terminal.LineAlignMode((vtm.terminal.LineAlignMode() + 1) % 3);"/>    <!-- Toggle line alignment. Applied to the active selection if it exists. 0: Left; 1: Right; 2: Center. -->
     <TerminalStdioLog                  ="vtm.terminal.LogMode(vtm.terminal.LogMode()==1 and 0 or 1);"/>            <!-- Toggle stdin/stdout logging. -->
-    <TerminalRestart                   ="vtm.terminal.Restart();"/>                    <!-- Terminate runnning console apps and restart current session. -->
+    <TerminalRestart                   ="vtm.terminal.Restart();"/>                    <!-- Terminate running console applications and restart the current session. -->
     <IgnoreAltbuf                      ="if (vtm.terminal.AltbufMode()) then vtm.terminal.ForwardKeys(); return; end;"/>  <!-- Forward the last key event to the terminal if the alternate buffer is active. -->
 
-    <!-- Taskbar focus layout.
-            Splitter(not focusable)
-            AppGroup(weight=100)  CollapseButton(10) CloseAllButton(10)
-                RunningApp(50)  CloseButton(10)
+    <!-- Taskbar focus layout:
+            Splitter (not focusable)
+            AppGroup (weight=100)  CollapseButton (10) CloseAllButton (10)
+                RunningApp (50)  CloseButton (10)
             ...
-            AppGroup(100)
-            UserListHeader(not focusable)  UserListCollapseButton(100)
-                UserLabel(50)
+            AppGroup (100)
+            UserListHeader (not focusable)  UserListCollapseButton (100)
+                UserLabel (50)
                 ...
-                UserLabel(50)
-            DisconnectButton(100)  ShutdownButton(10)
-        Keyboard focus switching logic.
-            DownArrow   Move to the next focusable element with a weight of at least 50, skipping elements with a lower weight.
-            UpArrow     Move to the prev focusable element with a weight of at least 50, skipping elements with a lower weight.
-            RightArrow  Move to the next focusable element with a weight of at least 10, skipping elements with a lower weight
-            LeftArrow   Move to the prev focusable element with a weight no less than the CURRENT one, skipping elements with a lower weight.
-            Tab         Move to the next focusable element with a weight of at least 100, skipping elements with a lower weight.
-            Shift+Tab   Move to the prev focusable element with a weight of at least 100, skipping elements with a lower weight.
-            PageDown    Move to the next focusable element skipping N elements with weight >= 50, where N=taskbar_height/(2*line_height).
-            PageUp      Move to the prev focusable element skipping N elements with weight >= 50, where N=taskbar_height/(2*line_height).
-            Home        Move to the first(top) focusable element with a weight of at least 100 in the visual tree.
-            End         Move to the last(bottom) focusable element with a weight of at least 100 in the visual tree.
-        vtm.taskbar.FocusNextItem(si32 n, si32 min_w, si32 max_w = si32max); // Move to the next(n>0)/prev(n<0) focusable element with `min_w` <= weight <= `max_w`, skipping (std::abs(n)-1) elements with `min_w` <= weight <= `max_w` and all elements with weight < `min_w`.
+                UserLabel (50)
+            DisconnectButton (100)  ShutdownButton (10)
+
+        Keyboard focus switching logic:
+            DownArrow   Move to the next focusable element with a weight >= 50.
+            UpArrow     Move to the previous focusable element with a weight >= 50.
+            RightArrow  Move to the next focusable element with a weight >= 10.
+            LeftArrow   Move to the previous focusable element with a weight >= CURRENT weight.
+            Tab         Move to the next focusable element with a weight >= 100.
+            Shift+Tab   Move to the previous focusable element with a weight >= 100.
+            PageDown    Move to the next focusable element, skipping N elements with weight >= 50 (N = taskbar_height / (2 * line_height)).
+            PageUp      Move to the previous focusable element, skipping N elements with weight >= 50 (N = taskbar_height / (2 * line_height)).
+            Home        Move to the first (top) focusable element with a weight >= 100.
+            End         Move to the last (bottom) focusable element with a weight >= 100.
+
+        vtm.taskbar.FocusNextItem(si32 n, si32 min_w, si32 max_w = si32max):
+            Move focus to the next (n > 0) or previous (n < 0) focusable element where min_w <= weight <= max_w.
+            Skips (std::abs(n)-1) elements meeting the weight criteria, and all elements with weight < min_w.
     -->
     <FocusLeftTaskbarItem  ="local w=vtm.taskbar.GetFocusedWeight(); vtm.taskbar.FocusNextItem(-1, w);"/>
     <FocusRightTaskbarItem ="vtm.taskbar.FocusNextItem( 1, 10, 10);"/>
