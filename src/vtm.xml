@@ -13,7 +13,19 @@ R"==(<include*/>  <!-- Ordered list of <include="/path/to/settings.xml"/>. Clear
         <blinkrate=400ms/>    <!-- Cursor/text blink rate (SGR 5/6). Set to zero to disable blinking. -->
         <fonts>  <!-- Ordered font fallback list. Other available system fonts will be loaded dynamically. -->
             <font*/>  <!-- Clear previously defined fonts to start a new list. -->
-            <font="Cascadia Mono"/>  <!-- Primary font: the first in the list. Its metrics define the cell geometry. -->
+            <font="Cascadia Mono">  <!-- Primary font: the first in the list. Its metrics define the cell geometry and set the default axis values for all subsequent fonts in the fallback list. -->
+                <!-- You can specify base axis values for each of the four font styles supported by the primary font: 'regular', 'bold', 'italic', and 'bold_italic'. -->
+                <!-- If the primary font is not a variable font, all specified axis values are ignored. If no values are provided, the font's default settings will be used. -->
+                <!-- To view the list of available system fonts and their supported axes, use the 'vtm \-\-fontlist' command. -->
+                <wdth="" regular="" bold="" italic="" bold_italic=""/>  <!-- [wdth] axis: 50-200 (percentage). Typical values: 75% for 'Condensed', 100% for 'Normal', 150% for 'Extended'. Example: '<wdth=75/>' applies 75% width to all styles. -->
+                <wght="" regular="" bold="" italic="" bold_italic=""/>  <!-- [wght] axis: 1-1000 (weight units). Typical values: 400 for 'Regular', 700 for 'Bold', 900 for 'Black'. Example: '<wght regular=200 bold=500/>' sets a thin weight (200) for 'regular' and a near-normal weight (500) for 'bold'. -->
+                <slnt="" regular="" bold="" italic="" bold_italic=""/>  <!-- [slnt] axis: -90 to +90 (degrees). Vertical tilt angle. Example: '<slnt regular=0 bold=0 italic=-12 bold_italic=-10/>'. -->
+                <!-- <GRAD="" regular="" bold="" italic="" bold_italic=""/> --> <!-- Grade: Modifies the optical weight without changing glyph width. -->
+                <!-- <SOFT="" regular="" bold="" italic="" bold_italic=""/> --> <!-- Softness: Adjusts corner rounding. -->
+                <!-- <SERF="" regular="" bold="" italic="" bold_italic=""/> --> <!-- Serif Shape: Modifies the shape or size of serifs. -->
+                <!-- <YTLC="" regular="" bold="" italic="" bold_italic=""/> --> <!-- Axes for adjusting the height of ascenders and descenders. -->
+                <!-- <YTRA="" regular="" bold="" italic="" bold_italic=""/> --> <!-- // -->
+            </font>
             <font="Courier New"/>
             <font="NSimSun"/>
             <font="Noto Sans Devanagari"/>
