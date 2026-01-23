@@ -809,6 +809,15 @@ namespace netxs::app::shared
     };
     struct gui_config_t
     {
+        struct axis_vals_t
+        {
+            fp32 base_value;
+            fp32 regular{};
+            fp32 bold{};
+            fp32 italic{};
+            fp32 bold_italic{};
+        };
+
         si32 winstate{};
         bool aliasing{};
         span blinking{};
@@ -816,6 +825,7 @@ namespace netxs::app::shared
         twod gridsize{};
         si32 cellsize{};
         std::list<text> fontlist;
+        std::map<text, axis_vals_t> font_axes;
     };
 
     static auto get_gui_config(settings& config)
@@ -831,6 +841,33 @@ namespace netxs::app::shared
         if (gui_config.gridsize.x == 0 || gui_config.gridsize.y == 0) gui_config.gridsize = dot_mx;
         auto fonts_context = config.settings::push_context("/config/gui/fonts/");
         auto font_list = config.settings::take_ptr_list_for_name("font");
+        if (font_list.size())
+        {
+            auto& primary_font_ptr = font_list.front();
+            auto axis_ptr_list = config.take_ptr_list_of(primary_font_ptr);
+            for (auto& axis_rec_ptr : axis_ptr_list)
+            {
+                if (axis_rec_ptr->name)
+                {
+                    auto& axes_name = axis_rec_ptr->name.value()->utf8;
+                    auto base_value_str   = config.settings::take_value(axis_rec_ptr);
+                    auto base_value  = xml::take_or(base_value_str                                 , netxs::fp32nan);
+                    auto regular     = config.settings::take_value_from(axis_rec_ptr, "regular"    , netxs::fp32nan);
+                    auto bold        = config.settings::take_value_from(axis_rec_ptr, "bold"       , netxs::fp32nan);
+                    auto italic      = config.settings::take_value_from(axis_rec_ptr, "italic"     , netxs::fp32nan);
+                    auto bold_italic = config.settings::take_value_from(axis_rec_ptr, "bold_italic", netxs::fp32nan);
+                    if (std::isfinite(base_value) || std::isfinite(regular) || std::isfinite(bold) || std::isfinite(italic) || std::isfinite(bold_italic))
+                    {
+                        auto& font_axis = gui_config.font_axes[axes_name];
+                        font_axis.base_value  = base_value;
+                        font_axis.regular     = regular;
+                        font_axis.bold        = bold;
+                        font_axis.italic      = italic;
+                        font_axis.bold_italic = bold_italic;
+                    }
+                }
+            }
+        }
         for (auto& font_ptr : font_list)
         {
             //todo implement 'fonts/font/file' - font file path/url
