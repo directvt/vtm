@@ -802,7 +802,7 @@ namespace netxs::gui
             index_ready = 10;
             if (bgworker.joinable()) bgworker.join();
         }
-        fonts(std::list<text>& family_names, si32 cell_height, auto signal_to_redraw)
+        fonts(std::list<text>& family_names, std::map<text, cfg_t::axis_vals_t>& /*font_axes*/, si32 cell_height, auto signal_to_redraw)
             : oslocale(LOCALE_NAME_MAX_LENGTH, '\0')
         {
             ::DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), (IUnknown**)factory2.GetAddressOf());
@@ -937,7 +937,7 @@ namespace netxs::gui
         };
 
         shaper fontshaper{ *this };
-        fonts(std::list<text>& /*family_names*/, si32 /*cell_height*/, auto ...)
+        fonts(std::list<text>& /*family_names*/, std::map<text, cfg_t::axis_vals_t>& /*font_axes*/ , si32 /*cell_height*/, auto ...)
         { }
         auto& take_font(utfx /*base_char*/)
         {
@@ -2208,7 +2208,7 @@ namespace netxs::gui
               config{ config },
               titles{ *this, "", "", faux },
               wfocus{ *this, ui::pro::focus::mode::relay },
-              fcache{ config.font_names, config.cell_height, [&]{ netxs::set_flag<task::all>(reload); window_post_command(ipc::no_command); } },
+              fcache{ config.font_names, config.font_axes, config.cell_height, [&]{ netxs::set_flag<task::all>(reload); window_post_command(ipc::no_command); } },
               gcache{ fcache, config.antialiasing },
               blinks{ .init = config.blink_rate },
               cellsz{ fcache.cellsize },
