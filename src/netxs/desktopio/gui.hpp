@@ -35,6 +35,27 @@ namespace netxs::gui
 
     static constexpr auto debug_foci = faux;
 
+    struct cfg_t
+    {
+        struct axis_vals_t
+        {
+            fp32 base_value;
+            fp32 regular{};
+            fp32 bold{};
+            fp32 italic{};
+            fp32 bold_italic{};
+        };
+
+        si32                        win_state{};    // cfg_t: .
+        bool                        antialiasing{}; // cfg_t: .
+        span                        blink_rate{};   // cfg_t: .
+        twod                        wincoord{};     // cfg_t: .
+        twod                        gridsize{};     // cfg_t: .
+        si32                        cell_height{};  // cfg_t: .
+        std::list<text>             font_names;     // cfg_t: Font family list.
+        std::map<text, axis_vals_t> font_axes;      // cfg_t: Ordered map <axis_4byte_tag, <values>>.
+    };
+
     struct layer
     {
         static constexpr auto hidden = twod{ -32000, -32000 };
@@ -781,7 +802,7 @@ namespace netxs::gui
             index_ready = 10;
             if (bgworker.joinable()) bgworker.join();
         }
-        fonts(std::list<text>& family_names, si32 cell_height, auto signal_to_redraw)
+        fonts(std::list<text>& family_names, std::map<text, cfg_t::axis_vals_t>& /*font_axes*/, si32 cell_height, auto signal_to_redraw)
             : oslocale(LOCALE_NAME_MAX_LENGTH, '\0')
         {
             ::DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), (IUnknown**)factory2.GetAddressOf());
@@ -916,7 +937,7 @@ namespace netxs::gui
         };
 
         shaper fontshaper{ *this };
-        fonts(std::list<text>& /*family_names*/, si32 /*cell_height*/, auto ...)
+        fonts(std::list<text>& /*family_names*/, std::map<text, cfg_t::axis_vals_t>& /*font_axes*/ , si32 /*cell_height*/, auto ...)
         { }
         auto& take_font(utfx /*base_char*/)
         {
@@ -2123,6 +2144,7 @@ namespace netxs::gui
             }
         };
 
+        cfg_t config; // winbase: User specified settings.
         title titles; // winbase: UI header/footer.
         focus wfocus; // winbase: UI focus.
         layer master; // winbase: Layer for Client.
@@ -2181,13 +2203,14 @@ namespace netxs::gui
         bool  fake_ctrl; // winbase: Fake ctrl key event on AltGr press/release (non-US kb layouts).
         bool  wait_ralt; // winbase: Wait RightAlt right after the fake LeftCtrl.
 
-        winbase(auth& indexer, std::list<text>& font_names, si32 cell_height, bool antialiasing, span blink_rate, twod grip_cell)
+        winbase(auth& indexer, cfg_t& config, twod grip_cell)
             : base{ indexer },
+              config{ config },
               titles{ *this, "", "", faux },
               wfocus{ *this, ui::pro::focus::mode::relay },
-              fcache{ font_names, cell_height, [&]{ netxs::set_flag<task::all>(reload); window_post_command(ipc::no_command); } },
-              gcache{ fcache, antialiasing },
-              blinks{ .init = blink_rate },
+              fcache{ config.font_names, config.font_axes, config.cell_height, [&]{ netxs::set_flag<task::all>(reload); window_post_command(ipc::no_command); } },
+              gcache{ fcache, config.antialiasing },
+              blinks{ .init = config.blink_rate },
               cellsz{ fcache.cellsize },
               origsz{ fcache.cellsize.y },
               height{ (fp32)cellsz.y },
@@ -3611,10 +3634,10 @@ namespace netxs::gui
                 f.coor += win_area.coor;
             }
         }
-        void connect(si32 win_state, twod wincoord, twod gridsize)
+        void connect()
         {
             sync_os_settings();
-            if (!(layer_create(master, this, wincoord, gridsize, border, cellsz)
+            if (!(layer_create(master, this, config.wincoord, config.gridsize, border, cellsz)
                && layer_create(blinky)
                && layer_create(header)
                && layer_create(footer)
@@ -3632,7 +3655,7 @@ namespace netxs::gui
                 auto lock = bell::sync();
                 normsz = master.area;
                 size_window();
-                set_state(win_state);
+                set_state(config.win_state);
                 update_gui();
                 window_initilize();
 

@@ -807,70 +807,86 @@ namespace netxs::app::shared
             map[app_typename] = builder;
         }
     };
-    struct gui_config_t
-    {
-        si32 winstate{};
-        bool aliasing{};
-        span blinking{};
-        twod wincoord{};
-        twod gridsize{};
-        si32 cellsize{};
-        std::list<text> fontlist;
-    };
 
     static auto get_gui_config(settings& config)
     {
         os::dtvt::wheelrate = config.settings::take("/config/timings/wheelrate", 3);
-        auto gui_config = gui_config_t{ .winstate = config.settings::take("/config/gui/winstate", winstate::normal, app::shared::win::options),
-                                        .aliasing = config.settings::take("/config/gui/antialiasing", faux),
-                                        .blinking = config.settings::take("/config/gui/blinkrate", span{ 400ms }),
-                                        .wincoord = config.settings::take("/config/gui/wincoor", dot_mx),
-                                        .gridsize = config.settings::take("/config/gui/gridsize", dot_mx),
-                                        .cellsize = std::clamp(config.settings::take("/config/gui/cellheight", si32{ 20 }), 0, 256) };
-        if (gui_config.cellsize == 0) gui_config.cellsize = 20;
+        auto gui_config = gui::cfg_t{ .win_state    = config.settings::take("/config/gui/winstate", winstate::normal, app::shared::win::options),
+                                      .antialiasing = config.settings::take("/config/gui/antialiasing", faux),
+                                      .blink_rate   = config.settings::take("/config/gui/blinkrate", span{ 400ms }),
+                                      .wincoord     = config.settings::take("/config/gui/wincoor", dot_mx),
+                                      .gridsize     = config.settings::take("/config/gui/gridsize", dot_mx),
+                                      .cell_height  = std::clamp(config.settings::take("/config/gui/cellheight", si32{ 20 }), 0, 256) };
+        if (gui_config.cell_height == 0) gui_config.cell_height = 20;
         if (gui_config.gridsize.x == 0 || gui_config.gridsize.y == 0) gui_config.gridsize = dot_mx;
         auto fonts_context = config.settings::push_context("/config/gui/fonts/");
         auto font_list = config.settings::take_ptr_list_for_name("font");
+        if (font_list.size())
+        {
+            auto& primary_font_ptr = font_list.front();
+            auto axis_ptr_list = config.take_ptr_list_of(primary_font_ptr);
+            for (auto& axis_rec_ptr : axis_ptr_list)
+            {
+                if (axis_rec_ptr->name)
+                {
+                    auto& axes_name = axis_rec_ptr->name.value()->utf8;
+                    auto base_value_str = config.settings::take_value(axis_rec_ptr);
+                    auto base_value     = xml::take_or(base_value_str                                 , netxs::fp32nan);
+                    auto regular        = config.settings::take_value_from(axis_rec_ptr, "regular"    , netxs::fp32nan);
+                    auto bold           = config.settings::take_value_from(axis_rec_ptr, "bold"       , netxs::fp32nan);
+                    auto italic         = config.settings::take_value_from(axis_rec_ptr, "italic"     , netxs::fp32nan);
+                    auto bold_italic    = config.settings::take_value_from(axis_rec_ptr, "bold_italic", netxs::fp32nan);
+                    if (std::isfinite(base_value) || std::isfinite(regular) || std::isfinite(bold) || std::isfinite(italic) || std::isfinite(bold_italic))
+                    {
+                        auto& font_axis = gui_config.font_axes[axes_name];
+                        font_axis.base_value  = base_value;
+                        font_axis.regular     = regular;
+                        font_axis.bold        = bold;
+                        font_axis.italic      = italic;
+                        font_axis.bold_italic = bold_italic;
+                    }
+                }
+            }
+        }
         for (auto& font_ptr : font_list)
         {
-            //todo implement 'fonts/font/file' - font file path/url
-            gui_config.fontlist.push_back(config.settings::take_value(font_ptr));
+            gui_config.font_names.push_back(config.settings::take_value(font_ptr));
         }
         return gui_config;
     }
     static auto get_tui_config(settings& config, ui::skin& g)
     {
         using namespace std::chrono;
-        os::dtvt::wheelrate = config.settings::take("/config/timings/wheelrate", 3);
-        g.window_clr     = config.settings::take("/config/colors/window"     , cell{ whitespace });
-        g.winfocus       = config.settings::take("/config/colors/focus"      , cell{ whitespace });
-        g.brighter       = config.settings::take("/config/colors/brighter"   , cell{ whitespace });
-        g.shadower       = config.settings::take("/config/colors/shadower"   , cell{ whitespace });
-        g.warning        = config.settings::take("/config/colors/warning"    , cell{ whitespace });
-        g.danger         = config.settings::take("/config/colors/danger"     , cell{ whitespace });
-        g.action         = config.settings::take("/config/colors/action"     , cell{ whitespace });
-        g.selected       = config.settings::take("/config/desktop/taskbar/colors/selected"  , cell{ whitespace });
-        g.active         = config.settings::take("/config/desktop/taskbar/colors/active"    , cell{ whitespace });
-        g.focused        = config.settings::take("/config/desktop/taskbar/colors/focused"   , cell{ whitespace });
-        g.inactive       = config.settings::take("/config/desktop/taskbar/colors/inactive"  , cell{ whitespace });
-        g.spd            = config.settings::take("/config/timings/kinetic/spd"      , 10  );
-        g.pls            = config.settings::take("/config/timings/kinetic/pls"      , 167 );
-        g.spd_accel      = config.settings::take("/config/timings/kinetic/spd_accel", 1   );
-        g.spd_max        = config.settings::take("/config/timings/kinetic/spd_max"  , 100 );
-        g.ccl            = config.settings::take("/config/timings/kinetic/ccl"      , 120 );
-        g.ccl_accel      = config.settings::take("/config/timings/kinetic/ccl_accel", 30  );
-        g.ccl_max        = config.settings::take("/config/timings/kinetic/ccl_max"  , 1   );
-        g.switching      = config.settings::take("/config/timings/switching"        , span{ 200ms });
-        g.deceleration   = config.settings::take("/config/timings/deceleration"     , span{ 2s    });
-        g.blink_period   = config.settings::take("/config/cursor/blink"             , span{ 400ms });
-        g.menu_timeout   = config.settings::take("/config/desktop/taskbar/timeout"  , span{ 250ms });
-        g.leave_timeout  = config.settings::take("/config/timings/leave_timeout"    , span{ 1s    });
-        g.repeat_delay   = config.settings::take("/config/timings/repeat_delay"     , span{ 500ms });
-        g.repeat_rate    = config.settings::take("/config/timings/repeat_rate"      , span{ 30ms  });
-        g.maxfps         = config.settings::take("/config/timings/fps"              , 60);
-        g.max_value      = config.settings::take("/config/desktop/windowmax"        , twod{ 3000, 2000  });
-        g.macstyle       = config.settings::take("/config/desktop/macstyle"         , faux);
-        g.menuwide       = config.settings::take("/config/desktop/taskbar/wide"     , faux);
+        os::dtvt::wheelrate = config.settings::take("/config/timings/wheelrate"              , 3);
+        g.window_clr        = config.settings::take("/config/colors/window"                  , cell{ whitespace });
+        g.winfocus          = config.settings::take("/config/colors/focus"                   , cell{ whitespace });
+        g.brighter          = config.settings::take("/config/colors/brighter"                , cell{ whitespace });
+        g.shadower          = config.settings::take("/config/colors/shadower"                , cell{ whitespace });
+        g.warning           = config.settings::take("/config/colors/warning"                 , cell{ whitespace });
+        g.danger            = config.settings::take("/config/colors/danger"                  , cell{ whitespace });
+        g.action            = config.settings::take("/config/colors/action"                  , cell{ whitespace });
+        g.selected          = config.settings::take("/config/desktop/taskbar/colors/selected", cell{ whitespace });
+        g.active            = config.settings::take("/config/desktop/taskbar/colors/active"  , cell{ whitespace });
+        g.focused           = config.settings::take("/config/desktop/taskbar/colors/focused" , cell{ whitespace });
+        g.inactive          = config.settings::take("/config/desktop/taskbar/colors/inactive", cell{ whitespace });
+        g.spd               = config.settings::take("/config/timings/kinetic/spd"            , 10  );
+        g.pls               = config.settings::take("/config/timings/kinetic/pls"            , 167 );
+        g.spd_accel         = config.settings::take("/config/timings/kinetic/spd_accel"      , 1   );
+        g.spd_max           = config.settings::take("/config/timings/kinetic/spd_max"        , 100 );
+        g.ccl               = config.settings::take("/config/timings/kinetic/ccl"            , 120 );
+        g.ccl_accel         = config.settings::take("/config/timings/kinetic/ccl_accel"      , 30  );
+        g.ccl_max           = config.settings::take("/config/timings/kinetic/ccl_max"        , 1   );
+        g.switching         = config.settings::take("/config/timings/switching"              , span{ 200ms });
+        g.deceleration      = config.settings::take("/config/timings/deceleration"           , span{ 2s    });
+        g.blink_period      = config.settings::take("/config/cursor/blink"                   , span{ 400ms });
+        g.menu_timeout      = config.settings::take("/config/desktop/taskbar/timeout"        , span{ 250ms });
+        g.leave_timeout     = config.settings::take("/config/timings/leave_timeout"          , span{ 1s    });
+        g.repeat_delay      = config.settings::take("/config/timings/repeat_delay"           , span{ 500ms });
+        g.repeat_rate       = config.settings::take("/config/timings/repeat_rate"            , span{ 30ms  });
+        g.maxfps            = config.settings::take("/config/timings/fps"                    , 60);
+        g.max_value         = config.settings::take("/config/desktop/windowmax"              , twod{ 3000, 2000  });
+        g.macstyle          = config.settings::take("/config/desktop/macstyle"               , faux);
+        g.menuwide          = config.settings::take("/config/desktop/taskbar/wide"           , faux);
         if (g.maxfps <= 0) g.maxfps = 60;
 
         g.NsTextbasedDesktopEnvironment   = config.settings::take("/Ns/TextbasedDesktopEnvironment"    , ""s);
@@ -960,7 +976,7 @@ namespace netxs::app::shared
         g.NsMaximizeWindow_tooltip        = config.settings::take("/Ns/MaximizeWindow/tooltip"         , ""s);
         g.NsCloseWindow_tooltip           = config.settings::take("/Ns/CloseWindow/tooltip"            , ""s);
     }
-    static void splice(xipc client, gui_config_t& gc)
+    static void splice(xipc client, gui::cfg_t& gc)
     {
         if (os::dtvt::active || !(os::dtvt::vtmode & ui::console::gui))
         {
@@ -975,8 +991,8 @@ namespace netxs::app::shared
             {
                 //todo sync settings with tui_domain (auth::config)
                 auto gui_event_domain = netxs::events::auth{};
-                auto window = gui_event_domain.create<gui::window>(gui_event_domain, gc.fontlist, gc.cellsize, gc.aliasing, gc.blinking, dot_21);
-                window->connect(gc.winstate, gc.wincoord, gc.gridsize);
+                auto window = gui_event_domain.create<gui::window>(gui_event_domain, gc, dot_21);
+                window->connect();
             };
             if (os::stdout_fd != os::invalid_fd)
             {
