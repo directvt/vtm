@@ -597,6 +597,8 @@ Standard object names
 |                 |                          | `vtm.applet.Restore()`                             | Restore applet window.
 |                 |                          | `vtm.applet.GetArea() -> int x, y, w, h`           | Get applet window area: coordinates x, y (relative to the desktop, left-top corner) and size w, h (width and height).
 |                 |                          | `vtm.applet.GetTitlesHeight() -> int h, f`         | Get the height of the applet window's header and footer: `h` is the header, `f` is the footer.
+|                 |                          | `vtm.applet.LockAccess() -> int`                   | Get current applet's access lock state.
+|                 |                          | `vtm.applet.LockAccess(int n)`                     | Set applet's access lock state: n==1 locked, n==0 unlocked.
 |`gear`           | User mouse and keyboard  | `vtm.gear.IsKeyRepeated() -> bool`                 | Returns true if the keyboard event is a key-repeat generated event.
 |                 |                          | `vtm.gear.SetHandled()`                            | Set that the event is processed, and stop further processing.
 |                 |                          | `vtm.gear.Interrupt()`                             | Interrupt the key event processing.

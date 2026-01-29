@@ -70,6 +70,7 @@ namespace netxs
         static constexpr auto focusnextwindow = __COUNTER__ - _counter;
         static constexpr auto zorder          = __COUNTER__ - _counter;
         static constexpr auto warpwindow      = __COUNTER__ - _counter;
+        static constexpr auto accesslock      = __COUNTER__ - _counter;
     };
     struct winstate
     {
@@ -454,6 +455,7 @@ namespace netxs::events::userland
                 {
                     EVENT_XS( name      , text       ), // user name.
                     EVENT_XS( zorder    , si32       ), // Set form z-order, si32: 0 plain, 1 backmost, 2 topmost.
+                    EVENT_XS( accesslock, si32       ), // Set applet access lock.
                     EVENT_XS( fullscreen, ui::sptr   ), // Set fullscreen app.
                     EVENT_XS( viewport  , rect       ), // request: Return form actual viewport.
                     EVENT_XS( lucidity  , si32       ), // set or request window transparency, si32: 0-255, -1 to request.

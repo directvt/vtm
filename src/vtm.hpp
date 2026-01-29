@@ -549,6 +549,7 @@ namespace netxs::app::vtm
         {
             hall& world;
             si32& zorder;
+            si32& accesslock;
             bool highlighted = faux;
             bool active = faux;
             tone color = { tone::brighter, tone::shadower };
@@ -568,6 +569,16 @@ namespace netxs::app::vtm
                     base::strike();
                 }
                 return zorder;
+            }
+            auto window_accesslock(arch args_count, si32 state)
+            {
+                //todo implement user list
+                if (args_count != 0)
+                {
+                    accesslock = state;
+                    base::strike();
+                }
+                return accesslock;
             }
             void window_close(id_t gear_id)
             {
@@ -618,7 +629,8 @@ namespace netxs::app::vtm
             static constexpr auto classname = basename::window;
             window_t(hall& owner, applink& what)
                 : world{ owner },
-                  zorder{ what.applet->base::property("applet.zorder", zpos::plain) }
+                      zorder{ what.applet->base::property("applet.zorder", zpos::plain) },
+                  accesslock{ what.applet->base::property("applet.accesslock", 0) } //todo impl user list
             {
                 base::plugin<pro::mouse>();
                 base::plugin<pro::d_n_d>();
@@ -660,6 +672,11 @@ namespace netxs::app::vtm
                     {
                         auto args_count = gui_cmd.args.size();
                         window_zorder(args_count, args_count ? any_get_or(gui_cmd.args[0], zpos::plain) : zpos::plain);
+                    }
+                    else if (gui_cmd.cmd_id == syscmd::accesslock)
+                    {
+                        auto args_count = gui_cmd.args.size();
+                        window_accesslock(args_count, args_count ? any_get_or(gui_cmd.args[0], 0) : 0);
                     }
                     else if (gui_cmd.cmd_id == syscmd::close)
                     {
@@ -1807,6 +1824,7 @@ namespace netxs::app::vtm
                             layers[i].push_back(item_ptr);
                         }
                     }
+                    //todo implement access lock visualization?
                     for (auto& layer : layers)
                     {
                         for (auto& item_ptr : layer)

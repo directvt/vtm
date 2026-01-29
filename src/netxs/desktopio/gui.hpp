@@ -3402,6 +3402,13 @@ namespace netxs::gui
             auto state = args.size() ? any_get_or(args.front(), zpos::plain) : zpos::plain;
             window_send_command(master.hWnd, state ? ipc::make_ontop : ipc::set_normal);
         }
+        void LockAccess(many const& args)
+        {
+            auto state = args.size() ? any_get_or(args.front(), 0) : 0;
+            //todo implement
+            state = 0;
+            //window_send_command(master.hWnd, state ? ipc::make_ontop : ipc::set_normal);
+        }
 
         arch run_command(arch command, arch lParam)
         {
@@ -3604,6 +3611,7 @@ namespace netxs::gui
                     case syscmd::move:            MoveWindow(args);         break;
                     case syscmd::focusnextwindow: FocusNextWindow(args);    break;
                     case syscmd::zorder:          ZOrder(args);             break;
+                    case syscmd::accesslock:      LockAccess(args);         break;
                 }
                 update_gui();
             });

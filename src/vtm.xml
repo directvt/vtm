@@ -107,6 +107,7 @@ R"==(
                             <autohide=/Menu/Defaults/autohide/>
                             <slim=/Menu/Defaults/slim/>
                             <item=/Menu/Buttons/AlwaysOnTop/>
+                            <item=/Menu/Buttons/LockAccess/>
                             <item=/Menu/Buttons/FindPrev/>
                             <item=/Menu/Buttons/FindNext/>
                             <item=/Menu/Buttons/NoWrapMode/>
@@ -199,6 +200,7 @@ R"==(
             <autohide=/Menu/Defaults/autohide/>
             <slim=/Menu/Defaults/slim/>
             <item=/Menu/Buttons/AlwaysOnTop/>
+            <item=/Menu/Buttons/LockAccess/>
             <item=/Menu/Buttons/FindPrev/>
             <item=/Menu/Buttons/FindNext/>
             <item=/Menu/Buttons/ExclusiveKeyboard/>
@@ -226,6 +228,7 @@ R"==(
             <autohide=/Menu/Defaults/autohide/>
             <slim=/Menu/Defaults/slim/>
             <item=/Menu/Buttons/AlwaysOnTop/>
+            <item=/Menu/Buttons/LockAccess/>
             <item label="   +   " tooltip=/Ns/Tile/RunApplication/tooltip     script=OnLeftClick|TileRunApplication    />
             <item label="  :::  " tooltip=/Ns/Tile/SelectAllPanes/tooltip     script=OnLeftClick|TileSelectAllPanes    />
             <item label="   │   " tooltip=/Ns/Tile/SplitHorizontally/tooltip  script=OnLeftClick|TileSplitHorizontally />
@@ -429,6 +432,16 @@ R"==(
                 vtm.item.Deface()
             </script>
         </AlwaysOnTop>
+        <LockAccess script=OnLeftClick|LockAppletAccess>
+            <script>
+                <on="release: e2::form::upon::started"    source="applet"/>
+                <on="release: e2::form::prop::accesslock" source="applet"/>
+                local m=vtm.applet.LockAccess()
+                vtm.item.Label(  m==1 and vtm.config["/Ns/LockAccess/on/label"  ] or vtm.config["/Ns/LockAccess/off/label"  ])
+                vtm.item.Tooltip(m==1 and vtm.config["/Ns/LockAccess/on/tooltip"] or vtm.config["/Ns/LockAccess/off/tooltip"])
+                vtm.item.Deface()
+            </script>
+        </LockAccess>
         <FindPrev label="  <  " script=OnLeftClick|TerminalFindPrev tooltip=/Ns/FindPrev/tooltip/>
         <FindNext label="  >  " script=OnLeftClick|TerminalFindNext tooltip=/Ns/FindNext/tooltip/>
         <ExclusiveKeyboard script=OnLeftClick|ExclusiveKeyboardMode>
@@ -564,6 +577,24 @@ R"==(
             <on  label="\e[2:247;38:2:0:255:0m▀\e[2:239m \e[m" tooltip=" AlwaysOnTop: On "/>
             <off label="  "                                    tooltip=" AlwaysOnTop: Off "/>
         </AlwaysOnTop>
+        <LockAccess>
+            <on  label="\e[2:247;38:2:0:255:0m \e[2:231mLocked\e[2:239m \e[m">
+                <tooltip>
+                    "\e[1m"" Window Access: Restricted                        ""\e[m\n"
+                           "  Only users with focus at the time of locking    ""\n"
+                           "  can control this window. Inherited by children. ""\n"
+                           "  Released automatically when the last owner      ""\n"
+                           "  disconnects from the desktop session.           "
+                </tooltip>
+            </on>
+            <off label="  Lock  ">
+                <tooltip>
+                    "\e[1m"" Lock Window Access                ""\e[m\n"
+                           "  Press to restrict window control ""\n"
+                           "  to currently focused users.      "
+                </tooltip>
+            </off>
+        </LockAccess>
         <ClearScrollback label="  Clear  "   tooltip=" Clear scrollback buffer "/>
         <Restart         label="  Restart  " tooltip=" Restart current terminal session "/>
         <Taskbar>
@@ -659,6 +690,8 @@ R"==(
             <on  label="\e[2:247m \e[2:231;38:2:0:255:0mNoWrap\e[2:239m \e[m" tooltip=" \e[1mText line wrapping\e[m  \n Wrapping off        "/>
             <off label=                               " NoWrap "              tooltip=" \e[1mText line wrapping\e[m  \n Wrapping on         "/>
         </NoWrapMode>
+)==" // MSVC2022: C2026 String too big, trailing characters truncated.
+R"==(
         <ClipboardFormat tooltip=" Clipboard format ">
                 <textonly label=  "\e[38:2:0:255:0m  Plaintext  \e[m"/>
                 <ansitext label="\e[38:2:255:255:0m  ANSI-text  \e[m"/>
@@ -782,6 +815,22 @@ R"==(
             <on  tooltip=" Поверх всех окон: вкл. "/>
             <off tooltip=" Поверх всех окон: выкл. "/>
         </AlwaysOnTop>
+        <LockAccess>
+            <on  label="\e[2:247;38:2:0:255:0m \e[2:231mОграничено\e[2:239m \e[m">
+                <tooltip>
+                    "\e[1m"" Доступ к окну ограничен                    ""\e[m\n"
+                           "  Управлять могут только текущие владельцы. ""\n"
+                           "  Сбрасывается при выходе всех владельцев.  "
+                </tooltip>
+            </on>
+            <off label=" Ограничить ">
+                <tooltip>
+                    "\e[1m"" Доступ к окну не ограничен                                ""\e[m\n"
+                           "  Нажмите для разрешения управления только пользователями, ""\n"
+                           "  имеющим фокус в данный момент.                           "
+                </tooltip>
+            </off>
+        </LockAccess>
         <ClearScrollback label="  Очистить  " tooltip=" Очистить буфер прокрутки (скроллбэк) "/>
         <Restart         label="  Рестарт  "  tooltip=" Перезапустить текущую сессию терминала "/>
         <Taskbar>
@@ -913,7 +962,8 @@ R"==(
         <CloseWindow    tooltip=" Закрыть "/>
     </ru-RU>
 </Ns>
-
+)==" // MSVC2022: C2026 String too big, trailing characters truncated.
+R"==(
 <Colors>
     <DefaultColor = 0x00ffffff />
     <Transparent  = 0x00000000 />
@@ -942,8 +992,7 @@ R"==(
     <purecyan     = #00ffff />
     <pureyellow   = #ffff00 />
 </Colors>
-)==" // MSVC2022: C2026 String too big, trailing characters truncated.
-R"==(
+
 <X11ColorNames name*>  <!-- Source: https://en.wikipedia.org/wiki/X11_color_names#Color_name_chart -->
     <name = "Black"               rgb = #000000 />
     <name = "Brown"               rgb = #A52A2A />
@@ -1122,6 +1171,7 @@ R"==(
     <FocusTaskbar          ="if (vtm.gear.Focus(vtm.taskbar)) then vtm.gear.Focus(vtm.desktop); end; vtm.gear.Interrupt();"/>  <!-- Focus the taskbar or return focus to the desktop. -->
 
     <AlwaysOnTopApplet     ="vtm.applet.ZOrder(vtm.applet.ZOrder()==1 and 0 or 1);"/>  <!-- Toggle window Z-order attribute. -1: backmost; 0: normal; 1: topmost. -->
+    <LockAppletAccess      ="vtm.applet.LockAccess(vtm.applet.LockAccess()==1 and 0 or 1);"/>
     <CloseApplet           ="vtm.applet.Close();"/>            <!-- Close the window. -->
     <MinimizeApplet        ="vtm.applet.Minimize();"/>         <!-- Minimize the window. -->
     <MaximizeApplet        ="vtm.applet.Maximize();"/>         <!-- Maximize the window within the desktop area (does not cover the taskbar). -->

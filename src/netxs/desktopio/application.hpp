@@ -245,6 +245,27 @@ namespace netxs::app::shared
                                         gear.set_handled();
                                         luafx.set_return(zorder);
                                     }},
+            { "LockAccess",         [&]
+                                    {
+                                        auto args_count = luafx.args_count();
+                                        auto& accesslock = boss.base::property("applet.accesslock", 0);
+                                        auto& gear = luafx.get_gear();
+                                        if (args_count)
+                                        {
+                                            auto gui_cmd = e2::command::gui.param();
+                                            accesslock = luafx.get_args_or(1, 0);
+                                            if (gear.is_real())
+                                            {
+                                                gui_cmd.gear_id = gear.id;
+                                            }
+                                            gui_cmd.cmd_id = syscmd::accesslock;
+                                            gui_cmd.args.emplace_back(accesslock);
+                                            boss.base::riseup(tier::release, e2::form::prop::accesslock, si32{ accesslock });
+                                            boss.base::riseup(tier::preview, e2::command::gui, gui_cmd);
+                                        }
+                                        gear.set_handled();
+                                        luafx.set_return(accesslock);
+                                    }},
             { "Close",              [&]
                                     {
                                         auto gui_cmd = e2::command::gui.param();
