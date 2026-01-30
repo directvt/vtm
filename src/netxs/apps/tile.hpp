@@ -293,7 +293,26 @@ namespace netxs::app::tile
                                 };
                             };
                         }))
-                    ->branch(slot::_2, what.applet);
+                    ->branch(slot::_2, what.applet)
+                    ->invoke([&](auto& boss)
+                    {
+                        auto& accesslock_gears = what.applet->base::property("applet.accesslock", e2::form::state::keybd::enlist.param());
+                        auto& accesslock_token = boss.base::field(subs{});
+                        boss.LISTEN(tier::preview, e2::command::gui, gui_cmd)
+                        {
+                            auto hit = true;
+                            if (gui_cmd.cmd_id == syscmd::accesslock)
+                            {
+                                if (auto args_count = gui_cmd.args.size())
+                                {
+                                    auto accesslock_state = any_get_or(gui_cmd.args[0], 0);
+                                    app::shared::track_accesslock(boss, accesslock_gears, accesslock_token, accesslock_state);
+                                }
+                            }
+                            else hit = faux;
+                            if (!hit) boss.bell::passover();
+                        };
+                    });
         };
         auto build_node = [](auto tag, auto slot1, auto slot2, auto grip_width, auto grip_bindings_ptr)
         {

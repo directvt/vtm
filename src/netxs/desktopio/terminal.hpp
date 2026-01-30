@@ -9502,15 +9502,31 @@ namespace netxs::ui
               opaque{ 0xFF },
               nodata{      }
         {
+            auto& accesslock_gears = base::property("applet.accesslock", e2::form::state::keybd::enlist.param());
             LISTEN(tier::release, input::events::device::mouse::any, gear)
             {
-                if (gear.captured(base::id))
+                auto access_allowed = accesslock_gears.empty()
+                    || std::ranges::find(accesslock_gears, gear.id) != accesslock_gears.end();
+                if (access_allowed)
                 {
-                    if (!gear.m_sys.buttons) gear.setfree();
+                    if (gear.captured(base::id))
+                    {
+                        if (!gear.m_sys.buttons) gear.setfree();
+                    }
+                    else if (gear.m_sys.buttons) gear.capture(base::id);
+                    gear.m_sys.gear_id = gear.id;
+                    stream.sysmouse.send(*this, gear.m_sys);
                 }
-                else if (gear.m_sys.buttons) gear.capture(base::id);
-                gear.m_sys.gear_id = gear.id;
-                stream.sysmouse.send(*this, gear.m_sys);
+                else
+                {
+                    if (gear.captured(base::id))
+                    {
+                        gear.setfree();
+                    }
+                    gear.m_sys.gear_id = gear.id;
+                    gear.m_sys.enabled = hids::stat::halt;
+                    stream.sysmouse.send(*this, gear.m_sys);
+                }
                 gear.dismiss();
             };
             LISTEN(tier::general, input::events::die, gear)
@@ -9540,8 +9556,13 @@ namespace netxs::ui
             };
             LISTEN(tier::preview, input::events::keybd::any, gear)
             {
-                gear.gear_id = gear.id;
-                stream.syskeybd.send(*this, gear);
+                auto access_allowed = accesslock_gears.empty()
+                    || std::ranges::find(accesslock_gears, gear.id) != accesslock_gears.end();
+                if (access_allowed)
+                {
+                    gear.gear_id = gear.id;
+                    stream.syskeybd.send(*this, gear);
+                }
                 gear.dismiss();
             };
             LISTEN(tier::anycast, e2::form::prop::cwd, path)

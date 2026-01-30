@@ -549,7 +549,8 @@ namespace netxs::app::vtm
         {
             hall& world;
             si32& zorder;
-            si32& accesslock;
+            decltype(e2::form::state::keybd::enlist)::type& accesslock_gears;
+            subs accesslock_token;
             bool highlighted = faux;
             bool active = faux;
             tone color = { tone::brighter, tone::shadower };
@@ -569,16 +570,6 @@ namespace netxs::app::vtm
                     base::strike();
                 }
                 return zorder;
-            }
-            auto window_accesslock(arch args_count, si32 state)
-            {
-                //todo implement user list
-                if (args_count != 0)
-                {
-                    accesslock = state;
-                    base::strike();
-                }
-                return accesslock;
             }
             void window_close(id_t gear_id)
             {
@@ -629,8 +620,8 @@ namespace netxs::app::vtm
             static constexpr auto classname = basename::window;
             window_t(hall& owner, applink& what)
                 : world{ owner },
-                      zorder{ what.applet->base::property("applet.zorder", zpos::plain) },
-                  accesslock{ what.applet->base::property("applet.accesslock", 0) } //todo impl user list
+                            zorder{ what.applet->base::property("applet.zorder", zpos::plain) },
+                  accesslock_gears{ what.applet->base::property("applet.accesslock", e2::form::state::keybd::enlist.param()) }
             {
                 base::plugin<pro::mouse>();
                 base::plugin<pro::d_n_d>();
@@ -675,8 +666,11 @@ namespace netxs::app::vtm
                     }
                     else if (gui_cmd.cmd_id == syscmd::accesslock)
                     {
-                        auto args_count = gui_cmd.args.size();
-                        window_accesslock(args_count, args_count ? any_get_or(gui_cmd.args[0], 0) : 0);
+                        if (gui_cmd.args.size())
+                        {
+                            auto accesslock_state = any_get_or(gui_cmd.args[0], 0);
+                            app::shared::track_accesslock(*this, accesslock_gears, accesslock_token, accesslock_state);
+                        }
                     }
                     else if (gui_cmd.cmd_id == syscmd::close)
                     {
@@ -954,6 +948,7 @@ namespace netxs::app::vtm
                     {
                         if (++next != world.base::subset.end() && !area.trim((*next)->region))
                         {
+                            //todo revise: it crashes
                             world.base::subset.erase(base::holder);
                             while (++next != world.base::subset.end() && !area.trim((*next)->region))
                             { }

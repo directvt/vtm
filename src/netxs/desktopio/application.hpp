@@ -108,6 +108,67 @@ namespace netxs::app::shared
             }
         }
     };
+    const auto track_accesslock = [](base& boss, auto& accesslock_gears, auto& accesslock_token, auto& accesslock_state)
+    {
+        accesslock_gears.clear();
+        if (accesslock_state) //todo unify - same code at application.hpp:250 (LockAccess)
+        {
+            boss.base::riseup(tier::request, e2::form::state::keybd::enlist, accesslock_gears); // Get window owner list.
+            accesslock_state = (si32)!accesslock_gears.empty();
+            if (accesslock_state)
+            {
+                boss.on(tier::mousepreview, input::key::MouseAny, accesslock_token, [&](hids& gear)
+                {
+                    auto iter = std::ranges::find(accesslock_gears, gear.id);
+                    if (iter == accesslock_gears.end()) // Filter out for non-owners.
+                    {
+                        gear.dismiss();
+                        boss.bell::expire();
+                    }
+                    else
+                    {
+                        boss.bell::passover();
+                    }
+                });
+                boss.LISTEN(tier::general, input::events::die, gear, accesslock_token)
+                {
+                    auto iter = std::ranges::find(accesslock_gears, gear.id);
+                    if (iter != accesslock_gears.end()) // Remove disconnected gear.
+                    {
+                        accesslock_gears.erase(iter);
+                        if (accesslock_gears.empty())
+                        {
+                            log("%%Window [%%] access unlocked", prompt::vtm, boss.id);
+                            accesslock_token.clear();
+                        }
+                    }
+                };
+                boss.LISTEN(tier::preview, input::events::keybd::any, gear)
+                {
+                    auto access_allowed = accesslock_gears.empty()
+                        || std::ranges::find(accesslock_gears, gear.id) != accesslock_gears.end();
+                    if (!access_allowed)
+                    {
+                        gear.dismiss();
+                        boss.bell::expire();
+                    }
+                    else
+                    {
+                        boss.bell::passover();
+                    }
+                };
+            }
+        }
+        if (accesslock_state)
+        {
+            log("%%Window [%%] access locked by %% user(s)", prompt::vtm, boss.id, accesslock_gears.size());
+        }
+        else
+        {
+            accesslock_token.clear();
+            log("%%Window [%%] access unlocked", prompt::vtm, boss.id);
+        }
+    };
     const auto base_kb_navigation = [](settings& config, ui::sptr scroll_ptr, base& boss)
     {
         auto& scroll_inst = *scroll_ptr;
@@ -179,6 +240,7 @@ namespace netxs::app::shared
         auto script_list = config.settings::take_ptr_list_for_name("script");
         bindings = input::bindings::load(config, script_list);
         input::bindings::keybind(boss, bindings);
+        auto& accesslock_token = boss.base::field(subs{});
         boss.base::add_methods(basename::applet,
         {
             { "GetTitlesHeight",    [&]
@@ -248,23 +310,22 @@ namespace netxs::app::shared
             { "LockAccess",         [&]
                                     {
                                         auto args_count = luafx.args_count();
-                                        auto& accesslock = boss.base::property("applet.accesslock", 0);
+                                        auto& accesslock_gears = boss.base::property("applet.accesslock", e2::form::state::keybd::enlist.param());
+                                        auto accesslock_state = (si32)!accesslock_gears.empty();
                                         auto& gear = luafx.get_gear();
-                                        if (args_count)
+                                        if (args_count && gear.is_real())
                                         {
+                                            accesslock_state = luafx.get_args_or(1, 0);
+                                            app::shared::track_accesslock(boss, accesslock_gears, accesslock_token, accesslock_state);
                                             auto gui_cmd = e2::command::gui.param();
-                                            accesslock = luafx.get_args_or(1, 0);
-                                            if (gear.is_real())
-                                            {
-                                                gui_cmd.gear_id = gear.id;
-                                            }
+                                            gui_cmd.gear_id = gear.id;
                                             gui_cmd.cmd_id = syscmd::accesslock;
-                                            gui_cmd.args.emplace_back(accesslock);
-                                            boss.base::riseup(tier::release, e2::form::prop::accesslock, si32{ accesslock });
+                                            gui_cmd.args.emplace_back(accesslock_state);
+                                            boss.base::riseup(tier::release, e2::form::prop::accesslock, si32{ accesslock_state });
                                             boss.base::riseup(tier::preview, e2::command::gui, gui_cmd);
                                         }
                                         gear.set_handled();
-                                        luafx.set_return(accesslock);
+                                        luafx.set_return(accesslock_state);
                                     }},
             { "Close",              [&]
                                     {
