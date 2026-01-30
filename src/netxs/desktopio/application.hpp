@@ -143,7 +143,7 @@ namespace netxs::app::shared
                         }
                     }
                 };
-                boss.LISTEN(tier::preview, input::events::keybd::any, gear)
+                boss.LISTEN(tier::preview, input::events::keybd::any, gear, accesslock_token)
                 {
                     auto access_allowed = accesslock_gears.empty()
                         || std::ranges::find(accesslock_gears, gear.id) != accesslock_gears.end();
