@@ -1171,7 +1171,13 @@ R"==(
     <FocusTaskbar          ="if (vtm.gear.Focus(vtm.taskbar)) then vtm.gear.Focus(vtm.desktop); end; vtm.gear.Interrupt();"/>  <!-- Focus the taskbar or return focus to the desktop. -->
 
     <AlwaysOnTopApplet     ="vtm.applet.ZOrder(vtm.applet.ZOrder()==1 and 0 or 1);"/>  <!-- Toggle window Z-order attribute. -1: backmost; 0: normal; 1: topmost. -->
-    <LockAppletAccess      ="vtm.applet.LockAccess(vtm.applet.LockAccess()==1 and 0 or 1);"/>
+    <LockAppletAccess>
+        local accesslock=vtm.applet.LockAccess();
+        if (accesslock==0) then  -- Set focus before accesslock activation.
+            vtm.gear.Focus(vtm.applet);
+        end;
+        vtm.applet.LockAccess(accesslock==1 and 0 or 1);
+    </LockAppletAccess>
     <CloseApplet           ="vtm.applet.Close();"/>            <!-- Close the window. -->
     <MinimizeApplet        ="vtm.applet.Minimize();"/>         <!-- Minimize the window. -->
     <MaximizeApplet        ="vtm.applet.Maximize();"/>         <!-- Maximize the window within the desktop area (does not cover the taskbar). -->
