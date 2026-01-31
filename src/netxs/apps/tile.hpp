@@ -298,6 +298,9 @@ namespace netxs::app::tile
                     {
                         auto& accesslock_gears = what.applet->base::property("applet.accesslock", e2::form::state::keybd::enlist.param());
                         auto& accesslock_token = boss.base::field(subs{});
+                        //todo Sync the current accesslock state.
+                        //auto accesslock_state = (si32)!accesslock_gears.empty();
+                        //app::shared::track_accesslock(boss, accesslock_gears, accesslock_token, accesslock_state);
                         boss.LISTEN(tier::preview, e2::command::gui, gui_cmd)
                         {
                             auto hit = true;
@@ -1155,6 +1158,7 @@ namespace netxs::app::tile
                     boss.LISTEN(tier::preview, app::tile::events::ui::focus::prev, gear)
                     {
                         if (nothing_to_iterate()) return;
+                        //todo check accesslock
                         auto prev_item_ptr = sptr{};
                         auto next_item_ptr = sptr{};
                         foreach(id_t{}, [&](auto& item_ptr, si32 /*item_type*/, auto)
@@ -1191,6 +1195,7 @@ namespace netxs::app::tile
                     boss.LISTEN(tier::preview, app::tile::events::ui::focus::next, gear)
                     {
                         if (nothing_to_iterate()) return;
+                        //todo check accesslock
                         auto prev_item_ptr = sptr{};
                         auto next_item_ptr = sptr{};
                         auto temp_item_ptr = sptr{};
@@ -1235,6 +1240,7 @@ namespace netxs::app::tile
                     boss.LISTEN(tier::preview, app::tile::events::ui::focus::prevpane, gear)
                     {
                         if (nothing_to_iterate()) return;
+                        //todo check accesslock
                         auto prev_item_ptr = sptr{};
                         auto next_item_ptr = sptr{};
                         foreach(id_t{}, [&](auto& item_ptr, si32 item_type, auto)
@@ -1274,6 +1280,7 @@ namespace netxs::app::tile
                     boss.LISTEN(tier::preview, app::tile::events::ui::focus::nextpane, gear)
                     {
                         if (nothing_to_iterate()) return;
+                        //todo check accesslock
                         auto prev_item_ptr = sptr{};
                         auto next_item_ptr = sptr{};
                         auto temp_item_ptr = sptr{};

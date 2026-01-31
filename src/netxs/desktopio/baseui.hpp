@@ -455,7 +455,7 @@ namespace netxs::events::userland
                 {
                     EVENT_XS( name      , text       ), // user name.
                     EVENT_XS( zorder    , si32       ), // Set form z-order, si32: 0 plain, 1 backmost, 2 topmost.
-                    EVENT_XS( accesslock, si32       ), // Set applet access lock.
+                    EVENT_XS( accesslock, si32       ), // release: Set applet access lock (1 - to set or 0 - to reset).
                     EVENT_XS( fullscreen, ui::sptr   ), // Set fullscreen app.
                     EVENT_XS( viewport  , rect       ), // request: Return form actual viewport.
                     EVENT_XS( lucidity  , si32       ), // set or request window transparency, si32: 0-255, -1 to request.
@@ -466,10 +466,11 @@ namespace netxs::events::userland
 
                     SUBSET_XS( window )
                     {
-                        EVENT_XS( size    , twod     ), // Set window size.
-                        EVENT_XS( fullsize, rect     ), // Request window size with titles and borders.
-                        EVENT_XS( instance, ui::sptr ), // Request window instance.
-                        EVENT_XS( state   , si32     ), // Request window state.
+                        EVENT_XS( size      , twod     ), // Set window size.
+                        EVENT_XS( fullsize  , rect     ), // Request window size with titles and borders.
+                        EVENT_XS( instance  , ui::sptr ), // Request window instance.
+                        EVENT_XS( state     , si32     ), // Request window state.
+                        EVENT_XS( accesslock, id_t     ), // request: Request an applet access for gear_id (return 0 if it is not allowed for the specified gear_id).
                     };
                     SUBSET_XS( ui )
                     {

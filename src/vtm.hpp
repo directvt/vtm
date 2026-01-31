@@ -645,6 +645,9 @@ namespace netxs::app::vtm
                 {
                     // n/a
                 });
+                //todo Sync the current accesslock state.
+                //auto accesslock_state = (si32)!accesslock_gears.empty();
+                //app::shared::track_accesslock(*this, accesslock_gears, accesslock_token, accesslock_state);
                 LISTEN(tier::preview, e2::command::gui, gui_cmd)
                 {
                     auto hit = true;
@@ -1195,6 +1198,11 @@ namespace netxs::app::vtm
                     return faux;
                 }
             }
+            auto count = base::subset.size();
+            if (count < 1)
+            {
+                return true;
+            }
             gear.owner.base::signal(tier::preview, e2::form::size::restore);
 
             auto window_ptr = base::signal(tier::request, e2::form::layout::go::item); // Take current window.
@@ -1202,8 +1210,17 @@ namespace netxs::app::vtm
 
             auto current = window_ptr;
             window_ptr.reset();
-            if (go_forward) base::signal(tier::request, e2::form::layout::go::prev, window_ptr); // Take prev window.
-            else            base::signal(tier::request, e2::form::layout::go::next, window_ptr); // Take next window.
+            while (true)
+            {
+                if (go_forward) base::signal(tier::request, e2::form::layout::go::prev, window_ptr); // Take prev window.
+                else            base::signal(tier::request, e2::form::layout::go::next, window_ptr); // Take next window.
+                auto allowed_gear_id = gear.id;
+                if (window_ptr)
+                {
+                    window_ptr->base::signal(tier::request, e2::form::prop::window::accesslock, allowed_gear_id); // Access is not allowed if returned zero.
+                }
+                if (allowed_gear_id || --count == 0) break; // Try the next window if access is not allowed.
+            }
 
             if (window_ptr)
             {

@@ -145,6 +145,17 @@ namespace netxs::app::shared
                         }
                     }
                 };
+                boss.LISTEN(tier::request, e2::form::prop::window::accesslock, gear_id, accesslock_token)
+                {
+                    if (gear_id)
+                    {
+                        auto iter = std::ranges::find(accesslock_gears, gear_id);
+                        if (iter == accesslock_gears.end()) // This gear_id is not allowed.
+                        {
+                            gear_id = {};
+                        }
+                    }
+                };
             }
         }
         if (accesslock_state)
@@ -309,7 +320,7 @@ namespace netxs::app::shared
                                             gui_cmd.gear_id = gear.id;
                                             gui_cmd.cmd_id = syscmd::accesslock;
                                             gui_cmd.args.emplace_back(accesslock_state);
-                                            boss.base::riseup(tier::release, e2::form::prop::accesslock, si32{ accesslock_state });
+                                            boss.base::riseup(tier::release, e2::form::prop::accesslock, accesslock_state);
                                             boss.base::riseup(tier::preview, e2::command::gui, gui_cmd);
                                         }
                                         gear.set_handled();
