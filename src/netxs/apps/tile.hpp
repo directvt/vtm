@@ -1154,15 +1154,23 @@ namespace netxs::app::tile
                     {
                         switch_counter[seed.gear_id] = {};
                     };
+                    static const auto accesslocked = [](auto& item_ptr, id_t allowed_gear_id)
+                    {
+                        if (item_ptr)
+                        {
+                            item_ptr->base::riseup(tier::request, e2::form::prop::window::accesslock, allowed_gear_id); // Access is not allowed if returned zero.
+                        }
+                        return !allowed_gear_id;
+                    };
                     //todo generalize refocusing
                     boss.LISTEN(tier::preview, app::tile::events::ui::focus::prev, gear)
                     {
                         if (nothing_to_iterate()) return;
-                        //todo check accesslock
                         auto prev_item_ptr = sptr{};
                         auto next_item_ptr = sptr{};
-                        foreach(id_t{}, [&](auto& item_ptr, si32 /*item_type*/, auto)
+                        foreach(id_t{}, [&](auto& item_ptr, si32 item_type, auto)
                         {
+                            if (item_type != item_type::grip && accesslocked(item_ptr, gear.id)) return;
                             if (pro::focus::is_focused(item_ptr, gear.id))
                             {
                                 prev_item_ptr = next_item_ptr;
@@ -1195,12 +1203,12 @@ namespace netxs::app::tile
                     boss.LISTEN(tier::preview, app::tile::events::ui::focus::next, gear)
                     {
                         if (nothing_to_iterate()) return;
-                        //todo check accesslock
                         auto prev_item_ptr = sptr{};
                         auto next_item_ptr = sptr{};
                         auto temp_item_ptr = sptr{};
-                        foreach(id_t{}, [&](auto& item_ptr, si32 /*item_type*/, auto)
+                        foreach(id_t{}, [&](auto& item_ptr, si32 item_type, auto)
                         {
+                            if (item_type != item_type::grip && accesslocked(item_ptr, gear.id)) return;
                             if (!temp_item_ptr)
                             {
                                 temp_item_ptr = item_ptr; // Fallback item.
@@ -1240,12 +1248,11 @@ namespace netxs::app::tile
                     boss.LISTEN(tier::preview, app::tile::events::ui::focus::prevpane, gear)
                     {
                         if (nothing_to_iterate()) return;
-                        //todo check accesslock
                         auto prev_item_ptr = sptr{};
                         auto next_item_ptr = sptr{};
                         foreach(id_t{}, [&](auto& item_ptr, si32 item_type, auto)
                         {
-                            if (item_type != item_type::grip)
+                            if (item_type != item_type::grip && !accesslocked(item_ptr, gear.id))
                             {
                                 if (pro::focus::is_focused(item_ptr, gear.id))
                                 {
@@ -1280,13 +1287,12 @@ namespace netxs::app::tile
                     boss.LISTEN(tier::preview, app::tile::events::ui::focus::nextpane, gear)
                     {
                         if (nothing_to_iterate()) return;
-                        //todo check accesslock
                         auto prev_item_ptr = sptr{};
                         auto next_item_ptr = sptr{};
                         auto temp_item_ptr = sptr{};
                         foreach(id_t{}, [&](auto& item_ptr, si32 item_type, auto)
                         {
-                            if (item_type != item_type::grip)
+                            if (item_type != item_type::grip && !accesslocked(item_ptr, gear.id))
                             {
                                 if (!temp_item_ptr)
                                 {
