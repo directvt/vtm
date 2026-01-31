@@ -2020,8 +2020,19 @@ namespace netxs::input
                     auto& next = *next_ptr;
                     auto  temp = m_sys.coordxy;
                     m_sys.coordxy += idmap.coor();
-                    next.global(m_sys.coordxy);
-                    next.base::signal(tier::release, input::events::device::mouse::on, *this);
+                    next.global(m_sys.coordxy, [&](auto& parent) // Ask parents.
+                    {
+                        parent.base::signal(tier::preview, input::events::device::mouse::on, *this);
+                        return alive;
+                    });
+                    if (alive)
+                    {
+                        next.base::signal(tier::release, input::events::device::mouse::on, *this);
+                    }
+                    else // Redirect mouse focus when rejected objects are detected.
+                    {
+                        redirect_mouse_focus(owner);
+                    }
                     m_sys.coordxy = temp;
                     if (!alive) // Clear one-shot events on success.
                     {

@@ -117,7 +117,7 @@ namespace netxs::app::shared
             accesslock_state = (si32)!accesslock_gears.empty();
             if (accesslock_state)
             {
-                boss.on(tier::mousepreview, input::key::MouseAny, accesslock_token, [&](hids& gear)
+                boss.LISTEN(tier::preview, input::events::device::mouse::on, gear, accesslock_token)
                 {
                     auto iter = std::ranges::find(accesslock_gears, gear.id);
                     if (iter == accesslock_gears.end()) // Filter out for non-owners.
@@ -129,7 +129,9 @@ namespace netxs::app::shared
                     {
                         boss.bell::passover();
                     }
-                });
+                };
+                boss.on(tier::mousepreview, input::key::MouseAny, accesslock_token.back());
+                boss.on(tier::preview, input::events::keybd::any.id, accesslock_token.back());
                 boss.LISTEN(tier::general, input::events::die, gear, accesslock_token)
                 {
                     auto iter = std::ranges::find(accesslock_gears, gear.id);
@@ -141,20 +143,6 @@ namespace netxs::app::shared
                             log("%%Window [%%] access unlocked", prompt::vtm, boss.id);
                             accesslock_token.clear();
                         }
-                    }
-                };
-                boss.LISTEN(tier::preview, input::events::keybd::any, gear, accesslock_token)
-                {
-                    auto access_allowed = accesslock_gears.empty()
-                        || std::ranges::find(accesslock_gears, gear.id) != accesslock_gears.end();
-                    if (!access_allowed)
-                    {
-                        gear.dismiss();
-                        boss.bell::expire();
-                    }
-                    else
-                    {
-                        boss.bell::passover();
                     }
                 };
             }

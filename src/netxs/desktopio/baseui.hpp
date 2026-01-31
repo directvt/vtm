@@ -1118,13 +1118,14 @@ namespace netxs::ui
             parent_ptr->change(parent_ptr->base::region + parent_ptr->base::extpad);
         }
         // base: Calculate global coordinate.
-        void global(auto& coor)
+        template<class P = netxs::always_true>
+        void global(auto& coor, P proc = {})
         {
             //todo revise: negate values (+base::intpad.corner())
             coor -= base::region.coor + base::intpad.corner();
             if (base::family == base::reflow_root) return;
             auto parent_ptr = base::parent();
-            while (parent_ptr)
+            while (parent_ptr && proc(*parent_ptr))
             {
                 coor -= parent_ptr->base::region.coor + parent_ptr->base::intpad.corner();
                 if (parent_ptr->base::family == base::reflow_root) break;
