@@ -829,6 +829,10 @@ namespace netxs::input
 
         si32 pressed_count{}; // mouse: The number of pressed physical buttons.
 
+        si32 dtvt_digest{}; // mouse: Synchronized digest with ui::dtvt (per mouse device).
+        fp2d dtvt_coords{}; // mouse: Synchronized coords with ui::dtvt (per mouse device).
+        ui32 dtvt_serial{}; // mouse: Synchronized serial with ui::dtvt (per mouse device).
+
         // mouse: Forward the extended mouse event.
         virtual void fire(hint cause) = 0; //, si32 index = mouse::noactive) = 0;
         // mouse: Try to forward the mouse event intact.

@@ -9506,8 +9506,6 @@ namespace netxs::ui
               digest{ 1    }
         {
             auto& accesslock_gears = base::property("applet.accesslock", e2::form::state::keybd::enlist.param());
-            auto& mousemove_digest = base::field(0);
-            auto& mousemove_coords = base::field(fp2d{});
             LISTEN(tier::release, input::events::device::mouse::any, gear)
             {
                 auto access_allowed = accesslock_gears.empty()
@@ -9518,11 +9516,17 @@ namespace netxs::ui
                     {
                         if (!gear.m_sys.buttons) gear.setfree();
                     }
-                    else if (gear.m_sys.buttons) gear.capture(base::id);
-                    if (gear.cause != input::key::MouseMove || mousemove_digest != digest || mousemove_coords != gear.m_sys.coordxy) // Don't spam fake mouse move events if no UI updates.
+                    else if (gear.m_sys.buttons)
                     {
-                        mousemove_digest = digest;
-                        mousemove_coords = gear.m_sys.coordxy;
+                        gear.capture(base::id);
+                    }
+                    if (gear.dtvt_digest != digest || gear.dtvt_serial != gear.m_sys.changed || gear.dtvt_coords != gear.m_sys.coordxy) // Don't spam fake mouse move events if no UI updates.
+                    {
+                        //static auto i = 0;
+                        //log("mouse event sent i=%% changed=%% gear.m_sys.coordxy=%% digest=%%", i++, gear.m_sys.changed, gear.m_sys.coordxy, digest);
+                        gear.dtvt_digest = digest;
+                        gear.dtvt_coords = gear.m_sys.coordxy;
+                        gear.dtvt_serial = gear.m_sys.changed;
                         gear.m_sys.gear_id = gear.id;
                         stream.sysmouse.send(*this, gear.m_sys);
                     }
