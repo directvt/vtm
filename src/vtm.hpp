@@ -1330,7 +1330,8 @@ namespace netxs::app::vtm
                                             auto ok = !args_count || !base::signal(tier::request, e2::form::layout::go::item);
                                             if (ok)
                                             {
-                                                base::signal(tier::general, e2::shutdown, utf::concat(prompt::repl, "Server shutdown"));
+                                                base::signal(tier::release, e2::shutdown, utf::concat(prompt::repl, "Server shutdown"));
+                                                ok = bell::accomplished();
                                             }
                                             luafx.set_return(ok);
                                         }},
@@ -1504,10 +1505,19 @@ namespace netxs::app::vtm
                 }
                 if (!hit) bell::passover();
             };
-            LISTEN(tier::general, e2::shutdown, msg)
+            LISTEN(tier::release, e2::shutdown, msg)
             {
                 if constexpr (debugmode) log(prompt::host, msg);
-                canal.stop();
+                auto accesslock_list = base::signal(tier::request, e2::form::state::accesslock::enlist);
+                if (accesslock_list.empty() || usrs_list.size() < 2)
+                {
+                    canal.stop();
+                }
+                else
+                {
+                    log("%%Server shutdown was interrupted due to %% locked window(s)", prompt::desk, accesslock_list.size());
+                    base::passover();
+                }
             };
             LISTEN(tier::general, e2::config::creator, world_ptr)
             {
@@ -1570,6 +1580,24 @@ namespace netxs::app::vtm
                             app_model.remove(menumodel_item_ptr);
                         }
                         break;
+                    }
+                }
+            };
+
+            LISTEN(tier::preview, e2::form::state::accesslock::enlist, accesslock_list)
+            {
+                base::signal(tier::request, e2::form::state::accesslock::enlist, accesslock_list);
+                base::signal(tier::release, e2::form::state::accesslock::count, (si32)accesslock_list.size());
+            };
+            LISTEN(tier::request, e2::form::state::accesslock::enlist, accesslock_list)
+            {
+                accesslock_list.clear();
+                for (auto& item_ptr : base::subset) if (item_ptr)
+                {
+                    auto window_ptr = item_ptr->This<window_t>();
+                    if (window_ptr->accesslock_gears.size())
+                    {
+                        accesslock_list.push_back(item_ptr);
                     }
                 }
             };

@@ -900,6 +900,7 @@ namespace netxs::app::desk
                 ->template plugin<pro::keybd>()
                 ->shader(c1, e2::form::state::focus::count)
                 ->shader(c1, e2::form::state::hover)
+                ->shader(cA, e2::form::state::accesslock::count, world_ptr)
                 ->plugin<pro::notes>(skin::globals().NsShutdown_tooltip)
                 ->invoke([&](auto& boss)
                 {
@@ -910,7 +911,16 @@ namespace netxs::app::desk
                     });
                     boss.LISTEN(tier::release, desk::events::ui::activate, gear)
                     {
-                        boss.base::signal(tier::general, e2::shutdown, utf::concat(prompt::desk, "Server shutdown"));
+                        world.base::signal(tier::release, e2::shutdown, utf::concat(prompt::desk, "Server shutdown"));
+                        if (!world.bell::accomplished())
+                        {
+                            auto accesslock_list = world.base::signal(tier::request, e2::form::state::accesslock::enlist);
+                            if (accesslock_list.size())
+                            if (auto accesslocked_window_ptr = accesslock_list.front())
+                            {
+                                gear.owner.base::signal(tier::release, e2::form::layout::jumpto, *accesslocked_window_ptr);
+                            }
+                        }
                     };
                 });
             auto shutdown = shutdown_park->attach(ui::item::ctor(skin::globals().NsShutdown_label))

@@ -140,6 +140,7 @@ namespace netxs::app::shared
                         accesslock_gears.erase(iter);
                         if (accesslock_gears.empty())
                         {
+                            boss.base::riseup(tier::preview, e2::form::state::accesslock::count); // Sync with ui::hall.
                             log("%%Window [%%] access unlocked", prompt::vtm, boss.id);
                             accesslock_token.clear();
                         }
@@ -158,6 +159,7 @@ namespace netxs::app::shared
                 };
             }
         }
+        boss.base::riseup(tier::preview, e2::form::state::accesslock::count); // Sync with ui::hall.
         if (accesslock_state)
         {
             log("%%Window [%%] access locked by %% user(s)", prompt::vtm, boss.id, accesslock_gears.size());

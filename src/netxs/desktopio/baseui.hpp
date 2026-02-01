@@ -121,7 +121,7 @@ namespace netxs::events::userland
         EVENTPACK( e2, netxs::events::userland::seed::e2 )
         {
             EVENT_XS( postrender, ui::face       ), // release: UI-tree post-rendering. Draw debug overlay, maker, titles, etc.
-            EVENT_XS( shutdown  , const text     ), // general: Server shutdown.
+            EVENT_XS( shutdown  , const text     ), // release: Server shutdown. The bell::accomplished() returns faux when aborted.
             EVENT_XS( area      , rect           ), // release: Object rectangle.
             GROUP_XS( extra     , si32           ), // Event extension slot.
             GROUP_XS( timer     , time           ), // Timer tick, arg: current moment (now).
@@ -494,15 +494,16 @@ namespace netxs::events::userland
                 };
                 SUBSET_XS( state )
                 {
-                    EVENT_XS( mouse    , bool       ), // Notify if mouse is active or not. The form is active when the number of clients (form::eventa::mouse::enter - mouse::leave) is not zero, only release.
-                    EVENT_XS( hover    , si32       ), // Notify how many mouse cursors are hovering, si32 - number of cursors.
-                    EVENT_XS( color    , ui::tone   ), // Notify has changed tone, preview to set.
-                    EVENT_XS( highlight, bool       ),
-                    EVENT_XS( visible  , bool       ),
-                    EVENT_XS( maximized, id_t       ),
-                    EVENT_XS( disabled , bool       ),
-                    GROUP_XS( focus    , const id_t ),
-                    GROUP_XS( keybd    , bool       ),
+                    EVENT_XS( mouse     , bool       ), // Notify if mouse is active or not. The form is active when the number of clients (form::eventa::mouse::enter - mouse::leave) is not zero, only release.
+                    EVENT_XS( hover     , si32       ), // Notify how many mouse cursors are hovering, si32 - number of cursors.
+                    EVENT_XS( color     , ui::tone   ), // Notify has changed tone, preview to set.
+                    EVENT_XS( highlight , bool       ),
+                    EVENT_XS( visible   , bool       ),
+                    EVENT_XS( maximized , id_t       ),
+                    EVENT_XS( disabled  , bool       ),
+                    GROUP_XS( focus     , const id_t ),
+                    GROUP_XS( keybd     , bool       ),
+                    GROUP_XS( accesslock, si32       ),
 
                     SUBSET_XS( focus )
                     {
@@ -521,6 +522,11 @@ namespace netxs::events::userland
                         {
                             EVENT_XS( close, si32 ), // release: Hotkey close command preview.
                         };
+                    };
+                    SUBSET_XS( accesslock )
+                    {
+                        EVENT_XS( count , si32     ), // Notify the object that the number of locked windows has changed.
+                        EVENT_XS( enlist, ui::book ), // Get list of locked windows.
                     };
                 };
             };
