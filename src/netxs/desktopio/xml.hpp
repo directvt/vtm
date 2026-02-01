@@ -860,11 +860,14 @@ namespace netxs::xml
                             fail();
                             break;
                         }
-                        not_empty = what == type::tag_joiner;
-                        if (not_empty) // Eat tag_joiner.
+                        not_empty = what == type::tag_joiner || what == type::quoted_text;
+                        if (not_empty) // Eat tag_joiner or append yet another quoted value.
                         {
                             append_prepending_spaces();
+                            if (what == type::tag_joiner)
+                            {
                                 append(type::tag_joiner, utf::pop_front(temp, view_tag_joiner.size()));
+                            }
                             peek_forward();
                         }
                     }

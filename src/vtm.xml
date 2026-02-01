@@ -645,7 +645,8 @@ R"==(
                 <Toggle tooltip=" Show/hide user list "/>
             </UserList>
             <Disconnect  label="× Disconnect" tooltip=" Disconnect from the current session "/>
-            <Shutdown    label="× Shutdown"   tooltip=" Disconnect all users and shut down "/>
+            <Shutdown    label="× Shutdown"   tooltip="\e[1m"" Disconnect all users and shut down                          ""\e[m\n"
+                                                             "  Locked windows may prevent the desktop from shutting down. "/>
         </Taskbar>
         <Tile>
             <RunApplication>
@@ -881,7 +882,8 @@ R"==(
                 <Toggle tooltip=" Показать/скрыть список пользователей "/>
             </UserList>
             <Disconnect  label="× Отключить"        tooltip=" Отключиться от текущей сессии (оставить её работать) "/>
-            <Shutdown    label="× Завершить работу" tooltip=" Отключить всех пользователей и выключить сервер рабочего стола "/>
+            <Shutdown    label="× Завершить работу" tooltip="\e[1m"" Отключить всех пользователей и выключить сервер рабочего стола         ""\e[m\n"
+                                                                   "  Окна с ограниченным доступом могут препятствовать выключению сервера. "/>
         </Taskbar>
         <Tile>
             <RunApplication>
