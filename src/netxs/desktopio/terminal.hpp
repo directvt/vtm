@@ -9102,6 +9102,7 @@ namespace netxs::ui
             {
                 owner.base::enqueue([&](auto& /*boss*/) mutable
                 {
+                    owner.digest++;
                     owner.base::deface();
                 });
             }
@@ -9373,6 +9374,7 @@ namespace netxs::ui
         flag active; // dtvt: Terminal lifetime.
         si32 opaque; // dtvt: Object transparency on d_n_d (no pro::cache).
         si32 nodata; // dtvt: Show splash "No signal".
+        si32 digest; // dtvt: Bitmap's update serial number.
         face splash; // dtvt: "No signal" splash.
         page errmsg; // dtvt: Overlay error message.
         vtty ipccon; // dtvt: IPC connector. Should be destroyed first.
@@ -9500,9 +9502,12 @@ namespace netxs::ui
             : stream{*this },
               active{ true },
               opaque{ 0xFF },
-              nodata{      }
+              nodata{      },
+              digest{ 1    }
         {
             auto& accesslock_gears = base::property("applet.accesslock", e2::form::state::keybd::enlist.param());
+            auto& mousemove_digest = base::field(0);
+            auto& mousemove_coords = base::field(fp2d{});
             LISTEN(tier::release, input::events::device::mouse::any, gear)
             {
                 auto access_allowed = accesslock_gears.empty()
@@ -9514,8 +9519,13 @@ namespace netxs::ui
                         if (!gear.m_sys.buttons) gear.setfree();
                     }
                     else if (gear.m_sys.buttons) gear.capture(base::id);
-                    gear.m_sys.gear_id = gear.id;
-                    stream.sysmouse.send(*this, gear.m_sys);
+                    if (gear.cause != input::key::MouseMove || mousemove_digest != digest || mousemove_coords != gear.m_sys.coordxy) // Don't spam fake mouse move events if no UI updates.
+                    {
+                        mousemove_digest = digest;
+                        mousemove_coords = gear.m_sys.coordxy;
+                        gear.m_sys.gear_id = gear.id;
+                        stream.sysmouse.send(*this, gear.m_sys);
+                    }
                 }
                 else
                 {
