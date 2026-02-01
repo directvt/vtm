@@ -540,6 +540,25 @@ namespace netxs::app::tile
                     menu_block->alignment({ snap::head, snap::head })
                 );
         };
+        static const auto accesslocked = [](auto& item_ptr, id_t allowed_gear_id)
+        {
+            if (item_ptr)
+            {
+                item_ptr->base::riseup(tier::request, e2::form::prop::window::accesslock, allowed_gear_id); // Access is not allowed if returned zero.
+            }
+            return !allowed_gear_id;
+        };
+        static const auto filter_by_accesslock = [](auto item_ptr, auto& gear_id_list)
+        {
+            if (item_ptr)
+            {
+                std::erase_if(gear_id_list, [&](auto allowed_gear_id)
+                {
+                    item_ptr->base::riseup(tier::request, e2::form::prop::window::accesslock, allowed_gear_id); // Access is not allowed if returned zero.
+                    return !allowed_gear_id;
+                });
+            }
+        };
         auto node_veer = [](auto&& node_veer, auto min_state, auto grip_bindings_ptr) -> netxs::sptr<ui::veer>
         {
             return ui::veer::ctor()
@@ -567,6 +586,7 @@ namespace netxs::app::tile
                                 item_ptr->base::broadcast(tier::anycast, e2::form::upon::started);
                             }
                             else item_ptr = boss.This();
+                            filter_by_accesslock(boss.back(), gear_id_list);
                             pro::focus::set(boss.back(), gear_id_list, solo::off);
                         }
                         else
@@ -1154,14 +1174,6 @@ namespace netxs::app::tile
                     {
                         switch_counter[seed.gear_id] = {};
                     };
-                    static const auto accesslocked = [](auto& item_ptr, id_t allowed_gear_id)
-                    {
-                        if (item_ptr)
-                        {
-                            item_ptr->base::riseup(tier::request, e2::form::prop::window::accesslock, allowed_gear_id); // Access is not allowed if returned zero.
-                        }
-                        return !allowed_gear_id;
-                    };
                     //todo generalize refocusing
                     boss.LISTEN(tier::preview, app::tile::events::ui::focus::prev, gear)
                     {
@@ -1494,8 +1506,9 @@ namespace netxs::app::tile
                     {
                         foreach(id_t{}, [&](auto& item_ptr, si32 item_type, auto)
                         {
-                            if (item_type != item_type::grip) pro::focus::set(item_ptr, gear.id, solo::off);
-                            else                              pro::focus::off(item_ptr, gear.id);
+                            auto focused = item_type != item_type::grip && !accesslocked(item_ptr, gear.id);
+                            if (focused) pro::focus::set(item_ptr, gear.id, solo::off);
+                            else         pro::focus::off(item_ptr, gear.id);
                         });
                         gear.set_handled();
                     };
