@@ -578,22 +578,14 @@ R"==(
             <off label="  "                                    tooltip=" AlwaysOnTop: Off "/>
         </AlwaysOnTop>
         <LockAccess>
-            <on  label="\e[2:247;38:2:0:255:0m \e[2:231mLocked\e[2:239m \e[m">
-                <tooltip>
-                    "\e[1m"" Window Access: Restricted                        ""\e[m\n"
-                           "  Only users with focus at the time of locking    ""\n"
-                           "  can control this window. Inherited by children. ""\n"
-                           "  Released automatically when the last owner      ""\n"
-                           "  disconnects from the desktop session.           "
-                </tooltip>
-            </on>
-            <off label="  Lock  ">
-                <tooltip>
-                    "\e[1m"" Lock Window Access                ""\e[m\n"
-                           "  Press to restrict window control ""\n"
-                           "  to currently focused users.      "
-                </tooltip>
-            </off>
+            <on label="\e[2:247;38:2:0:255:0m \e[2:231mLocked\e[2:239m \e[m"
+                tooltip="\e[1m"" Window Access Lock: On                                                    ""\e[m\n"
+                               "  Only users with focus at the time of locking can control this window.    ""\n"
+                               "  Released automatically when the last owner disconnects from the desktop. "/>
+            <off label="  Lock  "
+                tooltip="\e[1m"" Window Access Lock: Off                                              ""\e[m\n"
+                               "  Turn it on to restrict window control to currently focused user(s). ""\n"
+                               "  Locked windows may prevent the desktop from shutting down.          "/>
         </LockAccess>
         <ClearScrollback label="  Clear  "   tooltip=" Clear scrollback buffer "/>
         <Restart         label="  Restart  " tooltip=" Restart current terminal session "/>
@@ -817,20 +809,14 @@ R"==(
             <off tooltip=" Поверх всех окон: выкл. "/>
         </AlwaysOnTop>
         <LockAccess>
-            <on  label="\e[2:247;38:2:0:255:0m \e[2:231mОграничено\e[2:239m \e[m">
-                <tooltip>
-                    "\e[1m"" Доступ к окну ограничен                    ""\e[m\n"
-                           "  Управлять могут только текущие владельцы. ""\n"
-                           "  Сбрасывается при выходе всех владельцев.  "
-                </tooltip>
-            </on>
-            <off label=" Ограничить ">
-                <tooltip>
-                    "\e[1m"" Доступ к окну не ограничен                                ""\e[m\n"
-                           "  Нажмите для разрешения управления только пользователями, ""\n"
-                           "  имеющим фокус в данный момент.                           "
-                </tooltip>
-            </off>
+            <on label="\e[2:247;38:2:0:255:0m \e[2:231mОграничено\e[2:239m \e[m"
+                tooltip="\e[1m"" Доступ к окну ограничен                                    ""\e[m\n"
+                               "  Данным окном могут управлять только текущие владельцы.    ""\n"
+                               "  При отключении от рабочего стола, владелец теряет доступ. "/>
+            <off label=" Ограничить "
+                tooltip="\e[1m"" Доступ к окну не ограничен                                             ""\e[m\n"
+                               "  Включение заблокирует окно для непричастных пользователей.            ""\n"
+                               "  Окна с ограниченным доступом могут препятствовать выключению сервера. "/>
         </LockAccess>
         <ClearScrollback label="  Очистить  " tooltip=" Очистить буфер прокрутки (скроллбэк) "/>
         <Restart         label="  Рестарт  "  tooltip=" Перезапустить текущую сессию терминала "/>
