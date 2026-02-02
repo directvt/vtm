@@ -296,7 +296,7 @@ namespace netxs::app::tile
                     ->branch(slot::_2, what.applet)
                     ->invoke([&](auto& boss)
                     {
-                        auto& accesslock_gears = what.applet->base::property("applet.accesslock", e2::form::state::keybd::enlist.param());
+                        auto& accesslock_gears = what.applet->base::property("applet.accesslock_gears", e2::form::state::keybd::enlist.param());
                         auto& accesslock_token = boss.base::field(subs{});
                         //todo Sync the current accesslock state.
                         //auto accesslock_state = (si32)!accesslock_gears.empty();
@@ -308,8 +308,8 @@ namespace netxs::app::tile
                             {
                                 if (auto args_count = gui_cmd.args.size())
                                 {
-                                    auto accesslock_state = any_get_or(gui_cmd.args[0], 0);
-                                    app::shared::track_accesslock(boss, accesslock_gears, accesslock_token, accesslock_state);
+                                    auto accesslock_state = netxs::any_get_or(gui_cmd.args[0], 0);
+                                    app::shared::track_accesslock(boss, accesslock_gears, accesslock_token, accesslock_state, gui_cmd.gear_id);
                                 }
                             }
                             else hit = faux;

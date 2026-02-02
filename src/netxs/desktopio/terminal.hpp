@@ -9350,8 +9350,25 @@ namespace netxs::ui
                 {
                     if (auto gear_ptr = owner.base::getref<hids>(gui_cmd.gear_id))
                     {
-                        gear_ptr->set_multihome();
-                        owner.base::riseup(tier::preview, e2::command::gui, gui_cmd);
+                        auto& gear = *gear_ptr;
+                        if (gui_cmd.cmd_id == syscmd::accesslock && gui_cmd.args.size()) // Subscribe to wait for reply.
+                        {
+                            auto& oneshot = owner.base::field(subs{}); // Oneshot subscription token.
+                            gear.LISTEN(tier::release, input::events::die, gear, oneshot, (gui_cmd)) // Reset on disconnect.
+                            {
+                                gui_cmd.args[0] = 0;
+                                s11n::gui_command.send(owner, gui_cmd);
+                                owner.base::unfield(oneshot); // Reset subscriptions.
+                            };
+                            gear.LISTEN(tier::release, e2::form::prop::accesslock, new_accesslock_state, oneshot, (gui_cmd)) // Wait for reply.
+                            {
+                                gui_cmd.args[0] = new_accesslock_state;
+                                s11n::gui_command.send(owner, gui_cmd);
+                                owner.base::unfield(oneshot); // Reset subscriptions.
+                            };
+                        }
+                        gear.set_multihome();
+                        owner.base::riseup(tier::preview, e2::command::gui, gui_cmd); // Forward gui command.
                     }
                 });
             }
@@ -9505,7 +9522,7 @@ namespace netxs::ui
               nodata{      },
               digest{ 1    }
         {
-            auto& accesslock_gears = base::property("applet.accesslock", e2::form::state::keybd::enlist.param());
+            auto& accesslock_gears = base::property("applet.accesslock_gears", e2::form::state::keybd::enlist.param());
             LISTEN(tier::release, input::events::device::mouse::any, gear)
             {
                 auto access_allowed = accesslock_gears.empty()

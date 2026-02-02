@@ -621,7 +621,7 @@ namespace netxs::app::vtm
             window_t(hall& owner, applink& what)
                 : world{ owner },
                             zorder{ what.applet->base::property("applet.zorder", zpos::plain) },
-                  accesslock_gears{ what.applet->base::property("applet.accesslock", e2::form::state::keybd::enlist.param()) }
+                  accesslock_gears{ what.applet->base::property("applet.accesslock_gears", e2::form::state::keybd::enlist.param()) }
             {
                 base::plugin<pro::mouse>();
                 base::plugin<pro::d_n_d>();
@@ -655,24 +655,24 @@ namespace netxs::app::vtm
                     {
                         if (gui_cmd.args.size() == 4)
                         {
-                            auto warp = dent{ any_get_or(gui_cmd.args[0]),
-                                              any_get_or(gui_cmd.args[1]),
-                                              any_get_or(gui_cmd.args[2]),
-                                              any_get_or(gui_cmd.args[3]) };
+                            auto warp = dent{ netxs::any_get_or(gui_cmd.args[0]),
+                                              netxs::any_get_or(gui_cmd.args[1]),
+                                              netxs::any_get_or(gui_cmd.args[2]),
+                                              netxs::any_get_or(gui_cmd.args[3]) };
                             window_swarp(warp);
                         }
                     }
                     else if (gui_cmd.cmd_id == syscmd::zorder)
                     {
                         auto args_count = gui_cmd.args.size();
-                        window_zorder(args_count, args_count ? any_get_or(gui_cmd.args[0], zpos::plain) : zpos::plain);
+                        window_zorder(args_count, args_count ? netxs::any_get_or(gui_cmd.args[0], zpos::plain) : zpos::plain);
                     }
                     else if (gui_cmd.cmd_id == syscmd::accesslock)
                     {
                         if (gui_cmd.args.size())
                         {
-                            auto accesslock_state = any_get_or(gui_cmd.args[0], 0);
-                            app::shared::track_accesslock(*this, accesslock_gears, accesslock_token, accesslock_state);
+                            auto accesslock_state = netxs::any_get_or(gui_cmd.args[0], 0);
+                            app::shared::track_accesslock(*this, accesslock_gears, accesslock_token, accesslock_state, gui_cmd.gear_id);
                         }
                     }
                     else if (gui_cmd.cmd_id == syscmd::close)
@@ -1499,7 +1499,7 @@ namespace netxs::app::vtm
                 if (auto gear_ptr = base::getref<hids>(gui_cmd.gear_id))
                 {
                     auto& gear = *gear_ptr;
-                    auto dir = gui_cmd.args.size() ? any_get_or(gui_cmd.args[0], 1) : 1;
+                    auto dir = gui_cmd.args.size() ? netxs::any_get_or(gui_cmd.args[0], 1) : 1;
                     focus_next_window(gear, dir);
                     hit = true;
                 }
