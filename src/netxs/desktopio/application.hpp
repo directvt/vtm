@@ -327,6 +327,34 @@ namespace netxs::app::shared
                                                 gear.LISTEN(tier::release, e2::form::prop::accesslock, new_accesslock_state, oneshot) // Wait for reply.
                                                 {
                                                     accesslock_state = new_accesslock_state;
+                                                    if (accesslock_state) // Track currently focused gears and access lock.
+                                                    {
+                                                        auto gear_id_list = boss.base::riseup(tier::request, e2::form::state::keybd::enlist); // Get window owner list.
+                                                        if (gear_id_list.size())
+                                                        {
+                                                            auto& accesslock_gears2 = boss.base::field(std::move(gear_id_list));
+                                                            auto& oneshot2 = boss.base::field(subs{}); // Oneshot subscription token.
+                                                            boss.LISTEN(tier::release, e2::form::prop::accesslock, new_accesslock_state, oneshot2)
+                                                            {
+                                                                if (!new_accesslock_state)
+                                                                {
+                                                                    boss.base::unfield(accesslock_gears2);
+                                                                    boss.base::unfield(oneshot2); // Stop tracking.
+                                                                }
+                                                            };
+                                                            boss.LISTEN(tier::general, input::events::die, gear, oneshot2) // Track disconnecting gears.
+                                                            {
+                                                                accesslock_gears2.remove(gear.id);
+                                                                if (accesslock_gears2.empty())
+                                                                {
+                                                                    accesslock_state = 0;
+                                                                    boss.base::riseup(tier::release, e2::form::prop::accesslock, accesslock_state); // Notify UI elements.
+                                                                    boss.base::unfield(accesslock_gears2);
+                                                                    boss.base::unfield(oneshot2); // Stop tracking.
+                                                                }
+                                                            };
+                                                        }
+                                                    }
                                                     boss.base::riseup(tier::release, e2::form::prop::accesslock, accesslock_state); // Notify UI elements.
                                                     boss.base::unfield(oneshot); // Reset subscriptions.
                                                 };
