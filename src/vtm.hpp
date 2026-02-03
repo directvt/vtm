@@ -443,17 +443,17 @@ namespace netxs::app::vtm
             using skill::boss,
                   skill::memo;
 
-            bool drags;
-            id_t under;
-            fp2d coord;
-            wptr cover;
+            id_t gear_id; // d_n_d: Mouse cursor id.
+            id_t dest_id; // d_n_d: Id of the object under the mouse cursor.
+            fp2d coordxy; // d_n_d: Mouse cursor coords.
+            wptr dst_ptr; // d_n_d: Weak reference of the object under the mouse cursor.
 
             void proceed(bool keep, hids& gear)
             {
-                drags = faux;
+                gear_id = {};
                 boss.base::signal(tier::anycast, e2::form::prop::lucidity, 0xFF); // Make target opaque.
                 auto boss_ptr = boss.This();
-                if (auto dest_ptr = cover.lock())
+                if (auto dest_ptr = dst_ptr.lock())
                 {
                     auto& dest = *dest_ptr;
                     if (keep)
@@ -470,68 +470,73 @@ namespace netxs::app::vtm
                     }
                     else dest.base::signal(tier::release, vtm::events::d_n_d::abort, boss.This());
                 }
-                cover.reset();
-                under = {};
+                dst_ptr.reset();
+                dst_ptr = {};
+            }
+            auto action_allowed(hids& gear)
+            {
+                auto allowed = !gear.meta(hids::anyMod);
+                return allowed;
             }
 
         public:
             d_n_d(base&&) = delete;
             d_n_d(base& boss)
                 : skill{ boss },
-                  drags{ faux },
-                  under{      }
+                gear_id{      },
+                dest_id{      }
             {
                 boss.LISTEN(tier::release, e2::form::drag::start::any, gear, memo)
                 {
-                    if (!drags && boss.size().inside(gear.coord) && !gear.meta(hids::anyMod))
+                    if (!gear_id && boss.size().inside(gear.coord) && action_allowed(gear))
                     {
-                        drags = true;
-                        coord = gear.coord;
-                        under = {};
+                        gear_id = gear.id;
+                        coordxy = gear.coord;
+                        dest_id = {};
                     }
                 };
                 boss.LISTEN(tier::release, e2::form::drag::pull::any, gear, memo)
                 {
-                    if (!drags) return;
-                    if (gear.meta(hids::anyMod)) proceed(faux, gear);
-                    else                         coord = gear.coord - gear.delta.get();
+                    if (!gear_id) return;
+                    if (action_allowed(gear)) coordxy = gear.coord - gear.delta.get();
+                    else                      proceed(faux, gear);
                 };
                 boss.LISTEN(tier::release, e2::form::drag::stop::any, gear, memo)
                 {
-                    if (!drags) return;
-                    if (gear.meta(hids::anyMod)) proceed(faux, gear);
-                    else                         proceed(true, gear);
+                    if (!gear_id) return;
+                    auto allowed = action_allowed(gear);
+                    proceed(allowed, gear);
                 };
-                boss.LISTEN(tier::release, e2::form::drag::cancel::any, gear, memo)
-                {
-                    if (!drags) return;
-                    if (gear.meta(hids::anyMod)) proceed(faux, gear);
-                    else                         proceed(true, gear);
-                };
-                boss.dup_handler(tier::general, input::events::halt.id, memo.back());
+                boss.on(tier::release, e2::form::drag::cancel::any.id, memo.back());
+                boss.on(tier::general, input::events::halt.id,         memo.back());
                 boss.LISTEN(tier::release, e2::render::background::prerender, parent_canvas, memo)
                 {
-                    if (!drags) return;
+                    if (!gear_id) return;
                     auto area = parent_canvas.core::area();
-                    auto coor = coord - area.coor;
+                    auto coor = coordxy - area.coor;
                     if (area.size.inside(coor))
                     {
                         auto& c = parent_canvas[coor];
-                        auto new_under = c.link();
-                        if (under != new_under)
+                        auto new_dest_id = c.link();
+                        if (dest_id != new_dest_id)
                         {
                             auto object = vtm::events::d_n_d::ask.param();
-                            if (auto old_object = boss.base::getref(under))
+                            if (auto old_object = boss.base::getref(dest_id))
                             {
                                 old_object->base::riseup(tier::release, vtm::events::d_n_d::abort, object);
                             }
-                            if (auto new_object = boss.base::getref(new_under))
+                            if (auto new_object = boss.base::getref(new_dest_id))
                             {
-                                new_object->base::riseup(tier::release, vtm::events::d_n_d::ask, object);
+                                auto check_gear_id = gear_id;
+                                new_object->base::riseup(tier::request, e2::form::prop::window::accesslock, check_gear_id); // Check access for gear_id.
+                                if (check_gear_id)
+                                {
+                                    new_object->base::riseup(tier::release, vtm::events::d_n_d::ask, object);
+                                }
                             }
                             boss.base::signal(tier::anycast, e2::form::prop::lucidity, object ? 0x80 : 0xFF); // Make it semi-transparent on success and opaque otherwise.
-                            cover = object;
-                            under = new_under;
+                            dst_ptr = object;
+                            dest_id = new_dest_id;
                         }
                     }
                 };
