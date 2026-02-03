@@ -105,7 +105,9 @@ namespace netxs::app::desk
                 {
                     boss.on(tier::mouserelease, input::key::LeftDoubleClick, [&](hids& gear)
                     {
-                        if (gear.meta(hids::anyAlt)) // Pull window.
+                        auto check_gear_id = gear.id;
+                        window.base::signal(tier::request, e2::form::prop::window::accesslock, check_gear_id);
+                        if (gear.meta(hids::anyAlt) && check_gear_id) // Pull window.
                         {
                             window.base::riseup(tier::preview, e2::form::layout::expose);
                             auto viewport = gear.owner.base::signal(tier::request, e2::form::prop::viewport);
@@ -225,10 +227,19 @@ namespace netxs::app::desk
                     {
                         app_list_block->LISTEN(tier::release, desk::events::quit, fast, boss.sensors) // Close all apps in a block.
                         {
-                            window.base::enqueue([&](auto& /*boss*/) // Enqueue in order to pass focus one by one.
+                            auto accesslock_list = window.base::riseup(tier::request, e2::form::state::accesslock::enlist); // Get the list of locked windows.
+                            auto iter = std::ranges::find(accesslock_list, window.This());
+                            if (iter != accesslock_list.end()) // When closing the app group, check the accesslock list, if it is not empty, the closing will be aborted and logged.
                             {
-                                window.base::signal(tier::anycast, e2::form::proceed::quit::one, fast); // Show closing process.
-                            });
+                                log("%%Locked windows cannot be closed when the group is closed", prompt::desk);
+                            }
+                            else
+                            {
+                                window.base::enqueue([&](auto& /*boss*/) // Enqueue in order to pass focus one by one.
+                                {
+                                    window.base::signal(tier::anycast, e2::form::proceed::quit::one, fast); // Show closing process.
+                                });
+                            }
                         };
                     };
                     boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
@@ -238,7 +249,17 @@ namespace netxs::app::desk
                     });
                     boss.LISTEN(tier::release, desk::events::ui::activate, gear)
                     {
-                        window.base::signal(tier::anycast, e2::form::proceed::quit::one, faux); // Show closing process.
+                        auto check_gear_id = gear.id;
+                        window.base::signal(tier::request, e2::form::prop::window::accesslock, check_gear_id);
+                        if (!check_gear_id) // Filter out for non-owners.
+                        {
+                            log("%%The non-owner's application closure was aborted.", prompt::desk);
+                            gear.owner.base::signal(tier::release, e2::form::layout::jumpto, window);
+                        }
+                        else
+                        {
+                            window.base::signal(tier::anycast, e2::form::proceed::quit::one, faux); // Show closing process.
+                        }
                     };
                 });
             return item_area_ptr;
