@@ -117,6 +117,25 @@ namespace netxs::app::shared
             accesslock_state = (si32)!accesslock_gears.empty();
             if (accesslock_state)
             {
+                boss.LISTEN(tier::release, e2::form::state::focus::on, gear_id, accesslock_token) // Don't set input focus for non-owners.
+                {
+                    if (gear_id)
+                    {
+                        auto iter = std::ranges::find(accesslock_gears, gear_id);
+                        if (iter == accesslock_gears.end()) // Filter out for non-owners.
+                        {
+                            boss.base::enqueue([&, gear_id](auto&)
+                            {
+                                if (auto gear_ptr = boss.base::getref<hids>(gear_id)) // Refocus to gate.
+                                {
+                                    auto& gear = *gear_ptr;
+                                    pro::focus::off(boss.This(), gear.id);
+                                    pro::focus::set(gear.owner.This(), gear.id, solo::off);
+                                }
+                            });
+                        }
+                    }
+                };
                 boss.LISTEN(tier::preview, input::events::device::mouse::on, gear, accesslock_token)
                 {
                     auto iter = std::ranges::find(accesslock_gears, gear.id);
