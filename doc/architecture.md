@@ -208,6 +208,7 @@ graph TB
 - The "regular" user and the "elevated" user are different independent users despite having the same username.
 - The session allows multiple access **in real time**.
 - Multiple connected users can share a focused application, while each user can have multiple applications focused.
+- Users can lock windows, restricting access for other users. The restrictions set prevent the desktop session from terminating.
 - Users can disconnect from the session and reconnect later.
 - To maximize rendering efficiency and minimize cross-platform issues, along with the character-oriented xterm-compatible I/O mode called `Classic VT`, vtm supports an additional message-based binary I/O mode called `DirectVT`.
 - Using `DirectVT` mode (when vtm is running as a `Desktop Client` or `DirectVT Gateway`), vtm has the ability to fully binary deserialize/serialize its state through arbitrary channels (like socat over SSH reverse tunnel) and does not require a running SSH server on the remote side.
