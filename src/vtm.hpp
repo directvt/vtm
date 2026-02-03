@@ -1520,11 +1520,11 @@ namespace netxs::app::vtm
                     // Check if users have accesslocked windows.
                     auto accesslock_list = base::signal(tier::request, e2::form::state::accesslock::enlist);
                     allow_shutdown = accesslock_list.empty();
-                    if (!allow_shutdown) // Check if users have fullscreen windows.
+                    if (!allow_shutdown)
                     {
                         log("%%Server shutdown was interrupted due to %% locked window(s)", prompt::desk, accesslock_list.size());
                     }
-                    else
+                    else // Check if users have fullscreen windows.
                     {
                         for (auto usergate_ptr : usrs_list)
                         {
