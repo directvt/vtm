@@ -1509,7 +1509,7 @@ namespace netxs::app::vtm
             {
                 if constexpr (debugmode) log(prompt::host, msg);
                 auto accesslock_list = base::signal(tier::request, e2::form::state::accesslock::enlist);
-                if (accesslock_list.empty() || usrs_list.size() < 2)
+                if (accesslock_list.empty() || usrs_list.empty())
                 {
                     canal.stop();
                 }
