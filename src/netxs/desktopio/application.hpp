@@ -22,7 +22,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v2026.01.16";
+    static const auto version = "v2026.02.03";
     static const auto repository = "https://github.com/directvt/vtm";
     static const auto usr_config = "~/.config/vtm/settings.xml"s;
     static const auto sys_config = "/etc/vtm/settings.xml"s;
@@ -108,6 +108,97 @@ namespace netxs::app::shared
             }
         }
     };
+    const auto track_accesslock = [](base& boss, auto& accesslock_gears, auto& accesslock_token, auto& accesslock_state, id_t gear_id) // Use an empty gear_id to rearm subscriptions.
+    {
+        if (gear_id)
+        {
+            accesslock_gears.clear();
+            accesslock_token.clear();
+            if (accesslock_state) //todo unify - same code at application.hpp:250 (LockAccess)
+            {
+                boss.base::riseup(tier::request, e2::form::state::keybd::enlist, accesslock_gears); // Get window owner list.
+                accesslock_state = (si32)!accesslock_gears.empty();
+            }
+        }
+        if (accesslock_state)
+        {
+            boss.LISTEN(tier::release, e2::form::state::focus::on, gear_id, accesslock_token) // Don't set input focus for non-owners.
+            {
+                if (gear_id)
+                {
+                    auto iter = std::ranges::find(accesslock_gears, gear_id);
+                    if (iter == accesslock_gears.end()) // Filter out for non-owners.
+                    {
+                        boss.base::enqueue([&, gear_id](auto&)
+                        {
+                            if (auto gear_ptr = boss.base::getref<hids>(gear_id)) // Refocus to gate.
+                            {
+                                auto& gear = *gear_ptr;
+                                pro::focus::off(boss.This(), gear.id);
+                                pro::focus::set(gear.owner.This(), gear.id, solo::off);
+                            }
+                        });
+                    }
+                }
+            };
+            boss.LISTEN(tier::preview, input::events::device::mouse::on, gear, accesslock_token)
+            {
+                auto iter = std::ranges::find(accesslock_gears, gear.id);
+                if (iter == accesslock_gears.end()) // Filter out for non-owners.
+                {
+                    gear.dismiss();
+                    boss.bell::expire();
+                }
+                else
+                {
+                    boss.bell::passover();
+                }
+            };
+            boss.on(tier::mousepreview, input::key::MouseAny, accesslock_token.back());
+            boss.on(tier::preview, input::events::keybd::any.id, accesslock_token.back());
+            boss.LISTEN(tier::general, input::events::die, gear, accesslock_token)
+            {
+                auto iter = std::ranges::find(accesslock_gears, gear.id);
+                if (iter != accesslock_gears.end()) // Remove disconnected gear.
+                {
+                    accesslock_gears.erase(iter);
+                    if (accesslock_gears.empty())
+                    {
+                        boss.base::riseup(tier::preview, e2::form::state::accesslock::count); // Sync with ui::hall.
+                        log("%%Window [%%] access unlocked", prompt::vtm, boss.id);
+                        accesslock_token.clear();
+                    }
+                }
+            };
+            boss.LISTEN(tier::request, e2::form::prop::window::accesslock, check_gear_id, accesslock_token) // Check access for gear_id.
+            {
+                if (check_gear_id)
+                {
+                    auto iter = std::ranges::find(accesslock_gears, check_gear_id);
+                    if (iter == accesslock_gears.end()) // This gear_id is not allowed.
+                    {
+                        check_gear_id = {};
+                    }
+                }
+            };
+        }
+        if (gear_id)
+        {
+            boss.base::riseup(tier::preview, e2::form::state::accesslock::count); // Sync with ui::hall.
+            if (auto gear_ptr = boss.base::getref<hids>(gear_id)) // Notify back dependent UI elements.
+            {
+                gear_ptr->base::signal(tier::release, e2::form::prop::accesslock, accesslock_state);
+            }
+        }
+        if (accesslock_state)
+        {
+            log("%%Window [%%] access locked by %% user(s)", prompt::vtm, boss.id, accesslock_gears.size());
+        }
+        else
+        {
+            log("%%Window [%%] access unlocked", prompt::vtm, boss.id);
+        }
+    };
     const auto base_kb_navigation = [](settings& config, ui::sptr scroll_ptr, base& boss)
     {
         auto& scroll_inst = *scroll_ptr;
@@ -179,6 +270,7 @@ namespace netxs::app::shared
         auto script_list = config.settings::take_ptr_list_for_name("script");
         bindings = input::bindings::load(config, script_list);
         input::bindings::keybind(boss, bindings);
+        auto& accesslock_state = boss.base::property("applet.accesslock_state", 0);
         boss.base::add_methods(basename::applet,
         {
             { "GetTitlesHeight",    [&]
@@ -224,7 +316,7 @@ namespace netxs::app::shared
                                         boss.base::riseup(tier::preview, e2::command::gui, gui_cmd);
                                         luafx.set_return();
                                     }},
-            { "ZOrder",            [&]
+            { "ZOrder",             [&]
                                     {
                                         auto args_count = luafx.args_count();
                                         auto& zorder = boss.base::property("applet.zorder", zpos::plain);
@@ -244,6 +336,68 @@ namespace netxs::app::shared
                                         }
                                         gear.set_handled();
                                         luafx.set_return(zorder);
+                                    }},
+            { "LockAccess",         [&]
+                                    {
+                                        auto args_count = luafx.args_count();
+                                        if (args_count)
+                                        {
+                                            if (auto& gear = luafx.get_gear(); gear.is_real())
+                                            {
+                                                auto& oneshot = boss.base::field(subs{}); // Oneshot subscription token.
+                                                gear.LISTEN(tier::release, input::events::die, gear, oneshot) // Reset on disconnect.
+                                                {
+                                                    boss.base::unfield(oneshot); // Reset subscriptions.
+                                                };
+                                                gear.LISTEN(tier::release, e2::form::prop::accesslock, new_accesslock_state, oneshot) // Wait for reply.
+                                                {
+                                                    accesslock_state = new_accesslock_state;
+                                                    if constexpr (debugmode) log("%%Access lock reply received: accesslock_state=%%", prompt::apps, accesslock_state);
+                                                    if (accesslock_state) // Track currently focused gears and access lock.
+                                                    {
+                                                        auto gear_id_list = boss.base::riseup(tier::request, e2::form::state::keybd::enlist); // Get window owner list.
+                                                        if (gear_id_list.size())
+                                                        {
+                                                            auto& accesslock_gears2 = boss.base::field(std::move(gear_id_list));
+                                                            auto& oneshot2 = boss.base::field(subs{}); // Oneshot subscription token.
+                                                            boss.LISTEN(tier::release, e2::form::prop::accesslock, new_accesslock_state, oneshot2)
+                                                            {
+                                                                if (!new_accesslock_state)
+                                                                {
+                                                                    boss.base::unfield(accesslock_gears2);
+                                                                    boss.base::unfield(oneshot2); // Stop tracking.
+                                                                }
+                                                            };
+                                                            boss.LISTEN(tier::general, input::events::die, gear, oneshot2) // Track disconnecting gears.
+                                                            {
+                                                                accesslock_gears2.remove(gear.id);
+                                                                if (accesslock_gears2.empty())
+                                                                {
+                                                                    accesslock_state = 0;
+                                                                    boss.base::riseup(tier::release, e2::form::prop::accesslock, accesslock_state); // Notify UI elements.
+                                                                    boss.base::unfield(accesslock_gears2);
+                                                                    boss.base::unfield(oneshot2); // Stop tracking.
+                                                                }
+                                                            };
+                                                        }
+                                                    }
+                                                    boss.base::riseup(tier::release, e2::form::prop::accesslock, accesslock_state); // Notify UI elements.
+                                                    boss.base::unfield(oneshot); // Reset subscriptions.
+                                                };
+                                                auto new_accesslock_state = luafx.get_args_or(1, 0);
+                                                auto gui_cmd = e2::command::gui.param();
+                                                gui_cmd.gear_id = gear.id;
+                                                gui_cmd.cmd_id = syscmd::accesslock;
+                                                gui_cmd.args.emplace_back(new_accesslock_state);
+                                                boss.base::riseup(tier::preview, e2::command::gui, gui_cmd); // Send request to set accesslock.
+                                                gear.set_handled();
+                                            }
+                                            luafx.set_return();
+                                        }
+                                        else
+                                        {
+                                            luafx.set_return(accesslock_state);
+                                        }
                                     }},
             { "Close",              [&]
                                     {

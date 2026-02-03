@@ -107,6 +107,7 @@ R"==(
                             <autohide=/Menu/Defaults/autohide/>
                             <slim=/Menu/Defaults/slim/>
                             <item=/Menu/Buttons/AlwaysOnTop/>
+                            <item=/Menu/Buttons/LockAccess/>
                             <item=/Menu/Buttons/FindPrev/>
                             <item=/Menu/Buttons/FindNext/>
                             <item=/Menu/Buttons/NoWrapMode/>
@@ -199,6 +200,7 @@ R"==(
             <autohide=/Menu/Defaults/autohide/>
             <slim=/Menu/Defaults/slim/>
             <item=/Menu/Buttons/AlwaysOnTop/>
+            <item=/Menu/Buttons/LockAccess/>
             <item=/Menu/Buttons/FindPrev/>
             <item=/Menu/Buttons/FindNext/>
             <item=/Menu/Buttons/ExclusiveKeyboard/>
@@ -226,6 +228,7 @@ R"==(
             <autohide=/Menu/Defaults/autohide/>
             <slim=/Menu/Defaults/slim/>
             <item=/Menu/Buttons/AlwaysOnTop/>
+            <item=/Menu/Buttons/LockAccess/>
             <item label="   +   " tooltip=/Ns/Tile/RunApplication/tooltip     script=OnLeftClick|TileRunApplication    />
             <item label="  :::  " tooltip=/Ns/Tile/SelectAllPanes/tooltip     script=OnLeftClick|TileSelectAllPanes    />
             <item label="   │   " tooltip=/Ns/Tile/SplitHorizontally/tooltip  script=OnLeftClick|TileSplitHorizontally />
@@ -429,6 +432,16 @@ R"==(
                 vtm.item.Deface()
             </script>
         </AlwaysOnTop>
+        <LockAccess script=OnLeftClick|LockAppletAccess>
+            <script>
+                <on="release: e2::form::upon::started"    source="applet"/>
+                <on="release: e2::form::prop::accesslock" source="applet"/>
+                local m=vtm.applet.LockAccess()
+                vtm.item.Label(  m==1 and vtm.config["/Ns/LockAccess/on/label"  ] or vtm.config["/Ns/LockAccess/off/label"  ])
+                vtm.item.Tooltip(m==1 and vtm.config["/Ns/LockAccess/on/tooltip"] or vtm.config["/Ns/LockAccess/off/tooltip"])
+                vtm.item.Deface()
+            </script>
+        </LockAccess>
         <FindPrev label="  <  " script=OnLeftClick|TerminalFindPrev tooltip=/Ns/FindPrev/tooltip/>
         <FindNext label="  >  " script=OnLeftClick|TerminalFindNext tooltip=/Ns/FindNext/tooltip/>
         <ExclusiveKeyboard script=OnLeftClick|ExclusiveKeyboardMode>
@@ -465,12 +478,13 @@ R"==(
                 vtm.item.Deface()
             </script>
         </ClipboardFormat>
-        <StdioLog tooltip=/Ns/StdioLog/tooltip script=OnLeftClick|TerminalStdioLog>
+        <StdioLog script=OnLeftClick|TerminalStdioLog>
             <script>
                 <on="release: e2::form::upon::started"  source="applet"/>
                 <on="release: terminal::events::io_log" source="terminal"/>
                 local m=vtm.terminal.LogMode()
-                vtm.item.Label(m==1 and vtm.config["/Ns/StdioLog/on/label"] or vtm.config["/Ns/StdioLog/off/label"])
+                vtm.item.Label(  m==1 and vtm.config["/Ns/StdioLog/on/label"  ] or vtm.config["/Ns/StdioLog/off/label"  ])
+                vtm.item.Tooltip(m==1 and vtm.config["/Ns/StdioLog/on/tooltip"] or vtm.config["/Ns/StdioLog/off/tooltip"])
                 vtm.item.Deface()
             </script>
         </StdioLog>
@@ -561,9 +575,23 @@ R"==(
             </SF>
         </Info>
         <AlwaysOnTop>
-            <on  label="\e[2:247;38:2:0:255:0m▀\e[2:239m \e[m" tooltip=" AlwaysOnTop: On "/>
-            <off label="  "                                    tooltip=" AlwaysOnTop: Off "/>
+            <on label="\e[2:247;38:2:0:255:0m▀\e[2:239m \e[m"
+                tooltip="\e[1m"" Always on top: On                   ""\e[m\n"
+                               "  Keep this window above all others. "/>
+            <off label="  "
+                tooltip="\e[1m"" Always on top: Off                           ""\e[m\n"
+                               "  The window can be covered by other windows. "/>
         </AlwaysOnTop>
+        <LockAccess>
+            <on label="\e[2:247m🔒\u{D0136}\e[2:239m🔒\u{D0137}\e[m"
+                tooltip="\e[1m"" Window access lock: On                                                    ""\e[m\n"
+                               "  Only users with focus at the time of locking can control this window.    ""\n"
+                               "  Released automatically when the last owner disconnects from the desktop. "/>
+            <off label="  "
+                tooltip="\e[1m"" Window access lock: Off                                              ""\e[m\n"
+                               "  Turn it on to restrict window control to currently focused user(s). ""\n"
+                               "  Locked windows may prevent the desktop from shutting down.          "/>
+        </LockAccess>
         <ClearScrollback label="  Clear  "   tooltip=" Clear scrollback buffer "/>
         <Restart         label="  Restart  " tooltip=" Restart current terminal session "/>
         <Taskbar>
@@ -614,7 +642,8 @@ R"==(
                 <Toggle tooltip=" Show/hide user list "/>
             </UserList>
             <Disconnect  label="× Disconnect" tooltip=" Disconnect from the current session "/>
-            <Shutdown    label="× Shutdown"   tooltip=" Disconnect all users and shut down "/>
+            <Shutdown    label="× Shutdown"   tooltip="\e[1m"" Disconnect all users and shut down                          ""\e[m\n"
+                                                             "  Locked windows may prevent the desktop from shutting down. "/>
         </Taskbar>
         <Tile>
             <RunApplication>
@@ -634,31 +663,38 @@ R"==(
         </Tile>
         <FindPrev>
             <tooltip>
-                "\e[1m"" Previous match             Alt+LeftArrow  ""\e[m\n"
-                       "   Click to jump to the previous match     ""\n"
-                       "   Matches clipboard data if no selection  "
+                "\e[1m"" Previous match                           ""\e[m\n"
+                       "  Click to jump to the previous match.    ""\n"
+                       "  Matches clipboard data if no selection. "
             </tooltip>
         </FindPrev>
         <FindNext>
             <tooltip>
-                "\e[1m"" Next match                Alt+RightArrow  ""\e[m\n"
-                       "   Click to jump to the next match         ""\n"
-                       "   Matches clipboard data if no selection  "
+                "\e[1m"" Next match                               ""\e[m\n"
+                       "  Click to jump to the next match.        ""\n"
+                       "  Matches clipboard data if no selection. "
             </tooltip>
         </FindNext>
         <ExclusiveKeyboard>
-            <tooltip_body>
-                "\e[1m"" Toggle exclusive keyboard mode   "|state|" \e[m\n"
-                       "   Keystrokes are passed through to the   ""\n"
-                       "   application without local processing   "
-            </tooltip_body>
-            <on  label="\e[2:247m \e[2:231;38:2:0:255:0m Exclusive \e[2:239m \e[m" state="     ON" tooltip=tooltip_body/>
-            <off label="  Exclusive  "                                             state="    OFF" tooltip=tooltip_body/>
+            <on label="\e[2:247m \e[2:231;38:2:0:255:0m Exclusive \e[2:239m \e[m"
+                tooltip="\e[1m"" Exclusive keyboard mode: On            ""\e[m\n"
+                               "  Keystrokes are passed through to the  ""\n"
+                               "  application \e[1mwithout\e[m local processing. "/>
+            <off label="  Exclusive  "
+                tooltip="\e[1m"" Exclusive keyboard mode: Off          ""\e[m\n"
+                               "  Keystrokes are passed through to the ""\n"
+                               "  application \e[1mwith\e[m local processing.   "/>
         </ExclusiveKeyboard>
         <NoWrapMode>
-            <on  label="\e[2:247m \e[2:231;38:2:0:255:0mNoWrap\e[2:239m \e[m" tooltip=" \e[1mText line wrapping\e[m  \n Wrapping off        "/>
-            <off label=                               " NoWrap "              tooltip=" \e[1mText line wrapping\e[m  \n Wrapping on         "/>
+            <on label="\e[2:247m \e[2:231;38:2:0:255:0mNoWrap\e[2:239m \e[m"
+                tooltip="\e[1m"" No-wrap mode: On                        ""\e[m\n"
+                               "  Text lines extend beyond the viewport. "/>
+            <off label=" NoWrap "
+                tooltip="\e[1m"" No-wrap mode: Off                      ""\e[m\n"
+                               "  Text lines are wrapped to a new line. "/>
         </NoWrapMode>
+)==" // MSVC2022: C2026 String too big, trailing characters truncated.
+R"==(
         <ClipboardFormat tooltip=" Clipboard format ">
                 <textonly label=  "\e[38:2:0:255:0m  Plaintext  \e[m"/>
                 <ansitext label="\e[38:2:255:255:0m  ANSI-text  \e[m"/>
@@ -680,12 +716,12 @@ R"==(
                 </richtext>
         </ClipboardFormat>
         <StdioLog>
-            <tooltip>
-                "\e[1m"" Console logging              ""\e[m\n"
-                       " Open Logs to view the output "
-            </tooltip>
-            <on  label="\e[2:247m \e[2:231;38:2:0:255:0m Log \e[2:239m \e[m"/>
-            <off label="  Log  "/>
+            <on label="\e[2:247m \e[2:231;38:2:0:255:0m Log \e[2:239m \e[m"
+                tooltip="\e[1m"" Console logging: On            ""\e[m\n"
+                               "  Open Logs to view the output. "/>
+            <off label="  Log  "
+                tooltip="\e[1m"" Console logging: Off     ""\e[m\n"
+                               "  Logging is not enabled. "/>
         </StdioLog>
         <MinimizeWindow tooltip=" Minimize "/>
         <MaximizeWindow tooltip=" Maximize "/>
@@ -782,13 +818,23 @@ R"==(
             <on  tooltip=" Поверх всех окон: вкл. "/>
             <off tooltip=" Поверх всех окон: выкл. "/>
         </AlwaysOnTop>
+        <LockAccess>
+            <on label="\e[2:247m🔒\u{D0136}\e[2:239m🔒\u{D0137}\e[m"
+                tooltip="\e[1m"" Доступ к окну ограничен                                    ""\e[m\n"
+                               "  Данным окном могут управлять только текущие владельцы.    ""\n"
+                               "  При отключении от рабочего стола, владелец теряет доступ. "/>
+            <off label="  "
+                tooltip="\e[1m"" Доступ к окну не ограничен                                             ""\e[m\n"
+                               "  Включение заблокирует окно для непричастных пользователей.            ""\n"
+                               "  Окна с ограниченным доступом могут препятствовать выключению сервера. "/>
+        </LockAccess>
         <ClearScrollback label="  Очистить  " tooltip=" Очистить буфер прокрутки (скроллбэк) "/>
         <Restart         label="  Рестарт  "  tooltip=" Перезапустить текущую сессию терминала "/>
         <Taskbar>
             <taskbar_tooltip>
-                "\e[1m"" Панель задач                            ""\e[m\n"
-                       "   RightDrag — прокрутка списка задач    ""\n"
-                       "   LeftDrag — перемещение рабочего стола "
+                "\e[1m"" Панель задач                             ""\e[m\n"
+                       "   RightDrag — прокрутка списка задач.    ""\n"
+                       "   LeftDrag — перемещение рабочего стола. "
             </taskbar_tooltip>
             <Apps label="программы">
                 <tooltip>
@@ -796,15 +842,15 @@ R"==(
                            " Список настраивается в ~/.config/vtm/settings.xml "
                 </tooltip>
                 <deftooltip>
-                    " Приложение:                                        ""\n"
-                    "   LeftClick запускает экземпляр приложения         ""\n"
-                    "   RightClick устанавливает приложение по умолчанию ""\n"
-                    "   LeftDrag перемещает рабочий стол                 "
+                    " Приложение:                                         ""\n"
+                    "   LeftClick запускает экземпляр приложения.         ""\n"
+                    "   RightClick устанавливает приложение по умолчанию. ""\n"
+                    "   LeftDrag перемещает рабочий стол.                 "
                 </deftooltip>
                 <toggletooltip>
-                    " Переключатель списка окон                              ""\n"
-                    "   LeftClick разворачивает/сворачивает список окон      ""\n"
-                    "   Колесо мыши переключает кнопку в режим закрытия окон "
+                    " Переключатель списка окон                               ""\n"
+                    "   LeftClick разворачивает/сворачивает список окон.      ""\n"
+                    "   Колесо мыши переключает кнопку в режим закрытия окон. "
                 </toggletooltip>
                 <groupclosetooltip=" Закрыть все открытые окна в этой группе "/>
                 <Close tooltip=" Закрыть окно приложения "/>
@@ -832,7 +878,8 @@ R"==(
                 <Toggle tooltip=" Показать/скрыть список пользователей "/>
             </UserList>
             <Disconnect  label="× Отключить"        tooltip=" Отключиться от текущей сессии (оставить её работать) "/>
-            <Shutdown    label="× Завершить работу" tooltip=" Отключить всех пользователей и выключить сервер рабочего стола "/>
+            <Shutdown    label="× Завершить работу" tooltip="\e[1m"" Отключить всех пользователей и выключить сервер рабочего стола         ""\e[m\n"
+                                                                   "  Окна с ограниченным доступом могут препятствовать выключению сервера. "/>
         </Taskbar>
         <Tile>
             <RunApplication>
@@ -852,23 +899,23 @@ R"==(
         </Tile>
         <FindPrev>
             <tooltip>
-                "\e[1m"" Предыдущее совпадение                          Alt+LeftArrow ""\e[m\n"
-                       "   Переход к предыдущему совпадению по клику                  ""\n"
-                       "   Если текст не выделен, используется поиск из буфера обмена "
+                "\e[1m"" Предыдущее совпадение                                        ""\e[m\n"
+                       "  Переход к предыдущему совпадению по клику.                  ""\n"
+                       "  Если текст не выделен, используется поиск из буфера обмена. "
             </tooltip>
         </FindPrev>
         <FindNext>
             <tooltip>
-                "\e[1m"" Следующее совпадение                          Alt+RightArrow ""\e[m\n"
-                       "   Переход к следующему совпадению по клику                   ""\n"
-                       "   Если текст не выделен, используется поиск из буфера обмена "
+                "\e[1m"" Следующее совпадение                                         ""\e[m\n"
+                       "  Переход к следующему совпадению по клику.                   ""\n"
+                       "  Если текст не выделен, используется поиск из буфера обмена. "
             </tooltip>
         </FindNext>
         <ExclusiveKeyboard>
             <tooltip_body>
                 "\e[1m"" Переключатель монопольного режима клавиатуры "|state|" \e[m\n"
-                       "   Данный режим позволяет направлять нажатия клавиш   ""\n"
-                       "   напрямую приложению, без локальной обработки       "
+                       "  Данный режим позволяет направлять нажатия клавиш    ""\n"
+                       "  напрямую приложению, без локальной обработки.       "
             </tooltip_body>
             <on  label="\e[2:247m \e[2:231;38:2:0:255:0m Монопольно \e[2:239m \e[m" state="    ВКЛ" tooltip=tooltip_body/>
             <off label=                               "  Монопольно  "              state="   ВЫКЛ" tooltip=tooltip_body/>
@@ -901,19 +948,20 @@ R"==(
             </richtext>
         </ClipboardFormat>
         <StdioLog>
-            <tooltip>
-                "\e[1m"" Журналирование консоли                   ""\e[m\n"
-                       " Откройте Монитор сообщений для просмотра "
-            </tooltip>
-            <on  label="\e[2:247m \e[2:231;38:2:0:255:0m Лог \e[2:239m \e[m"/>
-            <off label="  Лог  "/>
+            <on  label="\e[2:247m \e[2:231;38:2:0:255:0m Лог \e[2:239m \e[m"
+                tooltip="\e[1m"" Журналирование консоли: ВКЛ                ""\e[m\n"
+                               "  Откройте Монитор сообщений для просмотра. "/>
+            <off label="  Лог  "
+                tooltip="\e[1m"" Журналирование консоли: ВЫКЛ       ""\e[m\n"
+                               "  Журналирование консоли отключено. "/>
         </StdioLog>
         <MinimizeWindow tooltip=" Свернуть "/>
         <MaximizeWindow tooltip=" Развернуть "/>
         <CloseWindow    tooltip=" Закрыть "/>
     </ru-RU>
 </Ns>
-
+)==" // MSVC2022: C2026 String too big, trailing characters truncated.
+R"==(
 <Colors>
     <DefaultColor = 0x00ffffff />
     <Transparent  = 0x00000000 />
@@ -942,8 +990,7 @@ R"==(
     <purecyan     = #00ffff />
     <pureyellow   = #ffff00 />
 </Colors>
-)==" // MSVC2022: C2026 String too big, trailing characters truncated.
-R"==(
+
 <X11ColorNames name*>  <!-- Source: https://en.wikipedia.org/wiki/X11_color_names#Color_name_chart -->
     <name = "Black"               rgb = #000000 />
     <name = "Brown"               rgb = #A52A2A />
@@ -1122,6 +1169,13 @@ R"==(
     <FocusTaskbar          ="if (vtm.gear.Focus(vtm.taskbar)) then vtm.gear.Focus(vtm.desktop); end; vtm.gear.Interrupt();"/>  <!-- Focus the taskbar or return focus to the desktop. -->
 
     <AlwaysOnTopApplet     ="vtm.applet.ZOrder(vtm.applet.ZOrder()==1 and 0 or 1);"/>  <!-- Toggle window Z-order attribute. -1: backmost; 0: normal; 1: topmost. -->
+    <LockAppletAccess>
+        local accesslock=vtm.applet.LockAccess();
+        if (accesslock==0) then  -- Set focus before accesslock activation.
+            vtm.gear.Focus(vtm.applet);
+        end;
+        vtm.applet.LockAccess(accesslock==1 and 0 or 1);
+    </LockAppletAccess>
     <CloseApplet           ="vtm.applet.Close();"/>            <!-- Close the window. -->
     <MinimizeApplet        ="vtm.applet.Minimize();"/>         <!-- Minimize the window. -->
     <MaximizeApplet        ="vtm.applet.Maximize();"/>         <!-- Maximize the window within the desktop area (does not cover the taskbar). -->

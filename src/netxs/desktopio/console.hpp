@@ -242,6 +242,18 @@ namespace netxs::ui
                 lock.unlock();
                 owner.disconnect();
             }
+            void handle(s11n::xs::gui_command lock)
+            {
+                owner.base::enqueue([&, gui_cmd = lock.thing](auto& /*boss*/) mutable
+                {
+                    auto ext_gear_id = gui_cmd.gear_id;
+                    if (auto gear_ptr = owner.get_int_gear_ptr(ext_gear_id)) // Notify oneshot requesters.
+                    {
+                        auto accesslock_state = gui_cmd.args.size() ? netxs::any_get_or(gui_cmd.args[0], 0) : 0;
+                        gear_ptr->base::signal(tier::release, e2::form::prop::accesslock, accesslock_state);
+                    }
+                });
+            }
         };
 
         // gate: Bitmap forwarder.
@@ -591,8 +603,21 @@ namespace netxs::ui
         {
             auto int_gear_id = id_t{};
             auto gear_it = gears.find(ext_gear_id);
-            if (gear_it != gears.end()) int_gear_id = gear_it->second->id;
+            if (gear_it != gears.end())
+            {
+                int_gear_id = gear_it->second->id;
+            }
             return int_gear_id;
+        }
+        netxs::sptr<input::hids> get_int_gear_ptr(id_t ext_gear_id)
+        {
+            auto int_gear_ptr = netxs::sptr<input::hids>{};
+            auto gear_it = gears.find(ext_gear_id);
+            if (gear_it != gears.end())
+            {
+                int_gear_ptr = gear_it->second;
+            }
+            return int_gear_ptr;
         }
         void fill_pointer(hids& gear, face& parent_canvas)
         {
@@ -1151,7 +1176,7 @@ namespace netxs::ui
                 if (gear_ptr)
                 {
                     conio.clipdata_request.send(canal, ext_gear_id, from_gear.board::cargo.hash);
-                    clipdata.wait();
+                    clipdata.wait(); //todo (maybe) sync it the same way as accesslock, or just track updates in realtime
                     if (clipdata.thing.hash != from_gear.board::cargo.hash)
                     {
                         from_gear.board::cargo.set(clipdata.thing);

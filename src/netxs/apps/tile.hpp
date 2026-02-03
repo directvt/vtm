@@ -293,7 +293,30 @@ namespace netxs::app::tile
                                 };
                             };
                         }))
-                    ->branch(slot::_2, what.applet);
+                    ->branch(slot::_2, what.applet)
+                    ->invoke([&](auto& boss)
+                    {
+                        auto& accesslock_gears = what.applet->base::property("applet.accesslock_gears", e2::form::state::keybd::enlist.param());
+                        auto& accesslock_token = boss.base::field(subs{});
+                        if (auto accesslock_state = (si32)!accesslock_gears.empty()) // Rearm the current accesslock state.
+                        {
+                            app::shared::track_accesslock(boss, accesslock_gears, accesslock_token, accesslock_state, id_t{});
+                        }
+                        boss.LISTEN(tier::preview, e2::command::gui, gui_cmd)
+                        {
+                            auto hit = true;
+                            if (gui_cmd.cmd_id == syscmd::accesslock)
+                            {
+                                if (auto args_count = gui_cmd.args.size())
+                                {
+                                    auto accesslock_state = netxs::any_get_or(gui_cmd.args[0], 0);
+                                    app::shared::track_accesslock(boss, accesslock_gears, accesslock_token, accesslock_state, gui_cmd.gear_id);
+                                }
+                            }
+                            else hit = faux;
+                            if (!hit) boss.bell::passover();
+                        };
+                    });
         };
         auto build_node = [](auto tag, auto slot1, auto slot2, auto grip_width, auto grip_bindings_ptr)
         {
@@ -518,6 +541,25 @@ namespace netxs::app::tile
                     menu_block->alignment({ snap::head, snap::head })
                 );
         };
+        static const auto accesslocked = [](auto& item_ptr, id_t allowed_gear_id)
+        {
+            if (item_ptr)
+            {
+                item_ptr->base::riseup(tier::request, e2::form::prop::window::accesslock, allowed_gear_id); // Access is not allowed if returned zero.
+            }
+            return !allowed_gear_id;
+        };
+        static const auto filter_by_accesslock = [](auto item_ptr, auto& gear_id_list)
+        {
+            if (item_ptr)
+            {
+                std::erase_if(gear_id_list, [&](auto allowed_gear_id)
+                {
+                    item_ptr->base::riseup(tier::request, e2::form::prop::window::accesslock, allowed_gear_id); // Access is not allowed if returned zero.
+                    return !allowed_gear_id;
+                });
+            }
+        };
         auto node_veer = [](auto&& node_veer, auto min_state, auto grip_bindings_ptr) -> netxs::sptr<ui::veer>
         {
             return ui::veer::ctor()
@@ -545,6 +587,7 @@ namespace netxs::app::tile
                                 item_ptr->base::broadcast(tier::anycast, e2::form::upon::started);
                             }
                             else item_ptr = boss.This();
+                            filter_by_accesslock(boss.back(), gear_id_list);
                             pro::focus::set(boss.back(), gear_id_list, solo::off);
                         }
                         else
@@ -1138,8 +1181,9 @@ namespace netxs::app::tile
                         if (nothing_to_iterate()) return;
                         auto prev_item_ptr = sptr{};
                         auto next_item_ptr = sptr{};
-                        foreach(id_t{}, [&](auto& item_ptr, si32 /*item_type*/, auto)
+                        foreach(id_t{}, [&](auto& item_ptr, si32 item_type, auto)
                         {
+                            if (item_type != item_type::grip && accesslocked(item_ptr, gear.id)) return;
                             if (pro::focus::is_focused(item_ptr, gear.id))
                             {
                                 prev_item_ptr = next_item_ptr;
@@ -1175,8 +1219,9 @@ namespace netxs::app::tile
                         auto prev_item_ptr = sptr{};
                         auto next_item_ptr = sptr{};
                         auto temp_item_ptr = sptr{};
-                        foreach(id_t{}, [&](auto& item_ptr, si32 /*item_type*/, auto)
+                        foreach(id_t{}, [&](auto& item_ptr, si32 item_type, auto)
                         {
+                            if (item_type != item_type::grip && accesslocked(item_ptr, gear.id)) return;
                             if (!temp_item_ptr)
                             {
                                 temp_item_ptr = item_ptr; // Fallback item.
@@ -1220,7 +1265,7 @@ namespace netxs::app::tile
                         auto next_item_ptr = sptr{};
                         foreach(id_t{}, [&](auto& item_ptr, si32 item_type, auto)
                         {
-                            if (item_type != item_type::grip)
+                            if (item_type != item_type::grip && !accesslocked(item_ptr, gear.id))
                             {
                                 if (pro::focus::is_focused(item_ptr, gear.id))
                                 {
@@ -1260,7 +1305,7 @@ namespace netxs::app::tile
                         auto temp_item_ptr = sptr{};
                         foreach(id_t{}, [&](auto& item_ptr, si32 item_type, auto)
                         {
-                            if (item_type != item_type::grip)
+                            if (item_type != item_type::grip && !accesslocked(item_ptr, gear.id))
                             {
                                 if (!temp_item_ptr)
                                 {
@@ -1462,8 +1507,9 @@ namespace netxs::app::tile
                     {
                         foreach(id_t{}, [&](auto& item_ptr, si32 item_type, auto)
                         {
-                            if (item_type != item_type::grip) pro::focus::set(item_ptr, gear.id, solo::off);
-                            else                              pro::focus::off(item_ptr, gear.id);
+                            auto focused = item_type != item_type::grip && !accesslocked(item_ptr, gear.id);
+                            if (focused) pro::focus::set(item_ptr, gear.id, solo::off);
+                            else         pro::focus::off(item_ptr, gear.id);
                         });
                         gear.set_handled();
                     };

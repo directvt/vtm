@@ -829,6 +829,10 @@ namespace netxs::input
 
         si32 pressed_count{}; // mouse: The number of pressed physical buttons.
 
+        si32 dtvt_digest{}; // mouse: Synchronized digest with ui::dtvt (per mouse device).
+        fp2d dtvt_coords{}; // mouse: Synchronized coords with ui::dtvt (per mouse device).
+        ui32 dtvt_serial{}; // mouse: Synchronized serial with ui::dtvt (per mouse device).
+
         // mouse: Forward the extended mouse event.
         virtual void fire(hint cause) = 0; //, si32 index = mouse::noactive) = 0;
         // mouse: Try to forward the mouse event intact.
@@ -2020,8 +2024,19 @@ namespace netxs::input
                     auto& next = *next_ptr;
                     auto  temp = m_sys.coordxy;
                     m_sys.coordxy += idmap.coor();
-                    next.global(m_sys.coordxy);
-                    next.base::signal(tier::release, input::events::device::mouse::on, *this);
+                    next.global(m_sys.coordxy, [&](auto& parent) // Ask parents.
+                    {
+                        parent.base::signal(tier::preview, input::events::device::mouse::on, *this);
+                        return alive;
+                    });
+                    if (alive)
+                    {
+                        next.base::signal(tier::release, input::events::device::mouse::on, *this);
+                    }
+                    else // Redirect mouse focus when rejected objects are detected.
+                    {
+                        redirect_mouse_focus(owner);
+                    }
                     m_sys.coordxy = temp;
                     if (!alive) // Clear one-shot events on success.
                     {

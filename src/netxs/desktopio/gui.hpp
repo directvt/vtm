@@ -2124,7 +2124,19 @@ namespace netxs::gui
             }
             void handle(s11n::xs::gui_command      lock)
             {
-                owner.sys_command(lock.thing.cmd_id, lock.thing.args);
+                auto& gui_cmd = lock.thing;
+                if (gui_cmd.cmd_id == syscmd::accesslock)
+                {
+                    if (gui_cmd.args.size())
+                    {
+                        gui_cmd.args[0] = 0;
+                        s11n::gui_command.send(intio, gui_cmd);
+                    }
+                }
+                else
+                {
+                    owner.sys_command(gui_cmd.cmd_id, gui_cmd.args);
+                }
             }
 
             link(winbase& owner, ui::pipe& intio)
@@ -3328,7 +3340,7 @@ namespace netxs::gui
         }
         void IncreaseCellHeight(many const& args)
         {
-            auto dir = args.size() ? any_get_or(args.front(), 0.f) : 0.f;
+            auto dir = args.size() ? netxs::any_get_or(args.front(), 0.f) : 0.f;
             change_cell_size(faux, dir);
             sync_cellsz();
             update_gui();
@@ -3354,7 +3366,7 @@ namespace netxs::gui
         void RollFontList(many const& args)
         {
             if (fcache.families.empty()) return;
-            auto dir = args.size() ? any_get_or<si32>(args.front()) : 0;
+            auto dir = args.size() ? netxs::any_get_or<si32>(args.front()) : 0;
             auto& families = fcache.families;
             if (dir >= 0)
             {
@@ -3371,7 +3383,7 @@ namespace netxs::gui
         void MoveWindow(many const& args)
         {
             if (args.size() != 2) return;
-            if (auto delta = twod{ any_get_or(args[0]), any_get_or(args[1]) })
+            if (auto delta = twod{ netxs::any_get_or(args[0]), netxs::any_get_or(args[1]) })
             {
                 move_window(delta);
             }
@@ -3379,15 +3391,15 @@ namespace netxs::gui
         void WarpWindow(many const& args)
         {
             if (args.size() != 4) return;
-            auto warp = dent{ any_get_or(args[0]),
-                              any_get_or(args[1]),
-                              any_get_or(args[2]),
-                              any_get_or(args[3]) };
+            auto warp = dent{ netxs::any_get_or(args[0]),
+                              netxs::any_get_or(args[1]),
+                              netxs::any_get_or(args[2]),
+                              netxs::any_get_or(args[3]) };
             warp_window(warp * cellsz);
         }
         void FocusNextWindow(many const& args)
         {
-            auto dir = args.size() ? any_get_or<si32>(args.front()) : 0;
+            auto dir = args.size() ? netxs::any_get_or<si32>(args.front()) : 0;
             if (dir >= 0)
             {
                 //todo implement
@@ -3399,7 +3411,7 @@ namespace netxs::gui
         }
         void ZOrder(many const& args)
         {
-            auto state = args.size() ? any_get_or(args.front(), zpos::plain) : zpos::plain;
+            auto state = args.size() ? netxs::any_get_or(args.front(), zpos::plain) : zpos::plain;
             window_send_command(master.hWnd, state ? ipc::make_ontop : ipc::set_normal);
         }
 
@@ -3575,7 +3587,7 @@ namespace netxs::gui
             if (menucmd == syscmd::update && !reload) return;
             if (menucmd == syscmd::tunecellheight)
             {
-                if (isbusy.exchange(true) || args.empty() || any_get_or(args.front(), 0.f) == 0.f)
+                if (isbusy.exchange(true) || args.empty() || netxs::any_get_or(args.front(), 0.f) == 0.f)
                 {
                     return;
                 }

@@ -9102,6 +9102,7 @@ namespace netxs::ui
             {
                 owner.base::enqueue([&](auto& /*boss*/) mutable
                 {
+                    owner.digest++;
                     owner.base::deface();
                 });
             }
@@ -9349,8 +9350,25 @@ namespace netxs::ui
                 {
                     if (auto gear_ptr = owner.base::getref<hids>(gui_cmd.gear_id))
                     {
-                        gear_ptr->set_multihome();
-                        owner.base::riseup(tier::preview, e2::command::gui, gui_cmd);
+                        auto& gear = *gear_ptr;
+                        if (gui_cmd.cmd_id == syscmd::accesslock && gui_cmd.args.size()) // Subscribe to wait for reply.
+                        {
+                            auto& oneshot = owner.base::field(subs{}); // Oneshot subscription token.
+                            gear.LISTEN(tier::release, input::events::die, gear, oneshot, (gui_cmd)) // Reset on disconnect.
+                            {
+                                gui_cmd.args[0] = 0;
+                                s11n::gui_command.send(owner, gui_cmd);
+                                owner.base::unfield(oneshot); // Reset subscriptions.
+                            };
+                            gear.LISTEN(tier::release, e2::form::prop::accesslock, new_accesslock_state, oneshot, (gui_cmd)) // Wait for reply.
+                            {
+                                gui_cmd.args[0] = new_accesslock_state;
+                                s11n::gui_command.send(owner, gui_cmd);
+                                owner.base::unfield(oneshot); // Reset subscriptions.
+                            };
+                        }
+                        gear.set_multihome();
+                        owner.base::riseup(tier::preview, e2::command::gui, gui_cmd); // Forward gui command.
                     }
                 });
             }
@@ -9373,6 +9391,7 @@ namespace netxs::ui
         flag active; // dtvt: Terminal lifetime.
         si32 opaque; // dtvt: Object transparency on d_n_d (no pro::cache).
         si32 nodata; // dtvt: Show splash "No signal".
+        si32 digest; // dtvt: Bitmap's update serial number.
         face splash; // dtvt: "No signal" splash.
         page errmsg; // dtvt: Overlay error message.
         vtty ipccon; // dtvt: IPC connector. Should be destroyed first.
@@ -9500,17 +9519,45 @@ namespace netxs::ui
             : stream{*this },
               active{ true },
               opaque{ 0xFF },
-              nodata{      }
+              nodata{      },
+              digest{ 1    }
         {
+            auto& accesslock_gears = base::property("applet.accesslock_gears", e2::form::state::keybd::enlist.param());
             LISTEN(tier::release, input::events::device::mouse::any, gear)
             {
-                if (gear.captured(base::id))
+                auto access_allowed = accesslock_gears.empty()
+                    || std::ranges::find(accesslock_gears, gear.id) != accesslock_gears.end();
+                if (access_allowed)
                 {
-                    if (!gear.m_sys.buttons) gear.setfree();
+                    if (gear.captured(base::id))
+                    {
+                        if (!gear.m_sys.buttons) gear.setfree();
+                    }
+                    else if (gear.m_sys.buttons)
+                    {
+                        gear.capture(base::id);
+                    }
+                    if (gear.dtvt_digest != digest || gear.dtvt_serial != gear.m_sys.changed || gear.dtvt_coords != gear.m_sys.coordxy) // Don't spam fake mouse move events if no UI updates.
+                    {
+                        //static auto i = 0;
+                        //log("mouse event sent i=%% changed=%% gear.m_sys.coordxy=%% digest=%%", i++, gear.m_sys.changed, gear.m_sys.coordxy, digest);
+                        gear.dtvt_digest = digest;
+                        gear.dtvt_coords = gear.m_sys.coordxy;
+                        gear.dtvt_serial = gear.m_sys.changed;
+                        gear.m_sys.gear_id = gear.id;
+                        stream.sysmouse.send(*this, gear.m_sys);
+                    }
                 }
-                else if (gear.m_sys.buttons) gear.capture(base::id);
-                gear.m_sys.gear_id = gear.id;
-                stream.sysmouse.send(*this, gear.m_sys);
+                else
+                {
+                    if (gear.captured(base::id))
+                    {
+                        gear.setfree();
+                    }
+                    gear.m_sys.gear_id = gear.id;
+                    gear.m_sys.enabled = hids::stat::halt;
+                    stream.sysmouse.send(*this, gear.m_sys);
+                }
                 gear.dismiss();
             };
             LISTEN(tier::general, input::events::die, gear)
@@ -9540,8 +9587,13 @@ namespace netxs::ui
             };
             LISTEN(tier::preview, input::events::keybd::any, gear)
             {
-                gear.gear_id = gear.id;
-                stream.syskeybd.send(*this, gear);
+                auto access_allowed = accesslock_gears.empty()
+                    || std::ranges::find(accesslock_gears, gear.id) != accesslock_gears.end();
+                if (access_allowed)
+                {
+                    gear.gear_id = gear.id;
+                    stream.syskeybd.send(*this, gear);
+                }
                 gear.dismiss();
             };
             LISTEN(tier::anycast, e2::form::prop::cwd, path)

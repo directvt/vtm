@@ -1,10 +1,10 @@
 # Text-based Desktop Environment Architecture
 
 - [UI Concept](#ui-concept)
-  - [Hybrid TUI](#hybrid-tui)
+  - [HybridTUI](#hybridtui)
     - [Advantages of HTUI over TUI and GUI](#advantages-of-htui-over-tui-and-gui)
     - [Logic of HTUI Application Operation](#logic-of-htui-application-operation)
-  - [Vtm as a Hybrid TUI Applications Environment](#vtm-as-a-hybrid-tui-applications-environment)
+  - [Vtm as a HybridTUI Applications Environment](#vtm-as-a-hybridtui-applications-environment)
 - [Process Model Diagram](#process-model-diagram)
 - [Architecture Overview](#architecture-overview)
 - [Runtime modes](#runtime-modes)
@@ -39,9 +39,9 @@
 
 ## UI Concept
 
-### Hybrid TUI
+### HybridTUI
 
-**Hybrid TUI** (**HTUI**), or Hybrid Textual User Interface, is a class of software within **a single executable file** where the entire user interface is represented by a mosaic of text cells forming a **TUI matrix** directly rendered either into its own **GUI window** or into a compatible **text console** providing a **unified user experience** regardless of the execution environment.
+**HybridTUI** (**HTUI**), or Hybrid Textual User Interface, is a class of software within **a single executable file** where the entire user interface is represented by a mosaic of text cells forming a **TUI matrix** directly rendered either into its own **GUI window** or into a compatible **text console** providing a **unified user experience** regardless of the execution environment.
 
 The key technology for **HTUI** is **VT2D** (**Unicode Character Geometry Modifiers**), which allows scaling and transforming individual characters and their parts at the cell level and ensures perfect visual uniformity of the user interface.
 
@@ -64,9 +64,9 @@ The key technology for **HTUI** is **VT2D** (**Unicode Character Geometry Modifi
   - In **GUI** mode, the application renders by leveraging the full potential of VT2D and uses the native API for user input (keyboard, mouse, system events), ensuring **maximum performance and capabilities**.
   - In **TUI** mode, the application adapts to the **limited input/output capabilities** of the host terminal.
 
-### Vtm as a Hybrid TUI Applications Environment
+### Vtm as a HybridTUI Applications Environment
 
-The main goal of the vtm project is to form the foundation of the **Hybrid TUI Application** concept, empowering this class of applications with a reactive UI **driven by DynamicXML+Lua** (similar to WPF with XAML+CLR or web apps with HTML+JS), and to create an environment that reveals their potential.
+The main goal of the vtm project is to form the foundation of the **HybridTUI Application** concept, empowering this class of applications with a reactive UI **driven by DynamicXML+Lua** (similar to WPF with XAML+CLR or web apps with HTML+JS), and to create an environment that reveals their potential.
 
 ```mermaid
 graph TB
@@ -208,10 +208,11 @@ graph TB
 - The "regular" user and the "elevated" user are different independent users despite having the same username.
 - The session allows multiple access **in real time**.
 - Multiple connected users can share a focused application, while each user can have multiple applications focused.
+- Users can lock windows, restricting access for other users. The restrictions set prevent the desktop session from terminating.
 - Users can disconnect from the session and reconnect later.
 - To maximize rendering efficiency and minimize cross-platform issues, along with the character-oriented xterm-compatible I/O mode called `Classic VT`, vtm supports an additional message-based binary I/O mode called `DirectVT`.
 - Using `DirectVT` mode (when vtm is running as a `Desktop Client` or `DirectVT Gateway`), vtm has the ability to fully binary deserialize/serialize its state through arbitrary channels (like socat over SSH reverse tunnel) and does not require a running SSH server on the remote side.
-- Vtm employs a **Hybrid TUI** (**HTUI**) approach: it can render itself into both GUI windows and terminals (`vtm --gui` and `vtm --tui` flags). Currently, rendering into a native GUI window is only available on the Windows platform.
+- Vtm employs a **HybridTUI** (**HTUI**) approach: it can render itself into both GUI windows and terminals (`vtm --gui` and `vtm --tui` flags). Currently, rendering into a native GUI window is only available on the Windows platform.
 - In GUI mode, vtm replicates its unique TUI-mode style and windowing mechanics, including keyboard multifocus (activated by `Ctrl+LeftClick`).
 - On Windows, any user can launch an **SSH-accessible desktop** session **in Session 0**, running under their own security context and is independent of any active graphical session (requires the vtm service installed via `vtm --install` from an elevated console).
 - When running in the **Linux in-kernel VGA Console** or **KMSCON** environment, vtm can directly use any kernel pointer devices (`/dev/input/eventX`) (requires persistent access configured using `sudo vtm --mouse 1`).
@@ -240,7 +241,7 @@ graph TB
   - Lua scripting (reactive UI)
   - TUI Shadows (SGR attribute)
   - VT Input Mode (floating point mouse reporting)
-  - Hybrid TUI (HTUI)
+  - HybridTUI (HTUI)
   - In-process Windows Console Server (Windows 8.1 and later compatibility)
   - Terminal with horizontal scrolling support (wrapped and un-wrapped text lines simultaneously)
 
