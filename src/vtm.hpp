@@ -1514,14 +1514,36 @@ namespace netxs::app::vtm
             LISTEN(tier::release, e2::shutdown, msg)
             {
                 if constexpr (debugmode) log(prompt::host, msg);
-                auto accesslock_list = base::signal(tier::request, e2::form::state::accesslock::enlist);
-                if (accesslock_list.empty() || usrs_list.empty())
+                auto allow_shutdown = true;
+                if (usrs_list.size()) // Shutdown if there are no users.
+                {
+                    // Check if users have accesslocked windows.
+                    auto accesslock_list = base::signal(tier::request, e2::form::state::accesslock::enlist);
+                    allow_shutdown = accesslock_list.empty();
+                    if (!allow_shutdown) // Check if users have fullscreen windows.
+                    {
+                        log("%%Server shutdown was interrupted due to %% locked window(s)", prompt::desk, accesslock_list.size());
+                    }
+                    else
+                    {
+                        for (auto usergate_ptr : usrs_list)
+                        {
+                            auto has_fullscreen = usergate_ptr->base::subset.size() > 1;
+                            if (has_fullscreen)
+                            {
+                                allow_shutdown = faux;
+                                log("%%Server shutdown was interrupted due to user '%%' fullscreen window", prompt::desk, usergate_ptr->base::signal(tier::request, e2::form::prop::name));
+                                break;
+                            }
+                        }
+                    }
+                }
+                if (allow_shutdown)
                 {
                     canal.stop();
                 }
                 else
                 {
-                    log("%%Server shutdown was interrupted due to %% locked window(s)", prompt::desk, accesslock_list.size());
                     base::passover();
                 }
             };
