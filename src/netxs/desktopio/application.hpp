@@ -346,6 +346,7 @@ namespace netxs::app::shared
                                                 gear.LISTEN(tier::release, e2::form::prop::accesslock, new_accesslock_state, oneshot) // Wait for reply.
                                                 {
                                                     accesslock_state = new_accesslock_state;
+                                                    if constexpr (debugmode) log("%%Access lock reply received: accesslock_state=%%", prompt::apps, accesslock_state);
                                                     if (accesslock_state) // Track currently focused gears and access lock.
                                                     {
                                                         auto gear_id_list = boss.base::riseup(tier::request, e2::form::state::keybd::enlist); // Get window owner list.

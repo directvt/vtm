@@ -2124,7 +2124,19 @@ namespace netxs::gui
             }
             void handle(s11n::xs::gui_command      lock)
             {
-                owner.sys_command(lock.thing.cmd_id, lock.thing.args);
+                auto& gui_cmd = lock.thing;
+                if (gui_cmd.cmd_id == syscmd::accesslock)
+                {
+                    if (gui_cmd.args.size())
+                    {
+                        gui_cmd.args[0] = 0;
+                        s11n::gui_command.send(intio, gui_cmd);
+                    }
+                }
+                else
+                {
+                    owner.sys_command(gui_cmd.cmd_id, gui_cmd.args);
+                }
             }
 
             link(winbase& owner, ui::pipe& intio)
@@ -3402,13 +3414,6 @@ namespace netxs::gui
             auto state = args.size() ? netxs::any_get_or(args.front(), zpos::plain) : zpos::plain;
             window_send_command(master.hWnd, state ? ipc::make_ontop : ipc::set_normal);
         }
-        void LockAccess(many const& args)
-        {
-            auto state = args.size() ? netxs::any_get_or(args.front(), 0) : 0;
-            //todo implement
-            state = 0;
-            //window_send_command(master.hWnd, state ? ipc::make_ontop : ipc::set_normal);
-        }
 
         arch run_command(arch command, arch lParam)
         {
@@ -3611,7 +3616,6 @@ namespace netxs::gui
                     case syscmd::move:            MoveWindow(args);         break;
                     case syscmd::focusnextwindow: FocusNextWindow(args);    break;
                     case syscmd::zorder:          ZOrder(args);             break;
-                    case syscmd::accesslock:      LockAccess(args);         break;
                 }
                 update_gui();
             });
