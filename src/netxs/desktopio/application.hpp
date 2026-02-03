@@ -108,80 +108,87 @@ namespace netxs::app::shared
             }
         }
     };
-    const auto track_accesslock = [](base& boss, auto& accesslock_gears, auto& accesslock_token, auto& accesslock_state, id_t gear_id)
+    const auto track_accesslock = [](base& boss, auto& accesslock_gears, auto& accesslock_token, auto& accesslock_state, id_t gear_id) // Use an empty gear_id to rearm subscriptions.
     {
-        accesslock_gears.clear();
-        if (accesslock_state) //todo unify - same code at application.hpp:250 (LockAccess)
+        if (gear_id)
         {
-            boss.base::riseup(tier::request, e2::form::state::keybd::enlist, accesslock_gears); // Get window owner list.
-            accesslock_state = (si32)!accesslock_gears.empty();
-            if (accesslock_state)
+            accesslock_gears.clear();
+            accesslock_token.clear();
+            if (accesslock_state) //todo unify - same code at application.hpp:250 (LockAccess)
             {
-                boss.LISTEN(tier::release, e2::form::state::focus::on, gear_id, accesslock_token) // Don't set input focus for non-owners.
-                {
-                    if (gear_id)
-                    {
-                        auto iter = std::ranges::find(accesslock_gears, gear_id);
-                        if (iter == accesslock_gears.end()) // Filter out for non-owners.
-                        {
-                            boss.base::enqueue([&, gear_id](auto&)
-                            {
-                                if (auto gear_ptr = boss.base::getref<hids>(gear_id)) // Refocus to gate.
-                                {
-                                    auto& gear = *gear_ptr;
-                                    pro::focus::off(boss.This(), gear.id);
-                                    pro::focus::set(gear.owner.This(), gear.id, solo::off);
-                                }
-                            });
-                        }
-                    }
-                };
-                boss.LISTEN(tier::preview, input::events::device::mouse::on, gear, accesslock_token)
-                {
-                    auto iter = std::ranges::find(accesslock_gears, gear.id);
-                    if (iter == accesslock_gears.end()) // Filter out for non-owners.
-                    {
-                        gear.dismiss();
-                        boss.bell::expire();
-                    }
-                    else
-                    {
-                        boss.bell::passover();
-                    }
-                };
-                boss.on(tier::mousepreview, input::key::MouseAny, accesslock_token.back());
-                boss.on(tier::preview, input::events::keybd::any.id, accesslock_token.back());
-                boss.LISTEN(tier::general, input::events::die, gear, accesslock_token)
-                {
-                    auto iter = std::ranges::find(accesslock_gears, gear.id);
-                    if (iter != accesslock_gears.end()) // Remove disconnected gear.
-                    {
-                        accesslock_gears.erase(iter);
-                        if (accesslock_gears.empty())
-                        {
-                            boss.base::riseup(tier::preview, e2::form::state::accesslock::count); // Sync with ui::hall.
-                            log("%%Window [%%] access unlocked", prompt::vtm, boss.id);
-                            accesslock_token.clear();
-                        }
-                    }
-                };
-                boss.LISTEN(tier::request, e2::form::prop::window::accesslock, check_gear_id, accesslock_token) // Check access for gear_id.
-                {
-                    if (check_gear_id)
-                    {
-                        auto iter = std::ranges::find(accesslock_gears, check_gear_id);
-                        if (iter == accesslock_gears.end()) // This gear_id is not allowed.
-                        {
-                            check_gear_id = {};
-                        }
-                    }
-                };
+                boss.base::riseup(tier::request, e2::form::state::keybd::enlist, accesslock_gears); // Get window owner list.
+                accesslock_state = (si32)!accesslock_gears.empty();
             }
         }
-        boss.base::riseup(tier::preview, e2::form::state::accesslock::count); // Sync with ui::hall.
-        if (auto gear_ptr = boss.base::getref<hids>(gear_id)) // Notify back dependent UI elements.
+        if (accesslock_state)
         {
-            gear_ptr->base::signal(tier::release, e2::form::prop::accesslock, accesslock_state);
+            boss.LISTEN(tier::release, e2::form::state::focus::on, gear_id, accesslock_token) // Don't set input focus for non-owners.
+            {
+                if (gear_id)
+                {
+                    auto iter = std::ranges::find(accesslock_gears, gear_id);
+                    if (iter == accesslock_gears.end()) // Filter out for non-owners.
+                    {
+                        boss.base::enqueue([&, gear_id](auto&)
+                        {
+                            if (auto gear_ptr = boss.base::getref<hids>(gear_id)) // Refocus to gate.
+                            {
+                                auto& gear = *gear_ptr;
+                                pro::focus::off(boss.This(), gear.id);
+                                pro::focus::set(gear.owner.This(), gear.id, solo::off);
+                            }
+                        });
+                    }
+                }
+            };
+            boss.LISTEN(tier::preview, input::events::device::mouse::on, gear, accesslock_token)
+            {
+                auto iter = std::ranges::find(accesslock_gears, gear.id);
+                if (iter == accesslock_gears.end()) // Filter out for non-owners.
+                {
+                    gear.dismiss();
+                    boss.bell::expire();
+                }
+                else
+                {
+                    boss.bell::passover();
+                }
+            };
+            boss.on(tier::mousepreview, input::key::MouseAny, accesslock_token.back());
+            boss.on(tier::preview, input::events::keybd::any.id, accesslock_token.back());
+            boss.LISTEN(tier::general, input::events::die, gear, accesslock_token)
+            {
+                auto iter = std::ranges::find(accesslock_gears, gear.id);
+                if (iter != accesslock_gears.end()) // Remove disconnected gear.
+                {
+                    accesslock_gears.erase(iter);
+                    if (accesslock_gears.empty())
+                    {
+                        boss.base::riseup(tier::preview, e2::form::state::accesslock::count); // Sync with ui::hall.
+                        log("%%Window [%%] access unlocked", prompt::vtm, boss.id);
+                        accesslock_token.clear();
+                    }
+                }
+            };
+            boss.LISTEN(tier::request, e2::form::prop::window::accesslock, check_gear_id, accesslock_token) // Check access for gear_id.
+            {
+                if (check_gear_id)
+                {
+                    auto iter = std::ranges::find(accesslock_gears, check_gear_id);
+                    if (iter == accesslock_gears.end()) // This gear_id is not allowed.
+                    {
+                        check_gear_id = {};
+                    }
+                }
+            };
+        }
+        if (gear_id)
+        {
+            boss.base::riseup(tier::preview, e2::form::state::accesslock::count); // Sync with ui::hall.
+            if (auto gear_ptr = boss.base::getref<hids>(gear_id)) // Notify back dependent UI elements.
+            {
+                gear_ptr->base::signal(tier::release, e2::form::prop::accesslock, accesslock_state);
+            }
         }
         if (accesslock_state)
         {
@@ -189,7 +196,6 @@ namespace netxs::app::shared
         }
         else
         {
-            accesslock_token.clear();
             log("%%Window [%%] access unlocked", prompt::vtm, boss.id);
         }
     };

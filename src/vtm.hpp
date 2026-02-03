@@ -650,9 +650,10 @@ namespace netxs::app::vtm
                 {
                     // n/a
                 });
-                //todo Sync the current accesslock state.
-                //auto accesslock_state = (si32)!accesslock_gears.empty();
-                //app::shared::track_accesslock(*this, accesslock_gears, accesslock_token, accesslock_state);
+                if (auto accesslock_state = (si32)!accesslock_gears.empty()) // Rearm the current accesslock state.
+                {
+                    app::shared::track_accesslock(*this, accesslock_gears, accesslock_token, accesslock_state, id_t{});
+                }
                 LISTEN(tier::preview, e2::command::gui, gui_cmd)
                 {
                     auto hit = true;
