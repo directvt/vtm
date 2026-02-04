@@ -566,6 +566,7 @@ namespace netxs::ui
                                         }},
                 });
                 gear.base::father = This(); // Gear has a fixed parent.
+                base::signal(tier::release, input::events::invite, gear);
             }
             auto& [ext_gear_id, gear_ptr] = *gear_it;
             auto& gear = *gear_ptr;

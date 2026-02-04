@@ -14,6 +14,7 @@ namespace netxs::events::userland
             EVENT_XS( die      , input::hids ), // release::global: Notify about the mouse controller is gone. Signal to delete gears inside dtvt-objects.
             EVENT_XS( halt     , input::hids ), // release::global: Notify about the mouse controller is outside.
             EVENT_XS( clipboard, input::hids ), // release/request: Set/get clipboard data.
+            EVENT_XS( invite   , input::hids ), // release: Notify about the mouse controller is registered.
             GROUP_XS( keybd    , input::hids ), // Keybd related events.
             GROUP_XS( focus    , input::foci ), // Focus related events.
             GROUP_XS( device   , input::hids ), // Primary device event group for fast forwarding.
@@ -1585,7 +1586,9 @@ namespace netxs::input
         bool keybd_disabled = true; // Inactive gear.
         si32 countdown = 0;
 
+        bool use_index; // hids: Use visual index.
         si32 gear_index; // hids: Gear visual index.
+        argb gear_color; // hids: Gear's focus color.
         kmap other_key; // hids: Dynamic key-vt mapping.
 
         bool shared_event = faux; // hids: The key event was touched by another procees/handler. See pro::keybd(release, key::post) for detailts.
@@ -1598,6 +1601,7 @@ namespace netxs::input
               idmap{ idmap },
               alive{ faux },
               timer{ base::plugin<ui::pro::timer>() },
+              use_index{ use_index },
               gear_index{ use_index ? indexer.take_gear_available_index() : 16 - 4 + 256 - 4/*vt256[0xFF000000], see pro::title*/ },
               other_key{ build_other_key(key::KeySlash, key::KeySlash | (hids::anyShift << 8)) }, // Defaults for US layout.
               multihome{ owner.base::property<multihome_t>("multihome") }
@@ -1627,6 +1631,11 @@ namespace netxs::input
             return alive;
         }
 
+        static argb get_color(si32 gear_index)
+        {
+            auto color = argb::vt256[4 + gear_index % (256 - 4)];
+            return color;
+        }
         bool is_real()
         {
             return id != 0;

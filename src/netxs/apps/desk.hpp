@@ -566,8 +566,7 @@ namespace netxs::app::desk
                 auto highlight_color = cell{ skin::globals().winfocus };
                 auto c3 = highlight_color;
                 auto cE = active_color;
-                auto user = ui::item::ctor(escx(" &").nil().add(" ").wrp(wrap::off)
-                        .fgx(data_src->id == my_id ? cE.fgc() : argb{}).add(utf8).nil())
+                auto user = ui::item::ctor("User")
                     ->flexible()
                     ->setpad({ 1, 0, tall, tall }, { 0, 0, -tall, 0 })
                     ->active()
@@ -575,7 +574,49 @@ namespace netxs::app::desk
                     ->template plugin<pro::keybd>()
                     ->shader(c3, e2::form::state::focus::count)
                     ->shader(cell::shaders::xlight, e2::form::state::hover)
-                    ->template plugin<pro::notes>(skin::globals().NsUser_tooltip);
+                    ->template plugin<pro::notes>(skin::globals().NsUser_tooltip)
+                    ->invoke([&](auto& boss)
+                    {
+                        auto& base_name = boss.base::field(escx{}.nil().wrp(wrap::off)
+                            .fgx(data_src->id == my_id ? cE.fgc() : argb{}).add(utf8).nil());
+                        auto& gear_list = boss.base::field(std::unordered_set<si32>{});
+                        static const auto update_name = [](auto& boss, auto& base_name, auto& gear_list)
+                        {
+                            auto new_name = base_name;
+                            for (auto gear_index : gear_list)
+                            {
+                                new_name.fgx(input::hids::get_color(gear_index)).add(" ▀");
+                            }
+                            new_name.nil();
+                            boss.set(new_name);
+                            boss.base::deface();
+                        };
+                        auto gate_ptr = data_src->This<ui::gate>();
+                        for (auto& [ext_gear_id, gear_ptr] : gate_ptr->gears)
+                        {
+                            if (gear_ptr->use_index)
+                            {
+                                gear_list.insert(gear_ptr->gear_index);
+                            }
+                        }
+                        update_name(boss, base_name, gear_list);
+                        data_src->LISTEN(tier::release, input::events::invite, gear, boss.sensors)
+                        {
+                            if (gear.use_index)
+                            {
+                                gear_list.insert(gear.gear_index);
+                                update_name(boss, base_name, gear_list);
+                            }
+                        };
+                        data_src->LISTEN(tier::release, input::events::die, gear, boss.sensors)
+                        {
+                            if (gear.use_index)
+                            {
+                                gear_list.erase(gear.gear_index);
+                                update_name(boss, base_name, gear_list);
+                            }
+                        };
+                    });
                 return user;
             };
             auto user_list_template = [user_template](auto& /*data_src*/, auto& usr_list)
