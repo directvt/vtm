@@ -1917,6 +1917,7 @@ namespace netxs::app::vtm
                         {
                             auto& user_name = *uname.lyric;
                             auto  half_x = user_name.size().x / 2;
+                            static auto gear_color = cell{"▀"};
                             for (auto& [ext_gear_id, gear_ptr] : usergate.gears)
                             {
                                 auto& gear = *gear_ptr;
@@ -1926,8 +1927,12 @@ namespace netxs::app::vtm
                                     coor.y -= 1;
                                     coor.x -= half_x;
                                     user_name.move(coor);
-                                    parent_canvas.fill(user_name, cell::shaders::contrast); //todo revise: segfault?
+                                    parent_canvas.fill(user_name, cell::shaders::contrast);
                                     usergate.fill_pointer(gear, parent_canvas);
+                                    // Draw a color focus mark next to the cursor.
+                                    auto area = rect{{ coor.x + user_name.size().x + 1, coor.y }, dot_11 };
+                                    gear_color.fgc(hids::get_color(gear.gear_index));
+                                    parent_canvas.fill(area, cell::shaders::fuse(gear_color));
                                 }
                             }
                         }
