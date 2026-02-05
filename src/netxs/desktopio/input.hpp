@@ -2007,6 +2007,16 @@ namespace netxs::input
                         redirect_mouse_focus(next);
                         pass(tier::mouserelease, next, gate_coor, true);
                     }
+                    else // Pass mouse events through accesslocked objects.
+                    {
+                        alive = true;
+                        if (auto world_ptr = multihome.world_wptr.lock())
+                        {
+                            forward(tier::mouserelease, *world_ptr); // Pass event to the ui::hall.
+                            tooltip.recalc(new_cause);
+                            return;
+                        }
+                    }
                 }
                 else
                 {
