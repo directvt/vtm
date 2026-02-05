@@ -717,9 +717,9 @@ namespace netxs::ui
             placeholder = 2,
         };
 
-        std::list<sptr> subset; // base: List of nested objects.
+        std::list<sptr> subset; //todo use slotmap // base: List of nested objects.
         wptr father; // base: Reference to parent.
-        std::list<sptr>::iterator holder; // base: Iterator on parent list (for instant deletion).
+        std::list<sptr>::iterator holder; //todo use slotmap  // base: Iterator on parent list (for instant deletion).
         subs relyon; // base: Subscription on parent events.
         rect region; // base: The region occupied by the object.
         rect socket; // base: The region provided for the object.

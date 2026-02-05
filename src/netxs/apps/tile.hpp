@@ -296,6 +296,7 @@ namespace netxs::app::tile
                     ->branch(slot::_2, what.applet)
                     ->invoke([&](auto& boss)
                     {
+                        auto& zorder           = what.applet->base::property("applet.zorder", zpos::plain);
                         auto& accesslock_gears = what.applet->base::property("applet.accesslock_gears", e2::form::state::keybd::enlist.param());
                         auto& accesslock_token = boss.base::field(subs{});
                         if (auto accesslock_state = (si32)!accesslock_gears.empty()) // Rearm the current accesslock state.
@@ -313,7 +314,17 @@ namespace netxs::app::tile
                                     app::shared::track_accesslock(boss, accesslock_gears, accesslock_token, accesslock_state, gui_cmd.gear_id);
                                 }
                             }
-                            else hit = faux;
+                            else if (gui_cmd.cmd_id == syscmd::zorder) // Update vtm.applet["applet.zorder"] and do nothing: there is no z-order state in the window manager.
+                            {
+                                if (auto args_count = gui_cmd.args.size())
+                                {
+                                    zorder = netxs::any_get_or(gui_cmd.args[0], zpos::plain);
+                                }
+                            }
+                            else
+                            {
+                                hit = faux;
+                            }
                             if (!hit) boss.bell::passover();
                         };
                     });
