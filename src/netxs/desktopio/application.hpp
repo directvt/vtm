@@ -122,6 +122,7 @@ namespace netxs::app::shared
         }
         if (accesslock_state)
         {
+            boss.base::riseup(tier::request, e2::form::state::accesslock::master, accesslock_gears); // Add a desktop admin's gear id to the window owner list if it is.
             boss.LISTEN(tier::release, e2::form::state::focus::on, gear_id, accesslock_token) // Don't set input focus for non-owners.
             {
                 if (gear_id)

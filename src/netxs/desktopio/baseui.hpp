@@ -121,8 +121,8 @@ namespace netxs::events::userland
         EVENTPACK( e2, netxs::events::userland::seed::e2 )
         {
             EVENT_XS( postrender, ui::face       ), // release: UI-tree post-rendering. Draw debug overlay, maker, titles, etc.
-            EVENT_XS( shutdown  , const text     ), // release: Server shutdown. The bell::accomplished() returns faux when aborted.
             EVENT_XS( area      , rect           ), // release: Object rectangle.
+            GROUP_XS( shutdown  , const text     ), // release: Server shutdown. The bell::accomplished() returns faux when aborted.
             GROUP_XS( extra     , si32           ), // Event extension slot.
             GROUP_XS( timer     , time           ), // Timer tick, arg: current moment (now).
             GROUP_XS( render    , ui::face       ), // release: UI-tree rendering.
@@ -132,6 +132,11 @@ namespace netxs::events::userland
             GROUP_XS( config    , si32           ), // Set/notify/get/global_set configuration data.
             GROUP_XS( command   , si32           ), // Exec UI command.
 
+            SUBSET_XS( shutdown )
+            {
+                EVENT_XS( command, const text  ), // release: Server shutdown by command (with message). The bell::accomplished() returns faux when aborted.
+                EVENT_XS( bygear , input::hids ), // release: Server shutdown by gear. The bell::accomplished() returns faux when aborted.
+            };
             SUBSET_XS( extra )
             {
                 EVENT_XS( slot1, si32 ),
@@ -525,8 +530,9 @@ namespace netxs::events::userland
                     };
                     SUBSET_XS( accesslock )
                     {
-                        EVENT_XS( count , si32     ), // Notify the object that the number of locked windows has changed.
-                        EVENT_XS( enlist, ui::book ), // Get list of locked windows.
+                        EVENT_XS( count , si32               ), // Notify the object that the number of locked windows has changed.
+                        EVENT_XS( enlist, ui::book           ), // Get list of locked windows.
+                        EVENT_XS( master, ui::gear_id_list_t ), // request: Append admin's gear id to the gear_list if it is.
                     };
                 };
             };

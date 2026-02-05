@@ -973,7 +973,7 @@ namespace netxs::app::desk
                     });
                     boss.LISTEN(tier::release, desk::events::ui::activate, gear)
                     {
-                        world.base::signal(tier::release, e2::shutdown, utf::concat(prompt::desk, "Server shutdown"));
+                        world.base::signal(tier::release, e2::shutdown::bygear, gear);
                         if (!world.bell::accomplished())
                         {
                             auto accesslock_list = world.base::signal(tier::request, e2::form::state::accesslock::enlist);
