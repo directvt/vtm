@@ -591,7 +591,7 @@ namespace netxs::app::desk
                             boss.set(new_name);
                             boss.base::deface();
                         };
-                        auto gate_ptr = data_src->This<ui::gate>();
+                        auto gate_ptr = data_src->template This<ui::gate>();
                         for (auto& [ext_gear_id, gear_ptr] : gate_ptr->gears)
                         {
                             if (gear_ptr->use_index)
