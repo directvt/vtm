@@ -1641,8 +1641,7 @@ namespace netxs::ui
                             if (iter == user_icon.end())
                             if (auto gear_ptr = boss.base::getref<hids>(gear_id))
                             {
-                                auto index = gear_ptr->gear_index;
-                                auto color = argb::vt256[4 + index % (256 - 4)];
+                                auto color = hids::get_color(gear_ptr->gear_index);
                                 auto image = ansi::fgc(color).add("\0▀"sv);
                                 user_icon.push_front({ gear_id, image });
                                 rebuild();

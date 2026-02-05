@@ -1005,6 +1005,8 @@ namespace netxs::app::vtm
         desk::usrs& usrs_list = *usrs_list_ptr;
         desk::menu& app_configs = *app_configs_ptr;
 
+        std::optional<id_t> admin_gear_id; // hall: Admin's gear id (the first connected user's gear).
+
         auto& menumodel_get_appconfig(qiew menuid)
         {
             auto iter = app_configs.find(menuid);
@@ -1258,7 +1260,14 @@ namespace netxs::app::vtm
               robot{ base::plugin<pro::robot>() }
         {
             auto& canal = *server;
-
+            auto& server_online   = base::field(true);
+            auto& server_shutdown = base::field([&]
+            {
+                if (std::exchange(server_online, faux))
+                {
+                    canal.stop();
+                }
+            });
             auto& config = bell::indexer.config;
             app::shared::get_tui_config(config, ui::skin::globals());
 
@@ -1336,7 +1345,7 @@ namespace netxs::app::vtm
                                             auto ok = !args_count || !base::signal(tier::request, e2::form::layout::go::item);
                                             if (ok)
                                             {
-                                                base::signal(tier::release, e2::shutdown, utf::concat(prompt::repl, "Server shutdown"));
+                                                base::signal(tier::release, e2::shutdown::command, utf::concat(prompt::repl, "Server shutdown"));
                                                 ok = bell::accomplished();
                                             }
                                             luafx.set_return(ok);
@@ -1511,8 +1520,27 @@ namespace netxs::app::vtm
                 }
                 if (!hit) bell::passover();
             };
-            LISTEN(tier::release, e2::shutdown, msg)
+            LISTEN(tier::release, e2::shutdown::bygear, gear)
             {
+                if (!server_online) return;
+                auto gear_id = admin_gear_id.value_or(id_t{});
+                if (gear_id && gear_id == gear.id) // The administrator has the privilege to unconditionally shut down the server.
+                {
+                    log("%%The server is unconditionally shut down by the administrator", prompt::desk);
+                    for (auto usergate_ptr : usrs_list) if (usergate_ptr) // Prepare for shutting down.
+                    {
+                        usergate_ptr->base::signal(tier::release, e2::form::size::restore);
+                    }
+                    server_shutdown();
+                }
+                else
+                {
+                    base::signal(tier::release, e2::shutdown::command, utf::concat(prompt::desk, "Server shutdown"));
+                }
+            };
+            LISTEN(tier::release, e2::shutdown::command, msg)
+            {
+                if (!server_online) return;
                 if constexpr (debugmode) log(prompt::host, msg);
                 auto allow_shutdown = true;
                 if (usrs_list.size()) // Shutdown if there are no users.
@@ -1522,7 +1550,7 @@ namespace netxs::app::vtm
                     allow_shutdown = accesslock_list.empty();
                     if (!allow_shutdown)
                     {
-                        log("%%Server shutdown was interrupted due to %% locked window(s)", prompt::desk, accesslock_list.size());
+                        log("%%Server shutdown was interrupted due to %% locked window(s)", prompt::hall, accesslock_list.size());
                     }
                     else // Check if users have fullscreen windows.
                     {
@@ -1532,7 +1560,7 @@ namespace netxs::app::vtm
                             if (has_fullscreen)
                             {
                                 allow_shutdown = faux;
-                                log("%%Server shutdown was interrupted due to user '%%' fullscreen window", prompt::desk, usergate_ptr->base::signal(tier::request, e2::form::prop::name));
+                                log("%%Server shutdown was interrupted due to user '%%' fullscreen window", prompt::hall, usergate_ptr->base::signal(tier::request, e2::form::prop::name));
                                 break;
                             }
                         }
@@ -1540,7 +1568,7 @@ namespace netxs::app::vtm
                 }
                 if (allow_shutdown)
                 {
-                    canal.stop();
+                    server_shutdown();
                 }
                 else
                 {
@@ -1612,6 +1640,15 @@ namespace netxs::app::vtm
                 }
             };
 
+            LISTEN(tier::request, e2::form::state::accesslock::master, accesslock_gears) // Add admin's gear id if it is.
+            {
+                if (auto gear_id = admin_gear_id.value_or(id_t{}))
+                if (accesslock_gears.size() && std::ranges::find(accesslock_gears, gear_id) == accesslock_gears.end())
+                {
+                    accesslock_gears.push_back(gear_id);
+                }
+                bell::expire(); // No one else can process it further.
+            };
             LISTEN(tier::preview, e2::form::state::accesslock::enlist, accesslock_list)
             {
                 base::signal(tier::request, e2::form::state::accesslock::enlist, accesslock_list);
@@ -1917,6 +1954,7 @@ namespace netxs::app::vtm
                         {
                             auto& user_name = *uname.lyric;
                             auto  half_x = user_name.size().x / 2;
+                            static auto gear_color = cell{"▀"};
                             for (auto& [ext_gear_id, gear_ptr] : usergate.gears)
                             {
                                 auto& gear = *gear_ptr;
@@ -1926,8 +1964,12 @@ namespace netxs::app::vtm
                                     coor.y -= 1;
                                     coor.x -= half_x;
                                     user_name.move(coor);
-                                    parent_canvas.fill(user_name, cell::shaders::contrast); //todo revise: segfault?
+                                    parent_canvas.fill(user_name, cell::shaders::contrast);
                                     usergate.fill_pointer(gear, parent_canvas);
+                                    // Draw a color focus mark next to the cursor.
+                                    auto area = rect{{ coor.x + user_name.size().x + 1, coor.y }, dot_11 };
+                                    gear_color.fgc(hids::get_color(gear.gear_index));
+                                    parent_canvas.fill(area, cell::shaders::fuse(gear_color));
                                 }
                             }
                         }
@@ -1998,7 +2040,24 @@ namespace netxs::app::vtm
             usergate.props.background_color.link(bell::id);
             base::signal(tier::release, desk::events::usrs, usrs_list_ptr);
 
-            auto& memo = base::field<subs>();
+            auto& memo = usergate.base::field<subs>();
+            if (!admin_gear_id.has_value()) // Can only be assigned once.
+            {
+                admin_gear_id = {};
+                auto& onerun = usergate.base::field(hook{});
+                usergate.LISTEN(tier::release, input::events::invite, gear, onerun) // Wait for the first gear.
+                {
+                    if (gear.use_index)
+                    {
+                        admin_gear_id = gear.id;
+                        usergate.base::unfield(onerun); // Unsubscribe.
+                    }
+                };
+                usergate.LISTEN(tier::release, e2::form::upon::stopped, root_ptr) // Reset admin's gear id on disconnect.
+                {
+                    admin_gear_id = {};
+                };
+            }
             usergate.LISTEN(tier::release, e2::form::size::restore, p)
             {
                 if (memo.empty()) return;

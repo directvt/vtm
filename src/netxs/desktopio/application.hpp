@@ -22,7 +22,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v2026.02.03";
+    static const auto version = "v2026.02.05";
     static const auto repository = "https://github.com/directvt/vtm";
     static const auto usr_config = "~/.config/vtm/settings.xml"s;
     static const auto sys_config = "/etc/vtm/settings.xml"s;
@@ -122,6 +122,7 @@ namespace netxs::app::shared
         }
         if (accesslock_state)
         {
+            boss.base::riseup(tier::request, e2::form::state::accesslock::master, accesslock_gears); // Add a desktop admin's gear id to the window owner list if it is.
             boss.LISTEN(tier::release, e2::form::state::focus::on, gear_id, accesslock_token) // Don't set input focus for non-owners.
             {
                 if (gear_id)
