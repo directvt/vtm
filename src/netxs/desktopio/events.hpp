@@ -280,6 +280,8 @@ namespace netxs::events
 
     struct auth
     {
+        static constexpr auto non_index = 16 - 4 + 256 - 4; // vt256[0xFF000000], see pro::title.
+
         struct callstate
         {
             static constexpr auto _counter    = __COUNTER__ + 1;
@@ -324,20 +326,30 @@ namespace netxs::events
             auto chord_hint = iter->second;
             return chord_hint;
         }
-        auto take_gear_available_index()
+        auto take_gear_available_index(bool use_index)
         {
-            auto iter = std::find(gear_indexing.begin(), gear_indexing.end(), faux);
-            if (iter == gear_indexing.end()) iter = gear_indexing.emplace(iter, true);
-            else                            *iter = true;
-            auto n = (si32)(iter - gear_indexing.begin());
-            return n;
+            if (use_index)
+            {
+                auto iter = std::find(gear_indexing.begin(), gear_indexing.end(), faux);
+                if (iter == gear_indexing.end()) iter = gear_indexing.emplace(iter, true);
+                else                            *iter = true;
+                auto n = (si32)(iter - gear_indexing.begin());
+                return n;
+            }
+            else
+            {
+                return non_index;
+            }
         }
         auto release_gear_index(si32 n)
         {
-            if (n >= 0 && n < (si32)gear_indexing.size()) gear_indexing[n] = faux;
-            else
+            if (n != non_index)
             {
-                if constexpr (debugmode) log(prompt::host, ansi::err("Gear accounting error: ring size:", gear_indexing.size(), " gear_number:", n));
+                if (n >= 0 && n < (si32)gear_indexing.size()) gear_indexing[n] = faux;
+                else
+                {
+                    if constexpr (debugmode) log(prompt::host, ansi::err("Gear accounting error: ring size:", gear_indexing.size(), " gear_number:", n));
+                }
             }
         }
         void _cleanup(fmap& reactor, ui64& ref_count, ui64& del_count)
