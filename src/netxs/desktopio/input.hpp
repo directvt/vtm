@@ -1586,7 +1586,6 @@ namespace netxs::input
         bool keybd_disabled = true; // Inactive gear.
         si32 countdown = 0;
 
-        bool use_index; // hids: Use visual index.
         si32 gear_index; // hids: Gear visual index.
         argb gear_color; // hids: Gear's focus color.
         kmap other_key; // hids: Dynamic key-vt mapping.
@@ -1601,8 +1600,7 @@ namespace netxs::input
               idmap{ idmap },
               alive{ faux },
               timer{ base::plugin<ui::pro::timer>() },
-              use_index{ use_index },
-              gear_index{ use_index ? indexer.take_gear_available_index() : 16 - 4 + 256 - 4/*vt256[0xFF000000], see pro::title*/ },
+              gear_index{ indexer.take_gear_available_index(use_index) },
               other_key{ build_other_key(key::KeySlash, key::KeySlash | (hids::anyShift << 8)) }, // Defaults for US layout.
               multihome{ owner.base::property<multihome_t>("multihome") }
         {
@@ -1618,7 +1616,7 @@ namespace netxs::input
         {
             mouse_leave(owner);
             release_if_captured();
-            if (gear_index != 16 - 4 + 256 - 4) bell::indexer.release_gear_index(gear_index);
+            bell::indexer.release_gear_index(gear_index);
             base::signal(tier::release, input::events::halt, *this);
             base::signal(tier::general, input::events::halt, *this);
             base::signal(tier::release, input::events::die, *this);
@@ -1631,6 +1629,11 @@ namespace netxs::input
             return alive;
         }
 
+        // hids: The gear has visual index.
+        bool use_index()
+        {
+            return gear_index != auth::non_index;
+        }
         static argb get_color(si32 gear_index)
         {
             auto color = argb::vt256[4 + gear_index % (256 - 4)];
@@ -2003,6 +2006,16 @@ namespace netxs::input
                     {
                         redirect_mouse_focus(next);
                         pass(tier::mouserelease, next, gate_coor, true);
+                    }
+                    else // Pass mouse events through accesslocked objects.
+                    {
+                        alive = true;
+                        if (auto world_ptr = multihome.world_wptr.lock())
+                        {
+                            forward(tier::mouserelease, *world_ptr); // Pass event to the ui::hall.
+                            tooltip.recalc(new_cause);
+                            return;
+                        }
                     }
                 }
                 else

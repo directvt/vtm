@@ -594,7 +594,7 @@ namespace netxs::app::desk
                         auto gate_ptr = data_src->template This<ui::gate>();
                         for (auto& [ext_gear_id, gear_ptr] : gate_ptr->gears)
                         {
-                            if (gear_ptr->use_index)
+                            if (gear_ptr->use_index())
                             {
                                 gear_list.insert(gear_ptr->gear_index);
                             }
@@ -602,7 +602,7 @@ namespace netxs::app::desk
                         update_name(boss, base_name, gear_list);
                         data_src->LISTEN(tier::release, input::events::invite, gear, boss.sensors)
                         {
-                            if (gear.use_index)
+                            if (gear.use_index())
                             {
                                 gear_list.insert(gear.gear_index);
                                 update_name(boss, base_name, gear_list);
@@ -610,7 +610,7 @@ namespace netxs::app::desk
                         };
                         data_src->LISTEN(tier::release, input::events::die, gear, boss.sensors)
                         {
-                            if (gear.use_index)
+                            if (gear.use_index())
                             {
                                 gear_list.erase(gear.gear_index);
                                 update_name(boss, base_name, gear_list);

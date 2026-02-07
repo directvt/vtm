@@ -2047,7 +2047,7 @@ namespace netxs::app::vtm
                 auto& onerun = usergate.base::field(hook{});
                 usergate.LISTEN(tier::release, input::events::invite, gear, onerun) // Wait for the first gear.
                 {
-                    if (gear.use_index)
+                    if (gear.use_index())
                     {
                         admin_gear_id = gear.id;
                         usergate.base::unfield(onerun); // Unsubscribe.
