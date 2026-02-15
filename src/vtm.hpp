@@ -1535,7 +1535,19 @@ namespace netxs::app::vtm
                 }
                 else
                 {
-                    base::signal(tier::release, e2::shutdown::command, utf::concat(prompt::desk, "Server shutdown"));
+                    for (auto& item_ptr : base::subset) if (item_ptr)
+                    {
+                        item_ptr->base::signal(tier::anycast, e2::form::proceed::closeby, gear); // Check access to close.
+                        if (!gear) break;
+                    }
+                    if (gear)
+                    {
+                        base::signal(tier::release, e2::shutdown::command, utf::concat(prompt::desk, "Server shutdown"));
+                    }
+                    else
+                    {
+                        log("%%Server shutdown was interrupted due to locked windows", prompt::hall);
+                    }
                 }
             };
             LISTEN(tier::release, e2::shutdown::command, msg)
