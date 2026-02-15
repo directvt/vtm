@@ -382,6 +382,7 @@ namespace netxs::events::userland
                 {
                     EVENT_XS( create    , rect        ), // Return coordinates of the new object placeholder.
                     EVENT_XS( createby  , input::hids ), // Return gear with coordinates of the new object placeholder gear::slot.
+                    EVENT_XS( closeby   , input::hids ), // Check access to close. gear is set handled if no access.
                     EVENT_XS( render    , bool        ), // Ask children to render itself to the parent canvas, arg is the world is damaged or not.
                     EVENT_XS( attach    , ui::sptr    ), // Order to attach a child, arg is a parent base_sptr.
                     EVENT_XS( swap      , ui::sptr    ), // Order to replace existing object. See tiling manager empty slot.

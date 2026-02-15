@@ -22,7 +22,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v2026.02.06";
+    static const auto version = "v2026.02.15";
     static const auto repository = "https://github.com/directvt/vtm";
     static const auto usr_config = "~/.config/vtm/settings.xml"s;
     static const auto sys_config = "/etc/vtm/settings.xml"s;
@@ -586,7 +586,11 @@ namespace netxs::app::shared
                         boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
                         {
                             auto backup = boss.This(); //todo revise backup
-                            boss.base::signal(tier::anycast, e2::form::proceed::quit::one, faux); // fast=faux: Show closing process.
+                            boss.base::signal(tier::anycast, e2::form::proceed::closeby, gear); // Check access to close.
+                            if (gear) //todo unify: make call the e2::form::proceed::quit::one with gear
+                            {
+                                boss.base::signal(tier::anycast, e2::form::proceed::quit::one, faux); // fast=faux: Show closing process.
+                            }
                             gear.dismiss();
                         });
                     }},

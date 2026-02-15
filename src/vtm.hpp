@@ -1350,7 +1350,7 @@ namespace netxs::app::vtm
                                             }
                                             luafx.set_return(ok);
                                         }},
-                { "Disconnect",         [&] //todo Disconnect(gear_id)
+                { "Disconnect",         [&]
                                         {
                                             auto& gear = luafx.get_gear();
                                             auto ok = gear.is_real();
@@ -1535,7 +1535,19 @@ namespace netxs::app::vtm
                 }
                 else
                 {
-                    base::signal(tier::release, e2::shutdown::command, utf::concat(prompt::desk, "Server shutdown"));
+                    for (auto& item_ptr : base::subset) if (item_ptr)
+                    {
+                        item_ptr->base::signal(tier::anycast, e2::form::proceed::closeby, gear); // Check access to close.
+                        if (!gear) break;
+                    }
+                    if (gear)
+                    {
+                        base::signal(tier::release, e2::shutdown::command, utf::concat(prompt::desk, "Server shutdown"));
+                    }
+                    else
+                    {
+                        log("%%Server shutdown was interrupted due to locked windows", prompt::hall);
+                    }
                 }
             };
             LISTEN(tier::release, e2::shutdown::command, msg)
@@ -2263,7 +2275,7 @@ namespace netxs::app::vtm
         void stop()
         {
             log(prompt::hall, "Server shutdown");
-            base::signal(tier::general, e2::conio::quit); // Trigger to disconnect all users and monitors.
+            base::signal(tier::general, e2::conio::quit); // Trigger to close all windows and disconnect all users and monitors.
             async.stop(); // Wait until all users and monitors are disconnected.
             if constexpr (debugmode) log(prompt::hall, "Session control stopped");
             base::dequeue(); // Wait until all cleanups are completed.
