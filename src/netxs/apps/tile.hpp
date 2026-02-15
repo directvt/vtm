@@ -1568,31 +1568,6 @@ namespace netxs::app::tile
                     };
                     boss.LISTEN(tier::preview, app::tile::events::ui::close, gear)
                     {
-                        //auto locked_count = 0;
-                        //foreach(gear.id, [&](auto& item_ptr, si32 item_type, auto) // Check if the gear owner is allowed to close the window manager.
-                        //{
-                        //    if (item_type != item_type::grip)
-                        //    if (accesslocked(item_ptr, gear.id))
-                        //    {
-                        //        locked_count++;
-                        //    }
-                        //});
-                        //if (!locked_count)
-                        //{
-                        //    foreach(gear.id, [&](auto& item_ptr, si32 item_type, auto)
-                        //    {
-                        //        if (item_type != item_type::grip)
-                        //        {
-                        //            item_ptr->base::riseup(tier::preview, e2::form::proceed::quit::one, true);
-                        //        }
-                        //    });
-                        //}
-                        //else
-                        //{
-                        //    log("%%Closing the window manager was interrupted by the presence of %% locked window(s)", prompt::hall, locked_count);
-                        //}
-                        //gear.set_handled();
-
                         foreach(gear.id, [&](auto& item_ptr, si32 item_type, auto)
                         {
                             if (item_type != item_type::grip && !accesslocked(item_ptr, gear.id))
@@ -1601,6 +1576,23 @@ namespace netxs::app::tile
                                 gear.set_handled();
                             }
                         });
+                    };
+                    boss.LISTEN(tier::anycast, e2::form::proceed::closeby, gear) // Check access to close.
+                    {
+                        auto locked_count = 0;
+                        foreach(id_t{}, [&](auto& item_ptr, si32 item_type, auto) // Check if the gear owner is allowed to close the window manager.
+                        {
+                            if (item_type != item_type::grip)
+                            if (accesslocked(item_ptr, gear.id))
+                            {
+                                locked_count++;
+                            }
+                        });
+                        if (locked_count)
+                        {
+                            log("%%Closing the window manager was interrupted by the presence of %% locked window(s)", prompt::hall, locked_count);
+                            gear.set_handled();
+                        }
                     };
                 });
             return object;
