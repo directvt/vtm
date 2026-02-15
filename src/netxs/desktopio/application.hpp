@@ -586,6 +586,7 @@ namespace netxs::app::shared
                         boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
                         {
                             auto backup = boss.This(); //todo revise backup
+                            //todo closeby
                             boss.base::signal(tier::anycast, e2::form::proceed::quit::one, faux); // fast=faux: Show closing process.
                             gear.dismiss();
                         });

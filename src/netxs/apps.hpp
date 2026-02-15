@@ -274,7 +274,7 @@ namespace netxs::app::shared
                 {
                     boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
                     {
-                        boss.base::riseup(tier::anycast, e2::form::proceed::quit::one, true);
+                        boss.base::signal(tier::anycast, e2::form::proceed::quit::one, true);
                         gear.dismiss();
                     });
                 });
@@ -307,7 +307,7 @@ namespace netxs::app::shared
                 {
                     boss.on(tier::mouserelease, input::key::LeftClick, [&](hids& gear)
                     {
-                        boss.base::riseup(tier::anycast, e2::form::proceed::quit::one, true);
+                        boss.base::signal(tier::anycast, e2::form::proceed::quit::one, true);
                         gear.dismiss();
                     });
                 });
