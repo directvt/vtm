@@ -580,12 +580,21 @@ namespace netxs::app::vtm
             {
                 base::enqueue([gear_id](auto& boss) // Keep the focus tree intact while processing events.
                 {
-                    if (auto gear_ptr = boss.base::template getref<hids>(gear_id)) //todo Apple clang requires template
+                    if (auto gear_ptr = boss.base::template getref<hids>(gear_id); gear_ptr->is_real()) //todo Apple clang requires template
                     {
                         auto& gear = *gear_ptr;
+                        gear.alive = true; //todo unify
                         gear.set_multihome();
+                        boss.base::signal(tier::anycast, e2::form::proceed::closeby, gear); // Check access to close.
+                        if (gear) //todo unify: make call the e2::form::proceed::quit::one with gear
+                        {
+                            boss.base::signal(tier::anycast, e2::form::proceed::quit::one, true);
+                        }
+                        else
+                        {
+                            log("%%Window closing was interrupted due to a locked state", prompt::hall);
+                        }
                     }
-                    boss.base::signal(tier::anycast, e2::form::proceed::quit::one, true);
                 });
             }
             void window_state(id_t gear_id, auto state)
