@@ -251,11 +251,18 @@ namespace netxs::app::shared
                                         }},
             { "Close",                  [&]
                                         {
-                                            boss.base::enqueue([](auto& boss) // Keep the focus tree intact while processing events.
+                                            if (auto& gear = luafx.get_gear(); gear.is_real())
                                             {
-                                                boss.base::riseup(tier::release, e2::form::proceed::quit::one, true);
-                                            });
-                                            luafx.get_gear().set_handled();
+                                                boss.base::signal(tier::anycast, e2::form::proceed::closeby, gear); // Check access to close.
+                                                if (gear) //todo unify: make call the e2::form::proceed::quit::one with gear
+                                                {
+                                                    boss.base::enqueue([](auto& boss) // Keep the focus tree intact while processing events.
+                                                    {
+                                                        boss.base::riseup(tier::release, e2::form::proceed::quit::one, true);
+                                                    });
+                                                    gear.set_handled();
+                                                }
+                                            }
                                             luafx.set_return();
                                         }},
         });
@@ -402,15 +409,18 @@ namespace netxs::app::shared
                                     }},
             { "Close",              [&]
                                     {
-                                        auto gui_cmd = e2::command::gui.param();
-                                        auto& gear = luafx.get_gear();
-                                        if (gear.is_real())
+                                        if (auto& gear = luafx.get_gear(); gear.is_real())
                                         {
-                                            gui_cmd.gear_id = gear.id;
-                                            gear.set_handled();
+                                            boss.base::signal(tier::anycast, e2::form::proceed::closeby, gear); // Check access to close.
+                                            if (gear) //todo unify: make call the e2::command::gui with gear
+                                            {
+                                                auto gui_cmd = e2::command::gui.param();
+                                                gui_cmd.gear_id = gear.id;
+                                                gear.set_handled();
+                                                gui_cmd.cmd_id = syscmd::close;
+                                                boss.base::riseup(tier::preview, e2::command::gui, gui_cmd);
+                                            }
                                         }
-                                        gui_cmd.cmd_id = syscmd::close;
-                                        boss.base::riseup(tier::preview, e2::command::gui, gui_cmd);
                                         luafx.set_return();
                                     }},
             { "Minimize",           [&]
