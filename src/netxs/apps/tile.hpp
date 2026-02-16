@@ -321,13 +321,6 @@ namespace netxs::app::tile
                                     zorder = netxs::any_get_or(gui_cmd.args[0], zpos::plain);
                                 }
                             }
-                            else if (gui_cmd.cmd_id == syscmd::close) // Applet requests to close its pane.
-                            {
-                                if (gui_cmd.gear_id)
-                                {
-                                    boss.base::riseup(tier::preview, e2::form::proceed::quit::one, true);
-                                }
-                            }
                             else
                             {
                                 hit = faux;

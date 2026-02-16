@@ -253,6 +253,7 @@ namespace netxs::app::shared
                                         {
                                             if (auto& gear = luafx.get_gear(); gear.is_real())
                                             {
+                                                gear.alive = true; //todo unify
                                                 boss.base::signal(tier::anycast, e2::form::proceed::closeby, gear); // Check access to close.
                                                 if (gear) //todo unify: make call the e2::form::proceed::quit::one with gear
                                                 {
@@ -261,6 +262,10 @@ namespace netxs::app::shared
                                                         boss.base::riseup(tier::release, e2::form::proceed::quit::one, true);
                                                     });
                                                     gear.set_handled();
+                                                }
+                                                else
+                                                {
+                                                    log("%%Applet closing is supressed", prompt::lua);
                                                 }
                                             }
                                             luafx.set_return();
@@ -411,6 +416,7 @@ namespace netxs::app::shared
                                     {
                                         if (auto& gear = luafx.get_gear(); gear.is_real())
                                         {
+                                            gear.alive = true;
                                             boss.base::signal(tier::anycast, e2::form::proceed::closeby, gear); // Check access to close.
                                             if (gear) //todo unify: make call the e2::command::gui with gear
                                             {
@@ -419,6 +425,11 @@ namespace netxs::app::shared
                                                 gear.set_handled();
                                                 gui_cmd.cmd_id = syscmd::close;
                                                 boss.base::riseup(tier::preview, e2::command::gui, gui_cmd);
+                                            }
+                                            else
+                                            {
+                                                log("%%Applet closing was interrupted due to a locked state", prompt::lua);
+                                                gear.set_handled();
                                             }
                                         }
                                         luafx.set_return();
@@ -600,6 +611,10 @@ namespace netxs::app::shared
                             if (gear) //todo unify: make call the e2::form::proceed::quit::one with gear
                             {
                                 boss.base::signal(tier::anycast, e2::form::proceed::quit::one, faux); // fast=faux: Show closing process.
+                            }
+                            else
+                            {
+                                log("%%Window closing was interrupted due to a locked state", prompt::lua);
                             }
                             gear.dismiss();
                         });
