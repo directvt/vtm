@@ -992,8 +992,10 @@ namespace netxs::ui
                 }
                 else log("%%Not supported: OSC=%property% DATA=%data% HEX=%hexdata%", prompt::term, property, data, utf::buffer_to_hex(data));
             }
-            void fgc(tint c) { owner.target->brush.fgc(color[c]); }
-            void bgc(tint c) { owner.target->brush.bgc(color[c]); }
+            void fgc(tint c)  { owner.target->brush.fgc(color[c]); }
+            void bgc(tint c)  { owner.target->brush.bgc(color[c]); }
+            void fgc(fifo& q) { owner.target->brush.fgc(argb{ q, color }); }
+            void bgc(fifo& q) { owner.target->brush.bgc(argb{ q, color }); }
         };
 
         // term: Generic terminal buffer.
@@ -1057,6 +1059,8 @@ namespace netxs::ui
                 vt.csier.table[csi_sgr][sgr_bg_mgt_lt] = V{ p->owner.ctrack.bgc(tint::magentalt); };
                 vt.csier.table[csi_sgr][sgr_bg_cyn_lt] = V{ p->owner.ctrack.bgc(tint::cyanlt   ); };
                 vt.csier.table[csi_sgr][sgr_bg_wht_lt] = V{ p->owner.ctrack.bgc(tint::whitelt  ); };
+                vt.csier.table[csi_sgr][sgr_fg_rgb   ] = V{ p->owner.ctrack.fgc(q);               };
+                vt.csier.table[csi_sgr][sgr_bg_rgb   ] = V{ p->owner.ctrack.bgc(q);               };
 
                 vt.csier.table[csi_cuu] = V{ p-> up(q(1)); }; // CSI n A  (CUU)
                 vt.csier.table[csi_cud] = V{ p-> dn(q(1)); }; // CSI n B  (CUD)
