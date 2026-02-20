@@ -860,7 +860,7 @@ namespace netxs::ansi
         //auto& hplink0(si32 i)    { return add("\033[35:", i  , csi_ccc); } // escx: Set hyperlink cell.
         //auto& bitmap0(si32 i)    { return add("\033[36:", i  , csi_ccc); } // escx: Set bitmap inside the cell.
         //auto& fusion0(si32 i)    { return add("\033[37:", i  , csi_ccc); } // escx: Object outline boundary.
-        auto& apc(auto&& args)   { return add("\033_", std::forward<decltype(args)>(args)..., "\033\\"); } // escx: Generate APC sequence.
+        auto& apc(auto&&... args) { return add("\033_", std::forward<decltype(args)>(args)..., "\033\\"); } // escx: Generate APC sequence.
         auto& cap(qiew utf8, si32 w = 2, si32 h = 2, bool underline = true)
         {
             for (auto y = 1; y <= h; y++)

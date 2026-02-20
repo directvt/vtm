@@ -108,7 +108,9 @@ where:
 - `lua:`: case-insensitive APC payload marker.
 - `<script body>`: Lua script body.
 - `ST`: `ESC``\` or `BEL` - APC sequence terminator.
-- `FFFFFFFFFFFFFFFF:`: 16-hexadecimal-digit interactive session token. This token can be obtained using the following APC request: `\e_lua:terminal.RequestInteractiveSessionToken()\a` - The terminal will respond with an APC sequence containing the 16 digits of the required interactive token: `\e_event=session;token=FFFFFFFFFFFFFFFF\e\\`.
+- `FFFFFFFFFFFFFFFF:`: 16-hexadecimal-digit interactive session token ending with a colon. This token can be obtained using the following APC request: `\e_lua:terminal.RequestInteractiveSessionToken()\a` - The terminal will respond with an APC sequence containing the 16 digits of the required interactive token: `\e_event=session;token=FFFFFFFFFFFFFFFF\e\\`.
+
+Note: Without specifying an interactive session token, calls to functions related to interactive interaction (moving/sizing windows, mouse, keyboard, focus, etc.) will be silently ignored.
 
 Usage examples:
 
