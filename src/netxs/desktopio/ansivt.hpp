@@ -268,6 +268,8 @@ namespace netxs::ansi
     static constexpr auto apc_prefix_mouse_buttons = "buttons="sv; // ui32
     static constexpr auto apc_prefix_mouse_iscroll = "iscroll="sv; // si32,si32
     static constexpr auto apc_prefix_mouse_fscroll = "fscroll="sv; // fp32,fp32
+    static constexpr auto apc_prefix_session       = "event=session;"sv;
+    static constexpr auto apc_prefix_session_token = "token="sv;
 
     template<class Base>
     class basevt
@@ -858,6 +860,7 @@ namespace netxs::ansi
         //auto& hplink0(si32 i)    { return add("\033[35:", i  , csi_ccc); } // escx: Set hyperlink cell.
         //auto& bitmap0(si32 i)    { return add("\033[36:", i  , csi_ccc); } // escx: Set bitmap inside the cell.
         //auto& fusion0(si32 i)    { return add("\033[37:", i  , csi_ccc); } // escx: Object outline boundary.
+        auto& apc(auto&&... args) { return add("\033_", std::forward<decltype(args)>(args)..., "\033\\"); } // escx: Generate APC sequence.
         auto& cap(qiew utf8, si32 w = 2, si32 h = 2, bool underline = true)
         {
             for (auto y = 1; y <= h; y++)
@@ -917,6 +920,8 @@ namespace netxs::ansi
     auto clipbuf(Args&&... data) { return escx{}.clipbuf(std::forward<Args>(data)...); } // ansi: Set clipboard.
     template<class ...Args>
     auto add(Args&&... data)   { return escx{}.add(std::forward<Args>(data)...); } // ansi: Add text.
+    template<class ...Args>
+    auto apc(Args&&... data)   { return escx{}.add(std::forward<Args>(data)...); } // ansi: Generate APC sequence.
     template<class ...Args>
     auto clr(argb c, Args&&... data) { return escx{}.clr(c, std::forward<Args>(data)...); } // ansi: Add colored message.
     template<class ...Args>

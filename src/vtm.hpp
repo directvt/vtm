@@ -1354,34 +1354,34 @@ namespace netxs::app::vtm
                                             auto ok = !args_count || !base::signal(tier::request, e2::form::layout::go::item);
                                             if (ok)
                                             {
-                                                base::signal(tier::release, e2::shutdown::command, utf::concat(prompt::repl, "Server shutdown"));
-                                                ok = bell::accomplished();
+                                                ok = faux;
+                                                luafx.run_with_gear_wo_return([&](auto& /*gear*/)
+                                                {
+                                                    base::signal(tier::release, e2::shutdown::command, utf::concat(prompt::repl, "Server shutdown"));
+                                                    ok = bell::accomplished();
+                                                });
                                             }
                                             luafx.set_return(ok);
                                         }},
                 { "Disconnect",         [&]
                                         {
-                                            auto& gear = luafx.get_gear();
-                                            auto ok = gear.is_real();
-                                            if (ok)
+                                            luafx.run_with_gear([&](auto& gear)
                                             {
                                                 gear.owner.base::signal(tier::preview, e2::conio::quit);
                                                 gear.set_handled();
-                                            }
-                                            luafx.set_return(ok);
+                                            });
                                         }},
                 { "Run",                [&]
                                         {
-                                            auto args_count = luafx.args_count();
-                                            auto& gear = luafx.get_gear();
-                                            auto gear_id = gear.is_real() ? gear.id : id_t{};
-                                            auto appspec = desk::spec{ .hidden  = true,
-                                                                       .winform = winstate::normal,
-                                                                       .type    = app::vtty::id,
-                                                                       .gear_id = gear_id };
-                                            if (!args_count) // Get default app spec.
+                                            luafx.run_with_gear([&](auto& gear)
                                             {
-                                                if (gear_id)
+                                                auto args_count = luafx.args_count();
+                                                auto gear_id = gear.id;
+                                                auto appspec = desk::spec{ .hidden  = true,
+                                                                           .winform = winstate::normal,
+                                                                           .type    = app::vtty::id,
+                                                                           .gear_id = gear_id };
+                                                if (!args_count) // Get default app spec.
                                                 {
                                                     auto& current_default = gear.owner.base::property("desktop.selected");
                                                     appspec = menumodel_get_appconfig(current_default);
@@ -1389,57 +1389,57 @@ namespace netxs::app::vtm
                                                     appspec.menuid = current_default;
                                                     appspec.gear_id = gear_id;
                                                 }
-                                            }
-                                            else
-                                            {
-                                                auto utf8_xml = ansi::escx{};
-                                                luafx.read_args(1, [&](qiew key, qiew val)
-                                                {
-                                                    //log("  %%=%%", key, utf::debase437(val));
-                                                    utf8_xml += "<";
-                                                    //todo just use utf::unordered_map for loadspec
-                                                    utf::filter_alphanumeric(key, utf8_xml);
-                                                    utf8_xml += "=\"";
-                                                    utf::escape(val, utf8_xml, '"');
-                                                    utf8_xml += "\"/>";
-                                                });
-                                                log("%%Run %%", prompt::host, ansi::hi(utf::debase437(utf8_xml)));
-                                                auto appconf = settings{ utf8_xml };
-                                                auto item_ptr = appconf.document.root_ptr;
-                                                auto menuid = config.settings::take_value_from(item_ptr, attr::id, ""s);
-                                                auto taskbar_context = config.settings::push_context(path::taskbar);
-                                                auto iter = app_configs.find(menuid);
-                                                if (iter != app_configs.end())
-                                                {
-                                                    auto& appbase = iter->second;
-                                                    if (appbase.fixed) hall::loadspec(appspec, appbase, item_ptr, menuid);
-                                                    else               hall::loadspec(appspec, appspec, item_ptr, menuid);
-                                                }
                                                 else
                                                 {
-                                                    if (menuid.empty()) menuid = "vtm.run(" + utf8_xml + ")";
-                                                    hall::loadspec(appspec, appspec, item_ptr, menuid);
+                                                    auto utf8_xml = ansi::escx{};
+                                                    luafx.read_args(1, [&](qiew key, qiew val)
+                                                    {
+                                                        //log("  %%=%%", key, utf::debase437(val));
+                                                        utf8_xml += "<";
+                                                        //todo just use utf::unordered_map for loadspec
+                                                        utf::filter_alphanumeric(key, utf8_xml);
+                                                        utf8_xml += "=\"";
+                                                        utf::escape(val, utf8_xml, '"');
+                                                        utf8_xml += "\"/>";
+                                                    });
+                                                    log("%%Run %%", prompt::host, ansi::hi(utf::debase437(utf8_xml)));
+                                                    auto appconf = settings{ utf8_xml };
+                                                    auto item_ptr = appconf.document.root_ptr;
+                                                    auto menuid = config.settings::take_value_from(item_ptr, attr::id, ""s);
+                                                    auto taskbar_context = config.settings::push_context(path::taskbar);
+                                                    auto iter = app_configs.find(menuid);
+                                                    if (iter != app_configs.end())
+                                                    {
+                                                        auto& appbase = iter->second;
+                                                        if (appbase.fixed) hall::loadspec(appspec, appbase, item_ptr, menuid);
+                                                        else               hall::loadspec(appspec, appspec, item_ptr, menuid);
+                                                    }
+                                                    else
+                                                    {
+                                                        if (menuid.empty()) menuid = "vtm.run(" + utf8_xml + ")";
+                                                        hall::loadspec(appspec, appspec, item_ptr, menuid);
+                                                    }
                                                 }
-                                            }
-                                            auto title = appspec.title.empty() && appspec.label.empty() ? appspec.menuid
-                                                       : appspec.title.empty() ? appspec.label
-                                                       : appspec.label.empty() ? appspec.title : ""s;
-                                            if (appspec.title.empty()) appspec.title = title;
-                                            if (appspec.label.empty()) appspec.label = title;
-                                            if (appspec.tooltip.empty()) appspec.tooltip = appspec.menuid;
-                                            base::signal(tier::request, desk::events::exec, appspec);
-                                            if (gear_id) gear.set_handled();
-                                            luafx.set_return();
+                                                auto title = appspec.title.empty() && appspec.label.empty() ? appspec.menuid
+                                                           : appspec.title.empty() ? appspec.label
+                                                           : appspec.label.empty() ? appspec.title : ""s;
+                                                if (appspec.title.empty()) appspec.title = title;
+                                                if (appspec.label.empty()) appspec.label = title;
+                                                if (appspec.tooltip.empty()) appspec.tooltip = appspec.menuid;
+                                                base::signal(tier::request, desk::events::exec, appspec);
+                                                gear.set_handled();
+                                            });
                                         }},
                 { "FocusNextWindow",    [&]
                                         {
-                                            auto& gear = luafx.get_gear();
-                                            auto dir = luafx.get_args_or(1, 1);
-                                            if (focus_next_window(gear, dir))
+                                            luafx.run_with_gear([&](auto& gear)
                                             {
-                                                gear.set_handled();
-                                            }
-                                            luafx.set_return();
+                                                auto dir = luafx.get_args_or(1, 1);
+                                                if (focus_next_window(gear, dir))
+                                                {
+                                                    gear.set_handled();
+                                                }
+                                            });
                                         }},
             });
 

@@ -396,32 +396,30 @@ namespace netxs::app::tile
                         {
                             { methods::MoveGrip,        [&]
                                                         {
-                                                            auto delta = luafx.get_args_or(1, dot_00);
-                                                            boss.base::riseup(tier::preview, app::tile::events::ui::grips::move, delta);
-                                                            auto& gear = luafx.get_gear();
-                                                            gear.set_handled();
-                                                            luafx.set_return();
+                                                            luafx.run_with_gear([&](auto& gear)
+                                                            {
+                                                                auto delta = luafx.get_args_or(1, dot_00);
+                                                                boss.base::riseup(tier::preview, app::tile::events::ui::grips::move, delta);
+                                                                gear.set_handled();
+                                                            });
                                                         }},
                             { methods::ResizeGrip,      [&]
                                                         {
-                                                            auto delta = luafx.get_args_or(1, si32{});
-                                                            boss.base::riseup(tier::preview, app::tile::events::ui::grips::resize, delta);
-                                                            auto& gear = luafx.get_gear();
-                                                            gear.set_handled();
-                                                            luafx.set_return();
+                                                            luafx.run_with_gear([&](auto& gear)
+                                                            {                                                            auto delta = luafx.get_args_or(1, si32{});
+                                                                boss.base::riseup(tier::preview, app::tile::events::ui::grips::resize, delta);
+                                                                gear.set_handled();
+                                                            });
                                                         }},
                             { methods::FocusNextGrip,   [&]
                                                         {
-                                                            auto& gear = luafx.get_gear();
-                                                            auto ok = gear.is_real();
-                                                            if (ok)
+                                                            luafx.run_with_gear([&](auto& gear)
                                                             {
                                                                 auto delta = luafx.get_args_or(1, si32{ 1 });
                                                                 delta > 0 ? boss.base::riseup(tier::preview, app::tile::events::ui::focus::nextgrip, gear)
                                                                           : boss.base::riseup(tier::preview, app::tile::events::ui::focus::prevgrip, gear);
                                                                 gear.set_handled();
-                                                            }
-                                                            luafx.set_return(ok);
+                                                            });
                                                         }},
                         });
                     }));

@@ -114,9 +114,9 @@ namespace netxs
             : argb{ (ui32)c }
         { }
         constexpr argb(tint c)
-            : argb{ vt256[c] }
+            : argb{ argb::vt256[c] }
         { }
-        argb(fifo& q)
+        argb(fifo& q, auto& ext_vt256)
         {
             static constexpr auto mode_RGB = 2;
             static constexpr auto mode_256 = 5;
@@ -135,7 +135,7 @@ namespace netxs
                         break;
                     }
                     case mode_256:
-                        token = netxs::letoh(vt256[q.subarg(0)]);
+                        token = netxs::letoh(ext_vt256[q.subarg(0) & 0xFF]);
                         break;
                     default:
                         break;
@@ -152,13 +152,16 @@ namespace netxs
                         chan.a = 0xFF;
                         break;
                     case mode_256:
-                        token = netxs::letoh(vt256[q(0)]);
+                        token = netxs::letoh(ext_vt256[q(0) & 0xFF]);
                         break;
                     default:
                         break;
                 }
             }
         }
+        argb(fifo& q)
+            : argb{ q, argb::vt256 }
+        { }
 
         constexpr argb& operator = (argb const&) = default;
         constexpr explicit operator bool () const

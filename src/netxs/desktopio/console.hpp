@@ -897,99 +897,79 @@ namespace netxs::ui
                                             }},
                 { "Disconnect",             [&]
                                             {
-                                                auto& gear = luafx.get_gear();
-                                                auto ok = gear.is_real();
-                                                if (ok)
+                                                luafx.run_with_gear([&](auto& gear)
                                                 {
                                                     gear.set_handled();
-                                                }
-                                                base::signal(tier::preview, e2::conio::quit);
-                                                luafx.set_return();
+                                                    base::signal(tier::preview, e2::conio::quit);
+                                                });
                                             }},
                 { "DebugOverlay",           [&]
                                             {
-                                                auto& gear = luafx.get_gear();
-                                                auto ok = gear.is_real();
-                                                if (ok)
+                                                luafx.run_with_gear([&](auto& gear)
                                                 {
                                                     gear.set_handled();
-                                                }
-                                                props.debug_overlay ? debug.stop() : debug.start();
-                                                props.debug_overlay = !props.debug_overlay;
-                                                base::deface();
-                                                luafx.set_return();
+                                                    props.debug_overlay ? debug.stop() : debug.start();
+                                                    props.debug_overlay = !props.debug_overlay;
+                                                    base::deface();
+                                                });
                                             }},
                 { "IncreaseCellHeight",     [&]
                                             {
-                                                auto gui_cmd = e2::command::gui.param();
-                                                auto& gear = luafx.get_gear();
-                                                auto ok = gear.is_real();
-                                                if (ok)
+                                                luafx.run_with_gear([&](auto& gear)
                                                 {
+                                                    auto gui_cmd = e2::command::gui.param();
                                                     gui_cmd.gear_id = gear.id;
                                                     gear.set_handled();
-                                                }
-                                                gui_cmd.cmd_id = syscmd::tunecellheight;
-                                                gui_cmd.args.emplace_back(luafx.get_args_or(1, fp32{ 1.f }));
-                                                base::signal(tier::preview, e2::command::gui, gui_cmd);
-                                                luafx.set_return();
+                                                    gui_cmd.cmd_id = syscmd::tunecellheight;
+                                                    gui_cmd.args.emplace_back(luafx.get_args_or(1, fp32{ 1.f }));
+                                                    base::signal(tier::preview, e2::command::gui, gui_cmd);
+                                                });
                                             }},
                 { "RollFonts",              [&]
                                             {
-                                                auto gui_cmd = e2::command::gui.param();
-                                                auto& gear = luafx.get_gear();
-                                                auto ok = gear.is_real();
-                                                if (ok)
+                                                luafx.run_with_gear([&](auto& gear)
                                                 {
+                                                    auto gui_cmd = e2::command::gui.param();
                                                     gui_cmd.gear_id = gear.id;
                                                     gear.set_handled();
-                                                }
-                                                gui_cmd.cmd_id = syscmd::rollfontlist;
-                                                gui_cmd.args.emplace_back(luafx.get_args_or(1, si32{ 1 }));
-                                                base::signal(tier::preview, e2::command::gui, gui_cmd);
-                                                luafx.set_return();
+                                                    gui_cmd.cmd_id = syscmd::rollfontlist;
+                                                    gui_cmd.args.emplace_back(luafx.get_args_or(1, si32{ 1 }));
+                                                    base::signal(tier::preview, e2::command::gui, gui_cmd);
+                                                });
                                             }},
                 { "WheelAccumReset",        [&]
                                             {
-                                                auto gui_cmd = e2::command::gui.param();
-                                                auto& gear = luafx.get_gear();
-                                                auto ok = gear.is_real();
-                                                if (ok)
+                                                luafx.run_with_gear([&](auto& gear)
                                                 {
+                                                    auto gui_cmd = e2::command::gui.param();
                                                     gui_cmd.gear_id = gear.id;
-                                                }
-                                                gui_cmd.cmd_id = syscmd::resetwheelaccum;
-                                                base::signal(tier::preview, e2::command::gui, gui_cmd);
-                                                luafx.set_return();
+                                                    gui_cmd.cmd_id = syscmd::resetwheelaccum;
+                                                    base::signal(tier::preview, e2::command::gui, gui_cmd);
+                                                });
                                             }},
                 { "CellHeightReset",        [&]
                                             {
-                                                auto gui_cmd = e2::command::gui.param();
-                                                auto& gear = luafx.get_gear();
-                                                auto ok = gear.is_real();
-                                                if (ok)
+                                                luafx.run_with_gear([&](auto& gear)
                                                 {
+                                                    auto gui_cmd = e2::command::gui.param();
                                                     gui_cmd.gear_id = gear.id;
                                                     gear.set_handled();
-                                                }
-                                                gui_cmd.cmd_id = syscmd::resetcellheight;
-                                                base::signal(tier::preview, e2::command::gui, gui_cmd);
-                                                luafx.set_return();
+                                                    gui_cmd.cmd_id = syscmd::resetcellheight;
+                                                    base::signal(tier::preview, e2::command::gui, gui_cmd);
+                                                });
                                             }},
                 { "AntialiasingMode",       [&]
                                             {
-                                                auto gui_cmd = e2::command::gui.param();
-                                                auto& gear = luafx.get_gear();
-                                                auto ok = gear.is_real();
-                                                if (ok)
+                                                luafx.run_with_gear([&](auto& gear)
                                                 {
+                                                    auto gui_cmd = e2::command::gui.param();
+                                                    //todo args
                                                     gui_cmd.gear_id = gear.id;
                                                     gear.set_handled();
-                                                }
-                                                //todo args
-                                                gui_cmd.cmd_id = syscmd::toggleaamode;
-                                                base::signal(tier::preview, e2::command::gui, gui_cmd);
-                                                luafx.set_return();
+                                                    gui_cmd.cmd_id = syscmd::toggleaamode;
+                                                    base::signal(tier::preview, e2::command::gui, gui_cmd);
+                                                    luafx.set_return();
+                                                });
                                             }},
             });
 

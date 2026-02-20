@@ -19,8 +19,8 @@
 #include <cstdint>
 #include <cstring> // std::memcpy
 #include <deque>
-#include <fstream>
 #include <filesystem>
+#include <fstream>
 #include <functional>
 #include <future>
 #include <iterator>
@@ -31,6 +31,9 @@
 #include <mutex>
 #include <numeric> // std::accumulate
 #include <optional>
+#include <random>
+#include <ranges>  // std::views::reverse
+#include <regex>
 #include <span>
 #include <sstream>
 #include <string>
@@ -41,10 +44,8 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <utility> // std::cmp_equal
-#include <vector>
 #include <variant>
-#include <ranges>  // std::views::reverse
-#include <regex>
+#include <vector>
 
 #ifndef faux
     #define faux (false)
@@ -290,8 +291,15 @@ namespace netxs
               test{ faux  }
         { }
     };
-
-    // intmath: Converting from radians to degrees.
+    // intmath: Return random integer.
+    auto get_random()
+    {
+        static thread_local auto mt_gen = std::mt19937_64{ std::random_device{}() };
+        auto unidis = std::uniform_int_distribution<ui64>{};
+        auto random = unidis(mt_gen);
+        return random;
+    }
+    // intmath: Convert from radians to degrees.
     template<class T>
     T rad2deg(T rad)
     {

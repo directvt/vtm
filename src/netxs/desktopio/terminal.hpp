@@ -98,6 +98,7 @@ namespace netxs::ui
         });
 
         #define proc_list \
+            X(RequestInteractiveSessionToken) /* */ \
             X(KeyEvent             ) /* */ \
             X(ExclusiveKeyboardMode) /* */ \
             X(FindNextMatch        ) /* */ \
@@ -992,8 +993,10 @@ namespace netxs::ui
                 }
                 else log("%%Not supported: OSC=%property% DATA=%data% HEX=%hexdata%", prompt::term, property, data, utf::buffer_to_hex(data));
             }
-            void fgc(tint c) { owner.target->brush.fgc(color[c]); }
-            void bgc(tint c) { owner.target->brush.bgc(color[c]); }
+            void fgc(tint c)  { owner.target->brush.fgc(color[c]); }
+            void bgc(tint c)  { owner.target->brush.bgc(color[c]); }
+            void fgc(fifo& q) { owner.target->brush.fgc(argb{ q, color }); }
+            void bgc(fifo& q) { owner.target->brush.bgc(argb{ q, color }); }
         };
 
         // term: Generic terminal buffer.
@@ -1057,6 +1060,8 @@ namespace netxs::ui
                 vt.csier.table[csi_sgr][sgr_bg_mgt_lt] = V{ p->owner.ctrack.bgc(tint::magentalt); };
                 vt.csier.table[csi_sgr][sgr_bg_cyn_lt] = V{ p->owner.ctrack.bgc(tint::cyanlt   ); };
                 vt.csier.table[csi_sgr][sgr_bg_wht_lt] = V{ p->owner.ctrack.bgc(tint::whitelt  ); };
+                vt.csier.table[csi_sgr][sgr_fg_rgb   ] = V{ p->owner.ctrack.fgc(q);               };
+                vt.csier.table[csi_sgr][sgr_bg_rgb   ] = V{ p->owner.ctrack.bgc(q);               };
 
                 vt.csier.table[csi_cuu] = V{ p-> up(q(1)); }; // CSI n A  (CUU)
                 vt.csier.table[csi_cud] = V{ p-> dn(q(1)); }; // CSI n B  (CUD)
@@ -1736,7 +1741,29 @@ namespace netxs::ui
                     if (utf::to_lower(payload_marker) == ansi::apc_prefix_lua)
                     {
                         script_body.remove_prefix(ansi::apc_prefix_lua.size());
+                        auto has_session_token = faux;
+                        if (script_body.size() > 16 && script_body[16] == ':') // Possibly has session token.
+                        {
+                            auto token_str = script_body.substr(0, 16);
+                            if (auto received_token = utf::to_int<ui64, 16>(token_str))
+                            if (token_str.empty())
+                            {
+                                log("got token ", utf::to_hex(owner.session_token));
+                                has_session_token = owner.session_token == received_token.value();
+                                if (!has_session_token)
+                                {
+                                    auto msg = utf::fprint("Invalid session token received [%%]\r\n", script_body.substr(0, 16));
+                                    log<faux>(msg);
+                                    owner.data_in(msg);
+                                }
+                                script_body.remove_prefix(16 + 1);
+                            }
+                        }
                         auto& luafx = owner.bell::indexer.luafx;
+                        if (!has_session_token)
+                        {
+                            luafx.reset_gear();
+                        }
                         luafx.run_script(owner, script_body);
                     }
                     else
@@ -7104,6 +7131,7 @@ namespace netxs::ui
         bool       rawkbd; // term: Exclusive keyboard access.
         bool       bottom_anchored; // term: Anchor scrollback content when resizing (default is anchor at bottom).
         ui32       event_sources; // term: vt-input-mode event reporting bit-field.
+        ui64       session_token; // term: Interactive session token.
         vtty       ipccon; // term: IPC connector. Should be destroyed first.
 
         // term: Place rectangle block to the scrollback buffer.
@@ -8381,7 +8409,8 @@ namespace netxs::ui
               ime_on{ faux },
               rawkbd{ faux },
               bottom_anchored{ true },
-              event_sources{}
+              event_sources{},
+              session_token{ netxs::get_random() }
         {
             set_fg_color(defcfg.def_fcolor);
             set_bg_color(defcfg.def_bcolor);
@@ -8907,6 +8936,12 @@ namespace netxs::ui
                                                                 luafx.set_return();
                                                             }
                                                         }
+                                                    }},
+                { methods::RequestInteractiveSessionToken, [&]
+                                                    {
+                                                        auto interactive_token = ansi::apc(ansi::apc_prefix_session, ansi::apc_prefix_session_token, utf::to_hex(session_token));
+                                                        data_out(interactive_token);
+                                                        luafx.set_return();
                                                     }},
                 { methods::Quit,                    [&]
                                                     {

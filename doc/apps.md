@@ -97,17 +97,20 @@ printf " Hello Test\r\e[44;31m\0\0\0\0\0\0\0\e[m\n"
 The built-in terminal is capable of executing Lua scripts received via APC (Application Program Command) vt-sequences. The format of the vt-sequence is as follows:
 
 ```
-ESC _ lua: <script body> ESC \
+ESC _ lua: <script body> ST
 ```
 or
 ```
-ESC _ lua: <script body> BEL
+ESC _ lua:FFFFFFFFFFFFFFFF: <script body> ST
 ```
 where:
 - `ESC_`: APC vt-sequence prefix.
 - `lua:`: case-insensitive APC payload marker.
 - `<script body>`: Lua script body.
-- `ESC\` or `BEL`: APC vt-sequence terminator.
+- `ST`: `ESC``\` or `BEL` - APC sequence terminator.
+- `FFFFFFFFFFFFFFFF:`: 16-hexadecimal-digit interactive session token ending with a colon. This token can be obtained using the following APC request: `\e_lua:terminal.RequestInteractiveSessionToken()\a` - The terminal will respond with an APC sequence containing the 16 digits of the required interactive token: `\e_event=session;token=FFFFFFFFFFFFFFFF\e\\`.
+
+Note: Without specifying an interactive session token, calls to functions related to interactive interaction (moving/sizing windows, mouse, keyboard, focus, etc.) will be silently ignored.
 
 Usage examples:
 
@@ -122,7 +125,10 @@ Note: The global variable `terminal` (in the Lua namespace) is an alias for `vtm
   printf "\e_lua: terminal.ScrollbackSize(10000)\a"
 
   # Maximize the terminal window
-  printf "\e_lua: vtm.applet.Maximize()\e\\"
+  ## 1. Get a session token:
+  printf "\e_lua:terminal.RequestInteractiveSessionToken()\a"
+  ## 2. Use the received token when requesting to maximize the window:
+  printf "\e_lua:0000000000000000: vtm.applet.Maximize()\e\\"
   ```
 
 A complete list of available script functions can be found in [settings.md](settings.md#event-sources).
