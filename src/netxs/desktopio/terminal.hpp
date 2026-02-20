@@ -1748,7 +1748,6 @@ namespace netxs::ui
                             if (auto received_token = utf::to_int<ui64, 16>(token_str))
                             if (token_str.empty())
                             {
-                                log("got token ", utf::to_hex(owner.session_token));
                                 has_session_token = owner.session_token == received_token.value();
                                 if (!has_session_token)
                                 {
