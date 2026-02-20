@@ -251,7 +251,7 @@ namespace netxs::app::shared
                                         }},
             { "Close",                  [&]
                                         {
-                                            if (auto& gear = luafx.get_gear(); gear.is_real())
+                                            luafx.run_with_gear([&](auto& gear)
                                             {
                                                 gear.alive = true; //todo unify
                                                 boss.base::signal(tier::anycast, e2::form::proceed::closeby, gear); // Check access to close.
@@ -267,8 +267,7 @@ namespace netxs::app::shared
                                                 {
                                                     log("%%Applet closing is supressed", prompt::lua);
                                                 }
-                                            }
-                                            luafx.set_return();
+                                            });
                                         }},
         });
     };
@@ -314,20 +313,18 @@ namespace netxs::app::shared
                                     }},
             { "Warp",               [&]
                                     {
-                                        auto gui_cmd = e2::command::gui.param();
-                                        auto& gear = luafx.get_gear();
-                                        if (gear.is_real())
+                                        luafx.run_with_gear([&](auto& gear)
                                         {
+                                            auto gui_cmd = e2::command::gui.param();
                                             gui_cmd.gear_id = gear.id;
+                                            gui_cmd.cmd_id = syscmd::warpwindow;
+                                            gui_cmd.args.emplace_back(luafx.get_args_or(1, si32{ 0 }));
+                                            gui_cmd.args.emplace_back(luafx.get_args_or(2, si32{ 0 }));
+                                            gui_cmd.args.emplace_back(luafx.get_args_or(3, si32{ 0 }));
+                                            gui_cmd.args.emplace_back(luafx.get_args_or(4, si32{ 0 }));
                                             gear.set_handled();
-                                        }
-                                        gui_cmd.cmd_id = syscmd::warpwindow;
-                                        gui_cmd.args.emplace_back(luafx.get_args_or(1, si32{ 0 }));
-                                        gui_cmd.args.emplace_back(luafx.get_args_or(2, si32{ 0 }));
-                                        gui_cmd.args.emplace_back(luafx.get_args_or(3, si32{ 0 }));
-                                        gui_cmd.args.emplace_back(luafx.get_args_or(4, si32{ 0 }));
-                                        boss.base::riseup(tier::preview, e2::command::gui, gui_cmd);
-                                        luafx.set_return();
+                                            boss.base::riseup(tier::preview, e2::command::gui, gui_cmd);
+                                        });
                                     }},
             { "ZOrder",             [&]
                                     {
@@ -341,11 +338,11 @@ namespace netxs::app::shared
                                             if (gear.is_real())
                                             {
                                                 gui_cmd.gear_id = gear.id;
+                                                gui_cmd.cmd_id = syscmd::zorder;
+                                                gui_cmd.args.emplace_back(zorder);
+                                                boss.base::riseup(tier::release, e2::form::prop::zorder, si32{ zorder });
+                                                boss.base::riseup(tier::preview, e2::command::gui, gui_cmd);
                                             }
-                                            gui_cmd.cmd_id = syscmd::zorder;
-                                            gui_cmd.args.emplace_back(zorder);
-                                            boss.base::riseup(tier::release, e2::form::prop::zorder, si32{ zorder });
-                                            boss.base::riseup(tier::preview, e2::command::gui, gui_cmd);
                                         }
                                         gear.set_handled();
                                         luafx.set_return(zorder);
@@ -355,7 +352,7 @@ namespace netxs::app::shared
                                         auto args_count = luafx.args_count();
                                         if (args_count)
                                         {
-                                            if (auto& gear = luafx.get_gear(); gear.is_real())
+                                            luafx.run_with_gear([&](auto& gear)
                                             {
                                                 auto& oneshot = boss.base::field(subs{}); // Oneshot subscription token.
                                                 gear.LISTEN(tier::release, input::events::die, gear, oneshot) // Reset on disconnect.
@@ -404,8 +401,7 @@ namespace netxs::app::shared
                                                 gui_cmd.args.emplace_back(new_accesslock_state);
                                                 boss.base::riseup(tier::preview, e2::command::gui, gui_cmd); // Send request to set accesslock.
                                                 gear.set_handled();
-                                            }
-                                            luafx.set_return();
+                                            });
                                         }
                                         else
                                         {
@@ -414,7 +410,7 @@ namespace netxs::app::shared
                                     }},
             { "Close",              [&]
                                     {
-                                        if (auto& gear = luafx.get_gear(); gear.is_real())
+                                        luafx.run_with_gear([&](auto& gear)
                                         {
                                             gear.alive = true;
                                             boss.base::signal(tier::anycast, e2::form::proceed::closeby, gear); // Check access to close.
@@ -431,60 +427,51 @@ namespace netxs::app::shared
                                                 log("%%Applet closing was interrupted due to a locked state", prompt::lua);
                                                 gear.set_handled();
                                             }
-                                        }
-                                        luafx.set_return();
+                                        });
                                     }},
             { "Minimize",           [&]
                                     {
-                                        auto gui_cmd = e2::command::gui.param();
-                                        auto& gear = luafx.get_gear();
-                                        if (gear.is_real())
+                                        luafx.run_with_gear([&](auto& gear)
                                         {
+                                            auto gui_cmd = e2::command::gui.param();
                                             gui_cmd.gear_id = gear.id;
                                             gear.set_handled();
-                                        }
-                                        gui_cmd.cmd_id = syscmd::minimize;
-                                        boss.base::riseup(tier::preview, e2::command::gui, gui_cmd);
-                                        luafx.set_return();
+                                            gui_cmd.cmd_id = syscmd::minimize;
+                                            boss.base::riseup(tier::preview, e2::command::gui, gui_cmd);
+                                        });
                                     }},
             { "Maximize",           [&]
                                     {
-                                        auto gui_cmd = e2::command::gui.param();
-                                        auto& gear = luafx.get_gear();
-                                        if (gear.is_real())
+                                        luafx.run_with_gear([&](auto& gear)
                                         {
+                                            auto gui_cmd = e2::command::gui.param();
                                             gui_cmd.gear_id = gear.id;
                                             gear.set_handled();
-                                        }
-                                        gui_cmd.cmd_id = syscmd::maximize;
-                                        boss.base::riseup(tier::preview, e2::command::gui, gui_cmd);
-                                        luafx.set_return();
+                                            gui_cmd.cmd_id = syscmd::maximize;
+                                            boss.base::riseup(tier::preview, e2::command::gui, gui_cmd);
+                                        });
                                     }},
             { "Fullscreen",         [&]
                                     {
-                                        auto gui_cmd = e2::command::gui.param();
-                                        auto& gear = luafx.get_gear();
-                                        if (gear.is_real())
+                                        luafx.run_with_gear([&](auto& gear)
                                         {
+                                            auto gui_cmd = e2::command::gui.param();
                                             gui_cmd.gear_id = gear.id;
                                             gear.set_handled();
-                                        }
-                                        gui_cmd.cmd_id = syscmd::fullscreen;
-                                        boss.base::riseup(tier::preview, e2::command::gui, gui_cmd);
-                                        luafx.set_return();
+                                            gui_cmd.cmd_id = syscmd::fullscreen;
+                                            boss.base::riseup(tier::preview, e2::command::gui, gui_cmd);
+                                        });
                                     }},
             { "Restore",            [&]
                                     {
-                                        auto gui_cmd = e2::command::gui.param();
-                                        auto& gear = luafx.get_gear();
-                                        if (gear.is_real())
+                                        luafx.run_with_gear([&](auto& gear)
                                         {
+                                            auto gui_cmd = e2::command::gui.param();
                                             gui_cmd.gear_id = gear.id;
                                             gear.set_handled();
-                                        }
-                                        gui_cmd.cmd_id = syscmd::restore;
-                                        boss.base::riseup(tier::preview, e2::command::gui, gui_cmd);
-                                        luafx.set_return();
+                                            gui_cmd.cmd_id = syscmd::restore;
+                                            boss.base::riseup(tier::preview, e2::command::gui, gui_cmd);
+                                        });
                                     }},
         });
     };

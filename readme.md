@@ -14,7 +14,7 @@ Run `vtm` to start the desktop environment.
 
 ### Terminal mode
 
-Run `vtm -r term [<your_shell>]` to use vtm as a full-fledged standalone terminal emulator.
+Run `vtm --run term [<your_shell>]` to use vtm as a full-fledged standalone terminal emulator.
 
 ### Binary connection via SSH
 

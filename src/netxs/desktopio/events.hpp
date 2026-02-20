@@ -166,6 +166,7 @@ namespace netxs::events
         void read_args(si32 index, auto add_item);
         auto get_args_or(si32 idx, auto fallback = {});
         void set_gear(input::hids& gear);
+        void reset_gear();
         input::hids& get_gear();
         bool run_with_gear_wo_return(auto proc);
         void run_with_gear(auto proc);

@@ -392,6 +392,11 @@ namespace netxs::events
     {
         indexer.active_gear_ref = gear;
     }
+    // luna: Reset active gear.
+    void luna::reset_gear()
+    {
+        indexer.active_gear_ref = *indexer._null_gear_sptr;
+    }
     // luna: Set active gear.
     input::hids& luna::get_gear()
     {
