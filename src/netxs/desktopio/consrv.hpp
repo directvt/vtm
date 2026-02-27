@@ -3988,7 +3988,7 @@ struct impl : consrv
         auto fgcx = 7_sz; // Fallback for true colors.
         auto bgcx = 0_sz;
         auto& rgbpalette = packet.reply.rgbpalette;
-        auto mark = console.brush;
+        auto mark = console.get_effective_brush();
         auto frgb = mark.fgc().token;
         auto brgb = mark.bgc().token;
         auto head = std::begin(uiterm.ctrack.color);
