@@ -944,7 +944,7 @@ namespace netxs::ui
                     }
                     else if (t == type::rgbcolor)
                     {
-                        auto new_bgc = owner.get_color();
+                        auto new_bgc = owner.defclr;
                         new_bgc.bgc(r);
                         owner.set_color(new_bgc);
                     }
