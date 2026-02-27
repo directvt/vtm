@@ -1480,7 +1480,7 @@ namespace netxs::gui
         void draw_glyph(auto& canvas, sprite& glyph_mask, twod offset, argb fgc)
         {
             auto box = glyph_mask.area.shift(offset);
-            auto f_fgc = irgb{ fgc }.sRGB2Linear();
+            auto f_fgc = irgb{ fgc }.sRGB2Linear(); //todo use lut: irgb::sRGB2Linear_lut(fgc);
             if (glyph_mask.type == sprite::color)
             {
                 auto fx = [fgc, f_fgc](argb& dst, irgb src)

@@ -310,6 +310,7 @@ namespace netxs
             else if (c.chan.a)
             {
                 //todo consider premultiplied alpha
+                //todo do it in linear rgb at least
                 auto a1 = ui32{ chan.a };
                 auto a2 = ui32{ c.chan.a };
                 auto a = ((a2 + a1) << 8) - a1 * a2;
@@ -558,6 +559,7 @@ namespace netxs
 
         static constexpr auto default_color = 0x00'FF'FF'FF;
         static constexpr auto active_transparent = 0x01'000000;
+        static constexpr auto transparent = 0x00'000000;
 
         template<si32 i>
         static constexpr ui32 _vt16 = // Compile-time value assigning (sorted by enum).
@@ -1637,6 +1639,34 @@ namespace netxs
             }
             if (st.raw()) px = c.px;
         }
+        // cell: Blend fgc/unc with bgc.
+        void mix_with_bgc(cell const& c)
+        {
+            st = c.st;
+            uv.bg.mix(c.uv.bg); // Blend the semi-transparent background color with the global background color (e.g., set by OSC 11).
+            auto fga = c.uv.fg.alpha();
+            if (fga == 0xFF)
+            {
+                uv.fg = c.uv.fg;
+            }
+            else if (fga)
+            {
+                uv.fg = uv.bg;
+                uv.fg.mix(c.uv.fg); // Blend the semi-transparent foreground color with the final background color calculated in the previous step.
+                if (st.und())
+                {
+                    if (auto index = st.unc()) // Blend the semi-transparent underline color with the final background color.
+                    {
+                        auto unc_clr = argb{ argb::vt256[index] }.alpha(fga);
+                        auto new_clr = uv.bg;
+                        new_clr.mix(unc_clr);
+                        st.unc(new_clr.to_256cube());
+                    }
+                }
+            }
+            gc = c.gc;
+            px = c.px;
+        }
         // cell: Blend cell colors.
         void blend(cell const& c)
         {
@@ -2235,6 +2265,11 @@ namespace netxs
                 template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
                 template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.blend_pma(src); }
             };
+            struct mix_with_bgc_t : public brush_t<mix_with_bgc_t>
+            {
+                template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
+                template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.mix_with_bgc(src); }
+            };
             struct alpha_t : public brush_t<alpha_t>
             {
                 template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
@@ -2464,6 +2499,7 @@ namespace netxs
             static constexpr auto   disabled =   disabled_t{};
             static constexpr auto     xlight =     xlight_t{ 1 };
             static constexpr auto underlight = underlight_t{ 1 };
+            static constexpr auto mix_with_bgc = mix_with_bgc_t{};
         };
 
         auto draw_cursor()

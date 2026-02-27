@@ -944,7 +944,9 @@ namespace netxs::ui
                     }
                     else if (t == type::rgbcolor)
                     {
-                        owner.target->brush.sbg(r);
+                        auto new_bgc = owner.get_color();
+                        new_bgc.bgc(r);
+                        owner.set_color(new_bgc);
                     }
                     else notsupported(ansi::osc_set_bgcolor, full_data, data);
                 };
@@ -971,11 +973,11 @@ namespace netxs::ui
                 };
                 procs[ansi::osc_reset_fgclr] = [&](view /*data*/)
                 {
-                    owner.target->brush.sfg(0);
+                    owner.defclr.fgc(owner.defcfg.def_fcolor);
                 };
                 procs[ansi::osc_reset_bgclr] = [&](view /*data*/ )
                 {
-                    owner.target->brush.sbg(0);
+                    owner.defclr.bgc(owner.defcfg.def_bcolor);
                 };
             }
 
@@ -2592,6 +2594,13 @@ namespace netxs::ui
                 coord.y += (coord.x - (panel.x - 1)) / panel.x + 1 - 1;
                 coord.x  = (coord.x + 1) % panel.x + panel.x - 1;
             }
+            // bufferbase: Return the effective color of the current brush.
+            auto get_effective_brush()
+            {
+                auto color = owner.defclr;
+                color.mix_with_bgc(parser::brush);
+                return color;
+            }
         };
 
         // term: Alternate screen buffer implementation.
@@ -2847,7 +2856,7 @@ namespace netxs::ui
                          && match.length()
                          && owner.selmod == mime::textonly;
                 canvas.move(full.coor - dest.coor());
-                dest.plot(canvas, cell::shaders::flat);
+                dest.plot(canvas, cell::shaders::mix_with_bgc);
                 if (auto area = canvas.area())
                 {
                     if (find)
@@ -3436,7 +3445,7 @@ namespace netxs::ui
 
                 auto c = cell{ '\0' }.fgc(boss.defcfg.def_fcolor).bgc(boss.defcfg.def_bcolor).link(boss.id);
                 boss.defclr = c;
-                parser::brush.reset(c);
+                parser::brush.txt('\0').link(boss.id);
             }
             si32 get_size() const override { return batch.size;     }
             si32 get_peak() const override { return batch.peak - 1; }
@@ -5220,7 +5229,7 @@ namespace netxs::ui
                     auto height = curln.height(panel.x);
                     auto length = curln.length();
                     auto adjust = curln.style.jet();
-                    dest.output(curln, coor, cell::shaders::flat);
+                    dest.output(curln, coor, cell::shaders::mix_with_bgc);
                     //dest.output_proxy(curln, coor, [&](auto const& coord, auto const& subblock, auto isr_to_l)
                     //{
                     //    dest.text(coord, subblock, isr_to_l, cell::shaders::fusefull);
@@ -7184,7 +7193,8 @@ namespace netxs::ui
             auto src_area = rect{ dot_00, size };
             area.trimby(src_area);
             fragment.full(src_area);
-            fragment.core::crop(area.size, defclr);
+            auto empty_cells = cell{}.link(defclr.link());
+            fragment.core::crop(area.size, empty_cells);
             fragment.core::area(area);
             // Take fragment.
             if (srcBuffIndex == -1) console.do_viewport_copy(fragment);
@@ -7207,7 +7217,7 @@ namespace netxs::ui
                 area.coor = coor;
                 fragment.area(area);
                 auto& dst = pocket[dstBuffIndex];
-                dst.crop(console.panel, defclr);
+                dst.crop(console.panel, empty_cells);
                 dst.plot(fragment, cell::shaders::full);
             }
         }
@@ -7623,7 +7633,7 @@ namespace netxs::ui
         {
             auto& console = *target;
             defclr.txt('\0').fgc(defcfg.def_fcolor).bgc(defcfg.def_bcolor).link(base::id);
-            console.brush.reset(defclr);
+            console.brush.reset();
             console.style.reset();
             console.style.wrp(defcfg.def_wrpmod);
             console.setpad(defcfg.def_margin);
@@ -8035,8 +8045,7 @@ namespace netxs::ui
             auto& console = *target;
             brush.link(base::id);
             defclr = brush;
-            brush.link(console.brush.link());
-            console.brush.reset(brush);
+            console.brush.reset();
         }
         void set_bg_color(argb bg)
         {
@@ -8046,7 +8055,7 @@ namespace netxs::ui
             brush.link(base::id);
             defclr = brush;
             brush.link(console.brush.link());
-            console.brush.reset(brush);
+            console.brush.bgc(argb::transparent);
             base::signal(tier::release, terminal::events::colors::bg, bg);
         }
         void set_fg_color(argb fg)
@@ -8057,7 +8066,7 @@ namespace netxs::ui
             brush.link(base::id);
             defclr = brush;
             brush.link(console.brush.link());
-            console.brush.reset(brush);
+            console.brush.fgc(argb::transparent);
             base::signal(tier::release, terminal::events::colors::fg, fg);
         }
         void set_rawkbd(si32 state = {})
@@ -9027,7 +9036,7 @@ namespace netxs::ui
                 {
                     if (auto parent = base::parent())
                     {
-                        brush.fuse(console.cell_under_cursor());
+                        //todo revise: brush.fuse(console.cell_under_cursor());
                         auto viewport_square = parent->area();
                         auto viewport_cursor = original_cursor + origin;
                         if (viewport_square.size.inside(viewport_cursor))
