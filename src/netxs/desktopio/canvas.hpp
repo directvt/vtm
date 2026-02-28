@@ -116,7 +116,7 @@ namespace netxs
         constexpr argb(tint c)
             : argb{ argb::vt256[c] }
         { }
-        argb(fifo& q, auto& ext_vt256)
+        void parse_input(fifo& q, auto eval_token_fx)
         {
             static constexpr auto mode_RGB = 2;
             static constexpr auto mode_256 = 5;
@@ -135,7 +135,7 @@ namespace netxs
                         break;
                     }
                     case mode_256:
-                        token = netxs::letoh(ext_vt256[q.subarg(0) & 0xFF]);
+                        token = eval_token_fx(q.subarg(0));
                         break;
                     default:
                         break;
@@ -152,7 +152,7 @@ namespace netxs
                         chan.a = 0xFF;
                         break;
                     case mode_256:
-                        token = netxs::letoh(ext_vt256[q(0) & 0xFF]);
+                        token = eval_token_fx(q(0));
                         break;
                     default:
                         break;
@@ -160,8 +160,9 @@ namespace netxs
             }
         }
         argb(fifo& q)
-            : argb{ q, argb::vt256 }
-        { }
+        {
+            parse_input(q, [](si32 i){ return netxs::letoh(argb::vt256[i & 0xFF]); });
+        }
 
         constexpr argb& operator = (argb const&) = default;
         constexpr explicit operator bool () const
@@ -175,6 +176,34 @@ namespace netxs
         constexpr auto operator != (argb c) const
         {
             return !operator==(c);
+        }
+        // argb: Get the token for the indexed color.
+        static auto get_indexed_color_token(si32 i)
+        {
+            return netxs::letoh(0x00'FF0000 + (i & 0xFF)); // Indexed color format: a=0, r=255, g=0, b=i
+        }
+        // argb: Set the token for the indexed color.
+        static auto set_indexed_color(argb& c, si32 i)
+        {
+            c.token = argb::get_indexed_color_token(i);
+        }
+        // argb: Check if color id indexed.
+        static auto is_indexed_color(argb c)
+        {
+            auto ok = (c.token & netxs::letoh(0xFF'FFFF00u)) == netxs::letoh(0x00'FF0000u); // Check if it is in an indexed color format.
+            return ok ? c.chan.b + 1 : 0;
+        }
+        // argb: Unpack true color.
+        static auto unpack_indexed_color(argb c, auto& ext_vt256)
+        {
+            if (auto index = is_indexed_color(c))
+            {
+                return argb{ ext_vt256[index - 1] };
+            }
+            else
+            {
+                return c;
+            }
         }
         auto& swap_rb()
         {
@@ -1639,34 +1668,6 @@ namespace netxs
             }
             if (st.raw()) px = c.px;
         }
-        // cell: Blend fgc/unc with bgc.
-        void mix_with_bgc(cell const& c)
-        {
-            st = c.st;
-            uv.bg.mix(c.uv.bg); // Blend the semi-transparent background color with the global background color (e.g., set by OSC 11).
-            auto fga = c.uv.fg.alpha();
-            if (fga == 0xFF)
-            {
-                uv.fg = c.uv.fg;
-            }
-            else if (fga)
-            {
-                uv.fg = uv.bg;
-                uv.fg.mix(c.uv.fg); // Blend the semi-transparent foreground color with the final background color calculated in the previous step.
-                if (st.und())
-                {
-                    if (auto index = st.unc()) // Blend the semi-transparent underline color with the final background color.
-                    {
-                        auto unc_clr = argb{ argb::vt256[index] }.alpha(fga);
-                        auto new_clr = uv.bg;
-                        new_clr.mix(unc_clr);
-                        st.unc(new_clr.to_256cube());
-                    }
-                }
-            }
-            gc = c.gc;
-            px = c.px;
-        }
         // cell: Blend cell colors.
         void blend(cell const& c)
         {
@@ -2265,11 +2266,6 @@ namespace netxs
                 template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
                 template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.blend_pma(src); }
             };
-            struct mix_with_bgc_t : public brush_t<mix_with_bgc_t>
-            {
-                template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
-                template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.mix_with_bgc(src); }
-            };
             struct alpha_t : public brush_t<alpha_t>
             {
                 template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
@@ -2499,7 +2495,6 @@ namespace netxs
             static constexpr auto   disabled =   disabled_t{};
             static constexpr auto     xlight =     xlight_t{ 1 };
             static constexpr auto underlight = underlight_t{ 1 };
-            static constexpr auto mix_with_bgc = mix_with_bgc_t{};
         };
 
         auto draw_cursor()

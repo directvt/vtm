@@ -927,7 +927,9 @@ namespace netxs::ui
                     }
                     else if (t == type::rgbcolor)
                     {
-                        owner.target->brush.sfg(r);
+                        auto new_fgc = owner.defclr;
+                        new_fgc.fgc(r);
+                        owner.set_color(new_fgc);
                     }
                     else notsupported(ansi::osc_set_fgcolor, full_data, data);
                 };
@@ -995,10 +997,40 @@ namespace netxs::ui
                 }
                 else log("%%Not supported: OSC=%property% DATA=%data% HEX=%hexdata%", prompt::term, property, data, utf::buffer_to_hex(data));
             }
-            void fgc(tint c)  { owner.target->brush.fgc(color[c]); }
-            void bgc(tint c)  { owner.target->brush.bgc(color[c]); }
-            void fgc(fifo& q) { owner.target->brush.fgc(argb{ q, color }); }
-            void bgc(fifo& q) { owner.target->brush.bgc(argb{ q, color }); }
+            // c_tracking: Blend fgc/unc with bgc.
+            void mix_with_bgc(cell& dest, cell const& c)
+            {
+                dest.st = c.st;
+                auto c_uv_bg = argb::unpack_indexed_color(c.uv.bg, color);
+                auto c_uv_fg = argb::unpack_indexed_color(c.uv.fg, color);
+                dest.uv.bg.mix(c_uv_bg); // Blend the semi-transparent background color with the global background color (e.g., set by OSC 11).
+                auto fga = c_uv_fg.alpha();
+                if (fga == 0xFF)
+                {
+                    dest.uv.fg = c_uv_fg;
+                }
+                else if (fga)
+                {
+                    dest.uv.fg = dest.uv.bg;
+                    dest.uv.fg.mix(c_uv_fg); // Blend the semi-transparent foreground color with the final background color calculated in the previous step.
+                    if (dest.st.und())
+                    {
+                        if (auto index = dest.st.unc()) // Blend the semi-transparent underline color with the final background color.
+                        {
+                            auto unc_clr = argb{ argb::vt256[index] }.alpha(fga);
+                            auto new_clr = dest.uv.bg;
+                            new_clr.mix(unc_clr);
+                            dest.st.unc(new_clr.to_256cube());
+                        }
+                    }
+                }
+                dest.gc = c.gc;
+                dest.px = c.px;
+            }
+            void fgc(tint c)  { argb::set_indexed_color(owner.target->brush.fgc(), c); }
+            void bgc(tint c)  { argb::set_indexed_color(owner.target->brush.bgc(), c); }
+            void fgc(fifo& q) { owner.target->brush.fgc().parse_input(q, [](si32 i){ return argb::get_indexed_color_token(i); }); }
+            void bgc(fifo& q) { owner.target->brush.bgc().parse_input(q, [](si32 i){ return argb::get_indexed_color_token(i); }); }
         };
 
         // term: Generic terminal buffer.
@@ -2598,7 +2630,9 @@ namespace netxs::ui
             auto get_effective_brush()
             {
                 auto color = owner.defclr;
-                color.mix_with_bgc(parser::brush);
+                owner.ctrack.mix_with_bgc(color, parser::brush);
+                if (argb::is_indexed_color(parser::brush.bgc())) color.bgc(parser::brush.bgc());
+                if (argb::is_indexed_color(parser::brush.fgc())) color.fgc(parser::brush.fgc());
                 return color;
             }
         };
@@ -2856,7 +2890,7 @@ namespace netxs::ui
                          && match.length()
                          && owner.selmod == mime::textonly;
                 canvas.move(full.coor - dest.coor());
-                dest.plot(canvas, cell::shaders::mix_with_bgc);
+                dest.plot(canvas, [&](auto& dst, auto& src){ owner.ctrack.mix_with_bgc(dst, src); });
                 if (auto area = canvas.area())
                 {
                     if (find)
@@ -5229,7 +5263,7 @@ namespace netxs::ui
                     auto height = curln.height(panel.x);
                     auto length = curln.length();
                     auto adjust = curln.style.jet();
-                    dest.output(curln, coor, cell::shaders::mix_with_bgc);
+                    dest.output(curln, coor, [&](auto& dst, auto& src){ owner.ctrack.mix_with_bgc(dst, src); });
                     //dest.output_proxy(curln, coor, [&](auto const& coord, auto const& subblock, auto isr_to_l)
                     //{
                     //    dest.text(coord, subblock, isr_to_l, cell::shaders::fusefull);
