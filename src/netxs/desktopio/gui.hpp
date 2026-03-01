@@ -1489,7 +1489,7 @@ namespace netxs::gui
                     else if (src.a == 1.f) dst = src.linear2sRGB();
                     else if (src.a < 256.f + 255.f)
                     {
-                        auto f_dst = irgb{ dst }.sRGB2Linear();
+                        auto f_dst = irgb{ dst }.sRGB2Linear(); //todo use lut
                         if (src.a > 256.f) // Alpha contains non-zero integer for fgc's aplha.
                         {
                             auto fgc_alpha = netxs::saturate_cast<byte>(src.a - 256.f);

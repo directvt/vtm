@@ -390,6 +390,59 @@ namespace netxs
         }
     };
 
+    // intmath: Newton's method for calculating the nth root of x^(1/n).
+    constexpr auto _cx_nth_root(fp32 x, si32 n)
+    {
+        if (x == 1.0f) return x;
+        auto curr = x / n; // Initial value.
+        for (auto i = 0; i < 48; ++i)
+        {
+            auto p = 1.0f;
+            for (auto j = 0; j < n - 1; ++j) p *= curr;
+            curr = (1.0f / n) * ((n - 1) * curr + x / p);
+        }
+        return curr;
+    }
+    // intmath: Calc x^2.4 as x^2 * x^(2/5)
+    constexpr auto _cx_pow_srgb(fp32 x)
+    {
+        auto x2 = x * x;                  // x^2
+        auto root5 = _cx_nth_root(x2, 5); // x^(2/5)
+        return x2 * root5;                // x^2 * x^0.4 = x^2.4
+    }
+    // intmath: sRGB to Linear (gamma 2.2)
+    constexpr auto sRGB2Linear(fp32 c)
+    {
+        if (std::is_constant_evaluated()) //todo std::pow is constexpr since c++23
+        {
+            return c <= 0.04045f ? c / 12.92f
+                                 : _cx_pow_srgb((c + 0.055f) / 1.055f);
+        }
+        else
+        {
+            return c <= 0.04045f ? c / 12.92f
+                                 : std::pow((c + 0.055f) / 1.055f, 2.4f);
+        }
+    }
+    static constexpr auto sRGB2Linear_lut = []
+    {
+        auto i = 0.0f;
+        auto lut = std::array<fp32, 256>{};
+        for (auto& v : lut) v = netxs::sRGB2Linear(i++ / 255.0f);
+        return lut;
+    }();
+    constexpr auto sRGB2Linear(byte c)
+    {
+        return netxs::sRGB2Linear_lut[c];
+    }
+    // intmath: Linear to sRGB (gamma 2.2)
+    auto linear2sRGB(fp32 c)
+    {
+        //todo use lut
+        return c <= 0.0031308f ? 12.92f * c
+                               : 1.055f * std::pow(c, 1.f / 2.4f) - 0.055f;
+    }
+
     template<class T1, class T2, class T3 = T1, class = std::enable_if_t<std::is_arithmetic_v<T1>
                                                                       && std::is_arithmetic_v<T2>
                                                                       && std::is_arithmetic_v<T3>>>

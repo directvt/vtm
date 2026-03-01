@@ -329,6 +329,29 @@ namespace netxs
                 //if (!chan.a) chan.a = c.chan.a;
             }
         }
+        // argb: Alpha blending ARGB colors via linear RGB space.
+        void inline mix_linear(argb c, si32 cache_index = 0)
+        {
+            if (c.chan.a == 0xFF)
+            {
+                chan = c.chan;
+            }
+            else if (c.chan.a)
+            {
+                auto dst_lin_r = netxs::sRGB2Linear(chan.r);
+                auto dst_lin_g = netxs::sRGB2Linear(chan.g);
+                auto dst_lin_b = netxs::sRGB2Linear(chan.b);
+                auto src_lin_r = netxs::sRGB2Linear(c.chan.r);
+                auto src_lin_g = netxs::sRGB2Linear(c.chan.g);
+                auto src_lin_b = netxs::sRGB2Linear(c.chan.b);
+                auto src_alpha = c.chan.a / 255.0f;
+                auto dst_alpha = 1.0f - src_alpha;
+                chan.r = (byte)(0.5f + 255.0f * netxs::linear2sRGB(src_lin_r * src_alpha + dst_lin_r * dst_alpha));
+                chan.g = (byte)(0.5f + 255.0f * netxs::linear2sRGB(src_lin_g * src_alpha + dst_lin_g * dst_alpha));
+                chan.b = (byte)(0.5f + 255.0f * netxs::linear2sRGB(src_lin_b * src_alpha + dst_lin_b * dst_alpha));
+                chan.a = (byte)((src_alpha + (chan.a / 255.0f) * dst_alpha) * 255.0f + 0.5f);
+            }
+        }
         // argb: Alpha blending ARGB colors.
         void inline mix(argb c)
         {
@@ -339,7 +362,6 @@ namespace netxs
             else if (c.chan.a)
             {
                 //todo consider premultiplied alpha
-                //todo do it in linear rgb at least
                 auto a1 = ui32{ chan.a };
                 auto a2 = ui32{ c.chan.a };
                 auto a = ((a2 + a1) << 8) - a1 * a2;
@@ -931,32 +953,20 @@ namespace netxs
         void operator -= (irgb const& c) { r -= c.r; g -= c.g; b -= c.b; a -= c.a; }
         void operator += (argb c) requires(std::is_integral_v<T>) { r += c.chan.r; g += c.chan.g; b += c.chan.b; a += c.chan.a; }
         void operator -= (argb c) requires(std::is_integral_v<T>) { r -= c.chan.r; g -= c.chan.g; b -= c.chan.b; a -= c.chan.a; }
-        // irgb: sRGB to Linear (g = 2.4)
-        static auto sRGB2Linear(fp32 c)
-        {
-            return c <= 0.04045f ? c / 12.92f
-                                 : std::pow((c + 0.055f) / 1.055f, 2.4f);
-        }
-        // irgb: Linear to sRGB (g = 2.4)
-        static auto linear2sRGB(fp32 c)
-        {
-            return c <= 0.0031308f ? 12.92f * c
-                                   : 1.055f * std::pow(c, 1.f / 2.4f) - 0.055f;
-        }
         // irgb: sRGB to linear (g = 2.4)
         irgb& sRGB2Linear() requires(std::is_floating_point_v<T>)
         {
-            r = sRGB2Linear(r);
-            g = sRGB2Linear(g);
-            b = sRGB2Linear(b);
+            r = netxs::sRGB2Linear(r);
+            g = netxs::sRGB2Linear(g);
+            b = netxs::sRGB2Linear(b);
             return *this;
         }
         // irgb: Linear to sRGB (g = 2.4)
         irgb& linear2sRGB() requires(std::is_floating_point_v<T>)
         {
-            r = linear2sRGB(r);
-            g = linear2sRGB(g);
-            b = linear2sRGB(b);
+            r = netxs::linear2sRGB(r);
+            g = netxs::linear2sRGB(g);
+            b = netxs::linear2sRGB(b);
             return *this;
         }
         // irgb: Premultiply alpha (floating point only).

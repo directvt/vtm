@@ -1003,7 +1003,8 @@ namespace netxs::ui
                 dest.st = c.st;
                 auto c_uv_bg = argb::unpack_indexed_color(c.uv.bg, color);
                 auto c_uv_fg = argb::unpack_indexed_color(c.uv.fg, color);
-                dest.uv.bg.mix(c_uv_bg); // Blend the semi-transparent background color with the global background color (e.g., set by OSC 11).
+                dest.uv.bg.mix_linear(c_uv_bg, 0); // Blend the semi-transparent background color with the global background color (e.g., set by OSC 11).
+                //dest.uv.bg.mix(c_uv_bg); // Blend the semi-transparent background color with the global background color (e.g., set by OSC 11).
                 auto fga = c_uv_fg.alpha();
                 if (fga == 0xFF)
                 {
@@ -1012,14 +1013,16 @@ namespace netxs::ui
                 else if (fga)
                 {
                     dest.uv.fg = dest.uv.bg;
-                    dest.uv.fg.mix(c_uv_fg); // Blend the semi-transparent foreground color with the final background color calculated in the previous step.
+                    dest.uv.fg.mix_linear(c_uv_fg, 1); // Blend the semi-transparent foreground color with the final background color calculated in the previous step.
+                    //dest.uv.fg.mix(c_uv_fg); // Blend the semi-transparent foreground color with the final background color calculated in the previous step.
                     if (dest.st.und())
                     {
                         if (auto index = dest.st.unc()) // Blend the semi-transparent underline color with the final background color.
                         {
                             auto unc_clr = argb{ argb::vt256[index] }.alpha(fga);
                             auto new_clr = dest.uv.bg;
-                            new_clr.mix(unc_clr);
+                            new_clr.mix_linear(unc_clr, 3);
+                            //new_clr.mix(unc_clr);
                             dest.st.unc(new_clr.to_256cube());
                         }
                     }
