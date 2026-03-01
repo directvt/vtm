@@ -270,6 +270,7 @@ namespace netxs
         // argb: Colourimetric (perceptual luminance-preserving) conversion to greyscale.
         constexpr auto luma() const
         {
+            //todo this requires conversion to the linear rgb space (error ~20-30%)
             auto r = (token >> 16) & 0xFF;
             auto g = (token >>  8) & 0xFF;
             auto b = (token >>  0) & 0xFF;
@@ -344,12 +345,18 @@ namespace netxs
                 auto src_lin_r = netxs::sRGB2Linear(c.chan.r);
                 auto src_lin_g = netxs::sRGB2Linear(c.chan.g);
                 auto src_lin_b = netxs::sRGB2Linear(c.chan.b);
-                auto src_alpha = c.chan.a / 255.0f;
+                auto bg_luma = 0.2627f * dst_lin_r + 0.6780f * dst_lin_g + 0.0593f * dst_lin_b; //todo use luma
+                auto a_srgb = c.chan.a / 255.0f;
+                auto a_low  = netxs::sRGB2Linear(c.chan.a); // Weaked alpha for dark bg:  sRGB2Linear returns ~0.21 for 0.5
+                auto a_high = netxs::linear2sRGB(a_srgb);   // Forced alpha for light bg: linear2sRGB returns ~0.73 for 0.5
+                auto src_alpha = a_low + (a_high - a_low) * bg_luma; // Lerp alpha.
                 auto dst_alpha = 1.0f - src_alpha;
-                chan.r = (byte)(0.5f + 255.0f * netxs::linear2sRGB(src_lin_r * src_alpha + dst_lin_r * dst_alpha));
-                chan.g = (byte)(0.5f + 255.0f * netxs::linear2sRGB(src_lin_g * src_alpha + dst_lin_g * dst_alpha));
-                chan.b = (byte)(0.5f + 255.0f * netxs::linear2sRGB(src_lin_b * src_alpha + dst_lin_b * dst_alpha));
-                chan.a = (byte)((src_alpha + (chan.a / 255.0f) * dst_alpha) * 255.0f + 0.5f);
+                chan.r = netxs::saturate_cast<byte>(0.5f + 255.0f * netxs::linear2sRGB(src_lin_r * src_alpha + dst_lin_r * dst_alpha));
+                chan.g = netxs::saturate_cast<byte>(0.5f + 255.0f * netxs::linear2sRGB(src_lin_g * src_alpha + dst_lin_g * dst_alpha));
+                chan.b = netxs::saturate_cast<byte>(0.5f + 255.0f * netxs::linear2sRGB(src_lin_b * src_alpha + dst_lin_b * dst_alpha));
+                //auto a_dst = chan.a / 255.0f;
+                //auto out_a = a_srgb + a_dst * (1.0f - a_srgb);
+                //chan.a = netxs::saturate_cast<byte>(out_a * 255.0f + 0.5f);
             }
         }
         // argb: Alpha blending ARGB colors.
