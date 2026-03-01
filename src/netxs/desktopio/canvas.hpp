@@ -180,7 +180,7 @@ namespace netxs
         // argb: Get the token for the indexed color.
         static auto get_indexed_color_token(si32 i)
         {
-            return netxs::letoh(0x00'FF0000 + (i & 0xFF)); // Indexed color format: a=0, r=255, g=0, b=i
+            return netxs::letoh(argb::indexed_color + (i & 0xFF)); // Indexed color format: a=0, r=255, g=0, b=i
         }
         // argb: Set the token for the indexed color.
         static auto set_indexed_color(argb& c, si32 i)
@@ -190,7 +190,7 @@ namespace netxs
         // argb: Check if color id indexed.
         static auto is_indexed_color(argb c)
         {
-            auto ok = (c.token & netxs::letoh(0xFF'FFFF00u)) == netxs::letoh(0x00'FF0000u); // Check if it is in an indexed color format.
+            auto ok = (c.token & netxs::letoh(argb::indexed_mask)) == netxs::letoh(argb::indexed_color); // Check if it is in an indexed color format.
             return ok ? c.chan.b + 1 : 0;
         }
         // argb: Unpack true color.
@@ -589,6 +589,8 @@ namespace netxs
         static constexpr auto default_color = 0x00'FF'FF'FF;
         static constexpr auto active_transparent = 0x01'000000;
         static constexpr auto transparent = 0x00'000000;
+        static constexpr auto indexed_color = 0x00'FF0100u;
+        static constexpr auto indexed_mask = 0xFF'FFFF00u;
 
         template<si32 i>
         static constexpr ui32 _vt16 = // Compile-time value assigning (sorted by enum).
