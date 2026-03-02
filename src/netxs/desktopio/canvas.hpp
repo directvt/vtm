@@ -355,18 +355,29 @@ namespace netxs
                 auto dr_diff = src_lin_r - dst_lin_r;
                 auto dg_diff = src_lin_g - dst_lin_g;
                 auto db_diff = src_lin_b - dst_lin_b;
-                auto color_dist = std::sqrt((dr_diff * dr_diff + dg_diff * dg_diff + db_diff * db_diff) / 3.0f);
-                color_dist = std::lerp(1.0f, color_dist, a_srgb); // Lerp color_dist between 1.0 and color_dist by a_srgb.
+                auto color_dist = std::min(1.0f, std::sqrt(dr_diff * dr_diff + dg_diff * dg_diff + db_diff * db_diff));
+                color_dist = std::lerp(1.0f, color_dist, src_alpha); // Lerp color_dist between 1.0 and color_dist by a_srgb.
+                auto force = 0.3f * (1.0f - color_dist);
 
-                auto contrast_factor = 1.0f;
-                auto force = 0.5f * (1.0f - color_dist);
-                auto srgb_luma = std::max({ dst_lin_r, dst_lin_g, dst_lin_b }); // Make the darkening/lightening behavior identical for all color channels.
-                if (srgb_luma > 0.5f) contrast_factor = 1.0f - force; // Dim.
-                else                  contrast_factor = 1.0f + force; // Highlight.
-
-                chan.r = netxs::saturate_cast<byte>(0.5f + 255.0f * netxs::linear2sRGB((src_lin_r * src_alpha + dst_lin_r * dst_alpha) * contrast_factor));
-                chan.g = netxs::saturate_cast<byte>(0.5f + 255.0f * netxs::linear2sRGB((src_lin_g * src_alpha + dst_lin_g * dst_alpha) * contrast_factor));
-                chan.b = netxs::saturate_cast<byte>(0.5f + 255.0f * netxs::linear2sRGB((src_lin_b * src_alpha + dst_lin_b * dst_alpha) * contrast_factor));
+                auto blended_r = src_lin_r * src_alpha + dst_lin_r * dst_alpha;
+                auto blended_g = src_lin_g * src_alpha + dst_lin_g * dst_alpha;
+                auto blended_b = src_lin_b * src_alpha + dst_lin_b * dst_alpha;
+                if (bg_luma > 0.50f) // Light background -> Darken (moving to black 0.0).
+                {
+                    auto t = 1.0f - force; 
+                    blended_r *= t;
+                    blended_g *= t;
+                    blended_b *= t;
+                }
+                else // Dark background -> Lighten (moving to white 1.0).
+                {
+                    blended_r = std::lerp(blended_r, 1.0f, force);
+                    blended_g = std::lerp(blended_g, 1.0f, force);
+                    blended_b = std::lerp(blended_b, 1.0f, force);
+                }
+                chan.r = netxs::saturate_cast<byte>(0.5f + 255.0f * netxs::linear2sRGB(blended_r));
+                chan.g = netxs::saturate_cast<byte>(0.5f + 255.0f * netxs::linear2sRGB(blended_g));
+                chan.b = netxs::saturate_cast<byte>(0.5f + 255.0f * netxs::linear2sRGB(blended_b));
                 //auto a_dst = chan.a / 255.0f;
                 //auto out_a = a_srgb + a_dst * (1.0f - a_srgb);
                 //chan.a = netxs::saturate_cast<byte>(out_a * 255.0f + 0.5f);
