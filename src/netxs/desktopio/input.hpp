@@ -1715,10 +1715,10 @@ namespace netxs::input
                 auto alt     = s & hids::anyAlt ? 1 : 0;
                 auto l_ctrl  = s & hids::LCtrl  ? 1 : 0;
                 auto r_ctrl  = s & hids::RCtrl  ? 1 : 0;
-                     if (l_ctrl && alt) netxs::_k2 += m.wheelsi > 0 ? 1 : -1; // LCtrl+Alt+Wheel.
-                else if (l_ctrl)        netxs::_k0 += m.wheelsi > 0 ? 1 : -1; // LCtrl+Wheel.
-                else if (alt)           netxs::_k1 += m.wheelsi > 0 ? 1 : -1; // Alt+Wheel.
-                else if (r_ctrl)        netxs::_k3 += m.wheelsi > 0 ? 1 : -1; // RCtrl+Wheel.
+                     if (l_ctrl && alt) { netxs::_k2 += m.wheelsi > 0 ? 1 : -1; log("_k2=", _k2); } // LCtrl+Alt+Wheel.
+                else if (l_ctrl)        { netxs::_k0 += m.wheelsi > 0 ? 1 : -1; log("_k0=", _k0); } // LCtrl+Wheel.
+                else if (alt)           { netxs::_k1 += m.wheelsi > 0 ? 1 : -1; log("_k1=", _k1); } // Alt+Wheel.
+                else if (r_ctrl)        { netxs::_k3 += m.wheelsi > 0 ? 1 : -1; log("_k3=", _k3); } // RCtrl+Wheel.
             }
             #endif
             mouse_disabled = faux;

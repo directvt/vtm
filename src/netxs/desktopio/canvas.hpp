@@ -347,13 +347,26 @@ namespace netxs
                 auto src_lin_b = netxs::sRGB2Linear(c.chan.b);
                 auto bg_luma = 0.2627f * dst_lin_r + 0.6780f * dst_lin_g + 0.0593f * dst_lin_b; //todo use luma
                 auto a_srgb = c.chan.a / 255.0f;
-                auto a_low  = netxs::sRGB2Linear(c.chan.a); // Weaked alpha for dark bg:  sRGB2Linear returns ~0.21 for 0.5
-                auto a_high = netxs::linear2sRGB(a_srgb);   // Forced alpha for light bg: linear2sRGB returns ~0.73 for 0.5
-                auto src_alpha = a_low + (a_high - a_low) * bg_luma; // Lerp alpha.
+                auto a_low  = netxs::sRGB2Linear(c.chan.a); // Dampened alpha for dark bg (~0.21 for a=0.5).
+                auto a_high = netxs::linear2sRGB(a_srgb);   // Boosted alpha for light bg (~0.73 for a=0.5).
+                auto src_alpha = a_low + (a_high - a_low) * bg_luma;
                 auto dst_alpha = 1.0f - src_alpha;
-                chan.r = netxs::saturate_cast<byte>(0.5f + 255.0f * netxs::linear2sRGB(src_lin_r * src_alpha + dst_lin_r * dst_alpha));
-                chan.g = netxs::saturate_cast<byte>(0.5f + 255.0f * netxs::linear2sRGB(src_lin_g * src_alpha + dst_lin_g * dst_alpha));
-                chan.b = netxs::saturate_cast<byte>(0.5f + 255.0f * netxs::linear2sRGB(src_lin_b * src_alpha + dst_lin_b * dst_alpha));
+
+                auto dr_diff = src_lin_r - dst_lin_r;
+                auto dg_diff = src_lin_g - dst_lin_g;
+                auto db_diff = src_lin_b - dst_lin_b;
+                auto color_dist = std::sqrt((dr_diff * dr_diff + dg_diff * dg_diff + db_diff * db_diff) / 3.0f);
+                color_dist = std::lerp(1.0f, color_dist, a_srgb); // Lerp color_dist between 1.0 and color_dist by a_srgb.
+
+                auto contrast_factor = 1.0f;
+                auto force = 0.5f * (1.0f - color_dist);
+                auto srgb_luma = std::max({ dst_lin_r, dst_lin_g, dst_lin_b }); // Make the darkening/lightening behavior identical for all color channels.
+                if (srgb_luma > 0.5f) contrast_factor = 1.0f - force; // Dim.
+                else                  contrast_factor = 1.0f + force; // Highlight.
+
+                chan.r = netxs::saturate_cast<byte>(0.5f + 255.0f * netxs::linear2sRGB((src_lin_r * src_alpha + dst_lin_r * dst_alpha) * contrast_factor));
+                chan.g = netxs::saturate_cast<byte>(0.5f + 255.0f * netxs::linear2sRGB((src_lin_g * src_alpha + dst_lin_g * dst_alpha) * contrast_factor));
+                chan.b = netxs::saturate_cast<byte>(0.5f + 255.0f * netxs::linear2sRGB((src_lin_b * src_alpha + dst_lin_b * dst_alpha) * contrast_factor));
                 //auto a_dst = chan.a / 255.0f;
                 //auto out_a = a_srgb + a_dst * (1.0f - a_srgb);
                 //chan.a = netxs::saturate_cast<byte>(out_a * 255.0f + 0.5f);
