@@ -74,6 +74,350 @@ printf "
 
 ```
 
+#### A test to play around with blending against different color schemes
+
+- Just create `settings.xml` and run `vtm -r term`.
+<details><summary>settings.xml</summary>
+
+- `~/.config/vtm/settings.xml`:
+  ```xml
+  <config>
+      <terminal>
+          <menu>
+              <item*/>
+              <item label=" Clear " script=TerminalClearScrollback|OnLeftClick/>
+              <item label=" \e[38:2::0:255:0mPrint Test\e[m " tooltip=" Click to print a test page ">
+                  <script=OnLeftClick>
+                      terminal.LineWrapMode(0)
+                      terminal.Print("\\n\\nBlending Test\\n\\n")
+                      local function print_color_row(start_code)
+                          terminal.Print("    ")
+                          for i = 0, 7 do
+                              local code = start_code + i
+                              terminal.Print("\\x1b["..code.."m  \\x1b[m")
+                          end
+                      end
+                      print_color_row(40)
+                      terminal.Print("\\n")
+                      print_color_row(100)
+                      terminal.Print("\\n\\n")
+                      local function colored_text(r1, g1, b1, a1, r2, g2, b2, a2)
+                          local text = "  Some Text Fragment  "
+                          local len = #text
+                          local result = "    "
+                          for i = 1, len do
+                              local ratio = (len > 1) and ((i - 1) / (len - 1)) or 0
+                              local r = math.floor(r1 + (r2 - r1) * ratio)
+                              local g = math.floor(g1 + (g2 - g1) * ratio)
+                              local b = math.floor(b1 + (b2 - b1) * ratio)
+                              local a = math.floor(a1 + (a2 - a1) * ratio)
+                              local char = text:sub(i, i)
+                              result = result .. string.format("\\x1b[48:2:%d:%d:%d:%dm%s", r, g, b, a, char)
+                          end
+                          local tail = 64
+                          for i = 1, tail do
+                              local ratio = (i - 1) / (tail - 1)
+                              local a = math.floor(a2 * (1 - ratio))
+                              result = result .. string.format("\\x1b[48:2:%d:%d:%d:%dm ", r2, g2, b2, a)
+                          end
+                          result = result.."\\x1b[m\\n"
+                          return result
+                      end
+                      local alpha = 64
+                      terminal.Print(colored_text(255, 255, 0,   alpha,  255, 0,   0,   alpha), '\\n')
+                      terminal.Print(colored_text(255, 0,   255, alpha,  0,   0,   255, alpha), '\\n')
+                      terminal.Print(colored_text(0,   255, 255, alpha,  0,   255, 0,   alpha), '\\n')
+                      terminal.Print(colored_text(128, 128, 128, alpha,  255, 255, 255, alpha), '\\n')
+                      alpha = 128
+                      terminal.Print(colored_text(255, 255, 0,   alpha,  255, 0,   0,   alpha), '\\n')
+                      terminal.Print(colored_text(255, 0,   255, alpha,  0,   0,   255, alpha), '\\n')
+                      terminal.Print(colored_text(0,   255, 255, alpha,  0,   255, 0,   alpha), '\\n')
+                      terminal.Print(colored_text(128, 128, 128, alpha,  255, 255, 255, alpha), '\\n')
+                      alpha = 254
+                      terminal.Print(colored_text(255, 255, 0,   alpha,  255, 0,   0,   alpha), '\\n')
+                      terminal.Print(colored_text(255, 0,   255, alpha,  0,   0,   255, alpha), '\\n')
+                      terminal.Print(colored_text(0,   255, 255, alpha,  0,   255, 0,   alpha), '\\n')
+                      terminal.Print(colored_text(128, 128, 128, alpha,  255, 255, 255, alpha), '\\n')
+                      terminal.LineWrapMode(1)
+                  </script>
+              </item>
+              <item=Green/>
+              <item=Red/>
+              <item=Blue/>
+              <item=GreenLt/>
+              <item=RedLt/>
+              <item=BlueLt/>
+              <item=WhiteLt/>
+              <item=Yellow/>
+              <item=Magenta/>
+              <item=Cyan/>
+              <item=YellowLt/>
+              <item=MagentaLt/>
+              <item=CyanLt/>
+              <item=CGA/>
+              <item=Ubuntu24/>
+              <item=CampbellPowershell/>
+              <item=OneHalfLight/>
+              <item=OneHalfDark/>
+              <item=SolarizedLight/>
+              <item=SolarizedDark/>
+              <item=TangoLight/>
+              <item=TangoDark/>
+              <item=VSCodeLightModern/>
+              <item=VSCodeDarkModern/>
+              <item=Dimidium/>
+              <item=Ottosson/>
+              <item=Campbell/>
+              <item=Vintage/>
+              <item=DarkPlus/>
+              <item=IBM5153/>
+          </menu>
+      </terminal>
+  </config>
+  <Dimidium label=" Dimidium ">
+      <script=OnLeftClick>
+          terminal.Print("\\x1b]10;rgb:BA/B7/B6\\x07")
+          terminal.Print("\\x1b]11;rgb:14/14/14\\x07")
+          terminal.Print("\\x1b]12;rgb:37/E5/7B\\x07")
+          terminal.Print("\\x1b]4;0;rgb:00/00/00;1;rgb:CF/49/4C;2;rgb:60/B4/42;3;rgb:DB/9C/11;4;rgb:05/75/D8;5;rgb:AF/5E/D2;6;rgb:1D/B6/BB;7;rgb:BA/B7/B6;8;rgb:81/7E/7E;9;rgb:FF/64/3B;10;rgb:37/E5/7B;11;rgb:FC/CD/1A;12;rgb:68/8D/FD;13;rgb:ED/6F/E9;14;rgb:32/E0/FB;15;rgb:DE/E3/E4\\x07")
+      </script>
+  </Dimidium>
+  <Ottosson label=" Ottosson ">
+      <script=OnLeftClick>
+          terminal.Print("\\x1b]10;rgb:BE/BE/BE\\x07")
+          terminal.Print("\\x1b]11;rgb:00/00/00\\x07")
+          terminal.Print("\\x1b]12;rgb:FF/FF/FF\\x07")
+          terminal.Print("\\x1b]4;0;rgb:00/00/00;1;rgb:BE/2C/21;2;rgb:3F/AE/3A;3;rgb:BE/9A/4A;4;rgb:20/4D/BE;5;rgb:BB/54/BE;6;rgb:00/A7/B2;7;rgb:BE/BE/BE;8;rgb:80/80/80;9;rgb:FF/3E/30;10;rgb:58/EA/51;11;rgb:FF/C9/44;12;rgb:2F/6A/FF;13;rgb:FC/74/FF;14;rgb:00/E1/F0;15;rgb:FF/FF/FF\\x07")
+      </script>
+  </Ottosson>
+  <Campbell label=" Campbell ">
+      <script=OnLeftClick>
+          terminal.Print("\\x1b]10;rgb:CC/CC/CC\\x07")
+          terminal.Print("\\x1b]11;rgb:0C/0C/0C\\x07")
+          terminal.Print("\\x1b]12;rgb:FF/FF/FF\\x07")
+          terminal.Print("\\x1b]4;0;rgb:0C/0C/0C;1;rgb:C5/0F/1F;2;rgb:13/A1/0E;3;rgb:C1/9C/00;4;rgb:00/37/DA;5;rgb:88/17/98;6;rgb:3A/96/DD;7;rgb:CC/CC/CC;8;rgb:76/76/76;9;rgb:E7/48/56;10;rgb:16/C6/0C;11;rgb:F9/F1/A5;12;rgb:3B/78/FF;13;rgb:B4/00/9E;14;rgb:61/D6/D6;15;rgb:F2/F2/F2\\x07")
+      </script>
+  </Campbell>
+  <CampbellPowershell label=" Campbell Powershell ">
+      <script=OnLeftClick>
+          terminal.Print("\\x1b]10;rgb:CC/CC/CC\\x07")
+          terminal.Print("\\x1b]11;rgb:01/24/56\\x07")
+          terminal.Print("\\x1b]12;rgb:FF/FF/FF\\x07")
+          terminal.Print("\\x1b]4;0;rgb:0C/0C/0C;1;rgb:C5/0F/1F;2;rgb:13/A1/0E;3;rgb:C1/9C/00;4;rgb:00/37/DA;5;rgb:88/17/98;6;rgb:3A/96/DD;7;rgb:CC/CC/CC;8;rgb:76/76/76;9;rgb:E7/48/56;10;rgb:16/C6/0C;11;rgb:F9/F1/A5;12;rgb:3B/78/FF;13;rgb:B4/00/9E;14;rgb:61/D6/D6;15;rgb:F2/F2/F2\\x07")
+      </script>
+  </CampbellPowershell>
+  <Vintage label=" Vintage ">
+      <script=OnLeftClick>
+          terminal.Print("\\x1b]10;rgb:C0/C0/C0\\x07")
+          terminal.Print("\\x1b]11;rgb:00/00/00\\x07")
+          terminal.Print("\\x1b]12;rgb:FF/FF/FF\\x07")
+          terminal.Print("\\x1b]4;0;rgb:00/00/00;1;rgb:80/00/00;2;rgb:00/80/00;3;rgb:80/80/00;4;rgb:00/00/80;5;rgb:80/00/80;6;rgb:00/80/80;7;rgb:C0/C0/C0;8;rgb:80/80/80;9;rgb:FF/00/00;10;rgb:00/FF/00;11;rgb:FF/FF/00;12;rgb:00/00/FF;13;rgb:FF/00/FF;14;rgb:00/FF/FF;15;rgb:FF/FF/FF\\x07")
+      </script>
+  </Vintage>
+  <OneHalfDark label=" One Half Dark ">
+      <script=OnLeftClick>
+          terminal.Print("\\x1b]10;rgb:DC/DF/E4\\x07")
+          terminal.Print("\\x1b]11;rgb:28/2C/34\\x07")
+          terminal.Print("\\x1b]12;rgb:FF/FF/FF\\x07")
+          terminal.Print("\\x1b]4;0;rgb:28/2C/34;1;rgb:E0/6C/75;2;rgb:98/C3/79;3;rgb:E5/C0/7B;4;rgb:61/AF/EF;5;rgb:C6/78/DD;6;rgb:56/B6/C2;7;rgb:DC/DF/E4;8;rgb:5A/63/74;9;rgb:E0/6C/75;10;rgb:98/C3/79;11;rgb:E5/C0/7B;12;rgb:61/AF/EF;13;rgb:C6/78/DD;14;rgb:56/B6/C2;15;rgb:DC/DF/E4\\x07")
+      </script>
+  </OneHalfDark>
+  <OneHalfLight label=" One Half Light ">
+      <script=OnLeftClick>
+          terminal.Print("\\x1b]10;rgb:38/3A/42\\x07")
+          terminal.Print("\\x1b]11;rgb:FA/FA/FA\\x07")
+          terminal.Print("\\x1b]12;rgb:4F/52/5D\\x07")
+          terminal.Print("\\x1b]4;0;rgb:38/3A/42;1;rgb:E4/56/49;2;rgb:50/A1/4F;3;rgb:C1/83/01;4;rgb:01/84/BC;5;rgb:A6/26/A4;6;rgb:09/97/B3;7;rgb:FA/FA/FA;8;rgb:4F/52/5D;9;rgb:DF/6C/75;10;rgb:98/C3/79;11;rgb:E4/C0/7A;12;rgb:61/AF/EF;13;rgb:C5/77/DD;14;rgb:56/B5/C1;15;rgb:FF/FF/FF\\x07")
+      </script>
+  </OneHalfLight>
+  <SolarizedDark label=" Solarized Dark ">
+      <script=OnLeftClick>
+          terminal.Print("\\x1b]10;rgb:83/94/96\\x07")
+          terminal.Print("\\x1b]11;rgb:00/2B/36\\x07")
+          terminal.Print("\\x1b]12;rgb:FF/FF/FF\\x07")
+          terminal.Print("\\x1b]4;0;rgb:00/2B/36;1;rgb:DC/32/2F;2;rgb:85/99/00;3;rgb:B5/89/00;4;rgb:26/8B/D2;5;rgb:D3/36/82;6;rgb:2A/A1/98;7;rgb:EE/E8/D5;8;rgb:07/36/42;9;rgb:CB/4B/16;10;rgb:58/6E/75;11;rgb:65/7B/83;12;rgb:83/94/96;13;rgb:6C/71/C4;14;rgb:93/A1/A1;15;rgb:FD/F6/E3\\x07")
+      </script>
+  </SolarizedDark>
+  <SolarizedLight label=" Solarized Light ">
+      <script=OnLeftClick>
+          terminal.Print("\\x1b]10;rgb:65/7B/83\\x07")
+          terminal.Print("\\x1b]11;rgb:FD/F6/E3\\x07")
+          terminal.Print("\\x1b]12;rgb:00/2B/36\\x07")
+          terminal.Print("\\x1b]4;0;rgb:00/2B/36;1;rgb:DC/32/2F;2;rgb:85/99/00;3;rgb:B5/89/00;4;rgb:26/8B/D2;5;rgb:D3/36/82;6;rgb:2A/A1/98;7;rgb:EE/E8/D5;8;rgb:07/36/42;9;rgb:CB/4B/16;10;rgb:58/6E/75;11;rgb:65/7B/83;12;rgb:83/94/96;13;rgb:6C/71/C4;14;rgb:93/A1/A1;15;rgb:FD/F6/E3\\x07")
+      </script>
+  </SolarizedLight>
+  <TangoDark label=" Tango Dark ">
+      <script=OnLeftClick>
+          terminal.Print("\\x1b]10;rgb:D3/D7/CF\\x07")
+          terminal.Print("\\x1b]11;rgb:00/00/00\\x07")
+          terminal.Print("\\x1b]12;rgb:FF/FF/FF\\x07")
+          terminal.Print("\\x1b]4;0;rgb:00/00/00;1;rgb:CC/00/00;2;rgb:4E/9A/06;3;rgb:C4/A0/00;4;rgb:34/65/A4;5;rgb:75/50/7B;6;rgb:06/98/9A;7;rgb:D3/D7/CF;8;rgb:55/57/53;9;rgb:EF/29/29;10;rgb:8A/E2/34;11;rgb:FC/E9/4F;12;rgb:72/9F/CF;13;rgb:AD/7F/A8;14;rgb:34/E2/E2;15;rgb:EE/EE/EC\\x07")
+      </script>
+  </TangoDark>
+  <TangoLight label=" Tango Light ">
+      <script=OnLeftClick>
+          terminal.Print("\\x1b]10;rgb:55/57/53\\x07")
+          terminal.Print("\\x1b]11;rgb:FF/FF/FF\\x07")
+          terminal.Print("\\x1b]12;rgb:00/00/00\\x07")
+          terminal.Print("\\x1b]4;0;rgb:00/00/00;1;rgb:CC/00/00;2;rgb:4E/9A/06;3;rgb:C4/A0/00;4;rgb:34/65/A4;5;rgb:75/50/7B;6;rgb:06/98/9A;7;rgb:D3/D7/CF;8;rgb:55/57/53;9;rgb:EF/29/29;10;rgb:8A/E2/34;11;rgb:FC/E9/4F;12;rgb:72/9F/CF;13;rgb:AD/7F/A8;14;rgb:34/E2/E2;15;rgb:EE/EE/EC\\x07")
+      </script>
+  </TangoLight>
+  <DarkPlus label=" Dark+ ">
+      <script=OnLeftClick>
+          terminal.Print("\\x1b]10;rgb:CC/CC/CC\\x07")
+          terminal.Print("\\x1b]11;rgb:1E/1E/1E\\x07")
+          terminal.Print("\\x1b]12;rgb:80/80/80\\x07")
+          terminal.Print("\\x1b]4;0;rgb:00/00/00;1;rgb:CD/31/31;2;rgb:0D/BC/79;3;rgb:E5/E5/10;4;rgb:24/72/C8;5;rgb:BC/3F/BC;6;rgb:11/A8/CD;7;rgb:E5/E5/E5;8;rgb:66/66/66;9;rgb:F1/4C/4C;10;rgb:23/D1/8B;11;rgb:F5/F5/43;12;rgb:3B/8E/EA;13;rgb:D6/70/D6;14;rgb:29/B8/DB;15;rgb:E5/E5/E5\\x07")
+      </script>
+  </DarkPlus>
+  <VSCodeDarkModern label=" VSCode Dark Modern ">
+      <script=OnLeftClick>
+          terminal.Print("\\x1b]10;rgb:CC/CC/CC\\x07")
+          terminal.Print("\\x1b]11;rgb:1F/1F/1F\\x07")
+          terminal.Print("\\x1b]12;rgb:FF/FF/FF\\x07")
+          terminal.Print("\\x1b]4;0;rgb:00/00/00;1;rgb:CD/31/31;2;rgb:0D/BC/79;3;rgb:E5/E5/10;4;rgb:24/72/C8;5;rgb:BC/3F/BC;6;rgb:11/A8/CD;7;rgb:E5/E5/E5;8;rgb:66/66/66;9;rgb:F1/4C/4C;10;rgb:23/D1/8B;11;rgb:F5/F5/43;12;rgb:3B/8E/EA;13;rgb:D6/70/D6;14;rgb:29/B8/DB;15;rgb:E5/E5/E5\\x07")
+      </script>
+  </VSCodeDarkModern>
+  <VSCodeLightModern label=" VSCode Light Modern ">
+      <script=OnLeftClick>
+          terminal.Print("\\x1b]10;rgb:3B/3B/3B\\x07")
+          terminal.Print("\\x1b]11;rgb:FF/FF/FF\\x07")
+          terminal.Print("\\x1b]12;rgb:00/00/00\\x07")
+          terminal.Print("\\x1b]4;0;rgb:00/00/00;1;rgb:CD/31/31;2;rgb:00/BC/00;3;rgb:94/98/00;4;rgb:04/51/A5;5;rgb:BC/05/BC;6;rgb:05/98/BC;7;rgb:55/55/55;8;rgb:66/66/66;9;rgb:CD/31/31;10;rgb:14/CE/14;11;rgb:B5/BA/00;12;rgb:04/51/A5;13;rgb:BC/05/BC;14;rgb:05/98/BC;15;rgb:A5/A5/A5\\x07")
+      </script>
+  </VSCodeLightModern>
+  <CGA label=" CGA ">
+      <script=OnLeftClick>
+          terminal.Print("\\x1b]10;rgb:AA/AA/AA\\x07")
+          terminal.Print("\\x1b]11;rgb:00/00/00\\x07")
+          terminal.Print("\\x1b]12;rgb:00/AA/00\\x07")
+          terminal.Print("\\x1b]4;0;rgb:00/00/00;1;rgb:AA/00/00;2;rgb:00/AA/00;3;rgb:AA/55/00;4;rgb:00/00/AA;5;rgb:AA/00/AA;6;rgb:00/AA/AA;7;rgb:AA/AA/AA;8;rgb:55/55/55;9;rgb:FF/55/55;10;rgb:55/FF/55;11;rgb:FF/FF/55;12;rgb:55/55/FF;13;rgb:FF/55/FF;14;rgb:55/FF/FF;15;rgb:FF/FF/FF\\x07")
+      </script>
+  </CGA>
+  <IBM5153 label=" IBM 5153 ">
+      <script=OnLeftClick>
+          terminal.Print("\\x1b]10;rgb:AA/AA/AA\\x07")
+          terminal.Print("\\x1b]11;rgb:00/00/00\\x07")
+          terminal.Print("\\x1b]12;rgb:00/AA/00\\x07")
+          terminal.Print("\\x1b]4;0;rgb:00/00/00;1;rgb:AA/00/00;2;rgb:00/AA/00;3;rgb:C4/7E/00;4;rgb:00/00/AA;5;rgb:AA/00/AA;6;rgb:00/AA/AA;7;rgb:AA/AA/AA;8;rgb:55/55/55;9;rgb:FF/55/55;10;rgb:55/FF/55;11;rgb:FF/FF/55;12;rgb:55/55/FF;13;rgb:FF/55/FF;14;rgb:55/FF/FF;15;rgb:FF/FF/FF\\x07")
+      </script>
+  </IBM5153>
+  <Ubuntu24 label=" Ubuntu 24.04 ">
+      <script=OnLeftClick>
+          terminal.Print("\\x1b]10;rgb:FF/FF/FF\\x07")
+          terminal.Print("\\x1b]11;rgb:30/0A/24\\x07")
+          terminal.Print("\\x1b]12;rgb:FF/FF/FF\\x07")
+          terminal.Print("\\x1b]4;0;rgb:17/14/21;1;rgb:C2/1A/23;2;rgb:26/A2/69;3;rgb:A2/73/4C;4;rgb:00/37/DA;5;rgb:88/17/98;6;rgb:3A/96/DD;7;rgb:CC/CC/CC;8;rgb:76/76/76;9;rgb:C0/1C/28;10;rgb:26/A2/69;11;rgb:A2/73/4C;12;rgb:08/45/8F;13;rgb:A3/47/BA;14;rgb:2C/9F/B3;15;rgb:F2/F2/F2\\x07")
+      </script>
+  </Ubuntu24>
+  <Red label=" Red ">
+      <script=OnLeftClick>
+          terminal.Print("\\x1b]10;rgb:FF/FF/FF\\x07")
+          terminal.Print("\\x1b]11;rgb:80/00/00\\x07")
+          terminal.Print("\\x1b]12;rgb:FF/FF/FF\\x07")
+          terminal.Print("\\x1b]4;0;rgb:17/14/21;1;rgb:C2/1A/23;2;rgb:26/A2/69;3;rgb:A2/73/4C;4;rgb:00/37/DA;5;rgb:88/17/98;6;rgb:3A/96/DD;7;rgb:CC/CC/CC;8;rgb:76/76/76;9;rgb:C0/1C/28;10;rgb:26/A2/69;11;rgb:A2/73/4C;12;rgb:08/45/8F;13;rgb:A3/47/BA;14;rgb:2C/9F/B3;15;rgb:F2/F2/F2\\x07")
+      </script>
+  </Red>
+  <Green label=" Green ">
+      <script=OnLeftClick>
+          terminal.Print("\\x1b]10;rgb:FF/FF/FF\\x07")
+          terminal.Print("\\x1b]11;rgb:00/80/00\\x07")
+          terminal.Print("\\x1b]12;rgb:FF/FF/FF\\x07")
+          terminal.Print("\\x1b]4;0;rgb:17/14/21;1;rgb:C2/1A/23;2;rgb:26/A2/69;3;rgb:A2/73/4C;4;rgb:00/37/DA;5;rgb:88/17/98;6;rgb:3A/96/DD;7;rgb:CC/CC/CC;8;rgb:76/76/76;9;rgb:C0/1C/28;10;rgb:26/A2/69;11;rgb:A2/73/4C;12;rgb:08/45/8F;13;rgb:A3/47/BA;14;rgb:2C/9F/B3;15;rgb:F2/F2/F2\\x07")
+      </script>
+  </Green>
+  <Blue label=" Blue ">
+      <script=OnLeftClick>
+          terminal.Print("\\x1b]10;rgb:FF/FF/FF\\x07")
+          terminal.Print("\\x1b]11;rgb:00/00/80\\x07")
+          terminal.Print("\\x1b]12;rgb:FF/FF/FF\\x07")
+          terminal.Print("\\x1b]4;0;rgb:17/14/21;1;rgb:C2/1A/23;2;rgb:26/A2/69;3;rgb:A2/73/4C;4;rgb:00/37/DA;5;rgb:88/17/98;6;rgb:3A/96/DD;7;rgb:CC/CC/CC;8;rgb:76/76/76;9;rgb:C0/1C/28;10;rgb:26/A2/69;11;rgb:A2/73/4C;12;rgb:08/45/8F;13;rgb:A3/47/BA;14;rgb:2C/9F/B3;15;rgb:F2/F2/F2\\x07")
+      </script>
+  </Blue>
+  <RedLt label=" RedLt ">
+      <script=OnLeftClick>
+          terminal.Print("\\x1b]10;rgb:FF/FF/FF\\x07")
+          terminal.Print("\\x1b]11;rgb:FF/00/00\\x07")
+          terminal.Print("\\x1b]12;rgb:FF/FF/FF\\x07")
+          terminal.Print("\\x1b]4;0;rgb:17/14/21;1;rgb:C2/1A/23;2;rgb:26/A2/69;3;rgb:A2/73/4C;4;rgb:00/37/DA;5;rgb:88/17/98;6;rgb:3A/96/DD;7;rgb:CC/CC/CC;8;rgb:76/76/76;9;rgb:C0/1C/28;10;rgb:26/A2/69;11;rgb:A2/73/4C;12;rgb:08/45/8F;13;rgb:A3/47/BA;14;rgb:2C/9F/B3;15;rgb:F2/F2/F2\\x07")
+      </script>
+  </RedLt>
+  <GreenLt label=" GreenLt ">
+      <script=OnLeftClick>
+          terminal.Print("\\x1b]10;rgb:FF/FF/FF\\x07")
+          terminal.Print("\\x1b]11;rgb:00/FF/00\\x07")
+          terminal.Print("\\x1b]12;rgb:FF/FF/FF\\x07")
+          terminal.Print("\\x1b]4;0;rgb:17/14/21;1;rgb:C2/1A/23;2;rgb:26/A2/69;3;rgb:A2/73/4C;4;rgb:00/37/DA;5;rgb:88/17/98;6;rgb:3A/96/DD;7;rgb:CC/CC/CC;8;rgb:76/76/76;9;rgb:C0/1C/28;10;rgb:26/A2/69;11;rgb:A2/73/4C;12;rgb:08/45/8F;13;rgb:A3/47/BA;14;rgb:2C/9F/B3;15;rgb:F2/F2/F2\\x07")
+      </script>
+  </GreenLt>
+  <BlueLt label=" BlueLt ">
+      <script=OnLeftClick>
+          terminal.Print("\\x1b]10;rgb:FF/FF/FF\\x07")
+          terminal.Print("\\x1b]11;rgb:00/00/FF\\x07")
+          terminal.Print("\\x1b]12;rgb:FF/FF/FF\\x07")
+          terminal.Print("\\x1b]4;0;rgb:17/14/21;1;rgb:C2/1A/23;2;rgb:26/A2/69;3;rgb:A2/73/4C;4;rgb:00/37/DA;5;rgb:88/17/98;6;rgb:3A/96/DD;7;rgb:CC/CC/CC;8;rgb:76/76/76;9;rgb:C0/1C/28;10;rgb:26/A2/69;11;rgb:A2/73/4C;12;rgb:08/45/8F;13;rgb:A3/47/BA;14;rgb:2C/9F/B3;15;rgb:F2/F2/F2\\x07")
+      </script>
+  </BlueLt>
+  <WhiteLt label=" WhiteLt ">
+      <script=OnLeftClick>
+          terminal.Print("\\x1b]10;rgb:00/00/00\\x07")
+          terminal.Print("\\x1b]11;rgb:FF/FF/FF\\x07")
+          terminal.Print("\\x1b]12;rgb:00/00/00\\x07")
+          terminal.Print("\\x1b]4;0;rgb:17/14/21;1;rgb:C2/1A/23;2;rgb:26/A2/69;3;rgb:A2/73/4C;4;rgb:00/37/DA;5;rgb:88/17/98;6;rgb:3A/96/DD;7;rgb:CC/CC/CC;8;rgb:76/76/76;9;rgb:C0/1C/28;10;rgb:26/A2/69;11;rgb:A2/73/4C;12;rgb:08/45/8F;13;rgb:A3/47/BA;14;rgb:2C/9F/B3;15;rgb:F2/F2/F2\\x07")
+      </script>
+  </WhiteLt>
+  <YellowLt label=" YellowLt ">
+      <script=OnLeftClick>
+          terminal.Print("\\x1b]10;rgb:00/00/00\\x07")
+          terminal.Print("\\x1b]11;rgb:FF/FF/00\\x07")
+          terminal.Print("\\x1b]12;rgb:00/00/00\\x07")
+          terminal.Print("\\x1b]4;0;rgb:17/14/21;1;rgb:C2/1A/23;2;rgb:26/A2/69;3;rgb:A2/73/4C;4;rgb:00/37/DA;5;rgb:88/17/98;6;rgb:3A/96/DD;7;rgb:CC/CC/CC;8;rgb:76/76/76;9;rgb:C0/1C/28;10;rgb:26/A2/69;11;rgb:A2/73/4C;12;rgb:08/45/8F;13;rgb:A3/47/BA;14;rgb:2C/9F/B3;15;rgb:F2/F2/F2\\x07")
+      </script>
+  </YellowLt>
+  <MagentaLt label=" MagentaLt ">
+      <script=OnLeftClick>
+          terminal.Print("\\x1b]10;rgb:00/00/00\\x07")
+          terminal.Print("\\x1b]11;rgb:FF/00/FF\\x07")
+          terminal.Print("\\x1b]12;rgb:00/00/00\\x07")
+          terminal.Print("\\x1b]4;0;rgb:17/14/21;1;rgb:C2/1A/23;2;rgb:26/A2/69;3;rgb:A2/73/4C;4;rgb:00/37/DA;5;rgb:88/17/98;6;rgb:3A/96/DD;7;rgb:CC/CC/CC;8;rgb:76/76/76;9;rgb:C0/1C/28;10;rgb:26/A2/69;11;rgb:A2/73/4C;12;rgb:08/45/8F;13;rgb:A3/47/BA;14;rgb:2C/9F/B3;15;rgb:F2/F2/F2\\x07")
+      </script>
+  </MagentaLt>
+  <CyanLt label=" CyanLt ">
+      <script=OnLeftClick>
+          terminal.Print("\\x1b]10;rgb:00/00/00\\x07")
+          terminal.Print("\\x1b]11;rgb:00/FF/FF\\x07")
+          terminal.Print("\\x1b]12;rgb:00/00/00\\x07")
+          terminal.Print("\\x1b]4;0;rgb:17/14/21;1;rgb:C2/1A/23;2;rgb:26/A2/69;3;rgb:A2/73/4C;4;rgb:00/37/DA;5;rgb:88/17/98;6;rgb:3A/96/DD;7;rgb:CC/CC/CC;8;rgb:76/76/76;9;rgb:C0/1C/28;10;rgb:26/A2/69;11;rgb:A2/73/4C;12;rgb:08/45/8F;13;rgb:A3/47/BA;14;rgb:2C/9F/B3;15;rgb:F2/F2/F2\\x07")
+      </script>
+  </CyanLt>
+  <Yellow label=" Yellow ">
+      <script=OnLeftClick>
+          terminal.Print("\\x1b]10;rgb:00/00/00\\x07")
+          terminal.Print("\\x1b]11;rgb:80/80/00\\x07")
+          terminal.Print("\\x1b]12;rgb:00/00/00\\x07")
+          terminal.Print("\\x1b]4;0;rgb:17/14/21;1;rgb:C2/1A/23;2;rgb:26/A2/69;3;rgb:A2/73/4C;4;rgb:00/37/DA;5;rgb:88/17/98;6;rgb:3A/96/DD;7;rgb:CC/CC/CC;8;rgb:76/76/76;9;rgb:C0/1C/28;10;rgb:26/A2/69;11;rgb:A2/73/4C;12;rgb:08/45/8F;13;rgb:A3/47/BA;14;rgb:2C/9F/B3;15;rgb:F2/F2/F2\\x07")
+      </script>
+  </Yellow>
+  <Magenta label=" Magenta ">
+      <script=OnLeftClick>
+          terminal.Print("\\x1b]10;rgb:00/00/00\\x07")
+          terminal.Print("\\x1b]11;rgb:80/00/80\\x07")
+          terminal.Print("\\x1b]12;rgb:00/00/00\\x07")
+          terminal.Print("\\x1b]4;0;rgb:17/14/21;1;rgb:C2/1A/23;2;rgb:26/A2/69;3;rgb:A2/73/4C;4;rgb:00/37/DA;5;rgb:88/17/98;6;rgb:3A/96/DD;7;rgb:CC/CC/CC;8;rgb:76/76/76;9;rgb:C0/1C/28;10;rgb:26/A2/69;11;rgb:A2/73/4C;12;rgb:08/45/8F;13;rgb:A3/47/BA;14;rgb:2C/9F/B3;15;rgb:F2/F2/F2\\x07")
+      </script>
+  </Magenta>
+  <Cyan label=" Cyan ">
+      <script=OnLeftClick>
+          terminal.Print("\\x1b]10;rgb:00/00/00\\x07")
+          terminal.Print("\\x1b]11;rgb:00/80/80\\x07")
+          terminal.Print("\\x1b]12;rgb:00/00/00\\x07")
+          terminal.Print("\\x1b]4;0;rgb:17/14/21;1;rgb:C2/1A/23;2;rgb:26/A2/69;3;rgb:A2/73/4C;4;rgb:00/37/DA;5;rgb:88/17/98;6;rgb:3A/96/DD;7;rgb:CC/CC/CC;8;rgb:76/76/76;9;rgb:C0/1C/28;10;rgb:26/A2/69;11;rgb:A2/73/4C;12;rgb:08/45/8F;13;rgb:A3/47/BA;14;rgb:2C/9F/B3;15;rgb:F2/F2/F2\\x07")
+      </script>
+  </Cyan>
+  ```
+
+</details>
+
 ### Independent text-only and color-only output
 
 #### Text-only output
