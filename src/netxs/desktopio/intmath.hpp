@@ -390,6 +390,54 @@ namespace netxs
         }
     };
 
+    // intmath: sRGB to Linear (gamma 2.2)
+    auto sRGB2Linear(fp32 c)
+    {
+        return c <= 0.04045f ? c / 12.92f
+                             : std::pow((c + 0.055f) / 1.055f, 2.4f);
+    }
+    static auto sRGB2Linear_lut = []
+    {
+        auto i = 0.0f;
+        auto lut = std::array<fp32, 256>{};
+        for (auto& v : lut) v = netxs::sRGB2Linear(i++ / 255.0f);
+        return lut;
+    }();
+    auto sRGB2Linear(byte c)
+    {
+        return netxs::sRGB2Linear_lut[c];
+    }
+
+    // intmath: Calc Linear to sRGB (gamma 2.2)
+    auto calc_linear2sRGB(fp32 c)
+    {
+        return c <= 0.0031308f ? 12.92f * c
+                               : 1.055f * std::pow(c, 1.f / 2.4f) - 0.055f;
+    }
+    static constexpr auto linear2sRGB_lut_size = 1024;
+    static auto linear2sRGB_lut = []
+    {
+        auto i = 0.0f;
+        auto lut = std::array<fp32, linear2sRGB_lut_size>{};
+        for (auto& v : lut)
+        {
+            v = netxs::calc_linear2sRGB(i++ / (linear2sRGB_lut_size - 1));
+        }
+        return lut;
+    }();
+    // intmath: Get Linear to sRGB via lut (gamma 2.2)
+    auto linear2sRGB(fp32 c)
+    {
+        auto x = std::clamp(c, 0.0f, 1.0f) * (linear2sRGB_lut_size - 1);
+        auto i = (si32)x;
+        if (i >= linear2sRGB_lut_size - 1)
+        {
+            return linear2sRGB_lut.back();
+        }
+        auto fraction = x - (fp32)i;
+        return std::lerp(linear2sRGB_lut[i], linear2sRGB_lut[i + 1], fraction);
+    }
+
     template<class T1, class T2, class T3 = T1, class = std::enable_if_t<std::is_arithmetic_v<T1>
                                                                       && std::is_arithmetic_v<T2>
                                                                       && std::is_arithmetic_v<T3>>>

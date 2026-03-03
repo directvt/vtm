@@ -180,7 +180,7 @@ namespace netxs
         // argb: Get the token for the indexed color.
         static auto get_indexed_color_token(si32 i)
         {
-            return netxs::letoh(0x00'FF0000 + (i & 0xFF)); // Indexed color format: a=0, r=255, g=0, b=i
+            return netxs::letoh(argb::indexed_color + (i & 0xFF)); // Indexed color format: a=0, r=255, g=0, b=i
         }
         // argb: Set the token for the indexed color.
         static auto set_indexed_color(argb& c, si32 i)
@@ -190,7 +190,7 @@ namespace netxs
         // argb: Check if color id indexed.
         static auto is_indexed_color(argb c)
         {
-            auto ok = (c.token & netxs::letoh(0xFF'FFFF00u)) == netxs::letoh(0x00'FF0000u); // Check if it is in an indexed color format.
+            auto ok = (c.token & netxs::letoh(argb::indexed_mask)) == netxs::letoh(argb::indexed_color); // Check if it is in an indexed color format.
             return ok ? c.chan.b + 1 : 0;
         }
         // argb: Unpack true color.
@@ -270,6 +270,7 @@ namespace netxs
         // argb: Colourimetric (perceptual luminance-preserving) conversion to greyscale.
         constexpr auto luma() const
         {
+            //todo this requires conversion to the linear rgb space (error ~20-30%)
             auto r = (token >> 16) & 0xFF;
             auto g = (token >>  8) & 0xFF;
             auto b = (token >>  0) & 0xFF;
@@ -329,6 +330,70 @@ namespace netxs
                 //if (!chan.a) chan.a = c.chan.a;
             }
         }
+        // argb: Alpha blending ARGB colors via linear RGB space.
+        void inline mix_linear(argb c, si32 cache_index = 0)
+        {
+            if (c.chan.a == 0xFF)
+            {
+                chan = c.chan;
+            }
+            else if (c.chan.a)
+            {
+                static thread_local auto cache = std::array<std::tuple<argb, argb, argb>, 3>{};
+                cache_index &= 3;
+                if (*this == std::get<0>(cache[cache_index]) && c == std::get<1>(cache[cache_index]))
+                {
+                    *this = std::get<2>(cache[cache_index]);
+                    return;
+                }
+                std::get<0>(cache[cache_index]) = *this;
+                std::get<1>(cache[cache_index]) = c;
+
+                auto dst_lin_r = netxs::sRGB2Linear(chan.r);
+                auto dst_lin_g = netxs::sRGB2Linear(chan.g);
+                auto dst_lin_b = netxs::sRGB2Linear(chan.b);
+                auto src_lin_r = netxs::sRGB2Linear(c.chan.r);
+                auto src_lin_g = netxs::sRGB2Linear(c.chan.g);
+                auto src_lin_b = netxs::sRGB2Linear(c.chan.b);
+                auto bg_luma = 0.2627f * dst_lin_r + 0.6780f * dst_lin_g + 0.0593f * dst_lin_b; //todo use luma
+                auto a_srgb = c.chan.a / 255.0f;
+                auto a_low  = netxs::sRGB2Linear(c.chan.a); // Dampened alpha for dark bg (~0.21 for a=0.5).
+                auto a_high = netxs::linear2sRGB(a_srgb);   // Boosted alpha for light bg (~0.73 for a=0.5).
+                auto src_alpha = a_low + (a_high - a_low) * bg_luma;
+                auto dst_alpha = 1.0f - src_alpha;
+
+                auto dr_diff = src_lin_r - dst_lin_r;
+                auto dg_diff = src_lin_g - dst_lin_g;
+                auto db_diff = src_lin_b - dst_lin_b;
+                auto color_dist = std::min(1.0f, std::sqrt(dr_diff * dr_diff + dg_diff * dg_diff + db_diff * db_diff));
+                color_dist = std::lerp(1.0f, color_dist, src_alpha); // Lerp color_dist between 1.0 and color_dist by a_srgb.
+                auto force = 0.3f * (1.0f - color_dist);
+
+                auto blended_r = src_lin_r * src_alpha + dst_lin_r * dst_alpha;
+                auto blended_g = src_lin_g * src_alpha + dst_lin_g * dst_alpha;
+                auto blended_b = src_lin_b * src_alpha + dst_lin_b * dst_alpha;
+                if (bg_luma > 0.50f) // Light background -> Darken (moving to black 0.0).
+                {
+                    auto t = 1.0f - force; 
+                    blended_r *= t;
+                    blended_g *= t;
+                    blended_b *= t;
+                }
+                else // Dark background -> Lighten (moving to white 1.0).
+                {
+                    blended_r = std::lerp(blended_r, 1.0f, force);
+                    blended_g = std::lerp(blended_g, 1.0f, force);
+                    blended_b = std::lerp(blended_b, 1.0f, force);
+                }
+                chan.r = netxs::saturate_cast<byte>(0.5f + 255.0f * netxs::linear2sRGB(blended_r));
+                chan.g = netxs::saturate_cast<byte>(0.5f + 255.0f * netxs::linear2sRGB(blended_g));
+                chan.b = netxs::saturate_cast<byte>(0.5f + 255.0f * netxs::linear2sRGB(blended_b));
+                //auto a_dst = chan.a / 255.0f;
+                //auto out_a = a_srgb + a_dst * (1.0f - a_srgb);
+                //chan.a = netxs::saturate_cast<byte>(out_a * 255.0f + 0.5f);
+                std::get<2>(cache[cache_index]) = *this;
+            }
+        }
         // argb: Alpha blending ARGB colors.
         void inline mix(argb c)
         {
@@ -339,7 +404,6 @@ namespace netxs
             else if (c.chan.a)
             {
                 //todo consider premultiplied alpha
-                //todo do it in linear rgb at least
                 auto a1 = ui32{ chan.a };
                 auto a2 = ui32{ c.chan.a };
                 auto a = ((a2 + a1) << 8) - a1 * a2;
@@ -589,6 +653,8 @@ namespace netxs
         static constexpr auto default_color = 0x00'FF'FF'FF;
         static constexpr auto active_transparent = 0x01'000000;
         static constexpr auto transparent = 0x00'000000;
+        static constexpr auto indexed_color = 0x00'FF0100u;
+        static constexpr auto indexed_mask = 0xFF'FFFF00u;
 
         template<si32 i>
         static constexpr ui32 _vt16 = // Compile-time value assigning (sorted by enum).
@@ -929,32 +995,20 @@ namespace netxs
         void operator -= (irgb const& c) { r -= c.r; g -= c.g; b -= c.b; a -= c.a; }
         void operator += (argb c) requires(std::is_integral_v<T>) { r += c.chan.r; g += c.chan.g; b += c.chan.b; a += c.chan.a; }
         void operator -= (argb c) requires(std::is_integral_v<T>) { r -= c.chan.r; g -= c.chan.g; b -= c.chan.b; a -= c.chan.a; }
-        // irgb: sRGB to Linear (g = 2.4)
-        static auto sRGB2Linear(fp32 c)
-        {
-            return c <= 0.04045f ? c / 12.92f
-                                 : std::pow((c + 0.055f) / 1.055f, 2.4f);
-        }
-        // irgb: Linear to sRGB (g = 2.4)
-        static auto linear2sRGB(fp32 c)
-        {
-            return c <= 0.0031308f ? 12.92f * c
-                                   : 1.055f * std::pow(c, 1.f / 2.4f) - 0.055f;
-        }
         // irgb: sRGB to linear (g = 2.4)
         irgb& sRGB2Linear() requires(std::is_floating_point_v<T>)
         {
-            r = sRGB2Linear(r);
-            g = sRGB2Linear(g);
-            b = sRGB2Linear(b);
+            r = netxs::sRGB2Linear(r);
+            g = netxs::sRGB2Linear(g);
+            b = netxs::sRGB2Linear(b);
             return *this;
         }
         // irgb: Linear to sRGB (g = 2.4)
         irgb& linear2sRGB() requires(std::is_floating_point_v<T>)
         {
-            r = linear2sRGB(r);
-            g = linear2sRGB(g);
-            b = linear2sRGB(b);
+            r = netxs::linear2sRGB(r);
+            g = netxs::linear2sRGB(g);
+            b = netxs::linear2sRGB(b);
             return *this;
         }
         // irgb: Premultiply alpha (floating point only).
