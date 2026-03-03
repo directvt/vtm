@@ -339,6 +339,16 @@ namespace netxs
             }
             else if (c.chan.a)
             {
+                static thread_local auto cache = std::array<std::tuple<argb, argb, argb>, 3>{};
+                cache_index &= 3;
+                if (*this == std::get<0>(cache[cache_index]) && c == std::get<1>(cache[cache_index]))
+                {
+                    *this = std::get<2>(cache[cache_index]);
+                    return;
+                }
+                std::get<0>(cache[cache_index]) = *this;
+                std::get<1>(cache[cache_index]) = c;
+
                 auto dst_lin_r = netxs::sRGB2Linear(chan.r);
                 auto dst_lin_g = netxs::sRGB2Linear(chan.g);
                 auto dst_lin_b = netxs::sRGB2Linear(chan.b);
@@ -381,6 +391,7 @@ namespace netxs
                 //auto a_dst = chan.a / 255.0f;
                 //auto out_a = a_srgb + a_dst * (1.0f - a_srgb);
                 //chan.a = netxs::saturate_cast<byte>(out_a * 255.0f + 0.5f);
+                std::get<2>(cache[cache_index]) = *this;
             }
         }
         // argb: Alpha blending ARGB colors.
