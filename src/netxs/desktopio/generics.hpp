@@ -1113,7 +1113,7 @@ namespace netxs::generics
         std::vector<T>    thing_vec; // Object set (dense).
         std::vector<ui32> index_map; // Object order (sparse).
         std::vector<ui32> erase_map; // Reverse index.
-        ui32              empty_key{ -1 };
+        ui32              empty_key{ ui32max };
 
         template<bool IsConst>
         struct Iterator
@@ -1147,7 +1147,7 @@ namespace netxs::generics
         ui32 insert(T val)
         {
             auto key = ui32{};
-            if (empty_key == (ui32)-1) // Grow.
+            if (empty_key == ui32max) // Grow.
             {
                 key = (ui32)index_map.size();
                 index_map.push_back((ui32)thing_vec.size());
@@ -1186,7 +1186,7 @@ namespace netxs::generics
             thing_vec.clear();
             index_map.clear();
             erase_map.clear();
-            empty_key = (ui32)-1;
+            empty_key = ui32max;
         }
     };
 }

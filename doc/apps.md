@@ -63,13 +63,13 @@ The alpha transparency can be set from 0 to 255 (in the RGBA sense) for both the
 An example of using color brushes that are independent of the global background:
 
 ```bash
-printf "
-\e[48:2::0:0:0:0m \e[35b\n  \e[48:2::0:0:255:128m Some Text Fragment \e[48:2::0:0:0:0m  
-\e[48:2::0:0:0:0m \e[35b\n  \e[48:2::0:255:0:128m Some Text Fragment \e[48:2::0:0:0:0m  
-\e[48:2::0:0:0:0m \e[35b\n  \e[48:2::255:0:0:128m Some Text Fragment \e[48:2::0:0:0:0m  
-\e[48:2::0:0:0:0m \e[35b\n  \e[48:2::0:255:255:128m Some Text Fragment \e[48:2::0:0:0:0m  
-\e[48:2::0:0:0:0m \e[35b\n  \e[48:2::255:255:0:128m Some Text Fragment \e[48:2::0:0:0:0m  
-\e[48:2::0:0:0:0m \e[35b\n  \e[48:2::255:0:255:128m Some Text Fragment \e[48:2::0:0:0:0m  
+printf "\e[39;49m
+ \e[35b\n  \e[48:2::0:0:255:128m Some Text Fragment \e[49m  
+ \e[35b\n  \e[48:2::0:255:0:128m Some Text Fragment \e[49m  
+ \e[35b\n  \e[48:2::255:0:0:128m Some Text Fragment \e[49m  
+ \e[35b\n  \e[48:2::0:255:255:128m Some Text Fragment \e[49m  
+ \e[35b\n  \e[48:2::255:255:0:128m Some Text Fragment \e[49m  
+ \e[35b\n  \e[48:2::255:0:255:128m Some Text Fragment \e[49m  
  \e[36b\n\e[m"
 
 ```

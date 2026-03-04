@@ -2513,13 +2513,26 @@ namespace netxs::gui
                 }
             }
         }
+        si32 prev_window_state = winstate::normal;
+        bool ontop_state = faux;
+        void restore_if_minimized() // Restore focused window.
+        {
+            if (fsmode == winstate::minimized) // We are restoring from an implicit minimized state.
+            {
+                auto restored_state = std::exchange(prev_window_state, winstate::normal);
+                set_state(restored_state);
+                window_make_topmost(ontop_state); // Restore AlwaysOnTop state.
+            }
+        }
         void check_window(twod coor)
         {
+            if (coor != layer::hidden) restore_if_minimized(); // Restore unfocused window.
             if (fsmode != winstate::normal) return;
-            if (coor == master.hidden) // We are in an implicit hidden state caused by Win+D or so.
+            if (coor == layer::hidden) // We are going to an implicit hidden state caused by Win+D or so.
             {
                 log("%%Set window to minimized state (implicit)", prompt::gui);
-                fsmode = winstate::minimized;
+                prev_window_state = std::exchange(fsmode, winstate::minimized);
+                if (prev_window_state == winstate::normal) normsz = master.area;
                 for (auto& l : layers)
                 {
                     auto& p = l.get();
@@ -4353,9 +4366,9 @@ namespace netxs::gui
             ::GetKeyboardLayoutNameW(kblayout.data());
             log("%%Keyboard layout changed to ", prompt::gui, utf::to_utf(kblayout));//, " lo(hkl),langid=", lo((arch)hkl), " hi(hkl),handle=", hi((arch)hkl));
         }
-        void window_make_focused()       { ::SetFocus((HWND)master.hWnd); } // Calls WM_KILLFOCOS(prev) + WM_ACTIVATEAPP(next) + WM_SETFOCUS(next).
+        void window_make_focused()       { restore_if_minimized(); ::SetFocus((HWND)master.hWnd); } // Calls WM_KILLFOCOS(prev) + WM_ACTIVATEAPP(next) + WM_SETFOCUS(next).
         void window_make_exposed()       { ::SetWindowPos((HWND)master.hWnd, HWND_TOP, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOSENDCHANGING | SWP_NOACTIVATE); }
-        void window_make_topmost(bool s) { ::SetWindowPos((HWND)master.hWnd, s ? HWND_TOPMOST : HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE); }
+        void window_make_topmost(bool s) { ontop_state = s; ::SetWindowPos((HWND)master.hWnd, s ? HWND_TOPMOST : HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE); }
         void window_make_foreground()    { ::SetForegroundWindow((HWND)master.hWnd); } //::AllowSetForegroundWindow(ASFW_ANY); } // Neither ::SetFocus() nor ::SetActiveWindow() can switch focus immediately.
         void window_shutdown()           { ::SendMessageW((HWND)master.hWnd, WM_CLOSE, NULL, NULL); }
         void window_cleanup()            { ::RemoveClipboardFormatListener((HWND)master.hWnd); ::PostQuitMessage(0); }
@@ -4427,7 +4440,10 @@ namespace netxs::gui
                 //::EnableMenuItem(ctxmenu, SC_RESTORE, MF_CHANGE | MF_ENABLED);
                 //::EnableMenuItem(ctxmenu, SC_MAXIMIZE, MF_CHANGE | MF_GRAYED);
             }
-            else ::ShowWindow((HWND)master.hWnd, SW_RESTORE);
+            else
+            {
+                ::ShowWindow((HWND)master.hWnd, SW_RESTORE);
+            }
         }
         void sync_os_settings()
         {
