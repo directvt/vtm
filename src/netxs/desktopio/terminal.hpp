@@ -7151,6 +7151,7 @@ namespace netxs::ui
         twod       follow; // term: Viewport follows cursor (bool: X, Y).
         bool       insmod; // term: Insert/replace mode.
         bool       decckm; // term: Cursor keys Application(true)/ANSI(faux) mode.
+        bool       deccol; // term: Allow to toggle 80/132 window width (DECCOL).
         bool       bpmode; // term: Bracketed paste mode.
         bool       unsync; // term: Viewport is out of sync.
         bool       invert; // term: Inverted rendering (DECSCNM).
@@ -7329,8 +7330,11 @@ namespace netxs::ui
                     decckm = true;
                     break;
                 case 3:    // Set 132 column window size (DECCOLM).
-                    window_resize({ 132, 0 });
-                    target->ed(commands::erase::display::viewport);
+                    if (deccol)
+                    {
+                        window_resize({ 132, 0 });
+                        target->ed(commands::erase::display::viewport);
+                    }
                     break;
                 case 5:    // Inverted rendering (DECSCNM).
                     invert = true;
@@ -7347,6 +7351,9 @@ namespace netxs::ui
                     break;
                 case 25:   // Cursor on.
                     caret.show();
+                    break;
+                case 40:   // Enable 80/132 toggle.
+                    deccol = true;
                     break;
                 case 9:    // Enable X10 mouse reporting protocol.
                     log(prompt::term, "CSI ? 9 h  X10 Mouse reporting protocol is not supported");
@@ -7440,8 +7447,11 @@ namespace netxs::ui
                     decckm = faux;
                     break;
                 case 3:    // Set 80 column window size (DECCOLM).
-                    window_resize({ 80, 0 });
-                    target->ed(commands::erase::display::viewport);
+                    if (deccol)
+                    {
+                        window_resize({ 80, 0 });
+                        target->ed(commands::erase::display::viewport);
+                    }
                     break;
                 case 5:    // Inverted rendering (DECSCNM).
                     invert = faux;
@@ -7458,6 +7468,9 @@ namespace netxs::ui
                     break;
                 case 25:   // Cursor off.
                     caret.hide();
+                    break;
+                case 40:   // Disable 80/132 toggle.
+                    deccol = faux;
                     break;
                 case 9:    // Disable X10 mouse reporting protocol.
                     log(prompt::term, "CSI ? 9 l  X10 Mouse tracking protocol is not supported");
@@ -8436,6 +8449,7 @@ namespace netxs::ui
               follow{ 0, 1 },
               insmod{ faux },
               decckm{ faux },
+              deccol{ faux },
               bpmode{ faux },
               unsync{ faux },
               invert{ faux },
