@@ -268,17 +268,18 @@ namespace netxs
             return chan.a;
         }
         // argb: Colourimetric (perceptual luminance-preserving) conversion to greyscale.
+        template<class T>
+        static constexpr auto luma(T r, T g, T b)
+        {
+            return static_cast<T>(0.2627f * r + 0.6780f * g + 0.0593f * b);
+        }
         constexpr auto luma() const
         {
             //todo this requires conversion to the linear rgb space (error ~20-30%)
-            auto r = (token >> 16) & 0xFF;
-            auto g = (token >>  8) & 0xFF;
-            auto b = (token >>  0) & 0xFF;
-            return static_cast<byte>(0.2627f * r + 0.6780f * g + 0.0593f * b);
-        }
-        static constexpr auto luma(si32 r, si32 g, si32 b)
-        {
-            return static_cast<byte>(0.2627f * r + 0.6780f * g + 0.0593f * b);
+            auto r = (byte)(token >> 16);
+            auto g = (byte)(token >>  8);
+            auto b = (byte)(token >>  0);
+            return argb::luma(r, g, b);
         }
         void grayscale()
         {
@@ -355,7 +356,7 @@ namespace netxs
                 auto src_lin_r = netxs::sRGB2Linear(c.chan.r);
                 auto src_lin_g = netxs::sRGB2Linear(c.chan.g);
                 auto src_lin_b = netxs::sRGB2Linear(c.chan.b);
-                auto bg_luma = 0.2627f * dst_lin_r + 0.6780f * dst_lin_g + 0.0593f * dst_lin_b; //todo use luma
+                auto bg_luma = argb::luma(dst_lin_r, dst_lin_g, dst_lin_b);
                 auto a_srgb = c.chan.a / 255.0f;
                 auto a_low  = netxs::sRGB2Linear(c.chan.a); // Dampened alpha for dark bg (~0.21 for a=0.5).
                 auto a_high = netxs::linear2sRGB(a_srgb);   // Boosted alpha for light bg (~0.73 for a=0.5).
