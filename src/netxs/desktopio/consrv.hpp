@@ -2905,7 +2905,7 @@ struct impl : consrv
         if constexpr (RawRead)
         {
             log("\tread mode: raw ReadFile emulation");
-            packet.input = { .EOFon = 1 };
+            packet.input = { .EOFon = inpmod & nt::console::inmode::preprocess }; // Disabling input preprocessing in cooked mode enables line buffering, allowing the application to intercept (ReadFile) and process Ctrl+Z as raw data.
         }
         auto namesize = (ui32)(packet.input.execb * sizeof(wchr));
         if (!size_check(packet.echosz,  packet.input.affix)

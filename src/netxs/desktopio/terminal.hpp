@@ -242,7 +242,6 @@ namespace netxs::ui
             cell def_curclr;
             argb def_fcolor;
             argb def_bcolor;
-            argb def_filler;
             si32 def_selmod;
             si32 def_cursor;
             bool def_selalt;
@@ -253,6 +252,7 @@ namespace netxs::ui
             bool allow_logs;
             span def_period;
             pals def_colors;
+            pals bkp_colors;
 
             cell def_safe_c;
             cell def_ansi_c;
@@ -327,7 +327,6 @@ namespace netxs::ui
                 def_atexit =             config.settings::take("/config/terminal/atexit",                     commands::atexit::smart, atexit_options);
                 def_fcolor =             config.settings::take("/config/terminal/colors/default/fgc",         argb{ whitelt });
                 def_bcolor =             config.settings::take("/config/terminal/colors/default/bgc",         argb{ blackdk });
-                def_filler =             config.settings::take("/config/terminal/colors/bground",             argb{ argb::default_color });
 
                 def_safe_c =             config.settings::take("/config/terminal/colors/selection/protected", cell{}.bgc(bluelt)    .fgc(whitelt));
                 def_ansi_c =             config.settings::take("/config/terminal/colors/selection/ansi",      cell{}.bgc(bluelt)    .fgc(whitelt));
@@ -359,8 +358,9 @@ namespace netxs::ui
                 std::copy(std::begin(argb::vt256), std::end(argb::vt256), std::begin(def_colors));
                 for (auto i = 0; i < 16; i++)
                 {
-                    def_colors[i] = config.settings::take("/config/terminal/colors/color" + std::to_string(i), def_colors[i]);
+                    def_colors[i] = netxs::letoh(config.settings::take("/config/terminal/colors/color" + std::to_string(i), argb{ def_colors[i] }).token); // Store colors as integers.
                 }
+                bkp_colors = def_colors;
             }
         };
 
@@ -866,8 +866,15 @@ namespace netxs::ui
                         utf::trim_front_if(data, [](char c){ return c >= '0' && c <= '9'; });
                         if (auto v = utf::to_int(data))
                         {
-                            auto n = std::clamp(v.value(), 0, 255);
-                            color[n] = argb::vt256[n];
+                            auto n = v.value();
+                            if (n < 0 || n > 255)
+                            {
+                                log("%%Unsupported 256-color palette index %%", prompt::term, n);
+                            }
+                            else
+                            {
+                                color[n] = owner.defcfg.bkp_colors[n]; // Restore color from settings.
+                            }
                             empty = faux;
                         }
                     }
@@ -883,9 +890,13 @@ namespace netxs::ui
                         if (data.empty()) break;
                         if (auto v = utf::to_int(data))
                         {
-                            auto n = std::clamp(v.value(), 0, 255);
+                            auto n = v.value();
                             auto [t, r] = record(data);
-                            if (t == type::request)
+                            if (n < 0 || n > 255)
+                            {
+                                log("%%Unsupported 256-color palette index %%", prompt::term, n);
+                            }
+                            else if (t == type::request)
                             {
                                 auto c = argb{ color[n] };
                                 reply.osc(ansi::osc_set_palette, utf::fprint("%n%;rgb:%r%/%g%/%b%", n, utf::to_hex(c.chan.r),
@@ -920,7 +931,7 @@ namespace netxs::ui
                     auto [t, r] = record(data);
                     if (t == type::request)
                     {
-                        auto c = owner.target->brush.sfg();
+                        auto c = owner.defclr.fgc();
                         reply.osc(ansi::osc_set_fgcolor, utf::fprint("rgb:%r%/%g%/%b%", utf::to_hex(c.chan.r),
                                                                                         utf::to_hex(c.chan.g),
                                                                                         utf::to_hex(c.chan.b)));
@@ -939,7 +950,7 @@ namespace netxs::ui
                     auto [t, r] = record(data);
                     if (t == type::request)
                     {
-                        auto c = owner.target->brush.sbg();
+                        auto c = owner.defclr.bgc();
                         reply.osc(ansi::osc_set_bgcolor, utf::fprint("rgb:%r%/%g%/%b%", utf::to_hex(c.chan.r),
                                                                                         utf::to_hex(c.chan.g),
                                                                                         utf::to_hex(c.chan.b)));
@@ -975,11 +986,15 @@ namespace netxs::ui
                 };
                 procs[ansi::osc_reset_fgclr] = [&](view /*data*/)
                 {
-                    owner.defclr.fgc(owner.defcfg.def_fcolor);
+                    auto new_fgc = owner.defclr;
+                    new_fgc.fgc(owner.defcfg.def_fcolor);
+                    owner.set_color(new_fgc);
                 };
                 procs[ansi::osc_reset_bgclr] = [&](view /*data*/ )
                 {
-                    owner.defclr.bgc(owner.defcfg.def_bcolor);
+                    auto new_bgc = owner.defclr;
+                    new_bgc.bgc(owner.defcfg.def_bcolor);
+                    owner.set_color(new_bgc);
                 };
             }
 
@@ -9076,9 +9091,7 @@ namespace netxs::ui
                 auto full = parent_canvas.full();
                 auto original_cursor = console.get_coord(origin); // base::coor() and origin are the same.
 
-                auto brush = defclr;
-                if (defcfg.def_filler != argb::default_color) brush.bgc(defcfg.def_filler); // Unsync with SGR default background.
-                parent_canvas.fill(cell::shaders::fusefull(brush));
+                parent_canvas.fill(cell::shaders::fusefull(defclr));
 
                 if (ime_on) // Draw IME composition overlay.
                 {
@@ -9106,7 +9119,7 @@ namespace netxs::ui
                             viewport_square.coor -= origin;
                             if (auto context2D = parent_canvas.change_basis(viewport_square))
                             {
-                                parent_canvas.output<faux>(imebox, viewport_cursor, cell::shaders::mimic(brush));
+                                parent_canvas.output<faux>(imebox, viewport_cursor, cell::shaders::mimic(defclr));
                             }
                             composit_cursor -= origin; // Convert to original (scrollback based) basis.
                             caret.coor(composit_cursor);
@@ -9121,7 +9134,7 @@ namespace netxs::ui
                 else
                 {
                     caret.coor(original_cursor);
-                    if (brush.bga() != 0xFF) parent_canvas.fill(rect{ caret.coor(), dot_11 }, [&](cell& c){ c.fgc(console.brush.fgc()); }); // Prefill the cursor cell placeholder in the case of transparent background.
+                    if (defclr.bga() != 0xFF) parent_canvas.fill(rect{ caret.coor(), dot_11 }, [&](cell& c){ c.fgc(console.brush.fgc()); }); // Prefill the cursor cell placeholder in the case of transparent background.
                     console.output(parent_canvas);
                 }
                 if (invert) parent_canvas.fill(cell::shaders::invbit);
