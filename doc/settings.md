@@ -996,8 +996,7 @@ Notes
             <color13 = magentalt  />
             <color14 = cyanlt     />
             <color15 = whitelt    />
-            <default fgc=whitedk bgc=pureblack/>  <!-- Default terminal colors (SGR 39/49). -->
-            <bground = DefaultColor/>  <!-- Background color of the scrollback canvas. Set to 0x00ffffff or DefaultColor to sync with the default SGR 49 background. -->
+            <default fgc=whitedk bgc=pureblack/>  <!-- Default terminal colors (SGR 39/49, set by OSC 10/11). -->
             <match fx="color" fgc=whitelt bgc= #007F00/>  <!-- Appearance of selected text matches. Available shaders (fx): "xlight", "color", "invert", "reverse". -->
             <selection>
                 <text      fx="color"  fgc=whitelt bgc=bluelt/>  <!-- Selection highlighting for plaintext clipboard mode. -->
