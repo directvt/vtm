@@ -252,6 +252,7 @@ namespace netxs::ui
             bool allow_logs;
             span def_period;
             pals def_colors;
+            pals bkp_colors;
 
             cell def_safe_c;
             cell def_ansi_c;
@@ -357,8 +358,9 @@ namespace netxs::ui
                 std::copy(std::begin(argb::vt256), std::end(argb::vt256), std::begin(def_colors));
                 for (auto i = 0; i < 16; i++)
                 {
-                    def_colors[i] = config.settings::take("/config/terminal/colors/color" + std::to_string(i), def_colors[i]);
+                    def_colors[i] = netxs::letoh(config.settings::take("/config/terminal/colors/color" + std::to_string(i), argb{ def_colors[i] }).token); // Store colors as integers.
                 }
+                bkp_colors = def_colors;
             }
         };
 
@@ -864,8 +866,15 @@ namespace netxs::ui
                         utf::trim_front_if(data, [](char c){ return c >= '0' && c <= '9'; });
                         if (auto v = utf::to_int(data))
                         {
-                            auto n = std::clamp(v.value(), 0, 255);
-                            color[n] = argb::vt256[n];
+                            auto n = v.value();
+                            if (n < 0 || n > 255)
+                            {
+                                log("%%Unsupported 256-color palette index %%", prompt::term, n);
+                            }
+                            else
+                            {
+                                color[n] = owner.defcfg.bkp_colors[n]; // Restore color from settings.
+                            }
                             empty = faux;
                         }
                     }
@@ -881,9 +890,13 @@ namespace netxs::ui
                         if (data.empty()) break;
                         if (auto v = utf::to_int(data))
                         {
-                            auto n = std::clamp(v.value(), 0, 255);
+                            auto n = v.value();
                             auto [t, r] = record(data);
-                            if (t == type::request)
+                            if (n < 0 || n > 255)
+                            {
+                                log("%%Unsupported 256-color palette index %%", prompt::term, n);
+                            }
+                            else if (t == type::request)
                             {
                                 auto c = argb{ color[n] };
                                 reply.osc(ansi::osc_set_palette, utf::fprint("%n%;rgb:%r%/%g%/%b%", n, utf::to_hex(c.chan.r),

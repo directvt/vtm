@@ -759,11 +759,18 @@ namespace netxs
         });
         friend auto& operator << (std::ostream& s, argb c)
         {
-            return s << "{" << (si32)c.chan.r
-                     << "," << (si32)c.chan.g
-                     << "," << (si32)c.chan.b
-                     << "," << (si32)c.chan.a
-                     << "}";
+            if (auto index = argb::is_indexed_color(c))
+            {
+                return s << "Color" << index - 1;
+            }
+            else
+            {
+                return s << "{" << (si32)c.chan.r
+                         << "," << (si32)c.chan.g
+                         << "," << (si32)c.chan.b
+                         << "," << (si32)c.chan.a
+                         << "}";
+            }
         }
         static auto set_vtm16_palette(auto proc)
         {
