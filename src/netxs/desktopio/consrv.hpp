@@ -2226,7 +2226,8 @@ struct impl : consrv
             .inv(!!(attr & COMMON_LVB_REVERSE_VIDEO  ))
             .und(!!(attr & COMMON_LVB_UNDERSCORE     ))
             .ovr(!!(attr & COMMON_LVB_GRID_HORIZONTAL));
-        if (auto colors = attr & 0x00FFu) // Use "default color" if fgc == bgc == 0.
+        auto colors = attr & 0x00FFu;
+        if (colors != (ui16)(7 + (0 << 4))) // Use "default color" if fgc==7 and bgc==0.
         {
             argb::set_indexed_color(c.fgc(), netxs::swap_bits<0, 2>(colors & 0x000Fu)); // FOREGROUND_ . . .
             argb::set_indexed_color(c.bgc(), netxs::swap_bits<0, 2>(colors >> 4)); // BACKGROUND_ . . .
@@ -2238,13 +2239,17 @@ struct impl : consrv
         auto attr = ui16{};
         auto fgc = brush.fgc();
         auto bgc = brush.bgc();
-        if (fgc != bgc || fgc.token != 0) // Leave fg and bg empty if brush is default color (token==0).
+        if (fgc != bgc || fgc.token != 0) // Set fg and bg if brush has non-default color (token!=0).
         {
             auto fgcx = argb::is_indexed_color(fgc);
             auto bgcx = argb::is_indexed_color(bgc);
             if (fgcx) fgcx = netxs::swap_bits<0, 2>(fgcx - 1); else fgcx = 7; // Fallback to BW for non-index colors.
             if (bgcx) bgcx = netxs::swap_bits<0, 2>(bgcx - 1); else bgcx = 0; //
             attr = (ui16)(fgcx + (bgcx << 4));
+        }
+        else
+        {
+            attr = (ui16)(7 + (0 << 4));
         }
         if (brush.inv()) attr |= COMMON_LVB_REVERSE_VIDEO;
         if (brush.und()) attr |= COMMON_LVB_UNDERSCORE;
@@ -3985,9 +3990,9 @@ struct impl : consrv
         packet.reply.fullscreen = faux;
         packet.reply.popupcolor = FOREGROUND_GREEN | FOREGROUND_INTENSITY;
         auto mark = console.brush;
-        if (mark.fgc().token == 0 && mark.bgc().token == 0) // Use fgc=bgc=0 as default color.
+        if (mark.fgc().token == 0 && mark.bgc().token == 0) // Use fgc=7 and bgc=0 as default color.
         {
-            packet.reply.attributes = 0;
+            packet.reply.attributes = (ui16)(7 + (0 << 4));
         }
         else
         {
