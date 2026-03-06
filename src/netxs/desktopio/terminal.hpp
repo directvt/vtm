@@ -8206,8 +8206,12 @@ namespace netxs::ui
         }
         void data_in(view data)
         {
-            follow[axis::Y] = true;
+            auto original_cursor = target->coord;
             ondata(data);
+            if (original_cursor != target->coord) // Reset viewport only if cursor is moved.
+            {
+                follow[axis::Y] = true;
+            }
         }
         void data_out(view data)
         {
