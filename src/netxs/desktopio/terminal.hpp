@@ -312,7 +312,7 @@ namespace netxs::ui
                 resetonkey =             config.settings::take("/config/terminal/scrollback/reset/onkey",     true);
                 resetonout =             config.settings::take("/config/terminal/scrollback/reset/onoutput",  faux);
                 def_alt_on =             config.settings::take("/config/terminal/scrollback/altscroll",       true);
-                def_lucent = std::max(0, config.settings::take("/config/terminal/scrollback/oversize/opacity",si32{ 0xC0 } ));
+                def_lucent = std::max(0, config.settings::take("/config/terminal/scrollback/oversize/opacity",si32{ 0xFF } ) & 0xFF);
                 def_margin = std::max(0, config.settings::take("/config/terminal/scrollback/oversize",        si32{ 0 }    ));
                 def_tablen = std::max(1, config.settings::take("/config/terminal/tablen",                     si32{ 8 }    ));
                 def_border = std::max(0, config.settings::take("/config/terminal/border",                     si32{ 0 }    ));
