@@ -2226,18 +2226,26 @@ struct impl : consrv
             .inv(!!(attr & COMMON_LVB_REVERSE_VIDEO  ))
             .und(!!(attr & COMMON_LVB_UNDERSCORE     ))
             .ovr(!!(attr & COMMON_LVB_GRID_HORIZONTAL));
-        argb::set_indexed_color(c.fgc(), netxs::swap_bits<0, 2>(attr      & 0x000Fu)); // FOREGROUND_ . . .
-        argb::set_indexed_color(c.bgc(), netxs::swap_bits<0, 2>(attr >> 4 & 0x000Fu)); // BACKGROUND_ . . .
+        if (auto colors = attr & 0x00FFu) // Use "default color" if fgc == bgc == 0.
+        {
+            argb::set_indexed_color(c.fgc(), netxs::swap_bits<0, 2>(colors & 0x000Fu)); // FOREGROUND_ . . .
+            argb::set_indexed_color(c.bgc(), netxs::swap_bits<0, 2>(colors >> 4)); // BACKGROUND_ . . .
+        }
         return c;
     }
     auto brush_to_attr(cell const& brush)
     {
         auto attr = ui16{};
-        auto fgcx = argb::is_indexed_color(brush.fgc());
-        auto bgcx = argb::is_indexed_color(brush.bgc());
-        if (fgcx) fgcx = netxs::swap_bits<0, 2>(fgcx - 1); else fgcx = 7; // Fallback to BW for non-index colors.
-        if (bgcx) bgcx = netxs::swap_bits<0, 2>(bgcx - 1); else bgcx = 0; //
-        attr = (ui16)(fgcx + (bgcx << 4));
+        auto fgc = brush.fgc();
+        auto bgc = brush.bgc();
+        if (fgc != bgc || fgc.token != 0) // Leave fg and bg empty if brush is default color (token==0).
+        {
+            auto fgcx = argb::is_indexed_color(fgc);
+            auto bgcx = argb::is_indexed_color(bgc);
+            if (fgcx) fgcx = netxs::swap_bits<0, 2>(fgcx - 1); else fgcx = 7; // Fallback to BW for non-index colors.
+            if (bgcx) bgcx = netxs::swap_bits<0, 2>(bgcx - 1); else bgcx = 0; //
+            attr = (ui16)(fgcx + (bgcx << 4));
+        }
         if (brush.inv()) attr |= COMMON_LVB_REVERSE_VIDEO;
         if (brush.und()) attr |= COMMON_LVB_UNDERSCORE;
         if (brush.ovr()) attr |= COMMON_LVB_GRID_HORIZONTAL;
@@ -3976,28 +3984,37 @@ struct impl : consrv
         packet.reply.windowposy = 0;
         packet.reply.fullscreen = faux;
         packet.reply.popupcolor = FOREGROUND_GREEN | FOREGROUND_INTENSITY;
-        auto fgcx = 7_sz; // Fallback for true colors.
-        auto bgcx = 0_sz;
+        auto mark = console.brush;
+        if (mark.fgc().token == 0 && mark.bgc().token == 0) // Use fgc=bgc=0 as default color.
+        {
+            packet.reply.attributes = 0;
+        }
+        else
+        {
+            auto fgcx = 7_sz; // Fallback for true colors.
+            auto bgcx = 0_sz;
+            mark = console.get_effective_brush();
+            auto fg = mark.fgc();
+            auto bg = mark.bgc();
+            if (auto i = argb::is_indexed_color(fg))
+            {
+                fgcx = netxs::swap_bits<0, 2>(i - 1);
+            }
+            else if (fg.token)
+            {
+                fgcx = fg.to_vga16(true);
+            }
+            if (auto i = argb::is_indexed_color(bg))
+            {
+                bgcx = netxs::swap_bits<0, 2>(i - 1);
+            }
+            else if (bg.token)
+            {
+                bgcx = bg.to_vga16(faux);
+            }
+            packet.reply.attributes = (ui16)(fgcx + (bgcx << 4));
+        }
         auto& rgbpalette = packet.reply.rgbpalette;
-        auto mark = console.get_effective_brush();
-        auto fg = mark.fgc();
-        auto bg = mark.bgc();
-        if (auto i = argb::is_indexed_color(fg))
-        {
-            fgcx = netxs::swap_bits<0, 2>(i - 1);
-        }
-        else if (fg.token)
-        {
-            fgcx = fg.to_vga16(true);
-        }
-        if (auto i = argb::is_indexed_color(bg))
-        {
-            bgcx = netxs::swap_bits<0, 2>(i - 1);
-        }
-        else if (bg.token)
-        {
-            bgcx = bg.to_vga16(faux);
-        }
         auto head = std::begin(uiterm.ctrack.color);
         for (auto i = 0; i < 16; i++)
         {
@@ -4005,7 +4022,6 @@ struct impl : consrv
             auto m = netxs::swap_bits<0, 2>(i); // ANSI<->DOS color scheme reindex.
             rgbpalette[m] = argb::swap_rb(c); // conhost crashes if alpha non zero.
         }
-        packet.reply.attributes = (ui16)(fgcx + (bgcx << 4));
         if (mark.inv()) packet.reply.attributes |= COMMON_LVB_REVERSE_VIDEO;
         if (mark.und()) packet.reply.attributes |= COMMON_LVB_UNDERSCORE;
         if (mark.ovr()) packet.reply.attributes |= COMMON_LVB_GRID_HORIZONTAL;
