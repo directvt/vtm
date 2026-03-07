@@ -1026,11 +1026,10 @@ namespace netxs::ui
                 }
                 else if (fga)
                 {
-                    dest.uv.fg = dest.uv.bg;
-                    dest.uv.fg.mix_linear(c_uv_fg, 1); // Blend the semi-transparent foreground color with the final background color calculated in the previous step.
+                    dest.uv.fg.mix_linear(c_uv_fg, 1); // Blend the semi-transparent foreground color with the global foreground color.
                     if (dest.st.und())
                     {
-                        if (auto index = dest.st.unc()) // Blend the semi-transparent underline color with the final background color.
+                        if (auto index = dest.st.unc()) // Blend the semi-transparent underline color with the global foreground color.
                         {
                             auto unc_clr = argb{ argb::vt256[index] }.alpha(fga);
                             auto new_clr = dest.uv.bg;

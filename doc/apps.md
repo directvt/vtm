@@ -76,6 +76,8 @@ printf "\e[39;49m
 
 #### A test to play around with blending against different color schemes
 
+Tinting the global foreground color with a translucent color (with an alpha channel) allows colored text to be displayed independently of the color scheme.
+
 - Just create `settings.xml` and run `vtm -r term`.
 <details><summary>settings.xml</summary>
 
@@ -124,23 +126,62 @@ printf "\e[39;49m
                           return result
                       end
                       local alpha = 64
-                      terminal.Print(colored_text(255, 255, 0,   alpha,  255, 0,   0,   alpha), '\\n')
-                      terminal.Print(colored_text(255, 0,   255, alpha,  0,   0,   255, alpha), '\\n')
-                      terminal.Print(colored_text(0,   255, 255, alpha,  0,   255, 0,   alpha), '\\n')
-                      terminal.Print(colored_text(128, 128, 128, alpha,  255, 255, 255, alpha), '\\n')
+                      terminal.Print(colored_text(255, 255, 0,   alpha,  255, 0,   0,   alpha))
+                      terminal.Print(colored_text(255, 0,   255, alpha,  0,   0,   255, alpha))
+                      terminal.Print(colored_text(0,   255, 255, alpha,  0,   255, 0,   alpha))
+                      terminal.Print(colored_text(128, 128, 128, alpha,  255, 255, 255, alpha))
                       alpha = 128
-                      terminal.Print(colored_text(255, 255, 0,   alpha,  255, 0,   0,   alpha), '\\n')
-                      terminal.Print(colored_text(255, 0,   255, alpha,  0,   0,   255, alpha), '\\n')
-                      terminal.Print(colored_text(0,   255, 255, alpha,  0,   255, 0,   alpha), '\\n')
-                      terminal.Print(colored_text(128, 128, 128, alpha,  255, 255, 255, alpha), '\\n')
-                      alpha = 254
-                      terminal.Print(colored_text(255, 255, 0,   alpha,  255, 0,   0,   alpha), '\\n')
-                      terminal.Print(colored_text(255, 0,   255, alpha,  0,   0,   255, alpha), '\\n')
-                      terminal.Print(colored_text(0,   255, 255, alpha,  0,   255, 0,   alpha), '\\n')
-                      terminal.Print(colored_text(128, 128, 128, alpha,  255, 255, 255, alpha), '\\n')
+                      terminal.Print(colored_text(255, 255, 0,   alpha,  255, 0,   0,   alpha))
+                      terminal.Print(colored_text(255, 0,   255, alpha,  0,   0,   255, alpha))
+                      terminal.Print(colored_text(0,   255, 255, alpha,  0,   255, 0,   alpha))
+                      terminal.Print(colored_text(128, 128, 128, alpha,  255, 255, 255, alpha))
+                      terminal.Print('\\n')
+                      local bgs = { "49m  Test  ",
+                                    "48:2:0:0:0:96m  Test  ",
+                                    "48:2:255:0:0:96m  Test  ",
+                                    "48:2:0:255:0:96m  Test  ",
+                                    "48:2:255:255:0:96m  Test  ",
+                                    "48:2:0:0:255:96m  Test  ",
+                                    "48:2:255:0:255:96m  Test  ",
+                                    "48:2:0:255:255:96m  Test  ",
+                                    "48:2:255:255:255:96m  Test  " }
+                      local fgs = { "39",
+                                    "38:2:0:0:0:128",
+                                    "38:2:255:0:0:128",
+                                    "38:2:0:255:0:128",
+                                    "38:2:255:255:0:128",
+                                    "38:2:0:0:255:128",
+                                    "38:2:255:0:255:128",
+                                    "38:2:0:255:255:128",
+                                    "38:2:255:255:255:128" }
+                      for _, bg in ipairs(bgs) do
+                          local row = "   "
+                          for _, fg in ipairs(fgs) do
+                              row = row .. " \\x1b[" .. fg .. ";" .. bg .. "\\x1b[m"
+                          end
+                          terminal.Print(row, '\\n')
+                      end
+                      terminal.Print('\\n')
                       terminal.LineWrapMode(1)
                   </script>
               </item>
+              <item=Ubuntu24/>
+              <item=CampbellPowershell/>
+              <item=VSCodeLightModern/>
+              <item=VSCodeDarkModern/>
+              <item=CGA/>
+              <item=OneHalfLight/>
+              <item=OneHalfDark/>
+              <item=SolarizedLight/>
+              <item=SolarizedDark/>
+              <item=TangoLight/>
+              <item=TangoDark/>
+              <item=Dimidium/>
+              <item=Ottosson/>
+              <item=Campbell/>
+              <item=Vintage/>
+              <item=DarkPlus/>
+              <item=IBM5153/>
               <item=Green/>
               <item=Red/>
               <item=Blue/>
@@ -154,23 +195,6 @@ printf "\e[39;49m
               <item=YellowLt/>
               <item=MagentaLt/>
               <item=CyanLt/>
-              <item=CGA/>
-              <item=Ubuntu24/>
-              <item=CampbellPowershell/>
-              <item=OneHalfLight/>
-              <item=OneHalfDark/>
-              <item=SolarizedLight/>
-              <item=SolarizedDark/>
-              <item=TangoLight/>
-              <item=TangoDark/>
-              <item=VSCodeLightModern/>
-              <item=VSCodeDarkModern/>
-              <item=Dimidium/>
-              <item=Ottosson/>
-              <item=Campbell/>
-              <item=Vintage/>
-              <item=DarkPlus/>
-              <item=IBM5153/>
           </menu>
       </terminal>
   </config>
@@ -336,7 +360,7 @@ printf "\e[39;49m
   </Blue>
   <RedLt label=" RedLt ">
       <script=OnLeftClick>
-          terminal.Print("\\x1b]10;rgb:FF/FF/FF\\x07")
+          terminal.Print("\\x1b]10;rgb:00/00/00\\x07")
           terminal.Print("\\x1b]11;rgb:FF/00/00\\x07")
           terminal.Print("\\x1b]12;rgb:FF/FF/FF\\x07")
           terminal.Print("\\x1b]4;0;rgb:17/14/21;1;rgb:C2/1A/23;2;rgb:26/A2/69;3;rgb:A2/73/4C;4;rgb:00/37/DA;5;rgb:88/17/98;6;rgb:3A/96/DD;7;rgb:CC/CC/CC;8;rgb:76/76/76;9;rgb:C0/1C/28;10;rgb:26/A2/69;11;rgb:A2/73/4C;12;rgb:08/45/8F;13;rgb:A3/47/BA;14;rgb:2C/9F/B3;15;rgb:F2/F2/F2\\x07")
@@ -344,7 +368,7 @@ printf "\e[39;49m
   </RedLt>
   <GreenLt label=" GreenLt ">
       <script=OnLeftClick>
-          terminal.Print("\\x1b]10;rgb:FF/FF/FF\\x07")
+          terminal.Print("\\x1b]10;rgb:00/00/00\\x07")
           terminal.Print("\\x1b]11;rgb:00/FF/00\\x07")
           terminal.Print("\\x1b]12;rgb:FF/FF/FF\\x07")
           terminal.Print("\\x1b]4;0;rgb:17/14/21;1;rgb:C2/1A/23;2;rgb:26/A2/69;3;rgb:A2/73/4C;4;rgb:00/37/DA;5;rgb:88/17/98;6;rgb:3A/96/DD;7;rgb:CC/CC/CC;8;rgb:76/76/76;9;rgb:C0/1C/28;10;rgb:26/A2/69;11;rgb:A2/73/4C;12;rgb:08/45/8F;13;rgb:A3/47/BA;14;rgb:2C/9F/B3;15;rgb:F2/F2/F2\\x07")
@@ -352,7 +376,7 @@ printf "\e[39;49m
   </GreenLt>
   <BlueLt label=" BlueLt ">
       <script=OnLeftClick>
-          terminal.Print("\\x1b]10;rgb:FF/FF/FF\\x07")
+          terminal.Print("\\x1b]10;rgb:00/FF/FF\\x07")
           terminal.Print("\\x1b]11;rgb:00/00/FF\\x07")
           terminal.Print("\\x1b]12;rgb:FF/FF/FF\\x07")
           terminal.Print("\\x1b]4;0;rgb:17/14/21;1;rgb:C2/1A/23;2;rgb:26/A2/69;3;rgb:A2/73/4C;4;rgb:00/37/DA;5;rgb:88/17/98;6;rgb:3A/96/DD;7;rgb:CC/CC/CC;8;rgb:76/76/76;9;rgb:C0/1C/28;10;rgb:26/A2/69;11;rgb:A2/73/4C;12;rgb:08/45/8F;13;rgb:A3/47/BA;14;rgb:2C/9F/B3;15;rgb:F2/F2/F2\\x07")
@@ -392,25 +416,25 @@ printf "\e[39;49m
   </CyanLt>
   <Yellow label=" Yellow ">
       <script=OnLeftClick>
-          terminal.Print("\\x1b]10;rgb:00/00/00\\x07")
+          terminal.Print("\\x1b]10;rgb:FF/FF/FF\\x07")
           terminal.Print("\\x1b]11;rgb:80/80/00\\x07")
-          terminal.Print("\\x1b]12;rgb:00/00/00\\x07")
+          terminal.Print("\\x1b]12;rgb:FF/FF/FF\\x07")
           terminal.Print("\\x1b]4;0;rgb:17/14/21;1;rgb:C2/1A/23;2;rgb:26/A2/69;3;rgb:A2/73/4C;4;rgb:00/37/DA;5;rgb:88/17/98;6;rgb:3A/96/DD;7;rgb:CC/CC/CC;8;rgb:76/76/76;9;rgb:C0/1C/28;10;rgb:26/A2/69;11;rgb:A2/73/4C;12;rgb:08/45/8F;13;rgb:A3/47/BA;14;rgb:2C/9F/B3;15;rgb:F2/F2/F2\\x07")
       </script>
   </Yellow>
   <Magenta label=" Magenta ">
       <script=OnLeftClick>
-          terminal.Print("\\x1b]10;rgb:00/00/00\\x07")
+          terminal.Print("\\x1b]10;rgb:FF/FF/FF\\x07")
           terminal.Print("\\x1b]11;rgb:80/00/80\\x07")
-          terminal.Print("\\x1b]12;rgb:00/00/00\\x07")
+          terminal.Print("\\x1b]12;rgb:FF/FF/FF\\x07")
           terminal.Print("\\x1b]4;0;rgb:17/14/21;1;rgb:C2/1A/23;2;rgb:26/A2/69;3;rgb:A2/73/4C;4;rgb:00/37/DA;5;rgb:88/17/98;6;rgb:3A/96/DD;7;rgb:CC/CC/CC;8;rgb:76/76/76;9;rgb:C0/1C/28;10;rgb:26/A2/69;11;rgb:A2/73/4C;12;rgb:08/45/8F;13;rgb:A3/47/BA;14;rgb:2C/9F/B3;15;rgb:F2/F2/F2\\x07")
       </script>
   </Magenta>
   <Cyan label=" Cyan ">
       <script=OnLeftClick>
-          terminal.Print("\\x1b]10;rgb:00/00/00\\x07")
+          terminal.Print("\\x1b]10;rgb:FF/FF/FF\\x07")
           terminal.Print("\\x1b]11;rgb:00/80/80\\x07")
-          terminal.Print("\\x1b]12;rgb:00/00/00\\x07")
+          terminal.Print("\\x1b]12;rgb:FF/FF/FF\\x07")
           terminal.Print("\\x1b]4;0;rgb:17/14/21;1;rgb:C2/1A/23;2;rgb:26/A2/69;3;rgb:A2/73/4C;4;rgb:00/37/DA;5;rgb:88/17/98;6;rgb:3A/96/DD;7;rgb:CC/CC/CC;8;rgb:76/76/76;9;rgb:C0/1C/28;10;rgb:26/A2/69;11;rgb:A2/73/4C;12;rgb:08/45/8F;13;rgb:A3/47/BA;14;rgb:2C/9F/B3;15;rgb:F2/F2/F2\\x07")
       </script>
   </Cyan>

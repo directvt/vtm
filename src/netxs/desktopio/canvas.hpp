@@ -362,17 +362,16 @@ namespace netxs
                 auto a_high = netxs::linear2sRGB(a_srgb);   // Boosted alpha for light bg (~0.73 for a=0.5).
                 auto src_alpha = a_low + (a_high - a_low) * bg_luma;
                 auto dst_alpha = 1.0f - src_alpha;
-
+                auto blended_r = src_lin_r * src_alpha + dst_lin_r * dst_alpha;
+                auto blended_g = src_lin_g * src_alpha + dst_lin_g * dst_alpha;
+                auto blended_b = src_lin_b * src_alpha + dst_lin_b * dst_alpha;
+                // Dynamic contrast
                 auto dr_diff = src_lin_r - dst_lin_r;
                 auto dg_diff = src_lin_g - dst_lin_g;
                 auto db_diff = src_lin_b - dst_lin_b;
                 auto color_dist = std::min(1.0f, std::sqrt(dr_diff * dr_diff + dg_diff * dg_diff + db_diff * db_diff));
                 color_dist = std::lerp(1.0f, color_dist, src_alpha); // Lerp color_dist between 1.0 and color_dist by a_srgb.
                 auto force = 0.3f * (1.0f - color_dist);
-
-                auto blended_r = src_lin_r * src_alpha + dst_lin_r * dst_alpha;
-                auto blended_g = src_lin_g * src_alpha + dst_lin_g * dst_alpha;
-                auto blended_b = src_lin_b * src_alpha + dst_lin_b * dst_alpha;
                 if (bg_luma > 0.50f) // Light background -> Darken (moving to black 0.0).
                 {
                     auto t = 1.0f - force; 
@@ -386,6 +385,7 @@ namespace netxs
                     blended_g = std::lerp(blended_g, 1.0f, force);
                     blended_b = std::lerp(blended_b, 1.0f, force);
                 }
+                // Final conversion
                 chan.r = netxs::saturate_cast<byte>(0.5f + 255.0f * netxs::linear2sRGB(blended_r));
                 chan.g = netxs::saturate_cast<byte>(0.5f + 255.0f * netxs::linear2sRGB(blended_g));
                 chan.b = netxs::saturate_cast<byte>(0.5f + 255.0f * netxs::linear2sRGB(blended_b));
