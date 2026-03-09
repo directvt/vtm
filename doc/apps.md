@@ -53,7 +53,7 @@ The built-in terminal has support for transparent color overlays as follows:
 - Inherit the foreground alpha for underline colors.
 - Handle the terminal window rendering by:
   - Blending the semi-transparent background color of the scrollback rows with the global background color (set by OSC 11).
-  - Blending the semi-transparent foreground (and underline) color of the scrollback rows with the final background color calculated in the previous step.
+  - Blending the semi-transparent foreground (and underline) color of the scrollback rows with the global foreground color (set by OSC 10).
 
 The alpha transparency can be set from 0 to 255 (in the RGBA sense) for both the text background and the foreground using the SGR attributes `48:2` and `38:2`:
 
