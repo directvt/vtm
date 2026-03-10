@@ -1546,6 +1546,10 @@ namespace netxs::xml
                         context.erase(iterator);
                     }
                 }
+                auto ctx_root()
+                {
+                    return *iterator;
+                }
             };
             auto iterator = context.emplace(context.end(), new_context_ptr);
             return pop_ctx(context, iterator);

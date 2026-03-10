@@ -37,23 +37,24 @@ namespace netxs::gui
 
     struct cfg_t
     {
-        struct axis_vals_t
+        enum font_style
         {
-            fp32 base_value;
-            fp32 regular{};
-            fp32 bold{};
-            fp32 italic{};
-            fp32 bold_italic{};
+            regular,
+            bold,
+            italic,
+            bold_italic,
+            count,
         };
+        using axis_vals_t = std::array<std::map<text, fp32>, font_style::count>;
 
-        si32                        win_state{};    // cfg_t: .
-        bool                        antialiasing{}; // cfg_t: .
-        span                        blink_rate{};   // cfg_t: .
-        twod                        wincoord{};     // cfg_t: .
-        twod                        gridsize{};     // cfg_t: .
-        si32                        cell_height{};  // cfg_t: .
-        std::list<text>             font_names;     // cfg_t: Font family list.
-        std::map<text, axis_vals_t> font_axes;      // cfg_t: Ordered map <axis_4byte_tag, <values>>.
+        si32            win_state{};    // cfg_t: .
+        bool            antialiasing{}; // cfg_t: .
+        span            blink_rate{};   // cfg_t: .
+        twod            wincoord{};     // cfg_t: .
+        twod            gridsize{};     // cfg_t: .
+        si32            cell_height{};  // cfg_t: .
+        std::list<text> font_names;     // cfg_t: Font family list.
+        axis_vals_t     font_axes;      // cfg_t: Array of maps<axis_4byte_tag, fp32_value>.
     };
 
     struct layer
@@ -802,7 +803,7 @@ namespace netxs::gui
             index_ready = 10;
             if (bgworker.joinable()) bgworker.join();
         }
-        fonts(std::list<text>& family_names, std::map<text, cfg_t::axis_vals_t>& /*font_axes*/, si32 cell_height, auto signal_to_redraw)
+        fonts(std::list<text>& family_names, cfg_t::axis_vals_t& /*font_axes*/, si32 cell_height, auto signal_to_redraw)
             : oslocale(LOCALE_NAME_MAX_LENGTH, '\0')
         {
             ::DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), (IUnknown**)factory2.GetAddressOf());
@@ -937,7 +938,7 @@ namespace netxs::gui
         };
 
         shaper fontshaper{ *this };
-        fonts(std::list<text>& /*family_names*/, std::map<text, cfg_t::axis_vals_t>& /*font_axes*/ , si32 /*cell_height*/, auto ...)
+        fonts(std::list<text>& /*family_names*/, cfg_t::axis_vals_t& /*font_axes*/ , si32 /*cell_height*/, auto ...)
         { }
         auto& take_font(utfx /*base_char*/)
         {
