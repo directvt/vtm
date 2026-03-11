@@ -993,19 +993,27 @@ namespace netxs::app::shared
         auto fonts_context = config.settings::push_context("/config/gui/fonts/");
         auto font_list = config.settings::take_ptr_list_for_name("font");
         auto fonts_ptr = fonts_context.ctx_root();
-        for (auto [style_name, style_id] : { std::pair{ "regular",     gui::cfg_t::regular     },
-                                                      { "italic",      gui::cfg_t::italic      },
-                                                      { "bold",        gui::cfg_t::bold        },
-                                                      { "bold_italic", gui::cfg_t::bold_italic } })
+        for (auto [style_name, style_id, def_vals] : { std::tuple{ "regular"    , gui::cfg_t::regular    , std::to_array({ std::pair{ "wdth", 100.0f }, std::pair{ "wght", 400.0f }, std::pair{ "ital", 0.0f } }) },
+                                                                 { "italic"     , gui::cfg_t::italic     , std::to_array({ std::pair{ "wdth", 100.0f }, std::pair{ "wght", 400.0f }, std::pair{ "ital", 1.0f } }) },
+                                                                 { "bold"       , gui::cfg_t::bold       , std::to_array({ std::pair{ "wdth", 100.0f }, std::pair{ "wght", 700.0f }, std::pair{ "ital", 0.0f } }) },
+                                                                 { "bold_italic", gui::cfg_t::bold_italic, std::to_array({ std::pair{ "wdth", 100.0f }, std::pair{ "wght", 700.0f }, std::pair{ "ital", 1.0f } }) } })
         {
+            auto& style_axis = gui_config.font_axes[style_id];
+            for (auto& [tag, value] : def_vals)
+            {
+                style_axis[tag] = value;
+            }
             if (auto style_axes_ptr = config.settings::take_ptr(fonts_ptr, style_name))
             {
                 auto  style_axes = config.settings::take_ptr_list_of(style_axes_ptr);
-                auto& style_axis = gui_config.font_axes[style_id];
                 for (auto& item_ptr : style_axes)
                 {
                     auto value_str = config.settings::take_value(item_ptr);
-                    style_axis[(*item_ptr->name)->utf8] = xml::take_or(value_str, netxs::fp32nan);
+                    auto value = xml::take_or(value_str, netxs::fp32nan);
+                    if (std::isfinite(value))
+                    {
+                        style_axis[(*item_ptr->name)->utf8] = value;
+                    }
                 }
             }
         }

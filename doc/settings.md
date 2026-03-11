@@ -842,12 +842,13 @@ Notes
                 'regular', 'bold', 'italic', and 'bold_italic'. -->
             <!-- If no values are provided, the primary font family defaults will be used. -->
             <!-- To view the list of available system fonts and their supported axes, use the 'vtm \-\-fontlist' command. -->
-            <regular     wdth="100"        wght="400"        />
-            <italic      wdth=regular/wdth wght=regular/wght />
-            <bold        wdth=regular/wdth wght="700"        />
-            <bold_italic wdth=regular/wdth wght=bold/wght    />
+            <regular     wdth="100"        wght="400"        ital="0"          />
+            <italic      wdth=regular/wdth wght=regular/wght ital="1"          />
+            <bold        wdth=regular/wdth wght="700"        ital=regular/ital />
+            <bold_italic wdth=regular/wdth wght=bold/wght    ital=italic/ital  />
             <!-- [wdth]: 50-200 (percentage). Typical values: 75% for 'Condensed', 100% for 'Normal', 150% for 'Extended'. -->
             <!-- [wght]: 1-1000 (weight units). Typical values: 400 for 'Regular', 700 for 'Bold', 900 for 'Black'. -->
+            <!-- [ital]: 0-1 (boolean). Switch between Roman (0, upright) and true italic letterforms (1). -->
             <!-- [slnt]: -90 to +90 (degrees). Vertical tilt angle. -->
             <!-- [GRAD]: Grade: Modifies the optical weight without changing glyph width. -->
             <!-- [SOFT]: Softness: Adjusts corner rounding. -->
