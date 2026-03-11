@@ -842,13 +842,13 @@ Notes
                 'regular', 'bold', 'italic', and 'bold_italic'. -->
             <!-- If no values are provided, the primary font family defaults will be used. -->
             <!-- To view the list of available system fonts and their supported axes, use the 'vtm \-\-fontlist' command. -->
-            <regular     wdth=""           wght=""           slnt=""           />
-            <italic      wdth=regular/wdth wght=regular/wght slnt=""           />
-            <bold        wdth=regular/wdth wght=""           slnt=regular/slnt />
-            <bold_italic wdth=regular/wdth wght=bold/wght    slnt=italic/slnt  />
+            <regular     wdth="100"        wght="400"        />
+            <italic      wdth=regular/wdth wght=regular/wght />
+            <bold        wdth=regular/wdth wght="700"        />
+            <bold_italic wdth=regular/wdth wght=bold/wght    />
             <!-- [wdth]: 50-200 (percentage). Typical values: 75% for 'Condensed', 100% for 'Normal', 150% for 'Extended'. -->
-            <!-- [slnt]: -90 to +90 (degrees). Vertical tilt angle. For example, regular: slnt=0; bold: slnt=0; italic: slnt=-12; bold_italic: slnt=-10. -->
-            <!-- [wght]: 1-1000 (weight units). Typical values: 400 for 'Regular', 700 for 'Bold', 900 for 'Black'. For example, regular: wght=200; bold: wght=500 == sets a thin weight (200) for 'regular/italic' and a near-normal weight (500) for 'bold/bold+italic'. -->
+            <!-- [wght]: 1-1000 (weight units). Typical values: 400 for 'Regular', 700 for 'Bold', 900 for 'Black'. -->
+            <!-- [slnt]: -90 to +90 (degrees). Vertical tilt angle. -->
             <!-- [GRAD]: Grade: Modifies the optical weight without changing glyph width. -->
             <!-- [SOFT]: Softness: Adjusts corner rounding. -->
             <!-- [SERF]: Serif Shape: Modifies the shape or size of serifs. -->
