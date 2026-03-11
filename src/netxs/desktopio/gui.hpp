@@ -35,16 +35,16 @@ namespace netxs::gui
 
     static constexpr auto debug_foci = faux;
 
+    struct font_style
+    {
+        static constexpr auto regular     = 0;
+        static constexpr auto italic      = 1;
+        static constexpr auto bold        = 2;
+        static constexpr auto bold_italic = bold | italic;
+        static constexpr auto count       = 4;
+    };
     struct cfg_t
     {
-        enum font_style
-        {
-            regular,
-            bold,
-            italic,
-            bold_italic,
-            count,
-        };
         using axis_vals_t = std::array<std::map<text, fp32>, font_style::count>;
 
         si32            win_state{};    // cfg_t: .
@@ -292,7 +292,7 @@ namespace netxs::gui
                     f.doubline2 = r2;
                     f.wavyline = doubline3;
                 }
-                for (auto s : { style::normal, style::bold })
+                for (auto s : { font_style::regular, font_style::bold })
                 {
                     fontface[s].transform = transform;
                     fontface[s].em_height = em_height;
@@ -313,7 +313,7 @@ namespace netxs::gui
                 transform_letters = std::floor(base_x_height * transform) / base_x_height; // Respect x-height.
                 em_height_letters = base_emheight * transform_letters;
                 actual_sz *= k;
-                for (auto s : { style::italic, style::bold_italic })
+                for (auto s : { font_style::italic, font_style::bold_italic })
                 {
                     fontface[s].transform = transform;
                     fontface[s].em_height = em_height;
@@ -322,13 +322,6 @@ namespace netxs::gui
                     fontface[s].em_height_letters = em_height_letters;
                 }
             }
-        };
-        struct style
-        {
-            static constexpr auto normal      = 0;
-            static constexpr auto italic      = 1;
-            static constexpr auto bold        = 2;
-            static constexpr auto bold_italic = bold | italic;
         };
         struct fontcat
         {
@@ -405,10 +398,10 @@ namespace netxs::gui
             auto normal_glyph_metrics = DWRITE_GLYPH_METRICS{};
             auto code_points = ui32{ 'M' };
             auto glyph_index = ui16{ 0 };
-            fontface[style::normal].faceinst->GetGlyphIndices(&code_points, 1, &glyph_index);
-            fontface[style::normal].faceinst->GetDesignGlyphMetrics(&glyph_index, 1, &normal_glyph_metrics, faux);
-            fontface[style::italic].faceinst->GetGlyphIndices(&code_points, 1, &glyph_index);
-            fontface[style::italic].faceinst->GetDesignGlyphMetrics(&glyph_index, 1, &italic_glyph_metrics, faux);
+            fontface[font_style::regular].faceinst->GetGlyphIndices(&code_points, 1, &glyph_index);
+            fontface[font_style::regular].faceinst->GetDesignGlyphMetrics(&glyph_index, 1, &normal_glyph_metrics, faux);
+            fontface[font_style::italic ].faceinst->GetGlyphIndices(&code_points, 1, &glyph_index);
+            fontface[font_style::italic ].faceinst->GetDesignGlyphMetrics(&glyph_index, 1, &italic_glyph_metrics, faux);
             proportional = normal_glyph_metrics.advanceWidth != (ui32)facesize.x;
             normal_width = normal_glyph_metrics.advanceWidth - normal_glyph_metrics.rightSideBearing;
             italic_width = italic_glyph_metrics.advanceWidth - italic_glyph_metrics.rightSideBearing;
@@ -437,16 +430,16 @@ namespace netxs::gui
             };
             auto& fontface = u.fontface;
             u.fontface.resize(4);
-            get(fontface[style::normal     ].faceinst, DWRITE_FONT_WEIGHT_NORMAL,    DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL);
-            get(fontface[style::italic     ].faceinst, DWRITE_FONT_WEIGHT_NORMAL,    DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_ITALIC);
-            get(fontface[style::bold       ].faceinst, DWRITE_FONT_WEIGHT_DEMI_BOLD, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL);
-            get(fontface[style::bold_italic].faceinst, DWRITE_FONT_WEIGHT_DEMI_BOLD, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_ITALIC);
+            get(fontface[font_style::regular    ].faceinst, DWRITE_FONT_WEIGHT_NORMAL,    DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL);
+            get(fontface[font_style::italic     ].faceinst, DWRITE_FONT_WEIGHT_NORMAL,    DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_ITALIC);
+            get(fontface[font_style::bold       ].faceinst, DWRITE_FONT_WEIGHT_DEMI_BOLD, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL);
+            get(fontface[font_style::bold_italic].faceinst, DWRITE_FONT_WEIGHT_DEMI_BOLD, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_ITALIC);
             auto names = ComPtr<IDWriteLocalizedStrings>{};
             barefont->GetFamilyNames(names.GetAddressOf());
             auto buff = wide(100, 0);
             names->GetString(0, buff.data(), (ui32)buff.size());
             u.font_name = utf::to_utf(buff.data());
-            auto& faceinst = fontface[style::normal].faceinst;
+            auto& faceinst = fontface[font_style::regular].faceinst;
             if (faceinst)
             {
                 auto m = DWRITE_FONT_METRICS1{};
@@ -1264,9 +1257,9 @@ namespace netxs::gui
             }
             if (codepoints.empty()) return;
 
-            auto format = fonts::style::normal;
-            if (c.itc()) format |= fonts::style::italic;
-            if (c.bld()) format |= fonts::style::bold;
+            auto format = font_style::regular;
+            if (c.itc()) format |= font_style::italic;
+            if (c.bld()) format |= font_style::bold;
             auto base_char = codepoints.front().cdpoint;
             auto& f = fcache.take_font(base_char);
             if (f.fontface.empty()) // Font index is not ready yet. Try again later.
