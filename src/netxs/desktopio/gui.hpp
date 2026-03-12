@@ -45,7 +45,18 @@ namespace netxs::gui
     };
     struct cfg_t
     {
-        using axis_vals_t = std::array<std::map<text, fp32>, font_style::count>;
+        using axis_vals_t = std::array<std::map<si32/*Axis tag*/, fp32>, font_style::count>;
+
+        static constexpr auto ft_tag(auto&& tag)
+        {
+            return (tag[0] << 24) | (tag[1] << 16) | (tag[2] << 8) | (tag[3] << 0);
+        }
+        static auto ft_untag(si32 tag)
+        {
+            auto host_endian_tag = netxs::betoh(tag);
+            auto tag_str = text{ (char*)&host_endian_tag, 4 };
+            return tag_str;
+        }
 
         si32            win_state{};    // cfg_t: .
         bool            antialiasing{}; // cfg_t: .

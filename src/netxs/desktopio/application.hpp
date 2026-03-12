@@ -993,10 +993,10 @@ namespace netxs::app::shared
         auto fonts_context = config.settings::push_context("/config/gui/fonts/");
         auto font_list = config.settings::take_ptr_list_for_name("font");
         auto fonts_ptr = fonts_context.ctx_root();
-        for (auto [style_name, style_id, def_vals] : { std::tuple{ "regular"    , gui::font_style::regular    , std::to_array({ std::pair{ "wdth", 100.0f }, std::pair{ "wght", 400.0f }, std::pair{ "ital", 0.0f } }) },
-                                                                 { "italic"     , gui::font_style::italic     , std::to_array({ std::pair{ "wdth", 100.0f }, std::pair{ "wght", 400.0f }, std::pair{ "ital", 1.0f } }) },
-                                                                 { "bold"       , gui::font_style::bold       , std::to_array({ std::pair{ "wdth", 100.0f }, std::pair{ "wght", 700.0f }, std::pair{ "ital", 0.0f } }) },
-                                                                 { "bold_italic", gui::font_style::bold_italic, std::to_array({ std::pair{ "wdth", 100.0f }, std::pair{ "wght", 700.0f }, std::pair{ "ital", 1.0f } }) } })
+        for (auto [style_name, style_id, def_vals] : { std::tuple{ "regular"    , gui::font_style::regular    , std::to_array({ std::pair{ gui::cfg_t::ft_tag("wdth"), 100.0f }, std::pair{ gui::cfg_t::ft_tag("wght"), 400.0f }, std::pair{ gui::cfg_t::ft_tag("ital"), 0.0f } }) },
+                                                                 { "italic"     , gui::font_style::italic     , std::to_array({ std::pair{ gui::cfg_t::ft_tag("wdth"), 100.0f }, std::pair{ gui::cfg_t::ft_tag("wght"), 400.0f }, std::pair{ gui::cfg_t::ft_tag("ital"), 1.0f } }) },
+                                                                 { "bold"       , gui::font_style::bold       , std::to_array({ std::pair{ gui::cfg_t::ft_tag("wdth"), 100.0f }, std::pair{ gui::cfg_t::ft_tag("wght"), 700.0f }, std::pair{ gui::cfg_t::ft_tag("ital"), 0.0f } }) },
+                                                                 { "bold_italic", gui::font_style::bold_italic, std::to_array({ std::pair{ gui::cfg_t::ft_tag("wdth"), 100.0f }, std::pair{ gui::cfg_t::ft_tag("wght"), 700.0f }, std::pair{ gui::cfg_t::ft_tag("ital"), 1.0f } }) } })
         {
             auto& style_axis = gui_config.font_axes[style_id];
             for (auto& [tag, value] : def_vals)
@@ -1012,7 +1012,9 @@ namespace netxs::app::shared
                     auto value = xml::take_or(value_str, netxs::fp32nan);
                     if (std::isfinite(value))
                     {
-                        style_axis[(*item_ptr->name)->utf8] = value;
+                        auto& utf8 = (*item_ptr->name)->utf8;
+                        utf8.resize(4);
+                        style_axis[gui::cfg_t::ft_tag(utf8)] = value;
                     }
                 }
             }
