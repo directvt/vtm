@@ -970,6 +970,8 @@ namespace netxs
     template<class T>
     struct irgb
     {
+        static constexpr auto inv_255 = 1.0f / 255.0f;
+
         T r, g, b, a;
 
         constexpr irgb() = default;
@@ -984,10 +986,10 @@ namespace netxs
               a{ c.chan.a }
         { }
         constexpr irgb(argb c) requires(std::is_floating_point_v<T>)
-            : r{ c.chan.r / 255.f },
-              g{ c.chan.g / 255.f },
-              b{ c.chan.b / 255.f },
-              a{ c.chan.a / 255.f }
+            : r{ c.chan.r * inv_255 },
+              g{ c.chan.g * inv_255 },
+              b{ c.chan.b * inv_255 },
+              a{ c.chan.a * inv_255 }
         { }
 
         operator argb() const { return argb{ r, g, b, a }; }
@@ -1031,44 +1033,30 @@ namespace netxs
         // irgb: Premultiply alpha (floating point only).
         auto& pma() requires(std::is_floating_point_v<T>)
         {
-            if (a != 1.f)
-            {
-                if (a == 0.f) r = b = g = 0.f;
-                else
-                {
-                    r *= a;
-                    g *= a;
-                    b *= a;
-                }
-            }
+            r *= a;
+            g *= a;
+            b *= a;
             return *this;
         }
         // irgb: Blend with pma c (floating point only).
         auto& blend_pma(irgb c) requires(std::is_floating_point_v<T>)
         {
-            if (c.a != 0.f)
-            {
-                if (c.a == 1.f || a == 0.f) *this = c;
-                else
-                {
-                    auto na = 1.f - c.a;
-                    r = c.r + na * r;
-                    g = c.g + na * g;
-                    b = c.b + na * b;
-                    a = c.a + na * a;
-                }
-            }
+            auto na = 1.f - c.a;
+            r = c.r + na * r;
+            g = c.g + na * g;
+            b = c.b + na * b;
+            a = c.a + na * a;
             return *this;
         }
         // irgb: Blend with non-pma c (0.0-1.0) using integer alpha (0-255).
         auto& blend_nonpma(irgb non_pma_c, byte alpha) requires(std::is_floating_point_v<T>)
         {
-            if (alpha == 255) *this = non_pma_c;
-            else if (alpha != 0)
-            {
-                non_pma_c.a *= (T)alpha / 255;
-                blend_pma(non_pma_c.pma());
-            }
+            auto factor = ((T)alpha * inv_255) * non_pma_c.a;
+            auto inv_factor = 1.0f - factor;
+            r = non_pma_c.r * factor + r * inv_factor;
+            g = non_pma_c.g * factor + g * inv_factor;
+            b = non_pma_c.b * factor + b * inv_factor;
+            a = factor + a * inv_factor;
             return *this;
         }
     };
