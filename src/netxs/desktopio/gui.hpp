@@ -1485,7 +1485,7 @@ namespace netxs::gui
         void draw_glyph(auto& canvas, sprite& glyph_mask, twod offset, argb fgc)
         {
             auto box = glyph_mask.area.shift(offset);
-            auto f_fgc = irgb{ fgc }.sRGB2Linear(); //todo use lut: irgb::sRGB2Linear_lut(fgc);
+            auto f_fgc = irgb{}.sRGB2Linear(fgc);
             if (glyph_mask.type == sprite::color)
             {
                 auto fx = [fgc, f_fgc](argb& dst, irgb src)
@@ -1494,7 +1494,7 @@ namespace netxs::gui
                     else if (src.a == 1.f) dst = src.linear2sRGB();
                     else if (src.a < 256.f + 255.f)
                     {
-                        auto f_dst = irgb{ dst }.sRGB2Linear(); //todo use lut
+                        auto f_dst = irgb{}.sRGB2Linear(dst);
                         if (src.a > 256.f) // Alpha contains non-zero integer for fgc's aplha.
                         {
                             auto fgc_alpha = netxs::saturate_cast<byte>(src.a - 256.f);
@@ -1516,8 +1516,8 @@ namespace netxs::gui
                     else if (src == 255) dst = fgc;
                     else
                     {
-                        auto f_dst = irgb{ dst }.sRGB2Linear();
-                        dst = f_dst.blend_nonpma(f_fgc, src).linear2sRGB();
+                        auto f_dst = irgb{};
+                        dst = f_dst.sRGB2Linear(dst).blend_nonpma(f_fgc, src).linear2sRGB();
                     }
                 };
                 auto raster = netxs::raster{ std::span{ (byte*)glyph_mask.bits.data(), (size_t)glyph_mask.area.length() }, box };

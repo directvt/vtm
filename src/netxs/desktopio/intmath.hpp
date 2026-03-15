@@ -396,7 +396,7 @@ namespace netxs
         return c <= 0.04045f ? c / 12.92f
                              : std::pow((c + 0.055f) / 1.055f, 2.4f);
     }
-    static auto sRGB2Linear_lut = []
+    static const auto sRGB2Linear_lut = []
     {
         auto i = 0.0f;
         auto lut = std::array<fp32, 256>{};

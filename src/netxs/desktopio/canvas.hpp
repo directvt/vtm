@@ -1004,6 +1004,15 @@ namespace netxs
         void operator += (argb c) requires(std::is_integral_v<T>) { r += c.chan.r; g += c.chan.g; b += c.chan.b; a += c.chan.a; }
         void operator -= (argb c) requires(std::is_integral_v<T>) { r -= c.chan.r; g -= c.chan.g; b -= c.chan.b; a -= c.chan.a; }
         // irgb: sRGB to linear (g = 2.4)
+        irgb& sRGB2Linear(argb c) requires(std::is_floating_point_v<T>)
+        {
+            r = netxs::sRGB2Linear(c.chan.r);
+            g = netxs::sRGB2Linear(c.chan.g);
+            b = netxs::sRGB2Linear(c.chan.b);
+            a = c.chan.a / 255.f;
+            return *this;
+        }
+        // irgb: sRGB to linear (g = 2.4)
         irgb& sRGB2Linear() requires(std::is_floating_point_v<T>)
         {
             r = netxs::sRGB2Linear(r);
