@@ -1436,8 +1436,7 @@ namespace netxs::gui
             //netxs::onrect(src_bitmap, bline, [](auto& c){ c = std::min(255, c + 64); });
             if (glyph_mask.area && flipandrotate)
             {
-                //todo optimize
-                static auto buffer = std::vector<ui32>{}; // Use ui32 for 4-byte alignment (aarch requirement).
+                static thread_local auto buffer = std::vector<ui32>{}; // Use ui32 for 4-byte alignment (aarch requirement).
                 static constexpr auto l0 = std::to_array({ 1, -1, -1,  1, -1, 1,  1, -1 });
                 static constexpr auto l1 = std::to_array({ 1,  1, -1, -1,  1, 1, -1, -1 });
                 buffer.assign(glyph_mask.bits.begin(), glyph_mask.bits.end());
