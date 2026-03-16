@@ -1394,12 +1394,15 @@ namespace netxs::gui
                     {
                         netxs::onbody(raster, alpha_mask, [fill = m.fill](irgb& dst, byte& alpha)
                         {
-                            if (dst.a >= 256.f) // Update the fgc layer if it exists. dst.a consists of two parts: an integer that represents the fgc alpha in 8-bit format, and a floating point normalized [0.0-1.0] value that represents the alpha for the color glyph sprite.
+                            if (dst.has_extra_alpha())  // Update the fgc layer if it exists. dst.a consists of two parts: the fgc alpha in 8-bit format, and a floating point normalized [0.0-1.0] value that represents the alpha for the color glyph sprite.
                             {
-                                auto fgc_alpha = (si32)dst.a;
-                                dst.a -= fgc_alpha;
+                                auto fgc_alpha = dst.unpack_alpha();
                                 dst.blend_nonpma(fill, alpha);
-                                if (alpha != 255 && fgc_alpha > 256) dst.a += 256 + (si32)netxs::saturate_cast<byte>(fgc_alpha - 256) * (255 - alpha) / 255;
+                                if (alpha != 0) 
+                                {
+                                    fgc_alpha = (byte)((ui32)fgc_alpha * (255 - alpha) / 255);
+                                }
+                                dst.pack_alpha(fgc_alpha);
                             }
                             else dst.blend_nonpma(fill, alpha);
                         });
@@ -1408,11 +1411,20 @@ namespace netxs::gui
                     {
                         netxs::onbody(raster, alpha_mask, [](irgb& dst, byte& alpha)
                         {
-                                 if (alpha == 255) dst = { 0.f, 0.f, 0.f, 256.f + 255.f };
+                            if (alpha == 255) 
+                            {
+                                dst.r = 0.f; dst.g = 0.f; dst.b = 0.f;
+                                dst.pack_alpha(255); 
+                            }
                             else if (alpha != 0)
                             {
-                                auto fgc_alpha = (si32)netxs::saturate_cast<byte>(dst.a - 256.f);
-                                dst.a = dst.a + (-(si32)dst.a + 256 + alpha + (255 - alpha) * fgc_alpha / 255);
+                                auto fgc_alpha = byte{};
+                                if (dst.has_extra_alpha())
+                                {
+                                    fgc_alpha = dst.get_extra_alpha();
+                                }
+                                fgc_alpha = alpha + (255 - alpha) * fgc_alpha / 255;
+                                dst.pack_alpha(fgc_alpha);
                             }
                         });
                     }
@@ -1490,20 +1502,17 @@ namespace netxs::gui
             {
                 auto fx = [fgc, f_fgc](argb& dst, irgb src)
                 {
-                         if (src.a == 0.f) return;
-                    else if (src.a == 1.f) dst = src.linear2sRGB();
-                    else if (src.a < 256.f + 255.f)
+                    if (src.a == 0.f) return;
+                    auto f_dst = irgb{}.sRGB2Linear(dst);
+                    if (src.has_extra_alpha())
                     {
-                        auto f_dst = irgb{}.sRGB2Linear(dst);
-                        if (src.a > 256.f) // Alpha contains non-zero integer for fgc's aplha.
+                        auto fgc_alpha = src.unpack_alpha();
+                        if (fgc_alpha > 0)
                         {
-                            auto fgc_alpha = netxs::saturate_cast<byte>(src.a - 256.f);
-                            src.a -= (si32)src.a;
                             f_dst.blend_nonpma(f_fgc, fgc_alpha);
                         }
-                        dst = f_dst.blend_pma(src).linear2sRGB();
                     }
-                    else dst = fgc; // src.a >= 256 + 255.f
+                    dst = f_dst.blend_pma(src.pma()).linear2sRGB();
                 };
                 auto raster = netxs::raster{ std::span{ (irgb*)glyph_mask.bits.data(), (size_t)glyph_mask.area.length() }, box };
                 netxs::onclip(canvas, raster, fx);
@@ -1512,12 +1521,14 @@ namespace netxs::gui
             {
                 auto fx = [fgc, f_fgc](argb& dst, byte src)
                 {
-                         if (src == 0) return;
-                    else if (src == 255) dst = fgc;
+                    if (src == 0) return;
+                    if (src == 255)
+                    {
+                        dst = fgc;
+                    }
                     else
                     {
-                        auto f_dst = irgb{};
-                        dst = f_dst.sRGB2Linear(dst).blend_nonpma(f_fgc, src).linear2sRGB();
+                        dst = irgb{}.sRGB2Linear(dst).blend_nonpma(f_fgc, src).linear2sRGB();
                     }
                 };
                 auto raster = netxs::raster{ std::span{ (byte*)glyph_mask.bits.data(), (size_t)glyph_mask.area.length() }, box };

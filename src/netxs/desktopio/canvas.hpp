@@ -1059,6 +1059,43 @@ namespace netxs
             a = factor + a * inv_factor;
             return *this;
         }
+        // irgb:  Pack fgc_alpha into exponent/mantissa. Use the range [2.0, 4.0), where the exponent is always 0x40.
+        void pack_alpha(byte alpha) // Bits: [Sign: 0][Exponent: 10000000][Mantissa: alpha_bits(7) + fgc_alpha(8) + padding(8)]
+        {
+            auto a_bits = std::bit_cast<ui32>(a);
+            auto packed = 0x40000000u | (alpha << 8) | (a_bits & 0xFF); // Take the upper bits of the mantissa alpha (for precision) and insert alpha.
+            a = std::bit_cast<fp32>(packed);
+        }
+        // irgb: Return true if alpha channel has extra alpha value.
+        bool has_extra_alpha() const
+        {
+            auto a_bits = std::bit_cast<ui32>(a);
+            return (a_bits >> 30) == 1; // Number in the range [2.0, 4.0).
+        }
+        // irgb: Unpack and restore pure alpha. Return extra alpha value and normalize the current alpha channel.
+        byte unpack_alpha()
+        {
+            auto a_bits = std::bit_cast<ui32>(a);
+            auto alpha = (byte)((a_bits >> 8) & 0xFF);
+            auto pure_bits = (ui32)(a_bits & 0xFF) << 15; // Return the mantissa bits to their place.
+            a = std::bit_cast<fp32>(pure_bits | 0x3F000000u) - 0.5f; // Hacks for accuracy.
+            // a = (fp32)(a_bits & 0xFF) / 255.0f; // Or 8-bit accuracy.
+            return alpha;
+        }
+        // irgb: Normalize the current alpha channel.
+        void restore_pure_alpha()
+        {
+            auto a_bits = std::bit_cast<ui32>(a);
+            auto pure_bits = (ui32)(a_bits & 0xFF) << 15; // Return the mantissa bits to their place.
+            a = std::bit_cast<fp32>(pure_bits | 0x3F000000u) - 0.5f; // Hacks for accuracy.
+            // a = (fp32)(a_bits & 0xFF) / 255.0f; // Or 8-bit accuracy.
+        }
+        // irgb: Unpack and return an extra alpha value.
+        byte get_extra_alpha() const
+        {
+            auto a_bits = std::bit_cast<ui32>(a);
+            return (byte)((a_bits >> 8) & 0xFF);
+        }
     };
 
     // canvas: Grapheme cluster.
