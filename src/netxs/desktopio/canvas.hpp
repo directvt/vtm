@@ -374,7 +374,7 @@ namespace netxs
                 auto force = 0.3f * (1.0f - color_dist);
                 if (bg_luma > 0.50f) // Light background -> Darken (moving to black 0.0).
                 {
-                    auto t = 1.0f - force; 
+                    auto t = 1.0f - force;
                     blended_r *= t;
                     blended_g *= t;
                     blended_b *= t;

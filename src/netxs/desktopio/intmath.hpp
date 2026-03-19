@@ -16,18 +16,16 @@
 #include <cmath>
 #include <condition_variable>
 #include <coroutine>
-#include <cstdint>
 #include <cstring> // std::memcpy
 #include <deque>
 #include <filesystem>
 #include <fstream>
 #include <functional>
 #include <future>
-#include <iterator>
 #include <limits>
 #include <list>
 #include <map>
-#include <memory>
+#include <memory_resource> // Polymorphic allocator.
 #include <mutex>
 #include <numeric> // std::accumulate
 #include <optional>
@@ -37,13 +35,10 @@
 #include <span>
 #include <sstream>
 #include <string>
-#include <string_view>
 #include <thread>
-#include <type_traits>
 #include <typeindex>
 #include <unordered_map>
 #include <unordered_set>
-#include <utility> // std::cmp_equal
 #include <variant>
 #include <vector>
 

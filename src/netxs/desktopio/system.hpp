@@ -1237,6 +1237,149 @@ namespace netxs::os
                                      NULL);           // no template file
                 return link != os::invalid_fd;
             }
+            auto get_system_error_message(auto errcode)
+            {
+                auto utf8msg = text{};
+                auto utf16msg = (wchr*)nullptr;
+                if (auto len = ::FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_ALLOCATE_BUFFER, nullptr, errcode, 0, (wchr*)&utf16msg, 0, nullptr))
+                {
+                    utf::to_utf(utf16msg, len, utf8msg);
+                    auto utf8 = view{ utf8msg };
+                    utf::trim_back(utf8, "\n\r\0");
+                    utf8msg.resize(utf8.size());
+                    ::LocalFree(utf16msg);
+                }
+                return utf8msg;
+            }
+            auto get_registry_key_value(HKEY hKey, LPCWSTR lpSubKey, LPCWSTR lpValue)
+            {
+                auto utf8value = text{};
+                auto required = DWORD{};
+                auto ret = ::RegGetValueW(hKey, lpSubKey, lpValue, RRF_RT_REG_SZ, nullptr, nullptr, &required); /* RRF_RT_REG_SZ: automatically converts REG_EXPAND_SZ to REG_SZ. */
+                if (ret == ERROR_SUCCESS)
+                {
+                    auto utf16value = wide(required / sizeof(wchr), 0);
+                    ret = ::RegGetValueW(hKey, lpSubKey, lpValue, RRF_RT_REG_SZ, nullptr, (LPBYTE)utf16value.data(), &required);
+                    if (ret == ERROR_SUCCESS)
+                    {
+                        utf::to_utf(utf16value, utf8value);
+                    }
+                }
+                if (ret != ERROR_SUCCESS)
+                {
+                    auto errmsg = os::nt::get_system_error_message(ret);
+                    auto subkey = utf::to_utf(lpSubKey);
+                    auto value = utf::to_utf(lpValue);
+                    log("Failed to get value for registry key %subkey%\\%value%: %errmsg%", subkey, value, errmsg);
+                }
+                return utf8value;
+            }
+
+            struct registry_item_t
+            {
+                HKEY hive; // HKEY_LOCAL_MACHINE or HKEY_CURRENT_USER
+                text path;
+                text name;
+                text data;
+                ui32 type = REG_NONE; // It is a subkey.
+            };
+            template<class P = always_true>
+            generics::generator<registry_item_t> walk_registry(HKEY hParentKey, wiew wideSubKeyPath, P filter = {})
+            {
+                struct registry_stack_item_t
+                {
+                    struct smart_HKey_t
+                    {
+                        HKEY h;
+                        smart_HKey_t(HKEY h)
+                            : h{ h }
+                        { }
+                        smart_HKey_t(smart_HKey_t&& other) noexcept
+                            : h{ std::exchange(other.h, nullptr) }
+                        { }
+                        ~smart_HKey_t() { if (h) ::RegCloseKey(h); }
+                        operator HKEY () { return h; }
+                    };
+                    smart_HKey_t hKey;
+                    text utf8Path;
+                };
+
+                auto hKey = HKEY{};
+                auto stack = std::vector<registry_stack_item_t>{};
+                if (ERROR_SUCCESS == ::RegOpenKeyExW(hParentKey, wideSubKeyPath.data(), 0, KEY_READ, &hKey))
+                {
+                    stack.push_back({ hKey, utf::to_utf(wideSubKeyPath) });
+                }
+                auto nameBuffer = wide{};
+                auto valueBuffer = wide{};
+                auto registry_item = registry_item_t{ hParentKey };
+                while (stack.size())
+                {
+                    auto current = std::move(stack.back());
+                    stack.pop_back();
+                    registry_item.name.clear();
+                    registry_item.path = std::move(current.utf8Path);
+                    registry_item.type = REG_NONE;
+                    if (filter(registry_item))
+                    {
+                        co_yield registry_item; // Yield a key.
+                    }
+                    auto subKeyCount = DWORD{};
+                    auto maxSubKeyLen = DWORD{};
+                    auto valueCount = DWORD{};
+                    auto maxValueNameLen = DWORD{};
+                    auto maxValueLen = DWORD{};
+                    if (ERROR_SUCCESS == ::RegQueryInfoKeyW(current.hKey,
+                                                            nullptr, nullptr,            // LPWSTR lpClass, LPDWORD lpcchClass
+                                                            nullptr,                     // Reserved
+                                                            &subKeyCount, &maxSubKeyLen, // LPDWORD lpcSubKeys, LPDWORD lpcbMaxSubKeyLen
+                                                            nullptr,                     // LPDWORD lpcbMaxClassLen
+                                                            &valueCount,                 // LPDWORD lpcValues
+                                                            &maxValueNameLen,            // LPDWORD lpcbMaxValueNameLen (in Unicode characters)
+                                                            &maxValueLen,                // LPDWORD lpcbMaxValueLen (in bytes)
+                                                            nullptr, nullptr))           // LPDWORD lpcbSecurityDescriptor, PFILETIME lpftLastWriteTime
+                    {
+                        //log("SubkeyCount=%%, maxSubKeyLen=%%, valueCount=%%, maxValueNameLen=%%, maxValueLen=%%", subKeyCount, maxSubKeyLen, valueCount, maxValueNameLen, maxValueLen);
+                        nameBuffer.resize(maxValueNameLen + 1);
+                        valueBuffer.resize((maxValueLen + 1) / sizeof(wchr));
+                        for (auto i = 0u; i < valueCount; ++i) // Yield values.
+                        {
+                            auto nameSize = (DWORD)nameBuffer.size();
+                            auto valueSize = (DWORD)(valueBuffer.size() * sizeof(wchr));
+                            auto type = DWORD{};
+                            if (ERROR_SUCCESS == ::RegEnumValueW(current.hKey, i, nameBuffer.data(), &nameSize, nullptr, &type, (LPBYTE)valueBuffer.data(), &valueSize))
+                            {
+                                valueSize /= sizeof(wchr);
+                                if (valueSize && (type == REG_SZ || type == REG_EXPAND_SZ || type == REG_MULTI_SZ))
+                                {
+                                    if (valueBuffer[valueSize - 1] == '\0') valueSize--;
+                                }
+                                registry_item.name  = utf::to_utf(nameBuffer.data(), nameSize);
+                                registry_item.data = utf::to_utf(valueBuffer.data(), valueSize);
+                                registry_item.type  = type;
+                                if (filter(registry_item))
+                                {
+                                    co_yield registry_item; // Yield key values.
+                                }
+                            }
+                        }
+                        nameBuffer.resize(maxSubKeyLen + 1);
+                        while (subKeyCount--) // Iterate through subkeys in reversed order.
+                        {
+                            auto keySize = (DWORD)nameBuffer.size();
+                            if (ERROR_SUCCESS == ::RegEnumKeyExW(current.hKey, subKeyCount, nameBuffer.data(), &keySize, nullptr, nullptr, nullptr, nullptr))
+                            {
+                                auto hSubKey = HKEY{};
+                                if (ERROR_SUCCESS == ::RegOpenKeyExW(current.hKey, nameBuffer.data(), 0, KEY_READ, &hSubKey))
+                                {
+                                    auto nextPath = registry_item.path + "\\" + utf::to_utf(nameBuffer.data(), keySize);
+                                    stack.push_back({ hSubKey, std::move(nextPath) });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
         auto guid(auto&& riid)
         {
@@ -1366,6 +1509,14 @@ namespace netxs::os
 
     #endif
 
+    auto get_system_error_message(auto ec)
+    {
+        #if defined(_WIN32)
+            return os::nt::get_system_error_message(ec);
+        #else
+            return utf::fprint("Error %%.", ec);
+        #endif
+    }
     template<class ...Args>
     void logstd(Args&&... args)
     {
@@ -1898,6 +2049,17 @@ namespace netxs::os
                 }
             #endif
         }
+        auto load_file(os::fs::path const& path, auto& buffer)
+        {
+            auto done = faux;
+            auto file = std::ifstream{ path, std::ios::binary | std::ios::ate }; // std::ios::ate: Seek to the end to get file size.
+            if (file.is_open())
+            {
+                buffer.resize(file.tellg());
+                done = !!file.seekg(0, std::ios::beg).read((char*)buffer.data(), buffer.size());
+            }
+            return done;
+        }
     }
 
     namespace env
@@ -2060,6 +2222,27 @@ namespace netxs::os
             auto err = std::error_code{};
             if (path.size()) fs::current_path(path, err);
             return !!err;
+        }
+        // os::env: Get current locale.
+        auto get_locale()
+        {
+            auto oslocale = "en-US"s;
+            #if defined(_WIN32)
+                auto buffer = std::array<wchr, LOCALE_NAME_MAX_LENGTH>{};
+                if (auto len = ::GetUserDefaultLocaleName(buffer.data(), (si32)buffer.size()))
+                {
+                    oslocale = utf::to_utf(buffer.data(), (size_t)len);
+                    utf::trim_back(oslocale, '\0');
+                }
+            #else
+                if (auto raw_locale = std::setlocale(LC_ALL, "")) // "ru_RU.UTF-8" or "sr_RS@latin"
+                {
+                    oslocale = text{ raw_locale };
+                    oslocale = oslocale.substr(0, oslocale.find_first_of(".@"));
+                    for (auto& c : oslocale) if (c == '_') c = '-';
+                }
+            #endif
+            return oslocale;
         }
     }
 

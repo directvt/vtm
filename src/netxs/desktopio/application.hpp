@@ -763,7 +763,6 @@ namespace netxs::app::shared
                                         }},
                         { "Tooltip",    [&]
                                         {
-                                            
                                             auto args_count = luafx.args_count();
                                             if (args_count) // Set tooltip.
                                             {

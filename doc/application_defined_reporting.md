@@ -9,7 +9,7 @@ Application Defined Reporting (ADR) is a paradigm shift in terminal-to-applicati
 ## Architecture
 
 In the terminal-side environment, the input pipeline is transformed into a programmable stream:
- 
+
  - Source: Physical HID events (keyboard, mouse, focus, system signals) are captured by the terminal core as binary (Lua-aware) messages.
  - The Processor (Lua Sandbox): The application injects a script into the terminal's sandbox via an APC sequence. This script subscribes to specific event IDs (e.g., terminal.Listen("hids::keybd::any", ...)).
  - The Output: The script processes these events and emits custom-formatted data back to the application using an unified interface.
@@ -57,7 +57,7 @@ end)
 -- Creates a dummy NOP packet that is indistinguishable from real input in size.
 local function generate_chaff()
     -- Returns a binary NOP (No-Operation) message padded to FRAME_SIZE.
-    return string.rep("\0", FRAME_SIZE) 
+    return string.rep("\0", FRAME_SIZE)
 end
 
 -- 3. Main Obfuscation Loop (Metronome)
@@ -68,7 +68,7 @@ terminal.SetTimer(TICK_RATE, function()
     if #event_buffer > 0 then
         -- Pop the real event from the queue
         local raw_event = table.remove(event_buffer, 1)
-        
+
         -- Apply Padding to ensure the packet size doesn't leak the event type.
         -- Whether it's "Enter" or "Ctrl+Alt+F12", the size remains constant.
         payload = pad_to_size(raw_event, FRAME_SIZE)

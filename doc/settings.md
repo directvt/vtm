@@ -632,7 +632,7 @@ Standard object names
 |                 |                          | `vtm.tile.EqualizeSplitRatio()`                    | Equalize split ratio.
 |                 |                          | `vtm.tile.SetTitle()`                              | Set the window manager title.
 |                 |                          | `vtm.tile.ClosePane()`                             | Close selected panes.
-|`grip`           | Pane splitter            | `vtm.grip.MoveGrip(int x, int y)`                  | Move the splitter by the 2D step specified by the pair { x, y }. 
+|`grip`           | Pane splitter            | `vtm.grip.MoveGrip(int x, int y)`                  | Move the splitter by the 2D step specified by the pair { x, y }.
 |                 |                          | `vtm.grip.ResizeGrip(int n)`                       | Set splitter width to n.
 |                 |                          | `vtm.grip.FocusNextGrip(int n)`                    | Set focus to the next (n=1) or previous (n=-1) tile's splitter.
 |`terminal`       |                          | `vtm.terminal.RequestInteractiveSessionToken()`    | Request an interactive session token. The token will be sent to the requesting app via APC in the following format: `\e_event=session;token=b4514088589a99e3\e\\`.
@@ -759,7 +759,7 @@ The value of the `cfg` menu item attribute (or the entire `<config>` subsection)
 
 ### UI Localization
 
-The vtm user interface can be localized into any language by providing translations for existing UI templates and assigning the required language ID to the root Ns element to ensure patch inheritance. 
+The vtm user interface can be localized into any language by providing translations for existing UI templates and assigning the required language ID to the root Ns element to ensure patch inheritance.
 
 The vtm UI has built-in English (`en-US`) and Russian (`ru-RU`) localizations.
 

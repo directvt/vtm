@@ -35,7 +35,7 @@ namespace netxs
             X(veer      ) \
             X(vtm       ) \
             X(window    ) \
-    
+
         #define X(name) static constexpr auto name = #name##sv;
         ctx_list
         #undef X
