@@ -937,11 +937,13 @@ namespace netxs::gui
         {
             if (fonts::load_char_metrics(face, cp))
             {
-                char_height = (decltype(char_height))face->glyph->metrics.horiBearingY;
+                auto tmp_value = face->glyph->metrics.horiBearingY;
+                char_height = (std::remove_reference_t<decltype(char_height)>)tmp_value;
             }
             else
             {
-                char_height = (decltype(char_height))default_height;
+                auto tmp_value = default_height;
+                char_height = (std::remove_reference_t<decltype(char_height)>)tmp_value;
             }
         }
 
