@@ -1122,7 +1122,7 @@ namespace netxs::generics
             using value_type        = std::pair<ui32 const, std::conditional_t<IsConst, T const&, T&>>;
             using reference         = value_type;
             using difference_type   = std::ptrdiff_t;
-            using pointer           = void; 
+            using pointer           = void;
 
             std::conditional_t<IsConst, T const*, T*> val_ptr;
             ui32 const*                               key_ptr;

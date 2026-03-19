@@ -22,7 +22,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v2026.03.07";
+    static const auto version = "v2026.03.19";
     static const auto repository = "https://github.com/directvt/vtm";
     static const auto usr_config = "~/.config/vtm/settings.xml"s;
     static const auto sys_config = "/etc/vtm/settings.xml"s;
@@ -763,7 +763,6 @@ namespace netxs::app::shared
                                         }},
                         { "Tooltip",    [&]
                                         {
-                                            
                                             auto args_count = luafx.args_count();
                                             if (args_count) // Set tooltip.
                                             {
@@ -992,29 +991,29 @@ namespace netxs::app::shared
         if (gui_config.gridsize.x == 0 || gui_config.gridsize.y == 0) gui_config.gridsize = dot_mx;
         auto fonts_context = config.settings::push_context("/config/gui/fonts/");
         auto font_list = config.settings::take_ptr_list_for_name("font");
-        if (font_list.size())
+        auto fonts_ptr = fonts_context.ctx_root();
+        for (auto [style_name, style_id, def_vals] : { std::tuple{ "regular"    , gui::font_style::regular    , std::to_array({ std::pair{ gui::cfg_t::ft_tag("wdth"), 100.0f }, std::pair{ gui::cfg_t::ft_tag("wght"), 400.0f }, std::pair{ gui::cfg_t::ft_tag("ital"), 0.0f } }) },
+                                                                 { "italic"     , gui::font_style::italic     , std::to_array({ std::pair{ gui::cfg_t::ft_tag("wdth"), 100.0f }, std::pair{ gui::cfg_t::ft_tag("wght"), 400.0f }, std::pair{ gui::cfg_t::ft_tag("ital"), 1.0f } }) },
+                                                                 { "bold"       , gui::font_style::bold       , std::to_array({ std::pair{ gui::cfg_t::ft_tag("wdth"), 100.0f }, std::pair{ gui::cfg_t::ft_tag("wght"), 700.0f }, std::pair{ gui::cfg_t::ft_tag("ital"), 0.0f } }) },
+                                                                 { "bold_italic", gui::font_style::bold_italic, std::to_array({ std::pair{ gui::cfg_t::ft_tag("wdth"), 100.0f }, std::pair{ gui::cfg_t::ft_tag("wght"), 700.0f }, std::pair{ gui::cfg_t::ft_tag("ital"), 1.0f } }) } })
         {
-            auto& primary_font_ptr = font_list.front();
-            auto axis_ptr_list = config.take_ptr_list_of(primary_font_ptr);
-            for (auto& axis_rec_ptr : axis_ptr_list)
+            auto& style_axis = gui_config.font_axes[style_id];
+            for (auto& [tag, value] : def_vals)
             {
-                if (axis_rec_ptr->name)
+                style_axis[tag] = value;
+            }
+            if (auto style_axes_ptr = config.settings::take_ptr(fonts_ptr, style_name))
+            {
+                auto  style_axes = config.settings::take_ptr_list_of(style_axes_ptr);
+                for (auto& item_ptr : style_axes)
                 {
-                    auto& axes_name = axis_rec_ptr->name.value()->utf8;
-                    auto base_value_str = config.settings::take_value(axis_rec_ptr);
-                    auto base_value     = xml::take_or(base_value_str                                 , netxs::fp32nan);
-                    auto regular        = config.settings::take_value_from(axis_rec_ptr, "regular"    , netxs::fp32nan);
-                    auto bold           = config.settings::take_value_from(axis_rec_ptr, "bold"       , netxs::fp32nan);
-                    auto italic         = config.settings::take_value_from(axis_rec_ptr, "italic"     , netxs::fp32nan);
-                    auto bold_italic    = config.settings::take_value_from(axis_rec_ptr, "bold_italic", netxs::fp32nan);
-                    if (std::isfinite(base_value) || std::isfinite(regular) || std::isfinite(bold) || std::isfinite(italic) || std::isfinite(bold_italic))
+                    auto value_str = config.settings::take_value(item_ptr);
+                    auto value = xml::take_or(value_str, netxs::fp32nan);
+                    if (std::isfinite(value))
                     {
-                        auto& font_axis = gui_config.font_axes[axes_name];
-                        font_axis.base_value  = base_value;
-                        font_axis.regular     = regular;
-                        font_axis.bold        = bold;
-                        font_axis.italic      = italic;
-                        font_axis.bold_italic = bold_italic;
+                        auto& utf8 = (*item_ptr->name)->utf8;
+                        utf8.resize(4);
+                        style_axis[gui::cfg_t::ft_tag(utf8)] = value;
                     }
                 }
             }

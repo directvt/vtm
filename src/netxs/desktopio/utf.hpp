@@ -2610,6 +2610,17 @@ namespace netxs::utf
                  << utf::adjust(std::to_string(milli), 3, '0', true)
                  << utf::adjust(std::to_string(micro), 3, '0', true);
     }
+    #if not defined(_WIN32) //todo Implementation for gcc 11 (waiting for gcc 13)
+    auto& operator << (std::ostream& s, std::filesystem::file_time_type const& ftime)
+    {
+        auto sct = std::chrono::time_point_cast<std::chrono::system_clock::duration>(ftime - std::filesystem::file_time_type::clock::now() + std::chrono::system_clock::now());
+        auto tt = std::chrono::system_clock::to_time_t(sct);
+        auto tm = std::tm{};
+        //::localtime_s(&tm, &tt); // Windows
+        ::localtime_r(&tt, &tm); // POSIX
+        return s << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
+    }
+    #endif
     void print2(auto& input, view& format)
     {
         input << format;

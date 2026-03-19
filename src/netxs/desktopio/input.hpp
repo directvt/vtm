@@ -2233,7 +2233,6 @@ namespace netxs::input
                                 {
                                     log("%%Event source '%src_name%' not found", prompt::lua, src_name);
                                 }
-                                
                             }
                         }
                     });

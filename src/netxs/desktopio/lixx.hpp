@@ -12937,7 +12937,7 @@ namespace netxs::lixx // li++, libinput++.
                         {
                             for (auto& t : tp.touches)
                             {
-                                if (auto& timer = t.scroll.timer) 
+                                if (auto& timer = t.scroll.timer)
                                 {
                                     timer->cancel();
                                     timer.reset();

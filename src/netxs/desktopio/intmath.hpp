@@ -16,18 +16,16 @@
 #include <cmath>
 #include <condition_variable>
 #include <coroutine>
-#include <cstdint>
 #include <cstring> // std::memcpy
 #include <deque>
 #include <filesystem>
 #include <fstream>
 #include <functional>
 #include <future>
-#include <iterator>
 #include <limits>
 #include <list>
 #include <map>
-#include <memory>
+#include <memory_resource> // Polymorphic allocator.
 #include <mutex>
 #include <numeric> // std::accumulate
 #include <optional>
@@ -37,13 +35,11 @@
 #include <span>
 #include <sstream>
 #include <string>
-#include <string_view>
 #include <thread>
-#include <type_traits>
 #include <typeindex>
 #include <unordered_map>
 #include <unordered_set>
-#include <utility> // std::cmp_equal
+#include <utility> // std::exchange
 #include <variant>
 #include <vector>
 
@@ -396,7 +392,7 @@ namespace netxs
         return c <= 0.04045f ? c / 12.92f
                              : std::pow((c + 0.055f) / 1.055f, 2.4f);
     }
-    static auto sRGB2Linear_lut = []
+    static const auto sRGB2Linear_lut = []
     {
         auto i = 0.0f;
         auto lut = std::array<fp32, 256>{};
@@ -428,12 +424,8 @@ namespace netxs
     // intmath: Get Linear to sRGB via lut (gamma 2.2)
     auto linear2sRGB(fp32 c)
     {
-        auto x = std::clamp(c, 0.0f, 1.0f) * (linear2sRGB_lut_size - 1);
+        auto x = std::clamp(c, 0.0f, 0.99999f) * (linear2sRGB_lut_size - 1);
         auto i = (si32)x;
-        if (i >= linear2sRGB_lut_size - 1)
-        {
-            return linear2sRGB_lut.back();
-        }
         auto fraction = x - (fp32)i;
         return std::lerp(linear2sRGB_lut[i], linear2sRGB_lut[i + 1], fraction);
     }

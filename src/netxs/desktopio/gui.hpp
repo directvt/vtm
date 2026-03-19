@@ -5,55 +5,69 @@
 
 #include <ft2build.h>
 #include FT_FREETYPE_H
+#include FT_TRUETYPE_TABLES_H
+#include FT_MULTIPLE_MASTERS_H
+#include FT_SFNT_NAMES_H
+#include FT_COLOR_H
 
-#include <hb.h>
+#include <hb-ft.h>
 
 #if defined(_WIN32)
-
     #undef GetGlyphIndices
-    #include <DWrite_2.h>
-    #include <msctf.h>
-    #include <wrl\client.h>
+    #include <msctf.h>      // TSF
+    #include <wrl\client.h> // ComPtr
+    using Microsoft::WRL::ComPtr;
     #pragma comment(lib, "Gdi32")
-    #pragma comment(lib, "dwrite")
     #pragma comment(lib, "ole32.lib")
     #pragma comment(lib, "oleaut32.lib")
-    using Microsoft::WRL::ComPtr;
-
-#else
-
 #endif
-
-#include <memory_resource> // Polymorphic allocator.
 
 #define ok2(...) [&](){ auto hr = __VA_ARGS__; if (hr != S_OK) log(utf::to_hex(hr), " ", #__VA_ARGS__); return hr == S_OK; }()
 
 namespace netxs::gui
 {
+    namespace e2 = netxs::events::userland::e2;
+
     using namespace ui;
     using bits = netxs::raster<std::span<argb>, rect>;
+    using byts = std::vector<byte>;
+    using gray = netxs::raster<byts, rect>;
+    using shad = netxs::misc::shadow<gray>;
 
     static constexpr auto debug_foci = faux;
 
+    struct font_style
+    {
+        static constexpr auto regular     = 0;
+        static constexpr auto italic      = 1;
+        static constexpr auto bold        = 2;
+        static constexpr auto bold_italic = bold | italic;
+        static constexpr auto count       = 4;
+    };
+
     struct cfg_t
     {
-        struct axis_vals_t
-        {
-            fp32 base_value;
-            fp32 regular{};
-            fp32 bold{};
-            fp32 italic{};
-            fp32 bold_italic{};
-        };
+        using axis_vals_t = std::array<std::map<si32/*Axis tag*/, fp32>, font_style::count>;
 
-        si32                        win_state{};    // cfg_t: .
-        bool                        antialiasing{}; // cfg_t: .
-        span                        blink_rate{};   // cfg_t: .
-        twod                        wincoord{};     // cfg_t: .
-        twod                        gridsize{};     // cfg_t: .
-        si32                        cell_height{};  // cfg_t: .
-        std::list<text>             font_names;     // cfg_t: Font family list.
-        std::map<text, axis_vals_t> font_axes;      // cfg_t: Ordered map <axis_4byte_tag, <values>>.
+        static constexpr auto ft_tag(auto&& tag)
+        {
+            return (tag[0] << 24) | (tag[1] << 16) | (tag[2] << 8) | (tag[3] << 0);
+        }
+        static auto ft_untag(si32 tag)
+        {
+            auto host_endian_tag = netxs::betoh(tag);
+            auto tag_str = text{ (char*)&host_endian_tag, 4 };
+            return tag_str;
+        }
+
+        si32            win_state{};    // cfg_t: .
+        bool            antialiasing{}; // cfg_t: .
+        span            blink_rate{};   // cfg_t: .
+        twod            wincoord{};     // cfg_t: .
+        twod            gridsize{};     // cfg_t: .
+        si32            cell_height{};  // cfg_t: .
+        std::list<text> font_names;     // cfg_t: Font family list.
+        axis_vals_t     font_axes;      // cfg_t: Array of maps<axis_4byte_tag, fp32_value>.
     };
 
     struct layer
@@ -110,67 +124,509 @@ namespace netxs::gui
         }
     };
 
-    template<class Font_face_ptr, class Font_family_ptr>
-    struct fonts_base
+    struct fonts
     {
-        using font_family_ptr = Font_family_ptr;
-        using font_face_ptr = Font_face_ptr;
+        template<class T>
+        using sptr = netxs::sptr<T>;
+        using ft_library_sptr = sptr<std::remove_pointer_t<FT_Library>>;
+        using irgb = netxs::irgb<fp32>;
 
-        struct typeface
+        struct color_type
         {
-            struct face_rec
+            static constexpr auto _counter = 1 + __COUNTER__;
+            static constexpr auto mono = __COUNTER__ - _counter;
+            static constexpr auto colr = __COUNTER__ - _counter;
+            static constexpr auto svg  = __COUNTER__ - _counter;
+            static constexpr auto sbix = __COUNTER__ - _counter;
+            static constexpr auto cbdt = __COUNTER__ - _counter;
+            static constexpr auto cblc = __COUNTER__ - _counter;
+        };
+        struct axis_rec_t
+        {
+            text name;
+            fp32 def;
+            fp32 min;
+            fp32 max;
+        };
+        struct bare_face_t
+        {
+            os::fs::path           file_path;
+            os::fs::file_time_type file_stamp;
+            si32                   face_index{};
+            si32                   face_flags{};
+            si32                   style_flags{};
+            si32                   num_glyphs{};
+            text                   family_name;
+            text                   style_name;
+            limits<twod>           bbox;
+            ui16                   units_per_EM{};
+            si16                   ascender{};
+            si16                   descender{};
+            si16                   height{};
+            si16                   max_advance_width{};
+            si16                   max_advance_height{};
+            si16                   underline_position{};
+            si16                   underline_thickness{};
+            si16                   strikethroughPosition{};
+            si16                   strikethroughThickness{};
+            si16                   xHeight{};
+            si16                   capHeight{};
+            si16                   lineGap{};
+            bool                   is_color{};
+            bool                   is_color_colr{};
+            bool                   is_color_svg{};
+            bool                   is_monospaced{};
+            bool                   is_italic{};
+            si16                   weight_value{};
+            si32                   stretch_value{ 5 };
+            std::unordered_map<si32, std::bitset<256>> unicode_ranges; // Supported characters map split by 256 codepoint blocks (from 0 up to 10FFFF/256 + 1).
+            std::map<si32/*tag*/, axis_rec_t> axes_map;
+            bool                   is_variable_font{};
+            bool                   valid{};
+            bool                   mssymbol_codepage{}; // Non Unicode code page.
+            axis_rec_t             width_target{};
+            axis_rec_t             weight_target{};
+            axis_rec_t             italic_target{};
+
+            auto get_weight_str() const
             {
-                font_face_ptr     faceinst{};
-                fp32              transform{};
+                if (weight_target.min != weight_target.max)
+                {
+                    return utf::fprint("%%-%%-%%", weight_target.min, weight_target.def, weight_target.max);
+                }
+                else
+                {
+                    return utf::fprint("%%", weight_target.def);
+                }
+            }
+            auto get_style_str() const
+            {
+                auto style_str = text{};
+                if (is_italic)
+                {
+                    style_str += style_name;
+                    for (auto& [tag, name_limits] : axes_map)
+                    {
+                        if (name_limits.min != name_limits.max)
+                        {
+                            style_str += utf::fprint(" %tag%[%min%-%def%-%max%]", cfg_t::ft_untag(tag), name_limits.min, name_limits.def, name_limits.max);
+                        }
+                    }
+                }
+                else
+                {
+                    for (auto& [tag, name_limits] : axes_map)
+                    {
+                        if (name_limits.min != name_limits.max)
+                        {
+                            style_str += utf::fprint("%tag%[%min%-%def%-%max%] ", cfg_t::ft_untag(tag), name_limits.min, name_limits.def, name_limits.max);
+                        }
+                    }
+                    style_str += style_name;
+                }
+                return style_str;
+            }
+            auto get_width_class_id() const
+            {
+                auto width_class_id = ((si32)width_target.min << 16) + ((si32)width_target.def << 8) + (si32)width_target.max;
+                return width_class_id;
+            }
+            static auto get_width_class_str(si32 width_class_id)
+            {
+                auto min = (width_class_id >> 16) & 0xFF;
+                auto def = (width_class_id >> 8) & 0xFF;
+                auto max = width_class_id & 0xFF;
+                if (min != max)
+                {
+                    return utf::fprint("%%-%%-%%%%", min, def, max, '%');
+                }
+                else
+                {
+                    return utf::fprint("%%%%", def, '%');
+                }
+            }
+        };
+        struct loaded_font_file_t
+        {
+            std::vector<byte> buffer;
+
+            explicit operator bool () { return !buffer.empty(); }
+
+            loaded_font_file_t(os::fs::path const& path)
+            {
+                if (!os::io::load_file(path, buffer))
+                {
+                    buffer = {};
+                }
+            }
+        };
+        struct fthb_pair_t
+        {
+            FT_Face    ft_face;
+            hb_font_t* hb_font;
+
+            fthb_pair_t(FT_Face f, hb_font_t* h)
+                : ft_face{ f },
+                  hb_font{ h }
+            {
+                ::hb_ft_font_set_load_flags(hb_font, FT_LOAD_DEFAULT | FT_LOAD_TARGET_LIGHT);
+            }
+            fthb_pair_t(FT_Face f)
+                : ft_face{ f },
+                  hb_font{ ::hb_ft_font_create(f, nullptr) }
+            {
+                ::hb_ft_font_set_load_flags(hb_font, FT_LOAD_DEFAULT | FT_LOAD_TARGET_LIGHT);
+            }
+            ~fthb_pair_t()
+            {
+                ::hb_font_destroy(hb_font);
+                ::FT_Done_Face(ft_face);
+            }
+        };
+        struct face_inst_t
+        {
+            static constexpr auto cache_size = 4;
+
+            struct fthb_cache_t
+            {
+                sptr<fthb_pair_t> fthb_pair;
                 fp32              em_height{};
-                fp32              transform_letters{};
-                fp32              em_height_letters{};
-                fp2d              actual_sz{};
-                fp2d              base_line{};
-                rect              underline{}; // face_rec: Underline rectangle block within the cell.
-                rect              doubline1{}; // face_rec: The first line of the double underline: at the top of the rect.
-                rect              doubline2{}; // face_rec: The second line of the double underline: at the bottom.
-                rect              strikeout{}; // face_rec: Strikethrough rectangle block within the cell.
-                rect              overline{};  // face_rec: Overline rectangle block within the cell.
-                rect              dashline{};  // face_rec: Dashed underline rectangle block within the cell.
-                rect              wavyline{};  // face_rec: Wavy underline outer rectangle block within the cell.
             };
 
-            std::vector<face_rec> fontface;
-            fp32                  base_descent{ 1.f };
-            fp32                  base_ascent{ 1.f };
-            fp2d                  base_underline{};
-            fp2d                  base_strikeout{};
-            fp2d                  base_overline{};
-            si32                  base_emheight{};
-            si32                  base_x_height{ 1 };
-            fp2d                  facesize{ 1.f, 1.f }; // Typeface cell size.
-            fp32                  ratio{};
-            ui32                  index{ ~0u };
-            bool                  color{ faux };
-            bool                  fixed{ faux }; // Preserve specified font order.
-            bool                  monospaced{ faux };
-            text                  font_name;
+            sptr<bare_face_t>                    bare_face_ptr;
+            std::array<fthb_cache_t, cache_size> fthb_pair_cache;
+            sptr<loaded_font_file_t>             loaded_file;
+            fp32                                 transform{};
+            fp32                                 em_height{};
+            fp32                                 transform_letters{};
+            fp32                                 em_height_letters{};
+            fp32                                 penalty{};
+            fp2d                                 actual_sz{};
+            fp2d                                 base_line{};
+            rect                                 underline{}; // face_inst_t: Underline rectangle block within the cell.
+            rect                                 doubline1{}; // face_inst_t: The first line of the double underline: at the top of the rect.
+            rect                                 doubline2{}; // face_inst_t: The second line of the double underline: at the bottom.
+            rect                                 strikeout{}; // face_inst_t: Strikethrough rectangle block within the cell.
+            rect                                 overline{};  // face_inst_t: Overline rectangle block within the cell.
+            rect                                 dashline{};  // face_inst_t: Dashed underline rectangle block within the cell.
+            rect                                 wavyline{};  // face_inst_t: Wavy underline outer rectangle block within the cell.
+            std::vector<irgb>                    palette;     // face_inst_t: Cached palette in linear space.
 
-            typeface() = default;
-            typeface(typeface&&) = default;
-            typeface(auto& fcache, font_family_ptr barefont, ui32 index)
-                : index{ index },
+            void load_palette()
+            {
+                auto ft_face = fthb_pair_cache[0].fthb_pair->ft_face;
+                auto data = FT_Palette_Data{};
+                auto ft_palette = (FT_Color*)nullptr;
+                if (FT_Err_Ok == ::FT_Palette_Data_Get(ft_face, &data))
+                if (FT_Err_Ok == ::FT_Palette_Select(ft_face, 0, &ft_palette)) // Take the fisrt existing palette (index 0).
+                {
+                    palette.resize(data.num_palette_entries);
+                    for (auto i = 0u; i < data.num_palette_entries; ++i)
+                    {
+                        auto& c = ft_palette[i];
+                        palette[i].sRGB2Linear(argb{ c.red, c.green, c.blue, c.alpha });
+                    }
+                }
+            }
+            auto select_face_by_em_height(fp32 custom_height, si32 /*cache_index*/)
+            {
+                //todo ?implement caching
+                auto& slot = fthb_pair_cache[0];
+                auto& inst = *(slot.fthb_pair);
+                if (slot.em_height != custom_height)
+                {
+                    slot.em_height = custom_height;
+                    ::FT_Set_Char_Size(inst.ft_face, 0, (si32)(custom_height * 64.0f + 0.5f), 0, 0); // Too expensive.
+                    ::hb_ft_font_changed(inst.hb_font);                                              //
+                }
+                return std::pair{ inst.hb_font, inst.ft_face };
+            }
+            auto load_from_file(fonts& fcache, auto& family_ref, si32 style_id)
+            {
+                auto& file_path = bare_face_ptr->file_path;
+                auto  utf8_path = file_path.generic_string();
+                auto& loaded_file_ptr = fcache.loaded_files[utf8_path];
+                if (!loaded_file_ptr)
+                {
+                    loaded_file_ptr = ptr::shared(loaded_font_file_t{ file_path });
+                }
+                loaded_file = loaded_file_ptr;
+                auto& file_buff = *(loaded_file);
+                auto raw_face = (FT_Face)nullptr;
+                if ((!file_buff && !os::io::load_file(file_path, file_buff.buffer))
+                    || FT_Err_Ok != ::FT_New_Memory_Face(fcache.ft_library.get(), file_buff.buffer.data(), (FT_Long)file_buff.buffer.size(), bare_face_ptr->face_index, &raw_face)) // Read a whole font/collection file (relatively slow, e.g. with 30Mb font files).
+                {
+                    log("%%Failed to load font family file '%family_name%' (style_id=%%): %filename%", prompt::gui, family_ref.family_name, style_id, utf8_path);
+                    bare_face_ptr->valid = faux;
+                }
+                else
+                {
+                    log("%%Using font family '%family_name%': %iscolor%, index %index%, style=%%", prompt::gui, family_ref.family_name, family_ref.is_color ? "color" : "monochromatic", fcache.font_fallback.size(), style_id);
+                    // Apply axes.
+                    if (bare_face_ptr->is_variable_font)
+                    {
+                        auto amaster = (FT_MM_Var*)nullptr;
+                        if (FT_Err_Ok == ::FT_Get_MM_Var(raw_face, &amaster))
+                        {
+                            auto coords = std::vector<FT_Fixed>(amaster->num_axis);
+                            auto& target_axes = fcache.primary_axes[style_id];
+                            for (auto i = 0u; i < amaster->num_axis; i++)
+                            {
+                                auto& axis = amaster->axis[i];
+                                auto final_value = axis.def / 65536.0f;
+                                if (auto it = target_axes.find(axis.tag); it != target_axes.end()) // Use if it is.
+                                {
+                                    final_value = std::clamp(it->second, axis.minimum / 65536.0f, axis.maximum / 65536.0f);
+                                }
+                                coords[i] = (FT_Fixed)(final_value * 65536.0f);
+                            }
+                            ::FT_Set_Var_Design_Coordinates(raw_face, amaster->num_axis, coords.data());
+                            ::FT_Set_Char_Size(raw_face, 0, raw_face->units_per_EM * 64, 72, 72); // Trigger to apply axes. "Dummy" scale to force metrics refresh (1 char unit = 1 font unit)
+                            ::FT_Done_MM_Var(fcache.ft_library.get(), amaster);
+                        }
+                    }
+                    fthb_pair_cache[0].fthb_pair = ptr::shared<fthb_pair_t>(raw_face);
+                    if (bare_face_ptr->is_color) // Cache palette.
+                    {
+                        load_palette();
+                    }
+                    return true;
+                }
+                return faux;
+            }
+        };
+        struct font_family_t
+        {
+            view                                       family_name;     // font_family_t: .
+            os::fs::file_time_type                     file_stamp{};    // font_family_t: .
+            bool                                       is_monospaced{}; // font_family_t: .
+            bool                                       is_color{};      // font_family_t: .
+            bool                                       is_sorted{};     // font_family_t: .
+            bool                                       is_fixed{};      // font_family_t: The font family is specified in configuration.
+            bool                                       is_invalid{};    // font_family_t: The font family failed to load (e.g., the font file became inaccessible).
+            bool                                       non_square{};    // font_family_t: width/height != 1.
+            std::unordered_map<si32, std::bitset<256>> unicode_ranges;  // font_family_t: Supported characters map split by 256 codepoint blocks (from 0 up to 10FFFF/256 + 1).
+            std::vector<face_inst_t>                   bare_face_list;  // font_family_t: A full font face list for the specific family (sorted by asc weight then file_stamp).
+
+            auto first_class() const
+            {
+                return is_fixed && (is_monospaced || is_color);
+            }
+        };
+        struct font_face_t
+        {
+            fonts&                                                  fcache;
+            font_family_t&                                          family_ref;
+            std::array<std::vector<face_inst_t>, font_style::count> sorted_face_list; // Sorted list of faces for selecting regular/italic/bold/bold_italic faces.
+
+            fp32 base_descent{ 1.f };
+            fp32 base_ascent{ 1.f };
+            fp2d base_underline{};
+            fp2d base_strikeout{};
+            fp2d base_overline{};
+            si32 base_emheight{};
+            si32 base_x_height{ 1 };
+            fp2d facesize{ 1.f, 1.f }; // Typeface cell size.
+            fp32 ratio{};
+            bool color{ faux };
+            bool fixed{ faux }; // Preserve specified font order.
+            bool monospaced{ faux };
+            text font_name;
+
+            font_face_t() = default;
+            font_face_t(font_face_t&&) = default;
+            font_face_t(fonts& fcache, font_family_t& family_rec)
+                : fcache{ fcache },
+                  family_ref{ family_rec },
                   fixed{ true }
             {
-                fcache.load(*this, barefont);
+                load_face();
             }
-            typeface(auto& fcache, font_family_ptr barefont, ui32 index, twod cellsz, bool isbase)
-                : index{ index },
+            font_face_t(fonts& fcache, font_family_t& family_rec, twod cellsz, bool isbase)
+                : fcache{ fcache },
+                  family_ref{ family_rec },
                   fixed{ isbase }
             {
-                fcache.load(*this, barefont);
-                if (!isbase) recalc_metrics(fcache, cellsz, isbase);
+                load_face();
+                if (!isbase) recalc_metrics(cellsz, isbase);
             }
 
-            explicit operator bool () { return index != ~0u; }
-            void recalc_metrics(auto& fcache, twod& cellsize, bool isbase)
+            void sort_faces()
             {
+                for (auto style_id : { font_style::regular, font_style::italic, font_style::bold, font_style::bold_italic })
+                {
+                    auto& sorted_list = sorted_face_list[style_id];
+                    auto& target_axes = fcache.primary_axes[style_id];
+                    auto target_ital = target_axes[cfg_t::ft_tag("ital")];
+                    auto target_wdth = target_axes[cfg_t::ft_tag("wdth")];
+                    auto target_wght = target_axes[cfg_t::ft_tag("wght")];
+                    sorted_list = family_ref.bare_face_list;
+                    auto calc_penalty = [&](auto& bare_face_rec) // CSS Level 4 matching rules
+                    {
+                        auto& rec = *(bare_face_rec.bare_face_ptr);
+                        auto& p = bare_face_rec.penalty;
+                        p = {};
+                        // WIDTH. Match width first.
+                        if (target_wdth < rec.width_target.min || target_wdth > rec.width_target.max)
+                        {
+                            auto closest_wdth = std::clamp(target_wdth, rec.width_target.min, rec.width_target.max);
+                            p += std::abs(target_wdth - closest_wdth) * 100.0f;
+                            p += 10000.0;
+                        }
+                        // ITALIC. If 'italic' requested, 'italic' faces are preferred over 'normal'.
+                        auto req_it = target_ital > 0.5f;
+                        auto has_it = rec.italic_target.max > 0.5f;
+                        if (req_it != has_it)
+                        {
+                            p += 2000.0f; // Significant jump to separate styles.
+                        }
+                        //todo OBLIQUE.
+                        // WEIGHT.
+                        auto min_w = rec.weight_target.min;
+                        auto max_w = rec.weight_target.max;
+                        if (target_wght < min_w || target_wght > max_w)
+                        {
+                            auto diff = 0.0f;
+                            if (target_wght >= 400.0f && target_wght <= 500.0f) // Weight matching rules:
+                            {
+                                diff = min_w > target_wght && min_w <= 500.0f ? min_w - target_wght            // 1. Look at [target...500]
+                                     : min_w > 500.0f                         ? min_w - target_wght + 500.0f   // 2. Look at (500...1000] (Heavier)
+                                                                              : target_wght - max_w + 1000.0f; // 3. Look at [1...target) (Lighter)
+                            }
+                            else if (target_wght < 400.0f)
+                            {
+                                diff = max_w < target_wght ? target_wght - max_w           // 1. Look at [1...target] (Lighter)
+                                                           : min_w - target_wght + 500.0f; // 2. Look at (target...1000] (Heavier)
+                            }
+                            else // target_wght > 500.0f
+                            {
+                                diff = min_w > target_wght ? min_w - target_wght           // 1. Look at [target...1000] (Heavier)
+                                                           : target_wght - max_w + 500.0f; // 2. Look at [1...target) (Lighter)
+                            }
+                            p += diff;
+                        }
+                        if (!rec.is_variable_font) // 4. VARIABLE VS STATIC. CSS implicitly prefers variable fonts (exact match).
+                        {
+                            p += 0.01f;
+                        }
+                    };
+                    for (auto& bare_face_rec : sorted_list)
+                    {
+                        calc_penalty(bare_face_rec);
+                    }
+                    std::ranges::sort(sorted_list, std::ranges::less{}, &face_inst_t::penalty);
+                }
+                //log("Sort family '%%'", family_ref.family_name);
+                //for (auto style_id : { font_style::regular, font_style::bold, font_style::italic, font_style::bold_italic })
+                //{
+                //    log("style_id=", style_id);
+                //    auto& sorted_list = sorted_face_list[style_id];
+                //    for (auto& bare_face_rec : sorted_list)
+                //    {
+                //        log("  face: weight=%% stretch=%% italic=%%", bare_face_rec.bare_face_ptr->weight_value, bare_face_rec.bare_face_ptr->stretch_value, bare_face_rec.bare_face_ptr->is_italic);
+                //    }
+                //}
+            }
+            void load_face()
+            {
+                sort_faces();
+                auto get = [&](si32 style_id) // Load first face from the sorted list.
+                {
+                    auto has_broken_fonts = faux;
+                    auto& sorted_list = sorted_face_list[style_id];
+                    for (auto& bare_face_rec : sorted_list)
+                    {
+                        if (bare_face_rec.bare_face_ptr->valid
+                         && bare_face_rec.load_from_file(fcache, family_ref, style_id))
+                        {
+                            break; // Load only the first available face (lazy).
+                        }
+                        else
+                        {
+                            has_broken_fonts = true;
+                        }
+                    }
+                    if (has_broken_fonts) // Remove broken records from the sorted list.
+                    {
+                        std::erase_if(sorted_list, [](auto& bare_face_rec){ return !bare_face_rec.bare_face_ptr->valid; });
+                    }
+                };
+                get(font_style::regular    );
+                get(font_style::italic     );
+                get(font_style::bold       );
+                get(font_style::bold_italic);
+                //todo ?Get all localized family names for the font family, indexed by locale name
+                font_name = family_ref.family_name;
+                auto& sorted_list = sorted_face_list[font_style::regular];
+                if (sorted_list.size() && sorted_list.front().fthb_pair_cache[0].fthb_pair)
+                {
+                    auto& regular_face_rec = sorted_list.front();
+                    auto& regular_faceinst = regular_face_rec.fthb_pair_cache[0].fthb_pair->ft_face;
+                    auto ascender               = (fp32)regular_faceinst->ascender;
+                    auto descender              = (fp32)-regular_faceinst->descender; // DWrite has positive descender, ft - negative.
+                    auto lineGap                = (fp32)regular_face_rec.bare_face_ptr->lineGap;
+                    auto underline_thickness    = (fp32)regular_faceinst->underline_thickness;
+                    auto underline_position     = (fp32)regular_faceinst->underline_position;
+                    auto strikethroughPosition  = (fp32)regular_face_rec.bare_face_ptr->strikethroughPosition;
+                    auto strikethroughThickness = (fp32)regular_face_rec.bare_face_ptr->strikethroughThickness;
+                    auto capHeight              = (fp32)regular_face_rec.bare_face_ptr->capHeight;
+                    auto xHeight                = (si32)regular_face_rec.bare_face_ptr->xHeight;
+                    base_underline = { underline_position, underline_thickness };
+                    base_strikeout = { strikethroughPosition, strikethroughThickness };
+                    base_overline  = { std::min(ascender, capHeight - underline_position), underline_thickness };
+                    base_emheight  = regular_face_rec.bare_face_ptr->units_per_EM;
+                    base_x_height  = std::max(1, xHeight);
+                    base_ascent    = std::max(1.f, ascender  + lineGap / 2.0f);
+                    base_descent   = std::max(1.f, descender + lineGap / 2.0f);
+                    color          = regular_face_rec.bare_face_ptr->is_color;
+                    monospaced     = regular_face_rec.bare_face_ptr->is_monospaced;
+                    facesize.y     = std::max(2.f, ascender + descender + lineGap);
+                    facesize.x     = facesize.y / 2.f;
+                    // Take metrics for "x" or ".notdef" in case of missing 'x'. Note: ".notdef" is double sized ("x" is narrow) in CJK fonts.
+                    //auto code_point = ui32{ 'x' };
+                    // Test W for monospaced and test U for proportional font.
+                    auto code_point = monospaced ? 'W' : 'U'; // U is approximately half an emoji square in the Segoe Emoji font. W and M may be cut in size. This is a compromise for proportional fonts. Otherwise, emoji become too small.
+                    if (fonts::load_char_metrics(regular_faceinst, code_point))
+                    {
+                        auto& glyph_metrics = regular_faceinst->glyph->metrics;
+                        if (glyph_metrics.horiAdvance)
+                        {
+                            facesize.x = (fp32)glyph_metrics.horiAdvance;
+                        }
+                    }
+                    ratio = facesize.x / facesize.y;
+                }
+            }
+            void get_common_widths(bool& proportional, ui32& normal_width, ui32& italic_width)
+            {
+                auto advanceWidths = std::array<ui32, font_style::count>{};
+                auto widths = std::array<ui32, font_style::count>{};
+                for (auto style_id : { font_style::regular, font_style::italic })
+                {
+                    auto& sorted_list  = sorted_face_list[style_id];
+                    if (sorted_list.size() && sorted_list.front().fthb_pair_cache[0].fthb_pair)
+                    {
+                        auto& faceinst = sorted_list.front().fthb_pair_cache[0].fthb_pair->ft_face;
+                        if (fonts::load_char_metrics(faceinst, utfx{'M'}))
+                        {
+                            auto& glyph_metrics = faceinst->glyph->metrics;
+                            if (glyph_metrics.horiAdvance)
+                            {
+                                advanceWidths[style_id] = (ui32)glyph_metrics.horiAdvance;
+                                widths[style_id] = (ui32)(glyph_metrics.horiBearingX + glyph_metrics.width);
+                            }
+                        }
+                    }
+                }
+                proportional = advanceWidths[font_style::regular] != (ui32)facesize.x;
+                normal_width = widths[font_style::regular];
+                italic_width = widths[font_style::italic];
+            }
+            void recalc_metrics(twod& cellsize, bool isbase)
+            {
+                //log("ft: font_name=", font_name, "\tcellsize=", cellsize, "\tbase_ascent=", base_ascent,
+                //    "\tbase_descent=", base_descent, "\tbase_x_height=", base_x_height,
+                //    "\tbase_emheight=", base_emheight, "\tfacesize=", facesize);
                 auto k0 = cellsize.y / facesize.y;
                 auto b0 = base_ascent * k0;
                 auto b_f = std::floor(b0);
@@ -275,9 +731,10 @@ namespace netxs::gui
                     dashpad_l = std::max(0, cellsize.x - dashpad_r - dashpad_s);
                 }
                 auto dashline3 = rect{{ dashpad_l, underline2.x }, { dashpad_s, underline3.size.y }};
-                //log("font_name=", font_name, "\tasc=", base_ascent, "\tdes=", base_descent, "\tem=", base_emheight, "\tbasline=", b2, "\tdy=", transform, "\tk0=", k0, "\tm1=", m1, "\tm2=", m2);
-                for (auto& f : fontface)
+                //log("  ft: font_name=", font_name, "\tasc=", base_ascent, "\tdes=", base_descent, "\tem=", base_emheight, "\tbasline=", b2, "\tdy=", transform, "\tk0=", k0, "\tm1=", m1, "\tm2=", m2);
+                for (auto& sorted_list : sorted_face_list) if (sorted_list.size())
                 {
+                    auto& f = sorted_list.front();
                     f.base_line = base_line;
                     f.underline = underline3;
                     f.strikeout = strikeout3;
@@ -291,19 +748,20 @@ namespace netxs::gui
                     f.doubline2 = r2;
                     f.wavyline = doubline3;
                 }
-                for (auto s : { style::normal, style::bold })
+                for (auto s : { font_style::regular, font_style::bold }) if (sorted_face_list[s].size())
                 {
-                    fontface[s].transform = transform;
-                    fontface[s].em_height = em_height;
-                    fontface[s].actual_sz = actual_sz;
-                    fontface[s].transform_letters = transform_letters;
-                    fontface[s].em_height_letters = em_height_letters;
+                    auto& f = sorted_face_list[s].front();
+                    f.transform = transform;
+                    f.em_height = em_height;
+                    f.actual_sz = actual_sz;
+                    f.transform_letters = transform_letters;
+                    f.em_height_letters = em_height_letters;
                 }
                 // Detect right bearing delta for italics.
                 auto proportional = bool{};
                 auto normal_width = ui32{};
                 auto italic_width = ui32{};
-                fcache.get_common_widths(fontface, facesize, proportional, normal_width, italic_width);
+                get_common_widths(proportional, normal_width, italic_width);
                 auto w = proportional && normal_width ? (fp32)normal_width : facesize.x;
                 auto italic_w = w + (italic_width - normal_width);
                 auto k = italic_w ? w / italic_w : 1.f;
@@ -312,73 +770,195 @@ namespace netxs::gui
                 transform_letters = std::floor(base_x_height * transform) / base_x_height; // Respect x-height.
                 em_height_letters = base_emheight * transform_letters;
                 actual_sz *= k;
-                for (auto s : { style::italic, style::bold_italic })
+                for (auto s : { font_style::italic, font_style::bold_italic }) if (sorted_face_list[s].size())
                 {
-                    fontface[s].transform = transform;
-                    fontface[s].em_height = em_height;
-                    fontface[s].actual_sz = actual_sz;
-                    fontface[s].transform_letters = transform_letters;
-                    fontface[s].em_height_letters = em_height_letters;
+                    auto& f = sorted_face_list[s].front();
+                    f.transform = transform;
+                    f.em_height = em_height;
+                    f.actual_sz = actual_sz;
+                    f.transform_letters = transform_letters;
+                    f.em_height_letters = em_height_letters;
                 }
             }
+            auto& select_font_face(std::span<const utfx> codepoints, si32 style_id)
+            {
+                auto has_broken_fonts = faux;
+                auto& sorted_list = sorted_face_list[style_id];
+                auto inst_face = std::reference_wrapper{ sorted_list.front() };
+                for (auto& bare_face_rec : sorted_list)
+                {
+                    if (fonts::hittest(bare_face_rec.bare_face_ptr->unicode_ranges, codepoints))
+                    {
+                        if (!bare_face_rec.fthb_pair_cache[0].fthb_pair && !bare_face_rec.load_from_file(fcache, family_ref, style_id))
+                        {
+                            has_broken_fonts = true;
+                        }
+                        else
+                        {
+                            inst_face = bare_face_rec;
+                            break;
+                        }
+                    }
+                }
+                if (has_broken_fonts) // Remove broken records from the sorted list.
+                {
+                    std::erase_if(sorted_list, [](auto& bare_face_rec){ return !bare_face_rec.bare_face_ptr->valid; });
+                }
+                return inst_face.get();
+            }
         };
-        struct style
+        struct shaper
         {
-            static constexpr auto normal      = 0;
-            static constexpr auto italic      = 1;
-            static constexpr auto bold        = 2;
-            static constexpr auto bold_italic = bold | italic;
-        };
-        struct fontcat
-        {
-            static constexpr auto loaded     = 1ull << 60;
-            static constexpr auto valid      = 1ull << 61;
-            static constexpr auto monospaced = 1ull << 62;
-            static constexpr auto color      = 1ull << 63;
-        };
-        struct stat
-        {
-            ui64 s{};
-            si32 i{};
-            text n{};
+            struct step_t
+            {
+                ui32 index;
+                fp32 width;
+                fp2d align;
+                si32 color;
+            };
+
+            fonts&              fcache;
+            hb_font_t*          hb_font{};
+            FT_Face             ft_face{};
+            hb_buffer_t*        hb_buffer;
+            ui32                glyf_count{};
+            std::vector<irgb>*  palette_ptr{};
+            std::vector<step_t> glyphs;
+
+            shaper(fonts& fcache)
+                : fcache{ fcache },
+                  hb_buffer{ ::hb_buffer_create() }
+            {
+                ::hb_buffer_set_language(hb_buffer, fcache.os_locale);
+            }
+            ~shaper()
+            {
+                ::hb_buffer_destroy(hb_buffer);
+            }
+
+            auto generate_glyph_run(std::vector<utfx>& codepoints, auto script, bool is_rtl, fp32 transform, bool is_monospaced, fp32 grid_step)
+            {
+                ::hb_buffer_add_codepoints(hb_buffer, codepoints.data(), (si32)codepoints.size(), 0, (si32)codepoints.size());
+                ::hb_buffer_set_direction(hb_buffer, is_rtl ? HB_DIRECTION_RTL : HB_DIRECTION_LTR);
+                ::hb_buffer_set_script(hb_buffer, script);
+                ::hb_shape(hb_font, hb_buffer, nullptr, 0);
+                auto info = ::hb_buffer_get_glyph_infos(hb_buffer, &glyf_count);
+                auto pos  = ::hb_buffer_get_glyph_positions(hb_buffer, &glyf_count);
+                glyphs.resize(glyf_count);
+                for (auto i = 0u; i < glyf_count; i++)
+                {
+                    auto& glyph = glyphs[i];
+                    glyph.index = info[i].codepoint;
+                    glyph.width = pos[i].x_advance / 64.0f;                             // 26.6 format.
+                    glyph.align = { pos[i].x_offset / 64.0f, pos[i].y_offset / 64.0f }; //
+                }
+                ::hb_buffer_clear_contents(hb_buffer);
+                auto length = 0.0f;
+                if (is_monospaced)
+                {
+                    for (auto& glyph : glyphs)
+                    {
+                        auto& w = glyph.width;
+                        if (w) w = grid_step; // Fit to our grid.
+                        length += w;
+                    }
+                }
+                else // Render glyphs as is.
+                {
+                    auto revpad = 0.0f;
+                    auto penpos = 0.0f;
+                    for (auto& glyph : glyphs)
+                    {
+                        if (FT_Err_Ok == ::FT_Load_Glyph(ft_face, glyph.index, FT_LOAD_NO_SCALE))
+                        {
+                            auto& m = ft_face->glyph->metrics;
+                            auto w = (fp32)m.horiAdvance;
+                            auto r = (fp32)m.horiBearingX;
+                            auto f = w - (r + (fp32)m.width);
+                            if (is_rtl) std::swap(f, r);
+                            auto fwd_bearing = (w - f) * transform;
+                            auto rev_bearing = -r * transform;
+                            auto glyphpos = penpos + glyph.align.x; // advanceOffset
+                            revpad = std::min(revpad, glyphpos - rev_bearing);
+                            length = std::max(length, glyphpos + fwd_bearing);
+                        }
+                        penpos += glyph.width;
+                    }
+                    length = std::max({ length, penpos, penpos - revpad });
+                }
+                return length;
+            }
         };
 
-        std::list<text>       families; // fonts: Primary font name list.
-        std::vector<stat>     fontstat; // fonts: System font collection status list.
-        std::vector<typeface> fallback; // fonts: Fallback font list.
-        twod                  cellsize; // fonts: Terminal cell size in pixels.
-        rect                  underline; // fonts: Single underline rectangle block within the cell.
-        rect                  doubline1; // fonts: The first line of the double underline: at the top of the rect.
-        rect                  doubline2; // fonts: The second line of the double underline: at the bottom.
-        rect                  strikeout; // fonts: Strikethrough rectangle block within the cell.
-        rect                  overline; // fonts: Overline rectangle block within the cell.
-        rect                  dashline; // fonts: Dashed underline rectangle block within the cell.
-        rect                  wavyline; // fonts: Wavy underline outer rectangle block within the cell.
-
-        void sort()
+        static bool hittest_codepoint(std::unordered_map<si32, std::bitset<256>> const& unicode_ranges, utfx codepoint)
         {
-            std::sort(fontstat.begin(), fontstat.end(), [](auto& a, auto& b){ return a.s > b.s; });
-            //if constexpr (debugmode)
-            //{
-            //    log("System fonts:");
-            //    for (auto& f : fontstat)
-            //    {
-            //        log("\t color=", (f.s & fontcat::color) ? "1" : "0",
-            //            "\t mono=", (f.s & fontcat::monospaced) ? "1" : "0",
-            //            "\t valid=", (f.s & fontcat::valid) ? "1" : "0",
-            //            "\t loaded=", (f.s & fontcat::loaded) ? "1" : "0",
-            //            "\t name='", f.n, "'");
-            //    }
-            //}
+            auto block = codepoint / 256;
+            auto point = codepoint % 256;
+            auto exist = faux;
+            if (auto iter = unicode_ranges.find(block); iter != unicode_ranges.end())
+            {
+                exist = iter->second.test(point);
+            }
+            return exist;
         }
-        void set_cellsz(auto& fcache, si32 cell_height)
+        static bool hittest(std::unordered_map<si32, std::bitset<256>> const& unicode_ranges, std::span<const utfx> codepoints)
+        {
+            for (auto codepoint : codepoints)
+            {
+                if (!fonts::hittest_codepoint(unicode_ranges, codepoint))
+                {
+                    return faux;
+                }
+            }
+            return true;
+        }
+        static auto make_ft_library()
+        {
+            auto library = (FT_Library)nullptr;
+            if (FT_Err_Ok != ::FT_Init_FreeType(&library))
+            {
+                log("%%Could not initialize FreeType library", prompt::gui);
+                std::terminate();
+            }
+            return ft_library_sptr(library, [](auto l){ if (l) ::FT_Done_FreeType(l); });
+        }
+        static bool load_char_metrics(FT_Face face, utfx cp)
+        {
+            auto idx = ::FT_Get_Char_Index(face, cp);
+            auto ok = idx > 0 && FT_Err_Ok == ::FT_Load_Glyph(face, idx, FT_LOAD_NO_SCALE | FT_LOAD_NO_HINTING); // FT_LOAD_NO_SCALE: use raw Font Units, FT_LOAD_NO_HINTING: eliminate the influence of hinting on geometry.
+            return ok;
+        }
+        static auto has_sfnt_table(FT_Face face, ui32 tag)
+        {
+            auto l = 0ul;
+            return FT_Err_Ok == ::FT_Load_Sfnt_Table(face, tag, 0, nullptr, &l);
+        };
+        static auto get_char_height(FT_Face face, utfx cp, auto& char_height, auto default_height)
+        {
+            if (fonts::load_char_metrics(face, cp))
+            {
+                auto tmp_value = face->glyph->metrics.horiBearingY;
+                char_height = (std::remove_reference_t<decltype(char_height)>)tmp_value;
+            }
+            else
+            {
+                auto tmp_value = default_height;
+                char_height = (std::remove_reference_t<decltype(char_height)>)tmp_value;
+            }
+        }
+
+        void set_cellsz(si32 cell_height)
         {
             cellsize = { 1, std::clamp(cell_height, 2, 256) };
             auto base_font = true;
-            for (auto& f : fallback) f.recalc_metrics(fcache, cellsize, std::exchange(base_font, faux));
-            if (fallback.size()) // Keep the same *line positions for all fonts.
+            for (auto& f : font_fallback)
             {
-                auto& f = fallback.front().fontface.front();
+                f.recalc_metrics(cellsize, std::exchange(base_font, faux));
+            }
+            if (font_fallback.size()) // Keep the same *line positions for all fonts.
+            if (auto& sorted_list = font_fallback.front().sorted_face_list[font_style::regular]; sorted_list.size())
+            {
+                auto& f = sorted_list.front();
                 underline = f.underline;
                 strikeout = f.strikeout;
                 doubline1 = f.doubline1;
@@ -390,575 +970,550 @@ namespace netxs::gui
                 //os::dtvt::fontnm = fallback.front().font_name;
                 //os::dtvt::fontsz = cellsize;
             }
-            log("%%Set cell size: ", prompt::gui, cellsize);
+            //log("%%Set cell size: ", prompt::gui, cellsize);
         }
-    };
-
-#if defined(_WIN32)
-
-    struct fonts : fonts_base<ComPtr<IDWriteFontFace2>, ComPtr<IDWriteFontFamily>>
-    {
-        static void get_common_widths(std::vector<typeface::face_rec>& fontface, fp2d facesize, bool& proportional, ui32& normal_width, ui32& italic_width)
+        void set_fonts(std::list<text>& family_names, cfg_t::axis_vals_t& font_axes, bool fresh = true)
         {
-            auto italic_glyph_metrics = DWRITE_GLYPH_METRICS{};
-            auto normal_glyph_metrics = DWRITE_GLYPH_METRICS{};
-            auto code_points = ui32{ 'M' };
-            auto glyph_index = ui16{ 0 };
-            fontface[style::normal].faceinst->GetGlyphIndices(&code_points, 1, &glyph_index);
-            fontface[style::normal].faceinst->GetDesignGlyphMetrics(&glyph_index, 1, &normal_glyph_metrics, faux);
-            fontface[style::italic].faceinst->GetGlyphIndices(&code_points, 1, &glyph_index);
-            fontface[style::italic].faceinst->GetDesignGlyphMetrics(&glyph_index, 1, &italic_glyph_metrics, faux);
-            proportional = normal_glyph_metrics.advanceWidth != (ui32)facesize.x;
-            normal_width = normal_glyph_metrics.advanceWidth - normal_glyph_metrics.rightSideBearing;
-            italic_width = italic_glyph_metrics.advanceWidth - italic_glyph_metrics.rightSideBearing;
+            primary_axes = font_axes;
+            set_fonts(family_names, fresh);
         }
-        static bool iscolor(font_face_ptr& faceinst)
-        {
-            auto tableSize = ui32{};
-            auto tableData = (void const*)nullptr;
-            auto tableContext = (void*)nullptr;
-            auto exists = BOOL{};
-            faceinst->TryGetFontTable(DWRITE_MAKE_OPENTYPE_TAG('C', 'O', 'L', 'R'), //_In_ UINT32 openTypeTableTag,
-                                      &tableData,    //_Outptr_result_bytebuffer_(*tableSize) const void** tableData,
-                                      &tableSize,    //_Out_ UINT32* tableSize,
-                                      &tableContext, //_Out_ void** tableContext,
-                                      &exists);      //_Out_ BOOL* exists
-            if (exists) faceinst->ReleaseFontTable(tableContext);
-            return exists;
-        }
-        static void load(typeface& u, font_family_ptr barefont)
-        {
-            auto get = [&](auto& faceinst, auto weight, auto stretch, auto style)
-            {
-                auto fontfile = ComPtr<IDWriteFont2>{};
-                barefont->GetFirstMatchingFont(weight, stretch, style, (IDWriteFont**)fontfile.GetAddressOf());
-                if (fontfile) fontfile->CreateFontFace((IDWriteFontFace**)faceinst.GetAddressOf());
-            };
-            auto& fontface = u.fontface;
-            u.fontface.resize(4);
-            get(fontface[style::normal     ].faceinst, DWRITE_FONT_WEIGHT_NORMAL,    DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL);
-            get(fontface[style::italic     ].faceinst, DWRITE_FONT_WEIGHT_NORMAL,    DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_ITALIC);
-            get(fontface[style::bold       ].faceinst, DWRITE_FONT_WEIGHT_DEMI_BOLD, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL);
-            get(fontface[style::bold_italic].faceinst, DWRITE_FONT_WEIGHT_DEMI_BOLD, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_ITALIC);
-            auto names = ComPtr<IDWriteLocalizedStrings>{};
-            barefont->GetFamilyNames(names.GetAddressOf());
-            auto buff = wide(100, 0);
-            names->GetString(0, buff.data(), (ui32)buff.size());
-            u.font_name = utf::to_utf(buff.data());
-            auto& faceinst = fontface[style::normal].faceinst;
-            if (faceinst)
-            {
-                auto m = DWRITE_FONT_METRICS1{};
-                faceinst->GetMetrics(&m);
-                u.base_underline = { (fp32)m.underlinePosition, (fp32)m.underlineThickness };
-                u.base_strikeout = { (fp32)m.strikethroughPosition, (fp32)m.strikethroughThickness };
-                u.base_overline = { std::min((fp32)m.ascent, (fp32)(m.capHeight - m.underlinePosition)), (fp32)m.underlineThickness };
-                u.base_emheight = m.designUnitsPerEm;
-                u.base_x_height = std::max(1, (si32)m.xHeight);
-                u.base_ascent = std::max(1.f, m.ascent + m.lineGap / 2.0f);
-                u.base_descent = std::max(1.f, m.descent + m.lineGap / 2.0f);
-                // Take metrics for "x" or ".notdef" in case of missing 'x'. Note: ".notdef" is double sized ("x" is narrow) in CJK fonts.
-                //auto code_points = ui32{ 'x' };
-                u.monospaced = faceinst->IsMonospacedFont();
-                auto code_points = std::to_array<ui32>({ ' ' }); // Test W for monospaced and test U for proportional font.
-                code_points[0] = u.monospaced ? 'W' : 'U';       // U is approximately half an emoji square in the Segoe Emoji font. W and M may be cut in size. This is a compromise for proportional fonts. Otherwise, emoji become too small.
-                auto glyph_index = std::array<ui16, code_points.size()>{};
-                auto glyph_metrics = std::array<DWRITE_GLYPH_METRICS, code_points.size()>{};
-                faceinst->GetGlyphIndices(code_points.data(), (ui32)code_points.size(), glyph_index.data());
-                faceinst->GetDesignGlyphMetrics(glyph_index.data(), (ui32)code_points.size(), glyph_metrics.data(), faux);
-                u.facesize.y = (fp32)std::max(2, m.ascent + m.descent + m.lineGap);
-                u.facesize.x = glyph_metrics[0].advanceWidth ? (fp32)glyph_metrics[0].advanceWidth : u.facesize.y / 2;
-                u.ratio = u.facesize.x / u.facesize.y;
-                u.color = iscolor(faceinst);
-            }
-        }
-        static ui16 msscript(ui32 code) // fonts: ISO<->MS script map.
-        {
-            static auto lut = []
-            {
-                auto map = std::vector<ui16>(1000, 999);
-                auto f = ComPtr<IDWriteFactory2>{};
-                auto a = ComPtr<IDWriteTextAnalyzer1>{};
-                if ((::DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), (IUnknown**)f.GetAddressOf()), f)
-                 && (f->CreateTextAnalyzer((IDWriteTextAnalyzer**)a.GetAddressOf()), a))
-                {
-                    for (auto i = ui16{}; i < map.size(); i++)
-                    {
-                        auto prop = DWRITE_SCRIPT_PROPERTIES{};
-                        a->GetScriptProperties(DWRITE_SCRIPT_ANALYSIS{ .script = i }, &prop);
-                        if (i && prop.isoScriptNumber == 999) break;
-                        map[prop.isoScriptNumber] = i;
-                        auto code = view{ (char*)&prop.isoScriptCode, 4 };
-                    }
-                }
-                return map;
-            }();
-            return lut[code];
-        }
-
-        struct shaper
-        {
-            struct gr
-            {
-                static constexpr auto measuring_mode = DWRITE_MEASURING_MODE_NATURAL;
-                static constexpr auto aaliasing_mode = DWRITE_TEXT_ANTIALIAS_MODE_GRAYSCALE;
-
-                shaper&                                fs;
-                DWRITE_GLYPH_RUN                       glyph_run;
-                ComPtr<IDWriteColorGlyphRunEnumerator> colored_glyphs;
-                fp2d                                   base_line;
-                si32                                   hr;
-                bool                                   is_colored;
-                bool                                   is_monochromatic;
-                DWRITE_RENDERING_MODE                  rendering_mode;
-                DWRITE_GRID_FIT_MODE                   pixel_fit_mode;
-
-                gr(shaper& fs, bool monochromatic, bool aamode, bool is_rtl, fp2d base_line, fp32 em_height, bool is_box_drawing)
-                    : fs{ fs },
-                      glyph_run{ .fontFace      = fs.faceinst.Get(),
-                                 .fontEmSize    = em_height,
-                                 .glyphCount    = fs.glyf_count,
-                                 .glyphIndices  = fs.glyf_index.data(),
-                                 .glyphAdvances = fs.glyf_steps.data(),
-                                 .glyphOffsets  = fs.glyf_align.data(),
-                                 .bidiLevel     = is_rtl },
-                        base_line{ base_line },
-                        hr{ monochromatic ? DWRITE_E_NOCOLOR : fs.fcache.factory2->TranslateColorGlyphRun(base_line.x, base_line.y, &glyph_run, nullptr, measuring_mode, nullptr, 0, colored_glyphs.GetAddressOf()) },
-                        is_colored{ hr == S_OK },
-                        is_monochromatic{ hr == DWRITE_E_NOCOLOR },
-                        rendering_mode{ aamode || is_colored ? DWRITE_RENDERING_MODE_NATURAL : DWRITE_RENDERING_MODE_ALIASED },
-                        pixel_fit_mode{ is_box_drawing && fs.fcache.cellsize.y > 20 ? DWRITE_GRID_FIT_MODE_DISABLED // Grid-fitting breaks box-drawing linkage.
-                                                                                    : DWRITE_GRID_FIT_MODE_ENABLED }
-                { }
-
-                auto create_texture(auto& run, auto& mask, fp32 base_line_x, fp32 base_line_y)
-                {
-                    auto r = RECT{};
-                    auto rasterizer = ComPtr<IDWriteGlyphRunAnalysis>{};
-                    if (S_OK == fs.fcache.factory2->CreateGlyphRunAnalysis(&run, nullptr, rendering_mode, measuring_mode, pixel_fit_mode, aaliasing_mode, base_line_x, base_line_y, rasterizer.GetAddressOf())
-                     && S_OK == rasterizer->GetAlphaTextureBounds(DWRITE_TEXTURE_ALIASED_1x1, &r))
-                    {
-                        mask.area = {{ r.left, r.top }, { r.right - r.left, r.bottom - r.top }};
-                        if (mask.area.size)
-                        {
-                            mask.bits.resize(netxs::udivupper(mask.area.size.x * mask.area.size.y, sizeof(ui32)));
-                            rasterizer->CreateAlphaTexture(DWRITE_TEXTURE_ALIASED_1x1, &r, (byte*)mask.bits.data(), (ui32)mask.bits.size() * sizeof(ui32));
-                        }
-                    }
-                }
-                void rasterize_layer_pack(auto& glyf_masks, auto& buffer_pool)
-                {
-                    using irgb = netxs::irgb<fp32>;
-                    auto exist = BOOL{ true };
-                    auto layer = (DWRITE_COLOR_GLYPH_RUN const*)nullptr;
-                    while (colored_glyphs->MoveNext(&exist), exist && S_OK == colored_glyphs->GetCurrentRun(&layer))
-                    {
-                        auto& m = glyf_masks.emplace_back(buffer_pool);
-                        create_texture(layer->glyphRun, m, layer->baselineOriginX, layer->baselineOriginY);
-                        if (m.area)
-                        {
-                            auto u = layer->runColor;
-                            m.fill = layer->paletteIndex != -1 ? irgb{ std::isnormal(u.r) ? u.r : 0.f,
-                                                                       std::isnormal(u.g) ? u.g : 0.f,
-                                                                       std::isnormal(u.b) ? u.b : 0.f,
-                                                                       std::isnormal(u.a) ? u.a : 0.f }.sRGB2Linear() : irgb{}; // runColor.bgra could be nan != 0.
-                            //test fgc
-                            //if (m.fill.r == 0 && m.fill.g == 0 && m.fill.b == 0) m.fill = {};
-                        }
-                        else glyf_masks.pop_back();
-                    }
-                }
-                void rasterize_single_layer(auto& glyph_mask)
-                {
-                    create_texture(glyph_run, glyph_mask, base_line.x, base_line.y);
-                }
-            };
-
-            fonts& fcache;
-            font_face_ptr                                faceinst;
-            wide                                         text_utf16; // shaper: UTF-16 buffer.
-            std::vector<ui16>                            clustermap; // shaper: .
-            ui32                                         glyf_count; // shaper: .
-            std::vector<ui16>                            glyf_index; // shaper: .
-            std::vector<FLOAT>                           glyf_steps; // shaper: .
-            std::vector<DWRITE_GLYPH_OFFSET>             glyf_align; // shaper: .
-            std::vector<DWRITE_GLYPH_METRICS>            glyf_sizes; // shaper: .
-            std::vector<DWRITE_SHAPING_GLYPH_PROPERTIES> glyf_props; // shaper: .
-            std::vector<DWRITE_SHAPING_TEXT_PROPERTIES>  text_props; // shaper: .
-
-            shaper(fonts& fcache)
-                : fcache{ fcache }
-            { }
-
-            fp32 generate_glyph_run(std::vector<utf::prop>& codepoints, ui16 script, BOOL is_rtl, fp32 em_height, fp32 transform, bool is_monospaced, fp32 grid_step)
-            {
-                //todo use otf tables directly: GSUB etc
-                //gindex.resize(codepoints.size());
-                //hr = faceinst->GetGlyphIndices(codepoints.data(), (ui32)codepoints.size(), gindex.data());
-                //auto glyph_run = DWRITE_GLYPH_RUN{ .fontFace     = faceinst.Get(),
-                //                                   .fontEmSize   = em_height,
-                //                                   .glyphCount   = (ui32)gindex.size(),
-                //                                   .glyphIndices = gindex.data() };
-                text_utf16.clear();
-                utf::to_utf(codepoints, text_utf16);
-                auto wide_count = (ui32)text_utf16.size();
-                glyf_count = 3 * wide_count / 2 + 16;
-                glyf_index.resize(glyf_count);
-                glyf_props.resize(glyf_count);
-                text_props.resize(wide_count);
-                clustermap.resize(wide_count);
-                //todo make it configurable (and faceinst based)
-                //auto fs = std::to_array<std::pair<ui32, ui32>>({ { DWRITE_MAKE_OPENTYPE_TAG('s', 'a', 'l', 't'), 1 }, });
-                //auto const features = std::to_array({ DWRITE_TYPOGRAPHIC_FEATURES{ (DWRITE_FONT_FEATURE*)fs.data(), (ui32)fs.size() }});
-                //auto feat_table = features.data();
-                auto script_opt = DWRITE_SCRIPT_ANALYSIS{ .script = fonts::msscript(script) };
-                auto hr = fcache.analyzer->GetGlyphs(text_utf16.data(),       //_In_reads_(textLength) WCHAR const* textString,
-                                                     wide_count,              //UINT32 textLength,
-                                                     faceinst.Get(),          //_In_ IDWriteFontFace* fontFace,
-                                                     faux,                    //BOOL isSideways,
-                                                     is_rtl,                  //BOOL isRightToLeft,
-                                                     &script_opt,             //_In_ DWRITE_SCRIPT_ANALYSIS const* scriptAnalysis,
-                                                     fcache.oslocale.data(),  //_In_opt_z_ WCHAR const* localeName,
-                                                     nullptr,                 //_In_opt_ IDWriteNumberSubstitution* numberSubstitution,
-                                                     nullptr,//&feat_table,   //_In_reads_opt_(featureRanges) DWRITE_TYPOGRAPHIC_FEATURES const** features,
-                                                     &wide_count,             //_In_reads_opt_(featureRanges) UINT32 const* featureRangeLengths,
-                                                     0,//features.size(),     //UINT32 featureRanges,
-                                                     glyf_count,              //UINT32 maxGlyphCount,
-                                                     clustermap.data(),       //_Out_writes_(textLength) UINT16* clusterMap,
-                                                     text_props.data(),       //_Out_writes_(textLength) DWRITE_SHAPING_TEXT_PROPERTIES* textProps,
-                                                     glyf_index.data(),       //_Out_writes_(maxGlyphCount) UINT16* glyphIndices,
-                                                     glyf_props.data(),       //_Out_writes_(maxGlyphCount) DWRITE_SHAPING_GLYPH_PROPERTIES* glyphProps,
-                                                     &glyf_count);            //_Out_ UINT32* actualGlyphCount
-                if (hr != S_OK) return 0;
-                glyf_steps.resize(glyf_count);
-                glyf_align.resize(glyf_count);
-                glyf_sizes.resize(glyf_count);
-                hr = fcache.analyzer->GetGlyphPlacements(text_utf16.data(),       // _In_reads_(textLength) WCHAR const* textString,
-                                                         clustermap.data(),       // _In_reads_(textLength) UINT16 const* clusterMap,
-                                                         text_props.data(),       // _Inout_updates_(textLength) DWRITE_SHAPING_TEXT_PROPERTIES* textProps,
-                                                         wide_count,              // UINT32 textLength,
-                                                         glyf_index.data(),       // _In_reads_(glyphCount) UINT16 const* glyphIndices,
-                                                         glyf_props.data(),       // _In_reads_(glyphCount) DWRITE_SHAPING_GLYPH_PROPERTIES const* glyphProps,
-                                                         glyf_count,              // UINT32 glyphCount,
-                                                         faceinst.Get(),          // _In_ IDWriteFontFace* fontFace,
-                                                         em_height,               // FLOAT fontEmSize,
-                                                         faux,                    // BOOL isSideways,
-                                                         is_rtl,                  // BOOL isRightToLeft,
-                                                         &script_opt,             // _In_ DWRITE_SCRIPT_ANALYSIS const* scriptAnalysis,
-                                                         fcache.oslocale.data(),  // _In_opt_z_ WCHAR const* localeName,
-                                                         nullptr,//&feat_table,   // _In_reads_opt_(featureRanges) DWRITE_TYPOGRAPHIC_FEATURES const** features,
-                                                         &wide_count,             // _In_reads_opt_(featureRanges) UINT32 const* featureRangeLengths,
-                                                         0,//features.size(),     // UINT32 featureRanges,
-                                                         glyf_steps.data(),       // _Out_writes_(glyphCount) FLOAT* glyphAdvances,
-                                                         glyf_align.data());      // _Out_writes_(glyphCount) DWRITE_GLYPH_OFFSET* glyphOffsets
-                if (hr != S_OK) return 0;
-                hr = faceinst->GetDesignGlyphMetrics(glyf_index.data(), glyf_count, glyf_sizes.data(), faux); // Non-normalized.
-                if (hr != S_OK) return 0;
-                auto length = fp32{};
-                if (is_monospaced)
-                {
-                    for (auto i = 0u; i < glyf_count; ++i)
-                    {
-                        auto& w = glyf_steps[i];
-                        if (w) w = grid_step; // Fit to our grid.
-                        length += w;
-                    }
-                }
-                else // Render glyphs as is.
-                {
-                    auto revpad = fp32{};
-                    auto penpos = fp32{};
-                    for (auto i = 0u; i < glyf_count; ++i)
-                    {
-                        auto w = glyf_sizes[i].advanceWidth;
-                        auto f = glyf_sizes[i].rightSideBearing;
-                        auto r = glyf_sizes[i].leftSideBearing;
-                        if (is_rtl) std::swap(f, r); // Convert side bearings to the rtl direction.
-                        auto fwd_bearing = ((si32)w - f) * transform; // Convert from design units to our scale (glyf_sizes).
-                        auto rev_bearing = -r * transform;    //
-                        auto glyphpos = penpos + glyf_align[i].advanceOffset; // It is already in our scale.
-                        auto rev_most = glyphpos - rev_bearing;
-                        auto fwd_most = glyphpos + fwd_bearing;
-                        revpad = std::min(revpad, rev_most); // Negative or 0.
-                        penpos += glyf_steps[i]; // It is already in our scale.
-                        length = std::max(length, fwd_most);
-                    }
-                    length = std::max(length, penpos);
-                    length += -revpad; // revpad is negative or 0.
-                }
-                return length;
-            }
-        };
-
-        ComPtr<IDWriteFactory2>        factory2; // fonts: DWrite factory.
-        ComPtr<IDWriteFontCollection>  fontlist; // fonts: System font collection.
-        ComPtr<IDWriteTextAnalyzer2>   analyzer; // fonts: Glyph indicies reader.
-        std::thread                    bgworker; // fonts: Background fallback reindex.
-        wide                           oslocale; // fonts: User locale.
-        shaper                         fontshaper{ *this }; // fonts: .
-        si32                           index_ready{ 0 }; // fonts: Font fallback reindex is complete if index > 0.
-
-        void set_fonts(auto family_names, bool fresh = true)
+        void set_fonts(std::list<text>& family_names, bool fresh = true)
         {
             families = family_names;
-            fallback.clear();
-            if (!fresh) // Restore the original font index order and clear the "loaded" flag.
+            font_fallback.clear();
+            if (!fresh) // Clear the "loaded" and "fixed" flags.
             {
-                auto tempstat = fontstat;
-                auto src = fontstat.begin();
-                auto end = fontstat.end();
-                while (src != end)
+                for (font_family_t& family_rec : font_index)
                 {
-                    auto& s = *src++;
-                    auto& d = tempstat[s.i];
-                    d = s;
-                    netxs::set_flag<fontcat::loaded>(d.s, faux);
+                    family_rec.is_sorted = faux;
+                    family_rec.is_fixed = faux;
                 }
-                std::swap(fontstat, tempstat);
             }
-            for (auto& family_utf8 : families)
+            for (auto& family_utf8 : family_names) // Sort faces in families.
             {
-                auto found = BOOL{};
-                auto index = ui32{};
-                auto family_utf16 = utf::to_utf(family_utf8);
-                fontlist->FindFamilyName(family_utf16.data(), &index, &found);
-                if (found)
+                auto iter = font_map.find(family_utf8);
+                if (iter != font_map.end())
                 {
-                    if (fontstat[index].s & fontcat::loaded) continue; // Skip duplicates.
-                    auto barefont = ComPtr<IDWriteFontFamily>{};
-                    fontlist->GetFontFamily(index, barefont.GetAddressOf());
-                    netxs::set_flag<fontcat::loaded>(fontstat[index].s);
-                    auto& f = fallback.emplace_back(*this, barefont, index);
-                    log("%%Using font '%fontname%': %iscolor%, index %index%", prompt::gui, f.font_name, f.color ? "color" : "monochromatic", fallback.size() - 1);
-                    //auto sa = DWRITE_SCRIPT_ANALYSIS{ .script = 24 };
-                    //auto maxTagCount = ui32{100};
-                    //auto tags = std::vector<DWRITE_FONT_FEATURE_TAG>(maxTagCount);
-                    //analyzer->GetTypographicFeatures(fallback.back().fontface[0], sa, oslocale.data(), maxTagCount, &maxTagCount, tags.data());
-                    //tags.resize(maxTagCount);
-                    //log("\tfeat count: ", maxTagCount);
-                    //for (auto t : tags) log("\t feat: ", view{ (char*)&t, 4 });
+                    auto& family_rec = iter->second;
+                    if (!family_rec.is_sorted) // Skip duplicates.
+                    {
+                        font_fallback.emplace_back(*this, family_rec);
+                        family_rec.is_sorted = true;
+                        family_rec.is_fixed = true;
+                    }
                 }
-                else log("%%Font '%fontname%' is not found in the system", prompt::gui, family_utf8);
+                else
+                {
+                    log("%%Font '%fontname%' is not found in the system", prompt::gui, family_utf8);
+                }
             }
-            if (!fresh) sort();
         }
-        auto& take_font(utfx codepoint, bool force_mono = faux)
+        auto& find_family(std::span<const utfx> codepoints, bool force_mono = faux)
         {
-            auto hittest = [&](auto& fontface)
+            for (auto& f : font_fallback) if ( f.family_ref.first_class() && fonts::hittest(f.family_ref.unicode_ranges, codepoints)) return f;
+            for (auto& f : font_fallback) if (!f.family_ref.first_class() && fonts::hittest(f.family_ref.unicode_ranges, codepoints)) return f;
+            auto try_font = [&](font_family_t& family_rec, bool test)
             {
-                if (!fontface) return faux;
-                auto glyphindex = ui16{};
-                fontface->GetGlyphIndices(&codepoint, 1, &glyphindex);
-                return !!glyphindex;
-            };
-            for (auto& f : fallback) if ((f.color || f.fixed) && hittest(f.fontface[0].faceinst)) return f;
-            for (auto& f : fallback) if ((!f.color && !f.fixed) && hittest(f.fontface[0].faceinst)) return f;
-            static auto empty_font = typeface{};
-            //todo enqueue font fallback lookup and return empty_font;
-            if (index_ready <= 0) // Font index is not ready yet.
-            {
-                if constexpr (debugmode) log("%%Font fallback index is not ready yet", prompt::gui);
-                index_ready--;
-                return empty_font;
-            }
-            auto try_font = [&](auto i, bool test)
-            {
-                auto hit = faux;
-                auto barefont = ComPtr<IDWriteFontFamily>{};
-                auto fontfile = ComPtr<IDWriteFont2>{};
-                auto fontface = ComPtr<IDWriteFontFace>{};
-                if ((fontlist->GetFontFamily(i, barefont.GetAddressOf()), barefont)
-                 && (barefont->GetFirstMatchingFont(DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL, (IDWriteFont**)fontfile.GetAddressOf()), fontfile)
-                 && (fontfile->CreateFontFace(fontface.GetAddressOf()), fontface)
-                 && (hittest(fontface) || !test))
+                auto hit = !test || fonts::hittest(family_rec.unicode_ranges, codepoints);
+                if (hit)
                 {
-                    hit = true;
-                    netxs::set_flag<fontcat::loaded>(fontstat[i].s);
-                    auto is_primary = fallback.empty();
-                    auto& f = fallback.emplace_back(*this, barefont, i, cellsize, is_primary);
-                    log("%%Using font '%fontname%': %iscolor%, index %index%", prompt::gui, f.font_name, f.color ? "color" : "monochromatic", fallback.size() - 1);
+                    auto is_primary = font_fallback.empty();
+                    font_fallback.emplace_back(*this, family_rec, cellsize, is_primary);
+                    family_rec.is_sorted = true;
                 }
                 return hit;
             };
-            if (force_mono) for (auto i = 0u; i < fontstat.size(); i++)
+            if (force_mono) for (font_family_t& family_rec : font_index)
             {
-                if (((fontstat[i].s & fontcat::monospaced) && (fontstat[i].s & fontcat::valid) && !(fontstat[i].s & fontcat::loaded)) && try_font(fontstat[i].i, true)) return fallback.back();
+                if (family_rec.is_monospaced && !family_rec.is_invalid && !family_rec.is_sorted && try_font(family_rec, true))
+                {
+                    return font_fallback.back();
+                }
             }
-            else for (auto i = 0u; i < fontstat.size(); i++)
+            else for (font_family_t& family_rec : font_index)
             {
-                if (((fontstat[i].s & fontcat::valid) && !(fontstat[i].s & fontcat::loaded)) && try_font(fontstat[i].i, true)) return fallback.back();
+                if (!family_rec.is_invalid && !family_rec.is_sorted && try_font(family_rec, true))
+                {
+                    return font_fallback.back();
+                }
             }
-            if (fallback.size()) return fallback.front();
-            for (auto i = 0u; i < fontstat.size(); i++) // Take the first font found in the system.
+            if (font_fallback.size())
             {
-                if ((fontstat[i].s & fontcat::valid) && try_font(fontstat[i].i, faux)) return fallback.back();
+                return font_fallback.back();
+            }
+            for (font_family_t& family_rec : font_index) // Take the first font found in the system if no fonts loaded yet.
+            {
+                if (!family_rec.is_invalid && try_font(family_rec, faux))
+                {
+                    return font_fallback.back();
+                }
             }
             log("%%No fonts found in the system", prompt::gui);
-            return empty_font; // Should never happen.
+            std::terminate();
         }
+        void log_fonts(bool show_ranges = faux)
+        {
+            // map:                         FAMILY_NAME1                           |          FAMILY_NAME2
+            // map:        WIDTH_CLASS 75%       |           WIDTH_CLASS 100%      |          WIDTH_CLASS 100%
+            // [2]:  NORMAL     |     ITALIC     |     NORMAL     |     ITALIC     |    NORMAL     |     ITALIC
+            // vec:  fnt400     |     fnt400     |     fnt400     |     fnt400     |    fnt400     |     fnt400
+            //       fnt700     |     fnt700     |     fnt700     |     fnt700     |    fnt700     |     fnt700
+            //
+            // font_map:
+            //   family_name : .file_stamp
+            //                 .is_monospaced
+            //                 .is_color
+            //                 .unicode_ranges[block]
+            //                 .fonts[width_class] : .normal : vec<bare_face_t>
+            //                                       .italic : vec<bare_face_t>
+            struct width_group_t
+            {
+                std::vector<sptr<bare_face_t>> normal;
+                std::vector<sptr<bare_face_t>> italic;
+            };
 
-        ~fonts()
-        {
-            index_ready = 10;
-            if (bgworker.joinable()) bgworker.join();
-        }
-        fonts(std::list<text>& family_names, std::map<text, cfg_t::axis_vals_t>& /*font_axes*/, si32 cell_height, auto signal_to_redraw)
-            : oslocale(LOCALE_NAME_MAX_LENGTH, '\0')
-        {
-            ::DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), (IUnknown**)factory2.GetAddressOf());
-            factory2->GetSystemFontCollection(fontlist.GetAddressOf(), TRUE);
-            factory2->CreateTextAnalyzer((IDWriteTextAnalyzer**)analyzer.GetAddressOf());
-            fontstat.resize(fontlist ? fontlist->GetFontFamilyCount() : 0);
-            if (!fontlist || !analyzer)
+            log<faux>("\x1b_lua: align_mode=terminal.LineAlignMode(); terminal.LineAlignMode(2)\x1b\\");
+            log<faux>("\x1b_lua: wrap_mode=terminal.LineWrapMode(); terminal.LineWrapMode(0)\x1b\\");
+            log<faux>("\x1b_lua: code_page=terminal.CodePage(); terminal.CodePage(65001)\x1b\\");
+            auto chars = text(4096, '\0');
+            auto width_groups = std::map<si32, width_group_t>{}; // Ordered map of <width_class_id, width_group_t<vec<normal>, vec<italic>>>
+            for (auto& family_rec_ref : font_index)
             {
-                log("%%No fonts found in the system", prompt::gui);
-                return;
-            }
-            set_fonts(family_names);
-            if (auto len = ::GetUserDefaultLocaleName(oslocale.data(), (si32)oslocale.size())) oslocale.resize(len);
-            else
-            {
-                oslocale = L"en-US";
-                log("%%Using default locale 'en-US'", prompt::gui);
-            }
-            oslocale.shrink_to_fit();
-            bgworker = std::thread{ [&, signal_to_redraw]
-            {
-                for (auto i = 0u; i < fontstat.size(); i++)
+                auto& family_rec = family_rec_ref.get();
+                auto& family_name = family_rec.family_name;
+                log("\n%is_monospaced% \x1b[7m %name% \x1b[m%is_color% ", family_rec.is_monospaced ? " \x1b[92mmonospaced\x1b[m" : "           ", family_name,
+                                                                          family_rec.is_color      ? " \x1b[92mcolor\x1b[m     " : "           ");
+                for (auto& bare_face_rec : family_rec.bare_face_list) // Split by width class and then by normal/italic.
                 {
-                    if (index_ready > 0) break;
-                    fontstat[i].i = i;
-                    auto barefont = ComPtr<IDWriteFontFamily>{};
-                    auto fontfile = ComPtr<IDWriteFont2>{};
-                    auto faceinst = ComPtr<IDWriteFontFace2>{};
-                    if ((fontlist->GetFontFamily(i, barefont.GetAddressOf()), barefont)
-                     && (barefont->GetFirstMatchingFont(DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL, (IDWriteFont**)fontfile.GetAddressOf()), fontfile))
+                    auto& rec = *(bare_face_rec.bare_face_ptr);
+                    auto& width_group = width_groups[rec.get_width_class_id()];
+                    auto& dest_bucket = rec.is_italic ? width_group.italic : width_group.normal;
+                    dest_bucket.push_back(bare_face_rec.bare_face_ptr);
+                }
+                for (auto& [width_class_id, width_group] : width_groups)
+                {
+                    auto max_stylename = std::array<size_t, 2>{};
+                    auto max_file_name = std::array<size_t, 2>{};
+                    auto max_file_path = std::array<size_t, 2>{};
+                    auto max_weightstr = std::array<size_t, 2>{};
+                    for (auto type : { faux, true })
                     {
-                        netxs::set_flag<fontcat::valid>(fontstat[i].s);
-                        if (fontfile->IsMonospacedFont()) netxs::set_flag<fontcat::monospaced>(fontstat[i].s);
-                        if (fontfile->CreateFontFace((IDWriteFontFace**)faceinst.GetAddressOf()), faceinst)
+                        auto& rec_list = type ? width_group.italic : width_group.normal;
+                        for (auto& rec_ptr : rec_list)
                         {
-                            if (iscolor(faceinst)) netxs::set_flag<fontcat::color>(fontstat[i].s);
-                            auto numberOfFiles = ui32{};
-                            faceinst->GetFiles(&numberOfFiles, nullptr);
-                            auto fontFiles = std::vector<ComPtr<IDWriteFontFile>>(numberOfFiles);
-                            if (S_OK == faceinst->GetFiles(&numberOfFiles, (IDWriteFontFile**)fontFiles.data()))
-                            if (numberOfFiles)
-                            if (auto f = fontFiles.front())
-                            {
-                                auto fontFileReferenceKey = (void const*)nullptr;
-                                auto fontFileReferenceKeySize = ui32{};
-                                auto fontFileLoader = ComPtr<IDWriteFontFileLoader>{};
-                                auto fontFileStream = ComPtr<IDWriteFontFileStream>{};
-                                if ((f->GetReferenceKey(&fontFileReferenceKey, &fontFileReferenceKeySize), fontFileReferenceKeySize)
-                                 && (f->GetLoader(fontFileLoader.GetAddressOf()), fontFileLoader)
-                                 && (fontFileLoader->CreateStreamFromKey(fontFileReferenceKey, fontFileReferenceKeySize, fontFileStream.GetAddressOf()), fontFileStream))
-                                {
-                                    auto lastWriteTime = ui64{};
-                                    fontFileStream->GetLastWriteTime(&lastWriteTime);
-                                    fontstat[i].n = utf::to_utf((wchr*)fontFileReferenceKey);
-                                    fontstat[i].s |= ~((ui64)0xFF << 60) & (lastWriteTime >> 4); // Sort fonts by iscolor, monospaced then by file_date.
-                                }
-                            }
+                            auto& rec = *rec_ptr;
+                            max_weightstr[type] = std::max(max_weightstr[type], rec.get_weight_str().size());
+                            max_stylename[type] = std::max(max_stylename[type], rec.get_style_str().size());
+                            max_file_path[type] = std::max(max_file_path[type], rec.file_path.parent_path().generic_string().size());
+                            max_file_name[type] = std::max(max_file_name[type], rec.file_path.filename().generic_string().size());
                         }
                     }
-                }
-                sort();
-                //for (auto f : fontstat) log("id=", utf::to_hex(f.s), " i= ", f.i, " n=", f.n);
-                log("%%Font fallback index initialized", prompt::gui);
-                auto state = std::exchange(index_ready, 10);
-                if (state < 0) signal_to_redraw(); // Notify about font fallback index is ready to redraw canvas.
-            }};
-            if (fallback.empty())
-            {
-                auto default_font = std::list{ "Courier New"s };
-                log(prompt::gui, ansi::err("No fonts provided, fallback to '", default_font.front(), "'"));
-                set_fonts(default_font);
-            }
-            if (fallback.empty())
-            {
-                log(prompt::gui, ansi::err("No fonts provided, fallback to first available font"));
-                take_font('A', true); // Take the first available font.
-            }
-            set_cellsz(*this, cell_height);
-        }
-    };
-
-#else
-
-    struct fonts : fonts_base<void*, void*>
-    {
-        static void get_common_widths(std::vector<typeface::face_rec>& /*fontface*/, fp2d /*facesize*/, bool& /*proportional*/, ui32& /*normal_width*/, ui32& /*italic_width*/)
-        {
-            //...
-        }
-        struct shaper
-        {
-            struct glyph_offset
-            {
-                fp32 h_offset;
-                fp32 v_offset;
-            };
-            fonts& fcache;
-            font_face_ptr             faceinst{};
-            std::vector<fp32>         glyf_steps; // shaper: .
-            std::vector<glyph_offset> glyf_align; // shaper: .
-
-            shaper(fonts& fcache)
-                : fcache{ fcache }
-            { }
-            struct gr
-            {
-                gr(shaper& /*fs*/, bool monochromatic, bool aamode, bool is_rtl, fp2d base_line, fp32 em_height, bool is_box_drawing)
-                {
-                    if (monochromatic || aamode || is_rtl || base_line || em_height || is_box_drawing)
+                    auto stamp_len = 28;
+                    //              "stamp_len [max_file_path] max_file_name max_stylename  max_weightstr "|" max_weightstr  max_stylename max_file_name [max_file_path] stamp_len"
+                    auto left_side = stamp_len + 2 + max_file_path[0] + 2 + max_file_name[0] + 1 + max_stylename[0] + 2 + max_weightstr[0] + 1;
+                    auto rght_side = stamp_len + 2 + max_file_path[1] + 2 + max_file_name[1] + 1 + max_stylename[1] + 2 + max_weightstr[1] + 1;
+                    auto max_side = std::max(left_side, rght_side);
+                    auto mount = text(2 * max_side + 1, ' ') + "\r";
+                    auto pad = text(max_side - left_side, ' ');
+                    auto ratio = [&]
                     {
-                        //...
+                        auto& rec = *(width_group.normal.size() ? width_group.normal.front() : width_group.italic.front());
+                        auto r = rec.max_advance_width / fp32(rec.ascender - rec.descender + rec.lineGap);
+                        return r;
+                    };
+                    log("\x1b[33mFont Width: %stretch_value%\x1b[m", bare_face_t::get_width_class_str(width_class_id));
+                    if (family_rec.is_monospaced)
+                    {
+                        log("cell ratio (w/h): %ratio%", ratio());
+                    }
+                    auto iter_normal = width_group.normal.begin();
+                    auto iter_italic = width_group.italic.begin();
+                    auto weight_word = "Weight "sv;
+                    auto letterindex = 0_sz;
+                    auto get_weight_next_char = [&]{ return utf::fprint("\x1b[7m%W%\x1b[27m", weight_word[std::min(weight_word.size() - 1, letterindex++)]); };
+                    log("\x1b[4m Normal \x1b[24m%W%\x1b[4m Italic \x1b[m", get_weight_next_char());
+                    while (iter_normal != width_group.normal.end() || iter_italic != width_group.italic.end())
+                    {
+                        auto n0 = iter_normal != width_group.normal.end();
+                        auto i0 = iter_italic != width_group.italic.end();
+                        auto n = n0 && (!i0 || (*iter_italic)->weight_value >= (*iter_normal)->weight_value || (*iter_normal)->axes_map.find(cfg_t::ft_tag("wght")) != (*iter_normal)->axes_map.end());
+                        auto i = i0 && (!n0 || (*iter_italic)->weight_value <= (*iter_normal)->weight_value || (*iter_italic)->axes_map.find(cfg_t::ft_tag("wght")) != (*iter_italic)->axes_map.end());
+                        auto fn = utf::adjust(n ? utf::fprint("%stamp% [%dir%] %file%", (*iter_normal)->file_stamp, (*iter_normal)->file_path.parent_path().generic_string(), utf::adjust((*iter_normal)->file_path.filename().string(), max_file_name[0], ' ', true)) : "", stamp_len + 2 + max_file_path[0] + 2 + max_file_name[0], ' ', true);
+                        auto fi = utf::adjust(i ? utf::fprint("%file% [%dir%] %stamp%", utf::adjust((*iter_italic)->file_path.filename().string(), max_file_name[1], ' '), (*iter_italic)->file_path.parent_path().generic_string(), (*iter_italic)->file_stamp)       : "", stamp_len + 2 + max_file_path[1] + 2 + max_file_name[1], ' ', faux);
+                        auto sn = utf::adjust(n ? (*iter_normal)->get_style_str() : "", max_stylename[0], ' ', true);
+                        auto si = utf::adjust(i ? (*iter_italic)->get_style_str() : "", max_stylename[1], ' ', faux);
+                        log("%%%pad%%fn% %sn%  %normal_weight% %W% %italic_weight%  %si% %fi%", mount, pad,
+                            fn, sn, utf::adjust(n ? (*iter_normal++)->get_weight_str() : "", max_weightstr[0], ' ', true),
+                                    get_weight_next_char(),
+                                    utf::adjust(i ? (*iter_italic++)->get_weight_str() : "", max_weightstr[1], ' ', faux), si, fi);
+                    }
+                    log("%%", get_weight_next_char());
+                }
+                width_groups.clear();
+                if (!show_ranges) continue;
+                log<faux>("\x1b_lua: terminal.LineAlignMode(0)\x1b\\"); // Set left alignment.
+                log(" Unicode ranges:");
+                auto& unicode_ranges = family_rec.unicode_ranges;
+                //todo sort unicode_ranges
+                for (auto& [block, bit_set]: unicode_ranges)
+                {
+                    auto first = block * 256;
+                    auto last = first + 255;
+                    chars.clear();
+                    for (auto codepoint = first; codepoint <= last; codepoint++)
+                    {
+                        auto& char_props = netxs::unidata::select(codepoint);
+                        if (bit_set.test(codepoint - first) && !char_props.is_cmd())
+                        {
+                            if (char_props.ucwidth != 2) chars += utf::matrix::stx;
+                            auto dotted_circle = netxs::unidata::select(0x25CC);
+                            if (dotted_circle.allied(char_props)) // Use dotted circle '◌' (U+25CC) as a placeholder for diacritics-like.
+                            {
+                                chars += "\u25CC";
+                                utf::to_utf_from_code(codepoint, chars);
+                            }
+                            else // Show the characters as is.
+                            {
+                                utf::to_utf_from_code(codepoint, chars);
+                            }
+                            if (char_props.ucwidth != 2) chars += utf::matrix::vss<21>;
+                        }
+                        else
+                        {
+                            chars += "\x1b[31m・\x1b[m";
+                        }
+                    }
+                    log("  %%-%%: %chars%", utf::to_hex(first).substr(2), utf::to_hex(last).substr(2), chars);
+                }
+                log<faux>("\x1b_lua: terminal.LineAlignMode(2)\x1b\\"); // Back to centered alignment.
+            }
+            log<faux>("\x1b_lua: terminal.LineAlignMode(align_mode)\x1b\\");
+            log<faux>("\x1b_lua: terminal.LineWrapMode(wrap_mode)\x1b\\");
+            log<faux>("\x1b_lua: terminal.CodePage(code_page)\x1b\\\n");
+        }
+
+        ft_library_sptr                                    ft_library;    // fonts: FreeType library instance.
+        hb_language_t                                      os_locale;     // fonts: User locale.
+        shaper                                             font_shaper;   // fonts: Font shaper.
+        std::map<text, font_family_t>                      font_map;      // fonts: Map of available font families sorted by family name.
+        std::vector<std::reference_wrapper<font_family_t>> font_index;    // fonts: Index of available font families ordered by filestamp.
+        std::vector<font_face_t>                           font_fallback; // fonts: Fallback font list.
+        utf::unordered_map<text, sptr<loaded_font_file_t>> loaded_files;  // fonts: Map of loaded font files by file paths (path <-> blob).
+        cfg_t::axis_vals_t                                 primary_axes;  // fonts: Map of the primary font axes (4byte_axis_tag <-> values).
+        std::list<text>                                    families;      // fonts: List of primary families.
+
+        twod cellsize;  // fonts: Terminal cell size in pixels.
+        rect underline; // fonts: Single underline rectangle block within the cell.
+        rect doubline1; // fonts: The first line of the double underline: at the top of the rect.
+        rect doubline2; // fonts: The second line of the double underline: at the bottom.
+        rect strikeout; // fonts: Strikethrough rectangle block within the cell.
+        rect overline;  // fonts: Overline rectangle block within the cell.
+        rect dashline;  // fonts: Dashed underline rectangle block within the cell.
+        rect wavyline;  // fonts: Wavy underline outer rectangle block within the cell.
+
+        fonts(std::list<text>& family_names, cfg_t::axis_vals_t& font_axes, si32 cell_height)
+            : ft_library{ make_ft_library() },
+               os_locale{ ::hb_language_from_string(os::env::get_locale().c_str(), -1) },
+             font_shaper{ *this }
+        {
+            #if defined(_WIN32)
+                auto registered_fonts = L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Fonts"sv;
+                auto filter = [](auto& item)
+                {
+                    static auto user_font_dir   = os::env::get("LocalAppData") + "\\Microsoft\\Windows\\Fonts\\";
+                    static auto system_font_dir = os::env::get("WINDIR") + "\\Fonts\\";
+                    auto ok = item.type == REG_SZ && item.data.size();
+                    if (ok)
+                    {
+                        if (item.data.front() != '\\' && !utf::check_any(item.data, ":")) // Convert to absolute path.
+                        {
+                            item.data = (item.hive == HKEY_CURRENT_USER ? user_font_dir : system_font_dir) + item.data;
+                        }
+                    }
+                    return ok;
+                };
+                auto system_font_flow = os::nt::walk_registry(HKEY_CURRENT_USER,  registered_fonts, filter)
+                                      | os::nt::walk_registry(HKEY_LOCAL_MACHINE, registered_fonts, filter);
+            #else
+                //todo build a native system_font_flow
+                struct fontfile_item_t
+                {
+                    text path;
+                    text name;
+                    text data;
+                };
+                auto system_font_flow = std::vector<fontfile_item_t>{};
+            #endif
+            auto font_list = std::vector<bare_face_t>{};
+            for (auto& item : system_font_flow)
+            {
+                auto ec = std::error_code{};
+                auto file_stamp = os::fs::last_write_time(item.data, ec);
+                if (ec)
+                {
+                    log("%%Failed to get font file '%path%' modification time (error %ec%): %msg%", prompt::gui, item.data, ec.value(), os::get_system_error_message(ec.value()));
+                }
+                else
+                {
+                    auto face = FT_Face{};
+                    auto index = 0;
+                    while (FT_Err_Ok == ::FT_New_Face(ft_library.get(), item.data.c_str(), index++, &face)) // Read headers only (fast enough).
+                    {
+                        if (auto os2 = (TT_OS2*)::FT_Get_Sfnt_Table(face, FT_SFNT_OS2)) // We need OS/2 metadata.
+                        {
+                            auto family = qiew{ face->family_name };
+                            auto style  = qiew{ face->style_name };
+                            auto& rec = font_list.emplace_back();
+                            rec.file_stamp             = file_stamp;
+                            rec.file_path              = std::move(item.data);
+                            rec.family_name            = family.str();
+                            rec.style_name             = style.str();
+                            rec.face_index             = face->face_index;
+                            rec.face_flags             = face->face_flags;
+                            rec.style_flags            = face->style_flags;
+                            rec.num_glyphs             = face->num_glyphs;
+                            rec.bbox                   = {{ face->bbox.xMin, face->bbox.yMin }, { face->bbox.xMax, face->bbox.yMax }};
+                            rec.units_per_EM           = face->units_per_EM;
+                            rec.ascender               = face->ascender;
+                            rec.descender              = -face->descender;
+                            rec.height                 = face->height;
+                            rec.max_advance_width      = face->max_advance_width;
+                            rec.max_advance_height     = face->max_advance_height;
+                            rec.underline_position     = face->underline_position;
+                            rec.underline_thickness    = face->underline_thickness;
+                            rec.strikethroughPosition  = os2->yStrikeoutPosition;
+                            rec.strikethroughThickness = os2->yStrikeoutSize;
+                            rec.lineGap                = os2->sTypoLineGap;
+                            auto has_colr = has_sfnt_table(face, FT_MAKE_TAG('C', 'O', 'L', 'R'));
+                            auto has_cpal = has_sfnt_table(face, FT_MAKE_TAG('C', 'P', 'A', 'L'));
+                            auto has_svg_ = has_sfnt_table(face, FT_MAKE_TAG('S', 'V', 'G', ' '));
+                            rec.is_color_colr = has_colr && has_cpal;
+                            rec.is_color_svg  = has_svg_;
+                            rec.is_color = rec.is_color_colr;  //todo We don't support SVG-fonts yet. (also 'sbix', 'CBDT' and 'CBLC')
+                            rec.valid = rec.num_glyphs && rec.units_per_EM && (rec.is_color || FT_IS_SCALABLE(face));
+                            rec.is_monospaced          = FT_IS_FIXED_WIDTH(face);
+                            rec.weight_value           = os2->usWeightClass;
+                            rec.stretch_value          = os2->usWidthClass;
+                            rec.is_italic              = face->style_flags & FT_STYLE_FLAG_ITALIC;
+                            auto amaster = (FT_MM_Var*)nullptr;
+                            auto has_wdth = faux;
+                            auto has_wght = faux;
+                            auto has_ital = faux;
+                            if (FT_Err_Ok == ::FT_Get_MM_Var(face, &amaster))
+                            {
+                                rec.is_variable_font = true;
+                                for (auto i = 0u; i < amaster->num_axis; i++) // Axes count (weight, width, ital...)
+                                {
+                                    auto& axis = amaster->axis[i];
+                                    auto axis_values = axis_rec_t{ axis.name, axis.def / 65536.0f, axis.minimum / 65536.0f, axis.maximum / 65536.0f };
+                                    rec.axes_map.emplace(axis.tag, axis_values);
+                                    switch (axis.tag)
+                                    {
+                                        case cfg_t::ft_tag("wdth"): has_wdth = true; rec.width_target  = axis_values; break;
+                                        case cfg_t::ft_tag("wght"): has_wght = true; rec.weight_target = axis_values; break;
+                                        case cfg_t::ft_tag("ital"): has_ital = true; rec.italic_target = axis_values; break;
+                                    }
+                                }
+                                ::FT_Done_MM_Var(ft_library.get(), amaster);
+                            }
+                            // Bring basic parameters to a unified form - axes.
+                            if (!has_wdth)
+                            {
+                                static constexpr auto stretch_lut = std::to_array<fp32>(
+                                {
+                                    50.0f,   // 1 Ultra-condensed 50%
+                                    62.5f,   // 2 Extra-condensed 62.5%
+                                    75.0f,   // 3 Condensed       75%
+                                    87.5f,   // 4 Semi-condensed  87.5%
+                                    100.0f,  // 5 Medium (Normal) 100%
+                                    112.5f,  // 6 Semi-expanded   112.5%
+                                    125.0f,  // 7 Expanded        125%
+                                    150.0f,  // 8 Extra-expanded  150%
+                                    200.0f,  // 9 Ultra-expanded  200%
+                                });
+                                auto wdth = stretch_lut[std::clamp(rec.stretch_value, 1, (si32)stretch_lut.size()) - 1];
+                                auto axis_values = axis_rec_t{ "Width", wdth, wdth, wdth };
+                                rec.axes_map.emplace(cfg_t::ft_tag("wdth"), axis_values);
+                                rec.width_target = axis_values;
+                            }
+                            if (!has_wght)
+                            {
+                                auto wght = (fp32)rec.weight_value;
+                                auto axis_values = axis_rec_t{ "Weight", wght, wght, wght };
+                                rec.axes_map.emplace(cfg_t::ft_tag("wght"), axis_values);
+                                rec.weight_target = axis_values;
+                            }
+                            if (!has_ital)
+                            {
+                                auto ital = (fp32)rec.is_italic;
+                                auto axis_values = axis_rec_t{ "Italic", ital, ital, ital };
+                                rec.axes_map.emplace(cfg_t::ft_tag("ital"), axis_values);
+                                rec.italic_target = axis_values;
+                            }
+                            if (!(os2->fsSelection & 0x80) || os2->version == 0xFFFF) // fsSelection bit 7 (0x80): USE_TYPO_METRICS.
+                            {
+                                if (auto hhea = (TT_HoriHeader*)::FT_Get_Sfnt_Table(face, FT_SFNT_HHEA)) // Old Mac fonts that do not include an 'OS/2' table. In this case, the `version` field is always set to 0xFFFF.
+                                {
+                                    rec.lineGap = hhea->Line_Gap;
+                                }
+                            }
+                            if (os2->version != 0xFFFF && os2->version >= 2)
+                            {
+                                rec.xHeight   = os2->sxHeight;
+                                rec.capHeight = os2->sCapHeight;
+                            }
+                            if (rec.capHeight == 0) fonts::get_char_height(face, 'H', rec.capHeight, face->ascender);         // Arabic, emoji, web/windings have no capitals
+                            if (rec.xHeight   == 0) fonts::get_char_height(face, 'x', rec.xHeight,   face->ascender * 2 / 3); // or latin letters.
+                            // Fill supported unicode ranges.
+                            auto glyph_index = FT_UInt{};
+                            auto char_code = ::FT_Get_First_Char(face, &glyph_index);
+                            if (!glyph_index) // There is no FT_ENCODING_UNICODE code page. Try to select ms symbol code page.
+                            {
+                                ::FT_Select_Charmap(face, FT_ENCODING_MS_SYMBOL);
+                                char_code = ::FT_Get_First_Char(face, &glyph_index);
+                                log("%%Try to select 'MS Symbol' code page for '%%' font.", prompt::gui, rec.file_path.generic_string());
+                                if (glyph_index) rec.mssymbol_codepage = true;
+                            }
+                            if (glyph_index)
+                            {
+                                auto current_block = char_code / 256;
+                                auto bit_set = rec.unicode_ranges.try_emplace(current_block).first;
+                                bit_set->second.set(char_code % 256);
+                                while ((char_code = ::FT_Get_Next_Char(face, char_code, &glyph_index)))
+                                {
+                                    auto next_block = char_code / 256;
+                                    if (next_block != current_block)
+                                    {
+                                        current_block = next_block;
+                                        bit_set = rec.unicode_ranges.try_emplace(current_block).first;
+                                    }
+                                    bit_set->second.set(char_code % 256);
+                                }
+                            }
+                            else
+                            {
+                                log("%%Font '%%' has no FT_ENCODING_UNICODE code page.", prompt::gui, rec.file_path.generic_string());
+                            }
+                        }
+                        ::FT_Done_Face(face);
                     }
                 }
-                //...
-                bool is_colored;
-                bool is_monochromatic;
-                void rasterize_layer_pack(auto& /*glyf_masks*/, auto& /*buffer_pool*/)
-                {
-                    //using irgb = netxs::irgb<fp32>;
-                    //...
-                }
-                void rasterize_single_layer(auto& /*glyph_mask*/)
-                {
-                    //create_texture(glyph_run, glyph_mask, base_line.x, base_line.y);
-                    //...
-                }
-            };
-            fp32 generate_glyph_run(std::vector<utf::prop>& /*codepoints*/, ui16 /*script*/, bool /*is_rtl*/, fp32 /*em_height*/, fp32 /*transform*/, bool /*is_monospaced*/ , fp32 /*grid_step*/)
-            {
-                return fp32{};
             }
-        };
-
-        shaper fontshaper{ *this };
-        fonts(std::list<text>& /*family_names*/, std::map<text, cfg_t::axis_vals_t>& /*font_axes*/ , si32 /*cell_height*/, auto ...)
-        { }
-        auto& take_font(utfx /*base_char*/)
-        {
-            return fallback.front();
-        }
-        void set_fonts(std::list<text>&, bool)
-        {
-            //...
+            //std::ranges::sort(font_list, std::ranges::greater{}, &bare_face_t::stamp);
+            //std::ranges::sort(font_list, [](auto& a, auto& b){ return std::tie(a.stamp, a.name) < std::tie(b.stamp, b.name); }); // With std::tie, sorting all fields is only possible in one direction.
+            std::sort(font_list.begin(), font_list.end(), [](auto& a, auto& b)
+            {
+                //if (a.stamp == b.stamp) return a.family_name < b.family_name; // Sort desc by time then asc by family_name.
+                //else                    return a.stamp > b.stamp;
+                //if (a.family_name == b.family_name) return a.file_stamp > b.file_stamp; // Sort asc by family_name then desc by time.
+                //else                                return a.family_name < b.family_name;
+                if (a.family_name == b.family_name)
+                {
+                    if (a.weight_value == b.weight_value)
+                    {
+                        return a.file_stamp > b.file_stamp; // Sort desc by file_stamp.
+                    }
+                    else
+                    {
+                        return a.weight_value < b.weight_value; // Sort asc by family_name then asc by weight.
+                    }
+                }
+                else
+                {
+                    return a.family_name < b.family_name;
+                }
+            });
+            // first: is_color || is_monospaced.
+            // then: file_stamp (descending).
+            for (auto& rec : font_list)
+            {
+                auto& family_rec = font_map[rec.family_name];
+                if (family_rec.file_stamp < rec.file_stamp) family_rec.file_stamp = rec.file_stamp; // Update time stamp.
+                family_rec.is_monospaced |= rec.is_monospaced;
+                family_rec.is_color      |= rec.is_color;
+                for (auto& [block, bit_set] : rec.unicode_ranges)
+                {
+                    family_rec.unicode_ranges[block] |= bit_set;
+                }
+                //log("%stamp% \x1b[7m%name%\x1b[m \x1b[7m%style%\x1b[m", rec.file_stamp, rec.family_name, rec.style_name,
+                //    //    "");
+                //    "\n\trec.file_path              = ", rec.file_path.generic_string(),
+                //    "\n\trec.face_index             = ", rec.face_index,
+                //    "\n\trec.face_flags             = ", utf::to_bin(rec.face_flags),
+                //    "\n\trec.style_flags            = ", rec.style_flags,
+                //    "\n\trec.num_glyphs             = ", rec.num_glyphs,
+                //    "\n\trec.bbox                   = ", rec.bbox,
+                //    "\n\trec.units_per_EM           = ", rec.units_per_EM,
+                //    "\n\trec.ascender               = ", rec.ascender,
+                //    "\n\trec.descender              = ", rec.descender,
+                //    "\n\trec.height                 = ", rec.height,
+                //    "\n\trec.max_advance_width      = ", rec.max_advance_width,
+                //    "\n\trec.max_advance_height     = ", rec.max_advance_height,
+                //    "\n\trec.underline_position     = ", rec.underline_position,
+                //    "\n\trec.underline_thickness    = ", rec.underline_thickness,
+                //    "\n\trec.strikethroughPosition  = ", rec.strikethroughPosition,
+                //    "\n\trec.strikethroughThickness = ", rec.strikethroughThickness,
+                //    "\n\trec.xHeight                = ", rec.xHeight,
+                //    "\n\trec.capHeight              = ", rec.capHeight,
+                //    "\n\trec.lineGap                = ", rec.lineGap,
+                //    "\n\trec.is_color               = ", rec.is_color,
+                //    "\n\trec.weight_value           = ", rec.weight_value,
+                //    "\n\trec.is_italic              = ", rec.is_italic,
+                //    "\n\trec.is_monospaced          = ", rec.is_monospaced,
+                //    "\n\trec.stretch_value          = ", rec.stretch_value,
+                //        "");
+                //    if (rec.is_variable_font)
+                //    {
+                //        log("\tVariable font with %% ax%es%:", rec.axes_map.size(), rec.axes_map.size() == 1 ? "is" : "es");
+                //        for (auto& [tag, axis_rec] : rec.axes_map)
+                //        {
+                //            log("\t\t%name% %tag% %%-%%-%%", axis_rec.name, ft_untag(tag), axis_rec.min, axis_rec.def, axis_rec.max);
+                //        }
+                //    }
+                //    //log("\x1b[7m%name%\x1b[m \x1b[7m%style%\x1b[m %pad% %glyphs% %file%", rec.family_name, rec.style_name, text(max_name - rec.family_name.size() - rec.style_name.size(), ' '),
+                //    //    utf::adjust(utf::fprint("glyphs:%%", rec.num_glyphs), 15, ' '), rec.file_path.filename());
+                family_rec.bare_face_list.push_back({ .bare_face_ptr = ptr::shared(std::move(rec)) });
+            }
+            // Add square/nonsquare property.
+            font_index.reserve(font_map.size());
+            for (auto& [family_name, family_rec] : font_map)
+            {
+                family_rec.family_name = family_name;
+                font_index.push_back(family_rec);
+                if (auto& bare_face_ptr = family_rec.bare_face_list.front().bare_face_ptr)
+                {
+                    auto& rec = *(bare_face_ptr);
+                    auto ratio = rec.max_advance_width / (fp32)(rec.ascender - rec.descender + rec.lineGap);
+                    family_rec.non_square = ratio != 1.f;
+                }
+            }
+            // Build ordered vec<ref<family>> by filestamp.
+            //std::ranges::sort(font_index, std::ranges::greater{}, &font_family_t::file_stamp);
+            std::sort(font_index.begin(), font_index.end(), [](font_family_t& a, font_family_t& b)
+            {
+                // Sort fonts by iscolor, monospaced, non_square then by file_date.
+                auto a_class = (a.is_monospaced || a.is_color) * 2 + a.non_square;
+                auto b_class = (b.is_monospaced || b.is_color) * 2 + b.non_square;
+                if (a_class == b_class) return a.file_stamp > b.file_stamp;
+                else                    return a_class > b_class;
+            });
+            //log_fonts(faux);
+            set_fonts(family_names, font_axes);
+            if (font_fallback.empty())
+            {
+                auto single_codepoint = std::to_array<utfx>({ 'A' });
+                log(prompt::gui, "No fonts provided, fallback to the first available font");
+                find_family(single_codepoint, true); // Take the first available font.
+            }
+            set_cellsz(cell_height);
         }
     };
-
-#endif
-
-    using byts = std::vector<byte>;
-    using gray = netxs::raster<byts, rect>;
-    using shad = netxs::misc::shadow<gray>;
 
     struct glyph
     {
         using irgb = netxs::irgb<fp32>;
         using vect = std::pmr::vector<ui32>; // Use ui32 for 4-byte alignment (aarch requirement).
+
         struct sprite
         {
             static constexpr auto undef = 0;
@@ -968,25 +1523,17 @@ namespace netxs::gui
             vect bits; // sprite: Contains: type=alpha: bytes [0-255]; type=color: irgb<fp32>.
             rect area; // sprite: Glyph mask black-box.
             si32 type; // sprite: Glyph mask type.
+
             sprite(auto& pool)
                 : bits{ &pool },
                   type{ undef }
             { }
+
             template<class Elem>
             auto raster()
             {
                 return netxs::raster{ std::span{ (Elem*)bits.data(), bits.size() * sizeof(ui32) / sizeof(Elem) }, area };
             }
-        };
-        struct color_layer
-        {
-            vect bits; // color_layer: Layer pixels (8-bit grayscale).
-            rect area; // color_layer: Layer black-box.
-            irgb fill; // color_layer: Layer's sRGB color.
-            color_layer(auto& pool)
-                : bits{ &pool },
-                  fill{       }
-            { }
         };
         struct synthetic
         {
@@ -998,14 +1545,13 @@ namespace netxs::gui
 
         std::pmr::unsynchronized_pool_resource buffer_pool; // glyph: Pool for temp buffers.
         std::pmr::monotonic_buffer_resource    mono_buffer; // glyph: Memory block for sprites.
-        fonts&                                 fcache; // glyph: Font cache.
-        twod&                                  cellsz; // glyph: Terminal cell size in pixels.
-        bool                                   aamode; // glyph: Enable AA.
-        gmap                                   glyphs; // glyph: Glyph map.
-        std::vector<sprite>                    cgi_glyphs; // glyph: Synthetic glyphs.
-        std::vector<sprite>                    cgi_shadow; // glyph: Synthetic shadow.
-        std::vector<utf::prop>                 codepoints; // glyph: .
-        std::vector<color_layer>               glyf_masks; // glyph: .
+        fonts&                                 fcache;      // glyph: Font cache.
+        twod&                                  cellsz;      // glyph: Terminal cell size in pixels.
+        bool                                   aamode;      // glyph: Enable AA.
+        gmap                                   glyphs;      // glyph: Glyph map.
+        std::vector<sprite>                    cgi_glyphs;  // glyph: Synthetic glyphs.
+        std::vector<sprite>                    cgi_shadow;  // glyph: Synthetic shadow.
+        std::vector<utfx>                      codepoints;  // glyph: Codepoint list for shaping.
 
         glyph(fonts& fcache, bool aamode)
             : fcache{ fcache },
@@ -1228,6 +1774,163 @@ namespace netxs::gui
             generate_glyphs();
             generate_shadow();
         }
+        void draw_layer_to_canvas(auto& canvas, FT_GlyphSlot slot, fp2d pen, fp2d hb_align, irgb fill = {})
+        {
+            auto& bitmap = slot->bitmap;
+            if (bitmap.width == 0 || bitmap.rows == 0) return;
+            auto layer_area = rect{};
+            layer_area.size = { (si32)bitmap.width, (si32)bitmap.rows };
+            layer_area.coor = { (si32)(pen.x + hb_align.x + slot->bitmap_left),
+                                (si32)(pen.y + hb_align.y - slot->bitmap_top) };
+            auto canvas_area = canvas.area();
+            if (auto intersect = canvas_area.trim(layer_area))
+            {
+                auto dst_base = intersect.coor - canvas_area.coor;
+                auto src_base = intersect.coor - layer_area.coor;
+                auto src_data = bitmap.buffer;
+                auto src_pitch = bitmap.pitch;
+                auto draw_pixel = [&](si32 x, si32 y, byte alpha)
+                {
+                    auto dst_xy = twod{ dst_base.x + x, dst_base.y + y };
+                    auto& dst_px = canvas[dst_xy];
+                    if constexpr (std::is_same_v<std::decay_t<decltype(dst_px)>, irgb>)
+                    {
+                        if (fill.a == 0.f)
+                        {
+                            if (alpha == 255)
+                            {
+                                dst_px.r = 0.f; dst_px.g = 0.f; dst_px.b = 0.f;
+                                dst_px.pack_alpha(255);
+                            }
+                            else
+                            {
+                                auto fgc_a = dst_px.has_extra_alpha() ? dst_px.get_extra_alpha() : byte{};
+                                dst_px.pack_alpha(alpha + (255 - alpha) * fgc_a / 255);
+                            }
+                        }
+                        else dst_px.blend_nonpma(fill, alpha);
+                    }
+                    else dst_px = (byte)std::min(255, dst_px + alpha);
+                };
+                if (bitmap.pixel_mode == FT_PIXEL_MODE_MONO) // 1-bit per pixel.
+                {
+                    for (auto row = 0; row < intersect.size.y; ++row)
+                    {
+                        auto src_row = src_data + (src_base.y + row) * src_pitch;
+                        for (auto col = 0; col < intersect.size.x; ++col)
+                        {
+                            auto sx = src_base.x + col;
+                            if (src_row[sx >> 3] & (0x80 >> (sx & 7)))
+                            {
+                                draw_pixel(col, row, 255);
+                            }
+                        }
+                    }
+                }
+                else // 8-bit FT_PIXEL_MODE_GRAY.
+                {
+                    for (auto row = 0; row < intersect.size.y; ++row)
+                    {
+                        auto src_row = src_data + (src_base.y + row) * src_pitch + src_base.x;
+                        for (auto col = 0; col < intersect.size.x; ++col)
+                        {
+                            if (auto alpha = src_row[col])
+                            {
+                                draw_pixel(col, row, alpha);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        void rasterize_single_run(sprite& glyph_mask, fp2d base_line, fonts::shaper& fs, bool monochromatic, bool antialiasing)
+        {
+            auto run_area = rect{};
+            auto pen = base_line;
+            auto is_colored = faux;
+            auto mono_load_flags = antialiasing ? FT_LOAD_RENDER : (FT_LOAD_RENDER | FT_LOAD_TARGET_MONO);
+            for (auto& glyph : fs.glyphs) // Calc bounding box and check colors.
+            {
+                glyph.color = fonts::color_type::mono;
+                if (!monochromatic)
+                {
+                    auto it = FT_LayerIterator{};
+                    auto l_glyph = FT_UInt{};
+                    auto l_color = FT_UInt{};
+                    if (::FT_Get_Color_Glyph_Layer(fs.ft_face, glyph.index, &l_glyph, &l_color, &it))
+                    {
+                        glyph.color = fonts::color_type::colr;
+                        is_colored = true; // Has a colored glyph within the run.
+                    }
+                }
+                auto aa = antialiasing || glyph.color != fonts::color_type::mono; // Force AA in case of colored glyph.
+                auto metrics_load_flags = aa ? FT_LOAD_DEFAULT : (FT_LOAD_DEFAULT | FT_LOAD_TARGET_MONO);
+                if (FT_Err_Ok == ::FT_Load_Glyph(fs.ft_face, glyph.index, metrics_load_flags))
+                {
+                    auto& metrics = fs.ft_face->glyph->metrics;
+                    auto w = metrics.width  >> 6; // 26.6 -> px
+                    auto h = metrics.height >> 6; //
+                    auto horiBearingX = metrics.horiBearingX >> 6;
+                    auto horiBearingY = metrics.horiBearingY >> 6;
+                    auto glyph_area = rect{{ (si32)(pen.x + glyph.align.x + horiBearingX), (si32)(pen.y - (glyph.align.y + horiBearingY)) },
+                                           { (si32)w, (si32)h }};
+                    run_area |= glyph_area;
+                    pen.x += glyph.width;
+                }
+            }
+            if (run_area)
+            {
+                pen = base_line;
+                glyph_mask.area = run_area;
+                glyph_mask.type = is_colored ? sprite::color : sprite::alpha;
+                auto pixel_size = is_colored ? sizeof(irgb) : sizeof(byte);
+                glyph_mask.bits.resize(netxs::udivupper(run_area.length() * pixel_size, sizeof(ui32)));
+                auto render_fx = [&](auto canvas)
+                {
+                    for (auto& glyph : fs.glyphs) // Rasterize.
+                    {
+                        if (glyph.color == fonts::color_type::colr) // Colored glyph (COLR).
+                        {
+                            auto it = FT_LayerIterator{};
+                            auto l_glyph = FT_UInt{};
+                            auto l_color = FT_UInt{};
+                            while (::FT_Get_Color_Glyph_Layer(fs.ft_face, glyph.index, &l_glyph, &l_color, &it))
+                            {
+                                if (FT_Err_Ok == ::FT_Load_Glyph(fs.ft_face, l_glyph, FT_LOAD_RENDER))
+                                {
+                                    auto* slot = fs.ft_face->glyph;
+                                    auto fill = irgb{};
+                                    if (l_color != 0xFFFF && fs.palette_ptr) // Use fgc if 0xFFFF or linear color from palette otherwise.
+                                    {
+                                        auto& cached_palette = *fs.palette_ptr;
+                                        if (l_color < cached_palette.size())
+                                        {
+                                            fill = cached_palette[l_color];
+                                        }
+                                        else
+                                        {
+                                            fill.a = 1.f; // Fallback to black on errors.
+                                        }
+                                    }
+                                    draw_layer_to_canvas(canvas, slot, pen, glyph.align, fill);
+                                }
+                            }
+                        }
+                        else // Monochromatic glyph.
+                        {
+                            if (FT_Err_Ok == ::FT_Load_Glyph(fs.ft_face, glyph.index, mono_load_flags))
+                            {
+                                auto* slot = fs.ft_face->glyph;
+                                draw_layer_to_canvas(canvas, slot, pen, glyph.align);
+                            }
+                        }
+                        pen.x += glyph.width;
+                    }
+                };
+                is_colored ? render_fx(glyph_mask.raster<irgb>())
+                           : render_fx(glyph_mask.raster<byte>());
+            }
+        }
         void rasterize(sprite& glyph_mask, cell const& c)
         {
             glyph_mask.type = sprite::alpha;
@@ -1258,24 +1961,21 @@ namespace netxs::gui
                 }
                 else if (utf::non_control(codepoint.cdpoint))
                 {
-                    codepoints.push_back(codepoint);
+                    codepoints.push_back(codepoint.cdpoint);
                 }
             }
             if (codepoints.empty()) return;
 
-            auto format = fonts::style::normal;
-            if (c.itc()) format |= fonts::style::italic;
-            if (c.bld()) format |= fonts::style::bold;
-            auto base_char = codepoints.front().cdpoint;
-            auto& f = fcache.take_font(base_char);
-            if (f.fontface.empty()) // Font index is not ready yet. Try again later.
-            {
-                glyph_mask.type = sprite::undef;
-                return;
-            }
-            fcache.fontshaper.faceinst = f.fontface[format].faceinst;
-            if (!fcache.fontshaper.faceinst) return;
+            auto format = font_style::regular;
+            if (c.itc()) format |= font_style::italic;
+            if (c.bld()) format |= font_style::bold;
 
+            auto& f2 = fcache.find_family(codepoints);
+            auto& f = f2.select_font_face(codepoints, format);
+            if (!f.fthb_pair_cache[0].fthb_pair) return;
+            monochromatic &= !f.bare_face_ptr->is_color;
+
+            auto base_char = codepoints.front();
             auto is_box_drawing = base_char >= 0x2320  && (base_char <= 0x23D0   // ⌠ ⌡ ... ⎛ ⎜ ⎝ ⎞ ⎟ ⎠ ⎡ ⎢ ⎣ ⎤ ⎥ ⎦ ⎧ ⎨ ⎩ ⎪ ⎫ ⎬ ⎭ ⎮ ⎯ ⎰ ⎱ ⎲ ⎳ ⎴ ⎵ ⎶ ⎷ ⎸ ⎹ ... ⏐
                               || (base_char >= 0x2500  && (base_char <  0x259F   // Box Elements
                               //|| (base_char >= 0x25A0  && (base_char <= 0x25FF   // Geometric Shapes
@@ -1283,10 +1983,9 @@ namespace netxs::gui
                               || (base_char >= 0x1CC00 && (base_char <= 0x1CEBF  // Legacy Computing Supplement. inc Large Type Pieces: U+1CE1A-1CE50
                               || (base_char >= 0x1F67C && (base_char <= 0x1F67F  // Ornamental Dingbats: U+1F67C-1F67F 🙼 🙽 🙾 🙿
                               || (base_char >= 0x1FB00 && (base_char <= 0x1FBFF))))))))))); // Symbols for Legacy Computing
-            auto transform = is_box_drawing ? f.fontface[format].transform : f.fontface[format].transform_letters;
-            auto em_height = is_box_drawing ? f.fontface[format].em_height : f.fontface[format].em_height_letters;
-            auto base_line = f.fontface[format].base_line;
-            //auto actual_sz = f.fontface[format].actual_sz;
+            auto transform = is_box_drawing ? f.transform : f.transform_letters;
+            auto em_height = is_box_drawing ? f.em_height : f.em_height_letters;
+            auto base_line = f.base_line;
             auto actual_height = (fp32)cellsz.y;
             auto grid_step = (fp32)cellsz.x;
             auto mtx = c.mtx();
@@ -1296,16 +1995,25 @@ namespace netxs::gui
             {
                 std::swap(matrix.x, matrix.y);
                 std::swap(mtx.x, mtx.y);
-                transform *= f.ratio;
-                em_height *= f.ratio;
-                base_line *= f.ratio;
-                actual_height *= f.ratio;
-                grid_step *= f.ratio;
+                auto ratio = f2.ratio;
+                transform     *= ratio;
+                em_height     *= ratio;
+                base_line     *= ratio;
+                actual_height *= ratio;
+                grid_step     *= ratio;
             }
-            auto script = unidata::script(codepoints.front().cdpoint);
-            auto is_rtl = script >= 100 && script <= 199;
-            auto length = fcache.fontshaper.generate_glyph_run(codepoints, script, is_rtl, em_height, transform, f.monospaced, grid_step); // Generate glyph run and get its length in pixels (fp32).
-            if (!length) return;
+
+            //todo revise
+            auto hb_ufuncs = ::hb_unicode_funcs_get_default();
+            auto hb_script = ::hb_unicode_script(hb_ufuncs, base_char); // Map from 0-999 numbers to 4-letter ISO tags (like 215 -> "Latn").
+            auto is_rtl = ::hb_script_get_horizontal_direction(hb_script) == HB_DIRECTION_RTL;
+            auto cache_index = mtx.y == 1 && !swapxy ? (si32)is_box_drawing
+                                                     : (si32)is_box_drawing + 2;
+            auto [hb_font, ft_face] = f.select_face_by_em_height(em_height, cache_index);
+            fcache.font_shaper.hb_font = hb_font;
+            fcache.font_shaper.ft_face = ft_face;
+            fcache.font_shaper.palette_ptr = &f.palette; //todo unify
+            auto length = fcache.font_shaper.generate_glyph_run(codepoints, hb_script, is_rtl, transform, f2.monospaced, grid_step); // Generate glyph run and get its length in pixels (fp32).
             auto actual_width = swapxy ? std::max(1.f, length) :
                         is_box_drawing ? std::max(1.f, std::floor((length / cellsz.x))) * cellsz.x
                                        : std::max(1.f, std::ceil(((length - (mtx.y/*glyph scale*/ * 0.114f/*min=0.113: Bold+Italic Courier V*/) * cellsz.x) / cellsz.x))) * cellsz.x;
@@ -1313,26 +2021,32 @@ namespace netxs::gui
             if (actual_width > matrix.x) // Check if the glyph exceeds the matrix width. (scale down)
             {
                 k = matrix.x / length;
-                length = matrix.x;
+                length       = matrix.x;
                 actual_width = matrix.x;
                 actual_height *= k;
-                em_height *= k;
-                for (auto& w : fcache.fontshaper.glyf_steps) w *= k;
-                for (auto& [h, v] : fcache.fontshaper.glyf_align) h *= k;
+                em_height     *= k;
+                for (auto& glyph : fcache.font_shaper.glyphs)
+                {
+                    glyph.width   *= k;
+                    glyph.align.x *= k;
+                }
             }
             else if (actual_height < matrix.y || actual_width < matrix.x) // Check if the glyph is too small for the matrix. (scale up)
             {
                 k = std::min(matrix.x / actual_width, matrix.y / actual_height);
-                length *= k;
-                actual_width *= k;
+                length        *= k;
+                actual_width  *= k;
                 actual_height *= k;
-                base_line *= k;
-                em_height *= k;
-                for (auto& w : fcache.fontshaper.glyf_steps) w *= k;
-                for (auto& [h, v] : fcache.fontshaper.glyf_align) h *= k;
+                base_line     *= k;
+                em_height     *= k;
+                for (auto& glyph : fcache.font_shaper.glyphs)
+                {
+                    glyph.width   *= k;
+                    glyph.align.x *= k;
+                }
                 k = 1.f;
             }
-            if (!f.monospaced && !is_box_drawing)
+            if (!f2.monospaced && !is_box_drawing)
             {
                 auto offset = matrix.x - length; // This (using length) will allow us to seamlessly connect the two fragments.
                 if (img_alignment.x == snap::none || img_alignment.x == snap::center)
@@ -1369,58 +2083,18 @@ namespace netxs::gui
                 //else if (img_alignment.y == snap::head  ) base_line.y *= k;
             }
 
-            auto glyph_run = fonts::shaper::gr{ fcache.fontshaper, monochromatic, aamode, is_rtl, base_line, em_height, is_box_drawing };
-                 if (glyph_run.is_monochromatic) glyph_run.rasterize_single_layer(glyph_mask);
-            else if (glyph_run.is_colored)
-            {
-                glyf_masks.clear();
-                glyph_run.rasterize_layer_pack(glyf_masks, buffer_pool);
-                glyph_mask.bits.clear();
-                glyph_mask.type = sprite::color;
-                glyph_mask.area = {};
-                for (auto& m : glyf_masks) glyph_mask.area |= m.area;
-                auto l = glyph_mask.area.size.x * glyph_mask.area.size.y;
-                glyph_mask.bits.resize(l * sizeof(irgb) / sizeof(ui32));
-                auto raster = glyph_mask.template raster<irgb>(); //todo Apple clang requires template.
-                for (auto& m : glyf_masks)
-                {
-                    auto alpha_mask = netxs::raster{ std::span{ (byte*)m.bits.data(), (size_t)m.area.length() }, m.area };
-                    if (m.fill.a != 0.f) // Predefined sRGB color.
-                    {
-                        netxs::onbody(raster, alpha_mask, [fill = m.fill](irgb& dst, byte& alpha)
-                        {
-                            if (dst.a >= 256.f) // Update the fgc layer if it exists. dst.a consists of two parts: an integer that represents the fgc alpha in 8-bit format, and a floating point normalized [0.0-1.0] value that represents the alpha for the color glyph sprite.
-                            {
-                                auto fgc_alpha = (si32)dst.a;
-                                dst.a -= fgc_alpha;
-                                dst.blend_nonpma(fill, alpha);
-                                if (alpha != 255 && fgc_alpha > 256) dst.a += 256 + (si32)netxs::saturate_cast<byte>(fgc_alpha - 256) * (255 - alpha) / 255;
-                            }
-                            else dst.blend_nonpma(fill, alpha);
-                        });
-                    }
-                    else // Foreground color unknown in advance. Side-effect: fully transparent glyph layers will be colored with the fgc color.
-                    {
-                        netxs::onbody(raster, alpha_mask, [](irgb& dst, byte& alpha)
-                        {
-                                 if (alpha == 255) dst = { 0.f, 0.f, 0.f, 256.f + 255.f };
-                            else if (alpha != 0)
-                            {
-                                auto fgc_alpha = (si32)netxs::saturate_cast<byte>(dst.a - 256.f);
-                                dst.a = dst.a + (-(si32)dst.a + 256 + alpha + (255 - alpha) * fgc_alpha / 255);
-                            }
-                        });
-                    }
-                }
-            }
-            if (is_rtl) glyph_mask.area.coor.x += (si32)matrix.x;
+            //todo optimize
+            auto [hb_font2, ft_face2] = f.select_face_by_em_height(em_height, cache_index);
+            fcache.font_shaper.hb_font = hb_font2;
+            fcache.font_shaper.ft_face = ft_face2;
+            rasterize_single_run(glyph_mask, base_line, fcache.font_shaper, monochromatic, aamode);
+
             //auto src_bitmap = glyph_mask.raster<byte>();
             //auto bline = rect{base_line, { cellsz.x, 1 } };
             //netxs::onrect(src_bitmap, bline, [](auto& c){ c = std::min(255, c + 64); });
             if (glyph_mask.area && flipandrotate)
             {
-                //todo optimize
-                static auto buffer = std::vector<ui32>{}; // Use ui32 for 4-byte alignment (aarch requirement).
+                static thread_local auto buffer = std::vector<ui32>{}; // Use ui32 for 4-byte alignment (aarch requirement).
                 static constexpr auto l0 = std::to_array({ 1, -1, -1,  1, -1, 1,  1, -1 });
                 static constexpr auto l1 = std::to_array({ 1,  1, -1, -1,  1, 1, -1, -1 });
                 buffer.assign(glyph_mask.bits.begin(), glyph_mask.bits.end());
@@ -1480,25 +2154,22 @@ namespace netxs::gui
         void draw_glyph(auto& canvas, sprite& glyph_mask, twod offset, argb fgc)
         {
             auto box = glyph_mask.area.shift(offset);
-            auto f_fgc = irgb{ fgc }.sRGB2Linear(); //todo use lut: irgb::sRGB2Linear_lut(fgc);
+            auto f_fgc = irgb{}.sRGB2Linear(fgc);
             if (glyph_mask.type == sprite::color)
             {
                 auto fx = [fgc, f_fgc](argb& dst, irgb src)
                 {
-                         if (src.a == 0.f) return;
-                    else if (src.a == 1.f) dst = src.linear2sRGB();
-                    else if (src.a < 256.f + 255.f)
+                    if (src.a == 0.f) return;
+                    auto f_dst = irgb{}.sRGB2Linear(dst);
+                    if (src.has_extra_alpha())
                     {
-                        auto f_dst = irgb{ dst }.sRGB2Linear(); //todo use lut
-                        if (src.a > 256.f) // Alpha contains non-zero integer for fgc's aplha.
+                        auto fgc_alpha = src.unpack_alpha();
+                        if (fgc_alpha > 0)
                         {
-                            auto fgc_alpha = netxs::saturate_cast<byte>(src.a - 256.f);
-                            src.a -= (si32)src.a;
                             f_dst.blend_nonpma(f_fgc, fgc_alpha);
                         }
-                        dst = f_dst.blend_pma(src).linear2sRGB();
                     }
-                    else dst = fgc; // src.a >= 256 + 255.f
+                    dst = f_dst.blend_pma(src.pma()).linear2sRGB();
                 };
                 auto raster = netxs::raster{ std::span{ (irgb*)glyph_mask.bits.data(), (size_t)glyph_mask.area.length() }, box };
                 netxs::onclip(canvas, raster, fx);
@@ -1507,12 +2178,14 @@ namespace netxs::gui
             {
                 auto fx = [fgc, f_fgc](argb& dst, byte src)
                 {
-                         if (src == 0) return;
-                    else if (src == 255) dst = fgc;
+                    if (src == 0) return;
+                    if (src == 255)
+                    {
+                        dst = fgc;
+                    }
                     else
                     {
-                        auto f_dst = irgb{ dst }.sRGB2Linear();
-                        dst = f_dst.blend_nonpma(f_fgc, src).linear2sRGB();
+                        dst = irgb{}.sRGB2Linear(dst).blend_nonpma(f_fgc, src).linear2sRGB();
                     }
                 };
                 auto raster = netxs::raster{ std::span{ (byte*)glyph_mask.bits.data(), (size_t)glyph_mask.area.length() }, box };
@@ -1677,8 +2350,6 @@ namespace netxs::gui
             }
         }
     };
-
-    namespace e2 = netxs::events::userland::e2;
 
     struct winbase : base
     {
@@ -2220,7 +2891,7 @@ namespace netxs::gui
               config{ config },
               titles{ *this, "", "", faux },
               wfocus{ *this, ui::pro::focus::mode::relay },
-              fcache{ config.font_names, config.font_axes, config.cell_height, [&]{ netxs::set_flag<task::all>(reload); window_post_command(ipc::no_command); } },
+              fcache{ config.font_names, config.font_axes, config.cell_height },//, [&]{ netxs::set_flag<task::all>(reload); window_post_command(ipc::no_command); } },
               gcache{ fcache, config.antialiasing },
               blinks{ .init = config.blink_rate },
               cellsz{ fcache.cellsize },
@@ -2365,7 +3036,7 @@ namespace netxs::gui
             if (std::exchange(height, std::clamp(height + dy, 2.f, 256.f)) == height && !forced) return;
             reset_blinky();
             auto grip_cell = gripsz / cellsz;
-            fcache.set_cellsz(fcache, (si32)height);
+            fcache.set_cellsz((si32)height);
             gcache.reset();
             gripsz = grip_cell * cellsz; // cellsz was updated in fcache.
             shadow.generate(0.44f/*bias*/, 116.5f/*alfa*/, gripsz.x, dot_00, dot_11, cell::shaders::full);

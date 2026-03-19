@@ -632,7 +632,7 @@ Standard object names
 |                 |                          | `vtm.tile.EqualizeSplitRatio()`                    | Equalize split ratio.
 |                 |                          | `vtm.tile.SetTitle()`                              | Set the window manager title.
 |                 |                          | `vtm.tile.ClosePane()`                             | Close selected panes.
-|`grip`           | Pane splitter            | `vtm.grip.MoveGrip(int x, int y)`                  | Move the splitter by the 2D step specified by the pair { x, y }. 
+|`grip`           | Pane splitter            | `vtm.grip.MoveGrip(int x, int y)`                  | Move the splitter by the 2D step specified by the pair { x, y }.
 |                 |                          | `vtm.grip.ResizeGrip(int n)`                       | Set splitter width to n.
 |                 |                          | `vtm.grip.FocusNextGrip(int n)`                    | Set focus to the next (n=1) or previous (n=-1) tile's splitter.
 |`terminal`       |                          | `vtm.terminal.RequestInteractiveSessionToken()`    | Request an interactive session token. The token will be sent to the requesting app via APC in the following format: `\e_event=session;token=b4514088589a99e3\e\\`.
@@ -759,7 +759,7 @@ The value of the `cfg` menu item attribute (or the entire `<config>` subsection)
 
 ### UI Localization
 
-The vtm user interface can be localized into any language by providing translations for existing UI templates and assigning the required language ID to the root Ns element to ensure patch inheritance. 
+The vtm user interface can be localized into any language by providing translations for existing UI templates and assigning the required language ID to the root Ns element to ensure patch inheritance.
 
 The vtm UI has built-in English (`en-US`) and Russian (`ru-RU`) localizations.
 
@@ -834,22 +834,26 @@ Notes
         <blinkrate=400ms/>    <!-- Cursor/text blink rate (SGR 5/6). Set to zero to disable blinking. -->
         <fonts>  <!-- Ordered font fallback list. Other available system fonts will be loaded dynamically. -->
             <font*/>  <!-- Clear previously defined fonts to start a new list. -->
-            <font="Cascadia Mono">  <!-- Primary font: the first in the list. Its metrics define the cell geometry and set the default axis values for all subsequent fonts in the fallback list. -->
-                <!-- You can specify base axis values for each of the four font styles supported by the primary font: 'regular', 'bold', 'italic', and 'bold_italic'. -->
-                <!-- If the primary font is not a variable font, all specified axis values are ignored. If no values are provided, the font's default settings will be used. -->
-                <!-- To view the list of available system fonts and their supported axes, use the 'vtm \-\-fontlist' command. -->
-                <wdth="" regular="" bold="" italic="" bold_italic=""/>  <!-- [wdth] axis: 50-200 (percentage). Typical values: 75% for 'Condensed', 100% for 'Normal', 150% for 'Extended'. Example: '<wdth=75/>' applies 75% width to all styles. -->
-                <wght="" regular="" bold="" italic="" bold_italic=""/>  <!-- [wght] axis: 1-1000 (weight units). Typical values: 400 for 'Regular', 700 for 'Bold', 900 for 'Black'. Example: '<wght regular=200 bold=500/>' sets a thin weight (200) for 'regular' and a near-normal weight (500) for 'bold'. -->
-                <slnt="" regular="" bold="" italic="" bold_italic=""/>  <!-- [slnt] axis: -90 to +90 (degrees). Vertical tilt angle. Example: '<slnt regular=0 bold=0 italic=-12 bold_italic=-10/>'. -->
-                <!-- <GRAD="" regular="" bold="" italic="" bold_italic=""/> --> <!-- Grade: Modifies the optical weight without changing glyph width. -->
-                <!-- <SOFT="" regular="" bold="" italic="" bold_italic=""/> --> <!-- Softness: Adjusts corner rounding. -->
-                <!-- <SERF="" regular="" bold="" italic="" bold_italic=""/> --> <!-- Serif Shape: Modifies the shape or size of serifs. -->
-                <!-- <YTLC="" regular="" bold="" italic="" bold_italic=""/> --> <!-- Axes for adjusting the height of ascenders and descenders. -->
-                <!-- <YTRA="" regular="" bold="" italic="" bold_italic=""/> --> <!-- // -->
-            </font>
+            <font="Cascadia Mono"/>  <!-- Primary font: the first in the list. Its metrics define the cell geometry and set the default axis values for all subsequent fonts in the fallback list. -->
             <font="Courier New"/>
             <font="NSimSun"/>
             <font="Noto Sans Devanagari"/>
+            <!-- You can specify base axis values for each of the four font styles supported by the primary font:
+                'regular', 'bold', 'italic', and 'bold_italic'. -->
+            <!-- If no values are provided, the primary font family defaults will be used. -->
+            <!-- To view the list of available system fonts and their supported axes, use the 'vtm \-\-fontlist' command. -->
+            <regular     wdth="100"        wght="400"        ital="0"          />
+            <italic      wdth=regular/wdth wght=regular/wght ital="1"          />
+            <bold        wdth=regular/wdth wght="700"        ital=regular/ital />
+            <bold_italic wdth=regular/wdth wght=bold/wght    ital=italic/ital  />
+            <!-- [wdth]: 50-200 (percentage). Typical values: 75% for 'Condensed', 100% for 'Normal', 150% for 'Extended'. -->
+            <!-- [wght]: 1-1000 (weight units). Typical values: 400 for 'Regular', 700 for 'Bold', 900 for 'Black'. -->
+            <!-- [ital]: 0-1 (boolean). Switch between Roman (0, upright) and true italic letterforms (1). -->
+            <!-- [slnt]: -90 to +90 (degrees). Vertical tilt angle. -->
+            <!-- [GRAD]: Grade: Modifies the optical weight without changing glyph width. -->
+            <!-- [SOFT]: Softness: Adjusts corner rounding. -->
+            <!-- [SERF]: Serif Shape: Modifies the shape or size of serifs. -->
+            <!-- [... ]: ... -->
         </fonts>
     </gui>
     <cursor>

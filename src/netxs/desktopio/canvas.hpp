@@ -374,7 +374,7 @@ namespace netxs
                 auto force = 0.3f * (1.0f - color_dist);
                 if (bg_luma > 0.50f) // Light background -> Darken (moving to black 0.0).
                 {
-                    auto t = 1.0f - force; 
+                    auto t = 1.0f - force;
                     blended_r *= t;
                     blended_g *= t;
                     blended_b *= t;
@@ -970,6 +970,8 @@ namespace netxs
     template<class T>
     struct irgb
     {
+        static constexpr auto inv_255 = 1.0f / 255.0f;
+
         T r, g, b, a;
 
         constexpr irgb() = default;
@@ -984,10 +986,10 @@ namespace netxs
               a{ c.chan.a }
         { }
         constexpr irgb(argb c) requires(std::is_floating_point_v<T>)
-            : r{ c.chan.r / 255.f },
-              g{ c.chan.g / 255.f },
-              b{ c.chan.b / 255.f },
-              a{ c.chan.a / 255.f }
+            : r{ c.chan.r * inv_255 },
+              g{ c.chan.g * inv_255 },
+              b{ c.chan.b * inv_255 },
+              a{ c.chan.a * inv_255 }
         { }
 
         operator argb() const { return argb{ r, g, b, a }; }
@@ -1003,6 +1005,15 @@ namespace netxs
         void operator -= (irgb const& c) { r -= c.r; g -= c.g; b -= c.b; a -= c.a; }
         void operator += (argb c) requires(std::is_integral_v<T>) { r += c.chan.r; g += c.chan.g; b += c.chan.b; a += c.chan.a; }
         void operator -= (argb c) requires(std::is_integral_v<T>) { r -= c.chan.r; g -= c.chan.g; b -= c.chan.b; a -= c.chan.a; }
+        // irgb: sRGB to linear (g = 2.4)
+        irgb& sRGB2Linear(argb c) requires(std::is_floating_point_v<T>)
+        {
+            r = netxs::sRGB2Linear(c.chan.r);
+            g = netxs::sRGB2Linear(c.chan.g);
+            b = netxs::sRGB2Linear(c.chan.b);
+            a = c.chan.a / 255.f;
+            return *this;
+        }
         // irgb: sRGB to linear (g = 2.4)
         irgb& sRGB2Linear() requires(std::is_floating_point_v<T>)
         {
@@ -1022,45 +1033,68 @@ namespace netxs
         // irgb: Premultiply alpha (floating point only).
         auto& pma() requires(std::is_floating_point_v<T>)
         {
-            if (a != 1.f)
-            {
-                if (a == 0.f) r = b = g = 0.f;
-                else
-                {
-                    r *= a;
-                    g *= a;
-                    b *= a;
-                }
-            }
+            r *= a;
+            g *= a;
+            b *= a;
             return *this;
         }
         // irgb: Blend with pma c (floating point only).
         auto& blend_pma(irgb c) requires(std::is_floating_point_v<T>)
         {
-            if (c.a != 0.f)
-            {
-                if (c.a == 1.f || a == 0.f) *this = c;
-                else
-                {
-                    auto na = 1.f - c.a;
-                    r = c.r + na * r;
-                    g = c.g + na * g;
-                    b = c.b + na * b;
-                    a = c.a + na * a;
-                }
-            }
+            auto na = 1.f - c.a;
+            r = c.r + na * r;
+            g = c.g + na * g;
+            b = c.b + na * b;
+            a = c.a + na * a;
             return *this;
         }
         // irgb: Blend with non-pma c (0.0-1.0) using integer alpha (0-255).
         auto& blend_nonpma(irgb non_pma_c, byte alpha) requires(std::is_floating_point_v<T>)
         {
-            if (alpha == 255) *this = non_pma_c;
-            else if (alpha != 0)
-            {
-                non_pma_c.a *= (T)alpha / 255;
-                blend_pma(non_pma_c.pma());
-            }
+            auto factor = ((T)alpha * inv_255) * non_pma_c.a;
+            auto inv_factor = 1.0f - factor;
+            r = non_pma_c.r * factor + r * inv_factor;
+            g = non_pma_c.g * factor + g * inv_factor;
+            b = non_pma_c.b * factor + b * inv_factor;
+            a = factor + a * inv_factor;
             return *this;
+        }
+        // irgb:  Pack fgc_alpha into exponent/mantissa. Use the range [2.0, 4.0), where the exponent is always 0x40.
+        void pack_alpha(byte alpha) // Bits: [Sign: 0][Exponent: 10000000][Mantissa: alpha_bits(7) + fgc_alpha(8) + padding(8)]
+        {
+            auto a_bits = std::bit_cast<ui32>(a);
+            auto packed = 0x40000000u | (alpha << 8) | (a_bits & 0xFF); // Take the upper bits of the mantissa alpha (for precision) and insert alpha.
+            a = std::bit_cast<fp32>(packed);
+        }
+        // irgb: Return true if alpha channel has extra alpha value.
+        bool has_extra_alpha() const
+        {
+            auto a_bits = std::bit_cast<ui32>(a);
+            return (a_bits >> 30) == 1; // Number in the range [2.0, 4.0).
+        }
+        // irgb: Unpack and restore pure alpha. Return extra alpha value and normalize the current alpha channel.
+        byte unpack_alpha()
+        {
+            auto a_bits = std::bit_cast<ui32>(a);
+            auto alpha = (byte)((a_bits >> 8) & 0xFF);
+            auto pure_bits = (ui32)(a_bits & 0xFF) << 15; // Return the mantissa bits to their place.
+            a = std::bit_cast<fp32>(pure_bits | 0x3F000000u) - 0.5f; // Hacks for accuracy.
+            // a = (fp32)(a_bits & 0xFF) / 255.0f; // Or 8-bit accuracy.
+            return alpha;
+        }
+        // irgb: Normalize the current alpha channel.
+        void restore_pure_alpha()
+        {
+            auto a_bits = std::bit_cast<ui32>(a);
+            auto pure_bits = (ui32)(a_bits & 0xFF) << 15; // Return the mantissa bits to their place.
+            a = std::bit_cast<fp32>(pure_bits | 0x3F000000u) - 0.5f; // Hacks for accuracy.
+            // a = (fp32)(a_bits & 0xFF) / 255.0f; // Or 8-bit accuracy.
+        }
+        // irgb: Unpack and return an extra alpha value.
+        byte get_extra_alpha() const
+        {
+            auto a_bits = std::bit_cast<ui32>(a);
+            return (byte)((a_bits >> 8) & 0xFF);
         }
     };
 
