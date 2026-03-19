@@ -39,6 +39,7 @@
 #include <typeindex>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility> // std::exchange
 #include <variant>
 #include <vector>
 
