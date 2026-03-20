@@ -1868,13 +1868,24 @@ namespace netxs::gui
                 if (FT_Err_Ok == ::FT_Load_Glyph(fs.ft_face, glyph.index, metrics_load_flags))
                 {
                     auto& metrics = fs.ft_face->glyph->metrics;
-                    auto w = metrics.width  / 64.f; // 26.6 -> px
-                    auto h = metrics.height / 64.f; //
                     auto horiBearingX = metrics.horiBearingX / 64.f;
                     auto horiBearingY = metrics.horiBearingY / 64.f;
-                    auto glyph_area = rect{{ netxs::expand(pen.x + glyph.align.x + horiBearingX), netxs::expand(pen.y - (glyph.align.y + horiBearingY)) },
-                                           { netxs::expand(w), netxs::expand(h) }};
-                    run_area |= glyph_area;
+                    auto natural_coor = fp2d{ pen.x + glyph.align.x + horiBearingX, pen.y - (glyph.align.y + horiBearingY) };
+                    auto natural_size = fp2d{ metrics.width / 64.f, metrics.height / 64.f };
+                    auto nearest_coor = std::floor(natural_coor);
+                    auto nearest_size = std::ceil(natural_coor + natural_size) - nearest_coor;
+                    auto glyph_area = rect{ nearest_coor, nearest_size };
+                    if (glyph_area)
+                    {
+                        if (run_area)
+                        {
+                            run_area |= glyph_area;
+                        }
+                        else
+                        {
+                            run_area = glyph_area;
+                        }
+                    }
                     pen.x += glyph.width;
                 }
             }
