@@ -1973,7 +1973,7 @@ namespace netxs::gui
             auto& f2 = fcache.find_family(codepoints);
             auto& f = f2.select_font_face(codepoints, format);
             if (!f.fthb_pair_cache[0].fthb_pair) return;
-            monochromatic &= !f.bare_face_ptr->is_color;
+            monochromatic |= !f.bare_face_ptr->is_color;
 
             auto base_char = codepoints.front();
             auto is_box_drawing = base_char >= 0x2320  && (base_char <= 0x23D0   // ⌠ ⌡ ... ⎛ ⎜ ⎝ ⎞ ⎟ ⎠ ⎡ ⎢ ⎣ ⎤ ⎥ ⎦ ⎧ ⎨ ⎩ ⎪ ⎫ ⎬ ⎭ ⎮ ⎯ ⎰ ⎱ ⎲ ⎳ ⎴ ⎵ ⎶ ⎷ ⎸ ⎹ ... ⏐
