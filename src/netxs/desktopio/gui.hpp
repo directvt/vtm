@@ -1848,7 +1848,8 @@ namespace netxs::gui
             auto run_area = rect{};
             auto pen = base_line;
             auto is_colored = faux;
-            auto mono_load_flags = antialiasing ? FT_LOAD_RENDER : (FT_LOAD_RENDER | FT_LOAD_TARGET_MONO);
+            auto colored_glyph_mode = FT_LOAD_NO_HINTING;
+            auto monochromatic_mode = antialiasing ? FT_LOAD_FORCE_AUTOHINT : FT_LOAD_TARGET_MONO;
             for (auto& glyph : fs.glyphs) // Calc bounding box and check colors.
             {
                 glyph.color = fonts::color_type::mono;
@@ -1863,17 +1864,16 @@ namespace netxs::gui
                         is_colored = true; // Has a colored glyph within the run.
                     }
                 }
-                auto aa = antialiasing || glyph.color != fonts::color_type::mono; // Force AA in case of colored glyph.
-                auto metrics_load_flags = aa ? FT_LOAD_DEFAULT : (FT_LOAD_DEFAULT | FT_LOAD_TARGET_MONO);
+                auto metrics_load_flags = glyph.color != fonts::color_type::mono ? colored_glyph_mode : monochromatic_mode; // Force AA in case of colored glyph.
                 if (FT_Err_Ok == ::FT_Load_Glyph(fs.ft_face, glyph.index, metrics_load_flags))
                 {
                     auto& metrics = fs.ft_face->glyph->metrics;
-                    auto w = metrics.width  >> 6; // 26.6 -> px
-                    auto h = metrics.height >> 6; //
-                    auto horiBearingX = metrics.horiBearingX >> 6;
-                    auto horiBearingY = metrics.horiBearingY >> 6;
-                    auto glyph_area = rect{{ (si32)(pen.x + glyph.align.x + horiBearingX), (si32)(pen.y - (glyph.align.y + horiBearingY)) },
-                                           { (si32)w, (si32)h }};
+                    auto w = metrics.width  / 64.f; // 26.6 -> px
+                    auto h = metrics.height / 64.f; //
+                    auto horiBearingX = metrics.horiBearingX / 64.f;
+                    auto horiBearingY = metrics.horiBearingY / 64.f;
+                    auto glyph_area = rect{{ netxs::expand(pen.x + glyph.align.x + horiBearingX), netxs::expand(pen.y - (glyph.align.y + horiBearingY)) },
+                                           { netxs::expand(w), netxs::expand(h) }};
                     run_area |= glyph_area;
                     pen.x += glyph.width;
                 }
@@ -1896,7 +1896,7 @@ namespace netxs::gui
                             auto l_color = FT_UInt{};
                             while (::FT_Get_Color_Glyph_Layer(fs.ft_face, glyph.index, &l_glyph, &l_color, &it))
                             {
-                                if (FT_Err_Ok == ::FT_Load_Glyph(fs.ft_face, l_glyph, FT_LOAD_RENDER))
+                                if (FT_Err_Ok == ::FT_Load_Glyph(fs.ft_face, l_glyph, colored_glyph_mode | FT_LOAD_RENDER))
                                 {
                                     auto* slot = fs.ft_face->glyph;
                                     auto fill = irgb{};
@@ -1916,9 +1916,9 @@ namespace netxs::gui
                                 }
                             }
                         }
-                        else // Monochromatic glyph.
+                        else // Grayscale anti-aliasing or aliased B/W.
                         {
-                            if (FT_Err_Ok == ::FT_Load_Glyph(fs.ft_face, glyph.index, mono_load_flags))
+                            if (FT_Err_Ok == ::FT_Load_Glyph(fs.ft_face, glyph.index, monochromatic_mode | FT_LOAD_RENDER))
                             {
                                 auto* slot = fs.ft_face->glyph;
                                 draw_layer_to_canvas(canvas, slot, pen, glyph.align);
@@ -1973,7 +1973,7 @@ namespace netxs::gui
             auto& f2 = fcache.find_family(codepoints);
             auto& f = f2.select_font_face(codepoints, format);
             if (!f.fthb_pair_cache[0].fthb_pair) return;
-            monochromatic &= !f.bare_face_ptr->is_color;
+            monochromatic |= !f.bare_face_ptr->is_color;
 
             auto base_char = codepoints.front();
             auto is_box_drawing = base_char >= 0x2320  && (base_char <= 0x23D0   // ⌠ ⌡ ... ⎛ ⎜ ⎝ ⎞ ⎟ ⎠ ⎡ ⎢ ⎣ ⎤ ⎥ ⎦ ⎧ ⎨ ⎩ ⎪ ⎫ ⎬ ⎭ ⎮ ⎯ ⎰ ⎱ ⎲ ⎳ ⎴ ⎵ ⎶ ⎷ ⎸ ⎹ ... ⏐

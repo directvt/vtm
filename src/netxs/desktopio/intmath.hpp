@@ -430,6 +430,12 @@ namespace netxs
         return std::lerp(linear2sRGB_lut[i], linear2sRGB_lut[i + 1], fraction);
     }
 
+    // intmath: Expand the value to the nearest integer away from zero.
+    template<class T1 = void, class T2, class T3 = std::conditional_t<std::is_same_v<T1, void> , T2, T1>, class = std::enable_if_t<std::is_floating_point_v<T2>>>
+    constexpr T3 expand(T2 x)
+    {
+        return static_cast<T3>(x >= 0 ? std::ceil(x) : std::floor(x));
+    }
     template<class T1, class T2, class T3 = T1, class = std::enable_if_t<std::is_arithmetic_v<T1>
                                                                       && std::is_arithmetic_v<T2>
                                                                       && std::is_arithmetic_v<T3>>>
