@@ -1863,20 +1863,21 @@ namespace netxs::gui
                         glyph.color = fonts::color_type::colr;
                         is_colored = true; // Has a colored glyph within the run.
                     }
+                    //todo test SVG
                 }
                 auto metrics_load_flags = glyph.color != fonts::color_type::mono ? colored_glyph_mode : monochromatic_mode; // Force AA in case of colored glyph.
                 if (FT_Err_Ok == ::FT_Load_Glyph(fs.ft_face, glyph.index, metrics_load_flags))
                 {
                     auto& metrics = fs.ft_face->glyph->metrics;
-                    auto horiBearingX = metrics.horiBearingX / 64.f;
-                    auto horiBearingY = metrics.horiBearingY / 64.f;
-                    auto natural_coor = fp2d{ pen.x + glyph.align.x + horiBearingX, pen.y - (glyph.align.y + horiBearingY) };
-                    auto natural_size = fp2d{ metrics.width / 64.f, metrics.height / 64.f };
-                    auto nearest_coor = std::floor(natural_coor);
-                    auto nearest_size = std::ceil(natural_coor + natural_size) - nearest_coor;
-                    auto glyph_area = rect{ nearest_coor, nearest_size };
-                    if (glyph_area)
+                    if (metrics.width && metrics.height)
                     {
+                        auto horiBearingX = metrics.horiBearingX / 64.f;
+                        auto horiBearingY = metrics.horiBearingY / 64.f;
+                        auto glyph_area_coor = fp2d{ pen.x + glyph.align.x + horiBearingX, pen.y - (glyph.align.y + horiBearingY) };
+                        auto glyph_area_size = fp2d{ metrics.width / 64.f, metrics.height / 64.f };
+                        auto nearest_coor = std::floor(glyph_area_coor);
+                        auto nearest_size = std::ceil(glyph_area_coor + glyph_area_size) - nearest_coor;
+                        auto glyph_area = rect{ nearest_coor, nearest_size };
                         if (run_area)
                         {
                             run_area |= glyph_area;
@@ -1926,6 +1927,10 @@ namespace netxs::gui
                                     draw_layer_to_canvas(canvas, slot, pen, glyph.align, fill);
                                 }
                             }
+                        }
+                        else if (glyph.color == fonts::color_type::svg) // Colored glyph (SVG).
+                        {
+                            //todo implement via lunasvg
                         }
                         else // Grayscale anti-aliasing or aliased B/W.
                         {
@@ -2006,7 +2011,7 @@ namespace netxs::gui
             {
                 std::swap(matrix.x, matrix.y);
                 std::swap(mtx.x, mtx.y);
-                auto ratio = f2.ratio;
+                auto ratio = grid_step / actual_height;
                 transform     *= ratio;
                 em_height     *= ratio;
                 base_line     *= ratio;
@@ -2038,8 +2043,8 @@ namespace netxs::gui
                 em_height     *= k;
                 for (auto& glyph : fcache.font_shaper.glyphs)
                 {
-                    glyph.width   *= k;
-                    glyph.align.x *= k;
+                    glyph.width *= k;
+                    glyph.align *= k;
                 }
             }
             else if (actual_height < matrix.y || actual_width < matrix.x) // Check if the glyph is too small for the matrix. (scale up)
@@ -2052,8 +2057,8 @@ namespace netxs::gui
                 em_height     *= k;
                 for (auto& glyph : fcache.font_shaper.glyphs)
                 {
-                    glyph.width   *= k;
-                    glyph.align.x *= k;
+                    glyph.width *= k;
+                    glyph.align *= k;
                 }
                 k = 1.f;
             }
@@ -2118,7 +2123,7 @@ namespace netxs::gui
                     if (swapxy)
                     {
                         std::swap(glyph_mask.area.size.x, glyph_mask.area.size.y);
-                        std::swap(glyph_mask.area.coor.x, glyph_mask.area.coor.y);
+                        std::swap(matrix.x, matrix.y); // Revert back.
                     }
                     auto dst = glyph_mask.raster<type>();
                     auto s__dx = 1;
@@ -2160,6 +2165,24 @@ namespace netxs::gui
                     }
                 };
                 glyph_mask.type == sprite::color ? xform(irgb{}) : xform(byte{});
+                static constexpr twod coeffs[8][5] =
+                { //  coor.x    coor.y    size.x    size.y    matrix
+                    {{ 1, 0 }, { 0, 1 }, { 0, 0 }, { 0, 0 }, { 0, 0 }}, // 0: 0° CCW
+                    {{ 0,-1 }, { 1, 0 }, { 0, 0 }, { 0,-1 }, { 0, 1 }}, // 1: 90°
+                    {{-1, 0 }, { 0,-1 }, {-1, 0 }, { 0,-1 }, { 1, 1 }}, // 2: 180°
+                    {{ 0, 1 }, {-1, 0 }, {-1, 0 }, { 0, 0 }, { 1, 0 }}, // 3: 270°
+                    {{-1, 0 }, { 0, 1 }, {-1, 0 }, { 0, 0 }, { 1, 0 }}, // 4: Hz Flip
+                    {{ 0, 1 }, { 1, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }}, // 5: Hz Flip + 90°
+                    {{ 1, 0 }, { 0,-1 }, { 0, 0 }, { 0,-1 }, { 0, 1 }}, // 6: Hz Flip + 180°
+                    {{ 0,-1 }, {-1, 0 }, {-1, 0 }, { 0,-1 }, { 1, 1 }}  // 7: Hz Flip + 270°
+                };
+                auto& r = glyph_mask.area;
+                auto& m = coeffs[flipandrotate];
+                r.coor = m[0] * r.coor.x
+                       + m[1] * r.coor.y
+                       + m[2] * r.size.x
+                       + m[3] * r.size.y
+                       + m[4] * matrix;
             }
         }
         void draw_glyph(auto& canvas, sprite& glyph_mask, twod offset, argb fgc)
