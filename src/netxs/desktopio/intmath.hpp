@@ -417,14 +417,16 @@ namespace netxs
         auto lut = std::array<fp32, linear2sRGB_lut_size>{};
         for (auto& v : lut)
         {
-            v = netxs::calc_linear2sRGB(i++ / (linear2sRGB_lut_size - 1));
+            v = netxs::calc_linear2sRGB(i++ / (linear2sRGB_lut_size - 2));
         }
+        lut[linear2sRGB_lut_size - 1] = 1.0f;
+        lut[linear2sRGB_lut_size - 2] = 1.0f;
         return lut;
     }();
     // intmath: Get Linear to sRGB via lut (gamma 2.2)
     auto linear2sRGB(fp32 c)
     {
-        auto x = std::clamp(c, 0.0f, 0.99999f) * (linear2sRGB_lut_size - 1);
+        auto x = std::clamp(c, 0.0f, 1.0f) * (linear2sRGB_lut_size - 2);
         auto i = (si32)x;
         auto fraction = x - (fp32)i;
         return std::lerp(linear2sRGB_lut[i], linear2sRGB_lut[i + 1], fraction);
