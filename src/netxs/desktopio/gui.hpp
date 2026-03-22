@@ -9,8 +9,10 @@
 #include FT_MULTIPLE_MASTERS_H
 #include FT_SFNT_NAMES_H
 #include FT_COLOR_H
+#include FT_OTSVG_H
 
 #include <hb-ft.h>
+#include <lunasvg.h>
 
 #if defined(_WIN32)
     #undef GetGlyphIndices
@@ -135,11 +137,11 @@ namespace netxs::gui
         {
             static constexpr auto _counter = 1 + __COUNTER__;
             static constexpr auto mono = __COUNTER__ - _counter;
-            static constexpr auto colr = __COUNTER__ - _counter;
-            static constexpr auto svg  = __COUNTER__ - _counter;
             static constexpr auto sbix = __COUNTER__ - _counter;
             static constexpr auto cbdt = __COUNTER__ - _counter;
             static constexpr auto cblc = __COUNTER__ - _counter;
+            static constexpr auto colr = __COUNTER__ - _counter;
+            static constexpr auto svg  = __COUNTER__ - _counter;
         };
         struct axis_rec_t
         {
@@ -172,9 +174,7 @@ namespace netxs::gui
             si16                   xHeight{};
             si16                   capHeight{};
             si16                   lineGap{};
-            bool                   is_color{};
-            bool                   is_color_colr{};
-            bool                   is_color_svg{};
+            si32                   is_color{ fonts::color_type::mono };
             bool                   is_monospaced{};
             bool                   is_italic{};
             si16                   weight_value{};
@@ -361,7 +361,7 @@ namespace netxs::gui
                 }
                 else
                 {
-                    log("%%Using font family '%family_name%': %iscolor%, index %index%, style=%%", prompt::gui, family_ref.family_name, family_ref.is_color ? "color" : "monochromatic", fcache.font_fallback.size(), style_id);
+                    log("%%Using font family '%family_name%': %iscolor%, index %index%, style=%%", prompt::gui, family_ref.family_name, family_ref.is_color != fonts::color_type::mono ? "color" : "monochromatic", fcache.font_fallback.size(), style_id);
                     // Apply axes.
                     if (bare_face_ptr->is_variable_font)
                     {
@@ -386,7 +386,7 @@ namespace netxs::gui
                         }
                     }
                     fthb_pair_cache[0].fthb_pair = ptr::shared<fthb_pair_t>(raw_face);
-                    if (bare_face_ptr->is_color) // Cache palette.
+                    if (bare_face_ptr->is_color != fonts::color_type::mono) // Cache palette.
                     {
                         load_palette();
                     }
@@ -400,7 +400,7 @@ namespace netxs::gui
             view                                       family_name;     // font_family_t: .
             os::fs::file_time_type                     file_stamp{};    // font_family_t: .
             bool                                       is_monospaced{}; // font_family_t: .
-            bool                                       is_color{};      // font_family_t: .
+            si32                                       is_color{};      // font_family_t: .
             bool                                       is_sorted{};     // font_family_t: .
             bool                                       is_fixed{};      // font_family_t: The font family is specified in configuration.
             bool                                       is_invalid{};    // font_family_t: The font family failed to load (e.g., the font file became inaccessible).
@@ -428,7 +428,7 @@ namespace netxs::gui
             si32 base_x_height{ 1 };
             fp2d facesize{ 1.f, 1.f }; // Typeface cell size.
             fp32 ratio{};
-            bool color{ faux };
+            si32 color{ fonts::color_type::mono };
             bool fixed{ faux }; // Preserve specified font order.
             bool monospaced{ faux };
             text font_name;
@@ -815,6 +815,7 @@ namespace netxs::gui
                 fp32 width;
                 fp2d align;
                 si32 color;
+                rect b_box; // Bounding box in pixels.
             };
 
             fonts&              fcache;
@@ -824,6 +825,7 @@ namespace netxs::gui
             ui32                glyf_count{};
             std::vector<irgb>*  palette_ptr{};
             std::vector<step_t> glyphs;
+            si32                colored{};
 
             shaper(fonts& fcache)
                 : fcache{ fcache },
@@ -1286,10 +1288,8 @@ namespace netxs::gui
                             rec.lineGap                = os2->sTypoLineGap;
                             auto has_colr = has_sfnt_table(face, FT_MAKE_TAG('C', 'O', 'L', 'R'));
                             auto has_cpal = has_sfnt_table(face, FT_MAKE_TAG('C', 'P', 'A', 'L'));
-                            auto has_svg_ = has_sfnt_table(face, FT_MAKE_TAG('S', 'V', 'G', ' '));
-                            rec.is_color_colr = has_colr && has_cpal;
-                            rec.is_color_svg  = has_svg_;
-                            rec.is_color = rec.is_color_colr;  //todo We don't support SVG-fonts yet. (also 'sbix', 'CBDT' and 'CBLC')
+                            auto has_svg  = has_sfnt_table(face, FT_MAKE_TAG('S', 'V', 'G', ' '));
+                            rec.is_color = has_svg ? fonts::color_type::svg : (has_colr && has_cpal) ? fonts::color_type::colr : fonts::color_type::mono;
                             rec.valid = rec.num_glyphs && rec.units_per_EM && (rec.is_color || FT_IS_SCALABLE(face));
                             rec.is_monospaced          = FT_IS_FIXED_WIDTH(face);
                             rec.weight_value           = os2->usWeightClass;
@@ -1430,7 +1430,7 @@ namespace netxs::gui
                 auto& family_rec = font_map[rec.family_name];
                 if (family_rec.file_stamp < rec.file_stamp) family_rec.file_stamp = rec.file_stamp; // Update time stamp.
                 family_rec.is_monospaced |= rec.is_monospaced;
-                family_rec.is_color      |= rec.is_color;
+                if (rec.is_color > family_rec.is_color) family_rec.is_color = rec.is_color;
                 for (auto& [block, bit_set] : rec.unicode_ranges)
                 {
                     family_rec.unicode_ranges[block] |= bit_set;
@@ -1492,8 +1492,8 @@ namespace netxs::gui
             std::sort(font_index.begin(), font_index.end(), [](font_family_t& a, font_family_t& b)
             {
                 // Sort fonts by iscolor, monospaced, non_square then by file_date.
-                auto a_class = (a.is_monospaced || a.is_color) * 2 + a.non_square;
-                auto b_class = (b.is_monospaced || b.is_color) * 2 + b.non_square;
+                auto a_class = (a.is_monospaced + a.is_color) * 2 + a.non_square;
+                auto b_class = (b.is_monospaced + b.is_color) * 2 + b.non_square;
                 if (a_class == b_class) return a.file_stamp > b.file_stamp;
                 else                    return a_class > b_class;
             });
@@ -1843,6 +1843,49 @@ namespace netxs::gui
                 }
             }
         }
+        void draw_svg_to_canvas(auto& canvas, const lunasvg::Bitmap& svg_btm, rect layer_area)//fp2d pen, fp2d hb_align, FT_GlyphSlot slot)
+        {
+            if (!svg_btm.valid()) return;
+            auto canvas_area = canvas.area();
+            if (auto intersect = canvas_area.trim(layer_area))
+            {
+                auto dst_base = intersect.coor - canvas_area.coor;
+                auto src_base = intersect.coor - layer_area.coor;
+                auto* src_data = (ui32*)svg_btm.data(); 
+                auto src_stride = svg_btm.stride() / sizeof(argb);
+                for (auto y = 0; y < intersect.size.y; ++y)
+                {
+                    auto* src_row = src_data + (src_base.y + y) * src_stride + src_base.x;
+                    for (auto x = 0; x < intersect.size.x; ++x)
+                    {
+                        auto src_px = argb{ src_row[x] }; // Premultiplied ARGB32 pixel data.
+                        if (src_px.chan.a > 0)
+                        {
+                            auto dst_xy = twod{ dst_base.x + x, dst_base.y + y };
+                            auto& dst_px = canvas[dst_xy];
+                            if constexpr (std::is_same_v<std::decay_t<decltype(dst_px)>, irgb>)
+                            {
+                                auto pixel = irgb{}.sRGB2Linear(src_px);
+                                if (dst_px.has_extra_alpha())
+                                {
+                                    auto fgc_a = dst_px.unpack_alpha();
+                                    dst_px.blend_pma(pixel);
+                                    dst_px.pack_alpha(fgc_a);
+                                }
+                                else
+                                {
+                                    dst_px.blend_nonpma(pixel);
+                                }
+                            }
+                            else // Alpha-only canvas fallback
+                            {
+                                dst_px = (byte)std::min(255, dst_px + src_px.chan.a);
+                            }
+                        }
+                    }
+                }
+            }
+        }
         void rasterize_single_run(sprite& glyph_mask, fp2d base_line, fonts::shaper& fs, bool monochromatic, bool antialiasing)
         {
             auto run_area = rect{};
@@ -1855,15 +1898,28 @@ namespace netxs::gui
                 glyph.color = fonts::color_type::mono;
                 if (!monochromatic)
                 {
-                    auto it = FT_LayerIterator{};
-                    auto l_glyph = FT_UInt{};
-                    auto l_color = FT_UInt{};
-                    if (::FT_Get_Color_Glyph_Layer(fs.ft_face, glyph.index, &l_glyph, &l_color, &it))
+                    if (fs.colored == fonts::color_type::svg)
                     {
-                        glyph.color = fonts::color_type::colr;
-                        is_colored = true; // Has a colored glyph within the run.
+                        if (FT_Err_Ok == ::FT_Load_Glyph(fs.ft_face, glyph.index, FT_LOAD_COLOR))
+                        {
+                            if (fs.ft_face->glyph->format == FT_GLYPH_FORMAT_SVG)
+                            {
+                                glyph.color = fonts::color_type::svg;
+                                is_colored = true;
+                            }
+                        }
                     }
-                    //todo test SVG
+                    else if (fs.colored == fonts::color_type::colr)
+                    {
+                        auto it = FT_LayerIterator{};
+                        auto l_glyph = FT_UInt{};
+                        auto l_color = FT_UInt{};
+                        if (::FT_Get_Color_Glyph_Layer(fs.ft_face, glyph.index, &l_glyph, &l_color, &it))
+                        {
+                            glyph.color = fonts::color_type::colr;
+                            is_colored = true; // Has a colored glyph within the run.
+                        }
+                    }
                 }
                 auto metrics_load_flags = glyph.color != fonts::color_type::mono ? colored_glyph_mode : monochromatic_mode; // Force AA in case of colored glyph.
                 if (FT_Err_Ok == ::FT_Load_Glyph(fs.ft_face, glyph.index, metrics_load_flags))
@@ -1875,17 +1931,20 @@ namespace netxs::gui
                         auto horiBearingY = metrics.horiBearingY / 64.f;
                         auto glyph_area_coor = fp2d{ pen.x + glyph.align.x + horiBearingX, pen.y - (glyph.align.y + horiBearingY) };
                         auto glyph_area_size = fp2d{ metrics.width / 64.f, metrics.height / 64.f };
-                        auto nearest_coor = std::floor(glyph_area_coor);
-                        auto nearest_size = std::ceil(glyph_area_coor + glyph_area_size) - nearest_coor;
-                        auto glyph_area = rect{ nearest_coor, nearest_size };
+                        glyph.b_box.coor = std::floor(glyph_area_coor);
+                        glyph.b_box.size = std::ceil(glyph_area_coor + glyph_area_size) - glyph.b_box.coor;
                         if (run_area)
                         {
-                            run_area |= glyph_area;
+                            run_area |= glyph.b_box;
                         }
                         else
                         {
-                            run_area = glyph_area;
+                            run_area = glyph.b_box;
                         }
+                    }
+                    else
+                    {
+                        glyph.b_box = {};
                     }
                     pen.x += glyph.width;
                 }
@@ -1930,13 +1989,29 @@ namespace netxs::gui
                         }
                         else if (glyph.color == fonts::color_type::svg) // Colored glyph (SVG).
                         {
-                            //todo implement via lunasvg
+                            if (FT_Err_Ok == ::FT_Load_Glyph(fs.ft_face, glyph.index, FT_LOAD_COLOR))
+                            {
+                                auto slot = fs.ft_face->glyph;
+                                auto doc = (FT_SVG_Document)slot->other;
+                                if (auto document = lunasvg::Document::loadFromData((char const*)doc->svg_document, doc->svg_document_length))
+                                {
+                                    auto bb = document->boundingBox();
+                                    auto scale = std::min((fp32)glyph.b_box.size.x / bb.w, (fp32)glyph.b_box.size.y / bb.h);
+                                    auto tx = -bb.x * scale;
+                                    auto ty = -bb.y * scale;
+                                    auto matrix = lunasvg::Matrix{ scale, 0, 0, scale, tx, ty };
+                                    auto bitmap = lunasvg::Bitmap{ glyph.b_box.size.x, glyph.b_box.size.y };
+                                    //todo use Bitmap(uint8_t* data, int width, int height, int stride);
+                                    document->render(bitmap, matrix);
+                                    draw_svg_to_canvas(canvas, bitmap, glyph.b_box);
+                                }
+                            }
                         }
                         else // Grayscale anti-aliasing or aliased B/W.
                         {
                             if (FT_Err_Ok == ::FT_Load_Glyph(fs.ft_face, glyph.index, monochromatic_mode | FT_LOAD_RENDER))
                             {
-                                auto* slot = fs.ft_face->glyph;
+                                auto slot = fs.ft_face->glyph;
                                 draw_layer_to_canvas(canvas, slot, pen, glyph.align);
                             }
                         }
@@ -2028,6 +2103,7 @@ namespace netxs::gui
             auto [hb_font, ft_face] = f.select_face_by_em_height(em_height, cache_index);
             fcache.font_shaper.hb_font = hb_font;
             fcache.font_shaper.ft_face = ft_face;
+            fcache.font_shaper.colored = f2.color;
             fcache.font_shaper.palette_ptr = &f.palette; //todo unify
             auto length = fcache.font_shaper.generate_glyph_run(codepoints, hb_script, is_rtl, transform, f2.monospaced, grid_step); // Generate glyph run and get its length in pixels (fp32).
             auto actual_width = swapxy ? std::max(1.f, length) :

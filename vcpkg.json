@@ -3,6 +3,7 @@
   "dependencies": [
     "freetype",
     "harfbuzz",
-    "lua"
+    "lua",
+    "lunasvg"
   ]
 }

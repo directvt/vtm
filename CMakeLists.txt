@@ -24,6 +24,7 @@ add_executable(vtm "src/vtm.cpp" $ENV{WIN32_RESOURCES})
 find_package(Freetype REQUIRED)
 find_package(harfbuzz REQUIRED)
 find_package(Lua 5.4  REQUIRED)
+find_package(lunasvg  REQUIRED)
 
 add_library(Lua::Lua INTERFACE IMPORTED)
 set_target_properties(Lua::Lua PROPERTIES INTERFACE_LINK_LIBRARIES "${LUA_LIBRARIES}")
@@ -32,9 +33,9 @@ target_include_directories(vtm PRIVATE ${FREETYPE_INCLUDE_DIRS}
                                        ${HARFBUZZ_INCLUDE_DIRS}
                                        ${LUA_INCLUDE_DIR})
 
-target_link_libraries(vtm PRIVATE Lua::Lua Freetype::Freetype harfbuzz::harfbuzz)
-# target_link_libraries(term PRIVATE Lua::Lua Freetype::Freetype harfbuzz::harfbuzz)
-# target_link_libraries(calc PRIVATE Lua::Lua Freetype::Freetype harfbuzz::harfbuzz)
+target_link_libraries(vtm PRIVATE Lua::Lua Freetype::Freetype harfbuzz::harfbuzz lunasvg::lunasvg)
+# target_link_libraries(term PRIVATE Lua::Lua Freetype::Freetype harfbuzz::harfbuzz lunasvg::lunasvg)
+# target_link_libraries(calc PRIVATE Lua::Lua Freetype::Freetype harfbuzz::harfbuzz lunasvg::lunasvg)
 
 if(NOT WIN32)
     install(TARGETS vtm DESTINATION bin)
