@@ -142,17 +142,9 @@ jobs:
         VCPKG_BINARY_SOURCES: "clear;files,${{ github.workspace }}/vcpkg_cache,readwrite"
         MACOSX_DEPLOYMENT_TARGET: 11.0
         WIN32_RESOURCES: ${{ matrix.os == 'windows-latest' && '.resources/images/vtm.rc' || '' }}
-        RAW_WORKSPACE: ${{ github.workspace }}
-      shell: bash
       run: |
-        WS="${RAW_WORKSPACE//\\//}"
-        mkdir -p "$WS/vcpkg_cache"
-        cmake -B ${{ steps.strings.outputs.bin }} \
-        -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake \
-        -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }} \
-        ${{ matrix.flags }} ${{ matrix.os == 'windows-latest' && matrix.cpu || '' }} \
-        -DCMAKE_BUILD_TYPE=Release \
-        -S ${{ github.workspace }}
+        mkdir -p ${{ github.workspace }}/vcpkg_cache
+        cmake -B ${{ steps.strings.outputs.bin }} -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }} ${{ matrix.flags }} ${{ matrix.os == 'windows-latest' && matrix.cpu || '' }} -DCMAKE_BUILD_TYPE=Release -S ${{ github.workspace }}
 
     - name: Build
       run: cmake --build ${{ steps.strings.outputs.bin }} --config Release -v
