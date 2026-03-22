@@ -28,7 +28,7 @@ jobs:
             arch: arm64
             cxx: g++-13
             cc: gcc-13
-            flags: '-DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 -DCMAKE_CXX_FLAGS_RELEASE="-static-libgcc -static-libstdc++ -s -DNDEBUG -Wall -Wextra -Wno-missing-field-initializers -Wno-psabi -Werror -Wno-unknown-pragmas"'
+            flags: '-DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 DCMAKE_C_FLAGS="-DPLUTOVG_HAS_THREADS=0" -DCMAKE_CXX_FLAGS_RELEASE="-static-libgcc -static-libstdc++ -s -DNDEBUG -Wall -Wextra -Wno-missing-field-initializers -Wno-psabi -Werror -Wno-unknown-pragmas"'
             triplet: arm64-osx
           - os: macos-15-intel
             platform: macos
@@ -36,7 +36,7 @@ jobs:
             arch: x86_64
             cxx: g++-13
             cc: gcc-13
-            flags: '-DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 -DCMAKE_CXX_FLAGS_RELEASE="-static-libgcc -static-libstdc++ -s -DNDEBUG -Wall -Wextra -Wno-missing-field-initializers -Wno-psabi -Werror -Wno-unknown-pragmas"'
+            flags: '-DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 DCMAKE_C_FLAGS="-DPLUTOVG_HAS_THREADS=0" -DCMAKE_CXX_FLAGS_RELEASE="-static-libgcc -static-libstdc++ -s -DNDEBUG -Wall -Wextra -Wno-missing-field-initializers -Wno-psabi -Werror -Wno-unknown-pragmas"'
             triplet: x64-osx
           - os: windows-latest
             platform: windows
@@ -127,13 +127,6 @@ jobs:
       run: |
         git clone https://github.com/microsoft/vcpkg.git ${{ github.workspace }}/vcpkg
         ${{ github.workspace }}/vcpkg/bootstrap-vcpkg.sh -disableMetrics
-
-    - name: Fix missing threads.h for GCC on macOS
-      if: contains(matrix.os, 'macos')
-      run: |
-        sudo mkdir -p /usr/local/include
-        echo "#include <pthread.h>" | sudo tee /usr/local/include/threads.h
-        echo "CPATH=/usr/local/include" >> $GITHUB_ENV
 
     - name: Configure CMake
       env:
