@@ -98,10 +98,10 @@ namespace netxs
                     static_cast<byte>(a) }
         { }
         constexpr argb(fp32 r, fp32 g, fp32 b, fp32 a)
-            : chan{ netxs::saturate_cast<byte>(b * 255),
-                    netxs::saturate_cast<byte>(g * 255),
-                    netxs::saturate_cast<byte>(r * 255),
-                    netxs::saturate_cast<byte>(a * 255) }
+            : chan{ netxs::saturate_cast<byte>(b * 255.0f + 0.5f),
+                    netxs::saturate_cast<byte>(g * 255.0f + 0.5f),
+                    netxs::saturate_cast<byte>(r * 255.0f + 0.5f),
+                    netxs::saturate_cast<byte>(a * 255.0f + 0.5f) }
         { }
         template<class T>
         constexpr argb(T const& c)

@@ -1,8 +1,9 @@
 {
-  "builtin-baseline": "b1b19307e2d2ec1eefbdb7ea069de7d4bcd31f01",
+  "builtin-baseline": "84bab45d415d22042bd0b9081aea57f362da3f35",
   "dependencies": [
     "freetype",
     "harfbuzz",
-    "lua"
+    "lua",
+    "lunasvg"
   ]
 }
