@@ -132,7 +132,8 @@ jobs:
       env:
         CC:  ${{ matrix.cc }}
         CXX: ${{ matrix.cxx }}
-        VCPKG_COMMON_FLAGS: "-DPLUTOVG_HAS_PTHREADS=1"
+        CFLAGS: "-DPLUTOVG_HAS_PTHREADS=1"
+        CXXFLAGS: "-DPLUTOVG_HAS_PTHREADS=1"
         MACOSX_DEPLOYMENT_TARGET: 11.0
         WIN32_RESOURCES: ${{ matrix.os == 'windows-latest' && '.resources/images/vtm.rc' || '' }}
       run: >
