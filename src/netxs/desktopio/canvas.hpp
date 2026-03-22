@@ -1048,6 +1048,17 @@ namespace netxs
             a = c.a + na * a;
             return *this;
         }
+        // irgb: Blend with non-pma c (0.0-1.0).
+        auto& blend_nonpma(irgb non_pma_c) requires(std::is_floating_point_v<T>)
+        {
+            auto factor = non_pma_c.a;
+            auto inv_factor = 1.0f - factor;
+            r = non_pma_c.r * factor + r * inv_factor;
+            g = non_pma_c.g * factor + g * inv_factor;
+            b = non_pma_c.b * factor + b * inv_factor;
+            a = factor + a * inv_factor;
+            return *this;
+        }
         // irgb: Blend with non-pma c (0.0-1.0) using integer alpha (0-255).
         auto& blend_nonpma(irgb non_pma_c, byte alpha) requires(std::is_floating_point_v<T>)
         {
