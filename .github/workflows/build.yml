@@ -147,7 +147,7 @@ jobs:
         cmake -B ${{ steps.strings.outputs.bin }} \
         -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake \
         -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }} \
-        ${{ matrix.flags }} \
+        ${{ matrix.flags }} ${{ matrix.os == 'windows-latest' && matrix.cpu || '' }} \
         -DCMAKE_BUILD_TYPE=Release \
         -S ${{ github.workspace }}
 
