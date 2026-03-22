@@ -138,12 +138,13 @@ jobs:
       env:
         CC:  ${{ matrix.cc }}
         CXX: ${{ matrix.cxx }}
+        VCPKG_CACHE: ${{ github.workspace }}/vcpkg_cache
         VCPKG_BINARY_SOURCES: "clear;files,${{ github.workspace }}/vcpkg_cache,readwrite"
         MACOSX_DEPLOYMENT_TARGET: 11.0
         WIN32_RESOURCES: ${{ matrix.os == 'windows-latest' && '.resources/images/vtm.rc' || '' }}
       shell: bash
       run: |
-        mkdir -p ${{ github.workspace }}/vcpkg_cache
+        mkdir -p "$VCPKG_CACHE"
         cmake -B ${{ steps.strings.outputs.bin }} \
         -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake \
         -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }} \
