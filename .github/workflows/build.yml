@@ -141,6 +141,7 @@ jobs:
         VCPKG_BINARY_SOURCES: "clear;files,${{ github.workspace }}/vcpkg_cache,readwrite"
         MACOSX_DEPLOYMENT_TARGET: 11.0
         WIN32_RESOURCES: ${{ matrix.os == 'windows-latest' && '.resources/images/vtm.rc' || '' }}
+      shell: bash
       run: |
         mkdir -p ${{ github.workspace }}/vcpkg_cache
         cmake -B ${{ steps.strings.outputs.bin }} \
