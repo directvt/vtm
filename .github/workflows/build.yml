@@ -128,20 +128,26 @@ jobs:
         git clone https://github.com/microsoft/vcpkg.git ${{ github.workspace }}/vcpkg
         ${{ github.workspace }}/vcpkg/bootstrap-vcpkg.sh -disableMetrics
 
+    - name: Setup vcpkg binary cache
+      uses: actions/cache@v4
+      with:
+        path: ${{ github.workspace }}/vcpkg_cache
+        key: vcpkg-bin-${{ matrix.os }}-${{ matrix.triplet }}-${{ hashFiles('vcpkg.json') }}
+
     - name: Configure CMake
       env:
         CC:  ${{ matrix.cc }}
         CXX: ${{ matrix.cxx }}
-        CFLAGS: "-DPLUTOVG_HAS_PTHREADS=1"
-        CXXFLAGS: "-DPLUTOVG_HAS_PTHREADS=1"
+        VCPKG_BINARY_SOURCES: "clear;files,${{ github.workspace }}/vcpkg_cache,readwrite"
         MACOSX_DEPLOYMENT_TARGET: 11.0
         WIN32_RESOURCES: ${{ matrix.os == 'windows-latest' && '.resources/images/vtm.rc' || '' }}
-      run: >
-        cmake -B ${{ steps.strings.outputs.bin }}
-        -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake
-        -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}
-        ${{ matrix.flags }} ${{ matrix.os == 'windows-latest' && matrix.cpu || '' }}
-        -DCMAKE_BUILD_TYPE=Release
+      run: |
+        mkdir -p ${{ github.workspace }}/vcpkg_cache
+        cmake -B ${{ steps.strings.outputs.bin }} \
+        -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake \
+        -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }} \
+        ${{ matrix.flags }} \
+        -DCMAKE_BUILD_TYPE=Release \
         -S ${{ github.workspace }}
 
     - name: Build
