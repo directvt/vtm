@@ -21,7 +21,7 @@ R"==(<include*/>  <!-- Ordered list of <include="/path/to/settings.xml"/>. Clear
                 'regular', 'bold', 'italic', and 'bold_italic'. -->
             <!-- If no values are provided, the primary font family defaults will be used. -->
             <!-- To view the list of available system fonts and their supported axes, use the 'vtm \-\-fontlist' command. -->
-            <regular     wdth="100"        wght="400"        ital="0"          />
+            <regular     wdth="100"        wght="350"        ital="0"          />
             <italic      wdth=regular/wdth wght=regular/wght ital="1"          />
             <bold        wdth=regular/wdth wght="700"        ital=regular/ital />
             <bold_italic wdth=regular/wdth wght=bold/wght    ital=italic/ital  />
@@ -147,7 +147,7 @@ R"==(
             <height=1/>  <!-- Reserved space at the top of the desktop. -->
         </panel>
         <background>  <!-- Desktop background settings. -->
-            <color fgc=whitedk bgc= #00003f80/>  <!-- Background color. -->
+            <color fgc=whitedk bgc= #00007fFF/>  <!-- Background color. -->
             <tile=""/>                           <!-- Optional: Truecolor ANSI-art for the background. -->
         </background>
     </desktop>
