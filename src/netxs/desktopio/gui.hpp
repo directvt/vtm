@@ -2039,13 +2039,7 @@ namespace netxs::gui
                                         {
                                             element = document->documentElement();
                                         }
-                                        auto bb = element.getBoundingBox();
-                                        auto scale = std::min((fp32)glyph.b_box.size.x / bb.w, (fp32)glyph.b_box.size.y / bb.h);
-                                        auto tx = -bb.x * scale;
-                                        auto ty = -bb.y * scale;
-                                        auto matrix = lunasvg::Matrix{ scale, 0, 0, scale, tx, ty };
-                                        auto bitmap = lunasvg::Bitmap{ glyph.b_box.size.x, glyph.b_box.size.y };
-                                        element.render(bitmap, matrix);
+                                        auto bitmap = element.renderToBitmap(glyph.b_box.size.x, glyph.b_box.size.y);
                                         draw_svg_to_canvas(canvas, bitmap, glyph.b_box);
                                     }
                                 }
