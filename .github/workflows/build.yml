@@ -143,7 +143,7 @@ jobs:
         MACOSX_DEPLOYMENT_TARGET: 11.0
         WIN32_RESOURCES: ${{ matrix.os == 'windows-latest' && '.resources/images/vtm.rc' || '' }}
       run: |
-        mkdir -p ${{ github.workspace }}/vcpkg_cache
+        pwsh -Command "if (!(Test-Path '${{ github.workspace }}/vcpkg_cache')) { New-Item -ItemType Directory -Force -Path '${{ github.workspace }}/vcpkg_cache' }"
         cmake -B ${{ steps.strings.outputs.bin }} -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }} ${{ matrix.flags }} ${{ matrix.os == 'windows-latest' && matrix.cpu || '' }} -DCMAKE_BUILD_TYPE=Release -S ${{ github.workspace }}
 
     - name: Build
