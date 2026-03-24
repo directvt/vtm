@@ -1843,7 +1843,7 @@ namespace netxs::gui
                 }
             }
         }
-        void draw_svg_to_canvas(auto& canvas, lunasvg::Bitmap const& svg_btm, rect layer_area)//fp2d pen, fp2d hb_align, FT_GlyphSlot slot)
+        void draw_svg_to_canvas(auto& canvas, lunasvg::Bitmap const& svg_btm, rect layer_area)
         {
             if (!svg_btm.valid()) return;
             auto canvas_area = canvas.area();
