@@ -2032,13 +2032,20 @@ namespace netxs::gui
                                     //todo suggest that the lunasvg project use custom allocators, this will solve memory allocation issues in one fell swoop
                                     if (auto document = lunasvg::Document::loadFromData(svg_data.data(), svg_data.size()))
                                     {
-                                        auto bb = document->boundingBox();
+                                        static thread_local auto glyph_id = text{};
+                                        glyph_id = "glyph" + std::to_string(glyph.index); // According to the OT-SVG standard, each glyph within a document must be contained within an element with id="glyph<index>".
+                                        auto element = document->getElementById(glyph_id);
+                                        if (!element) // Render entire document If glyph not found.
+                                        {
+                                            element = document->documentElement();
+                                        }
+                                        auto bb = element.getBoundingBox();
                                         auto scale = std::min((fp32)glyph.b_box.size.x / bb.w, (fp32)glyph.b_box.size.y / bb.h);
                                         auto tx = -bb.x * scale;
                                         auto ty = -bb.y * scale;
                                         auto matrix = lunasvg::Matrix{ scale, 0, 0, scale, tx, ty };
                                         auto bitmap = lunasvg::Bitmap{ glyph.b_box.size.x, glyph.b_box.size.y };
-                                        document->render(bitmap, matrix);
+                                        element.render(bitmap, matrix);
                                         draw_svg_to_canvas(canvas, bitmap, glyph.b_box);
                                     }
                                 }
