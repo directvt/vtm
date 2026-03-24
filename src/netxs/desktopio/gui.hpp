@@ -1886,6 +1886,37 @@ namespace netxs::gui
                 }
             }
         }
+        void resolveOTSVGVariables(std::span<char> data)
+        {
+            auto crop = view{ data.data(), data.size() };
+            auto pos = crop.rfind("var("); // var(--name) or var(--name, defvalue) or var(--name, var(--name, defvalue)) ...
+            while (pos != view::npos)
+            {
+                auto end = crop.find(')', pos);
+                if (end != view::npos)
+                {
+                    auto comma = crop.find(',', pos);
+                    if (comma != view::npos && comma < end)
+                    {
+                        data[pos] = data[pos+1] = data[pos+2] = data[pos+3] = ' '; // Wipe "var(".
+                        for (auto i = pos + 4; i <= comma; ++i) // "--name," -> "      ".
+                        {
+                            data[i] = ' ';
+                        }
+                        data[end] = ' '; // ')'->' '
+                    }
+                    else
+                    {
+                        for (auto i = pos; i <= end; ++i) // '(var(--name))'->' ... '.
+                        {
+                            data[i] = ' ';
+                        }
+                    }
+                }
+                if (pos == 0) break;
+                pos = crop.rfind("var(", pos - 1);
+            }
+        }
         void rasterize_single_run(sprite& glyph_mask, fp2d base_line, fonts::shaper& fs, bool monochromatic, bool antialiasing)
         {
             auto run_area = rect{};
@@ -1993,17 +2024,22 @@ namespace netxs::gui
                             {
                                 auto slot = fs.ft_face->glyph;
                                 auto doc = (FT_SVG_Document)slot->other;
-                                if (auto document = lunasvg::Document::loadFromData((char const*)doc->svg_document, doc->svg_document_length))
+                                if (doc->svg_document_length)
                                 {
-                                    auto bb = document->boundingBox();
-                                    auto scale = std::min((fp32)glyph.b_box.size.x / bb.w, (fp32)glyph.b_box.size.y / bb.h);
-                                    auto tx = -bb.x * scale;
-                                    auto ty = -bb.y * scale;
-                                    auto matrix = lunasvg::Matrix{ scale, 0, 0, scale, tx, ty };
-                                    auto bitmap = lunasvg::Bitmap{ glyph.b_box.size.x, glyph.b_box.size.y };
-                                    //todo use Bitmap(uint8_t* data, int width, int height, int stride);
-                                    document->render(bitmap, matrix);
-                                    draw_svg_to_canvas(canvas, bitmap, glyph.b_box);
+                                    auto svg_data = text{ (char*)doc->svg_document, doc->svg_document_length };
+                                    resolveOTSVGVariables(svg_data);
+                                    if (auto document = lunasvg::Document::loadFromData(svg_data.data(), svg_data.size()))
+                                    {
+                                        auto bb = document->boundingBox();
+                                        auto scale = std::min((fp32)glyph.b_box.size.x / bb.w, (fp32)glyph.b_box.size.y / bb.h);
+                                        auto tx = -bb.x * scale;
+                                        auto ty = -bb.y * scale;
+                                        auto matrix = lunasvg::Matrix{ scale, 0, 0, scale, tx, ty };
+                                        auto bitmap = lunasvg::Bitmap{ glyph.b_box.size.x, glyph.b_box.size.y };
+                                        //todo use Bitmap(uint8_t* data, int width, int height, int stride);
+                                        document->render(bitmap, matrix);
+                                        draw_svg_to_canvas(canvas, bitmap, glyph.b_box);
+                                    }
                                 }
                             }
                         }
