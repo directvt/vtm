@@ -907,6 +907,7 @@ namespace netxs::gui
         {
             for (auto codepoint : codepoints)
             {
+                if (codepoint != 0x200B) // Exclude ZWSP.
                 if (!fonts::hittest_codepoint(unicode_ranges, codepoint))
                 {
                     return faux;
