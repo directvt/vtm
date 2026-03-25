@@ -2039,8 +2039,16 @@ namespace netxs::gui
                                         {
                                             element = document->documentElement();
                                         }
-                                        auto bitmap = element.renderToBitmap(glyph.b_box.size.x, glyph.b_box.size.y);
-                                        bitmap.convertToRGBA(); // Premultiplied ARGB32 pixel data -> Non-PMA.
+                                        auto w = glyph.b_box.size.x;
+                                        auto h = glyph.b_box.size.y;
+                                        auto bounds = element.getBoundingBox().transform(element.getLocalMatrix());
+                                        auto scale = std::min(w / bounds.w, h / bounds.h);
+                                        auto matrix = lunasvg::Matrix{ scale, 0, 0, scale, -bounds.x * scale, -bounds.y * scale };
+                                        static thread_local auto bitmap = lunasvg::Bitmap{ w, h }; //todo unfy
+                                        if (bitmap.height() < h || bitmap.width() < w) bitmap = { w, h };
+                                        else bitmap.clear(0);
+                                        element.render(bitmap, matrix);
+                                        bitmap.convertToRGBA(); // Premultiplied ARGB32 pixel data -> Non-PMA RGBA32.
                                         draw_svg_to_canvas(canvas, bitmap, glyph.b_box);
                                     }
                                 }
