@@ -1858,7 +1858,7 @@ namespace netxs::gui
                     auto* src_row = src_data + (src_base.y + y) * src_stride + src_base.x;
                     for (auto x = 0; x < intersect.size.x; ++x)
                     {
-                        auto src_px = argb{ src_row[x] }; // Premultiplied ARGB32 pixel data.
+                        auto src_px = argb{ src_row[x] }.swap_rb();
                         if (src_px.chan.a > 0)
                         {
                             auto dst_xy = twod{ dst_base.x + x, dst_base.y + y };
@@ -1869,7 +1869,7 @@ namespace netxs::gui
                                 if (dst_px.has_extra_alpha())
                                 {
                                     auto fgc_a = dst_px.unpack_alpha();
-                                    dst_px.blend_pma(pixel);
+                                    dst_px.blend_nonpma(pixel);
                                     dst_px.pack_alpha(fgc_a);
                                 }
                                 else
@@ -2040,6 +2040,7 @@ namespace netxs::gui
                                             element = document->documentElement();
                                         }
                                         auto bitmap = element.renderToBitmap(glyph.b_box.size.x, glyph.b_box.size.y);
+                                        bitmap.convertToRGBA(); // Premultiplied ARGB32 pixel data -> Non-PMA.
                                         draw_svg_to_canvas(canvas, bitmap, glyph.b_box);
                                     }
                                 }
@@ -2317,7 +2318,7 @@ namespace netxs::gui
                             f_dst.blend_nonpma(f_fgc, fgc_alpha);
                         }
                     }
-                    dst = f_dst.blend_pma(src.pma()).linear2sRGB();
+                    dst = f_dst.blend_nonpma(src).linear2sRGB();
                 };
                 auto raster = netxs::raster{ std::span{ (irgb*)glyph_mask.bits.data(), (size_t)glyph_mask.area.length() }, box };
                 netxs::onclip(canvas, raster, fx);
