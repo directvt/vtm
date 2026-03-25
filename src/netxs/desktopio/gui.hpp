@@ -2043,7 +2043,9 @@ namespace netxs::gui
                                         auto h = glyph.b_box.size.y;
                                         auto bounds = element.getBoundingBox().transform(element.getLocalMatrix());
                                         auto scale = std::min(w / bounds.w, h / bounds.h);
-                                        auto matrix = lunasvg::Matrix{ scale, 0, 0, scale, -bounds.x * scale, -bounds.y * scale };
+                                        auto tx = (w - bounds.w * scale) / 2.f - bounds.x * scale;
+                                        auto ty = (h - bounds.h * scale) / 2.f - bounds.y * scale;
+                                        auto matrix = lunasvg::Matrix{ scale, 0, 0, scale, tx, ty };
                                         static thread_local auto bitmap = lunasvg::Bitmap{ w, h }; //todo unfy
                                         if (bitmap.height() < h || bitmap.width() < w) bitmap = { w, h };
                                         else bitmap.clear(0);
