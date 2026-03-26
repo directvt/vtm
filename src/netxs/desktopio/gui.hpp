@@ -324,7 +324,7 @@ namespace netxs::gui
                     for (auto i = 0u; i < data.num_palette_entries; ++i)
                     {
                         auto& c = ft_palette[i];
-                        palette[i].sRGB2Linear(argb{ c.red, c.green, c.blue, c.alpha });
+                        palette[i] = irgb::nonpma_srgb_to_pma_linear(argb{ c.red, c.green, c.blue, c.alpha });
                     }
                 }
             }
@@ -1859,23 +1859,23 @@ namespace netxs::gui
                     auto* src_row = src_data + (src_base.y + y) * src_stride + src_base.x;
                     for (auto x = 0; x < intersect.size.x; ++x)
                     {
-                        auto src_px = argb{ src_row[x] }.swap_rb();
+                        auto src_px = argb{ src_row[x] }; // PMA sRGB.
                         if (src_px.chan.a > 0)
                         {
                             auto dst_xy = twod{ dst_base.x + x, dst_base.y + y };
-                            auto& dst_px = canvas[dst_xy];
+                            auto& dst_px = canvas[dst_xy]; // PMA Linear.
                             if constexpr (std::is_same_v<std::decay_t<decltype(dst_px)>, irgb>)
                             {
-                                auto pixel = irgb{}.sRGB2Linear(src_px);
+                                auto pixel = irgb::pma_srgb_to_pma_linear(src_px); // PMA Linear.
                                 if (dst_px.has_extra_alpha())
                                 {
                                     auto fgc_a = dst_px.unpack_alpha();
-                                    dst_px.blend_nonpma(pixel);
+                                    dst_px.blend_pma(pixel);
                                     dst_px.pack_alpha(fgc_a);
                                 }
                                 else
                                 {
-                                    dst_px.blend_nonpma(pixel);
+                                    dst_px.blend_pma(pixel);
                                 }
                             }
                             else // Alpha-only canvas fallback
@@ -2050,8 +2050,7 @@ namespace netxs::gui
                                         static thread_local auto bitmap = lunasvg::Bitmap{ w, h }; //todo unfy
                                         if (bitmap.height() < h || bitmap.width() < w) bitmap = { w, h };
                                         else bitmap.clear(0);
-                                        element.render(bitmap, matrix);
-                                        bitmap.convertToRGBA(); // Premultiplied ARGB32 pixel data -> Non-PMA RGBA32.
+                                        element.render(bitmap, matrix); // Premultiplied ARGB32 pixel data.
                                         draw_svg_to_canvas(canvas, bitmap, glyph.b_box);
                                     }
                                 }
@@ -2314,22 +2313,22 @@ namespace netxs::gui
         void draw_glyph(auto& canvas, sprite& glyph_mask, twod offset, argb fgc)
         {
             auto box = glyph_mask.area.shift(offset);
-            auto f_fgc = irgb{}.sRGB2Linear(fgc);
+            auto f_fgc = irgb::nonpma_srgb_to_pma_linear(fgc);
             if (glyph_mask.type == sprite::color)
             {
                 auto fx = [fgc, f_fgc](argb& dst, irgb src)
                 {
                     if (src.a == 0.f) return;
-                    auto f_dst = irgb{}.sRGB2Linear(dst);
+                    auto f_dst = irgb::pma_srgb_to_pma_linear(dst);
                     if (src.has_extra_alpha())
                     {
                         auto fgc_alpha = src.unpack_alpha();
                         if (fgc_alpha > 0)
                         {
-                            f_dst.blend_nonpma(f_fgc, fgc_alpha);
+                            f_dst.blend_pma(f_fgc, fgc_alpha);
                         }
                     }
-                    dst = f_dst.blend_nonpma(src).linear2sRGB();
+                    dst = irgb::pma_linear_to_pma_srgb(f_dst.blend_pma(src));
                 };
                 auto raster = netxs::raster{ std::span{ (irgb*)glyph_mask.bits.data(), (size_t)glyph_mask.area.length() }, box };
                 netxs::onclip(canvas, raster, fx);
@@ -2345,7 +2344,8 @@ namespace netxs::gui
                     }
                     else
                     {
-                        dst = irgb{}.sRGB2Linear(dst).blend_nonpma(f_fgc, src).linear2sRGB();
+                        auto f_dst = irgb::pma_srgb_to_pma_linear(dst);
+                        dst = irgb::pma_linear_to_pma_srgb(f_dst.blend_pma(f_fgc, src));
                     }
                 };
                 auto raster = netxs::raster{ std::span{ (byte*)glyph_mask.bits.data(), (size_t)glyph_mask.area.length() }, box };

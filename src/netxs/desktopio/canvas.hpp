@@ -1005,41 +1005,7 @@ namespace netxs
         void operator -= (irgb const& c) { r -= c.r; g -= c.g; b -= c.b; a -= c.a; }
         void operator += (argb c) requires(std::is_integral_v<T>) { r += c.chan.r; g += c.chan.g; b += c.chan.b; a += c.chan.a; }
         void operator -= (argb c) requires(std::is_integral_v<T>) { r -= c.chan.r; g -= c.chan.g; b -= c.chan.b; a -= c.chan.a; }
-        // irgb: PMA sRGB to linear (g = 2.4)
-        irgb& PMAsRGB2Linear(argb c) requires(std::is_floating_point_v<T>)
-        {
-            auto k = 1.f / c.chan.a;
-            r = netxs::sRGB2Linear(c.chan.r * k);
-            g = netxs::sRGB2Linear(c.chan.g * k);
-            b = netxs::sRGB2Linear(c.chan.b * k);
-            a = c.chan.a * inv_255;
-            return *this;
-        }
-        // irgb: sRGB to linear (g = 2.4)
-        irgb& sRGB2Linear(argb c) requires(std::is_floating_point_v<T>)
-        {
-            r = netxs::sRGB2Linear(c.chan.r);
-            g = netxs::sRGB2Linear(c.chan.g);
-            b = netxs::sRGB2Linear(c.chan.b);
-            a = c.chan.a * inv_255;
-            return *this;
-        }
-        // irgb: sRGB to linear (g = 2.4)
-        irgb& sRGB2Linear() requires(std::is_floating_point_v<T>)
-        {
-            r = netxs::sRGB2Linear(r);
-            g = netxs::sRGB2Linear(g);
-            b = netxs::sRGB2Linear(b);
-            return *this;
-        }
-        // irgb: Linear to sRGB (g = 2.4)
-        irgb& linear2sRGB() requires(std::is_floating_point_v<T>)
-        {
-            r = netxs::linear2sRGB(r);
-            g = netxs::linear2sRGB(g);
-            b = netxs::linear2sRGB(b);
-            return *this;
-        }
+
         // irgb: Premultiply alpha (floating point only).
         auto& pma() requires(std::is_floating_point_v<T>)
         {
@@ -1058,6 +1024,12 @@ namespace netxs
             a = c.a + na * a;
             return *this;
         }
+        // irgb: Blend with pma c (floating point only).
+        auto& blend_pma(irgb c, byte alpha) requires(std::is_floating_point_v<T>)
+        {
+            auto factor = (T)alpha * inv_255;
+            return blend_pma(c * factor);
+        }
         // irgb: Blend with non-pma c (0.0-1.0).
         auto& blend_nonpma(irgb non_pma_c) requires(std::is_floating_point_v<T>)
         {
@@ -1066,7 +1038,7 @@ namespace netxs
             r = non_pma_c.r * factor + r * inv_factor;
             g = non_pma_c.g * factor + g * inv_factor;
             b = non_pma_c.b * factor + b * inv_factor;
-            a = factor + a * inv_factor;
+            a = factor               + a * inv_factor;
             return *this;
         }
         // irgb: Blend with non-pma c (0.0-1.0) using integer alpha (0-255).
@@ -1116,6 +1088,79 @@ namespace netxs
         {
             auto a_bits = std::bit_cast<ui32>(a);
             return (byte)((a_bits >> 8) & 0xFF);
+        }
+        // irgb: PMA sRGB (8-bit) -> PMA Linear (irgb).
+        static auto pma_srgb_to_pma_linear(argb pma_pixel) requires(std::is_floating_point_v<T>)
+        {
+            auto a_b = pma_pixel.chan.a;
+            if (a_b == 0) return irgb{};
+            if (a_b == 255)
+            {
+                return irgb{ netxs::sRGB2Linear(pma_pixel.chan.r),
+                             netxs::sRGB2Linear(pma_pixel.chan.g),
+                             netxs::sRGB2Linear(pma_pixel.chan.b),
+                             (T)1 };
+            }
+            auto lin_a = (T)a_b * inv_255;
+            auto inv_a = (T)1 / lin_a;
+            auto to_lin = [&](byte channel_pma)
+            {
+                auto straight_srgb = channel_pma * inv_255 * inv_a;              // Unpremultiply (in sRGB).
+                auto straight_lin = netxs::sRGB2Linear(straight_srgb); // Linearize.
+                return straight_lin * lin_a;                           // Premultiply (in Linear).
+            };
+            return irgb{ to_lin(pma_pixel.chan.r),
+                         to_lin(pma_pixel.chan.g),
+                         to_lin(pma_pixel.chan.b),
+                         lin_a };
+        }
+        // irgb: PMA Linear (irgb) -> PMA sRGB (8-bit).
+        static auto pma_linear_to_pma_srgb(irgb pma_pixel) requires(std::is_floating_point_v<T>)
+        {
+            auto a_b = pma_pixel.a;
+            if (a_b == 0) return argb{};
+            if (a_b == (T)1)
+            {
+                return argb{ (byte)(netxs::linear2sRGB(pma_pixel.r) * 255.f + 0.5f),
+                             (byte)(netxs::linear2sRGB(pma_pixel.g) * 255.f + 0.5f),
+                             (byte)(netxs::linear2sRGB(pma_pixel.b) * 255.f + 0.5f),
+                             255 };
+            }
+            auto lin_a = a_b;
+            auto inv_a = (T)1 / lin_a;
+            auto to_srgb = [&](T channel_pma)
+            {
+                auto straight_lin = channel_pma * inv_a;                                      // Unpremultiply (in Linear).
+                auto straight_srgb = (byte)(netxs::linear2sRGB(straight_lin) * 255.f + 0.5f); // Linearize.
+                return straight_srgb * lin_a;                                                 // Premultiply (in sRGB).
+            };
+            return argb{ to_srgb(pma_pixel.r),
+                         to_srgb(pma_pixel.g),
+                         to_srgb(pma_pixel.b),
+                         (byte)(lin_a * 255.f + 0.5f) };
+        }
+        // irgb: PMA Linear (irgb) -> non-PMA sRGB (8-bit).
+        static auto pma_linear_to_nonpma_srgb(irgb pma_lin) requires(std::is_floating_point_v<T>)
+        {
+            if (pma_lin.a <= 0.000001f) return argb{};
+            auto inv_a = (T)1 / pma_lin.a;
+            auto to_srgb_byte = [&](fp32 lin_channel)
+            {
+                return (byte)(netxs::linear2sRGB(lin_channel * inv_a) * 255.f + 0.5f);
+            };
+            return argb{ to_srgb_byte(pma_lin.r),
+                         to_srgb_byte(pma_lin.g),
+                         to_srgb_byte(pma_lin.b),
+                         (byte)(pma_lin.a * 255.f + 0.5f) };
+        }
+        // irgb: non-PMA sRGB (8-bit) -> PMA Linear (irgb).
+        static auto nonpma_srgb_to_pma_linear(argb nonpma_pixel) requires(std::is_floating_point_v<T>)
+        {
+            auto a = (T)nonpma_pixel.chan.a * inv_255;
+            return irgb{ netxs::sRGB2Linear(nonpma_pixel.chan.r) * a,
+                         netxs::sRGB2Linear(nonpma_pixel.chan.g) * a,
+                         netxs::sRGB2Linear(nonpma_pixel.chan.b) * a,
+                         a };
         }
     };
 

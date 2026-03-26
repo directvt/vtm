@@ -387,21 +387,35 @@ namespace netxs
     };
 
     // intmath: sRGB to Linear (gamma 2.2)
-    auto sRGB2Linear(fp32 c)
+    auto _sRGB2Linear(fp32 c)
     {
         return c <= 0.04045f ? c / 12.92f
                              : std::pow((c + 0.055f) / 1.055f, 2.4f);
     }
-    static const auto sRGB2Linear_lut = []
+    template<si32 LutSize>
+    auto generate_sRGB2Linear_lut()
     {
         auto i = 0.0f;
-        auto lut = std::array<fp32, 256>{};
-        for (auto& v : lut) v = netxs::sRGB2Linear(i++ / 255.0f);
+        auto lut = std::array<fp32, LutSize>{};
+        for (auto& v : lut) v = netxs::_sRGB2Linear(i++ / (LutSize - 1.f));
         return lut;
-    }();
+    }
+    static constexpr auto sRGB2Linear_fp32_lut_size = 1024;
+    static const auto sRGB2Linear_byte_lut = netxs::generate_sRGB2Linear_lut<256>();
+    static const auto sRGB2Linear_fp32_lut = netxs::generate_sRGB2Linear_lut<sRGB2Linear_fp32_lut_size>();
+    // intmath: Get sRGB to Linear via lut (gamma 2.2) for bytes.
     auto sRGB2Linear(byte c)
     {
-        return netxs::sRGB2Linear_lut[c];
+        return netxs::sRGB2Linear_byte_lut[c];
+    }
+    // intmath: Get sRGB to Linear via lut (gamma 2.2) for fp32 values.
+    auto sRGB2Linear(fp32 c)
+    {
+        auto x = std::clamp(c, 0.0f, 1.0f) * (sRGB2Linear_fp32_lut_size - 1);
+        auto i = (si32)x;
+        if (i >= sRGB2Linear_fp32_lut_size - 1) return sRGB2Linear_fp32_lut[sRGB2Linear_fp32_lut_size - 1];
+        auto fraction = x - (fp32)i;
+        return std::lerp(sRGB2Linear_fp32_lut[i], sRGB2Linear_fp32_lut[i + 1], fraction);
     }
 
     // intmath: Calc Linear to sRGB (gamma 2.2)
