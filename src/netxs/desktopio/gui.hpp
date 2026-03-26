@@ -187,6 +187,8 @@ namespace netxs::gui
             axis_rec_t             width_target{};
             axis_rec_t             weight_target{};
             axis_rec_t             italic_target{};
+            std::vector<irgb>      palette; // CPAL cached palette in rgb-linear space.
+            std::unordered_map<si32, uptr<lunasvg::Document>> svg_cache; // Face specific SVG-document cache.
 
             auto get_weight_str() const
             {
@@ -310,7 +312,6 @@ namespace netxs::gui
             rect                                 overline{};  // face_inst_t: Overline rectangle block within the cell.
             rect                                 dashline{};  // face_inst_t: Dashed underline rectangle block within the cell.
             rect                                 wavyline{};  // face_inst_t: Wavy underline outer rectangle block within the cell.
-            std::vector<irgb>                    palette;     // face_inst_t: Cached palette in linear space.
 
             void load_palette()
             {
@@ -320,11 +321,12 @@ namespace netxs::gui
                 if (FT_Err_Ok == ::FT_Palette_Data_Get(ft_face, &data))
                 if (FT_Err_Ok == ::FT_Palette_Select(ft_face, 0, &ft_palette)) // Take the fisrt existing palette (index 0).
                 {
+                    auto& palette = bare_face_ptr->palette;
                     palette.resize(data.num_palette_entries);
                     for (auto i = 0u; i < data.num_palette_entries; ++i)
                     {
                         auto& c = ft_palette[i];
-                        palette[i].sRGB2Linear(argb{ c.red, c.green, c.blue, c.alpha });
+                        palette[i] = irgb::nonpma_srgb_to_pma_linear(argb{ c.red, c.green, c.blue, c.alpha });
                     }
                 }
             }
@@ -823,7 +825,7 @@ namespace netxs::gui
             FT_Face             ft_face{};
             hb_buffer_t*        hb_buffer;
             ui32                glyf_count{};
-            std::vector<irgb>*  palette_ptr{};
+            sptr<bare_face_t>   bare_face_ptr;
             std::vector<step_t> glyphs;
             si32                colored{};
 
@@ -907,6 +909,7 @@ namespace netxs::gui
         {
             for (auto codepoint : codepoints)
             {
+                if (codepoint != 0x200B) // Exclude ZWSP.
                 if (!fonts::hittest_codepoint(unicode_ranges, codepoint))
                 {
                     return faux;
@@ -1246,7 +1249,7 @@ namespace netxs::gui
                 };
                 auto system_font_flow = std::vector<fontfile_item_t>{};
             #endif
-            auto font_list = std::vector<bare_face_t>{};
+            auto font_list = std::vector<sptr<bare_face_t>>{};
             for (auto& item : system_font_flow)
             {
                 auto ec = std::error_code{};
@@ -1265,7 +1268,8 @@ namespace netxs::gui
                         {
                             auto family = qiew{ face->family_name };
                             auto style  = qiew{ face->style_name };
-                            auto& rec = font_list.emplace_back();
+                            auto rec_ptr = font_list.emplace_back(ptr::shared<bare_face_t>());
+                            auto& rec = *rec_ptr;
                             rec.file_stamp             = file_stamp;
                             rec.file_path              = std::move(item.data);
                             rec.family_name            = family.str();
@@ -1401,12 +1405,14 @@ namespace netxs::gui
             }
             //std::ranges::sort(font_list, std::ranges::greater{}, &bare_face_t::stamp);
             //std::ranges::sort(font_list, [](auto& a, auto& b){ return std::tie(a.stamp, a.name) < std::tie(b.stamp, b.name); }); // With std::tie, sorting all fields is only possible in one direction.
-            std::sort(font_list.begin(), font_list.end(), [](auto& a, auto& b)
+            std::sort(font_list.begin(), font_list.end(), [](auto a_ptr, auto b_ptr)
             {
                 //if (a.stamp == b.stamp) return a.family_name < b.family_name; // Sort desc by time then asc by family_name.
                 //else                    return a.stamp > b.stamp;
                 //if (a.family_name == b.family_name) return a.file_stamp > b.file_stamp; // Sort asc by family_name then desc by time.
                 //else                                return a.family_name < b.family_name;
+                auto& a = *a_ptr;
+                auto& b = *b_ptr;
                 if (a.family_name == b.family_name)
                 {
                     if (a.weight_value == b.weight_value)
@@ -1425,8 +1431,9 @@ namespace netxs::gui
             });
             // first: is_color || is_monospaced.
             // then: file_stamp (descending).
-            for (auto& rec : font_list)
+            for (auto& rec_ptr : font_list)
             {
+                auto& rec = *rec_ptr;
                 auto& family_rec = font_map[rec.family_name];
                 if (family_rec.file_stamp < rec.file_stamp) family_rec.file_stamp = rec.file_stamp; // Update time stamp.
                 family_rec.is_monospaced |= rec.is_monospaced;
@@ -1472,7 +1479,7 @@ namespace netxs::gui
                 //    }
                 //    //log("\x1b[7m%name%\x1b[m \x1b[7m%style%\x1b[m %pad% %glyphs% %file%", rec.family_name, rec.style_name, text(max_name - rec.family_name.size() - rec.style_name.size(), ' '),
                 //    //    utf::adjust(utf::fprint("glyphs:%%", rec.num_glyphs), 15, ' '), rec.file_path.filename());
-                family_rec.bare_face_list.push_back({ .bare_face_ptr = ptr::shared(std::move(rec)) });
+                family_rec.bare_face_list.push_back({ .bare_face_ptr = rec_ptr });
             }
             // Add square/nonsquare property.
             font_index.reserve(font_map.size());
@@ -1858,14 +1865,14 @@ namespace netxs::gui
                     auto* src_row = src_data + (src_base.y + y) * src_stride + src_base.x;
                     for (auto x = 0; x < intersect.size.x; ++x)
                     {
-                        auto src_px = argb{ src_row[x] }; // Premultiplied ARGB32 pixel data.
+                        auto src_px = argb{ src_row[x] }; // PMA sRGB.
                         if (src_px.chan.a > 0)
                         {
                             auto dst_xy = twod{ dst_base.x + x, dst_base.y + y };
-                            auto& dst_px = canvas[dst_xy];
+                            auto& dst_px = canvas[dst_xy]; // PMA Linear.
                             if constexpr (std::is_same_v<std::decay_t<decltype(dst_px)>, irgb>)
                             {
-                                auto pixel = irgb{}.sRGB2Linear(src_px);
+                                auto pixel = irgb::pma_srgb_to_pma_linear(src_px); // PMA Linear.
                                 if (dst_px.has_extra_alpha())
                                 {
                                     auto fgc_a = dst_px.unpack_alpha();
@@ -1874,7 +1881,7 @@ namespace netxs::gui
                                 }
                                 else
                                 {
-                                    dst_px.blend_nonpma(pixel);
+                                    dst_px.blend_pma(pixel);
                                 }
                             }
                             else // Alpha-only canvas fallback
@@ -2002,9 +2009,9 @@ namespace netxs::gui
                                 {
                                     auto* slot = fs.ft_face->glyph;
                                     auto fill = irgb{};
-                                    if (l_color != 0xFFFF && fs.palette_ptr) // Use fgc if 0xFFFF or linear color from palette otherwise.
+                                    if (l_color != 0xFFFF) // Use fgc if 0xFFFF or linear color from palette otherwise.
                                     {
-                                        auto& cached_palette = *fs.palette_ptr;
+                                        auto& cached_palette = fs.bare_face_ptr->palette;
                                         if (l_color < cached_palette.size())
                                         {
                                             fill = cached_palette[l_color];
@@ -2026,12 +2033,33 @@ namespace netxs::gui
                                 auto doc = (FT_SVG_Document)slot->other;
                                 if (doc->svg_document_length)
                                 {
-                                    auto svg_data = text{ (char*)doc->svg_document, doc->svg_document_length };
                                     //todo suggest that the lunasvg project do var(...) resolving on their side
-                                    resolveOTSVGVariables(svg_data);
                                     //todo suggest that the lunasvg project use custom allocators, this will solve memory allocation issues in one fell swoop
-                                    if (auto document = lunasvg::Document::loadFromData(svg_data.data(), svg_data.size()))
+
+                                    // Looking for the cached lunasvg::Document.
+                                    auto svg_doc_id = (doc->start_glyph_id << 16) | doc->end_glyph_id;
+                                    auto& svg_cache = fs.bare_face_ptr->svg_cache;
+                                    auto svg_doc_iter = svg_cache.find(svg_doc_id);
+                                    if (svg_doc_iter == svg_cache.end())
                                     {
+                                        auto svg_data = text{ (char*)doc->svg_document, doc->svg_document_length };
+                                        resolveOTSVGVariables(svg_data);
+                                        auto document = lunasvg::Document::loadFromData(svg_data.data(), svg_data.size());
+                                        if (!document)
+                                        {
+                                            static constexpr auto replacement_svg = R"==(<svg viewBox="0 0 1000 1000">
+                                                                                            <path d="M 500,50 950,500 500,950 50,500 Z m -46.53619,594.80924 h 93.07238 v 93.07237 H 453.46381 Z M 430,381.07084 c 0,-50 30,-80 70,-80 40,0 70,30 70,80 0,50 -30,70 -55,95 -35,35 -45,65 -45,115 h 60 c 0,-30 10,-50 35,-75 25,-25 65,-60 65,-135 0,-80 -55,-140 -130,-140 -75,0 -130,60 -130,140 z" fill="currentColor" fill-rule="evenodd" />
+                                                                                         </svg>)=="sv;
+                                            document = lunasvg::Document::loadFromData(replacement_svg.data(), replacement_svg.size()); // Fallback to \uFFFD "�".
+                                        }
+                                        if (document)
+                                        {
+                                            svg_doc_iter = svg_cache.emplace(svg_doc_id, std::move(document)).first;
+                                        }
+                                    }
+                                    if (svg_doc_iter != svg_cache.end())
+                                    {
+                                        auto& document = svg_doc_iter->second;
                                         static thread_local auto glyph_id = text{};
                                         glyph_id = "glyph" + std::to_string(glyph.index); // According to the OT-SVG standard, each glyph within a document must be contained within an element with id="glyph<index>".
                                         auto element = document->getElementById(glyph_id);
@@ -2039,7 +2067,17 @@ namespace netxs::gui
                                         {
                                             element = document->documentElement();
                                         }
-                                        auto bitmap = element.renderToBitmap(glyph.b_box.size.x, glyph.b_box.size.y);
+                                        auto w = glyph.b_box.size.x;
+                                        auto h = glyph.b_box.size.y;
+                                        auto bounds = element.getBoundingBox().transform(element.getLocalMatrix());
+                                        auto scale = std::min(w / bounds.w, h / bounds.h);
+                                        auto tx = (w - bounds.w * scale) / 2.f - bounds.x * scale;
+                                        auto ty = (h - bounds.h * scale) / 2.f - bounds.y * scale;
+                                        auto matrix = lunasvg::Matrix{ scale, 0, 0, scale, tx, ty };
+                                        static thread_local auto bitmap = lunasvg::Bitmap{ w, h }; //todo unfy
+                                        if (bitmap.height() < h || bitmap.width() < w) bitmap = { w, h };
+                                        else bitmap.clear(0);
+                                        element.render(bitmap, matrix); // Premultiplied ARGB32 pixel data.
                                         draw_svg_to_canvas(canvas, bitmap, glyph.b_box);
                                     }
                                 }
@@ -2142,7 +2180,7 @@ namespace netxs::gui
             fcache.font_shaper.hb_font = hb_font;
             fcache.font_shaper.ft_face = ft_face;
             fcache.font_shaper.colored = f2.color;
-            fcache.font_shaper.palette_ptr = &f.palette; //todo unify
+            fcache.font_shaper.bare_face_ptr = f.bare_face_ptr;
             auto length = fcache.font_shaper.generate_glyph_run(codepoints, hb_script, is_rtl, transform, f2.monospaced, grid_step); // Generate glyph run and get its length in pixels (fp32).
             auto actual_width = swapxy ? std::max(1.f, length) :
                         is_box_drawing ? std::max(1.f, std::floor((length / cellsz.x))) * cellsz.x
@@ -2302,22 +2340,22 @@ namespace netxs::gui
         void draw_glyph(auto& canvas, sprite& glyph_mask, twod offset, argb fgc)
         {
             auto box = glyph_mask.area.shift(offset);
-            auto f_fgc = irgb{}.sRGB2Linear(fgc);
+            auto f_fgc = irgb::nonpma_srgb_to_pma_linear(fgc);
             if (glyph_mask.type == sprite::color)
             {
                 auto fx = [fgc, f_fgc](argb& dst, irgb src)
                 {
                     if (src.a == 0.f) return;
-                    auto f_dst = irgb{}.sRGB2Linear(dst);
+                    auto f_dst = irgb::pma_srgb_to_pma_linear(dst);
                     if (src.has_extra_alpha())
                     {
                         auto fgc_alpha = src.unpack_alpha();
                         if (fgc_alpha > 0)
                         {
-                            f_dst.blend_nonpma(f_fgc, fgc_alpha);
+                            f_dst.blend_pma(f_fgc, fgc_alpha);
                         }
                     }
-                    dst = f_dst.blend_pma(src.pma()).linear2sRGB();
+                    dst = irgb::pma_linear_to_pma_srgb(f_dst.blend_pma(src));
                 };
                 auto raster = netxs::raster{ std::span{ (irgb*)glyph_mask.bits.data(), (size_t)glyph_mask.area.length() }, box };
                 netxs::onclip(canvas, raster, fx);
@@ -2333,7 +2371,8 @@ namespace netxs::gui
                     }
                     else
                     {
-                        dst = irgb{}.sRGB2Linear(dst).blend_nonpma(f_fgc, src).linear2sRGB();
+                        auto f_dst = irgb::pma_srgb_to_pma_linear(dst);
+                        dst = irgb::pma_linear_to_pma_srgb(f_dst.blend_pma(f_fgc, src));
                     }
                 };
                 auto raster = netxs::raster{ std::span{ (byte*)glyph_mask.bits.data(), (size_t)glyph_mask.area.length() }, box };
