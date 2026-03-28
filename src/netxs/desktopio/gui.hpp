@@ -188,7 +188,7 @@ namespace netxs::gui
             axis_rec_t             weight_target{};
             axis_rec_t             italic_target{};
             std::vector<irgb>      palette; // CPAL cached palette in rgb-linear space.
-            std::unordered_map<si32, std::array<uptr<lunasvg::Document>, 3>> svg_cache; // Face specific SVG-document cache. We storing two documents for the currentColor workaround.
+            std::unordered_map<si32, std::array<uptr<lunasvg::Document>, 3>> svg_cache; // Face specific SVG-document cache. We storing several documents for the currentColor workaround.
 
             auto get_weight_str() const
             {
