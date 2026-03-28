@@ -1905,16 +1905,17 @@ namespace netxs::gui
             if (!intersect) return;
             auto dst_base = intersect.coor - canvas_area.coor;
             auto src_base = intersect.coor - layer_area.coor;
-            auto src_data1 = (ui32 const*)bitmap_trans.data();
-            auto src_data2 = (ui32 const*)bitmap_black.data();
-            auto src_data3 = (ui32 const*)bitmap_white.data();
-            auto src_stride = bitmap_black.stride() / sizeof(ui32);
+            auto src_stride_trans = bitmap_trans.stride() / sizeof(ui32);
+            auto src_stride_black = bitmap_black.stride() / sizeof(ui32);
+            auto src_stride_white = bitmap_white.stride() / sizeof(ui32);
+            auto src_data_trans = (ui32 const*)bitmap_trans.data() + src_base.y * src_stride_trans;
+            auto src_data_black = (ui32 const*)bitmap_black.data() + src_base.y * src_stride_black;
+            auto src_data_white = (ui32 const*)bitmap_white.data() + src_base.y * src_stride_white;
             for (auto y = 0; y < intersect.size.y; ++y)
             {
-                auto row_off = (src_base.y + y) * src_stride + src_base.x;
-                auto r_trans = src_data1 + row_off;
-                auto r_black = src_data2 + row_off;
-                auto r_white = src_data3 + row_off;
+                auto r_trans = src_data_trans + src_base.x;
+                auto r_black = src_data_black + src_base.x;
+                auto r_white = src_data_white + src_base.x;
                 for (auto x = 0; x < intersect.size.x; ++x)
                 {
                     auto white_px = argb{ r_white[x] };
@@ -1938,6 +1939,9 @@ namespace netxs::gui
                         }
                     }
                 }
+                src_data_trans += src_stride_trans;
+                src_data_black += src_stride_black;
+                src_data_white += src_stride_white;
             }
         }
         void resolveOTSVGVariables(std::span<char> data)
@@ -2092,6 +2096,13 @@ namespace netxs::gui
                                     {
                                         auto svg_data = std::span{ (char*)doc->svg_document, doc->svg_document_length };
                                         resolveOTSVGVariables(svg_data);
+
+                                        // currentColor test
+                                        //auto test_view = view{ svg_data.data(), svg_data.size() };
+                                        ////auto test_cc = utf::replace_all(test_view, "gold", "currentColor");
+                                        //auto test_cc = utf::replace_all(test_view, "#C90900", "currentColor");
+                                        //svg_data = test_cc;
+
                                         auto change_currentColor = [](std::span<char> data, view colorString) -> auto& // Workaround for currentColor.
                                         {
                                             static thread_local auto matches = std::vector<ui64>{}; // List of currentColors positions within the document.
@@ -2124,7 +2135,7 @@ namespace netxs::gui
                                                                                            </svg>)=="sv;
                                             auto black = utf::replace_all(replacement_svg_0, "currentColor", "#000000");
                                             document_black = lunasvg::Document::loadFromData(black.data(), black.size());
-                                            auto trans = utf::replace_all(replacement_svg_0, "currentColor", "none");
+                                            auto trans = utf::replace_all(replacement_svg_0, "currentColor", "transparent");
                                             document_trans = lunasvg::Document::loadFromData(trans.data(), trans.size());
                                             auto white = utf::replace_all(replacement_svg_0, "currentColor", "#FFFFFF");
                                             document_white = lunasvg::Document::loadFromData(white.data(), white.size());
@@ -2132,7 +2143,7 @@ namespace netxs::gui
                                         else if (document_black && matches.size()) // We have currentColors. Generate addidtional document layers.
                                         {
                                                                             // "currentColor"
-                                            static constexpr auto pure_trans = "none        "sv;
+                                            static constexpr auto pure_trans = "transparent "sv;
                                             static constexpr auto pure_white = "#FFFFFF     "sv;
                                             for (auto pos : matches)
                                             {
