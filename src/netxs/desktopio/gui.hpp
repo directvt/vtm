@@ -2164,7 +2164,7 @@ namespace netxs::gui
                                     if (auto& [document_black_ptr, document_trans_ptr, document_white_ptr] = svg_doc_iter->second; document_black_ptr)
                                     {
                                         static thread_local auto glyph_id = text{};
-                                        static thread_local auto bitmaps = std::array<lunasvg::Bitmap, 3>;
+                                        static thread_local auto bitmaps = std::array<lunasvg::Bitmap, 3>();
                                         glyph_id = "glyph" + std::to_string(glyph.index); // According to the OT-SVG standard, each glyph within a document must be contained within an element with id="glyph<index>".
                                         auto w = glyph.b_box.size.x;
                                         auto h = glyph.b_box.size.y;
