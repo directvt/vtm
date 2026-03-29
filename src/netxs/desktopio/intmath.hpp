@@ -186,6 +186,18 @@ namespace netxs
         }
         return n;
     }
+    template<ui64 FieldMask>
+    void set_field(si32 v, auto& token)
+    {
+        using TType = std::decay_t<decltype(token)>;
+        token &= static_cast<TType>(~FieldMask);
+        token |= ((TType)(std::make_unsigned_t<decltype(v)>)v << netxs::field_offset<FieldMask>());
+    }
+    template<ui64 FieldMask>
+    auto get_field(auto token)
+    {
+        return (si32)((token & FieldMask) >> netxs::field_offset<FieldMask>());
+    }
     // intmath: Set a single p-bit to v.
     template<sz_t P, class T>
     void set_bit(T&& n, bool v)

@@ -1376,13 +1376,6 @@ namespace netxs
         };
         struct body
         {
-            struct pxtype
-            {
-                static constexpr auto none   = 0;
-                static constexpr auto bitmap = 1; // Attached argb bitmap reference: 32 bit: bitmap index.
-                static constexpr auto reserv = 2;
-            };
-
             // Shared attributes.
             static constexpr auto bolded_mask = (ui64)0b00000000'00000000'00000000'00000000'00000000'00000000'00000000'00000001; // bolded : 1;
             static constexpr auto italic_mask = (ui64)0b00000000'00000000'00000000'00000000'00000000'00000000'00000000'00000010; // italic : 1;
@@ -1394,10 +1387,10 @@ namespace netxs
             static constexpr auto cursor_mask = (ui64)0b00000000'00000000'00000000'00000000'00000000'00000011'00000000'00000000; // cursor : 2; // 0: None, 1: Underline, 2: Block, 3: I-bar.
             static constexpr auto hplink_mask = (ui64)0b00000000'00000000'00000000'00000000'00000000'00000100'00000000'00000000; // hyperlink : 1; // cell::px strores string hash.
             static constexpr auto blinks_mask = (ui64)0b00000000'00000000'00000000'00000000'00000000'00001000'00000000'00000000; // blinks : 1;
-            static constexpr auto bitmap_mask = (ui64)0b00000000'00000000'00000000'00000000'00000000'00110000'00000000'00000000; // bitmap : 2; // body::pxtype: Cursor losts its colors when it covers bitmap.
-            static constexpr auto fusion_mask = (ui64)0b00000000'00000000'00000000'00000000'00000000'11000000'00000000'00000000; // fusion : 2; // todo The outlines of object boundaries must be set when rendering each window (pro::shape).
-            static constexpr auto shadow_mask = (ui64)0b00000000'00000000'00000000'00000000'11111111'00000000'00000000'00000000; // shadow : 8; // Shadow bits.
-            static constexpr auto hidden_mask = (ui64)0b00000000'00000000'00000000'00000001'00000000'00000000'00000000'00000000; // shadow : 8; // Hidden character.
+            static constexpr auto bitmap_mask = (ui64)0b00000000'00000000'00000000'00000000'00000000'00010000'00000000'00000000; // bitmap : 1; // Has background image.
+            static constexpr auto hidden_mask = (ui64)0b00000000'00000000'00000000'00000000'00000000'00100000'00000000'00000000; // hidden : 1; // Hidden character.
+            static constexpr auto imgH10_mask = (ui64)0b00000000'00000000'00000000'00000000'11111111'11000000'00000000'00000000; // reserv : 8;
+            static constexpr auto shadow_mask = (ui64)0b00000000'00000000'00000000'11111111'00000000'00000000'00000000'00000000; // shadow : 8; // Shadow bits.
             // Unique attributes. From 24th bit.
             static constexpr auto mosaic_mask = (ui64)0b00000000'00000000'11111111'00000000'00000000'00000000'00000000'00000000; // ui32 mosaic : 8; // High 3 bits -> y-fragment (0-4 utf::matrix::ky), low 5 bits -> x-fragment (0-16 utf::matrix::kx). // Ref:  https://gitlab.freedesktop.org/terminal-wg/specifications/-/issues/23
             static constexpr auto curbgc_mask = (ui64)0b00000000'11111111'00000000'00000000'00000000'00000000'00000000'00000000; // bgcclr : 8; // Cursor 256-color 6x6x6-cube index. Alpha not used.
@@ -1406,17 +1399,6 @@ namespace netxs
             static constexpr auto x_bits = utf::matrix::x_bits; // Character geometry x fragment selector bits (for mosaic_mask).
             static constexpr auto y_bits = utf::matrix::y_bits; // Character geometry y fragment selector bits offset (for mosaic_mask).
             static constexpr auto shared_bits = ((ui64)1 << netxs::field_offset<mosaic_mask>()) - 1;
-
-            // Fusion: Background interpolation current c0 with neighbor c1 and c2 cells:
-            //    c0 c1
-            //    c2
-            // BG interpolation type (two 1-bit values):
-            // 0 -- None
-            // 1 -- Cubic
-            //
-            // 0 1
-            // │ └────── interpolation type between `c0` and `c2`
-            // └──────── interpolation type between `c0` and `c1`
 
             //todo Cf's can not be entered: even using paste from clipboard
             //don't show (drop) Cf's but allow input it in any order (app is responsible to show it somehow)
@@ -1477,10 +1459,8 @@ namespace netxs
                         {
                             if (auto cursor = token & cursor_mask; cursor != (base.token & cursor_mask)) dest.cursor0((si32)(cursor >> netxs::field_offset<cursor_mask>()));
                             if (auto shadow = token & shadow_mask; shadow != (base.token & shadow_mask)) dest.dim(    (si32)(shadow >> netxs::field_offset<shadow_mask>()));
-                            //if (auto hplink = token & hplink_mask; hplink != (base.token & hplink_mask)) dest.hplink0((si32)(hplink >> netxs::field_offset<hplink_mask>()));
-                            //if (auto fusion = token & fusion_mask; fusion != (base.token & fusion_mask)) dest.fusion0((si32)(fusion >> netxs::field_offset<fusion_mask>()));
-                            //todo sync px
-                            //if (auto bitmap = token & bitmap_mask; bitmap != (base.token & bitmap_mask)) dest.bitmap0(!!bitmap);
+                            //todo check image
+                            //if (auto imageH = token & imageH_mask; imageH != (base.token & imageH_mask)) dest.imageH( (ui32)(imageH >> netxs::field_offset<imageH_mask>()));
                         }
                         if constexpr (Mode != svga::vt16) // It is not available in the Linux and Win8 consoles.
                         {
@@ -1538,7 +1518,6 @@ namespace netxs
                 token |= ((ui64)fg << netxs::field_offset<curfgc_mask>());
             }
             //void hplink0(ui64 c) { token &= ~hplink_mask; token |= (ui64)(c << netxs::field_offset<hplink_mask>()); }
-            //void fusion0(ui64 c) { token &= ~fusion_mask; token |= (ui64)(c << netxs::field_offset<fusion_mask>()); }
 
             bool bld()    const { return !!(token & bolded_mask); }
             bool itc()    const { return !!(token & italic_mask); }
@@ -1689,7 +1668,7 @@ namespace netxs
         glyf gc; // 8U, cell: Grapheme cluster.
         body st; // 8U, cell: Style attributes.
         id_t id; // 4U, cell: Link ID.
-        pict px; // 4U, cell: Reference to the raw bitmap attached to the cell.
+        pict px; // 4U, cell: Background image index and metadata.
 
         cell()
             : id{ 0 }
@@ -1748,6 +1727,69 @@ namespace netxs
         }
 
         operator bool () const { return st.xy(); } // cell: Return true if cell contains printable character.
+
+        // Background image prop masks:
+        // Internal, stored within the cell:
+        //  bits | value                                             | storage
+        // ------|---------------------------------------------------|--------------
+        //  16   | Image index. ui16                                 | px_idx_16_mask
+        //  3    | align=[center|left|right][,][middle|top|bottom]   | px_align3_mask
+        //  2    | flip=[none|v|h|vh]                                | px_flip_2_mask
+        //  11   | width. ui16                                       | px_imgW11_mask
+        //  10   | height. ui16                                      | st:imgH10_mask
+        //  11   | x fragment. ui16                                  | uv_imageX11_mask
+        //  10   | y fragment. ui16                                  | uv_imageY10_mask
+        //  2    | mirror=[none|v|h|vh]                              | uv_mirror_2_mask
+        //  2    | rotate=[0|90|180|270]                             | uv_rotate_2_mask
+        //  2    | scale=[inside|outside|stretch|none]               | uv_scale__2_mask
+        //  5    | reserved                                          | uv_reseved5_mask
+
+        static constexpr auto px_idx_16_mask = (ui32)0b00000000'00000000'11111111'11111111;
+        static constexpr auto px_align3_mask = (ui32)0b00000000'00000111'00000000'00000000;
+        static constexpr auto px_flip_2_mask = (ui32)0b00000000'00011000'00000000'00000000;
+        static constexpr auto px_imgW11_mask = (ui32)0b11111111'11100000'00000000'00000000;
+      //static constexpr auto st:imgH10_mask
+        static constexpr auto uv_imageX11_mask = (ui32)0b11111111'11100000'00000000'00000000;
+      //static constexpr auto uv_reserv_5_mask = (ui32)0b00000000'00011111'00000000'00000000;
+        static constexpr auto uv_mirror_2_mask = (ui32)0b00000000'00000000'11000000'00000000;
+        static constexpr auto uv_rotate_2_mask = (ui32)0b00000000'00000000'00110000'00000000;
+        static constexpr auto uv_scale__2_mask = (ui32)0b00000000'00000000'00001100'00000000;
+        static constexpr auto uv_imageY10_mask = (ui32)0b00000000'00000000'00000011'11111111;
+
+        auto get_image_xy() const
+        {
+            auto x = netxs::get_field<uv_imageX11_mask>(uv.bg.token);
+            auto y = netxs::get_field<uv_imageY10_mask>(uv.bg.token);
+            return twod{ x, y };
+        }
+        auto set_image_xy(twod xy)
+        {
+            netxs::set_field<uv_imageX11_mask>(xy.x, uv.bg.token);
+            netxs::set_field<uv_imageY10_mask>(xy.y, uv.bg.token);
+        }
+        auto get_image_size() const
+        {
+            auto w = netxs::get_field<px_imgW11_mask>(px.token);
+            auto h = netxs::get_field<st.imgH10_mask>(st.token);
+            return twod{ w, h };
+        }
+        auto set_image_size(twod wh)
+        {
+            netxs::set_field<px_imgW11_mask>(wh.x, px.token);
+            netxs::set_field<st.imgH10_mask>(wh.y, st.token);
+        }
+        auto get_image_index()  const { return netxs::get_field<px_idx_16_mask  >(px.token   ); }
+        auto get_image_align()  const { return netxs::get_field<px_align3_mask  >(px.token   ); }
+        auto get_image_flip()   const { return netxs::get_field<px_flip_2_mask  >(px.token   ); }
+        auto get_image_mirror() const { return netxs::get_field<uv_mirror_2_mask>(uv.bg.token); }
+        auto get_image_rotate() const { return netxs::get_field<uv_rotate_2_mask>(uv.bg.token); }
+        auto get_image_scale()  const { return netxs::get_field<uv_scale__2_mask>(uv.bg.token); }
+        auto set_image_index( si32 n) { netxs::set_field<px_idx_16_mask  >(n, px.token   ); }
+        auto set_image_align( si32 n) { netxs::set_field<px_align3_mask  >(n, px.token   ); }
+        auto set_image_flip(  si32 n) { netxs::set_field<px_flip_2_mask  >(n, px.token   ); }
+        auto set_image_mirror(si32 n) { netxs::set_field<uv_mirror_2_mask>(n, uv.bg.token); }
+        auto set_image_rotate(si32 n) { netxs::set_field<uv_rotate_2_mask>(n, uv.bg.token); }
+        auto set_image_scale( si32 n) { netxs::set_field<uv_scale__2_mask>(n, uv.bg.token); }
 
         auto is_empty() const // cell: Return true if cell is absolutely empty.
         {
