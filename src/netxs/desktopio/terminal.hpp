@@ -1205,6 +1205,8 @@ namespace netxs::ui
                 vt.oscer[osc_clipboard  ] = V{ p->owner.forward_clipboard(q);           };
                 vt.oscer[osc_term_notify] = V{ p->owner.osc_notify(q);                  };
                 vt.oscer[osc_semantic_fx] = V{ p->owner.osc_marker(q);                  };
+                vt.oscer[osc_glyph      ] = V{ p->owner.osc_glyphs(q);                  };
+                vt.oscer[osc_image      ] = V{ p->owner.osc_images(q);                  };
                 #undef V
 
                 // Log all unimplemented CSI commands.
@@ -7189,6 +7191,7 @@ namespace netxs::ui
         bool       bottom_anchored; // term: Anchor scrollback content when resizing (default is anchor at bottom).
         ui32       event_sources; // term: vt-input-mode event reporting bit-field.
         ui64       session_token; // term: Interactive session token.
+        utf::unordered_map<text, netxs::sptr<cell::image>> image_cache; // term: Image cache.
         vtty       ipccon; // term: IPC connector. Should be destroyed first.
 
         // term: Place rectangle block to the scrollback buffer.
@@ -7296,6 +7299,131 @@ namespace netxs::ui
                         base::riseup(tier::preview, e2::form::prop::cwd, path);
                     });
                 }
+            }
+        }
+        // term: Dynamic Glyph Redefinition.
+        void osc_glyphs(view /*data*/)
+        {
+            //todo implement
+            log("%%Dynamic Glyph Redefinition is not implemented yet", prompt::term);
+        }
+        // term: SVG Image Protocol.
+        void osc_images(qiew data)
+        {
+            utf::trim(data, ' ');
+            if (!data) return;
+
+            auto id_str    = qiew{};
+            auto attrs_str = qiew{};
+            auto doc_str   = qiew{};
+            auto do_register    = faux;
+            auto do_unregister  = faux;
+            auto do_print       = faux;
+            auto do_find_svg_id = faux;
+            auto do_parse_attrs = faux;
+            auto image_ptr = netxs::sptr<cell::image>{};
+            auto new_attrs = decltype(cell::image::attr_values){};
+
+            auto delimpos = data.find(';');
+            if (delimpos == text::npos) // data: " id ; attrs ; doc"  Find by id and update/register and print.
+                                        //       " ; attrs ; doc "    Find id in svg and register. (id=<svg id="...">)
+                                        //       " ; ; doc "          Find id in svg and register. (id=<svg id="...">)
+                                        //       " id "               Find by id and print.
+                                        //       " id ; attrs "       Find by id and print applying new attrs.
+                                        //       " id ; ; "           Find by id and unregister.
+            {
+                id_str = data;
+                utf::trim(id_str, ' ');
+                do_print = !id_str.empty();
+            }
+            else
+            {
+                id_str = data.substr(0, delimpos++);
+                log("id_str=", id_str);
+                utf::trim(id_str, ' ');
+                do_print = !id_str.empty();
+                do_find_svg_id = id_str.empty();
+                data.remove_prefix(delimpos); // Remove " id ;"
+                delimpos = data.find(';'); // Look at attr end. data: " attr ; doc" or " attr "
+                do_register = delimpos != text::npos;
+                attrs_str = data.substr(0, delimpos);
+                utf::trim(attrs_str, ' ');
+                do_parse_attrs = !attrs_str.empty();
+                delimpos += do_register; // Pop ";" if it is.
+                data.remove_prefix(delimpos); // Remove " attrs [;]"
+                doc_str = data;
+                utf::trim(doc_str, ' ');
+                if (do_register && doc_str.empty())
+                {
+                    do_register = faux;
+                    do_unregister = true;
+                }
+            }
+
+            if (do_unregister)
+            {
+                if (auto iter = image_cache.find(id_str); iter != image_cache.end())
+                {
+                    image_ptr = iter->second;
+                    log("unregister");
+                    //todo unregister in cell::images.
+                    //...
+                }
+            }
+            else
+            {
+                if (do_find_svg_id)
+                {
+                    log("looking for id_str");
+                    if (doc_str.starts_with("<svg "))
+                    {
+                        doc_str.remove_prefix("<svg "sv.size() - 1); // Keep space.
+                        auto svg_attrs = doc_str.substr(0, doc_str.find('>'));
+                        while (svg_attrs)
+                        {
+                            auto pos = svg_attrs.find(" id");
+                            if (pos == text::npos) break;
+                            svg_attrs.remove_prefix(pos + " id"sv.size());
+                            utf::trim_front(svg_attrs, ' ');
+                            if (svg_attrs.front() == '=')
+                            {
+                                utf::trim_front(svg_attrs, " =");
+                                if (svg_attrs && (svg_attrs.front() == '\'' || svg_attrs.front() == '\"'))
+                                {
+                                    id_str = utf::remove_quotes(utf::get_quote(svg_attrs));
+                                    log(" id_str found = '%%'", id_str);
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    if (id_str.empty())
+                    {
+                        if (io_log) log("%%Broken SVG-document (no id)", prompt::term);
+                        return;
+                    }
+                }
+                if (do_parse_attrs)
+                {
+                    if (auto iter = image_cache.find(id_str); iter != image_cache.end()) // Initialize by existing attr values.
+                    {
+                        image_ptr = iter->second;
+                        new_attrs = image_ptr->attr_values;
+                        log("image_ptr found");
+                    }
+                    while (attrs_str)
+                    {
+                        auto [attr_str, value_str] = utf::get_pair(attrs_str);
+                        log(" attr_str=%%, value_str=%%", attr_str, value_str);
+                        if (auto p = imagens::parse_pair(attr_str, value_str))
+                        {
+                            auto [i, v] = p.value();
+                            new_attrs[i] = v;
+                            log("  new_attrs[%%]=%%", i, v);
+                        }
+                    }
+                }
+                //
             }
         }
         // term: Forward clipboard data (OSC 52).

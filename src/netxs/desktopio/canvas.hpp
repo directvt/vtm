@@ -18,6 +18,10 @@ namespace netxs
         dtvt ,
     };
 
+    enum class bias : byte { none, left, right, center, };
+    enum class wrap : byte { none, on,  off,            };
+    enum class rtol : byte { none, rtl, ltr,            };
+
     namespace zpos
     {
         static constexpr auto backmost = -1;
@@ -33,6 +37,32 @@ namespace netxs
         static constexpr auto wavy   = 3;
         static constexpr auto dotted = 4;
         static constexpr auto dashed = 5;
+    }
+
+    namespace scale_mode
+    {
+        static constexpr auto inside  = 0;
+        static constexpr auto outside = 1;
+        static constexpr auto stretch = 2;
+        static constexpr auto none    = 3;
+    }
+    namespace align_mode                         // horizontal            vertical
+    {
+        static constexpr auto center        = (si32)bias::center | ((si32)bias::center << 8);
+        static constexpr auto left          = (si32)bias::left   | ((si32)bias::center << 8);
+        static constexpr auto right         = (si32)bias::right  | ((si32)bias::center << 8);
+        static constexpr auto middle        = (si32)bias::center | ((si32)bias::center << 8);
+        static constexpr auto top           = (si32)bias::center | ((si32)bias::left   << 8);
+        static constexpr auto bottom        = (si32)bias::center | ((si32)bias::right  << 8);
+        static constexpr auto center_middle = (si32)bias::center | ((si32)bias::center << 8);
+        static constexpr auto center_top    = (si32)bias::center | ((si32)bias::left   << 8);
+        static constexpr auto center_bottom = (si32)bias::center | ((si32)bias::right  << 8);
+        static constexpr auto left_middle   = (si32)bias::left   | ((si32)bias::center << 8);
+        static constexpr auto left_top      = (si32)bias::left   | ((si32)bias::left   << 8);
+        static constexpr auto left_bottom   = (si32)bias::left   | ((si32)bias::right  << 8);
+        static constexpr auto right_middle  = (si32)bias::right  | ((si32)bias::center << 8);
+        static constexpr auto right_top     = (si32)bias::right  | ((si32)bias::left   << 8);
+        static constexpr auto right_bottom  = (si32)bias::right  | ((si32)bias::right  << 8);
     }
 
     namespace text_cursor
@@ -1160,69 +1190,106 @@ namespace netxs
         }
     };
 
+    namespace imagens
+    {
+        #define attr_list \
+            X(width ) \
+            X(height) \
+            X(row   ) \
+            X(column) \
+            X(align ) \
+            X(scale ) \
+            X(flip  ) \
+            X(mirror) \
+            X(rotate)
+
+        static constexpr auto _counter = __COUNTER__ + 1;
+        #define X(_attr) static constexpr auto _attr = __COUNTER__ - _counter; // width = __COUNTER__ - _counter;
+            attr_list
+            static constexpr auto attr_count = __COUNTER__ - _counter;
+        #undef X
+        //static constexpr auto std::array<view, imagens::attr_count> attr_name =
+        //{
+        //    #define X(_attr) #_attr, // "width",
+        //        attr_list
+        //    #undef X
+        //};
+
+        static const auto attr_index_map = utf::unordered_map<text, si32>
+        {
+            #define X(_attr) { #_attr, imagens::_attr },
+                attr_list
+            #undef X
+        };
+        static const auto value_index_map = std::unordered_map<si32, utf::unordered_map<text, si32>>
+        {
+            { imagens::align, {{ "center" , align_mode::center }, { "center-middle" , align_mode::center_middle }, { "center-top" , align_mode::center_top }, { "center-bottom" , align_mode::center_bottom },
+                               { "left"   , align_mode::left   }, { "left-middle"   , align_mode::left_middle   }, { "left-top"   , align_mode::left_top   }, { "left-bottom"   , align_mode::left_bottom   },
+                               { "right"  , align_mode::right  }, { "right-middle"  , align_mode::right_middle  }, { "right-top"  , align_mode::right_top  }, { "right-bottom"  , align_mode::right_bottom  },
+                               { "middle" , align_mode::middle }, { "middle-center" , align_mode::center_middle }, { "top-center" , align_mode::center_top }, { "bottom-center" , align_mode::center_bottom },
+                               { "top"    , align_mode::top    }, { "middle-left"   , align_mode::left_middle   }, { "top-left"   , align_mode::left_top   }, { "bottom-left"   , align_mode::left_bottom   },
+                               { "bottom" , align_mode::bottom }, { "middle-right"  , align_mode::right_middle  }, { "top-right"  , align_mode::right_top  }, { "bottom-right"  , align_mode::right_bottom  }} },
+            { imagens::scale, {{ "inside" , scale_mode::inside  },
+                               { "outside", scale_mode::outside },
+                               { "stretch", scale_mode::stretch },
+                               { "none"   , scale_mode::none    }} },
+            { imagens::flip,   {{ "none", 0 }, { "v" , 0b01 }, { "h" , 0b10 }, { "vh" , 0b11 }, { "hv" , 0b11 }} },
+            { imagens::mirror, {{ "none", 0 }, { "v" , 0b01 }, { "h" , 0b10 }, { "vh" , 0b11 }, { "hv" , 0b11 }} },
+            { imagens::rotate, {{ "0", 0 }, { "90" , 1 }, { "180" , 2 }, { "270" , 3 }} },
+        };
+        auto parse_pair(view key, view val) -> std::optional<std::pair<si32, si32>>
+        {
+            if (auto key_iter = imagens::attr_index_map.find(key); key_iter != imagens::attr_index_map.end())
+            {
+                auto key_index = key_iter->second;
+                if (auto val_map_iter = imagens::value_index_map.find(key_index); val_map_iter != imagens::value_index_map.end()) // Look literals.
+                {
+                    auto& val_map = val_map_iter->second;
+                    if (auto val_iter = val_map.find(val); val_iter != val_map.end())
+                    {
+                        auto val_index = val_iter->second;
+                        return std::pair{ key_index, val_index };
+                    }
+                }
+                else if (auto v = utf::to_int(val))// Take integer.
+                {
+                    auto val_index = v.value();
+                    return std::pair{ key_index, val_index };
+                }
+            }
+            return std::nullopt;
+        }
+    }
+
     // canvas: Grapheme cluster.
     struct cell
     {
+        struct image
+        {
+            std::array<si32, imagens::attr_count> attr_values;
+            text id;
+            text svg_document;
+
+            #undef attr_list
+        };
+
+        static auto jumbos()
+        {
+            static auto cache = netxs::generics::cache<text>{};
+            return cache.storage();
+        }
+        static auto images()
+        {
+            static auto cache = netxs::generics::cache<netxs::sptr<cell::image>>{};
+            return cache.storage();
+        }
+
         struct glyf
         {
             static auto jumbos()
             {
-                using lock = std::mutex;
-                using sync = std::lock_guard<lock>;
-                using depo = std::unordered_map<ui64, text>;
-                using uset = std::unordered_set<ui64>;
-
-                struct vars
-                {
-                    lock mutex{}; // Cluster map mutex. Do we need to reset/clear/flush the map?
-                    depo jumbo{}; // Jumbo cluster map.
-                    uset undef{}; // List of unknown tokens.
-                };
-                struct guard : sync
-                {
-                    depo& map;
-                    uset& unk;
-                    guard(vars& inst)
-                        : sync{ inst.mutex },
-                           map{ inst.jumbo },
-                           unk{ inst.undef }
-                    { }
-                    // jumbos: Get cluster.
-                    auto& get(ui64 token)
-                    {
-                        if (auto iter = map.find(token); iter != map.end())
-                        {
-                            return iter->second;
-                        }
-                        else
-                        {
-                            static auto empty = text{};
-                            unk.insert(token);
-                            return empty;
-                        }
-                    }
-                    // jumbos: Set cluster.
-                    void set(ui64 token, view data)
-                    {
-                        map[token] = data;
-                    }
-                    // jumbos: Add cluster.
-                    void add(ui64 token, view data)
-                    {
-                        map.insert(std::pair{ token, data }); // Silently ignore if it exists.
-                    }
-                    // jumbos: Check the cluster existence by token.
-                    auto exists(ui64 token)
-                    {
-                        auto iter = map.find(token);
-                        auto okay = iter != map.end();
-                        if (!okay) unk.insert(token);
-                        return okay;
-                    }
-                };
-
-                static auto inst = vars{};
-                return guard{ inst };
+                static auto cache = netxs::generics::cache<text>{};
+                return cache.storage();
             }
 
             // If bytes[1] & 0b11'00'0000 == 0b10'00'0000 (first byte in UTF-8 cannot start with 0b10......) - If so, cluster is stored in an external map (jumbo cluster).
@@ -1337,7 +1404,7 @@ namespace netxs
             view get() const
             {
                 if constexpr (Mode == svga::dtvt) return {};
-                auto crop = is_jumbo() ? jumbos().get(jgc_token())
+                auto crop = is_jumbo() ? view{ jumbos().get(jgc_token()) }
                                        : view(bytes() + 1, str_len());
                 if constexpr (Mode != svga::vt_2D)
                 {
@@ -2741,10 +2808,6 @@ namespace netxs
             }
         }
     };
-
-    enum class bias : byte { none, left, right, center, };
-    enum class wrap : byte { none, on,  off,            };
-    enum class rtol : byte { none, rtl, ltr,            };
 
     namespace mime
     {

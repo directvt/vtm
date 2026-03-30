@@ -1189,6 +1189,72 @@ namespace netxs::generics
             empty_key = ui32max;
         }
     };
+
+    // generics: Object cache.
+    template<class T, class Key = ui64>
+    struct cache
+    {
+    protected:
+        using lock = std::mutex;
+        using sync = std::lock_guard<lock>;
+        using depo = std::unordered_map<Key, T>;
+        using uset = std::unordered_set<Key>;
+
+        lock mutex{}; // Object map mutex.
+        depo store{}; // Object map.
+        uset undef{}; // List of unknown tokens.
+
+        struct guard : sync
+        {
+            depo& map;
+            uset& unk;
+
+            guard(cache& inst)
+                : sync{ inst.mutex },
+                   map{ inst.store },
+                   unk{ inst.undef }
+            { }
+
+            // storage: Get object.
+            auto& get(Key token)
+            {
+                if (auto iter = map.find(token); iter != map.end())
+                {
+                    return iter->second;
+                }
+                else
+                {
+                    static auto empty_object = T{};
+                    unk.insert(token);
+                    return empty_object;
+                }
+            }
+            // storage: Set object.
+            void set(Key token, auto&& object)
+            {
+                map[token] = std::forward<decltype(object)>(object);
+            }
+            // storage: Add object.
+            void add(Key token, auto&& object)
+            {
+                map.insert(std::pair{ token, std::forward<decltype(object)>(object) }); // Silently ignore if it exists.
+            }
+            // storage: Check the object existence by token.
+            auto exists(Key token)
+            {
+                auto iter = map.find(token);
+                auto okay = iter != map.end();
+                if (!okay) unk.insert(token);
+                return okay;
+            }
+        };
+
+    public:
+        auto storage()
+        {
+            return guard{ *this };
+        }
+    };
 }
 
 // generics: Map helpers.

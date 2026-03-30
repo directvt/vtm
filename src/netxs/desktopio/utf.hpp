@@ -2452,6 +2452,20 @@ namespace netxs::utf
         }
         return utf8;
     }
+    // utf: Take key,val from [ ]*key[ ]*=[ ]*val
+    auto get_pair(auto& utf8)
+    {
+        utf::trim_front(utf8, ' ');
+        auto key = utf::take_front<faux>(utf8, " =");
+        auto val = decltype(key){};
+        utf::trim_front(utf8, ' ');
+        if (utf8.size() && utf8.front() == '=')
+        {
+            utf::trim_front(utf8, " =");
+            val = utf::remove_quotes(utf::take_front<faux>(utf8, " "));
+        }
+        return std::pair{ key, val };
+    }
     // utf: Split text line into quoted tokens.
     auto tokenize(view utf8, auto&& args)
     {

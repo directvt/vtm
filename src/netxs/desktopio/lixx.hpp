@@ -5228,7 +5228,7 @@ namespace netxs::lixx // li++, libinput++.
                     auto s = strv[idx].data();
                     auto c = *s++;
                     auto enable = faux;
-                            if (c == '+') enable = true;
+                         if (c == '+') enable = true;
                     else if (c == '-') enable = faux;
                     else
                     {
@@ -5251,9 +5251,9 @@ namespace netxs::lixx // li++, libinput++.
                         auto consumed = 0;
                         char stype[13] = {}; // EV_FF_STATUS + '\0'.
                         if (::sscanf(s, "%12[A-Z_]:%x%n", stype, &code, &consumed) != 2
-                            || ::strlen(s) != (ui64)consumed
-                            || (type = libevdev_event_type_from_name(stype)) == -1
-                            || code < 0 || code > libevdev_event_type_get_max(type))
+                         || ::strlen(s) != (ui64)consumed
+                         || (type = libevdev_event_type_from_name(stype)) == -1
+                         || code < 0 || code > libevdev_event_type_get_max(type))
                         {
                             rc = faux;
                             break;
@@ -5289,7 +5289,7 @@ namespace netxs::lixx // li++, libinput++.
                     auto c = *s++;
                     auto prop = 0u;
                     auto enable = faux;
-                            if (c == '+') enable = true;
+                         if (c == '+') enable = true;
                     else if (c == '-') enable = faux;
                     else
                     {
@@ -5498,7 +5498,7 @@ namespace netxs::lixx // li++, libinput++.
                 auto value = strv[1];
                 if (key.size() && value.size() && value[0] != '"' && value[0] != '\'') // The value is not supposed to be in quotes.
                 {
-                            if (key.starts_with("Match")) rc = parse_match(s, key, value);
+                         if (key.starts_with("Match")) rc = parse_match(s, key, value);
                     else if (key.starts_with("Model")) rc = parse_model(s, key, value);
                     else if (key.starts_with("Attr") ) rc = parse_attr( s, key, value);
                     else log("Unknown value prefix %s%", line);
