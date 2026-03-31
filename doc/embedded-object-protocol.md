@@ -6,11 +6,11 @@ The **Embedded Object Protocol (EOP)** allows vector, bitmap, and extensible mar
 
 - **Rectangular Area**: The object is hosted within a defined rectangular grid of cells ($width \times height$).
 - **Persistence**: Metadata is stored per-cell; survives scrollback and reflows.
-- **Non-destructive**: Outputting an object does not destroy existing text. Only the cell's original **SGR background color** is replaced by the object's `background` attribute value.
+- **Non-destructive**: Outputting an object does not destroy existing text in the cells. Only the cell's original **SGR background color** is replaced by the object's `background` attribute value.
 - **Z-order**: Default is **text on top**. **SGR 7 (Reverse Video)** toggles the cell to **object on top of text**.
 - **Background Fill**: The `background` attribute defines a solid RGBA color for the entire rectangular area. This fill is always rendered as the **bottom-most layer**, providing a consistent backdrop for paddings (e.g., in `scale=inside` mode) regardless of **SGR 7**.
 - **Foreground Color**: The underlying cell **SGR foreground color** maps to `currentColor` (for SVG).
-- **Line Wrapping**: The object's cell-runs follow the current line-wrap mode. If wrapping is enabled, the object will wrap to the next line if it exceeds the viewport width. If wrapping is disabled, horizontal scrolling is used.
+- **Line Wrapping**: The object's cell-runs follow the current line-wrap mode (wrap or horizontal scroll).
 - **Cursor Position**:
   - The top-left corner of the object's rectangle is anchored to the current cursor position.
   - After outputting the object, the cursor moves to the cell immediately following the **bottom-right** corner of the object's rectangle.
@@ -60,7 +60,7 @@ Input State             | Action
 3. Extract the document body and resume parsing attributes from the remaining string segments.
 4. The transformation pipeline (`transform`, `flip`, `rotate`) is execution-order dependent based on their sequence in the attributes string.
 5. Bitwise Transformation Logic (3-bit state):
-   ```
+   ```cpp
    Rotate:          state = (state & 0b100) | ((state + rotationCCW90_steps) & 0b011)
    Horizontal Flip: state = (state ^ 0b100) | ((state + (state & 1 ? 2 : 0)) & 0b011)
    Vertical Flip:   state = (state ^ 0b100) | ((state + (state & 1 ? 0 : 2)) & 0b011)
