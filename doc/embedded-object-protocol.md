@@ -6,11 +6,13 @@ The **Embedded Object Protocol (EOP)** allows vector, bitmap, and extensible mar
 
 - **Rectangular Area**: The object is hosted within a defined rectangular grid of cells ($width \times height$).
 - **Persistence**: Metadata is stored per-cell; survives scrollback and reflows.
-- **Non-destructive**: Outputting an object does not destroy existing text in the cells. Only the cell's original **SGR background color** is replaced by the object's `background` attribute value.
+- **Non-destructive**: Outputting an object does not destroy existing text. The cell's original SGR background color is replaced by the object's `background` attribute.
 - **Z-order**: Default is **text on top**. **SGR 7 (Reverse Video)** toggles the cell to **object on top of text**.
-- **Background Fill**: The `background` attribute defines a solid RGBA color for the entire rectangular area. This fill is always rendered as the **bottom-most layer**, providing a consistent backdrop for paddings (e.g., in `scale=inside` mode) regardless of **SGR 7**.
+- **Background Fill**: The `background` attribute defines a solid RGBA color for the entire rectangular area. This fill is the **bottom-most layer**, providing a backdrop for paddings regardless of **SGR 7**.
 - **Foreground Color**: The underlying cell **SGR foreground color** maps to `currentColor` (for SVG).
-- **Line Wrapping**: The object's cell-runs follow the current line-wrap mode (wrap or horizontal scroll).
+- **Line Wrapping & Reflow**:
+  - The object's cell-runs follow the current line-wrap mode (wrap or horizontal scroll).
+  - Cell-runs are output sequentially (row by row). Even if wrapped, they remain logically linked so that increasing the viewport width allows them to reflow back into a strict rectangular raster.
 - **Cursor Position**:
   - The top-left corner of the object's rectangle is anchored to the current cursor position.
   - After outputting the object, the cursor moves to the cell immediately following the **bottom-right** corner of the object's rectangle.
@@ -34,31 +36,31 @@ Attribute     | Values                                 | Default                
 --------------|----------------------------------------|--------------------------|------------
 **id**        | `<id>[/sub-id]`                        | empty string (`""`)      | Object reference ID. If omitted, the ID from the root tag is used.
 **background**| `#rrggbb[aa]`                          | `#00000000`              | RGBA color for filling the background of the object's rectangle.
-**width**     | `1`..`2047`                            | Terminal viewport width  | Width of the charcell rectangle (hosting area) in cells.
-**height**    | `1`..`1023`                            | Terminal viewport height | Height of the charcell rectangle (hosting area) in cells.
+**width**     | `1`..`2047`                            | Terminal viewport width  | Width of the rectangle in cells.
+**height**    | `1`..`1023`                            | Terminal viewport height | Height of the rectangle in cells.
 **row**       | `0`..`<height>`                        | `0`                      | Vertical slice index (0 = full height, 1..n = specific cell).
 **column**    | `0`..`<width>`                         | `0`                      | Horizontal slice index (0 = full width, 1..n = specific cell).
-**align**     | \[`left`\|`center`\|`right`\]\[`-`\]\[`top`\|`middle`\|`bottom`\] | `center-middle` | 2D alignment within the charcell rectangle.
+**align**     | \[`left`\|`center`\|`right`\]\[`-`\]\[`top`\|`middle`\|`bottom`\] | `center-middle` | 2D alignment within the rectangle.
 **scale**     | `inside`\|`outside`\|`stretch`\|`none` | `inside`                 | Fit logic (none = exact pixels, cropped if larger).
-**transform** | `0`..`7`                               | `0`                      | 3-bit compact transformation state (Orientation matrix).
+**transform** | `0`..`7`                               | `0`                      | 3-bit compact transformation state.
 **flip**      | `none`\|`v`\|`h`\|`vh`                 | `none`                   | Applied in order of appearance in the string.
-**rotate**    | `0`\|`90`\|`180`\|`270`                | `0`                      | CCW rotation applied in order of appearance in the string.
+**rotate**    | `0`\|`90`\|`180`\|`270`                | `0`                      | CCW rotation applied in order of appearance.
 
 #### Lifecycle Logic
 
 Input State             | Action
 ------------------------|-------
-**id** + **doc**        | **Register & Display**: Store/update document in cache and output to the current cursor position.
+**id** + **doc**        | **Register & Display**: Store/update document in cache and output to current position.
 **id** + **empty-doc**  | **Unregister**: Remove the object referenced by `id` from cache (e.g., `<svg></svg>`).
-**id** + **no doc**     | **Display**: Output the existing cached object using provided or default attributes.
-**no id** + **doc**     | **Anonymous Display**: Use the internal root tag `id="..."` (e.g., `<svg id="..."></svg>`) for the session.
+**id** + **no doc**     | **Display**: Output existing cached object using provided or default attributes.
+**no id** + **doc**     | **Anonymous Display**: Use internal root tag `id="..."` for the session.
 
 #### Parsing Rules (Backend)
 
 1. Scan the OSC string for `key=value` pairs.
 2. Locate the document boundaries by finding the first `<tag` and the last `</tag>`.
-3. Extract the document body and resume parsing attributes from the remaining string segments.
-4. The transformation pipeline (`transform`, `flip`, `rotate`) is execution-order dependent based on their sequence in the attributes string.
+3. Extract the document body and resume parsing attributes from the remaining segments.
+4. The transformation pipeline (`transform`, `flip`, `rotate`) is execution-order dependent.
 5. Bitwise Transformation Logic (3-bit state):
    ```cpp
    Rotate:          state = (state & 0b100) | ((state + rotationCCW90_steps) & 0b011)
@@ -68,4 +70,4 @@ Input State             | Action
 
 #### Extensibility
 
-The protocol is engine-agnostic. While currently focused on **SVG**, the data segment is designed to support other resteriable formats - such as `<html>...</html>` or `<object>...</object>` - by identifying the root tag of the document body.
+The protocol is engine-agnostic. Focused on **SVG**, but designed to support other formats (e.g., `<html>`, `<object>`) via root tag identification.
