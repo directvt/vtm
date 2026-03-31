@@ -1,4 +1,4 @@
-### Universal Object Protocol
+### Embedded Object Protocol
 
 Outputting an **object** allows vector, bitmap, and extensible markup graphics to be displayed directly in the scrollback.
 
