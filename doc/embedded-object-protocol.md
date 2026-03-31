@@ -9,6 +9,7 @@ The **Embedded Object Protocol (EOP)** allows vector, bitmap, and extensible mar
 - **Z-order**: Default is **background** (text on top). **SGR 7 (Reverse Video)** toggles the cell to **foreground** (object on top of text).
 - **Non-destructive**: Outputting an object does not destroy existing text in the cells. Only the **SGR bgc** (background color) is replaced by the object's visual data.
 - **Rectangular Area**: The object is hosted within a defined rectangular grid of cells ($width \times height$).
+- **Line Wrapping**: The object's cell-runs follow the current line-wrap mode. If wrapping is enabled, the object will wrap to the next line if it exceeds the viewport width. If wrapping is disabled, horizontal scrolling is used.
 - **Cursor Position**: After outputting the object, the cursor moves to the cell immediately following the **bottom-right** corner of the object's rectangle.
 - **Re-rasterization**: The Graphical Frontend (FÉ) re-renders the object upon cell size changes to maintain pixel-perfection.
 
