@@ -8,6 +8,8 @@ The **Embedded Object Protocol (EOP)** allows vector, bitmap, and extensible mar
 - **Coloring**: The underlying cell **SGR fgc** maps to `currentColor` (for SVG).
 - **Z-order**: Default is **background** (text on top). **SGR 7 (Reverse Video)** toggles the cell to **foreground** (object on top of text).
 - **Non-destructive**: Outputting an object does not destroy existing text in the cells. Only the **SGR bgc** (background color) is replaced by the object's visual data.
+- **Rectangular Area**: The object is hosted within a defined rectangular grid of cells ($width \times height$).
+- **Cursor Position**: After outputting the object, the cursor moves to the cell immediately following the **bottom-right** corner of the object's rectangle.
 - **Re-rasterization**: The Graphical Frontend (FÉ) re-renders the object upon cell size changes to maintain pixel-perfection.
 
 #### Sequence Format
@@ -51,7 +53,8 @@ Input State             | Action
 1. Scan the OSC string for `key=value` pairs.
 2. Locate the document boundaries by finding the first `<tag` and the last `</tag>`.
 3. Extract the document body and resume parsing attributes from the remaining string segments.
-4. The transformation pipeline (`flip`, `mirror`, `rotate`) is execution-order dependent based on their sequence in the attributes string.
+4. The top-left corner of the object's rectangle is anchored to the current cursor position.
+5. The transformation pipeline (`flip`, `mirror`, `rotate`) is execution-order dependent based on their sequence in the attributes string.
 
 #### Extensibility
 
