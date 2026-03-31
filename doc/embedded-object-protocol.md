@@ -45,7 +45,7 @@ Attribute     | Values                                 | Default                
 **align**     | \[`left`\|`center`\|`right`\]\[`-`\]\[`top`\|`middle`\|`bottom`\] | `center-middle` | 2D alignment within the rectangle.
 **scale**     | `inside`\|`outside`\|`stretch`\|`none` | `inside`                 | Fit logic (none = exact pixels, cropped if larger).
 **transform** | `0`..`7`                               | `0`                      | 3-bit compact transformation state (flip+rotate).
-**flip**      | `none`\|`v`\|`h`\|`vh`                 | `none`                   | Applied in order of appearance in the string.
+**flip**      | `none`\|`v`\|`h`\|`vh`|`hv`            | `none`                   | Applied in order of appearance in the string.
 **rotate**    | `0`\|`90`\|`180`\|`270`                | `0`                      | CCW rotation applied in order of appearance.
 
 #### Lifecycle Logic

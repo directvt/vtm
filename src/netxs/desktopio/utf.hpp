@@ -2452,17 +2452,23 @@ namespace netxs::utf
         }
         return utf8;
     }
-    // utf: Take key,val from [ ]*key[ ]*=[ ]*val
+    // utf: Take key,val from key[ ]*=[ ]*val
     auto get_pair(auto& utf8)
     {
-        utf::trim_front(utf8, ' ');
         auto key = utf::take_front<faux>(utf8, " =");
         auto val = decltype(key){};
         utf::trim_front(utf8, ' ');
         if (utf8.size() && utf8.front() == '=')
         {
             utf::trim_front(utf8, " =");
-            val = utf::remove_quotes(utf::take_front<faux>(utf8, " "));
+            if (utf8 && (utf8.front() == '\'' || utf8.front() == '\"'))
+            {
+                val = utf::take_quote(utf8, utf8.front());
+            }
+            else
+            {
+                val = utf::take_front<faux>(utf8, " ");
+            }
         }
         return std::pair{ key, val };
     }

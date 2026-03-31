@@ -1194,15 +1194,15 @@ namespace netxs
     {
         #define attr_list \
             X(background) \
-            X(width ) \
-            X(height) \
-            X(row   ) \
-            X(column) \
-            X(align ) \
-            X(scale ) \
-            X(flip  ) \
-            X(mirror) \
-            X(rotate)
+            X(width     ) \
+            X(height    ) \
+            X(row       ) \
+            X(column    ) \
+            X(align     ) \
+            X(scale     ) \
+            X(flip      ) \
+            X(rotate    ) \
+            X(transform )
 
         static constexpr auto _counter = __COUNTER__ + 1;
         #define X(_attr) static constexpr auto _attr = __COUNTER__ - _counter; // width = __COUNTER__ - _counter;
@@ -1215,9 +1215,30 @@ namespace netxs
         //        attr_list
         //    #undef X
         //};
+        // Dihedral group D4 (the symmetries of a square)
         auto rotate_fx = [](auto& state, si32 s) { state = (state & 0b100) | ((state + s)                         & 0b011); };
-        auto flip_h_fx = [](auto& state)         { state = (state ^ 0b100) | ((state + (state & 1 ? 0b10 : 0b00)) & 0b011); };
         auto flip_v_fx = [](auto& state)         { state = (state ^ 0b100) | ((state + (state & 1 ? 0b00 : 0b10)) & 0b011); };
+        auto flip_h_fx = [](auto& state)         { state = (state ^ 0b100) | ((state + (state & 1 ? 0b10 : 0b00)) & 0b011); };
+        auto combine_transform_fx = [](auto s1, auto s2)
+        {
+            bool f1 = s1 & 4; // Extract reflection bits (4) and rotation bits (3).
+            bool f2 = s2 & 4;
+            auto r1 = s1 & 3;
+            auto r2 = s2 & 3;
+            // The new reflection bit is a simple XOR.
+            auto f = (f1 ^ f2) ? 4 : 0;
+            // The new rotation bit: 
+            // If the first state was reflected, the second rotation is subtracted.
+            // Otherwise, it is added.
+            auto r = (f1 ? (r1 - r2) : (r1 + r2)) & 3;
+            return f | r;
+        };
+        auto combine_align_fx = [](auto old_align, auto new_align)
+        {
+            auto res_h = (old_align & 0x00FF) ? (old_align & 0x00FF) : (new_align & 0x00FF);
+            auto res_v = (old_align & 0xFF00) ? (old_align & 0xFF00) : (new_align & 0xFF00);
+            return res_h | res_v;
+        };
 
         static const auto attr_index_map = utf::unordered_map<text, si32>
         {
@@ -1237,16 +1258,19 @@ namespace netxs
                                { "outside", scale_mode::outside },
                                { "stretch", scale_mode::stretch },
                                { "none"   , scale_mode::none    }} },
-            { imagens::flip,   {{ "none", 0 }, { "v" , 0b01 }, { "h" , 0b10 }, { "vh" , 0b11 }, { "hv" , 0b11 }} },
-            { imagens::mirror, {{ "none", 0 }, { "v" , 0b01 }, { "h" , 0b10 }, { "vh" , 0b11 }, { "hv" , 0b11 }} },
+            { imagens::flip,   {{ "none", 0 }, { "v" , 0b00'01 }, { "h" , 0b00'10 }, { "vh" , 0b10'01 }, { "hv" , 0b01'10 }} }, // Roll by two bits in loop and check last two bits.
             { imagens::rotate, {{ "0", 0 }, { "90" , 1 }, { "180" , 2 }, { "270" , 3 }} },
         };
-        auto parse_pair(view key, view val) -> std::optional<std::pair<si32, si32>>
+        auto parse_pair(qiew key, qiew val) -> std::optional<std::pair<si32, si32>>
         {
             if (auto key_iter = imagens::attr_index_map.find(key); key_iter != imagens::attr_index_map.end())
             {
                 auto key_index = key_iter->second;
-                if (auto val_map_iter = imagens::value_index_map.find(key_index); val_map_iter != imagens::value_index_map.end()) // Look literals.
+                if (val.empty())
+                {
+                    return std::pair{ key_index, 0 };
+                }
+                else if (auto val_map_iter = imagens::value_index_map.find(key_index); val_map_iter != imagens::value_index_map.end()) // Look literals.
                 {
                     auto& val_map = val_map_iter->second;
                     if (auto val_iter = val_map.find(val); val_iter != val_map.end())
@@ -1255,7 +1279,7 @@ namespace netxs
                         return std::pair{ key_index, val_index };
                     }
                 }
-                else if (auto v = utf::to_int(val))// Take integer.
+                else if (auto v = utf::to_int(val)) // Take integer.
                 {
                     auto val_index = v.value();
                     return std::pair{ key_index, val_index };
@@ -1270,7 +1294,7 @@ namespace netxs
     {
         struct image
         {
-            std::array<si32, imagens::attr_count> attr_values;
+            std::array<std::optional<si32>, imagens::attr_count> attr_values;
             text id;
             text svg_document;
 

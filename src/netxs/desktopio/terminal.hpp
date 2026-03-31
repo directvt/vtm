@@ -1206,7 +1206,7 @@ namespace netxs::ui
                 vt.oscer[osc_term_notify] = V{ p->owner.osc_notify(q);                  };
                 vt.oscer[osc_semantic_fx] = V{ p->owner.osc_marker(q);                  };
                 vt.oscer[osc_glyph      ] = V{ p->owner.osc_glyphs(q);                  };
-                vt.oscer[osc_image      ] = V{ p->owner.osc_images(q);                  };
+                vt.oscer[osc_object     ] = V{ p->owner.osc_objects(q);                 };
                 #undef V
 
                 // Log all unimplemented CSI commands.
@@ -7307,59 +7307,126 @@ namespace netxs::ui
             //todo implement
             log("%%Dynamic Glyph Redefinition is not implemented yet", prompt::term);
         }
-        // term: SVG Image Protocol.
-        void osc_images(qiew data)
+        // term: Embedded Object Protocol.
+        void osc_objects(qiew attrs_str)
         {
-            utf::trim(data, ' ');
-            if (!data) return;
-
-            auto id_str    = qiew{};
-            auto attrs_str = qiew{};
-            auto doc_str   = qiew{};
-            auto do_register    = faux;
-            auto do_unregister  = faux;
-            auto do_print       = faux;
-            auto do_find_svg_id = faux;
-            auto do_parse_attrs = faux;
+            utf::trim(attrs_str, ' ');
+            if (!attrs_str) return;
+            auto id_str     = qiew{};
+            auto doc_str    = qiew{};
+            auto doc_id_str = qiew{};
+            auto do_register   = faux;
+            auto do_unregister = faux;
             auto image_ptr = netxs::sptr<cell::image>{};
             auto new_attrs = decltype(cell::image::attr_values){};
-
-            auto delimpos = data.find(';');
-            if (delimpos == text::npos) // data: " id ; attrs ; doc"  Find by id and update/register and print.
-                                        //       " ; attrs ; doc "    Find id in svg and register. (id=<svg id="...">)
-                                        //       " ; ; doc "          Find id in svg and register. (id=<svg id="...">)
-                                        //       " id "               Find by id and print.
-                                        //       " id ; attrs "       Find by id and print applying new attrs.
-                                        //       " id ; ; "           Find by id and unregister.
+            // data: " id + attrs + doc"  Find by id and update/register and print.
+            //       " attrs + doc "      Find id in doc and register. (id=<doc id="...">)
+            //       " doc "              Find id in doc and register. (id=<doc id="...">)
+            //       " id "               Find by id and print.
+            //       " id + attrs "       Find by id and print applying new attrs.
+            //       " id + empty-doc "   Find by id and unregister. (doc=<tag></tag>)
+            new_attrs[imagens::transform] = 0;
+            auto& transform_state = new_attrs[imagens::transform].value();
+            while (attrs_str)
             {
-                id_str = data;
-                utf::trim(id_str, ' ');
-                do_print = !id_str.empty();
-            }
-            else
-            {
-                id_str = data.substr(0, delimpos++);
-                log("id_str=", id_str);
-                utf::trim(id_str, ' ');
-                do_print = !id_str.empty();
-                do_find_svg_id = id_str.empty();
-                data.remove_prefix(delimpos); // Remove " id ;"
-                delimpos = data.find(';'); // Look at attr end. data: " attr ; doc" or " attr "
-                do_register = delimpos != text::npos;
-                attrs_str = data.substr(0, delimpos);
-                utf::trim(attrs_str, ' ');
-                do_parse_attrs = !attrs_str.empty();
-                delimpos += do_register; // Pop ";" if it is.
-                data.remove_prefix(delimpos); // Remove " attrs [;]"
-                doc_str = data;
-                utf::trim(doc_str, ' ');
-                if (do_register && doc_str.empty())
+                if (attrs_str.front() == '<') // Extract document body <tag ...> ... </tag>
                 {
-                    do_register = faux;
-                    do_unregister = true;
+                    auto tmp = attrs_str;
+                    utf::trim_front(tmp, "< ");
+                    if (auto tag = utf::take_front<faux>(tmp, "> ")) // 'tag>' or 'tag ...'
+                    {
+                        auto degenerate_doc = text{};
+                        degenerate_doc.reserve(5 + tag.size() * 2); // "<" + tag + "></" + tag + ">"
+                        degenerate_doc += '<';
+                        degenerate_doc += tag;
+                        degenerate_doc += "></";
+                        degenerate_doc += tag;
+                        degenerate_doc += '>';
+                        auto closing_tag = degenerate_doc.substr(tag.size() + 2); // <tag></tag>
+                        auto closing_tag_pos = attrs_str.rfind(closing_tag);
+                        if (closing_tag_pos != text::npos) // Object document is found.
+                        {
+                            doc_str = attrs_str.substr(0, closing_tag_pos + closing_tag.size());
+                            attrs_str.remove_prefix(doc_str.size());
+                            do_unregister = doc_str == degenerate_doc;
+                            if (do_unregister)
+                            {
+                                doc_str = {};
+                            }
+                            else // Looking for Doc ID for sure.
+                            {
+                                do_register = true;
+                                auto doc_attrs = tmp;
+                                utf::trim_front(doc_attrs, ' ');
+                                while (doc_attrs && doc_attrs.front() != '>') // Stop on '>'.
+                                {
+                                    auto [key, val] = utf::get_pair(doc_attrs);
+                                    if (key == "id") // id="val"
+                                    {
+                                        doc_id_str = val;
+                                        log("Document id=%% is found", doc_id_str);
+                                        break;
+                                    }
+                                    utf::trim_front(doc_attrs, ' ');
+                                }
+                            }
+                            continue; // Document successfully extracted.
+                        }
+                    }
+                    if (io_log) log("%%Broken 'OSC object' document (invalid structure)", prompt::term);
                 }
+                else // Parse attributes.
+                {
+                    auto [attr_str, value_str] = utf::get_pair(attrs_str);
+                    if (attr_str == "id") // id="string".
+                    {
+                        log(" id found: %%=%%", attr_str, value_str);
+                        id_str = value_str;
+                    }
+                    else if (attr_str == "background")
+                    {
+                        auto color = 0; // Case when background="".
+                        if (value_str && value_str.front() == '#') // Take #rrggbb[aa] value.
+                        {
+                            if (auto v = xml::take<argb>(value_str))
+                            {
+                                color = netxs::letoh((si32)(v.value().token));
+                            }
+                        }
+                        new_attrs[imagens::background] = color;
+                    }
+                    else // Regular attributes (si32 or dict).
+                    {
+                        log(" attr_str=%%, value_str=%%", attr_str, value_str);
+                        if (auto p = imagens::parse_pair(attr_str, value_str))
+                        {
+                            auto [i, v] = p.value();
+                            log("  new_attrs[%%]=%%", i, v);
+                            switch (i) // Accumulate transforms if specified.
+                            {
+                                case imagens::flip:
+                                    while (v)
+                                    {
+                                        if (v & 0b01) imagens::flip_v_fx(transform_state);
+                                        if (v & 0b10) imagens::flip_h_fx(transform_state);
+                                        v >>= 2;
+                                    }
+                                    break;
+                                case imagens::rotate:
+                                    imagens::rotate_fx(transform_state, v);
+                                    break;
+                                case imagens::transform:
+                                    transform_state = std::clamp(v, 0, 7);
+                                    break;
+                                default:
+                                    new_attrs[i] = v;
+                                    break;
+                            }
+                        }
+                    }
+                }
+                utf::trim_front(attrs_str, ' ');
             }
-
             if (do_unregister)
             {
                 if (auto iter = image_cache.find(id_str); iter != image_cache.end())
@@ -7372,58 +7439,37 @@ namespace netxs::ui
             }
             else
             {
-                if (do_find_svg_id)
+                if (auto iter = image_cache.find(id_str); iter != image_cache.end()) // Merge with existing attributes.
                 {
-                    log("looking for id_str");
-                    if (doc_str.starts_with("<svg "))
+                    log("image_ptr found");
+                    image_ptr = iter->second;
+                    auto& old_attrs = image_ptr->attr_values;
+                    for (auto i = 0u; i < new_attrs.size(); i++)
                     {
-                        doc_str.remove_prefix("<svg "sv.size() - 1); // Keep space.
-                        auto svg_attrs = doc_str.substr(0, doc_str.find('>'));
-                        while (svg_attrs)
+                        auto& new_attr = new_attrs[i];
+                        auto& old_attr = old_attrs[i];
+                        if (!new_attr)
                         {
-                            auto pos = svg_attrs.find(" id");
-                            if (pos == text::npos) break;
-                            svg_attrs.remove_prefix(pos + " id"sv.size());
-                            utf::trim_front(svg_attrs, ' ');
-                            if (svg_attrs.front() == '=')
+                            new_attr = old_attr;
+                        }
+                        else if (old_attr)
+                        {
+                            switch (i)
                             {
-                                utf::trim_front(svg_attrs, " =");
-                                if (svg_attrs && (svg_attrs.front() == '\'' || svg_attrs.front() == '\"'))
-                                {
-                                    id_str = utf::remove_quotes(utf::get_quote(svg_attrs));
-                                    log(" id_str found = '%%'", id_str);
-                                }
-                                break;
+                                case imagens::align:
+                                    new_attr = imagens::combine_align_fx(old_attr.value(), new_attr.value());
+                                    break;
+                                case imagens::transform:
+                                    new_attr = imagens::combine_transform_fx(old_attr.value(), new_attr.value());
+                                    break;
+                                default:
+                                    old_attr = new_attr;
+                                    break;
                             }
                         }
                     }
-                    if (id_str.empty())
-                    {
-                        if (io_log) log("%%Broken SVG-document (no id)", prompt::term);
-                        return;
-                    }
                 }
-                if (do_parse_attrs)
-                {
-                    if (auto iter = image_cache.find(id_str); iter != image_cache.end()) // Initialize by existing attr values.
-                    {
-                        image_ptr = iter->second;
-                        new_attrs = image_ptr->attr_values;
-                        log("image_ptr found");
-                    }
-                    while (attrs_str)
-                    {
-                        auto [attr_str, value_str] = utf::get_pair(attrs_str);
-                        log(" attr_str=%%, value_str=%%", attr_str, value_str);
-                        if (auto p = imagens::parse_pair(attr_str, value_str))
-                        {
-                            auto [i, v] = p.value();
-                            new_attrs[i] = v;
-                            log("  new_attrs[%%]=%%", i, v);
-                        }
-                    }
-                }
-                //
+                //todo register/print
             }
         }
         // term: Forward clipboard data (OSC 52).
