@@ -42,7 +42,7 @@ Attribute     | Values                                 | Default                
 **column**    | `0`..`<width>`                         | `0`                      | Horizontal slice index (0 = full width, 1..n = specific cell).
 **align**     | \[`left`\|`center`\|`right`\]\[`-`\]\[`top`\|`middle`\|`bottom`\] | `center-middle` | 2D alignment within the rectangle.
 **scale**     | `inside`\|`outside`\|`stretch`\|`none` | `inside`                 | Fit logic (none = exact pixels, cropped if larger).
-**transform** | `0`..`7`                               | `0`                      | 3-bit compact transformation state.
+**transform** | `0`..`7`                               | `0`                      | 3-bit compact transformation state (flip+rotate).
 **flip**      | `none`\|`v`\|`h`\|`vh`                 | `none`                   | Applied in order of appearance in the string.
 **rotate**    | `0`\|`90`\|`180`\|`270`                | `0`                      | CCW rotation applied in order of appearance.
 
