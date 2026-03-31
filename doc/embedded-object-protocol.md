@@ -4,11 +4,12 @@ The **Embedded Object Protocol (EOP)** allows vector, bitmap, and extensible mar
 
 #### Rendering & Alpha Blending
 
-- **Persistence**: Metadata is stored per-cell; survives scrollback, window resizing, and reflows.
-- **Coloring**: The underlying cell **SGR fgc** maps to `currentColor` (for SVG).
-- **Z-order**: Default is **background** (text on top). **SGR 7 (Reverse Video)** toggles the cell to **foreground** (object on top of text).
-- **Non-destructive**: Outputting an object does not destroy existing text in the cells. Only the **SGR bgc** (background color) is replaced by the object's visual data.
 - **Rectangular Area**: The object is hosted within a defined rectangular grid of cells ($width \times height$).
+- **Persistence**: Metadata is stored per-cell; survives scrollback and reflows.
+- **Non-destructive**: Outputting an object does not destroy existing text. Only the cell's original **SGR background color** is replaced by the object's `background` attribute value.
+- **Z-order**: Default is **text on top**. **SGR 7 (Reverse Video)** toggles the cell to **object on top of text**.
+- **Background Fill**: The `background` attribute defines a solid RGBA color for the entire rectangular area. This fill is always rendered as the **bottom-most layer**, providing a consistent backdrop for paddings (e.g., in `scale=inside` mode) regardless of **SGR 7**.
+- **Foreground Color**: The underlying cell **SGR foreground color** maps to `currentColor` (for SVG).
 - **Line Wrapping**: The object's cell-runs follow the current line-wrap mode. If wrapping is enabled, the object will wrap to the next line if it exceeds the viewport width. If wrapping is disabled, horizontal scrolling is used.
 - **Cursor Position**:
   - The top-left corner of the object's rectangle is anchored to the current cursor position.
@@ -29,18 +30,19 @@ Field             | Description
 
 #### Attributes
 
-Attribute    | Values                                 | Default                  | Description
--------------|----------------------------------------|--------------------------|------------
-**id**       | `<id>[/sub-id]`                        | empty string (`""`)      | Object reference ID. If omitted, the ID from the root tag is used.
-**width**    | `1`..`2047`                            | Terminal viewport width  | Width of the charcell rectangle (hosting area) in cells.
-**height**   | `1`..`1023`                            | Terminal viewport height | Height of the charcell rectangle (hosting area) in cells.
-**row**      | `0`..`<height>`                        | `0`                      | Vertical slice index (0 = full height, 1..n = specific cell).
-**column**   | `0`..`<width>`                         | `0`                      | Horizontal slice index (0 = full width, 1..n = specific cell).
-**align**    | \[`left`\|`center`\|`right`\]\[`-`\]\[`top`\|`middle`\|`bottom`\] | `center-middle` | 2D alignment within the charcell rectangle.
-**scale**    | `inside`\|`outside`\|`stretch`\|`none` | `inside`                 | Fit logic (none = exact pixels, cropped if larger).
-**transform**| `0`..`7`                               | `0`                      | 3-bit compact transformation state (Orientation matrix).
-**flip**     | `none`\|`v`\|`h`\|`vh`                 | `none`                   | Applied in order of appearance in the string.
-**rotate**   | `0`\|`90`\|`180`\|`270`                | `0`                      | CCW rotation applied in order of appearance in the string.
+Attribute     | Values                                 | Default                  | Description
+--------------|----------------------------------------|--------------------------|------------
+**id**        | `<id>[/sub-id]`                        | empty string (`""`)      | Object reference ID. If omitted, the ID from the root tag is used.
+**background**| `#rrggbb[aa]`                          | `#00000000`              | RGBA color for filling the background of the object's rectangle.
+**width**     | `1`..`2047`                            | Terminal viewport width  | Width of the charcell rectangle (hosting area) in cells.
+**height**    | `1`..`1023`                            | Terminal viewport height | Height of the charcell rectangle (hosting area) in cells.
+**row**       | `0`..`<height>`                        | `0`                      | Vertical slice index (0 = full height, 1..n = specific cell).
+**column**    | `0`..`<width>`                         | `0`                      | Horizontal slice index (0 = full width, 1..n = specific cell).
+**align**     | \[`left`\|`center`\|`right`\]\[`-`\]\[`top`\|`middle`\|`bottom`\] | `center-middle` | 2D alignment within the charcell rectangle.
+**scale**     | `inside`\|`outside`\|`stretch`\|`none` | `inside`                 | Fit logic (none = exact pixels, cropped if larger).
+**transform** | `0`..`7`                               | `0`                      | 3-bit compact transformation state (Orientation matrix).
+**flip**      | `none`\|`v`\|`h`\|`vh`                 | `none`                   | Applied in order of appearance in the string.
+**rotate**    | `0`\|`90`\|`180`\|`270`                | `0`                      | CCW rotation applied in order of appearance in the string.
 
 #### Lifecycle Logic
 

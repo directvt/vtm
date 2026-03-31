@@ -1193,6 +1193,7 @@ namespace netxs
     namespace imagens
     {
         #define attr_list \
+            X(background) \
             X(width ) \
             X(height) \
             X(row   ) \
@@ -1214,6 +1215,9 @@ namespace netxs
         //        attr_list
         //    #undef X
         //};
+        auto rotate_fx = [](auto& state, si32 s) { state = (state & 0b100) | ((state + s)                         & 0b011); };
+        auto flip_h_fx = [](auto& state)         { state = (state ^ 0b100) | ((state + (state & 1 ? 0b10 : 0b00)) & 0b011); };
+        auto flip_v_fx = [](auto& state)         { state = (state ^ 0b100) | ((state + (state & 1 ? 0b00 : 0b10)) & 0b011); };
 
         static const auto attr_index_map = utf::unordered_map<text, si32>
         {
