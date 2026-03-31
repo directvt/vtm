@@ -51,3 +51,7 @@ Input State             | Action
 2. Locate the document boundaries by finding the first `<svg` and the last `</svg>`.
 3. Extract the document body and resume parsing attributes from the remaining string segments.
 4. The transformation pipeline (`flip`, `mirror`, `rotate`) is execution-order dependent based on their sequence in the attributes string.
+
+#### Extensibility
+
+The protocol is designed to be engine-agnostic. While currently focused on SVG, the data segment can be extended in the future to support other resteriable formats—such as `<html>...</html>` for rich text rendering or `<object>...</object>` for custom binary or procedural content—by identifying the root tag of the document body.
