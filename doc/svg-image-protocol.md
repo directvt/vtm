@@ -9,8 +9,21 @@ Outputting SVG as an image protocol allows vector and bitmap graphics to be disp
 - **Persistence**: Metadata is stored per-cell; survives scrollback and reflows.
 - **Re-rasterization**: FÉ re-renders the SVG upon cell size changes for pixel-perfection.
 
+#### Sequence Format
+
+`ESC ] image ; [<attributes>] [<svg-document>] ST`
+
+Field             | Description
+------------------|------------
+**OSC command**   | Mandatory. `image`.
+**attributes**    | Optional. Space-separated `attribute=value`.
+**svg-document**  | Optional. SVG-document in UTF-8 format beginning with `<svg` and ending with `</svg>`.
+
+#### Attributes
+
 | Attribute  | Values                                          | Default         | Description
 |:-----------|:------------------------------------------------|:----------------|:-----------
+| **id**     | \<id\>[/sub-id]                                 | empty string    | An image ID for referencing. If not specified, the value or an empty string will be taken from the SVG document.
 | **width**  | `1..2047`                                       | =viewport width | Width of the charcell rectangle (hosting area).
 | **height** | `1..1023`                                       | =vewport height | Height of the charcell rectangle (hosting area).
 | **row**    | `0..height`                                     | `0`             | Vertical slice index (0 = full height, 1..n = specific cell).
@@ -21,22 +34,15 @@ Outputting SVG as an image protocol allows vector and bitmap graphics to be disp
 | **mirror** | `none`, `v`, `h`, `vh`                          | `none`          | Vertical and/or horizontal mirroring.
 | **rotate** | `0`, `90`, `180`, `270`                         | `0`             | Counter-clockwise rotation in degrees.
 
-#### Sequence Format
-
-`ESC ] image ; <id>[/sub-id] [; <attributes> [; <svg-document>]] ST`
-
-#### Parsing Logic
-
-- **Segment 1 (OSC command)**: Mandatory. `image`.
-- **Segment 2 (ID)**: Mandatory. Must not contain `;`.
-- **Segment 3 (Attributes)**: Optional. Space-separated `attribute=value`.
-- **Segment 4 (SVG Data)**: Optional. Raw text until `ST`.
+- Attribute values can be either quoted or unquoted, using either double `"` or single `'` quotes.
+- The order of the `flip`, `mirror`, and `rotate` attributes is significant. These transformations will be applied in the specified order.
+- Specifying attributes before or after the SVG document does not matter.
 
 #### Lifecycle Logic
 
-| Fields                            | Action
-|:----------------------------------|:------
-| **id** + **svg-doc**              | **Register & Display**: Store in cache, update cells.
-| **id** + **empty doc** (with `;`) | **Unregister**: Remove `id` from cache.
-| **id** + **empty doc** (no `;`)   | **Display**: Reuse existing `id` from cache.
-| **no id** + **svg-doc**           | **Cache Only**: Root `<svg id="...">` is used for future reference.
+| Fields                     | Action
+|:---------------------------|:------
+| **id** + **svg-doc**       | Store/update SVG-document in cache, output specified element/sub-element.
+| **id** + **empty-svg-doc** | Remove SVG-document referenced by `id` from cache. The `empty-svg-doc` is literally `<svg></svg>`.
+| **id** + **no svg-doc**    | Output existing SVG-document.
+| **no id** + **svg-doc**    | Root `<svg id="...">` is used to specify outputting element.
