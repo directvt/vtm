@@ -7,6 +7,7 @@ The **Embedded Object Protocol (EOP)** allows vector, bitmap, and extensible mar
 - **Persistence**: Metadata is stored per-cell; survives scrollback, window resizing, and reflows.
 - **Coloring**: The underlying cell **SGR fgc** maps to `currentColor` (for SVG).
 - **Z-order**: Default is **background** (text on top). **SGR 7 (Reverse Video)** toggles the cell to **foreground** (object on top of text).
+- **Non-destructive**: Outputting an object does not destroy existing text in the cells. Only the **SGR bgc** (background color) is replaced by the object's visual data.
 - **Re-rasterization**: The Graphical Frontend (FÉ) re-renders the object upon cell size changes to maintain pixel-perfection.
 
 #### Sequence Format
@@ -18,7 +19,7 @@ ESC ] object ; [<attributes>] [<document>] ST
 Field             | Description
 ------------------|------------
 **OSC command**   | Mandatory. `object`.
-**attributes**    | Optional. Space-separated `key=value` pairs. Values can be quoted (`"` or `'`) or unquoted.
+**attributes**    | Optional. Space-separated `key=value` pairs. Values can be quoted (`"` or `'`) or unquoted. All keys and values are **case-sensitive**.
 **document**      | Optional. UTF-8 data starting with a format tag (e.g., `<svg`) and ending with a closing tag (e.g., `</svg>`).
 
 #### Attributes
