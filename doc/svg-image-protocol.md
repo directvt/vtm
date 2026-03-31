@@ -1,13 +1,13 @@
-### SVG Image Protocol
+### Universal Object Protocol
 
-Outputting SVG as an image protocol allows vector and bitmap graphics to be displayed directly in the scrollback.
+Outputting an **object** allows vector, bitmap, and extensible markup graphics to be displayed directly in the scrollback.
 
 #### Rendering & Alpha Blending
 
 - **Persistence**: Metadata is stored per-cell; survives scrollback and reflows.
-- **Coloring**: The underlying cell **SGR fgc** maps to `currentColor`.
-- **Z-order**: Default is background (text on top). **SGR 7 (Reverse)** toggles to foreground (image on top).
-- **Re-rasterization**: FÉ (Graphical Frontend) re-renders the SVG upon cell size changes for pixel-perfection.
+- **Coloring**: The underlying cell **SGR fgc** maps to `currentColor` (for SVG).
+- **Z-order**: Default is background (text on top). **SGR 7 (Reverse)** toggles to foreground (object on top).
+- **Re-rasterization**: FÉ (Graphical Frontend) re-renders the object upon cell size changes for pixel-perfection.
 
 #### Sequence Format
 
@@ -19,39 +19,32 @@ Field             | Description
 ------------------|------------
 **OSC command**   | Mandatory. `object`.
 **attributes**    | Optional. Space-separated `key=value` pairs. Values can be quoted (`"` or `'`) or unquoted.
-**document**      | Optional. UTF-8 SVG data starting with `<svg` and ending with `</svg>`.
+**document**      | Optional. UTF-8 data starting with a format tag (e.g., `<svg`) and ending with a closing tag (e.g., `</svg>`).
 
 #### Attributes
 
 Attribute  | Values                                          | Default                  | Description
 -----------|-------------------------------------------------|--------------------------|------------
-**id**     | `<id>[/sub-id]`                                 | empty string (`""`)      | Image reference ID. If omitted, the ID from the SVG root is used.
+**id**     | `<id>[/sub-id]`                                 | empty string (`""`)      | Object reference ID. If omitted, the ID from the root tag is used.
 **width**  | `1..2047`                                       | Terminal viewport width  | Width of the charcell rectangle (hosting area) in cells.
 **height** | `1..1023`                                       | Terminal viewport height | Height of the charcell rectangle (hosting area) in cells.
 **row**    | `0..height`                                     | `0`                      | Vertical slice index (0 = full height, 1..n = specific cell).
 **column** | `0..width`                                      | `0`                      | Horizontal slice index (0 = full width, 1..n = specific cell).
 **align**  | `[left\|center\|right][-][top\|middle\|bottom]` | `center-middle`          | 2D alignment within the charcell rectangle.
-**scale**  | `inside`, `outside`, `stretch`, `none`          | `inside`                 | Fit logic (none = exact SVG pixels, cropped if larger).
+**scale**  | `inside`, `outside`, `stretch`, `none`          | `inside`                 | Fit logic (none = exact pixels, cropped if larger).
 **flip**   | `none`, `v`, `h`, `vh`                          | `none`                   | Transformation applied in the order specified in the string.
 **mirror** | `none`, `v`, `h`, `vh`                          | `none`                   | Transformation applied in the order specified in the string.
 **rotate** | `0`, `90`, `180`, `270`                         | `0`                      | CCW rotation applied in the order specified in the string.
 
 #### Lifecycle Logic
 
-Input State                 | Action
-----------------------------|-------
-**id** + **document**       | **Register & Display**: Store/update document in cache and output to the current cursor position.
-**id** + **empty-document** | **Unregister**: Remove the document from cache (triggered by `<svg></svg>`).
-**id** + **no document**    | **Display**: Output the existing cached document using provided or default attributes.
-**no id** + **document**    | **Anonymous Display**: Use the internal SVG root `<svg id="..."` for the session.
-
-#### Parsing Rules (Backend)
-
-1. Scan the OSC string for `key=value` pairs.
-2. Locate the document boundaries by finding the first `<svg` and the last `</svg>`.
-3. Extract the document body and resume parsing attributes from the remaining string segments.
-4. The transformation pipeline (`flip`, `mirror`, `rotate`) is execution-order dependent based on their sequence in the attributes string.
+Input State             | Action
+------------------------|-------
+**id** + **doc**        | **Register & Display**: Store/update document in cache and output to the current cursor position.
+**id** + **empty-doc**  | **Unregister**: Remove the object referenced by `id` from cache (e.g., `<svg></svg>`).
+**id** + **no doc**     | **Display**: Output the existing cached object using provided or default attributes.
+**no id** + **doc**     | **Anonymous Display**: Use the internal root tag `id="..."` (e.g., `<svg id="..."></svg>`) for the session.
 
 #### Extensibility
 
-The protocol is designed to be engine-agnostic. While currently focused on SVG, the data segment can be extended in the future to support other resteriable formats—such as `<html>...</html>` for rich text rendering or `<object>...</object>` for custom binary or procedural content—by identifying the root tag of the document body.
+The protocol is engine-agnostic. While currently focused on **SVG**, the data segment can be extended to support other resteriable formats - such as `<html>...</html>` or `<object>...</object>` - by identifying the root tag of the document body.
