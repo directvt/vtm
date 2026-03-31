@@ -2,7 +2,7 @@
 
 Outputting SVG as an image protocol allows vector and bitmap graphics to be displayed directly in the scrollback.
 
-#### Rendering & Blending
+#### Rendering & Alpha Blending
 
 - **Persistence**: Metadata is stored per-cell; survives scrollback and reflows.
 - **Coloring**: The underlying cell **SGR fgc** maps to `currentColor`.
