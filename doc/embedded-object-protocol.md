@@ -27,18 +27,26 @@ Field             | Description
 
 #### Attributes
 
-Attribute  | Values                                 | Default                  | Description
------------|----------------------------------------|--------------------------|------------
-**id**     | `<id>[/sub-id]`                        | empty string (`""`)      | Object reference ID. If omitted, the ID from the root tag is used.
-**width**  | `1`..`2047`                            | Terminal viewport width  | Width of the charcell rectangle (hosting area) in cells.
-**height** | `1`..`1023`                            | Terminal viewport height | Height of the charcell rectangle (hosting area) in cells.
-**row**    | `0`..`<height>`                        | `0`                      | Vertical slice index (0 = full height, 1..n = specific cell).
-**column** | `0`..`<width>`                         | `0`                      | Horizontal slice index (0 = full width, 1..n = specific cell).
-**align**  | \[`left`\|`center`\|`right`\]\[`-`\]\[`top`\|`middle`\|`bottom`\] | `center-middle` | 2D alignment within the charcell rectangle.
-**scale**  | `inside`\|`outside`\|`stretch`\|`none` | `inside`                 | Fit logic (none = exact pixels, cropped if larger).
-**flip**   | `none`\|`v`\|`h`\|`vh`                 | `none`                   | Transformation applied in the order specified in the string.
-**mirror** | `none`\|`v`\|`h`\|`vh`                 | `none`                   | Transformation applied in the order specified in the string.
-**rotate** | `0`\|`90`\|`180`\|`270`                | `0`                      | CCW rotation applied in the order specified in the string.
+Attribute    | Values                                 | Default                  | Description
+-------------|----------------------------------------|--------------------------|------------
+**id**       | `<id>[/sub-id]`                        | empty string (`""`)      | Object reference ID. If omitted, the ID from the root tag is used.
+**width**    | `1`..`2047`                            | Terminal viewport width  | Width of the charcell rectangle (hosting area) in cells.
+**height**   | `1`..`1023`                            | Terminal viewport height | Height of the charcell rectangle (hosting area) in cells.
+**row**      | `0`..`<height>`                        | `0`                      | Vertical slice index (0 = full height, 1..n = specific cell).
+**column**   | `0`..`<width>`                         | `0`                      | Horizontal slice index (0 = full width, 1..n = specific cell).
+**align**    | \[`left`\|`center`\|`right`\]\[`-`\]\[`top`\|`middle`\|`bottom`\] | `center-middle` | 2D alignment within the charcell rectangle.
+**scale**    | `inside`\|`outside`\|`stretch`\|`none` | `inside`                 | Fit logic (none = exact pixels, cropped if larger).
+**transform**| `0`..`7`                               | `0`                      | Compact 3-bit transformation (Orientation/Isometric matrix).
+**flip**     | `none`\|`v`\|`h`\|`vh`                 | `none`                   | Applied in order of appearance in the string.
+**mirror**   | `none`\|`v`\|`h`\|`vh`                 | `none`                   | Applied in order of appearance in the string.
+**rotate**   | `0`\|`90`\|`180`\|`270`                | `0`                      | CCW rotation applied in order of appearance.
+
+#### Transformation Pipeline
+
+The transformation pipeline allows for flexible orientation of the object. 
+- The **`transform=0..7`** attribute serves as a compact summary of rotation and reflection (Orientation Matrix). 
+- If `transform` is used alongside `flip`, `mirror`, or `rotate`, they are all added to the processing pipeline in the **exact order** they appear in the attributes string.
+- This allows a base `transform` to be set and then further modified by specific `rotate` or `flip` commands if needed.
 
 #### Lifecycle Logic
 
