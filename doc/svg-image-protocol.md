@@ -1,13 +1,13 @@
 ### Embedded Object Protocol
 
-Outputting an **object** allows vector, bitmap, and extensible markup graphics to be displayed directly in the scrollback.
+The **Embedded Object Protocol (EOP)** allows vector, bitmap, and extensible markup objects to be embedded directly into the terminal's scrollback buffer.
 
 #### Rendering & Alpha Blending
 
-- **Persistence**: Metadata is stored per-cell; survives scrollback and reflows.
+- **Persistence**: Metadata is stored per-cell; survives scrollback, window resizing, and reflows.
 - **Coloring**: The underlying cell **SGR fgc** maps to `currentColor` (for SVG).
-- **Z-order**: Default is background (text on top). **SGR 7 (Reverse)** toggles to foreground (object on top).
-- **Re-rasterization**: FÉ (Graphical Frontend) re-renders the object upon cell size changes for pixel-perfection.
+- **Z-order**: Default is **background** (text on top). **SGR 7 (Reverse Video)** toggles the cell to **foreground** (object on top of text).
+- **Re-rasterization**: The Graphical Frontend (FÉ) re-renders the object upon cell size changes to maintain pixel-perfection.
 
 #### Sequence Format
 
@@ -45,6 +45,13 @@ Input State             | Action
 **id** + **no doc**     | **Display**: Output the existing cached object using provided or default attributes.
 **no id** + **doc**     | **Anonymous Display**: Use the internal root tag `id="..."` (e.g., `<svg id="..."></svg>`) for the session.
 
+#### Parsing Rules (Backend)
+
+1. Scan the OSC string for `key=value` pairs.
+2. Locate the document boundaries by finding the first `<tag` and the last `</tag>`.
+3. Extract the document body and resume parsing attributes from the remaining string segments.
+4. The transformation pipeline (`flip`, `mirror`, `rotate`) is execution-order dependent based on their sequence in the attributes string.
+
 #### Extensibility
 
-The protocol is engine-agnostic. While currently focused on **SVG**, the data segment can be extended to support other resteriable formats - such as `<html>...</html>` or `<object>...</object>` - by identifying the root tag of the document body.
+The protocol is engine-agnostic. While currently focused on **SVG**, the data segment is designed to support other resteriable formats - such as `<html>...</html>` or `<object>...</object>` - by identifying the root tag of the document body.
