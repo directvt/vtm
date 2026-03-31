@@ -60,9 +60,9 @@ Input State             | Action
 4. The transformation pipeline (`transform`, `flip`, `mirror`, `rotate`) is execution-order dependent based on their sequence in the attributes string.
 5. Bitwise Transformation Logic (3-bit state):
    ```
-   Rotate:          `state = (state & 0b100) | ((state + rotationCCW90_steps) & 0b011)`
-   Horizontal Flip: `state = (state ^ 0b100) | ((state + (state & 1 ? 2 : 0)) & 0b011)`
-   Vertical Flip:   `state = (state ^ 0b100) | ((state + (state & 1 ? 0 : 2)) & 0b011)`
+   Rotate:          state = (state & 0b100) | ((state + rotationCCW90_steps) & 0b011)
+   Horizontal Flip: state = (state ^ 0b100) | ((state + (state & 1 ? 2 : 0)) & 0b011)
+   Vertical Flip:   state = (state ^ 0b100) | ((state + (state & 1 ? 0 : 2)) & 0b011)
    ```
 
 #### Extensibility
