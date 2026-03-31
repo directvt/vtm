@@ -40,7 +40,6 @@ Attribute    | Values                                 | Default                 
 **scale**    | `inside`\|`outside`\|`stretch`\|`none` | `inside`                 | Fit logic (none = exact pixels, cropped if larger).
 **transform**| `0`..`7`                               | `0`                      | 3-bit compact transformation state (Orientation matrix).
 **flip**     | `none`\|`v`\|`h`\|`vh`                 | `none`                   | Applied in order of appearance in the string.
-**mirror**   | `none`\|`v`\|`h`\|`vh`                 | `none`                   | Applied in order of appearance in the string.
 **rotate**   | `0`\|`90`\|`180`\|`270`                | `0`                      | CCW rotation applied in order of appearance in the string.
 
 #### Lifecycle Logic
@@ -57,7 +56,7 @@ Input State             | Action
 1. Scan the OSC string for `key=value` pairs.
 2. Locate the document boundaries by finding the first `<tag` and the last `</tag>`.
 3. Extract the document body and resume parsing attributes from the remaining string segments.
-4. The transformation pipeline (`transform`, `flip`, `mirror`, `rotate`) is execution-order dependent based on their sequence in the attributes string.
+4. The transformation pipeline (`transform`, `flip`, `rotate`) is execution-order dependent based on their sequence in the attributes string.
 5. Bitwise Transformation Logic (3-bit state):
    ```
    Rotate:          state = (state & 0b100) | ((state + rotationCCW90_steps) & 0b011)
