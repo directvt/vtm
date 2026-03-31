@@ -10,7 +10,9 @@ The **Embedded Object Protocol (EOP)** allows vector, bitmap, and extensible mar
 - **Non-destructive**: Outputting an object does not destroy existing text in the cells. Only the **SGR bgc** (background color) is replaced by the object's visual data.
 - **Rectangular Area**: The object is hosted within a defined rectangular grid of cells ($width \times height$).
 - **Line Wrapping**: The object's cell-runs follow the current line-wrap mode. If wrapping is enabled, the object will wrap to the next line if it exceeds the viewport width. If wrapping is disabled, horizontal scrolling is used.
-- **Cursor Position**: After outputting the object, the cursor moves to the cell immediately following the **bottom-right** corner of the object's rectangle.
+- **Cursor Position**:
+  - The top-left corner of the object's rectangle is anchored to the current cursor position.
+  - After outputting the object, the cursor moves to the cell immediately following the **bottom-right** corner of the object's rectangle.
 - **Re-rasterization**: The Graphical Frontend (FÉ) re-renders the object upon cell size changes to maintain pixel-perfection.
 
 #### Sequence Format
@@ -36,17 +38,10 @@ Attribute    | Values                                 | Default                 
 **column**   | `0`..`<width>`                         | `0`                      | Horizontal slice index (0 = full width, 1..n = specific cell).
 **align**    | \[`left`\|`center`\|`right`\]\[`-`\]\[`top`\|`middle`\|`bottom`\] | `center-middle` | 2D alignment within the charcell rectangle.
 **scale**    | `inside`\|`outside`\|`stretch`\|`none` | `inside`                 | Fit logic (none = exact pixels, cropped if larger).
-**transform**| `0`..`7`                               | `0`                      | Compact 3-bit transformation (Orientation/Isometric matrix).
+**transform**| `0`..`7`                               | `0`                      | 3-bit compact transformation state (Orientation matrix).
 **flip**     | `none`\|`v`\|`h`\|`vh`                 | `none`                   | Applied in order of appearance in the string.
 **mirror**   | `none`\|`v`\|`h`\|`vh`                 | `none`                   | Applied in order of appearance in the string.
-**rotate**   | `0`\|`90`\|`180`\|`270`                | `0`                      | CCW rotation applied in order of appearance.
-
-#### Transformation Pipeline
-
-The transformation pipeline allows for flexible orientation of the object. 
-- The **`transform=0..7`** attribute serves as a compact summary of rotation and reflection (Orientation Matrix). 
-- If `transform` is used alongside `flip`, `mirror`, or `rotate`, they are all added to the processing pipeline in the **exact order** they appear in the attributes string.
-- This allows a base `transform` to be set and then further modified by specific `rotate` or `flip` commands if needed.
+**rotate**   | `0`\|`90`\|`180`\|`270`                | `0`                      | CCW rotation applied in order of appearance in the string.
 
 #### Lifecycle Logic
 
@@ -62,8 +57,13 @@ Input State             | Action
 1. Scan the OSC string for `key=value` pairs.
 2. Locate the document boundaries by finding the first `<tag` and the last `</tag>`.
 3. Extract the document body and resume parsing attributes from the remaining string segments.
-4. The top-left corner of the object's rectangle is anchored to the current cursor position.
-5. The transformation pipeline (`flip`, `mirror`, `rotate`) is execution-order dependent based on their sequence in the attributes string.
+4. The transformation pipeline (`transform`, `flip`, `mirror`, `rotate`) is execution-order dependent based on their sequence in the attributes string.
+5. Bitwise Transformation Logic (3-bit state):
+   ```
+   Rotate:          `state = (state & 0b100) | ((state + rotationCCW90_steps) & 0b011)`
+   Horizontal Flip: `state = (state ^ 0b100) | ((state + (state & 1 ? 2 : 0)) & 0b011)`
+   Vertical Flip:   `state = (state ^ 0b100) | ((state + (state & 1 ? 0 : 2)) & 0b011)`
+   ```
 
 #### Extensibility
 
