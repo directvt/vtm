@@ -7,7 +7,7 @@ The **Embedded Object Protocol (EOP)** allows vector, bitmap, and extensible mar
 - **Rectangular Area**: The object is hosted within a defined rectangular grid of cells ($width \times height$).
 - **Persistence**: Metadata is stored per-cell; survives scrollback and reflows.
 - **Non-destructive**: Outputting an object does not destroy existing text. The cell's original SGR background color is replaced by the object's `background` attribute.
-- **Z-order**: Default is **text on top**. **SGR 7 (Reverse Video)** toggles the cell to **object on top of text**.
+- **Z-order**: Default is **text on top**. **SGR 7 (Reverse Video)** toggles the cell to **foreground** (object on top of text).
 - **Per-pixel Transparency**: The rendered object supports full alpha-channel transparency.
 - **Background Fill**: The `background` attribute defines a solid RGBA color for the entire rectangular area. This fill is the **bottom-most layer**, providing a backdrop for transparency and paddings regardless of **SGR 7**.
 - **Foreground Color**: The underlying cell **SGR foreground color** maps to `currentColor` (for SVG).
@@ -18,6 +18,7 @@ The **Embedded Object Protocol (EOP)** allows vector, bitmap, and extensible mar
   - The top-left corner of the object's rectangle is anchored to the current cursor position.
   - After outputting the object, the cursor moves to the cell immediately following the **bottom-right** corner of the object's rectangle.
 - **Re-rasterization**: The Graphical Frontend (FÉ) re-renders the object upon cell size changes to maintain pixel-perfection.
+- **Gamma-Correct Blending**: To ensure visual fidelity, alpha blending must be performed in **linear color space** rather than sRGB.
 
 #### Sequence Format
 
