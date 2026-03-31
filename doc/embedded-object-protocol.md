@@ -23,18 +23,18 @@ Field             | Description
 
 #### Attributes
 
-Attribute  | Values                                          | Default                  | Description
------------|-------------------------------------------------|--------------------------|------------
-**id**     | `<id>[/sub-id]`                                 | empty string (`""`)      | Object reference ID. If omitted, the ID from the root tag is used.
-**width**  | `1..2047`                                       | Terminal viewport width  | Width of the charcell rectangle (hosting area) in cells.
-**height** | `1..1023`                                       | Terminal viewport height | Height of the charcell rectangle (hosting area) in cells.
-**row**    | `0..height`                                     | `0`                      | Vertical slice index (0 = full height, 1..n = specific cell).
-**column** | `0..width`                                      | `0`                      | Horizontal slice index (0 = full width, 1..n = specific cell).
-**align**  | `[left\|center\|right][-][top\|middle\|bottom]` | `center-middle`          | 2D alignment within the charcell rectangle.
-**scale**  | `inside`, `outside`, `stretch`, `none`          | `inside`                 | Fit logic (none = exact pixels, cropped if larger).
-**flip**   | `none`, `v`, `h`, `vh`                          | `none`                   | Transformation applied in the order specified in the string.
-**mirror** | `none`, `v`, `h`, `vh`                          | `none`                   | Transformation applied in the order specified in the string.
-**rotate** | `0`, `90`, `180`, `270`                         | `0`                      | CCW rotation applied in the order specified in the string.
+Attribute  | Values                                 | Default                  | Description
+-----------|----------------------------------------|--------------------------|------------
+**id**     | `<id>[/sub-id]`                        | empty string (`""`)      | Object reference ID. If omitted, the ID from the root tag is used.
+**width**  | `1`..`2047`                            | Terminal viewport width  | Width of the charcell rectangle (hosting area) in cells.
+**height** | `1`..`1023`                            | Terminal viewport height | Height of the charcell rectangle (hosting area) in cells.
+**row**    | `0`..`<height>`                        | `0`                      | Vertical slice index (0 = full height, 1..n = specific cell).
+**column** | `0`..`<width>`                         | `0`                      | Horizontal slice index (0 = full width, 1..n = specific cell).
+**align**  | \[`left`\|`center`\|`right`\]\[`-`\]\[`top`\|`middle`\|`bottom`\] | `center-middle` | 2D alignment within the charcell rectangle.
+**scale**  | `inside`\|`outside`\|`stretch`\|`none` | `inside`                 | Fit logic (none = exact pixels, cropped if larger).
+**flip**   | `none`\|`v`\|`h`\|`vh`                 | `none`                   | Transformation applied in the order specified in the string.
+**mirror** | `none`\|`v`\|`h`\|`vh`                 | `none`                   | Transformation applied in the order specified in the string.
+**rotate** | `0`\|`90`\|`180`\|`270`                | `0`                      | CCW rotation applied in the order specified in the string.
 
 #### Lifecycle Logic
 
