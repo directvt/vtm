@@ -8,7 +8,8 @@ The **Embedded Object Protocol (EOP)** allows vector, bitmap, and extensible mar
 - **Persistence**: Metadata is stored per-cell; survives scrollback and reflows.
 - **Non-destructive**: Outputting an object does not destroy existing text. The cell's original SGR background color is replaced by the object's `background` attribute.
 - **Z-order**: Default is **text on top**. **SGR 7 (Reverse Video)** toggles the cell to **object on top of text**.
-- **Background Fill**: The `background` attribute defines a solid RGBA color for the entire rectangular area. This fill is the **bottom-most layer**, providing a backdrop for paddings regardless of **SGR 7**.
+- **Per-pixel Transparency**: The rendered object supports full alpha-channel transparency.
+- **Background Fill**: The `background` attribute defines a solid RGBA color for the entire rectangular area. This fill is the **bottom-most layer**, providing a backdrop for transparency and paddings regardless of **SGR 7**.
 - **Foreground Color**: The underlying cell **SGR foreground color** maps to `currentColor` (for SVG).
 - **Line Wrapping & Reflow**:
   - The object's cell-runs follow the current line-wrap mode (wrap or horizontal scroll).
