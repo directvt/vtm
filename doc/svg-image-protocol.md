@@ -12,14 +12,14 @@ Outputting SVG as an image protocol allows vector and bitmap graphics to be disp
 #### Sequence Format
 
 ```
-ESC ] image ; [<attributes>] [<svg-document>] ST
+ESC ] object ; [<attributes>] [<document>] ST
 ```
 
 Field             | Description
 ------------------|------------
-**OSC command**   | Mandatory. `image`.
+**OSC command**   | Mandatory. `object`.
 **attributes**    | Optional. Space-separated `key=value` pairs. Values can be quoted (`"` or `'`) or unquoted.
-**svg-document**  | Optional. UTF-8 SVG data starting with `<svg` and ending with `</svg>`.
+**document**      | Optional. UTF-8 SVG data starting with `<svg` and ending with `</svg>`.
 
 #### Attributes
 
@@ -38,12 +38,12 @@ Attribute  | Values                                          | Default          
 
 #### Lifecycle Logic
 
-Input State             | Action
-------------------------|-------
-**id** + **svg-doc**    | **Register & Display**: Store/update document in cache and output to the current cursor position.
-**id** + **empty-doc**  | **Unregister**: Remove the document from cache (triggered by `<svg></svg>`).
-**id** + **no svg-doc** | **Display**: Output the existing cached document using provided or default attributes.
-**no id** + **svg-doc** | **Anonymous Display**: Use the internal SVG root `<svg id="..."` for the session.
+Input State                 | Action
+----------------------------|-------
+**id** + **document**       | **Register & Display**: Store/update document in cache and output to the current cursor position.
+**id** + **empty-document** | **Unregister**: Remove the document from cache (triggered by `<svg></svg>`).
+**id** + **no document**    | **Display**: Output the existing cached document using provided or default attributes.
+**no id** + **document**    | **Anonymous Display**: Use the internal SVG root `<svg id="..."` for the session.
 
 #### Parsing Rules (Backend)
 
