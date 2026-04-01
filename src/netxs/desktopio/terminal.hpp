@@ -7383,18 +7383,6 @@ namespace netxs::ui
                         log(" id found: %%=%%", attr_str, value_str);
                         id_str = value_str;
                     }
-                    else if (attr_str == "background")
-                    {
-                        auto color = 0; // Case when background="".
-                        if (value_str && value_str.front() == '#') // Take #rrggbb[aa] value.
-                        {
-                            if (auto v = xml::take<argb>(value_str))
-                            {
-                                color = netxs::letoh((si32)(v.value().token));
-                            }
-                        }
-                        new_attrs[imagens::background] = color;
-                    }
                     else // Regular attributes (si32 or dict).
                     {
                         log(" attr_str=%%, value_str=%%", attr_str, value_str);

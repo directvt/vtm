@@ -1193,7 +1193,7 @@ namespace netxs
     namespace imagens
     {
         #define attr_list \
-            X(background) \
+            X(ontop     ) \
             X(width     ) \
             X(height    ) \
             X(row       ) \
