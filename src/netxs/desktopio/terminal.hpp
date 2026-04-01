@@ -7197,6 +7197,40 @@ namespace netxs::ui
         face                                               image_buffer; // term: Image temporary buffer.
         vtty       ipccon; // term: IPC connector. Should be destroyed first.
 
+        // term: Print the block to the scrollback buffer with scroll.
+        template<bool AutoScroll = faux, class S, class P>
+        auto print_block(S& scrollback, core const& block, twod trim_by_viewport, P fuse)
+        {
+            auto size = block.size();
+            auto head = block.begin();
+            auto tail = block.end();
+            auto coor = scrollback.coord;
+            auto step = size.x;
+            if (trim_by_viewport)
+            {
+                auto crop = std::min(trim_by_viewport, coor + size) - coor;
+                if (crop.x <= 0 || crop.y <= 0) return;
+                step = crop.x;
+                tail = head + size.x * crop.y;
+            }
+            auto rest = size.x - step;
+            while (true)
+            {
+                auto next = head + step;
+                auto line = std::span(head, next);
+                scrollback.template _data<true>(step, line, fuse);
+                head = next + rest;
+                if (head != tail)
+                {
+                    scrollback.chx0(coor.x);
+                    scrollback._lf(1);
+                }
+                else
+                {
+                    break;
+                }
+            }
+        }
         // term: Place rectangle block to the scrollback buffer.
         template<class S, class P>
         auto write_block(S& scrollback, core const& block, twod coor, rect trim, P fuse)
@@ -7525,45 +7559,56 @@ namespace netxs::ui
                 auto coor = console.coord;
                 auto draw_block = [&]
                 {
-                    //todo scroll+set_coor
-                    auto trim = rect{ coor, image_buffer.size() };
                     if (target == &normal)
                     {
-                        write_block(normal, image_buffer, coor, trim, cell::shaders::full);
+                        print_block(normal, image_buffer, {}, cell::shaders::full);
                     }
                     else
                     {
                         auto& target_buffer = *(alt_screen*)target;
-                        write_block(target_buffer, image_buffer, coor, trim, cell::shaders::full);
+                        print_block(target_buffer, image_buffer, console.panel, cell::shaders::full);
                     }
                 };
                 if (!x && !y) // Print full raster.
                 {
                     auto size = twod{ w, h };
                     image_buffer.core::crop(size, c);
-                    //todo fill metadata
+                    auto head = image_buffer.begin();
+                    for (y = 1; y <= h; y++)
+                    {
+                        for (x = 1; x <= w; x++)
+                        {
+                            (*head++).set_image_xy(x, y);
+                        }
+                    }
                     draw_block();
                 }
                 else if (x) // Print vertical slice.
                 {
                     auto size = twod{ 1, h };
                     image_buffer.core::crop(size, c);
-                    //todo fill metadata
+                    auto head = image_buffer.begin();
+                    for (y = 1; y <= h; y++)
+                    {
+                        (*head++).set_image_xy(x, y);
+                    }
                     draw_block();
                 }
                 else if (y) // Print horizontal slice.
                 {
                     auto size = twod{ w, 1 };
                     image_buffer.core::crop(size, c);
-                    //todo fill metadata
+                    auto head = image_buffer.begin();
+                    for (x = 1; x <= w; x++)
+                    {
+                        (*head++).set_image_xy(x, y);
+                    }
                     draw_block();
                 }
                 else // if (x && y) // Print a single cell.
                 {
-                    //todo optimize
                     auto size = twod{ 1, 1 };
                     image_buffer.core::crop(size, c);
-                    //todo fill metadata
                     draw_block();
                 }
             }

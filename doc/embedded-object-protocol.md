@@ -8,7 +8,10 @@ The **Embedded Object Protocol (EOP)** allows vector, bitmap, and extensible mar
 - **Persistence**: Metadata is stored per-cell to survive scrollback and ensure that wrapped cell-runs remain logically linked for a strict rectangular reflow.
 - **Cursor Position**: Anchored at the top-left; moves to the cell immediately following the rectangle's bottom-right corner.
 - **Non-destructive & Color State**: The object's rectangular area is filled with the **current SGR background color** without destroying existing text.
-- **Scroll Behavior**: Outputting an object does not trigger **BCE (Background Color Erase)**; the background color is applied strictly to the object's cells.
+- **Scroll Behavior (Normal Buffer)**: 
+  - Outputting an object does not trigger **BCE (Background Color Erase)**.
+  - If the object does not fit at the bottom of the viewport, it triggers a standard scroll-up.
+- **Viewport Clipping (Alt Buffer)**: In **Alternate Buffer Mode**, the object's rectangle is strictly clipped by both the right and bottom edges of the terminal viewport; no scrolling or wrapping occurs.
 - **Layering**: The `ontop` attribute switches the layering, placing the object on top of the text instead of behind it.
 - **Per-pixel Transparency**: The rendered object supports full alpha-channel transparency.
 - **Foreground Color**: The underlying cell **SGR foreground color** maps to `currentColor` (for SVG).
