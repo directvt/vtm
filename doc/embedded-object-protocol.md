@@ -6,7 +6,10 @@ The **Embedded Object Protocol (EOP)** allows vector, bitmap, and extensible mar
 
 - **Rectangular Area**: The object is hosted within a defined rectangular grid of cells ($width \times height$).
 - **Persistence**: Metadata is stored per-cell; survives scrollback and reflows.
-- **Non-destructive**: Outputting an object does not destroy existing text.
+- **Non-destructive & Color State**:
+  - Outputting an object does not destroy existing text.
+  - The **current SGR background color** is applied to all cells within the object's rectangle.
+- **Scroll Behavior**: **BCE (Background Color Erase) is not applied** to the newly created lines when outputting the object requires adding new lines (scrolling).
 - **Layering**: The `ontop` attribute switches the layering, placing the object on top of the text instead of behind it.
 - **Per-pixel Transparency**: The rendered object supports full alpha-channel transparency.
 - **Foreground Color**: The underlying cell **SGR foreground color** maps to `currentColor` (for SVG).
