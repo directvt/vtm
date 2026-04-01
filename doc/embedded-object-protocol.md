@@ -33,8 +33,8 @@ Attribute     | Values                                 | Default                
 --------------|----------------------------------------|--------------------------|------------
 **id**        | `<id>[/sub-id]`                        | empty string (`""`)      | Object reference ID. If omitted, the ID from the root tag is used.
 **ontop**     | `0`|`1`                                | `0`                      | Layering: 0 = background (under text), 1 = foreground (over text).
-**width**     | `1`..`2047`                            | Terminal viewport width  | Width of the rectangle in cells.
-**height**    | `1`..`1023`                            | Terminal viewport height | Height of the rectangle in cells.
+**width**     | `1`..`65535`                           | Terminal viewport width  | Width of the rectangle in cells.
+**height**    | `1`..`65535`                           | Terminal viewport height | Height of the rectangle in cells.
 **row**       | `0`..`<height>`                        | `0`                      | Vertical slice index (0 = full height, 1..n = specific cell).
 **column**    | `0`..`<width>`                         | `0`                      | Horizontal slice index (0 = full width, 1..n = specific cell).
 **align**     | \[`left`\|`center`\|`right`\]\[`-`\]\[`top`\|`middle`\|`bottom`\] | `center-middle` | 2D alignment within the rectangle.

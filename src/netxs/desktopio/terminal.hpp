@@ -1039,7 +1039,8 @@ namespace netxs::ui
                     }
                 }
                 dest.gc = c.gc;
-                dest.px = c.px;
+                dest.p2 = c.p2;
+                dest.p1 = c.p1;
             }
             void fgc(tint c)  { argb::set_indexed_color(owner.target->brush.fgc(), c); }
             void bgc(tint c)  { argb::set_indexed_color(owner.target->brush.bgc(), c); }

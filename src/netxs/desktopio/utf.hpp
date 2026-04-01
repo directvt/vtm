@@ -2461,13 +2461,17 @@ namespace netxs::utf
         if (utf8.size() && utf8.front() == '=')
         {
             utf::trim_front(utf8, " =");
-            if (utf8 && (utf8.front() == '\'' || utf8.front() == '\"'))
+            if (utf8)
             {
-                val = utf::take_quote(utf8, utf8.front());
-            }
-            else
-            {
-                val = utf::take_front<faux>(utf8, " ");
+                auto c = utf8.view::front();
+                if (c == '\'' || c == '\"')
+                {
+                    val = utf::take_quote(utf8, c);
+                }
+                else
+                {
+                    val = utf::take_front<faux>(utf8, " ");
+                }
             }
         }
         return std::pair{ key, val };

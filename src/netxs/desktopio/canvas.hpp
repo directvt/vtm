@@ -48,21 +48,21 @@ namespace netxs
     }
     namespace align_mode                         // horizontal            vertical
     {
-        static constexpr auto center        = (si32)bias::center | ((si32)bias::center << 8);
-        static constexpr auto left          = (si32)bias::left   | ((si32)bias::center << 8);
-        static constexpr auto right         = (si32)bias::right  | ((si32)bias::center << 8);
-        static constexpr auto middle        = (si32)bias::center | ((si32)bias::center << 8);
-        static constexpr auto top           = (si32)bias::center | ((si32)bias::left   << 8);
-        static constexpr auto bottom        = (si32)bias::center | ((si32)bias::right  << 8);
-        static constexpr auto center_middle = (si32)bias::center | ((si32)bias::center << 8);
-        static constexpr auto center_top    = (si32)bias::center | ((si32)bias::left   << 8);
-        static constexpr auto center_bottom = (si32)bias::center | ((si32)bias::right  << 8);
-        static constexpr auto left_middle   = (si32)bias::left   | ((si32)bias::center << 8);
-        static constexpr auto left_top      = (si32)bias::left   | ((si32)bias::left   << 8);
-        static constexpr auto left_bottom   = (si32)bias::left   | ((si32)bias::right  << 8);
-        static constexpr auto right_middle  = (si32)bias::right  | ((si32)bias::center << 8);
-        static constexpr auto right_top     = (si32)bias::right  | ((si32)bias::left   << 8);
-        static constexpr auto right_bottom  = (si32)bias::right  | ((si32)bias::right  << 8);
+        static constexpr auto center        = (si32)bias::center | ((si32)bias::center << 2);
+        static constexpr auto left          = (si32)bias::left   | ((si32)bias::center << 2);
+        static constexpr auto right         = (si32)bias::right  | ((si32)bias::center << 2);
+        static constexpr auto middle        = (si32)bias::center | ((si32)bias::center << 2);
+        static constexpr auto top           = (si32)bias::center | ((si32)bias::left   << 2);
+        static constexpr auto bottom        = (si32)bias::center | ((si32)bias::right  << 2);
+        static constexpr auto center_middle = (si32)bias::center | ((si32)bias::center << 2);
+        static constexpr auto center_top    = (si32)bias::center | ((si32)bias::left   << 2);
+        static constexpr auto center_bottom = (si32)bias::center | ((si32)bias::right  << 2);
+        static constexpr auto left_middle   = (si32)bias::left   | ((si32)bias::center << 2);
+        static constexpr auto left_top      = (si32)bias::left   | ((si32)bias::left   << 2);
+        static constexpr auto left_bottom   = (si32)bias::left   | ((si32)bias::right  << 2);
+        static constexpr auto right_middle  = (si32)bias::right  | ((si32)bias::center << 2);
+        static constexpr auto right_top     = (si32)bias::right  | ((si32)bias::left   << 2);
+        static constexpr auto right_bottom  = (si32)bias::right  | ((si32)bias::right  << 2);
     }
 
     namespace text_cursor
@@ -1235,8 +1235,8 @@ namespace netxs
         };
         auto combine_align_fx = [](auto old_align, auto new_align)
         {
-            auto res_h = (old_align & 0x00FF) ? (old_align & 0x00FF) : (new_align & 0x00FF);
-            auto res_v = (old_align & 0xFF00) ? (old_align & 0xFF00) : (new_align & 0xFF00);
+            auto res_h = (old_align & 0b0011) ? (old_align & 0b0011) : (new_align & 0b0011);
+            auto res_v = (old_align & 0b1100) ? (old_align & 0b1100) : (new_align & 0b1100);
             return res_h | res_v;
         };
 
@@ -1480,11 +1480,10 @@ namespace netxs
             static constexpr auto unline_mask = (ui64)0b00000000'00000000'00000000'00000000'00000000'00000000'00000000'11100000; // unline : 3; // 0: none, 1: line, 2: biline, 3: wavy, 4: dotted, 5: dashed, 6 - 7: unknown.
             static constexpr auto ucolor_mask = (ui64)0b00000000'00000000'00000000'00000000'00000000'00000000'11111111'00000000; // ucolor : 8; // Underline 256-color 6x6x6-cube index. Alpha not used - it is shared with fgc alpha. If zero - sync with fgc.
             static constexpr auto cursor_mask = (ui64)0b00000000'00000000'00000000'00000000'00000000'00000011'00000000'00000000; // cursor : 2; // 0: None, 1: Underline, 2: Block, 3: I-bar.
-            static constexpr auto hplink_mask = (ui64)0b00000000'00000000'00000000'00000000'00000000'00000100'00000000'00000000; // hyperlink : 1; // cell::px strores string hash.
+            static constexpr auto hplink_mask = (ui64)0b00000000'00000000'00000000'00000000'00000000'00000100'00000000'00000000; // hyperlink : 1; // cell: strore string hash.
             static constexpr auto blinks_mask = (ui64)0b00000000'00000000'00000000'00000000'00000000'00001000'00000000'00000000; // blinks : 1;
-            static constexpr auto bitmap_mask = (ui64)0b00000000'00000000'00000000'00000000'00000000'00010000'00000000'00000000; // bitmap : 1; // Has background image.
-            static constexpr auto hidden_mask = (ui64)0b00000000'00000000'00000000'00000000'00000000'00100000'00000000'00000000; // hidden : 1; // Hidden character.
-            static constexpr auto imgH10_mask = (ui64)0b00000000'00000000'00000000'00000000'11111111'11000000'00000000'00000000; // reserv : 8;
+            static constexpr auto hidden_mask = (ui64)0b00000000'00000000'00000000'00000000'00000000'00010000'00000000'00000000; // hidden : 1; // Hidden character.
+          //static constexpr auto reserv_mask = (ui64)0b00000000'00000000'00000000'00000000'11111111'11100000'00000000'00000000; // reserv : 11;
             static constexpr auto shadow_mask = (ui64)0b00000000'00000000'00000000'11111111'00000000'00000000'00000000'00000000; // shadow : 8; // Shadow bits.
             // Unique attributes. From 24th bit.
             static constexpr auto mosaic_mask = (ui64)0b00000000'00000000'11111111'00000000'00000000'00000000'00000000'00000000; // ui32 mosaic : 8; // High 3 bits -> y-fragment (0-4 utf::matrix::ky), low 5 bits -> x-fragment (0-16 utf::matrix::kx). // Ref:  https://gitlab.freedesktop.org/terminal-wg/specifications/-/issues/23
@@ -1598,9 +1597,7 @@ namespace netxs
             void unc(si32 c)         { token &= ~ucolor_mask; token |= ((ui64)(ui32)c << netxs::field_offset<ucolor_mask>()); }
             void cur(si32 s)         { token &= ~cursor_mask; token |= ((ui64)(ui32)s << netxs::field_offset<cursor_mask>()); }
             void mosaic(si32 m)      { token &= ~mosaic_mask; token |= ((ui64)(ui32)m << netxs::field_offset<mosaic_mask>()); }
-            void bitmap(si32 r)      { token &= ~bitmap_mask; token |= ((ui64)(ui32)r << netxs::field_offset<bitmap_mask>()); }
             void  xy(ui64 m)         { token &= ~mosaic_mask; token |= m; }
-            void raw(ui64 r)         { token &= ~bitmap_mask; token |= r; }
             void  xy(si32 x, si32 y) { mosaic(x + (y << y_bits)); }
             void fuse_dim(si32 n)    { token |= (ui64)(ui32)n << netxs::field_offset<shadow_mask>(); }
             void cursor0(si32 c)     { token &= ~cursor_mask; token |= ((ui64)(ui32)c << netxs::field_offset<cursor_mask>()); }
@@ -1629,9 +1626,7 @@ namespace netxs
             //si32 hplink0() const { return (token & hplink_mask); }
             //si32 fusion0() const { return (token & fusion_mask); }
             ui64  xy()    const { return (token & mosaic_mask); }
-            ui64 raw()    const { return (token & bitmap_mask); }
             si32 mosaic() const { return (si32)((token & mosaic_mask) >> netxs::field_offset<mosaic_mask>()); }
-            si32 bitmap() const { return (si32)((token & bitmap_mask) >> netxs::field_offset<bitmap_mask>()); }
             auto cursor_color() const
             {
                 auto bgi = (byte)((token & curbgc_mask) >> netxs::field_offset<curbgc_mask>());
@@ -1738,40 +1733,19 @@ namespace netxs
                 fg.wipe();
             }
         };
-        struct pict
-        {
-            ui32 token;
-            constexpr pict()
-                : token{ 0 }
-            { }
-            constexpr pict(pict const& p)
-                : token{ p.token }
-            { }
-
-            constexpr pict& operator = (pict const&) = default;
-            bool operator == (pict const& p) const
-            {
-                return token == p.token;
-            }
-            void wipe()
-            {
-                token = 0;
-            }
-        };
 
         clrs uv; // 8U, cell: Fg and bg colors.
         glyf gc; // 8U, cell: Grapheme cluster.
         body st; // 8U, cell: Style attributes.
-        id_t id; // 4U, cell: Link ID.
-        pict px; // 4U, cell: Background image index and metadata.
+        ui64 p2{}; // 8U, cell: Background image dimensions.
+        ui32 p1{}; // 4U, cell: Background image index and metadata.
+        id_t id{}; // 4U, cell: Link ID.
 
         cell()
-            : id{ 0 }
         { }
         cell(char c)
             : gc{ c },
-              st{ utf::matrix::mosaic<11> },
-              id{ 0 }
+              st{ utf::matrix::mosaic<11> }
         {
             // sizeof(glyf);
             // sizeof(clrs);
@@ -1781,7 +1755,6 @@ namespace netxs
             // sizeof(cell);
         }
         cell(view utf8)
-            : id{ 0 }
         {
             txt(utf8);
         }
@@ -1790,14 +1763,16 @@ namespace netxs
               gc{ base.gc },
               st{ base.st },
               id{ base.id },
-              px{ base.px }
+              p2{ base.p2 },
+              p1{ base.p1 }
         { }
         cell(cell const& base, char c)
             : uv{ base.uv },
               gc{ c       },
               st{ base.st, utf::matrix::mosaic<11> },
               id{ base.id },
-              px{ base.px }
+              p2{ base.p2 },
+              p1{ base.p1 }
         { }
 
         auto operator == (cell const& c) const
@@ -1805,7 +1780,8 @@ namespace netxs
             return uv == c.uv
                 && st == c.st
                 && gc == c.gc
-                && px == c.px;
+                && p2 == c.p2
+                && p1 == c.p1;
         }
         auto operator != (cell const& c) const
         {
@@ -1817,78 +1793,80 @@ namespace netxs
             gc = c.gc;
             st = c.st;
             id = c.id;
-            px = c.px;
+            p2 = c.p2;
+            p1 = c.p1;
             return *this;
         }
 
         operator bool () const { return st.xy(); } // cell: Return true if cell contains printable character.
 
-        // Background image prop masks:
+        // Embedded object prop masks:
         // Internal, stored within the cell:
-        //  bits | value                                             | storage
-        // ------|---------------------------------------------------|--------------
-        //  16   | Image index. ui16                                 | px_idx_16_mask
-        //  3    | align=[center|left|right][,][middle|top|bottom]   | px_align3_mask
-        //  2    | flip=[none|v|h|vh]                                | px_flip_2_mask
-        //  11   | width. ui16                                       | px_imgW11_mask
-        //  10   | height. ui16                                      | st:imgH10_mask
-        //  11   | x fragment. ui16                                  | uv_imageX11_mask
-        //  10   | y fragment. ui16                                  | uv_imageY10_mask
-        //  2    | mirror=[none|v|h|vh]                              | uv_mirror_2_mask
-        //  2    | rotate=[0|90|180|270]                             | uv_rotate_2_mask
-        //  2    | scale=[inside|outside|stretch|none]               | uv_scale__2_mask
-        //  5    | reserved                                          | uv_reseved5_mask
+        //  bits | value
+        // ------|------
+        //  16   | Object index. ui16
+        //  16   | width. ui16
+        //  16   | height. ui16
+        //  16   | x fragment. ui16
+        //  16   | y fragment. ui16
+        //  4    | align=[center|left|right][-][middle|top|bottom]
+        //  1    | ontop=0 | 1
+        //  3    | transform=0..7 (flip+rotate)
+        //  2    | scale=[inside|outside|stretch|none]
 
-        static constexpr auto px_idx_16_mask = (ui32)0b00000000'00000000'11111111'11111111;
-        static constexpr auto px_align3_mask = (ui32)0b00000000'00000111'00000000'00000000;
-        static constexpr auto px_flip_2_mask = (ui32)0b00000000'00011000'00000000'00000000;
-        static constexpr auto px_imgW11_mask = (ui32)0b11111111'11100000'00000000'00000000;
-      //static constexpr auto st:imgH10_mask
-        static constexpr auto uv_imageX11_mask = (ui32)0b11111111'11100000'00000000'00000000;
-      //static constexpr auto uv_reserv_5_mask = (ui32)0b00000000'00011111'00000000'00000000;
-        static constexpr auto uv_mirror_2_mask = (ui32)0b00000000'00000000'11000000'00000000;
-        static constexpr auto uv_rotate_2_mask = (ui32)0b00000000'00000000'00110000'00000000;
-        static constexpr auto uv_scale__2_mask = (ui32)0b00000000'00000000'00001100'00000000;
-        static constexpr auto uv_imageY10_mask = (ui32)0b00000000'00000000'00000011'11111111;
+        static constexpr auto p1_index16_mask = (ui32)0b00000000'00000000'11111111'11111111;
+        static constexpr auto p1_align_4_mask = (ui32)0b00000000'00001111'00000000'00000000;
+        static constexpr auto p1_xform_3_mask = (ui32)0b00000000'01110000'00000000'00000000;
+        static constexpr auto p1_ontop_1_mask = (ui32)0b00000000'10000000'00000000'00000000;
+        static constexpr auto p1_scale_2_mask = (ui32)0b00000011'00000000'00000000'00000000;
+      //static constexpr auto p1_reserv6_mask = (ui32)0b11111100'00000000'00000000'00000000;
 
-        auto get_image_xy() const
+        static constexpr auto p2_objW_16_mask = (ui64)0b00000000'00000000'00000000'00000000'00000000'00000000'11111111'11111111;
+        static constexpr auto p2_objH_16_mask = (ui64)0b00000000'00000000'00000000'00000000'11111111'11111111'00000000'00000000;
+        static constexpr auto p2_objX_16_mask = (ui64)0b00000000'00000000'11111111'11111111'00000000'00000000'00000000'00000000;
+        static constexpr auto p2_objY_16_mask = (ui64)0b11111111'11111111'00000000'00000000'00000000'00000000'00000000'00000000;
+
+        auto get_object_xy() const
         {
-            auto x = netxs::get_field<uv_imageX11_mask>(uv.bg.token);
-            auto y = netxs::get_field<uv_imageY10_mask>(uv.bg.token);
+            auto x = netxs::get_field<p2_objX_16_mask>(p2);
+            auto y = netxs::get_field<p2_objY_16_mask>(p2);
             return twod{ x, y };
         }
-        auto set_image_xy(twod xy)
+        auto set_object_xy(twod xy)
         {
-            netxs::set_field<uv_imageX11_mask>(xy.x, uv.bg.token);
-            netxs::set_field<uv_imageY10_mask>(xy.y, uv.bg.token);
+            netxs::set_field<p2_objX_16_mask>(xy.x, p2);
+            netxs::set_field<p2_objY_16_mask>(xy.y, p2);
         }
-        auto get_image_size() const
+        auto get_object_size() const
         {
-            auto w = netxs::get_field<px_imgW11_mask>(px.token);
-            auto h = netxs::get_field<st.imgH10_mask>(st.token);
+            auto w = netxs::get_field<p2_objW_16_mask>(p2);
+            auto h = netxs::get_field<p2_objH_16_mask>(p2);
             return twod{ w, h };
         }
-        auto set_image_size(twod wh)
+        auto set_object_size(twod wh)
         {
-            netxs::set_field<px_imgW11_mask>(wh.x, px.token);
-            netxs::set_field<st.imgH10_mask>(wh.y, st.token);
+            netxs::set_field<p2_objW_16_mask>(wh.x, p2);
+            netxs::set_field<p2_objH_16_mask>(wh.y, p2);
         }
-        auto get_image_index()  const { return netxs::get_field<px_idx_16_mask  >(px.token   ); }
-        auto get_image_align()  const { return netxs::get_field<px_align3_mask  >(px.token   ); }
-        auto get_image_flip()   const { return netxs::get_field<px_flip_2_mask  >(px.token   ); }
-        auto get_image_mirror() const { return netxs::get_field<uv_mirror_2_mask>(uv.bg.token); }
-        auto get_image_rotate() const { return netxs::get_field<uv_rotate_2_mask>(uv.bg.token); }
-        auto get_image_scale()  const { return netxs::get_field<uv_scale__2_mask>(uv.bg.token); }
-        auto set_image_index( si32 n) { netxs::set_field<px_idx_16_mask  >(n, px.token   ); }
-        auto set_image_align( si32 n) { netxs::set_field<px_align3_mask  >(n, px.token   ); }
-        auto set_image_flip(  si32 n) { netxs::set_field<px_flip_2_mask  >(n, px.token   ); }
-        auto set_image_mirror(si32 n) { netxs::set_field<uv_mirror_2_mask>(n, uv.bg.token); }
-        auto set_image_rotate(si32 n) { netxs::set_field<uv_rotate_2_mask>(n, uv.bg.token); }
-        auto set_image_scale( si32 n) { netxs::set_field<uv_scale__2_mask>(n, uv.bg.token); }
+        auto get_object_index() const { return netxs::get_field<p1_index16_mask>(p1); }
+        auto get_object_align() const { return netxs::get_field<p1_align_4_mask>(p1); }
+        auto get_object_xform() const { return netxs::get_field<p1_xform_3_mask>(p1); }
+        auto get_object_ontop() const { return netxs::get_field<p1_ontop_1_mask>(p1); }
+        auto get_object_scale() const { return netxs::get_field<p1_scale_2_mask>(p1); }
+        auto set_object_index(si32 n) { netxs::set_field<p1_index16_mask>(n, p1); }
+        auto set_object_align(si32 n) { netxs::set_field<p1_align_4_mask>(n, p1); }
+        auto set_object_xform(si32 n) { netxs::set_field<p1_xform_3_mask>(n, p1); }
+        auto set_object_ontop(si32 n) { netxs::set_field<p1_ontop_1_mask>(n, p1); }
+        auto set_object_scale(si32 n) { netxs::set_field<p1_scale_2_mask>(n, p1); }
 
+        //todo rename to has_object
+        auto raw() const
+        {
+            return !!p1;
+        }
         auto is_empty() const // cell: Return true if cell is absolutely empty.
         {
-            return uv.bg.token == 0 && uv.fg.token == 0 && gc.token == 0 && st.token == 0 && id == 0 && px.token == 0;
+            return uv.bg.token == 0 && uv.fg.token == 0 && gc.token == 0 && st.token == 0 && id == 0 && p1 == 0 && p2 == 0;
         }
         auto same_txt(cell const& c) const // cell: Compare clusters.
         {
@@ -1898,14 +1876,15 @@ namespace netxs
         {
             return uv == c.uv
                 && st.like(c.st)
-                && (!st.raw() || px == c.px);
+                && (!raw() || p1 == c.p1);
         }
         void wipe() // cell: Set colors, attributes and grapheme cluster to zero.
         {
             uv.wipe();
             gc.wipe();
             st.wipe();
-            px.wipe();
+            p2 = 0;
+            p1 = 0;
         }
         // cell: Blend two cells according to visibility and other attributes.
         auto& fuse(cell const& c)
@@ -1916,10 +1895,10 @@ namespace netxs
             if (uv.bg.chan.a == 0xFF) uv.bg.mix_one(c.uv.bg);
             else                      uv.bg.mix(c.uv.bg);
 
-            if (auto r = c.st.raw())
+            if (c.raw())
             {
-                px = c.px;
-                st.raw(r);
+                p2 = c.p2;
+                p1 = c.p1;
             }
             if (c.st.xy())
             {
@@ -1961,7 +1940,11 @@ namespace netxs
                 st = c.st;
                 gc = c.gc;
             }
-            if (st.raw()) px = c.px;
+            if (raw())
+            {
+                p2 = c.p2;
+                p1 = c.p1;
+            }
         }
         // cell: Blend cell colors.
         void blend(cell const& c)
@@ -1974,10 +1957,10 @@ namespace netxs
         {
             uv.fg.mix(c.uv.fg, alpha);
             uv.bg.mix(c.uv.bg, alpha);
-            if (auto r = c.st.raw())
+            if (c.raw())
             {
-                px = c.px;
-                st.raw(r);
+                p2 = c.p2;
+                p1 = c.p1;
             }
             if (c.st.xy())
             {
@@ -1995,7 +1978,11 @@ namespace netxs
                 gc = c.gc;
                 uv.fg = uv.bg; // The character must be on top of the cell background. (see block graphics)
             }
-            if (st.raw()) px = c.px;
+            if (raw())
+            {
+                p2 = c.p2;
+                p1 = c.p1;
+            }
             uv.fg.mix(c.uv.fg, alpha);
             uv.bg.mix(c.uv.bg, alpha);
         }
@@ -2030,9 +2017,10 @@ namespace netxs
             st = c.st;
             if (bg_opaque) uv.bg.mix_one(c.uv.bg);
             else           uv.bg.mix(c.uv.bg);
-            if (c.st.raw())
+            if (c.raw())
             {
-                px = c.px;
+                p2 = c.p2;
+                p1 = c.p1;
             }
             if (c.id) id = c.id;
         }
@@ -2046,7 +2034,8 @@ namespace netxs
         {
             uv = c.uv;
             st.meta(c.st);
-            px = c.px;
+            p2 = c.p2;
+            p1 = c.p1;
         }
         void skipnulls(cell const& c)
         {
@@ -2290,7 +2279,8 @@ namespace netxs
         auto& set(cell const& c) { uv = c.uv;
                                    st = c.st;
                                    gc = c.gc;
-                                   px = c.px;              return *this; }
+                                   p2 = c.p2;
+                                   p1 = c.p1;              return *this; }
         auto& bgc(argb c)        { uv.bg = c;              return *this; } // cell: Set background color.
         auto& fgc(argb c)        { uv.fg = c;              return *this; } // cell: Set foreground color.
         auto& bga(si32 k)        { uv.bg.chan.a = (byte)k; return *this; } // cell: Set background alpha/transparency.
@@ -2312,7 +2302,7 @@ namespace netxs
         auto& unc(argb c)        { st.unc(c.to_256cube()); return *this; } // cell: Set underline color.
         auto& unc(si32 c)        { st.unc(c);              return *this; } // cell: Set underline color.
         auto& cur(si32 s)        { st.cur(s);              return *this; } // cell: Set cursor style.
-        auto& img(ui32 p)        { px.token = p;           return *this; } // cell: Set attached bitmap.
+        auto& obj(ui64 a, ui32 b){ p2 = a; p1 = b;         return *this; } // cell: Set attached object.
         auto& ovr(bool b)        { st.ovr(b);              return *this; } // cell: Set overline attribute.
         auto& inv(bool b)        { st.inv(b);              return *this; } // cell: Set invert attribute.
         auto& stk(bool b)        { st.stk(b);              return *this; } // cell: Set strikethrough attribute.
@@ -2383,7 +2373,8 @@ namespace netxs
             uv = empty.uv;
             st = empty.st;
             gc = empty.gc;
-            px = empty.px;
+            p2 = empty.p2;
+            p1 = empty.p1;
             return *this;
         }
 
@@ -2409,8 +2400,8 @@ namespace netxs
         auto  und() const  { return st.und();      } // cell: Return underline/Underscore attribute.
         auto  unc() const  { return st.unc();      } // cell: Return underline color.
         auto  cur() const  { return st.cur();      } // cell: Return cursor style.
-        auto& img()        { return px.token;      } // cell: Return attached bitmap.
-        auto& img() const  { return px.token;      } // cell: Return attached bitmap.
+        auto& obj()        { return p1;            } // cell: Return attached object.
+        auto& obj() const  { return p1;            } // cell: Return attached object.
         auto  ovr() const  { return st.ovr();      } // cell: Return overline attribute.
         auto  inv() const  { return st.inv();      } // cell: Return negative attribute.
         auto  stk() const  { return st.stk();      } // cell: Return strikethrough attribute.
