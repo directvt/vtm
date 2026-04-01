@@ -6,10 +6,9 @@ The **Embedded Object Protocol (EOP)** allows vector, bitmap, and extensible mar
 
 - **Rectangular Area**: The object is hosted within a defined rectangular grid of cells ($width \times height$).
 - **Persistence**: Metadata is stored per-cell; survives scrollback and reflows.
-- **Non-destructive**: Outputting an object does not destroy existing text. The cell's original SGR background color is replaced by the object's `background` attribute.
-- **Layering**: Default is **text over object**. **SGR 7 (Reverse Video)** swaps the layering, placing the **object over text**.
+- **Non-destructive**: Outputting an object does not destroy existing text.
+- **Layering**: The `ontop` attribute switches the layering, placing the object on top of the text instead of behind it.
 - **Per-pixel Transparency**: The rendered object supports full alpha-channel transparency.
-- **Background Fill**: The `background` attribute defines a solid RGBA color for the entire rectangular area. This fill is the **bottom-most layer**, providing a backdrop for transparency and paddings regardless of **SGR 7**.
 - **Foreground Color**: The underlying cell **SGR foreground color** maps to `currentColor` (for SVG).
 - **Line Wrapping & Reflow**:
   - The object's cell-runs follow the current line-wrap mode (wrap or horizontal scroll).
@@ -37,7 +36,7 @@ Field             | Description
 Attribute     | Values                                 | Default                  | Description
 --------------|----------------------------------------|--------------------------|------------
 **id**        | `<id>[/sub-id]`                        | empty string (`""`)      | Object reference ID. If omitted, the ID from the root tag is used.
-**background**| `#rrggbb[aa]`                          | `#00000000`              | RGBA color for filling the background of the object's rectangle.
+**ontop**     | `0`|`1`                                | `0`                      | Layering: 0 = background (under text), 1 = foreground (over text).
 **width**     | `1`..`2047`                            | Terminal viewport width  | Width of the rectangle in cells.
 **height**    | `1`..`1023`                            | Terminal viewport height | Height of the rectangle in cells.
 **row**       | `0`..`<height>`                        | `0`                      | Vertical slice index (0 = full height, 1..n = specific cell).
