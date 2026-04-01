@@ -5,8 +5,7 @@ The **Embedded Object Protocol (EOP)** allows vector, bitmap, and extensible mar
 #### Rendering & Alpha Blending
 
 - **Rectangular Area**: The object is hosted within a defined rectangular grid of cells.
-- **Persistence**: Metadata is stored per-cell; survives scrollback and reflows.
-- **Line Wrapping**: Cell-runs follow the current line-wrap mode and remain logically linked for strict rectangular reflow.
+- **Persistence**: Metadata is stored per-cell to survive scrollback and ensure that wrapped cell-runs remain logically linked for a strict rectangular reflow.
 - **Cursor Position**: Anchored at the top-left; moves to the cell immediately following the bottom-right corner after output.
 - **Non-destructive & Color State**: The object's rectangular area is filled with the **current SGR background color** without destroying existing text.
 - **Scroll Behavior**: Outputting an object does not trigger **BCE (Background Color Erase)**; the background color is applied strictly to the object's cells.
