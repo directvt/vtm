@@ -4,23 +4,17 @@ The **Embedded Object Protocol (EOP)** allows vector, bitmap, and extensible mar
 
 #### Rendering & Alpha Blending
 
-- **Rectangular Area**: The object is hosted within a defined rectangular grid of cells ($width \times height$).
+- **Rectangular Area**: The object is hosted within a defined rectangular grid of cells.
 - **Persistence**: Metadata is stored per-cell; survives scrollback and reflows.
-- **Non-destructive & Color State**:
-  - Outputting an object does not destroy existing text.
-  - The **current SGR background color** is applied to all cells within the object's rectangle.
-- **Scroll Behavior**: **BCE (Background Color Erase) is not applied** to the newly created lines when outputting the object requires adding new lines (scrolling).
-- **Layering**: The `ontop` attribute switches the layering, placing the object on top of the text instead of behind it.
+- **Line Wrapping**: Cell-runs follow the current line-wrap mode and remain logically linked for strict rectangular reflow.
+- **Cursor Position**: Anchored at the top-left; moves to the cell immediately following the bottom-right corner after output.
+- **Non-destructive & Color State**: The object's rectangular area is filled with the **current SGR background color** without destroying existing text.
+- **Scroll Behavior**: Outputting an object does not trigger **BCE (Background Color Erase)**; the background color is applied strictly to the object's cells.
+- **Layering**: The `ontop` attribute places the object on top of the text instead of behind it.
 - **Per-pixel Transparency**: The rendered object supports full alpha-channel transparency.
 - **Foreground Color**: The underlying cell **SGR foreground color** maps to `currentColor` (for SVG).
-- **Line Wrapping & Reflow**:
-  - The object's cell-runs follow the current line-wrap mode (wrap or horizontal scroll).
-  - Cell-runs are output sequentially (row by row). Even if wrapped, they remain logically linked so that increasing the viewport width allows them to reflow back into a strict rectangular raster.
-- **Cursor Position**:
-  - The top-left corner of the object's rectangle is anchored to the current cursor position.
-  - After outputting the object, the cursor moves to the cell immediately following the **bottom-right** corner of the object's rectangle.
 - **Re-rasterization**: The Graphical Frontend (FÉ) re-renders the object upon cell size changes to maintain pixel-perfection.
-- **Gamma-Correct Blending**: To ensure visual fidelity, alpha blending must be performed in **linear color space** rather than sRGB.
+- **Gamma-Correct Blending**: Alpha blending is performed in **linear color space** to ensure visual fidelity.
 
 #### Sequence Format
 
