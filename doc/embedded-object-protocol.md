@@ -15,6 +15,18 @@ The **Embedded Object Protocol (EOP)** allows vector, bitmap, and extensible mar
 - **Re-rasterization**: The Graphical Frontend (FÉ) re-renders the object upon cell size changes to maintain pixel-perfection.
 - **Gamma-Correct Blending**: Alpha blending is performed in **linear color space** to ensure visual fidelity.
 
+- **Rectangular Area**: The object is hosted within a defined rectangular grid of cells ($width \times height$).
+- **Persistence & Reflow**: Metadata is stored per-cell to survive scrollback and ensure that wrapped cell-runs remain logically linked for a strict rectangular reflow.
+- **Non-destructive & Color State**: The object's rectangular area is filled with the **current SGR background color** without destroying existing text.
+- **Scroll Behavior**: Outputting an object does not trigger **BCE (Background Color Erase)**; the background color is applied strictly to the object's cells.
+- **Layering**: The `ontop` attribute (default `0`) switches the layering, placing the object on top of the text instead of behind it.
+- **Per-pixel Transparency**: The rendered object supports full alpha-channel transparency.
+- **Foreground Color**: The underlying cell **SGR foreground color** maps to `currentColor` (for SVG).
+- **Cursor Position**: Anchored at the top-left; moves to the cell immediately following the bottom-right corner after output.
+- **Re-rasterization**: The Graphical Frontend (FÉ) re-renders the object upon cell size changes to maintain pixel-perfection.
+- **Gamma-Correct Blending**: To ensure visual fidelity, alpha blending must be performed in **linear color space** rather than sRGB.
+
+
 #### Sequence Format
 
 ```
