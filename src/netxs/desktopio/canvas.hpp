@@ -1295,10 +1295,12 @@ namespace netxs
     {
         struct image
         {
-            text                                                 id;
-            text                                                 document;
-            std::array<std::optional<si32>, imagens::attr_count> attr_values;
-            ui16                                                 index{};
+            using attrs_t = std::array<std::optional<si32>, imagens::attr_count>;
+
+            text    id;
+            text    document;
+            attrs_t attrs;
+            ui16    index{};
         };
 
         static auto jumbos()
@@ -1833,10 +1835,10 @@ namespace netxs
             auto y = netxs::get_field<p2_objY_16_mask>(p2);
             return twod{ x, y };
         }
-        auto set_image_xy(twod xy)
+        auto set_image_xy(si32 x, si32 y)
         {
-            netxs::set_field<p2_objX_16_mask>(xy.x, p2);
-            netxs::set_field<p2_objY_16_mask>(xy.y, p2);
+            netxs::set_field<p2_objX_16_mask>(x, p2);
+            netxs::set_field<p2_objY_16_mask>(y, p2);
         }
         auto get_image_size() const
         {
@@ -1844,10 +1846,10 @@ namespace netxs
             auto h = netxs::get_field<p2_objH_16_mask>(p2);
             return twod{ w, h };
         }
-        auto set_image_size(twod wh)
+        auto set_image_size(si32 w, si32 h)
         {
-            netxs::set_field<p2_objW_16_mask>(wh.x, p2);
-            netxs::set_field<p2_objH_16_mask>(wh.y, p2);
+            netxs::set_field<p2_objW_16_mask>(w, p2);
+            netxs::set_field<p2_objH_16_mask>(h, p2);
         }
         auto get_image_index() const { return netxs::get_field<p1_index16_mask>(p1); }
         auto get_image_align() const { return netxs::get_field<p1_align_4_mask>(p1); }
@@ -1859,6 +1861,24 @@ namespace netxs
         auto set_image_xform(si32 n) { netxs::set_field<p1_xform_3_mask>(n, p1); }
         auto set_image_ontop(si32 n) { netxs::set_field<p1_ontop_1_mask>(n, p1); }
         auto set_image_scale(si32 n) { netxs::set_field<p1_scale_2_mask>(n, p1); }
+        auto set_image_attrs(cell::image& image, cell::image::attrs_t& new_attrs)
+        {
+            auto attrs = std::array<si32, imagens::attr_count>{};
+            for (auto i = 0; i < imagens::attr_count; i++)
+            {
+                if (auto v = new_attrs[i]) attrs[i] = v.value();
+            }
+            set_image_index(image.index);
+            set_image_xy(   attrs[imagens::column   ],
+                            attrs[imagens::row      ]);
+            set_image_size( attrs[imagens::width    ],
+                            attrs[imagens::height   ]);
+            set_image_align(attrs[imagens::align    ]);
+            set_image_xform(attrs[imagens::transform]);
+            set_image_ontop(attrs[imagens::ontop    ]);
+            set_image_scale(attrs[imagens::scale    ]);
+            return *this;
+        }
 
         //todo rename to has_image
         auto raw() const

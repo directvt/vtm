@@ -7194,6 +7194,7 @@ namespace netxs::ui
         ui64       session_token; // term: Interactive session token.
         utf::unordered_map<text, netxs::sptr<cell::image>> image_cache; // term: Image cache.
         generics::indexer<ui16>                            image_index_pool; // term: Image index pool.
+        face                                               image_buffer; // term: Image temporary buffer.
         vtty       ipccon; // term: IPC connector. Should be destroyed first.
 
         // term: Place rectangle block to the scrollback buffer.
@@ -7319,8 +7320,7 @@ namespace netxs::ui
             auto doc_id_str = qiew{};
             auto do_register   = faux;
             auto do_unregister = faux;
-            auto image_ptr = netxs::sptr<cell::image>{};
-            auto new_attrs = decltype(cell::image::attr_values){};
+            auto new_attrs = cell::image::attrs_t{};
             // data: " id + attrs + doc"  Find by id and update/register and print.
             //       " attrs + doc "      Find id in doc and register. (id=<doc id="...">)
             //       " doc "              Find id in doc and register. (id=<doc id="...">)
@@ -7422,7 +7422,7 @@ namespace netxs::ui
             {
                 if (auto iter = image_cache.find(id_str); iter != image_cache.end())
                 {
-                    image_ptr = iter->second;
+                    auto image_ptr = iter->second;
                     log("unregistered ", image_ptr->id);
                     image_cache.erase(iter);
                     auto image_index = (base::id << 16) | image_ptr->index;
@@ -7442,8 +7442,8 @@ namespace netxs::ui
                 if (iter != image_cache.end() && doc_str.empty())
                 {
                     log("image_ptr found");
-                    image_ptr = iter->second;
-                    auto& old_attrs = image_ptr->attr_values;
+                    auto image_ptr = iter->second;
+                    auto& old_attrs = image_ptr->attrs;
                     for (auto i = 0u; i < new_attrs.size(); i++)
                     {
                         auto& new_attr = new_attrs[i];
@@ -7471,23 +7471,23 @@ namespace netxs::ui
                 }
                 // Clamp sizes.
                 auto max_size = skin::globals().max_value;
-                auto& w = new_attrs[imagens::width ];
-                auto& h = new_attrs[imagens::height];
-                auto& x = new_attrs[imagens::column];
-                auto& y = new_attrs[imagens::row   ];
-                if (w) w = std::clamp(w.value(), 1, max_size.x); else w = target->panel.x;
-                if (h) h = std::clamp(h.value(), 1, max_size.y); else h = target->panel.y;
-                if (x) x = std::clamp(x.value(), 0, w.value());  else x = 0;
-                if (y) y = std::clamp(y.value(), 0, h.value());  else y = 0;
+                auto& _w = new_attrs[imagens::width ];
+                auto& _h = new_attrs[imagens::height];
+                auto& _x = new_attrs[imagens::column];
+                auto& _y = new_attrs[imagens::row   ];
+                if (_w) _w = std::clamp(_w.value(), 1, max_size.x); else _w = target->panel.x;
+                if (_h) _h = std::clamp(_h.value(), 1, max_size.y); else _h = target->panel.y;
+                if (_x) _x = std::clamp(_x.value(), 0, _w.value()); else _x = 0;
+                if (_y) _y = std::clamp(_y.value(), 0, _h.value()); else _y = 0;
                 // Register image.
                 if (iter == image_cache.end() && doc_str)
                 {
                     if (auto image_id = image_index_pool.get_new())
                     {
-                        image_ptr = ptr::shared(cell::image{ .id          = id_str,
-                                                             .document    = doc_str,
-                                                             .attr_values = new_attrs,
-                                                             .index       = image_id });
+                        auto image_ptr = ptr::shared(cell::image{ .id       = id_str,
+                                                                  .document = doc_str,
+                                                                  .attrs    = new_attrs,
+                                                                  .index    = image_id });
                         iter = image_cache.emplace(id_str, image_ptr).first;
                         auto image_index = (base::id << 16) | image_id;
                         images.add(image_index, image_ptr);
@@ -7500,8 +7500,10 @@ namespace netxs::ui
                 }
                 else if (doc_str) // Replace existing image.
                 {
-                    image_ptr->document = doc_str;
-                    image_ptr->attr_values = new_attrs;
+                    log("%%Object with id='%%' updated", prompt::term, id_str);
+                    auto& image = *iter->second;
+                    image.document = doc_str;
+                    image.attrs = new_attrs;
                     //todo notify all gates
                     //signal(general...)
                 }
@@ -7510,7 +7512,60 @@ namespace netxs::ui
                     if (io_log) log("%%Object with id='%%' is not registered", prompt::term, id_str);
                     return;
                 }
-                //todo print
+                // Print image rectangle.
+                auto& console = *target;
+                console.flush_data();
+                auto& image = *iter->second;
+                auto w = _w.value();
+                auto h = _h.value();
+                auto x = _x.value();
+                auto y = _y.value();
+                //auto c = cell{}.bgc(target->brush.bgc()).set_image_attrs(image, new_attrs);
+                auto c = cell{}.bgc(tint::redlt).set_image_attrs(image, new_attrs);
+                auto coor = console.coord;
+                auto draw_block = [&]
+                {
+                    //todo scroll+set_coor
+                    auto trim = rect{ coor, image_buffer.size() };
+                    if (target == &normal)
+                    {
+                        write_block(normal, image_buffer, coor, trim, cell::shaders::full);
+                    }
+                    else
+                    {
+                        auto& target_buffer = *(alt_screen*)target;
+                        write_block(target_buffer, image_buffer, coor, trim, cell::shaders::full);
+                    }
+                };
+                if (!x && !y) // Print full raster.
+                {
+                    auto size = twod{ w, h };
+                    image_buffer.core::crop(size, c);
+                    //todo fill metadata
+                    draw_block();
+                }
+                else if (x) // Print vertical slice.
+                {
+                    auto size = twod{ 1, h };
+                    image_buffer.core::crop(size, c);
+                    //todo fill metadata
+                    draw_block();
+                }
+                else if (y) // Print horizontal slice.
+                {
+                    auto size = twod{ w, 1 };
+                    image_buffer.core::crop(size, c);
+                    //todo fill metadata
+                    draw_block();
+                }
+                else // if (x && y) // Print a single cell.
+                {
+                    //todo optimize
+                    auto size = twod{ 1, 1 };
+                    image_buffer.core::crop(size, c);
+                    //todo fill metadata
+                    draw_block();
+                }
             }
         }
         // term: Forward clipboard data (OSC 52).
