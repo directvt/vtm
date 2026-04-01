@@ -1246,6 +1246,7 @@ namespace netxs
                 attr_list
             #undef X
         };
+        #undef attr_list
         static const auto value_index_map = std::unordered_map<si32, utf::unordered_map<text, si32>>
         {
             { imagens::align, {{ "center" , align_mode::center }, { "center-middle" , align_mode::center_middle }, { "center-top" , align_mode::center_top }, { "center-bottom" , align_mode::center_bottom },
@@ -1294,11 +1295,10 @@ namespace netxs
     {
         struct image
         {
+            text                                                 id;
+            text                                                 document;
             std::array<std::optional<si32>, imagens::attr_count> attr_values;
-            text id;
-            text svg_document;
-
-            #undef attr_list
+            ui16                                                 index{};
         };
 
         static auto jumbos()
@@ -1309,6 +1309,7 @@ namespace netxs
         static auto images()
         {
             static auto cache = netxs::generics::cache<netxs::sptr<cell::image>>{};
+            log("images.cache.storage.size=", cache.storage().map.size());
             return cache.storage();
         }
 
@@ -1737,8 +1738,8 @@ namespace netxs
         clrs uv; // 8U, cell: Fg and bg colors.
         glyf gc; // 8U, cell: Grapheme cluster.
         body st; // 8U, cell: Style attributes.
-        ui64 p2{}; // 8U, cell: Background image dimensions.
-        ui32 p1{}; // 4U, cell: Background image index and metadata.
+        ui64 p2{}; // 8U, cell: Image dimensions.
+        ui32 p1{}; // 4U, cell: Image index and metadata.
         id_t id{}; // 4U, cell: Link ID.
 
         cell()
@@ -1800,11 +1801,11 @@ namespace netxs
 
         operator bool () const { return st.xy(); } // cell: Return true if cell contains printable character.
 
-        // Embedded object prop masks:
+        // Image prop masks:
         // Internal, stored within the cell:
         //  bits | value
         // ------|------
-        //  16   | Object index. ui16
+        //  16   | Image index. ui16
         //  16   | width. ui16
         //  16   | height. ui16
         //  16   | x fragment. ui16
@@ -1826,40 +1827,40 @@ namespace netxs
         static constexpr auto p2_objX_16_mask = (ui64)0b00000000'00000000'11111111'11111111'00000000'00000000'00000000'00000000;
         static constexpr auto p2_objY_16_mask = (ui64)0b11111111'11111111'00000000'00000000'00000000'00000000'00000000'00000000;
 
-        auto get_object_xy() const
+        auto get_image_xy() const
         {
             auto x = netxs::get_field<p2_objX_16_mask>(p2);
             auto y = netxs::get_field<p2_objY_16_mask>(p2);
             return twod{ x, y };
         }
-        auto set_object_xy(twod xy)
+        auto set_image_xy(twod xy)
         {
             netxs::set_field<p2_objX_16_mask>(xy.x, p2);
             netxs::set_field<p2_objY_16_mask>(xy.y, p2);
         }
-        auto get_object_size() const
+        auto get_image_size() const
         {
             auto w = netxs::get_field<p2_objW_16_mask>(p2);
             auto h = netxs::get_field<p2_objH_16_mask>(p2);
             return twod{ w, h };
         }
-        auto set_object_size(twod wh)
+        auto set_image_size(twod wh)
         {
             netxs::set_field<p2_objW_16_mask>(wh.x, p2);
             netxs::set_field<p2_objH_16_mask>(wh.y, p2);
         }
-        auto get_object_index() const { return netxs::get_field<p1_index16_mask>(p1); }
-        auto get_object_align() const { return netxs::get_field<p1_align_4_mask>(p1); }
-        auto get_object_xform() const { return netxs::get_field<p1_xform_3_mask>(p1); }
-        auto get_object_ontop() const { return netxs::get_field<p1_ontop_1_mask>(p1); }
-        auto get_object_scale() const { return netxs::get_field<p1_scale_2_mask>(p1); }
-        auto set_object_index(si32 n) { netxs::set_field<p1_index16_mask>(n, p1); }
-        auto set_object_align(si32 n) { netxs::set_field<p1_align_4_mask>(n, p1); }
-        auto set_object_xform(si32 n) { netxs::set_field<p1_xform_3_mask>(n, p1); }
-        auto set_object_ontop(si32 n) { netxs::set_field<p1_ontop_1_mask>(n, p1); }
-        auto set_object_scale(si32 n) { netxs::set_field<p1_scale_2_mask>(n, p1); }
+        auto get_image_index() const { return netxs::get_field<p1_index16_mask>(p1); }
+        auto get_image_align() const { return netxs::get_field<p1_align_4_mask>(p1); }
+        auto get_image_xform() const { return netxs::get_field<p1_xform_3_mask>(p1); }
+        auto get_image_ontop() const { return netxs::get_field<p1_ontop_1_mask>(p1); }
+        auto get_image_scale() const { return netxs::get_field<p1_scale_2_mask>(p1); }
+        auto set_image_index(si32 n) { netxs::set_field<p1_index16_mask>(n, p1); }
+        auto set_image_align(si32 n) { netxs::set_field<p1_align_4_mask>(n, p1); }
+        auto set_image_xform(si32 n) { netxs::set_field<p1_xform_3_mask>(n, p1); }
+        auto set_image_ontop(si32 n) { netxs::set_field<p1_ontop_1_mask>(n, p1); }
+        auto set_image_scale(si32 n) { netxs::set_field<p1_scale_2_mask>(n, p1); }
 
-        //todo rename to has_object
+        //todo rename to has_image
         auto raw() const
         {
             return !!p1;
@@ -2302,7 +2303,7 @@ namespace netxs
         auto& unc(argb c)        { st.unc(c.to_256cube()); return *this; } // cell: Set underline color.
         auto& unc(si32 c)        { st.unc(c);              return *this; } // cell: Set underline color.
         auto& cur(si32 s)        { st.cur(s);              return *this; } // cell: Set cursor style.
-        auto& obj(ui64 a, ui32 b){ p2 = a; p1 = b;         return *this; } // cell: Set attached object.
+        auto& img(ui64 a, ui32 b){ p2 = a; p1 = b;         return *this; } // cell: Set attached image.
         auto& ovr(bool b)        { st.ovr(b);              return *this; } // cell: Set overline attribute.
         auto& inv(bool b)        { st.inv(b);              return *this; } // cell: Set invert attribute.
         auto& stk(bool b)        { st.stk(b);              return *this; } // cell: Set strikethrough attribute.
@@ -2400,8 +2401,8 @@ namespace netxs
         auto  und() const  { return st.und();      } // cell: Return underline/Underscore attribute.
         auto  unc() const  { return st.unc();      } // cell: Return underline color.
         auto  cur() const  { return st.cur();      } // cell: Return cursor style.
-        auto& obj()        { return p1;            } // cell: Return attached object.
-        auto& obj() const  { return p1;            } // cell: Return attached object.
+        auto& img()        { return p1;            } // cell: Return attached image.
+        auto& img() const  { return p1;            } // cell: Return attached image.
         auto  ovr() const  { return st.ovr();      } // cell: Return overline attribute.
         auto  inv() const  { return st.inv();      } // cell: Return negative attribute.
         auto  stk() const  { return st.stk();      } // cell: Return strikethrough attribute.

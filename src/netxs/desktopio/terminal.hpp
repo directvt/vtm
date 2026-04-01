@@ -1207,7 +1207,7 @@ namespace netxs::ui
                 vt.oscer[osc_term_notify] = V{ p->owner.osc_notify(q);                  };
                 vt.oscer[osc_semantic_fx] = V{ p->owner.osc_marker(q);                  };
                 vt.oscer[osc_glyph      ] = V{ p->owner.osc_glyphs(q);                  };
-                vt.oscer[osc_object     ] = V{ p->owner.osc_objects(q);                 };
+                vt.oscer[osc_object     ] = V{ p->owner.osc_images(q);                  };
                 #undef V
 
                 // Log all unimplemented CSI commands.
@@ -7193,6 +7193,7 @@ namespace netxs::ui
         ui32       event_sources; // term: vt-input-mode event reporting bit-field.
         ui64       session_token; // term: Interactive session token.
         utf::unordered_map<text, netxs::sptr<cell::image>> image_cache; // term: Image cache.
+        generics::indexer<ui16>                            image_index_pool; // term: Image index pool.
         vtty       ipccon; // term: IPC connector. Should be destroyed first.
 
         // term: Place rectangle block to the scrollback buffer.
@@ -7309,7 +7310,7 @@ namespace netxs::ui
             log("%%Dynamic Glyph Redefinition is not implemented yet", prompt::term);
         }
         // term: Embedded Object Protocol.
-        void osc_objects(qiew attrs_str)
+        void osc_images(qiew attrs_str)
         {
             utf::trim(attrs_str, ' ');
             if (!attrs_str) return;
@@ -7365,7 +7366,7 @@ namespace netxs::ui
                                     if (key == "id") // id="val"
                                     {
                                         doc_id_str = val;
-                                        log("Document id=%% is found", doc_id_str);
+                                        log("Found document id=%%", doc_id_str);
                                         break;
                                     }
                                     utf::trim_front(doc_attrs, ' ');
@@ -7416,19 +7417,29 @@ namespace netxs::ui
                 }
                 utf::trim_front(attrs_str, ' ');
             }
+            auto images = cell::images(); // Lock.
             if (do_unregister)
             {
                 if (auto iter = image_cache.find(id_str); iter != image_cache.end())
                 {
                     image_ptr = iter->second;
-                    log("unregister");
-                    //todo unregister in cell::images.
-                    //...
+                    log("unregistered ", image_ptr->id);
+                    image_cache.erase(iter);
+                    auto image_index = (base::id << 16) | image_ptr->index;
+                    image_index_pool.release(image_ptr->index);
+                    images.remove(image_index);
+                    if (io_log) log("%%Embedded object '%%' successfully unregistered", prompt::term, image_ptr->id);
                 }
             }
             else
             {
-                if (auto iter = image_cache.find(id_str); iter != image_cache.end()) // Merge with existing attributes.
+                if (!id_str && doc_id_str) // Use document's id if 'id' attribute is not specified.
+                {
+                    id_str = doc_id_str;
+                }
+                auto iter = image_cache.find(id_str);
+                // Merge with existing attributes.
+                if (iter != image_cache.end() && doc_str.empty())
                 {
                     log("image_ptr found");
                     image_ptr = iter->second;
@@ -7458,7 +7469,48 @@ namespace netxs::ui
                         }
                     }
                 }
-                //todo register/print
+                // Clamp sizes.
+                auto max_size = skin::globals().max_value;
+                auto& w = new_attrs[imagens::width ];
+                auto& h = new_attrs[imagens::height];
+                auto& x = new_attrs[imagens::column];
+                auto& y = new_attrs[imagens::row   ];
+                if (w) w = std::clamp(w.value(), 1, max_size.x); else w = target->panel.x;
+                if (h) h = std::clamp(h.value(), 1, max_size.y); else h = target->panel.y;
+                if (x) x = std::clamp(x.value(), 0, w.value());  else x = 0;
+                if (y) y = std::clamp(y.value(), 0, h.value());  else y = 0;
+                // Register image.
+                if (iter == image_cache.end() && doc_str)
+                {
+                    if (auto image_id = image_index_pool.get_new())
+                    {
+                        image_ptr = ptr::shared(cell::image{ .id          = id_str,
+                                                             .document    = doc_str,
+                                                             .attr_values = new_attrs,
+                                                             .index       = image_id });
+                        iter = image_cache.emplace(id_str, image_ptr).first;
+                        auto image_index = (base::id << 16) | image_id;
+                        images.add(image_index, image_ptr);
+                    }
+                    else
+                    {
+                        log("%%The limit on the number of embedded objects has been reached", prompt::term);
+                        return;
+                    }
+                }
+                else if (doc_str) // Replace existing image.
+                {
+                    image_ptr->document = doc_str;
+                    image_ptr->attr_values = new_attrs;
+                    //todo notify all gates
+                    //signal(general...)
+                }
+                else if (iter == image_cache.end()) // && doc_str.empty() // Image id is not registered.
+                {
+                    if (io_log) log("%%Object with id='%%' is not registered", prompt::term, id_str);
+                    return;
+                }
+                //todo print
             }
         }
         // term: Forward clipboard data (OSC 52).

@@ -1069,7 +1069,7 @@ namespace netxs::directvt
                     if (c1.bgc() != c2.bgc()) { meaning += sizeof(c1.bgc()); changes |= bgclr; }
                     if (c1.fgc() != c2.fgc()) { meaning += sizeof(c1.fgc()); changes |= fgclr; }
                     if (c1.stl() != c2.stl()) { meaning += sizeof(c1.stl()); changes |= style; }
-                    if (c1.obj() != c2.obj()) { meaning += sizeof(c1.obj()); changes |= rastr; }
+                    if (c1.img() != c2.img()) { meaning += sizeof(c1.img()); changes |= rastr; }
                     if (c1.egc() != c2.egc())
                     {
                         cluster = (byte)c1.len();
@@ -1084,7 +1084,7 @@ namespace netxs::directvt
                     if (changes & bgclr) add(cache.bgc());
                     if (changes & fgclr) add(cache.fgc());
                     if (changes & style) add(cache.stl());
-                    if (changes & rastr) add(cache.obj());
+                    if (changes & rastr) add(cache.img());
                     if (changes & glyph) add(cluster, cache.egc().bytes(), cluster);
                     state = cache;
                 };
@@ -1160,7 +1160,7 @@ namespace netxs::directvt
                     if (what & bgclr) stream::take(c.bgc(), data);
                     if (what & fgclr) stream::take(c.fgc(), data);
                     if (what & style) stream::take(c.stl(), data);
-                    if (what & rastr) stream::take(c.obj(), data);
+                    if (what & rastr) stream::take(c.img(), data);
                     if (what & glyph)
                     {
                         auto& gc = c.egc();
