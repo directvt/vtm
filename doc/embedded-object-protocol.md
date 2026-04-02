@@ -55,7 +55,7 @@ Input State             | Action
 ------------------------|-------
 **id** + **doc**        | **Register & Display**: Store/update document in cache and output to current position.
 **id** + **empty-doc**  | **Unregister**: Remove the object referenced by `id` from cache (e.g., `<svg></svg>`).
-**id** + **no doc**     | **Display**: Output existing cached object using provided or default attributes.
+**id** + **no doc**     | **Display/Clear**: If `id` is registered, output the cached object. If `id` is unknown/unregistered, clear object metadata in the specified rectangular area.
 **no id** + **doc**     | **Anonymous Display**: Use internal root tag `id="..."` for the session.
 
 #### Parsing Rules (Backend)
