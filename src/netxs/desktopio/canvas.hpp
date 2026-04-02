@@ -2034,11 +2034,6 @@ namespace netxs
             st.meta(c.st);
             px = c.px;
         }
-        void image_meta(cell const& c)
-        {
-            px = c.px; 
-            uv.bg = c.uv.bg;
-        }
         void skipnulls(cell const& c)
         {
             if (c.gc.is_null()) // Keep gc intact.
@@ -2753,7 +2748,7 @@ namespace netxs
             struct image_t : public brush_t<image_t>
             {
                 template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
-                template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.image_meta(src); }
+                template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.px = src.px; }
             };
 
         public:

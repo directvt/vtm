@@ -7364,6 +7364,7 @@ namespace netxs::ui
             utf::trim(attrs_str, ' ');
             if (!attrs_str) return;
             auto id_str     = qiew{};
+            auto gc_str     = qiew{};
             auto doc_str    = qiew{};
             auto doc_id_str = qiew{};
             auto do_register   = faux;
@@ -7429,7 +7430,10 @@ namespace netxs::ui
                     if (attr_str == "id") // id="string".
                     {
                         id_str = value_str;
-                        log(" id found: id='%%'", id_str ? id_str : "<empty string>");
+                    }
+                    else if (attr_str == "gc") // gc="string". Grapheme cluster used to fill image area.
+                    {
+                        gc_str = value_str;
                     }
                     else // Regular attributes (si32 or dict).
                     {
@@ -7532,6 +7536,12 @@ namespace netxs::ui
                 auto h = (si32)std::ceil(_h.value());
                 auto x = (si32)_x.value();
                 auto y = (si32)_y.value();
+                auto c = cell{ target->brush }.txt(gc_str);
+                auto print_image_buffer = [&]
+                {
+                    gc_str ? draw_block(image_buffer, cell::shaders::full)
+                           : draw_block(image_buffer, cell::shaders::image);
+                };
                 // Register image.
                 if (iter == image_cache.end() && doc_str)
                 {
@@ -7548,7 +7558,6 @@ namespace netxs::ui
                     else
                     {
                         log("%%The limit on the number of embedded objects has been reached", prompt::term);
-                        return;
                     }
                 }
                 else if (doc_str) // Replace existing image.
@@ -7561,14 +7570,14 @@ namespace netxs::ui
                     //signal(release, ..., gate)
                     //       scan all gate rasters and looking for the image_index reference in their cells and submit a forward notification if something found
                 }
-                else if (iter == image_cache.end()) // && doc_str.empty() // Image id is not registered. Just erase specified region.
+                if (iter != image_cache.end())
                 {
-                    if (io_log) log("%%Erase specified region. Object with id='%%' is not registered", prompt::term, id_str ? id_str : "<empty string>");
-                    auto size = twod{ w, h };
-                    auto mark = cell{}.bgc(target->brush.bgc());
-                    image_buffer.core::size<true>(size, mark);
-                    draw_block(image_buffer, cell::shaders::image);
-                    return;
+                    auto& image = *iter->second;
+                    c.set_image_attrs(image, new_attrs);
+                }
+                else // Image id is not registered. Just erase the specified region.
+                {
+                    if (io_log) log("%%Erase the specified region. Object with id='%%' is not registered", prompt::term, id_str ? id_str : "<empty string>");
                 }
                 if (io_log)
                 {
@@ -7580,8 +7589,6 @@ namespace netxs::ui
                     }
                 }
                 // Print image rectangle.
-                auto& image = *iter->second;
-                auto c = cell{}.bgc(target->brush.bgc()).set_image_attrs(image, new_attrs);
                 if (!x && !y) // Print full raster.
                 {
                     auto size = twod{ w, h };
@@ -7594,9 +7601,9 @@ namespace netxs::ui
                             (*head++).set_image_xy(x, y);
                         }
                     }
-                    draw_block(image_buffer, cell::shaders::image);
+                    print_image_buffer();
                 }
-                else if (x) // Print vertical slice.
+                else if (!y) // Print vertical slice.
                 {
                     auto size = twod{ 1, h };
                     image_buffer.core::size<true>(size, c);
@@ -7605,9 +7612,9 @@ namespace netxs::ui
                     {
                         (*head++).set_image_xy(x, y);
                     }
-                    draw_block(image_buffer, cell::shaders::image);
+                    print_image_buffer();
                 }
-                else if (y) // Print horizontal slice.
+                else if (!x) // Print horizontal slice.
                 {
                     auto size = twod{ w, 1 };
                     image_buffer.core::size<true>(size, c);
@@ -7616,13 +7623,13 @@ namespace netxs::ui
                     {
                         (*head++).set_image_xy(x, y);
                     }
-                    draw_block(image_buffer, cell::shaders::image);
+                    print_image_buffer();
                 }
                 else // if (x && y) // Print a single cell.
                 {
                     auto size = twod{ 1, 1 };
                     image_buffer.core::size<true>(size, c);
-                    draw_block(image_buffer, cell::shaders::image);
+                    print_image_buffer();
                 }
             }
         }
