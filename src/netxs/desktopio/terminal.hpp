@@ -7230,7 +7230,7 @@ namespace netxs::ui
                 }
             }
         }
-        // term: Print specified block (scroll/wrap in normal; crop in altbuf).
+        // term: Print specified block (scroll/wrap in normal; crop by the altbuf viewport).
         auto draw_block(core const& image_buffer, auto fx)
         {
             if (target == &normal)
@@ -7563,7 +7563,7 @@ namespace netxs::ui
                 {
                     if (io_log) log("%%Erase specified region. Object with id='%%' is not registered", prompt::term, id_str ? id_str : "<empty string>");
                     auto size = twod{ w, h };
-                    image_buffer.core::crop(size, cell{});
+                    image_buffer.core::size(size, cell{});
                     draw_block(image_buffer, cell::shaders::image);
                     return;
                 }
@@ -7583,7 +7583,7 @@ namespace netxs::ui
                 if (!x && !y) // Print full raster.
                 {
                     auto size = twod{ w, h };
-                    image_buffer.core::crop(size, c);
+                    image_buffer.core::size(size, c);
                     auto head = image_buffer.begin();
                     for (y = 1; y <= h; y++)
                     {
@@ -7597,7 +7597,7 @@ namespace netxs::ui
                 else if (x) // Print vertical slice.
                 {
                     auto size = twod{ 1, h };
-                    image_buffer.core::crop(size, c);
+                    image_buffer.core::size(size, c);
                     auto head = image_buffer.begin();
                     for (y = 1; y <= h; y++)
                     {
@@ -7608,7 +7608,7 @@ namespace netxs::ui
                 else if (y) // Print horizontal slice.
                 {
                     auto size = twod{ w, 1 };
-                    image_buffer.core::crop(size, c);
+                    image_buffer.core::size(size, c);
                     auto head = image_buffer.begin();
                     for (x = 1; x <= w; x++)
                     {
@@ -7619,7 +7619,7 @@ namespace netxs::ui
                 else // if (x && y) // Print a single cell.
                 {
                     auto size = twod{ 1, 1 };
-                    image_buffer.core::crop(size, c);
+                    image_buffer.core::size(size, c);
                     draw_block(image_buffer, cell::shaders::image);
                 }
             }
