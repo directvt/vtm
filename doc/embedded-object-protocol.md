@@ -33,7 +33,7 @@ Field             | Description
 
 Attribute     | Values                                 | Default                  | Description
 --------------|----------------------------------------|--------------------------|------------
-**id**        | `<id>[/sub-id]`                        | empty string (`""`)      | Object reference ID. If omitted, the ID from the root tag is used.
+**id**        | `<id>[/sub-id]`                        | empty string (`""`)      | Object reference ID.
 **ontop**     | `0`\|`1`                               | `0`                      | Layering: 0 = background (under text), 1 = foreground (over text).
 **width**     | `float (0..65535]`                     | Terminal viewport width  | Raster scale width (cells). Grid area = `ceil(width)`.
 **height**    | `float (0..65535]`                     | Terminal viewport height | Height of the rectangle in cells. Grid area = `ceil(height)`.
@@ -47,16 +47,17 @@ Attribute     | Values                                 | Default                
 **flip**      | `none`\|`v`\|`h`\|`vh`\|`hv`           | `none`                   | Applied in order of appearance in the string.
 **rotate**    | `0`\|`90`\|`180`\|`270`                | `0`                      | CCW rotation applied in order of appearance.
 
-Note: Attribute values `width` and `height` are clamped to the `(0..65535]` range and further limited by the terminal's maximum window size settings.
+> Notes:
+> - If `id` is omitted , the empty string `id=""` is used for registration and output.
+> - Attribute values `width` and `height` are clamped to the `(0..65535]` range and further limited by the terminal's maximum window size settings.
 
 #### Lifecycle Logic
 
 Input State             | Action
 ------------------------|-------
-**id** + **doc**        | **Register & Display**: Store/update document in cache and output to current position.
+**id** + **doc**        | **Register & Output**: Store/update document in cache and output to current position.
 **id** + **empty-doc**  | **Unregister**: Remove the object referenced by `id` from cache (e.g., `<svg></svg>`).
-**id** + **no doc**     | **Display/Clear**: If `id` is registered, output the cached object. If `id` is unknown/unregistered, clear object metadata in the specified rectangular area.
-**no id** + **doc**     | **Anonymous Display**: Use internal root tag `id="..."` for the session.
+**id** + **no doc**     | **Output**: If `id` is registered, output the cached object. If `id` is unknown/unregistered, clear object metadata in the specified rectangular area.
 
 #### Parsing Rules (Backend)
 
