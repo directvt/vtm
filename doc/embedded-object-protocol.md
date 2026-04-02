@@ -9,7 +9,7 @@ The **Embedded Object Protocol (EOP)** allows vector, bitmap, and extensible mar
 - **Persistence**: Metadata is stored per-cell to survive scrollback and ensure that wrapped cell-runs remain logically linked for a strict rectangular reflow.
 - **Cursor Position**: Anchored at the top-left; moves to the cell immediately following the rectangle's bottom-right corner after output.
 - **Non-destructive & Color State**: 
-  - If the **`gc`** attribute is not empty, the provided grapheme cluster is written to the cells with current SGR attributes, replacing existing text. 
+  - If the **`gc`** attribute is not empty, the provided grapheme cluster is written to the cells with current SGR attributes, replacing existing text and SGR attributes.
   - If **`gc`** is empty, the output is non-destructive to existing text and SGR attributes.
 - **Scroll Behavior (Normal Buffer)**: Outputting an object does not trigger **BCE (Background Color Erase)**. If the object does not fit at the bottom, it triggers a standard scroll-up.
 - **Viewport Clipping (Alt Buffer)**: The object's rectangle is strictly clipped by the right and bottom edges of the terminal viewport; no scrolling occurs.
