@@ -6,12 +6,12 @@ The **Embedded Object Protocol (EOP)** allows vector, bitmap, and extensible mar
 
 - **Rectangular Area**: The object is hosted within a grid of cells defined by `ceil(width)` and `ceil(height)`.
 - **Sub-cell Precision**: The raster is scaled using floating-point `width` and `height` and positioned with `dx` and `dy` offsets. This allows for sub-pixel alignment and smooth movement across the cell grid.
-- **Persistence & Reflow**: Metadata is stored per-cell to survive scrollback and ensure that wrapped cell-runs remain logically linked for a strict rectangular reflow.
+- **Persistence**: Metadata is stored per-cell to survive scrollback and ensure that wrapped cell-runs remain logically linked for a strict rectangular reflow.
 - **Cursor Position**: Anchored at the top-left; moves to the cell immediately following the rectangle's bottom-right corner after output.
 - **Non-destructive & Color State**: The object's rectangular area is filled with the **current SGR background color** without destroying existing text.
-- **Scroll Behavior (Normal Buffer)**: Outputting an object does not trigger **BCE (Background Color Erase)**. If the object does not fit at the bottom, it triggers a standard scroll-up.
+- **Scroll Behavior (Normal Buffer)**: Outputting an object does not trigger **BCE (Background Color Erase)**; the background color is applied strictly to the object's cells. If the object does not fit at the bottom, it triggers a standard scroll-up.
 - **Viewport Clipping (Alt Buffer)**: The object's rectangle is strictly clipped by the right and bottom edges of the terminal viewport; no scrolling occurs.
-- **Layering**: The `ontop=1` attribute (default `0`) switches the layering, placing the object on top of the text instead of behind it.
+- **Layering**: The `ontop` attribute switches the layering, placing the object on top of the text instead of behind it.
 - **Per-pixel Transparency**: The rendered object supports full alpha-channel transparency.
 - **Foreground Color**: The underlying cell **SGR foreground color** maps to `currentColor` (for SVG).
 - **Re-rasterization**: The Graphical Frontend (FÉ) re-renders the object upon cell size changes to maintain pixel-perfection.
@@ -35,8 +35,8 @@ Attribute     | Values                                 | Default                
 --------------|----------------------------------------|--------------------------|------------
 **id**        | `<id>[/sub-id]`                        | empty string (`""`)      | Object reference ID. If omitted, the ID from the root tag is used.
 **ontop**     | `0`\|`1`                               | `0`                      | Layering: 0 = background (under text), 1 = foreground (over text).
-**width**     | `float > 0`                            | Terminal viewport width  | Raster scale width (cells). Grid area = `ceil(width)`.
-**height**    | `float > 0`                            | Terminal viewport height | Height of the rectangle in cells. Grid area = `ceil(height)`.
+**width**     | `float (0..65535]`                     | Terminal viewport width  | Raster scale width (cells). Grid area = `ceil(width)`.
+**height**    | `float (0..65535]`                     | Terminal viewport height | Height of the rectangle in cells. Grid area = `ceil(height)`.
 **dx**        | `float`                                | `0.0`                    | Horizontal offset of the raster within the grid (cells).
 **dy**        | `float`                                | `0.0`                    | Vertical offset of the raster within the grid (cells).
 **row**       | `0`..`ceil(height)`                    | `0`                      | Vertical slice index (0 = full height, 1..n = specific cell).
@@ -46,6 +46,8 @@ Attribute     | Values                                 | Default                
 **transform** | `0`..`7`                               | `0`                      | 3-bit compact transformation state (flip+rotate).
 **flip**      | `none`\|`v`\|`h`\|`vh`\|`hv`           | `none`                   | Applied in order of appearance in the string.
 **rotate**    | `0`\|`90`\|`180`\|`270`                | `0`                      | CCW rotation applied in order of appearance.
+
+Note: Attribute values `width` and `height` are clamped to the `(0..65535]` range and further limited by the terminal's maximum window size settings.
 
 #### Lifecycle Logic
 

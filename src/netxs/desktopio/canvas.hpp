@@ -1192,19 +1192,22 @@ namespace netxs
 
     namespace imagens
     {
+        // local:  stored in cells
+        // global: stored in image
+        // ux:     for user convenience
         #define attr_list \
-            X(ontop     ) \
-            X(width     ) \
-            X(height    ) \
-            X(dx        ) \
-            X(dy        ) \
-            X(row       ) \
-            X(column    ) \
-            X(align     ) \
-            X(scale     ) \
-            X(flip      ) \
-            X(rotate    ) \
-            X(transform )
+            X(width    ) /* global */ \
+            X(height   ) /* global */ \
+            X(dx       ) /* global */ \
+            X(dy       ) /* global */ \
+            X(scale    ) /* global */ \
+            X(row      ) /* local  */ \
+            X(column   ) /* local  */ \
+            X(ontop    ) /* local  */ \
+            X(align    ) /* local  */ \
+            X(transform) /* local  */ \
+            X(flip     ) /* ux     */ \
+            X(rotate   ) /* ux     */
 
         static constexpr auto _counter = __COUNTER__ + 1;
         #define X(_attr) static constexpr auto _attr = __COUNTER__ - _counter; // width = __COUNTER__ - _counter;
@@ -1810,8 +1813,6 @@ namespace netxs
         //  bits | value
         // ------|------
         //  16   | Image index. ui16
-        //  16   | width. ui16
-        //  16   | height. ui16
         //  16   | x fragment. ui16
         //  16   | y fragment. ui16
         //  4    | align=[center|left|right][-][middle|top|bottom]
@@ -1825,8 +1826,7 @@ namespace netxs
         static constexpr auto px_align_4_mask = (ui64)0b00000000'00001111'00000000'00000000'00000000'00000000'00000000'00000000;
         static constexpr auto px_xform_3_mask = (ui64)0b00000000'01110000'00000000'00000000'00000000'00000000'00000000'00000000;
         static constexpr auto px_ontop_1_mask = (ui64)0b00000000'10000000'00000000'00000000'00000000'00000000'00000000'00000000;
-        static constexpr auto px_scale_2_mask = (ui64)0b00000011'00000000'00000000'00000000'00000000'00000000'00000000'00000000;
-      //static constexpr auto px_rsrvd_6_mask = (ui64)0b11111100'00000000'00000000'00000000'00000000'00000000'00000000'00000000;
+      //static constexpr auto px_rsrvd_8_mask = (ui64)0b11111111'00000000'00000000'00000000'00000000'00000000'00000000'00000000;
 
         auto get_image_xy() const
         {
@@ -1843,12 +1843,10 @@ namespace netxs
         auto get_image_align() const { return netxs::get_field<px_align_4_mask>(px); }
         auto get_image_xform() const { return netxs::get_field<px_xform_3_mask>(px); }
         auto get_image_ontop() const { return netxs::get_field<px_ontop_1_mask>(px); }
-        auto get_image_scale() const { return netxs::get_field<px_scale_2_mask>(px); }
         auto set_image_index(si32 n) { netxs::set_field<px_index16_mask>(n, px); }
         auto set_image_align(si32 n) { netxs::set_field<px_align_4_mask>(n, px); }
         auto set_image_xform(si32 n) { netxs::set_field<px_xform_3_mask>(n, px); }
         auto set_image_ontop(si32 n) { netxs::set_field<px_ontop_1_mask>(n, px); }
-        auto set_image_scale(si32 n) { netxs::set_field<px_scale_2_mask>(n, px); }
         auto set_image_attrs(cell::image& image, cell::image::attrs_t& new_attrs)
         {
             auto attrs = std::array<si32, imagens::attr_count>{};
@@ -1862,7 +1860,6 @@ namespace netxs
             set_image_align(attrs[imagens::align    ]);
             set_image_xform(attrs[imagens::transform]);
             set_image_ontop(attrs[imagens::ontop    ]);
-            set_image_scale(attrs[imagens::scale    ]);
             return *this;
         }
 
