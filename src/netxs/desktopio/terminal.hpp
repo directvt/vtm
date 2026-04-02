@@ -1039,8 +1039,7 @@ namespace netxs::ui
                     }
                 }
                 dest.gc = c.gc;
-                dest.p2 = c.p2;
-                dest.p1 = c.p1;
+                dest.px = c.px;
             }
             void fgc(tint c)  { argb::set_indexed_color(owner.target->brush.fgc(), c); }
             void bgc(tint c)  { argb::set_indexed_color(owner.target->brush.bgc(), c); }
@@ -7361,7 +7360,7 @@ namespace netxs::ui
             //       " id "               Find by id and print.
             //       " id + attrs "       Find by id and print applying new attrs.
             //       " id + empty-doc "   Find by id and unregister. (doc=<tag></tag>)
-            new_attrs[imagens::transform] = 0;
+            new_attrs[imagens::transform] = 0.f;
             auto& transform_state = new_attrs[imagens::transform].value();
             while (attrs_str)
             {
@@ -7429,18 +7428,21 @@ namespace netxs::ui
                             switch (i) // Accumulate transforms if specified.
                             {
                                 case imagens::flip:
-                                    while (v)
+                                {
+                                    auto f = (si32)v;
+                                    while (f)
                                     {
-                                        if (v & 0b01) imagens::flip_v_fx(transform_state);
-                                        if (v & 0b10) imagens::flip_h_fx(transform_state);
-                                        v >>= 2;
+                                        if (f & 0b01) imagens::flip_v_fx(transform_state);
+                                        if (f & 0b10) imagens::flip_h_fx(transform_state);
+                                        f >>= 2;
                                     }
                                     break;
+                                }
                                 case imagens::rotate:
                                     imagens::rotate_fx(transform_state, v);
                                     break;
                                 case imagens::transform:
-                                    transform_state = std::clamp(v, 0, 7);
+                                    transform_state = std::clamp(v, 0.f, 7.f);
                                     break;
                                 default:
                                     new_attrs[i] = v;
@@ -7488,17 +7490,13 @@ namespace netxs::ui
                         }
                         else if (old_attr)
                         {
-                            switch (i)
+                            if (i == imagens::align)
                             {
-                                case imagens::align:
-                                    new_attr = imagens::combine_align_fx(old_attr.value(), new_attr.value());
-                                    break;
-                                case imagens::transform:
-                                    new_attr = imagens::combine_transform_fx(old_attr.value(), new_attr.value());
-                                    break;
-                                default:
-                                    old_attr = new_attr;
-                                    break;
+                                new_attr = imagens::combine_align_fx(old_attr.value(), new_attr.value());
+                            }
+                            else if (i == imagens::transform)
+                            {
+                                new_attr = imagens::combine_transform_fx(old_attr.value(), new_attr.value());
                             }
                         }
                     }
@@ -7509,10 +7507,10 @@ namespace netxs::ui
                 auto& _h = new_attrs[imagens::height];
                 auto& _x = new_attrs[imagens::column];
                 auto& _y = new_attrs[imagens::row   ];
-                if (_w) _w = std::clamp(_w.value(), 1, max_size.x); else _w = target->panel.x;
-                if (_h) _h = std::clamp(_h.value(), 1, max_size.y); else _h = target->panel.y;
-                if (_x) _x = std::clamp(_x.value(), 0, _w.value()); else _x = 0;
-                if (_y) _y = std::clamp(_y.value(), 0, _h.value()); else _y = 0;
+                if (_w) _w = std::clamp(_w.value(), 1.f, (fp32)max_size.x); else _w = (fp32)target->panel.x;
+                if (_h) _h = std::clamp(_h.value(), 1.f, (fp32)max_size.y); else _h = (fp32)target->panel.y;
+                if (_x) _x = std::clamp(_x.value(), 0.f, std::ceil(_w.value())); else _x = 0.f;
+                if (_y) _y = std::clamp(_y.value(), 0.f, std::ceil(_h.value())); else _y = 0.f;
                 // Register image.
                 if (iter == image_cache.end() && doc_str)
                 {
@@ -7539,21 +7537,31 @@ namespace netxs::ui
                     image.document = doc_str;
                     image.attrs = new_attrs;
                     //todo notify all gates
-                    //signal(general...)
+                    //signal(release, ..., gate)
+                    //       scan all gate rasters and looking for the image_index reference in their cells and submit a forward notification if something found
                 }
                 else if (iter == image_cache.end()) // && doc_str.empty() // Image id is not registered.
                 {
                     if (io_log) log("%%Object with id='%%' is not registered", prompt::term, id_str);
                     return;
                 }
+                //if (io_log)
+                {
+                    log("Image attributes:");
+                    for (auto i = 0u; i < new_attrs.size(); i++) if (i != imagens::rotate && i != imagens::flip) // flip & rotate are compressed to xform.
+                    {
+                        auto value_str = new_attrs[i] ? std::to_string(new_attrs[i].value()) : "<not specified>"s;
+                        log(" %%=%%", imagens::attr_names[i], value_str);
+                    }
+                }
                 // Print image rectangle.
                 auto& console = *target;
                 console.flush_data();
                 auto& image = *iter->second;
-                auto w = _w.value();
-                auto h = _h.value();
-                auto x = _x.value();
-                auto y = _y.value();
+                auto w = (si32)std::ceil(_w.value());
+                auto h = (si32)std::ceil(_h.value());
+                auto x = (si32)_x.value();
+                auto y = (si32)_y.value();
                 //auto c = cell{}.bgc(target->brush.bgc()).set_image_attrs(image, new_attrs);
                 auto c = cell{}.bgc(tint::redlt).set_image_attrs(image, new_attrs);
                 auto coor = console.coord;

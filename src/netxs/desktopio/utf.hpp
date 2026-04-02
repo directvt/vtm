@@ -991,33 +991,49 @@ namespace netxs::utf
         {
             if (ascii.starts_with("0x") || ascii.starts_with("0X")) ascii.remove_prefix(2);
         }
-        auto top = ascii.data();
-        auto end = top + ascii.length();
         if constexpr (std::is_floating_point_v<A>)
         {
             //todo neither clang nor apple clang support from_chars with floating point (ver < 15.0)
             //if (auto [pos, err] = std::from_chars(top, end, num); err == std::errc())
-            auto integer = si64{};
-            if (auto [pos, err] = std::from_chars(top, end, integer, Base); err == std::errc())
+            auto sign = (A)1.0;
+            if (!ascii.empty() && ascii.front() == '-')
             {
-                ascii.remove_prefix(pos - top);
-                num = (A)integer;
-                if (ascii.size() && ascii.front() == '.')
-                {
-                    ascii.pop_front();
-                    top = ascii.data();
-                    if (auto [mpos, merr] = std::from_chars(top, end, integer, Base); merr == std::errc())
-                    {
-                        auto len = mpos - top;
-                        num += (A)(integer * std::pow(10, -len));
-                        ascii.remove_prefix(len);
-                    }
-                }
-                return num;
+                sign = (A)-1.0;
+                ascii.remove_prefix(1);
             }
+            auto top = ascii.data();
+            auto end = top + ascii.length();
+            auto parsed_something = faux;
+            auto integer = si64{};
+            if (auto [pos, err] = std::from_chars(top, end, integer, Base); err == std::errc()) // Integral part.
+            {
+                num = (A)integer;
+                ascii.remove_prefix(pos - top);
+                parsed_something = true;
+            }
+            if (!ascii.empty() && ascii.front() == '.') // Fractional part.
+            {
+                ascii.remove_prefix(1);
+                top = ascii.data();
+                end = top + ascii.length();
+                if (auto [mpos, merr] = std::from_chars(top, end, integer, Base); merr == std::errc())
+                {
+                    auto len = mpos - top;
+                    num += (A)(integer * std::pow(Base, -(fp64)len));
+                    ascii.remove_prefix(len);
+                    parsed_something = true;
+                }
+                else if (!parsed_something) // "-."
+                {
+                    return std::nullopt;
+                }
+            }
+            if (parsed_something) return num * sign;
         }
         else
         {
+            auto top = ascii.data();
+            auto end = top + ascii.length();
             if (auto [pos, err] = std::from_chars(top, end, num, Base); err == std::errc())
             {
                 ascii.remove_prefix(pos - top);

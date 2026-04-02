@@ -1196,6 +1196,8 @@ namespace netxs
             X(ontop     ) \
             X(width     ) \
             X(height    ) \
+            X(dx        ) \
+            X(dy        ) \
             X(row       ) \
             X(column    ) \
             X(align     ) \
@@ -1209,18 +1211,20 @@ namespace netxs
             attr_list
             static constexpr auto attr_count = __COUNTER__ - _counter;
         #undef X
-        //static constexpr auto std::array<view, imagens::attr_count> attr_name =
-        //{
-        //    #define X(_attr) #_attr, // "width",
-        //        attr_list
-        //    #undef X
-        //};
-        // Dihedral group D4 (the symmetries of a square)
-        auto rotate_fx = [](auto& state, si32 s) { state = (state & 0b100) | ((state + s)                         & 0b011); };
-        auto flip_v_fx = [](auto& state)         { state = (state ^ 0b100) | ((state + (state & 1 ? 0b00 : 0b10)) & 0b011); };
-        auto flip_h_fx = [](auto& state)         { state = (state ^ 0b100) | ((state + (state & 1 ? 0b10 : 0b00)) & 0b011); };
-        auto combine_transform_fx = [](auto s1, auto s2)
+        static constexpr auto attr_names = std::array<view, imagens::attr_count>
         {
+            #define X(_attr) #_attr, // "width",
+                attr_list
+            #undef X
+        };
+        // Dihedral group D4 (the symmetries of a square)
+        auto rotate_fx = [](auto& state, auto r) { auto t = (si32)state; t = (t & 0b100) | ((t + (si32)r)               & 0b011); state = (std::decay_t<decltype(state)>)(t); };
+        auto flip_v_fx = [](auto& state)         { auto t = (si32)state; t = (t ^ 0b100) | ((t + (t & 1 ? 0b00 : 0b10)) & 0b011); state = (std::decay_t<decltype(state)>)(t); };
+        auto flip_h_fx = [](auto& state)         { auto t = (si32)state; t = (t ^ 0b100) | ((t + (t & 1 ? 0b10 : 0b00)) & 0b011); state = (std::decay_t<decltype(state)>)(t); };
+        auto combine_transform_fx = [](auto t1, auto t2)
+        {
+            auto s1 = (si32)t1;
+            auto s2 = (si32)t2;
             bool f1 = s1 & 4; // Extract reflection bits (4) and rotation bits (3).
             bool f2 = s2 & 4;
             auto r1 = s1 & 3;
@@ -1231,13 +1235,15 @@ namespace netxs
             // If the first state was reflected, the second rotation is subtracted.
             // Otherwise, it is added.
             auto r = (f1 ? (r1 - r2) : (r1 + r2)) & 3;
-            return f | r;
+            return (decltype(t1))(f | r);
         };
-        auto combine_align_fx = [](auto old_align, auto new_align)
+        auto combine_align_fx = [](auto f_old_align, auto f_new_align)
         {
+            auto old_align = (si32)f_old_align;
+            auto new_align = (si32)f_new_align;
             auto res_h = (old_align & 0b0011) ? (old_align & 0b0011) : (new_align & 0b0011);
             auto res_v = (old_align & 0b1100) ? (old_align & 0b1100) : (new_align & 0b1100);
-            return res_h | res_v;
+            return (decltype(f_old_align))(res_h | res_v);
         };
 
         static const auto attr_index_map = utf::unordered_map<text, si32>
@@ -1262,25 +1268,25 @@ namespace netxs
             { imagens::flip,   {{ "none", 0 }, { "v" , 0b00'01 }, { "h" , 0b00'10 }, { "vh" , 0b10'01 }, { "hv" , 0b01'10 }} }, // Roll by two bits in loop and check last two bits.
             { imagens::rotate, {{ "0", 0 }, { "90" , 1 }, { "180" , 2 }, { "270" , 3 }} },
         };
-        auto parse_pair(qiew key, qiew val) -> std::optional<std::pair<si32, si32>>
+        auto parse_pair(qiew key, qiew val) -> std::optional<std::pair<si32, fp32>>
         {
             if (auto key_iter = imagens::attr_index_map.find(key); key_iter != imagens::attr_index_map.end())
             {
                 auto key_index = key_iter->second;
                 if (val.empty())
                 {
-                    return std::pair{ key_index, 0 };
+                    return std::pair{ key_index, 0.f };
                 }
                 else if (auto val_map_iter = imagens::value_index_map.find(key_index); val_map_iter != imagens::value_index_map.end()) // Look literals.
                 {
                     auto& val_map = val_map_iter->second;
                     if (auto val_iter = val_map.find(val); val_iter != val_map.end())
                     {
-                        auto val_index = val_iter->second;
+                        auto val_index = (fp32)val_iter->second;
                         return std::pair{ key_index, val_index };
                     }
                 }
-                else if (auto v = utf::to_int(val)) // Take integer.
+                else if (auto v = utf::to_int<fp32>(val)) // Take a numeric value.
                 {
                     auto val_index = v.value();
                     return std::pair{ key_index, val_index };
@@ -1295,7 +1301,7 @@ namespace netxs
     {
         struct image
         {
-            using attrs_t = std::array<std::optional<si32>, imagens::attr_count>;
+            using attrs_t = std::array<std::optional<fp32>, imagens::attr_count>;
 
             text    id;
             text    document;
@@ -1740,9 +1746,9 @@ namespace netxs
         clrs uv; // 8U, cell: Fg and bg colors.
         glyf gc; // 8U, cell: Grapheme cluster.
         body st; // 8U, cell: Style attributes.
-        ui64 p2{}; // 8U, cell: Image dimensions.
-        ui32 p1{}; // 4U, cell: Image index and metadata.
+        ui64 px{}; // 8U, cell: Image index and metadata.
         id_t id{}; // 4U, cell: Link ID.
+        ui32 p2{}; // 4U, cell: Pad. Reserve.
 
         cell()
         { }
@@ -1766,16 +1772,14 @@ namespace netxs
               gc{ base.gc },
               st{ base.st },
               id{ base.id },
-              p2{ base.p2 },
-              p1{ base.p1 }
+              px{ base.px }
         { }
         cell(cell const& base, char c)
             : uv{ base.uv },
               gc{ c       },
               st{ base.st, utf::matrix::mosaic<11> },
               id{ base.id },
-              p2{ base.p2 },
-              p1{ base.p1 }
+              px{ base.px }
         { }
 
         auto operator == (cell const& c) const
@@ -1783,8 +1787,7 @@ namespace netxs
             return uv == c.uv
                 && st == c.st
                 && gc == c.gc
-                && p2 == c.p2
-                && p1 == c.p1;
+                && px == c.px;
         }
         auto operator != (cell const& c) const
         {
@@ -1796,8 +1799,7 @@ namespace netxs
             gc = c.gc;
             st = c.st;
             id = c.id;
-            p2 = c.p2;
-            p1 = c.p1;
+            px = c.px;
             return *this;
         }
 
@@ -1817,62 +1819,46 @@ namespace netxs
         //  3    | transform=0..7 (flip+rotate)
         //  2    | scale=[inside|outside|stretch|none]
 
-        static constexpr auto p1_index16_mask = (ui32)0b00000000'00000000'11111111'11111111;
-        static constexpr auto p1_align_4_mask = (ui32)0b00000000'00001111'00000000'00000000;
-        static constexpr auto p1_xform_3_mask = (ui32)0b00000000'01110000'00000000'00000000;
-        static constexpr auto p1_ontop_1_mask = (ui32)0b00000000'10000000'00000000'00000000;
-        static constexpr auto p1_scale_2_mask = (ui32)0b00000011'00000000'00000000'00000000;
-      //static constexpr auto p1_reserv6_mask = (ui32)0b11111100'00000000'00000000'00000000;
-
-        static constexpr auto p2_objW_16_mask = (ui64)0b00000000'00000000'00000000'00000000'00000000'00000000'11111111'11111111;
-        static constexpr auto p2_objH_16_mask = (ui64)0b00000000'00000000'00000000'00000000'11111111'11111111'00000000'00000000;
-        static constexpr auto p2_objX_16_mask = (ui64)0b00000000'00000000'11111111'11111111'00000000'00000000'00000000'00000000;
-        static constexpr auto p2_objY_16_mask = (ui64)0b11111111'11111111'00000000'00000000'00000000'00000000'00000000'00000000;
+        static constexpr auto px_objX_16_mask = (ui64)0b00000000'00000000'00000000'00000000'00000000'00000000'11111111'11111111;
+        static constexpr auto px_objY_16_mask = (ui64)0b00000000'00000000'00000000'00000000'11111111'11111111'00000000'00000000;
+        static constexpr auto px_index16_mask = (ui64)0b00000000'00000000'11111111'11111111'00000000'00000000'00000000'00000000;
+        static constexpr auto px_align_4_mask = (ui64)0b00000000'00001111'00000000'00000000'00000000'00000000'00000000'00000000;
+        static constexpr auto px_xform_3_mask = (ui64)0b00000000'01110000'00000000'00000000'00000000'00000000'00000000'00000000;
+        static constexpr auto px_ontop_1_mask = (ui64)0b00000000'10000000'00000000'00000000'00000000'00000000'00000000'00000000;
+        static constexpr auto px_scale_2_mask = (ui64)0b00000011'00000000'00000000'00000000'00000000'00000000'00000000'00000000;
+      //static constexpr auto px_rsrvd_6_mask = (ui64)0b11111100'00000000'00000000'00000000'00000000'00000000'00000000'00000000;
 
         auto get_image_xy() const
         {
-            auto x = netxs::get_field<p2_objX_16_mask>(p2);
-            auto y = netxs::get_field<p2_objY_16_mask>(p2);
+            auto x = netxs::get_field<px_objX_16_mask>(px);
+            auto y = netxs::get_field<px_objY_16_mask>(px);
             return twod{ x, y };
         }
         auto set_image_xy(si32 x, si32 y)
         {
-            netxs::set_field<p2_objX_16_mask>(x, p2);
-            netxs::set_field<p2_objY_16_mask>(y, p2);
+            netxs::set_field<px_objX_16_mask>(x, px);
+            netxs::set_field<px_objY_16_mask>(y, px);
         }
-        auto get_image_size() const
-        {
-            auto w = netxs::get_field<p2_objW_16_mask>(p2);
-            auto h = netxs::get_field<p2_objH_16_mask>(p2);
-            return twod{ w, h };
-        }
-        auto set_image_size(si32 w, si32 h)
-        {
-            netxs::set_field<p2_objW_16_mask>(w, p2);
-            netxs::set_field<p2_objH_16_mask>(h, p2);
-        }
-        auto get_image_index() const { return netxs::get_field<p1_index16_mask>(p1); }
-        auto get_image_align() const { return netxs::get_field<p1_align_4_mask>(p1); }
-        auto get_image_xform() const { return netxs::get_field<p1_xform_3_mask>(p1); }
-        auto get_image_ontop() const { return netxs::get_field<p1_ontop_1_mask>(p1); }
-        auto get_image_scale() const { return netxs::get_field<p1_scale_2_mask>(p1); }
-        auto set_image_index(si32 n) { netxs::set_field<p1_index16_mask>(n, p1); }
-        auto set_image_align(si32 n) { netxs::set_field<p1_align_4_mask>(n, p1); }
-        auto set_image_xform(si32 n) { netxs::set_field<p1_xform_3_mask>(n, p1); }
-        auto set_image_ontop(si32 n) { netxs::set_field<p1_ontop_1_mask>(n, p1); }
-        auto set_image_scale(si32 n) { netxs::set_field<p1_scale_2_mask>(n, p1); }
+        auto get_image_index() const { return netxs::get_field<px_index16_mask>(px); }
+        auto get_image_align() const { return netxs::get_field<px_align_4_mask>(px); }
+        auto get_image_xform() const { return netxs::get_field<px_xform_3_mask>(px); }
+        auto get_image_ontop() const { return netxs::get_field<px_ontop_1_mask>(px); }
+        auto get_image_scale() const { return netxs::get_field<px_scale_2_mask>(px); }
+        auto set_image_index(si32 n) { netxs::set_field<px_index16_mask>(n, px); }
+        auto set_image_align(si32 n) { netxs::set_field<px_align_4_mask>(n, px); }
+        auto set_image_xform(si32 n) { netxs::set_field<px_xform_3_mask>(n, px); }
+        auto set_image_ontop(si32 n) { netxs::set_field<px_ontop_1_mask>(n, px); }
+        auto set_image_scale(si32 n) { netxs::set_field<px_scale_2_mask>(n, px); }
         auto set_image_attrs(cell::image& image, cell::image::attrs_t& new_attrs)
         {
             auto attrs = std::array<si32, imagens::attr_count>{};
             for (auto i = 0; i < imagens::attr_count; i++)
             {
-                if (auto v = new_attrs[i]) attrs[i] = v.value();
+                if (auto v = new_attrs[i]) attrs[i] = (si32)v.value();
             }
             set_image_index(image.index);
             set_image_xy(   attrs[imagens::column   ],
                             attrs[imagens::row      ]);
-            set_image_size( attrs[imagens::width    ],
-                            attrs[imagens::height   ]);
             set_image_align(attrs[imagens::align    ]);
             set_image_xform(attrs[imagens::transform]);
             set_image_ontop(attrs[imagens::ontop    ]);
@@ -1883,11 +1869,11 @@ namespace netxs
         //todo rename to has_image
         auto raw() const
         {
-            return !!p1;
+            return !!px;
         }
         auto is_empty() const // cell: Return true if cell is absolutely empty.
         {
-            return uv.bg.token == 0 && uv.fg.token == 0 && gc.token == 0 && st.token == 0 && id == 0 && p1 == 0 && p2 == 0;
+            return uv.bg.token == 0 && uv.fg.token == 0 && gc.token == 0 && st.token == 0 && id == 0 && px == 0;
         }
         auto same_txt(cell const& c) const // cell: Compare clusters.
         {
@@ -1897,15 +1883,14 @@ namespace netxs
         {
             return uv == c.uv
                 && st.like(c.st)
-                && (!raw() || p1 == c.p1);
+                && (!raw() || px == c.px);
         }
         void wipe() // cell: Set colors, attributes and grapheme cluster to zero.
         {
             uv.wipe();
             gc.wipe();
             st.wipe();
-            p2 = 0;
-            p1 = 0;
+            px = 0;
         }
         // cell: Blend two cells according to visibility and other attributes.
         auto& fuse(cell const& c)
@@ -1918,8 +1903,7 @@ namespace netxs
 
             if (c.raw())
             {
-                p2 = c.p2;
-                p1 = c.p1;
+                px = c.px;
             }
             if (c.st.xy())
             {
@@ -1963,8 +1947,7 @@ namespace netxs
             }
             if (raw())
             {
-                p2 = c.p2;
-                p1 = c.p1;
+                px = c.px;
             }
         }
         // cell: Blend cell colors.
@@ -1980,8 +1963,7 @@ namespace netxs
             uv.bg.mix(c.uv.bg, alpha);
             if (c.raw())
             {
-                p2 = c.p2;
-                p1 = c.p1;
+                px = c.px;
             }
             if (c.st.xy())
             {
@@ -2001,8 +1983,7 @@ namespace netxs
             }
             if (raw())
             {
-                p2 = c.p2;
-                p1 = c.p1;
+                px = c.px;
             }
             uv.fg.mix(c.uv.fg, alpha);
             uv.bg.mix(c.uv.bg, alpha);
@@ -2040,8 +2021,7 @@ namespace netxs
             else           uv.bg.mix(c.uv.bg);
             if (c.raw())
             {
-                p2 = c.p2;
-                p1 = c.p1;
+                px = c.px;
             }
             if (c.id) id = c.id;
         }
@@ -2055,8 +2035,7 @@ namespace netxs
         {
             uv = c.uv;
             st.meta(c.st);
-            p2 = c.p2;
-            p1 = c.p1;
+            px = c.px;
         }
         void skipnulls(cell const& c)
         {
@@ -2300,8 +2279,7 @@ namespace netxs
         auto& set(cell const& c) { uv = c.uv;
                                    st = c.st;
                                    gc = c.gc;
-                                   p2 = c.p2;
-                                   p1 = c.p1;              return *this; }
+                                   px = c.px;              return *this; }
         auto& bgc(argb c)        { uv.bg = c;              return *this; } // cell: Set background color.
         auto& fgc(argb c)        { uv.fg = c;              return *this; } // cell: Set foreground color.
         auto& bga(si32 k)        { uv.bg.chan.a = (byte)k; return *this; } // cell: Set background alpha/transparency.
@@ -2323,7 +2301,7 @@ namespace netxs
         auto& unc(argb c)        { st.unc(c.to_256cube()); return *this; } // cell: Set underline color.
         auto& unc(si32 c)        { st.unc(c);              return *this; } // cell: Set underline color.
         auto& cur(si32 s)        { st.cur(s);              return *this; } // cell: Set cursor style.
-        auto& img(ui64 a, ui32 b){ p2 = a; p1 = b;         return *this; } // cell: Set attached image.
+        auto& img(ui64 p)        { px = p;                 return *this; } // cell: Set attached image.
         auto& ovr(bool b)        { st.ovr(b);              return *this; } // cell: Set overline attribute.
         auto& inv(bool b)        { st.inv(b);              return *this; } // cell: Set invert attribute.
         auto& stk(bool b)        { st.stk(b);              return *this; } // cell: Set strikethrough attribute.
@@ -2394,8 +2372,7 @@ namespace netxs
             uv = empty.uv;
             st = empty.st;
             gc = empty.gc;
-            p2 = empty.p2;
-            p1 = empty.p1;
+            px = empty.px;
             return *this;
         }
 
@@ -2421,8 +2398,8 @@ namespace netxs
         auto  und() const  { return st.und();      } // cell: Return underline/Underscore attribute.
         auto  unc() const  { return st.unc();      } // cell: Return underline color.
         auto  cur() const  { return st.cur();      } // cell: Return cursor style.
-        auto& img()        { return p1;            } // cell: Return attached image.
-        auto& img() const  { return p1;            } // cell: Return attached image.
+        auto& img()        { return px;            } // cell: Return attached image.
+        auto& img() const  { return px;            } // cell: Return attached image.
         auto  ovr() const  { return st.ovr();      } // cell: Return overline attribute.
         auto  inv() const  { return st.inv();      } // cell: Return negative attribute.
         auto  stk() const  { return st.stk();      } // cell: Return strikethrough attribute.
