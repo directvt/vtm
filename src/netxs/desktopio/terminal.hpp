@@ -7354,12 +7354,11 @@ namespace netxs::ui
             auto do_register   = faux;
             auto do_unregister = faux;
             auto new_attrs = cell::image::attrs_t{};
-            // data: " id + attrs + doc"  Find by id and update/register and print.
-            //       " attrs + doc "      Find id in doc and register. (id=<doc id="...">)
-            //       " doc "              Find id in doc and register. (id=<doc id="...">)
-            //       " id "               Find by id and print.
-            //       " id + attrs "       Find by id and print applying new attrs.
-            //       " id + empty-doc "   Find by id and unregister. (doc=<tag></tag>)
+            // data: " id + attrs + doc"              Find by id and update/register and print.
+            //       " [attrs] + doc "                Register empty id.
+            //       " [id] "                         Find by id and print.
+            //       " [id] + attrs "                 Find by id and print applying new attrs.
+            //       " [id] + explicite-empty-doc "   Find by id and unregister. (doc=<tag></tag>)
             new_attrs[imagens::transform] = 0.f;
             auto& transform_state = new_attrs[imagens::transform].value();
             while (attrs_str)
@@ -7399,7 +7398,7 @@ namespace netxs::ui
                                     if (key == "id") // id="val"
                                     {
                                         doc_id_str = val;
-                                        log("Found document id=%%", doc_id_str);
+                                        log("Found document id='%%'", doc_id_str);
                                         break;
                                     }
                                     utf::trim_front(doc_attrs, ' ');
@@ -7415,8 +7414,8 @@ namespace netxs::ui
                     auto [attr_str, value_str] = utf::get_pair(attrs_str);
                     if (attr_str == "id") // id="string".
                     {
-                        log(" id found: %%=%%", attr_str, value_str);
                         id_str = value_str;
+                        log(" id found: id='%%'", id_str ? id_str : "<empty string>");
                     }
                     else // Regular attributes (si32 or dict).
                     {
@@ -7469,10 +7468,11 @@ namespace netxs::ui
             }
             else
             {
-                if (!id_str && doc_id_str) // Use document's id if 'id' attribute is not specified.
-                {
-                    id_str = doc_id_str;
-                }
+                // We don't use document's id if 'id' attribute is not specified.
+                //if (!id_str && doc_id_str) // Use document's id if 'id' attribute is not specified.
+                //{
+                //    id_str = doc_id_str;
+                //}
                 auto iter = image_cache.find(id_str);
                 // Merge with existing attributes.
                 if (iter != image_cache.end() && doc_str.empty())
@@ -7532,7 +7532,7 @@ namespace netxs::ui
                 }
                 else if (doc_str) // Replace existing image.
                 {
-                    log("%%Object with id='%%' updated", prompt::term, id_str);
+                    log("%%Object with id='%%' updated", prompt::term, id_str ? id_str : "<empty string>");
                     auto& image = *iter->second;
                     image.document = doc_str;
                     image.attrs = new_attrs;
@@ -7542,10 +7542,10 @@ namespace netxs::ui
                 }
                 else if (iter == image_cache.end()) // && doc_str.empty() // Image id is not registered.
                 {
-                    if (io_log) log("%%Object with id='%%' is not registered", prompt::term, id_str);
+                    if (io_log) log("%%Object with id='%%' is not registered", prompt::term, id_str ? id_str : "<empty string>");
                     return;
                 }
-                //if (io_log)
+                if (io_log)
                 {
                     log("Image attributes:");
                     for (auto i = 0u; i < new_attrs.size(); i++) if (i != imagens::rotate && i != imagens::flip) // flip & rotate are compressed to xform.
