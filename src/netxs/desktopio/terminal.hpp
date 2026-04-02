@@ -7374,8 +7374,6 @@ namespace netxs::ui
             //       " [id] "                         Find by id and print.
             //       " [id] + attrs "                 Find by id and print applying new attrs.
             //       " [id] + explicite-empty-doc "   Find by id and unregister. (doc=<tag></tag>)
-            new_attrs[imagens::transform] = 0.f;
-            auto& transform_state = new_attrs[imagens::transform].value();
             while (attrs_str)
             {
                 if (attrs_str.front() == '<') // Extract document body <tag ...> ... </tag>
@@ -7427,6 +7425,7 @@ namespace netxs::ui
                 else // Parse attributes.
                 {
                     auto [attr_str, value_str] = utf::get_pair(attrs_str);
+                    //todo sub-id: id=qqq/www
                     if (attr_str == "id") // id="string".
                     {
                         id_str = value_str;
@@ -7439,6 +7438,7 @@ namespace netxs::ui
                         {
                             auto [i, v] = p.value();
                             log("  new_attrs[%%]=%%", i, v);
+                            auto& xform_ref = new_attrs[imagens::transform];
                             switch (i) // Accumulate transforms if specified.
                             {
                                 case imagens::flip:
@@ -7446,17 +7446,19 @@ namespace netxs::ui
                                     auto f = (si32)v;
                                     while (f)
                                     {
-                                        if (f & 0b01) imagens::flip_v_fx(transform_state);
-                                        if (f & 0b10) imagens::flip_h_fx(transform_state);
+                                        if (!xform_ref) xform_ref = 0.f;
+                                        if (f & 0b01) imagens::flip_v_fx(xform_ref.value());
+                                        if (f & 0b10) imagens::flip_h_fx(xform_ref.value());
                                         f >>= 2;
                                     }
                                     break;
                                 }
                                 case imagens::rotate:
-                                    imagens::rotate_fx(transform_state, v);
+                                    if (!xform_ref) xform_ref = 0.f;
+                                    imagens::rotate_fx(xform_ref.value(), v);
                                     break;
                                 case imagens::transform:
-                                    transform_state = std::clamp(v, 0.f, 7.f);
+                                    xform_ref = std::clamp(v, 0.f, 7.f);
                                     break;
                                 default:
                                     new_attrs[i] = v;
