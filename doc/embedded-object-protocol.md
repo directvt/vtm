@@ -72,3 +72,5 @@ Input State             | Action
 #### Extensibility
 
 The protocol is engine-agnostic. Focused on **SVG**, but designed to support other formats (e.g., `<html>`, `<object>`) via root tag identification.
+
+The protocol can be extended to include non-visual data segments such as `<audio>`, allowing for synchronized multimedia playback managed by the Frontend.
