@@ -7565,7 +7565,8 @@ namespace netxs::ui
                 {
                     if (io_log) log("%%Erase specified region. Object with id='%%' is not registered", prompt::term, id_str ? id_str : "<empty string>");
                     auto size = twod{ w, h };
-                    image_buffer.core::size(size, cell{});
+                    auto mark = cell{}.bgc(target->brush.bgc());
+                    image_buffer.core::size<true>(size, mark);
                     draw_block(image_buffer, cell::shaders::image);
                     return;
                 }
@@ -7580,12 +7581,11 @@ namespace netxs::ui
                 }
                 // Print image rectangle.
                 auto& image = *iter->second;
-                //auto c = cell{}.bgc(target->brush.bgc()).set_image_attrs(image, new_attrs);
-                auto c = cell{}.bgc(tint::redlt).set_image_attrs(image, new_attrs);
+                auto c = cell{}.bgc(target->brush.bgc()).set_image_attrs(image, new_attrs);
                 if (!x && !y) // Print full raster.
                 {
                     auto size = twod{ w, h };
-                    image_buffer.core::size(size, c);
+                    image_buffer.core::size<true>(size, c);
                     auto head = image_buffer.begin();
                     for (y = 1; y <= h; y++)
                     {
@@ -7599,7 +7599,7 @@ namespace netxs::ui
                 else if (x) // Print vertical slice.
                 {
                     auto size = twod{ 1, h };
-                    image_buffer.core::size(size, c);
+                    image_buffer.core::size<true>(size, c);
                     auto head = image_buffer.begin();
                     for (y = 1; y <= h; y++)
                     {
@@ -7610,7 +7610,7 @@ namespace netxs::ui
                 else if (y) // Print horizontal slice.
                 {
                     auto size = twod{ w, 1 };
-                    image_buffer.core::size(size, c);
+                    image_buffer.core::size<true>(size, c);
                     auto head = image_buffer.begin();
                     for (x = 1; x <= w; x++)
                     {
@@ -7621,7 +7621,7 @@ namespace netxs::ui
                 else // if (x && y) // Print a single cell.
                 {
                     auto size = twod{ 1, 1 };
-                    image_buffer.core::size(size, c);
+                    image_buffer.core::size<true>(size, c);
                     draw_block(image_buffer, cell::shaders::image);
                 }
             }

@@ -2034,6 +2034,11 @@ namespace netxs
             st.meta(c.st);
             px = c.px;
         }
+        void image_meta(cell const& c)
+        {
+            px = c.px; 
+            uv.bg = c.uv.bg;
+        }
         void skipnulls(cell const& c)
         {
             if (c.gc.is_null()) // Keep gc intact.
@@ -2745,6 +2750,11 @@ namespace netxs
                     dst.fuse(src, id);
                 }
             };
+            struct image_t : public brush_t<image_t>
+            {
+                template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
+                template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.image_meta(src); }
+            };
 
         public:
             static constexpr auto       color(auto brush) { return       color_t{ brush }; }
@@ -2776,8 +2786,7 @@ namespace netxs
             static constexpr auto   disabled =   disabled_t{};
             static constexpr auto     xlight =     xlight_t{ 1 };
             static constexpr auto underlight = underlight_t{ 1 };
-            //todo
-            static constexpr auto      image =       full_t{};
+            static constexpr auto      image =      image_t{};
         };
 
         auto draw_cursor()
@@ -3191,9 +3200,11 @@ namespace netxs
         void  clip(rect new_client)            { client = new_client;                                                       }
         auto  hash() const                     { return digest;                                                             } // core: Return the digest value that associatated with the current canvas size.
         auto  hash(si32 d)                     { return digest != d ? ((void)(digest = d), true) : faux;                    } // core: Check and the digest value that associatated with the current canvas size.
+        template<bool Forced = faux>
         void size(twod new_size, cell const& c) // core: Resize canvas.
         {
-            if (region.size(std::max(dot_00, new_size)))
+            auto changed = region.size(std::max(dot_00, new_size));
+            if (changed || Forced) 
             {
                 client.size = region.size;
                 digest++;
