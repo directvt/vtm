@@ -7197,7 +7197,7 @@ namespace netxs::ui
         vtty       ipccon; // term: IPC connector. Should be destroyed first.
 
         // term: Print the block to the scrollback buffer with scroll.
-        template<bool AutoScroll = faux, class S, class P>
+        template<class S, class P>
         auto print_block(S& scrollback, core const& block, twod trim_by_viewport, P fuse)
         {
             auto size = block.size();
@@ -7228,6 +7228,19 @@ namespace netxs::ui
                 {
                     break;
                 }
+            }
+        }
+        // term: Print specified block (scroll/wrap in normal; crop in altbuf).
+        auto draw_block(core const& image_buffer, auto fx)
+        {
+            if (target == &normal)
+            {
+                print_block(normal, image_buffer, {}, fx);
+            }
+            else
+            {
+                auto& target_buffer = *(alt_screen*)target;
+                print_block(target_buffer, image_buffer, target->panel, fx);
             }
         }
         // term: Place rectangle block to the scrollback buffer.
@@ -7346,6 +7359,8 @@ namespace netxs::ui
         // term: Embedded Object Protocol.
         void osc_images(qiew attrs_str)
         {
+            auto& console = *target;
+            console.flush();
             utf::trim(attrs_str, ' ');
             if (!attrs_str) return;
             auto id_str     = qiew{};
@@ -7511,6 +7526,10 @@ namespace netxs::ui
                 if (_h) _h = std::clamp(_h.value(), 1.f, (fp32)max_size.y); else _h = (fp32)target->panel.y;
                 if (_x) _x = std::clamp(_x.value(), 0.f, std::ceil(_w.value())); else _x = 0.f;
                 if (_y) _y = std::clamp(_y.value(), 0.f, std::ceil(_h.value())); else _y = 0.f;
+                auto w = (si32)std::ceil(_w.value());
+                auto h = (si32)std::ceil(_h.value());
+                auto x = (si32)_x.value();
+                auto y = (si32)_y.value();
                 // Register image.
                 if (iter == image_cache.end() && doc_str)
                 {
@@ -7540,9 +7559,12 @@ namespace netxs::ui
                     //signal(release, ..., gate)
                     //       scan all gate rasters and looking for the image_index reference in their cells and submit a forward notification if something found
                 }
-                else if (iter == image_cache.end()) // && doc_str.empty() // Image id is not registered.
+                else if (iter == image_cache.end()) // && doc_str.empty() // Image id is not registered. Just erase specified region.
                 {
-                    if (io_log) log("%%Object with id='%%' is not registered", prompt::term, id_str ? id_str : "<empty string>");
+                    if (io_log) log("%%Erase specified region. Object with id='%%' is not registered", prompt::term, id_str ? id_str : "<empty string>");
+                    auto size = twod{ w, h };
+                    image_buffer.core::crop(size, cell{});
+                    draw_block(image_buffer, cell::shaders::image);
                     return;
                 }
                 if (io_log)
@@ -7555,28 +7577,9 @@ namespace netxs::ui
                     }
                 }
                 // Print image rectangle.
-                auto& console = *target;
-                console.flush_data();
                 auto& image = *iter->second;
-                auto w = (si32)std::ceil(_w.value());
-                auto h = (si32)std::ceil(_h.value());
-                auto x = (si32)_x.value();
-                auto y = (si32)_y.value();
                 //auto c = cell{}.bgc(target->brush.bgc()).set_image_attrs(image, new_attrs);
                 auto c = cell{}.bgc(tint::redlt).set_image_attrs(image, new_attrs);
-                auto coor = console.coord;
-                auto draw_block = [&]
-                {
-                    if (target == &normal)
-                    {
-                        print_block(normal, image_buffer, {}, cell::shaders::full);
-                    }
-                    else
-                    {
-                        auto& target_buffer = *(alt_screen*)target;
-                        print_block(target_buffer, image_buffer, console.panel, cell::shaders::full);
-                    }
-                };
                 if (!x && !y) // Print full raster.
                 {
                     auto size = twod{ w, h };
@@ -7589,7 +7592,7 @@ namespace netxs::ui
                             (*head++).set_image_xy(x, y);
                         }
                     }
-                    draw_block();
+                    draw_block(image_buffer, cell::shaders::image);
                 }
                 else if (x) // Print vertical slice.
                 {
@@ -7600,7 +7603,7 @@ namespace netxs::ui
                     {
                         (*head++).set_image_xy(x, y);
                     }
-                    draw_block();
+                    draw_block(image_buffer, cell::shaders::image);
                 }
                 else if (y) // Print horizontal slice.
                 {
@@ -7611,13 +7614,13 @@ namespace netxs::ui
                     {
                         (*head++).set_image_xy(x, y);
                     }
-                    draw_block();
+                    draw_block(image_buffer, cell::shaders::image);
                 }
                 else // if (x && y) // Print a single cell.
                 {
                     auto size = twod{ 1, 1 };
                     image_buffer.core::crop(size, c);
-                    draw_block();
+                    draw_block(image_buffer, cell::shaders::image);
                 }
             }
         }

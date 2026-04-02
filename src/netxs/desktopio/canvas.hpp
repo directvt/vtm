@@ -2776,6 +2776,8 @@ namespace netxs
             static constexpr auto   disabled =   disabled_t{};
             static constexpr auto     xlight =     xlight_t{ 1 };
             static constexpr auto underlight = underlight_t{ 1 };
+            //todo
+            static constexpr auto      image =       full_t{};
         };
 
         auto draw_cursor()
