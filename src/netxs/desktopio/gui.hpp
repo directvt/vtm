@@ -3,17 +3,6 @@
 
 #pragma once
 
-#include <ft2build.h>
-#include FT_FREETYPE_H
-#include FT_TRUETYPE_TABLES_H
-#include FT_MULTIPLE_MASTERS_H
-#include FT_SFNT_NAMES_H
-#include FT_COLOR_H
-#include FT_OTSVG_H
-
-#include <hb-ft.h>
-#include <lunasvg.h>
-
 #if defined(_WIN32)
     #undef GetGlyphIndices
     #include <msctf.h>      // TSF
@@ -188,7 +177,7 @@ namespace netxs::gui
             axis_rec_t             weight_target{};
             axis_rec_t             italic_target{};
             std::vector<irgb>      palette; // CPAL cached palette in rgb-linear space.
-            std::unordered_map<si32, std::array<uptr<lunasvg::Document>, 3>> svg_cache; // Face specific SVG-document cache. We storing several documents for the currentColor workaround.
+            std::unordered_map<si32, imagens::docs> svg_cache; // Face specific SVG-document cache. We storing several documents for the currentColor workaround.
 
             auto get_weight_str() const
             {
@@ -1953,6 +1942,119 @@ namespace netxs::gui
                 pos = crop.rfind("var(", pos - 1);
             }
         }
+        auto generate_DOM(std::span<char> svg_data)
+        {
+            resolveOTSVGVariables(svg_data);
+            // currentColor test
+            //auto test_view = view{ svg_data.data(), svg_data.size() };
+            ////auto test_cc = utf::replace_all(test_view, "gold", "currentColor");
+            //auto test_cc = utf::replace_all(test_view, "#C90900", "currentColor");
+            //svg_data = test_cc;
+            auto change_currentColor = [](std::span<char> data, view colorString) -> auto& // Workaround for currentColor.
+            {
+                static thread_local auto matches = std::vector<ui64>{}; // List of currentColors positions within the document.
+                matches.clear();
+                if (colorString.size() <= "currentColor"sv.size())
+                {
+                    auto pos = ui64{};
+                    auto crop = view{ data.data(), data.size() };
+                    while((pos = crop.find("currentColor", pos)) != text::npos)
+                    {
+                        matches.push_back(pos);
+                        std::copy(colorString.begin(), colorString.end(), data.begin() + pos); // "#556677"
+                        auto end = pos + "currentColor"sv.size();
+                        pos += colorString.size();
+                        std::fill(data.begin() + pos, data.begin() + end, ' '); // Trailing spaces.
+                        pos = end;
+                    }
+                }
+                return matches;
+            };
+            auto& matches = change_currentColor(svg_data, "#000000"); // Set black (default) for the currentColor if it is.
+            auto document_black = lunasvg::Document::loadFromData(svg_data.data(), svg_data.size());
+            //auto document_black = uptr<lunasvg::Document>{};
+            auto document_trans = uptr<lunasvg::Document>{};
+            auto document_white = uptr<lunasvg::Document>{};
+            if (!document_black) // Fallback to \uFFFD "�".
+            {
+                static constexpr auto badsvg = R"==(<svg viewBox="0 0 1000 1000">
+                                                        <path d="M 500,50 950,500 500,950 50,500 Z m -46.53619,594.80924 h 93.07238 v 93.07237 H 453.46381 Z M 430,381.07084 c 0,-50 30,-80 70,-80 40,0 70,30 70,80 0,50 -30,70 -55,95 -35,35 -45,65 -45,115 h 60 c 0,-30 10,-50 35,-75 25,-25 65,-60 65,-135 0,-80 -55,-140 -130,-140 -75,0 -130,60 -130,140 z" fill="currentColor" fill-rule="evenodd" />
+                                                    </svg>)=="sv;
+                auto black = utf::replace_all(badsvg, "currentColor", "#000000");
+                document_black = lunasvg::Document::loadFromData(black.data(), black.size());
+                auto trans = utf::replace_all(badsvg, "currentColor", "transparent");
+                document_trans = lunasvg::Document::loadFromData(trans.data(), trans.size());
+                auto white = utf::replace_all(badsvg, "currentColor", "#FFFFFF");
+                document_white = lunasvg::Document::loadFromData(white.data(), white.size());
+            }
+            else if (document_black && matches.size()) // We have currentColors. Generate addidtional document layers.
+            {
+                                                // "currentColor"
+                static constexpr auto pure_trans = "transparent "sv;
+                static constexpr auto pure_white = "#FFFFFF     "sv;
+                for (auto pos : matches)
+                {
+                    std::copy(pure_trans.begin(), pure_trans.end(), svg_data.begin() + pos);
+                }
+                document_trans = lunasvg::Document::loadFromData(svg_data.data(), svg_data.size());
+                for (auto pos : matches)
+                {
+                    std::copy(pure_white.begin(), pure_white.end(), svg_data.begin() + pos);
+                }
+                document_white = lunasvg::Document::loadFromData(svg_data.data(), svg_data.size());
+            }
+            return std::to_array({ std::move(document_black),
+                                   std::move(document_trans),
+                                   std::move(document_white) });
+        }
+        void rasterize_DOM(auto& canvas, imagens::docs& svg_DOM, qiew sub_id, rect& area)
+        {
+            static thread_local auto bitmaps = std::array<lunasvg::Bitmap, 3>();
+
+            auto& [document_black_ptr, document_trans_ptr, document_white_ptr] = svg_DOM;
+            if (!document_black_ptr) return;
+            auto w = area.size.x;
+            auto h = area.size.y;
+            auto render_bitmap = [&](auto& document_ptr, auto& bitmap)
+            {
+                auto& document = *document_ptr;
+                auto element = [&]
+                {
+                    if (sub_id.empty()) return document.documentElement();
+                    auto e = document.getElementById(sub_id);
+                    if (!e) // Render a whole document if sub_id not found.
+                    {
+                        e = document.documentElement();
+                    }
+                    return e;
+                }();
+                auto bounds = element.getBoundingBox().transform(element.getLocalMatrix());
+                auto scale = std::min(w / bounds.w, h / bounds.h);
+                auto tx = (w - bounds.w * scale) / 2.f - bounds.x * scale;
+                auto ty = (h - bounds.h * scale) / 2.f - bounds.y * scale;
+                auto matrix = lunasvg::Matrix{ scale, 0, 0, scale, tx, ty };
+                if (bitmap.height() < h || bitmap.width() < w)
+                {
+                    bitmap = { w, h };
+                }
+                else
+                {
+                    bitmap.clear(0);
+                }
+                element.render(bitmap, matrix); // Premultiplied ARGB32 pixel data.
+            };
+            render_bitmap(document_black_ptr, bitmaps[0]);
+            if (document_trans_ptr)
+            {
+                render_bitmap(document_trans_ptr, bitmaps[1]);
+                render_bitmap(document_white_ptr, bitmaps[2]);
+                draw_svg_to_canvas(canvas, bitmaps[0], bitmaps[1], bitmaps[2], area);
+            }
+            else
+            {
+                draw_svg_to_canvas(canvas, bitmaps[0], area);
+            }
+        }
         void rasterize_single_run(sprite& glyph_mask, fp2d base_line, fonts::shaper& fs, bool monochromatic, bool antialiasing)
         {
             auto run_area = rect{};
@@ -2019,10 +2121,7 @@ namespace netxs::gui
             if (run_area)
             {
                 pen = base_line;
-                glyph_mask.area = run_area;
-                glyph_mask.type = is_colored ? sprite::color : sprite::alpha;
-                auto pixel_size = is_colored ? sizeof(irgb) : sizeof(byte);
-                glyph_mask.bits.resize(netxs::udivupper(run_area.length() * pixel_size, sizeof(ui32)));
+                glyph_mask.set_area<irgb>(run_area, is_colored);
                 auto render_fx = [&](auto canvas)
                 {
                     for (auto& glyph : fs.glyphs) // Rasterize.
@@ -2073,114 +2172,12 @@ namespace netxs::gui
                                     if (svg_doc_iter == svg_cache.end())
                                     {
                                         auto svg_data = std::span{ (char*)doc->svg_document, doc->svg_document_length };
-                                        resolveOTSVGVariables(svg_data);
-
-                                        // currentColor test
-                                        //auto test_view = view{ svg_data.data(), svg_data.size() };
-                                        ////auto test_cc = utf::replace_all(test_view, "gold", "currentColor");
-                                        //auto test_cc = utf::replace_all(test_view, "#C90900", "currentColor");
-                                        //svg_data = test_cc;
-
-                                        auto change_currentColor = [](std::span<char> data, view colorString) -> auto& // Workaround for currentColor.
-                                        {
-                                            static thread_local auto matches = std::vector<ui64>{}; // List of currentColors positions within the document.
-                                            matches.clear();
-                                            if (colorString.size() <= "currentColor"sv.size())
-                                            {
-                                                auto pos = ui64{};
-                                                auto crop = view{ data.data(), data.size() };
-                                                while((pos = crop.find("currentColor", pos)) != text::npos)
-                                                {
-                                                    matches.push_back(pos);
-                                                    std::copy(colorString.begin(), colorString.end(), data.begin() + pos); // "#556677"
-                                                    auto end = pos + "currentColor"sv.size();
-                                                    pos += colorString.size();
-                                                    std::fill(data.begin() + pos, data.begin() + end, ' '); // Trailing spaces.
-                                                    pos = end;
-                                                }
-                                            }
-                                            return matches;
-                                        };
-                                        auto& matches = change_currentColor(svg_data, "#000000"); // Set black (default) for the currentColor if it is.
-                                        auto document_black = lunasvg::Document::loadFromData(svg_data.data(), svg_data.size());
-                                        //auto document_black = uptr<lunasvg::Document>{};
-                                        auto document_trans = uptr<lunasvg::Document>{};
-                                        auto document_white = uptr<lunasvg::Document>{};
-                                        if (!document_black) // Fallback to \uFFFD "�".
-                                        {
-                                            static constexpr auto replacement_svg_0 = R"==(<svg viewBox="0 0 1000 1000">
-                                                                                              <path d="M 500,50 950,500 500,950 50,500 Z m -46.53619,594.80924 h 93.07238 v 93.07237 H 453.46381 Z M 430,381.07084 c 0,-50 30,-80 70,-80 40,0 70,30 70,80 0,50 -30,70 -55,95 -35,35 -45,65 -45,115 h 60 c 0,-30 10,-50 35,-75 25,-25 65,-60 65,-135 0,-80 -55,-140 -130,-140 -75,0 -130,60 -130,140 z" fill="currentColor" fill-rule="evenodd" />
-                                                                                           </svg>)=="sv;
-                                            auto black = utf::replace_all(replacement_svg_0, "currentColor", "#000000");
-                                            document_black = lunasvg::Document::loadFromData(black.data(), black.size());
-                                            auto trans = utf::replace_all(replacement_svg_0, "currentColor", "transparent");
-                                            document_trans = lunasvg::Document::loadFromData(trans.data(), trans.size());
-                                            auto white = utf::replace_all(replacement_svg_0, "currentColor", "#FFFFFF");
-                                            document_white = lunasvg::Document::loadFromData(white.data(), white.size());
-                                        }
-                                        else if (document_black && matches.size()) // We have currentColors. Generate addidtional document layers.
-                                        {
-                                                                            // "currentColor"
-                                            static constexpr auto pure_trans = "transparent "sv;
-                                            static constexpr auto pure_white = "#FFFFFF     "sv;
-                                            for (auto pos : matches)
-                                            {
-                                                std::copy(pure_trans.begin(), pure_trans.end(), svg_data.begin() + pos);
-                                            }
-                                            document_trans = lunasvg::Document::loadFromData(svg_data.data(), svg_data.size());
-                                            for (auto pos : matches)
-                                            {
-                                                std::copy(pure_white.begin(), pure_white.end(), svg_data.begin() + pos);
-                                            }
-                                            document_white = lunasvg::Document::loadFromData(svg_data.data(), svg_data.size());
-                                        }
-                                        svg_doc_iter = svg_cache.emplace(svg_doc_id, std::to_array({ std::move(document_black),
-                                                                                                     std::move(document_trans),
-                                                                                                     std::move(document_white) })).first;
+                                        auto svg_DOM = generate_DOM(svg_data);
+                                        svg_doc_iter = svg_cache.emplace(svg_doc_id, std::move(svg_DOM)).first;
                                     }
-                                    if (svg_doc_iter != svg_cache.end())
-                                    if (auto& [document_black_ptr, document_trans_ptr, document_white_ptr] = svg_doc_iter->second; document_black_ptr)
-                                    {
-                                        static thread_local auto glyph_id = text{};
-                                        static thread_local auto bitmaps = std::array<lunasvg::Bitmap, 3>();
-                                        glyph_id = "glyph" + std::to_string(glyph.index); // According to the OT-SVG standard, each glyph within a document must be contained within an element with id="glyph<index>".
-                                        auto w = glyph.b_box.size.x;
-                                        auto h = glyph.b_box.size.y;
-                                        auto render_bitmap = [&](auto& document_ptr, auto& bitmap)
-                                        {
-                                            auto& document = *document_ptr;
-                                            auto element = document.getElementById(glyph_id);
-                                            if (!element) // Render a whole document if glyph not found.
-                                            {
-                                                element = document.documentElement();
-                                            }
-                                            auto bounds = element.getBoundingBox().transform(element.getLocalMatrix());
-                                            auto scale = std::min(w / bounds.w, h / bounds.h);
-                                            auto tx = (w - bounds.w * scale) / 2.f - bounds.x * scale;
-                                            auto ty = (h - bounds.h * scale) / 2.f - bounds.y * scale;
-                                            auto matrix = lunasvg::Matrix{ scale, 0, 0, scale, tx, ty };
-                                            if (bitmap.height() < h || bitmap.width() < w)
-                                            {
-                                                bitmap = { w, h };
-                                            }
-                                            else
-                                            {
-                                                bitmap.clear(0);
-                                            }
-                                            element.render(bitmap, matrix); // Premultiplied ARGB32 pixel data.
-                                        };
-                                        render_bitmap(document_black_ptr, bitmaps[0]);
-                                        if (document_trans_ptr)
-                                        {
-                                            render_bitmap(document_trans_ptr, bitmaps[1]);
-                                            render_bitmap(document_white_ptr, bitmaps[2]);
-                                            draw_svg_to_canvas(canvas, bitmaps[0], bitmaps[1], bitmaps[2], glyph.b_box);
-                                        }
-                                        else
-                                        {
-                                            draw_svg_to_canvas(canvas, bitmaps[0], glyph.b_box);
-                                        }
-                                    }
+                                    static thread_local auto glyph_id = text{};
+                                    glyph_id = "glyph" + std::to_string(glyph.index); // According to the OT-SVG standard, each glyph within a document must be contained within an element with id="glyph<index>".
+                                    rasterize_DOM(canvas, svg_doc_iter->second, glyph_id, glyph.b_box);
                                 }
                             }
                         }
@@ -2366,6 +2363,18 @@ namespace netxs::gui
                 glyph_mask.transform<irgb>(flipandrotate, matrix);
             }
         }
+        void rasterize_svg_document(imagens::image& image, fp2d matrix, si32 scale)
+        {
+            if (!image.dom[0])
+            {
+                image.dom = generate_DOM(image.document);
+            }
+            //todo scale image_area
+            auto image_area = rect{ dot_00, matrix };
+            image.bitmap.set_area<irgb>(image_area);
+            auto canvas = image.bitmap.raster<irgb>();
+            rasterize_DOM(canvas, image.dom, image.sub_id, image_area);
+        }
         void rasterize_image(imagens::image& image)
         {
             auto attrs = std::array<fp32, imagens::attr_count>{};
@@ -2377,7 +2386,13 @@ namespace netxs::gui
             auto height    = attrs[imagens::height   ];
             auto scale     = attrs[imagens::scale    ];
             auto transform = attrs[imagens::transform];
-            auto matrix = fp2d{ std::ceil(width), std::ceil(height) } * cellsz;
+            auto matrix = fp2d{ std::ceil(width), std::ceil(height) } * cellsz; // Size in pixels.
+            if ((si32)transform & 1)
+            {
+                std::swap(matrix.x, matrix.y);
+            }
+            //auto image_size = scale != scale_mode::none ? 
+            rasterize_svg_document(image, matrix, (si32)scale);
             //auto& image_doc = image.document;
             //...
             if (image.bitmap.area && transform)
@@ -2438,7 +2453,7 @@ namespace netxs::gui
                 if (auto image_ptr = images.exists(image_index)) //todo form all image requests on dtvt recv stage
                 {
                     //test
-                    netxs::onrect(canvas, placeholder, cell::shaders::full(argb{ (tint)(image_index % 15 + 1) }.alpha(64)));
+                    //netxs::onrect(canvas, placeholder, cell::shaders::full(argb{ (tint)(image_index % 15 + 1) }.alpha(64)));
 
                     auto& image = *image_ptr;
                     //todo diff by sizes

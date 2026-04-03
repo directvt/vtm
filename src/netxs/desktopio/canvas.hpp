@@ -1298,15 +1298,18 @@ namespace netxs
             return std::nullopt;
         }
 
+        using docs = std::array<uptr<lunasvg::Document>, 3>; // Storing White/Black/Transparent variants. //todo request lunasvg to generate RGBAfp32 with A8A8
         struct image
         {
             using attrs_t = std::array<std::optional<fp32>, imagens::attr_count>;
 
-            text    id;
-            text    document;
-            attrs_t attrs;
-            ui16    index{};
-            sprite  bitmap{ *std::pmr::new_delete_resource() }; // Using default resource allocator.
+            text          id;
+            text          sub_id; // Document's sub-element id.
+            text          document;
+            attrs_t       attrs;
+            ui16          index{};
+            sprite        bitmap{ *std::pmr::new_delete_resource() }; // Using default resource allocator.
+            imagens::docs dom;
         };
 
         template<class T>

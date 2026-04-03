@@ -43,6 +43,17 @@
 #include <variant>
 #include <vector>
 
+#include <ft2build.h>
+#include FT_FREETYPE_H
+#include FT_TRUETYPE_TABLES_H
+#include FT_MULTIPLE_MASTERS_H
+#include FT_SFNT_NAMES_H
+#include FT_COLOR_H
+#include FT_OTSVG_H
+
+#include <hb-ft.h>
+#include <lunasvg.h>
+
 #ifndef faux
     #define faux (false)
 #endif

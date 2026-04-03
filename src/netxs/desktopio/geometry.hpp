@@ -766,7 +766,15 @@ namespace netxs
         {
             return netxs::raster{ std::span{ (Elem*)bits.data(), bits.size() * sizeof(ui32) / sizeof(Elem) }, area };
         }
-
+        // sprite: Resize sprite.
+        template<class irgb>
+        void set_area(rect new_area, bool is_colored = true)
+        {
+            area = new_area;
+            type = is_colored ? sprite::color : sprite::alpha;
+            auto pixel_size = is_colored ? sizeof(irgb) : sizeof(byte);
+            bits.resize(netxs::udivupper(new_area.length() * pixel_size, sizeof(ui32)));
+        }
         // sprite: Perform Dihedral group (D4) transformations on the image raster (8 combinations of rotations and reflections).
         template<class irgb>
         void transform(si32 flipandrotate, twod matrix)
