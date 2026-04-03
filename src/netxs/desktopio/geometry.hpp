@@ -703,4 +703,68 @@ namespace netxs
         if constexpr (std::is_same_v<T, twod>) return { dot_00, p };
         else                                   return { dot_00, { (si32)p,  1 } };
     }
+
+    // geometry: Generic bitmap.
+    template<class T>
+    struct raster
+    {
+        using base = T;
+        base _data;
+        rect _area;
+        rect _clip;
+        auto length() const { return _data.length(); }
+        auto  begin()       { return _data.begin();  }
+        auto  begin() const { return _data.begin();  }
+        auto   data()       { return _data.data();   }
+        auto   data() const { return _data.data();   }
+        auto    end()       { return _data.end();    }
+        auto    end() const { return _data.end();    }
+        auto&  clip()       { return _clip;          }
+        auto&  clip() const { return _clip;          }
+        auto&  area()       { return _area;          }
+        auto&  area() const { return _area;          }
+        auto   clip(auto c) { _clip = c;             }
+        void   step(auto s) { _area.coor += s;       }
+        void   move(auto p) { _area.coor = p;        }
+        auto&  size()       { return _area.size;     }
+        auto&  size() const { return _area.size;     }
+        auto&  coor()       { return _area.coor;     }
+        auto&  coor() const { return _area.coor;     }
+        auto& operator [] (auto p) { return *(begin() + p.x + p.y * _area.size.x); }
+        void size(auto new_size, auto... filler)
+        {
+            _area.size = new_size;
+            _data.resize(new_size.x * new_size.y, filler...);
+        }
+        raster() = default;
+        raster(T data, rect area)
+            : _data{ data },
+              _area{ area }
+        { }
+    };
+
+    // geometry: Color/monochromatic sprite.
+    struct sprite
+    {
+        using vect = std::pmr::vector<ui32>; // Use ui32 for 4-byte alignment (aarch requirement).
+
+        static constexpr auto undef = 0;
+        static constexpr auto alpha = 1; // Grayscale AA bitmap alphamix. byte-based. fx: pixel = blend(pixel, fgc, byte).
+        static constexpr auto color = 2; // irgb-colored bitmap colormix. irgb-based. fx: pixel = blend(blend(pixel, irgb.alpha(irgb.chan.a - (si32)irgb.chan.a)), fgc, (si32)irgb.chan.a - 256).
+
+        vect bits; // sprite: Contains: type=alpha: bytes [0-255]; type=color: irgb<fp32>.
+        rect area; // sprite: Bitmap black-box.
+        si32 type; // sprite: Bitmap type.
+
+        sprite(auto& pool)
+            : bits{ &pool },
+              type{ undef }
+        { }
+
+        template<class Elem>
+        auto raster()
+        {
+            return netxs::raster{ std::span{ (Elem*)bits.data(), bits.size() * sizeof(ui32) / sizeof(Elem) }, area };
+        }
+    };
 }

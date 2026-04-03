@@ -31,9 +31,9 @@ namespace netxs::gui
     namespace e2 = netxs::events::userland::e2;
 
     using namespace ui;
-    using bits = netxs::raster<std::span<argb>, rect>;
+    using bits = netxs::raster<std::span<argb>>;
     using byts = std::vector<byte>;
-    using gray = netxs::raster<byts, rect>;
+    using gray = netxs::raster<byts>;
     using shad = netxs::misc::shadow<gray>;
 
     static constexpr auto debug_foci = faux;
@@ -1519,7 +1519,6 @@ namespace netxs::gui
     struct glyph
     {
         using irgb = netxs::irgb<fp32>;
-        using sprite = netxs::sprite<rect>;
 
         struct synthetic
         {
@@ -2445,12 +2444,11 @@ namespace netxs::gui
             auto& image_attrs  = image.attrs;
             //
         }
-        template<class Sprite>
-        void draw_glyph(auto& canvas, Sprite& glyph_mask, twod offset, argb fgc)
+        void draw_glyph(auto& canvas, sprite& glyph_mask, twod offset, argb fgc)
         {
             auto box = glyph_mask.area.shift(offset);
             auto f_fgc = irgb::nonpma_srgb_to_pma_linear(fgc);
-            if (glyph_mask.type == Sprite::color)
+            if (glyph_mask.type == sprite::color)
             {
                 auto fx = [fgc, f_fgc](argb& dst, irgb src)
                 {
@@ -2503,15 +2501,16 @@ namespace netxs::gui
                     netxs::onrect(canvas, placeholder, cell::shaders::full(argb{ (tint)(image_index % 15 + 1) }.alpha(64)));
 
                     auto& image = *image_ptr;
-                    if (image.sprite.type == sprite::undef)
+                    //todo diff by sizes
+                    if (image.bitmap.type == sprite::undef)
                     {
                         rasterize_image(image);
                     }
-                    if (image.sprite.area)
+                    if (image.bitmap.area)
                     {
                         //todo align image
                         auto offset = placeholder.size * (image_xy - dot_11);
-                        draw_glyph(canvas, image.sprite, offset, fgc);
+                        draw_glyph(canvas, image.bitmap, offset, fgc);
                     }
                 }
             }

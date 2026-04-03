@@ -1301,13 +1301,12 @@ namespace netxs
         struct image
         {
             using attrs_t = std::array<std::optional<fp32>, imagens::attr_count>;
-            using sprite_t = netxs::sprite<rect>;
 
-            text     id;
-            text     document;
-            attrs_t  attrs;
-            ui16     index{};
-            sprite_t sprite{ *std::pmr::new_delete_resource() }; // Using default resource allocator.
+            text    id;
+            text    document;
+            attrs_t attrs;
+            ui16    index{};
+            sprite  bitmap{ *std::pmr::new_delete_resource() }; // Using default resource allocator.
         };
 
         template<class T>
@@ -3780,7 +3779,7 @@ namespace netxs::misc
         auto v = r.size.x * r.size.y;
         boxblur_cache.resize(v);
         shadows_cache.resize(v);
-        auto shadows_image = netxs::raster<std::span<fp32>, rect>{ shadows_cache, r };
+        auto shadows_image = netxs::raster<std::span<fp32>>{ shadows_cache, r };
         netxs::misc::cage(shadows_image, shadows_image.area(), dent{ 1, 0, 1, 0 }, [](auto& dst){ dst = 0.f; }); // Clear cached garbage (or uninitialized data) after previous blur (1px border at the top and left sides).
         shadows_image.step(-dot_11);
         netxs::onbody(image, shadows_image, [](auto& src, auto& dst){ dst = src ? 255.f * 3.f : 0.f; }); // Note: Pure black pixels will become invisible/transparent.
