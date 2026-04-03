@@ -985,6 +985,31 @@ namespace netxs
         { }
     };
 
+    template<class Rect>
+    struct sprite
+    {
+        using vect = std::pmr::vector<ui32>; // Use ui32 for 4-byte alignment (aarch requirement).
+
+        static constexpr auto undef = 0;
+        static constexpr auto alpha = 1; // Grayscale AA glyph alphamix. byte-based. fx: pixel = blend(pixel, fgc, byte).
+        static constexpr auto color = 2; // irgb-colored glyph colormix. irgb-based. fx: pixel = blend(blend(pixel, irgb.alpha(irgb.chan.a - (si32)irgb.chan.a)), fgc, (si32)irgb.chan.a - 256).
+
+        vect bits; // sprite: Contains: type=alpha: bytes [0-255]; type=color: irgb<fp32>.
+        Rect area; // sprite: Glyph mask black-box.
+        si32 type; // sprite: Glyph mask type.
+
+        sprite(auto& pool)
+            : bits{ &pool },
+              type{ undef }
+        { }
+
+        template<class Elem>
+        auto raster()
+        {
+            return netxs::raster{ std::span{ (Elem*)bits.data(), bits.size() * sizeof(ui32) / sizeof(Elem) }, area };
+        }
+    };
+
     // intmath: Intersect two sprites and invoke handle(sprite1_element, sprite2_element) for each elem in the intersection.
     template<class NewlineFx = noop>
     void onbody(auto&& canvas, auto&& bitmap, auto handle, NewlineFx online = {})

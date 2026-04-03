@@ -1297,21 +1297,89 @@ namespace netxs
             }
             return std::nullopt;
         }
+
+        struct image
+        {
+            using attrs_t = std::array<std::optional<fp32>, imagens::attr_count>;
+            using sprite_t = netxs::sprite<rect>;
+
+            text     id;
+            text     document;
+            attrs_t  attrs;
+            ui16     index{};
+            sprite_t sprite{ *std::pmr::new_delete_resource() }; // Using default resource allocator.
+        };
+
+        template<class T>
+        struct cache
+        {
+        protected:
+            using lock = std::mutex;
+            using sync = std::lock_guard<lock>;
+            using depo = std::array<netxs::sptr<T>, 65536>; // ~1MB
+            using uset = std::unordered_set<ui16>;
+            using pool = generics::indexer<ui16>;
+
+            lock mutex; // Object map mutex.
+            depo store; // Object map.
+            uset undef; // List of unknown tokens.
+            pool index; // Index pool.
+
+            struct guard : sync
+            {
+                depo& map;
+                uset& unk;
+                pool& ind;
+
+                guard(cache& inst)
+                    : sync{ inst.mutex },
+                       map{ inst.store },
+                       unk{ inst.undef },
+                       ind{ inst.index }
+                { }
+
+                // cache: Get object.
+                auto& get(ui16 image_index)
+                {
+                    auto image_ptr = map[image_index];
+                    if (!image_ptr)
+                    {
+                        unk.insert(image_index);
+                    }
+                    return image_ptr;
+                }
+                // cache: Set object.
+                auto set(auto image_ptr)
+                {
+                    auto image_index = ind.get_new();
+                    map[image_index] = image_ptr;
+                    return image_index;
+                }
+                // cache: Remove object.
+                void remove(ui16 image_index)
+                {
+                    map[image_index].reset();
+                    ind.release(image_index);
+                }
+                // cache: Check the object existence by token.
+                auto exists(ui16 image_index)
+                {
+                    return map[image_index];
+                }
+            };
+
+        public:
+            cache() = default;
+            auto storage()
+            {
+                return guard{ *this };
+            }
+        };
     }
 
     // canvas: Grapheme cluster.
     struct cell
     {
-        struct image
-        {
-            using attrs_t = std::array<std::optional<fp32>, imagens::attr_count>;
-
-            text    id;
-            text    document;
-            attrs_t attrs;
-            ui16    index{};
-        };
-
         static auto jumbos()
         {
             static auto cache = netxs::generics::cache<text>{};
@@ -1319,8 +1387,7 @@ namespace netxs
         }
         static auto images()
         {
-            static auto cache = netxs::generics::cache<netxs::sptr<cell::image>>{};
-            log("images.cache.storage.size=", cache.storage().map.size());
+            static auto cache = imagens::cache<imagens::image>{};
             return cache.storage();
         }
 
@@ -1839,15 +1906,15 @@ namespace netxs
             netxs::set_field<px_objX_16_mask>(x, px);
             netxs::set_field<px_objY_16_mask>(y, px);
         }
-        auto get_image_index() const { return netxs::get_field<px_index16_mask>(px); }
-        auto get_image_align() const { return netxs::get_field<px_align_4_mask>(px); }
-        auto get_image_xform() const { return netxs::get_field<px_xform_3_mask>(px); }
-        auto get_image_ontop() const { return netxs::get_field<px_ontop_1_mask>(px); }
+        auto get_image_index() const { return (ui16)netxs::get_field<px_index16_mask>(px); }
+        auto get_image_align() const { return       netxs::get_field<px_align_4_mask>(px); }
+        auto get_image_xform() const { return       netxs::get_field<px_xform_3_mask>(px); }
+        auto get_image_ontop() const { return       netxs::get_field<px_ontop_1_mask>(px); }
         auto set_image_index(si32 n) { netxs::set_field<px_index16_mask>(n, px); }
         auto set_image_align(si32 n) { netxs::set_field<px_align_4_mask>(n, px); }
         auto set_image_xform(si32 n) { netxs::set_field<px_xform_3_mask>(n, px); }
         auto set_image_ontop(si32 n) { netxs::set_field<px_ontop_1_mask>(n, px); }
-        auto set_image_attrs(cell::image& image, cell::image::attrs_t& new_attrs)
+        auto set_image_attrs(imagens::image& image, imagens::image::attrs_t& new_attrs)
         {
             auto attrs = std::array<si32, imagens::attr_count>{};
             for (auto i = 0; i < imagens::attr_count; i++)

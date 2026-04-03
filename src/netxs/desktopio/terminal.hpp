@@ -7191,9 +7191,8 @@ namespace netxs::ui
         bool       bottom_anchored; // term: Anchor scrollback content when resizing (default is anchor at bottom).
         ui32       event_sources; // term: vt-input-mode event reporting bit-field.
         ui64       session_token; // term: Interactive session token.
-        utf::unordered_map<text, netxs::sptr<cell::image>> image_cache; // term: Image cache.
-        generics::indexer<ui16>                            image_index_pool; // term: Image index pool.
-        face                                               image_buffer; // term: Image temporary buffer.
+        utf::unordered_map<text, netxs::sptr<imagens::image>> image_cache; // term: Image cache.
+        face                                                  image_buffer; // term: Image temporary buffer.
         vtty       ipccon; // term: IPC connector. Should be destroyed first.
 
         // term: Print the block to the scrollback buffer with scroll.
@@ -7369,7 +7368,7 @@ namespace netxs::ui
             auto doc_id_str = qiew{};
             auto do_register   = faux;
             auto do_unregister = faux;
-            auto new_attrs = cell::image::attrs_t{};
+            auto new_attrs = imagens::image::attrs_t{};
             // data: " id + attrs + doc"              Find by id and update/register and print.
             //       " [attrs] + doc "                Register empty id.
             //       " [id] "                         Find by id and print.
@@ -7481,9 +7480,7 @@ namespace netxs::ui
                     auto image_ptr = iter->second;
                     log("unregistered ", image_ptr->id);
                     image_cache.erase(iter);
-                    auto image_index = (base::id << 16) | image_ptr->index;
-                    image_index_pool.release(image_ptr->index);
-                    images.remove(image_index);
+                    images.remove(image_ptr->index);
                     if (io_log) log("%%Embedded object '%%' successfully unregistered", prompt::term, image_ptr->id);
                 }
             }
@@ -7536,7 +7533,7 @@ namespace netxs::ui
                 auto h = (si32)std::ceil(_h.value());
                 auto x = (si32)_x.value();
                 auto y = (si32)_y.value();
-                auto c = cell{ target->brush }.txt(gc_str);
+                auto c = cell{ target->brush }.txt(gc_str, 1, 1, 1, 1);
                 auto print_image_buffer = [&]
                 {
                     gc_str ? draw_block(image_buffer, cell::shaders::full)
@@ -7545,15 +7542,13 @@ namespace netxs::ui
                 // Register image.
                 if (iter == image_cache.end() && doc_str)
                 {
-                    if (auto image_id = image_index_pool.get_new())
+                    auto image_ptr = ptr::shared(imagens::image{ .id       = id_str,
+                                                                 .document = doc_str,
+                                                                 .attrs    = new_attrs });
+                    if (auto image_index = images.set(image_ptr))
                     {
-                        auto image_ptr = ptr::shared(cell::image{ .id       = id_str,
-                                                                  .document = doc_str,
-                                                                  .attrs    = new_attrs,
-                                                                  .index    = image_id });
+                        image_ptr->index = image_index;
                         iter = image_cache.emplace(id_str, image_ptr).first;
-                        auto image_index = (base::id << 16) | image_id;
-                        images.add(image_index, image_ptr);
                     }
                     else
                     {

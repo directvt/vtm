@@ -1519,29 +1519,8 @@ namespace netxs::gui
     struct glyph
     {
         using irgb = netxs::irgb<fp32>;
-        using vect = std::pmr::vector<ui32>; // Use ui32 for 4-byte alignment (aarch requirement).
+        using sprite = netxs::sprite<rect>;
 
-        struct sprite
-        {
-            static constexpr auto undef = 0;
-            static constexpr auto alpha = 1; // Grayscale AA glyph alphamix. byte-based. fx: pixel = blend(pixel, fgc, byte).
-            static constexpr auto color = 2; // irgb-colored glyph colormix. irgb-based. fx: pixel = blend(blend(pixel, irgb.alpha(irgb.chan.a - (si32)irgb.chan.a)), fgc, (si32)irgb.chan.a - 256).
-
-            vect bits; // sprite: Contains: type=alpha: bytes [0-255]; type=color: irgb<fp32>.
-            rect area; // sprite: Glyph mask black-box.
-            si32 type; // sprite: Glyph mask type.
-
-            sprite(auto& pool)
-                : bits{ &pool },
-                  type{ undef }
-            { }
-
-            template<class Elem>
-            auto raster()
-            {
-                return netxs::raster{ std::span{ (Elem*)bits.data(), bits.size() * sizeof(ui32) / sizeof(Elem) }, area };
-            }
-        };
         struct synthetic
         {
             static constexpr auto _counter = 1 + __COUNTER__;
@@ -2460,11 +2439,18 @@ namespace netxs::gui
                        + m[4] * matrix;
             }
         }
-        void draw_glyph(auto& canvas, sprite& glyph_mask, twod offset, argb fgc)
+        void rasterize_image(imagens::image& image)
+        {
+            auto& image_doc    = image.document;
+            auto& image_attrs  = image.attrs;
+            //
+        }
+        template<class Sprite>
+        void draw_glyph(auto& canvas, Sprite& glyph_mask, twod offset, argb fgc)
         {
             auto box = glyph_mask.area.shift(offset);
             auto f_fgc = irgb::nonpma_srgb_to_pma_linear(fgc);
-            if (glyph_mask.type == sprite::color)
+            if (glyph_mask.type == Sprite::color)
             {
                 auto fx = [fgc, f_fgc](argb& dst, irgb src)
                 {
@@ -2503,29 +2489,60 @@ namespace netxs::gui
             }
         }
         template<class T = noop>
+        auto render_image(auto& canvas, rect placeholder, argb fgc, cell const& c, T&& blink_canvas = {})
+        {
+            if (auto image_index = c.get_image_index())
+            if (auto image_xy = c.get_image_xy(); image_xy.x != 0 && image_xy.y != 0)
+            {
+                auto image_align = c.get_image_align();
+                auto image_xform = c.get_image_xform();
+                auto images = cell::images(); // Lock.
+                if (auto image_ptr = images.exists(image_index)) //todo form all image requests on dtvt recv stage
+                {
+                    //test
+                    netxs::onrect(canvas, placeholder, cell::shaders::full(argb{ (tint)(image_index % 15 + 1) }.alpha(64)));
+
+                    auto& image = *image_ptr;
+                    if (image.sprite.type == sprite::undef)
+                    {
+                        rasterize_image(image);
+                    }
+                    if (image.sprite.area)
+                    {
+                        //todo align image
+                        auto offset = placeholder.size * (image_xy - dot_11);
+                        draw_glyph(canvas, image.sprite, offset, fgc);
+                    }
+                }
+            }
+        }
+        template<class T = noop>
         void draw_cell(auto& canvas, rect placeholder, cell const& c, T&& blink_canvas = {})
         {
             placeholder.trimby(canvas.area());
             if (!placeholder) return;
+            auto image_ontop = c.get_image_ontop();
             auto fgc = c.fgc();
             auto bgc = c.bgc();
             if (c.inv()) std::swap(fgc, bgc);
+
+            // Build background.
             canvas.clip(placeholder);
             auto target_ptr = &canvas;
-            if constexpr (std::is_same_v<std::decay_t<T>, noop>)
+            netxs::onrect(canvas, placeholder, cell::shaders::full(bgc));
+            if (!image_ontop)
             {
-                netxs::onrect(canvas, placeholder, cell::shaders::full(bgc));
+                render_image(canvas, placeholder, fgc, c);
             }
-            else
+            if constexpr (!std::is_same_v<std::decay_t<T>, noop>)
             {
                 if (c.blk() && !c.hid())
                 {
                     target_ptr = &blink_canvas;
                     blink_canvas.clip(placeholder);
-                    // Fill the blinking layer's background to fix DWM that doesn't take gamma into account during layered window blending.
-                    netxs::onclip(canvas, blink_canvas, [&](auto& dst, auto& src){ dst = bgc; src = bgc; });
+                    // Copy background to the the blinking layer to fix DWM that doesn't take gamma into account during layered window blending.
+                    netxs::onclip(canvas, blink_canvas, [&](auto& dst, auto& src){ src = dst; });
                 }
-                else netxs::onrect(canvas, placeholder, cell::shaders::full(bgc));
             }
 
             while (!c.hid()) // Render visible glyph.
