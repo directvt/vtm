@@ -2363,86 +2363,27 @@ namespace netxs::gui
             //netxs::onrect(src_bitmap, bline, [](auto& c){ c = std::min(255, c + 64); });
             if (glyph_mask.area && flipandrotate)
             {
-                static thread_local auto buffer = std::vector<ui32>{}; // Use ui32 for 4-byte alignment (aarch requirement).
-                static constexpr auto l0 = std::to_array({ 1, -1, -1,  1, -1, 1,  1, -1 });
-                static constexpr auto l1 = std::to_array({ 1,  1, -1, -1,  1, 1, -1, -1 });
-                buffer.assign(glyph_mask.bits.begin(), glyph_mask.bits.end());
-                auto xform = [&](auto elem)
-                {
-                    using type = decltype(elem);
-                    auto count = (size_t)glyph_mask.area.length();
-                    auto src = netxs::raster{ std::span{ (type*)buffer.data(), count }, glyph_mask.area };
-                    auto mx = glyph_mask.area.size.x;
-                    if (swapxy)
-                    {
-                        std::swap(glyph_mask.area.size.x, glyph_mask.area.size.y);
-                        std::swap(matrix.x, matrix.y); // Revert back.
-                    }
-                    auto dst = glyph_mask.raster<type>();
-                    auto s__dx = 1;
-                    auto s__dy = mx;
-                    auto dmx = glyph_mask.area.size.x;
-                    auto dmy = glyph_mask.area.size.y;
-                    auto sx = l0[flipandrotate];
-                    auto sy = l1[flipandrotate];
-                    auto d__dx = sx * ((flipandrotate & 0b1) ? dmx :   1);
-                    auto d__dy = sy * ((flipandrotate & 0b1) ? 1   : dmx);
-                    if (flipandrotate & 0b100) std::swap(sx, sy);
-                    auto d__px = (sy > 0 ? 0 : dmx - 1);
-                    auto d__py = (sx > 0 ? 0 : dmy - 1);
-                    auto s_beg = src.begin();
-                    auto s_eol = s_beg + mx - 1;
-                    auto s_end = s_beg + count - 1;
-                    auto d_beg = dst.begin() + (d__px + d__py * dmx);
-                    auto d_eol = d_beg + d__dx * (mx - 1);
-                    auto s_ptr = s_beg;
-                    auto d_ptr = d_beg;
-                    while (true)
-                    {
-                        *d_ptr = *s_ptr;
-                        if (s_ptr != s_eol) s_ptr += s__dx;
-                        else
-                        {
-                            if (s_ptr == s_end) break;
-                            s_beg += s__dy;
-                            s_ptr = s_beg;
-                            s_eol += s__dy;
-                        }
-                        if (d_ptr != d_eol) d_ptr += d__dx;
-                        else
-                        {
-                            d_beg += d__dy;
-                            d_ptr = d_beg;
-                            d_eol += d__dy;
-                        }
-                    }
-                };
-                glyph_mask.type == sprite::color ? xform(irgb{}) : xform(byte{});
-                static constexpr twod coeffs[8][5] =
-                { //  coor.x    coor.y    size.x    size.y    matrix
-                    {{ 1, 0 }, { 0, 1 }, { 0, 0 }, { 0, 0 }, { 0, 0 }}, // 0: 0° CCW
-                    {{ 0,-1 }, { 1, 0 }, { 0, 0 }, { 0,-1 }, { 0, 1 }}, // 1: 90°
-                    {{-1, 0 }, { 0,-1 }, {-1, 0 }, { 0,-1 }, { 1, 1 }}, // 2: 180°
-                    {{ 0, 1 }, {-1, 0 }, {-1, 0 }, { 0, 0 }, { 1, 0 }}, // 3: 270°
-                    {{-1, 0 }, { 0, 1 }, {-1, 0 }, { 0, 0 }, { 1, 0 }}, // 4: Hz Flip
-                    {{ 0, 1 }, { 1, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }}, // 5: Hz Flip + 90°
-                    {{ 1, 0 }, { 0,-1 }, { 0, 0 }, { 0,-1 }, { 0, 1 }}, // 6: Hz Flip + 180°
-                    {{ 0,-1 }, {-1, 0 }, {-1, 0 }, { 0,-1 }, { 1, 1 }}  // 7: Hz Flip + 270°
-                };
-                auto& r = glyph_mask.area;
-                auto& m = coeffs[flipandrotate];
-                r.coor = m[0] * r.coor.x
-                       + m[1] * r.coor.y
-                       + m[2] * r.size.x
-                       + m[3] * r.size.y
-                       + m[4] * matrix;
+                glyph_mask.transform<irgb>(flipandrotate, matrix);
             }
         }
         void rasterize_image(imagens::image& image)
         {
-            auto& image_doc    = image.document;
-            auto& image_attrs  = image.attrs;
-            //
+            auto attrs = std::array<fp32, imagens::attr_count>{};
+            for (auto i = 0; i < imagens::attr_count; i++)
+            {
+                if (auto v = image.attrs[i]) attrs[i] = v.value();
+            }
+            auto width     = attrs[imagens::width    ];
+            auto height    = attrs[imagens::height   ];
+            auto scale     = attrs[imagens::scale    ];
+            auto transform = attrs[imagens::transform];
+            auto matrix = fp2d{ std::ceil(width), std::ceil(height) } * cellsz;
+            //auto& image_doc = image.document;
+            //...
+            if (image.bitmap.area && transform)
+            {
+                image.bitmap.transform<irgb>((si32)transform, matrix);
+            }
         }
         void draw_glyph(auto& canvas, sprite& glyph_mask, twod offset, argb fgc)
         {
@@ -2486,8 +2427,7 @@ namespace netxs::gui
                 netxs::onclip(canvas, raster, fx);
             }
         }
-        template<class T = noop>
-        auto render_image(auto& canvas, rect placeholder, argb fgc, cell const& c, T&& blink_canvas = {})
+        auto render_image(auto& canvas, rect placeholder, argb fgc, cell const& c)
         {
             if (auto image_index = c.get_image_index())
             if (auto image_xy = c.get_image_xy(); image_xy.x != 0 && image_xy.y != 0)
@@ -2508,7 +2448,17 @@ namespace netxs::gui
                     }
                     if (image.bitmap.area)
                     {
+                        auto& _dx = image.attrs[imagens::dx];
+                        auto& _dy = image.attrs[imagens::dy];
+                        auto dx = _dx ? _dx.value() : 0.f;
+                        auto dy = _dy ? _dy.value() : 0.f;
                         //todo align image
+                        // ...
+                        //todo xform image on output (D4 variations)
+                        //if (image_xform)
+                        //{
+                        //    image.bitmap.transform<irgb>(image_xform, matrix);
+                        //}
                         auto offset = placeholder.size * (image_xy - dot_11);
                         draw_glyph(canvas, image.bitmap, offset, fgc);
                     }
