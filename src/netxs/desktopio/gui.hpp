@@ -2474,7 +2474,8 @@ namespace netxs::gui
                         //{
                         //    image.bitmap.transform<irgb>(image_xform, matrix);
                         //}
-                        auto offset = placeholder.size * (image_xy - dot_11);
+                        image_xy = (image_xy - dot_11) * cellsz;
+                        auto offset = placeholder.coor - image_xy;
                         draw_glyph(canvas, image.bitmap, offset, fgc);
                     }
                 }
