@@ -18,7 +18,11 @@ namespace netxs
     using txts = std::vector<text>;
     using namespace std::literals;
 
-    static constexpr auto whitespaces = " \t\r\n\v\f"sv;
+    template<auto ...c>
+    static constexpr auto _ws_bytes = std::to_array({ ' ', '\t', '\r', '\n', '\v', '\f', c... });
+    template<auto ...c>
+    static constexpr auto whitespaces_and = view{ _ws_bytes<c...>.data(), _ws_bytes<c...>.size() };
+    static constexpr auto whitespaces = whitespaces_and<>;
     static constexpr auto onlydigits  = "0123456789"sv;
     static constexpr auto sharpdigit  = "0123456789#-"sv;
     static constexpr auto alphabetic  = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"sv;
@@ -2471,12 +2475,12 @@ namespace netxs::utf
     // utf: Take key,val from key[ ]*=[ ]*val
     auto get_pair(auto& utf8)
     {
-        auto key = utf::take_front<faux>(utf8, " =");
+        auto key = utf::take_front<faux>(utf8, netxs::whitespaces_and<'='>);
         auto val = decltype(key){};
-        utf::trim_front(utf8, ' ');
+        utf::trim_front(utf8, netxs::whitespaces);
         if (utf8.size() && utf8.front() == '=')
         {
-            utf::trim_front(utf8, " =");
+            utf::trim_front(utf8, netxs::whitespaces_and<'='>);
             if (utf8)
             {
                 auto c = utf8.view::front();
@@ -2486,7 +2490,7 @@ namespace netxs::utf
                 }
                 else
                 {
-                    val = utf::take_front<faux>(utf8, " ");
+                    val = utf::take_front<faux>(utf8, netxs::whitespaces);
                 }
             }
         }
@@ -2495,7 +2499,7 @@ namespace netxs::utf
     // utf: Split text line into quoted tokens.
     auto tokenize(view utf8, auto&& args)
     {
-        utf::trim(utf8, ' ');
+        utf::trim(utf8, netxs::whitespaces);
         while (utf8.size())
         {
             auto c = utf8.front();

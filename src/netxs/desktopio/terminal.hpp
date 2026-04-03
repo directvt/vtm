@@ -7360,7 +7360,7 @@ namespace netxs::ui
         {
             auto& console = *target;
             console.flush();
-            utf::trim(attrs_str, ' ');
+            utf::trim(attrs_str, netxs::whitespaces);
             if (!attrs_str) return;
             auto id_str     = qiew{};
             auto gc_str     = qiew{};
@@ -7379,8 +7379,8 @@ namespace netxs::ui
                 if (attrs_str.front() == '<') // Extract document body <tag ...> ... </tag>
                 {
                     auto tmp = attrs_str;
-                    utf::trim_front(tmp, "< ");
-                    if (auto tag = utf::take_front<faux>(tmp, "> ")) // 'tag>' or 'tag ...'
+                    utf::trim_front(tmp, netxs::whitespaces_and<'<'>);
+                    if (auto tag = utf::take_front<faux>(tmp, netxs::whitespaces_and<'>'>)) // 'tag>' or 'tag ...'
                     {
                         auto degenerate_doc = text{};
                         degenerate_doc.reserve(5 + tag.size() * 2); // "<" + tag + "></" + tag + ">"
@@ -7404,7 +7404,7 @@ namespace netxs::ui
                             {
                                 do_register = true;
                                 auto doc_attrs = tmp;
-                                utf::trim_front(doc_attrs, ' ');
+                                utf::trim_front(doc_attrs, netxs::whitespaces);
                                 while (doc_attrs && doc_attrs.front() != '>') // Stop on '>'.
                                 {
                                     auto [key, val] = utf::get_pair(doc_attrs);
@@ -7414,7 +7414,7 @@ namespace netxs::ui
                                         log("Found document id='%%'", doc_id_str);
                                         break;
                                     }
-                                    utf::trim_front(doc_attrs, ' ');
+                                    utf::trim_front(doc_attrs, netxs::whitespaces);
                                 }
                             }
                             continue; // Document successfully extracted.
@@ -7470,7 +7470,7 @@ namespace netxs::ui
                         }
                     }
                 }
-                utf::trim_front(attrs_str, ' ');
+                utf::trim_front(attrs_str, netxs::whitespaces);
             }
             auto images = cell::images(); // Lock.
             if (do_unregister)
