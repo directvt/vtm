@@ -7365,7 +7365,6 @@ namespace netxs::ui
             auto id_str     = qiew{};
             auto gc_str     = qiew{};
             auto doc_str    = qiew{};
-            auto doc_id_str = qiew{};
             auto do_register   = faux;
             auto do_unregister = faux;
             auto new_attrs = imagens::image::attrs_t{};
@@ -7376,10 +7375,14 @@ namespace netxs::ui
             //       " [id] + explicite-empty-doc "   Find by id and unregister. (doc=<tag></tag>)
             while (attrs_str)
             {
-                if (attrs_str.front() == '<') // Extract document body <tag ...> ... </tag>
+                if (attrs_str.front() == '<') // Extract document body <tag1 ...> ... </tag2>
                 {
-                    auto tmp = attrs_str;
-                    utf::trim_front(tmp, netxs::whitespaces_and<'<'>);
+                    auto closing_bracket_pos = attrs_str.rfind('>'); // Fing the last '>' in the string.
+                    doc_str = attrs_str.substr(0, closing_bracket_pos + 1);
+                    attrs_str.remove_prefix(doc_str.size());
+                    // Check if document is empty.
+                    auto tmp = doc_str;
+                    tmp.pop_front(); // Pop  '<'.
                     if (auto tag = utf::take_front<faux>(tmp, netxs::whitespaces_and<'>'>)) // 'tag>' or 'tag ...'
                     {
                         auto degenerate_doc = text{};
@@ -7389,38 +7392,14 @@ namespace netxs::ui
                         degenerate_doc += "></";
                         degenerate_doc += tag;
                         degenerate_doc += '>';
-                        auto closing_tag = degenerate_doc.substr(tag.size() + 2); // <tag></tag>
-                        auto closing_tag_pos = attrs_str.rfind(closing_tag);
-                        if (closing_tag_pos != text::npos) // Object document is found.
-                        {
-                            doc_str = attrs_str.substr(0, closing_tag_pos + closing_tag.size());
-                            attrs_str.remove_prefix(doc_str.size());
-                            do_unregister = doc_str == degenerate_doc;
-                            if (do_unregister)
-                            {
-                                doc_str = {};
-                            }
-                            else // Looking for Doc ID for sure.
-                            {
-                                do_register = true;
-                                auto doc_attrs = tmp;
-                                utf::trim_front(doc_attrs, netxs::whitespaces);
-                                while (doc_attrs && doc_attrs.front() != '>') // Stop on '>'.
-                                {
-                                    auto [key, val] = utf::get_pair(doc_attrs);
-                                    if (key == "id") // id="val"
-                                    {
-                                        doc_id_str = val;
-                                        log("Found document id='%%'", doc_id_str);
-                                        break;
-                                    }
-                                    utf::trim_front(doc_attrs, netxs::whitespaces);
-                                }
-                            }
-                            continue; // Document successfully extracted.
-                        }
+                        do_unregister = doc_str == degenerate_doc;
+                        if (do_unregister) doc_str = {};
+                        else               do_register = true;
                     }
-                    if (io_log) log("%%Broken 'OSC object' document (invalid structure)", prompt::term);
+                    else
+                    {
+                        if (io_log) log("%%Broken 'OSC object' document (invalid structure)", prompt::term);
+                    }
                 }
                 else // Parse attributes.
                 {
@@ -7486,11 +7465,6 @@ namespace netxs::ui
             }
             else
             {
-                // We don't use document's id if 'id' attribute is not specified.
-                //if (!id_str && doc_id_str) // Use document's id if 'id' attribute is not specified.
-                //{
-                //    id_str = doc_id_str;
-                //}
                 auto iter = image_cache.find(id_str);
                 // Merge with existing attributes.
                 if (iter != image_cache.end() && doc_str.empty())
