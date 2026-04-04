@@ -2486,10 +2486,10 @@ namespace netxs::gui
                         {
                             //...
                         }
-                        //todo xform image on output (D4 variations)
-                        if (image_xform & 0b110) // Exclude rotate. //todo generate new image if x/y swapped
+                        //todo perform the image xform on output (D4 variations) to keep original raster
+                        if (image_xform & 0b110) // Exclude rotation. //todo generate new image if x/y swapped
                         {
-                            auto matrix = image.bitmap.size();
+                            auto matrix = image.bitmap.area.size;
                             image.bitmap.transform<irgb>(image_xform & 0b110, matrix);
                         }
                         image_xy = (image_xy - dot_11) * cellsz;
