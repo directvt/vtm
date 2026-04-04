@@ -2472,15 +2472,16 @@ namespace netxs::utf
         }
         return utf8;
     }
-    // utf: Take key,val from key[ ]*=[ ]*val
-    auto get_pair(auto& utf8)
+    // utf: Take key,val from key=val    [whitespaces]key[int_delimiters]val[ext_delimiters]
+    template<char EqualSign = '='>
+    auto get_pair(auto& utf8, view int_delimiters = netxs::whitespaces_and<EqualSign>, view ext_delimiters = netxs::whitespaces)
     {
-        auto key = utf::take_front<faux>(utf8, netxs::whitespaces_and<'='>);
+        auto key = utf::take_front<faux>(utf8, int_delimiters); // " ="
         auto val = decltype(key){};
         utf::trim_front(utf8, netxs::whitespaces);
-        if (utf8.size() && utf8.front() == '=')
+        if (utf8.size() && utf8.front() == EqualSign) // '='
         {
-            utf::trim_front(utf8, netxs::whitespaces_and<'='>);
+            utf::trim_front(utf8, int_delimiters);
             if (utf8)
             {
                 auto c = utf8.view::front();
@@ -2490,7 +2491,7 @@ namespace netxs::utf
                 }
                 else
                 {
-                    val = utf::take_front<faux>(utf8, netxs::whitespaces);
+                    val = utf::take_front<faux>(utf8, ext_delimiters); // ' '
                 }
             }
         }

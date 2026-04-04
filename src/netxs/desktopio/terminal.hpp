@@ -7403,7 +7403,7 @@ namespace netxs::ui
                 }
                 else // Parse attributes.
                 {
-                    auto [attr_str, value_str] = utf::get_pair(attrs_str);
+                    auto [attr_str, value_str] = utf::get_pair<'='>(attrs_str, netxs::whitespaces_and<'='>, netxs::whitespaces_and<' ', '<'>); // "... key=val<svg...>...</svg>"
                     //todo sub-id: id=qqq/www
                     if (attr_str == "id") // id="string".
                     {
