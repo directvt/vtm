@@ -2481,12 +2481,23 @@ namespace netxs::gui
                 }
             }
         }
+        void draw_shadows(auto& canvas, rect placeholder, cell const& c)
+        {
+            if (auto shadow = c.dim()) // Render shadow if it is.
+            {
+                auto& shadow_raster = cgi_shadow[shadow];
+                auto offset = placeholder.coor;
+                draw_glyph(canvas, shadow_raster, offset, argb{ tint::pureblack });
+            }
+        }
         template<class T = noop>
         void draw_cell(auto& canvas, rect placeholder, cell const& c, T&& blink_canvas = {})
         {
+            static constexpr auto blink_canvas_specified = !std::is_same_v<std::decay_t<T>, noop>;
             placeholder.trimby(canvas.area());
             if (!placeholder) return;
             auto image_ontop = c.get_image_ontop();
+            auto blinking = blink_canvas_specified && c.blk() && !c.hid();
             auto fgc = c.fgc();
             auto bgc = c.bgc();
             if (c.inv()) std::swap(fgc, bgc);
@@ -2499,20 +2510,18 @@ namespace netxs::gui
             {
                 render_image(canvas, placeholder, fgc, c);
             }
-            if constexpr (!std::is_same_v<std::decay_t<T>, noop>)
+            if constexpr (blink_canvas_specified)
+            if (blinking) // Copy background to the the blinking layer to fix DWM that doesn't take gamma into account during layered window blending.
             {
-                if (c.blk() && !c.hid())
-                {
-                    target_ptr = &blink_canvas;
-                    blink_canvas.clip(placeholder);
-                    // Copy background to the the blinking layer to fix DWM that doesn't take gamma into account during layered window blending.
-                    netxs::onclip(canvas, blink_canvas, [&](auto& dst, auto& src){ src = dst; });
-                }
+                //draw_shadows(canvas, placeholder); // To improve performance, add a shadow behind the text.
+                target_ptr = &blink_canvas;
+                blink_canvas.clip(placeholder);
+                netxs::onclip(canvas, blink_canvas, [&](auto& dst, auto& src){ src = dst; });
             }
 
+            auto& target = *target_ptr;
             while (!c.hid()) // Render visible glyph.
             {
-                auto& target = *target_ptr;
                 if (auto u = c.und())
                 {
                     auto index = c.unc();
@@ -2634,11 +2643,33 @@ namespace netxs::gui
                 break;
             }
 
-            if (auto shadow = c.dim()) // Render shadow if it is.
+            if (image_ontop)
             {
-                auto& shadow_raster = cgi_shadow[shadow];
-                auto offset = placeholder.coor;
-                draw_glyph(canvas, shadow_raster, offset, argb{ pureblack });
+                if (blinking)
+                {
+                    if constexpr (blink_canvas_specified)
+                    {
+                        render_image(canvas, placeholder, bgc, c);
+                        draw_shadows(canvas, placeholder, c);
+
+                        render_image(target, placeholder, fgc, c);
+                        draw_shadows(target, placeholder, c);
+                    }
+                }
+                else
+                {
+                    render_image(canvas, placeholder, fgc, c);
+                    draw_shadows(canvas, placeholder, c);
+                }
+            }
+            else
+            {
+                draw_shadows(canvas, placeholder, c);
+                if constexpr (blink_canvas_specified)
+                if (blinking)
+                {
+                    draw_shadows(target, placeholder, c);
+                }
             }
         }
     };
