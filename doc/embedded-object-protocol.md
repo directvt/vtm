@@ -1,6 +1,6 @@
-### Embedded Object Protocol
+### AnyPlex Protocol
 
-The **Embedded Object Protocol (EOP)** allows vector, bitmap, and extensible markup objects to be embedded directly into the terminal's scrollback buffer.
+The **AnyPlex Protocol (APP)** allows vector, bitmap, and extensible markup objects to be embedded directly into the terminal's scrollback buffer.
 
 #### Rendering & Alpha Blending
 
