@@ -2489,8 +2489,8 @@ namespace netxs::gui
                         //todo perform the image xform on output (D4 variations) to keep original raster
                         if (image_xform & 0b110) // Exclude rotation. //todo generate new image if x/y swapped
                         {
-                            auto matrix = image.bitmap.area.size;
-                            image.bitmap.transform<irgb>(image_xform & 0b110, matrix);
+                            //auto matrix = image.bitmap.area.size;
+                            //image.bitmap.transform<irgb>(image_xform & 0b110, matrix);
                         }
                         image_xy = (image_xy - dot_11) * cellsz;
                         auto offset = placeholder.coor - image_xy + dxy;
