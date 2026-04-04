@@ -2465,8 +2465,8 @@ namespace netxs::gui
                     {
                         auto& _dx = image.attrs[imagens::dx];
                         auto& _dy = image.attrs[imagens::dy];
-                        auto dx = _dx ? _dx.value() : 0.f;
-                        auto dy = _dy ? _dy.value() : 0.f;
+                        auto dxy = twod{ _dx ? std::round(cellsz.x * _dx.value()) : 0,
+                                         _dy ? std::round(cellsz.y * _dy.value()) : 0 };
                         //todo align image
                         // ...
                         //todo xform image on output (D4 variations)
@@ -2475,7 +2475,7 @@ namespace netxs::gui
                         //    image.bitmap.transform<irgb>(image_xform, matrix);
                         //}
                         image_xy = (image_xy - dot_11) * cellsz;
-                        auto offset = placeholder.coor - image_xy;
+                        auto offset = placeholder.coor - image_xy + dxy;
                         draw_glyph(canvas, image.bitmap, offset, fgc);
                     }
                 }
@@ -2513,7 +2513,6 @@ namespace netxs::gui
             if constexpr (blink_canvas_specified)
             if (blinking) // Copy background to the the blinking layer to fix DWM that doesn't take gamma into account during layered window blending.
             {
-                //draw_shadows(canvas, placeholder); // To improve performance, add a shadow behind the text.
                 target_ptr = &blink_canvas;
                 blink_canvas.clip(placeholder);
                 netxs::onclip(canvas, blink_canvas, [&](auto& dst, auto& src){ src = dst; });
