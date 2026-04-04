@@ -22,12 +22,12 @@ The **AnyPlex Protocol (APP)** allows vector, bitmap, and extensible markup obje
 #### Sequence Format
 
 ```
-ESC ] object ; [<attributes>] [<document>] ST
+ESC ] app ; [<attributes>] [<document>] ST
 ```
 
 Field             | Description
 ------------------|------------
-**OSC command**   | Mandatory. `object`.
+**OSC command**   | Mandatory. `app`.
 **attributes**    | Optional. Space-separated `key=value` pairs. Values can be quoted (`"` or `'`) or unquoted. All keys and values are **case-sensitive**.
 **document**      | Optional. UTF-8 data starting with a format tag (e.g., `<svg`) and ending with a closing tag (e.g., `</svg>`).
 
@@ -79,4 +79,4 @@ Input State             | Action
 
 The protocol is engine-agnostic. Focused on **SVG**, but designed to support other formats (e.g., `<html>`, `<object>`) via root tag identification.
 
-The protocol can be extended to include non-visual data segments such as `<audio>`, allowing for synchronized multimedia playback managed by the Frontend.
+The protocol can be extended to include non-visual data segments such as `<audio>` or `<wav>`, allowing for synchronized multimedia playback managed by the Frontend.
