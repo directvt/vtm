@@ -2047,7 +2047,7 @@ namespace netxs
                 gc = c.gc;
                 uv.fg = uv.bg; // The character must be on top of the cell background. (see block graphics)
             }
-            if (raw())
+            if (c.raw())
             {
                 px = c.px;
             }
@@ -2101,7 +2101,10 @@ namespace netxs
         {
             uv = c.uv;
             st.meta(c.st);
-            px = c.px;
+            if (c.raw())
+            {
+                px = c.px;
+            }
         }
         void skipnulls(cell const& c)
         {
@@ -2114,14 +2117,19 @@ namespace netxs
             }
             else
             {
-                if (c.uv.bg.token == argb::default_color) // Update gc while keeping SGR attributes (if bgc==0x00'FF'FF'FF).
+                gc = c.gc;
+                if (c.uv.bg.token != argb::default_color) // Update gc while keeping SGR attributes (if bgc==0x00'FF'FF'FF).
                 {
-                    gc = c.gc;
-                    st.xy(c.st.xy());
+                    uv = c.uv;
+                    st = c.st;
                 }
                 else // Copy all.
                 {
-                    *this = c;
+                    st.xy(c.st.xy());
+                }
+                if (c.raw())
+                {
+                    px = c.px;
                 }
             }
         }
