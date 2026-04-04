@@ -11,7 +11,7 @@ The **AnyPlex Protocol (APP)** allows vector, bitmap, and extensible markup obje
 - **Non-destructive & Color State**: 
   - If the **`gc`** attribute is not empty, the provided grapheme cluster is written to the cells with current SGR attributes, replacing existing text and SGR attributes.
   - If **`gc`** is empty, the output is non-destructive to existing text and SGR attributes.
-  - Any text subsequently written over the object's area does not modify or destroy the underlying object. The object remains intact in the cell metadata until explicitly cleared.
+  - Any text subsequently written over the object's area does not modify or destroy the underlying object. The object remains intact in the cell metadata until explicitly cleared or replaced. See `Lifecycle Logic` for details.
 - **Scroll Behavior (Normal Buffer)**: Outputting an object does not trigger **BCE (Background Color Erase)**. If the object does not fit at the bottom, it triggers a standard scroll-up.
 - **Viewport Clipping (Alt Buffer)**: The object's rectangle is strictly clipped by the right and bottom edges of the terminal viewport; no scrolling occurs.
 - **Layering**: The `ontop` attribute switches the layering, placing the object on top of the text instead of behind it.
