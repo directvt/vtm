@@ -1206,7 +1206,7 @@ namespace netxs::ui
                 vt.oscer[osc_term_notify] = V{ p->owner.osc_notify(q);                  };
                 vt.oscer[osc_semantic_fx] = V{ p->owner.osc_marker(q);                  };
                 vt.oscer[osc_glyph      ] = V{ p->owner.osc_glyphs(q);                  };
-                vt.oscer[osc_object     ] = V{ p->owner.osc_images(q);                  };
+                vt.oscer[osc_app        ] = V{ p->owner.osc_images(q);                  };
                 #undef V
 
                 // Log all unimplemented CSI commands.

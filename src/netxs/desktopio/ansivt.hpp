@@ -157,7 +157,7 @@ namespace netxs::ansi
     static const auto osc_title_report = "l"      ; // Get terminal window title.
     static const auto osc_label_report = "L"      ; // Get terminal window icon label.
     static const auto osc_glyph        = "glyph"  ; // Dynamic Glyph Redefinition.
-    static const auto osc_object       = "object" ; // Embedded Object Protocol.
+    static const auto osc_app          = "app"    ; // AnyPlex Protocol.
 
     static const auto sgr_rst       = 0;
     static const auto sgr_sav       = 10;
