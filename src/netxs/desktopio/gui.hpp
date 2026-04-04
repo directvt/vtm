@@ -3,17 +3,6 @@
 
 #pragma once
 
-#include <ft2build.h>
-#include FT_FREETYPE_H
-#include FT_TRUETYPE_TABLES_H
-#include FT_MULTIPLE_MASTERS_H
-#include FT_SFNT_NAMES_H
-#include FT_COLOR_H
-#include FT_OTSVG_H
-
-#include <hb-ft.h>
-#include <lunasvg.h>
-
 #if defined(_WIN32)
     #undef GetGlyphIndices
     #include <msctf.h>      // TSF
@@ -31,9 +20,9 @@ namespace netxs::gui
     namespace e2 = netxs::events::userland::e2;
 
     using namespace ui;
-    using bits = netxs::raster<std::span<argb>, rect>;
+    using bits = netxs::raster<std::span<argb>>;
     using byts = std::vector<byte>;
-    using gray = netxs::raster<byts, rect>;
+    using gray = netxs::raster<byts>;
     using shad = netxs::misc::shadow<gray>;
 
     static constexpr auto debug_foci = faux;
@@ -188,7 +177,7 @@ namespace netxs::gui
             axis_rec_t             weight_target{};
             axis_rec_t             italic_target{};
             std::vector<irgb>      palette; // CPAL cached palette in rgb-linear space.
-            std::unordered_map<si32, std::array<uptr<lunasvg::Document>, 3>> svg_cache; // Face specific SVG-document cache. We storing several documents for the currentColor workaround.
+            std::unordered_map<si32, imagens::docs> svg_cache; // Face specific SVG-document cache. We storing several documents for the currentColor workaround.
 
             auto get_weight_str() const
             {
@@ -1519,29 +1508,7 @@ namespace netxs::gui
     struct glyph
     {
         using irgb = netxs::irgb<fp32>;
-        using vect = std::pmr::vector<ui32>; // Use ui32 for 4-byte alignment (aarch requirement).
 
-        struct sprite
-        {
-            static constexpr auto undef = 0;
-            static constexpr auto alpha = 1; // Grayscale AA glyph alphamix. byte-based. fx: pixel = blend(pixel, fgc, byte).
-            static constexpr auto color = 2; // irgb-colored glyph colormix. irgb-based. fx: pixel = blend(blend(pixel, irgb.alpha(irgb.chan.a - (si32)irgb.chan.a)), fgc, (si32)irgb.chan.a - 256).
-
-            vect bits; // sprite: Contains: type=alpha: bytes [0-255]; type=color: irgb<fp32>.
-            rect area; // sprite: Glyph mask black-box.
-            si32 type; // sprite: Glyph mask type.
-
-            sprite(auto& pool)
-                : bits{ &pool },
-                  type{ undef }
-            { }
-
-            template<class Elem>
-            auto raster()
-            {
-                return netxs::raster{ std::span{ (Elem*)bits.data(), bits.size() * sizeof(ui32) / sizeof(Elem) }, area };
-            }
-        };
         struct synthetic
         {
             static constexpr auto _counter = 1 + __COUNTER__;
@@ -1975,6 +1942,119 @@ namespace netxs::gui
                 pos = crop.rfind("var(", pos - 1);
             }
         }
+        auto generate_DOM(std::span<char> svg_data)
+        {
+            resolveOTSVGVariables(svg_data);
+            // currentColor test
+            //auto test_view = view{ svg_data.data(), svg_data.size() };
+            ////auto test_cc = utf::replace_all(test_view, "gold", "currentColor");
+            //auto test_cc = utf::replace_all(test_view, "#C90900", "currentColor");
+            //svg_data = test_cc;
+            auto change_currentColor = [](std::span<char> data, view colorString) -> auto& // Workaround for currentColor.
+            {
+                static thread_local auto matches = std::vector<ui64>{}; // List of currentColors positions within the document.
+                matches.clear();
+                if (colorString.size() <= "currentColor"sv.size())
+                {
+                    auto pos = ui64{};
+                    auto crop = view{ data.data(), data.size() };
+                    while((pos = crop.find("currentColor", pos)) != text::npos)
+                    {
+                        matches.push_back(pos);
+                        std::copy(colorString.begin(), colorString.end(), data.begin() + pos); // "#556677"
+                        auto end = pos + "currentColor"sv.size();
+                        pos += colorString.size();
+                        std::fill(data.begin() + pos, data.begin() + end, ' '); // Trailing spaces.
+                        pos = end;
+                    }
+                }
+                return matches;
+            };
+            auto& matches = change_currentColor(svg_data, "#000000"); // Set black (default) for the currentColor if it is.
+            auto document_black = lunasvg::Document::loadFromData(svg_data.data(), svg_data.size());
+            //auto document_black = uptr<lunasvg::Document>{};
+            auto document_trans = uptr<lunasvg::Document>{};
+            auto document_white = uptr<lunasvg::Document>{};
+            if (!document_black) // Fallback to \uFFFD "�".
+            {
+                static constexpr auto badsvg = R"==(<svg viewBox="0 0 1000 1000">
+                                                        <path d="M 500,50 950,500 500,950 50,500 Z m -46.53619,594.80924 h 93.07238 v 93.07237 H 453.46381 Z M 430,381.07084 c 0,-50 30,-80 70,-80 40,0 70,30 70,80 0,50 -30,70 -55,95 -35,35 -45,65 -45,115 h 60 c 0,-30 10,-50 35,-75 25,-25 65,-60 65,-135 0,-80 -55,-140 -130,-140 -75,0 -130,60 -130,140 z" fill="currentColor" fill-rule="evenodd" />
+                                                    </svg>)=="sv;
+                auto black = utf::replace_all(badsvg, "currentColor", "#000000");
+                document_black = lunasvg::Document::loadFromData(black.data(), black.size());
+                auto trans = utf::replace_all(badsvg, "currentColor", "transparent");
+                document_trans = lunasvg::Document::loadFromData(trans.data(), trans.size());
+                auto white = utf::replace_all(badsvg, "currentColor", "#FFFFFF");
+                document_white = lunasvg::Document::loadFromData(white.data(), white.size());
+            }
+            else if (document_black && matches.size()) // We have currentColors. Generate addidtional document layers.
+            {
+                                                // "currentColor"
+                static constexpr auto pure_trans = "transparent "sv;
+                static constexpr auto pure_white = "#FFFFFF     "sv;
+                for (auto pos : matches)
+                {
+                    std::copy(pure_trans.begin(), pure_trans.end(), svg_data.begin() + pos);
+                }
+                document_trans = lunasvg::Document::loadFromData(svg_data.data(), svg_data.size());
+                for (auto pos : matches)
+                {
+                    std::copy(pure_white.begin(), pure_white.end(), svg_data.begin() + pos);
+                }
+                document_white = lunasvg::Document::loadFromData(svg_data.data(), svg_data.size());
+            }
+            return std::to_array({ std::move(document_black),
+                                   std::move(document_trans),
+                                   std::move(document_white) });
+        }
+        void rasterize_DOM(auto& canvas, imagens::docs& svg_DOM, qiew sub_id, rect& area)
+        {
+            static thread_local auto bitmaps = std::array<lunasvg::Bitmap, 3>();
+
+            auto& [document_black_ptr, document_trans_ptr, document_white_ptr] = svg_DOM;
+            if (!document_black_ptr) return;
+            auto w = area.size.x;
+            auto h = area.size.y;
+            auto render_bitmap = [&](auto& document_ptr, auto& bitmap)
+            {
+                auto& document = *document_ptr;
+                auto element = [&]
+                {
+                    if (sub_id.empty()) return document.documentElement();
+                    auto e = document.getElementById(sub_id);
+                    if (!e) // Render a whole document if sub_id not found.
+                    {
+                        e = document.documentElement();
+                    }
+                    return e;
+                }();
+                auto bounds = element.getBoundingBox().transform(element.getLocalMatrix());
+                auto scale = std::min(w / bounds.w, h / bounds.h);
+                auto tx = (w - bounds.w * scale) / 2.f - bounds.x * scale;
+                auto ty = (h - bounds.h * scale) / 2.f - bounds.y * scale;
+                auto matrix = lunasvg::Matrix{ scale, 0, 0, scale, tx, ty };
+                if (bitmap.height() < h || bitmap.width() < w)
+                {
+                    bitmap = { w, h };
+                }
+                else
+                {
+                    bitmap.clear(0);
+                }
+                element.render(bitmap, matrix); // Premultiplied ARGB32 pixel data.
+            };
+            render_bitmap(document_black_ptr, bitmaps[0]);
+            if (document_trans_ptr)
+            {
+                render_bitmap(document_trans_ptr, bitmaps[1]);
+                render_bitmap(document_white_ptr, bitmaps[2]);
+                draw_svg_to_canvas(canvas, bitmaps[0], bitmaps[1], bitmaps[2], area);
+            }
+            else
+            {
+                draw_svg_to_canvas(canvas, bitmaps[0], area);
+            }
+        }
         void rasterize_single_run(sprite& glyph_mask, fp2d base_line, fonts::shaper& fs, bool monochromatic, bool antialiasing)
         {
             auto run_area = rect{};
@@ -2041,10 +2121,7 @@ namespace netxs::gui
             if (run_area)
             {
                 pen = base_line;
-                glyph_mask.area = run_area;
-                glyph_mask.type = is_colored ? sprite::color : sprite::alpha;
-                auto pixel_size = is_colored ? sizeof(irgb) : sizeof(byte);
-                glyph_mask.bits.resize(netxs::udivupper(run_area.length() * pixel_size, sizeof(ui32)));
+                glyph_mask.set_area<irgb>(run_area, is_colored);
                 auto render_fx = [&](auto canvas)
                 {
                     for (auto& glyph : fs.glyphs) // Rasterize.
@@ -2095,114 +2172,12 @@ namespace netxs::gui
                                     if (svg_doc_iter == svg_cache.end())
                                     {
                                         auto svg_data = std::span{ (char*)doc->svg_document, doc->svg_document_length };
-                                        resolveOTSVGVariables(svg_data);
-
-                                        // currentColor test
-                                        //auto test_view = view{ svg_data.data(), svg_data.size() };
-                                        ////auto test_cc = utf::replace_all(test_view, "gold", "currentColor");
-                                        //auto test_cc = utf::replace_all(test_view, "#C90900", "currentColor");
-                                        //svg_data = test_cc;
-
-                                        auto change_currentColor = [](std::span<char> data, view colorString) -> auto& // Workaround for currentColor.
-                                        {
-                                            static thread_local auto matches = std::vector<ui64>{}; // List of currentColors positions within the document.
-                                            matches.clear();
-                                            if (colorString.size() <= "currentColor"sv.size())
-                                            {
-                                                auto pos = ui64{};
-                                                auto crop = view{ data.data(), data.size() };
-                                                while((pos = crop.find("currentColor", pos)) != text::npos)
-                                                {
-                                                    matches.push_back(pos);
-                                                    std::copy(colorString.begin(), colorString.end(), data.begin() + pos); // "#556677"
-                                                    auto end = pos + "currentColor"sv.size();
-                                                    pos += colorString.size();
-                                                    std::fill(data.begin() + pos, data.begin() + end, ' '); // Trailing spaces.
-                                                    pos = end;
-                                                }
-                                            }
-                                            return matches;
-                                        };
-                                        auto& matches = change_currentColor(svg_data, "#000000"); // Set black (default) for the currentColor if it is.
-                                        auto document_black = lunasvg::Document::loadFromData(svg_data.data(), svg_data.size());
-                                        //auto document_black = uptr<lunasvg::Document>{};
-                                        auto document_trans = uptr<lunasvg::Document>{};
-                                        auto document_white = uptr<lunasvg::Document>{};
-                                        if (!document_black) // Fallback to \uFFFD "�".
-                                        {
-                                            static constexpr auto replacement_svg_0 = R"==(<svg viewBox="0 0 1000 1000">
-                                                                                              <path d="M 500,50 950,500 500,950 50,500 Z m -46.53619,594.80924 h 93.07238 v 93.07237 H 453.46381 Z M 430,381.07084 c 0,-50 30,-80 70,-80 40,0 70,30 70,80 0,50 -30,70 -55,95 -35,35 -45,65 -45,115 h 60 c 0,-30 10,-50 35,-75 25,-25 65,-60 65,-135 0,-80 -55,-140 -130,-140 -75,0 -130,60 -130,140 z" fill="currentColor" fill-rule="evenodd" />
-                                                                                           </svg>)=="sv;
-                                            auto black = utf::replace_all(replacement_svg_0, "currentColor", "#000000");
-                                            document_black = lunasvg::Document::loadFromData(black.data(), black.size());
-                                            auto trans = utf::replace_all(replacement_svg_0, "currentColor", "transparent");
-                                            document_trans = lunasvg::Document::loadFromData(trans.data(), trans.size());
-                                            auto white = utf::replace_all(replacement_svg_0, "currentColor", "#FFFFFF");
-                                            document_white = lunasvg::Document::loadFromData(white.data(), white.size());
-                                        }
-                                        else if (document_black && matches.size()) // We have currentColors. Generate addidtional document layers.
-                                        {
-                                                                            // "currentColor"
-                                            static constexpr auto pure_trans = "transparent "sv;
-                                            static constexpr auto pure_white = "#FFFFFF     "sv;
-                                            for (auto pos : matches)
-                                            {
-                                                std::copy(pure_trans.begin(), pure_trans.end(), svg_data.begin() + pos);
-                                            }
-                                            document_trans = lunasvg::Document::loadFromData(svg_data.data(), svg_data.size());
-                                            for (auto pos : matches)
-                                            {
-                                                std::copy(pure_white.begin(), pure_white.end(), svg_data.begin() + pos);
-                                            }
-                                            document_white = lunasvg::Document::loadFromData(svg_data.data(), svg_data.size());
-                                        }
-                                        svg_doc_iter = svg_cache.emplace(svg_doc_id, std::to_array({ std::move(document_black),
-                                                                                                     std::move(document_trans),
-                                                                                                     std::move(document_white) })).first;
+                                        auto svg_DOM = generate_DOM(svg_data);
+                                        svg_doc_iter = svg_cache.emplace(svg_doc_id, std::move(svg_DOM)).first;
                                     }
-                                    if (svg_doc_iter != svg_cache.end())
-                                    if (auto& [document_black_ptr, document_trans_ptr, document_white_ptr] = svg_doc_iter->second; document_black_ptr)
-                                    {
-                                        static thread_local auto glyph_id = text{};
-                                        static thread_local auto bitmaps = std::array<lunasvg::Bitmap, 3>();
-                                        glyph_id = "glyph" + std::to_string(glyph.index); // According to the OT-SVG standard, each glyph within a document must be contained within an element with id="glyph<index>".
-                                        auto w = glyph.b_box.size.x;
-                                        auto h = glyph.b_box.size.y;
-                                        auto render_bitmap = [&](auto& document_ptr, auto& bitmap)
-                                        {
-                                            auto& document = *document_ptr;
-                                            auto element = document.getElementById(glyph_id);
-                                            if (!element) // Render a whole document if glyph not found.
-                                            {
-                                                element = document.documentElement();
-                                            }
-                                            auto bounds = element.getBoundingBox().transform(element.getLocalMatrix());
-                                            auto scale = std::min(w / bounds.w, h / bounds.h);
-                                            auto tx = (w - bounds.w * scale) / 2.f - bounds.x * scale;
-                                            auto ty = (h - bounds.h * scale) / 2.f - bounds.y * scale;
-                                            auto matrix = lunasvg::Matrix{ scale, 0, 0, scale, tx, ty };
-                                            if (bitmap.height() < h || bitmap.width() < w)
-                                            {
-                                                bitmap = { w, h };
-                                            }
-                                            else
-                                            {
-                                                bitmap.clear(0);
-                                            }
-                                            element.render(bitmap, matrix); // Premultiplied ARGB32 pixel data.
-                                        };
-                                        render_bitmap(document_black_ptr, bitmaps[0]);
-                                        if (document_trans_ptr)
-                                        {
-                                            render_bitmap(document_trans_ptr, bitmaps[1]);
-                                            render_bitmap(document_white_ptr, bitmaps[2]);
-                                            draw_svg_to_canvas(canvas, bitmaps[0], bitmaps[1], bitmaps[2], glyph.b_box);
-                                        }
-                                        else
-                                        {
-                                            draw_svg_to_canvas(canvas, bitmaps[0], glyph.b_box);
-                                        }
-                                    }
+                                    static thread_local auto glyph_id = text{};
+                                    glyph_id = "glyph" + std::to_string(glyph.index); // According to the OT-SVG standard, each glyph within a document must be contained within an element with id="glyph<index>".
+                                    rasterize_DOM(canvas, svg_doc_iter->second, glyph_id, glyph.b_box);
                                 }
                             }
                         }
@@ -2385,79 +2360,58 @@ namespace netxs::gui
             //netxs::onrect(src_bitmap, bline, [](auto& c){ c = std::min(255, c + 64); });
             if (glyph_mask.area && flipandrotate)
             {
-                static thread_local auto buffer = std::vector<ui32>{}; // Use ui32 for 4-byte alignment (aarch requirement).
-                static constexpr auto l0 = std::to_array({ 1, -1, -1,  1, -1, 1,  1, -1 });
-                static constexpr auto l1 = std::to_array({ 1,  1, -1, -1,  1, 1, -1, -1 });
-                buffer.assign(glyph_mask.bits.begin(), glyph_mask.bits.end());
-                auto xform = [&](auto elem)
-                {
-                    using type = decltype(elem);
-                    auto count = (size_t)glyph_mask.area.length();
-                    auto src = netxs::raster{ std::span{ (type*)buffer.data(), count }, glyph_mask.area };
-                    auto mx = glyph_mask.area.size.x;
-                    if (swapxy)
-                    {
-                        std::swap(glyph_mask.area.size.x, glyph_mask.area.size.y);
-                        std::swap(matrix.x, matrix.y); // Revert back.
-                    }
-                    auto dst = glyph_mask.raster<type>();
-                    auto s__dx = 1;
-                    auto s__dy = mx;
-                    auto dmx = glyph_mask.area.size.x;
-                    auto dmy = glyph_mask.area.size.y;
-                    auto sx = l0[flipandrotate];
-                    auto sy = l1[flipandrotate];
-                    auto d__dx = sx * ((flipandrotate & 0b1) ? dmx :   1);
-                    auto d__dy = sy * ((flipandrotate & 0b1) ? 1   : dmx);
-                    if (flipandrotate & 0b100) std::swap(sx, sy);
-                    auto d__px = (sy > 0 ? 0 : dmx - 1);
-                    auto d__py = (sx > 0 ? 0 : dmy - 1);
-                    auto s_beg = src.begin();
-                    auto s_eol = s_beg + mx - 1;
-                    auto s_end = s_beg + count - 1;
-                    auto d_beg = dst.begin() + (d__px + d__py * dmx);
-                    auto d_eol = d_beg + d__dx * (mx - 1);
-                    auto s_ptr = s_beg;
-                    auto d_ptr = d_beg;
-                    while (true)
-                    {
-                        *d_ptr = *s_ptr;
-                        if (s_ptr != s_eol) s_ptr += s__dx;
-                        else
-                        {
-                            if (s_ptr == s_end) break;
-                            s_beg += s__dy;
-                            s_ptr = s_beg;
-                            s_eol += s__dy;
-                        }
-                        if (d_ptr != d_eol) d_ptr += d__dx;
-                        else
-                        {
-                            d_beg += d__dy;
-                            d_ptr = d_beg;
-                            d_eol += d__dy;
-                        }
-                    }
-                };
-                glyph_mask.type == sprite::color ? xform(irgb{}) : xform(byte{});
-                static constexpr twod coeffs[8][5] =
-                { //  coor.x    coor.y    size.x    size.y    matrix
-                    {{ 1, 0 }, { 0, 1 }, { 0, 0 }, { 0, 0 }, { 0, 0 }}, // 0: 0° CCW
-                    {{ 0,-1 }, { 1, 0 }, { 0, 0 }, { 0,-1 }, { 0, 1 }}, // 1: 90°
-                    {{-1, 0 }, { 0,-1 }, {-1, 0 }, { 0,-1 }, { 1, 1 }}, // 2: 180°
-                    {{ 0, 1 }, {-1, 0 }, {-1, 0 }, { 0, 0 }, { 1, 0 }}, // 3: 270°
-                    {{-1, 0 }, { 0, 1 }, {-1, 0 }, { 0, 0 }, { 1, 0 }}, // 4: Hz Flip
-                    {{ 0, 1 }, { 1, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }}, // 5: Hz Flip + 90°
-                    {{ 1, 0 }, { 0,-1 }, { 0, 0 }, { 0,-1 }, { 0, 1 }}, // 6: Hz Flip + 180°
-                    {{ 0,-1 }, {-1, 0 }, {-1, 0 }, { 0,-1 }, { 1, 1 }}  // 7: Hz Flip + 270°
-                };
-                auto& r = glyph_mask.area;
-                auto& m = coeffs[flipandrotate];
-                r.coor = m[0] * r.coor.x
-                       + m[1] * r.coor.y
-                       + m[2] * r.size.x
-                       + m[3] * r.size.y
-                       + m[4] * matrix;
+                glyph_mask.transform<irgb>(flipandrotate, matrix);
+            }
+        }
+        void rasterize_svg_document(imagens::image& image, fp2d matrix, si32 scale)
+        {
+            if (!image.dom[0])
+            {
+                image.dom = generate_DOM(image.document);
+            }
+            switch (scale)
+            {
+                case scale_mode::inside:
+                    //...
+                    break;
+                case scale_mode::outside:
+                    //...
+                    break;
+                case scale_mode::stretch:
+                    //...
+                    break;
+                case scale_mode::none:
+                    //...
+                    break;
+            }
+            auto image_area = rect{ dot_00, matrix };
+            image.bitmap.set_area<irgb>(image_area);
+            auto canvas = image.bitmap.raster<irgb>();
+            rasterize_DOM(canvas, image.dom, image.sub_id, image_area);
+        }
+        void rasterize_image(imagens::image& image)
+        {
+            auto attrs = std::array<fp32, imagens::attr_count>{};
+            for (auto i = 0; i < imagens::attr_count; i++)
+            {
+                if (auto v = image.attrs[i]) attrs[i] = v.value();
+            }
+            auto width     = attrs[imagens::width    ];
+            auto height    = attrs[imagens::height   ];
+            auto scale     = attrs[imagens::scale    ];
+            auto transform = attrs[imagens::transform];
+            auto matrix = fp2d{ std::ceil(width), std::ceil(height) } * cellsz; // Size in pixels.
+            if ((si32)transform & 1)
+            {
+                std::swap(matrix.x, matrix.y);
+            }
+            //auto image_size = scale != scale_mode::none ? 
+            rasterize_svg_document(image, matrix, (si32)scale);
+            //auto& image_doc = image.document;
+            //...
+            if (image.bitmap.area && transform)
+            {
+                image.bitmap.transform<irgb>((si32)transform, matrix);
             }
         }
         void draw_glyph(auto& canvas, sprite& glyph_mask, twod offset, argb fgc)
@@ -2502,35 +2456,89 @@ namespace netxs::gui
                 netxs::onclip(canvas, raster, fx);
             }
         }
+        auto render_image(auto& canvas, rect placeholder, argb fgc, cell const& c)
+        {
+            if (auto image_index = c.get_image_index())
+            if (auto image_xy = c.get_image_xy(); image_xy.x != 0 && image_xy.y != 0)
+            {
+                auto image_align = c.get_image_align();
+                auto image_xform = c.get_image_xform();
+                auto images = cell::images(); // Lock.
+                if (auto image_ptr = images.exists(image_index)) //todo form all image requests on dtvt recv stage
+                {
+                    //test
+                    //netxs::onrect(canvas, placeholder, cell::shaders::full(argb{ (tint)(image_index % 15 + 1) }.alpha(64)));
+
+                    auto& image = *image_ptr;
+                    //todo diff by sizes
+                    if (image.bitmap.type == sprite::undef)
+                    {
+                        rasterize_image(image);
+                    }
+                    if (image.bitmap.area)
+                    {
+                        auto& _dx = image.attrs[imagens::dx];
+                        auto& _dy = image.attrs[imagens::dy];
+                        auto dxy = twod{ _dx ? std::round(cellsz.x * _dx.value()) : 0,
+                                         _dy ? std::round(cellsz.y * _dy.value()) : 0 };
+                        //todo align image
+                        if (image_align)
+                        {
+                            //...
+                        }
+                        //todo perform the image xform on output (D4 variations) to keep original raster
+                        if (image_xform & 0b110) // Exclude rotation. //todo generate new image if x/y swapped
+                        {
+                            //auto matrix = image.bitmap.area.size;
+                            //image.bitmap.transform<irgb>(image_xform & 0b110, matrix);
+                        }
+                        image_xy = (image_xy - dot_11) * cellsz;
+                        auto offset = placeholder.coor - image_xy + dxy;
+                        draw_glyph(canvas, image.bitmap, offset, fgc);
+                    }
+                }
+            }
+        }
+        void draw_shadows(auto& canvas, rect placeholder, cell const& c)
+        {
+            if (auto shadow = c.dim()) // Render shadow if it is.
+            {
+                auto& shadow_raster = cgi_shadow[shadow];
+                auto offset = placeholder.coor;
+                draw_glyph(canvas, shadow_raster, offset, argb{ tint::pureblack });
+            }
+        }
         template<class T = noop>
         void draw_cell(auto& canvas, rect placeholder, cell const& c, T&& blink_canvas = {})
         {
+            static constexpr auto blink_canvas_specified = !std::is_same_v<std::decay_t<T>, noop>;
             placeholder.trimby(canvas.area());
             if (!placeholder) return;
+            auto image_ontop = c.get_image_ontop();
+            auto blinking = blink_canvas_specified && c.blk() && !c.hid();
             auto fgc = c.fgc();
             auto bgc = c.bgc();
             if (c.inv()) std::swap(fgc, bgc);
+
+            // Build background.
             canvas.clip(placeholder);
             auto target_ptr = &canvas;
-            if constexpr (std::is_same_v<std::decay_t<T>, noop>)
+            netxs::onrect(canvas, placeholder, cell::shaders::full(bgc));
+            if (!image_ontop)
             {
-                netxs::onrect(canvas, placeholder, cell::shaders::full(bgc));
+                render_image(canvas, placeholder, fgc, c);
             }
-            else
+            if constexpr (blink_canvas_specified)
+            if (blinking) // Copy background to the the blinking layer to fix DWM that doesn't take gamma into account during layered window blending.
             {
-                if (c.blk() && !c.hid())
-                {
-                    target_ptr = &blink_canvas;
-                    blink_canvas.clip(placeholder);
-                    // Fill the blinking layer's background to fix DWM that doesn't take gamma into account during layered window blending.
-                    netxs::onclip(canvas, blink_canvas, [&](auto& dst, auto& src){ dst = bgc; src = bgc; });
-                }
-                else netxs::onrect(canvas, placeholder, cell::shaders::full(bgc));
+                target_ptr = &blink_canvas;
+                blink_canvas.clip(placeholder);
+                netxs::onclip(canvas, blink_canvas, [&](auto& dst, auto& src){ src = dst; });
             }
 
+            auto& target = *target_ptr;
             while (!c.hid()) // Render visible glyph.
             {
-                auto& target = *target_ptr;
                 if (auto u = c.und())
                 {
                     auto index = c.unc();
@@ -2652,11 +2660,33 @@ namespace netxs::gui
                 break;
             }
 
-            if (auto shadow = c.dim()) // Render shadow if it is.
+            if (image_ontop)
             {
-                auto& shadow_raster = cgi_shadow[shadow];
-                auto offset = placeholder.coor;
-                draw_glyph(canvas, shadow_raster, offset, argb{ pureblack });
+                if (blinking)
+                {
+                    if constexpr (blink_canvas_specified)
+                    {
+                        render_image(canvas, placeholder, bgc, c);
+                        draw_shadows(canvas, placeholder, c);
+
+                        render_image(target, placeholder, fgc, c);
+                        draw_shadows(target, placeholder, c);
+                    }
+                }
+                else
+                {
+                    render_image(canvas, placeholder, fgc, c);
+                    draw_shadows(canvas, placeholder, c);
+                }
+            }
+            else
+            {
+                draw_shadows(canvas, placeholder, c);
+                if constexpr (blink_canvas_specified)
+                if (blinking)
+                {
+                    draw_shadows(target, placeholder, c);
+                }
             }
         }
     };

@@ -1189,6 +1189,110 @@ namespace netxs::generics
             empty_key = ui32max;
         }
     };
+
+    // generics: Object cache.
+    template<class T, class Key = ui64>
+    struct cache
+    {
+    protected:
+        using lock = std::mutex;
+        using sync = std::lock_guard<lock>;
+        using depo = std::unordered_map<Key, T>;
+        using uset = std::unordered_set<Key>;
+
+        lock mutex{}; // Object map mutex.
+        depo store{}; // Object map.
+        uset undef{}; // List of unknown tokens.
+
+        struct guard : sync
+        {
+            depo& map;
+            uset& unk;
+
+            guard(cache& inst)
+                : sync{ inst.mutex },
+                   map{ inst.store },
+                   unk{ inst.undef }
+            { }
+
+            // cache: Get object.
+            auto& get(Key token)
+            {
+                if (auto iter = map.find(token); iter != map.end())
+                {
+                    return iter->second;
+                }
+                else
+                {
+                    static auto empty_object = T{};
+                    unk.insert(token);
+                    return empty_object;
+                }
+            }
+            // cache: Set object.
+            void set(Key token, auto&& object)
+            {
+                map[token] = std::forward<decltype(object)>(object);
+            }
+            // cache: Add object.
+            void add(Key token, auto&& object)
+            {
+                map.insert(std::pair{ token, std::forward<decltype(object)>(object) }); // Silently ignore if it exists.
+            }
+            // cache: Remove object.
+            void remove(Key token)
+            {
+                map.erase(token);
+            }
+            // cache: Check the object existence by token.
+            auto exists(Key token)
+            {
+                auto iter = map.find(token);
+                auto okay = iter != map.end();
+                if (!okay) unk.insert(token);
+                return okay;
+            }
+        };
+
+    public:
+        auto storage()
+        {
+            return guard{ *this };
+        }
+    };
+
+    // generics: Index manager.
+    template<class T>
+    struct indexer
+    {
+        T              next_index{};
+        std::vector<T> free_indices;
+
+        indexer(size_t expected_max_free = 2048)
+        {
+            free_indices.reserve(expected_max_free);
+        }
+        // indexer: Return the new index. Returns 0 if there are no indices available.
+        auto get_new()
+        {
+            if (!free_indices.empty())
+            {
+                auto id = free_indices.back();
+                free_indices.pop_back();
+                return id;
+            }
+            if (next_index == std::numeric_limits<T>::max() - 1) [[unlikely]]
+            {
+                return T{};
+            }
+            return ++next_index;
+        }
+        // indexer: Make index available.
+        void release(T id)
+        {
+            free_indices.push_back(id);
+        }
+    };
 }
 
 // generics: Map helpers.

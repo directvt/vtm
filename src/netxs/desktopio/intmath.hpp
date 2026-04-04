@@ -43,6 +43,17 @@
 #include <variant>
 #include <vector>
 
+#include <ft2build.h>
+#include FT_FREETYPE_H
+#include FT_TRUETYPE_TABLES_H
+#include FT_MULTIPLE_MASTERS_H
+#include FT_SFNT_NAMES_H
+#include FT_COLOR_H
+#include FT_OTSVG_H
+
+#include <hb-ft.h>
+#include <lunasvg.h>
+
 #ifndef faux
     #define faux (false)
 #endif
@@ -185,6 +196,18 @@ namespace netxs
             ++n;
         }
         return n;
+    }
+    template<ui64 FieldMask>
+    void set_field(si32 v, auto& token)
+    {
+        using TType = std::decay_t<decltype(token)>;
+        token &= static_cast<TType>(~FieldMask);
+        token |= ((TType)(std::make_unsigned_t<decltype(v)>)v << netxs::field_offset<FieldMask>());
+    }
+    template<ui64 FieldMask>
+    auto get_field(auto token)
+    {
+        return (si32)((token & FieldMask) >> netxs::field_offset<FieldMask>());
     }
     // intmath: Set a single p-bit to v.
     template<sz_t P, class T>
@@ -933,45 +956,6 @@ namespace netxs
             data2 += skip2;
         }
     }
-
-    // intmath: Generic bitmap.
-    template<class T, class Rect>
-    struct raster
-    {
-        using base = T;
-        base _data;
-        Rect _area;
-        Rect _clip;
-        auto length() const { return _data.length(); }
-        auto  begin()       { return _data.begin();  }
-        auto  begin() const { return _data.begin();  }
-        auto   data()       { return _data.data();   }
-        auto   data() const { return _data.data();   }
-        auto    end()       { return _data.end();    }
-        auto    end() const { return _data.end();    }
-        auto&  clip()       { return _clip;          }
-        auto&  clip() const { return _clip;          }
-        auto&  area()       { return _area;          }
-        auto&  area() const { return _area;          }
-        auto   clip(auto c) { _clip = c;             }
-        void   step(auto s) { _area.coor += s;       }
-        void   move(auto p) { _area.coor = p;        }
-        auto&  size()       { return _area.size;     }
-        auto&  size() const { return _area.size;     }
-        auto&  coor()       { return _area.coor;     }
-        auto&  coor() const { return _area.coor;     }
-        auto& operator [] (auto p) { return *(begin() + p.x + p.y * _area.size.x); }
-        void size(auto new_size, auto... filler)
-        {
-            _area.size = new_size;
-            _data.resize(new_size.x * new_size.y, filler...);
-        }
-        raster() = default;
-        raster(T data, Rect area)
-            : _data{ data },
-              _area{ area }
-        { }
-    };
 
     // intmath: Intersect two sprites and invoke handle(sprite1_element, sprite2_element) for each elem in the intersection.
     template<class NewlineFx = noop>

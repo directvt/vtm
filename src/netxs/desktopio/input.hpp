@@ -520,7 +520,7 @@ namespace netxs::input
                 auto take = [](qiew& chord)
                 {
                     auto k = key_t{};
-                    utf::trim(chord, ' ');
+                    utf::trim(chord, netxs::whitespaces);
                     if (chord.empty()) return k;
                     if (auto pos = chord.find("::"); pos != text::npos) // Environment event.
                     {
@@ -534,7 +534,7 @@ namespace netxs::input
                         {
                             auto event_str = chord;
                             event_str.remove_prefix(tier::str[event_tier].size());
-                            utf::trim(event_str, ": ");
+                            utf::trim(event_str, netxs::whitespaces_and<':'>);
                             auto& rtti = netxs::events::rtti();
                             auto iter = rtti.find(event_str);
                             if (iter != rtti.end())
@@ -555,7 +555,7 @@ namespace netxs::input
                     if (chord.starts_with(tier::str[tier::preview])) // Drop the "preview:" prefix (it is not used here).
                     {
                         chord.remove_prefix(tier::str[tier::preview].size());
-                        utf::trim_front(chord, ": ");
+                        utf::trim_front(chord, netxs::whitespaces_and<':'>);
                     }
                     auto c = chord.front();
                     if (c != '-') // Is pressed.
@@ -563,7 +563,7 @@ namespace netxs::input
                         if (c == '+')
                         {
                             chord.pop_front(); // Pop '+'.
-                            utf::trim(chord, ' ');
+                            utf::trim(chord, netxs::whitespaces);
                             if (chord.empty()) return k;
                             c = chord.front();
                         }
@@ -572,11 +572,11 @@ namespace netxs::input
                     {
                         k.sign |= input::key::unpressed_sign;
                         chord.pop_front(); // Pop '-'.
-                        utf::trim(chord, ' ');
+                        utf::trim(chord, netxs::whitespaces);
                         if (chord.empty()) return k;
                         c = chord.front();
                     }
-                    utf::trim(chord, ' ');
+                    utf::trim(chord, netxs::whitespaces);
                     if (chord.empty()) return k;
                     if (auto isscancode = chord.starts_with("0x") || chord.starts_with("0X"); isscancode)
                     {
@@ -641,7 +641,7 @@ namespace netxs::input
                             k.code2 = n2 ? code + 1 : 0;
                         }
                     }
-                    utf::trim(chord, ' ');
+                    utf::trim(chord, netxs::whitespaces);
                     return k;
                 };
                 // Split.

@@ -703,4 +703,154 @@ namespace netxs
         if constexpr (std::is_same_v<T, twod>) return { dot_00, p };
         else                                   return { dot_00, { (si32)p,  1 } };
     }
+
+    // geometry: Generic bitmap.
+    template<class T>
+    struct raster
+    {
+        using base = T;
+        base _data;
+        rect _area;
+        rect _clip;
+        auto length() const { return _data.length(); }
+        auto  begin()       { return _data.begin();  }
+        auto  begin() const { return _data.begin();  }
+        auto   data()       { return _data.data();   }
+        auto   data() const { return _data.data();   }
+        auto    end()       { return _data.end();    }
+        auto    end() const { return _data.end();    }
+        auto&  clip()       { return _clip;          }
+        auto&  clip() const { return _clip;          }
+        auto&  area()       { return _area;          }
+        auto&  area() const { return _area;          }
+        auto   clip(auto c) { _clip = c;             }
+        void   step(auto s) { _area.coor += s;       }
+        void   move(auto p) { _area.coor = p;        }
+        auto&  size()       { return _area.size;     }
+        auto&  size() const { return _area.size;     }
+        auto&  coor()       { return _area.coor;     }
+        auto&  coor() const { return _area.coor;     }
+        auto& operator [] (auto p) { return *(begin() + p.x + p.y * _area.size.x); }
+        void size(auto new_size, auto... filler)
+        {
+            _area.size = new_size;
+            _data.resize(new_size.x * new_size.y, filler...);
+        }
+        raster() = default;
+        raster(T data, rect area)
+            : _data{ data },
+              _area{ area }
+        { }
+    };
+
+    // geometry: Color/monochromatic sprite.
+    struct sprite
+    {
+        using vect = std::pmr::vector<ui32>; // Use ui32 for 4-byte alignment (aarch requirement).
+
+        static constexpr auto undef = 0;
+        static constexpr auto alpha = 1; // Grayscale AA bitmap alphamix. byte-based. fx: pixel = blend(pixel, fgc, byte).
+        static constexpr auto color = 2; // irgb-colored bitmap colormix. irgb-based. fx: pixel = blend(blend(pixel, irgb.alpha(irgb.chan.a - (si32)irgb.chan.a)), fgc, (si32)irgb.chan.a - 256).
+
+        vect bits; // sprite: Contains: type=alpha: bytes [0-255]; type=color: irgb<fp32>.
+        rect area; // sprite: Bitmap black-box.
+        si32 type; // sprite: Bitmap type.
+
+        sprite(auto& pool)
+            : bits{ &pool },
+              type{ undef }
+        { }
+
+        template<class Elem>
+        auto raster()
+        {
+            return netxs::raster{ std::span{ (Elem*)bits.data(), bits.size() * sizeof(ui32) / sizeof(Elem) }, area };
+        }
+        // sprite: Resize sprite.
+        template<class irgb>
+        void set_area(rect new_area, bool is_colored = true)
+        {
+            area = new_area;
+            type = is_colored ? sprite::color : sprite::alpha;
+            auto pixel_size = is_colored ? sizeof(irgb) : sizeof(byte);
+            bits.resize(netxs::udivupper(new_area.length() * pixel_size, sizeof(ui32)));
+        }
+        // sprite: Perform Dihedral group (D4) transformations on the image raster (8 combinations of rotations and reflections).
+        template<class irgb>
+        void transform(si32 flipandrotate, twod matrix)
+        {
+            static thread_local auto buffer = std::vector<ui32>{}; // Use ui32 for 4-byte alignment (aarch requirement).
+            static constexpr auto l0 = std::to_array({ 1,-1,-1, 1,-1, 1, 1,-1 });
+            static constexpr auto l1 = std::to_array({ 1, 1,-1,-1, 1, 1,-1,-1 });
+            buffer.assign(bits.begin(), bits.end());
+            auto xform = [&](auto elem)
+            {
+                using type = decltype(elem);
+                auto count = (size_t)area.length();
+                auto src = netxs::raster{ std::span{ (type*)buffer.data(), count }, area };
+                auto mx = area.size.x;
+                if (flipandrotate & 1) // swap x y
+                {
+                    std::swap(area.size.x, area.size.y);
+                    std::swap(matrix.x, matrix.y); // Revert back.
+                }
+                auto dst = raster<type>();
+                auto s__dx = 1;
+                auto s__dy = mx;
+                auto dmx = area.size.x;
+                auto dmy = area.size.y;
+                auto sx = l0[flipandrotate];
+                auto sy = l1[flipandrotate];
+                auto d__dx = sx * ((flipandrotate & 0b1) ? dmx :   1);
+                auto d__dy = sy * ((flipandrotate & 0b1) ? 1   : dmx);
+                if (flipandrotate & 0b100) std::swap(sx, sy);
+                auto d__px = (sy > 0 ? 0 : dmx - 1);
+                auto d__py = (sx > 0 ? 0 : dmy - 1);
+                auto s_beg = src.begin();
+                auto s_eol = s_beg + mx - 1;
+                auto s_end = s_beg + count - 1;
+                auto d_beg = dst.begin() + (d__px + d__py * dmx);
+                auto d_eol = d_beg + d__dx * (mx - 1);
+                auto s_ptr = s_beg;
+                auto d_ptr = d_beg;
+                while (true)
+                {
+                    *d_ptr = *s_ptr;
+                    if (s_ptr != s_eol) s_ptr += s__dx;
+                    else
+                    {
+                        if (s_ptr == s_end) break;
+                        s_beg += s__dy;
+                        s_ptr = s_beg;
+                        s_eol += s__dy;
+                    }
+                    if (d_ptr != d_eol) d_ptr += d__dx;
+                    else
+                    {
+                        d_beg += d__dy;
+                        d_ptr = d_beg;
+                        d_eol += d__dy;
+                    }
+                }
+            };
+            type == sprite::color ? xform(irgb{}) : xform(byte{});
+            static constexpr twod coeffs[8][5] =
+            { //  coor.x    coor.y    size.x    size.y    matrix
+                {{ 1, 0 }, { 0, 1 }, { 0, 0 }, { 0, 0 }, { 0, 0 }}, // 0: 0° CCW
+                {{ 0,-1 }, { 1, 0 }, { 0, 0 }, { 0,-1 }, { 0, 1 }}, // 1: 90°
+                {{-1, 0 }, { 0,-1 }, {-1, 0 }, { 0,-1 }, { 1, 1 }}, // 2: 180°
+                {{ 0, 1 }, {-1, 0 }, {-1, 0 }, { 0, 0 }, { 1, 0 }}, // 3: 270°
+                {{-1, 0 }, { 0, 1 }, {-1, 0 }, { 0, 0 }, { 1, 0 }}, // 4: Hz Flip
+                {{ 0, 1 }, { 1, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }}, // 5: Hz Flip + 90°
+                {{ 1, 0 }, { 0,-1 }, { 0, 0 }, { 0,-1 }, { 0, 1 }}, // 6: Hz Flip + 180°
+                {{ 0,-1 }, {-1, 0 }, {-1, 0 }, { 0,-1 }, { 1, 1 }}  // 7: Hz Flip + 270°
+            };
+            auto& m = coeffs[flipandrotate];
+            area.coor = m[0] * area.coor.x
+                      + m[1] * area.coor.y
+                      + m[2] * area.size.x
+                      + m[3] * area.size.y
+                      + m[4] * matrix;
+        }
+    };
 }

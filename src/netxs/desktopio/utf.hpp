@@ -18,7 +18,11 @@ namespace netxs
     using txts = std::vector<text>;
     using namespace std::literals;
 
-    static constexpr auto whitespaces = " \t\r\n\v\f"sv;
+    template<auto ...c>
+    static constexpr auto _ws_bytes = std::to_array({ ' ', '\t', '\r', '\n', '\v', '\f', c... });
+    template<auto ...c>
+    static constexpr auto whitespaces_and = view{ _ws_bytes<c...>.data(), _ws_bytes<c...>.size() };
+    static constexpr auto whitespaces = whitespaces_and<>;
     static constexpr auto onlydigits  = "0123456789"sv;
     static constexpr auto sharpdigit  = "0123456789#-"sv;
     static constexpr auto alphabetic  = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"sv;
@@ -991,33 +995,49 @@ namespace netxs::utf
         {
             if (ascii.starts_with("0x") || ascii.starts_with("0X")) ascii.remove_prefix(2);
         }
-        auto top = ascii.data();
-        auto end = top + ascii.length();
         if constexpr (std::is_floating_point_v<A>)
         {
             //todo neither clang nor apple clang support from_chars with floating point (ver < 15.0)
             //if (auto [pos, err] = std::from_chars(top, end, num); err == std::errc())
-            auto integer = si64{};
-            if (auto [pos, err] = std::from_chars(top, end, integer, Base); err == std::errc())
+            auto sign = (A)1.0;
+            if (!ascii.empty() && ascii.front() == '-')
             {
-                ascii.remove_prefix(pos - top);
-                num = (A)integer;
-                if (ascii.size() && ascii.front() == '.')
-                {
-                    ascii.pop_front();
-                    top = ascii.data();
-                    if (auto [mpos, merr] = std::from_chars(top, end, integer, Base); merr == std::errc())
-                    {
-                        auto len = mpos - top;
-                        num += (A)(integer * std::pow(10, -len));
-                        ascii.remove_prefix(len);
-                    }
-                }
-                return num;
+                sign = (A)-1.0;
+                ascii.remove_prefix(1);
             }
+            auto top = ascii.data();
+            auto end = top + ascii.length();
+            auto parsed_something = faux;
+            auto integer = si64{};
+            if (auto [pos, err] = std::from_chars(top, end, integer, Base); err == std::errc()) // Integral part.
+            {
+                num = (A)integer;
+                ascii.remove_prefix(pos - top);
+                parsed_something = true;
+            }
+            if (!ascii.empty() && ascii.front() == '.') // Fractional part.
+            {
+                ascii.remove_prefix(1);
+                top = ascii.data();
+                end = top + ascii.length();
+                if (auto [mpos, merr] = std::from_chars(top, end, integer, Base); merr == std::errc())
+                {
+                    auto len = mpos - top;
+                    num += (A)(integer * std::pow(Base, -(fp64)len));
+                    ascii.remove_prefix(len);
+                    parsed_something = true;
+                }
+                else if (!parsed_something) // "-."
+                {
+                    return std::nullopt;
+                }
+            }
+            if (parsed_something) return num * sign;
         }
         else
         {
+            auto top = ascii.data();
+            auto end = top + ascii.length();
             if (auto [pos, err] = std::from_chars(top, end, num, Base); err == std::errc())
             {
                 ascii.remove_prefix(pos - top);
@@ -2452,10 +2472,35 @@ namespace netxs::utf
         }
         return utf8;
     }
+    // utf: Take key,val from key=val    [whitespaces]key[int_delimiters]val[ext_delimiters]
+    template<char EqualSign = '='>
+    auto get_pair(auto& utf8, view int_delimiters = netxs::whitespaces_and<EqualSign>, view ext_delimiters = netxs::whitespaces)
+    {
+        auto key = utf::take_front<faux>(utf8, int_delimiters); // " ="
+        auto val = decltype(key){};
+        utf::trim_front(utf8, netxs::whitespaces);
+        if (utf8.size() && utf8.front() == EqualSign) // '='
+        {
+            utf::trim_front(utf8, int_delimiters);
+            if (utf8)
+            {
+                auto c = utf8.view::front();
+                if (c == '\'' || c == '\"')
+                {
+                    val = utf::take_quote(utf8, c);
+                }
+                else
+                {
+                    val = utf::take_front<faux>(utf8, ext_delimiters); // ' '
+                }
+            }
+        }
+        return std::pair{ key, val };
+    }
     // utf: Split text line into quoted tokens.
     auto tokenize(view utf8, auto&& args)
     {
-        utf::trim(utf8, ' ');
+        utf::trim(utf8, netxs::whitespaces);
         while (utf8.size())
         {
             auto c = utf8.front();

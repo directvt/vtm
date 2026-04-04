@@ -660,8 +660,7 @@ namespace netxs::events
     }
 
     auth::auth(bool use_timer)
-        : next_id{ 0 },
-          context_refs{ context },
+        : context_refs{ context },
           luafx{ *this },
           quartz{ *this },
           e2_timer_tick_id{ ui::e2::timer::tick.id },
