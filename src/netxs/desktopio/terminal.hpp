@@ -7365,8 +7365,7 @@ namespace netxs::ui
             auto id_str     = qiew{};
             auto gc_str     = qiew{};
             auto doc_str    = qiew{};
-            auto do_register   = faux;
-            auto do_unregister = faux;
+            auto unregister = faux;
             auto new_attrs = imagens::image::attrs_t{};
             // data: " id + attrs + doc"              Find by id and update/register and print.
             //       " [attrs] + doc "                Register empty id.
@@ -7392,9 +7391,8 @@ namespace netxs::ui
                         degenerate_doc += "></";
                         degenerate_doc += tag;
                         degenerate_doc += '>';
-                        do_unregister = doc_str == degenerate_doc;
-                        if (do_unregister) doc_str = {};
-                        else               do_register = true;
+                        unregister = doc_str == degenerate_doc;
+                        if (unregister) doc_str = {};
                     }
                     else
                     {
@@ -7452,7 +7450,7 @@ namespace netxs::ui
                 utf::trim_front(attrs_str, netxs::whitespaces);
             }
             auto images = cell::images(); // Lock.
-            if (do_unregister)
+            if (unregister)
             {
                 if (auto iter = image_cache.find(id_str); iter != image_cache.end())
                 {

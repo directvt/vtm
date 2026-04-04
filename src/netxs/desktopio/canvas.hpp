@@ -1843,15 +1843,15 @@ namespace netxs
             : uv{ base.uv },
               gc{ base.gc },
               st{ base.st },
-              id{ base.id },
-              px{ base.px }
+              px{ base.px },
+              id{ base.id }
         { }
         cell(cell const& base, char c)
             : uv{ base.uv },
               gc{ c       },
               st{ base.st, utf::matrix::mosaic<11> },
-              id{ base.id },
-              px{ base.px }
+              px{ base.px },
+              id{ base.id }
         { }
 
         auto operator == (cell const& c) const
@@ -1870,8 +1870,8 @@ namespace netxs
             uv = c.uv;
             gc = c.gc;
             st = c.st;
-            id = c.id;
             px = c.px;
+            id = c.id;
             return *this;
         }
 

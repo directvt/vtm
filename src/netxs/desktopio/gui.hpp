@@ -2369,7 +2369,21 @@ namespace netxs::gui
             {
                 image.dom = generate_DOM(image.document);
             }
-            //todo scale image_area
+            switch (scale)
+            {
+                case scale_mode::inside:
+                    //...
+                    break;
+                case scale_mode::outside:
+                    //...
+                    break;
+                case scale_mode::stretch:
+                    //...
+                    break;
+                case scale_mode::none:
+                    //...
+                    break;
+            }
             auto image_area = rect{ dot_00, matrix };
             image.bitmap.set_area<irgb>(image_area);
             auto canvas = image.bitmap.raster<irgb>();
@@ -2468,12 +2482,16 @@ namespace netxs::gui
                         auto dxy = twod{ _dx ? std::round(cellsz.x * _dx.value()) : 0,
                                          _dy ? std::round(cellsz.y * _dy.value()) : 0 };
                         //todo align image
-                        // ...
+                        if (image_align)
+                        {
+                            //...
+                        }
                         //todo xform image on output (D4 variations)
-                        //if (image_xform)
-                        //{
-                        //    image.bitmap.transform<irgb>(image_xform, matrix);
-                        //}
+                        if (image_xform & 0b110) // Exclude rotate. //todo generate new image if x/y swapped
+                        {
+                            auto matrix = image.bitmap.size();
+                            image.bitmap.transform<irgb>(image_xform & 0b110, matrix);
+                        }
                         image_xy = (image_xy - dot_11) * cellsz;
                         auto offset = placeholder.coor - image_xy + dxy;
                         draw_glyph(canvas, image.bitmap, offset, fgc);
