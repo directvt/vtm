@@ -46,17 +46,17 @@ Field             | Description
 
 #### Attributes
 
-Attribute     | Values              | Default                  | Description
---------------|---------------------|--------------------------|------------
-**id**        | `<id>[/sub-id]`     | empty string (`""`)      | Object reference ID.
-**gc**        | `string`            | empty string (`""`)      | Grapheme cluster to write to cells (will be scaled to a 1x1 cell size).
-**ontop**     | `0`\|`1`            | `0`                      | 0 = under text, 1 = over text.
-**width**     | `float (0..65535]`  | Terminal viewport width  | Raster scale width (cells).
-**height**    | `float (0..65535]`  | Terminal viewport height | Raster scale height (cells).
-**dx**        | `float`             | `0.0`                    | Horizontal offset of the raster within the grid (cells).
-**dy**        | `float`             | `0.0`                    | Vertical offset of the raster within the grid (cells).
-**column**    | `0`..`ceil(width)`  | `0`                      | Horizontal 1-based slicing index for partial rendering (0 = full width, 1..n = specific cell/slice).
-**row**       | `0`..`ceil(height)` | `0`                      | Vertical 1-based slicing index for partial rendering (0 = full height, 1..m = specific cell/slice).
+Attribute     | Values                                 | Default                  | Description
+--------------|----------------------------------------|--------------------------|------------
+**id**        | `<id>[/sub-id]`                        | empty string (`""`)      | Object reference ID.
+**gc**        | `string`                               | empty string (`""`)      | Grapheme cluster to write to cells (will be scaled to a 1x1 cell size).
+**ontop**     | `0`\|`1`                               | `0`                      | 0 = under text, 1 = over text.
+**width**     | `float (0..65535]`                     | Terminal viewport width  | Raster scale width (cells).
+**height**    | `float (0..65535]`                     | Terminal viewport height | Raster scale height (cells).
+**dx**        | `float`                                | `0.0`                    | Horizontal offset of the raster within the grid (cells).
+**dy**        | `float`                                | `0.0`                    | Vertical offset of the raster within the grid (cells).
+**column**    | `0`..`ceil(width)`                     | `0`                      | Horizontal 1-based slicing index for partial rendering (0 = full width, 1..n = specific cell/slice).
+**row**       | `0`..`ceil(height)`                    | `0`                      | Vertical 1-based slicing index for partial rendering (0 = full height, 1..m = specific cell/slice).
 **align**     | \[`left`\|`center`\|`right`\]\[`-`\]\[`top`\|`middle`\|`bottom`\] | `center-middle` | 2D alignment within the rectangle.
 **scale**     | `inside`\|`outside`\|`stretch`\|`none` | `inside`                 | Fit logic (none = exact pixels, cropped if larger).
 **transform** | `0`..`7`                               | `0`                      | 3-bit compact transformation state (flip+rotate).
