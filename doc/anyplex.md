@@ -9,7 +9,7 @@ The protocol operates on a decoupled architecture to ensure high performance and
 Scope                           | Role
 --------------------------------|-----
 **The Backend (BE)**            | Acts as the "Source of Truth". It manages the terminal state, handles the scrollback buffer, and maintains the global object cache. It tracks metadata per cell but remains agnostic of physical pixels.
-**The Graphical Frontend (FE)** | Acts as the "Painter". It performs the actual rasterization of documents (e.g., SVG to pixels) based on local cell metrics, font size, and DPI. It handles alpha-blending, Z-order layering, and pixel-wise offsets.
+**The Graphical Frontend (FE)** | Acts as the "Painter". It performs the actual rasterization of documents (e.g., SVG to pixels) based on local cell metrics. It handles alpha-blending, Z-order layering, and pixel-wise offsets.
 
 #### Rendering & Interaction
 
@@ -29,7 +29,7 @@ Scope                           | Role
 
 #### Scroll & Reflow Behavior
 
-- **Normal Buffer**: If the cell-run containing the object does not fit within the viewport width, it triggers a standard wrap with a scroll-up if necessary. This may break the rectangular visual of the raster until the viewport is widened or a non-wrap mode is enabled.
+- **Normal Buffer**: If the cell-run containing the object does not fit within the viewport width, it triggers a standard wrap with a scroll-up if necessary (without triggering **BCE - Background Color Erase**). This may break the rectangular visual of the raster until the viewport is widened or a non-wrap mode is enabled.
 - **Alternate Buffer**: The object's rectangle is strictly clipped (cropped) by the right and bottom edges of the viewport; no scrolling occurs.
 
 #### Sequence Format
