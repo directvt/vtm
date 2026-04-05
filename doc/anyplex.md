@@ -5,7 +5,7 @@ The **AnyPlex Protocol (APP)** allows vector, bitmap, and extensible markup obje
 #### Rendering & Alpha Blending
 
 - **Rectangular Area**: The object is hosted within a grid of cells defined by `ceil(width)` and `ceil(height)`.
-- **Sub-cell Precision**: The raster is scaled using floating-point `width` and `height` and positioned with `dx` and `dy` offsets. This allows for sub-pixel alignment and smooth movement across the cell grid.
+- **Pixel-wise Precision**: The raster is scaled using floating-point `width` and `height` and positioned with `dx` and `dy` offsets. This allows for exact pixel-wise alignment and movement across the cell grid. Note that offsets are calculated per-frontend (FÉ) based on its current cell metrics, ensuring pixel-perfection for each specific display.
 - **Persistence**: Metadata is stored per-cell to survive scrollback and ensure that wrapped cell-runs remain logically linked for a strict rectangular reflow.
 - **Cursor Position**: Anchored at the top-left; moves to the cell immediately following the rectangle's bottom-right corner after output.
 - **Non-destructive & Color State**: 
