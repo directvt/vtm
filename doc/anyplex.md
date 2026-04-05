@@ -24,7 +24,7 @@ Scope                           | Role
   - Any text subsequently written over the object's area does not destroy the underlying object. The object metadata remains intact in the cell until explicitly cleared or replaced.
 - **Selection & SGR 7**: When selecting text/graphics with the mouse, or when the **SGR 7** attribute is present in a cell, the frontend **inverts the RGB channels** of the object's pixels within that cell.
 - **Searchability**: Any text contained within the document (e.g., `<text>` in SVG) is treated as part of the graphic and is not required to be indexed by the terminal's text search.
-- **Layering & Transparency**: Supports per-pixel alpha transparency. The `ontop` attribute (0 = background, 1 = foreground) determines Z-order relative to text (the cell's background color always remains in the background). Alpha blending is performed in **linear color space**.
+- **Layering & Transparency**: Supports per-pixel alpha transparency. The `ontop` attribute determines Z-order relative to text (0 = background `[Cell BG] -> [Object] -> [Text]`, 1 = foreground `[Cell BG] -> [Text] -> [Object]`; the cell's background color always remains in the background). The terminal cursor is always drawn on top of everything. Alpha blending is performed in **linear color space**.
 - **Foreground Color**: The underlying cell **SGR foreground color** maps to `currentColor` (for SVG). All other external references (e.g., `http://...`) are ignored for security.
 
 #### Scroll & Reflow Behavior
@@ -49,7 +49,7 @@ Field             | Description
 Attribute     | Values              | Default                  | Description
 --------------|---------------------|--------------------------|------------
 **id**        | `<id>[/sub-id]`     | empty string (`""`)      | Object reference ID.
-**gc**        | `string`            | empty string (`""`)      | Grapheme cluster to write to cells.
+**gc**        | `string`            | empty string (`""`)      | Grapheme cluster to write to cells (will be scaled to a 1x1 cell size).
 **ontop**     | `0`\|`1`            | `0`                      | 0 = under text, 1 = over text.
 **width**     | `float (0..65535]`  | Terminal viewport width  | Raster scale width (cells).
 **height**    | `float (0..65535]`  | Terminal viewport height | Raster scale height (cells).
