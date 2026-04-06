@@ -788,10 +788,7 @@ namespace netxs
             auto h = area.size.y;
             auto image_raster = raster<irgb>();
             auto data = image_raster._data;
-            if constexpr (debugmode)
-            {
-                assert(area.length() <= data.size()); // Invalid sprite element type.
-            }
+            assert(area.length() <= data.size()); // Invalid sprite element type.
             auto get_row = [&](si32 y){ return data.subspan(y * w, w); };
             auto y0 = 0;
             auto is_visible = [](irgb p){ return p.a != 0; };

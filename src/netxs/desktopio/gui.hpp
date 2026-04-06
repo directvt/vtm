@@ -2435,13 +2435,12 @@ namespace netxs::gui
                 auto height    = attrs[imagens::height   ];
                 auto scale     = attrs[imagens::scale    ];
                 auto transform = attrs[imagens::transform];
+                auto wh_fp = fp2d{ width, height };
+                auto bounding_rect_pixels = std::round(wh_fp * cellsz); // Document bounding box size in pixels.
                 if ((si32)transform & 1)
                 {
-                    std::swap(width, height);
+                    std::swap(bounding_rect_pixels.x, bounding_rect_pixels.y);
                 }
-                auto wh_fp = fp2d{ width, height };
-                //auto cellcanvas_size = std::ceil(wh_fp) * cellsz; // Cellrect in pixels (outer rect).
-                auto bounding_rect_pixels = std::round(wh_fp * cellsz); // Document bounding box size in pixels.
                 auto ratio = bounding_rect_pixels / original_doc_size_fpx;
                 auto keep_ratio = true;
                 switch ((si32)scale)
@@ -2456,25 +2455,17 @@ namespace netxs::gui
                 final_doc_size_fpx = std::clamp(final_doc_size_fpx, fp2d{ dot_11 }, fp2d{ px_limits });
 
                 auto matrix_pixels = twod{ std::ceil(final_doc_size_fpx) };
-                auto image_area = rect{ dot_00, matrix_pixels };
+                image.document_area = rect{ dot_00, matrix_pixels };
                 static thread_local auto full_doc_tmp_buffer = netxs::sprite{ *std::pmr::new_delete_resource() };
-                full_doc_tmp_buffer.set_area<irgb>(image_area);
+                full_doc_tmp_buffer.set_area<irgb>(image.document_area);
                 auto tmp_document_block = full_doc_tmp_buffer.raster<irgb>();
                 tmp_document_block.zeroize();
                 rasterize_svg_DOM(tmp_document_block, image.dom, original_doc_size_fpx, image.sub_id, keep_ratio);
                 // Trim all transparent pixels.
-                auto new_image_area = full_doc_tmp_buffer.get_minimal_non_transparent_area_for_pma<irgb>();
-                image.fragment.set_area<irgb>(new_image_area);
+                auto nested_fragment_area = full_doc_tmp_buffer.get_minimal_non_transparent_area_for_pma<irgb>();
+                image.fragment.set_area<irgb>(nested_fragment_area);
                 auto dst_fragment_block = image.fragment.raster<irgb>();
                 netxs::onbody(tmp_document_block, dst_fragment_block, [](auto& src, auto& dst){ dst = src; });
-
-                //...align document
-                //
-                if (image.fragment.area && transform)
-                {
-                    //todo make it relative to document area
-                    image.fragment.transform<irgb>((si32)transform, matrix_pixels);
-                }
             }
         }
         void draw_glyph(auto& canvas, sprite& glyph_mask, twod offset, argb fgc)
@@ -2519,6 +2510,29 @@ namespace netxs::gui
                 netxs::onclip(canvas, raster, fx);
             }
         }
+        void draw_image(auto& canvas, sprite& image_mask, twod offset, argb fgc, si32 /*xform*/)
+        {
+            auto box = image_mask.area.shift(offset);
+            auto f_fgc = irgb::nonpma_srgb_to_pma_linear(fgc);
+            assert(image_mask.type == sprite::color);
+            auto fx = [fgc, f_fgc](argb& dst, irgb src) //todo unify: same code in draw_glyph()
+            {
+                if (src.a == 0.f) return;
+                auto f_dst = irgb::pma_srgb_to_pma_linear(dst);
+                if (src.has_extra_alpha())
+                {
+                    auto fgc_alpha = src.unpack_alpha();
+                    if (fgc_alpha > 0)
+                    {
+                        f_dst.blend_pma(f_fgc, fgc_alpha);
+                    }
+                }
+                dst = irgb::pma_linear_to_pma_srgb(f_dst.blend_pma(src));
+            };
+            auto raster = netxs::raster{ std::span{ (irgb*)image_mask.bits.data(), (size_t)image_mask.area.length() }, box };
+            //todo xform on write
+            netxs::onclip(canvas, raster, fx);
+        }
         auto render_image(auto& canvas, rect placeholder, argb fgc, cell const& c)
         {
             if (auto image_index = c.get_image_index())
@@ -2529,9 +2543,6 @@ namespace netxs::gui
                 auto images = cell::images(); // Lock.
                 if (auto image_ptr = images.exists(image_index)) //todo form all image requests on dtvt recv stage
                 {
-                    //test
-                    //netxs::onrect(canvas, placeholder, cell::shaders::full(argb{ (tint)(image_index % 15 + 1) }.alpha(64)));
-
                     auto& image = *image_ptr;
                     //todo diff by sizes
                     if (image.fragment.type == sprite::undef)
@@ -2544,20 +2555,23 @@ namespace netxs::gui
                         auto& _dy = image.attrs[imagens::dy];
                         auto dxy = twod{ _dx ? std::round(cellsz.x * _dx.value()) : 0,
                                          _dy ? std::round(cellsz.y * _dy.value()) : 0 };
-                        //todo align image
-                        if (image_align)
-                        {
-                            //...
-                        }
-                        //todo perform the image xform on output (D4 variations) to keep original raster
-                        if (image_xform & 0b110) // Exclude rotation. //todo generate new image if x/y swapped
-                        {
-                            //auto matrix = image.bitmap.area.size;
-                            //image.bitmap.transform<irgb>(image_xform & 0b110, matrix);
-                        }
+                        // Alignment.
+                        auto width  = image.attrs[imagens::width ].value();
+                        auto height = image.attrs[imagens::height].value();
+                        auto wh_fp = fp2d{ width, height };
+                        auto cellcanvas_size = twod{ std::ceil(wh_fp) * cellsz }; // Cellrect in pixels (outer rect).
+                        auto fragment_area = image.fragment.area;
+                        auto hz_align = image_align & 0b0011;
+                        auto vt_align = image_align >> 2;
+                        if (!hz_align) hz_align = (si32)bias::center;
+                        if (!vt_align) vt_align = (si32)bias::center;
+                             if (hz_align == (si32)bias::center) fragment_area.coor.x += (cellcanvas_size.x - image.document_area.size.x) / 2;
+                        else if (hz_align == (si32)bias::right ) fragment_area.coor.x +=  cellcanvas_size.x - image.document_area.size.x;
+                             if (vt_align == (si32)bias::center) fragment_area.coor.y += (cellcanvas_size.y - image.document_area.size.y) / 2;
+                        else if (vt_align == (si32)bias::right ) fragment_area.coor.y +=  cellcanvas_size.y - image.document_area.size.y;
                         image_xy = (image_xy - dot_11) * cellsz;
-                        auto offset = placeholder.coor - image_xy + dxy;
-                        draw_glyph(canvas, image.fragment, offset, fgc);
+                        auto offset = placeholder.coor - image_xy + dxy + fragment_area.coor;
+                        draw_image(canvas, image.fragment, offset, fgc, image_xform);
                     }
                 }
             }
