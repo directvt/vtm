@@ -2439,8 +2439,9 @@ namespace netxs::gui
                 {
                     std::swap(width, height);
                 }
-                //auto cellcanvas_size = std::ceil(fp2d{ width, height }) * cellsz; // Cellrect in pixels (outer rect).
-                auto bounding_rect_pixels = std::round(fp2d{ width, height } * cellsz); // Document bounding box size in pixels.
+                auto wh_fp = fp2d{ width, height };
+                auto cellcanvas_size = std::ceil(wh_fp) * cellsz; // Cellrect in pixels (outer rect).
+                auto bounding_rect_pixels = std::round(wh_fp * cellsz); // Document bounding box size in pixels.
                 auto ratio = bounding_rect_pixels / original_doc_size_fpx;
                 auto keep_ratio = true;
                 switch ((si32)scale)
@@ -2467,7 +2468,8 @@ namespace netxs::gui
                 auto dst_fragment_block = image.fragment.raster<irgb>();
                 netxs::onbody(tmp_document_block, dst_fragment_block, [](auto& src, auto& dst){ dst = src; });
 
-                //...
+                //...align document
+                //
                 if (image.fragment.area && transform)
                 {
                     //todo make it relative to document area

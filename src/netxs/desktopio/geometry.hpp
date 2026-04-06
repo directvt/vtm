@@ -738,7 +738,7 @@ namespace netxs
         }
         void zeroize()
         {
-            std::memset(_data.data(), 0, _data.size_bytes());
+            std::fill(_data.begin(), _data.end(), std::decay_t<decltype(*begin())>{});
         }
         raster() = default;
         raster(T data, rect area)
