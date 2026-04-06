@@ -2440,7 +2440,7 @@ namespace netxs::gui
                     std::swap(width, height);
                 }
                 auto wh_fp = fp2d{ width, height };
-                auto cellcanvas_size = std::ceil(wh_fp) * cellsz; // Cellrect in pixels (outer rect).
+                //auto cellcanvas_size = std::ceil(wh_fp) * cellsz; // Cellrect in pixels (outer rect).
                 auto bounding_rect_pixels = std::round(wh_fp * cellsz); // Document bounding box size in pixels.
                 auto ratio = bounding_rect_pixels / original_doc_size_fpx;
                 auto keep_ratio = true;
