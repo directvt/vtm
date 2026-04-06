@@ -2007,7 +2007,7 @@ namespace netxs::gui
                                    std::move(document_trans),
                                    std::move(document_white) });
         }
-        void rasterize_DOM(auto& canvas, imagens::docs& svg_DOM, qiew sub_id, rect& area)
+        void rasterize_glyph_DOM(auto& canvas, imagens::docs& svg_DOM, qiew sub_id, rect area)
         {
             static thread_local auto bitmaps = std::array<lunasvg::Bitmap, 3>();
 
@@ -2042,6 +2042,57 @@ namespace netxs::gui
                     bitmap.clear(0);
                 }
                 element.render(bitmap, matrix); // Premultiplied ARGB32 pixel data.
+            };
+            render_bitmap(document_black_ptr, bitmaps[0]);
+            if (document_trans_ptr)
+            {
+                render_bitmap(document_trans_ptr, bitmaps[1]);
+                render_bitmap(document_white_ptr, bitmaps[2]);
+                draw_svg_to_canvas(canvas, bitmaps[0], bitmaps[1], bitmaps[2], area);
+            }
+            else
+            {
+                draw_svg_to_canvas(canvas, bitmaps[0], area);
+            }
+        }
+        void rasterize_svg_DOM(auto& canvas, imagens::docs& svg_DOM, fp2d original_doc_size_fpx, qiew sub_id, bool keep_ratio)
+        {
+            static thread_local auto bitmaps = std::array<lunasvg::Bitmap, 3>();
+
+            auto& [document_black_ptr, document_trans_ptr, document_white_ptr] = svg_DOM;
+            if (!document_black_ptr) return;
+            auto area = canvas.area();
+            auto w = area.size.x;
+            auto h = area.size.y;
+            auto render_bitmap = [&](auto& document_ptr, auto& bitmap)
+            {
+                if (bitmap.height() < h || bitmap.width() < w)
+                {
+                    bitmap = { w, h };
+                }
+                else
+                {
+                    bitmap.clear(0);
+                }
+                auto& document = *document_ptr;
+                auto element = sub_id.empty() ? document.documentElement()
+                                              : document.getElementById(sub_id);
+                if (element) // Draw nothing if sub_id is not found.
+                {
+                    auto bounds = original_doc_size_fpx;
+                    auto scale = fp2d{ area.size.x / bounds.x, area.size.y / bounds.y };
+                    if (keep_ratio)
+                    {
+                        auto r = std::min(scale.x, scale.y);
+                        scale = { r, r };
+                    }
+                    auto matrix = lunasvg::Matrix{ scale.x, 0, 0, scale.y, 0, 0 };
+                    if (sub_id && element != document.documentElement())
+                    {
+                        matrix *= element.getGlobalMatrix();
+                    }
+                    element.render(bitmap, matrix); // Premultiplied ARGB32 pixel data.
+                }
             };
             render_bitmap(document_black_ptr, bitmaps[0]);
             if (document_trans_ptr)
@@ -2177,7 +2228,7 @@ namespace netxs::gui
                                     }
                                     static thread_local auto glyph_id = text{};
                                     glyph_id = "glyph" + std::to_string(glyph.index); // According to the OT-SVG standard, each glyph within a document must be contained within an element with id="glyph<index>".
-                                    rasterize_DOM(canvas, svg_doc_iter->second, glyph_id, glyph.b_box);
+                                    rasterize_glyph_DOM(canvas, svg_doc_iter->second, glyph_id, glyph.b_box);
                                 }
                             }
                         }
@@ -2363,55 +2414,65 @@ namespace netxs::gui
                 glyph_mask.transform<irgb>(flipandrotate, matrix);
             }
         }
-        void rasterize_svg_document(imagens::image& image, fp2d matrix, si32 scale)
+        void rasterize_svg_document(imagens::image& image)
         {
             if (!image.dom[0])
             {
                 image.dom = generate_DOM(image.document);
             }
-            switch (scale)
+            if (image.dom[0])
             {
-                case scale_mode::inside:
-                    //...
-                    break;
-                case scale_mode::outside:
-                    //...
-                    break;
-                case scale_mode::stretch:
-                    //...
-                    break;
-                case scale_mode::none:
-                    //...
-                    break;
-            }
-            auto image_area = rect{ dot_00, matrix };
-            image.bitmap.set_area<irgb>(image_area);
-            auto canvas = image.bitmap.raster<irgb>();
-            rasterize_DOM(canvas, image.dom, image.sub_id, image_area);
-        }
-        void rasterize_image(imagens::image& image)
-        {
-            auto attrs = std::array<fp32, imagens::attr_count>{};
-            for (auto i = 0; i < imagens::attr_count; i++)
-            {
-                if (auto v = image.attrs[i]) attrs[i] = v.value();
-            }
-            auto width     = attrs[imagens::width    ];
-            auto height    = attrs[imagens::height   ];
-            auto scale     = attrs[imagens::scale    ];
-            auto transform = attrs[imagens::transform];
-            auto matrix = fp2d{ std::ceil(width), std::ceil(height) } * cellsz; // Size in pixels.
-            if ((si32)transform & 1)
-            {
-                std::swap(matrix.x, matrix.y);
-            }
-            //auto image_size = scale != scale_mode::none ? 
-            rasterize_svg_document(image, matrix, (si32)scale);
-            //auto& image_doc = image.document;
-            //...
-            if (image.bitmap.area && transform)
-            {
-                image.bitmap.transform<irgb>((si32)transform, matrix);
+                auto& image_dom = *image.dom[0];
+                auto original_doc_size_fpx = fp2d{ image_dom.width(), image_dom.height() }; // Original doc size (float).
+                auto final_doc_size_fpx = original_doc_size_fpx; // Rendered doc size (float).
+
+                auto attrs = std::array<fp32, imagens::attr_count>{};
+                for (auto i = 0; i < imagens::attr_count; i++)
+                {
+                    if (auto v = image.attrs[i]) attrs[i] = v.value();
+                }
+                auto width     = attrs[imagens::width    ];
+                auto height    = attrs[imagens::height   ];
+                auto scale     = attrs[imagens::scale    ];
+                auto transform = attrs[imagens::transform];
+                if ((si32)transform & 1)
+                {
+                    std::swap(width, height);
+                }
+                //auto cellcanvas_size = std::ceil(fp2d{ width, height }) * cellsz; // Cellrect in pixels (outer rect).
+                auto bounding_rect_pixels = std::round(fp2d{ width, height } * cellsz); // Document bounding box size in pixels.
+                auto ratio = bounding_rect_pixels / original_doc_size_fpx;
+                auto keep_ratio = true;
+                switch ((si32)scale)
+                {
+                    case scale_mode::none:    /*final_doc_size_fpx = final_doc_size_fpx;*/ break;
+                    case scale_mode::inside:  final_doc_size_fpx *= std::min(ratio.x, ratio.y); break;
+                    case scale_mode::outside: final_doc_size_fpx *= std::max(ratio.x, ratio.y); break;
+                    case scale_mode::stretch: final_doc_size_fpx = bounding_rect_pixels; keep_ratio = faux; /* matrix_pixels = matrix_pixels */ break;
+                }
+                // Apply system limits.
+                auto px_limits = std::max(dot_11, skin::globals().max_value * cellsz);
+                final_doc_size_fpx = std::clamp(final_doc_size_fpx, fp2d{ dot_11 }, fp2d{ px_limits });
+
+                auto matrix_pixels = twod{ std::ceil(final_doc_size_fpx) };
+                auto image_area = rect{ dot_00, matrix_pixels };
+                static thread_local auto full_doc_tmp_buffer = netxs::sprite{ *std::pmr::new_delete_resource() };
+                full_doc_tmp_buffer.set_area<irgb>(image_area);
+                auto tmp_document_block = full_doc_tmp_buffer.raster<irgb>();
+                tmp_document_block.zeroize();
+                rasterize_svg_DOM(tmp_document_block, image.dom, original_doc_size_fpx, image.sub_id, keep_ratio);
+                // Trim all transparent pixels.
+                auto new_image_area = full_doc_tmp_buffer.get_minimal_non_transparent_area_for_pma<irgb>();
+                image.fragment.set_area<irgb>(new_image_area);
+                auto dst_fragment_block = image.fragment.raster<irgb>();
+                netxs::onbody(tmp_document_block, dst_fragment_block, [](auto& src, auto& dst){ dst = src; });
+
+                //...
+                if (image.fragment.area && transform)
+                {
+                    //todo make it relative to document area
+                    image.fragment.transform<irgb>((si32)transform, matrix_pixels);
+                }
             }
         }
         void draw_glyph(auto& canvas, sprite& glyph_mask, twod offset, argb fgc)
@@ -2471,11 +2532,11 @@ namespace netxs::gui
 
                     auto& image = *image_ptr;
                     //todo diff by sizes
-                    if (image.bitmap.type == sprite::undef)
+                    if (image.fragment.type == sprite::undef)
                     {
-                        rasterize_image(image);
+                        rasterize_svg_document(image);
                     }
-                    if (image.bitmap.area)
+                    if (image.fragment.area)
                     {
                         auto& _dx = image.attrs[imagens::dx];
                         auto& _dy = image.attrs[imagens::dy];
@@ -2494,7 +2555,7 @@ namespace netxs::gui
                         }
                         image_xy = (image_xy - dot_11) * cellsz;
                         auto offset = placeholder.coor - image_xy + dxy;
-                        draw_glyph(canvas, image.bitmap, offset, fgc);
+                        draw_glyph(canvas, image.fragment, offset, fgc);
                     }
                 }
             }

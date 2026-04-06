@@ -7363,6 +7363,7 @@ namespace netxs::ui
             utf::trim(attrs_str, netxs::whitespaces);
             if (!attrs_str) return;
             auto id_str     = qiew{};
+            auto sub_id_str = qiew{};
             auto gc_str     = qiew{};
             auto doc_str    = qiew{};
             auto unregister = faux;
@@ -7403,9 +7404,11 @@ namespace netxs::ui
                 {
                     auto [attr_str, value_str] = utf::get_pair<'='>(attrs_str, netxs::whitespaces_and<'='>, netxs::whitespaces_and<' ', '<'>); // "... key=val<svg...>...</svg>"
                     //todo sub-id: id=qqq/www
-                    if (attr_str == "id") // id="string".
+                    if (attr_str == "id") // id="string/string".
                     {
-                        id_str = value_str;
+                        id_str = utf::take_front(value_str, " /\\");
+                        utf::trim_front(value_str, " /\\");
+                        sub_id_str = value_str;
                     }
                     else if (attr_str == "gc") // gc="string". Grapheme cluster used to fill image area.
                     {
@@ -7514,7 +7517,9 @@ namespace netxs::ui
                 // Register image.
                 if (iter == image_cache.end() && doc_str)
                 {
+                    //todo group by id
                     auto image_ptr = ptr::shared(imagens::image{ .id       = id_str,
+                                                                 .sub_id   = sub_id_str,
                                                                  .document = doc_str,
                                                                  .attrs    = new_attrs });
                     if (auto image_index = images.set(image_ptr))

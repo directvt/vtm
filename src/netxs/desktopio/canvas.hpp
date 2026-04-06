@@ -1303,12 +1303,14 @@ namespace netxs
         {
             using attrs_t = std::array<std::optional<fp32>, imagens::attr_count>;
 
+            //todo tie id, document, dom to shared sptr<>
             text          id;
             text          sub_id; // Document's sub-element id.
             text          document;
             attrs_t       attrs;
             ui16          index{};
-            sprite        bitmap{ *std::pmr::new_delete_resource() }; // Using default resource allocator.
+            sprite        fragment{ *std::pmr::new_delete_resource() }; // Rasterized fragment within the document area. Using default resource allocator.
+            rect          document_area; // All transformations and alignments must be performed for this area.
             imagens::docs dom;
         };
 
