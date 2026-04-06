@@ -2561,14 +2561,15 @@ namespace netxs::gui
                         auto wh_fp = fp2d{ width, height };
                         auto cellcanvas_size = twod{ std::ceil(wh_fp) * cellsz }; // Cellrect in pixels (outer rect).
                         auto fragment_area = image.fragment.area;
-                        auto hz_align = image_align & 0b0011;
-                        auto vt_align = image_align >> 2;
-                        if (!hz_align) hz_align = (si32)bias::center;
-                        if (!vt_align) vt_align = (si32)bias::center;
-                             if (hz_align == (si32)bias::center) { fragment_area.coor.x += (cellcanvas_size.x - image.document_area.size.x) / 2; }
-                        else if (hz_align == (si32)bias::right ) { fragment_area.coor.x +=  cellcanvas_size.x - image.document_area.size.x; }
-                             if (vt_align == (si32)bias::center) { fragment_area.coor.y += (cellcanvas_size.y - image.document_area.size.y) / 2; }
-                        else if (vt_align == (si32)bias::right ) { fragment_area.coor.y +=  cellcanvas_size.y - image.document_area.size.y; }
+                        auto get_factor = [](auto align)
+                        {
+                            if (align == (si32)bias::center || !align) return 0.5f;
+                            if (align == (si32)bias::right)            return 1.0f;
+                            return 0.0f;
+                        };
+                        auto factors = fp2d{ get_factor(image_align & 0b0011), get_factor(image_align >> 2) };
+                        fragment_area.coor += (cellcanvas_size - image.document_area.size) * factors;
+                        // Rendering.
                         image_xy = (image_xy - dot_11) * cellsz;
                         auto offset = placeholder.coor - image_xy + dxy + fragment_area.coor;
                         draw_image(canvas, image.fragment, offset, fgc, image_xform);
