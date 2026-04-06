@@ -2565,10 +2565,10 @@ namespace netxs::gui
                         auto vt_align = image_align >> 2;
                         if (!hz_align) hz_align = (si32)bias::center;
                         if (!vt_align) vt_align = (si32)bias::center;
-                             if (hz_align == (si32)bias::center) fragment_area.coor.x += (cellcanvas_size.x - image.document_area.size.x) / 2;
-                        else if (hz_align == (si32)bias::right ) fragment_area.coor.x +=  cellcanvas_size.x - image.document_area.size.x;
-                             if (vt_align == (si32)bias::center) fragment_area.coor.y += (cellcanvas_size.y - image.document_area.size.y) / 2;
-                        else if (vt_align == (si32)bias::right ) fragment_area.coor.y +=  cellcanvas_size.y - image.document_area.size.y;
+                             if (hz_align == (si32)bias::center) { fragment_area.coor.x += (cellcanvas_size.x - image.document_area.size.x) / 2; }
+                        else if (hz_align == (si32)bias::right ) { fragment_area.coor.x +=  cellcanvas_size.x - image.document_area.size.x; }
+                             if (vt_align == (si32)bias::center) { fragment_area.coor.y += (cellcanvas_size.y - image.document_area.size.y) / 2; }
+                        else if (vt_align == (si32)bias::right ) { fragment_area.coor.y +=  cellcanvas_size.y - image.document_area.size.y; }
                         image_xy = (image_xy - dot_11) * cellsz;
                         auto offset = placeholder.coor - image_xy + dxy + fragment_area.coor;
                         draw_image(canvas, image.fragment, offset, fgc, image_xform);
