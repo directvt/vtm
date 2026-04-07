@@ -186,12 +186,12 @@ R"==(
             <default fgc=whitedk bgc=pureblack/>  <!-- Default terminal colors (SGR 39/49, set by OSC 10/11). -->
             <match fx="color" fgc=whitelt bgc= #007F00/>  <!-- Appearance of selected text matches. Available shaders (fx): "xlight", "color", "invert", "reverse". -->
             <selection>
-                <text      fx="color"  fgc=whitelt bgc=bluelt/>  <!-- Selection highlighting for plaintext clipboard mode. -->
-                <protected fx="color"  fgc=whitelt bgc=bluelt/>  <!-- Note: bgc and fgc attributes only apply when fx="color". -->
-                <ansi      fx="xlight" fgc=whitelt bgc=bluelt/>
-                <rich      fx="xlight" fgc=whitelt bgc=bluelt/>
-                <html      fx="xlight" fgc=whitelt bgc=bluelt/>
-                <none      fx="color"  fgc=whitedk bgc=blacklt/>  <!-- Appearance of an inactive selection. -->
+                <text      fx="color" inv=true bgc=whitelt fgc=bluelt/>  <!-- Selection highlighting for plaintext clipboard mode. -->
+                <protected fx="color" inv=true bgc=whitelt fgc=bluelt/>  <!-- Notes: -->
+                <ansi      fx="color" inv=true bgc=whitelt fgc=bluelt/>  <!--   - inv=true ensures that the embedded image becomes translucent (see AnyPlex Protocol). -->
+                <rich      fx="color" inv=true bgc=whitelt fgc=bluelt/>  <!--   - bgc and fgc attributes only apply when fx="color".            -->
+                <html      fx="color" inv=true bgc=whitelt fgc=bluelt/>
+                <none      fx="color" inv=true bgc=whitedk fgc=blacklt/>  <!-- Appearance of an inactive selection. -->
             </selection>
             <names=/X11ColorNames>  <!-- Color name mappings for OSC 4, 10-12. -->
                 <!--  <name="New Dark Orange" rgb= #FF8C00 /> -->

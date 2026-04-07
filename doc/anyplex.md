@@ -22,7 +22,7 @@ Scope                           | Role
   - If the **`gc`** attribute is not empty, the provided grapheme cluster is written to **every cell** in the area (`ceil(width)` by `ceil(height)`), replacing existing text and SGR attributes.
   - If **`gc`** is empty, the output is non-destructive; existing text and SGR attributes remain visually intact under the transparent object.
   - Any text subsequently written over the object's area does not destroy the underlying object. The object metadata remains intact in the cell until explicitly cleared or replaced.
-- **Selection & SGR 7**: When selecting text/graphics with the mouse, or when the **SGR 7** attribute is present in a cell, the frontend **inverts the RGB channels** of the object's pixels within that cell.
+- **Selection & SGR 7**: When selecting text/graphics with the mouse, or when the **SGR 7** attribute is present in a cell, the frontend **halves the alpha channel** of the object's pixels within that cell.
 - **Searchability**: Any text contained within the document (e.g., `<text>` in SVG) is treated as part of the graphic and is not required to be indexed by the terminal's text search.
 - **Layering & Transparency**: Supports per-pixel alpha transparency. The `ontop` attribute determines Z-order relative to text (0 = background `[Cell BG] -> [Object] -> [Text]`, 1 = foreground `[Cell BG] -> [Text] -> [Object]`; the cell's background color always remains in the background). The terminal cursor is always drawn on top of everything. Alpha blending is performed in **linear color space**.
 - **Foreground Color**: The underlying cell **SGR foreground color** maps to `currentColor` (for SVG). All other external references (e.g., `http://...`) are ignored for security.

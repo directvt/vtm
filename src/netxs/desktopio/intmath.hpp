@@ -859,40 +859,45 @@ namespace netxs
     {
         auto dst_size = canvas.size();
         auto src_size = bitmap.size();
+        // Reduction to local coordinates.
         clip_rect.coor -= canvas.coor();
         canvas_rect_coor -= canvas.coor();
         bitmap_rect.coor -= bitmap.coor();
+        // Preparing viewports.
         auto src_view = bitmap_rect.trunc(src_size);
         bitmap_rect.coor = canvas_rect_coor;
         auto dst_area = bitmap_rect.normalize(); // Make rect with top-left orientation.
         auto dst_view = dst_area.trim(clip_rect).trunc(dst_size);
+        // Synchronous source trimming.
         src_view -= dst_area - dst_view; // Cut invisible sides.
-
-        if (dst_view.size.x == 0 || dst_view.size.y == 0
+        // Checking for emptiness.
+        if (dst_view.size.x <= 0 || dst_view.size.y <= 0
          || src_view.size.x == 0 || src_view.size.y == 0) return;
-
+        // Calculation of steps and starting points.
         auto dx = 1;
-        auto dy = std::abs(src_size.x);
+        auto dy = src_size.x;
         if (src_view.size.x < 0) { dx = -dx; src_view.coor.x -= 1; }
         if (src_view.size.y < 0) { dy = -dy; src_view.coor.y -= 1; }
-
-        dst_view.size -= 1;
+        // Initializing iterators.
         auto sptr = bitmap.begin() + (src_view.coor.x + src_view.coor.y * src_size.x);
         auto dptr = canvas.begin() + (dst_view.coor.x + dst_view.coor.y * dst_size.x);
+        // Cycle controls.
+        dst_view.size -= 1;
         auto tail = dptr + dst_view.size.x;
         auto stop = tail + dst_view.size.y * dst_size.x;
         while (true)
         {
             auto xptr = sptr;
+            auto xdst = dptr;
             while (true)
             {
-                handle(*dptr, *xptr);
-                if (dptr == tail) break;
-                dptr++;
+                handle(*xdst, *xptr);
+                if (xdst == tail) break;
+                xdst++;
                 xptr += dx;
             }
             online();
-            if (dptr == stop) break;
+            if (tail == stop) break;
             sptr += dy;
             tail += dst_size.x;
             dptr = tail - dst_view.size.x;

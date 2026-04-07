@@ -1465,7 +1465,7 @@ namespace netxs
                 token |= isrtl;
                 size_w(2 - 1);
             }
-            auto mtx() const
+            constexpr auto mtx() const
             {
                 return twod{ size_w() + 1, size_h() + 1 };
             }
@@ -1501,7 +1501,7 @@ namespace netxs
                 }
             }
             // glyf: Cluster length in bytes (if it is not jumbo).
-            auto str_len() const
+            constexpr auto str_len() const
             {
                 return !(token & netxs::letoh((ui64)0xFF << 8 * 1)) ? 0 : // !bytes[1] ? 0 :
                        !(token & netxs::letoh((ui64)0xFF << 8 * 2)) ? 1 : // !bytes[2] ? 1 :
@@ -1526,11 +1526,11 @@ namespace netxs
                 }
                 return crop;
             }
-            auto is_space() const
+            constexpr auto is_space() const
             {
                 return (token & netxs::letoh((ui64)0xFF00)) <= netxs::letoh((ui64)whitespace << 8); // (byte)(bytes[1]) <= whitespace;
             }
-            auto is_null() const
+            constexpr auto is_null() const
             {
                 return (token & netxs::letoh((ui64)0xFF00)) == 0; // bytes[1] == 0; // Jumbo bits are nulls. Jumbo mark is the last two bits = 0b10'000000.
             }
@@ -1539,7 +1539,7 @@ namespace netxs
                 return !is_jumbo() || jumbos().exists(jgc_token());
             }
             // Return cluster storage length.
-            auto len() const
+            constexpr auto len() const
             {
                 return is_jumbo() ? sizeof(token) : 1/*first byte (props)*/ + str_len();
             }
@@ -1694,23 +1694,23 @@ namespace netxs
             }
             //void hplink0(ui64 c) { token &= ~hplink_mask; token |= (ui64)(c << netxs::field_offset<hplink_mask>()); }
 
-            bool bld()    const { return !!(token & bolded_mask); }
-            bool itc()    const { return !!(token & italic_mask); }
-            bool inv()    const { return !!(token & invert_mask); }
-            bool ovr()    const { return !!(token & overln_mask); }
-            bool stk()    const { return !!(token & strike_mask); }
-            bool blk()    const { return !!(token & blinks_mask); }
-            bool hid()    const { return !!(token & hidden_mask); }
-            si32 und()    const { return (si32)((token & unline_mask) >> netxs::field_offset<unline_mask>()); }
-            si32 dim()    const { return (si32)((token & shadow_mask) >> netxs::field_offset<shadow_mask>()); }
-            si32 unc()    const { return (si32)((token & ucolor_mask) >> netxs::field_offset<ucolor_mask>()); }
-            si32 cur()    const { return (si32)((token & cursor_mask) >> netxs::field_offset<cursor_mask>()); }
-            //si32 cursor0() const { return (token & cursor_mask); }
-            //si32 hplink0() const { return (token & hplink_mask); }
-            //si32 fusion0() const { return (token & fusion_mask); }
-            ui64  xy()    const { return (token & mosaic_mask); }
-            si32 mosaic() const { return (si32)((token & mosaic_mask) >> netxs::field_offset<mosaic_mask>()); }
-            auto cursor_color() const
+            constexpr bool bld()    const { return !!(token & bolded_mask); }
+            constexpr bool itc()    const { return !!(token & italic_mask); }
+            constexpr bool inv()    const { return !!(token & invert_mask); }
+            constexpr bool ovr()    const { return !!(token & overln_mask); }
+            constexpr bool stk()    const { return !!(token & strike_mask); }
+            constexpr bool blk()    const { return !!(token & blinks_mask); }
+            constexpr bool hid()    const { return !!(token & hidden_mask); }
+            constexpr si32 und()    const { return (si32)((token & unline_mask) >> netxs::field_offset<unline_mask>()); }
+            constexpr si32 dim()    const { return (si32)((token & shadow_mask) >> netxs::field_offset<shadow_mask>()); }
+            constexpr si32 unc()    const { return (si32)((token & ucolor_mask) >> netxs::field_offset<ucolor_mask>()); }
+            constexpr si32 cur()    const { return (si32)((token & cursor_mask) >> netxs::field_offset<cursor_mask>()); }
+            //constexpr si32 cursor0() const { return (token & cursor_mask); }
+            //constexpr si32 hplink0() const { return (token & hplink_mask); }
+            //constexpr si32 fusion0() const { return (token & fusion_mask); }
+            constexpr ui64  xy()    const { return (token & mosaic_mask); }
+            constexpr si32 mosaic() const { return (si32)((token & mosaic_mask) >> netxs::field_offset<mosaic_mask>()); }
+            constexpr auto cursor_color() const
             {
                 auto bgi = (byte)((token & curbgc_mask) >> netxs::field_offset<curbgc_mask>());
                 auto fgi = (byte)((token & curfgc_mask) >> netxs::field_offset<curfgc_mask>());
@@ -2452,41 +2452,41 @@ namespace netxs
             return *this;
         }
 
-        auto  rtl() const  { return gc.rtl();      } // cell: Return RTL attribute.
-        auto  mtx() const  { return gc.mtx();      } // cell: Return cluster matrix size (in cells).
-        auto  len() const  { return gc.len();      } // cell: Return grapheme cluster cell storage length (in bytes).
-        auto  tkn() const  { return gc.token;      } // cell: Return grapheme cluster token.
-        bool  jgc() const  { return gc.jgc();      } // cell: Check the grapheme cluster registration (foreign jumbo clusters).
-        ui64   xy() const  { return st.xy();       } // cell: Return matrix fragment metadata.
+        constexpr auto  rtl() const  { return gc.rtl();      } // cell: Return RTL attribute.
+        constexpr auto  mtx() const  { return gc.mtx();      } // cell: Return cluster matrix size (in cells).
+        constexpr auto  len() const  { return gc.len();      } // cell: Return grapheme cluster cell storage length (in bytes).
+        constexpr auto  tkn() const  { return gc.token;      } // cell: Return grapheme cluster token.
+                  bool  jgc() const  { return gc.jgc();      } // cell: Check the grapheme cluster registration (foreign jumbo clusters).
+        constexpr ui64   xy() const  { return st.xy();       } // cell: Return matrix fragment metadata.
         template<svga Mode = svga::vtrgb>
-        auto  txt() const  { return gc.get<Mode>(); } // cell: Return grapheme cluster.
-        auto& egc()        { return gc;            } // cell: Get grapheme cluster object.
-        auto& egc() const  { return gc;            } // cell: Get grapheme cluster object.
-        auto  clr() const  { return uv.bg || uv.fg;} // cell: Return true if color set.
-        auto  bga() const  { return uv.bg.chan.a;  } // cell: Return background alpha/transparency.
-        auto  fga() const  { return uv.fg.chan.a;  } // cell: Return foreground alpha/transparency.
-        auto& bgc()        { return uv.bg;         } // cell: Return background color.
-        auto& fgc()        { return uv.fg;         } // cell: Return foreground color.
-        auto& bgc() const  { return uv.bg;         } // cell: Return background color.
-        auto& fgc() const  { return uv.fg;         } // cell: Return foreground color.
-        auto  bld() const  { return st.bld();      } // cell: Return bold attribute.
-        auto  itc() const  { return st.itc();      } // cell: Return italic attribute.
-        auto  und() const  { return st.und();      } // cell: Return underline/Underscore attribute.
-        auto  unc() const  { return st.unc();      } // cell: Return underline color.
-        auto  cur() const  { return st.cur();      } // cell: Return cursor style.
-        auto& img()        { return px;            } // cell: Return attached image.
-        auto& img() const  { return px;            } // cell: Return attached image.
-        auto  ovr() const  { return st.ovr();      } // cell: Return overline attribute.
-        auto  inv() const  { return st.inv();      } // cell: Return negative attribute.
-        auto  stk() const  { return st.stk();      } // cell: Return strikethrough attribute.
-        auto  blk() const  { return st.blk();      } // cell: Return blink attribute.
-        auto  hid() const  { return st.hid();      } // cell: Return hidden attribute.
-        auto  dim() const  { return st.dim();      } // cell: Return shadow attribute.
-        auto& stl()        { return st.token;      } // cell: Return style token.
-        auto& stl() const  { return st.token;      } // cell: Return style token.
-        auto link() const  { return id;            } // cell: Return object ID.
-        auto isspc() const { return gc.is_space(); } // cell: Return true if char is whitespace.
-        auto isnul() const { return gc.is_null();  } // cell: Return true if char is null.
+        constexpr auto  txt() const  { return gc.get<Mode>(); } // cell: Return grapheme cluster.
+        constexpr auto& egc()        { return gc;            } // cell: Get grapheme cluster object.
+        constexpr auto& egc() const  { return gc;            } // cell: Get grapheme cluster object.
+        constexpr auto  clr() const  { return uv.bg || uv.fg;} // cell: Return true if color set.
+        constexpr auto  bga() const  { return uv.bg.chan.a;  } // cell: Return background alpha/transparency.
+        constexpr auto  fga() const  { return uv.fg.chan.a;  } // cell: Return foreground alpha/transparency.
+        constexpr auto& bgc()        { return uv.bg;         } // cell: Return background color.
+        constexpr auto& fgc()        { return uv.fg;         } // cell: Return foreground color.
+        constexpr auto& bgc() const  { return uv.bg;         } // cell: Return background color.
+        constexpr auto& fgc() const  { return uv.fg;         } // cell: Return foreground color.
+        constexpr auto  bld() const  { return st.bld();      } // cell: Return bold attribute.
+        constexpr auto  itc() const  { return st.itc();      } // cell: Return italic attribute.
+        constexpr auto  und() const  { return st.und();      } // cell: Return underline/Underscore attribute.
+        constexpr auto  unc() const  { return st.unc();      } // cell: Return underline color.
+        constexpr auto  cur() const  { return st.cur();      } // cell: Return cursor style.
+        constexpr auto& img()        { return px;            } // cell: Return attached image.
+        constexpr auto& img() const  { return px;            } // cell: Return attached image.
+        constexpr auto  ovr() const  { return st.ovr();      } // cell: Return overline attribute.
+        constexpr auto  inv() const  { return st.inv();      } // cell: Return negative attribute.
+        constexpr auto  stk() const  { return st.stk();      } // cell: Return strikethrough attribute.
+        constexpr auto  blk() const  { return st.blk();      } // cell: Return blink attribute.
+        constexpr auto  hid() const  { return st.hid();      } // cell: Return hidden attribute.
+        constexpr auto  dim() const  { return st.dim();      } // cell: Return shadow attribute.
+        constexpr auto& stl()        { return st.token;      } // cell: Return style token.
+        constexpr auto& stl() const  { return st.token;      } // cell: Return style token.
+        constexpr auto link() const  { return id;            } // cell: Return object ID.
+        constexpr auto isspc() const { return gc.is_space(); } // cell: Return true if char is whitespace.
+        constexpr auto isnul() const { return gc.is_null();  } // cell: Return true if char is null.
         auto issame_visual(cell const& c) const // cell: Is the cell visually identical.
         {
             if (gc == c.gc || (isspc() && c.isspc()))
@@ -2755,26 +2755,31 @@ namespace netxs
             struct color_t
             {
                 clrs colors;
+                bool invert;
                 si32 factor;
                 template<class T>
-                constexpr color_t(T colors, si32 factor = 1)
+                constexpr color_t(T colors, bool invert, si32 factor = 1)
                     : colors{ colors },
+                      invert{ invert }, 
                       factor{ factor }
                 { }
                 constexpr color_t(cell const& brush, si32 factor = 1)
                     : colors{ brush.uv },
+                      invert{ brush.inv() },
                       factor{ factor }
                 { }
                 template<class T>
                 inline auto operator [] (T param) const
                 {
-                    return color_t{ colors, param };
+                    return color_t{ colors, invert, param };
                 }
                 template<class D>
                 inline void operator () (D& dst) const
                 {
-                    auto b = dst.inv() ? dst.fgc() : dst.bgc();
+                    auto i = dst.inv() ^ invert;;
+                    auto b = i ? dst.fgc() : dst.bgc();
                     dst.uv = colors;
+                    dst.inv(i);
                     //if (b == colors.bg) dst.xlight();
                     if (b == colors.bg) dst.uv.bg.shadow();
                 }

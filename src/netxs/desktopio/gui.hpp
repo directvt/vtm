@@ -2468,13 +2468,14 @@ namespace netxs::gui
                 netxs::onbody(tmp_document_block, dst_fragment_block, [](auto& src, auto& dst){ dst = src; });
             }
         }
-        void draw_glyph(auto& canvas, sprite& glyph_mask, twod offset, argb fgc)
+        void draw_glyph(auto& canvas, sprite& glyph_mask, twod offset, argb fgc, bool semi_transparent = faux)
         {
             auto box = glyph_mask.area.shift(offset);
             auto f_fgc = irgb::nonpma_srgb_to_pma_linear(fgc);
             if (glyph_mask.type == sprite::color)
             {
-                auto fx = [fgc, f_fgc](argb& dst, irgb src)
+                auto global_alpha = semi_transparent ? 0.5f : 1.0f; // Triggers on SGR 7 (reverse video). Makes emoji semi-transparent on selection.
+                auto fx = [f_fgc, global_alpha](argb& dst, irgb src) //todo unify: same code in draw_image()
                 {
                     if (src.a == 0.f) return;
                     auto f_dst = irgb::pma_srgb_to_pma_linear(dst);
@@ -2486,7 +2487,7 @@ namespace netxs::gui
                             f_dst.blend_pma(f_fgc, fgc_alpha);
                         }
                     }
-                    dst = irgb::pma_linear_to_pma_srgb(f_dst.blend_pma(src));
+                    dst = irgb::pma_linear_to_pma_srgb(f_dst.blend_pma(src * global_alpha));
                 };
                 auto raster = netxs::raster{ std::span{ (irgb*)glyph_mask.bits.data(), (size_t)glyph_mask.area.length() }, box };
                 netxs::onclip(canvas, raster, fx);
@@ -2510,12 +2511,14 @@ namespace netxs::gui
                 netxs::onclip(canvas, raster, fx);
             }
         }
-        void draw_image(auto& canvas, sprite& image_mask, twod offset, argb fgc, si32 /*xform*/)
+        void draw_image(auto& canvas, sprite& image_mask, twod offset, argb fgc, bool semi_transparent, si32 /*xform*/)
         {
             auto box = image_mask.area.shift(offset);
             auto f_fgc = irgb::nonpma_srgb_to_pma_linear(fgc);
+            auto global_alpha = semi_transparent ? 0.5f : 1.0f; // Triggers on SGR 7 (reverse video).
             assert(image_mask.type == sprite::color);
-            auto fx = [fgc, f_fgc](argb& dst, irgb src) //todo unify: same code in draw_glyph()
+            auto raster = netxs::raster{ std::span{ (irgb*)image_mask.bits.data(), (size_t)image_mask.area.length() }, box };
+            auto fx = [f_fgc, global_alpha](argb& dst, irgb src) //todo unify: same code in draw_glyph()
             {
                 if (src.a == 0.f) return;
                 auto f_dst = irgb::pma_srgb_to_pma_linear(dst);
@@ -2527,11 +2530,18 @@ namespace netxs::gui
                         f_dst.blend_pma(f_fgc, fgc_alpha);
                     }
                 }
-                dst = irgb::pma_linear_to_pma_srgb(f_dst.blend_pma(src));
+                dst = irgb::pma_linear_to_pma_srgb(f_dst.blend_pma(src * global_alpha));
             };
-            auto raster = netxs::raster{ std::span{ (irgb*)image_mask.bits.data(), (size_t)image_mask.area.length() }, box };
-            //todo xform on write
             netxs::onclip(canvas, raster, fx);
+
+            // xform on write
+            //static constexpr auto dirs = std::to_array<twod>({{ 1, 1 }, {-1, 1 }, {-1,-1 }, { 1,-1 }});
+            //auto dir = dirs[xform & 0b011];
+            //if (xform & 0b100) dir.x = -dir.x; 
+            //auto clip_rect = canvas.clip();
+            //auto bitmap_area = raster.area();
+            //auto canvas_coor = bitmap_area.coor;
+            //netxs::xform_mirror(canvas, clip_rect, canvas_coor, raster, bitmap_area.rotate(dir), fx);
         }
         auto render_image(auto& canvas, rect placeholder, argb fgc, cell const& c)
         {
@@ -2582,7 +2592,7 @@ namespace netxs::gui
                         // Rendering.
                         image_xy = (image_xy - dot_11) * cellsz;
                         auto offset = placeholder.coor - image_xy + dxy + fragment_area_coor;
-                        draw_image(canvas, image.fragment, offset, fgc, image_xform);
+                        draw_image(canvas, image.fragment, offset, fgc, c.inv(), image_xform);
                     }
                 }
             }
@@ -2738,13 +2748,13 @@ namespace netxs::gui
                         //    draw_glyph(target, glyph_mask, offset - dot_01 + dot_10, blk);
                         //    draw_glyph(target, glyph_mask, offset + dot_01 - dot_10, blk);
                         //}
-                        draw_glyph(target, glyph_mask, offset, fgc);
+                        draw_glyph(target, glyph_mask, offset, fgc, c.inv());
                     }
                 }
-                if (bgc.alpha()< 2 && fgc == argb{ purewhite })
-                {
-                    //edge
-                }
+                //if (bgc.alpha()< 2 && fgc == argb{ purewhite })
+                //{
+                //    // hilight glyph edges
+                //}
                 break;
             }
 
