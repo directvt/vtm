@@ -7406,7 +7406,7 @@ namespace netxs::ui
                     //todo sub-id: id=qqq/www
                     if (attr_str == "id") // id="string/string".
                     {
-                        id_str = utf::take_front(value_str, " /\\");
+                        id_str = utf::take_front<faux>(value_str, " /\\");
                         utf::trim_front(value_str, " /\\");
                         sub_id_str = value_str;
                     }

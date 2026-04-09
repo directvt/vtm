@@ -2465,8 +2465,11 @@ namespace netxs::gui
                 // Trim all transparent pixels.
                 auto nested_fragment_area = full_doc_tmp_buffer.get_minimal_non_transparent_area_for_pma<irgb>();
                 image.fragment.set_area<irgb>(nested_fragment_area);
-                auto dst_fragment_block = image.fragment.raster<irgb>();
-                netxs::onbody(tmp_document_block, dst_fragment_block, [](auto& src, auto& dst){ dst = src; });
+                if (nested_fragment_area)
+                {
+                    auto dst_fragment_block = image.fragment.raster<irgb>();
+                    netxs::onbody(tmp_document_block, dst_fragment_block, [](auto& src, auto& dst){ dst = src; });
+                }
             }
         }
         void draw_glyph(auto& canvas, sprite& glyph_mask, twod offset, argb fgc, bool semi_transparent = faux)

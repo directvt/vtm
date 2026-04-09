@@ -807,7 +807,10 @@ namespace netxs
             area = new_area;
             type = is_colored ? sprite::color : sprite::alpha;
             auto pixel_size = is_colored ? sizeof(irgb) : sizeof(byte);
-            bits.resize(netxs::udivupper(new_area.length() * pixel_size, sizeof(ui32)));
+            if (auto new_length = new_area.length() * pixel_size)
+            {
+                bits.resize(netxs::udivupper(new_length, sizeof(ui32)));
+            }
         }
         // sprite: Returns the minimum opaque area within the PMA fp32 sprite.
         template<class irgb>
