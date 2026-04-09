@@ -336,10 +336,10 @@ namespace netxs
         // rect: Return rect with top-left orientation.
         constexpr rect normalize() const
         {
-            auto sx = size.x < 0;
-            auto sy = size.y < 0;
-            return {{ sx ?  coor.x + size.x : coor.x, sy ?  coor.y + size.y : coor.y },
-                    { sx ? -size.x : size.x         , sy ? -size.y : size.y          }};
+            auto r = *this;
+            if (r.size.x < 0) { r.coor.x = r.coor.x + r.size.x; r.size.x = -r.size.x; }
+            if (r.size.y < 0) { r.coor.y = r.coor.y + r.size.y; r.size.y = -r.size.y; }
+            return r;
         }
         // rect: Set top-left orientation.
         constexpr auto& normalize_itself()
@@ -374,6 +374,36 @@ namespace netxs
             auto ur = rect{ tl, br - tl};
             if constexpr (sizeof...(rn)) return unite(ur, rn...);
             else                         return ur;
+        }
+        // rect: *this in global coords. Take the relative child and return it in global coordinates applying xform. Transform D4 (3 bits: 0b[FlipY][FlipX][Swap]) the child rectangle and return it in global coordinates.
+        rect transform(rect relative_child, si32 xform) const
+        {
+            auto p = relative_child.coor;
+            auto s = relative_child.size;
+            auto psz = size;
+            if (xform & 0b001) // SwapXY
+            {
+                std::swap(p.x, p.y);
+                std::swap(s.x, s.y);
+                std::swap(psz.x, psz.y);
+            }
+            if (xform & 0b010) p.x = psz.x - p.x - s.x; // Flip X
+            if (xform & 0b100) p.y = psz.y - p.y - s.y; // Flip Y
+            return { coor + p, s };
+        }
+        // rect: *this in global coords. Take the global child element and return it to relative coordinates, undoing the transform (xform).
+        rect untransform(rect global_child, si32 xform) const
+        {
+            auto p = global_child.coor - coor;
+            auto s = global_child.size;
+            if (xform & 0b100) p.y = size.y - p.y - s.y;
+            if (xform & 0b010) p.x = size.x - p.x - s.x;
+            if (xform & 0b001)
+            {
+                std::swap(p.x, p.y);
+                std::swap(s.x, s.y);
+            }
+            return { p, s };
         }
         // rect: Return true in case of normalized rectangles are overlapped.
         constexpr bool overlap(rect r) const
@@ -703,4 +733,188 @@ namespace netxs
         if constexpr (std::is_same_v<T, twod>) return { dot_00, p };
         else                                   return { dot_00, { (si32)p,  1 } };
     }
+
+    // geometry: Generic bitmap.
+    template<class T>
+    struct raster
+    {
+        using base = T;
+        base _data;
+        rect _area;
+        rect _clip;
+        auto length() const { return _data.length(); }
+        auto  begin()       { return _data.begin();  }
+        auto  begin() const { return _data.begin();  }
+        auto   data()       { return _data.data();   }
+        auto   data() const { return _data.data();   }
+        auto    end()       { return _data.end();    }
+        auto    end() const { return _data.end();    }
+        auto&  clip()       { return _clip;          }
+        auto&  clip() const { return _clip;          }
+        auto&  area()       { return _area;          }
+        auto&  area() const { return _area;          }
+        auto   clip(auto c) { _clip = c;             }
+        void   step(auto s) { _area.coor += s;       }
+        void   move(auto p) { _area.coor = p;        }
+        auto&  size()       { return _area.size;     }
+        auto&  size() const { return _area.size;     }
+        auto&  coor()       { return _area.coor;     }
+        auto&  coor() const { return _area.coor;     }
+        auto& operator [] (auto p) { return *(begin() + p.x + p.y * _area.size.x); }
+        void size(auto new_size, auto... filler)
+        {
+            _area.size = new_size;
+            _data.resize(new_size.x * new_size.y, filler...);
+        }
+        void zeroize()
+        {
+            std::fill(_data.begin(), _data.end(), std::decay_t<decltype(*begin())>{});
+        }
+        raster() = default;
+        raster(T data, rect area)
+            : _data{ data },
+              _area{ area }
+        { }
+    };
+
+    // geometry: Color/monochromatic sprite.
+    struct sprite
+    {
+        using vect = std::pmr::vector<ui32>; // Use ui32 for 4-byte alignment (aarch requirement).
+
+        static constexpr auto undef = 0;
+        static constexpr auto alpha = 1; // Grayscale AA bitmap alphamix. byte-based. fx: pixel = blend(pixel, fgc, byte).
+        static constexpr auto color = 2; // irgb-colored bitmap colormix. irgb-based. fx: pixel = blend(blend(pixel, irgb.alpha(irgb.chan.a - (si32)irgb.chan.a)), fgc, (si32)irgb.chan.a - 256).
+
+        vect bits; // sprite: Contains: type=alpha: bytes [0-255]; type=color: irgb<fp32>.
+        rect area; // sprite: Bitmap black-box.
+        si32 type; // sprite: Bitmap type.
+
+        sprite(auto& pool)
+            : bits{ &pool },
+              type{ undef }
+        { }
+
+        template<class Elem>
+        auto raster()
+        {
+            return netxs::raster{ std::span{ (Elem*)bits.data(), bits.size() * sizeof(ui32) / sizeof(Elem) }, area };
+        }
+        // sprite: Resize sprite.
+        template<class irgb>
+        void set_area(rect new_area, bool is_colored = true)
+        {
+            area = new_area;
+            type = is_colored ? sprite::color : sprite::alpha;
+            auto pixel_size = is_colored ? sizeof(irgb) : sizeof(byte);
+            if (auto new_length = new_area.length() * pixel_size)
+            {
+                bits.resize(netxs::udivupper(new_length, sizeof(ui32)));
+            }
+        }
+        // sprite: Returns the minimum opaque area within the PMA fp32 sprite.
+        template<class irgb>
+        auto get_minimal_non_transparent_area_for_pma()
+        {
+            auto crop = rect{};
+            auto w = area.size.x;
+            auto h = area.size.y;
+            auto image_raster = raster<irgb>();
+            auto data = image_raster._data;
+            assert(area.length() <= data.size()); // Invalid sprite element type.
+            auto get_row = [&](si32 y){ return data.subspan(y * w, w); };
+            auto y0 = 0;
+            auto is_visible = [](irgb p){ return p.a != 0; };
+            while (y0 < h && std::none_of(get_row(y0).begin(), get_row(y0).end(), is_visible)) // Top bound.
+            {
+                y0++;
+            }
+            if (y0 != h)
+            {
+                auto y1 = h - 1;
+                while (y1 > y0 && std::none_of(get_row(y1).begin(), get_row(y1).end(), is_visible)) // Bottom bound.
+                {
+                    y1--;
+                }
+                auto x0 = w;
+                auto x1 = -1;
+                for (auto y = y0; y <= y1; ++y) // Look inside [y0, y1].
+                {
+                    auto row = get_row(y);
+                    auto first = std::find_if(row.begin(), row.end(), is_visible);
+                    if (first != row.end())
+                    {
+                        x0 = std::min(x0, (si32)std::distance(row.begin(), first)); // Left.
+                        auto last = std::find_if(row.rbegin(), row.rend(), is_visible);
+                        x1 = std::max(x1, (si32)(w - 1 - std::distance(row.rbegin(), last))); // Right.
+                    }
+                    if (x0 == 0 && x1 == w - 1) break; // Maximum possible found.
+                }
+                crop = {{ x0, y0 }, { x1 - x0 + 1, y1 - y0 + 1 }};
+            }
+            return crop;
+        }
+        // sprite: Perform Dihedral group (D4) transformations on the image raster ("push-based" iterate over source) (8 combinations of rotations and reflections).
+        template<class irgb>
+        void transform(si32 flip_swap, twod matrix)
+        {
+            static thread_local auto buffer = std::vector<ui32>{}; // Use ui32 for 4-byte alignment (aarch requirement).
+            buffer.assign(bits.begin(), bits.end());
+            auto xform = [&](auto elem)
+            {
+                using type = decltype(elem);
+                auto src = std::span{ (type*)buffer.data(), (size_t)area.length() };
+                auto dst = std::span{ (type*)bits.data(),   (size_t)area.length() };
+                auto src_ptr = src.begin();
+                auto dst_ptr = dst.begin();
+                auto src_sz = area.size;
+                auto dst_dx = 1;
+                auto dst_dy = area.size.x;
+                auto src_dy = area.size.x;
+                if (flip_swap & 0b010) // Flip X before swap!
+                {
+                    area.coor.x = matrix.x - area.coor.x - area.size.x;
+                }
+                if (flip_swap & 0b100) // Flip Y before swap!
+                {
+                    area.coor.y = matrix.y - area.coor.y - area.size.y;
+                }
+                if (flip_swap & 0b001) // SwapXY.
+                {
+                    std::swap(area.size.x, area.size.y);
+                    std::swap(area.coor.x, area.coor.y);
+                    dst_dx = src_sz.y;
+                    dst_dy = 1;
+                }
+                if (flip_swap & 0b010) // Flip X after swap!
+                {
+                    dst_ptr += (src_sz.x - 1) * dst_dx;
+                    dst_dx = -dst_dx;
+                }
+                if (flip_swap & 0b100) // Flip Y after swap!
+                {
+                    dst_ptr += (src_sz.y - 1) * dst_dy;
+                    dst_dy = -dst_dy;
+                }
+                auto h = src_sz.y;
+                while (true)
+                {
+                    auto s_ptr = src_ptr;
+                    auto d_ptr = dst_ptr;
+                    auto w = src_sz.x;
+                    while (true)
+                    {
+                        *d_ptr = *s_ptr;
+                        if (--w == 0) break;
+                        s_ptr++;
+                        d_ptr += dst_dx;
+                    }
+                    if (--h == 0) break;
+                    src_ptr += src_dy;
+                    dst_ptr += dst_dy;
+                }
+            };
+            type == sprite::color ? xform(irgb{}) : xform(byte{});
+        }
+    };
 }

@@ -438,7 +438,7 @@ Note: You can explicitly specify running vtm inside the terminal (run `vtm --tui
 
 - In general, the local and remote platforms may be different.
 - When the DirectVT mode is used, all keyboard, mouse, and other input events are transmitted between hosts in a binary form.
-- The following examples assume that vtm is accessible via PATH on both the local and remote sides. 
+- The following examples assume that vtm is accessible via PATH on both the local and remote sides.
 
 ### Run remote desktop/terminal over SSH
 

@@ -1205,6 +1205,8 @@ namespace netxs::ui
                 vt.oscer[osc_clipboard  ] = V{ p->owner.forward_clipboard(q);           };
                 vt.oscer[osc_term_notify] = V{ p->owner.osc_notify(q);                  };
                 vt.oscer[osc_semantic_fx] = V{ p->owner.osc_marker(q);                  };
+                vt.oscer[osc_glyph      ] = V{ p->owner.osc_glyphs(q);                  };
+                vt.oscer[osc_app        ] = V{ p->owner.osc_images(q);                  };
                 #undef V
 
                 // Log all unimplemented CSI commands.
@@ -7189,8 +7191,57 @@ namespace netxs::ui
         bool       bottom_anchored; // term: Anchor scrollback content when resizing (default is anchor at bottom).
         ui32       event_sources; // term: vt-input-mode event reporting bit-field.
         ui64       session_token; // term: Interactive session token.
+        utf::unordered_map<text, netxs::sptr<imagens::image>> image_cache; // term: Image cache.
+        face                                                  image_buffer; // term: Image temporary buffer.
         vtty       ipccon; // term: IPC connector. Should be destroyed first.
 
+        // term: Print the block to the scrollback buffer with scroll.
+        template<class S, class P>
+        auto print_block(S& scrollback, core const& block, twod trim_by_viewport, P fuse)
+        {
+            auto size = block.size();
+            auto head = block.begin();
+            auto tail = block.end();
+            auto coor = scrollback.coord;
+            auto step = size.x;
+            if (trim_by_viewport)
+            {
+                auto crop = std::min(trim_by_viewport, coor + size) - coor;
+                if (crop.x <= 0 || crop.y <= 0) return;
+                step = crop.x;
+                tail = head + size.x * crop.y;
+            }
+            auto rest = size.x - step;
+            while (true)
+            {
+                auto next = head + step;
+                auto line = std::span(head, next);
+                scrollback.template _data<true>(step, line, fuse);
+                head = next + rest;
+                if (head != tail)
+                {
+                    scrollback.chx0(coor.x);
+                    scrollback._lf(1);
+                }
+                else
+                {
+                    break;
+                }
+            }
+        }
+        // term: Print specified block (scroll/wrap in normal; crop by the altbuf viewport).
+        auto draw_block(core const& image_buffer, auto fx)
+        {
+            if (target == &normal)
+            {
+                print_block(normal, image_buffer, {}, fx);
+            }
+            else
+            {
+                auto& target_buffer = *(alt_screen*)target;
+                print_block(target_buffer, image_buffer, target->panel, fx);
+            }
+        }
         // term: Place rectangle block to the scrollback buffer.
         template<class S, class P>
         auto write_block(S& scrollback, core const& block, twod coor, rect trim, P fuse)
@@ -7295,6 +7346,270 @@ namespace netxs::ui
                     {
                         base::riseup(tier::preview, e2::form::prop::cwd, path);
                     });
+                }
+            }
+        }
+        // term: Dynamic Glyph Redefinition.
+        void osc_glyphs(view /*data*/)
+        {
+            //todo implement
+            log("%%Dynamic Glyph Redefinition is not implemented yet", prompt::term);
+        }
+        // term: Embedded Object Protocol.
+        void osc_images(qiew attrs_str)
+        {
+            auto& console = *target;
+            console.flush();
+            utf::trim(attrs_str, netxs::whitespaces);
+            if (!attrs_str) return;
+            auto id_str     = qiew{};
+            auto sub_id_str = qiew{};
+            auto gc_str     = qiew{};
+            auto doc_str    = qiew{};
+            auto unregister = faux;
+            auto new_attrs = imagens::image::attrs_t{};
+            // data: " id + attrs + doc"              Find by id and update/register and print.
+            //       " [attrs] + doc "                Register empty id.
+            //       " [id] "                         Find by id and print.
+            //       " [id] + attrs "                 Find by id and print applying new attrs.
+            //       " [id] + explicite-empty-doc "   Find by id and unregister. (doc=<tag></tag>)
+            while (attrs_str)
+            {
+                if (attrs_str.front() == '<') // Extract document body <tag1 ...> ... </tag2>
+                {
+                    auto closing_bracket_pos = attrs_str.rfind('>'); // Fing the last '>' in the string.
+                    doc_str = attrs_str.substr(0, closing_bracket_pos + 1);
+                    attrs_str.remove_prefix(doc_str.size());
+                    // Check if document is empty.
+                    auto tmp = doc_str;
+                    tmp.pop_front(); // Pop  '<'.
+                    if (auto tag = utf::take_front<faux>(tmp, netxs::whitespaces_and<'>'>)) // 'tag>' or 'tag ...'
+                    {
+                        auto degenerate_doc = text{};
+                        degenerate_doc.reserve(5 + tag.size() * 2); // "<" + tag + "></" + tag + ">"
+                        degenerate_doc += '<';
+                        degenerate_doc += tag;
+                        degenerate_doc += "></";
+                        degenerate_doc += tag;
+                        degenerate_doc += '>';
+                        unregister = doc_str == degenerate_doc;
+                        if (unregister) doc_str = {};
+                    }
+                    else
+                    {
+                        if (io_log) log("%%Broken 'OSC object' document (invalid structure)", prompt::term);
+                    }
+                }
+                else // Parse attributes.
+                {
+                    auto [attr_str, value_str] = utf::get_pair<'='>(attrs_str, netxs::whitespaces_and<'='>, netxs::whitespaces_and<' ', '<'>); // "... key=val<svg...>...</svg>"
+                    //todo sub-id: id=qqq/www
+                    if (attr_str == "id") // id="string/string".
+                    {
+                        id_str = utf::take_front<faux>(value_str, " /\\");
+                        utf::trim_front(value_str, " /\\");
+                        sub_id_str = value_str;
+                    }
+                    else if (attr_str == "gc") // gc="string". Grapheme cluster used to fill image area.
+                    {
+                        gc_str = value_str;
+                    }
+                    else // Regular attributes (si32 or dict).
+                    {
+                        //log(" attr_str=%%, value_str=%%", attr_str, value_str);
+                        if (auto p = imagens::parse_pair(attr_str, value_str))
+                        {
+                            auto [i, v] = p.value();
+                            //log("  new_attrs[%%]=%%", i, v);
+                            auto& xform_ref = new_attrs[imagens::transform];
+                            switch (i) // Accumulate transforms if specified.
+                            {
+                                case imagens::flip:
+                                    if (!xform_ref) xform_ref = 0.f;
+                                    imagens::mirror_fx(xform_ref.value(), v);
+                                    break;
+                                case imagens::rotate:
+                                    if (!xform_ref) xform_ref = 0.f;
+                                    imagens::rotate_fx(xform_ref.value(), v);
+                                    break;
+                                case imagens::transform:
+                                    xform_ref = std::clamp(v, 0.f, 7.f);
+                                    break;
+                                default:
+                                    new_attrs[i] = v;
+                                    break;
+                            }
+                        }
+                    }
+                }
+                utf::trim_front(attrs_str, netxs::whitespaces);
+            }
+            auto images = cell::images(); // Lock.
+            if (unregister)
+            {
+                if (auto iter = image_cache.find(id_str); iter != image_cache.end())
+                {
+                    auto image_ptr = iter->second;
+                    //log("unregistered ", image_ptr->id);
+                    image_cache.erase(iter);
+                    images.remove(image_ptr->index);
+                    if (io_log) log("%%Embedded object '%%' successfully unregistered", prompt::term, image_ptr->id);
+                }
+            }
+            else
+            {
+                auto iter = image_cache.find(id_str);
+                // Merge with existing attributes.
+                if (iter != image_cache.end() && doc_str.empty())
+                {
+                    //log("image_ptr found");
+                    auto image_ptr = iter->second;
+                    auto& old_attrs = image_ptr->attrs;
+                    for (auto i = 0u; i < new_attrs.size(); i++)
+                    {
+                        if (i == imagens::align
+                         || i == imagens::flip
+                         || i == imagens::transform
+                         || i == imagens::rotate
+                         || i == imagens::row
+                         || i == imagens::column
+                         || i == imagens::ontop) // Skip local attributes.
+                        {
+                            continue;
+                        }
+                        auto& new_attr = new_attrs[i];
+                        auto& old_attr = old_attrs[i];
+                        if (!new_attr)
+                        {
+                            new_attr = old_attr;
+                        }
+                        //else if (old_attr)
+                        //{
+                        //    if (i == imagens::align)
+                        //    {
+                        //        new_attr = imagens::combine_align_fx(old_attr.value(), new_attr.value());
+                        //    }
+                        //    else if (i == imagens::transform)
+                        //    {
+                        //        new_attr = imagens::combine_transform_fx(old_attr.value(), new_attr.value());
+                        //    }
+                        //}
+                    }
+                }
+                // Clamp sizes.
+                auto max_size = skin::globals().max_value;
+                auto& _w = new_attrs[imagens::width ];
+                auto& _h = new_attrs[imagens::height];
+                auto& _x = new_attrs[imagens::column];
+                auto& _y = new_attrs[imagens::row   ];
+                if (_w) _w = std::clamp(_w.value(), 1.f, (fp32)max_size.x); else _w = (fp32)target->panel.x;
+                if (_h) _h = std::clamp(_h.value(), 1.f, (fp32)max_size.y); else _h = (fp32)target->panel.y;
+                if (_x) _x = std::clamp(_x.value(), 0.f, std::ceil(_w.value())); else _x = 0.f;
+                if (_y) _y = std::clamp(_y.value(), 0.f, std::ceil(_h.value())); else _y = 0.f;
+                auto w = (si32)std::ceil(_w.value());
+                auto h = (si32)std::ceil(_h.value());
+                auto x = (si32)_x.value();
+                auto y = (si32)_y.value();
+                auto c = cell{ target->brush }.txt(gc_str, 1, 1, 1, 1);
+                auto print_image_buffer = [&]
+                {
+                    gc_str ? draw_block(image_buffer, cell::shaders::full)
+                           : draw_block(image_buffer, cell::shaders::image);
+                };
+                //todo revise cache logic (it is just a test)
+                auto different_image_size = [&]
+                {
+                    auto& image = *iter->second;
+                    auto ret = image.attrs[imagens::width ] != new_attrs[imagens::width ]
+                            || image.attrs[imagens::height] != new_attrs[imagens::height]
+                            || image.attrs[imagens::scale ] != new_attrs[imagens::scale ];
+                    if (ret) doc_str = image.document;
+                    return ret;
+                };
+                // Register image.
+                if (iter == image_cache.end() && (doc_str || different_image_size()))
+                {
+                    //todo group by id
+                    auto image_ptr = ptr::shared(imagens::image{ .id       = id_str,
+                                                                 .sub_id   = sub_id_str,
+                                                                 .document = doc_str,
+                                                                 .attrs    = new_attrs });
+                    if (auto image_index = images.set(image_ptr))
+                    {
+                        image_ptr->index = image_index;
+                        iter = image_cache.emplace(id_str, image_ptr).first;
+                    }
+                    else
+                    {
+                        log("%%The limit on the number of embedded objects has been reached", prompt::term);
+                    }
+                }
+                else if (doc_str) // Replace existing image.
+                {
+                    //log("%%Object with id='%%' updated", prompt::term, id_str ? id_str : "<empty string>");
+                    auto& image = *iter->second;
+                    if (image.document != doc_str)
+                    {
+                        image.document = doc_str;
+                        image.attrs[imagens::width] = new_attrs[imagens::width];
+                        image.attrs[imagens::height] = new_attrs[imagens::height];
+                        image.attrs[imagens::scale] = new_attrs[imagens::scale];
+                        //todo notify all gates
+                        //signal(release, ..., gate)
+                        //       scan all gate rasters and looking for the image_index reference in their cells and submit a forward notification if something found
+                    }
+                }
+                if (iter != image_cache.end())
+                {
+                    auto& image = *iter->second;
+                    c.set_image_attrs(image, new_attrs);
+                }
+                else // Image id is not registered. Just erase the specified region.
+                {
+                    if (io_log) log("%%Erase the specified region. Object with id='%%' is not registered", prompt::term, id_str ? id_str : "<empty string>");
+                }
+                // Print image rectangle.
+                if (!x && !y) // Print full raster.
+                {
+                    auto size = twod{ w, h };
+                    image_buffer.core::size<true>(size, c);
+                    auto head = image_buffer.begin();
+                    for (y = 1; y <= h; y++)
+                    {
+                        for (x = 1; x <= w; x++)
+                        {
+                            (*head++).set_image_xy(x, y);
+                        }
+                    }
+                    print_image_buffer();
+                }
+                else if (!y) // Print vertical slice.
+                {
+                    auto size = twod{ 1, h };
+                    image_buffer.core::size<true>(size, c);
+                    auto head = image_buffer.begin();
+                    for (y = 1; y <= h; y++)
+                    {
+                        (*head++).set_image_xy(x, y);
+                    }
+                    print_image_buffer();
+                }
+                else if (!x) // Print horizontal slice.
+                {
+                    auto size = twod{ w, 1 };
+                    image_buffer.core::size<true>(size, c);
+                    auto head = image_buffer.begin();
+                    for (x = 1; x <= w; x++)
+                    {
+                        (*head++).set_image_xy(x, y);
+                    }
+                    print_image_buffer();
+                }
+                else // if (x && y) // Print a single cell.
+                {
+                    auto size = twod{ 1, 1 };
+                    image_buffer.core::size<true>(size, c);
+                    print_image_buffer();
                 }
             }
         }

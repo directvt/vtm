@@ -43,6 +43,17 @@
 #include <variant>
 #include <vector>
 
+#include <ft2build.h>
+#include FT_FREETYPE_H
+#include FT_TRUETYPE_TABLES_H
+#include FT_MULTIPLE_MASTERS_H
+#include FT_SFNT_NAMES_H
+#include FT_COLOR_H
+#include FT_OTSVG_H
+
+#include <hb-ft.h>
+#include <lunasvg.h>
+
 #ifndef faux
     #define faux (false)
 #endif
@@ -185,6 +196,18 @@ namespace netxs
             ++n;
         }
         return n;
+    }
+    template<ui64 FieldMask>
+    void set_field(si32 v, auto& token)
+    {
+        using TType = std::decay_t<decltype(token)>;
+        token &= static_cast<TType>(~FieldMask);
+        token |= ((TType)(std::make_unsigned_t<decltype(v)>)v << netxs::field_offset<FieldMask>());
+    }
+    template<ui64 FieldMask>
+    auto get_field(auto token)
+    {
+        return (si32)((token & FieldMask) >> netxs::field_offset<FieldMask>());
     }
     // intmath: Set a single p-bit to v.
     template<sz_t P, class T>
@@ -788,15 +811,15 @@ namespace netxs
 
     // intmath: Project bitmap_view to the canvas_view (with nearest-neighbor interpolation and negative bitmap_size support for mirroring).
     template<class NewlineFx = noop>
-    void xform_scale(auto&& canvas, auto canvas_rect, auto clip_rect, auto const& bitmap, auto bitmap_rect, auto handle, NewlineFx online = {})
+    void xform_scale(auto&& canvas, auto canvas_rect, auto clip_rect_on_canvas, auto const& bitmap, auto rect_in_bitmap, auto handle, NewlineFx online = {})
     {
         auto dst_size = canvas.size();
         auto src_size = bitmap.size();
-        clip_rect.coor -= canvas.coor();
+        clip_rect_on_canvas.coor -= canvas.coor();
         canvas_rect.coor -= canvas.coor();
-        bitmap_rect.coor -= bitmap.coor();
-        auto dst_view = canvas_rect.trim(clip_rect).trunc(dst_size);
-        auto src_view = bitmap_rect.trunc(src_size);
+        rect_in_bitmap.coor -= bitmap.coor();
+        auto dst_view = canvas_rect.trim(clip_rect_on_canvas).trunc(dst_size);
+        auto src_view = rect_in_bitmap.trunc(src_size);
 
         if (dst_view.size.x == 0 || dst_view.size.y == 0
          || src_view.size.x == 0 || src_view.size.y == 0) return;
@@ -804,7 +827,7 @@ namespace netxs
         auto s_00 = src_view.coor.x + src_view.coor.y * src_size.x;
         auto sptr = bitmap.begin();
         auto dptr = canvas.begin() + dst_view.coor.x + dst_view.coor.y * dst_size.x;
-        auto step = (bitmap_rect.size * 65536) / canvas_rect.size;
+        auto step = (rect_in_bitmap.size * 65536) / canvas_rect.size;
         auto half = step * abs(canvas_rect.coor - dst_view.coor) + step / 2; // Centrify by pixel half.
         dst_view.size -= 1;
         auto tail = dptr + dst_view.size.x;
@@ -830,32 +853,36 @@ namespace netxs
         }
     }
 
-    // intmath: Project bitmap_rect to the canvas_rect_coor (with nearest-neighbor interpolation and support for negative bitmap_rect.size to mirroring/flipping).
+    // intmath: Project rect_in_bitmap to the insertion_point_on_canvas (with support for negative rect_in_bitmap.size to mirroring/flipping).
     template<class NewlineFx = noop>
-    void xform_mirror(auto&& canvas, auto clip_rect, auto canvas_rect_coor, auto const& bitmap, auto bitmap_rect, auto handle, NewlineFx online = {})
+    void xform_mirror(auto&& canvas, auto clip_rect_on_canvas, auto insertion_point_on_canvas, auto const& bitmap, auto rect_in_bitmap, auto handle, NewlineFx online = {})
     {
         auto dst_size = canvas.size();
         auto src_size = bitmap.size();
-        clip_rect.coor -= canvas.coor();
-        canvas_rect_coor -= canvas.coor();
-        bitmap_rect.coor -= bitmap.coor();
-        auto src_view = bitmap_rect.trunc(src_size);
-        bitmap_rect.coor = canvas_rect_coor;
-        auto dst_area = bitmap_rect.normalize();
-        auto dst_view = dst_area.trim(clip_rect).trunc(dst_size);
+        // Reduction to local coordinates.
+        clip_rect_on_canvas.coor  -= canvas.coor();
+        insertion_point_on_canvas -= canvas.coor();
+        rect_in_bitmap.coor       -= bitmap.coor();
+        // Preparing viewports.
+        auto src_view = rect_in_bitmap.trunc(src_size);
+        rect_in_bitmap.coor = insertion_point_on_canvas;
+        auto dst_area = rect_in_bitmap.normalize(); // Make rect with top-left orientation.
+        auto dst_view = dst_area.trim(clip_rect_on_canvas).trunc(dst_size);
+        // Synchronous source trimming.
         src_view -= dst_area - dst_view; // Cut invisible sides.
-
-        if (dst_view.size.x == 0 || dst_view.size.y == 0
+        // Checking for emptiness.
+        if (dst_view.size.x <= 0 || dst_view.size.y <= 0
          || src_view.size.x == 0 || src_view.size.y == 0) return;
-
+        // Calculation of steps and starting points.
         auto dx = 1;
         auto dy = std::abs(src_size.x);
         if (src_view.size.x < 0) { dx = -dx; src_view.coor.x -= 1; }
         if (src_view.size.y < 0) { dy = -dy; src_view.coor.y -= 1; }
-
-        dst_view.size -= 1;
+        // Initializing iterators.
         auto sptr = bitmap.begin() + (src_view.coor.x + src_view.coor.y * src_size.x);
         auto dptr = canvas.begin() + (dst_view.coor.x + dst_view.coor.y * dst_size.x);
+        // Cycle controls.
+        dst_view.size -= 1;
         auto tail = dptr + dst_view.size.x;
         auto stop = tail + dst_view.size.y * dst_size.x;
         while (true)
@@ -869,10 +896,70 @@ namespace netxs
                 xptr += dx;
             }
             online();
-            if (dptr == stop) break;
+            if (tail == stop) break;
             sptr += dy;
             tail += dst_size.x;
             dptr = tail - dst_view.size.x;
+        }
+    }
+    // intmath: Project sprite to the canvas (with transforms 0b[FlipY][FlipX][SwapXY]).
+    //          We stick to a "pull-based" rendering (iterating linearly over the destination).
+    //          Linear memory writes are significantly more cache-friendly and performant than
+    //          scattered writes, especially when dealing with large framebuffers or video memory.
+    //          This allows the CPU to utilize Write Combining and avoid frequent Cache Line
+    //          bouncing (RFO). To maintain compatibility with the "push-based" raster
+    //          transformation logic, the imagens::xlate conjugation table may be used.
+    template<class rect, class NewlineFx = noop>
+    void xform_render(auto& canvas, rect canvas_clip,   // canvas and canvas_clip are in global coords.
+                      auto& sprite, rect document_area, // sprite is hosted inside the document area which is in global coords.
+                      si32 xform, auto fx, NewlineFx online_fx = {}) // xform: document's D4 transformations.
+    {
+        auto canvas_area = canvas.area(); // Global coordinates.
+        auto sprite_area = sprite.area(); // Local coordinates relative to document_area.
+        auto global_sprite_area = document_area.transform(sprite_area, xform);
+        auto dst_rect = canvas_area.trim(canvas_clip).trim(global_sprite_area); // Global dst rect.
+        if (dst_rect.size.x <= 0 || dst_rect.size.y <= 0) return;
+
+        auto src_rect = document_area.untransform(dst_rect, xform); // Make dst_rect local to untransformed document_area.
+        dst_rect.coor -= canvas_area.coor; // Make it relative to canvas.
+        src_rect.coor -= sprite_area.coor; // Make it relative to sprite.
+
+        auto src_dx = 1;
+        auto src_dy = sprite.size().x;
+        auto dst_dy = canvas.size().x;
+        auto s_ptr = sprite.begin() + src_rect.coor.y * src_dy + src_rect.coor.x;
+        auto d_ptr = canvas.begin() + dst_rect.coor.y * dst_dy + dst_rect.coor.x;
+        if (xform & 0b001) // SwapXY
+        {
+            std::swap(src_dx, src_dy);
+        }
+        if (xform & 0b010) // FlipX
+        {
+            s_ptr += (dst_rect.size.x - 1) * src_dx;
+            src_dx = -src_dx;
+        }
+        if (xform & 0b100) // FlipY
+        {
+            s_ptr += (dst_rect.size.y - 1) * src_dy;
+            src_dy = -src_dy;
+        }
+        auto h = dst_rect.size.y;
+        while (true)
+        {
+            auto w = dst_rect.size.x;
+            auto dst_ptr = d_ptr;
+            auto src_ptr = s_ptr;
+            while (true)
+            {
+                fx(*dst_ptr, *src_ptr);
+                if (--w == 0) break;
+                dst_ptr++; // We walk along a huge canvas.
+                src_ptr += src_dx;
+            }
+            online_fx();
+            if (--h == 0) break;
+            d_ptr += dst_dy;
+            s_ptr += src_dy;
         }
     }
 
@@ -933,45 +1020,6 @@ namespace netxs
             data2 += skip2;
         }
     }
-
-    // intmath: Generic bitmap.
-    template<class T, class Rect>
-    struct raster
-    {
-        using base = T;
-        base _data;
-        Rect _area;
-        Rect _clip;
-        auto length() const { return _data.length(); }
-        auto  begin()       { return _data.begin();  }
-        auto  begin() const { return _data.begin();  }
-        auto   data()       { return _data.data();   }
-        auto   data() const { return _data.data();   }
-        auto    end()       { return _data.end();    }
-        auto    end() const { return _data.end();    }
-        auto&  clip()       { return _clip;          }
-        auto&  clip() const { return _clip;          }
-        auto&  area()       { return _area;          }
-        auto&  area() const { return _area;          }
-        auto   clip(auto c) { _clip = c;             }
-        void   step(auto s) { _area.coor += s;       }
-        void   move(auto p) { _area.coor = p;        }
-        auto&  size()       { return _area.size;     }
-        auto&  size() const { return _area.size;     }
-        auto&  coor()       { return _area.coor;     }
-        auto&  coor() const { return _area.coor;     }
-        auto& operator [] (auto p) { return *(begin() + p.x + p.y * _area.size.x); }
-        void size(auto new_size, auto... filler)
-        {
-            _area.size = new_size;
-            _data.resize(new_size.x * new_size.y, filler...);
-        }
-        raster() = default;
-        raster(T data, Rect area)
-            : _data{ data },
-              _area{ area }
-        { }
-    };
 
     // intmath: Intersect two sprites and invoke handle(sprite1_element, sprite2_element) for each elem in the intersection.
     template<class NewlineFx = noop>
