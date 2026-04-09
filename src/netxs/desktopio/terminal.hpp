@@ -7425,17 +7425,9 @@ namespace netxs::ui
                             switch (i) // Accumulate transforms if specified.
                             {
                                 case imagens::flip:
-                                {
-                                    auto f = (si32)v;
-                                    while (f)
-                                    {
-                                        if (!xform_ref) xform_ref = 0.f;
-                                        if (f & 0b01) imagens::flip_v_fx(xform_ref.value());
-                                        if (f & 0b10) imagens::flip_h_fx(xform_ref.value());
-                                        f >>= 2;
-                                    }
+                                    if (!xform_ref) xform_ref = 0.f;
+                                    imagens::mirror_fx(xform_ref.value(), v);
                                     break;
-                                }
                                 case imagens::rotate:
                                     if (!xform_ref) xform_ref = 0.f;
                                     imagens::rotate_fx(xform_ref.value(), v);
@@ -7475,23 +7467,33 @@ namespace netxs::ui
                     auto& old_attrs = image_ptr->attrs;
                     for (auto i = 0u; i < new_attrs.size(); i++)
                     {
+                        if (i == imagens::align
+                         || i == imagens::flip
+                         || i == imagens::transform
+                         || i == imagens::rotate
+                         || i == imagens::row
+                         || i == imagens::column
+                         || i == imagens::ontop) // Skip local attributes.
+                        {
+                            continue;
+                        }
                         auto& new_attr = new_attrs[i];
                         auto& old_attr = old_attrs[i];
                         if (!new_attr)
                         {
                             new_attr = old_attr;
                         }
-                        else if (old_attr)
-                        {
-                            if (i == imagens::align)
-                            {
-                                new_attr = imagens::combine_align_fx(old_attr.value(), new_attr.value());
-                            }
-                            else if (i == imagens::transform)
-                            {
-                                new_attr = imagens::combine_transform_fx(old_attr.value(), new_attr.value());
-                            }
-                        }
+                        //else if (old_attr)
+                        //{
+                        //    if (i == imagens::align)
+                        //    {
+                        //        new_attr = imagens::combine_align_fx(old_attr.value(), new_attr.value());
+                        //    }
+                        //    else if (i == imagens::transform)
+                        //    {
+                        //        new_attr = imagens::combine_transform_fx(old_attr.value(), new_attr.value());
+                        //    }
+                        //}
                     }
                 }
                 // Clamp sizes.
@@ -7514,8 +7516,18 @@ namespace netxs::ui
                     gc_str ? draw_block(image_buffer, cell::shaders::full)
                            : draw_block(image_buffer, cell::shaders::image);
                 };
+                //todo revise cache logic (it is just a test)
+                auto different_image_size = [&]
+                {
+                    auto& image = *iter->second;
+                    auto ret = image.attrs[imagens::width ] != new_attrs[imagens::width ]
+                            || image.attrs[imagens::height] != new_attrs[imagens::height]
+                            || image.attrs[imagens::scale ] != new_attrs[imagens::scale ];
+                    if (ret) doc_str = image.document;
+                    return ret;
+                };
                 // Register image.
-                if (iter == image_cache.end() && doc_str)
+                if (iter == image_cache.end() && (doc_str || different_image_size()))
                 {
                     //todo group by id
                     auto image_ptr = ptr::shared(imagens::image{ .id       = id_str,
@@ -7536,11 +7548,16 @@ namespace netxs::ui
                 {
                     log("%%Object with id='%%' updated", prompt::term, id_str ? id_str : "<empty string>");
                     auto& image = *iter->second;
-                    image.document = doc_str;
-                    image.attrs = new_attrs;
-                    //todo notify all gates
-                    //signal(release, ..., gate)
-                    //       scan all gate rasters and looking for the image_index reference in their cells and submit a forward notification if something found
+                    if (image.document != doc_str)
+                    {
+                        image.document = doc_str;
+                        image.attrs[imagens::width] = new_attrs[imagens::width];
+                        image.attrs[imagens::height] = new_attrs[imagens::height];
+                        image.attrs[imagens::scale] = new_attrs[imagens::scale];
+                        //todo notify all gates
+                        //signal(release, ..., gate)
+                        //       scan all gate rasters and looking for the image_index reference in their cells and submit a forward notification if something found
+                    }
                 }
                 if (iter != image_cache.end())
                 {

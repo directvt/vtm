@@ -1083,7 +1083,7 @@ namespace netxs
             return *this;
         }
         // irgb: Pack extra alpha into exponent/mantissa.
-        void pack_alpha(byte extra_alpha) 
+        void pack_alpha(byte extra_alpha)
         {
             auto a_8bit = (ui32)(a * 255.f + 0.5f);
             auto packed = 0x40000000u | (extra_alpha << 15) | (a_8bit << 7); // extra_alpha: bits 15-22, a_8bit: bits 7-14.
@@ -1220,10 +1220,40 @@ namespace netxs
                 attr_list
             #undef X
         };
-        // Dihedral group D4 (the symmetries of a square)
-        auto rotate_fx = [](auto& state, auto r) { auto t = (si32)state; t = (t & 0b100) | ((t + (si32)r)               & 0b011); state = (std::decay_t<decltype(state)>)(t); };
-        auto flip_v_fx = [](auto& state)         { auto t = (si32)state; t = (t ^ 0b100) | ((t + (t & 1 ? 0b00 : 0b10)) & 0b011); state = (std::decay_t<decltype(state)>)(t); };
-        auto flip_h_fx = [](auto& state)         { auto t = (si32)state; t = (t ^ 0b100) | ((t + (t & 1 ? 0b10 : 0b00)) & 0b011); state = (std::decay_t<decltype(state)>)(t); };
+        // Dihedral group D4 (the symmetries of a square) 0b[FlipY][FlipX][SwapXY].
+        //    transfroms: 0   1   2   3   4   5   6   7  =xform
+        //    pull-based: lt  tl  rt  tr  lb  bl  rb  br (left/right/top/bottom-left/right/top/bottom)
+        //    push-based: lt  tl  rt  bl  lb  tr  rb  br (left/right/top/bottom-left/right/top/bottom)
+        //                            |       |
+        enum ds         { lt, tl, rt, tr, lb, bl, rb, br }; // Pull-based sequence.
+        // Reconcile the coordinate systems between the "pull-based" renderer (x_form_mirror_r90) and the "push-based" raster transformer (sprite::transform). In the D4 dihedral group, when SwapXY (bit 0) is active, the order of FlipX/Y applications is non-commutative.
+        // This conjugation table swaps 'Swap + FlipX' (3) with 'Swap + FlipY' (5) to synchronize the two algorithms.
+        static constexpr auto xlate = std::to_array({ lt, tl, rt, bl, lb, tr, rb, br });
+        enum class flips { none, hz, vt, hv };
+        enum class ccw { none, r90, r180, r270 };
+                                                           //direction: lt, tl, rt, tr, lb, bl, rb, br
+        static constexpr auto do_flip = std::to_array({ std::to_array({ lt, tl, rt, tr, lb, bl, rb, br }),    // none
+                                                        std::to_array({ rt, tr, lt, tl, rb, br, lb, bl }),    // hz_flip
+                                                        std::to_array({ lb, bl, rb, br, lt, tl, rt, tr }),    // vt_flip
+                                                        std::to_array({ rb, br, lb, bl, rt, tr, lt, tl }) }); // hv_flip (hz+vt)
+        static constexpr auto do_rCCW = std::to_array({ std::to_array({ lt, tl, rt, tr, lb, bl, rb, br }),    // none
+                                                        std::to_array({ bl, lb, tl, lt, br, rb, tr, rt }),    // CCW90
+                                                        std::to_array({ rb, br, lb, bl, rt, tr, lt, tl }),    // 180
+                                                        std::to_array({ tr, rt, br, rb, tl, lt, bl, lb }) }); // CCW270
+        auto mirror_fx = [](auto& state, auto fx)
+        {
+            auto t = (si32)state & 7;
+            auto f = (si32)fx & 3;
+            t = do_flip[f][t];
+            state = (std::decay_t<decltype(state)>)(t);
+        };
+        auto rotate_fx = [](auto& state, auto rx)
+        {
+            auto t = (si32)state & 7;
+            auto r = (si32)rx & 3;
+            t = do_rCCW[r][t];
+            state = (std::decay_t<decltype(state)>)(t);
+        };
         auto combine_transform_fx = [](auto t1, auto t2)
         {
             auto s1 = (si32)t1;
@@ -1234,7 +1264,7 @@ namespace netxs
             auto r2 = s2 & 3;
             // The new reflection bit is a simple XOR.
             auto f = (f1 ^ f2) ? 4 : 0;
-            // The new rotation bit: 
+            // The new rotation bit:
             // If the first state was reflected, the second rotation is subtracted.
             // Otherwise, it is added.
             auto r = (f1 ? (r1 - r2) : (r1 + r2)) & 3;
@@ -1268,8 +1298,8 @@ namespace netxs
                                { "outside", scale_mode::outside },
                                { "stretch", scale_mode::stretch },
                                { "none"   , scale_mode::none    }} },
-            { imagens::flip,   {{ "none", 0 }, { "v" , 0b00'01 }, { "h" , 0b00'10 }, { "vh" , 0b10'01 }, { "hv" , 0b01'10 }} }, // Roll by two bits in loop and check last two bits.
-            { imagens::rotate, {{ "0", 0 }, { "90" , 1 }, { "180" , 2 }, { "270" , 3 }} },
+            { imagens::flip,   {{ "none", 0 }, { "v" , (si32)flips::vt }, { "h" , (si32)flips::hz }, { "vh" , (si32)flips::hv }, { "hv" , (si32)flips::hv }} },
+            { imagens::rotate, {{ "0", 0 }, { "90" , (si32)ccw::r90 }, { "180" , (si32)ccw::r180 }, { "270" , (si32)ccw::r270 }} },
         };
         auto parse_pair(qiew key, qiew val) -> std::optional<std::pair<si32, fp32>>
         {
@@ -1888,7 +1918,7 @@ namespace netxs
         //  16   | y fragment. ui16
         //  4    | align=[center|left|right][-][middle|top|bottom]
         //  1    | ontop=0 | 1
-        //  3    | transform=0..7 (flip+rotate)
+        //  3    | transform=0..7 ([FlipY][FlipX][SwapXY])
         //  2    | scale=[inside|outside|stretch|none]
 
         static constexpr auto px_objX_16_mask = (ui64)0b00000000'00000000'00000000'00000000'00000000'00000000'11111111'11111111;
@@ -2760,7 +2790,7 @@ namespace netxs
                 template<class T>
                 constexpr color_t(T colors, bool invert, si32 factor = 1)
                     : colors{ colors },
-                      invert{ invert }, 
+                      invert{ invert },
                       factor{ factor }
                 { }
                 constexpr color_t(cell const& brush, si32 factor = 1)
@@ -3283,7 +3313,7 @@ namespace netxs
         void size(twod new_size, cell const& c) // core: Resize canvas.
         {
             auto changed = region.size(std::max(dot_00, new_size));
-            if (changed || Forced) 
+            if (changed || Forced)
             {
                 client.size = region.size;
                 digest++;

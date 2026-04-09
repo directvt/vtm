@@ -18,7 +18,7 @@ Scope                           | Role
 - **Asynchronous Rasterization**: It is recommended to perform rasterization in a parallel thread. Until the raster is ready, the frontend should display the cells without the graphic.
 - **Persistence**: Metadata is stored per-cell to survive scrollback and ensure that wrapped cell-runs remain logically linked for a strict rectangular reflow.
 - **Cursor Position**: Anchored at the top-left; moves to the cell immediately following the rectangle's bottom-right corner after output.
-- **Destructivity**: 
+- **Destructivity**:
   - If the **`gc`** attribute is not empty, the provided grapheme cluster is written to **every cell** in the area (`ceil(width)` by `ceil(height)`), replacing existing text and SGR attributes.
   - If **`gc`** is empty, the output is non-destructive; existing text and SGR attributes remain visually intact under the transparent object.
   - Any text subsequently written over the object's area does not destroy the underlying object. The object metadata remains intact in the cell until explicitly cleared or replaced.
@@ -59,7 +59,7 @@ Attribute     | Values                                 | Default                
 **row**       | `0`..`ceil(height)`                    | `0`                      | Vertical 1-based slicing index for partial rendering (0 = full height, 1..m = specific cell/slice).
 **align**     | \[`left`\|`center`\|`right`\]\[`-`\]\[`top`\|`middle`\|`bottom`\] | `center-middle` | 2D alignment within the rectangle.
 **scale**     | `inside`\|`outside`\|`stretch`\|`none` | `inside`                 | Fit logic (none = exact pixels, cropped if larger).
-**transform** | `0`..`7`                               | `0`                      | 3-bit compact transformation state (flip+rotate).
+**transform** | `0`..`7`                               | `0`                      | 3-bit compact transformation state `[FlipY][FlipX][SwapXY]`.
 **flip**      | `none`\|`v`\|`h`\|`vh`\|`hv`           | `none`                   | Applied in order of appearance in the string.
 **rotate**    | `0`\|`90`\|`180`\|`270`                | `0`                      | CCW rotation applied in order of appearance.
 
@@ -89,13 +89,7 @@ Input State             | Action
 
 1. Scan the OSC string for `key=value` pairs.
 2. Identify document boundaries via first `<` and last `>`.
-3. Apply transformation pipeline (`transform`, `flip`, `rotate`) in execution order.
-   Bitwise Transformation Logic (3-bit state):
-   ```cpp
-   Rotate:          state = (state & 0b100) | ((state + rotationCCW90_steps) & 0b011)
-   Horizontal Flip: state = (state ^ 0b100) | ((state + (state & 1 ? 2 : 0)) & 0b011)
-   Vertical Flip:   state = (state ^ 0b100) | ((state + (state & 1 ? 0 : 2)) & 0b011)
-   ```
+3. Apply transformation pipeline (`transform`, `flip`, `rotate`) in the order they appear.
 
 #### Extensibility
 

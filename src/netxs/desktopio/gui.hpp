@@ -1825,7 +1825,7 @@ namespace netxs::gui
             {
                 auto dst_base = intersect.coor - canvas_area.coor;
                 auto src_base = intersect.coor - layer_area.coor;
-                auto* src_data = (ui32*)svg_btm.data(); 
+                auto* src_data = (ui32*)svg_btm.data();
                 auto src_stride = svg_btm.stride() / sizeof(argb);
                 for (auto y = 0; y < intersect.size.y; ++y)
                 {
@@ -1860,7 +1860,7 @@ namespace netxs::gui
                 }
             }
         }
-        void draw_svg_to_canvas(auto& canvas, 
+        void draw_svg_to_canvas(auto& canvas,
                                 lunasvg::Bitmap const& bitmap_black, // currentColor = #000000
                                 lunasvg::Bitmap const& bitmap_trans, // currentColor = 0x00000000
                                 lunasvg::Bitmap const& bitmap_white, // currentColor = #FFFFFF
@@ -1886,7 +1886,7 @@ namespace netxs::gui
                 for (auto x = 0; x < intersect.size.x; ++x)
                 {
                     auto white_px = argb{ r_white[x] };
-                    if (white_px.chan.a > 0) 
+                    if (white_px.chan.a > 0)
                     {
                         auto dst_xy = twod{ dst_base.x + x, dst_base.y + y };
                         auto& dst_px = canvas[dst_xy];
@@ -2253,7 +2253,7 @@ namespace netxs::gui
             if (c.xy() == 0) return;
             auto code_iter = utf::cpit{ c.txt() };
             codepoints.clear();
-            auto flipandrotate = 0;
+            auto flip_swap = 0;
             auto monochromatic = faux;
             auto img_alignment = bind{ snap::none, snap::none };
             while (code_iter)
@@ -2263,11 +2263,11 @@ namespace netxs::gui
                 {
                          if (codepoint.cdpoint == utf::vs15_code) monochromatic = true;
                     else if (codepoint.cdpoint == utf::vs16_code) monochromatic = faux;
-                    else if (codepoint.cdpoint == utf::vs10_code) flipandrotate = (flipandrotate & 0b100) | ((flipandrotate + 0b001) & 0b011); // +90°  CCW
-                    else if (codepoint.cdpoint == utf::vs11_code) flipandrotate = (flipandrotate & 0b100) | ((flipandrotate + 0b010) & 0b011); // +180° CCW
-                    else if (codepoint.cdpoint == utf::vs12_code) flipandrotate = (flipandrotate & 0b100) | ((flipandrotate + 0b011) & 0b011); // +270° CCW
-                    else if (codepoint.cdpoint == utf::vs13_code) flipandrotate = (flipandrotate ^ 0b100) | ((flipandrotate + (flipandrotate & 1 ? 0b010 : 0)) & 0b011); // Hz flip
-                    else if (codepoint.cdpoint == utf::vs14_code) flipandrotate = (flipandrotate ^ 0b100) | ((flipandrotate + (flipandrotate & 1 ? 0 : 0b010)) & 0b011); // Vt flip
+                    else if (codepoint.cdpoint == utf::vs10_code) imagens::rotate_fx(flip_swap, imagens::ccw::r90 ); // Rotate 90° CCW
+                    else if (codepoint.cdpoint == utf::vs11_code) imagens::rotate_fx(flip_swap, imagens::ccw::r180); // Rotate 180° (=FlipX+FlipY)
+                    else if (codepoint.cdpoint == utf::vs12_code) imagens::rotate_fx(flip_swap, imagens::ccw::r270); // Rotate 270° CCW
+                    else if (codepoint.cdpoint == utf::vs13_code) imagens::mirror_fx(flip_swap, imagens::flips::hz); // Horizontal flip (FlipX)
+                    else if (codepoint.cdpoint == utf::vs14_code) imagens::mirror_fx(flip_swap, imagens::flips::vt); // Vertical flip (FlipY)
                     else if (codepoint.cdpoint == utf::vs04_code) img_alignment.x = snap::head;
                     else if (codepoint.cdpoint == utf::vs05_code) img_alignment.x = snap::center;
                     else if (codepoint.cdpoint == utf::vs06_code) img_alignment.x = snap::tail;
@@ -2306,7 +2306,8 @@ namespace netxs::gui
             auto grid_step = (fp32)cellsz.x;
             auto mtx = c.mtx();
             auto matrix = fp2d{ mtx * cellsz };
-            auto swapxy = flipandrotate & 1;
+            flip_swap = imagens::xlate[flip_swap & 7]; // Convert between the "pull-based" and the "push-based" renderer (we accumulate tranformations in "pull_based").
+            auto swapxy = flip_swap & 1;
             if (swapxy)
             {
                 std::swap(matrix.x, matrix.y);
@@ -2409,9 +2410,9 @@ namespace netxs::gui
             //auto src_bitmap = glyph_mask.raster<byte>();
             //auto bline = rect{base_line, { cellsz.x, 1 } };
             //netxs::onrect(src_bitmap, bline, [](auto& c){ c = std::min(255, c + 64); });
-            if (glyph_mask.area && flipandrotate)
+            if (glyph_mask.area && flip_swap)
             {
-                glyph_mask.transform<irgb>(flipandrotate, matrix);
+                glyph_mask.transform<irgb>(flip_swap, matrix);
             }
         }
         void rasterize_svg_document(imagens::image& image)
@@ -2511,13 +2512,13 @@ namespace netxs::gui
                 netxs::onclip(canvas, raster, fx);
             }
         }
-        void draw_image(auto& canvas, sprite& image_mask, twod offset, argb fgc, bool semi_transparent, si32 /*xform*/)
+        void draw_image(auto& canvas, imagens::image& image, twod offset, argb fgc, bool semi_transparent, si32 xform)
         {
-            auto box = image_mask.area.shift(offset);
+            auto& image_mask = image.fragment;
             auto f_fgc = irgb::nonpma_srgb_to_pma_linear(fgc);
             auto global_alpha = semi_transparent ? 0.5f : 1.0f; // Triggers on SGR 7 (reverse video).
             assert(image_mask.type == sprite::color);
-            auto raster = netxs::raster{ std::span{ (irgb*)image_mask.bits.data(), (size_t)image_mask.area.length() }, box };
+            auto raster = netxs::raster{ std::span{ (irgb*)image_mask.bits.data(), (size_t)image_mask.area.length() }, image_mask.area };
             auto fx = [f_fgc, global_alpha](argb& dst, irgb src) //todo unify: same code in draw_glyph()
             {
                 if (src.a == 0.f) return;
@@ -2532,16 +2533,10 @@ namespace netxs::gui
                 }
                 dst = irgb::pma_linear_to_pma_srgb(f_dst.blend_pma(src * global_alpha));
             };
-            netxs::onclip(canvas, raster, fx);
-
             // xform on write
-            //static constexpr auto dirs = std::to_array<twod>({{ 1, 1 }, {-1, 1 }, {-1,-1 }, { 1,-1 }});
-            //auto dir = dirs[xform & 0b011];
-            //if (xform & 0b100) dir.x = -dir.x; 
-            //auto clip_rect = canvas.clip();
-            //auto bitmap_area = raster.area();
-            //auto canvas_coor = bitmap_area.coor;
-            //netxs::xform_mirror(canvas, clip_rect, canvas_coor, raster, bitmap_area.rotate(dir), fx);
+            auto canvas_clip = canvas.clip(); // Cell placeholder.
+            auto document_area = image.document_area.shift(offset); // Raster inside the document.
+            netxs::xform_render(canvas, canvas_clip, raster, document_area, xform, fx);
         }
         auto render_image(auto& canvas, rect placeholder, argb fgc, cell const& c)
         {
@@ -2592,7 +2587,7 @@ namespace netxs::gui
                         // Rendering.
                         image_xy = (image_xy - dot_11) * cellsz;
                         auto offset = placeholder.coor - image_xy + dxy + fragment_area_coor;
-                        draw_image(canvas, image.fragment, offset, fgc, c.inv(), image_xform);
+                        draw_image(canvas, image, offset, fgc, c.inv(), image_xform);
                     }
                 }
             }
