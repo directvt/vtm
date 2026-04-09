@@ -7416,11 +7416,11 @@ namespace netxs::ui
                     }
                     else // Regular attributes (si32 or dict).
                     {
-                        log(" attr_str=%%, value_str=%%", attr_str, value_str);
+                        //log(" attr_str=%%, value_str=%%", attr_str, value_str);
                         if (auto p = imagens::parse_pair(attr_str, value_str))
                         {
                             auto [i, v] = p.value();
-                            log("  new_attrs[%%]=%%", i, v);
+                            //log("  new_attrs[%%]=%%", i, v);
                             auto& xform_ref = new_attrs[imagens::transform];
                             switch (i) // Accumulate transforms if specified.
                             {
@@ -7450,7 +7450,7 @@ namespace netxs::ui
                 if (auto iter = image_cache.find(id_str); iter != image_cache.end())
                 {
                     auto image_ptr = iter->second;
-                    log("unregistered ", image_ptr->id);
+                    //log("unregistered ", image_ptr->id);
                     image_cache.erase(iter);
                     images.remove(image_ptr->index);
                     if (io_log) log("%%Embedded object '%%' successfully unregistered", prompt::term, image_ptr->id);
@@ -7462,7 +7462,7 @@ namespace netxs::ui
                 // Merge with existing attributes.
                 if (iter != image_cache.end() && doc_str.empty())
                 {
-                    log("image_ptr found");
+                    //log("image_ptr found");
                     auto image_ptr = iter->second;
                     auto& old_attrs = image_ptr->attrs;
                     for (auto i = 0u; i < new_attrs.size(); i++)
@@ -7546,7 +7546,7 @@ namespace netxs::ui
                 }
                 else if (doc_str) // Replace existing image.
                 {
-                    log("%%Object with id='%%' updated", prompt::term, id_str ? id_str : "<empty string>");
+                    //log("%%Object with id='%%' updated", prompt::term, id_str ? id_str : "<empty string>");
                     auto& image = *iter->second;
                     if (image.document != doc_str)
                     {
@@ -7567,15 +7567,6 @@ namespace netxs::ui
                 else // Image id is not registered. Just erase the specified region.
                 {
                     if (io_log) log("%%Erase the specified region. Object with id='%%' is not registered", prompt::term, id_str ? id_str : "<empty string>");
-                }
-                if (io_log)
-                {
-                    log("Image attributes:");
-                    for (auto i = 0u; i < new_attrs.size(); i++) if (i != imagens::rotate && i != imagens::flip) // flip & rotate are compressed to xform.
-                    {
-                        auto value_str = new_attrs[i] ? std::to_string(new_attrs[i].value()) : "<not specified>"s;
-                        log(" %%=%%", imagens::attr_names[i], value_str);
-                    }
                 }
                 // Print image rectangle.
                 if (!x && !y) // Print full raster.
