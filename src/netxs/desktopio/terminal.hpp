@@ -7517,29 +7517,49 @@ namespace netxs::ui
                            : draw_block(image_buffer, cell::shaders::image);
                 };
                 //todo revise cache logic (it is just a test)
-                auto different_image_size = [&]
+                auto different_image_attrs = [&]
                 {
                     auto& image = *iter->second;
-                    auto ret = image.attrs[imagens::width ] != new_attrs[imagens::width ]
-                            || image.attrs[imagens::height] != new_attrs[imagens::height]
-                            || image.attrs[imagens::scale ] != new_attrs[imagens::scale ];
-                    if (ret) doc_str = image.document;
+                    auto ret = new_attrs[imagens::width ] && image.attrs[imagens::width ] != new_attrs[imagens::width ]
+                            || new_attrs[imagens::height] && image.attrs[imagens::height] != new_attrs[imagens::height]
+                            || new_attrs[imagens::dx    ] && image.attrs[imagens::dx    ] != new_attrs[imagens::dx    ]
+                            || new_attrs[imagens::dy    ] && image.attrs[imagens::dy    ] != new_attrs[imagens::dy    ]
+                            || new_attrs[imagens::scale ] && image.attrs[imagens::scale ] != new_attrs[imagens::scale ]
+                            || doc_str && image.document != doc_str;
+                    return ret;
+                };
+                auto same_doc = [&]
+                {
+                    auto& image = *iter->second;
+                    auto ret = (!new_attrs[imagens::width ] || image.attrs[imagens::width ] == new_attrs[imagens::width ])
+                            && (!new_attrs[imagens::height] || image.attrs[imagens::height] == new_attrs[imagens::height])
+                            && (!new_attrs[imagens::scale ] || image.attrs[imagens::scale ] == new_attrs[imagens::scale ])
+                            && (!doc_str || image.document == doc_str);
                     return ret;
                 };
                 // Register image.
-                if (iter != image_cache.end() && iter->second->document != doc_str) // Update doc for existing image.
+                if (iter != image_cache.end() && same_doc()) // Move existing image.
                 {
                     auto& image = *iter->second;
-                    image.document = doc_str;
+                    if (new_attrs[imagens::dx]) image.attrs[imagens::dx] = new_attrs[imagens::dx];
+                    if (new_attrs[imagens::dy]) image.attrs[imagens::dy] = new_attrs[imagens::dy];
+                    //todo signal FE
+                }
+                else if (iter != image_cache.end() && different_image_attrs()) // Update existing image.
+                {
+                    auto& image = *iter->second;
                     image.fragment.reset();
                     image.document_area = {};
                     image.dom = {};
-                    if (new_attrs[imagens::width ]) image.attrs[imagens::width ] = new_attrs[imagens::width];
+                    if (doc_str && image.document != doc_str) image.document = doc_str;
+                    if (new_attrs[imagens::width ]) image.attrs[imagens::width ] = new_attrs[imagens::width ];
                     if (new_attrs[imagens::height]) image.attrs[imagens::height] = new_attrs[imagens::height];
-                    if (new_attrs[imagens::scale ]) image.attrs[imagens::scale ] = new_attrs[imagens::scale];
+                    if (new_attrs[imagens::scale ]) image.attrs[imagens::scale ] = new_attrs[imagens::scale ];
+                    if (new_attrs[imagens::dx    ]) image.attrs[imagens::dx    ] = new_attrs[imagens::dx    ];
+                    if (new_attrs[imagens::dy    ]) image.attrs[imagens::dy    ] = new_attrs[imagens::dy    ];
                     //todo signal FE
                 }
-                else if ((iter == image_cache.end() || different_image_size()) && doc_str)
+                else if (iter == image_cache.end() && doc_str)
                 {
                     //todo group by id
                     auto image_ptr = ptr::shared(imagens::image{ .id       = id_str,
