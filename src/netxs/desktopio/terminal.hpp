@@ -7527,7 +7527,7 @@ namespace netxs::ui
                     return ret;
                 };
                 // Register image.
-                if (iter == image_cache.end() && (doc_str || different_image_size()))
+                if ((iter == image_cache.end() || different_image_size()) && doc_str)
                 {
                     //todo group by id
                     auto image_ptr = ptr::shared(imagens::image{ .id       = id_str,

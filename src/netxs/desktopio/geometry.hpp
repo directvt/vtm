@@ -811,6 +811,10 @@ namespace netxs
             {
                 bits.resize(netxs::udivupper(new_length, sizeof(ui32)));
             }
+            else
+            {
+                bits.resize(0);
+            }
         }
         // sprite: Returns the minimum opaque area within the PMA fp32 sprite.
         template<class irgb>
