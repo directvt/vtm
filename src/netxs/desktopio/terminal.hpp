@@ -7361,7 +7361,6 @@ namespace netxs::ui
             auto& console = *target;
             console.flush();
             utf::trim(attrs_str, netxs::whitespaces);
-            if (!attrs_str) return;
             auto id_str     = qiew{};
             auto sub_id_str = qiew{};
             auto gc_opt     = std::optional<qiew>{};
