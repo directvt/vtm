@@ -7520,12 +7520,12 @@ namespace netxs::ui
                 auto different_image_attrs = [&]
                 {
                     auto& image = *iter->second;
-                    auto ret = new_attrs[imagens::width ] && image.attrs[imagens::width ] != new_attrs[imagens::width ]
-                            || new_attrs[imagens::height] && image.attrs[imagens::height] != new_attrs[imagens::height]
-                            || new_attrs[imagens::dx    ] && image.attrs[imagens::dx    ] != new_attrs[imagens::dx    ]
-                            || new_attrs[imagens::dy    ] && image.attrs[imagens::dy    ] != new_attrs[imagens::dy    ]
-                            || new_attrs[imagens::scale ] && image.attrs[imagens::scale ] != new_attrs[imagens::scale ]
-                            || doc_str && image.document != doc_str;
+                    auto ret = (new_attrs[imagens::width ] && image.attrs[imagens::width ] != new_attrs[imagens::width ])
+                            || (new_attrs[imagens::height] && image.attrs[imagens::height] != new_attrs[imagens::height])
+                            || (new_attrs[imagens::dx    ] && image.attrs[imagens::dx    ] != new_attrs[imagens::dx    ])
+                            || (new_attrs[imagens::dy    ] && image.attrs[imagens::dy    ] != new_attrs[imagens::dy    ])
+                            || (new_attrs[imagens::scale ] && image.attrs[imagens::scale ] != new_attrs[imagens::scale ])
+                            || (doc_str && image.document != doc_str);
                     return ret;
                 };
                 auto same_doc = [&]
