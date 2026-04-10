@@ -7559,7 +7559,7 @@ namespace netxs::ui
                     if (new_attrs[imagens::dy    ]) image.attrs[imagens::dy    ] = new_attrs[imagens::dy    ];
                     //todo signal FE
                 }
-                else if (iter == image_cache.end() && doc_str)
+                else if (iter == image_cache.end() && (id_str || doc_str)) // If there is no id and svg then just clear viewport.
                 {
                     //todo group by id
                     auto image_ptr = ptr::shared(imagens::image{ .id       = id_str,
@@ -7576,21 +7576,21 @@ namespace netxs::ui
                         log("%%The limit on the number of embedded objects has been reached", prompt::term);
                     }
                 }
-                else if (doc_str) // Replace existing image.
-                {
-                    //log("%%Object with id='%%' updated", prompt::term, id_str ? id_str : "<empty string>");
-                    auto& image = *iter->second;
-                    if (image.document != doc_str)
-                    {
-                        image.document = doc_str;
-                        image.attrs[imagens::width] = new_attrs[imagens::width];
-                        image.attrs[imagens::height] = new_attrs[imagens::height];
-                        image.attrs[imagens::scale] = new_attrs[imagens::scale];
-                        //todo notify all gates
-                        //signal(release, ..., gate)
-                        //       scan all gate rasters and looking for the image_index reference in their cells and submit a forward notification if something found
-                    }
-                }
+                //else if (doc_str) // Replace existing image.
+                //{
+                //    //log("%%Object with id='%%' updated", prompt::term, id_str ? id_str : "<empty string>");
+                //    auto& image = *iter->second;
+                //    if (image.document != doc_str)
+                //    {
+                //        image.document = doc_str;
+                //        image.attrs[imagens::width] = new_attrs[imagens::width];
+                //        image.attrs[imagens::height] = new_attrs[imagens::height];
+                //        image.attrs[imagens::scale] = new_attrs[imagens::scale];
+                //        //todo notify all gates
+                //        //signal(release, ..., gate)
+                //        //       scan all gate rasters and looking for the image_index reference in their cells and submit a forward notification if something found
+                //    }
+                //}
                 if (iter != image_cache.end())
                 {
                     auto& image = *iter->second;
