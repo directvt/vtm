@@ -7364,7 +7364,7 @@ namespace netxs::ui
             if (!attrs_str) return;
             auto id_str     = qiew{};
             auto sub_id_str = qiew{};
-            auto gc_str     = qiew{};
+            auto gc_opt     = std::optional{ qiew{} };
             auto doc_str    = qiew{};
             auto unregister = faux;
             auto new_attrs = imagens::image::attrs_t{};
@@ -7412,7 +7412,7 @@ namespace netxs::ui
                     }
                     else if (attr_str == "gc") // gc="string". Grapheme cluster used to fill image area.
                     {
-                        gc_str = value_str;
+                        gc_opt = value_str;
                     }
                     else // Regular attributes (si32 or dict).
                     {
@@ -7510,6 +7510,7 @@ namespace netxs::ui
                 auto h = (si32)std::ceil(_h.value());
                 auto x = (si32)_x.value();
                 auto y = (si32)_y.value();
+                auto gc_str = gc_opt ? gc_opt.value() : " ";
                 auto c = cell{ target->brush }.txt(gc_str, 1, 1, 1, 1);
                 auto print_image_buffer = [&]
                 {
@@ -7527,7 +7528,19 @@ namespace netxs::ui
                     return ret;
                 };
                 // Register image.
-                if ((iter == image_cache.end() || different_image_size()) && doc_str)
+                if (iter != image_cache.end() && iter->second->document != doc_str) // Update doc for existing image.
+                {
+                    auto& image = *iter->second;
+                    image.document = doc_str;
+                    image.fragment.reset();
+                    image.document_area = {};
+                    image.dom = {};
+                    if (new_attrs[imagens::width ]) image.attrs[imagens::width ] = new_attrs[imagens::width];
+                    if (new_attrs[imagens::height]) image.attrs[imagens::height] = new_attrs[imagens::height];
+                    if (new_attrs[imagens::scale ]) image.attrs[imagens::scale ] = new_attrs[imagens::scale];
+                    //todo signal FE
+                }
+                else if ((iter == image_cache.end() || different_image_size()) && doc_str)
                 {
                     //todo group by id
                     auto image_ptr = ptr::shared(imagens::image{ .id       = id_str,

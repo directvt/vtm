@@ -795,6 +795,12 @@ namespace netxs
               type{ undef }
         { }
 
+        void reset()
+        {
+            bits.clear();
+            area = {};
+            type = sprite::undef;
+        }
         template<class Elem>
         auto raster()
         {
@@ -813,7 +819,7 @@ namespace netxs
             }
             else
             {
-                bits.resize(0);
+                bits.clear();
             }
         }
         // sprite: Returns the minimum opaque area within the PMA fp32 sprite.
