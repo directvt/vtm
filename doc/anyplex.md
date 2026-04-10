@@ -49,7 +49,7 @@ Field             | Description
 Attribute     | Values                                 | Default                  | Description
 --------------|----------------------------------------|--------------------------|------------
 **id**        | `<id>[/sub-id]`                        | empty string (`""`)      | Object reference ID.
-**gc**        | `string`                               | empty string (`""`)      | Grapheme cluster to write to cells (will be scaled to a 1x1 cell size).
+**gc**        | `string`                               | ASCII Space (0x20) `" "` | Grapheme cluster to write to cells (will be scaled to a 1x1 cell size).
 **ontop**     | `0`\|`1`                               | `0`                      | 0 = under text, 1 = over text.
 **width**     | `float (0..65535]`                     | Terminal viewport width  | Raster scale width (cells).
 **height**    | `float (0..65535]`                     | Terminal viewport height | Raster scale height (cells).
