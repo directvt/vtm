@@ -4959,6 +4959,11 @@ namespace netxs::os
                     #endif
                     bitmap.get(data, update);
                 }
+                void handle(s11n::xs::img_list         lock)
+                {
+                    s11n::receive_img(lock);
+                    //todo trigger to redraw viewport to update unknown images
+                }
                 void handle(s11n::xs::jgc_list         lock)
                 {
                     s11n::receive_jgc(lock);
@@ -6614,6 +6619,7 @@ namespace netxs::os
             {
                 proxy.sync(data);
                 proxy.request_jgc(intio);
+                proxy.request_images(intio);
             });
             proxy.stop(); // Wake up waiting objects, if any.
             alarm.bell(); // Forced to call close().

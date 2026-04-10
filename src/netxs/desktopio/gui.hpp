@@ -2564,11 +2564,11 @@ namespace netxs::gui
                 auto image_align = c.get_image_align();
                 auto image_xform = c.get_image_xform();
                 auto images = cell::images(); // Lock.
-                if (auto image_ptr = images.exists(image_index)) //todo form all image requests on dtvt recv stage
+                if (auto image_ptr = images.exists(image_index)) // We form all image requests on dtvt recv stage.
                 {
                     auto& image = *image_ptr;
                     //todo diff by sizes
-                    if (image.fragment.type == sprite::undef)
+                    if (image.fragment.type == sprite::undef && image.document.size())
                     {
                         rasterize_svg_document(image);
                     }
@@ -3086,6 +3086,11 @@ namespace netxs::gui
                     netxs::set_flag<task::inner>(owner.reload);
                     owner.check_blinky();
                 }
+            }
+            void handle(s11n::xs::img_list         lock)
+            {
+                s11n::receive_img(lock);
+                netxs::set_flag<task::all>(owner.reload); // Trigger to redraw all to update unknown images.
             }
             void handle(s11n::xs::jgc_list         lock)
             {
@@ -4859,7 +4864,9 @@ namespace netxs::gui
                     auto lock = bell::sync();
                     stream.sync(data);
                     update_gui();
+                    //todo combine these two?
                     stream.request_jgc(stream.intio);
+                    stream.request_images(stream.intio);
                 };
                 directvt::binary::stream::reading_loop(stream.intio, sync);
                 stream.stop(); // Wake up waiting objects, if any.

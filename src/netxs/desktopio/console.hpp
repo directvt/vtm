@@ -224,6 +224,27 @@ namespace netxs::ui
                 }
                 list.thing.sendby(canal);
             }
+            void handle(s11n::xs::request_img lock)
+            {
+                auto& items = lock.thing;
+                auto list = s11n::img_list.freeze();
+                {
+                    auto images = cell::images();
+                    for (auto& unknown_image : items)
+                    {
+                        if (auto image_ptr = images.map[unknown_image.index])
+                        {
+                            auto& image = *image_ptr;
+                            if (image.document.size())
+                            {
+                                auto [w, h, dx, dy, s] = image.get_global_attrs();
+                                list.thing.push(unknown_image.index, image.document, w, h, dx, dy, s);
+                            }
+                        }
+                    }
+                }
+                list.thing.sendby(canal);
+            }
             void handle(s11n::xs::fps         lock)
             {
                 auto& item = lock.thing;

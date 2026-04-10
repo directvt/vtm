@@ -7573,10 +7573,6 @@ namespace netxs::ui
                         image_ptr->index = image_index;
                         iter = image_cache.emplace(id_str, image_ptr).first;
                     }
-                    else
-                    {
-                        log("%%The limit on the number of embedded objects has been reached", prompt::term);
-                    }
                 }
                 //else if (doc_str) // Replace existing image.
                 //{
@@ -9562,6 +9558,14 @@ namespace netxs::ui
                     owner.base::deface();
                 });
             }
+            void handle(s11n::xs::img_list            lock)
+            {
+                s11n::receive_img(lock);
+                owner.base::enqueue([&](auto& /*boss*/) mutable
+                {
+                    owner.base::deface();
+                });
+            }
             void handle(s11n::xs::jgc_list            lock)
             {
                 s11n::receive_jgc(lock);
@@ -9887,6 +9891,7 @@ namespace netxs::ui
                 {
                     stream.sync(utf8);
                     stream.request_jgc(*this);
+                    stream.request_images(*this);
                 }
             };
             auto shutdown_fx = [&]()

@@ -954,7 +954,7 @@ namespace netxs::directvt
         STRUCT_macro(sysclose,          (bool, fast))
         STRUCT_macro(syswinsz,          (id_t, gear_id) (twod, winsize))
         STRUCT_macro(sysfocus,          (id_t, gear_id) (bool, state) (si32, focus_type) (si64, treeid) (ui64, digest))
-        STRUCT_macro(syskeybd,          (id_t, gear_id)  // syskeybd: Devide id.
+        STRUCT_macro(syskeybd,          (id_t, gear_id)  // syskeybd: Device id.
                                         (si32, ctlstat)  // syskeybd: Keybd modifiers.
                                         (time, timecod)  // syskeybd: Event time code.
                                         (si32, virtcod)  // syskeybd: Key virtual code.
@@ -969,7 +969,7 @@ namespace netxs::directvt
                                         (text, vkchord)  // sysmouse: Key virtcode-based chord.
                                         (text, scchord)  // sysmouse: Key scancode-based chord.
                                         (text, chchord)) // sysmouse: Key virtcode+cluster-based chord.
-        STRUCT_macro(sysmouse,          (id_t, gear_id)  // sysmouse: Devide id.
+        STRUCT_macro(sysmouse,          (id_t, gear_id)  // sysmouse: Device id.
                                         (si32, ctlstat)  // sysmouse: Keybd modifiers.
                                         (time, timecod)  // sysmouse: Event time code.
                                         (si32, enabled)  // sysmouse: Mouse device health status.
@@ -990,12 +990,15 @@ namespace netxs::directvt
         STRUCT_macro(req_input_fields,  (id_t, gear_id) (si32, acpStart) (si32, acpEnd))
         STRUCT_macro(ack_input_fields,  (id_t, gear_id) (regs, field_list))
         STRUCT_macro(gui_command,       (id_t, gear_id) (si32, cmd_id) (many, args))
+        STRUCT_macro(img_element,       (ui16, index) (text, document) (fp32, width) (fp32, height) (fp32, dx) (fp32, dy) (fp32, scale))
+        STRUCT_macro(unknown_img,       (ui16, index))
 
         #undef STRUCT_macro
         #undef STRUCT_macro_lite
         #define UNDEFINE_macro
         #include "macrogen.hpp"
 
+        static const auto process_id = datetime::now();
         struct bitmap_dtvt_t
             : public stream
         {
@@ -1007,6 +1010,10 @@ namespace netxs::directvt
 
             cell                           state; // bitmap: .
             core                           image; // bitmap: .
+            std::unordered_map<ui16, ui16> ext_int_image_indexes_map; // bitmap: Registered indexes lookup map.
+            ui16                           last_int_index{}; // bitmap: The last received image index (hot index, we do not check indexes twice in a row).
+            ui16                           last_ext_index{}; // bitmap: The last received image index (hot index, we do not check indexes twice in a row).
+            //std::vector<ui16>              unknown_image_indexes; // bitmap: All received image indexes within the current transaction.
 
             enum : byte
             {
@@ -1030,7 +1037,7 @@ namespace netxs::directvt
             void set(id_t winid, twod coord, core& cache, flag& abort, sz_t& delta)
             {
                 //todo multiple windows
-                stream::reinit(winid, rect{ coord, cache.size() });
+                stream::reinit(winid, rect{ coord, cache.size() }, binary::process_id);
                 auto pen = state;
                 auto src = cache.begin();
                 auto end = cache.end();
@@ -1084,7 +1091,7 @@ namespace netxs::directvt
                     if (changes & bgclr) add(cache.bgc());
                     if (changes & fgclr) add(cache.fgc());
                     if (changes & style) add(cache.stl());
-                    if (changes & rastr) add(cache.img());
+                    if (changes & rastr) add(cache.img()); //todo optimize monotonic runs along x: 1, 2, 3, ..., w
                     if (changes & glyph) add(cluster, cache.egc().bytes(), cluster);
                     state = cache;
                 };
@@ -1143,13 +1150,16 @@ namespace netxs::directvt
             template<class P = noop, class S = noop>
             void get(view& data, P update = {}, S resize = {})
             {
-                auto [myid, area] = stream::take<id_t, rect>(data);
+                auto [myid, area, remote_process_id] = stream::take<id_t, rect, time>(data);
+                auto is_local_forwarding = remote_process_id == binary::process_id;
                 //todo head.myid
                 if (image.size() != area.size)
                 {
                     image.crop(area.size);
                     resize(area.size);
                 }
+                last_ext_index = {};
+                last_int_index = {};
                 auto mark = image.mark();
                 auto head = image.begin();
                 auto tail = image.end();
@@ -1160,7 +1170,37 @@ namespace netxs::directvt
                     if (what & bgclr) stream::take(c.bgc(), data);
                     if (what & fgclr) stream::take(c.fgc(), data);
                     if (what & style) stream::take(c.stl(), data);
-                    if (what & rastr) stream::take(c.img(), data);
+                    if (what & rastr)
+                    {
+                        stream::take(c.img(), data);
+                        if (!is_local_forwarding) // Perform an image index translation for remote rasters.
+                        {
+                            auto image_ext_index = c.get_image_index();
+                            if (image_ext_index && image_ext_index != last_ext_index)
+                            {
+                                last_ext_index = image_ext_index;
+                                auto ext_iter = ext_int_image_indexes_map.find(image_ext_index);//todo use std::array<std::pair<ui16, ui16>, 65536> instead of map
+                                if (ext_iter != ext_int_image_indexes_map.end())
+                                {
+                                    last_int_index = ext_iter->second;
+                                }
+                                else // Register a new empty image and get a new index.
+                                {
+                                    auto images = cell::images(); // Lock. //todo ?make it outside the hot loop?
+                                    auto image_ptr = ptr::shared(imagens::image{});
+                                    last_int_index = images.set(image_ptr);
+                                    if (last_int_index)
+                                    {
+                                        image_ptr->index = last_int_index;
+                                        images.unk.push_back(last_ext_index);
+                                        if constexpr (debugmode) log("%%: request image index: last_int_index=%% last_ext_index=%%", binary::process_id, last_int_index, last_ext_index);
+                                    }
+                                    ext_int_image_indexes_map.emplace(last_ext_index, last_int_index);
+                                }
+                                c.set_image_index(last_int_index);
+                            }
+                        }
+                    }
                     if (what & glyph)
                     {
                         auto& gc = c.egc();
@@ -1801,12 +1841,16 @@ namespace netxs::directvt
         using bitmap_vt16  = wrapper<bitmap_vt16_t>;
         using frames_t     = list<view,   frame_element_t>;
         using jgc_list_t   = list<text,     jgc_element_t>;
+        using img_list_t   = list<text,     img_element_t>;
         using tooltips_t   = list<text, tooltip_element_t>;
         using request_gc_t = list<text, unknown_gc_t>;
+        using request_img_t = list<text, unknown_img_t>;
         using frames       = wrapper<frames_t  >;
         using jgc_list     = wrapper<jgc_list_t>;
+        using img_list     = wrapper<img_list_t>;
         using tooltips     = wrapper<tooltips_t>;
         using request_gc   = wrapper<request_gc_t>;
+        using request_img  = wrapper<request_img_t>;
 
         struct s11n
         {
@@ -1851,7 +1895,11 @@ namespace netxs::directvt
             X(restored         ) /* Notify normal window state.                   */\
             X(req_input_fields ) /* Request input field list.                     */\
             X(ack_input_fields ) /* Reply input field list.                       */\
-            X(gui_command      ) /* GUI command request.                          */
+            X(gui_command      ) /* GUI command request.                          */\
+            X(img_element      ) /* Unknown image metadata.                       */\
+            X(img_list         ) /* List of image metadata (img_elements).        */\
+            X(request_img      ) /* Request unknown images metadata.              */\
+            X(unknown_img      ) /* Unknown image index.                          */
             //X(quit             ) /* Close and disconnect dtvt app.                */
             //X(focus            ) /* Request to set focus.                         */
 
@@ -1884,6 +1932,21 @@ namespace netxs::directvt
                     else log(prompt::s11n, "Unsupported frame type: ", (int)frame.next, "\n", utf::debase(frame.data));
                 }
             }
+            // s11n: Request unknown images metadta (after received bitmap synchronization).
+            void request_images(auto& master)
+            {
+                auto images = cell::images();
+                if (images.unk.size())
+                {
+                    auto list = s11n::request_img.freeze();
+                    for (auto& index : images.unk)
+                    {
+                        list.thing.push(index);
+                    }
+                    images.unk.clear();
+                    list.thing.sendby(master);
+                }
+            }
             // s11n: Request jumbo clusters (after received bitmap synchronization).
             void request_jgc(auto& master)
             {
@@ -1897,6 +1960,26 @@ namespace netxs::directvt
                     }
                     jumbos.unk.clear();
                     list.thing.sendby(master);
+                }
+            }
+            // s11n: Receive image metadata.
+            void receive_img(s11n::xs::img_list& lock)
+            {
+                auto images = cell::images();
+                for (auto& new_image : lock.thing)
+                {
+                    if (auto image_ptr = images.map[new_image.index])
+                    {
+                        auto& image = *image_ptr;
+                        image.document = new_image.document;
+                        image.attrs[imagens::width ] = new_image.width;
+                        image.attrs[imagens::height] = new_image.height;
+                        image.attrs[imagens::dx    ] = new_image.dx;
+                        image.attrs[imagens::dy    ] = new_image.dy;
+                        image.attrs[imagens::scale ] = new_image.scale;
+                        if constexpr (debugmode) log("%%New image metadata: index=%% size=%%,%% dt=%%,%% scale=%%", prompt::s11n,
+                            new_image.index, new_image.width, new_image.height, new_image.dx, new_image.dy, new_image.scale);
+                    }
                 }
             }
             // s11n: Receive jumbo clusters.

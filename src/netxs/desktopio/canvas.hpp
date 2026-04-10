@@ -1344,6 +1344,20 @@ namespace netxs
             imagens::docs dom;
             byte          stamp{}; // Increment on image update to sync with FE.
 
+            auto get_global_attrs()
+            {
+                auto _w = attrs[imagens::width ];
+                auto _h = attrs[imagens::height];
+                auto _x = attrs[imagens::dx    ];
+                auto _y = attrs[imagens::dy    ];
+                auto _s = attrs[imagens::scale ];
+                auto w = _w ? _w.value() : 0.f;
+                auto h = _h ? _h.value() : 0.f;
+                auto x = _x ? _x.value() : 0.f;
+                auto y = _y ? _y.value() : 0.f;
+                auto s = _s ? _s.value() : 0.f;
+                return std::tuple{ w, h, x, y, s };
+            }
             void reset_raster()
             {
                 fragment.reset();
@@ -1358,7 +1372,7 @@ namespace netxs
             using lock = std::mutex;
             using sync = std::lock_guard<lock>;
             using depo = std::array<netxs::sptr<T>, 65536>; // ~1MB
-            using uset = std::unordered_set<ui16>;
+            using uset = std::vector<ui16>;//std::unordered_set<ui16>;
             using pool = generics::indexer<ui16>;
 
             lock mutex; // Object map mutex.
@@ -1380,20 +1394,18 @@ namespace netxs
                 { }
 
                 // cache: Get object.
-                auto& get(ui16 image_index)
-                {
-                    auto image_ptr = map[image_index];
-                    if (!image_ptr)
-                    {
-                        unk.insert(image_index);
-                    }
-                    return image_ptr;
-                }
                 // cache: Set object.
                 auto set(auto image_ptr)
                 {
                     auto image_index = ind.get_new();
-                    map[image_index] = image_ptr;
+                    if (image_index)
+                    {
+                        map[image_index] = image_ptr;
+                    }
+                    else
+                    {
+                        log("The limit on the number of embedded objects has been reached");
+                    }
                     return image_index;
                 }
                 // cache: Remove object.
@@ -1406,6 +1418,14 @@ namespace netxs
                 auto exists(ui16 image_index)
                 {
                     return map[image_index];
+                }
+                // cache: Request the object metadata if index is not registered.
+                auto request_if_absent(ui16 image_index)
+                {
+                    auto iter = map.find(image_index);
+                    auto okay = iter != map.end();
+                    if (!okay) unk.push_back(image_index);
+                    return okay;
                 }
                 auto begin() const { return map.begin(); }
                 auto begin()       { return map.begin(); }
@@ -2005,8 +2025,8 @@ namespace netxs
             st.wipe();
             px = 0;
         }
-        // cell: Blend two cells according to visibility and other attributes.
-        auto& fuse(cell const& c)
+        // cell: Blend two cells according to visibility and other attributes (keep underlying image).
+        auto& fuse_keep_image(cell const& c)
         {
             if (uv.fg.chan.a == 0xFF) uv.fg.mix_one(c.uv.fg);
             else                      uv.fg.mix(c.uv.fg);
@@ -2014,10 +2034,6 @@ namespace netxs
             if (uv.bg.chan.a == 0xFF) uv.bg.mix_one(c.uv.bg);
             else                      uv.bg.mix(c.uv.bg);
 
-            if (c.raw())
-            {
-                px = c.px;
-            }
             if (c.st.xy())
             {
                 gc = c.gc;
@@ -2043,6 +2059,13 @@ namespace netxs
             }
             return *this;
         }
+        // cell: Blend two cells according to visibility and other attributes.
+        auto& fuse(cell const& c)
+        {
+            fuse_keep_image(c);
+            px = c.px;
+            return *this;
+        }
         // cell: Blend two cells if text part != '\0'.
         inline void lite(cell const& c)
         {
@@ -2058,10 +2081,7 @@ namespace netxs
                 st = c.st;
                 gc = c.gc;
             }
-            if (raw())
-            {
-                px = c.px;
-            }
+            px = c.px;
         }
         // cell: Blend cell colors.
         void blend(cell const& c)
@@ -2074,10 +2094,7 @@ namespace netxs
         {
             uv.fg.mix(c.uv.fg, alpha);
             uv.bg.mix(c.uv.bg, alpha);
-            if (c.raw())
-            {
-                px = c.px;
-            }
+            px = c.px;
             if (c.st.xy())
             {
                 st = c.st;
@@ -2094,10 +2111,7 @@ namespace netxs
                 gc = c.gc;
                 uv.fg = uv.bg; // The character must be on top of the cell background. (see block graphics)
             }
-            if (c.raw())
-            {
-                px = c.px;
-            }
+            px = c.px;
             uv.fg.mix(c.uv.fg, alpha);
             uv.bg.mix(c.uv.bg, alpha);
         }
@@ -2107,13 +2121,19 @@ namespace netxs
             fuse(c);
             id = oid;
         }
-        // cell: Blend two cells and set id if it is.
+        // cell: Blend two cells and set id if any.
         void fusefull(cell const& c)
         {
             fuse(c);
             if (c.id) id = c.id;
         }
-        // cell: Blend two cells and set id if it is (fg = bg * c.fg).
+        // cell: Blend two cells and set id if any (keep the underlying image).
+        void fusefull_keep_image(cell const& c)
+        {
+            fuse_keep_image(c);
+            if (c.id) id = c.id;
+        }
+        // cell: Blend two cells and set id if any (fg = bg * c.fg).
         void overlay(cell const& c)
         {
             auto bg_opaque = uv.bg.chan.a == 0xFF;
@@ -2132,10 +2152,7 @@ namespace netxs
             st = c.st;
             if (bg_opaque) uv.bg.mix_one(c.uv.bg);
             else           uv.bg.mix(c.uv.bg);
-            if (c.raw())
-            {
-                px = c.px;
-            }
+            px = c.px;
             if (c.id) id = c.id;
         }
         // cell: Merge two cells and set id.
@@ -2148,10 +2165,7 @@ namespace netxs
         {
             uv = c.uv;
             st.meta(c.st);
-            if (c.raw())
-            {
-                px = c.px;
-            }
+            px = c.px;
         }
         void skipnulls(cell const& c)
         {
@@ -2174,7 +2188,7 @@ namespace netxs
                 {
                     st.xy(c.st.xy());
                 }
-                if (c.raw())
+                if (c.raw()) // Terminal output is non-destructive for images.
                 {
                     px = c.px;
                 }
@@ -2643,7 +2657,7 @@ namespace netxs
                         if (bgc.chan.a < 2) dst.fgc(0xFFffffff);
                         else                dst.fgc(invert(bgc));
                     }
-                    dst.fusefull(src);
+                    dst.fusefull_keep_image(src);
                 }
             };
             struct lite_t : public brush_t<lite_t>
