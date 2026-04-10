@@ -7364,7 +7364,7 @@ namespace netxs::ui
             if (!attrs_str) return;
             auto id_str     = qiew{};
             auto sub_id_str = qiew{};
-            auto gc_opt     = std::optional{ qiew{} };
+            auto gc_opt     = std::optional<qiew>{};
             auto doc_str    = qiew{};
             auto unregister = faux;
             auto new_attrs = imagens::image::attrs_t{};
