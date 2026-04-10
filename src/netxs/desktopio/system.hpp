@@ -2055,7 +2055,7 @@ namespace netxs::os
             auto file = std::ifstream{ path, std::ios::binary | std::ios::ate }; // std::ios::ate: Seek to the end to get file size.
             if (file.is_open())
             {
-                buffer.resize(file.tellg());
+                buffer.resize((size_t)file.tellg());
                 done = !!file.seekg(0, std::ios::beg).read((char*)buffer.data(), buffer.size());
             }
             return done;

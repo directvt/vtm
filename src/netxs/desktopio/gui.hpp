@@ -1952,11 +1952,11 @@ namespace netxs::gui
             //svg_data = test_cc;
             auto change_currentColor = [](std::span<char> data, view colorString) -> auto& // Workaround for currentColor.
             {
-                static thread_local auto matches = std::vector<ui64>{}; // List of currentColors positions within the document.
+                static thread_local auto matches = std::vector<arch>{}; // List of currentColors positions within the document.
                 matches.clear();
                 if (colorString.size() <= "currentColor"sv.size())
                 {
-                    auto pos = ui64{};
+                    auto pos = arch{};
                     auto crop = view{ data.data(), data.size() };
                     while((pos = crop.find("currentColor", pos)) != text::npos)
                     {
