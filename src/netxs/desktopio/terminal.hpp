@@ -7361,10 +7361,9 @@ namespace netxs::ui
             auto& console = *target;
             console.flush();
             utf::trim(attrs_str, netxs::whitespaces);
-            if (!attrs_str) return;
             auto id_str     = qiew{};
             auto sub_id_str = qiew{};
-            auto gc_str     = qiew{};
+            auto gc_opt     = std::optional<qiew>{};
             auto doc_str    = qiew{};
             auto unregister = faux;
             auto new_attrs = imagens::image::attrs_t{};
@@ -7412,7 +7411,7 @@ namespace netxs::ui
                     }
                     else if (attr_str == "gc") // gc="string". Grapheme cluster used to fill image area.
                     {
-                        gc_str = value_str;
+                        gc_opt = value_str;
                     }
                     else // Regular attributes (si32 or dict).
                     {
@@ -7510,6 +7509,7 @@ namespace netxs::ui
                 auto h = (si32)std::ceil(_h.value());
                 auto x = (si32)_x.value();
                 auto y = (si32)_y.value();
+                auto gc_str = gc_opt ? gc_opt.value() : " ";
                 auto c = cell{ target->brush }.txt(gc_str, 1, 1, 1, 1);
                 auto print_image_buffer = [&]
                 {
@@ -7517,17 +7517,49 @@ namespace netxs::ui
                            : draw_block(image_buffer, cell::shaders::image);
                 };
                 //todo revise cache logic (it is just a test)
-                auto different_image_size = [&]
+                auto different_image_attrs = [&]
                 {
                     auto& image = *iter->second;
-                    auto ret = image.attrs[imagens::width ] != new_attrs[imagens::width ]
-                            || image.attrs[imagens::height] != new_attrs[imagens::height]
-                            || image.attrs[imagens::scale ] != new_attrs[imagens::scale ];
-                    if (ret) doc_str = image.document;
+                    auto ret = (new_attrs[imagens::width ] && image.attrs[imagens::width ] != new_attrs[imagens::width ])
+                            || (new_attrs[imagens::height] && image.attrs[imagens::height] != new_attrs[imagens::height])
+                            || (new_attrs[imagens::dx    ] && image.attrs[imagens::dx    ] != new_attrs[imagens::dx    ])
+                            || (new_attrs[imagens::dy    ] && image.attrs[imagens::dy    ] != new_attrs[imagens::dy    ])
+                            || (new_attrs[imagens::scale ] && image.attrs[imagens::scale ] != new_attrs[imagens::scale ])
+                            || (doc_str && image.document != doc_str);
+                    return ret;
+                };
+                auto same_doc = [&]
+                {
+                    auto& image = *iter->second;
+                    auto ret = (!new_attrs[imagens::width ] || image.attrs[imagens::width ] == new_attrs[imagens::width ])
+                            && (!new_attrs[imagens::height] || image.attrs[imagens::height] == new_attrs[imagens::height])
+                            && (!new_attrs[imagens::scale ] || image.attrs[imagens::scale ] == new_attrs[imagens::scale ])
+                            && (!doc_str || image.document == doc_str);
                     return ret;
                 };
                 // Register image.
-                if (iter == image_cache.end() && (doc_str || different_image_size()))
+                if (iter != image_cache.end() && same_doc()) // Move existing image.
+                {
+                    auto& image = *iter->second;
+                    if (new_attrs[imagens::dx]) image.attrs[imagens::dx] = new_attrs[imagens::dx];
+                    if (new_attrs[imagens::dy]) image.attrs[imagens::dy] = new_attrs[imagens::dy];
+                    //todo signal FE
+                }
+                else if (iter != image_cache.end() && different_image_attrs()) // Update existing image.
+                {
+                    auto& image = *iter->second;
+                    image.fragment.reset();
+                    image.document_area = {};
+                    image.dom = {};
+                    if (doc_str && image.document != doc_str) image.document = doc_str;
+                    if (new_attrs[imagens::width ]) image.attrs[imagens::width ] = new_attrs[imagens::width ];
+                    if (new_attrs[imagens::height]) image.attrs[imagens::height] = new_attrs[imagens::height];
+                    if (new_attrs[imagens::scale ]) image.attrs[imagens::scale ] = new_attrs[imagens::scale ];
+                    if (new_attrs[imagens::dx    ]) image.attrs[imagens::dx    ] = new_attrs[imagens::dx    ];
+                    if (new_attrs[imagens::dy    ]) image.attrs[imagens::dy    ] = new_attrs[imagens::dy    ];
+                    //todo signal FE
+                }
+                else if (iter == image_cache.end() && (id_str || doc_str)) // If there is no id and svg then just clear viewport.
                 {
                     //todo group by id
                     auto image_ptr = ptr::shared(imagens::image{ .id       = id_str,
@@ -7544,21 +7576,21 @@ namespace netxs::ui
                         log("%%The limit on the number of embedded objects has been reached", prompt::term);
                     }
                 }
-                else if (doc_str) // Replace existing image.
-                {
-                    //log("%%Object with id='%%' updated", prompt::term, id_str ? id_str : "<empty string>");
-                    auto& image = *iter->second;
-                    if (image.document != doc_str)
-                    {
-                        image.document = doc_str;
-                        image.attrs[imagens::width] = new_attrs[imagens::width];
-                        image.attrs[imagens::height] = new_attrs[imagens::height];
-                        image.attrs[imagens::scale] = new_attrs[imagens::scale];
-                        //todo notify all gates
-                        //signal(release, ..., gate)
-                        //       scan all gate rasters and looking for the image_index reference in their cells and submit a forward notification if something found
-                    }
-                }
+                //else if (doc_str) // Replace existing image.
+                //{
+                //    //log("%%Object with id='%%' updated", prompt::term, id_str ? id_str : "<empty string>");
+                //    auto& image = *iter->second;
+                //    if (image.document != doc_str)
+                //    {
+                //        image.document = doc_str;
+                //        image.attrs[imagens::width] = new_attrs[imagens::width];
+                //        image.attrs[imagens::height] = new_attrs[imagens::height];
+                //        image.attrs[imagens::scale] = new_attrs[imagens::scale];
+                //        //todo notify all gates
+                //        //signal(release, ..., gate)
+                //        //       scan all gate rasters and looking for the image_index reference in their cells and submit a forward notification if something found
+                //    }
+                //}
                 if (iter != image_cache.end())
                 {
                     auto& image = *iter->second;

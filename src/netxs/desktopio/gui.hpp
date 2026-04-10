@@ -1952,11 +1952,11 @@ namespace netxs::gui
             //svg_data = test_cc;
             auto change_currentColor = [](std::span<char> data, view colorString) -> auto& // Workaround for currentColor.
             {
-                static thread_local auto matches = std::vector<ui64>{}; // List of currentColors positions within the document.
+                static thread_local auto matches = std::vector<arch>{}; // List of currentColors positions within the document.
                 matches.clear();
                 if (colorString.size() <= "currentColor"sv.size())
                 {
-                    auto pos = ui64{};
+                    auto pos = arch{};
                     auto crop = view{ data.data(), data.size() };
                     while((pos = crop.find("currentColor", pos)) != text::npos)
                     {
@@ -2425,6 +2425,11 @@ namespace netxs::gui
             {
                 auto& image_dom = *image.dom[0];
                 auto original_doc_size_fpx = fp2d{ image_dom.width(), image_dom.height() }; // Original doc size (float).
+                if (!std::isnormal(original_doc_size_fpx.x) || !std::isnormal(original_doc_size_fpx.y))
+                {
+                    image.fragment.set_area<irgb>(rect{});
+                    return;
+                }
                 auto final_doc_size_fpx = original_doc_size_fpx; // Rendered doc size (float).
 
                 auto attrs = std::array<fp32, imagens::attr_count>{};

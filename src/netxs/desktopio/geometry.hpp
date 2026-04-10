@@ -795,6 +795,12 @@ namespace netxs
               type{ undef }
         { }
 
+        void reset()
+        {
+            bits.clear();
+            area = {};
+            type = sprite::undef;
+        }
         template<class Elem>
         auto raster()
         {
@@ -811,6 +817,10 @@ namespace netxs
             {
                 bits.resize(netxs::udivupper(new_length, sizeof(ui32)));
             }
+            else
+            {
+                bits.clear();
+            }
         }
         // sprite: Returns the minimum opaque area within the PMA fp32 sprite.
         template<class irgb>
@@ -821,7 +831,7 @@ namespace netxs
             auto h = area.size.y;
             auto image_raster = raster<irgb>();
             auto data = image_raster._data;
-            assert(area.length() <= data.size()); // Invalid sprite element type.
+            assert((size_t)area.length() <= data.size()); // Invalid sprite element type.
             auto get_row = [&](si32 y){ return data.subspan(y * w, w); };
             auto y0 = 0;
             auto is_visible = [](irgb p){ return p.a != 0; };

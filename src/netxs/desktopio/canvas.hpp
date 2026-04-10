@@ -1342,6 +1342,7 @@ namespace netxs
             sprite        fragment{ *std::pmr::new_delete_resource() }; // Rasterized fragment within the document area. Using default resource allocator.
             rect          document_area; // All transformations and alignments must be performed for this area.
             imagens::docs dom;
+            byte          stamp{}; // Increment on image update.
         };
 
         template<class T>
@@ -1920,6 +1921,7 @@ namespace netxs
         //  1    | ontop=0 | 1
         //  3    | transform=0..7 ([FlipY][FlipX][SwapXY])
         //  2    | scale=[inside|outside|stretch|none]
+        //  8    | stamp 0..255
 
         static constexpr auto px_objX_16_mask = (ui64)0b00000000'00000000'00000000'00000000'00000000'00000000'11111111'11111111;
         static constexpr auto px_objY_16_mask = (ui64)0b00000000'00000000'00000000'00000000'11111111'11111111'00000000'00000000;
@@ -1927,7 +1929,7 @@ namespace netxs
         static constexpr auto px_align_4_mask = (ui64)0b00000000'00001111'00000000'00000000'00000000'00000000'00000000'00000000;
         static constexpr auto px_xform_3_mask = (ui64)0b00000000'01110000'00000000'00000000'00000000'00000000'00000000'00000000;
         static constexpr auto px_ontop_1_mask = (ui64)0b00000000'10000000'00000000'00000000'00000000'00000000'00000000'00000000;
-      //static constexpr auto px_rsrvd_8_mask = (ui64)0b11111111'00000000'00000000'00000000'00000000'00000000'00000000'00000000;
+        static constexpr auto px_stamp_8_mask = (ui64)0b11111111'00000000'00000000'00000000'00000000'00000000'00000000'00000000;
 
         auto get_image_xy() const
         {
@@ -1944,10 +1946,12 @@ namespace netxs
         auto get_image_align() const { return       netxs::get_field<px_align_4_mask>(px); }
         auto get_image_xform() const { return       netxs::get_field<px_xform_3_mask>(px); }
         auto get_image_ontop() const { return       netxs::get_field<px_ontop_1_mask>(px); }
+        auto get_image_stamp() const { return       netxs::get_field<px_stamp_8_mask>(px); }
         auto set_image_index(si32 n) { netxs::set_field<px_index16_mask>(n, px); }
         auto set_image_align(si32 n) { netxs::set_field<px_align_4_mask>(n, px); }
         auto set_image_xform(si32 n) { netxs::set_field<px_xform_3_mask>(n, px); }
         auto set_image_ontop(si32 n) { netxs::set_field<px_ontop_1_mask>(n, px); }
+        auto set_image_stamp(si32 n) { netxs::set_field<px_stamp_8_mask>(n, px); }
         auto set_image_attrs(imagens::image& image, imagens::image::attrs_t& new_attrs)
         {
             auto attrs = std::array<si32, imagens::attr_count>{};
@@ -1961,6 +1965,7 @@ namespace netxs
             set_image_align(attrs[imagens::align    ]);
             set_image_xform(attrs[imagens::transform]);
             set_image_ontop(attrs[imagens::ontop    ]);
+            set_image_stamp(image.stamp++);
             return *this;
         }
 
