@@ -1342,7 +1342,13 @@ namespace netxs
             sprite        fragment{ *std::pmr::new_delete_resource() }; // Rasterized fragment within the document area. Using default resource allocator.
             rect          document_area; // All transformations and alignments must be performed for this area.
             imagens::docs dom;
-            byte          stamp{}; // Increment on image update.
+            byte          stamp{}; // Increment on image update to sync with FE.
+
+            void reset_raster()
+            {
+                fragment.reset();
+                document_area = {};
+            }
         };
 
         template<class T>
@@ -1401,6 +1407,10 @@ namespace netxs
                 {
                     return map[image_index];
                 }
+                auto begin() const { return map.begin(); }
+                auto begin()       { return map.begin(); }
+                auto end() const   { return map.end(); }
+                auto end()         { return map.end(); }
             };
 
         public:

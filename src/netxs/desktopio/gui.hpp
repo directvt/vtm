@@ -1747,6 +1747,18 @@ namespace netxs::gui
             mono_buffer.release();
             generate_glyphs();
             generate_shadow();
+            reset_cached_rasters();
+        }
+        void reset_cached_rasters()
+        {
+            auto images = cell::images(); // Lock.
+            for (auto image_ptr : images) // Iterate over 65536 ptrs.
+            {
+                if (image_ptr)
+                {
+                    image_ptr->reset_raster();
+                }
+            }
         }
         void draw_layer_to_canvas(auto& canvas, FT_GlyphSlot slot, fp2d pen, fp2d hb_align, irgb fill = {})
         {
@@ -1952,21 +1964,19 @@ namespace netxs::gui
             //svg_data = test_cc;
             auto change_currentColor = [](std::span<char> data, view colorString) -> auto& // Workaround for currentColor.
             {
+                assert(colorString.size() <= "currentColor"sv.size());
                 static thread_local auto matches = std::vector<arch>{}; // List of currentColors positions within the document.
                 matches.clear();
-                if (colorString.size() <= "currentColor"sv.size())
+                auto pos = arch{};
+                auto crop = view{ data.data(), data.size() };
+                while((pos = crop.find("currentColor", pos)) != text::npos)
                 {
-                    auto pos = arch{};
-                    auto crop = view{ data.data(), data.size() };
-                    while((pos = crop.find("currentColor", pos)) != text::npos)
-                    {
-                        matches.push_back(pos);
-                        std::copy(colorString.begin(), colorString.end(), data.begin() + pos); // "#556677"
-                        auto end = pos + "currentColor"sv.size();
-                        pos += colorString.size();
-                        std::fill(data.begin() + pos, data.begin() + end, ' '); // Trailing spaces.
-                        pos = end;
-                    }
+                    matches.push_back(pos);
+                    std::copy(colorString.begin(), colorString.end(), data.begin() + pos); // "#556677"
+                    auto end = pos + "currentColor"sv.size();
+                    pos += colorString.size();
+                    std::fill(data.begin() + pos, data.begin() + end, ' '); // Trailing spaces.
+                    pos = end;
                 }
                 return matches;
             };

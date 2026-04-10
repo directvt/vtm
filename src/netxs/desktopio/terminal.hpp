@@ -7548,10 +7548,12 @@ namespace netxs::ui
                 else if (iter != image_cache.end() && different_image_attrs()) // Update existing image.
                 {
                     auto& image = *iter->second;
-                    image.fragment.reset();
-                    image.document_area = {};
-                    image.dom = {};
-                    if (doc_str && image.document != doc_str) image.document = doc_str;
+                    image.reset_raster(); // Request to rerasterize.
+                    if (doc_str && image.document != doc_str)
+                    {
+                        image.dom = {}; // Request to regenerate DOM.
+                        image.document = doc_str;
+                    }
                     if (new_attrs[imagens::width ]) image.attrs[imagens::width ] = new_attrs[imagens::width ];
                     if (new_attrs[imagens::height]) image.attrs[imagens::height] = new_attrs[imagens::height];
                     if (new_attrs[imagens::scale ]) image.attrs[imagens::scale ] = new_attrs[imagens::scale ];
