@@ -336,8 +336,9 @@ namespace netxs::directvt
                     auto bits = data.substr(sizeof(si32));
                     switch (type_id)
                     {
+                        // item_t{ ... } to convert view -> text inside std::any.
                         #define X(item_t) case make_ui32(#item_t): \
-                                            crop = _take_item<item_t>(bits); \
+                                            crop = item_t{ _take_item<item_t>(bits) }; \
                                             break;
                         type_id_list
                         #undef X

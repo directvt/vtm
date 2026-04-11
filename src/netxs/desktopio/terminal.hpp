@@ -7382,7 +7382,8 @@ namespace netxs::ui
                     // Check if document is empty.
                     auto tmp = doc_str;
                     tmp.pop_front(); // Pop  '<'.
-                    if (auto tag = utf::take_front<faux>(tmp, netxs::whitespaces_and<'>'>)) // 'tag>' or 'tag ...'
+                    auto tag = utf::take_front<faux>(tmp, netxs::whitespaces_and<'>'>);
+                    if (tag || (tmp && tmp.front() == '>')) // 'tag>' or 'tag ...'
                     {
                         auto degenerate_doc = text{};
                         degenerate_doc.reserve(5 + tag.size() * 2); // "<" + tag + "></" + tag + ">"
