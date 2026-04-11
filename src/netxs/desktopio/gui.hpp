@@ -3102,7 +3102,7 @@ namespace netxs::gui
                     auto is_remote = s11n::nat[0];
                     auto image_index = is_remote ? std::exchange(s11n::nat[image.index], 0) : image.index;
                     images.map[image_index] = {};
-                    owner.remove_image_bits(image.index);
+                    owner.remove_image_bits(image_index);
                     netxs::set_flag<task::all>(owner.reload); // Trigger to redraw all to update unknown images.
                 }
             }

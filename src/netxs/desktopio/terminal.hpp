@@ -9588,7 +9588,12 @@ namespace netxs::ui
                     auto is_remote = s11n::nat[0];
                     auto image_index = is_remote ? std::exchange(s11n::nat[image.index], 0) : image.index;
                     images.map[image_index] = {};
-                    owner.base::signal(tier::general, e2::data::image::remove, image_index);
+                    owner.remove_image_bits(image_index);
+                    owner.base::enqueue([&, image_index](auto& /*boss*/) mutable
+                    {
+                        owner.base::signal(tier::general, e2::data::image::remove, image_index);
+                        owner.base::deface();
+                    });
                 }
             }
             void handle(s11n::xs::update_img_request  lock)
@@ -9948,6 +9953,20 @@ namespace netxs::ui
                 });
             };
             ipccon.run_dtvt_app(appcfg, base::size(), connect_fx, receiver_fx, shutdown_fx);
+        }
+        // dtvt: Drop removed image metadata from canvas.
+        void remove_image_bits(ui16 removed_image_index)
+        {
+            auto bitmap_lock = stream.bitmap_dtvt.freeze();
+            auto& grid = bitmap_lock.thing.image;
+            for (auto& c : grid)
+            {
+                auto image_index = c.get_image_index();
+                if (image_index == removed_image_index)
+                {
+                    c.px = {}; // Drop all image metadata.
+                }
+            }
         }
         // dtvt: Return true if application has never sent its canvas.
         auto is_nodtvt()
