@@ -1407,7 +1407,7 @@ namespace netxs
             }
             void check_and_set_attr(si32 attr_index, attrs_t& new_attrs)
             {
-                if (attr_index > 0 && attr_index < imagens::attr_count)
+                if (attr_index >= 0 && attr_index < imagens::attr_count)
                 {
                     if (new_attrs[attr_index])
                     {
