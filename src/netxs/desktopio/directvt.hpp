@@ -932,8 +932,6 @@ namespace netxs::directvt
         auto& operator << (std::ostream& s, many const& my) { s << '{'; for (auto& r : my) s << r.type().name(); return s << '}'; }
 
         STRUCT_macro(frame_element,     (blob, data))
-        STRUCT_macro(jgc_element,       (ui64, token) (text, cluster))
-        STRUCT_macro(tooltip_element,   (id_t, gear_id) (text, utf8) (argb, fgc) (argb, bgc))
         STRUCT_macro(mouse_event,       (id_t, gear_id)
                                         (si32, ctlstat)
                                         (hint, cause)
@@ -992,7 +990,6 @@ namespace netxs::directvt
                                         (fp2d, coordxy)  // sysmouse: Pixel-wise cursor coordinates.
                                         (ui32, changed)) // sysmouse: Update stamp.
         STRUCT_macro(mousebar,          (bool, mode)) // CCC_SMS/* 26:1p */
-        STRUCT_macro(unknown_gc,        (ui64, token))
         STRUCT_macro(fps,               (si32, frame_rate))
         STRUCT_macro(init,              (text, user) (si32, mode) (text, env) (text, cwd) (text, cmd) (twod, win))
         STRUCT_macro(cwd,               (text, path))
@@ -1000,8 +997,14 @@ namespace netxs::directvt
         STRUCT_macro(req_input_fields,  (id_t, gear_id) (si32, acpStart) (si32, acpEnd))
         STRUCT_macro(ack_input_fields,  (id_t, gear_id) (regs, field_list))
         STRUCT_macro(gui_command,       (id_t, gear_id) (si32, cmd_id) (many, args))
-        STRUCT_macro(img_element,       (ui16, index) (text, document) (fp32, width) (fp32, height) (fp32, dx) (fp32, dy) (fp32, scale))
-        STRUCT_macro(unknown_img,       (ui16, index))
+
+        STRUCT_macro(unknown_gc,        (ui64, token)) // Request unknown grapheme cluster list<unknown_gc>.
+        STRUCT_macro(jgc_element,       (ui64, token) (text, cluster)) // Reply grapheme cluster list<jgc_element>.
+
+        STRUCT_macro(unknown_img,       (ui16, index)) // Request unknown image list<unknown_img>.
+        STRUCT_macro(img_element,       (ui16, index) (text, document) (fp32, width) (fp32, height) (fp32, dx) (fp32, dy) (fp32, scale)) // Reply image metadata list<img_element>.
+
+        STRUCT_macro(tooltip_element,   (id_t, gear_id) (text, utf8) (argb, fgc) (argb, bgc))
 
         #undef STRUCT_macro
         #undef STRUCT_macro_lite
@@ -1844,23 +1847,23 @@ namespace netxs::directvt
         struct bitmap_vt16_t  : bitmap_a<svga::vt16,  __COUNTER__ - _counter_base> { };
         struct bitmap_vt_2D_t : bitmap_2<svga::vt_2D, __COUNTER__ - _counter_base> { };
 
-        using bitmap_dtvt  = wrapper<bitmap_dtvt_t>;
-        using bitmap_vtrgb = wrapper<bitmap_vtrgb_t>;
-        using bitmap_vt_2D = wrapper<bitmap_vt_2D_t>;
-        using bitmap_vt256 = wrapper<bitmap_vt256_t>;
-        using bitmap_vt16  = wrapper<bitmap_vt16_t>;
-        using frames_t     = list<view,   frame_element_t>;
-        using jgc_list_t   = list<text,     jgc_element_t>;
-        using img_list_t   = list<text,     img_element_t>;
-        using tooltips_t   = list<text, tooltip_element_t>;
-        using request_gc_t = list<text, unknown_gc_t>;
+        using bitmap_dtvt   = wrapper<bitmap_dtvt_t>;
+        using bitmap_vtrgb  = wrapper<bitmap_vtrgb_t>;
+        using bitmap_vt_2D  = wrapper<bitmap_vt_2D_t>;
+        using bitmap_vt256  = wrapper<bitmap_vt256_t>;
+        using bitmap_vt16   = wrapper<bitmap_vt16_t>;
+        using frames_t      = list<view,   frame_element_t>;
+        using jgc_list_t    = list<text,     jgc_element_t>;
+        using img_list_t    = list<text,     img_element_t>;
+        using tooltips_t    = list<text, tooltip_element_t>;
+        using request_gc_t  = list<text, unknown_gc_t>;
         using request_img_t = list<text, unknown_img_t>;
-        using frames       = wrapper<frames_t  >;
-        using jgc_list     = wrapper<jgc_list_t>;
-        using img_list     = wrapper<img_list_t>;
-        using tooltips     = wrapper<tooltips_t>;
-        using request_gc   = wrapper<request_gc_t>;
-        using request_img  = wrapper<request_img_t>;
+        using frames        = wrapper<frames_t  >;
+        using jgc_list      = wrapper<jgc_list_t>;
+        using img_list      = wrapper<img_list_t>;
+        using tooltips      = wrapper<tooltips_t>;
+        using request_gc    = wrapper<request_gc_t>;
+        using request_img   = wrapper<request_img_t>;
 
         struct s11n
         {
