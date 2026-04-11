@@ -1349,8 +1349,8 @@ namespace netxs
             void set_changes(ui16 new_changed_bits, many& changes)
             {
                 changed_attrs = new_changed_bits;
-                auto i = 0;
-                auto j = 0;
+                auto i = 0u;
+                auto j = 0u;
                 while (i < imagens::attr_count)
                 {
                     if (changed_attrs & (1 << i))
