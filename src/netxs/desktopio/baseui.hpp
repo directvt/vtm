@@ -225,6 +225,14 @@ namespace netxs::events::userland
                 EVENT_XS( disable, si32       ),
                 EVENT_XS( flush  , si32       ),
                 EVENT_XS( utf8   , const text ), // Signaling with a text string, release only.
+                GROUP_XS( image  , si32       ), // general: Image metadata changed.
+
+                SUBSET_XS( image )
+                {
+                    EVENT_XS( sync  , si32 ), // general: Signal to sync unknown image indexes. Arg: not used.
+                    EVENT_XS( update, ui16 ), // general: Image metadata updated. Arg: image index.
+                    EVENT_XS( remove, ui16 ), // general: Image removed. Arg: image index.
+                };
             };
             SUBSET_XS( command )
             {

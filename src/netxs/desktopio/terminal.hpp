@@ -7382,7 +7382,8 @@ namespace netxs::ui
                     // Check if document is empty.
                     auto tmp = doc_str;
                     tmp.pop_front(); // Pop  '<'.
-                    if (auto tag = utf::take_front<faux>(tmp, netxs::whitespaces_and<'>'>)) // 'tag>' or 'tag ...'
+                    auto tag = utf::take_front<faux>(tmp, netxs::whitespaces_and<'>'>);
+                    if (tag || (tmp && tmp.front() == '>')) // 'tag>' or 'tag ...'
                     {
                         auto degenerate_doc = text{};
                         degenerate_doc.reserve(5 + tag.size() * 2); // "<" + tag + "></" + tag + ">"
@@ -7449,10 +7450,11 @@ namespace netxs::ui
                 if (auto iter = image_cache.find(id_str); iter != image_cache.end())
                 {
                     auto image_ptr = iter->second;
-                    //log("unregistered ", image_ptr->id);
+                    auto& image = *image_ptr;
                     image_cache.erase(iter);
-                    images.remove(image_ptr->index);
-                    if (io_log) log("%%Embedded object '%%' successfully unregistered", prompt::term, image_ptr->id);
+                    images.remove(image.index);
+                    base::signal(tier::general, e2::data::image::remove, image.index);
+                    if (io_log) log("%%Embedded object '%%' successfully unregistered", prompt::term, image.id);
                 }
             }
             else
@@ -7541,23 +7543,32 @@ namespace netxs::ui
                 if (iter != image_cache.end() && same_doc()) // Move existing image.
                 {
                     auto& image = *iter->second;
-                    if (new_attrs[imagens::dx]) image.attrs[imagens::dx] = new_attrs[imagens::dx];
-                    if (new_attrs[imagens::dy]) image.attrs[imagens::dy] = new_attrs[imagens::dy];
-                    //todo signal FE
+                    image.reset_changes();
+                    image.check_and_set_attr(imagens::dx, new_attrs);
+                    image.check_and_set_attr(imagens::dy, new_attrs);
+                    if (image.changed_attrs)
+                    {
+                        image.stamp++;
+                        base::signal(tier::general, e2::data::image::update, image.index);
+                    }
                 }
                 else if (iter != image_cache.end() && different_image_attrs()) // Update existing image.
                 {
                     auto& image = *iter->second;
-                    image.fragment.reset();
-                    image.document_area = {};
-                    image.dom = {};
-                    if (doc_str && image.document != doc_str) image.document = doc_str;
-                    if (new_attrs[imagens::width ]) image.attrs[imagens::width ] = new_attrs[imagens::width ];
-                    if (new_attrs[imagens::height]) image.attrs[imagens::height] = new_attrs[imagens::height];
-                    if (new_attrs[imagens::scale ]) image.attrs[imagens::scale ] = new_attrs[imagens::scale ];
-                    if (new_attrs[imagens::dx    ]) image.attrs[imagens::dx    ] = new_attrs[imagens::dx    ];
-                    if (new_attrs[imagens::dy    ]) image.attrs[imagens::dy    ] = new_attrs[imagens::dy    ];
-                    //todo signal FE
+                    image.changed_attrs = {};
+                    image.reset_raster(); // Request to re-rasterize.
+                    image.reset_changes();
+                    image.check_and_set_document(doc_str);
+                    image.check_and_set_attr(imagens::width , new_attrs);
+                    image.check_and_set_attr(imagens::height, new_attrs);
+                    image.check_and_set_attr(imagens::scale , new_attrs);
+                    image.check_and_set_attr(imagens::dx    , new_attrs);
+                    image.check_and_set_attr(imagens::dy    , new_attrs);
+                    if (image.changed_attrs)
+                    {
+                        image.stamp++;
+                        base::signal(tier::general, e2::data::image::update, image.index);
+                    }
                 }
                 else if (iter == image_cache.end() && (id_str || doc_str)) // If there is no id and svg then just clear viewport.
                 {
@@ -7570,10 +7581,6 @@ namespace netxs::ui
                     {
                         image_ptr->index = image_index;
                         iter = image_cache.emplace(id_str, image_ptr).first;
-                    }
-                    else
-                    {
-                        log("%%The limit on the number of embedded objects has been reached", prompt::term);
                     }
                 }
                 //else if (doc_str) // Replace existing image.
@@ -9552,13 +9559,59 @@ namespace netxs::ui
 
             dtvt& owner; // link: Terminal object reference.
 
-            void handle(s11n::xs::bitmap_dtvt       /*lock*/)
+            void direct(s11n::xs::bitmap_dtvt         lock, view& data)
             {
+                auto& bitmap = lock.thing;
+                bitmap.get(data, s11n::nat);
                 owner.base::enqueue([&](auto& /*boss*/) mutable
                 {
                     owner.digest++;
                     owner.base::deface();
                 });
+            }
+            void handle(s11n::xs::img_list            lock)
+            {
+                s11n::receive_img(lock);
+                owner.base::enqueue([&](auto& /*boss*/) mutable
+                {
+                    owner.base::signal(tier::general, e2::data::image::sync);
+                    owner.base::deface();
+                });
+            }
+            void handle(s11n::xs::remove_img_request  lock)
+            {
+                auto& image = lock.thing;
+                image.index &= 0xFFFF;
+                if (image.index)
+                {
+                    auto images = cell::images(); // Lock.
+                    auto is_remote = s11n::nat[0];
+                    auto image_index = is_remote ? std::exchange(s11n::nat[image.index], 0) : image.index;
+                    images.map[image_index] = {};
+                    owner.remove_image_bits(image_index);
+                    owner.base::enqueue([&, image_index](auto& /*boss*/) mutable
+                    {
+                        owner.base::signal(tier::general, e2::data::image::remove, image_index);
+                        owner.base::deface();
+                    });
+                }
+            }
+            void handle(s11n::xs::update_img_request  lock)
+            {
+                auto& image_data = lock.thing;
+                image_data.index &= 0xFFFF;
+                if (image_data.index)
+                {
+                    auto images = cell::images(); // Lock.
+                    auto is_remote = s11n::nat[0];
+                    auto image_index = is_remote ? s11n::nat[image_data.index] : image_data.index;
+                    if (auto image_ptr = images.map[image_index])
+                    {
+                        auto& image = *image_ptr;
+                        image.set_changes(image_data.changed_bits, image_data.changes);
+                        owner.base::signal(tier::general, e2::data::image::update, image_index);
+                    }
+                }
             }
             void handle(s11n::xs::jgc_list            lock)
             {
@@ -9885,6 +9938,7 @@ namespace netxs::ui
                 {
                     stream.sync(utf8);
                     stream.request_jgc(*this);
+                    stream.request_images(*this);
                 }
             };
             auto shutdown_fx = [&]()
@@ -9899,6 +9953,20 @@ namespace netxs::ui
                 });
             };
             ipccon.run_dtvt_app(appcfg, base::size(), connect_fx, receiver_fx, shutdown_fx);
+        }
+        // dtvt: Drop removed image metadata from canvas.
+        void remove_image_bits(ui16 removed_image_index)
+        {
+            auto bitmap_lock = stream.bitmap_dtvt.freeze();
+            auto& grid = bitmap_lock.thing.image;
+            for (auto& c : grid)
+            {
+                auto image_index = c.get_image_index();
+                if (image_index == removed_image_index)
+                {
+                    c.px = {}; // Drop all image metadata.
+                }
+            }
         }
         // dtvt: Return true if application has never sent its canvas.
         auto is_nodtvt()

@@ -1337,22 +1337,114 @@ namespace netxs
             text          id;
             text          sub_id; // Document's sub-element id.
             text          document;
+            bool          document_changed{};
             attrs_t       attrs;
+            ui16          changed_attrs{}; // Contains bits indicating which imagens::attr have changed.
             ui16          index{};
             sprite        fragment{ *std::pmr::new_delete_resource() }; // Rasterized fragment within the document area. Using default resource allocator.
             rect          document_area; // All transformations and alignments must be performed for this area.
             imagens::docs dom;
-            byte          stamp{}; // Increment on image update.
+            byte          stamp{}; // Increment on image update to sync with FE.
+
+            void set_changes(ui16 new_changed_bits, many& changes)
+            {
+                changed_attrs = new_changed_bits;
+                auto i = 0u;
+                auto j = 0u;
+                while (i < imagens::attr_count)
+                {
+                    if (changed_attrs & (1 << i))
+                    {
+                        attrs[i] = std::any_cast<fp32>(changes[j++]);
+                    }
+                    i++;
+                }
+                if (changed_attrs & ((1 << imagens::width )
+                                   | (1 << imagens::height)
+                                   | (1 << imagens::scale )))
+                {
+                    reset_raster();
+                }
+                if (changes.size() > j)
+                {
+                    document_changed = true;
+                    document = std::any_cast<text>(changes[j]);
+                    dom = {}; // Request to regenerate DOM.
+                    reset_raster();
+                }
+            }
+            auto get_changes()
+            {
+                auto changes = many{};
+                auto i = imagens::attr_count;
+                while (i--)
+                {
+                    if (changed_attrs & (1 << i))
+                    {
+                        auto& v = attrs[i];
+                        changes.push_back(v ? v.value() : 0.f);
+                    }
+                }
+                if (document_changed)
+                {
+                    changes.push_back(document);
+                }
+                return changes;
+            }
+            void reset_changes()
+            {
+                changed_attrs = {};
+                document_changed = {};
+            }
+            void check_and_set_document(qiew doc_str)
+            {
+                if (doc_str && document != doc_str)
+                {
+                    dom = {}; // Request to regenerate DOM.
+                    document = doc_str;
+                    document_changed = true;
+                }
+            }
+            void check_and_set_attr(si32 attr_index, attrs_t& new_attrs)
+            {
+                if (attr_index >= 0 && attr_index < imagens::attr_count)
+                {
+                    if (new_attrs[attr_index])
+                    {
+                        changed_attrs |= 1 << attr_index;
+                        attrs[attr_index] = new_attrs[attr_index];
+                    }
+                }
+            }
+            auto get_global_attrs()
+            {
+                auto _w = attrs[imagens::width ];
+                auto _h = attrs[imagens::height];
+                auto _x = attrs[imagens::dx    ];
+                auto _y = attrs[imagens::dy    ];
+                auto _s = attrs[imagens::scale ];
+                auto w = _w ? _w.value() : 0.f;
+                auto h = _h ? _h.value() : 0.f;
+                auto x = _x ? _x.value() : 0.f;
+                auto y = _y ? _y.value() : 0.f;
+                auto s = _s ? _s.value() : 0.f;
+                return std::tuple{ w, h, x, y, s };
+            }
+            void reset_raster()
+            {
+                fragment.reset();
+                document_area = {};
+            }
         };
 
         template<class T>
         struct cache
         {
         protected:
-            using lock = std::mutex;
+            using lock = std::recursive_mutex;
             using sync = std::lock_guard<lock>;
             using depo = std::array<netxs::sptr<T>, 65536>; // ~1MB
-            using uset = std::unordered_set<ui16>;
+            using uset = std::vector<ui16>;//std::unordered_set<ui16>;
             using pool = generics::indexer<ui16>;
 
             lock mutex; // Object map mutex.
@@ -1374,20 +1466,18 @@ namespace netxs
                 { }
 
                 // cache: Get object.
-                auto& get(ui16 image_index)
-                {
-                    auto image_ptr = map[image_index];
-                    if (!image_ptr)
-                    {
-                        unk.insert(image_index);
-                    }
-                    return image_ptr;
-                }
                 // cache: Set object.
                 auto set(auto image_ptr)
                 {
                     auto image_index = ind.get_new();
-                    map[image_index] = image_ptr;
+                    if (image_index)
+                    {
+                        map[image_index] = image_ptr;
+                    }
+                    else
+                    {
+                        log("The limit on the number of embedded objects has been reached");
+                    }
                     return image_index;
                 }
                 // cache: Remove object.
@@ -1401,6 +1491,18 @@ namespace netxs
                 {
                     return map[image_index];
                 }
+                // cache: Request the object metadata if index is not registered.
+                auto request_if_absent(ui16 image_index)
+                {
+                    auto iter = map.find(image_index);
+                    auto okay = iter != map.end();
+                    if (!okay) unk.push_back(image_index);
+                    return okay;
+                }
+                auto begin() const { return map.begin(); }
+                auto begin()       { return map.begin(); }
+                auto end() const   { return map.end(); }
+                auto end()         { return map.end(); }
             };
 
         public:
@@ -1965,7 +2067,7 @@ namespace netxs
             set_image_align(attrs[imagens::align    ]);
             set_image_xform(attrs[imagens::transform]);
             set_image_ontop(attrs[imagens::ontop    ]);
-            set_image_stamp(image.stamp++);
+            set_image_stamp(image.stamp);
             return *this;
         }
 
@@ -1995,8 +2097,8 @@ namespace netxs
             st.wipe();
             px = 0;
         }
-        // cell: Blend two cells according to visibility and other attributes.
-        auto& fuse(cell const& c)
+        // cell: Blend two cells according to visibility and other attributes (keep underlying image).
+        auto& fuse_keep_image(cell const& c)
         {
             if (uv.fg.chan.a == 0xFF) uv.fg.mix_one(c.uv.fg);
             else                      uv.fg.mix(c.uv.fg);
@@ -2004,10 +2106,6 @@ namespace netxs
             if (uv.bg.chan.a == 0xFF) uv.bg.mix_one(c.uv.bg);
             else                      uv.bg.mix(c.uv.bg);
 
-            if (c.raw())
-            {
-                px = c.px;
-            }
             if (c.st.xy())
             {
                 gc = c.gc;
@@ -2033,6 +2131,13 @@ namespace netxs
             }
             return *this;
         }
+        // cell: Blend two cells according to visibility and other attributes.
+        auto& fuse(cell const& c)
+        {
+            fuse_keep_image(c);
+            px = c.px;
+            return *this;
+        }
         // cell: Blend two cells if text part != '\0'.
         inline void lite(cell const& c)
         {
@@ -2048,10 +2153,7 @@ namespace netxs
                 st = c.st;
                 gc = c.gc;
             }
-            if (raw())
-            {
-                px = c.px;
-            }
+            px = c.px;
         }
         // cell: Blend cell colors.
         void blend(cell const& c)
@@ -2064,10 +2166,7 @@ namespace netxs
         {
             uv.fg.mix(c.uv.fg, alpha);
             uv.bg.mix(c.uv.bg, alpha);
-            if (c.raw())
-            {
-                px = c.px;
-            }
+            px = c.px;
             if (c.st.xy())
             {
                 st = c.st;
@@ -2084,10 +2183,7 @@ namespace netxs
                 gc = c.gc;
                 uv.fg = uv.bg; // The character must be on top of the cell background. (see block graphics)
             }
-            if (c.raw())
-            {
-                px = c.px;
-            }
+            px = c.px;
             uv.fg.mix(c.uv.fg, alpha);
             uv.bg.mix(c.uv.bg, alpha);
         }
@@ -2097,13 +2193,19 @@ namespace netxs
             fuse(c);
             id = oid;
         }
-        // cell: Blend two cells and set id if it is.
+        // cell: Blend two cells and set id if any.
         void fusefull(cell const& c)
         {
             fuse(c);
             if (c.id) id = c.id;
         }
-        // cell: Blend two cells and set id if it is (fg = bg * c.fg).
+        // cell: Blend two cells and set id if any (keep the underlying image).
+        void fusefull_keep_image(cell const& c)
+        {
+            fuse_keep_image(c);
+            if (c.id) id = c.id;
+        }
+        // cell: Blend two cells and set id if any (fg = bg * c.fg).
         void overlay(cell const& c)
         {
             auto bg_opaque = uv.bg.chan.a == 0xFF;
@@ -2122,10 +2224,7 @@ namespace netxs
             st = c.st;
             if (bg_opaque) uv.bg.mix_one(c.uv.bg);
             else           uv.bg.mix(c.uv.bg);
-            if (c.raw())
-            {
-                px = c.px;
-            }
+            px = c.px;
             if (c.id) id = c.id;
         }
         // cell: Merge two cells and set id.
@@ -2138,10 +2237,7 @@ namespace netxs
         {
             uv = c.uv;
             st.meta(c.st);
-            if (c.raw())
-            {
-                px = c.px;
-            }
+            px = c.px;
         }
         void skipnulls(cell const& c)
         {
@@ -2164,7 +2260,7 @@ namespace netxs
                 {
                     st.xy(c.st.xy());
                 }
-                if (c.raw())
+                if (c.raw()) // Terminal output is non-destructive for images.
                 {
                     px = c.px;
                 }
@@ -2633,7 +2729,7 @@ namespace netxs
                         if (bgc.chan.a < 2) dst.fgc(0xFFffffff);
                         else                dst.fgc(invert(bgc));
                     }
-                    dst.fusefull(src);
+                    dst.fusefull_keep_image(src);
                 }
             };
             struct lite_t : public brush_t<lite_t>

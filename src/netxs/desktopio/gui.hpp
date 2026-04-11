@@ -1747,6 +1747,18 @@ namespace netxs::gui
             mono_buffer.release();
             generate_glyphs();
             generate_shadow();
+            reset_cached_rasters();
+        }
+        void reset_cached_rasters()
+        {
+            auto images = cell::images(); // Lock.
+            for (auto image_ptr : images) // Iterate over 65536 ptrs.
+            {
+                if (image_ptr)
+                {
+                    image_ptr->reset_raster();
+                }
+            }
         }
         void draw_layer_to_canvas(auto& canvas, FT_GlyphSlot slot, fp2d pen, fp2d hb_align, irgb fill = {})
         {
@@ -1952,21 +1964,19 @@ namespace netxs::gui
             //svg_data = test_cc;
             auto change_currentColor = [](std::span<char> data, view colorString) -> auto& // Workaround for currentColor.
             {
+                assert(colorString.size() <= "currentColor"sv.size());
                 static thread_local auto matches = std::vector<arch>{}; // List of currentColors positions within the document.
                 matches.clear();
-                if (colorString.size() <= "currentColor"sv.size())
+                auto pos = arch{};
+                auto crop = view{ data.data(), data.size() };
+                while((pos = crop.find("currentColor", pos)) != text::npos)
                 {
-                    auto pos = arch{};
-                    auto crop = view{ data.data(), data.size() };
-                    while((pos = crop.find("currentColor", pos)) != text::npos)
-                    {
-                        matches.push_back(pos);
-                        std::copy(colorString.begin(), colorString.end(), data.begin() + pos); // "#556677"
-                        auto end = pos + "currentColor"sv.size();
-                        pos += colorString.size();
-                        std::fill(data.begin() + pos, data.begin() + end, ' '); // Trailing spaces.
-                        pos = end;
-                    }
+                    matches.push_back(pos);
+                    std::copy(colorString.begin(), colorString.end(), data.begin() + pos); // "#556677"
+                    auto end = pos + "currentColor"sv.size();
+                    pos += colorString.size();
+                    std::fill(data.begin() + pos, data.begin() + end, ' '); // Trailing spaces.
+                    pos = end;
                 }
                 return matches;
             };
@@ -2554,11 +2564,11 @@ namespace netxs::gui
                 auto image_align = c.get_image_align();
                 auto image_xform = c.get_image_xform();
                 auto images = cell::images(); // Lock.
-                if (auto image_ptr = images.exists(image_index)) //todo form all image requests on dtvt recv stage
+                if (auto image_ptr = images.exists(image_index)) // We form all image requests on dtvt recv stage.
                 {
                     auto& image = *image_ptr;
                     //todo diff by sizes
-                    if (image.fragment.type == sprite::undef)
+                    if (image.fragment.type == sprite::undef && image.document.size())
                     {
                         rasterize_svg_document(image);
                     }
@@ -3034,7 +3044,7 @@ namespace netxs::gui
                 if (owner.reload == task::all || owner.fsmode == winstate::minimized) // We need full repaint.
                 {
                     if (owner.fsmode == winstate::minimized) owner.redraw = true;
-                    bitmap.get(data);
+                    bitmap.get(data, s11n::nat);
                     if (owner.waitsz == bitmap.image.size()) owner.waitsz = dot_00;
                 }
                 else
@@ -3072,9 +3082,45 @@ namespace netxs::gui
                             }
                         }
                     };
-                    bitmap.get(data, update);
+                    bitmap.get(data, s11n::nat, update);
                     netxs::set_flag<task::inner>(owner.reload);
                     owner.check_blinky();
+                }
+            }
+            void handle(s11n::xs::img_list         lock)
+            {
+                s11n::receive_img(lock);
+                netxs::set_flag<task::all>(owner.reload); // Trigger to redraw all to update unknown images.
+            }
+            void handle(s11n::xs::remove_img_request  lock)
+            {
+                auto& image = lock.thing;
+                image.index &= 0xFFFF;
+                if (image.index)
+                {
+                    auto images = cell::images(); // Lock.
+                    auto is_remote = s11n::nat[0];
+                    auto image_index = is_remote ? std::exchange(s11n::nat[image.index], 0) : image.index;
+                    images.map[image_index] = {};
+                    owner.remove_image_bits(image_index);
+                    netxs::set_flag<task::all>(owner.reload); // Trigger to redraw all to update unknown images.
+                }
+            }
+            void handle(s11n::xs::update_img_request  lock)
+            {
+                auto& image_data = lock.thing;
+                image_data.index &= 0xFFFF;
+                if (image_data.index)
+                {
+                    auto images = cell::images(); // Lock.
+                    auto is_remote = s11n::nat[0];
+                    auto image_index = is_remote ? s11n::nat[image_data.index] : image_data.index;
+                    if (auto image_ptr = images.map[image_index])
+                    {
+                        auto& image = *image_ptr;
+                        image.set_changes(image_data.changed_bits, image_data.changes);
+                        // No need to notify. We are waiting for the arrival of cells with a new stamp.
+                    }
                 }
             }
             void handle(s11n::xs::jgc_list         lock)
@@ -3957,6 +4003,19 @@ namespace netxs::gui
                 {
                     if (mfocus.focused() && blinky.live) blinky.hide();
                     layer_timer_stop(master, timers::blink);
+                }
+            }
+        }
+        void remove_image_bits(ui16 removed_image_index)
+        {
+            auto bitmap_lock = stream.bitmap_dtvt.freeze();
+            auto& grid = bitmap_lock.thing.image;
+            for (auto& c : grid)
+            {
+                auto image_index = c.get_image_index();
+                if (image_index == removed_image_index)
+                {
+                    c.px = {}; // Drop all image metadata.
                 }
             }
         }
@@ -4849,7 +4908,9 @@ namespace netxs::gui
                     auto lock = bell::sync();
                     stream.sync(data);
                     update_gui();
+                    //todo combine these two?
                     stream.request_jgc(stream.intio);
+                    stream.request_images(stream.intio);
                 };
                 directvt::binary::stream::reading_loop(stream.intio, sync);
                 stream.stop(); // Wake up waiting objects, if any.

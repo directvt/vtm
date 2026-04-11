@@ -336,8 +336,9 @@ namespace netxs::directvt
                     auto bits = data.substr(sizeof(si32));
                     switch (type_id)
                     {
+                        // item_t{ ... } to convert view -> text inside std::any.
                         #define X(item_t) case make_ui32(#item_t): \
-                                            crop = _take_item<item_t>(bits); \
+                                            crop = item_t{ _take_item<item_t>(bits) }; \
                                             break;
                         type_id_list
                         #undef X
@@ -612,6 +613,7 @@ namespace netxs::directvt
                 other.reset();
             }
 
+            stream(stream&&) = default;
             stream(stream const&) = default;
             stream(type kind)
                 : basis{ sizeof(basis) + sizeof(kind) },
@@ -621,6 +623,7 @@ namespace netxs::directvt
                 add(basis, kind);
             }
             stream& operator = (stream const&) = default;
+            stream& operator = (stream&&) = default;
         };
 
         template<class Base>
@@ -800,6 +803,14 @@ namespace netxs::directvt
                 : stream{ kind }
             { }
 
+            auto& operator = (list&& l)
+            {
+                copy = std::move(l.copy);
+                item = std::move(l.item);
+                stream::operator=(std::move(l));
+                return *this;
+            }
+
             auto begin() { return iter{ copy, item }; }
             auto   end() { return text::npos; }
             // list: .
@@ -921,81 +932,89 @@ namespace netxs::directvt
         auto& operator << (std::ostream& s, regs const& rs) { s << '{'; for (auto& r : rs) s << r; return s << '}'; }
         auto& operator << (std::ostream& s, many const& my) { s << '{'; for (auto& r : my) s << r.type().name(); return s << '}'; }
 
-        STRUCT_macro(frame_element,     (blob, data))
-        STRUCT_macro(jgc_element,       (ui64, token) (text, cluster))
-        STRUCT_macro(tooltip_element,   (id_t, gear_id) (text, utf8) (argb, fgc) (argb, bgc))
-        STRUCT_macro(mouse_event,       (id_t, gear_id)
-                                        (si32, ctlstat)
-                                        (hint, cause)
-                                        (fp2d, coord)
-                                        (fp2d, delta)
-                                        (si32, buttons)
-                                        (si32, bttn_id)  // Active virtual button id.
-                                        (bool, dragged)  // Button drag state.
-                                        (fp32, whlfp)
-                                        (si32, whlsi)
-                                        (bool, hzwhl)
-                                        (fp2d, click))
-        STRUCT_macro(fullscrn,          (id_t, gear_id))
-        STRUCT_macro(maximize,          (id_t, gear_id))
-        STRUCT_macro(minimize,          (id_t, gear_id))
-        STRUCT_macro(header,            (id_t, window_id) (text, utf8))
-        STRUCT_macro(footer,            (id_t, window_id) (text, utf8))
-        STRUCT_macro(header_request,    (id_t, window_id))
-        STRUCT_macro(footer_request,    (id_t, window_id))
-        STRUCT_macro(warping,           (id_t, window_id) (dent, warpdata))
-        STRUCT_macro(command,           (text, utf8))
-        STRUCT_macro(logs,              (ui32, id) (time, guid) (text, data))
+        STRUCT_macro(frame_element,      (blob, data))
+        STRUCT_macro(mouse_event,        (id_t, gear_id)
+                                         (si32, ctlstat)
+                                         (hint, cause)
+                                         (fp2d, coord)
+                                         (fp2d, delta)
+                                         (si32, buttons)
+                                         (si32, bttn_id)  // Active virtual button id.
+                                         (bool, dragged)  // Button drag state.
+                                         (fp32, whlfp)
+                                         (si32, whlsi)
+                                         (bool, hzwhl)
+                                         (fp2d, click))
+        STRUCT_macro(fullscrn,           (id_t, gear_id))
+        STRUCT_macro(maximize,           (id_t, gear_id))
+        STRUCT_macro(minimize,           (id_t, gear_id))
+        STRUCT_macro(header,             (id_t, window_id) (text, utf8))
+        STRUCT_macro(footer,             (id_t, window_id) (text, utf8))
+        STRUCT_macro(header_request,     (id_t, window_id))
+        STRUCT_macro(footer_request,     (id_t, window_id))
+        STRUCT_macro(warping,            (id_t, window_id) (dent, warpdata))
+        STRUCT_macro(command,            (text, utf8))
+        STRUCT_macro(logs,               (ui32, id) (time, guid) (text, data))
         STRUCT_macro_lite(expose)
-        STRUCT_macro(clipdata,          (id_t, gear_id) (time, hash) (twod, size) (text, utf8) (si32, form) (text, meta))
-        STRUCT_macro(clipdata_request,  (id_t, gear_id) (time, hash))
-        STRUCT_macro(sysboard,          (id_t, gear_id) (twod, size) (text, utf8) (si32, form))
+        STRUCT_macro(clipdata,           (id_t, gear_id) (time, hash) (twod, size) (text, utf8) (si32, form) (text, meta))
+        STRUCT_macro(clipdata_request,   (id_t, gear_id) (time, hash))
+        STRUCT_macro(sysboard,           (id_t, gear_id) (twod, size) (text, utf8) (si32, form))
         STRUCT_macro_lite(sysstart)
-        STRUCT_macro(sysclose,          (bool, fast))
-        STRUCT_macro(syswinsz,          (id_t, gear_id) (twod, winsize))
-        STRUCT_macro(sysfocus,          (id_t, gear_id) (bool, state) (si32, focus_type) (si64, treeid) (ui64, digest))
-        STRUCT_macro(syskeybd,          (id_t, gear_id)  // syskeybd: Devide id.
-                                        (si32, ctlstat)  // syskeybd: Keybd modifiers.
-                                        (time, timecod)  // syskeybd: Event time code.
-                                        (si32, virtcod)  // syskeybd: Key virtual code.
-                                        (si32, scancod)  // syskeybd: Scancode.
-                                        (si32, keystat)  // syskeybd: Key state: unknown, pressed, repeated, released.
-                                        (si32, keycode)  // syskeybd: Key id.
-                                        (byte, payload)  // syskeybd: Payload type.
-                                        (bool, extflag)  // syskeybd: Win32 extflag.
-                                        (bool, handled)  // syskeybd: Key event is handled.
-                                        (si64, touched)  // syskeybd: Key event is touched.
-                                        (text, cluster)  // syskeybd: Generated string.
-                                        (text, vkchord)  // sysmouse: Key virtcode-based chord.
-                                        (text, scchord)  // sysmouse: Key scancode-based chord.
-                                        (text, chchord)) // sysmouse: Key virtcode+cluster-based chord.
-        STRUCT_macro(sysmouse,          (id_t, gear_id)  // sysmouse: Devide id.
-                                        (si32, ctlstat)  // sysmouse: Keybd modifiers.
-                                        (time, timecod)  // sysmouse: Event time code.
-                                        (si32, enabled)  // sysmouse: Mouse device health status.
-                                        (si32, buttons)  // sysmouse: Buttons bit state.
-                                        (si32, bttn_id)  // sysmouse: Active virtual button id.
-                                        (bool, dragged)  // sysmouse: Button drag state.
-                                        (bool, hzwheel)  // sysmouse: If true: Horizontal scroll wheel. If faux: Vertical scroll wheel.
-                                        (fp32, wheelfp)  // sysmouse: Scroll delta in floating units.
-                                        (si32, wheelsi)  // sysmouse: Scroll delta in integer units.
-                                        (fp2d, coordxy)  // sysmouse: Pixel-wise cursor coordinates.
-                                        (ui32, changed)) // sysmouse: Update stamp.
-        STRUCT_macro(mousebar,          (bool, mode)) // CCC_SMS/* 26:1p */
-        STRUCT_macro(unknown_gc,        (ui64, token))
-        STRUCT_macro(fps,               (si32, frame_rate))
-        STRUCT_macro(init,              (text, user) (si32, mode) (text, env) (text, cwd) (text, cmd) (twod, win))
-        STRUCT_macro(cwd,               (text, path))
-        STRUCT_macro(restored,          (id_t, gear_id))
-        STRUCT_macro(req_input_fields,  (id_t, gear_id) (si32, acpStart) (si32, acpEnd))
-        STRUCT_macro(ack_input_fields,  (id_t, gear_id) (regs, field_list))
-        STRUCT_macro(gui_command,       (id_t, gear_id) (si32, cmd_id) (many, args))
+        STRUCT_macro(sysclose,           (bool, fast))
+        STRUCT_macro(syswinsz,           (id_t, gear_id) (twod, winsize))
+        STRUCT_macro(sysfocus,           (id_t, gear_id) (bool, state) (si32, focus_type) (si64, treeid) (ui64, digest))
+        STRUCT_macro(syskeybd,           (id_t, gear_id)  // syskeybd: Device id.
+                                         (si32, ctlstat)  // syskeybd: Keybd modifiers.
+                                         (time, timecod)  // syskeybd: Event time code.
+                                         (si32, virtcod)  // syskeybd: Key virtual code.
+                                         (si32, scancod)  // syskeybd: Scancode.
+                                         (si32, keystat)  // syskeybd: Key state: unknown, pressed, repeated, released.
+                                         (si32, keycode)  // syskeybd: Key id.
+                                         (byte, payload)  // syskeybd: Payload type.
+                                         (bool, extflag)  // syskeybd: Win32 extflag.
+                                         (bool, handled)  // syskeybd: Key event is handled.
+                                         (si64, touched)  // syskeybd: Key event is touched.
+                                         (text, cluster)  // syskeybd: Generated string.
+                                         (text, vkchord)  // sysmouse: Key virtcode-based chord.
+                                         (text, scchord)  // sysmouse: Key scancode-based chord.
+                                         (text, chchord)) // sysmouse: Key virtcode+cluster-based chord.
+        STRUCT_macro(sysmouse,           (id_t, gear_id)  // sysmouse: Device id.
+                                         (si32, ctlstat)  // sysmouse: Keybd modifiers.
+                                         (time, timecod)  // sysmouse: Event time code.
+                                         (si32, enabled)  // sysmouse: Mouse device health status.
+                                         (si32, buttons)  // sysmouse: Buttons bit state.
+                                         (si32, bttn_id)  // sysmouse: Active virtual button id.
+                                         (bool, dragged)  // sysmouse: Button drag state.
+                                         (bool, hzwheel)  // sysmouse: If true: Horizontal scroll wheel. If faux: Vertical scroll wheel.
+                                         (fp32, wheelfp)  // sysmouse: Scroll delta in floating units.
+                                         (si32, wheelsi)  // sysmouse: Scroll delta in integer units.
+                                         (fp2d, coordxy)  // sysmouse: Pixel-wise cursor coordinates.
+                                         (ui32, changed)) // sysmouse: Update stamp.
+        STRUCT_macro(mousebar,           (bool, mode)) // CCC_SMS/* 26:1p */
+        STRUCT_macro(fps,                (si32, frame_rate))
+        STRUCT_macro(init,               (text, user) (si32, mode) (text, env) (text, cwd) (text, cmd) (twod, win))
+        STRUCT_macro(cwd,                (text, path))
+        STRUCT_macro(restored,           (id_t, gear_id))
+        STRUCT_macro(req_input_fields,   (id_t, gear_id) (si32, acpStart) (si32, acpEnd))
+        STRUCT_macro(ack_input_fields,   (id_t, gear_id) (regs, field_list))
+        STRUCT_macro(gui_command,        (id_t, gear_id) (si32, cmd_id) (many, args))
+
+        STRUCT_macro(tooltip_element,    (id_t, gear_id) (text, utf8) (argb, fgc) (argb, bgc))
+
+        STRUCT_macro(unknown_gc,         (ui64, token)) // Request unknown grapheme cluster list<unknown_gc>.
+        STRUCT_macro(jgc_element,        (ui64, token) (text, cluster)) // Reply grapheme cluster list<jgc_element>.
+
+        STRUCT_macro(unknown_img,        (ui16, index)) // Request unknown image list<unknown_img>.
+        STRUCT_macro(img_element,        (ui16, index) (text, document) (fp32, width) (fp32, height) (fp32, dx) (fp32, dy) (fp32, scale)) // Reply image metadata list<img_element>.
+        STRUCT_macro(update_img_request, (ui16, index) (ui16, changed_bits) (many, changes))
+        STRUCT_macro(remove_img_request, (ui16, index))
 
         #undef STRUCT_macro
         #undef STRUCT_macro_lite
         #define UNDEFINE_macro
         #include "macrogen.hpp"
 
+        static const auto process_id = datetime::now();
         struct bitmap_dtvt_t
             : public stream
         {
@@ -1007,6 +1026,8 @@ namespace netxs::directvt
 
             cell                           state; // bitmap: .
             core                           image; // bitmap: .
+            ui16                           last_int_index{}; // bitmap: The last received image index (hot index, we do not check indexes twice in a row).
+            ui16                           last_ext_index{}; // bitmap: The last received image index (hot index, we do not check indexes twice in a row).
 
             enum : byte
             {
@@ -1030,7 +1051,7 @@ namespace netxs::directvt
             void set(id_t winid, twod coord, core& cache, flag& abort, sz_t& delta)
             {
                 //todo multiple windows
-                stream::reinit(winid, rect{ coord, cache.size() });
+                stream::reinit(winid, rect{ coord, cache.size() }, binary::process_id);
                 auto pen = state;
                 auto src = cache.begin();
                 auto end = cache.end();
@@ -1084,7 +1105,7 @@ namespace netxs::directvt
                     if (changes & bgclr) add(cache.bgc());
                     if (changes & fgclr) add(cache.fgc());
                     if (changes & style) add(cache.stl());
-                    if (changes & rastr) add(cache.img());
+                    if (changes & rastr) add(cache.img()); //todo optimize monotonic runs along x: 1, 2, 3, ..., w
                     if (changes & glyph) add(cluster, cache.egc().bytes(), cluster);
                     state = cache;
                 };
@@ -1141,15 +1162,19 @@ namespace netxs::directvt
                 delta = sum;
             }
             template<class P = noop, class S = noop>
-            void get(view& data, P update = {}, S resize = {})
+            void get(view& data, std::array<ui16, 65536>& ext_to_int_map, P update = {}, S resize = {})
             {
-                auto [myid, area] = stream::take<id_t, rect>(data);
+                auto [myid, area, remote_process_id] = stream::take<id_t, rect, time>(data);
+                auto is_remote_forwarding = remote_process_id != binary::process_id;
+                ext_to_int_map[0] = is_remote_forwarding;
                 //todo head.myid
                 if (image.size() != area.size)
                 {
                     image.crop(area.size);
                     resize(area.size);
                 }
+                last_ext_index = {};
+                last_int_index = {};
                 auto mark = image.mark();
                 auto head = image.begin();
                 auto tail = image.end();
@@ -1160,7 +1185,34 @@ namespace netxs::directvt
                     if (what & bgclr) stream::take(c.bgc(), data);
                     if (what & fgclr) stream::take(c.fgc(), data);
                     if (what & style) stream::take(c.stl(), data);
-                    if (what & rastr) stream::take(c.img(), data);
+                    if (what & rastr)
+                    {
+                        stream::take(c.img(), data);
+                        if (is_remote_forwarding) // Perform an image index translation for remote rasters.
+                        if (auto image_ext_index = c.get_image_index())
+                        {
+                            if (image_ext_index != last_ext_index) // Keep the index translation hot in CPU cache.
+                            {
+                                last_ext_index = image_ext_index;
+                                last_int_index = ext_to_int_map[image_ext_index];
+                                if (!last_int_index) // Register a new empty image and get a new index.
+                                {
+                                    auto images = cell::images(); // Lock. //todo ?Should we place it outside of this hot loop?
+                                    auto image_ptr = ptr::shared(imagens::image{});
+                                    last_int_index = images.set(image_ptr);
+                                    if (last_int_index)
+                                    {
+                                        image_ptr->index = last_int_index;
+                                        images.unk.push_back(last_ext_index);
+                                        if constexpr (debugmode) log("%%: request image index: last_int_index=%% last_ext_index=%%", binary::process_id, last_int_index, last_ext_index);
+                                        ext_to_int_map[last_ext_index] = last_int_index; // Update forward map.
+                                        //int_to_ext_map[last_int_index] = last_ext_index; // Update reverse map.
+                                    }
+                                }
+                            }
+                            c.set_image_index(last_int_index);
+                        }
+                    }
                     if (what & glyph)
                     {
                         auto& gc = c.egc();
@@ -1237,6 +1289,11 @@ namespace netxs::directvt
                 //log(prompt::dtvt, "rep count: ", rep_count);
                 //log(prompt::dtvt, "dif count: ", dif_count);
                 //log("----------------------------");
+            }
+            // Do nothing. Just a function stub.
+            void get(view&)
+            {
+                assert(faux); // Not supported. Nat (s11n::nat) is required to perform the remote image index translation.
             }
         };
         template<svga Mode, type Kind>
@@ -1794,64 +1851,74 @@ namespace netxs::directvt
         struct bitmap_vt16_t  : bitmap_a<svga::vt16,  __COUNTER__ - _counter_base> { };
         struct bitmap_vt_2D_t : bitmap_2<svga::vt_2D, __COUNTER__ - _counter_base> { };
 
-        using bitmap_dtvt  = wrapper<bitmap_dtvt_t>;
-        using bitmap_vtrgb = wrapper<bitmap_vtrgb_t>;
-        using bitmap_vt_2D = wrapper<bitmap_vt_2D_t>;
-        using bitmap_vt256 = wrapper<bitmap_vt256_t>;
-        using bitmap_vt16  = wrapper<bitmap_vt16_t>;
-        using frames_t     = list<view,   frame_element_t>;
-        using jgc_list_t   = list<text,     jgc_element_t>;
-        using tooltips_t   = list<text, tooltip_element_t>;
-        using request_gc_t = list<text, unknown_gc_t>;
-        using frames       = wrapper<frames_t  >;
-        using jgc_list     = wrapper<jgc_list_t>;
-        using tooltips     = wrapper<tooltips_t>;
-        using request_gc   = wrapper<request_gc_t>;
+        using bitmap_dtvt   = wrapper<bitmap_dtvt_t>;
+        using bitmap_vtrgb  = wrapper<bitmap_vtrgb_t>;
+        using bitmap_vt_2D  = wrapper<bitmap_vt_2D_t>;
+        using bitmap_vt256  = wrapper<bitmap_vt256_t>;
+        using bitmap_vt16   = wrapper<bitmap_vt16_t>;
+        using frames_t      = list<view,   frame_element_t>;
+        using jgc_list_t    = list<text,     jgc_element_t>;
+        using img_list_t    = list<text,     img_element_t>;
+        using tooltips_t    = list<text, tooltip_element_t>;
+        using request_gc_t  = list<text, unknown_gc_t>;
+        using request_img_t = list<text, unknown_img_t>;
+        using frames        = wrapper<frames_t  >;
+        using jgc_list      = wrapper<jgc_list_t>;
+        using img_list      = wrapper<img_list_t>;
+        using tooltips      = wrapper<tooltips_t>;
+        using request_gc    = wrapper<request_gc_t>;
+        using request_img   = wrapper<request_img_t>;
 
         struct s11n
         {
             #define object_list \
-            X(bitmap_dtvt      ) /* Canvas in dtvt format.                        */\
-            X(bitmap_vt_2D     ) /* Canvas with 2D CharGeometry support.          */\
-            X(bitmap_vtrgb     ) /* Canvas in truecolor format.                   */\
-            X(bitmap_vt256     ) /* Canvas in 256-color format.                   */\
-            X(bitmap_vt16      ) /* Canvas in 16-color format.                    */\
-            X(mouse_event      ) /* Mouse events.                                 */\
-            X(tooltips         ) /* Tooltip list.                                 */\
-            X(jgc_list         ) /* List of jumbo GC.                             */\
-            X(fullscrn         ) /* Notify/Request to fullscreen.                 */\
-            X(maximize         ) /* Request to maximize window.                   */\
-            X(header           ) /* Set window title.                             */\
-            X(footer           ) /* Set window footer.                            */\
-            X(header_request   ) /* Request window title.                         */\
-            X(footer_request   ) /* Request window footer.                        */\
-            X(warping          ) /* Warp resize.                                  */\
-            X(minimize         ) /* Minimize window.                              */\
-            X(expose           ) /* Bring window to the front.                    */\
-            X(command          ) /* Interactive command/result in UTF-8 format.   */\
-            X(frames           ) /* Received frames.                              */\
-            X(tooltip_element  ) /* Tooltip text.                                 */\
-            X(jgc_element      ) /* jumbo GC: gc.token + gc.view.                 */\
-            X(logs             ) /* Debug logs.                                   */\
-            X(syskeybd         ) /* System keybd device.                          */\
-            X(sysmouse         ) /* System mouse device.                          */\
-            X(sysfocus         ) /* System focus device.                          */\
-            X(sysstart         ) /* System start event.                           */\
-            X(sysclose         ) /* System close event.                           */\
-            X(syswinsz         ) /* Console window resize.                        */\
-            X(sysboard         ) /* Clipboard preview.                            */\
-            X(clipdata         ) /* Clipboard raw data.                           */\
-            X(clipdata_request ) /* Request clipboard data.                       */\
-            X(mousebar         ) /* Show mouse cursor.                            */\
-            X(request_gc       ) /* Unknown gc token list.                        */\
-            X(unknown_gc       ) /* Unknown gc token.                             */\
-            X(fps              ) /* Set frame rate.                               */\
-            X(init             ) /* Startup data.                                 */\
-            X(cwd              ) /* CWD Notification.                             */\
-            X(restored         ) /* Notify normal window state.                   */\
-            X(req_input_fields ) /* Request input field list.                     */\
-            X(ack_input_fields ) /* Reply input field list.                       */\
-            X(gui_command      ) /* GUI command request.                          */
+            X(bitmap_dtvt       ) /* Canvas in dtvt format.                        */\
+            X(bitmap_vt_2D      ) /* Canvas with 2D CharGeometry support.          */\
+            X(bitmap_vtrgb      ) /* Canvas in truecolor format.                   */\
+            X(bitmap_vt256      ) /* Canvas in 256-color format.                   */\
+            X(bitmap_vt16       ) /* Canvas in 16-color format.                    */\
+            X(mouse_event       ) /* Mouse events.                                 */\
+            X(fullscrn          ) /* Notify/Request to fullscreen.                 */\
+            X(maximize          ) /* Request to maximize window.                   */\
+            X(header            ) /* Set window title.                             */\
+            X(footer            ) /* Set window footer.                            */\
+            X(header_request    ) /* Request window title.                         */\
+            X(footer_request    ) /* Request window footer.                        */\
+            X(warping           ) /* Warp resize.                                  */\
+            X(minimize          ) /* Minimize window.                              */\
+            X(expose            ) /* Bring window to the front.                    */\
+            X(command           ) /* Interactive command/result in UTF-8 format.   */\
+            X(frames            ) /* Received frames.                              */\
+            X(logs              ) /* Debug logs.                                   */\
+            X(syskeybd          ) /* System keybd device.                          */\
+            X(sysmouse          ) /* System mouse device.                          */\
+            X(sysfocus          ) /* System focus device.                          */\
+            X(sysstart          ) /* System start event.                           */\
+            X(sysclose          ) /* System close event.                           */\
+            X(syswinsz          ) /* Console window resize.                        */\
+            X(sysboard          ) /* Clipboard preview.                            */\
+            X(clipdata          ) /* Clipboard raw data.                           */\
+            X(clipdata_request  ) /* Request clipboard data.                       */\
+            X(mousebar          ) /* Show mouse cursor.                            */\
+            X(fps               ) /* Set frame rate.                               */\
+            X(init              ) /* Startup data.                                 */\
+            X(cwd               ) /* CWD Notification.                             */\
+            X(restored          ) /* Notify normal window state.                   */\
+            X(req_input_fields  ) /* Request input field list.                     */\
+            X(ack_input_fields  ) /* Reply input field list.                       */\
+            X(gui_command       ) /* GUI command request.                          */\
+            X(tooltip_element   ) /* Tooltip text.                                 */\
+            X(tooltips          ) /* Tooltip list.                                 */\
+            X(jgc_element       ) /* jumbo GC: gc.token + gc.view.                 */\
+            X(jgc_list          ) /* List of jumbo GC.                             */\
+            X(request_gc        ) /* Unknown gc token list.                        */\
+            X(unknown_gc        ) /* Unknown gc token.                             */\
+            X(img_element       ) /* Unknown image metadata.                       */\
+            X(img_list          ) /* List of image metadata (img_elements).        */\
+            X(request_img       ) /* Request unknown images metadata.              */\
+            X(unknown_img       ) /* Unknown image index.                          */\
+            X(update_img_request) /* Unknown image index.                          */\
+            X(remove_img_request) /* Unknown image index.                          */
             //X(quit             ) /* Close and disconnect dtvt app.                */
             //X(focus            ) /* Request to set focus.                         */
 
@@ -1869,6 +1936,7 @@ namespace netxs::directvt
             std::unordered_map<type, std::function<void(view&)>> exec; // s11n: .
             escx s11n_output; // s11n: Logs buffer.
             escx s11n_logpad; // s11n: Logs left margin.
+            std::array<ui16, 65536> nat{}; // s11n: ext_to_int_map: Registered image indexes lookup map. nat[0] indicates local(0)/remote(1)
 
             // s11n: Deserialize objects.
             void sync(view& data)
@@ -1884,6 +1952,21 @@ namespace netxs::directvt
                     else log(prompt::s11n, "Unsupported frame type: ", (int)frame.next, "\n", utf::debase(frame.data));
                 }
             }
+            // s11n: Request unknown images metadta (after received bitmap synchronization).
+            void request_images(auto& master)
+            {
+                auto images = cell::images();
+                if (images.unk.size())
+                {
+                    auto list = s11n::request_img.freeze();
+                    for (auto& remote_index : images.unk)
+                    {
+                        list.thing.push(remote_index);
+                    }
+                    images.unk.clear();
+                    list.thing.sendby(master);
+                }
+            }
             // s11n: Request jumbo clusters (after received bitmap synchronization).
             void request_jgc(auto& master)
             {
@@ -1897,6 +1980,30 @@ namespace netxs::directvt
                     }
                     jumbos.unk.clear();
                     list.thing.sendby(master);
+                }
+            }
+            // s11n: Receive image metadata.
+            void receive_img(s11n::xs::img_list& lock)
+            {
+                auto images = cell::images();
+                for (auto& new_image : lock.thing)
+                {
+                    auto remote_index = new_image.index;
+                    if (auto local_index = s11n::nat[remote_index])
+                    {
+                        if (auto image_ptr = images.map[local_index])
+                        {
+                            auto& image = *image_ptr;
+                            image.document = new_image.document;
+                            image.attrs[imagens::width ] = new_image.width;
+                            image.attrs[imagens::height] = new_image.height;
+                            image.attrs[imagens::dx    ] = new_image.dx;
+                            image.attrs[imagens::dy    ] = new_image.dy;
+                            image.attrs[imagens::scale ] = new_image.scale;
+                            if constexpr (debugmode) log("%%New image metadata: index=%% size=%%,%% dt=%%,%% scale=%%", prompt::s11n,
+                                new_image.index, new_image.width, new_image.height, new_image.dx, new_image.dy, new_image.scale);
+                        }
+                    }
                 }
             }
             // s11n: Receive jumbo clusters.
