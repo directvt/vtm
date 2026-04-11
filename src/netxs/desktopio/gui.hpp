@@ -3044,7 +3044,7 @@ namespace netxs::gui
                 if (owner.reload == task::all || owner.fsmode == winstate::minimized) // We need full repaint.
                 {
                     if (owner.fsmode == winstate::minimized) owner.redraw = true;
-                    bitmap.get(data);
+                    bitmap.get(data, s11n::nat);
                     if (owner.waitsz == bitmap.image.size()) owner.waitsz = dot_00;
                 }
                 else
@@ -3082,7 +3082,7 @@ namespace netxs::gui
                             }
                         }
                     };
-                    bitmap.get(data, update);
+                    bitmap.get(data, s11n::nat, update);
                     netxs::set_flag<task::inner>(owner.reload);
                     owner.check_blinky();
                 }

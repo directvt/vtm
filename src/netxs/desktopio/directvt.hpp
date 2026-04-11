@@ -612,6 +612,7 @@ namespace netxs::directvt
                 other.reset();
             }
 
+            stream(stream&&) = default;
             stream(stream const&) = default;
             stream(type kind)
                 : basis{ sizeof(basis) + sizeof(kind) },
@@ -621,6 +622,7 @@ namespace netxs::directvt
                 add(basis, kind);
             }
             stream& operator = (stream const&) = default;
+            stream& operator = (stream&&) = default;
         };
 
         template<class Base>
@@ -799,6 +801,14 @@ namespace netxs::directvt
             list()
                 : stream{ kind }
             { }
+
+            auto& operator = (list&& l)
+            {
+                copy = std::move(l.copy);
+                item = std::move(l.item);
+                stream::operator=(std::move(l));
+                return *this;
+            }
 
             auto begin() { return iter{ copy, item }; }
             auto   end() { return text::npos; }
@@ -1010,10 +1020,8 @@ namespace netxs::directvt
 
             cell                           state; // bitmap: .
             core                           image; // bitmap: .
-            std::unordered_map<ui16, ui16> ext_int_image_indexes_map; // bitmap: Registered indexes lookup map.
             ui16                           last_int_index{}; // bitmap: The last received image index (hot index, we do not check indexes twice in a row).
             ui16                           last_ext_index{}; // bitmap: The last received image index (hot index, we do not check indexes twice in a row).
-            //std::vector<ui16>              unknown_image_indexes; // bitmap: All received image indexes within the current transaction.
 
             enum : byte
             {
@@ -1148,10 +1156,10 @@ namespace netxs::directvt
                 delta = sum;
             }
             template<class P = noop, class S = noop>
-            void get(view& data, P update = {}, S resize = {})
+            void get(view& data, std::array<ui16, 65536>& ext_to_int_map, P update = {}, S resize = {})
             {
                 auto [myid, area, remote_process_id] = stream::take<id_t, rect, time>(data);
-                auto is_local_forwarding = remote_process_id == binary::process_id;
+                auto is_remote_forwarding = remote_process_id != binary::process_id;
                 //todo head.myid
                 if (image.size() != area.size)
                 {
@@ -1173,20 +1181,16 @@ namespace netxs::directvt
                     if (what & rastr)
                     {
                         stream::take(c.img(), data);
-                        if (!is_local_forwarding) // Perform an image index translation for remote rasters.
+                        if (is_remote_forwarding) // Perform an image index translation for remote rasters.
+                        if (auto image_ext_index = c.get_image_index())
                         {
-                            auto image_ext_index = c.get_image_index();
-                            if (image_ext_index && image_ext_index != last_ext_index)
+                            if (image_ext_index != last_ext_index) // Keep the index translation hot in CPU cache.
                             {
                                 last_ext_index = image_ext_index;
-                                auto ext_iter = ext_int_image_indexes_map.find(image_ext_index);//todo use std::array<std::pair<ui16, ui16>, 65536> instead of map
-                                if (ext_iter != ext_int_image_indexes_map.end())
+                                last_int_index = ext_to_int_map[image_ext_index];
+                                if (!last_int_index) // Register a new empty image and get a new index.
                                 {
-                                    last_int_index = ext_iter->second;
-                                }
-                                else // Register a new empty image and get a new index.
-                                {
-                                    auto images = cell::images(); // Lock. //todo ?make it outside the hot loop?
+                                    auto images = cell::images(); // Lock. //todo ?Should we place it outside of this hot loop?
                                     auto image_ptr = ptr::shared(imagens::image{});
                                     last_int_index = images.set(image_ptr);
                                     if (last_int_index)
@@ -1194,11 +1198,12 @@ namespace netxs::directvt
                                         image_ptr->index = last_int_index;
                                         images.unk.push_back(last_ext_index);
                                         if constexpr (debugmode) log("%%: request image index: last_int_index=%% last_ext_index=%%", binary::process_id, last_int_index, last_ext_index);
+                                        ext_to_int_map[last_ext_index] = last_int_index; // Update forward map.
+                                        //int_to_ext_map[last_int_index] = last_ext_index; // Update reverse map.
                                     }
-                                    ext_int_image_indexes_map.emplace(last_ext_index, last_int_index);
                                 }
-                                c.set_image_index(last_int_index);
                             }
+                            c.set_image_index(last_int_index);
                         }
                     }
                     if (what & glyph)
@@ -1277,6 +1282,11 @@ namespace netxs::directvt
                 //log(prompt::dtvt, "rep count: ", rep_count);
                 //log(prompt::dtvt, "dif count: ", dif_count);
                 //log("----------------------------");
+            }
+            // Do nothing. Just a function stub.
+            void get(view&)
+            {
+                assert(faux); // Not supported. Nat (s11n::nat) is required to perform the remote image index translation.
             }
         };
         template<svga Mode, type Kind>
@@ -1917,6 +1927,7 @@ namespace netxs::directvt
             std::unordered_map<type, std::function<void(view&)>> exec; // s11n: .
             escx s11n_output; // s11n: Logs buffer.
             escx s11n_logpad; // s11n: Logs left margin.
+            std::array<ui16, 65536> nat{}; // s11n: ext_to_int_map: Registered image indexes lookup map.
 
             // s11n: Deserialize objects.
             void sync(view& data)
@@ -1939,9 +1950,9 @@ namespace netxs::directvt
                 if (images.unk.size())
                 {
                     auto list = s11n::request_img.freeze();
-                    for (auto& index : images.unk)
+                    for (auto& remote_index : images.unk)
                     {
-                        list.thing.push(index);
+                        list.thing.push(remote_index);
                     }
                     images.unk.clear();
                     list.thing.sendby(master);
@@ -1968,17 +1979,21 @@ namespace netxs::directvt
                 auto images = cell::images();
                 for (auto& new_image : lock.thing)
                 {
-                    if (auto image_ptr = images.map[new_image.index])
+                    auto remote_index = new_image.index;
+                    if (auto local_index = s11n::nat[remote_index])
                     {
-                        auto& image = *image_ptr;
-                        image.document = new_image.document;
-                        image.attrs[imagens::width ] = new_image.width;
-                        image.attrs[imagens::height] = new_image.height;
-                        image.attrs[imagens::dx    ] = new_image.dx;
-                        image.attrs[imagens::dy    ] = new_image.dy;
-                        image.attrs[imagens::scale ] = new_image.scale;
-                        if constexpr (debugmode) log("%%New image metadata: index=%% size=%%,%% dt=%%,%% scale=%%", prompt::s11n,
-                            new_image.index, new_image.width, new_image.height, new_image.dx, new_image.dy, new_image.scale);
+                        if (auto image_ptr = images.map[local_index])
+                        {
+                            auto& image = *image_ptr;
+                            image.document = new_image.document;
+                            image.attrs[imagens::width ] = new_image.width;
+                            image.attrs[imagens::height] = new_image.height;
+                            image.attrs[imagens::dx    ] = new_image.dx;
+                            image.attrs[imagens::dy    ] = new_image.dy;
+                            image.attrs[imagens::scale ] = new_image.scale;
+                            if constexpr (debugmode) log("%%New image metadata: index=%% size=%%,%% dt=%%,%% scale=%%", prompt::s11n,
+                                new_image.index, new_image.width, new_image.height, new_image.dx, new_image.dy, new_image.scale);
+                        }
                     }
                 }
             }

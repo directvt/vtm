@@ -4957,7 +4957,7 @@ namespace netxs::os
                     #else
                         auto update = noop{};
                     #endif
-                    bitmap.get(data, update);
+                    bitmap.get(data, s11n::nat, update);
                 }
                 void handle(s11n::xs::img_list         lock)
                 {

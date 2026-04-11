@@ -9550,8 +9550,10 @@ namespace netxs::ui
 
             dtvt& owner; // link: Terminal object reference.
 
-            void handle(s11n::xs::bitmap_dtvt       /*lock*/)
+            void direct(s11n::xs::bitmap_dtvt         lock,   view& data)
             {
+                auto& bitmap = lock.thing;
+                bitmap.get(data, s11n::nat);
                 owner.base::enqueue([&](auto& /*boss*/) mutable
                 {
                     owner.digest++;
@@ -9563,6 +9565,7 @@ namespace netxs::ui
                 s11n::receive_img(lock);
                 owner.base::enqueue([&](auto& /*boss*/) mutable
                 {
+                    owner.base::signal(tier::general, e2::data::imgdata);
                     owner.base::deface();
                 });
             }

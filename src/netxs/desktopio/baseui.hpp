@@ -225,6 +225,7 @@ namespace netxs::events::userland
                 EVENT_XS( disable, si32       ),
                 EVENT_XS( flush  , si32       ),
                 EVENT_XS( utf8   , const text ), // Signaling with a text string, release only.
+                EVENT_XS( imgdata, si32       ), // general: Image metadata received.
             };
             SUBSET_XS( command )
             {

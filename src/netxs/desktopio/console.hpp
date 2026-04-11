@@ -226,24 +226,69 @@ namespace netxs::ui
             }
             void handle(s11n::xs::request_img lock)
             {
+                auto pending_indexes = std::list<ui16>{};
                 auto& items = lock.thing;
                 auto list = s11n::img_list.freeze();
                 {
                     auto images = cell::images();
                     for (auto& unknown_image : items)
                     {
-                        if (auto image_ptr = images.map[unknown_image.index])
+                        auto unknown_index = unknown_image.index;
+                        if (auto image_ptr = images.map[unknown_index])
                         {
                             auto& image = *image_ptr;
                             if (image.document.size())
                             {
                                 auto [w, h, dx, dy, s] = image.get_global_attrs();
-                                list.thing.push(unknown_image.index, image.document, w, h, dx, dy, s);
+                                list.thing.push(unknown_index, image.document, w, h, dx, dy, s);
                             }
+                        }
+                        else
+                        {
+                            pending_indexes.push_back(unknown_index);
                         }
                     }
                 }
-                list.thing.sendby(canal);
+                list.thing.sendby<true>(canal);
+                if (pending_indexes.size()) // Subscribe a pending request that awaits a response with image metadata (dtvt).
+                {
+                    auto lock_owner = owner.bell::sync();
+                    auto& pending_request = owner.base::field(std::pair{ hook{}, std::move(pending_indexes) });
+                    auto& [oneshot, unknown_indexes_list] = pending_request;
+                    owner.LISTEN(tier::general, e2::data::imgdata, na, oneshot)
+                    {
+                        auto reply_list = directvt::binary::img_list_t{};
+                        auto reply_count = 0;
+                        {
+                            auto images = cell::images();
+                            std::erase_if(unknown_indexes_list, [&](auto unknown_index)
+                            {
+                                if (auto image_ptr = images.map[unknown_index])
+                                {
+                                    auto& image = *image_ptr;
+                                    if (image.document.size())
+                                    {
+                                        auto [w, h, dx, dy, s] = image.get_global_attrs();
+                                        reply_list.push(unknown_index, image.document, w, h, dx, dy, s);
+                                        reply_count++;
+                                        return true;
+                                    }
+                                }
+                                return faux;
+                            });
+                        }
+                        if (reply_count)
+                        {
+                            auto list = s11n::img_list.freeze();
+                            list.thing = std::move(reply_list);
+                            list.thing.sendby<true>(canal);
+                        }
+                        if (unknown_indexes_list.empty())
+                        {
+                            owner.base::unfield(pending_request); // Unsubscribe.
+                        }
+                    };
+                }
             }
             void handle(s11n::xs::fps         lock)
             {
