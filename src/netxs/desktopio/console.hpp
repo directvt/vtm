@@ -255,7 +255,7 @@ namespace netxs::ui
                     auto lock_owner = owner.bell::sync();
                     auto& pending_request = owner.base::field(std::pair{ hook{}, std::move(pending_indexes) });
                     auto& [oneshot, unknown_indexes_list] = pending_request;
-                    owner.LISTEN(tier::general, e2::data::imgdata, na, oneshot)
+                    owner.LISTEN(tier::general, e2::data::image::sync, na, oneshot)
                     {
                         auto reply_list = directvt::binary::img_list_t{};
                         auto reply_count = 0;
@@ -1045,6 +1045,21 @@ namespace netxs::ui
             canvas.link(bell::id);
             canvas.cmode = props.vtmode;
             canvas.face::area(base::area());
+
+            LISTEN(tier::general, e2::data::image::remove, image_index)
+            {
+                conio.remove_img_request.send(canal, image_index);
+            };
+            LISTEN(tier::general, e2::data::image::update, image_index)
+            {
+                auto images = cell::images(); // Lock.
+                if (auto image_ptr = images.map[image_index])
+                {
+                    auto& image = *image_ptr;
+                    auto changes = image.get_changes();
+                    conio.update_img_request.send(canal, image.index, image.changed_attrs, changes);
+                }
+            };
             LISTEN(tier::release, e2::form::proceed::multihome, world_ptr)
             {
                 multihome = input::multihome_t{ .world_wptr = world_ptr, .parent_wptr = world_ptr->base::father, .holder = world_ptr->base::holder };

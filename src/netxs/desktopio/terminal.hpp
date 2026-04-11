@@ -7449,10 +7449,11 @@ namespace netxs::ui
                 if (auto iter = image_cache.find(id_str); iter != image_cache.end())
                 {
                     auto image_ptr = iter->second;
-                    //log("unregistered ", image_ptr->id);
+                    auto& image = *image_ptr;
                     image_cache.erase(iter);
-                    images.remove(image_ptr->index);
-                    if (io_log) log("%%Embedded object '%%' successfully unregistered", prompt::term, image_ptr->id);
+                    images.remove(image.index);
+                    base::signal(tier::general, e2::data::image::remove, image.index);
+                    if (io_log) log("%%Embedded object '%%' successfully unregistered", prompt::term, image.id);
                 }
             }
             else
@@ -7541,25 +7542,32 @@ namespace netxs::ui
                 if (iter != image_cache.end() && same_doc()) // Move existing image.
                 {
                     auto& image = *iter->second;
-                    if (new_attrs[imagens::dx]) image.attrs[imagens::dx] = new_attrs[imagens::dx];
-                    if (new_attrs[imagens::dy]) image.attrs[imagens::dy] = new_attrs[imagens::dy];
-                    //todo signal FE
+                    image.reset_changes();
+                    image.check_and_set_attr(imagens::dx, new_attrs);
+                    image.check_and_set_attr(imagens::dy, new_attrs);
+                    if (image.changed_attrs)
+                    {
+                        image.stamp++;
+                        base::signal(tier::general, e2::data::image::update, image.index);
+                    }
                 }
                 else if (iter != image_cache.end() && different_image_attrs()) // Update existing image.
                 {
                     auto& image = *iter->second;
-                    image.reset_raster(); // Request to rerasterize.
-                    if (doc_str && image.document != doc_str)
+                    image.changed_attrs = {};
+                    image.reset_raster(); // Request to re-rasterize.
+                    image.reset_changes();
+                    image.check_and_set_document(doc_str);
+                    image.check_and_set_attr(imagens::width , new_attrs);
+                    image.check_and_set_attr(imagens::height, new_attrs);
+                    image.check_and_set_attr(imagens::scale , new_attrs);
+                    image.check_and_set_attr(imagens::dx    , new_attrs);
+                    image.check_and_set_attr(imagens::dy    , new_attrs);
+                    if (image.changed_attrs)
                     {
-                        image.dom = {}; // Request to regenerate DOM.
-                        image.document = doc_str;
+                        image.stamp++;
+                        base::signal(tier::general, e2::data::image::update, image.index);
                     }
-                    if (new_attrs[imagens::width ]) image.attrs[imagens::width ] = new_attrs[imagens::width ];
-                    if (new_attrs[imagens::height]) image.attrs[imagens::height] = new_attrs[imagens::height];
-                    if (new_attrs[imagens::scale ]) image.attrs[imagens::scale ] = new_attrs[imagens::scale ];
-                    if (new_attrs[imagens::dx    ]) image.attrs[imagens::dx    ] = new_attrs[imagens::dx    ];
-                    if (new_attrs[imagens::dy    ]) image.attrs[imagens::dy    ] = new_attrs[imagens::dy    ];
-                    //todo signal FE
                 }
                 else if (iter == image_cache.end() && (id_str || doc_str)) // If there is no id and svg then just clear viewport.
                 {
@@ -9565,9 +9573,39 @@ namespace netxs::ui
                 s11n::receive_img(lock);
                 owner.base::enqueue([&](auto& /*boss*/) mutable
                 {
-                    owner.base::signal(tier::general, e2::data::imgdata);
+                    owner.base::signal(tier::general, e2::data::image::sync);
                     owner.base::deface();
                 });
+            }
+            void handle(s11n::xs::remove_img_request  lock)
+            {
+                auto& image = lock.thing;
+                image.index &= 0xFFFF;
+                if (image.index)
+                {
+                    auto images = cell::images(); // Lock.
+                    auto is_remote = s11n::nat[0];
+                    auto image_index = is_remote ? std::exchange(s11n::nat[image.index], 0) : image.index;
+                    images.map[image_index] = {};
+                    owner.base::signal(tier::general, e2::data::image::remove, image_index);
+                }
+            }
+            void handle(s11n::xs::update_img_request  lock)
+            {
+                auto& image_data = lock.thing;
+                image_data.index &= 0xFFFF;
+                if (image_data.index)
+                {
+                    auto images = cell::images(); // Lock.
+                    auto is_remote = s11n::nat[0];
+                    auto image_index = is_remote ? s11n::nat[image_data.index] : image_data.index;
+                    if (auto image_ptr = images.map[image_index])
+                    {
+                        auto& image = *image_ptr;
+                        image.set_changes(image_data.changed_bits, image_data.changes);
+                        owner.base::signal(tier::general, e2::data::image::update, image_index);
+                    }
+                }
             }
             void handle(s11n::xs::jgc_list            lock)
             {

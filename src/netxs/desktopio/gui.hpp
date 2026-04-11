@@ -3092,6 +3092,37 @@ namespace netxs::gui
                 s11n::receive_img(lock);
                 netxs::set_flag<task::all>(owner.reload); // Trigger to redraw all to update unknown images.
             }
+            void handle(s11n::xs::remove_img_request  lock)
+            {
+                auto& image = lock.thing;
+                image.index &= 0xFFFF;
+                if (image.index)
+                {
+                    auto images = cell::images(); // Lock.
+                    auto is_remote = s11n::nat[0];
+                    auto image_index = is_remote ? std::exchange(s11n::nat[image.index], 0) : image.index;
+                    images.map[image_index] = {};
+                    owner.remove_image_bits(image.index);
+                    netxs::set_flag<task::all>(owner.reload); // Trigger to redraw all to update unknown images.
+                }
+            }
+            void handle(s11n::xs::update_img_request  lock)
+            {
+                auto& image_data = lock.thing;
+                image_data.index &= 0xFFFF;
+                if (image_data.index)
+                {
+                    auto images = cell::images(); // Lock.
+                    auto is_remote = s11n::nat[0];
+                    auto image_index = is_remote ? s11n::nat[image_data.index] : image_data.index;
+                    if (auto image_ptr = images.map[image_index])
+                    {
+                        auto& image = *image_ptr;
+                        image.set_changes(image_data.changed_bits, image_data.changes);
+                        // No need to notify. We are waiting for the arrival of cells with a new stamp.
+                    }
+                }
+            }
             void handle(s11n::xs::jgc_list         lock)
             {
                 s11n::receive_jgc(lock);
@@ -3972,6 +4003,19 @@ namespace netxs::gui
                 {
                     if (mfocus.focused() && blinky.live) blinky.hide();
                     layer_timer_stop(master, timers::blink);
+                }
+            }
+        }
+        void remove_image_bits(ui16 removed_image_index)
+        {
+            auto bitmap_lock = stream.bitmap_dtvt.freeze();
+            auto& grid = bitmap_lock.thing.image;
+            for (auto& c : grid)
+            {
+                auto image_index = c.get_image_index();
+                if (image_index == removed_image_index)
+                {
+                    c.px = {}; // Drop all image metadata.
                 }
             }
         }

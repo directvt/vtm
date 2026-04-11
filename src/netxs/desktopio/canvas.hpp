@@ -1337,13 +1337,85 @@ namespace netxs
             text          id;
             text          sub_id; // Document's sub-element id.
             text          document;
+            bool          document_changed{};
             attrs_t       attrs;
+            ui16          changed_attrs{}; // Contains bits indicating which imagens::attr have changed.
             ui16          index{};
             sprite        fragment{ *std::pmr::new_delete_resource() }; // Rasterized fragment within the document area. Using default resource allocator.
             rect          document_area; // All transformations and alignments must be performed for this area.
             imagens::docs dom;
             byte          stamp{}; // Increment on image update to sync with FE.
 
+            void set_changes(ui16 new_changed_bits, many& changes)
+            {
+                changed_attrs = new_changed_bits;
+                auto i = 0;
+                auto j = 0;
+                while (i < imagens::attr_count)
+                {
+                    if (changed_attrs & (1 << i))
+                    {
+                        attrs[i] = std::any_cast<fp32>(changes[j++]);
+                    }
+                    i++;
+                }
+                if (changed_attrs & ((1 << imagens::width )
+                                   | (1 << imagens::height)
+                                   | (1 << imagens::scale )))
+                {
+                    reset_raster();
+                }
+                if (changes.size() > j)
+                {
+                    document_changed = true;
+                    document = std::any_cast<text>(changes[j]);
+                    dom = {}; // Request to regenerate DOM.
+                    reset_raster();
+                }
+            }
+            auto get_changes()
+            {
+                auto changes = many{};
+                auto i = imagens::attr_count;
+                while (i--)
+                {
+                    if (changed_attrs & (1 << i))
+                    {
+                        auto& v = attrs[i];
+                        changes.push_back(v ? v.value() : 0.f);
+                    }
+                }
+                if (document_changed)
+                {
+                    changes.push_back(document);
+                }
+                return changes;
+            }
+            void reset_changes()
+            {
+                changed_attrs = {};
+                document_changed = {};
+            }
+            void check_and_set_document(qiew doc_str)
+            {
+                if (doc_str && document != doc_str)
+                {
+                    dom = {}; // Request to regenerate DOM.
+                    document = doc_str;
+                    document_changed = true;
+                }
+            }
+            void check_and_set_attr(si32 attr_index, attrs_t& new_attrs)
+            {
+                if (attr_index > 0 && attr_index < imagens::attr_count)
+                {
+                    if (new_attrs[attr_index])
+                    {
+                        changed_attrs |= 1 << attr_index;
+                        attrs[attr_index] = new_attrs[attr_index];
+                    }
+                }
+            }
             auto get_global_attrs()
             {
                 auto _w = attrs[imagens::width ];
@@ -1369,7 +1441,7 @@ namespace netxs
         struct cache
         {
         protected:
-            using lock = std::mutex;
+            using lock = std::recursive_mutex;
             using sync = std::lock_guard<lock>;
             using depo = std::array<netxs::sptr<T>, 65536>; // ~1MB
             using uset = std::vector<ui16>;//std::unordered_set<ui16>;
@@ -1995,7 +2067,7 @@ namespace netxs
             set_image_align(attrs[imagens::align    ]);
             set_image_xform(attrs[imagens::transform]);
             set_image_ontop(attrs[imagens::ontop    ]);
-            set_image_stamp(image.stamp++);
+            set_image_stamp(image.stamp);
             return *this;
         }
 
