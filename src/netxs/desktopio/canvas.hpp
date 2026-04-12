@@ -1409,7 +1409,7 @@ namespace netxs
             {
                 if (attr_index >= 0 && attr_index < imagens::attr_count)
                 {
-                    if (new_attrs[attr_index])
+                    if (new_attrs[attr_index] && new_attrs[attr_index] != attrs[attr_index])
                     {
                         changed_attrs |= 1 << attr_index;
                         attrs[attr_index] = new_attrs[attr_index];
