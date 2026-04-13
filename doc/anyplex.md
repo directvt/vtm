@@ -13,12 +13,12 @@ Scope                           | Role
 
 #### Rendering & Interaction
 
-- **Normalized Source Viewport**: The source document is first projected onto a virtual canvas of size `1.0` by `1.0`. A rectangular fragment (crop) is then extracted from this canvas using normalized coordinates `x0`, `y0` (top-left) and `mx`, `my` (size), where `1.0` equals the full canvas dimension.
+- **Normalized Source Viewport**: The source document is first projected onto a virtual canvas of size `1.0` by `1.0`. A rectangular fragment (crop) is then extracted from this canvas using normalized coordinates `x0`, `y0` (top-left) and `mx`, `my` (size), where `1.0` equals the full canvas dimension. Negative values for `mx` or `my` cause the extracted fragment to be flipped along the respective axis.
 - **Target Rectangular Area**: The resulting fragment is hosted within a grid of cells starting at `dx, dy`. The total area of affected cells is defined by the range `[floor(dx) .. ceil(dx + w)]` and `[floor(dy) .. ceil(dy + h)]`.
 - **Pixel-wise Precision**: The extracted fragment is scaled and aligned within the bounding box calculated **per-frontend** based on its current cell metrics: `pixel_pos = round(dx_or_dy * cell_size)` and `pixel_dim = round(w_or_h * cell_size)`.
 - **Asynchronous Rasterization**: It is recommended to perform rasterization in a parallel thread. Until the raster is ready, the frontend should display the cells without the graphic.
 - **Persistence**: Metadata is stored per-cell to survive scrollback and ensure logical linking for rectangular reflow, using only an implementation-defined minimum of data (e.g., a lightweight object reference) to minimize memory overhead.
-- **Cursor Position**: Anchored at the top-left; moves to the cell immediately following the rectangle's bottom-right corner `(floor(dx + w), floor(dy + h))` after output.
+- **Cursor Position**: Anchored at the top-left; moves to the cell immediately following the bottom-right corner of the target area after output.
 - **Destructivity**:
   - If the **`gc`** attribute is not empty, the provided grapheme cluster is written to **every cell** in the target area, replacing existing text and SGR attributes.
   - If **`gc`** is empty, the output is non-destructive; existing text and SGR attributes remain visually intact.
