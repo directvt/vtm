@@ -47,23 +47,34 @@ Field           | Description
 **attributes**  | Optional. Space-separated `key=value` pairs. If an attribute is specified both before and after the document, the **last occurrence** takes precedence. Values can be quoted (`"` or `'`) or unquoted. All keys and values are **case-sensitive**.
 **document**    | Optional. UTF-8 data starting with `<` (the first character of the opening tag, e.g. `<svg>`) and ending with `>` (the last character of the closing tag, e.g. `</svg>`). The specified document is considered to be an `empty-doc` if it has the form `<tag></tag>`, where `tag` is any string.
 
+#### Attribute Scoping
+
+Attributes are divided into **Shared** (object-wide) and **Unique** (per-instance/cell).
+
+- **Shared Attributes**: `u`, `v`, `uw`, `vh`, `x`, `y`, `w`, `h`. 
+  - These define the global geometry and document mapping.
+  - Updating a shared attribute for an existing `id` immediately affects **all cells** currently linked to that object in the terminal's view.
+- **Unique Attributes**: `gc`, `r`, `c`, `o`, `a`, `tr`, `f`, `rt`.
+  - These define the specific state of the current output operation.
+  - If a unique attribute is omitted in a sequence, it reverts to its **Default Value** (it does not inherit the value from a previous call).
+
 #### Attributes
 
-Attribute  | Value/Range                            | Default                  | Description
------------|----------------------------------------|--------------------------|------------
-**id**     | `<id>[/sub-id]`                        | empty string (`""`)      | Object reference ID.
-**gc**     | `string`                               | ASCII Space (0x20) `" "` | Grapheme cluster to write to cells (will be scaled to a 1x1 cell size).
-**u, v**   | `float`                                | `0.0`                    | Top-left of the source crop (0.0 to 1.0 relative to object size).
-**uw, vh** | `float`                                | `1.0`                    | Size of the source crop (0.0 to 1.0 relative to object size). Negative values flip the raster along the corresponding axis.
-**x, y**   | `float`                                | `0.0`                    | Target position on the terminal grid (cells).
-**w, h**   | `float (0.0-65535.0]`                  | Terminal viewport        | Target size on the terminal grid (cells).
-**fit**    | `inside`\|`outside`\|`stretch`\|`none` | `inside`                 | Fit logic: How the crop fits into the target width/height (none = exact pixels, cropped if larger).
-**r, c**   | `index 0 .. ceil(h/w)`                 | `0`                      | Row, column: Vertical/Horizontal 1-based slicing index for partial rendering of target cells (0 = full height/width, 1..n = specific cell/slice).
-**a**      | \[`l`\|`c`\|`r`\]\[`t`\|`m`\|`b`\]     | `cm`                     | Align: 2D alignment of the crop inside the target cell block (`l` = left, `c` = center, `r` = right, `t` = top, `m` = middle, `b` = bottom).
-**tr**     | `0`..`7`                               | `0`                      | Transform: Decimal value of the 3-bit compact state `[FlipY][FlipX][SwapXY]`.
-**f**      | `n`\|`v`\|`h`\|`vh`\|`hv`              | `n`                      | Flip: `n` = none, `v` = vertical, `h` = horizontal.
-**rt**     | `0`\|`90`\|`180`\|`270`                | `0`                      | Rotate: CCW rotation (degrees).
-**o**      | `0`\|`1`                               | `0`                      | Ontop: 0 = under text, 1 = over text.
+Attribute  | Scope  | Value/Range                      | Default                  | Description
+-----------|--------|----------------------------------|--------------------------|------------
+**id**     | -      | `<id>[/sub-id]`                  | empty string (`""`)      | Object reference ID.
+**gc**     | Unique | `string`                         | ASCII Space (0x20) `" "` | Grapheme cluster to write to cells (will be scaled to a 1x1 cell size).
+**u, v**   | Shared | `float`                          | `0.0`                    | Top-left of the source crop (0.0-1.0).
+**uw, vh** | Shared | `float`                          | `1.0`                    | Size of the source crop (0.0-1.0). Negative flips.
+**x, y**   | Shared | `float`                          | `0.0`                    | Target position on the terminal grid (cells).
+**w, h**   | Shared | `float (0.0-65535.0]`            | Terminal viewport        | Target size on the terminal grid (cells).
+**fit**    | Shared | `inside\|outside\|stretch\|none` | `inside`                 | Fit logic: How the crop fits into the target width/height (`none` = exact pixels).
+**r, c**   | Unique | `index`                          | `0`                      | **R**ow, **c**olumn 1-based slicing index for target cells. (0 = full height/width, 1..n = specific cell/slice).
+**a**      | Unique | `[l\|c\|r][t\|m\|b]`             | `cm`                     | **A**lign: 2D alignment of the crop inside the target cell block (`l` = left, `c` = center, `r` = right, `t` = top, `m` = middle, `b` = bottom).
+**tr**     | Unique | `0`..`7`                         | `0`                      | **Tr**ansform: Decimal value of the 3-bit state `[FlipY][FlipX][SwapXY]`.
+**f**      | Unique | `n\|v\|h\|vh\|hv`                | `n`                      | **F**lip: `n` = none, `v` = vertical, `h` = horizontal.
+**rt**     | Unique | `0\|90\|180\|270`                | `0`                      | **R**ota**t**e: CCW rotation (degrees).
+**o**      | Unique | `0\|1`                           | `0`                      | **O**ntop: 0 = under text, 1 = over text.
 
 > Notes:
 > - If `id` is omitted , the empty string `id=""` is used for registration and output.
