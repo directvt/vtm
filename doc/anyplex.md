@@ -83,7 +83,7 @@ Input State             | Action
 **Errors**              | If a document is invalid, the `id` is unknown, the `sub-id` is missing, or the cache is full, the FE **clears the object metadata** in the target area (rendering nothing) and logs the error.
 
 > Note:
-> When the BE deletes an `id`, or upon `reset`/session close, it frees the index and signals the FEs.
+> When the BE deletes an `id`, or upon reset/session close, it frees the index and signals the FEs.
 > - FEs then traverse their viewport cells; any image in the FE cache no longer referenced by any cell is purged.
 > - If an FE encounters an unknown object index in a cell, it must request full metadata/document from the BE.
 
