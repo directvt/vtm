@@ -90,8 +90,8 @@ Input State             | Action
 #### Parsing Rules (Backend)
 
 1. Scan the OSC string for `key=value` pairs.
-2. Identify document boundaries via first `<` and last `>`.
-3. Apply transformation pipeline (`transform`, `flip`, `rotate`) in the order they appear.
+2. Identify document boundaries via the first `<` and the last `>`.
+3. Accumulate all orientation attributes (`transform`, `flip`, `rotate`) in the order of appearance to calculate the final 3-bit transformation state.
 
 #### Extensibility
 
