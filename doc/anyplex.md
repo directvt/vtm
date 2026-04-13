@@ -13,9 +13,9 @@ Scope                           | Role
 
 #### Rendering & Interaction
 
-- **Normalized Source Viewport**: The source document is first projected onto a virtual canvas of size `1.0` by `1.0`. A rectangular fragment (crop) is then extracted from this canvas using normalized coordinates `x0`, `y0` (top-left) and `mx`, `my` (size), where `1.0` equals the full canvas dimension. Negative values for `mx` or `my` cause the extracted fragment to be flipped along the respective axis.
-- **Target Rectangular Area**: The resulting fragment is hosted within a grid of cells starting at `dx, dy`. The total area of affected cells is defined by the range `[floor(dx) .. ceil(dx + w)]` and `[floor(dy) .. ceil(dy + h)]`.
-- **Pixel-wise Precision**: The extracted fragment is scaled and aligned within the bounding box calculated **per-frontend** based on its current cell metrics: `pixel_pos = round(dx_or_dy * cell_size)` and `pixel_dim = round(w_or_h * cell_size)`.
+- **Normalized Source Viewport**: The source document is first projected onto a virtual canvas of size `1.0` by `1.0`. A rectangular fragment (crop) is then extracted from this canvas using normalized coordinates `u`, `v` (top-left) and `uw`, `vh` (size), where `1.0` equals the full canvas dimension. Negative values for `uw` or `vh` cause the extracted fragment to be flipped along the respective axis.
+- **Target Rectangular Area**: The resulting fragment is hosted within a grid of cells starting at `x, y`. The total area of affected cells is defined by the range `[floor(x) .. ceil(x + w)]` and `[floor(y) .. ceil(y + h)]`.
+- **Pixel-wise Precision**: The extracted fragment is scaled and aligned within the bounding box calculated **per-frontend** based on its current cell metrics: `pixel_pos = round(x_or_y * cell_size)` and `pixel_dim = round(w_or_h * cell_size)`.
 - **Asynchronous Rasterization**: It is recommended to perform rasterization in a parallel thread. Until the raster is ready, the frontend should display the cells without the graphic.
 - **Persistence**: Metadata is stored per-cell to survive scrollback and ensure logical linking for rectangular reflow, using only an implementation-defined minimum of data (e.g., a lightweight object reference) to minimize memory overhead.
 - **Cursor Position**: Anchored at the top-left; moves to the cell immediately following the bottom-right corner of the target area after output.
@@ -39,14 +39,14 @@ Scope                           | Role
 #### Sequence Format
 
 ```
-ESC ] app ; [<attributes>] [<document>] ST
+ESC ] app ; [<attributes>] [<document>] [<attributes>] ST
 ```
 
 Field             | Description
 ------------------|------------
 **OSC command**   | Mandatory. `app`.
-**attributes**    | Optional. Space-separated `key=value` pairs. Values can be quoted (`"` or `'`) or unquoted. All keys and values are **case-sensitive**.
-**document**      | Optional. UTF-8 data starting with `<` (the first character of the openning tag, e.g. `<svg>`) and ending with `>` (the last character of the closing tag, e.g. `</svg>`). The specified document is considered to be an `empty-doc` if it has the form `<tag></tag>`, where `tag` is any string.
+**attributes**    | Optional. Space-separated `key=value` pairs. If an attribute is specified both before and after the document, the **last occurrence** takes precedence. Values can be quoted (`"` or `'`) or unquoted. All keys and values are **case-sensitive**.
+**document**      | Optional. UTF-8 data starting with `<` (the first character of the opening tag, e.g. `<svg>`) and ending with `>` (the last character of the closing tag, e.g. `</svg>`). The specified document is considered to be an `empty-doc` if it has the form `<tag></tag>`, where `tag` is any string.
 
 #### Attributes
 
@@ -55,9 +55,9 @@ Attribute     | Value/Range                            | Default                
 **id**        | `<id>[/sub-id]`                        | empty string (`""`)      | Object reference ID.
 **gc**        | `string`                               | ASCII Space (0x20) `" "` | Grapheme cluster to write to cells (will be scaled to a 1x1 cell size).
 **ontop**     | `0`\|`1`                               | `0`                      | 0 = under text, 1 = over text.
-**x0, y0**    | `float`                                | `0.0`                    | Top-left of the source crop (0.0 to 1.0 relative to object size).
-**mx, my**    | `float`                                | `1.0`                    | Size of the source crop (0.0 to 1.0 relative to object size). Negative values flip the raster along the corresponding axis.
-**dx, dy**    | `float`                                | `0.0`                    | Target position on the terminal grid (cells).
+**u, v**      | `float`                                | `0.0`                    | Top-left of the source crop (0.0 to 1.0 relative to object size).
+**uw, vh**    | `float`                                | `1.0`                    | Size of the source crop (0.0 to 1.0 relative to object size). Negative values flip the raster along the corresponding axis.
+**x, y**      | `float`                                | `0.0`                    | Target position on the terminal grid (cells).
 **w, h**      | `float (0.0-65535.0]`                  | Terminal viewport        | Target size on the terminal grid (cells).
 **r, c**      | `index 0 .. ceil(h/w)`                 | `0`                      | Vertical/Horizontal (row, column) 1-based slicing index for partial rendering of target cells (0 = full height/width, 1..n = specific cell/slice).
 **align**     | \[`left`\|`center`\|`right`\]\[`-`\]\[`top`\|`middle`\|`bottom`\] | `center-middle` | 2D alignment: How the crop fits into the target width/height.
