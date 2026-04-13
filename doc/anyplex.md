@@ -76,10 +76,10 @@ Attribute     | Value/Range                            | Default                
 
 Input State             | Action
 ------------------------|-------
-**id** + **doc**        | Store/update the object document in cache and output.
-**id** + **empty-doc**  | Unregister `id` and free the index.
-**id** + **no-doc**     | Output cached object.
-**id/sub-id**           | If a `sub-id` is specified, the FE renders that specific element in its original coordinates (as it would appear in the full document), inheriting all parent styles (CSS, `<g>` groups).
+**id** + **doc**        | Store or update the object document in the cache and output it.
+**id** + **empty-doc**  | Unregister the `id` and free the cache index.
+**id** + **no-doc**     | Output the existing cached object.
+**id/sub-id**           | If a `sub-id` is specified, the FE renders only that specific element at its original coordinates (as it would appear in the full document), inheriting all parent styles (CSS, `<g>` groups).
 **Errors**              | If a document is invalid, the `id` is unknown, the `sub-id` is missing, or the cache is full, the FE **clears the object metadata** in the target area (rendering nothing) and logs the error.
 
 > Note:
