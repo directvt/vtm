@@ -46,27 +46,26 @@ Field             | Description
 
 #### Attributes
 
-Attribute     | Values                                 | Default                  | Description
+Attribute     | Value/Range                            | Default                  | Description
 --------------|----------------------------------------|--------------------------|------------
 **id**        | `<id>[/sub-id]`                        | empty string (`""`)      | Object reference ID.
 **gc**        | `string`                               | ASCII Space (0x20) `" "` | Grapheme cluster to write to cells (will be scaled to a 1x1 cell size).
 **ontop**     | `0`\|`1`                               | `0`                      | 0 = under text, 1 = over text.
-**width**     | `float (0..65535]`                     | Terminal viewport width  | Raster scale width (cells).
-**height**    | `float (0..65535]`                     | Terminal viewport height | Raster scale height (cells).
-**dx**        | `float`                                | `0.0`                    | Horizontal offset of the raster within the grid (cells).
-**dy**        | `float`                                | `0.0`                    | Vertical offset of the raster within the grid (cells).
-**column**    | `0`..`ceil(width)`                     | `0`                      | Horizontal 1-based slicing index for partial rendering (0 = full width, 1..n = specific cell/slice).
-**row**       | `0`..`ceil(height)`                    | `0`                      | Vertical 1-based slicing index for partial rendering (0 = full height, 1..m = specific cell/slice).
-**align**     | \[`left`\|`center`\|`right`\]\[`-`\]\[`top`\|`middle`\|`bottom`\] | `center-middle` | 2D alignment within the rectangle.
-**scale**     | `inside`\|`outside`\|`stretch`\|`none` | `inside`                 | Fit logic (none = exact pixels, cropped if larger).
+**x0, y0**    | `float`                                | `0.0`                    | Top-left of the source crop (0.0 to 1.0 relative to object size).
+**mx, my**    | `float`                                | `1.0`                    | Size of the source crop (0.0 to 1.0 relative to object size). Negative values flip the raster along the corresponding axis.
+**dx, dy**    | `float`                                | `0.0`                    | Target position on the terminal grid (cells).
+**w, h**      | `float (0.0-65535.0]`                  | Terminal viewport        | Target size on the terminal grid (cells).
+**r, c**      | `index 0 .. ceil(h/w)`                 | `0`                      | Vertical/Horizontal (row, column) 1-based slicing index for partial rendering of target cells (0 = full height/width, 1..n = specific cell/slice).
+**align**     | \[`left`\|`center`\|`right`\]\[`-`\]\[`top`\|`middle`\|`bottom`\] | `center-middle` | 2D alignment: How the crop fits into the target width/height.
+**fit**       | `inside`\|`outside`\|`stretch`\|`none` | `inside` | `inside`      | Fit logic: How the crop fits into the target width/height (none = exact pixels, cropped if larger).
 **transform** | `0`..`7`                               | `0`                      | 3-bit compact transformation state `[FlipY][FlipX][SwapXY]`.
 **flip**      | `none`\|`v`\|`h`\|`vh`\|`hv`           | `none`                   | Applied in order of appearance in the string.
 **rotate**    | `0`\|`90`\|`180`\|`270`                | `0`                      | CCW rotation applied in order of appearance.
 
 > Notes:
 > - If `id` is omitted , the empty string `id=""` is used for registration and output.
-> - Attribute values `width` and `height` are clamped to the `(0..65535]` range and further limited by the terminal's maximum window size settings.
-> - Attribute values `width`, `height`, `dx` and `dy` are multiplied by the cell size and **rounded** to get the exact pixel values on the FE side.
+> - Attribute values `w` and `h` are clamped to the `(0.0-65535.0]` range and further limited by the terminal's maximum window size settings.
+> - Attribute values that depend on the cell size are multiplied by the cell size and **rounded** to get the exact pixel values on the FE side.
 > - The first part of the object reference ID (`id`) references the raw object document in the Backend cache.
 > - The second part of the object reference ID (`sub-id`) addresses the specific named element (e.g., an `id="..."` within an SVG document). The Frontend renders only this fragment if it is specified.
 
