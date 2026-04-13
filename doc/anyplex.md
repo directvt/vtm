@@ -24,7 +24,7 @@ Scope                           | Role
   - Subsequent text written over the area does not destroy the underlying object. Metadata remains in the cell until explicitly replaced.
 - **Selection & Highlighting**: When a cell is selected (e.g., mouse selection or **SGR 7**), the frontend **applies a 0.5 opacity mask** to the object's pixels within that specific cell to ensure the selection remains visible.
 - **Searchability**: Any text contained within the document (e.g., `<text>` in SVG) is rendered as part of the graphic and is not indexed for terminal text search.
-- **Layering & Transparency**: Supports per-pixel alpha. The `ontop` attribute determines Z-order: 
+- **Layering & Transparency**: Supports per-pixel alpha. The `o`(ontop) attribute determines Z-order: 
   - `0`: `[Cell BG] -> [Object] -> [Text]`
   - `1`: `[Cell BG] -> [Text] -> [Object]`
   - The cell's background color always remains at the bottom. The terminal cursor is always drawn on top. Alpha blending should be performed in **linear color space**.
@@ -41,29 +41,29 @@ Scope                           | Role
 OSC app [ ; [<attributes>] [<document>] [<attributes>] ] ST
 ```
 
-Field             | Description
-------------------|------------
-**OSC command**   | Mandatory. `app`.
-**attributes**    | Optional. Space-separated `key=value` pairs. If an attribute is specified both before and after the document, the **last occurrence** takes precedence. Values can be quoted (`"` or `'`) or unquoted. All keys and values are **case-sensitive**.
-**document**      | Optional. UTF-8 data starting with `<` (the first character of the opening tag, e.g. `<svg>`) and ending with `>` (the last character of the closing tag, e.g. `</svg>`). The specified document is considered to be an `empty-doc` if it has the form `<tag></tag>`, where `tag` is any string.
+Field           | Description
+----------------|------------
+**OSC command** | Mandatory. `app`.
+**attributes**  | Optional. Space-separated `key=value` pairs. If an attribute is specified both before and after the document, the **last occurrence** takes precedence. Values can be quoted (`"` or `'`) or unquoted. All keys and values are **case-sensitive**.
+**document**    | Optional. UTF-8 data starting with `<` (the first character of the opening tag, e.g. `<svg>`) and ending with `>` (the last character of the closing tag, e.g. `</svg>`). The specified document is considered to be an `empty-doc` if it has the form `<tag></tag>`, where `tag` is any string.
 
 #### Attributes
 
-Attribute     | Value/Range                            | Default                  | Description
---------------|----------------------------------------|--------------------------|------------
-**id**        | `<id>[/sub-id]`                        | empty string (`""`)      | Object reference ID.
-**gc**        | `string`                               | ASCII Space (0x20) `" "` | Grapheme cluster to write to cells (will be scaled to a 1x1 cell size).
-**u, v**      | `float`                                | `0.0`                    | Top-left of the source crop (0.0 to 1.0 relative to object size).
-**uw, vh**    | `float`                                | `1.0`                    | Size of the source crop (0.0 to 1.0 relative to object size). Negative values flip the raster along the corresponding axis.
-**x, y**      | `float`                                | `0.0`                    | Target position on the terminal grid (cells).
-**w, h**      | `float (0.0-65535.0]`                  | Terminal viewport        | Target size on the terminal grid (cells).
-**r, c**      | `index 0 .. ceil(h/w)`                 | `0`                      | Vertical/Horizontal (row, column) 1-based slicing index for partial rendering of target cells (0 = full height/width, 1..n = specific cell/slice).
-**align**     | \[`left`\|`center`\|`right`\]\[`-`\]\[`top`\|`middle`\|`bottom`\] | `center-middle` | 2D alignment: How the crop fits into the target width/height.
-**fit**       | `inside`\|`outside`\|`stretch`\|`none` | `inside`                 | Fit logic: How the crop fits into the target width/height (none = exact pixels, cropped if larger).
-**transform** | `0`..`7`                               | `0`                      | 3-bit compact transformation state `[FlipY][FlipX][SwapXY]`.
-**flip**      | `none`\|`v`\|`h`\|`vh`\|`hv`           | `none`                   | Applied in order of appearance in the string.
-**rotate**    | `0`\|`90`\|`180`\|`270`                | `0`                      | CCW rotation applied in order of appearance.
-**ontop**     | `0`\|`1`                               | `0`                      | 0 = under text, 1 = over text.
+Attribute  | Value/Range                            | Default                  | Description
+-----------|----------------------------------------|--------------------------|------------
+**id**     | `<id>[/sub-id]`                        | empty string (`""`)      | Object reference ID.
+**gc**     | `string`                               | ASCII Space (0x20) `" "` | Grapheme cluster to write to cells (will be scaled to a 1x1 cell size).
+**u, v**   | `float`                                | `0.0`                    | Top-left of the source crop (0.0 to 1.0 relative to object size).
+**uw, vh** | `float`                                | `1.0`                    | Size of the source crop (0.0 to 1.0 relative to object size). Negative values flip the raster along the corresponding axis.
+**x, y**   | `float`                                | `0.0`                    | Target position on the terminal grid (cells).
+**w, h**   | `float (0.0-65535.0]`                  | Terminal viewport        | Target size on the terminal grid (cells).
+**fit**    | `inside`\|`outside`\|`stretch`\|`none` | `inside`                 | Fit logic: How the crop fits into the target width/height (none = exact pixels, cropped if larger).
+**r, c**   | `index 0 .. ceil(h/w)`                 | `0`                      | Row, column: Vertical/Horizontal 1-based slicing index for partial rendering of target cells (0 = full height/width, 1..n = specific cell/slice).
+**a**      | \[`l`\|`c`\|`r`\]\[`t`\|`m`\|`b`\]     | `cm`                     | Align: 2D alignment of the crop inside the target cell block (`l` = left, `c` = center, `r` = right, `t` = top, `m` = middle, `b` = bottom).
+**tr**     | `0`..`7`                               | `0`                      | Transform: Decimal value of the 3-bit compact state `[FlipY][FlipX][SwapXY]`.
+**f**      | `n`\|`v`\|`h`\|`vh`\|`hv`              | `n`                      | Flip: `n` = none, `v` = vertical, `h` = horizontal.
+**rt**     | `0`\|`90`\|`180`\|`270`                | `0`                      | Rotate: CCW rotation (degrees).
+**o**      | `0`\|`1`                               | `0`                      | Ontop: 0 = under text, 1 = over text.
 
 > Notes:
 > - If `id` is omitted , the empty string `id=""` is used for registration and output.
@@ -74,13 +74,13 @@ Attribute     | Value/Range                            | Default                
 
 #### Lifecycle & Cache Management
 
-Input State             | Action
-------------------------|-------
-**id** + **doc**        | Store or update the object document in the cache and output it.
-**id** + **empty-doc**  | Unregister the `id` and free the cache index.
-**id** + **no-doc**     | Output the existing cached object.
-**id/sub-id**           | If a `sub-id` is specified, the FE renders only that specific element at its original coordinates (as it would appear in the full document), inheriting all parent styles (CSS, `<g>` groups).
-**Errors**              | If a document is invalid, the `id` is unknown, the `sub-id` is missing, or the cache is full, the FE **clears the object metadata** in the target area (rendering nothing) and logs the error.
+Input State            | Action
+-----------------------|-------
+**id** + **doc**       | Store or update the object document in the cache and output it.
+**id** + **empty-doc** | Unregister the `id` and free the cache index.
+**id** + **no-doc**    | Output the existing cached object.
+**id/sub-id**          | If a `sub-id` is specified, the FE renders only that specific element at its original coordinates (as it would appear in the full document), inheriting all parent styles (CSS, `<g>` groups).
+**Errors**             | If a document is invalid, the `id` is unknown, the `sub-id` is missing, or the cache is full, the FE **clears the object metadata** in the target area (rendering nothing) and logs the error.
 
 > Note:
 > When the BE deletes an `id`, or upon reset/session close, it frees the index and signals the FEs.
@@ -91,7 +91,7 @@ Input State             | Action
 
 1. Scan the OSC string for `key=value` pairs.
 2. Identify document boundaries via the first `<` and the last `>`.
-3. Accumulate all orientation attributes (`transform`, `flip`, `rotate`) in the order of appearance to calculate the final 3-bit transformation state.
+3. Accumulate all orientation attributes (`tr`(transform), `f`(flip), `rt`(rotate)) in the order of appearance to calculate the final 3-bit transformation state.
 
 #### Extensibility
 
