@@ -15,7 +15,7 @@ Scope                           | Role
 
 - **Normalized Source Viewport**: The source document is first projected onto a virtual canvas of size `1.0` by `1.0`. A rectangular fragment (crop) is then extracted from this canvas using normalized coordinates `u`, `v` (top-left) and `uw`, `vh` (size), where `1.0` equals the full canvas dimension. Negative values for `uw` or `vh` cause the extracted fragment to be flipped along the respective axis.
 - **Target Rectangular Area**: The resulting fragment is hosted within a grid of cells starting at `x, y`. The range of affected cell indices is defined as `[floor(x) .. ceil(x + w) - 1]` horizontally and `[floor(y) .. ceil(y + h) - 1]` vertically, where `w > 0` and `h > 0`.
-- **Pixel-wise Precision**: The extracted fragment is scaled and aligned within the bounding box calculated **per-frontend** based on its current cell metrics: `pixel_pos = round(x_or_y * cell_size)` and `pixel_dim = round(w_or_h * cell_size)`.
+- **Pixel-wise Precision**: The extracted fragment is transformed, scaled and aligned within the bounding box calculated **per-frontend** based on its current cell metrics: `pixel_pos = round(x_or_y * cell_size)` and `pixel_dim = round(w_or_h * cell_size)`.
 - **Persistence**: Metadata is stored per-cell to survive scrollback and ensure logical linking for rectangular reflow, using only an implementation-defined minimum of data (e.g., a lightweight object reference) to minimize memory overhead.
 - **Cursor Position**: Anchored at the top-left; moves to the cell immediately following the bottom-right corner of the target area after output.
 - **Destructivity**:
@@ -38,7 +38,7 @@ Scope                           | Role
 #### Sequence Format
 
 ```
-ESC ] app ; [<attributes>] [<document>] [<attributes>] ST
+OSC app [ ; [<attributes>] [<document>] [<attributes>] ] ST
 ```
 
 Field             | Description
@@ -53,7 +53,6 @@ Attribute     | Value/Range                            | Default                
 --------------|----------------------------------------|--------------------------|------------
 **id**        | `<id>[/sub-id]`                        | empty string (`""`)      | Object reference ID.
 **gc**        | `string`                               | ASCII Space (0x20) `" "` | Grapheme cluster to write to cells (will be scaled to a 1x1 cell size).
-**ontop**     | `0`\|`1`                               | `0`                      | 0 = under text, 1 = over text.
 **u, v**      | `float`                                | `0.0`                    | Top-left of the source crop (0.0 to 1.0 relative to object size).
 **uw, vh**    | `float`                                | `1.0`                    | Size of the source crop (0.0 to 1.0 relative to object size). Negative values flip the raster along the corresponding axis.
 **x, y**      | `float`                                | `0.0`                    | Target position on the terminal grid (cells).
@@ -64,6 +63,7 @@ Attribute     | Value/Range                            | Default                
 **transform** | `0`..`7`                               | `0`                      | 3-bit compact transformation state `[FlipY][FlipX][SwapXY]`.
 **flip**      | `none`\|`v`\|`h`\|`vh`\|`hv`           | `none`                   | Applied in order of appearance in the string.
 **rotate**    | `0`\|`90`\|`180`\|`270`                | `0`                      | CCW rotation applied in order of appearance.
+**ontop**     | `0`\|`1`                               | `0`                      | 0 = under text, 1 = over text.
 
 > Notes:
 > - If `id` is omitted , the empty string `id=""` is used for registration and output.
