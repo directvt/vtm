@@ -13,19 +13,23 @@ Scope                           | Role
 
 #### Rendering & Interaction
 
-- **Rectangular Area**: The object is hosted within a grid of cells defined by `ceil(width)` and `ceil(height)`.
-- **Pixel-wise Precision**: The raster is scaled using floating-point `width` and `height` and positioned with `dx` and `dy` offsets. Offsets are calculated **per-frontend** based on its current cell metrics.
+- **Normalized Source Viewport**: The source document is first projected onto a virtual canvas of size `1.0` by `1.0`. A rectangular fragment (crop) is then extracted from this canvas using normalized coordinates `x0`, `y0` (top-left) and `mx`, `my` (size), where `1.0` equals the full canvas dimension.
+- **Target Rectangular Area**: The resulting fragment is hosted within a grid of cells starting at `dx, dy`. The total area of affected cells is defined by the range `[floor(dx) .. ceil(dx + w)]` and `[floor(dy) .. ceil(dy + h)]`.
+- **Pixel-wise Precision**: The extracted fragment is scaled and aligned within the bounding box calculated **per-frontend** based on its current cell metrics: `pixel_pos = round(dx_or_dy * cell_size)` and `pixel_dim = round(w_or_h * cell_size)`.
 - **Asynchronous Rasterization**: It is recommended to perform rasterization in a parallel thread. Until the raster is ready, the frontend should display the cells without the graphic.
-- **Persistence**: Metadata is stored per-cell to survive scrollback and ensure that wrapped cell-runs remain logically linked for a strict rectangular reflow.
-- **Cursor Position**: Anchored at the top-left; moves to the cell immediately following the rectangle's bottom-right corner after output.
+- **Persistence**: Metadata is stored per-cell to survive scrollback and ensure logical linking for rectangular reflow, using only an implementation-defined minimum of data (e.g., a lightweight object reference) to minimize memory overhead.
+- **Cursor Position**: Anchored at the top-left; moves to the cell immediately following the rectangle's bottom-right corner `(floor(dx + w), floor(dy + h))` after output.
 - **Destructivity**:
-  - If the **`gc`** attribute is not empty, the provided grapheme cluster is written to **every cell** in the area (`ceil(width)` by `ceil(height)`), replacing existing text and SGR attributes.
-  - If **`gc`** is empty, the output is non-destructive; existing text and SGR attributes remain visually intact under the transparent object.
-  - Any text subsequently written over the object's area does not destroy the underlying object. The object metadata remains intact in the cell until explicitly cleared or replaced.
-- **Selection & SGR 7**: When selecting text/graphics with the mouse, or when the **SGR 7** attribute is present in a cell, the frontend **halves the alpha channel** of the object's pixels within that cell.
-- **Searchability**: Any text contained within the document (e.g., `<text>` in SVG) is treated as part of the graphic and is not required to be indexed by the terminal's text search.
-- **Layering & Transparency**: Supports per-pixel alpha transparency. The `ontop` attribute determines Z-order relative to text (0 = background `[Cell BG] -> [Object] -> [Text]`, 1 = foreground `[Cell BG] -> [Text] -> [Object]`; the cell's background color always remains in the background). The terminal cursor is always drawn on top of everything. Alpha blending is performed in **linear color space**.
-- **Foreground Color**: The underlying cell **SGR foreground color** maps to `currentColor` (for SVG). All other external references (e.g., `http://...`) are ignored for security.
+  - If the **`gc`** attribute is not empty, the provided grapheme cluster is written to **every cell** in the target area, replacing existing text and SGR attributes.
+  - If **`gc`** is empty, the output is non-destructive; existing text and SGR attributes remain visually intact.
+  - Subsequent text written over the area does not destroy the underlying object. Metadata remains in the cell until explicitly replaced.
+- **Selection & Highlighting**: When a cell is selected (e.g., mouse selection or **SGR 7**), the frontend **applies a 0.5 opacity mask** to the object's pixels within that specific cell to ensure the selection remains visible.
+- **Searchability**: Any text contained within the document (e.g., `<text>` in SVG) is rendered as part of the graphic and is not indexed for terminal text search.
+- **Layering & Transparency**: Supports per-pixel alpha. The `ontop` attribute determines Z-order: 
+  - `0`: `[Cell BG] -> [Object] -> [Text]`
+  - `1`: `[Cell BG] -> [Text] -> [Object]`
+  - The cell's background color always remains at the bottom. The terminal cursor is always drawn on top. Alpha blending should be performed in **linear color space**.
+- **Foreground Color & Security**: The underlying cell **SGR foreground color** maps to `currentColor` (for SVG). All external references (e.g., `http://...`) are ignored for security purposes.
 
 #### Scroll & Reflow Behavior
 
@@ -57,7 +61,7 @@ Attribute     | Value/Range                            | Default                
 **w, h**      | `float (0.0-65535.0]`                  | Terminal viewport        | Target size on the terminal grid (cells).
 **r, c**      | `index 0 .. ceil(h/w)`                 | `0`                      | Vertical/Horizontal (row, column) 1-based slicing index for partial rendering of target cells (0 = full height/width, 1..n = specific cell/slice).
 **align**     | \[`left`\|`center`\|`right`\]\[`-`\]\[`top`\|`middle`\|`bottom`\] | `center-middle` | 2D alignment: How the crop fits into the target width/height.
-**fit**       | `inside`\|`outside`\|`stretch`\|`none` | `inside` | `inside`      | Fit logic: How the crop fits into the target width/height (none = exact pixels, cropped if larger).
+**fit**       | `inside`\|`outside`\|`stretch`\|`none` | `inside`                 | Fit logic: How the crop fits into the target width/height (none = exact pixels, cropped if larger).
 **transform** | `0`..`7`                               | `0`                      | 3-bit compact transformation state `[FlipY][FlipX][SwapXY]`.
 **flip**      | `none`\|`v`\|`h`\|`vh`\|`hv`           | `none`                   | Applied in order of appearance in the string.
 **rotate**    | `0`\|`90`\|`180`\|`270`                | `0`                      | CCW rotation applied in order of appearance.
