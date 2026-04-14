@@ -7366,7 +7366,8 @@ namespace netxs::ui
             auto gc_opt     = std::optional<qiew>{};
             auto doc_str    = qiew{};
             auto unregister = faux;
-            auto new_attrs = imagens::image::attrs_t{};
+            auto new_gb_attrs = imagens::image::opt_gb_attrs_t{};
+            auto new_lc_attrs = imagens::image::opt_lc_attrs_t{};
             // data: " id + attrs + doc"              Find by id and update/register and print.
             //       " [attrs] + doc "                Register empty id.
             //       " [id] "                         Find by id and print.
@@ -7416,27 +7417,33 @@ namespace netxs::ui
                     }
                     else // Regular attributes (si32 or dict).
                     {
-                        //log(" attr_str=%%, value_str=%%", attr_str, value_str);
-                        if (auto p = imagens::parse_pair(attr_str, value_str))
+                        if constexpr (debugmode) log(" attr_str=%%, value_str=%%", attr_str, value_str);
+                        if (auto gb = imagens::parse_pair(attr_str, value_str, imagens::gb::attr_index_map, imagens::gb_value_index_map))
                         {
-                            auto [i, v] = p.value();
-                            //log("  new_attrs[%%]=%%", i, v);
-                            auto& xform_ref = new_attrs[imagens::transform];
+                            auto [i, v] = gb.value();
+                            new_gb_attrs[i] = v;
+                            if constexpr (debugmode) log("  new_gb_attrs[%%]=%%", i, v);
+                        }
+                        else if (auto lc = imagens::parse_pair(attr_str, value_str, imagens::lc::attr_index_map, imagens::lc_value_index_map))
+                        {
+                            auto [i, v] = lc.value();
+                            if constexpr (debugmode) log("  new_lc_attrs[%%]=%%", i, v);
+                            auto& xform_ref = new_lc_attrs[imagens::lc::tr];
                             switch (i) // Accumulate transforms if specified.
                             {
-                                case imagens::flip:
+                                case imagens::lc::f:
                                     if (!xform_ref) xform_ref = 0.f;
                                     imagens::mirror_fx(xform_ref.value(), v);
                                     break;
-                                case imagens::rotate:
+                                case imagens::lc::rt:
                                     if (!xform_ref) xform_ref = 0.f;
                                     imagens::rotate_fx(xform_ref.value(), v);
                                     break;
-                                case imagens::transform:
+                                case imagens::lc::tr:
                                     xform_ref = std::clamp(v, 0.f, 7.f);
                                     break;
                                 default:
-                                    new_attrs[i] = v;
+                                    new_lc_attrs[i] = v;
                                     break;
                             }
                         }
@@ -7463,56 +7470,52 @@ namespace netxs::ui
                 // Merge with existing attributes.
                 if (iter != image_cache.end() && doc_str.empty())
                 {
-                    //log("image_ptr found");
                     auto image_ptr = iter->second;
-                    auto& old_attrs = image_ptr->attrs;
-                    for (auto i = 0u; i < new_attrs.size(); i++)
+                    auto& old_gb_attrs = image_ptr->gb_attrs;
+                    for (auto i = 0u; i < new_gb_attrs.size(); i++)
                     {
-                        if (i == imagens::align
-                         || i == imagens::flip
-                         || i == imagens::transform
-                         || i == imagens::rotate
-                         || i == imagens::row
-                         || i == imagens::column
-                         || i == imagens::ontop) // Skip local attributes.
+                        auto& new_gb_attr = new_gb_attrs[i];
+                        auto& old_gb_attr = old_gb_attrs[i];
+                        if (!new_gb_attr)
                         {
-                            continue;
+                            new_gb_attr = old_gb_attr;
                         }
-                        auto& new_attr = new_attrs[i];
-                        auto& old_attr = old_attrs[i];
-                        if (!new_attr)
-                        {
-                            new_attr = old_attr;
-                        }
-                        //else if (old_attr)
-                        //{
-                        //    if (i == imagens::align)
-                        //    {
-                        //        new_attr = imagens::combine_align_fx(old_attr.value(), new_attr.value());
-                        //    }
-                        //    else if (i == imagens::transform)
-                        //    {
-                        //        new_attr = imagens::combine_transform_fx(old_attr.value(), new_attr.value());
-                        //    }
-                        //}
                     }
                 }
                 // Clamp sizes.
                 auto max_size = skin::globals().max_value;
-                auto& _w = new_attrs[imagens::width ];
-                auto& _h = new_attrs[imagens::height];
-                auto& _x = new_attrs[imagens::column];
-                auto& _y = new_attrs[imagens::row   ];
-                if (_w) _w = std::clamp(_w.value(), 1.f, (fp32)max_size.x); else _w = (fp32)target->panel.x;
-                if (_h) _h = std::clamp(_h.value(), 1.f, (fp32)max_size.y); else _h = (fp32)target->panel.y;
-                if (_x) _x = std::clamp(_x.value(), 0.f, std::ceil(_w.value())); else _x = 0.f;
-                if (_y) _y = std::clamp(_y.value(), 0.f, std::ceil(_h.value())); else _y = 0.f;
-                auto w = (si32)std::ceil(_w.value());
-                auto h = (si32)std::ceil(_h.value());
-                auto x = (si32)_x.value();
-                auto y = (si32)_y.value();
+
+                auto gb_attrs = std::array<fp32, imagens::gb::attr_count>{};
+                auto lc_attrs = std::array<fp32, imagens::lc::attr_count>{};
+                for (auto i = 0; i < imagens::gb::attr_count; i++)
+                {
+                    if (auto v = new_gb_attrs[i]) gb_attrs[i] = v.value();
+                }
+                for (auto i = 0; i < imagens::lc::attr_count; i++)
+                {
+                    if (auto v = new_lc_attrs[i]) lc_attrs[i] = v.value();
+                }
+                auto& x  = gb_attrs[imagens::gb::x ];
+                auto& y  = gb_attrs[imagens::gb::y ];
+                auto& w  = gb_attrs[imagens::gb::w ];
+                auto& h  = gb_attrs[imagens::gb::h ];
+                auto& uw = gb_attrs[imagens::gb::uw];
+                auto& vh = gb_attrs[imagens::gb::vh];
+                auto& _c = lc_attrs[imagens::lc::c];
+                auto& _r = lc_attrs[imagens::lc::r];
+                if (uw == 0.f) uw = 1.f;
+                if (vh == 0.f) vh = 1.f;
+                x = std::remainder(x, 1.f); // Normalize the in-cell offset.
+                y = std::remainder(y, 1.f); //
+                w = std::isnormal(w) ? std::clamp(w, 0.001f, (fp32)max_size.x) : (fp32)target->panel.x;
+                h = std::isnormal(h) ? std::clamp(h, 0.001f, (fp32)max_size.y) : (fp32)target->panel.y;
+                auto _w = (si32)std::ceil(x + w) - (si32)std::floor(x);
+                auto _h = (si32)std::ceil(y + h) - (si32)std::floor(y);
+                auto c = std::clamp((si32)_c, 0, _w);
+                auto r = std::clamp((si32)_r, 0, _h);
+
                 auto gc_str = gc_opt ? gc_opt.value() : " ";
-                auto c = cell{ target->brush }.txt(gc_str, 1, 1, 1, 1);
+                auto brush = cell{ target->brush }.txt(gc_str, 1, 1, 1, 1);
                 auto print_image_buffer = [&]
                 {
                     gc_str ? draw_block(image_buffer, cell::shaders::full)
@@ -7522,20 +7525,27 @@ namespace netxs::ui
                 auto different_image_attrs = [&]
                 {
                     auto& image = *iter->second;
-                    auto ret = (new_attrs[imagens::width ] && image.attrs[imagens::width ] != new_attrs[imagens::width ])
-                            || (new_attrs[imagens::height] && image.attrs[imagens::height] != new_attrs[imagens::height])
-                            || (new_attrs[imagens::dx    ] && image.attrs[imagens::dx    ] != new_attrs[imagens::dx    ])
-                            || (new_attrs[imagens::dy    ] && image.attrs[imagens::dy    ] != new_attrs[imagens::dy    ])
-                            || (new_attrs[imagens::scale ] && image.attrs[imagens::scale ] != new_attrs[imagens::scale ])
+                    //todo use loop on gb_attrs
+                    auto ret = (image.gb_attrs[imagens::gb::u  ] != gb_attrs[imagens::gb::u  ])
+                            || (image.gb_attrs[imagens::gb::v  ] != gb_attrs[imagens::gb::v  ])
+                            || (image.gb_attrs[imagens::gb::uw ] != gb_attrs[imagens::gb::uw ])
+                            || (image.gb_attrs[imagens::gb::vh ] != gb_attrs[imagens::gb::vh ])
+                            || (image.gb_attrs[imagens::gb::x  ] != gb_attrs[imagens::gb::x  ])
+                            || (image.gb_attrs[imagens::gb::y  ] != gb_attrs[imagens::gb::y  ])
+                            || (image.gb_attrs[imagens::gb::w  ] != gb_attrs[imagens::gb::w  ])
+                            || (image.gb_attrs[imagens::gb::h  ] != gb_attrs[imagens::gb::h  ])
+                            || (image.gb_attrs[imagens::gb::fit] != gb_attrs[imagens::gb::fit])
                             || (doc_str && image.document != doc_str);
                     return ret;
                 };
                 auto same_doc = [&]
                 {
                     auto& image = *iter->second;
-                    auto ret = (!new_attrs[imagens::width ] || image.attrs[imagens::width ] == new_attrs[imagens::width ])
-                            && (!new_attrs[imagens::height] || image.attrs[imagens::height] == new_attrs[imagens::height])
-                            && (!new_attrs[imagens::scale ] || image.attrs[imagens::scale ] == new_attrs[imagens::scale ])
+                    auto ret = (image.gb_attrs[imagens::gb::uw ] == gb_attrs[imagens::gb::uw ])
+                            && (image.gb_attrs[imagens::gb::vh ] == gb_attrs[imagens::gb::vh ])
+                            && (image.gb_attrs[imagens::gb::w  ] == gb_attrs[imagens::gb::w  ])
+                            && (image.gb_attrs[imagens::gb::h  ] == gb_attrs[imagens::gb::h  ])
+                            && (image.gb_attrs[imagens::gb::fit] == gb_attrs[imagens::gb::fit])
                             && (!doc_str || image.document == doc_str);
                     return ret;
                 };
@@ -7544,29 +7554,36 @@ namespace netxs::ui
                 {
                     auto& image = *iter->second;
                     image.reset_changes();
-                    image.check_and_set_attr(imagens::dx, new_attrs);
-                    image.check_and_set_attr(imagens::dy, new_attrs);
-                    if (image.changed_attrs)
+                    image.check_and_set_attr(imagens::gb::u, gb_attrs);
+                    image.check_and_set_attr(imagens::gb::v, gb_attrs);
+                    image.check_and_set_attr(imagens::gb::x, gb_attrs);
+                    image.check_and_set_attr(imagens::gb::y, gb_attrs);
+                    if (image.changed_gb_attrs)
                     {
-                        image.stamp++;
+                        image.stamp += 2;
                         base::signal(tier::general, e2::data::image::update, image.index);
                     }
                 }
                 else if (iter != image_cache.end() && different_image_attrs()) // Update existing image.
                 {
                     auto& image = *iter->second;
-                    image.changed_attrs = {};
+                    image.changed_gb_attrs = {};
                     image.reset_raster(); // Request to re-rasterize.
                     image.reset_changes();
                     image.check_and_set_document(doc_str);
-                    image.check_and_set_attr(imagens::width , new_attrs);
-                    image.check_and_set_attr(imagens::height, new_attrs);
-                    image.check_and_set_attr(imagens::scale , new_attrs);
-                    image.check_and_set_attr(imagens::dx    , new_attrs);
-                    image.check_and_set_attr(imagens::dy    , new_attrs);
-                    if (image.changed_attrs)
+                    //todo use loop on gb_attrs
+                    image.check_and_set_attr(imagens::gb::u  , gb_attrs);
+                    image.check_and_set_attr(imagens::gb::v  , gb_attrs);
+                    image.check_and_set_attr(imagens::gb::uw , gb_attrs);
+                    image.check_and_set_attr(imagens::gb::vh , gb_attrs);
+                    image.check_and_set_attr(imagens::gb::x  , gb_attrs);
+                    image.check_and_set_attr(imagens::gb::y  , gb_attrs);
+                    image.check_and_set_attr(imagens::gb::w  , gb_attrs);
+                    image.check_and_set_attr(imagens::gb::h  , gb_attrs);
+                    image.check_and_set_attr(imagens::gb::fit, gb_attrs);
+                    if (image.changed_gb_attrs)
                     {
-                        image.stamp++;
+                        image.stamp += 2;
                         base::signal(tier::general, e2::data::image::update, image.index);
                     }
                 }
@@ -7576,78 +7593,63 @@ namespace netxs::ui
                     auto image_ptr = ptr::shared(imagens::image{ .id       = id_str,
                                                                  .sub_id   = sub_id_str,
                                                                  .document = doc_str,
-                                                                 .attrs    = new_attrs });
+                                                                 .gb_attrs = gb_attrs });
                     if (auto image_index = images.set(image_ptr))
                     {
                         image_ptr->index = image_index;
                         iter = image_cache.emplace(id_str, image_ptr).first;
                     }
                 }
-                //else if (doc_str) // Replace existing image.
-                //{
-                //    //log("%%Object with id='%%' updated", prompt::term, id_str ? id_str : "<empty string>");
-                //    auto& image = *iter->second;
-                //    if (image.document != doc_str)
-                //    {
-                //        image.document = doc_str;
-                //        image.attrs[imagens::width] = new_attrs[imagens::width];
-                //        image.attrs[imagens::height] = new_attrs[imagens::height];
-                //        image.attrs[imagens::scale] = new_attrs[imagens::scale];
-                //        //todo notify all gates
-                //        //signal(release, ..., gate)
-                //        //       scan all gate rasters and looking for the image_index reference in their cells and submit a forward notification if something found
-                //    }
-                //}
                 if (iter != image_cache.end())
                 {
                     auto& image = *iter->second;
-                    c.set_image_attrs(image, new_attrs);
+                    brush.set_image_attrs(image, lc_attrs);
                 }
                 else // Image id is not registered. Just erase the specified region.
                 {
                     if (io_log) log("%%Erase the specified region. Object with id='%%' is not registered", prompt::term, id_str ? id_str : "<empty string>");
                 }
                 // Print image rectangle.
-                if (!x && !y) // Print full raster.
+                if (!c && !r) // Print full raster.
                 {
-                    auto size = twod{ w, h };
-                    image_buffer.core::size<true>(size, c);
+                    auto size = twod{ _w, _h };
+                    image_buffer.core::size<true>(size, brush);
                     auto head = image_buffer.begin();
-                    for (y = 1; y <= h; y++)
+                    for (r = 1; r <= _h; r++)
                     {
-                        for (x = 1; x <= w; x++)
+                        for (c = 1; c <= _w; c++)
                         {
-                            (*head++).set_image_xy(x, y);
+                            (*head++).set_image_cr(c, r);
                         }
                     }
                     print_image_buffer();
                 }
-                else if (!y) // Print vertical slice.
+                else if (!r) // Print vertical slice.
                 {
-                    auto size = twod{ 1, h };
-                    image_buffer.core::size<true>(size, c);
+                    auto size = twod{ 1, _h };
+                    image_buffer.core::size<true>(size, brush);
                     auto head = image_buffer.begin();
-                    for (y = 1; y <= h; y++)
+                    for (r = 1; r <= _h; r++)
                     {
-                        (*head++).set_image_xy(x, y);
+                        (*head++).set_image_cr(c, r);
                     }
                     print_image_buffer();
                 }
-                else if (!x) // Print horizontal slice.
+                else if (!c) // Print horizontal slice.
                 {
-                    auto size = twod{ w, 1 };
-                    image_buffer.core::size<true>(size, c);
+                    auto size = twod{ _w, 1 };
+                    image_buffer.core::size<true>(size, brush);
                     auto head = image_buffer.begin();
-                    for (x = 1; x <= w; x++)
+                    for (c = 1; c <= _w; c++)
                     {
-                        (*head++).set_image_xy(x, y);
+                        (*head++).set_image_cr(c, r);
                     }
                     print_image_buffer();
                 }
                 else // if (x && y) // Print a single cell.
                 {
                     auto size = twod{ 1, 1 };
-                    image_buffer.core::size<true>(size, c);
+                    image_buffer.core::size<true>(size, brush);
                     print_image_buffer();
                 }
             }
@@ -9609,6 +9611,7 @@ namespace netxs::ui
                     {
                         auto& image = *image_ptr;
                         image.set_changes(image_data.changed_bits, image_data.changes);
+                        owner.update_image_bits(image_index);
                         owner.base::signal(tier::general, e2::data::image::update, image_index);
                     }
                 }
@@ -9965,6 +9968,20 @@ namespace netxs::ui
                 if (image_index == removed_image_index)
                 {
                     c.px = {}; // Drop all image metadata.
+                }
+            }
+        }
+        // dtvt: Drop removed image metadata from canvas.
+        void update_image_bits(ui16 updated_image_index)
+        {
+            auto bitmap_lock = stream.bitmap_dtvt.freeze();
+            auto& grid = bitmap_lock.thing.image;
+            for (auto& c : grid)
+            {
+                auto image_index = c.get_image_index();
+                if (image_index == updated_image_index)
+                {
+                    c.inc_image_stamp(1);
                 }
             }
         }

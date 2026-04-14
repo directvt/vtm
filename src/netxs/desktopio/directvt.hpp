@@ -1005,8 +1005,8 @@ namespace netxs::directvt
         STRUCT_macro(jgc_element,        (ui64, token) (text, cluster)) // Reply grapheme cluster list<jgc_element>.
 
         STRUCT_macro(unknown_img,        (ui16, index)) // Request unknown image list<unknown_img>.
-        STRUCT_macro(img_element,        (ui16, index) (text, document) (fp32, width) (fp32, height) (fp32, dx) (fp32, dy) (fp32, scale)) // Reply image metadata list<img_element>.
-        STRUCT_macro(update_img_request, (ui16, index) (ui16, changed_bits) (many, changes))
+        STRUCT_macro(img_element,        (ui16, index) (many, global_attributes)) // Reply image metadata list<img_element>. Access by imagens::gb::<attr_index>; The document is always placed at the end of the list.
+        STRUCT_macro(update_img_request, (ui16, index) (ui16, changed_bits) (many, changes)) // The document is always placed at the end of the list if set.
         STRUCT_macro(remove_img_request, (ui16, index))
 
         #undef STRUCT_macro
@@ -1994,14 +1994,14 @@ namespace netxs::directvt
                         if (auto image_ptr = images.map[local_index])
                         {
                             auto& image = *image_ptr;
-                            image.document = new_image.document;
-                            image.attrs[imagens::width ] = new_image.width;
-                            image.attrs[imagens::height] = new_image.height;
-                            image.attrs[imagens::dx    ] = new_image.dx;
-                            image.attrs[imagens::dy    ] = new_image.dy;
-                            image.attrs[imagens::scale ] = new_image.scale;
-                            if constexpr (debugmode) log("%%New image metadata: index=%% size=%%,%% dt=%%,%% scale=%%", prompt::s11n,
-                                new_image.index, new_image.width, new_image.height, new_image.dx, new_image.dy, new_image.scale);
+                            if constexpr (debugmode) log("%%New image metadata:", prompt::s11n);
+                            for (auto i = 0u; i < new_image.global_attributes.size() - 1; i++)
+                            {
+                                image.gb_attrs[i] = std::any_cast<fp32>(new_image.global_attributes[i]);
+                                if constexpr (debugmode) log("  %attr%=%value%", imagens::gb::names[i], image.gb_attrs[i]);
+                            }
+                            image.document = std::any_cast<text>(new_image.global_attributes.back());
+                            if constexpr (debugmode) log("  document='%value%...'", image.document.substr(0, std::min(20, (si32)image.document.size())));
                         }
                     }
                 }
