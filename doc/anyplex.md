@@ -51,7 +51,7 @@ Field           | Description
 
 Attributes are divided into **Shared** (object-wide) and **Unique** (per-instance/cell).
 
-- **Shared Attributes**: `u`, `v`, `uw`, `vh`, `x`, `y`, `w`, `h`, `o`, `a`, `tr`, `f`, `rt`.
+- **Shared Attributes**: `u`, `v`, `uw`, `vh`, `x`, `y`, `w`, `h`, `fit`, `o`, `a`, `tr`, `f`, `rt`.
   - These define the global geometry and document mapping.
   - Updating a shared attribute for an existing `id` immediately affects **all cells** currently linked to that object in the terminal's view.
 - **Unique Attributes**: `gc`, `r`, `c`.
