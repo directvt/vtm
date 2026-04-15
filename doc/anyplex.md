@@ -15,12 +15,16 @@ Scope                           | Role
 
 - **Normalized Source Viewport**: The source document is first projected onto a virtual canvas of size `1.0` by `1.0`. A rectangular fragment (crop) is then extracted from this canvas using normalized coordinates `u`, `v` (top-left) and `uw`, `vh` (size), where `1.0` equals the full canvas dimension. Negative values for `uw` or `vh` cause the extracted fragment to be flipped along the respective axis.
 - **Target Rectangular Area**: The grid footprint is explicitly defined by the unique attributes **W** and **H**. The range of affected cell indices starts at the current cursor position and spans `[0 .. W-1]` horizontally and `[0 .. H-1]` vertically. If `W` or `H` is `0`, no cells are modified, and the object is only registered in the cache.
-- **Pixel-wise Precision**: The Clipping Box (`w x h`) is first aligned within the Grid Container (`W x H`) according to the **`a`** (align) attribute. The shared **`x`** and **`y`** values are then applied as relative offsets from this alignment position. 
-- **Persistence**: Metadata is stored per-cell to survive scrollback and ensure logical linking for rectangular reflow, using only an implementation-defined minimum of data (e.g., a lightweight object reference) to minimize memory overhead.
+- **Pixel-wise Precision**:
+  - **Content Positioning**: The image fragment is scaled according to `fit` and aligned within the **Clipping Box** (`w x h`) using the `a` attribute.
+  - **Box Positioning**: This Clipping Box is then aligned within the **Grid Container** (`W x H`) using the same `a` attribute.
+  - **Offsets**: Shared `x` and `y` values are applied as final pixel offsets from the resulting position.
+  - **Final Cut**: The Grid Container acts as a strict physical mask; any pixels falling outside the `W x H` cell area are not rendered.
+- **Persistence**: Metadata (Object Reference + Unique attributes) is stored per-cell to survive scrollback and ensure logical linking for rectangular reflow, using only an implementation-defined minimum of data to minimize memory overhead.
 - **Cursor Position**: Anchored at the top-left; moves to the cell immediately following the bottom-right corner of the **Grid Container** (`W x H`) after output.
 - **Destructivity**:
-  - If the **`gc`** attribute is not empty, the provided grapheme cluster is written to **every cell** in the target area, replacing existing text and SGR attributes.
-  - If **`gc`** is empty, the output is non-destructive; existing text and SGR attributes remain visually intact.
+  - If the `gc` attribute is not empty, the provided grapheme cluster is written to **every cell** in the target area, replacing existing text and SGR attributes.
+  - If `gc` is empty, the output is non-destructive; existing text and SGR attributes remain visually intact.
   - Subsequent text written over the area does not destroy the underlying object. Metadata remains in the cell until explicitly replaced.
 - **Selection & Highlighting**: When a cell is selected (e.g., mouse selection or **SGR 7**), the frontend **applies a 0.5 opacity mask** to the object's pixels within that specific cell to ensure the selection remains visible.
 - **Searchability**: Any text contained within the document (e.g., `<text>` in SVG) is rendered as part of the graphic and is not indexed for terminal text search.
