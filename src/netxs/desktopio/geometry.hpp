@@ -396,12 +396,17 @@ namespace netxs
         {
             auto p = global_child.coor - coor;
             auto s = global_child.size;
-            if (xform & 0b100) p.y = size.y - p.y - s.y;
-            if (xform & 0b010) p.x = size.x - p.x - s.x;
             if (xform & 0b001)
             {
+                if (xform & 0b100) p.y = size.x - p.y - s.y;
+                if (xform & 0b010) p.x = size.y - p.x - s.x;
                 std::swap(p.x, p.y);
                 std::swap(s.x, s.y);
+            }
+            else
+            {
+                if (xform & 0b100) p.y = size.y - p.y - s.y;
+                if (xform & 0b010) p.x = size.x - p.x - s.x;
             }
             return { p, s };
         }
@@ -875,8 +880,7 @@ namespace netxs
                 using type = decltype(elem);
                 auto src = std::span{ (type*)buffer.data(), (size_t)area.length() };
                 auto dst = std::span{ (type*)bits.data(),   (size_t)area.length() };
-                auto src_ptr = src.begin();
-                auto dst_ptr = dst.begin();
+                auto d_head = 0;
                 auto src_sz = area.size;
                 auto dst_dx = 1;
                 auto dst_dy = area.size.x;
@@ -898,14 +902,16 @@ namespace netxs
                 }
                 if (flip_swap & 0b010) // Flip X after swap!
                 {
-                    dst_ptr += (src_sz.x - 1) * dst_dx;
+                    d_head += (src_sz.x - 1) * dst_dx;
                     dst_dx = -dst_dx;
                 }
                 if (flip_swap & 0b100) // Flip Y after swap!
                 {
-                    dst_ptr += (src_sz.y - 1) * dst_dy;
+                    d_head += (src_sz.y - 1) * dst_dy;
                     dst_dy = -dst_dy;
                 }
+                auto src_ptr = src.begin();
+                auto dst_ptr = dst.begin() + d_head;
                 auto h = src_sz.y;
                 while (true)
                 {

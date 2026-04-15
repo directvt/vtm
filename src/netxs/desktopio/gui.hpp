@@ -2441,6 +2441,7 @@ namespace netxs::gui
                 auto y   = image.gb_attrs[imagens::gb::y  ];
                 auto w   = image.gb_attrs[imagens::gb::w  ];
                 auto h   = image.gb_attrs[imagens::gb::h  ];
+                auto tr  = image.gb_attrs[imagens::gb::tr ];
                 auto fit = image.gb_attrs[imagens::gb::fit];
                 image.xy = twod{ std::round(fp2d{ x, y } * cellsz) };
                 auto wh  = fp2d{ w, h };
@@ -2451,11 +2452,11 @@ namespace netxs::gui
                 auto bounding_rect_pixels = std::round(wh); // Document bounding box size in pixels.
                 image.cellcanvas_size = twod{ bounding_rect_pixels };//std::ceil(wh) };
 
-                //todo implement
-                //if ((si32)transform & 1)
-                //{
-                //    std::swap(bounding_rect_pixels.x, bounding_rect_pixels.y);
-                //}
+                if ((si32)tr & 1)
+                {
+                    std::swap(bounding_rect_pixels.x, bounding_rect_pixels.y);
+                    std::swap(image.cellcanvas_size.x, image.cellcanvas_size.y);
+                }
                 auto ratio = bounding_rect_pixels / final_frag_sz;
                 auto scale = fp2d{ dot_11 };
                 switch ((si32)fit)
@@ -2559,22 +2560,22 @@ namespace netxs::gui
         }
         auto render_image(auto& canvas, rect placeholder, argb fgc, cell const& c)
         {
-            if (auto image_index = c.get_image_index())
             if (auto image_cr = c.get_image_cr(); image_cr.x != 0 && image_cr.y != 0)
             {
-                auto image_align = c.get_image_align();
-                auto image_xform = c.get_image_xform();
+                auto image_index = c.get_image_index();
                 auto images = cell::images(); // Lock.
                 if (auto image_ptr = images.exists(image_index)) // We form all image requests on dtvt recv stage.
                 {
                     auto& image = *image_ptr;
-                    //todo diff by sizes
                     if (image.fragment.type == sprite::undef && image.document.size())
                     {
                         rasterize_svg_document(image);
                     }
                     if (image.fragment.area)
                     {
+                        auto image_align = (si32)image.gb_attrs[imagens::gb::a ];
+                        auto image_xform = (si32)image.gb_attrs[imagens::gb::tr];
+
                         // Alignment.
                         //auto get_factor = [](auto align)
                         //{
@@ -2593,8 +2594,11 @@ namespace netxs::gui
                         };
                         auto align = twod{ get_off(image_align & 0b0011, image.cellcanvas_size.x - image.scaled_fragment_area.size.x),
                                            get_off(image_align >> 2,     image.cellcanvas_size.y - image.scaled_fragment_area.size.y) };
-                        auto fragment_area_coor = image.fragment.area.coor + align;
-
+                        auto fragment_area_coor = image.scaled_fragment_area.coor + align;
+                        if (image_xform & 1) // ok.
+                        {
+                            std::swap(fragment_area_coor.x, fragment_area_coor.y);
+                        }
                         // Rendering.
                         image_cr = (image_cr - dot_11) * cellsz;
                         auto offset = placeholder.coor - image_cr + image.xy + fragment_area_coor;
@@ -2618,7 +2622,7 @@ namespace netxs::gui
             static constexpr auto blink_canvas_specified = !std::is_same_v<std::decay_t<T>, noop>;
             placeholder.trimby(canvas.area());
             if (!placeholder) return;
-            auto image_ontop = c.get_image_ontop();
+            auto [image_index, image_ontop] = c.get_image_ontop();
             auto blinking = blink_canvas_specified && c.blk() && !c.hid();
             auto fgc = c.fgc();
             auto bgc = c.bgc();
@@ -2628,7 +2632,7 @@ namespace netxs::gui
             canvas.clip(placeholder);
             auto target_ptr = &canvas;
             netxs::onrect(canvas, placeholder, cell::shaders::full(bgc));
-            if (!image_ontop)
+            if (image_index && !image_ontop)
             {
                 render_image(canvas, placeholder, fgc, c);
             }
@@ -2764,7 +2768,7 @@ namespace netxs::gui
                 break;
             }
 
-            if (image_ontop)
+            if (image_index && image_ontop)
             {
                 if (blinking)
                 {

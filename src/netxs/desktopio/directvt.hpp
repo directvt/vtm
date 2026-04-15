@@ -1006,7 +1006,7 @@ namespace netxs::directvt
 
         STRUCT_macro(unknown_img,        (ui16, index)) // Request unknown image list<unknown_img>.
         STRUCT_macro(img_element,        (ui16, index) (many, global_attributes)) // Reply image metadata list<img_element>. Access by imagens::gb::<attr_index>; The document is always placed at the end of the list.
-        STRUCT_macro(update_img_request, (ui16, index) (ui16, changed_bits) (many, changes)) // The document is always placed at the end of the list if set.
+        STRUCT_macro(update_img_request, (ui16, index) (si32, changed_bits) (many, changes)) // The document is always placed at the end of the list if set.
         STRUCT_macro(remove_img_request, (ui16, index))
 
         #undef STRUCT_macro

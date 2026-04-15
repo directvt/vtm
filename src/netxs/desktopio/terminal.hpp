@@ -7421,31 +7421,31 @@ namespace netxs::ui
                         if (auto gb = imagens::parse_pair(attr_str, value_str, imagens::gb::attr_index_map, imagens::gb_value_index_map))
                         {
                             auto [i, v] = gb.value();
-                            new_gb_attrs[i] = v;
+                            auto& xform_ref = new_gb_attrs[imagens::gb::tr];
+                            switch (i) // Accumulate transforms if specified.
+                            {
+                                case imagens::gb::f:
+                                    if (!xform_ref) xform_ref = 0.f;
+                                    imagens::mirror_fx(xform_ref.value(), v);
+                                    break;
+                                case imagens::gb::rt:
+                                    if (!xform_ref) xform_ref = 0.f;
+                                    imagens::rotate_fx(xform_ref.value(), v);
+                                    break;
+                                case imagens::gb::tr:
+                                    xform_ref = std::clamp(v, 0.f, 7.f);
+                                    break;
+                                default:
+                                    new_gb_attrs[i] = v;
+                                    break;
+                            }
                             if constexpr (debugmode) log("  new_gb_attrs[%%]=%%", i, v);
                         }
                         else if (auto lc = imagens::parse_pair(attr_str, value_str, imagens::lc::attr_index_map, imagens::lc_value_index_map))
                         {
                             auto [i, v] = lc.value();
+                            new_lc_attrs[i] = v;
                             if constexpr (debugmode) log("  new_lc_attrs[%%]=%%", i, v);
-                            auto& xform_ref = new_lc_attrs[imagens::lc::tr];
-                            switch (i) // Accumulate transforms if specified.
-                            {
-                                case imagens::lc::f:
-                                    if (!xform_ref) xform_ref = 0.f;
-                                    imagens::mirror_fx(xform_ref.value(), v);
-                                    break;
-                                case imagens::lc::rt:
-                                    if (!xform_ref) xform_ref = 0.f;
-                                    imagens::rotate_fx(xform_ref.value(), v);
-                                    break;
-                                case imagens::lc::tr:
-                                    xform_ref = std::clamp(v, 0.f, 7.f);
-                                    break;
-                                default:
-                                    new_lc_attrs[i] = v;
-                                    break;
-                            }
                         }
                     }
                 }
@@ -7515,7 +7515,7 @@ namespace netxs::ui
                 auto r = std::clamp((si32)_r, 0, _h);
 
                 auto gc_str = gc_opt ? gc_opt.value() : " ";
-                auto brush = cell{ target->brush }.txt(gc_str, 1, 1, 1, 1);
+                auto brush = cell{ target->brush }.txt(gc_str, 1, 1, 1, 1); //todo make the character geometry configurable
                 auto print_image_buffer = [&]
                 {
                     gc_str ? draw_block(image_buffer, cell::shaders::full)
@@ -7525,20 +7525,15 @@ namespace netxs::ui
                 auto different_image_attrs = [&]
                 {
                     auto& image = *iter->second;
-                    //todo use loop on gb_attrs
-                    auto ret = (image.gb_attrs[imagens::gb::u  ] != gb_attrs[imagens::gb::u  ])
-                            || (image.gb_attrs[imagens::gb::v  ] != gb_attrs[imagens::gb::v  ])
-                            || (image.gb_attrs[imagens::gb::uw ] != gb_attrs[imagens::gb::uw ])
-                            || (image.gb_attrs[imagens::gb::vh ] != gb_attrs[imagens::gb::vh ])
-                            || (image.gb_attrs[imagens::gb::x  ] != gb_attrs[imagens::gb::x  ])
-                            || (image.gb_attrs[imagens::gb::y  ] != gb_attrs[imagens::gb::y  ])
-                            || (image.gb_attrs[imagens::gb::w  ] != gb_attrs[imagens::gb::w  ])
-                            || (image.gb_attrs[imagens::gb::h  ] != gb_attrs[imagens::gb::h  ])
-                            || (image.gb_attrs[imagens::gb::fit] != gb_attrs[imagens::gb::fit])
-                            || (doc_str && image.document != doc_str);
-                    return ret;
+                    auto changed = faux;
+                    for (auto i = 0u; i < image.gb_attrs.size(); i++)
+                    {
+                        changed |= image.gb_attrs[i] != gb_attrs[i];
+                        if (changed) break;
+                    }
+                    return changed || (doc_str && image.document != doc_str);
                 };
-                auto same_doc = [&]
+                auto same_doc_and_raster = [&]
                 {
                     auto& image = *iter->second;
                     auto ret = (image.gb_attrs[imagens::gb::uw ] == gb_attrs[imagens::gb::uw ])
@@ -7546,18 +7541,16 @@ namespace netxs::ui
                             && (image.gb_attrs[imagens::gb::w  ] == gb_attrs[imagens::gb::w  ])
                             && (image.gb_attrs[imagens::gb::h  ] == gb_attrs[imagens::gb::h  ])
                             && (image.gb_attrs[imagens::gb::fit] == gb_attrs[imagens::gb::fit])
+                            && (((si32)image.gb_attrs[imagens::gb::tr ] & 1) == ((si32)gb_attrs[imagens::gb::tr ] & 1)) // Same orientation.
                             && (!doc_str || image.document == doc_str);
                     return ret;
                 };
                 // Register image.
-                if (iter != image_cache.end() && same_doc()) // Move existing image.
+                if (iter != image_cache.end() && same_doc_and_raster()) // Move existing image.
                 {
                     auto& image = *iter->second;
                     image.reset_changes();
-                    image.check_and_set_attr(imagens::gb::u, gb_attrs);
-                    image.check_and_set_attr(imagens::gb::v, gb_attrs);
-                    image.check_and_set_attr(imagens::gb::x, gb_attrs);
-                    image.check_and_set_attr(imagens::gb::y, gb_attrs);
+                    image.check_and_set_attr(gb_attrs);
                     if (image.changed_gb_attrs)
                     {
                         image.stamp += 2;
@@ -7571,16 +7564,7 @@ namespace netxs::ui
                     image.reset_raster(); // Request to re-rasterize.
                     image.reset_changes();
                     image.check_and_set_document(doc_str);
-                    //todo use loop on gb_attrs
-                    image.check_and_set_attr(imagens::gb::u  , gb_attrs);
-                    image.check_and_set_attr(imagens::gb::v  , gb_attrs);
-                    image.check_and_set_attr(imagens::gb::uw , gb_attrs);
-                    image.check_and_set_attr(imagens::gb::vh , gb_attrs);
-                    image.check_and_set_attr(imagens::gb::x  , gb_attrs);
-                    image.check_and_set_attr(imagens::gb::y  , gb_attrs);
-                    image.check_and_set_attr(imagens::gb::w  , gb_attrs);
-                    image.check_and_set_attr(imagens::gb::h  , gb_attrs);
-                    image.check_and_set_attr(imagens::gb::fit, gb_attrs);
+                    image.check_and_set_attr(gb_attrs);
                     if (image.changed_gb_attrs)
                     {
                         image.stamp += 2;

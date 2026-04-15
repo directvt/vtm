@@ -1195,23 +1195,23 @@ namespace netxs
         // local:  stored in cells
         // global: stored in image
         #define global_attr_list \
-            X(u  ) /* u-coor (0.0-1.0)                 */ \
-            X(v  ) /* u-coor (0.0-1.0)                 */ \
-            X(uw ) /* u-size (reset raster if changed) */ \
-            X(vh ) /* v-size (reset raster if changed) */ \
-            X(x  ) /* x                                */ \
-            X(y  ) /* y                                */ \
-            X(w  ) /* w      (reset raster if changed) */ \
-            X(h  ) /* h      (reset raster if changed) */ \
-            X(fit) /* fit    (reset raster if changed) */
+            X(u  ) /* u-coor (0.0-1.0)                              */ \
+            X(v  ) /* u-coor (0.0-1.0)                              */ \
+            X(uw ) /* u-size (reset raster if changed)              */ \
+            X(vh ) /* v-size (reset raster if changed)              */ \
+            X(x  ) /* x                                             */ \
+            X(y  ) /* y                                             */ \
+            X(w  ) /* w      (reset raster if changed)              */ \
+            X(h  ) /* h      (reset raster if changed)              */ \
+            X(fit) /* fit    (reset raster if changed)              */ \
+            X(o  ) /* ontop                                         */ \
+            X(a  ) /* align                                         */ \
+            X(tr ) /* transform (reset raster if SwapXY is changed) */ \
+            X(f  ) /* flip   (not stored)                           */ \
+            X(rt ) /* rotate (not stored)                           */
         #define local_attr_list \
             X(c ) /* column    */ \
-            X(r ) /* row       */ \
-            X(o ) /* ontop     */ \
-            X(a ) /* align     */ \
-            X(tr) /* transform */ \
-            X(f ) /* flip      */ \
-            X(rt) /* rotate    */
+            X(r ) /* row       */
         namespace gb
         {
             static constexpr auto _counter = __COUNTER__ + 1;
@@ -1319,17 +1319,18 @@ namespace netxs
                                  { "outside", scale_mode::outside },
                                  { "stretch", scale_mode::stretch },
                                  { "none"   , scale_mode::none    }} },
+            { imagens::gb::rt, {{ "0", 0 }, { "90" , (si32)ccw::r90 }, { "180" , (si32)ccw::r180 }, { "270" , (si32)ccw::r270 }} },
+            { imagens::gb::a, {{ "c", align_mode::center }, { "cm", align_mode::center_middle }, { "ct", align_mode::center_top }, { "cb", align_mode::center_bottom },
+                               { "l", align_mode::left   }, { "lm", align_mode::left_middle   }, { "lt", align_mode::left_top   }, { "lb", align_mode::left_bottom   },
+                               { "r", align_mode::right  }, { "rm", align_mode::right_middle  }, { "rt", align_mode::right_top  }, { "rb", align_mode::right_bottom  },
+                               { "m", align_mode::middle }, { "mc", align_mode::center_middle }, { "tc", align_mode::center_top }, { "bc", align_mode::center_bottom },
+                               { "t", align_mode::top    }, { "ml", align_mode::left_middle   }, { "tl", align_mode::left_top   }, { "bl", align_mode::left_bottom   },
+                               { "b", align_mode::bottom }, { "mr", align_mode::right_middle  }, { "tr", align_mode::right_top  }, { "br", align_mode::right_bottom  }} },
+            { imagens::gb::f, {{ "none", 0 }, { "v" , (si32)flips::vt }, { "h" , (si32)flips::hz }, { "vh" , (si32)flips::hv }, { "hv" , (si32)flips::hv }} },
         };
         static const auto lc_value_index_map = std::unordered_map<si32, utf::unordered_map<text, si32>>
         {
-            { imagens::lc::a,  {{ "c", align_mode::center }, { "cm", align_mode::center_middle }, { "ct", align_mode::center_top }, { "cb", align_mode::center_bottom },
-                                { "l", align_mode::left   }, { "lm", align_mode::left_middle   }, { "lt", align_mode::left_top   }, { "lb", align_mode::left_bottom   },
-                                { "r", align_mode::right  }, { "rm", align_mode::right_middle  }, { "rt", align_mode::right_top  }, { "rb", align_mode::right_bottom  },
-                                { "m", align_mode::middle }, { "mc", align_mode::center_middle }, { "tc", align_mode::center_top }, { "bc", align_mode::center_bottom },
-                                { "t", align_mode::top    }, { "ml", align_mode::left_middle   }, { "tl", align_mode::left_top   }, { "bl", align_mode::left_bottom   },
-                                { "b", align_mode::bottom }, { "mr", align_mode::right_middle  }, { "tr", align_mode::right_top  }, { "br", align_mode::right_bottom  }} },
-            { imagens::lc::f,  {{ "none", 0 }, { "v" , (si32)flips::vt }, { "h" , (si32)flips::hz }, { "vh" , (si32)flips::hv }, { "hv" , (si32)flips::hv }} },
-            { imagens::lc::rt, {{ "0", 0 }, { "90" , (si32)ccw::r90 }, { "180" , (si32)ccw::r180 }, { "270" , (si32)ccw::r270 }} },
+            //
         };
         auto parse_pair(qiew key, qiew val, auto& attr_index_map, auto& value_index_map) -> std::optional<std::pair<si32, fp32>>
         {
@@ -1372,7 +1373,7 @@ namespace netxs
             text          document;
             bool          document_changed{};
             gb_attrs_t    gb_attrs;
-            ui16          changed_gb_attrs{}; // Contains bits indicating which imagens::gb::attr have changed.
+            si32          changed_gb_attrs{}; // Contains bits indicating which imagens::gb::attr have changed.
             ui16          index{};
             sprite        fragment{ *std::pmr::new_delete_resource() }; // Rasterized and trimmed fragment within the scaled_fragment_area. Using default resource allocator.
             rect          scaled_fragment_area; // Document full fragment area (sprite::fragment's transparent fields are trimmed).
@@ -1382,7 +1383,7 @@ namespace netxs
             imagens::docs dom;
             byte          stamp{}; // Increment on image update to sync with FE.
 
-            void set_changes(ui16 new_changed_bits, many& changes)
+            void set_changes(si32 new_changed_bits, many& changes)
             {
                 changed_gb_attrs = new_changed_bits;
                 auto i = 0u;
@@ -1442,14 +1443,15 @@ namespace netxs
                     document_changed = true;
                 }
             }
-            void check_and_set_attr(si32 attr_index, gb_attrs_t& new_gb_attrs)
+            void check_and_set_attr(gb_attrs_t& new_gb_attrs)
             {
-                if (attr_index >= 0 && attr_index < imagens::gb::attr_count)
+                assert(new_gb_attrs.size() < sizeof(changed_gb_attrs) * 8);
+                for (auto i = 0u; i < new_gb_attrs.size(); i++)
                 {
-                    if (new_gb_attrs[attr_index] != gb_attrs[attr_index])
+                    if (new_gb_attrs[i] != gb_attrs[i])
                     {
-                        changed_gb_attrs |= 1 << attr_index;
-                        gb_attrs[attr_index] = new_gb_attrs[attr_index];
+                        changed_gb_attrs |= 1 << i;
+                        gb_attrs[i] = new_gb_attrs[i];
                     }
                 }
             }
@@ -2051,18 +2053,12 @@ namespace netxs
         //  16   | Image index. ui16
         //  16   | c fragment (column). ui16
         //  16   | r fragment (row). ui16
-        //  4    | align=[center|left|right][-][middle|top|bottom]
-        //  1    | ontop=0 | 1
-        //  3    | transform=0..7 ([FlipY][FlipX][SwapXY])
-        //  2    | scale=[inside|outside|stretch|none]
         //  8    | stamp 0..255
 
         static constexpr auto px_objX_16_mask = (ui64)0b00000000'00000000'00000000'00000000'00000000'00000000'11111111'11111111;
         static constexpr auto px_objY_16_mask = (ui64)0b00000000'00000000'00000000'00000000'11111111'11111111'00000000'00000000;
         static constexpr auto px_index16_mask = (ui64)0b00000000'00000000'11111111'11111111'00000000'00000000'00000000'00000000;
-        static constexpr auto px_align_4_mask = (ui64)0b00000000'00001111'00000000'00000000'00000000'00000000'00000000'00000000;
-        static constexpr auto px_xform_3_mask = (ui64)0b00000000'01110000'00000000'00000000'00000000'00000000'00000000'00000000;
-        static constexpr auto px_ontop_1_mask = (ui64)0b00000000'10000000'00000000'00000000'00000000'00000000'00000000'00000000;
+      //static constexpr auto px_reserv8_mask = (ui64)0b00000000'11111111'00000000'00000000'00000000'00000000'00000000'00000000;
         static constexpr auto px_stamp_8_mask = (ui64)0b11111111'00000000'00000000'00000000'00000000'00000000'00000000'00000000;
 
         auto get_image_cr() const
@@ -2077,24 +2073,29 @@ namespace netxs
             netxs::set_field<px_objY_16_mask>(r, px);
         }
         auto get_image_index() const { return (ui16)netxs::get_field<px_index16_mask>(px); }
-        auto get_image_align() const { return       netxs::get_field<px_align_4_mask>(px); }
-        auto get_image_xform() const { return       netxs::get_field<px_xform_3_mask>(px); }
-        auto get_image_ontop() const { return       netxs::get_field<px_ontop_1_mask>(px); }
         auto get_image_stamp() const { return       netxs::get_field<px_stamp_8_mask>(px); }
+        auto get_image_ontop() const
+        {
+            auto index = get_image_index();
+            auto ontop = faux;
+            if (index)
+            {
+                auto images = cell::images(); // Lock.
+                if (auto image_ptr = images.map[index])
+                {
+                    ontop = (si32)image_ptr->gb_attrs[imagens::gb::o];
+                }
+            }
+            return std::pair{ index, ontop };
+        }
         auto inc_image_stamp(si32 n) { netxs::set_field<px_stamp_8_mask>(get_image_stamp() + n, px); }
         auto set_image_index(si32 n) { netxs::set_field<px_index16_mask>(n, px); }
-        auto set_image_align(si32 n) { netxs::set_field<px_align_4_mask>(n, px); }
-        auto set_image_xform(si32 n) { netxs::set_field<px_xform_3_mask>(n, px); }
-        auto set_image_ontop(si32 n) { netxs::set_field<px_ontop_1_mask>(n, px); }
         auto set_image_stamp(si32 n) { netxs::set_field<px_stamp_8_mask>(n, px); }
         auto set_image_attrs(imagens::image& image, imagens::image::lc_attrs_t& lc_attrs)
         {
             set_image_index(image.index);
             set_image_cr(   (si32)lc_attrs[imagens::lc::c ],
                             (si32)lc_attrs[imagens::lc::r ]);
-            set_image_align((si32)lc_attrs[imagens::lc::a ]);
-            set_image_xform((si32)lc_attrs[imagens::lc::tr]);
-            set_image_ontop((si32)lc_attrs[imagens::lc::o ]);
             set_image_stamp(image.stamp);
             return *this;
         }

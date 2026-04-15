@@ -927,22 +927,24 @@ namespace netxs
         auto src_dx = 1;
         auto src_dy = sprite.size().x;
         auto dst_dy = canvas.size().x;
-        auto s_ptr = sprite.begin() + src_rect.coor.y * src_dy + src_rect.coor.x;
-        auto d_ptr = canvas.begin() + dst_rect.coor.y * dst_dy + dst_rect.coor.x;
+        auto s_head = src_rect.coor.y * src_dy + src_rect.coor.x;
+        auto d_head = dst_rect.coor.y * dst_dy + dst_rect.coor.x;
         if (xform & 0b001) // SwapXY
         {
             std::swap(src_dx, src_dy);
         }
         if (xform & 0b010) // FlipX
         {
-            s_ptr += (dst_rect.size.x - 1) * src_dx;
+            s_head += (dst_rect.size.x - 1) * src_dx;
             src_dx = -src_dx;
         }
         if (xform & 0b100) // FlipY
         {
-            s_ptr += (dst_rect.size.y - 1) * src_dy;
+            s_head += (dst_rect.size.y - 1) * src_dy;
             src_dy = -src_dy;
         }
+        auto s_ptr = sprite.begin() + s_head;
+        auto d_ptr = canvas.begin() + d_head;
         auto h = dst_rect.size.y;
         while (true)
         {

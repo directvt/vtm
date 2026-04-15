@@ -51,10 +51,10 @@ Field           | Description
 
 Attributes are divided into **Shared** (object-wide) and **Unique** (per-instance/cell).
 
-- **Shared Attributes**: `u`, `v`, `uw`, `vh`, `x`, `y`, `w`, `h`, `rt`, `fit`.
+- **Shared Attributes**: `u`, `v`, `uw`, `vh`, `x`, `y`, `w`, `h`, `o`, `a`, `tr`, `f`, `rt`.
   - These define the global geometry and document mapping.
   - Updating a shared attribute for an existing `id` immediately affects **all cells** currently linked to that object in the terminal's view.
-- **Unique Attributes**: `gc`, `r`, `c`, `o`, `a`, `f`.
+- **Unique Attributes**: `gc`, `r`, `c`.
   - These define the specific state of the current output operation.
   - If a unique attribute is omitted in a sequence, it reverts to its **Default Value** (it does not inherit the value from a previous call).
 
@@ -63,17 +63,18 @@ Attributes are divided into **Shared** (object-wide) and **Unique** (per-instanc
 Attribute  | Scope  | Value/Range                      | Default                  | Description
 -----------|--------|----------------------------------|--------------------------|------------
 **id**     | -      | `<id>[/sub-id]`                  | empty string (`""`)      | Object reference ID.
-**gc**     | Unique | `string`                         | ASCII Space (0x20) `" "` | Grapheme cluster to write to cells (will be scaled to a 1x1 cell size).
 **u, v**   | Shared | `float`                          | `0.0`                    | Top-left of the source crop (0.0-1.0).
 **uw, vh** | Shared | `float`                          | `1.0`                    | Size of the source crop (0.0-1.0). Negative flips.
 **x, y**   | Shared | `float`                          | `0.0`                    | Target position on the terminal grid (cells).
 **w, h**   | Shared | `float (0.0-65535.0]`            | Terminal viewport        | Target size on the terminal grid (cells).
-**rt**     | Shared | `0\|90\|180\|270`                | `0`                      | **R**ota**t**e: CCW rotation (degrees).
 **fit**    | Shared | `inside\|outside\|stretch\|none` | `inside`                 | Fit logic: How the crop fits into the target width/height (`none` = exact pixels).
-**r, c**   | Unique | `index`                          | `0`                      | **R**ow, **c**olumn 1-based slicing index for target cells. (0 = full height/width, 1..n = specific cell/slice).
-**a**      | Unique | `[l\|c\|r][t\|m\|b]`             | `cm`                     | **A**lign: 2D alignment of the crop inside the target cell block (`l` = left, `c` = center, `r` = right, `t` = top, `m` = middle, `b` = bottom).
-**f**      | Unique | `n\|v\|h\|vh\|hv`                | `n`                      | **F**lip: `n` = none, `v` = vertical, `h` = horizontal.
-**o**      | Unique | `0\|1`                           | `0`                      | **O**ntop: 0 = under text, 1 = over text.
+**tr**     | Shared | `0`..`7`                         | `0`                      | **Tr**ansform: Decimal value of the 3-bit state `[FlipY][FlipX][SwapXY]`.
+**rt**     | Shared | `0\|90\|180\|270`                | `0`                      | **R**ota**t**e: CCW rotation (degrees).
+**f**      | Shared | `n\|v\|h\|vh\|hv`                | `n`                      | **F**lip: `n` = none, `v` = vertical, `h` = horizontal.
+**a**      | Shared | `[l\|c\|r][t\|m\|b]`             | `cm`                     | **A**lign: 2D alignment of the crop inside the target cell block (`l` = left, `c` = center, `r` = right, `t` = top, `m` = middle, `b` = bottom).
+**o**      | Shared | `0\|1`                           | `0`                      | **O**ntop: 0 = under text, 1 = over text.
+**gc**     | Unique | `string`                         | ASCII Space (0x20) `" "` | Grapheme cluster to write to cells (will be scaled to a 1x1 cell size).
+**r, c**   | Unique | `0 .. 65535`                     | `0`                      | **R**ow, **c**olumn 1-based slicing index for target cells. (0 = full height/width, 1..n = specific cell/slice).
 
 > Notes:
 > - If `id` is omitted , the empty string `id=""` is used for registration and output.
@@ -102,6 +103,7 @@ Input State            | Action
 1. Scan the OSC string for `key=value` pairs.
 2. Identify document boundaries via the first `<` and the last `>`.
 3. Scan the OSC string for remaining `key=value` pairs.
+4. Accumulate all orientation attributes (`tr`(transform), `f`(flip), `rt`(rotate)) in the order of appearance to calculate the final 3-bit transformation state.
 
 #### Extensibility
 
