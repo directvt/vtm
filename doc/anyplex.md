@@ -51,10 +51,10 @@ Field           | Description
 
 Attributes are divided into **Shared** (object-wide) and **Unique** (per-instance/cell).
 
-- **Shared Attributes**: `u`, `v`, `uw`, `vh`, `x`, `y`, `w`, `h`. 
+- **Shared Attributes**: `u`, `v`, `uw`, `vh`, `x`, `y`, `w`, `h`, `rt`, `fit`.
   - These define the global geometry and document mapping.
   - Updating a shared attribute for an existing `id` immediately affects **all cells** currently linked to that object in the terminal's view.
-- **Unique Attributes**: `gc`, `r`, `c`, `o`, `a`, `tr`, `f`, `rt`.
+- **Unique Attributes**: `gc`, `r`, `c`, `o`, `a`, `f`.
   - These define the specific state of the current output operation.
   - If a unique attribute is omitted in a sequence, it reverts to its **Default Value** (it does not inherit the value from a previous call).
 
@@ -68,12 +68,11 @@ Attribute  | Scope  | Value/Range                      | Default                
 **uw, vh** | Shared | `float`                          | `1.0`                    | Size of the source crop (0.0-1.0). Negative flips.
 **x, y**   | Shared | `float`                          | `0.0`                    | Target position on the terminal grid (cells).
 **w, h**   | Shared | `float (0.0-65535.0]`            | Terminal viewport        | Target size on the terminal grid (cells).
+**rt**     | Shared | `0\|90\|180\|270`                | `0`                      | **R**ota**t**e: CCW rotation (degrees).
 **fit**    | Shared | `inside\|outside\|stretch\|none` | `inside`                 | Fit logic: How the crop fits into the target width/height (`none` = exact pixels).
 **r, c**   | Unique | `index`                          | `0`                      | **R**ow, **c**olumn 1-based slicing index for target cells. (0 = full height/width, 1..n = specific cell/slice).
 **a**      | Unique | `[l\|c\|r][t\|m\|b]`             | `cm`                     | **A**lign: 2D alignment of the crop inside the target cell block (`l` = left, `c` = center, `r` = right, `t` = top, `m` = middle, `b` = bottom).
-**tr**     | Unique | `0`..`7`                         | `0`                      | **Tr**ansform: Decimal value of the 3-bit state `[FlipY][FlipX][SwapXY]`.
 **f**      | Unique | `n\|v\|h\|vh\|hv`                | `n`                      | **F**lip: `n` = none, `v` = vertical, `h` = horizontal.
-**rt**     | Unique | `0\|90\|180\|270`                | `0`                      | **R**ota**t**e: CCW rotation (degrees).
 **o**      | Unique | `0\|1`                           | `0`                      | **O**ntop: 0 = under text, 1 = over text.
 
 > Notes:
@@ -102,7 +101,7 @@ Input State            | Action
 
 1. Scan the OSC string for `key=value` pairs.
 2. Identify document boundaries via the first `<` and the last `>`.
-3. Accumulate all orientation attributes (`tr`(transform), `f`(flip), `rt`(rotate)) in the order of appearance to calculate the final 3-bit transformation state.
+3. Scan the OSC string for remaining `key=value` pairs.
 
 #### Extensibility
 
