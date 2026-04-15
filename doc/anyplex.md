@@ -14,10 +14,10 @@ Scope                           | Role
 #### Rendering & Interaction
 
 - **Normalized Source Viewport**: The source document is first projected onto a virtual canvas of size `1.0` by `1.0`. A rectangular fragment (crop) is then extracted from this canvas using normalized coordinates `u`, `v` (top-left) and `uw`, `vh` (size), where `1.0` equals the full canvas dimension. Negative values for `uw` or `vh` cause the extracted fragment to be flipped along the respective axis.
-- **Target Rectangular Area**: The resulting fragment is hosted within a grid of cells starting at `x, y`. The range of affected cell indices is defined as `[floor(x) .. ceil(x + w) - 1]` horizontally and `[floor(y) .. ceil(y + h) - 1]` vertically, where `w > 0` and `h > 0`.
-- **Pixel-wise Precision**: The extracted fragment is transformed, scaled and aligned within the bounding box calculated **per-frontend** based on its current cell metrics: `pixel_pos = round(x_or_y * cell_size)` and `pixel_dim = round(w_or_h * cell_size)`. The bounding box acts as a strict clipping mask.
+- **Target Rectangular Area**: The grid footprint is explicitly defined by the unique attributes **W** and **H**. The range of affected cell indices starts at the current cursor position and spans `[0 .. W-1]` horizontally and `[0 .. H-1]` vertically. If `W` or `H` is `0`, no cells are modified, and the object is only registered in the cache.
+- **Pixel-wise Precision**: The Clipping Box (`w x h`) is first aligned within the Grid Container (`W x H`) according to the **`a`** (align) attribute. The shared **`x`** and **`y`** values are then applied as relative offsets from this alignment position. 
 - **Persistence**: Metadata is stored per-cell to survive scrollback and ensure logical linking for rectangular reflow, using only an implementation-defined minimum of data (e.g., a lightweight object reference) to minimize memory overhead.
-- **Cursor Position**: Anchored at the top-left; moves to the cell immediately following the bottom-right corner of the target area after output.
+- **Cursor Position**: Anchored at the top-left; moves to the cell immediately following the bottom-right corner of the **Grid Container** (`W x H`) after output.
 - **Destructivity**:
   - If the **`gc`** attribute is not empty, the provided grapheme cluster is written to **every cell** in the target area, replacing existing text and SGR attributes.
   - If **`gc`** is empty, the output is non-destructive; existing text and SGR attributes remain visually intact.
@@ -51,12 +51,13 @@ Field           | Description
 
 Attributes are divided into **Shared** (object-wide) and **Unique** (per-instance/cell).
 
-- **Shared Attributes**: `u`, `v`, `uw`, `vh`, `x`, `y`, `w`, `h`, `fit`, `o`, `a`, `tr`, `f`, `rt`.
-  - These define the global geometry and document mapping.
-  - Updating a shared attribute for an existing `id` immediately affects **all cells** currently linked to that object in the terminal's view.
-- **Unique Attributes**: `gc`, `r`, `c`.
-  - These define the specific state of the current output operation.
-  - If a unique attribute is omitted in a sequence, it reverts to its **Default Value** (it does not inherit the value from a previous call).
+- **Shared Attributes**: `u`, `v`, `uw`, `vh`, `x`, `y`, `w`, `h`, `fit`, `rt`, `a`, `f`, `o`.
+  - These define the global geometry, orientation, and content mapping.
+  - Updating a shared attribute for an existing `id` immediately affects **all cells** currently linked to that object.
+- **Unique Attributes**: `W`, `H`, `r`, `c`, `gc`.
+  - These define the physical footprint on the terminal grid and the specific slice being rendered.
+  - **W** and **H** define the **Grid Container** (the parcel of cells).
+  - If a unique attribute is omitted in a sequence, it reverts to its **Default Value**.
 
 #### Attributes
 
@@ -65,16 +66,17 @@ Attribute  | Scope  | Value/Range                      | Default                
 **id**     | -      | `<id>[/sub-id]`                  | empty string (`""`)      | Object reference ID.
 **u, v**   | Shared | `float`                          | `0.0`                    | Top-left of the source crop (0.0-1.0).
 **uw, vh** | Shared | `float`                          | `1.0`                    | Size of the source crop (0.0-1.0). Negative flips.
-**x, y**   | Shared | `float`                          | `0.0`                    | Target position on the terminal grid (cells).
-**w, h**   | Shared | `float (0.0-65535.0]`            | Terminal viewport        | Target size on the terminal grid (cells).
-**fit**    | Shared | `inside\|outside\|stretch\|none` | `inside`                 | Fit logic: How the crop fits into the target width/height (`none` = exact pixels).
-**tr**     | Shared | `0`..`7`                         | `0`                      | **Tr**ansform: Decimal value of the 3-bit state `[FlipY][FlipX][SwapXY]`.
-**rt**     | Shared | `0\|90\|180\|270`                | `0`                      | **R**ota**t**e: CCW rotation (degrees).
+**x, y**   | Shared | `float`                          | `0.0`                    | Offset of the Clipping Box **inside** the `W x H` area (cells).
+**w, h**   | Shared | `float (0.0-65535.0]`            | `W, H`                   | Dimensions of the Clipping Box **inside** the `W x H` area (cells).
+**fit**    | Shared | `inside\|outside\|stretch\|none` | `inside`                 | Fit logic: How the crop fits into the `w x h` Clipping Box. (`none` = exact pixels).
+**tr**     | Shared | `0..7`                           | `0`                      | **Tr**ansform: Decimal value of the 3-bit state `[FlipY][FlipX][SwapXY]`.
+**rt**     | Shared | `0\|90\|180\|270`                | `0`                      | **R**ota**t**e: CCW rotation of the source (degrees).
 **f**      | Shared | `n\|v\|h\|vh\|hv`                | `n`                      | **F**lip: `n` = none, `v` = vertical, `h` = horizontal.
-**a**      | Shared | `[l\|c\|r][t\|m\|b]`             | `cm`                     | **A**lign: 2D alignment of the crop inside the target cell block (`l` = left, `c` = center, `r` = right, `t` = top, `m` = middle, `b` = bottom).
+**a**      | Shared | `[l\|c\|r][t\|m\|b]`             | `cm`                     | **A**lign: 2D alignment within the Clipping Box. (`l` = left, `c` = center, `r` = right, `t` = top, `m` = middle, `b` = bottom).
 **o**      | Shared | `0\|1`                           | `0`                      | **O**ntop: 0 = under text, 1 = over text.
 **gc**     | Unique | `string`                         | ASCII Space (0x20) `" "` | Grapheme cluster to write to cells (will be scaled to a 1x1 cell size).
-**r, c**   | Unique | `0 .. 65535`                     | `0`                      | **R**ow, **c**olumn 1-based slicing index for target cells. (0 = full height/width, 1..n = specific cell/slice).
+**W, H**   | Unique | `0..65535`                       | `0`                      | **Grid Container**: Physical footprint in cells. If `0`, nothing is rendered (registration only).
+**r, c**   | Unique | `0..65535`                       | `0`                      | **R**ow, **c**olumn 1-based slicing index for target cell slice. (0 = full height/width, 1..n = specific cell/slice).
 
 > Notes:
 > - If `id` is omitted , the empty string `id=""` is used for registration and output.
