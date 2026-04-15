@@ -1040,6 +1040,7 @@ namespace netxs::ui
                 }
                 dest.gc = c.gc;
                 dest.px = c.px;
+                dest.p2 = c.p2;
             }
             void fgc(tint c)  { argb::set_indexed_color(owner.target->brush.fgc(), c); }
             void bgc(tint c)  { argb::set_indexed_color(owner.target->brush.bgc(), c); }
@@ -7495,24 +7496,22 @@ namespace netxs::ui
                 {
                     if (auto v = new_lc_attrs[i]) lc_attrs[i] = v.value();
                 }
-                auto& x  = gb_attrs[imagens::gb::x ];
-                auto& y  = gb_attrs[imagens::gb::y ];
                 auto& w  = gb_attrs[imagens::gb::w ];
                 auto& h  = gb_attrs[imagens::gb::h ];
                 auto& uw = gb_attrs[imagens::gb::uw];
                 auto& vh = gb_attrs[imagens::gb::vh];
-                auto& _c = lc_attrs[imagens::lc::c];
-                auto& _r = lc_attrs[imagens::lc::r];
+                auto& _W = lc_attrs[imagens::lc::W ];
+                auto& _H = lc_attrs[imagens::lc::H ];
+                auto& _c = lc_attrs[imagens::lc::c ];
+                auto& _r = lc_attrs[imagens::lc::r ];
                 if (uw == 0.f) uw = 1.f;
                 if (vh == 0.f) vh = 1.f;
-                x = std::remainder(x, 1.f); // Normalize the in-cell offset.
-                y = std::remainder(y, 1.f); //
-                w = std::isnormal(w) ? std::clamp(w, 0.001f, (fp32)max_size.x) : (fp32)target->panel.x;
-                h = std::isnormal(h) ? std::clamp(h, 0.001f, (fp32)max_size.y) : (fp32)target->panel.y;
-                auto _w = (si32)std::ceil(x + w) - (si32)std::floor(x);
-                auto _h = (si32)std::ceil(y + h) - (si32)std::floor(y);
-                auto c = std::clamp((si32)_c, 0, _w);
-                auto r = std::clamp((si32)_r, 0, _h);
+                _W = std::clamp(_W, 0.f, (fp32)max_size.x);
+                _H = std::clamp(_H, 0.f, (fp32)max_size.y);
+                w = std::isnormal(w) ? std::clamp(w, 0.001f, (fp32)max_size.x) : _W;
+                h = std::isnormal(h) ? std::clamp(h, 0.001f, (fp32)max_size.y) : _H;
+                auto c = std::clamp((si32)_c, 0, (si32)_W);
+                auto r = std::clamp((si32)_r, 0, (si32)_H);
 
                 auto gc_str = gc_opt ? gc_opt.value() : " ";
                 auto brush = cell{ target->brush }.txt(gc_str, 1, 1, 1, 1); //todo make the character geometry configurable
@@ -7584,6 +7583,9 @@ namespace netxs::ui
                         iter = image_cache.emplace(id_str, image_ptr).first;
                     }
                 }
+                if (!_W || !_H) return;
+                auto imgW = (si32)_W;
+                auto imgH = (si32)_H;
                 if (iter != image_cache.end())
                 {
                     auto& image = *iter->second;
@@ -7592,16 +7594,17 @@ namespace netxs::ui
                 else // Image id is not registered. Just erase the specified region.
                 {
                     if (io_log) log("%%Erase the specified region. Object with id='%%' is not registered", prompt::term, id_str ? id_str : "<empty string>");
+                    brush.reset_px();
                 }
                 // Print image rectangle.
                 if (!c && !r) // Print full raster.
                 {
-                    auto size = twod{ _w, _h };
+                    auto size = twod{ imgW, imgH };
                     image_buffer.core::size<true>(size, brush);
                     auto head = image_buffer.begin();
-                    for (r = 1; r <= _h; r++)
+                    for (r = 1; r <= imgH; r++)
                     {
-                        for (c = 1; c <= _w; c++)
+                        for (c = 1; c <= imgW; c++)
                         {
                             (*head++).set_image_cr(c, r);
                         }
@@ -7610,10 +7613,10 @@ namespace netxs::ui
                 }
                 else if (!r) // Print vertical slice.
                 {
-                    auto size = twod{ 1, _h };
+                    auto size = twod{ 1, imgH };
                     image_buffer.core::size<true>(size, brush);
                     auto head = image_buffer.begin();
-                    for (r = 1; r <= _h; r++)
+                    for (r = 1; r <= imgH; r++)
                     {
                         (*head++).set_image_cr(c, r);
                     }
@@ -7621,10 +7624,10 @@ namespace netxs::ui
                 }
                 else if (!c) // Print horizontal slice.
                 {
-                    auto size = twod{ _w, 1 };
+                    auto size = twod{ imgW, 1 };
                     image_buffer.core::size<true>(size, brush);
                     auto head = image_buffer.begin();
-                    for (c = 1; c <= _w; c++)
+                    for (c = 1; c <= imgW; c++)
                     {
                         (*head++).set_image_cr(c, r);
                     }
@@ -9951,7 +9954,7 @@ namespace netxs::ui
                 auto image_index = c.get_image_index();
                 if (image_index == removed_image_index)
                 {
-                    c.px = {}; // Drop all image metadata.
+                    c.reset_px(); // Drop all image metadata.
                 }
             }
         }

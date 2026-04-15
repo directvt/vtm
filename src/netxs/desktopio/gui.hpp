@@ -2443,19 +2443,17 @@ namespace netxs::gui
                 auto h   = image.gb_attrs[imagens::gb::h  ];
                 auto tr  = image.gb_attrs[imagens::gb::tr ];
                 auto fit = image.gb_attrs[imagens::gb::fit];
-                image.xy = twod{ std::round(fp2d{ x, y } * cellsz) };
                 auto wh  = fp2d{ w, h };
                 auto uv  = fp2d{ u, v };
                 auto uvwh = fp2d{ uw, vh };
                 auto final_frag_sz = orig_full_sz_fp * uvwh; // Rendered fragment size (float).
                 wh *= cellsz;
                 auto bounding_rect_pixels = std::round(wh); // Document bounding box size in pixels.
-                image.cellcanvas_size = twod{ bounding_rect_pixels };//std::ceil(wh) };
+                image.xy = twod{ std::round(fp2d{ x, y } * cellsz) };
 
                 if ((si32)tr & 1)
                 {
                     std::swap(bounding_rect_pixels.x, bounding_rect_pixels.y);
-                    std::swap(image.cellcanvas_size.x, image.cellcanvas_size.y);
                 }
                 auto ratio = bounding_rect_pixels / final_frag_sz;
                 auto scale = fp2d{ dot_11 };
@@ -2575,6 +2573,7 @@ namespace netxs::gui
                     {
                         auto image_align = (si32)image.gb_attrs[imagens::gb::a ];
                         auto image_xform = (si32)image.gb_attrs[imagens::gb::tr];
+                        auto image_WH = c.get_image_WH() * cellsz;
 
                         // Alignment.
                         //auto get_factor = [](auto align)
@@ -2584,7 +2583,7 @@ namespace netxs::gui
                         //    return 0.0f;
                         //};
                         //auto factors = fp2d{ get_factor(image_align & 0b0011), get_factor(image_align >> 2) };
-                        //auto fragment_area_coor = image.fragment.area.coor + (cellcanvas_size - image.scaled_fragment_area.size) * factors;
+                        //auto fragment_area_coor = image.fragment.area.coor + (image_WH - image.scaled_fragment_area.size) * factors;
 
                         auto get_off = [](auto align, auto diff)
                         {
@@ -2592,8 +2591,8 @@ namespace netxs::gui
                                  : (align == (si32)bias::center || !align) ? diff / 2
                                                                            : 0;
                         };
-                        auto align = twod{ get_off(image_align & 0b0011, image.cellcanvas_size.x - image.scaled_fragment_area.size.x),
-                                           get_off(image_align >> 2,     image.cellcanvas_size.y - image.scaled_fragment_area.size.y) };
+                        auto align = twod{ get_off(image_align & 0b0011, image_WH.x - image.scaled_fragment_area.size.x),
+                                           get_off(image_align >> 2,     image_WH.y - image.scaled_fragment_area.size.y) };
                         auto fragment_area_coor = image.scaled_fragment_area.coor + align;
                         if (image_xform & 1) // ok.
                         {
@@ -3117,7 +3116,7 @@ namespace netxs::gui
                     if (auto image_ptr = images.map[image_index])
                     {
                         auto& image = *image_ptr;
-                        image.set_changes(image_data.changed_bits, image_data.changes);
+                        image.set_changes(image_data.changed_bits, image_data.changes, owner.cellsz);
                         if (owner.update_image_bits(image_index))
                         {
                             //todo optimize: scan bitmap_dtvt
@@ -4021,7 +4020,7 @@ namespace netxs::gui
                 if (image_index == removed_image_index)
                 {
                     //todo optimize: scan bitmap_dtvt and find dirty regions, see layer::sync
-                    c.px = {}; // Drop all image metadata.
+                    c.reset_px(); // Drop all image metadata.
                     hit = true;
                 }
             }

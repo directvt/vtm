@@ -123,7 +123,7 @@ namespace netxs::directvt
         template<class T>
         void fuse_ext(auto& block, T&& data)
         {
-            using D = std::remove_cv_t<std::remove_reference_t<T>>;
+            using D = std::remove_cvref_t<T>;
             if constexpr (std::is_same_v<D, char>
                        || std::is_same_v<D, int8>
                        || std::is_same_v<D, byte>)
@@ -142,6 +142,13 @@ namespace netxs::directvt
             else if constexpr (std::is_same_v<D, argb>)
             {
                 block += view{ (char*)&data, sizeof(data) };
+            }
+            else if constexpr (std::is_same_v<D, ui96>)
+            {
+                struct { uint64_t l; uint32_t h; } packed;
+                packed.l = netxs::letoh(data.u64);
+                packed.h = netxs::letoh(data.u32);
+                block += view{ (char*)&packed, 12 };
             }
             else if constexpr (std::is_same_v<D, view>
                             || std::is_same_v<D, qiew>
@@ -180,6 +187,7 @@ namespace netxs::directvt
                     X(ui16) \
                     X(ui32) \
                     X(ui64) \
+                    X(ui96) \
                     X(si16) \
                     X(si32) \
                     X(si64) \
@@ -251,7 +259,7 @@ namespace netxs::directvt
                 return *this;
             }
             // stream: .
-            template<class T, bool PeekOnly = faux, class D = std::remove_cv_t<std::remove_reference_t<T>>, class R0 = std::conditional_t<std::is_same_v<D, noop>, si32, D>, class R = std::conditional_t<std::is_same_v<R0, text>, view, R0>>
+            template<class T, bool PeekOnly = faux, class D = std::remove_cvref_t<T>, class R0 = std::conditional_t<std::is_same_v<D, noop>, si32, D>, class R = std::conditional_t<std::is_same_v<R0, text>, view, R0>>
             static R _take_item(view& data)
             {
                 if constexpr (std::is_same_v<D, view> || std::is_same_v<D, text>)
@@ -303,6 +311,23 @@ namespace netxs::directvt
                     if constexpr (!PeekOnly)
                     {
                         data.remove_prefix(sizeof(data_type));
+                    }
+                    return crop;
+                }
+                else if constexpr (std::is_same_v<D, ui96>)
+                {
+                    if (data.size() < sizeof(ui64) + sizeof(ui32))
+                    {
+                        log(prompt::dtvt, "Corrupted integer data");
+                        if constexpr (!PeekOnly) data.remove_prefix(data.size());
+                        return D{};
+                    }
+                    auto u64 = netxs::aligned<ui64>(data.data());
+                    auto u32 = netxs::aligned<ui32>(data.data() + sizeof(ui64));
+                    auto crop = ui96{ u64, u32 };
+                    if constexpr (!PeekOnly)
+                    {
+                        data.remove_prefix(sizeof(ui64) + sizeof(ui32));
                     }
                     return crop;
                 }
@@ -1090,7 +1115,7 @@ namespace netxs::directvt
                     if (c1.bgc() != c2.bgc()) { meaning += sizeof(c1.bgc()); changes |= bgclr; }
                     if (c1.fgc() != c2.fgc()) { meaning += sizeof(c1.fgc()); changes |= fgclr; }
                     if (c1.stl() != c2.stl()) { meaning += sizeof(c1.stl()); changes |= style; }
-                    if (c1.img() != c2.img()) { meaning += sizeof(c1.img()); changes |= rastr; }
+                    if (c1.img() != c2.img()) { meaning += c1.size_of_img(); changes |= rastr; }
                     if (c1.egc() != c2.egc())
                     {
                         cluster = (byte)c1.len();
@@ -1187,7 +1212,8 @@ namespace netxs::directvt
                     if (what & style) stream::take(c.stl(), data);
                     if (what & rastr)
                     {
-                        stream::take(c.img(), data);
+                        stream::take(c.px, data); // img(): ui96{}
+                        stream::take(c.p2, data); //
                         if (is_remote_forwarding) // Perform an image index translation for remote rasters.
                         if (auto image_ext_index = c.get_image_index())
                         {

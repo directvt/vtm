@@ -77,6 +77,13 @@ namespace netxs
     using flag = std::atomic<bool>;
     using many = std::vector<std::any>;
 
+    struct ui96
+    {
+        ui64 u64;
+        ui32 u32;
+        auto operator <=> (ui96 const&) const = default;
+    };
+
     constexpr size_t operator ""_sz (unsigned long long i) { return static_cast<size_t>(i); }
     static constexpr auto pi = 3.14159265358979323846;
     static constexpr auto bytemin = std::numeric_limits<byte>::min();
