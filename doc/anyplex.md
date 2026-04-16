@@ -76,7 +76,7 @@ Attribute  | Scope  | Value/Range                      | Default                
 **tr**     | Shared | `0..7`                           | `0`                      | **Tr**ansform: Decimal value of the 3-bit state `[FlipY][FlipX][SwapXY]`.
 **rt**     | Shared | `0\|90\|180\|270`                | `0`                      | **R**ota**t**e: CCW rotation of the source (degrees).
 **f**      | Shared | `n\|v\|h\|vh\|hv`                | `n`                      | **F**lip: `n` = none, `v` = vertical, `h` = horizontal.
-**a**      | Shared | `[l\|c\|r][t\|m\|b]`             | `cm`                     | **A**lign: 2D alignment within the Clipping Box. (`l` = left, `c` = center, `r` = right, `t` = top, `m` = middle, `b` = bottom).
+**a**      | Shared | `[l\|c\|r][t\|m\|b]`             | `cm`                     | **A**lign: 2D alignment within the Clipping Box and the `W x H` area. (`l` = left, `c` = center, `r` = right, `t` = top, `m` = middle, `b` = bottom).
 **o**      | Shared | `0\|1`                           | `0`                      | **O**ntop: 0 = under text, 1 = over text.
 **gc**     | Unique | `string`                         | ASCII Space (0x20) `" "` | Grapheme cluster to write to cells (will be scaled to a 1x1 cell size).
 **W, H**   | Unique | `0..65535`                       | `0`                      | **Grid Container**: Physical footprint in cells. If `0`, nothing is rendered (registration only).
