@@ -1360,6 +1360,8 @@ namespace netxs::ui
             rich  tail_frag; // bufferbase: IRM cached fragment.
             rich  char_2d; // bufferbase: 2D char image.
 
+            hook image_update_token;
+
             bufferbase(term& master)
                 : owner{ master },
                   panel{ dot_11 },
@@ -1380,8 +1382,13 @@ namespace netxs::ui
                   alive{ 0      }
             {
                 parser::style = ansi::def_style;
+                owner.LISTEN(tier::general, e2::data::image::remove, image_index, image_update_token)
+                {
+                    wipe_image_index(image_index);
+                };
             }
 
+            virtual void wipe_image_index(ui16 index) = 0;
             // bufferbase: Make a viewport screen copy.
             virtual void do_viewport_copy(face& dest) = 0;
 
@@ -3182,6 +3189,11 @@ namespace netxs::ui
                 bufferbase::uirev = faux;
                 bufferbase::uifwd = faux;
                 return bufferbase::selection_cancel();
+            }
+            // alt_screen: Remove all references to the image from the scrollback.
+            void wipe_image_index(ui16 removed_image_index) override
+            {
+                canvas.remove_image_bits(removed_image_index);
             }
         };
 
@@ -7143,6 +7155,21 @@ namespace netxs::ui
                     reverse_is_available = uirev ? 1 << 1 : 0;
                 }
                 return forward_is_available | reverse_is_available;
+            }
+            // scroll_buf: Remove all references to the image from the scrollback.
+            void wipe_image_index(ui16 removed_image_index) override
+            {
+                upbox.remove_image_bits(removed_image_index);
+                dnbox.remove_image_bits(removed_image_index);
+                auto wipe_batch = [&](auto policy) // Try to parallelize.
+                {
+                    std::for_each(policy, batch.begin(), batch.end(), [removed_image_index](auto& l)
+                    {
+                        l.remove_image_bits(removed_image_index);
+                    });
+                };
+                batch.length() > 100000 ? wipe_batch(std::execution::par)
+                                        : wipe_batch(std::execution::seq);
             }
         };
 

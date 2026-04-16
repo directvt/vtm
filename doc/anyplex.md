@@ -28,7 +28,7 @@ Scope                           | Role
   - Subsequent text written over the area does not destroy the underlying object. Metadata remains in the cell until explicitly replaced.
 - **Selection & Highlighting**: When a cell is selected (e.g., mouse selection or **SGR 7**), the frontend **applies a 0.5 opacity mask** to the object's pixels within that specific cell to ensure the selection remains visible.
 - **Searchability**: Any text contained within the document (e.g., `<text>` in SVG) is rendered as part of the graphic and is not indexed for terminal text search.
-- **Layering & Transparency**: Supports per-pixel alpha. The `o`(ontop) attribute determines Z-order: 
+- **Layering & Transparency**: Supports per-pixel alpha. The `o`(ontop) attribute determines Z-order:
   - `0`: `[Cell BG] -> [Object] -> [Text]`
   - `1`: `[Cell BG] -> [Text] -> [Object]`
   - The cell's background color always remains at the bottom. The terminal cursor is always drawn on top. Alpha blending should be performed in **linear color space**.

@@ -18,6 +18,7 @@
 #include <coroutine>
 #include <cstring> // std::memcpy
 #include <deque>
+#include <execution>
 #include <filesystem>
 #include <fstream>
 #include <functional>

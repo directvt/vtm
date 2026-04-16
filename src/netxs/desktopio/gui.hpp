@@ -4011,19 +4011,8 @@ namespace netxs::gui
         }
         bool remove_image_bits(ui16 removed_image_index)
         {
-            auto hit = faux;
             auto bitmap_lock = stream.bitmap_dtvt.freeze();
-            auto& grid = bitmap_lock.thing.image;
-            for (auto& c : grid)
-            {
-                auto image_index = c.get_image_index();
-                if (image_index == removed_image_index)
-                {
-                    //todo optimize: scan bitmap_dtvt and find dirty regions, see layer::sync
-                    c.reset_px(); // Drop all image metadata.
-                    hit = true;
-                }
-            }
+            auto hit = bitmap_lock.thing.image.remove_image_bits(removed_image_index);;
             return hit;
         }
         bool update_image_bits(ui16 updated_image_index)
