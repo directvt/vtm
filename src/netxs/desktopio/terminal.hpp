@@ -7500,12 +7500,23 @@ namespace netxs::ui
                 auto& h  = gb_attrs[imagens::gb::h ];
                 auto& uw = gb_attrs[imagens::gb::uw];
                 auto& vh = gb_attrs[imagens::gb::vh];
+                auto& tr = gb_attrs[imagens::gb::tr];
                 auto& _W = lc_attrs[imagens::lc::W ];
                 auto& _H = lc_attrs[imagens::lc::H ];
                 auto& _c = lc_attrs[imagens::lc::c ];
                 auto& _r = lc_attrs[imagens::lc::r ];
                 if (uw == 0.f) uw = 1.f;
+                else if (uw < 0.f)
+                {
+                    uw = -uw;
+                    imagens::mirror_fx(tr, imagens::flips::hz);
+                }
                 if (vh == 0.f) vh = 1.f;
+                else if (vh < 0.f)
+                {
+                    vh = -vh;
+                    imagens::mirror_fx(tr, imagens::flips::vt);
+                }
                 _W = std::clamp(_W, 0.f, (fp32)max_size.x);
                 _H = std::clamp(_H, 0.f, (fp32)max_size.y);
                 w = std::isnormal(w) ? std::clamp(w, 0.001f, (fp32)max_size.x) : _W;
