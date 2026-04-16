@@ -1196,7 +1196,7 @@ namespace netxs
         // global: stored in image
         #define global_attr_list \
             X(u  ) /* u-coor (0.0-1.0)                              */ \
-            X(v  ) /* u-coor (0.0-1.0)                              */ \
+            X(v  ) /* v-coor (0.0-1.0)                              */ \
             X(uw ) /* u-size (reset raster if changed)              */ \
             X(vh ) /* v-size (reset raster if changed)              */ \
             X(x  ) /* x                                             */ \
