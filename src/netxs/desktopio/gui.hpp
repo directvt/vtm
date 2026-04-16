@@ -2065,7 +2065,7 @@ namespace netxs::gui
                 draw_svg_to_canvas(canvas, bitmaps[0], area);
             }
         }
-        void rasterize_svg_DOM(auto& canvas, imagens::docs& svg_DOM, fp2d original_doc_size_fpx, qiew sub_id, bool keep_ratio)
+        void rasterize_svg_DOM(auto& canvas, imagens::docs& svg_DOM, fp2d scale, fp2d offset_inside_document, qiew sub_id)
         {
             static thread_local auto bitmaps = std::array<lunasvg::Bitmap, 3>();
 
@@ -2089,14 +2089,7 @@ namespace netxs::gui
                                               : document.getElementById(sub_id);
                 if (element) // Draw nothing if sub_id is not found.
                 {
-                    auto bounds = original_doc_size_fpx;
-                    auto scale = fp2d{ area.size.x / bounds.x, area.size.y / bounds.y };
-                    if (keep_ratio)
-                    {
-                        auto r = std::min(scale.x, scale.y);
-                        scale = { r, r };
-                    }
-                    auto matrix = lunasvg::Matrix{ scale.x, 0, 0, scale.y, 0, 0 };
+                    auto matrix = lunasvg::Matrix{ scale.x, 0, 0, scale.y, -offset_inside_document.x, -offset_inside_document.y };
                     if (sub_id && element != document.documentElement())
                     {
                         matrix *= element.getGlobalMatrix();
@@ -2434,49 +2427,56 @@ namespace netxs::gui
             if (image.dom[0])
             {
                 auto& image_dom = *image.dom[0];
-                auto original_doc_size_fpx = fp2d{ image_dom.width(), image_dom.height() }; // Original doc size (float).
-                if (!std::isnormal(original_doc_size_fpx.x) || !std::isnormal(original_doc_size_fpx.y))
+                auto orig_full_sz_fp = fp2d{ image_dom.width(), image_dom.height() }; // Original doc size (float).
+                if (!std::isnormal(orig_full_sz_fp.x) || !std::isnormal(orig_full_sz_fp.y))
                 {
                     image.fragment.set_area<irgb>(rect{});
                     return;
                 }
-                auto final_doc_size_fpx = original_doc_size_fpx; // Rendered doc size (float).
+                auto u   = image.gb_attrs[imagens::gb::u  ];
+                auto v   = image.gb_attrs[imagens::gb::v  ];
+                auto uw  = image.gb_attrs[imagens::gb::uw ];
+                auto vh  = image.gb_attrs[imagens::gb::vh ];
+                auto x   = image.gb_attrs[imagens::gb::x  ];
+                auto y   = image.gb_attrs[imagens::gb::y  ];
+                auto w   = image.gb_attrs[imagens::gb::w  ];
+                auto h   = image.gb_attrs[imagens::gb::h  ];
+                auto tr  = image.gb_attrs[imagens::gb::tr ];
+                auto fit = image.gb_attrs[imagens::gb::fit];
+                auto wh  = fp2d{ w, h };
+                auto uv  = fp2d{ u, v };
+                auto uvwh = fp2d{ uw, vh };
+                auto final_frag_sz = orig_full_sz_fp * uvwh; // Rendered fragment size (float).
+                wh *= cellsz;
+                auto bounding_rect_pixels = std::round(wh); // Document bounding box size in pixels.
+                image.xy = twod{ std::round(fp2d{ x, y } * cellsz) };
 
-                auto attrs = std::array<fp32, imagens::attr_count>{};
-                for (auto i = 0; i < imagens::attr_count; i++)
-                {
-                    if (auto v = image.attrs[i]) attrs[i] = v.value();
-                }
-                auto width     = attrs[imagens::width    ];
-                auto height    = attrs[imagens::height   ];
-                auto scale     = attrs[imagens::scale    ];
-                auto transform = attrs[imagens::transform];
-                auto wh_fp = fp2d{ width, height };
-                auto bounding_rect_pixels = std::round(wh_fp * cellsz); // Document bounding box size in pixels.
-                if ((si32)transform & 1)
+                if ((si32)tr & 1)
                 {
                     std::swap(bounding_rect_pixels.x, bounding_rect_pixels.y);
                 }
-                auto ratio = bounding_rect_pixels / original_doc_size_fpx;
-                auto keep_ratio = true;
-                switch ((si32)scale)
+                auto ratio = bounding_rect_pixels / final_frag_sz;
+                auto scale = fp2d{ dot_11 };
+                switch ((si32)fit)
                 {
-                    case scale_mode::none:    /*final_doc_size_fpx = final_doc_size_fpx;*/ break;
-                    case scale_mode::inside:  final_doc_size_fpx *= std::min(ratio.x, ratio.y); break;
-                    case scale_mode::outside: final_doc_size_fpx *= std::max(ratio.x, ratio.y); break;
-                    case scale_mode::stretch: final_doc_size_fpx = bounding_rect_pixels; keep_ratio = faux; /* matrix_pixels = matrix_pixels */ break;
+                    case scale_mode::none:    /*final_frag_sz = final_frag_sz;*/ break;
+                    case scale_mode::inside:  { auto _k = std::min(ratio.x, ratio.y); scale = { _k, _k }; final_frag_sz *= _k; } break;
+                    case scale_mode::outside: { auto _k = std::max(ratio.x, ratio.y); scale = { _k, _k }; final_frag_sz *= _k; } break;
+                    case scale_mode::stretch: scale = bounding_rect_pixels / final_frag_sz; final_frag_sz = bounding_rect_pixels; break;
                 }
                 // Apply system limits.
                 auto px_limits = std::max(dot_11, skin::globals().max_value * cellsz);
-                final_doc_size_fpx = std::clamp(final_doc_size_fpx, fp2d{ dot_11 }, fp2d{ px_limits });
+                final_frag_sz = std::clamp(final_frag_sz, fp2d{ dot_11 }, fp2d{ px_limits });
+                image.final_frag_sz = final_frag_sz;
 
-                auto matrix_pixels = twod{ std::ceil(final_doc_size_fpx) };
-                image.document_area = rect{ dot_00, matrix_pixels };
                 static thread_local auto full_doc_tmp_buffer = netxs::sprite{ *std::pmr::new_delete_resource() };
-                full_doc_tmp_buffer.set_area<irgb>(image.document_area);
+                image.scaled_fragment_area = rect{ dot_00, std::ceil(final_frag_sz) };
+                full_doc_tmp_buffer.set_area<irgb>(image.scaled_fragment_area);
                 auto tmp_document_block = full_doc_tmp_buffer.raster<irgb>();
                 tmp_document_block.zeroize();
-                rasterize_svg_DOM(tmp_document_block, image.dom, original_doc_size_fpx, image.sub_id, keep_ratio);
+                auto offset_inside_document = uv * orig_full_sz_fp * scale;
+                rasterize_svg_DOM(tmp_document_block, image.dom, scale, offset_inside_document, image.sub_id);
+
                 // Trim all transparent pixels.
                 auto nested_fragment_area = full_doc_tmp_buffer.get_minimal_non_transparent_area_for_pma<irgb>();
                 image.fragment.set_area<irgb>(nested_fragment_area);
@@ -2553,37 +2553,29 @@ namespace netxs::gui
             };
             // xform on write
             auto canvas_clip = canvas.clip(); // Cell placeholder.
-            auto document_area = image.document_area.shift(offset); // Raster inside the document.
+            auto document_area = image.scaled_fragment_area.shift(offset); // Raster inside the document fragment.
             netxs::xform_render(canvas, canvas_clip, raster, document_area, xform, fx);
         }
         auto render_image(auto& canvas, rect placeholder, argb fgc, cell const& c)
         {
-            if (auto image_index = c.get_image_index())
-            if (auto image_xy = c.get_image_xy(); image_xy.x != 0 && image_xy.y != 0)
+            if (auto image_cr = c.get_image_cr(); image_cr.x != 0 && image_cr.y != 0)
             {
-                auto image_align = c.get_image_align();
-                auto image_xform = c.get_image_xform();
+                auto image_index = c.get_image_index();
                 auto images = cell::images(); // Lock.
                 if (auto image_ptr = images.exists(image_index)) // We form all image requests on dtvt recv stage.
                 {
                     auto& image = *image_ptr;
-                    //todo diff by sizes
                     if (image.fragment.type == sprite::undef && image.document.size())
                     {
                         rasterize_svg_document(image);
                     }
                     if (image.fragment.area)
                     {
-                        auto& _dx = image.attrs[imagens::dx];
-                        auto& _dy = image.attrs[imagens::dy];
-                        auto dxy = twod{ _dx ? std::round(cellsz.x * _dx.value()) : 0,
-                                         _dy ? std::round(cellsz.y * _dy.value()) : 0 };
-                        // Alignment.
-                        auto width  = image.attrs[imagens::width ].value();
-                        auto height = image.attrs[imagens::height].value();
-                        auto wh_fp = fp2d{ width, height };
-                        auto cellcanvas_size = twod{ std::ceil(wh_fp) * cellsz }; // Cellrect in pixels (outer rect).
+                        auto image_align = (si32)image.gb_attrs[imagens::gb::a ];
+                        auto image_xform = (si32)image.gb_attrs[imagens::gb::tr];
+                        auto image_WH = c.get_image_WH() * cellsz;
 
+                        // Alignment.
                         //auto get_factor = [](auto align)
                         //{
                         //    if (align == (si32)bias::center || !align) return 0.5f;
@@ -2591,7 +2583,7 @@ namespace netxs::gui
                         //    return 0.0f;
                         //};
                         //auto factors = fp2d{ get_factor(image_align & 0b0011), get_factor(image_align >> 2) };
-                        //auto fragment_area_coor = image.fragment.area.coor + (cellcanvas_size - image.document_area.size) * factors;
+                        //auto fragment_area_coor = image.fragment.area.coor + (image_WH - image.scaled_fragment_area.size) * factors;
 
                         auto get_off = [](auto align, auto diff)
                         {
@@ -2599,12 +2591,16 @@ namespace netxs::gui
                                  : (align == (si32)bias::center || !align) ? diff / 2
                                                                            : 0;
                         };
-                        auto fragment_area_coor = image.fragment.area.coor + twod{ get_off(image_align & 0b0011, cellcanvas_size.x - image.document_area.size.x),
-                                                                                   get_off(image_align >> 2,     cellcanvas_size.y - image.document_area.size.y) };
-
+                        auto align = twod{ get_off(image_align & 0b0011, image_WH.x - image.scaled_fragment_area.size.x),
+                                           get_off(image_align >> 2,     image_WH.y - image.scaled_fragment_area.size.y) };
+                        auto fragment_area_coor = image.scaled_fragment_area.coor + align;
+                        if (image_xform & 1) // ok.
+                        {
+                            std::swap(fragment_area_coor.x, fragment_area_coor.y);
+                        }
                         // Rendering.
-                        image_xy = (image_xy - dot_11) * cellsz;
-                        auto offset = placeholder.coor - image_xy + dxy + fragment_area_coor;
+                        image_cr = (image_cr - dot_11) * cellsz;
+                        auto offset = placeholder.coor - image_cr + image.xy + fragment_area_coor;
                         draw_image(canvas, image, offset, fgc, c.inv(), image_xform);
                     }
                 }
@@ -2625,7 +2621,7 @@ namespace netxs::gui
             static constexpr auto blink_canvas_specified = !std::is_same_v<std::decay_t<T>, noop>;
             placeholder.trimby(canvas.area());
             if (!placeholder) return;
-            auto image_ontop = c.get_image_ontop();
+            auto [image_index, image_ontop] = c.get_image_ontop();
             auto blinking = blink_canvas_specified && c.blk() && !c.hid();
             auto fgc = c.fgc();
             auto bgc = c.bgc();
@@ -2635,7 +2631,7 @@ namespace netxs::gui
             canvas.clip(placeholder);
             auto target_ptr = &canvas;
             netxs::onrect(canvas, placeholder, cell::shaders::full(bgc));
-            if (!image_ontop)
+            if (image_index && !image_ontop)
             {
                 render_image(canvas, placeholder, fgc, c);
             }
@@ -2771,7 +2767,7 @@ namespace netxs::gui
                 break;
             }
 
-            if (image_ontop)
+            if (image_index && image_ontop)
             {
                 if (blinking)
                 {
@@ -3102,8 +3098,10 @@ namespace netxs::gui
                     auto is_remote = s11n::nat[0];
                     auto image_index = is_remote ? std::exchange(s11n::nat[image.index], 0) : image.index;
                     images.map[image_index] = {};
-                    owner.remove_image_bits(image_index);
-                    netxs::set_flag<task::all>(owner.reload); // Trigger to redraw all to update unknown images.
+                    if (owner.remove_image_bits(image_index))
+                    {
+                        netxs::set_flag<task::all>(owner.reload); // Trigger to redraw all to update unknown images.
+                    }
                 }
             }
             void handle(s11n::xs::update_img_request  lock)
@@ -3118,8 +3116,13 @@ namespace netxs::gui
                     if (auto image_ptr = images.map[image_index])
                     {
                         auto& image = *image_ptr;
-                        image.set_changes(image_data.changed_bits, image_data.changes);
-                        // No need to notify. We are waiting for the arrival of cells with a new stamp.
+                        image.set_changes(image_data.changed_bits, image_data.changes, owner.cellsz);
+                        if (owner.update_image_bits(image_index))
+                        {
+                            //todo optimize: scan bitmap_dtvt
+                            netxs::set_flag<task::all>(owner.reload); // Trigger to redraw all to update images.
+                        }
+                        // No need to notify? We are waiting for the arrival of cells with a new stamp.
                     }
                 }
             }
@@ -4006,8 +4009,9 @@ namespace netxs::gui
                 }
             }
         }
-        void remove_image_bits(ui16 removed_image_index)
+        bool remove_image_bits(ui16 removed_image_index)
         {
+            auto hit = faux;
             auto bitmap_lock = stream.bitmap_dtvt.freeze();
             auto& grid = bitmap_lock.thing.image;
             for (auto& c : grid)
@@ -4015,9 +4019,29 @@ namespace netxs::gui
                 auto image_index = c.get_image_index();
                 if (image_index == removed_image_index)
                 {
-                    c.px = {}; // Drop all image metadata.
+                    //todo optimize: scan bitmap_dtvt and find dirty regions, see layer::sync
+                    c.reset_px(); // Drop all image metadata.
+                    hit = true;
                 }
             }
+            return hit;
+        }
+        bool update_image_bits(ui16 updated_image_index)
+        {
+            auto hit = faux;
+            auto bitmap_lock = stream.bitmap_dtvt.freeze();
+            auto& grid = bitmap_lock.thing.image;
+            for (auto& c : grid)
+            {
+                auto image_index = c.get_image_index();
+                if (image_index == updated_image_index)
+                {
+                    hit = true;
+                    //todo optimize: scan bitmap_dtvt and find dirty regions, see layer::sync
+                    c.inc_image_stamp(1);
+                }
+            }
+            return hit;
         }
         void update_gui()
         {

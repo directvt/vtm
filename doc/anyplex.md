@@ -13,19 +13,26 @@ Scope                           | Role
 
 #### Rendering & Interaction
 
-- **Rectangular Area**: The object is hosted within a grid of cells defined by `ceil(width)` and `ceil(height)`.
-- **Pixel-wise Precision**: The raster is scaled using floating-point `width` and `height` and positioned with `dx` and `dy` offsets. Offsets are calculated **per-frontend** based on its current cell metrics.
-- **Asynchronous Rasterization**: It is recommended to perform rasterization in a parallel thread. Until the raster is ready, the frontend should display the cells without the graphic.
-- **Persistence**: Metadata is stored per-cell to survive scrollback and ensure that wrapped cell-runs remain logically linked for a strict rectangular reflow.
-- **Cursor Position**: Anchored at the top-left; moves to the cell immediately following the rectangle's bottom-right corner after output.
+- **Normalized Source Viewport**: The source document is first projected onto a virtual canvas of size `1.0` by `1.0`. A rectangular fragment (crop) is then extracted from this canvas using normalized coordinates `u`, `v` (top-left) and `uw`, `vh` (size), where `1.0` equals the full canvas dimension. Negative values for `uw` or `vh` cause the extracted fragment to be flipped along the respective axis.
+- **Target Rectangular Area**: The grid footprint is explicitly defined by the unique attributes **W** and **H**. The range of affected cell indices starts at the current cursor position and spans `[0 .. W-1]` horizontally and `[0 .. H-1]` vertically. If `W` or `H` is `0`, no cells are modified, and the object is only registered in the cache.
+- **Pixel-wise Precision**:
+  - **Content Positioning**: The image fragment is scaled according to `fit` and aligned within the **Clipping Box** (`w x h`) using the `a` attribute.
+  - **Box Positioning**: This Clipping Box is then aligned within the **Grid Container** (`W x H`) using the same `a` attribute.
+  - **Offsets**: Shared `x` and `y` values are applied as final pixel offsets from the resulting position.
+  - **Final Cut**: The Grid Container acts as a strict physical mask; any pixels falling outside the `W x H` cell area are not rendered.
+- **Persistence**: Metadata (Object Reference + Unique attributes) is stored per-cell to survive scrollback and ensure logical linking for rectangular reflow, using only an implementation-defined minimum of data to minimize memory overhead.
+- **Cursor Position**: Anchored at the top-left; moves to the cell immediately following the bottom-right corner of the **Grid Container** (`W x H`) after output.
 - **Destructivity**:
-  - If the **`gc`** attribute is not empty, the provided grapheme cluster is written to **every cell** in the area (`ceil(width)` by `ceil(height)`), replacing existing text and SGR attributes.
-  - If **`gc`** is empty, the output is non-destructive; existing text and SGR attributes remain visually intact under the transparent object.
-  - Any text subsequently written over the object's area does not destroy the underlying object. The object metadata remains intact in the cell until explicitly cleared or replaced.
-- **Selection & SGR 7**: When selecting text/graphics with the mouse, or when the **SGR 7** attribute is present in a cell, the frontend **halves the alpha channel** of the object's pixels within that cell.
-- **Searchability**: Any text contained within the document (e.g., `<text>` in SVG) is treated as part of the graphic and is not required to be indexed by the terminal's text search.
-- **Layering & Transparency**: Supports per-pixel alpha transparency. The `ontop` attribute determines Z-order relative to text (0 = background `[Cell BG] -> [Object] -> [Text]`, 1 = foreground `[Cell BG] -> [Text] -> [Object]`; the cell's background color always remains in the background). The terminal cursor is always drawn on top of everything. Alpha blending is performed in **linear color space**.
-- **Foreground Color**: The underlying cell **SGR foreground color** maps to `currentColor` (for SVG). All other external references (e.g., `http://...`) are ignored for security.
+  - If the `gc` attribute is not empty, the provided grapheme cluster is written to **every cell** in the target area, replacing existing text and SGR attributes.
+  - If `gc` is empty, the output is non-destructive; existing text and SGR attributes remain visually intact.
+  - Subsequent text written over the area does not destroy the underlying object. Metadata remains in the cell until explicitly replaced.
+- **Selection & Highlighting**: When a cell is selected (e.g., mouse selection or **SGR 7**), the frontend **applies a 0.5 opacity mask** to the object's pixels within that specific cell to ensure the selection remains visible.
+- **Searchability**: Any text contained within the document (e.g., `<text>` in SVG) is rendered as part of the graphic and is not indexed for terminal text search.
+- **Layering & Transparency**: Supports per-pixel alpha. The `o`(ontop) attribute determines Z-order: 
+  - `0`: `[Cell BG] -> [Object] -> [Text]`
+  - `1`: `[Cell BG] -> [Text] -> [Object]`
+  - The cell's background color always remains at the bottom. The terminal cursor is always drawn on top. Alpha blending should be performed in **linear color space**.
+- **Foreground Color & Security**: The underlying cell **SGR foreground color** maps to `currentColor` (for SVG). All external references (e.g., `http://...`) are ignored for security purposes.
 
 #### Scroll & Reflow Behavior
 
@@ -35,61 +42,74 @@ Scope                           | Role
 #### Sequence Format
 
 ```
-ESC ] app ; [<attributes>] [<document>] ST
+OSC app [ ; [<attributes>] [<document>] [<attributes>] ] ST
 ```
 
-Field             | Description
-------------------|------------
-**OSC command**   | Mandatory. `app`.
-**attributes**    | Optional. Space-separated `key=value` pairs. Values can be quoted (`"` or `'`) or unquoted. All keys and values are **case-sensitive**.
-**document**      | Optional. UTF-8 data starting with `<` (the first character of the openning tag, e.g. `<svg>`) and ending with `>` (the last character of the closing tag, e.g. `</svg>`). The specified document is considered to be an `empty-doc` if it has the form `<tag></tag>`, where `tag` is any string.
+Field           | Description
+----------------|------------
+**OSC command** | Mandatory. `app`.
+**attributes**  | Optional. Space-separated `key=value` pairs. If an attribute is specified both before and after the document, the **last occurrence** takes precedence. Values can be quoted (`"` or `'`) or unquoted. All keys and values are **case-sensitive**.
+**document**    | Optional. UTF-8 data starting with `<` (the first character of the opening tag, e.g. `<svg>`) and ending with `>` (the last character of the closing tag, e.g. `</svg>`). The specified document is considered to be an `empty-doc` if it has the form `<tag></tag>`, where `tag` is any string.
+
+#### Attribute Scoping
+
+Attributes are divided into **Shared** (object-wide) and **Unique** (per-instance/cell).
+
+- **Shared Attributes**: `u`, `v`, `uw`, `vh`, `x`, `y`, `w`, `h`, `fit`, `rt`, `a`, `f`, `o`.
+  - These define the global geometry, orientation, and content mapping.
+  - Updating a shared attribute for an existing `id` immediately affects **all cells** currently linked to that object.
+- **Unique Attributes**: `W`, `H`, `r`, `c`, `gc`.
+  - These define the physical footprint on the terminal grid and the specific slice being rendered.
+  - **W** and **H** define the **Grid Container** (the parcel of cells).
+  - If a unique attribute is omitted in a sequence, it reverts to its **Default Value**.
 
 #### Attributes
 
-Attribute     | Values                                 | Default                  | Description
---------------|----------------------------------------|--------------------------|------------
-**id**        | `<id>[/sub-id]`                        | empty string (`""`)      | Object reference ID.
-**gc**        | `string`                               | ASCII Space (0x20) `" "` | Grapheme cluster to write to cells (will be scaled to a 1x1 cell size).
-**ontop**     | `0`\|`1`                               | `0`                      | 0 = under text, 1 = over text.
-**width**     | `float (0..65535]`                     | Terminal viewport width  | Raster scale width (cells).
-**height**    | `float (0..65535]`                     | Terminal viewport height | Raster scale height (cells).
-**dx**        | `float`                                | `0.0`                    | Horizontal offset of the raster within the grid (cells).
-**dy**        | `float`                                | `0.0`                    | Vertical offset of the raster within the grid (cells).
-**column**    | `0`..`ceil(width)`                     | `0`                      | Horizontal 1-based slicing index for partial rendering (0 = full width, 1..n = specific cell/slice).
-**row**       | `0`..`ceil(height)`                    | `0`                      | Vertical 1-based slicing index for partial rendering (0 = full height, 1..m = specific cell/slice).
-**align**     | \[`left`\|`center`\|`right`\]\[`-`\]\[`top`\|`middle`\|`bottom`\] | `center-middle` | 2D alignment within the rectangle.
-**scale**     | `inside`\|`outside`\|`stretch`\|`none` | `inside`                 | Fit logic (none = exact pixels, cropped if larger).
-**transform** | `0`..`7`                               | `0`                      | 3-bit compact transformation state `[FlipY][FlipX][SwapXY]`.
-**flip**      | `none`\|`v`\|`h`\|`vh`\|`hv`           | `none`                   | Applied in order of appearance in the string.
-**rotate**    | `0`\|`90`\|`180`\|`270`                | `0`                      | CCW rotation applied in order of appearance.
+Attribute  | Scope  | Value/Range                      | Default                  | Description
+-----------|--------|----------------------------------|--------------------------|------------
+**id**     | -      | `<id>[/sub-id]`                  | empty string (`""`)      | Object reference ID.
+**u, v**   | Shared | `float`                          | `0.0`                    | Top-left of the source crop (0.0-1.0).
+**uw, vh** | Shared | `float`                          | `1.0`                    | Size of the source crop (0.0-1.0). Negative flips.
+**x, y**   | Shared | `float`                          | `0.0`                    | Offset of the Clipping Box **inside** the `W x H` area (cells).
+**w, h**   | Shared | `float (0.0-65535.0]`            | `W, H`                   | Dimensions of the Clipping Box **inside** the `W x H` area (cells).
+**fit**    | Shared | `inside\|outside\|stretch\|none` | `inside`                 | Fit logic: How the crop fits into the `w x h` Clipping Box. (`none` = exact pixels).
+**tr**     | Shared | `0..7`                           | `0`                      | **Tr**ansform: Decimal value of the 3-bit state `[FlipY][FlipX][SwapXY]`.
+**rt**     | Shared | `0\|90\|180\|270`                | `0`                      | **R**ota**t**e: CCW rotation of the source (degrees).
+**f**      | Shared | `n\|v\|h\|vh\|hv`                | `n`                      | **F**lip: `n` = none, `v` = vertical, `h` = horizontal.
+**a**      | Shared | `[l\|c\|r][t\|m\|b]`             | `cm`                     | **A**lign: 2D alignment within the Clipping Box and the `W x H` area. (`l` = left, `c` = center, `r` = right, `t` = top, `m` = middle, `b` = bottom).
+**o**      | Shared | `0\|1`                           | `0`                      | **O**ntop: 0 = under text, 1 = over text.
+**gc**     | Unique | `string`                         | ASCII Space (0x20) `" "` | Grapheme cluster to write to cells (will be scaled to a 1x1 cell size).
+**W, H**   | Unique | `0..65535`                       | `0`                      | **Grid Container**: Physical footprint in cells. If `0`, nothing is rendered (registration only).
+**r, c**   | Unique | `0..65535`                       | `0`                      | **R**ow, **c**olumn 1-based slicing index for target cell slice. (0 = full height/width, 1..n = specific cell/slice).
 
 > Notes:
 > - If `id` is omitted , the empty string `id=""` is used for registration and output.
-> - Attribute values `width` and `height` are clamped to the `(0..65535]` range and further limited by the terminal's maximum window size settings.
-> - Attribute values `width`, `height`, `dx` and `dy` are multiplied by the cell size and **rounded** to get the exact pixel values on the FE side.
+> - Attribute values `w` and `h` are clamped to the `(0.0-65535.0]` range and further limited by the terminal's maximum window size settings.
+> - Attribute values that depend on the cell size are multiplied by the cell size and **rounded** to get the exact pixel values on the FE side.
 > - The first part of the object reference ID (`id`) references the raw object document in the Backend cache.
 > - The second part of the object reference ID (`sub-id`) addresses the specific named element (e.g., an `id="..."` within an SVG document). The Frontend renders only this fragment if it is specified.
 
 #### Lifecycle & Cache Management
 
-Input State             | Action
-------------------------|-------
-**id** + **doc**        | Store/update the object document in cache and output.
-**id** + **empty-doc**  | Unregister `id` and free the index.
-**id** + **no-doc**     | Output cached object.
-**id/sub-id**           | If a `sub-id` is specified, the FE renders that specific element in its original coordinates (as it would appear in the full document), inheriting all parent styles (CSS, `<g>` groups).
-**Errors**              | If a document is invalid, the `id` is unknown, the `sub-id` is missing, or the cache is full, the FE **clears the object metadata** in the target area (rendering nothing) and logs the error.
+Input State            | Action
+-----------------------|-------
+**id** + **doc**       | Store or update the object document in the cache and output it.
+**id** + **empty-doc** | Unregister the `id` and free the cache index.
+**id** + **no-doc**    | Output the existing cached object.
+**id/sub-id**          | If a `sub-id` is specified, the FE renders only that specific element at its original coordinates (as it would appear in the full document), inheriting all parent styles (CSS, `<g>` groups).
+**Errors**             | If a document is invalid, the `id` is unknown, the `sub-id` is missing, or the cache is full, the FE **clears the object metadata** in the target area (rendering nothing) and logs the error.
 
 > Note:
-> When the BE deletes an `id`, or upon `reset`/session close, it frees the index and signals the FEs.
+> When the BE deletes an `id`, or upon reset/session close, it frees the index and signals the FEs.
 > - FEs then traverse their viewport cells; any image in the FE cache no longer referenced by any cell is purged.
 > - If an FE encounters an unknown object index in a cell, it must request full metadata/document from the BE.
 
 #### Parsing Rules (Backend)
 
 1. Scan the OSC string for `key=value` pairs.
-2. Identify document boundaries via first `<` and last `>`.
-3. Apply transformation pipeline (`transform`, `flip`, `rotate`) in the order they appear.
+2. Identify document boundaries via the first `<` and the last `>`.
+3. Scan the OSC string for remaining `key=value` pairs.
+4. Accumulate all orientation attributes (`tr`(transform), `f`(flip), `rt`(rotate)) in the order of appearance to calculate the final 3-bit transformation state.
 
 #### Extensibility
 

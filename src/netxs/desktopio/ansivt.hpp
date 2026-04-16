@@ -307,7 +307,7 @@ namespace netxs::ansi
         template<class T>
         inline void fuse(T&& data)
         {
-            using D = std::remove_cv_t<std::remove_reference_t<T>>;
+            using D = std::remove_cvref_t<T>;
 
             if constexpr (std::is_same_v<D, char>)
             {

@@ -1194,32 +1194,68 @@ namespace netxs
     {
         // local:  stored in cells
         // global: stored in image
-        // ux:     for user convenience
-        #define attr_list \
-            X(width    ) /* global */ \
-            X(height   ) /* global */ \
-            X(dx       ) /* global */ \
-            X(dy       ) /* global */ \
-            X(scale    ) /* global */ \
-            X(row      ) /* local  */ \
-            X(column   ) /* local  */ \
-            X(ontop    ) /* local  */ \
-            X(align    ) /* local  */ \
-            X(transform) /* local  */ \
-            X(flip     ) /* ux     */ \
-            X(rotate   ) /* ux     */
-
-        static constexpr auto _counter = __COUNTER__ + 1;
-        #define X(_attr) static constexpr auto _attr = __COUNTER__ - _counter; // width = __COUNTER__ - _counter;
-            attr_list
-            static constexpr auto attr_count = __COUNTER__ - _counter;
-        #undef X
-        static constexpr auto attr_names = std::array<view, imagens::attr_count>
+        #define global_attr_list \
+            X(u  ) /* u-coor (0.0-1.0)                              */ \
+            X(v  ) /* u-coor (0.0-1.0)                              */ \
+            X(uw ) /* u-size (reset raster if changed)              */ \
+            X(vh ) /* v-size (reset raster if changed)              */ \
+            X(x  ) /* x                                             */ \
+            X(y  ) /* y                                             */ \
+            X(w  ) /* w      (reset raster if changed)              */ \
+            X(h  ) /* h      (reset raster if changed)              */ \
+            X(fit) /* fit    (reset raster if changed)              */ \
+            X(o  ) /* ontop                                         */ \
+            X(a  ) /* align                                         */ \
+            X(tr ) /* transform (reset raster if SwapXY is changed) */ \
+            X(f  ) /* flip   (not stored)                           */ \
+            X(rt ) /* rotate (not stored)                           */
+        #define local_attr_list \
+            X(W ) /* Cell canvas width  */ \
+            X(H ) /* Cell canvas height */ \
+            X(c ) /* Specified column   */ \
+            X(r ) /* Specified row      */
+        namespace gb
         {
-            #define X(_attr) #_attr, // "width",
-                attr_list
+            static constexpr auto _counter = __COUNTER__ + 1;
+            #define X(_attr) static constexpr auto _attr = __COUNTER__ - _counter; // width = __COUNTER__ - _counter;
+                global_attr_list
+                static constexpr auto attr_count = __COUNTER__ - _counter;
             #undef X
-        };
+            static constexpr auto names = std::array<view, attr_count>
+            {
+                #define X(_attr) #_attr, // "width",
+                    global_attr_list
+                #undef X
+            };
+            static const auto attr_index_map = utf::unordered_map<text, si32>
+            {
+                #define X(_attr) { #_attr, _attr },
+                    global_attr_list
+                #undef X
+            };
+        }
+        namespace lc
+        {
+            static constexpr auto _counter = __COUNTER__ + 1;
+            #define X(_attr) static constexpr auto _attr = __COUNTER__ - _counter; // row = __COUNTER__ - _counter;
+                local_attr_list
+                static constexpr auto attr_count = __COUNTER__ - _counter;
+            #undef X
+            static constexpr auto names = std::array<view, attr_count>
+            {
+                #define X(_attr) #_attr, // "width",
+                    local_attr_list
+                #undef X
+            };
+            static const auto attr_index_map = utf::unordered_map<text, si32>
+            {
+                #define X(_attr) { #_attr, _attr },
+                    local_attr_list
+                #undef X
+            };
+        }
+        #undef global_attr_list
+        #undef local_attr_list
         // Dihedral group D4 (the symmetries of a square) 0b[FlipY][FlipX][SwapXY].
         //    transfroms: 0   1   2   3   4   5   6   7  =xform
         //    pull-based: lt  tl  rt  tr  lb  bl  rb  br (left/right/top/bottom-left/right/top/bottom)
@@ -1279,38 +1315,35 @@ namespace netxs
             return (decltype(f_old_align))(res_h | res_v);
         };
 
-        static const auto attr_index_map = utf::unordered_map<text, si32>
+        static const auto gb_value_index_map = std::unordered_map<si32, utf::unordered_map<text, si32>>
         {
-            #define X(_attr) { #_attr, imagens::_attr },
-                attr_list
-            #undef X
+            { imagens::gb::fit, {{ "inside" , scale_mode::inside  },
+                                 { "outside", scale_mode::outside },
+                                 { "stretch", scale_mode::stretch },
+                                 { "none"   , scale_mode::none    }} },
+            { imagens::gb::rt, {{ "0", 0 }, { "90" , (si32)ccw::r90 }, { "180" , (si32)ccw::r180 }, { "270" , (si32)ccw::r270 }} },
+            { imagens::gb::a, {{ "c", align_mode::center }, { "cm", align_mode::center_middle }, { "ct", align_mode::center_top }, { "cb", align_mode::center_bottom },
+                               { "l", align_mode::left   }, { "lm", align_mode::left_middle   }, { "lt", align_mode::left_top   }, { "lb", align_mode::left_bottom   },
+                               { "r", align_mode::right  }, { "rm", align_mode::right_middle  }, { "rt", align_mode::right_top  }, { "rb", align_mode::right_bottom  },
+                               { "m", align_mode::middle }, { "mc", align_mode::center_middle }, { "tc", align_mode::center_top }, { "bc", align_mode::center_bottom },
+                               { "t", align_mode::top    }, { "ml", align_mode::left_middle   }, { "tl", align_mode::left_top   }, { "bl", align_mode::left_bottom   },
+                               { "b", align_mode::bottom }, { "mr", align_mode::right_middle  }, { "tr", align_mode::right_top  }, { "br", align_mode::right_bottom  }} },
+            { imagens::gb::f, {{ "n", 0 }, { "v" , (si32)flips::vt }, { "h" , (si32)flips::hz }, { "vh" , (si32)flips::hv }, { "hv" , (si32)flips::hv }} },
         };
-        #undef attr_list
-        static const auto value_index_map = std::unordered_map<si32, utf::unordered_map<text, si32>>
+        static const auto lc_value_index_map = std::unordered_map<si32, utf::unordered_map<text, si32>>
         {
-            { imagens::align, {{ "center" , align_mode::center }, { "center-middle" , align_mode::center_middle }, { "center-top" , align_mode::center_top }, { "center-bottom" , align_mode::center_bottom },
-                               { "left"   , align_mode::left   }, { "left-middle"   , align_mode::left_middle   }, { "left-top"   , align_mode::left_top   }, { "left-bottom"   , align_mode::left_bottom   },
-                               { "right"  , align_mode::right  }, { "right-middle"  , align_mode::right_middle  }, { "right-top"  , align_mode::right_top  }, { "right-bottom"  , align_mode::right_bottom  },
-                               { "middle" , align_mode::middle }, { "middle-center" , align_mode::center_middle }, { "top-center" , align_mode::center_top }, { "bottom-center" , align_mode::center_bottom },
-                               { "top"    , align_mode::top    }, { "middle-left"   , align_mode::left_middle   }, { "top-left"   , align_mode::left_top   }, { "bottom-left"   , align_mode::left_bottom   },
-                               { "bottom" , align_mode::bottom }, { "middle-right"  , align_mode::right_middle  }, { "top-right"  , align_mode::right_top  }, { "bottom-right"  , align_mode::right_bottom  }} },
-            { imagens::scale, {{ "inside" , scale_mode::inside  },
-                               { "outside", scale_mode::outside },
-                               { "stretch", scale_mode::stretch },
-                               { "none"   , scale_mode::none    }} },
-            { imagens::flip,   {{ "none", 0 }, { "v" , (si32)flips::vt }, { "h" , (si32)flips::hz }, { "vh" , (si32)flips::hv }, { "hv" , (si32)flips::hv }} },
-            { imagens::rotate, {{ "0", 0 }, { "90" , (si32)ccw::r90 }, { "180" , (si32)ccw::r180 }, { "270" , (si32)ccw::r270 }} },
+            //
         };
-        auto parse_pair(qiew key, qiew val) -> std::optional<std::pair<si32, fp32>>
+        auto parse_pair(qiew key, qiew val, auto& attr_index_map, auto& value_index_map) -> std::optional<std::pair<si32, fp32>>
         {
-            if (auto key_iter = imagens::attr_index_map.find(key); key_iter != imagens::attr_index_map.end())
+            if (auto key_iter = attr_index_map.find(key); key_iter != attr_index_map.end())
             {
                 auto key_index = key_iter->second;
                 if (val.empty())
                 {
                     return std::pair{ key_index, 0.f };
                 }
-                else if (auto val_map_iter = imagens::value_index_map.find(key_index); val_map_iter != imagens::value_index_map.end()) // Look literals.
+                else if (auto val_map_iter = value_index_map.find(key_index); val_map_iter != value_index_map.end()) // Look literals.
                 {
                     auto& val_map = val_map_iter->second;
                     if (auto val_iter = val_map.find(val); val_iter != val_map.end())
@@ -1331,37 +1364,46 @@ namespace netxs
         using docs = std::array<uptr<lunasvg::Document>, 3>; // Storing White/Black/Transparent variants. //todo request lunasvg to generate RGBAfp32 with A8A8
         struct image
         {
-            using attrs_t = std::array<std::optional<fp32>, imagens::attr_count>;
+            using opt_gb_attrs_t = std::array<std::optional<fp32>, imagens::gb::attr_count>;
+            using opt_lc_attrs_t = std::array<std::optional<fp32>, imagens::lc::attr_count>;
+            using gb_attrs_t = std::array<fp32, imagens::gb::attr_count>;
+            using lc_attrs_t = std::array<fp32, imagens::lc::attr_count>;
 
             //todo tie id, document, dom to shared sptr<>
             text          id;
             text          sub_id; // Document's sub-element id.
             text          document;
             bool          document_changed{};
-            attrs_t       attrs;
-            ui16          changed_attrs{}; // Contains bits indicating which imagens::attr have changed.
+            gb_attrs_t    gb_attrs{};
+            si32          changed_gb_attrs{}; // Contains bits indicating which imagens::gb::attr have changed.
             ui16          index{};
-            sprite        fragment{ *std::pmr::new_delete_resource() }; // Rasterized fragment within the document area. Using default resource allocator.
-            rect          document_area; // All transformations and alignments must be performed for this area.
+            sprite        fragment{ *std::pmr::new_delete_resource() }; // Rasterized and trimmed fragment within the scaled_fragment_area. Using default resource allocator.
+            rect          scaled_fragment_area; // Document full fragment area (sprite::fragment's transparent fields are trimmed).
+            fp2d          final_frag_sz; // Visible fragment size (float).
+            twod          xy; // round(xy * cell_sz)
             imagens::docs dom;
             byte          stamp{}; // Increment on image update to sync with FE.
 
-            void set_changes(ui16 new_changed_bits, many& changes)
+            void set_changes(si32 new_changed_bits, many& changes, twod cellsz = {})
             {
-                changed_attrs = new_changed_bits;
-                auto i = 0u;
+                changed_gb_attrs = new_changed_bits;
+                auto mask = (ui32)changed_gb_attrs;
                 auto j = 0u;
-                while (i < imagens::attr_count)
+                while (mask != 0)
                 {
-                    if (changed_attrs & (1 << i))
+                    auto i = std::countr_zero(mask);
+                    if (i < imagens::gb::attr_count)
                     {
-                        attrs[i] = std::any_cast<fp32>(changes[j++]);
+                        gb_attrs[i] = std::any_cast<fp32>(changes[j]);
                     }
-                    i++;
+                    j++;
+                    mask &= mask - 1;
                 }
-                if (changed_attrs & ((1 << imagens::width )
-                                   | (1 << imagens::height)
-                                   | (1 << imagens::scale )))
+                if (changed_gb_attrs & ((1 << imagens::gb::uw)
+                                      | (1 << imagens::gb::vh)
+                                      | (1 << imagens::gb::w)
+                                      | (1 << imagens::gb::h)
+                                      | (1 << imagens::gb::fit)))
                 {
                     reset_raster();
                 }
@@ -1372,18 +1414,25 @@ namespace netxs
                     dom = {}; // Request to regenerate DOM.
                     reset_raster();
                 }
+                else
+                {
+                    auto x = gb_attrs[imagens::gb::x];
+                    auto y = gb_attrs[imagens::gb::y];
+                    xy = twod{ std::round(fp2d{ x, y } * cellsz) };
+                }
             }
             auto get_changes()
             {
                 auto changes = many{};
-                auto i = imagens::attr_count;
-                while (i--)
+                auto mask = (ui32)changed_gb_attrs;
+                while (mask != 0)
                 {
-                    if (changed_attrs & (1 << i))
+                    auto i = std::countr_zero(mask);
+                    if (i < imagens::gb::attr_count)
                     {
-                        auto& v = attrs[i];
-                        changes.push_back(v ? v.value() : 0.f);
+                        changes.push_back(gb_attrs[i]);
                     }
+                    mask &= mask - 1;
                 }
                 if (document_changed)
                 {
@@ -1393,7 +1442,7 @@ namespace netxs
             }
             void reset_changes()
             {
-                changed_attrs = {};
+                changed_gb_attrs = {};
                 document_changed = {};
             }
             void check_and_set_document(qiew doc_str)
@@ -1405,35 +1454,32 @@ namespace netxs
                     document_changed = true;
                 }
             }
-            void check_and_set_attr(si32 attr_index, attrs_t& new_attrs)
+            void check_and_set_attr(gb_attrs_t& new_gb_attrs)
             {
-                if (attr_index >= 0 && attr_index < imagens::attr_count)
+                assert(new_gb_attrs.size() < sizeof(changed_gb_attrs) * 8);
+                for (auto i = 0u; i < new_gb_attrs.size(); i++)
                 {
-                    if (new_attrs[attr_index])
+                    if (new_gb_attrs[i] != gb_attrs[i])
                     {
-                        changed_attrs |= 1 << attr_index;
-                        attrs[attr_index] = new_attrs[attr_index];
+                        changed_gb_attrs |= 1 << i;
+                        gb_attrs[i] = new_gb_attrs[i];
                     }
                 }
             }
             auto get_global_attrs()
             {
-                auto _w = attrs[imagens::width ];
-                auto _h = attrs[imagens::height];
-                auto _x = attrs[imagens::dx    ];
-                auto _y = attrs[imagens::dy    ];
-                auto _s = attrs[imagens::scale ];
-                auto w = _w ? _w.value() : 0.f;
-                auto h = _h ? _h.value() : 0.f;
-                auto x = _x ? _x.value() : 0.f;
-                auto y = _y ? _y.value() : 0.f;
-                auto s = _s ? _s.value() : 0.f;
-                return std::tuple{ w, h, x, y, s };
+                auto global_attributes = many{};
+                global_attributes.reserve(gb_attrs.size() + 1);
+                for (auto& ga : gb_attrs)
+                {
+                    global_attributes.push_back(ga);
+                }
+                global_attributes.push_back(document);
+                return global_attributes;
             }
             void reset_raster()
             {
                 fragment.reset();
-                document_area = {};
             }
         };
 
@@ -1465,7 +1511,6 @@ namespace netxs
                        ind{ inst.index }
                 { }
 
-                // cache: Get object.
                 // cache: Set object.
                 auto set(auto image_ptr)
                 {
@@ -1953,9 +1998,9 @@ namespace netxs
         clrs uv; // 8U, cell: Fg and bg colors.
         glyf gc; // 8U, cell: Grapheme cluster.
         body st; // 8U, cell: Style attributes.
-        ui64 px{}; // 8U, cell: Image index and metadata.
+        ui64 px{}; // 8U, cell: Image W H c r
+        ui32 p2{}; // 4U, cell: Image index and stamp.
         id_t id{}; // 4U, cell: Link ID.
-        ui32 p2{}; // 4U, cell: Pad. Reserve.
 
         cell()
         { }
@@ -1979,6 +2024,7 @@ namespace netxs
               gc{ base.gc },
               st{ base.st },
               px{ base.px },
+              p2{ base.p2 },
               id{ base.id }
         { }
         cell(cell const& base, char c)
@@ -1986,6 +2032,7 @@ namespace netxs
               gc{ c       },
               st{ base.st, utf::matrix::mosaic<11> },
               px{ base.px },
+              p2{ base.p2 },
               id{ base.id }
         { }
 
@@ -1994,7 +2041,8 @@ namespace netxs
             return uv == c.uv
                 && st == c.st
                 && gc == c.gc
-                && px == c.px;
+                && px == c.px
+                && p2 == c.p2;
         }
         auto operator != (cell const& c) const
         {
@@ -2006,6 +2054,7 @@ namespace netxs
             gc = c.gc;
             st = c.st;
             px = c.px;
+            p2 = c.p2;
             id = c.id;
             return *this;
         }
@@ -2017,56 +2066,69 @@ namespace netxs
         //  bits | value
         // ------|------
         //  16   | Image index. ui16
-        //  16   | x fragment. ui16
-        //  16   | y fragment. ui16
-        //  4    | align=[center|left|right][-][middle|top|bottom]
-        //  1    | ontop=0 | 1
-        //  3    | transform=0..7 ([FlipY][FlipX][SwapXY])
-        //  2    | scale=[inside|outside|stretch|none]
+        //  16   | c fragment (column). ui16
+        //  16   | r fragment (row). ui16
+        //  16   | W cell canvas width. ui16
+        //  16   | H cell canvas height. ui16
         //  8    | stamp 0..255
 
-        static constexpr auto px_objX_16_mask = (ui64)0b00000000'00000000'00000000'00000000'00000000'00000000'11111111'11111111;
-        static constexpr auto px_objY_16_mask = (ui64)0b00000000'00000000'00000000'00000000'11111111'11111111'00000000'00000000;
-        static constexpr auto px_index16_mask = (ui64)0b00000000'00000000'11111111'11111111'00000000'00000000'00000000'00000000;
-        static constexpr auto px_align_4_mask = (ui64)0b00000000'00001111'00000000'00000000'00000000'00000000'00000000'00000000;
-        static constexpr auto px_xform_3_mask = (ui64)0b00000000'01110000'00000000'00000000'00000000'00000000'00000000'00000000;
-        static constexpr auto px_ontop_1_mask = (ui64)0b00000000'10000000'00000000'00000000'00000000'00000000'00000000'00000000;
-        static constexpr auto px_stamp_8_mask = (ui64)0b11111111'00000000'00000000'00000000'00000000'00000000'00000000'00000000;
+        static constexpr auto p2_index16_mask = (ui32)0b00000000'00000000'11111111'11111111;
+        static constexpr auto p2_stamp_8_mask = (ui32)0b00000000'11111111'00000000'00000000;
+      //static constexpr auto p2_reserv8_mask = (ui32)0b11111111'00000000'00000000'00000000;
 
-        auto get_image_xy() const
+        static constexpr auto px_imgX_16_mask = (ui64)0b00000000'00000000'00000000'00000000'00000000'00000000'11111111'11111111;
+        static constexpr auto px_imgY_16_mask = (ui64)0b00000000'00000000'00000000'00000000'11111111'11111111'00000000'00000000;
+        static constexpr auto px_imgW_16_mask = (ui64)0b00000000'00000000'11111111'11111111'00000000'00000000'00000000'00000000;
+        static constexpr auto px_imgH_16_mask = (ui64)0b11111111'11111111'00000000'00000000'00000000'00000000'00000000'00000000;
+
+        auto get_image_WH() const
         {
-            auto x = netxs::get_field<px_objX_16_mask>(px);
-            auto y = netxs::get_field<px_objY_16_mask>(px);
-            return twod{ x, y };
+            auto imgW = (si32)(ui16)netxs::get_field<px_imgW_16_mask>(px);
+            auto imgH = (si32)(ui16)netxs::get_field<px_imgH_16_mask>(px);
+            return twod{ imgW, imgH };
         }
-        auto set_image_xy(si32 x, si32 y)
+        auto get_image_cr() const
         {
-            netxs::set_field<px_objX_16_mask>(x, px);
-            netxs::set_field<px_objY_16_mask>(y, px);
+            auto c = (si32)(ui16)netxs::get_field<px_imgX_16_mask>(px);
+            auto r = (si32)(ui16)netxs::get_field<px_imgY_16_mask>(px);
+            return twod{ c, r };
         }
-        auto get_image_index() const { return (ui16)netxs::get_field<px_index16_mask>(px); }
-        auto get_image_align() const { return       netxs::get_field<px_align_4_mask>(px); }
-        auto get_image_xform() const { return       netxs::get_field<px_xform_3_mask>(px); }
-        auto get_image_ontop() const { return       netxs::get_field<px_ontop_1_mask>(px); }
-        auto get_image_stamp() const { return       netxs::get_field<px_stamp_8_mask>(px); }
-        auto set_image_index(si32 n) { netxs::set_field<px_index16_mask>(n, px); }
-        auto set_image_align(si32 n) { netxs::set_field<px_align_4_mask>(n, px); }
-        auto set_image_xform(si32 n) { netxs::set_field<px_xform_3_mask>(n, px); }
-        auto set_image_ontop(si32 n) { netxs::set_field<px_ontop_1_mask>(n, px); }
-        auto set_image_stamp(si32 n) { netxs::set_field<px_stamp_8_mask>(n, px); }
-        auto set_image_attrs(imagens::image& image, imagens::image::attrs_t& new_attrs)
+        auto set_image_cr(si32 c, si32 r)
         {
-            auto attrs = std::array<si32, imagens::attr_count>{};
-            for (auto i = 0; i < imagens::attr_count; i++)
+            netxs::set_field<px_imgX_16_mask>(c, px);
+            netxs::set_field<px_imgY_16_mask>(r, px);
+        }
+        auto set_image_WH(si32 imgW, si32 imgH)
+        {
+            netxs::set_field<px_imgW_16_mask>(imgW, px);
+            netxs::set_field<px_imgH_16_mask>(imgH, px);
+        }
+        auto get_image_index() const { return (ui16)netxs::get_field<p2_index16_mask>(p2); }
+        auto get_image_stamp() const { return       netxs::get_field<p2_stamp_8_mask>(p2); }
+        auto get_image_ontop() const
+        {
+            auto index = get_image_index();
+            auto ontop = faux;
+            if (index)
             {
-                if (auto v = new_attrs[i]) attrs[i] = (si32)v.value();
+                auto images = cell::images(); // Lock.
+                if (auto image_ptr = images.map[index])
+                {
+                    ontop = (si32)image_ptr->gb_attrs[imagens::gb::o];
+                }
             }
+            return std::pair{ index, ontop };
+        }
+        auto set_image_index(si32 n) { netxs::set_field<p2_index16_mask>(n, p2); }
+        auto set_image_stamp(si32 n) { netxs::set_field<p2_stamp_8_mask>(n, p2); }
+        auto inc_image_stamp(si32 n) { netxs::set_field<p2_stamp_8_mask>(get_image_stamp() + n, p2); }
+        auto set_image_attrs(imagens::image& image, imagens::image::lc_attrs_t& lc_attrs)
+        {
             set_image_index(image.index);
-            set_image_xy(   attrs[imagens::column   ],
-                            attrs[imagens::row      ]);
-            set_image_align(attrs[imagens::align    ]);
-            set_image_xform(attrs[imagens::transform]);
-            set_image_ontop(attrs[imagens::ontop    ]);
+            set_image_WH((si32)lc_attrs[imagens::lc::W],
+                         (si32)lc_attrs[imagens::lc::H]);
+            set_image_cr((si32)lc_attrs[imagens::lc::c],
+                         (si32)lc_attrs[imagens::lc::r]);
             set_image_stamp(image.stamp);
             return *this;
         }
@@ -2074,11 +2136,16 @@ namespace netxs
         //todo rename to has_image
         auto raw() const
         {
-            return !!px;
+            return !!p2;
+        }
+        void reset_px()
+        {
+            px = {};
+            p2 = {};
         }
         auto is_empty() const // cell: Return true if cell is absolutely empty.
         {
-            return uv.bg.token == 0 && uv.fg.token == 0 && gc.token == 0 && st.token == 0 && id == 0 && px == 0;
+            return uv.bg.token == 0 && uv.fg.token == 0 && gc.token == 0 && st.token == 0 && id == 0 && p2 == 0;
         }
         auto same_txt(cell const& c) const // cell: Compare clusters.
         {
@@ -2088,7 +2155,7 @@ namespace netxs
         {
             return uv == c.uv
                 && st.like(c.st)
-                && (!raw() || px == c.px);
+                && (!raw() || (px == c.px && p2 == c.p2));
         }
         void wipe() // cell: Set colors, attributes and grapheme cluster to zero.
         {
@@ -2096,6 +2163,7 @@ namespace netxs
             gc.wipe();
             st.wipe();
             px = 0;
+            p2 = 0;
         }
         // cell: Blend two cells according to visibility and other attributes (keep underlying image).
         auto& fuse_keep_image(cell const& c)
@@ -2136,6 +2204,7 @@ namespace netxs
         {
             fuse_keep_image(c);
             px = c.px;
+            p2 = c.p2;
             return *this;
         }
         // cell: Blend two cells if text part != '\0'.
@@ -2154,6 +2223,7 @@ namespace netxs
                 gc = c.gc;
             }
             px = c.px;
+            p2 = c.p2;
         }
         // cell: Blend cell colors.
         void blend(cell const& c)
@@ -2167,6 +2237,7 @@ namespace netxs
             uv.fg.mix(c.uv.fg, alpha);
             uv.bg.mix(c.uv.bg, alpha);
             px = c.px;
+            p2 = c.p2;
             if (c.st.xy())
             {
                 st = c.st;
@@ -2184,6 +2255,7 @@ namespace netxs
                 uv.fg = uv.bg; // The character must be on top of the cell background. (see block graphics)
             }
             px = c.px;
+            p2 = c.p2;
             uv.fg.mix(c.uv.fg, alpha);
             uv.bg.mix(c.uv.bg, alpha);
         }
@@ -2225,6 +2297,7 @@ namespace netxs
             if (bg_opaque) uv.bg.mix_one(c.uv.bg);
             else           uv.bg.mix(c.uv.bg);
             px = c.px;
+            p2 = c.p2;
             if (c.id) id = c.id;
         }
         // cell: Merge two cells and set id.
@@ -2238,6 +2311,7 @@ namespace netxs
             uv = c.uv;
             st.meta(c.st);
             px = c.px;
+            p2 = c.p2;
         }
         void skipnulls(cell const& c)
         {
@@ -2263,6 +2337,7 @@ namespace netxs
                 if (c.raw()) // Terminal output is non-destructive for images.
                 {
                     px = c.px;
+                    p2 = c.p2;
                 }
             }
         }
@@ -2486,7 +2561,8 @@ namespace netxs
         auto& set(cell const& c) { uv = c.uv;
                                    st = c.st;
                                    gc = c.gc;
-                                   px = c.px;              return *this; }
+                                   px = c.px;
+                                   p2 = c.p2;              return *this; }
         auto& bgc(argb c)        { uv.bg = c;              return *this; } // cell: Set background color.
         auto& fgc(argb c)        { uv.fg = c;              return *this; } // cell: Set foreground color.
         auto& bga(si32 k)        { uv.bg.chan.a = (byte)k; return *this; } // cell: Set background alpha/transparency.
@@ -2508,7 +2584,7 @@ namespace netxs
         auto& unc(argb c)        { st.unc(c.to_256cube()); return *this; } // cell: Set underline color.
         auto& unc(si32 c)        { st.unc(c);              return *this; } // cell: Set underline color.
         auto& cur(si32 s)        { st.cur(s);              return *this; } // cell: Set cursor style.
-        auto& img(ui64 p)        { px = p;                 return *this; } // cell: Set attached image.
+        auto& img(ui96 p)        { px = p.u64; p2 = p.u32; return *this; } // cell: Set attached image.
         auto& ovr(bool b)        { st.ovr(b);              return *this; } // cell: Set overline attribute.
         auto& inv(bool b)        { st.inv(b);              return *this; } // cell: Set invert attribute.
         auto& stk(bool b)        { st.stk(b);              return *this; } // cell: Set strikethrough attribute.
@@ -2580,6 +2656,7 @@ namespace netxs
             st = empty.st;
             gc = empty.gc;
             px = empty.px;
+            p2 = empty.p2;
             return *this;
         }
 
@@ -2605,8 +2682,9 @@ namespace netxs
         constexpr auto  und() const  { return st.und();      } // cell: Return underline/Underscore attribute.
         constexpr auto  unc() const  { return st.unc();      } // cell: Return underline color.
         constexpr auto  cur() const  { return st.cur();      } // cell: Return cursor style.
-        constexpr auto& img()        { return px;            } // cell: Return attached image.
-        constexpr auto& img() const  { return px;            } // cell: Return attached image.
+        constexpr auto  img()        { return ui96{ px,p2 }; } // cell: Return attached image.
+        constexpr auto  img() const  { return ui96{ px,p2 }; } // cell: Return attached image.
+        constexpr auto  size_of_img() const { return (si32)(sizeof(px) + sizeof(p2)); } // cell: Return image metadata size.
         constexpr auto  ovr() const  { return st.ovr();      } // cell: Return overline attribute.
         constexpr auto  inv() const  { return st.inv();      } // cell: Return negative attribute.
         constexpr auto  stk() const  { return st.stk();      } // cell: Return strikethrough attribute.
@@ -2963,7 +3041,7 @@ namespace netxs
             struct image_t : public brush_t<image_t>
             {
                 template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
-                template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.px = src.px; }
+                template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.px = src.px; dst.p2 = src.p2; }
             };
 
         public:

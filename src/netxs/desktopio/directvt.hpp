@@ -123,25 +123,49 @@ namespace netxs::directvt
         template<class T>
         void fuse_ext(auto& block, T&& data)
         {
-            using D = std::remove_cv_t<std::remove_reference_t<T>>;
+            using D = std::remove_cvref_t<T>;
             if constexpr (std::is_same_v<D, char>
                        || std::is_same_v<D, int8>
                        || std::is_same_v<D, byte>)
             {
                 block.text::push_back((char)data);
             }
-            else if constexpr (std::is_arithmetic_v<D>
-                            || std::is_same_v<D, twod>
-                            || std::is_same_v<D, fp2d>
+            else if constexpr (std::is_arithmetic_v<D>)
+            {
+                auto to_bytes = [](T val)
+                {
+                    auto r = std::bit_cast<std::array<std::byte, sizeof(T)>>(val);
+                    if constexpr (std::endian::native == std::endian::big)
+                    {
+                        std::ranges::reverse(r);
+                    }
+                    return r;
+                };
+                auto le_bytes = to_bytes(data);
+                block += view{ (char*)le_bytes.data(), le_bytes.size() };
+            }
+            else if constexpr (std::is_same_v<D, twod>
                             || std::is_same_v<D, dent>
                             || std::is_same_v<D, rect>)
             {
                 auto le_data = letoh(data);
                 block += view{ (char*)&le_data, sizeof(le_data) };
             }
+            else if constexpr (std::is_same_v<D, fp2d>) // In C++, bitwise operations are prohibited for floating-point types.
+            {
+                fuse_ext(block, data.x);
+                fuse_ext(block, data.y);
+            }
             else if constexpr (std::is_same_v<D, argb>)
             {
                 block += view{ (char*)&data, sizeof(data) };
+            }
+            else if constexpr (std::is_same_v<D, ui96>)
+            {
+                struct { uint64_t l; uint32_t h; } packed;
+                packed.l = netxs::letoh(data.u64);
+                packed.h = netxs::letoh(data.u32);
+                block += view{ (char*)&packed, 12 };
             }
             else if constexpr (std::is_same_v<D, view>
                             || std::is_same_v<D, qiew>
@@ -180,6 +204,7 @@ namespace netxs::directvt
                     X(ui16) \
                     X(ui32) \
                     X(ui64) \
+                    X(ui96) \
                     X(si16) \
                     X(si32) \
                     X(si64) \
@@ -251,10 +276,36 @@ namespace netxs::directvt
                 return *this;
             }
             // stream: .
-            template<class T, bool PeekOnly = faux, class D = std::remove_cv_t<std::remove_reference_t<T>>, class R0 = std::conditional_t<std::is_same_v<D, noop>, si32, D>, class R = std::conditional_t<std::is_same_v<R0, text>, view, R0>>
+            template<class T, bool PeekOnly = faux, class D = std::remove_cvref_t<T>, class R0 = std::conditional_t<std::is_same_v<D, noop>, si32, D>, class R = std::conditional_t<std::is_same_v<R0, text>, view, R0>>
             static R _take_item(view& data)
             {
-                if constexpr (std::is_same_v<D, view> || std::is_same_v<D, text>)
+                if constexpr (std::is_arithmetic_v<D>)
+                {
+                    if (data.size() < sizeof(D))
+                    {
+                        log(prompt::dtvt, "Corrupted arithmetic data");
+                        if constexpr (!PeekOnly) data.remove_prefix(data.size());
+                        return D{};
+                    }
+                    std::array<std::byte, sizeof(D)> bytes;
+                    std::memcpy(bytes.data(), data.data(), sizeof(D));
+                    if constexpr (std::endian::native == std::endian::big)
+                    {
+                        std::ranges::reverse(bytes);
+                    }
+                    if constexpr (!PeekOnly)
+                    {
+                        data.remove_prefix(sizeof(D));
+                    }
+                    return std::bit_cast<D>(bytes);
+                }
+                else if constexpr (std::is_same_v<D, fp2d>) // In C++, bitwise operations are prohibited for floating-point types.
+                {
+                    auto x = _take_item<fp32>(data);
+                    auto y = _take_item<fp32>(data);
+                    return fp2d{ x, y };
+                }
+                else if constexpr (std::is_same_v<D, view> || std::is_same_v<D, text>)
                 {
                     if (data.size() < sizeof(sz_t))
                     {
@@ -303,6 +354,23 @@ namespace netxs::directvt
                     if constexpr (!PeekOnly)
                     {
                         data.remove_prefix(sizeof(data_type));
+                    }
+                    return crop;
+                }
+                else if constexpr (std::is_same_v<D, ui96>)
+                {
+                    if (data.size() < sizeof(ui64) + sizeof(ui32))
+                    {
+                        log(prompt::dtvt, "Corrupted integer data");
+                        if constexpr (!PeekOnly) data.remove_prefix(data.size());
+                        return D{};
+                    }
+                    auto u64 = netxs::aligned<ui64>(data.data());
+                    auto u32 = netxs::aligned<ui32>(data.data() + sizeof(ui64));
+                    auto crop = ui96{ u64, u32 };
+                    if constexpr (!PeekOnly)
+                    {
+                        data.remove_prefix(sizeof(ui64) + sizeof(ui32));
                     }
                     return crop;
                 }
@@ -1005,8 +1073,8 @@ namespace netxs::directvt
         STRUCT_macro(jgc_element,        (ui64, token) (text, cluster)) // Reply grapheme cluster list<jgc_element>.
 
         STRUCT_macro(unknown_img,        (ui16, index)) // Request unknown image list<unknown_img>.
-        STRUCT_macro(img_element,        (ui16, index) (text, document) (fp32, width) (fp32, height) (fp32, dx) (fp32, dy) (fp32, scale)) // Reply image metadata list<img_element>.
-        STRUCT_macro(update_img_request, (ui16, index) (ui16, changed_bits) (many, changes))
+        STRUCT_macro(img_element,        (ui16, index) (many, global_attributes)) // Reply image metadata list<img_element>. Access by imagens::gb::<attr_index>; The document is always placed at the end of the list.
+        STRUCT_macro(update_img_request, (ui16, index) (si32, changed_bits) (many, changes)) // The document is always placed at the end of the list if set.
         STRUCT_macro(remove_img_request, (ui16, index))
 
         #undef STRUCT_macro
@@ -1090,7 +1158,7 @@ namespace netxs::directvt
                     if (c1.bgc() != c2.bgc()) { meaning += sizeof(c1.bgc()); changes |= bgclr; }
                     if (c1.fgc() != c2.fgc()) { meaning += sizeof(c1.fgc()); changes |= fgclr; }
                     if (c1.stl() != c2.stl()) { meaning += sizeof(c1.stl()); changes |= style; }
-                    if (c1.img() != c2.img()) { meaning += sizeof(c1.img()); changes |= rastr; }
+                    if (c1.img() != c2.img()) { meaning += c1.size_of_img(); changes |= rastr; }
                     if (c1.egc() != c2.egc())
                     {
                         cluster = (byte)c1.len();
@@ -1187,7 +1255,8 @@ namespace netxs::directvt
                     if (what & style) stream::take(c.stl(), data);
                     if (what & rastr)
                     {
-                        stream::take(c.img(), data);
+                        stream::take(c.px, data); // img(): ui96{}
+                        stream::take(c.p2, data); //
                         if (is_remote_forwarding) // Perform an image index translation for remote rasters.
                         if (auto image_ext_index = c.get_image_index())
                         {
@@ -1994,14 +2063,14 @@ namespace netxs::directvt
                         if (auto image_ptr = images.map[local_index])
                         {
                             auto& image = *image_ptr;
-                            image.document = new_image.document;
-                            image.attrs[imagens::width ] = new_image.width;
-                            image.attrs[imagens::height] = new_image.height;
-                            image.attrs[imagens::dx    ] = new_image.dx;
-                            image.attrs[imagens::dy    ] = new_image.dy;
-                            image.attrs[imagens::scale ] = new_image.scale;
-                            if constexpr (debugmode) log("%%New image metadata: index=%% size=%%,%% dt=%%,%% scale=%%", prompt::s11n,
-                                new_image.index, new_image.width, new_image.height, new_image.dx, new_image.dy, new_image.scale);
+                            if constexpr (debugmode) log("%%New image metadata:", prompt::s11n);
+                            for (auto i = 0u; i < new_image.global_attributes.size() - 1; i++)
+                            {
+                                image.gb_attrs[i] = std::any_cast<fp32>(new_image.global_attributes[i]);
+                                if constexpr (debugmode) log("  %attr%=%value%", imagens::gb::names[i], image.gb_attrs[i]);
+                            }
+                            image.document = std::any_cast<text>(new_image.global_attributes.back());
+                            if constexpr (debugmode) log("  document='%value%...'", image.document.substr(0, std::min(20, (si32)image.document.size())));
                         }
                     }
                 }

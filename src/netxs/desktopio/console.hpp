@@ -239,8 +239,7 @@ namespace netxs::ui
                             auto& image = *image_ptr;
                             if (image.document.size())
                             {
-                                auto [w, h, dx, dy, s] = image.get_global_attrs();
-                                list.thing.push(unknown_index, image.document, w, h, dx, dy, s);
+                                list.thing.push(unknown_index, image.get_global_attrs());
                             }
                         }
                         else
@@ -268,8 +267,7 @@ namespace netxs::ui
                                     auto& image = *image_ptr;
                                     if (image.document.size())
                                     {
-                                        auto [w, h, dx, dy, s] = image.get_global_attrs();
-                                        reply_list.push(unknown_index, image.document, w, h, dx, dy, s);
+                                        reply_list.push(unknown_index, image.get_global_attrs());
                                         reply_count++;
                                         return true;
                                     }
@@ -1057,7 +1055,7 @@ namespace netxs::ui
                 {
                     auto& image = *image_ptr;
                     auto changes = image.get_changes();
-                    conio.update_img_request.send(canal, image.index, image.changed_attrs, changes);
+                    conio.update_img_request.send(canal, image.index, image.changed_gb_attrs, changes);
                 }
             };
             LISTEN(tier::release, e2::form::proceed::multihome, world_ptr)

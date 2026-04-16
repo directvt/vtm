@@ -1990,7 +1990,7 @@ namespace netxs::app::vtm
                                     // Draw a color focus mark next to the cursor.
                                     auto area = rect{{ coor.x + user_name.size().x + 1, coor.y }, dot_11 };
                                     gear_color.fgc(hids::get_color(gear.gear_index));
-                                    parent_canvas.fill(area, cell::shaders::fuse(gear_color));
+                                    parent_canvas.fill(area, cell::shaders::skipnulls(gear_color)); // Use skipnulls to be transparent for images.
                                 }
                             }
                         }
