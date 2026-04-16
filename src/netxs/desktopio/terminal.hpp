@@ -9552,7 +9552,7 @@ namespace netxs::ui
             {
                 auto& bitmap = lock.thing;
                 bitmap.get(data, s11n::nat);
-                owner.base::enqueue([&](auto& /*boss*/) mutable
+                owner.base::enqueue([&](auto& /*boss*/)
                 {
                     owner.digest++;
                     owner.base::deface();
@@ -9561,7 +9561,7 @@ namespace netxs::ui
             void handle(s11n::xs::img_list            lock)
             {
                 s11n::receive_img(lock);
-                owner.base::enqueue([&](auto& /*boss*/) mutable
+                owner.base::enqueue([&](auto& /*boss*/)
                 {
                     owner.base::signal(tier::general, e2::data::image::sync);
                     owner.base::deface();
@@ -9576,13 +9576,16 @@ namespace netxs::ui
                     auto images = cell::images(); // Lock.
                     auto is_remote = s11n::nat[0];
                     auto image_index = is_remote ? std::exchange(s11n::nat[image.index], 0) : image.index;
-                    images.map[image_index] = {};
-                    owner.remove_image_bits(image_index);
-                    owner.base::enqueue([&, image_index](auto& /*boss*/) mutable
+                    if (image_index)
                     {
-                        owner.base::signal(tier::general, e2::data::image::remove, image_index);
-                        owner.base::deface();
-                    });
+                        images.map[image_index] = {};
+                        owner.remove_image_bits(image_index);
+                        owner.base::enqueue([&, image_index](auto& /*boss*/) // To avoid deadlock under cell::images.
+                        {
+                            owner.base::signal(tier::general, e2::data::image::remove, image_index);
+                            owner.base::deface();
+                        });
+                    }
                 }
             }
             void handle(s11n::xs::update_img_request  lock)
@@ -9593,13 +9596,16 @@ namespace netxs::ui
                 {
                     auto images = cell::images(); // Lock.
                     auto is_remote = s11n::nat[0];
-                    auto image_index = is_remote ? s11n::nat[image_data.index] : image_data.index;
+                    if (auto image_index = is_remote ? s11n::nat[image_data.index] : image_data.index)
                     if (auto image_ptr = images.map[image_index])
                     {
                         auto& image = *image_ptr;
                         image.set_changes(image_data.changed_bits, image_data.changes);
                         owner.update_image_bits(image_index);
-                        owner.base::signal(tier::general, e2::data::image::update, image_index);
+                        owner.base::enqueue([&, image_index](auto& /*boss*/) // To avoid deadlock under cell::images.
+                        {
+                            owner.base::signal(tier::general, e2::data::image::update, image_index);
+                        });
                     }
                 }
             }
