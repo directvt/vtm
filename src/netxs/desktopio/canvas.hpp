@@ -1387,15 +1387,17 @@ namespace netxs
             void set_changes(si32 new_changed_bits, many& changes, twod cellsz = {})
             {
                 changed_gb_attrs = new_changed_bits;
-                auto i = 0u;
+                auto mask = (ui32)changed_gb_attrs;
                 auto j = 0u;
-                while (i < imagens::gb::attr_count)
+                while (mask != 0)
                 {
-                    if (changed_gb_attrs & (1 << i))
+                    auto i = std::countr_zero(mask);
+                    if (i < imagens::gb::attr_count)
                     {
-                        gb_attrs[i] = std::any_cast<fp32>(changes[j++]);
+                        gb_attrs[i] = std::any_cast<fp32>(changes[j]);
                     }
-                    i++;
+                    j++;
+                    mask &= mask - 1;
                 }
                 if (changed_gb_attrs & ((1 << imagens::gb::uw)
                                       | (1 << imagens::gb::vh)
@@ -1422,14 +1424,15 @@ namespace netxs
             auto get_changes()
             {
                 auto changes = many{};
-                auto i = 0;
-                while (i < imagens::gb::attr_count)
+                auto mask = (ui32)changed_gb_attrs;
+                while (mask != 0)
                 {
-                    if (changed_gb_attrs & (1 << i))
+                    auto i = std::countr_zero(mask);
+                    if (i < imagens::gb::attr_count)
                     {
                         changes.push_back(gb_attrs[i]);
                     }
-                    i++;
+                    mask &= mask - 1;
                 }
                 if (document_changed)
                 {
