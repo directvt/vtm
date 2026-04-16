@@ -1374,7 +1374,7 @@ namespace netxs
             text          sub_id; // Document's sub-element id.
             text          document;
             bool          document_changed{};
-            gb_attrs_t    gb_attrs;
+            gb_attrs_t    gb_attrs{};
             si32          changed_gb_attrs{}; // Contains bits indicating which imagens::gb::attr have changed.
             ui16          index{};
             sprite        fragment{ *std::pmr::new_delete_resource() }; // Rasterized and trimmed fragment within the scaled_fragment_area. Using default resource allocator.
@@ -1422,13 +1422,14 @@ namespace netxs
             auto get_changes()
             {
                 auto changes = many{};
-                auto i = imagens::gb::attr_count;
-                while (i--)
+                auto i = 0;
+                while (i < imagens::gb::attr_count)
                 {
                     if (changed_gb_attrs & (1 << i))
                     {
                         changes.push_back(gb_attrs[i]);
                     }
+                    i++;
                 }
                 if (document_changed)
                 {

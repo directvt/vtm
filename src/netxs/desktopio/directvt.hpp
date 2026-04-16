@@ -130,14 +130,31 @@ namespace netxs::directvt
             {
                 block.text::push_back((char)data);
             }
-            else if constexpr (std::is_arithmetic_v<D>
-                            || std::is_same_v<D, twod>
-                            || std::is_same_v<D, fp2d>
+            else if constexpr (std::is_arithmetic_v<D>)
+            {
+                auto to_bytes = [](T val)
+                {
+                    auto r = std::bit_cast<std::array<std::byte, sizeof(T)>>(val);
+                    if constexpr (std::endian::native == std::endian::big)
+                    {
+                        std::ranges::reverse(r);
+                    }
+                    return r;
+                };
+                auto le_bytes = to_bytes(data);
+                block += view{ (char*)le_bytes.data(), le_bytes.size() };
+            }
+            else if constexpr (std::is_same_v<D, twod>
                             || std::is_same_v<D, dent>
                             || std::is_same_v<D, rect>)
             {
                 auto le_data = letoh(data);
                 block += view{ (char*)&le_data, sizeof(le_data) };
+            }
+            else if constexpr (std::is_same_v<D, fp2d>) // In C++, bitwise operations are prohibited for floating-point types.
+            {
+                fuse_ext(block, data.x);
+                fuse_ext(block, data.y);
             }
             else if constexpr (std::is_same_v<D, argb>)
             {
@@ -262,7 +279,33 @@ namespace netxs::directvt
             template<class T, bool PeekOnly = faux, class D = std::remove_cvref_t<T>, class R0 = std::conditional_t<std::is_same_v<D, noop>, si32, D>, class R = std::conditional_t<std::is_same_v<R0, text>, view, R0>>
             static R _take_item(view& data)
             {
-                if constexpr (std::is_same_v<D, view> || std::is_same_v<D, text>)
+                if constexpr (std::is_arithmetic_v<D>)
+                {
+                    if (data.size() < sizeof(D))
+                    {
+                        log(prompt::dtvt, "Corrupted arithmetic data");
+                        if constexpr (!PeekOnly) data.remove_prefix(data.size());
+                        return D{};
+                    }
+                    std::array<std::byte, sizeof(D)> bytes;
+                    std::memcpy(bytes.data(), data.data(), sizeof(D));
+                    if constexpr (std::endian::native == std::endian::big)
+                    {
+                        std::ranges::reverse(bytes);
+                    }
+                    if constexpr (!PeekOnly)
+                    {
+                        data.remove_prefix(sizeof(D));
+                    }
+                    return std::bit_cast<D>(bytes);
+                }
+                else if constexpr (std::is_same_v<D, fp2d>) // In C++, bitwise operations are prohibited for floating-point types.
+                {
+                    auto x = _take_item<fp32>(data);
+                    auto y = _take_item<fp32>(data);
+                    return fp2d{ x, y };
+                }
+                else if constexpr (std::is_same_v<D, view> || std::is_same_v<D, text>)
                 {
                     if (data.size() < sizeof(sz_t))
                     {
