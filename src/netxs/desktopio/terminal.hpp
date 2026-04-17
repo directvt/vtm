@@ -7396,6 +7396,7 @@ namespace netxs::ui
             auto unregister = faux;
             auto new_gb_attrs = imagens::image::opt_gb_attrs_t{};
             auto new_lc_attrs = imagens::image::opt_lc_attrs_t{};
+            auto layers = std::vector<imagens::image::layer_t>{};
             // data: " id + attrs + doc"              Find by id and update/register and print.
             //       " [attrs] + doc "                Register empty id.
             //       " [id] "                         Find by id and print.
@@ -7406,47 +7407,54 @@ namespace netxs::ui
                 if (attrs_str.front() == '<') // Extract document body <tag1 ...> ... </tag2>
                 {
                     auto closing_bracket_pos = attrs_str.rfind('>'); // Fing the last '>' in the string.
-                    doc_str = attrs_str.substr(0, closing_bracket_pos + 1);
-                    attrs_str.remove_prefix(doc_str.size());
-                    // Check if document is empty.
-                    auto tmp = doc_str;
-                    tmp.pop_front(); // Pop  '<'.
-                    auto tag = utf::take_front<faux>(tmp, netxs::whitespaces_and<'>'>);
-                    if (tag || (tmp && tmp.front() == '>')) // 'tag>' or 'tag ...'
+                    if (closing_bracket_pos == text::npos)
                     {
-                        auto degenerate_doc = text{};
-                        degenerate_doc.reserve(5 + tag.size() * 2); // "<" + tag + "></" + tag + ">"
-                        degenerate_doc += '<';
-                        degenerate_doc += tag;
-                        degenerate_doc += "></";
-                        degenerate_doc += tag;
-                        degenerate_doc += '>';
-                        unregister = doc_str == degenerate_doc;
-                        if (unregister) doc_str = {};
+                        attrs_str = {};
+                        if (io_log) log("%%Broken 'OSC object' document (no closing bracket)", prompt::term);
                     }
                     else
                     {
-                        if (io_log) log("%%Broken 'OSC object' document (invalid structure)", prompt::term);
+                        doc_str = attrs_str.substr(0, closing_bracket_pos + 1);
+                        attrs_str.remove_prefix(doc_str.size());
+                        // Check if document is empty.
+                        auto tmp = doc_str;
+                        tmp.pop_front(); // Pop  '<'.
+                        auto tag = utf::take_front<faux>(tmp, netxs::whitespaces_and<'>'>);
+                        if (tag || (tmp && tmp.front() == '>')) // 'tag>' or 'tag ...'
+                        {
+                            auto degenerate_doc = text{};
+                            degenerate_doc.reserve(5 + tag.size() * 2); // "<" + tag + "></" + tag + ">"
+                            degenerate_doc += '<';
+                            degenerate_doc += tag;
+                            degenerate_doc += "></";
+                            degenerate_doc += tag;
+                            degenerate_doc += '>';
+                            unregister = doc_str == degenerate_doc;
+                            if (unregister) doc_str = {};
+                        }
+                        else
+                        {
+                            if (io_log) log("%%Broken 'OSC object' document (invalid structure)", prompt::term);
+                        }
                     }
                 }
                 else // Parse attributes.
                 {
-                    auto [attr_str, value_str] = utf::get_pair<'='>(attrs_str, netxs::whitespaces_and<'='>, netxs::whitespaces_and<' ', '<'>); // "... key=val<svg...>...</svg>"
+                    auto get_key_val = [](qiew& attrs_str)
+                    {
+                        return utf::get_pair<'='>(attrs_str, netxs::whitespaces_and<'='>, netxs::whitespaces_and<'(', '<'>); // "... key=val<svg...>...</svg>"
+                    };
                     //todo sub-id: id=qqq/www
-                    if (attr_str == "id") // id="string/string".
+                    auto take_id = [](qiew& value_str, auto& id_str, auto& sub_id_str)
                     {
                         id_str = utf::take_front<faux>(value_str, " /\\");
                         utf::trim_front(value_str, " /\\");
                         sub_id_str = value_str;
-                    }
-                    else if (attr_str == "gc") // gc="string". Grapheme cluster used to fill image area.
+                    };
+                    auto parse_gb_pair = [](qiew& attr_str, qiew value_str, auto& new_gb_attrs)
                     {
-                        gc_opt = value_str;
-                    }
-                    else // Regular attributes (si32 or dict).
-                    {
-                        if constexpr (debugmode) log(" attr_str=%%, value_str=%%", attr_str, value_str);
-                        if (auto gb = imagens::parse_pair(attr_str, value_str, imagens::gb::attr_index_map, imagens::gb_value_index_map))
+                        auto gb = imagens::parse_pair(attr_str, value_str, imagens::gb::attr_index_map, imagens::gb_value_index_map);
+                        if (gb)
                         {
                             auto [i, v] = gb.value();
                             auto& xform_ref = new_gb_attrs[imagens::gb::tr];
@@ -7469,11 +7477,73 @@ namespace netxs::ui
                             }
                             if constexpr (debugmode) log("  new_gb_attrs[%%]=%%", i, v);
                         }
-                        else if (auto lc = imagens::parse_pair(attr_str, value_str, imagens::lc::attr_index_map, imagens::lc_value_index_map))
+                        return !!gb;
+                    };
+
+                    auto [attr_str, value_str] = get_key_val(attrs_str);
+                    if (attr_str == "id") // id="string/string".
+                    {
+                        take_id(value_str, id_str, sub_id_str);
+                    }
+                    else if (attr_str == "l") // l="parent_id/sub_id"(parent_gb_attrs). Inherited image layer with overridden attributes.
+                    {
+                        auto layer_id = qiew{};
+                        auto layer_sub_id = qiew{};
+                        take_id(value_str, layer_id, layer_sub_id); // Take id/sub_id.
+                        auto layer = imagens::image::layer_t{};
+                        layer.id = layer_id;
+                        layer.sub_id = layer_sub_id;
+                        utf::trim_front(attrs_str, netxs::whitespaces);
+                        if (attrs_str && attrs_str.front() == '(' && attrs_str.size() > 1) // Parse overridden attributes.
                         {
-                            auto [i, v] = lc.value();
-                            new_lc_attrs[i] = v;
-                            if constexpr (debugmode) log("  new_lc_attrs[%%]=%%", i, v);
+                            attrs_str.pop_front(); // Pop  '('.
+                            auto closing_parenthesis_pos = attrs_str.find(')'); // Fing the last '>' in the string.
+                            auto layer_attrs_str = attrs_str.substr(0, closing_parenthesis_pos);
+                            if (closing_parenthesis_pos == text::npos)
+                            {
+                                attrs_str = {};
+                            }
+                            else
+                            {
+                                attrs_str.remove_prefix(layer_attrs_str.size() + 1);
+                            }
+                            while (layer_attrs_str)
+                            {
+                                auto [key_str, val_str] = get_key_val(layer_attrs_str);
+                                if (!parse_gb_pair(key_str, val_str, layer.opt_attrs))
+                                {
+                                    if (io_log) log("%%Unknown layer's key=val pair: '%%'='%%'", prompt::term, key_str, val_str);
+                                }
+                                utf::trim_front(layer_attrs_str, netxs::whitespaces);
+                            }
+                        }
+                        auto l_iter = image_cache.find(layer_id);
+                        if (l_iter != image_cache.end()) // Process registered images only.
+                        {
+                            auto image_ptr = l_iter->second;
+                            layer.image_wptr = image_ptr;
+                            layers.emplace_back(std::move(layer));
+                        }
+                        else
+                        {
+                            if (io_log) log("%%Unknown object reference: '%%%%%%'", prompt::term, layer_id, layer_sub_id ? "/" : "", layer_sub_id);
+                        }
+                    }
+                    else if (attr_str == "gc") // gc="string". Grapheme cluster used to fill image area.
+                    {
+                        gc_opt = value_str;
+                    }
+                    else // Regular attributes (si32 or dict).
+                    {
+                        if constexpr (debugmode) log(" attr_str=%%, value_str=%%", attr_str, value_str);
+                        if (!parse_gb_pair(attr_str, value_str, new_gb_attrs))
+                        {
+                            if (auto lc = imagens::parse_pair(attr_str, value_str, imagens::lc::attr_index_map, imagens::lc_value_index_map))
+                            {
+                                auto [i, v] = lc.value();
+                                new_lc_attrs[i] = v;
+                                if constexpr (debugmode) log("  new_lc_attrs[%%]=%%", i, v);
+                            }
                         }
                     }
                 }
@@ -7550,6 +7620,47 @@ namespace netxs::ui
                 h = std::isnormal(h) ? std::clamp(h, 0.001f, (fp32)max_size.y) : _H;
                 auto c = std::clamp((si32)_c, 0, (si32)_W);
                 auto r = std::clamp((si32)_r, 0, (si32)_H);
+                for (auto& l : layers) // Normalize layers.
+                {
+                    auto& l_w  = l.opt_attrs[imagens::gb::w ];
+                    auto& l_h  = l.opt_attrs[imagens::gb::h ];
+                    auto& l_uw = l.opt_attrs[imagens::gb::uw];
+                    auto& l_vh = l.opt_attrs[imagens::gb::vh];
+                    auto& l_tr = l.opt_attrs[imagens::gb::tr];
+                    if (l_uw)
+                    {
+                        if (l_uw == 0.f) l_uw = 1.f;
+                        else if (l_uw < 0.f)
+                        {
+                            l_uw = -l_uw.value();
+                            if (!l_tr) l_tr = 0.f;
+                            imagens::mirror_fx(l_tr.value(), imagens::flips::hz);
+                        }
+                    }
+                    if (l_vh)
+                    {
+                        if (l_vh == 0.f) l_vh = 1.f;
+                        else if (l_vh < 0.f)
+                        {
+                            l_vh = -l_vh.value();
+                            if (!l_tr) l_tr = 0.f;
+                            imagens::mirror_fx(l_tr.value(), imagens::flips::vt);
+                        }
+                    }
+                    if (l_w && std::isnormal(l_w.value())) l_w = std::clamp(l_w.value(), 0.001f, (fp32)max_size.x); else l_w = std::nullopt;
+                    if (l_h && std::isnormal(l_h.value())) l_h = std::clamp(l_h.value(), 0.001f, (fp32)max_size.y); else l_h = std::nullopt;
+                    if constexpr (debugmode)
+                    {
+                        if (auto l_image_ptr = l.image_wptr.lock())
+                        {
+                            log("layer: id='%%' subid='%%' index='%%'", l.id, l.sub_id, l_image_ptr->index);
+                            for (auto i = 0u; i < l.opt_attrs.size(); i++)
+                            {
+                                if (l.opt_attrs[i]) log(" attr_str=%%, value_str=%%", imagens::gb::names[i], l.opt_attrs[i].value());
+                            }
+                        }
+                    }
+                }
 
                 auto gc_str = gc_opt ? gc_opt.value() : " ";
                 auto brush = cell{ target->brush }.txt(gc_str, 1, 1, 1, 1); //todo make the character geometry configurable
@@ -7586,9 +7697,14 @@ namespace netxs::ui
                 if (iter != image_cache.end() && same_doc_and_raster()) // Move existing image.
                 {
                     auto& image = *iter->second;
+                    image.updated_layers = layers.size();
+                    if (image.updated_layers)
+                    {
+                        image.layers = std::move(layers);
+                    }
                     image.reset_changes();
                     image.check_and_set_attr(gb_attrs);
-                    if (image.changed_gb_attrs)
+                    if (image.changed_gb_attrs || image.updated_layers)
                     {
                         image.stamp += 2;
                         base::signal(tier::general, e2::data::image::update, image.index);
@@ -7597,12 +7713,17 @@ namespace netxs::ui
                 else if (iter != image_cache.end() && different_image_attrs()) // Update existing image.
                 {
                     auto& image = *iter->second;
+                    image.updated_layers = layers.size();
+                    if (image.updated_layers)
+                    {
+                        image.layers = std::move(layers);
+                    }
                     image.changed_gb_attrs = {};
                     image.bitmap.reset(); // Request to re-rasterize.
                     image.reset_changes();
                     image.check_and_set_document(doc_str);
                     image.check_and_set_attr(gb_attrs);
-                    if (image.changed_gb_attrs)
+                    if (image.changed_gb_attrs || image.updated_layers)
                     {
                         image.stamp += 2;
                         base::signal(tier::general, e2::data::image::update, image.index);
@@ -7614,7 +7735,8 @@ namespace netxs::ui
                     auto image_ptr = ptr::shared(imagens::image{ .id       = id_str,
                                                                  .sub_id   = sub_id_str,
                                                                  .document = doc_str,
-                                                                 .gb_attrs = gb_attrs });
+                                                                 .gb_attrs = gb_attrs,
+                                                                 .layers   = std::move(layers) });
                     if (auto image_index = images.set(image_ptr))
                     {
                         image_ptr->index = image_index;

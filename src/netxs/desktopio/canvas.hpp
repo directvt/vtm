@@ -1380,12 +1380,13 @@ namespace netxs
                     fragment.reset();
                 }
             };
-            struct base_image_t
+            struct layer_t
             {
-                text           sub_id; // Parent document's sub-element id.
-                wptr<image>    parent_wptr;
+                text           id;
+                text           sub_id; // Layer document's sub-element id.
+                wptr<image>    image_wptr;
                 opt_gb_attrs_t opt_attrs;
-                bitmap_t       parent_bitmap;
+                bitmap_t       image_bitmap;
                 bool           touched{};
             };
 
@@ -1399,7 +1400,8 @@ namespace netxs
             imagens::docs dom;
             byte          stamp{}; // Increment on image update to sync with FE.
             bitmap_t      bitmap;
-            std::vector<base_image_t> parents;
+            std::vector<layer_t> layers;
+            bool          updated_layers{};
 
             void set_changes(si32 new_changed_bits, many& changes, twod cellsz = {})
             {
