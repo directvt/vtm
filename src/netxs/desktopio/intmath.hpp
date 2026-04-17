@@ -223,6 +223,12 @@ namespace netxs
     {
         n = (n & ~(1 << P)) | (v << P);
     }
+    // intmath: Get a single p-bit to v.
+    template<sz_t P, class T>
+    auto get_bit(T&& n)
+    {
+        return n & (1 << P);
+    }
     // intmath: Set a single bit specified by F.
     template<auto F, class T>
     void set_flag(T&& n, bool v = true)

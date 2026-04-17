@@ -1369,6 +1369,9 @@ namespace netxs
             using gb_attrs_t = std::array<fp32, imagens::gb::attr_count>;
             using lc_attrs_t = std::array<fp32, imagens::lc::attr_count>;
 
+            static constexpr auto document_bit = 1;
+            static constexpr auto sub_id_bit   = 2;
+
             struct bitmap_t
             {
                 sprite fragment{ *std::pmr::new_delete_resource() }; // Rasterized and trimmed fragment within the scaled_fragment_area. Using default resource allocator.
@@ -1393,7 +1396,7 @@ namespace netxs
             text          id;
             text          sub_id; // Document's sub-element id.
             text          document;
-            bool          document_changed{};
+            si32          document_changed{};
             gb_attrs_t    gb_attrs{};
             si32          changed_gb_attrs{}; // Contains bits indicating which imagens::gb::attr have changed.
             ui16          index{};
@@ -1426,11 +1429,17 @@ namespace netxs
                 {
                     bitmap.reset();
                 }
-                if (changes.size() > j)
+                if (j < changes.size() && (document_changed = std::any_cast<si32>(changes[j++])))
                 {
-                    document_changed = true;
-                    document = std::any_cast<text>(changes[j]);
-                    dom = {}; // Request to regenerate DOM.
+                    if (j < changes.size() && netxs::get_bit<image::sub_id_bit>(document_changed))
+                    {
+                        sub_id = std::any_cast<text>(changes[j++]);
+                    }
+                    if (j < changes.size() && netxs::get_bit<image::document_bit>(document_changed))
+                    {
+                        document = std::any_cast<text>(changes[j++]);
+                        dom = {}; // Request to regenerate DOM.
+                    }
                     bitmap.reset();
                 }
                 else
@@ -1455,22 +1464,52 @@ namespace netxs
                 }
                 if (document_changed)
                 {
-                    changes.push_back(document);
+                    changes.push_back(document_changed);
+                    if (netxs::get_bit<image::sub_id_bit>(document_changed))
+                    {
+                        changes.push_back(sub_id);
+                    }
+                    if (netxs::get_bit<image::document_bit>(document_changed))
+                    {
+                        changes.push_back(document);
+                    }
                 }
                 return changes;
+            }
+            void receive_image_attributes(many& global_attributes)
+            {
+                if (global_attributes.size() > 3)
+                {
+                    auto i = 0u;
+                    for (; i < global_attributes.size() - 2; i++)
+                    {
+                        gb_attrs[i] = std::any_cast<fp32>(global_attributes[i]);
+                        if constexpr (debugmode) log("  %attr%=%value%", imagens::gb::names[i], gb_attrs[i]);
+                    }
+                    sub_id   = std::any_cast<text>(global_attributes[i++]);
+                    document = std::any_cast<text>(global_attributes[i++]);
+                    reset_changes();
+                    if constexpr (debugmode) log("  sub_id='%%' document='%value%...'", sub_id, document.substr(0, std::min(20, (si32)document.size())));
+                }
             }
             void reset_changes()
             {
                 changed_gb_attrs = {};
                 document_changed = {};
             }
-            void check_and_set_document(qiew doc_str)
+            void check_and_set_document(qiew doc_str, qiew sub_id_str)
             {
                 if (doc_str && document != doc_str)
                 {
                     dom = {}; // Request to regenerate DOM.
                     document = doc_str;
-                    document_changed = true;
+                    netxs::set_bit<image::document_bit>(document_changed, true);
+                }
+                if (sub_id != sub_id_str)
+                {
+                    sub_id = sub_id_str;
+                    bitmap.reset();
+                    netxs::set_bit<image::sub_id_bit>(document_changed, true);
                 }
             }
             void check_and_set_attr(gb_attrs_t& new_gb_attrs)
@@ -1488,11 +1527,12 @@ namespace netxs
             auto get_global_attrs()
             {
                 auto global_attributes = many{};
-                global_attributes.reserve(gb_attrs.size() + 1);
+                global_attributes.reserve(gb_attrs.size() + 2);
                 for (auto& ga : gb_attrs)
                 {
                     global_attributes.push_back(ga);
                 }
+                global_attributes.push_back(sub_id);
                 global_attributes.push_back(document);
                 return global_attributes;
             }

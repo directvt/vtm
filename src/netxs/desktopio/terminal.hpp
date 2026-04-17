@@ -7679,7 +7679,8 @@ namespace netxs::ui
                         changed |= image.gb_attrs[i] != gb_attrs[i];
                         if (changed) break;
                     }
-                    return changed || (doc_str && image.document != doc_str);
+                    return changed || (doc_str && image.document != doc_str)
+                                   || (image.sub_id != sub_id_str);
                 };
                 auto same_doc_and_raster = [&]
                 {
@@ -7690,6 +7691,7 @@ namespace netxs::ui
                             && (image.gb_attrs[imagens::gb::h  ] == gb_attrs[imagens::gb::h  ])
                             && (image.gb_attrs[imagens::gb::fit] == gb_attrs[imagens::gb::fit])
                             && (((si32)image.gb_attrs[imagens::gb::tr ] & 1) == ((si32)gb_attrs[imagens::gb::tr ] & 1)) // Same orientation.
+                            && (image.sub_id == sub_id_str)
                             && (!doc_str || image.document == doc_str);
                     return ret;
                 };
@@ -7721,9 +7723,9 @@ namespace netxs::ui
                     image.changed_gb_attrs = {};
                     image.bitmap.reset(); // Request to re-rasterize.
                     image.reset_changes();
-                    image.check_and_set_document(doc_str);
+                    image.check_and_set_document(doc_str, sub_id_str);
                     image.check_and_set_attr(gb_attrs);
-                    if (image.changed_gb_attrs || image.updated_layers)
+                    if (image.changed_gb_attrs || image.document_changed || image.updated_layers)
                     {
                         image.stamp += 2;
                         base::signal(tier::general, e2::data::image::update, image.index);

@@ -1073,8 +1073,8 @@ namespace netxs::directvt
         STRUCT_macro(jgc_element,        (ui64, token) (text, cluster)) // Reply grapheme cluster list<jgc_element>.
 
         STRUCT_macro(unknown_img,        (ui16, index)) // Request unknown image list<unknown_img>.
-        STRUCT_macro(img_element,        (ui16, index) (many, global_attributes)) // Reply image metadata list<img_element>. Access by imagens::gb::<attr_index>; The document is always placed at the end of the list.
-        STRUCT_macro(update_img_request, (ui16, index) (si32, changed_bits) (many, changes)) // The document is always placed at the end of the list if set.
+        STRUCT_macro(img_element,        (ui16, index) (many, global_attributes)) // Reply image metadata list<img_element>. Access by imagens::gb::<attr_index>; The document_bits:(sub_id and document) is always placed at the end of the list.
+        STRUCT_macro(update_img_request, (ui16, index) (si32, changed_bits) (many, changes)) // The document_bits:(sub_id and document) is always placed at the end of the list if set.
         STRUCT_macro(remove_img_request, (ui16, index))
 
         #undef STRUCT_macro
@@ -2064,13 +2064,7 @@ namespace netxs::directvt
                         {
                             auto& image = *image_ptr;
                             if constexpr (debugmode) log("%%New image metadata:", prompt::s11n);
-                            for (auto i = 0u; i < new_image.global_attributes.size() - 1; i++)
-                            {
-                                image.gb_attrs[i] = std::any_cast<fp32>(new_image.global_attributes[i]);
-                                if constexpr (debugmode) log("  %attr%=%value%", imagens::gb::names[i], image.gb_attrs[i]);
-                            }
-                            image.document = std::any_cast<text>(new_image.global_attributes.back());
-                            if constexpr (debugmode) log("  document='%value%...'", image.document.substr(0, std::min(20, (si32)image.document.size())));
+                            image.receive_image_attributes(new_image.global_attributes);
                         }
                     }
                 }
