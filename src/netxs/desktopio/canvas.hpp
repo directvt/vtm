@@ -1391,7 +1391,7 @@ namespace netxs
                 text           sub_id; // Layer document's sub-element id.
                 wptr<image>    image_wptr;
                 opt_gb_attrs_t opt_attrs;
-                bitmap_t       image_bitmap;
+                bitmap_t       bitmap;
                 bool           touched{};
             };
 

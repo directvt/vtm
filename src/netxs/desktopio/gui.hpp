@@ -2597,8 +2597,24 @@ namespace netxs::gui
                     auto image_WH = c.get_image_WH() * cellsz;
                     auto inv      = c.inv();
                     placeholder.coor -= (image_cr - dot_11) * cellsz;
-                    //todo iterate over layers
-                    //...
+                    for (auto& l : image.layers) // Iterate over layers.
+                    {
+                        if (auto layer_ptr = l.image_wptr.lock())
+                        {
+                            imagens::image::gb_attrs_t gb_attrs;
+                            auto& layer = *layer_ptr;
+                            for (auto i = 0u; i < gb_attrs.size(); i++) //todo optimize (make it once on update)
+                            {
+                                auto& a = l.opt_attrs[i];
+                                gb_attrs[i] = a ? a.value() : layer.gb_attrs[i];
+                            }
+                            render_layer(canvas, placeholder, fgc, layer, l.sub_id, l.bitmap, gb_attrs, image_WH, inv);
+                        }
+                        else
+                        {
+                            //todo drop from image.layers
+                        }
+                    }
                     render_layer(canvas, placeholder, fgc, image, image.sub_id, image.bitmap, image.gb_attrs, image_WH, inv);
                 }
             }
