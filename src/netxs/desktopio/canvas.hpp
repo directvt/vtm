@@ -1371,6 +1371,7 @@ namespace netxs
 
             static constexpr auto document_bit = 1;
             static constexpr auto sub_id_bit   = 2;
+            static constexpr auto layers_bit   = 3;
 
             struct bitmap_t
             {
@@ -1385,6 +1386,7 @@ namespace netxs
             };
             struct layer_t
             {
+                ui16           index{};
                 text           id;
                 text           sub_id; // Layer document's sub-element id.
                 wptr<image>    image_wptr;
@@ -1406,8 +1408,13 @@ namespace netxs
             std::vector<layer_t> layers;
             bool          updated_layers{};
 
+            auto empty()
+            {
+                return document.empty() && layers.empty();
+            }
             void set_changes(si32 new_changed_bits, many& changes, twod cellsz = {})
             {
+                if constexpr (debugmode) log("Received image update:");
                 changed_gb_attrs = new_changed_bits;
                 auto mask = (ui32)changed_gb_attrs;
                 auto j = 0u;
@@ -1417,6 +1424,7 @@ namespace netxs
                     if (i < imagens::gb::attr_count)
                     {
                         gb_attrs[i] = std::any_cast<fp32>(changes[j]);
+                        if constexpr (debugmode) log("  %%='%%'", imagens::gb::names[i], gb_attrs[i]);
                     }
                     j++;
                     mask &= mask - 1;
@@ -1429,17 +1437,29 @@ namespace netxs
                 {
                     bitmap.reset();
                 }
+                auto need_bitmap_reset = faux;
                 if (j < changes.size() && (document_changed = std::any_cast<si32>(changes[j++])))
                 {
                     if (j < changes.size() && netxs::get_bit<image::sub_id_bit>(document_changed))
                     {
                         sub_id = std::any_cast<text>(changes[j++]);
+                        need_bitmap_reset = true;
+                        if constexpr (debugmode) log("  sub_id='%%'", sub_id);
                     }
                     if (j < changes.size() && netxs::get_bit<image::document_bit>(document_changed))
                     {
                         document = std::any_cast<text>(changes[j++]);
                         dom = {}; // Request to regenerate DOM.
+                        need_bitmap_reset = true;
+                        if constexpr (debugmode) log("  document='%value%...'", document.substr(0, std::min(20, (si32)document.size())));
                     }
+                    if (j < changes.size() && netxs::get_bit<image::layers_bit>(document_changed)) // Receive foreign layer indexes.
+                    {
+                        load_layers(j, changes);
+                    }
+                }
+                if (need_bitmap_reset)
+                {
                     bitmap.reset();
                 }
                 else
@@ -1473,21 +1493,72 @@ namespace netxs
                     {
                         changes.push_back(document);
                     }
+                    if (netxs::get_bit<image::layers_bit>(document_changed))
+                    {
+                        pack_layers(changes);
+                    }
                 }
                 return changes;
             }
-            void receive_image_attributes(many& global_attributes)
+            void pack_layers(many& changes)
             {
-                if (global_attributes.size() > 3)
+                changes.reserve(layers.size() * imagens::gb::attr_count); // To avoid reallocations.
+                for (auto& l : layers)
+                {
+                    changes.push_back(l.index);
+                    changes.push_back(l.sub_id);
+                    auto mask = 0;
+                    auto& changed_layer_attr_bits = changes.emplace_back(mask); // Reserve a placeholder.
+                    for (auto i = 0u; i < l.opt_attrs.size(); i++)
+                    {
+                        if (auto& attr = l.opt_attrs[i])
+                        {
+                            mask |= 1 << i;
+                            changes.push_back(attr.value());
+                        }
+                    }
+                    changed_layer_attr_bits = mask; // Write to placeholder.
+                }
+            }
+            void load_layers(ui32 i, many& changes)
+            {
+                if (i < changes.size())
+                {
+                    if constexpr (debugmode) log("  layers update:");
+                    layers.clear();
+                    while (i < changes.size() - 1)
+                    {
+                        auto& l = layers.emplace_back(layer_t{ .index = std::any_cast<ui16>(changes[i++]) }); // Index.
+                        l.sub_id = std::any_cast<text>(changes[i++]); // Sub_id.
+                        if constexpr (debugmode) log("    index=%% sub_id=%%", l.index, l.sub_id);
+                        auto changed_layer_attr_bits = std::any_cast<si32>(changes[i++]); // Changed bits.
+                        auto mask = (ui32)changed_layer_attr_bits;
+                        while (mask != 0 && i < changes.size())
+                        {
+                            auto j = std::countr_zero(mask);
+                            if (j < imagens::gb::attr_count)
+                            {
+                                l.opt_attrs[j] = std::any_cast<fp32>(changes[i++]); // Attrs.
+                                if constexpr (debugmode) log("    %%=%%", imagens::gb::names[j], l.opt_attrs[j].value());
+                            }
+                            mask &= mask - 1;
+                        }
+                    }
+                }
+            }
+            void receive_image_attributes(many& global_attributes) // Receive full metadata set for unknown image.
+            {
+                if (global_attributes.size() >= imagens::gb::attr_count + 2)
                 {
                     auto i = 0u;
-                    for (; i < global_attributes.size() - 2; i++)
+                    for (; i < imagens::gb::attr_count; i++)
                     {
                         gb_attrs[i] = std::any_cast<fp32>(global_attributes[i]);
                         if constexpr (debugmode) log("  %attr%=%value%", imagens::gb::names[i], gb_attrs[i]);
                     }
                     sub_id   = std::any_cast<text>(global_attributes[i++]);
                     document = std::any_cast<text>(global_attributes[i++]);
+                    load_layers(i, global_attributes);
                     reset_changes();
                     if constexpr (debugmode) log("  sub_id='%%' document='%value%...'", sub_id, document.substr(0, std::min(20, (si32)document.size())));
                 }
@@ -1534,6 +1605,7 @@ namespace netxs
                 }
                 global_attributes.push_back(sub_id);
                 global_attributes.push_back(document);
+                pack_layers(global_attributes);
                 return global_attributes;
             }
         };
@@ -1627,7 +1699,21 @@ namespace netxs
             static auto cache = imagens::cache<imagens::image>{};
             return cache.storage();
         }
-
+        static auto register_image(ui16 last_ext_index, std::array<ui16, 65536>& ext_to_int_nat)
+        {
+            auto images = cell::images(); // Lock. //todo ?Should we place it outside of this hot loop?
+            auto image_ptr = ptr::shared(imagens::image{});
+            auto last_int_index = images.set(image_ptr);
+            if (last_int_index)
+            {
+                image_ptr->index = last_int_index;
+                images.unk.push_back(last_ext_index);
+                if constexpr (debugmode) log("request image index: last_int_index=%% last_ext_index=%%", last_int_index, last_ext_index);
+                ext_to_int_nat[last_ext_index] = last_int_index; // Update forward map.
+                //int_to_ext_nat[last_int_index] = last_ext_index; // Update reverse map.
+            }
+            return last_int_index;
+        }
         struct glyf
         {
             static auto jumbos()

@@ -1073,8 +1073,8 @@ namespace netxs::directvt
         STRUCT_macro(jgc_element,        (ui64, token) (text, cluster)) // Reply grapheme cluster list<jgc_element>.
 
         STRUCT_macro(unknown_img,        (ui16, index)) // Request unknown image list<unknown_img>.
-        STRUCT_macro(img_element,        (ui16, index) (many, global_attributes)) // Reply image metadata list<img_element>. Access by imagens::gb::<attr_index>; The document_bits:(sub_id and document) is always placed at the end of the list.
-        STRUCT_macro(update_img_request, (ui16, index) (si32, changed_bits) (many, changes)) // The document_bits:(sub_id and document) is always placed at the end of the list if set.
+        STRUCT_macro(img_element,        (ui16, index) (many, global_attributes)) // Reply image metadata list<img_element>. Access by imagens::gb::<attr_index>; The document_bits:(sub_id and document)+list_of_layers(index sub_id changed_bits attrs) is always placed at the end of the list.
+        STRUCT_macro(update_img_request, (ui16, index) (si32, changed_bits) (many, changes)) // The document_bits:(sub_id and document)+list_of_layers(index sub_id changed_bits attrs) is always placed at the end of the list if set.
         STRUCT_macro(remove_img_request, (ui16, index))
 
         #undef STRUCT_macro
@@ -1266,17 +1266,7 @@ namespace netxs::directvt
                                 last_int_index = ext_to_int_map[image_ext_index];
                                 if (!last_int_index) // Register a new empty image and get a new index.
                                 {
-                                    auto images = cell::images(); // Lock. //todo ?Should we place it outside of this hot loop?
-                                    auto image_ptr = ptr::shared(imagens::image{});
-                                    last_int_index = images.set(image_ptr);
-                                    if (last_int_index)
-                                    {
-                                        image_ptr->index = last_int_index;
-                                        images.unk.push_back(last_ext_index);
-                                        if constexpr (debugmode) log("%%: request image index: last_int_index=%% last_ext_index=%%", binary::process_id, last_int_index, last_ext_index);
-                                        ext_to_int_map[last_ext_index] = last_int_index; // Update forward map.
-                                        //int_to_ext_map[last_int_index] = last_ext_index; // Update reverse map.
-                                    }
+                                    last_int_index = cell::register_image(last_ext_index, ext_to_int_map);
                                 }
                             }
                             c.set_image_index(last_int_index);
@@ -2065,6 +2055,24 @@ namespace netxs::directvt
                             auto& image = *image_ptr;
                             if constexpr (debugmode) log("%%New image metadata:", prompt::s11n);
                             image.receive_image_attributes(new_image.global_attributes);
+                            for (auto& l : image.layers) // Translate layers indexes.
+                            {
+                                auto l_ext_index = l.index;
+                                auto l_int_index = s11n::nat[l_ext_index];
+                                if (l_int_index)
+                                {
+                                    if (auto l_layer_ptr = images.map[l_int_index])
+                                    {
+                                        l.image_wptr = l_layer_ptr;
+                                        l_int_index = l_layer_ptr->index;
+                                    }
+                                }
+                                else
+                                {
+                                    l_int_index = cell::register_image(l_ext_index, s11n::nat); // Register and enqueue request for unknown images.
+                                }
+                                l.index = l_int_index;
+                            }
                         }
                     }
                 }
