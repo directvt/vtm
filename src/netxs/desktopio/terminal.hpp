@@ -7598,7 +7598,7 @@ namespace netxs::ui
                 {
                     auto& image = *iter->second;
                     image.changed_gb_attrs = {};
-                    image.reset_raster(); // Request to re-rasterize.
+                    image.bitmap.reset(); // Request to re-rasterize.
                     image.reset_changes();
                     image.check_and_set_document(doc_str);
                     image.check_and_set_attr(gb_attrs);

@@ -1369,7 +1369,26 @@ namespace netxs
             using gb_attrs_t = std::array<fp32, imagens::gb::attr_count>;
             using lc_attrs_t = std::array<fp32, imagens::lc::attr_count>;
 
-            //todo tie id, document, dom to shared sptr<>
+            struct bitmap_t
+            {
+                sprite fragment{ *std::pmr::new_delete_resource() }; // Rasterized and trimmed fragment within the scaled_fragment_area. Using default resource allocator.
+                rect   scaled_fragment_area; // Document full fragment area (sprite::fragment's transparent fields are trimmed).
+                twod   xy; // scaled_fragment_area offset inside the target cell region: round(xy * cell_sz)
+
+                void reset()
+                {
+                    fragment.reset();
+                }
+            };
+            struct base_image_t
+            {
+                text           sub_id; // Parent document's sub-element id.
+                wptr<image>    parent_wptr;
+                opt_gb_attrs_t opt_attrs;
+                bitmap_t       parent_bitmap;
+                bool           touched{};
+            };
+
             text          id;
             text          sub_id; // Document's sub-element id.
             text          document;
@@ -1377,12 +1396,10 @@ namespace netxs
             gb_attrs_t    gb_attrs{};
             si32          changed_gb_attrs{}; // Contains bits indicating which imagens::gb::attr have changed.
             ui16          index{};
-            sprite        fragment{ *std::pmr::new_delete_resource() }; // Rasterized and trimmed fragment within the scaled_fragment_area. Using default resource allocator.
-            rect          scaled_fragment_area; // Document full fragment area (sprite::fragment's transparent fields are trimmed).
-            fp2d          final_frag_sz; // Visible fragment size (float).
-            twod          xy; // round(xy * cell_sz)
             imagens::docs dom;
             byte          stamp{}; // Increment on image update to sync with FE.
+            bitmap_t      bitmap;
+            std::vector<base_image_t> parents;
 
             void set_changes(si32 new_changed_bits, many& changes, twod cellsz = {})
             {
@@ -1405,20 +1422,20 @@ namespace netxs
                                       | (1 << imagens::gb::h)
                                       | (1 << imagens::gb::fit)))
                 {
-                    reset_raster();
+                    bitmap.reset();
                 }
                 if (changes.size() > j)
                 {
                     document_changed = true;
                     document = std::any_cast<text>(changes[j]);
                     dom = {}; // Request to regenerate DOM.
-                    reset_raster();
+                    bitmap.reset();
                 }
                 else
                 {
                     auto x = gb_attrs[imagens::gb::x];
                     auto y = gb_attrs[imagens::gb::y];
-                    xy = twod{ std::round(fp2d{ x, y } * cellsz) };
+                    bitmap.xy = twod{ std::round(fp2d{ x, y } * cellsz) };
                 }
             }
             auto get_changes()
@@ -1476,10 +1493,6 @@ namespace netxs
                 }
                 global_attributes.push_back(document);
                 return global_attributes;
-            }
-            void reset_raster()
-            {
-                fragment.reset();
             }
         };
 

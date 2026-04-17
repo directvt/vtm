@@ -1756,7 +1756,7 @@ namespace netxs::gui
             {
                 if (image_ptr)
                 {
-                    image_ptr->reset_raster();
+                    image_ptr->bitmap.reset();
                 }
             }
         }
@@ -2430,7 +2430,7 @@ namespace netxs::gui
                 auto orig_full_sz_fp = fp2d{ image_dom.width(), image_dom.height() }; // Original doc size (float).
                 if (!std::isnormal(orig_full_sz_fp.x) || !std::isnormal(orig_full_sz_fp.y))
                 {
-                    image.fragment.set_area<irgb>(rect{});
+                    image.bitmap.fragment.set_area<irgb>(rect{});
                     return;
                 }
                 auto u   = image.gb_attrs[imagens::gb::u  ];
@@ -2449,7 +2449,7 @@ namespace netxs::gui
                 auto final_frag_sz = orig_full_sz_fp * uvwh; // Rendered fragment size (float).
                 wh *= cellsz;
                 auto bounding_rect_pixels = std::round(wh); // Document bounding box size in pixels.
-                image.xy = twod{ std::round(fp2d{ x, y } * cellsz) };
+                image.bitmap.xy = twod{ std::round(fp2d{ x, y } * cellsz) };
 
                 if ((si32)tr & 1)
                 {
@@ -2467,11 +2467,11 @@ namespace netxs::gui
                 // Apply system limits.
                 auto px_limits = std::max(dot_11, skin::globals().max_value * cellsz);
                 final_frag_sz = std::clamp(final_frag_sz, fp2d{ dot_11 }, fp2d{ px_limits });
-                image.final_frag_sz = final_frag_sz;
+                //image.bitmap.final_frag_sz = final_frag_sz;
 
                 static thread_local auto full_doc_tmp_buffer = netxs::sprite{ *std::pmr::new_delete_resource() };
-                image.scaled_fragment_area = rect{ dot_00, std::ceil(final_frag_sz) };
-                full_doc_tmp_buffer.set_area<irgb>(image.scaled_fragment_area);
+                image.bitmap.scaled_fragment_area = rect{ dot_00, std::ceil(final_frag_sz) };
+                full_doc_tmp_buffer.set_area<irgb>(image.bitmap.scaled_fragment_area);
                 auto tmp_document_block = full_doc_tmp_buffer.raster<irgb>();
                 tmp_document_block.zeroize();
                 auto offset_inside_document = uv * orig_full_sz_fp * scale;
@@ -2479,10 +2479,10 @@ namespace netxs::gui
 
                 // Trim all transparent pixels.
                 auto nested_fragment_area = full_doc_tmp_buffer.get_minimal_non_transparent_area_for_pma<irgb>();
-                image.fragment.set_area<irgb>(nested_fragment_area);
+                image.bitmap.fragment.set_area<irgb>(nested_fragment_area);
                 if (nested_fragment_area)
                 {
-                    auto dst_fragment_block = image.fragment.raster<irgb>();
+                    auto dst_fragment_block = image.bitmap.fragment.raster<irgb>();
                     netxs::onbody(tmp_document_block, dst_fragment_block, [](auto& src, auto& dst){ dst = src; });
                 }
             }
@@ -2532,7 +2532,7 @@ namespace netxs::gui
         }
         void draw_image(auto& canvas, imagens::image& image, twod offset, argb fgc, bool semi_transparent, si32 xform)
         {
-            auto& image_mask = image.fragment;
+            auto& image_mask = image.bitmap.fragment;
             auto f_fgc = irgb::nonpma_srgb_to_pma_linear(fgc);
             auto global_alpha = semi_transparent ? 0.5f : 1.0f; // Triggers on SGR 7 (reverse video).
             assert(image_mask.type == sprite::color);
@@ -2553,7 +2553,7 @@ namespace netxs::gui
             };
             // xform on write
             auto canvas_clip = canvas.clip(); // Cell placeholder.
-            auto document_area = image.scaled_fragment_area.shift(offset); // Raster inside the document fragment.
+            auto document_area = image.bitmap.scaled_fragment_area.shift(offset); // Raster inside the document fragment.
             netxs::xform_render(canvas, canvas_clip, raster, document_area, xform, fx);
         }
         auto render_image(auto& canvas, rect placeholder, argb fgc, cell const& c)
@@ -2565,11 +2565,11 @@ namespace netxs::gui
                 if (auto image_ptr = images.exists(image_index)) // We form all image requests on dtvt recv stage.
                 {
                     auto& image = *image_ptr;
-                    if (image.fragment.type == sprite::undef && image.document.size())
+                    if (image.bitmap.fragment.type == sprite::undef && image.document.size())
                     {
                         rasterize_svg_document(image);
                     }
-                    if (image.fragment.area)
+                    if (image.bitmap.fragment.area)
                     {
                         auto image_align = (si32)image.gb_attrs[imagens::gb::a ];
                         auto image_xform = (si32)image.gb_attrs[imagens::gb::tr];
@@ -2583,7 +2583,7 @@ namespace netxs::gui
                         //    return 0.0f;
                         //};
                         //auto factors = fp2d{ get_factor(image_align & 0b0011), get_factor(image_align >> 2) };
-                        //auto fragment_area_coor = image.fragment.area.coor + (image_WH - image.scaled_fragment_area.size) * factors;
+                        //auto fragment_area_coor = image.bitmap.fragment.area.coor + (image_WH - image.bitmap.scaled_fragment_area.size) * factors;
 
                         auto get_off = [](auto align, auto diff)
                         {
@@ -2591,16 +2591,16 @@ namespace netxs::gui
                                  : (align == (si32)bias::center || !align) ? diff / 2
                                                                            : 0;
                         };
-                        auto align = twod{ get_off(image_align & 0b0011, image_WH.x - image.scaled_fragment_area.size.x),
-                                           get_off(image_align >> 2,     image_WH.y - image.scaled_fragment_area.size.y) };
-                        auto fragment_area_coor = image.scaled_fragment_area.coor + align;
+                        auto align = twod{ get_off(image_align & 0b0011, image_WH.x - image.bitmap.scaled_fragment_area.size.x),
+                                           get_off(image_align >> 2,     image_WH.y - image.bitmap.scaled_fragment_area.size.y) };
+                        auto fragment_area_coor = image.bitmap.scaled_fragment_area.coor + align;
                         if (image_xform & 1) // ok.
                         {
                             std::swap(fragment_area_coor.x, fragment_area_coor.y);
                         }
                         // Rendering.
                         image_cr = (image_cr - dot_11) * cellsz;
-                        auto offset = placeholder.coor - image_cr + image.xy + fragment_area_coor;
+                        auto offset = placeholder.coor - image_cr + image.bitmap.xy + fragment_area_coor;
                         draw_image(canvas, image, offset, fgc, c.inv(), image_xform);
                     }
                 }
