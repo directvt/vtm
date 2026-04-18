@@ -412,26 +412,42 @@ namespace netxs::generics
         template<class Ring>
         struct iter
         {
-            Ring& buff;
-            si32  addr;
+            using iterator_category = std::random_access_iterator_tag;
+            using value_type        = typename Ring::type;
+            using difference_type   = si32;
+            using pointer           = std::conditional_t<std::is_const_v<Ring>, value_type const*, value_type*>;
+            using reference         = std::conditional_t<std::is_const_v<Ring>, value_type const&, value_type&>;
 
+            Ring* buff{};
+            si32  addr{};
+
+            constexpr iter() = default;
             constexpr iter(iter const&) = default;
             constexpr iter(Ring& buff, si32 addr)
-              : buff{ buff },
-                addr{ addr }
+              : buff{ &buff },
+                addr{ addr  }
             { }
 
-            auto& operator =  (iter const& i)       { assert(&i.buff == &buff); addr = i.addr; return *this;              }
-            auto  operator -  (si32 n)        const {      return iter<Ring>{ buff, buff.mod(addr - n) };                 }
-            auto  operator +  (si32 n)        const {      return iter<Ring>{ buff, buff.mod(addr + n) };                 }
-            auto  operator ++ (int)                 { auto temp = iter<Ring>{ buff, addr }; buff.inc(addr); return temp;  }
-            auto  operator -- (int)                 { auto temp = iter<Ring>{ buff, addr }; buff.dec(addr); return temp;  }
-            auto& operator ++ ()                    {                                       buff.inc(addr); return *this; }
-            auto& operator -- ()                    {                                       buff.dec(addr); return *this; }
-            auto& operator *  ()                    { return buff.buff[addr];                                             }
-            auto  operator -> ()                    { return buff.buff.begin() + addr;                                    }
-            auto  operator != (iter const& m) const { return addr != m.addr;                                              }
-            auto  operator == (iter const& m) const { return addr == m.addr;                                              }
+            auto& operator =  (iter const& i)       { buff = i.buff; addr = i.addr; return *this;                           }
+            auto  operator ++ (int)                 { auto temp = iter<Ring>{ *buff, addr }; buff->inc(addr); return temp;  }
+            auto  operator -- (int)                 { auto temp = iter<Ring>{ *buff, addr }; buff->dec(addr); return temp;  }
+            auto& operator ++ ()                    {                                        buff->inc(addr); return *this; }
+            auto& operator -- ()                    {                                        buff->dec(addr); return *this; }
+            auto& operator *  ()                    { return buff->buff[addr];                                              }
+            auto  operator -> ()                    { return buff->buff.begin() + addr;                                     }
+            auto  operator != (iter const& m) const { return addr != m.addr;                                                }
+            auto  operator == (iter const& m) const { return addr == m.addr;                                                }
+            auto  operator -  (iter const& m) const { return (difference_type)buff->dst(m.addr, addr);                      }
+            auto  operator <  (iter const& m) const { return (*this - m) < 0;                                               }
+            auto  operator >  (iter const& m) const { return (*this - m) > 0;                                               }
+            auto  operator <= (iter const& m) const { return (*this - m) <= 0;                                              }
+            auto  operator >= (iter const& m) const { return (*this - m) >= 0;                                              }
+            auto& operator += (si32 n)              { addr = buff->mod(addr + n); return *this;                             }
+            auto& operator -= (si32 n)              { addr = buff->mod(addr - n); return *this;                             }
+            friend auto operator + (iter i, si32 n) { i += n; return i;                                                     }
+            friend auto operator + (si32 n, iter i) { i += n; return i;                                                     }
+            friend auto operator - (iter i, si32 n) { i -= n; return i;                                                     }
+            reference operator[](difference_type n) const { return *(*this + (si32)n);                                      }
         };
 
         ring(si32 ring_size, si32 grow_by = 0, si32 grow_mx = 0)

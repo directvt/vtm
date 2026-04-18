@@ -231,7 +231,7 @@ namespace netxs::events::userland
                 {
                     EVENT_XS( sync  , si32 ), // general: Signal to sync unknown image indexes. Arg: not used.
                     EVENT_XS( update, ui16 ), // general: Image metadata updated. Arg: image index.
-                    EVENT_XS( remove, ui16 ), // general: Image removed. Arg: image index.
+                    EVENT_XS( remove, std::vector<ui16> ), // general: Images removed. Arg: image index.
                 };
             };
             SUBSET_XS( command )

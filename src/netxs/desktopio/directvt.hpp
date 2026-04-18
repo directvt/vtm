@@ -999,6 +999,7 @@ namespace netxs::directvt
         auto& operator << (std::ostream& s, time const& o) { return s << utf::to_hex_0x(o.time_since_epoch().count()); }
         auto& operator << (std::ostream& s, regs const& rs) { s << '{'; for (auto& r : rs) s << r; return s << '}'; }
         auto& operator << (std::ostream& s, many const& my) { s << '{'; for (auto& r : my) s << r.type().name(); return s << '}'; }
+        auto& operator << (std::ostream& s, std::vector<ui16> const& v) { s << '{'; for (auto& r : v) s << r << ", "; return s << '}'; }
 
         STRUCT_macro(frame_element,      (blob, data))
         STRUCT_macro(mouse_event,        (id_t, gear_id)
@@ -1073,9 +1074,9 @@ namespace netxs::directvt
         STRUCT_macro(jgc_element,        (ui64, token) (text, cluster)) // Reply grapheme cluster list<jgc_element>.
 
         STRUCT_macro(unknown_img,        (ui16, index)) // Request unknown image list<unknown_img>.
-        STRUCT_macro(img_element,        (ui16, index) (many, global_attributes)) // Reply image metadata list<img_element>. Access by imagens::gb::<attr_index>; The document is always placed at the end of the list.
-        STRUCT_macro(update_img_request, (ui16, index) (si32, changed_bits) (many, changes)) // The document is always placed at the end of the list if set.
-        STRUCT_macro(remove_img_request, (ui16, index))
+        STRUCT_macro(img_element,        (ui16, index) (many, global_attributes)) // Reply image metadata list<img_element>. Access by imagens::gb::<attr_index>; The document_bits:(sub_id and document)+list_of_layers(index sub_id changed_bits attrs) is always placed at the end of the list.
+        STRUCT_macro(update_img_request, (ui16, index) (si32, changed_bits) (many, changes)) // The document_bits:(sub_id and document)+list_of_layers(index sub_id changed_bits attrs) is always placed at the end of the list if set.
+        STRUCT_macro(remove_img_request, (std::vector<ui16>, indexes))
 
         #undef STRUCT_macro
         #undef STRUCT_macro_lite
@@ -1266,17 +1267,7 @@ namespace netxs::directvt
                                 last_int_index = ext_to_int_map[image_ext_index];
                                 if (!last_int_index) // Register a new empty image and get a new index.
                                 {
-                                    auto images = cell::images(); // Lock. //todo ?Should we place it outside of this hot loop?
-                                    auto image_ptr = ptr::shared(imagens::image{});
-                                    last_int_index = images.set(image_ptr);
-                                    if (last_int_index)
-                                    {
-                                        image_ptr->index = last_int_index;
-                                        images.unk.push_back(last_ext_index);
-                                        if constexpr (debugmode) log("%%: request image index: last_int_index=%% last_ext_index=%%", binary::process_id, last_int_index, last_ext_index);
-                                        ext_to_int_map[last_ext_index] = last_int_index; // Update forward map.
-                                        //int_to_ext_map[last_int_index] = last_ext_index; // Update reverse map.
-                                    }
+                                    last_int_index = cell::register_image(last_ext_index, ext_to_int_map);
                                 }
                             }
                             c.set_image_index(last_int_index);
@@ -2051,10 +2042,44 @@ namespace netxs::directvt
                     list.thing.sendby(master);
                 }
             }
+            // s11n: Translate layer indexes from ext to int.
+            void translate_layers(auto& images, imagens::image& image, bool is_remote)
+            {
+                for (auto& l : image.layers) // Translate layers indexes.
+                {
+                    if (is_remote)
+                    {
+                        auto l_ext_index = l.index;
+                        auto l_int_index = s11n::nat[l_ext_index];
+                        if (!l_int_index)
+                        {
+                            l_int_index = cell::register_image(l_ext_index, s11n::nat); // Register and enqueue request for unknown images.
+                        }
+                        if (l_int_index)
+                        {
+                            if (auto l_layer_ptr = images.map[l_int_index])
+                            {
+                                l.image_wptr = l_layer_ptr;
+                                l_int_index = l_layer_ptr->index;
+                            }
+                        }
+                        l.index = l_int_index;
+                    }
+                    else // Update base image references.
+                    {
+                        if (auto l_layer_ptr = images.map[l.index])
+                        {
+                            l.image_wptr = l_layer_ptr;
+                        }
+                    }
+                }
+            }
             // s11n: Receive image metadata.
             void receive_img(s11n::xs::img_list& lock)
             {
                 auto images = cell::images();
+                auto is_remote = !!s11n::nat[0];
+                assert(is_remote == true);
                 for (auto& new_image : lock.thing)
                 {
                     auto remote_index = new_image.index;
@@ -2064,16 +2089,40 @@ namespace netxs::directvt
                         {
                             auto& image = *image_ptr;
                             if constexpr (debugmode) log("%%New image metadata:", prompt::s11n);
-                            for (auto i = 0u; i < new_image.global_attributes.size() - 1; i++)
+                            auto layers_updated = image.receive_image_attributes(new_image.global_attributes);
+                            if (layers_updated)
                             {
-                                image.gb_attrs[i] = std::any_cast<fp32>(new_image.global_attributes[i]);
-                                if constexpr (debugmode) log("  %attr%=%value%", imagens::gb::names[i], image.gb_attrs[i]);
+                                translate_layers(images, image, is_remote);
                             }
-                            image.document = std::any_cast<text>(new_image.global_attributes.back());
-                            if constexpr (debugmode) log("  document='%value%...'", image.document.substr(0, std::min(20, (si32)image.document.size())));
                         }
                     }
                 }
+            }
+            auto remove_image_indexes(auto& images, std::vector<ui16>& image_indexes)
+            {
+                auto hit = faux;
+                auto is_remote = s11n::nat[0];
+                if (is_remote)
+                {
+                    for (auto& image_index : image_indexes)
+                    {
+                        image_index = std::exchange(s11n::nat[image_index], 0);
+                        if (image_index)
+                        {
+                            images.remove(image_index);
+                            hit |= !!image_index;
+                        }
+                    }
+                }
+                else
+                {
+                    for (auto image_index : image_indexes)
+                    {
+                        images.remove(image_index);
+                        hit |= !!image_index;
+                    }
+                }
+                return hit;
             }
             // s11n: Receive jumbo clusters.
             void receive_jgc(s11n::xs::jgc_list& lock)

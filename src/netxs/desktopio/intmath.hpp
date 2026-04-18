@@ -18,6 +18,7 @@
 #include <coroutine>
 #include <cstring> // std::memcpy
 #include <deque>
+#include <execution>
 #include <filesystem>
 #include <fstream>
 #include <functional>
@@ -221,6 +222,12 @@ namespace netxs
     void set_bit(T&& n, bool v)
     {
         n = (n & ~(1 << P)) | (v << P);
+    }
+    // intmath: Get a single p-bit to v.
+    template<sz_t P, class T>
+    auto get_bit(T&& n)
+    {
+        return n & (1 << P);
     }
     // intmath: Set a single bit specified by F.
     template<auto F, class T>

@@ -237,7 +237,7 @@ namespace netxs::ui
                         if (auto image_ptr = images.map[unknown_index])
                         {
                             auto& image = *image_ptr;
-                            if (image.document.size())
+                            if (!image.empty())
                             {
                                 list.thing.push(unknown_index, image.get_global_attrs());
                             }
@@ -265,7 +265,7 @@ namespace netxs::ui
                                 if (auto image_ptr = images.map[unknown_index])
                                 {
                                     auto& image = *image_ptr;
-                                    if (image.document.size())
+                                    if (!image.empty())
                                     {
                                         reply_list.push(unknown_index, image.get_global_attrs());
                                         reply_count++;
@@ -1044,9 +1044,9 @@ namespace netxs::ui
             canvas.cmode = props.vtmode;
             canvas.face::area(base::area());
 
-            LISTEN(tier::general, e2::data::image::remove, image_index)
+            LISTEN(tier::general, e2::data::image::remove, image_indexes)
             {
-                conio.remove_img_request.send(canal, image_index);
+                conio.remove_img_request.send(canal, image_indexes);
             };
             LISTEN(tier::general, e2::data::image::update, image_index)
             {

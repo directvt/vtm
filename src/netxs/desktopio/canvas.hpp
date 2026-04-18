@@ -1196,7 +1196,7 @@ namespace netxs
         // global: stored in image
         #define global_attr_list \
             X(u  ) /* u-coor (0.0-1.0)                              */ \
-            X(v  ) /* u-coor (0.0-1.0)                              */ \
+            X(v  ) /* v-coor (0.0-1.0)                              */ \
             X(uw ) /* u-size (reset raster if changed)              */ \
             X(vh ) /* v-size (reset raster if changed)              */ \
             X(x  ) /* x                                             */ \
@@ -1369,23 +1369,84 @@ namespace netxs
             using gb_attrs_t = std::array<fp32, imagens::gb::attr_count>;
             using lc_attrs_t = std::array<fp32, imagens::lc::attr_count>;
 
-            //todo tie id, document, dom to shared sptr<>
+            static constexpr auto document_bit = 1;
+            static constexpr auto sub_id_bit   = 2;
+            static constexpr auto layers_bit   = 3;
+
+            struct bitmap_t
+            {
+                sprite fragment{ *std::pmr::new_delete_resource() }; // Rasterized and trimmed fragment within the scaled_fragment_area. Using default resource allocator.
+                rect   scaled_fragment_area; // Document full fragment area (sprite::fragment's transparent fields are trimmed).
+                twod   xy; // scaled_fragment_area offset inside the target cell region: round(xy * cell_sz)
+
+                void reset()
+                {
+                    fragment.reset();
+                }
+            };
+            struct layer_t
+            {
+                ui16           index{};
+                text           id;
+                text           sub_id; // Layer document's sub-element id.
+                wptr<image>    image_wptr;
+                opt_gb_attrs_t opt_attrs;
+                gb_attrs_t     gb_attrs{}; // Evaluated attributes.
+                bitmap_t       bitmap;
+                bool           touched{};
+                twod           attr_WH; // The size at which the attributes are evaluated.
+                si32           attr_digest{}; // Digest in which attributes are evaluated.
+
+                void sync_attrs_with_base(image& base_image, twod image_WH, twod wh)
+                {
+                    if (attr_digest != base_image.attr_digest || attr_WH != image_WH) // Sync the layer attrs with the original image.
+                    {
+                        auto changed_bits = 0;
+                        auto prev_wh = twod{ gb_attrs[imagens::gb::w], gb_attrs[imagens::gb::h] };
+                        for (auto i = 0u; i < gb_attrs.size(); i++)
+                        {
+                            auto& a = opt_attrs[i];
+                            auto changed = std::exchange(gb_attrs[i], a ? a.value() : base_image.gb_attrs[i]) != gb_attrs[i];
+                            if (changed) changed_bits |= 1 << i;
+                        }
+                        if (gb_attrs[imagens::gb::w] == 0) gb_attrs[imagens::gb::w] = (fp32)wh.x;
+                        if (gb_attrs[imagens::gb::h] == 0) gb_attrs[imagens::gb::h] = (fp32)wh.y;
+                        auto same_size = prev_wh.x == gb_attrs[imagens::gb::w] && prev_wh.y == gb_attrs[imagens::gb::h];
+                        auto invalidate_bitmap = !same_size || (changed_bits & ((1 << imagens::gb::uw)
+                                                                              | (1 << imagens::gb::vh)
+                                                                              | (1 << imagens::gb::fit)));
+                        if (invalidate_bitmap)
+                        {
+                            bitmap.reset();
+                        }
+                        attr_digest = base_image.attr_digest;
+                        attr_WH = image_WH;
+                    }
+                }
+            };
+
             text          id;
             text          sub_id; // Document's sub-element id.
             text          document;
-            bool          document_changed{};
+            si32          document_changed{};
             gb_attrs_t    gb_attrs{};
             si32          changed_gb_attrs{}; // Contains bits indicating which imagens::gb::attr have changed.
             ui16          index{};
-            sprite        fragment{ *std::pmr::new_delete_resource() }; // Rasterized and trimmed fragment within the scaled_fragment_area. Using default resource allocator.
-            rect          scaled_fragment_area; // Document full fragment area (sprite::fragment's transparent fields are trimmed).
-            fp2d          final_frag_sz; // Visible fragment size (float).
-            twod          xy; // round(xy * cell_sz)
             imagens::docs dom;
             byte          stamp{}; // Increment on image update to sync with FE.
+            bitmap_t      bitmap;
+            std::vector<layer_t> layers;
+            si32          attr_digest{}; // Stamp to sync with layers.
 
-            void set_changes(si32 new_changed_bits, many& changes, twod cellsz = {})
+            auto empty()
             {
+                return document.empty() && layers.empty();
+            }
+            bool set_changes(si32 new_changed_bits, many& changes, twod cellsz = {})
+            {
+                auto layers_updated = faux;
+                if constexpr (debugmode) log("Received image update:");
+                attr_digest++;
                 changed_gb_attrs = new_changed_bits;
                 auto mask = (ui32)changed_gb_attrs;
                 auto j = 0u;
@@ -1395,6 +1456,7 @@ namespace netxs
                     if (i < imagens::gb::attr_count)
                     {
                         gb_attrs[i] = std::any_cast<fp32>(changes[j]);
+                        if constexpr (debugmode) log("  %%='%%'", imagens::gb::names[i], gb_attrs[i]);
                     }
                     j++;
                     mask &= mask - 1;
@@ -1405,21 +1467,40 @@ namespace netxs
                                       | (1 << imagens::gb::h)
                                       | (1 << imagens::gb::fit)))
                 {
-                    reset_raster();
+                    bitmap.reset();
                 }
-                if (changes.size() > j)
+                auto need_bitmap_reset = faux;
+                if (j < changes.size() && (document_changed = std::any_cast<si32>(changes[j++])))
                 {
-                    document_changed = true;
-                    document = std::any_cast<text>(changes[j]);
-                    dom = {}; // Request to regenerate DOM.
-                    reset_raster();
+                    if (j < changes.size() && netxs::get_bit<image::sub_id_bit>(document_changed))
+                    {
+                        sub_id = std::any_cast<text>(changes[j++]);
+                        need_bitmap_reset = true;
+                        if constexpr (debugmode) log("  sub_id='%%'", sub_id);
+                    }
+                    if (j < changes.size() && netxs::get_bit<image::document_bit>(document_changed))
+                    {
+                        document = std::any_cast<text>(changes[j++]);
+                        dom = {}; // Request to regenerate DOM.
+                        need_bitmap_reset = true;
+                        if constexpr (debugmode) log("  document='%value%...'", document.substr(0, std::min(20, (si32)document.size())));
+                    }
+                    if (j < changes.size() && netxs::get_bit<image::layers_bit>(document_changed)) // Receive foreign layer indexes.
+                    {
+                        layers_updated = load_layers(j, changes);
+                    }
+                }
+                if (need_bitmap_reset)
+                {
+                    bitmap.reset();
                 }
                 else
                 {
                     auto x = gb_attrs[imagens::gb::x];
                     auto y = gb_attrs[imagens::gb::y];
-                    xy = twod{ std::round(fp2d{ x, y } * cellsz) };
+                    bitmap.xy = twod{ std::round(fp2d{ x, y } * cellsz) };
                 }
+                return layers_updated;
             }
             auto get_changes()
             {
@@ -1436,26 +1517,114 @@ namespace netxs
                 }
                 if (document_changed)
                 {
-                    changes.push_back(document);
+                    changes.push_back(document_changed);
+                    if (netxs::get_bit<image::sub_id_bit>(document_changed))
+                    {
+                        changes.push_back(sub_id);
+                    }
+                    if (netxs::get_bit<image::document_bit>(document_changed))
+                    {
+                        changes.push_back(document);
+                    }
+                    if (netxs::get_bit<image::layers_bit>(document_changed))
+                    {
+                        pack_layers(changes);
+                    }
                 }
                 return changes;
+            }
+            void pack_layers(many& changes)
+            {
+                changes.reserve(changes.size() + layers.size() * (3 + imagens::gb::attr_count));
+                for (auto& l : layers)
+                {
+                    changes.push_back(l.index);
+                    changes.push_back(l.sub_id);
+                    auto mask = 0;
+                    auto changed_layer_attr_bits_index = changes.size(); // Placeholder index.
+                    changes.push_back(mask); // Reserve a placeholder.
+                    for (auto i = 0u; i < l.opt_attrs.size(); i++)
+                    {
+                        if (auto& attr = l.opt_attrs[i])
+                        {
+                            mask |= 1 << i;
+                            changes.push_back(attr.value());
+                        }
+                    }
+                    changes[changed_layer_attr_bits_index] = mask; // Write to placeholder.
+                }
+            }
+            bool load_layers(ui32 i, many& changes)
+            {
+                auto layers_updated = i < changes.size();
+                if (layers_updated)
+                {
+                    if constexpr (debugmode) log("  layers update:");
+                    layers.clear();
+                    while (i < changes.size() - 1)
+                    {
+                        auto& l = layers.emplace_back(layer_t{ .index = std::any_cast<ui16>(changes[i++]) }); // Index.
+                        l.sub_id = std::any_cast<text>(changes[i++]); // Sub_id.
+                        if constexpr (debugmode) log("    index=%% sub_id=%%", l.index, l.sub_id);
+                        auto changed_layer_attr_bits = std::any_cast<si32>(changes[i++]); // Changed bits.
+                        auto mask = (ui32)changed_layer_attr_bits;
+                        while (mask != 0 && i < changes.size())
+                        {
+                            auto j = std::countr_zero(mask);
+                            if (j < imagens::gb::attr_count)
+                            {
+                                l.opt_attrs[j] = std::any_cast<fp32>(changes[i++]); // Attrs.
+                                if constexpr (debugmode) log("    %%=%%", imagens::gb::names[j], l.opt_attrs[j].value());
+                            }
+                            mask &= mask - 1;
+                        }
+                    }
+                }
+                return layers_updated;
+            }
+            bool receive_image_attributes(many& global_attributes) // Receive full metadata set for unknown image.
+            {
+                auto layers_updated = faux;
+                if (global_attributes.size() >= imagens::gb::attr_count + 2)
+                {
+                    attr_digest++;
+                    auto i = 0u;
+                    for (; i < imagens::gb::attr_count; i++)
+                    {
+                        gb_attrs[i] = std::any_cast<fp32>(global_attributes[i]);
+                        if constexpr (debugmode) log("  %attr%=%value%", imagens::gb::names[i], gb_attrs[i]);
+                    }
+                    sub_id   = std::any_cast<text>(global_attributes[i++]);
+                    document = std::any_cast<text>(global_attributes[i++]);
+                    layers_updated = load_layers(i, global_attributes);
+                    reset_changes();
+                    if constexpr (debugmode) log("  sub_id='%%' document='%value%...'", sub_id, document.substr(0, std::min(20, (si32)document.size())));
+                }
+                return layers_updated;
             }
             void reset_changes()
             {
                 changed_gb_attrs = {};
                 document_changed = {};
             }
-            void check_and_set_document(qiew doc_str)
+            void check_and_set_document(qiew doc_str, qiew sub_id_str)
             {
                 if (doc_str && document != doc_str)
                 {
                     dom = {}; // Request to regenerate DOM.
                     document = doc_str;
-                    document_changed = true;
+                    netxs::set_bit<image::document_bit>(document_changed, true);
+                }
+                if (sub_id != sub_id_str)
+                {
+                    sub_id = sub_id_str;
+                    bitmap.reset();
+                    netxs::set_bit<image::sub_id_bit>(document_changed, true);
                 }
             }
-            void check_and_set_attr(gb_attrs_t& new_gb_attrs)
+            void check_and_set_attr(gb_attrs_t& new_gb_attrs, bool updated_layers)
             {
+                attr_digest++;
                 assert(new_gb_attrs.size() < sizeof(changed_gb_attrs) * 8);
                 for (auto i = 0u; i < new_gb_attrs.size(); i++)
                 {
@@ -1465,21 +1634,20 @@ namespace netxs
                         gb_attrs[i] = new_gb_attrs[i];
                     }
                 }
+                netxs::set_bit<image::layers_bit>(document_changed, updated_layers);
             }
             auto get_global_attrs()
             {
                 auto global_attributes = many{};
-                global_attributes.reserve(gb_attrs.size() + 1);
+                global_attributes.reserve(imagens::gb::attr_count + 2 + layers.size() * (3 + imagens::gb::attr_count));
                 for (auto& ga : gb_attrs)
                 {
                     global_attributes.push_back(ga);
                 }
+                global_attributes.push_back(sub_id);
                 global_attributes.push_back(document);
+                pack_layers(global_attributes);
                 return global_attributes;
-            }
-            void reset_raster()
-            {
-                fragment.reset();
             }
         };
 
@@ -1572,7 +1740,21 @@ namespace netxs
             static auto cache = imagens::cache<imagens::image>{};
             return cache.storage();
         }
-
+        static auto register_image(ui16 last_ext_index, std::array<ui16, 65536>& ext_to_int_nat)
+        {
+            auto images = cell::images(); // Lock. //todo ?Should we place it outside of this hot loop?
+            auto image_ptr = ptr::shared(imagens::image{});
+            auto last_int_index = images.set(image_ptr);
+            if (last_int_index)
+            {
+                image_ptr->index = last_int_index;
+                images.unk.push_back(last_ext_index);
+                if constexpr (debugmode) log("request image index: last_int_index=%% last_ext_index=%%", last_int_index, last_ext_index);
+                ext_to_int_nat[last_ext_index] = last_int_index; // Update forward map.
+                //int_to_ext_nat[last_int_index] = last_ext_index; // Update reverse map.
+            }
+            return last_int_index;
+        }
         struct glyf
         {
             static auto jumbos()
@@ -3956,6 +4138,23 @@ namespace netxs
 
             swap(block);
             digest++;
+        }
+        bool remove_image_bits(std::vector<ui16>& removed_image_indexes)
+        {
+            auto hit = faux;
+            for (auto& c : canvas)
+            {
+                if (auto image_index = c.get_image_index())
+                {
+                    //if (image_index == removed_image_index) //todo optimize
+                    if (std::find(removed_image_indexes.begin(), removed_image_indexes.end(), image_index) != removed_image_indexes.end())
+                    {
+                        c.reset_px(); // Drop all image metadata.
+                        hit = true;
+                    }
+                }
+            }
+            return hit;
         }
     };
 }
