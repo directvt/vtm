@@ -58,6 +58,8 @@ Attributes are divided into **Shared** (object-wide) and **Unique** (per-instanc
 - **Shared Attributes**: `l`, `u`, `v`, `uw`, `vh`, `x`, `y`, `w`, `h`, `fit`, `rt`, `a`, `f`, `o`.
   - These define the global geometry, orientation, and content mapping.
   - Updating a shared attribute for an existing `id` immediately affects **all cells** currently linked to that object.
+- **Layer Attributes**: `u`, `v`, `uw`, `vh`, `x`, `y`, `w`, `h`, `fit`, `rt`, `a`, `f`, `o`.
+  - These define the global geometry, orientation, and content mapping for the specified layer.
 - **Unique Attributes**: `W`, `H`, `r`, `c`, `gc`.
   - These define the physical footprint on the terminal grid and the specific slice being rendered.
   - **W** and **H** define the **Grid Container** (the parcel of cells).
@@ -68,7 +70,7 @@ Attributes are divided into **Shared** (object-wide) and **Unique** (per-instanc
 Attribute  | Scope  | Value/Range                      | Default                  | Description
 -----------|--------|----------------------------------|--------------------------|------------
 **id**     | -      | `<id>[/sub-id]`                  | empty string (`""`)      | Object reference ID.
-**l**      | Shared | `<id>[/sub-id][(<shared attributes>)]`  | empty string (`""`)      | Adds a layer by referencing registered object. Can be specified multiple times; layers are rendered in the order they appear (first is bottom).
+**l**      | Shared | `<id>[/sub-id][(<layer attributes>)]`  | empty string (`""`)      | Adds a layer by referencing registered object. Can be specified multiple times; layers are rendered in the order they appear (first is bottom).
 **u, v**   | Shared | `float`                          | `0.0`                    | Top-left of the source crop (0.0-1.0).
 **uw, vh** | Shared | `float`                          | `1.0`                    | Size of the source crop (0.0-1.0). Negative flips.
 **x, y**   | Shared | `float`                          | `0.0`                    | Offset of the Clipping Box **inside** the `W x H` area (cells).
