@@ -7521,6 +7521,7 @@ namespace netxs::ui
                         if (l_iter != image_cache.end()) // Process registered images only.
                         {
                             auto image_ptr = l_iter->second;
+                            layer.index = image_ptr->index;
                             layer.image_wptr = image_ptr;
                             layers.emplace_back(std::move(layer));
                         }
@@ -7673,11 +7674,14 @@ namespace netxs::ui
                 auto different_image_attrs = [&]
                 {
                     auto& image = *iter->second;
-                    auto changed = faux;
-                    for (auto i = 0u; i < image.gb_attrs.size(); i++)
+                    auto changed = layers.size();
+                    if (!changed)
                     {
-                        changed |= image.gb_attrs[i] != gb_attrs[i];
-                        if (changed) break;
+                        for (auto i = 0u; i < image.gb_attrs.size(); i++)
+                        {
+                            changed |= image.gb_attrs[i] != gb_attrs[i];
+                            if (changed) break;
+                        }
                     }
                     return changed || (doc_str && image.document != doc_str)
                                    || (image.sub_id != sub_id_str);
@@ -7699,14 +7703,14 @@ namespace netxs::ui
                 if (iter != image_cache.end() && same_doc_and_raster()) // Move existing image.
                 {
                     auto& image = *iter->second;
-                    image.updated_layers = layers.size();
-                    if (image.updated_layers)
+                    auto updated_layers = layers.size();
+                    if (updated_layers)
                     {
                         image.layers = std::move(layers);
                     }
                     image.reset_changes();
-                    image.check_and_set_attr(gb_attrs);
-                    if (image.changed_gb_attrs || image.updated_layers)
+                    image.check_and_set_attr(gb_attrs, updated_layers);
+                    if (image.changed_gb_attrs || image.document_changed)
                     {
                         image.stamp += 2;
                         base::signal(tier::general, e2::data::image::update, image.index);
@@ -7715,8 +7719,8 @@ namespace netxs::ui
                 else if (iter != image_cache.end() && different_image_attrs()) // Update existing image.
                 {
                     auto& image = *iter->second;
-                    image.updated_layers = layers.size();
-                    if (image.updated_layers)
+                    auto updated_layers = layers.size();
+                    if (updated_layers)
                     {
                         image.layers = std::move(layers);
                     }
@@ -7724,8 +7728,8 @@ namespace netxs::ui
                     image.bitmap.reset(); // Request to re-rasterize.
                     image.reset_changes();
                     image.check_and_set_document(doc_str, sub_id_str);
-                    image.check_and_set_attr(gb_attrs);
-                    if (image.changed_gb_attrs || image.document_changed || image.updated_layers)
+                    image.check_and_set_attr(gb_attrs, updated_layers);
+                    if (image.changed_gb_attrs || image.document_changed)
                     {
                         image.stamp += 2;
                         base::signal(tier::general, e2::data::image::update, image.index);
@@ -9762,7 +9766,11 @@ namespace netxs::ui
                     if (auto image_ptr = images.map[image_index])
                     {
                         auto& image = *image_ptr;
-                        image.set_changes(image_data.changed_bits, image_data.changes);
+                        auto layers_updated = image.set_changes(image_data.changed_bits, image_data.changes);
+                        if (layers_updated)
+                        {
+                            s11n::translate_layers(images, image, is_remote);
+                        }
                         owner.update_image_bits(image_index);
                         owner.base::enqueue([&, image_index](auto& /*boss*/) // To avoid deadlock under cell::images.
                         {

@@ -2041,10 +2041,44 @@ namespace netxs::directvt
                     list.thing.sendby(master);
                 }
             }
+            // s11n: Translate layer indexes from ext to int.
+            void translate_layers(auto& images, imagens::image& image, bool is_remote)
+            {
+                for (auto& l : image.layers) // Translate layers indexes.
+                {
+                    if (is_remote)
+                    {
+                        auto l_ext_index = l.index;
+                        auto l_int_index = s11n::nat[l_ext_index];
+                        if (!l_int_index)
+                        {
+                            l_int_index = cell::register_image(l_ext_index, s11n::nat); // Register and enqueue request for unknown images.
+                        }
+                        if (l_int_index)
+                        {
+                            if (auto l_layer_ptr = images.map[l_int_index])
+                            {
+                                l.image_wptr = l_layer_ptr;
+                                l_int_index = l_layer_ptr->index;
+                            }
+                        }
+                        l.index = l_int_index;
+                    }
+                    else // Update base image references.
+                    {
+                        if (auto l_layer_ptr = images.map[l.index])
+                        {
+                            l.image_wptr = l_layer_ptr;
+                        }
+                    }
+                }
+            }
             // s11n: Receive image metadata.
             void receive_img(s11n::xs::img_list& lock)
             {
                 auto images = cell::images();
+                auto is_remote = !!s11n::nat[0];
+                assert(is_remote == true);
                 for (auto& new_image : lock.thing)
                 {
                     auto remote_index = new_image.index;
@@ -2054,24 +2088,10 @@ namespace netxs::directvt
                         {
                             auto& image = *image_ptr;
                             if constexpr (debugmode) log("%%New image metadata:", prompt::s11n);
-                            image.receive_image_attributes(new_image.global_attributes);
-                            for (auto& l : image.layers) // Translate layers indexes.
+                            auto layers_updated = image.receive_image_attributes(new_image.global_attributes);
+                            if (layers_updated)
                             {
-                                auto l_ext_index = l.index;
-                                auto l_int_index = s11n::nat[l_ext_index];
-                                if (l_int_index)
-                                {
-                                    if (auto l_layer_ptr = images.map[l_int_index])
-                                    {
-                                        l.image_wptr = l_layer_ptr;
-                                        l_int_index = l_layer_ptr->index;
-                                    }
-                                }
-                                else
-                                {
-                                    l_int_index = cell::register_image(l_ext_index, s11n::nat); // Register and enqueue request for unknown images.
-                                }
-                                l.index = l_int_index;
+                                translate_layers(images, image, is_remote);
                             }
                         }
                     }

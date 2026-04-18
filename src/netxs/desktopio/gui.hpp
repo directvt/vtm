@@ -3126,7 +3126,11 @@ namespace netxs::gui
                     if (auto image_ptr = images.map[image_index])
                     {
                         auto& image = *image_ptr;
-                        image.set_changes(image_data.changed_bits, image_data.changes, owner.cellsz);
+                        auto layers_updated = image.set_changes(image_data.changed_bits, image_data.changes, owner.cellsz);
+                        if (layers_updated)
+                        {
+                            s11n::translate_layers(images, image, is_remote);
+                        }
                         if (owner.update_image_bits(image_index))
                         {
                             //todo optimize: scan bitmap_dtvt

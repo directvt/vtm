@@ -1436,15 +1436,15 @@ namespace netxs
             byte          stamp{}; // Increment on image update to sync with FE.
             bitmap_t      bitmap;
             std::vector<layer_t> layers;
-            bool          updated_layers{};
             si32          attr_digest{}; // Stamp to sync with layers.
 
             auto empty()
             {
                 return document.empty() && layers.empty();
             }
-            void set_changes(si32 new_changed_bits, many& changes, twod cellsz = {})
+            bool set_changes(si32 new_changed_bits, many& changes, twod cellsz = {})
             {
+                auto layers_updated = faux;
                 if constexpr (debugmode) log("Received image update:");
                 attr_digest++;
                 changed_gb_attrs = new_changed_bits;
@@ -1487,7 +1487,7 @@ namespace netxs
                     }
                     if (j < changes.size() && netxs::get_bit<image::layers_bit>(document_changed)) // Receive foreign layer indexes.
                     {
-                        load_layers(j, changes);
+                        layers_updated = load_layers(j, changes);
                     }
                 }
                 if (need_bitmap_reset)
@@ -1500,6 +1500,7 @@ namespace netxs
                     auto y = gb_attrs[imagens::gb::y];
                     bitmap.xy = twod{ std::round(fp2d{ x, y } * cellsz) };
                 }
+                return layers_updated;
             }
             auto get_changes()
             {
@@ -1534,13 +1535,14 @@ namespace netxs
             }
             void pack_layers(many& changes)
             {
-                changes.reserve(layers.size() * imagens::gb::attr_count); // To avoid reallocations.
+                changes.reserve(changes.size() + layers.size() * (3 + imagens::gb::attr_count));
                 for (auto& l : layers)
                 {
                     changes.push_back(l.index);
                     changes.push_back(l.sub_id);
                     auto mask = 0;
-                    auto& changed_layer_attr_bits = changes.emplace_back(mask); // Reserve a placeholder.
+                    auto changed_layer_attr_bits_index = changes.size(); // Placeholder index.
+                    changes.push_back(mask); // Reserve a placeholder.
                     for (auto i = 0u; i < l.opt_attrs.size(); i++)
                     {
                         if (auto& attr = l.opt_attrs[i])
@@ -1549,12 +1551,13 @@ namespace netxs
                             changes.push_back(attr.value());
                         }
                     }
-                    changed_layer_attr_bits = mask; // Write to placeholder.
+                    changes[changed_layer_attr_bits_index] = mask; // Write to placeholder.
                 }
             }
-            void load_layers(ui32 i, many& changes)
+            bool load_layers(ui32 i, many& changes)
             {
-                if (i < changes.size())
+                auto layers_updated = i < changes.size();
+                if (layers_updated)
                 {
                     if constexpr (debugmode) log("  layers update:");
                     layers.clear();
@@ -1577,9 +1580,11 @@ namespace netxs
                         }
                     }
                 }
+                return layers_updated;
             }
-            void receive_image_attributes(many& global_attributes) // Receive full metadata set for unknown image.
+            bool receive_image_attributes(many& global_attributes) // Receive full metadata set for unknown image.
             {
+                auto layers_updated = faux;
                 if (global_attributes.size() >= imagens::gb::attr_count + 2)
                 {
                     attr_digest++;
@@ -1591,10 +1596,11 @@ namespace netxs
                     }
                     sub_id   = std::any_cast<text>(global_attributes[i++]);
                     document = std::any_cast<text>(global_attributes[i++]);
-                    load_layers(i, global_attributes);
+                    layers_updated = load_layers(i, global_attributes);
                     reset_changes();
                     if constexpr (debugmode) log("  sub_id='%%' document='%value%...'", sub_id, document.substr(0, std::min(20, (si32)document.size())));
                 }
+                return layers_updated;
             }
             void reset_changes()
             {
@@ -1616,7 +1622,7 @@ namespace netxs
                     netxs::set_bit<image::sub_id_bit>(document_changed, true);
                 }
             }
-            void check_and_set_attr(gb_attrs_t& new_gb_attrs)
+            void check_and_set_attr(gb_attrs_t& new_gb_attrs, bool updated_layers)
             {
                 attr_digest++;
                 assert(new_gb_attrs.size() < sizeof(changed_gb_attrs) * 8);
@@ -1628,11 +1634,12 @@ namespace netxs
                         gb_attrs[i] = new_gb_attrs[i];
                     }
                 }
+                netxs::set_bit<image::layers_bit>(document_changed, updated_layers);
             }
             auto get_global_attrs()
             {
                 auto global_attributes = many{};
-                global_attributes.reserve(gb_attrs.size() + 2);
+                global_attributes.reserve(imagens::gb::attr_count + 2 + layers.size() * (3 + imagens::gb::attr_count));
                 for (auto& ga : gb_attrs)
                 {
                     global_attributes.push_back(ga);
