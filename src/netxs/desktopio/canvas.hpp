@@ -4144,12 +4144,14 @@ namespace netxs
             auto hit = faux;
             for (auto& c : canvas)
             {
-                auto image_index = c.get_image_index();
-                //if (image_index == removed_image_index) //todo optimize
-                if (std::find(removed_image_indexes.begin(), removed_image_indexes.end(), image_index) != removed_image_indexes.end())
+                if (auto image_index = c.get_image_index())
                 {
-                    c.reset_px(); // Drop all image metadata.
-                    hit = true;
+                    //if (image_index == removed_image_index) //todo optimize
+                    if (std::find(removed_image_indexes.begin(), removed_image_indexes.end(), image_index) != removed_image_indexes.end())
+                    {
+                        c.reset_px(); // Drop all image metadata.
+                        hit = true;
+                    }
                 }
             }
             return hit;

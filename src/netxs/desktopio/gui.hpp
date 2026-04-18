@@ -3107,10 +3107,9 @@ namespace netxs::gui
                 auto hit = s11n::remove_image_indexes(images, image.indexes);
                 if (hit)
                 {
-                    if (owner.remove_image_bits(image.indexes))
-                    {
-                        netxs::set_flag<task::all>(owner.reload); // Trigger to redraw all to update unknown images.
-                    }
+                    owner.remove_image_bits(image.indexes);
+                    // Always re-render viewport because of layers.
+                    netxs::set_flag<task::all>(owner.reload); // Trigger to redraw all to update unknown images.
                 }
             }
             void handle(s11n::xs::update_img_request  lock)

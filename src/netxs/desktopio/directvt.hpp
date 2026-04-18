@@ -2107,8 +2107,11 @@ namespace netxs::directvt
                     for (auto& image_index : image_indexes)
                     {
                         image_index = std::exchange(s11n::nat[image_index], 0);
-                        images.remove(image_index);
-                        hit |= !!image_index;
+                        if (image_index)
+                        {
+                            images.remove(image_index);
+                            hit |= !!image_index;
+                        }
                     }
                 }
                 else

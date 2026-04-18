@@ -7561,9 +7561,10 @@ namespace netxs::ui
                 {
                     auto image_ptr = iter->second;
                     auto& image = *image_ptr;
+                    auto removed_image_indexes = e2::data::image::remove.param({ image.index });
                     image_cache.erase(iter);
                     images.remove(image.index);
-                    base::signal(tier::general, e2::data::image::remove, { image.index });
+                    base::signal(tier::general, e2::data::image::remove, removed_image_indexes);
                     if (io_log) log("%%Embedded object '%%' successfully unregistered", prompt::term, image.id);
                 }
             }
