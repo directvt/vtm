@@ -1391,8 +1391,38 @@ namespace netxs
                 text           sub_id; // Layer document's sub-element id.
                 wptr<image>    image_wptr;
                 opt_gb_attrs_t opt_attrs;
+                gb_attrs_t     gb_attrs{}; // Evaluated attributes.
                 bitmap_t       bitmap;
                 bool           touched{};
+                twod           attr_WH; // The size at which the attributes are evaluated.
+                si32           attr_digest{}; // Digest in which attributes are evaluated.
+
+                void sync_attrs_with_base(image& base_image, twod image_WH, twod wh)
+                {
+                    if (attr_digest != base_image.attr_digest || attr_WH != image_WH) // Sync the layer attrs with the original image.
+                    {
+                        auto changed_bits = 0;
+                        auto prev_wh = twod{ gb_attrs[imagens::gb::w], gb_attrs[imagens::gb::h] };
+                        for (auto i = 0u; i < gb_attrs.size(); i++)
+                        {
+                            auto& a = opt_attrs[i];
+                            auto changed = std::exchange(gb_attrs[i], a ? a.value() : base_image.gb_attrs[i]) != gb_attrs[i];
+                            if (changed) changed_bits |= 1 << i;
+                        }
+                        if (gb_attrs[imagens::gb::w] == 0) gb_attrs[imagens::gb::w] = (fp32)wh.x;
+                        if (gb_attrs[imagens::gb::h] == 0) gb_attrs[imagens::gb::h] = (fp32)wh.y;
+                        auto same_size = prev_wh.x == gb_attrs[imagens::gb::w] && prev_wh.y == gb_attrs[imagens::gb::h];
+                        auto invalidate_bitmap = !same_size || (changed_bits & ((1 << imagens::gb::uw)
+                                                                              | (1 << imagens::gb::vh)
+                                                                              | (1 << imagens::gb::fit)));
+                        if (invalidate_bitmap)
+                        {
+                            bitmap.reset();
+                        }
+                        attr_digest = base_image.attr_digest;
+                        attr_WH = image_WH;
+                    }
+                }
             };
 
             text          id;
@@ -1407,6 +1437,7 @@ namespace netxs
             bitmap_t      bitmap;
             std::vector<layer_t> layers;
             bool          updated_layers{};
+            si32          attr_digest{}; // Stamp to sync with layers.
 
             auto empty()
             {
@@ -1415,6 +1446,7 @@ namespace netxs
             void set_changes(si32 new_changed_bits, many& changes, twod cellsz = {})
             {
                 if constexpr (debugmode) log("Received image update:");
+                attr_digest++;
                 changed_gb_attrs = new_changed_bits;
                 auto mask = (ui32)changed_gb_attrs;
                 auto j = 0u;
@@ -1550,6 +1582,7 @@ namespace netxs
             {
                 if (global_attributes.size() >= imagens::gb::attr_count + 2)
                 {
+                    attr_digest++;
                     auto i = 0u;
                     for (; i < imagens::gb::attr_count; i++)
                     {
@@ -1585,6 +1618,7 @@ namespace netxs
             }
             void check_and_set_attr(gb_attrs_t& new_gb_attrs)
             {
+                attr_digest++;
                 assert(new_gb_attrs.size() < sizeof(changed_gb_attrs) * 8);
                 for (auto i = 0u; i < new_gb_attrs.size(); i++)
                 {

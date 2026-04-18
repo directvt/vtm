@@ -2590,25 +2590,22 @@ namespace netxs::gui
             if (auto image_cr = c.get_image_cr(); image_cr.x != 0 && image_cr.y != 0)
             {
                 auto image_index = c.get_image_index();
+                auto wh = c.get_image_WH();
                 auto images = cell::images(); // Lock.
+                //todo make it recursive
                 if (auto image_ptr = images.exists(image_index)) // We form all image requests on dtvt recv stage.
                 {
                     auto& image = *image_ptr;
-                    auto image_WH = c.get_image_WH() * cellsz;
-                    auto inv      = c.inv();
+                    auto image_WH = wh * cellsz;
+                    auto inv = c.inv();
                     placeholder.coor -= (image_cr - dot_11) * cellsz;
                     for (auto& l : image.layers) // Iterate over layers.
                     {
                         if (auto layer_ptr = l.image_wptr.lock())
                         {
-                            imagens::image::gb_attrs_t gb_attrs;
                             auto& layer = *layer_ptr;
-                            for (auto i = 0u; i < gb_attrs.size(); i++) //todo optimize (make it once on update)
-                            {
-                                auto& a = l.opt_attrs[i];
-                                gb_attrs[i] = a ? a.value() : layer.gb_attrs[i];
-                            }
-                            render_layer(canvas, placeholder, fgc, layer, l.sub_id, l.bitmap, gb_attrs, image_WH, inv);
+                            l.sync_attrs_with_base(layer, image_WH, wh);
+                            render_layer(canvas, placeholder, fgc, layer, l.sub_id, l.bitmap, l.gb_attrs, image_WH, inv);
                         }
                         else
                         {
