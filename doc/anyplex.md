@@ -13,24 +13,28 @@ Scope                           | Role
 
 #### Rendering & Interaction
 
-- **Normalized Source Viewport**: The source document is first projected onto a virtual canvas of size `1.0` by `1.0`. A rectangular fragment (crop) is then extracted from this canvas using normalized coordinates `u`, `v` (top-left) and `uw`, `vh` (size), where `1.0` equals the full canvas dimension. Negative values for `uw` or `vh` cause the extracted fragment to be flipped along the respective axis.
-- **Target Rectangular Area**: The grid footprint is explicitly defined by the unique attributes **W** and **H**. The range of affected cell indices starts at the current cursor position and spans `[0 .. W-1]` horizontally and `[0 .. H-1]` vertically. If `W` or `H` is `0`, no cells are modified, and the object is only registered in the cache.
+- **Normalized Source Viewport**: The source document is first projected onto a virtual canvas of size `1.0` by `1.0`. A rectangular fragment (crop) is then extracted from this canvas using normalized coordinates `u`, `v` (top-left) and `uw`, `vh` (size). Negative values for `uw` or `vh` cause the extracted fragment to be flipped along the respective axis.
+- **Target Rectangular Area**: The grid footprint is explicitly defined by the unique attributes **W** and **H**. The range of affected cells starts at the current cursor position and spans `[0 .. W-1]` horizontally and `[0 .. H-1]` vertically. If `W` or `H` is `0`, no cells are modified (registration only).
 - **Pixel-wise Precision**:
   - **Content Positioning**: The image fragment is scaled according to `fit` and aligned within the **Clipping Box** (`w x h`) using the `a` attribute.
   - **Box Positioning**: This Clipping Box is then aligned within the **Grid Container** (`W x H`) using the same `a` attribute.
   - **Offsets**: Shared `x` and `y` values are applied as final pixel offsets from the resulting position.
   - **Final Cut**: The Grid Container acts as a strict physical mask; any pixels falling outside the `W x H` cell area are not rendered.
-- **Persistence**: Metadata (Object Reference + Unique attributes) is stored per-cell to survive scrollback and ensure logical linking for rectangular reflow, using only an implementation-defined minimum of data to minimize memory overhead.
+- **Persistence**: Metadata is stored per-cell to survive scrollback and ensure logical linking.
 - **Cursor Position**: Anchored at the top-left; moves to the cell immediately following the bottom-right corner of the **Grid Container** (`W x H`) after output.
 - **Destructivity**:
-  - If the `gc` attribute is not empty, the provided grapheme cluster is written to **every cell** in the target area, replacing existing text and SGR attributes.
+  - If the `gc` attribute is not empty, the provided grapheme cluster is written to every cell in the target area, replacing existing text and SGR attributes.
   - If `gc` is empty, the output is non-destructive; existing text and SGR attributes remain visually intact.
   - Subsequent text written over the area does not destroy the underlying object. Metadata remains in the cell until explicitly replaced.
-- **Selection & Highlighting**: When a cell is selected (e.g., mouse selection or **SGR 7**), the frontend **applies a 0.5 opacity mask** to the object's pixels within that specific cell to ensure the selection remains visible.
+- **Selection & Highlighting**: When a cell is selected by mouse or highlighted using **SGR 7**, the frontend **applies a 0.5 opacity mask** to the object's pixels within that specific cell to ensure the selection remains visible.
 - **Searchability**: Any text contained within the document (e.g., `<text>` in SVG) is rendered as part of the graphic and is not indexed for terminal text search.
-- **Layering & Transparency**: Supports per-pixel alpha. The `o`(ontop) attribute determines Z-order:
-  - `0`: `[Cell BG] -> [Object] -> [Text]`
-  - `1`: `[Cell BG] -> [Text] -> [Object]`
+- **Layering & Composition**:
+  - Supports per-pixel alpha blending in linear color space.
+  - **Recursive Rendering**: If a layer (`l`) references an object that itself has layers, the entire tree is rendered. Circular references are silently ignored.
+  - **Z-Order**: Layers are rendered in the order they are defined (first is bottom). The "main" document of the current `id` is rendered as the final layer on top.
+  - **Ontop (`o`)**: Determines if the *entire composite* is drawn under (`0`) or over (`1`) the cell text:
+    - `0`: `[Cell BG] -> [Object] -> [Text]`
+    - `1`: `[Cell BG] -> [Text] -> [Object]`
   - The cell's background color always remains at the bottom. The terminal cursor is always drawn on top. Alpha blending should be performed in **linear color space**.
 - **Foreground Color & Security**: The underlying cell **SGR foreground color** maps to `currentColor` (for SVG). All external references (e.g., `http://...`) are ignored for security purposes.
 
@@ -53,24 +57,18 @@ Field           | Description
 
 #### Attribute Scoping
 
-Attributes are divided into **Shared** (object-wide) and **Unique** (per-instance/cell).
+Attributes are divided into **Shared** (object-wide), **Layer** (layer specific) and **Unique** (per-instance/cell).
 
-- **Shared Attributes**: `l`, `u`, `v`, `uw`, `vh`, `x`, `y`, `w`, `h`, `fit`, `rt`, `a`, `f`, `o`.
-  - These define the global geometry, orientation, and content mapping.
-  - Updating a shared attribute for an existing `id` immediately affects **all cells** currently linked to that object.
-- **Layer Attributes**: `u`, `v`, `uw`, `vh`, `x`, `y`, `w`, `h`, `fit`, `rt`, `a`, `f`, `o`.
-  - These define the global geometry, orientation, and content mapping for the specified layer.
-- **Unique Attributes**: `W`, `H`, `r`, `c`, `gc`.
-  - These define the physical footprint on the terminal grid and the specific slice being rendered.
-  - **W** and **H** define the **Grid Container** (the parcel of cells).
-  - If a unique attribute is omitted in a sequence, it reverts to its **Default Value**.
+- **Shared Attributes**: `l`, `u`, `v`, `uw`, `vh`, `x`, `y`, `w`, `h`, `fit`, `rt`, `a`, `f`, `o`. Global to all instances of the `id`.
+- **Layer Attributes**: All Shared attributes can be overridden per layer inside `l=id(key=val)`.
+- **Unique Attributes**: `W`, `H`, `r`, `c`, `gc`. Specific to the instance and the grid slice.
 
 #### Attributes
 
 Attribute  | Scope  | Value/Range                      | Default                  | Description
 -----------|--------|----------------------------------|--------------------------|------------
 **id**     | -      | `<id>[/sub-id]`                  | empty string (`""`)      | Object reference ID.
-**l**      | Shared | `<id>[/sub-id][(<layer attributes>)]`  | empty string (`""`)      | Adds a layer by referencing registered object. Can be specified multiple times; layers are rendered in the order they appear (first is bottom).
+**l**      | Shared | `<id>[/sub-id][(<layer attrs>)]` | empty string (`""`)      | Adds a layer. Can be specified multiple times.
 **u, v**   | Shared | `float`                          | `0.0`                    | Top-left of the source crop (0.0-1.0).
 **uw, vh** | Shared | `float`                          | `1.0`                    | Size of the source crop (0.0-1.0). Negative flips.
 **x, y**   | Shared | `float`                          | `0.0`                    | Offset of the Clipping Box **inside** the `W x H` area (cells).
@@ -94,13 +92,14 @@ Attribute  | Scope  | Value/Range                      | Default                
 
 #### Lifecycle & Cache Management
 
-Input State            | Action
------------------------|-------
-**id** + **doc**       | Store or update the object document in the cache and output it.
-**id** + **empty-doc** | Unregister the `id` and free the cache index.
-**id** + **no-doc**    | Output the existing cached object.
-**id/sub-id**          | If a `sub-id` is specified, the FE renders only that specific element at its original coordinates (as it would appear in the full document), inheriting all parent styles (CSS, `<g>` groups).
-**Errors**             | If a document is invalid, the `id` is unknown, the `sub-id` is missing, or the cache is full, the FE **clears the object metadata** in the target area (rendering nothing) and logs the error.
+Input State                | Action
+---------------------------|-------
+**id** + **doc**           | Register/update.
+**id** + **doc** + **W,H** | Register/update and output to the specified area.
+**id** + **W,H**           | Output to the specified area.
+**id** + **empty-doc**     | Unregister.
+**id/sub-id**              | If a `sub-id` is specified, the FE renders only that specific element at its original coordinates (as it would appear in the full document), inheriting all parent styles (CSS, `<g>` groups).
+**Errors**                 | If a document is invalid, the `id` is unknown, the `sub-id` is missing, or the cache is full, the FE **clears the object metadata** in the target area (rendering nothing) and logs the error.
 
 > Note:
 > When the BE deletes an `id`, or upon reset/session close, it frees the index and signals the FEs.
@@ -109,10 +108,11 @@ Input State            | Action
 
 #### Parsing Rules (Backend)
 
-1. Scan the OSC string for `key=value` pairs.
-2. Identify document boundaries via the first `<` and the last `>`.
-3. Scan the OSC string for remaining `key=value` pairs.
-4. Accumulate all orientation attributes (`tr`(transform), `f`(flip), `rt`(rotate)) in the order of appearance to calculate the final 3-bit transformation state.
+- Scan the OSC string for `key=value` pairs.
+- Parse layer attributes inside `l=id(...)` with the same logic as primary attributes.
+- Identify document boundaries via the first `<` and the last `>`.
+- Accumulate orientation attributes (`tr`, `f`, `rt`) in the order of appearance to calculate the final state.
+- Scan the OSC string for remaining `key=value` pairs.
 
 #### Extensibility
 
