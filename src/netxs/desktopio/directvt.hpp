@@ -999,6 +999,7 @@ namespace netxs::directvt
         auto& operator << (std::ostream& s, time const& o) { return s << utf::to_hex_0x(o.time_since_epoch().count()); }
         auto& operator << (std::ostream& s, regs const& rs) { s << '{'; for (auto& r : rs) s << r; return s << '}'; }
         auto& operator << (std::ostream& s, many const& my) { s << '{'; for (auto& r : my) s << r.type().name(); return s << '}'; }
+        auto& operator << (std::ostream& s, std::vector<ui16> const& v) { s << '{'; for (auto& r : v) s << r << ", "; return s << '}'; }
 
         STRUCT_macro(frame_element,      (blob, data))
         STRUCT_macro(mouse_event,        (id_t, gear_id)
@@ -1075,7 +1076,7 @@ namespace netxs::directvt
         STRUCT_macro(unknown_img,        (ui16, index)) // Request unknown image list<unknown_img>.
         STRUCT_macro(img_element,        (ui16, index) (many, global_attributes)) // Reply image metadata list<img_element>. Access by imagens::gb::<attr_index>; The document_bits:(sub_id and document)+list_of_layers(index sub_id changed_bits attrs) is always placed at the end of the list.
         STRUCT_macro(update_img_request, (ui16, index) (si32, changed_bits) (many, changes)) // The document_bits:(sub_id and document)+list_of_layers(index sub_id changed_bits attrs) is always placed at the end of the list if set.
-        STRUCT_macro(remove_img_request, (ui16, index))
+        STRUCT_macro(remove_img_request, (std::vector<ui16>, indexes))
 
         #undef STRUCT_macro
         #undef STRUCT_macro_lite
@@ -2096,6 +2097,29 @@ namespace netxs::directvt
                         }
                     }
                 }
+            }
+            auto remove_image_indexes(auto& images, std::vector<ui16>& image_indexes)
+            {
+                auto hit = faux;
+                auto is_remote = s11n::nat[0];
+                if (is_remote)
+                {
+                    for (auto& image_index : image_indexes)
+                    {
+                        image_index = std::exchange(s11n::nat[image_index], 0);
+                        images.remove(image_index);
+                        hit |= !!image_index;
+                    }
+                }
+                else
+                {
+                    for (auto image_index : image_indexes)
+                    {
+                        images.remove(image_index);
+                        hit |= !!image_index;
+                    }
+                }
+                return hit;
             }
             // s11n: Receive jumbo clusters.
             void receive_jgc(s11n::xs::jgc_list& lock)

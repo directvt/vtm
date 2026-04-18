@@ -4139,13 +4139,14 @@ namespace netxs
             swap(block);
             digest++;
         }
-        bool remove_image_bits(ui16 removed_image_index)
+        bool remove_image_bits(std::vector<ui16>& removed_image_indexes)
         {
             auto hit = faux;
             for (auto& c : canvas)
             {
                 auto image_index = c.get_image_index();
-                if (image_index == removed_image_index)
+                //if (image_index == removed_image_index) //todo optimize
+                if (std::find(removed_image_indexes.begin(), removed_image_indexes.end(), image_index) != removed_image_indexes.end())
                 {
                     c.reset_px(); // Drop all image metadata.
                     hit = true;

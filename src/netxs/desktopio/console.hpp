@@ -1044,9 +1044,9 @@ namespace netxs::ui
             canvas.cmode = props.vtmode;
             canvas.face::area(base::area());
 
-            LISTEN(tier::general, e2::data::image::remove, image_index)
+            LISTEN(tier::general, e2::data::image::remove, image_indexes)
             {
-                conio.remove_img_request.send(canal, image_index);
+                conio.remove_img_request.send(canal, image_indexes);
             };
             LISTEN(tier::general, e2::data::image::update, image_index)
             {

@@ -2422,11 +2422,6 @@ namespace netxs::gui
         {
             auto& image_dom = *dom[0];
             auto orig_full_sz_fp = fp2d{ image_dom.width(), image_dom.height() }; // Original doc size (float).
-            if (!std::isnormal(orig_full_sz_fp.x) || !std::isnormal(orig_full_sz_fp.y))
-            {
-                bitmap.fragment.set_area<irgb>(rect{});
-                return;
-            }
             auto u   = gb_attrs[imagens::gb::u  ];
             auto v   = gb_attrs[imagens::gb::v  ];
             auto uw  = gb_attrs[imagens::gb::uw ];
@@ -2437,6 +2432,13 @@ namespace netxs::gui
             auto h   = gb_attrs[imagens::gb::h  ];
             auto tr  = gb_attrs[imagens::gb::tr ];
             auto fit = gb_attrs[imagens::gb::fit];
+            if (!std::isnormal(orig_full_sz_fp.x) || !std::isnormal(orig_full_sz_fp.y))
+            {
+                bitmap.fragment.set_area<irgb>(rect{});
+                return;
+            }
+            if (!std::isnormal(uw)) uw = 1.f;
+            if (!std::isnormal(vh)) vh = 1.f;
             auto wh   = fp2d{ w, h };
             auto uv   = fp2d{ u, v };
             auto uvwh = fp2d{ uw, vh };
@@ -3101,14 +3103,11 @@ namespace netxs::gui
             void handle(s11n::xs::remove_img_request  lock)
             {
                 auto& image = lock.thing;
-                image.index &= 0xFFFF;
-                if (image.index)
+                auto images = cell::images(); // Lock.
+                auto hit = s11n::remove_image_indexes(images, image.indexes);
+                if (hit)
                 {
-                    auto images = cell::images(); // Lock.
-                    auto is_remote = s11n::nat[0];
-                    auto image_index = is_remote ? std::exchange(s11n::nat[image.index], 0) : image.index;
-                    images.map[image_index] = {};
-                    if (owner.remove_image_bits(image_index))
+                    if (owner.remove_image_bits(image.indexes))
                     {
                         netxs::set_flag<task::all>(owner.reload); // Trigger to redraw all to update unknown images.
                     }
@@ -4023,10 +4022,10 @@ namespace netxs::gui
                 }
             }
         }
-        bool remove_image_bits(ui16 removed_image_index)
+        bool remove_image_bits(std::vector<ui16>& removed_image_indexes)
         {
             auto bitmap_lock = stream.bitmap_dtvt.freeze();
-            auto hit = bitmap_lock.thing.image.remove_image_bits(removed_image_index);;
+            auto hit = bitmap_lock.thing.image.remove_image_bits(removed_image_indexes);
             return hit;
         }
         bool update_image_bits(ui16 updated_image_index)

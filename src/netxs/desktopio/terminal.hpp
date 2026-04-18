@@ -1382,13 +1382,16 @@ namespace netxs::ui
                   alive{ 0      }
             {
                 parser::style = ansi::def_style;
-                owner.LISTEN(tier::general, e2::data::image::remove, image_index, image_update_token)
+                owner.LISTEN(tier::general, e2::data::image::remove, image_indexes, image_update_token)
                 {
-                    wipe_image_index(image_index);
+                    if (owner.image_alive)
+                    {
+                        wipe_image_index(image_indexes);
+                    }
                 };
             }
 
-            virtual void wipe_image_index(ui16 index) = 0;
+            virtual void wipe_image_index(std::vector<ui16>& indexes) = 0;
             // bufferbase: Make a viewport screen copy.
             virtual void do_viewport_copy(face& dest) = 0;
 
@@ -3191,9 +3194,9 @@ namespace netxs::ui
                 return bufferbase::selection_cancel();
             }
             // alt_screen: Remove all references to the image from the scrollback.
-            void wipe_image_index(ui16 removed_image_index) override
+            void wipe_image_index(std::vector<ui16>& removed_image_indexes) override
             {
-                canvas.remove_image_bits(removed_image_index);
+                canvas.remove_image_bits(removed_image_indexes);
             }
         };
 
@@ -7157,15 +7160,15 @@ namespace netxs::ui
                 return forward_is_available | reverse_is_available;
             }
             // scroll_buf: Remove all references to the image from the scrollback.
-            void wipe_image_index(ui16 removed_image_index) override
+            void wipe_image_index(std::vector<ui16>& removed_image_indexes) override
             {
-                upbox.remove_image_bits(removed_image_index);
-                dnbox.remove_image_bits(removed_image_index);
+                upbox.remove_image_bits(removed_image_indexes);
+                dnbox.remove_image_bits(removed_image_indexes);
                 auto wipe_batch = [&](auto policy) // Try to parallelize.
                 {
-                    std::for_each(policy, batch.begin(), batch.end(), [removed_image_index](auto& l)
+                    std::for_each(policy, batch.begin(), batch.end(), [&](auto& l)
                     {
-                        l.remove_image_bits(removed_image_index);
+                        l.remove_image_bits(removed_image_indexes);
                     });
                 };
                 batch.length() > 100000 ? wipe_batch(std::execution::par)
@@ -7221,6 +7224,7 @@ namespace netxs::ui
         ui64       session_token; // term: Interactive session token.
         utf::unordered_map<text, netxs::sptr<imagens::image>> image_cache; // term: Image cache.
         face                                                  image_buffer; // term: Image temporary buffer.
+        bool                                                  image_alive{ true }; // term: Indicator for whether to clear images in the scrollback.
         vtty       ipccon; // term: IPC connector. Should be destroyed first.
 
         // term: Print the block to the scrollback buffer with scroll.
@@ -7559,7 +7563,7 @@ namespace netxs::ui
                     auto& image = *image_ptr;
                     image_cache.erase(iter);
                     images.remove(image.index);
-                    base::signal(tier::general, e2::data::image::remove, image.index);
+                    base::signal(tier::general, e2::data::image::remove, { image.index });
                     if (io_log) log("%%Embedded object '%%' successfully unregistered", prompt::term, image.id);
                 }
             }
@@ -8961,6 +8965,26 @@ namespace netxs::ui
         }
 
     public:
+        ~term()
+        {
+            image_alive = faux;
+            if (image_cache.size()) // Signal to wipe all image references.
+            {
+                auto images = cell::images(); // Lock.
+                auto removed_image_indexes = e2::data::image::remove.param();
+                removed_image_indexes.reserve(image_cache.size());
+                for (auto& [image_id, image_ptr] : image_cache) if (image_ptr)
+                {
+                    auto removed_index = image_ptr->index;
+                    removed_image_indexes.push_back(removed_index);
+                    images.remove(removed_index);
+                }
+                if (removed_image_indexes.size())
+                {
+                    base::signal(tier::general, e2::data::image::remove, removed_image_indexes);
+                }
+            }
+        }
         term()
             : defcfg{ bell::indexer.config },
               normal{ *this },
@@ -9736,22 +9760,16 @@ namespace netxs::ui
             void handle(s11n::xs::remove_img_request  lock)
             {
                 auto& image = lock.thing;
-                image.index &= 0xFFFF;
-                if (image.index)
+                auto images = cell::images(); // Lock.
+                auto hit = s11n::remove_image_indexes(images, image.indexes);
+                if (hit)
                 {
-                    auto images = cell::images(); // Lock.
-                    auto is_remote = s11n::nat[0];
-                    auto image_index = is_remote ? std::exchange(s11n::nat[image.index], 0) : image.index;
-                    if (image_index)
+                    owner.remove_image_bits(image.indexes);
+                    owner.base::enqueue([&, image_indexes = std::move(image.indexes)](auto& /*boss*/) // To avoid deadlock under cell::images.
                     {
-                        images.map[image_index] = {};
-                        owner.remove_image_bits(image_index);
-                        owner.base::enqueue([&, image_index](auto& /*boss*/) // To avoid deadlock under cell::images.
-                        {
-                            owner.base::signal(tier::general, e2::data::image::remove, image_index);
-                            owner.base::deface();
-                        });
-                    }
+                        owner.base::signal(tier::general, e2::data::image::remove, image_indexes);
+                        owner.base::deface();
+                    });
                 }
             }
             void handle(s11n::xs::update_img_request  lock)
@@ -10121,18 +10139,11 @@ namespace netxs::ui
             ipccon.run_dtvt_app(appcfg, base::size(), connect_fx, receiver_fx, shutdown_fx);
         }
         // dtvt: Drop removed image metadata from canvas.
-        void remove_image_bits(ui16 removed_image_index)
+        void remove_image_bits(std::vector<ui16>& removed_image_indexes)
         {
             auto bitmap_lock = stream.bitmap_dtvt.freeze();
             auto& grid = bitmap_lock.thing.image;
-            for (auto& c : grid)
-            {
-                auto image_index = c.get_image_index();
-                if (image_index == removed_image_index)
-                {
-                    c.reset_px(); // Drop all image metadata.
-                }
-            }
+            grid.remove_image_bits(removed_image_indexes);
         }
         // dtvt: Drop removed image metadata from canvas.
         void update_image_bits(ui16 updated_image_index)
@@ -10217,6 +10228,26 @@ namespace netxs::ui
             else                parent_canvas.fill(canvas, cell::shaders::transparent(opaque));
         }
 
+        ~dtvt()
+        {
+            // Signal to wipe all image references.
+            auto is_remote = std::exchange(stream.s11n::nat[0], 0);
+            if (is_remote) // Is remote.
+            {
+                auto images = cell::images(); // Lock.
+                auto removed_image_indexes = e2::data::image::remove.param();
+                removed_image_indexes.reserve(stream.s11n::nat.size());
+                for (auto removed_index : stream.s11n::nat) if (removed_index)
+                {
+                    removed_image_indexes.push_back(removed_index);
+                    images.remove(removed_index);
+                }
+                if (removed_image_indexes.size())
+                {
+                    base::signal(tier::general, e2::data::image::remove, removed_image_indexes);
+                }
+            }
+        }
         dtvt()
             : stream{*this },
               active{ true },
