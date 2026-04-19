@@ -235,7 +235,6 @@ namespace netxs::ui
             si32 def_growmx;
             wrap def_wrpmod;
             si32 def_tablen;
-            si32 def_lucent;
             si32 def_margin;
             si32 def_border;
             si32 def_atexit;
@@ -312,7 +311,6 @@ namespace netxs::ui
                 resetonkey =             config.settings::take("/config/terminal/scrollback/reset/onkey",     true);
                 resetonout =             config.settings::take("/config/terminal/scrollback/reset/onoutput",  faux);
                 def_alt_on =             config.settings::take("/config/terminal/scrollback/altscroll",       true);
-                def_lucent = std::max(0, config.settings::take("/config/terminal/scrollback/oversize/opacity",si32{ 0xFF } ) & 0xFF);
                 def_margin = std::max(0, config.settings::take("/config/terminal/scrollback/oversize",        si32{ 0 }    ));
                 def_tablen = std::max(1, config.settings::take("/config/terminal/tablen",                     si32{ 8 }    ));
                 def_border = std::max(0, config.settings::take("/config/terminal/border",                     si32{ 0 }    ));
@@ -1835,25 +1833,95 @@ namespace netxs::ui
             void msg(si32 cmd, qiew& q)
             {
                 parser::flush();
-                auto data = text{};
-                while (q)
+                static constexpr auto DECRQSS_str = "$q"sv;     // Request settings. (Neovim using it)
+                static constexpr auto SIXEL_str   = "q"sv;      // Sixel image.
+                static constexpr auto ST_str      = "\x1b\\"sv; // ST.
+                auto reply = flux{};
+                auto data = utf::take_binary_front(q, std::tuple{ "\x1b\\"sv, "\a"sv });
+                     if (q.size() > 0 && q.front() == '\a'  ) q.remove_prefix(1); // Pop '\a'.
+                else if (q.size() > 1 && q.front() == '\x1b') q.remove_prefix(2); // Pop "\e\\".
+                if (data.starts_with(DECRQSS_str))
                 {
-                    auto c = (char)q.front();
-                    data.push_back(c);
-                    q.pop_front();
-                         if (c == ansi::c0_bel) break;
-                    else if (c == ansi::c0_esc)
+                    data.remove_prefix(DECRQSS_str.size());
+                    static constexpr auto SGR_str     = "m"sv;  // SGR state request.
+                    static constexpr auto DECSTBM_str = "r"sv;  // Margins request. Reply "\eP1$r" + 1_based_top + ";" + 1_based_btm + "r\e\\".
+                    reply << "\x1bP"; // DCS
+                    if (data.starts_with(SGR_str))
                     {
-                        c = (char)q.front();
-                        if (q && c == '\\')
+                        reply << "1$r0"; // 1: supported  r: reply  0: SGR 0.
+                        auto c = parser::brush;
+                        auto fgc = c.fgc();
+                        auto bgc = c.bgc();
+                        if (fgc != argb::transparent)
                         {
-                            data.push_back(c);
-                            q.pop_front();
-                            break;
+                            if (auto index = argb::is_indexed_color(fgc))
+                            {
+                                index--;
+                                     if (index < 8)  reply << ";3"     << index;
+                                else if (index < 16) reply << ";9"     << index - 8;
+                                else                 reply << ";38:5:" << index;
+                            }
+                            else                     reply << ";38:2::" << (si32)fgc.chan.r << ":" << (si32)fgc.chan.g << ":" << (si32)fgc.chan.b;
                         }
+                        if (bgc != argb::transparent)
+                        {
+                            if (auto index = argb::is_indexed_color(bgc))
+                            {
+                                index--;
+                                     if (index < 8)  reply << ";4"     << index;
+                                else if (index < 16) reply << ";10"    << index - 8;
+                                else                 reply << ";48:5:" << index;
+                            }
+                            else                     reply << ";48:2::" << (si32)bgc.chan.r << ":" << (si32)bgc.chan.g << ":" << (si32)bgc.chan.b;
+                        }
+                        if (auto und = c.und())
+                        {
+                                 if (und == unln::line  ) reply << ";4";
+                            else if (und == unln::biline) reply << ";21";
+                            else                          reply << ";4:" << und;
+                            if (auto i = c.unc())
+                            {
+                                auto clr = argb{ argb::vt256[i] };
+                                reply << ";58:2::" << (si32)clr.chan.r << ':' << (si32)clr.chan.g << ':' << (si32)clr.chan.b;
+                            }
+                        }
+                        if (c.itc()) reply << ";3";
+                        if (c.bld()) reply << ";1";
+                        if (c.dim()) reply << ";2";
+                        if (c.inv()) reply << ";7";
+                        if (c.hid()) reply << ";8";
+                        if (c.ovr()) reply << ";53";
+                        if (c.stk()) reply << ";9";
+                        if (c.blk()) reply << ";5";
+                        reply << "m"; // m: SGR mark.
                     }
+                    else if (data.starts_with(DECSTBM_str))
+                    {
+                        reply << "1$r"; // 1: supported  r: reply.
+                        auto top = n_top ? n_top : 1;
+                        auto end = n_end ? n_end : panel.y;
+                        reply << top << ';' << end;
+                        reply << "r"; // r: DECSTBM mark.
+                    }
+                    else
+                    {
+                        reply << "0$r"; // Unsupported.
+                    }
+                    reply << ST_str;
+                    owner.write(reply.str());
                 }
-                log("%%Unsupported message/command: '\\e%char%%data%'", prompt::term, (char)cmd, utf::debase<faux>(data));
+                else if (data.starts_with(SIXEL_str))
+                {
+                    if (owner.io_log) log("%%Sixel is not supported yet", prompt::term);
+                    //reply << "\x1bP"; // DCS
+                    //reply << "0$r"; // Unsupported.
+                    //reply << ST_str;
+                    //owner.write(reply.str());
+                }
+                else
+                {
+                    if (owner.io_log) log("%%Unsupported message/command: '\\e%char%%data%\\e\\'", prompt::term, (char)cmd, utf::debase<faux>(data));
+                }
             }
             // bufferbase: Clear buffer.
     virtual void clear_all()
@@ -2222,6 +2290,7 @@ namespace netxs::ui
             // bufferbase: CSI t;b r  Set scrolling region (t/b: top+bottom).
             void scr(fifo& q)
             {
+                parser::flush();
                 auto top = q(0);
                 auto end = q(0);
                 set_scroll_region(top, end);
@@ -2422,7 +2491,7 @@ namespace netxs::ui
             {
                 switch (fx)
                 {
-                    case commands::fx::color:   work(cell::shaders::color(c)); break;
+                    case commands::fx::color:   work(cell::shaders::color(c)); break;//todo use mix_with_bgc (indexed colors)
                     case commands::fx::xlight:  work(cell::shaders::xlight);   break;
                     case commands::fx::invert:  work(cell::shaders::invert);   break;
                     case commands::fx::reverse: work(cell::shaders::reverse);  break;
@@ -2905,6 +2974,7 @@ namespace netxs::ui
             // alt_screen: Clear viewport using current brush.
             void clear_all() override
             {
+                parser::flush();
                 canvas.wipe(brush.dry()); // ok
                 set_scroll_region(0, 0);
                 bufferbase::clear_all();
@@ -4331,6 +4401,7 @@ namespace netxs::ui
             // scroll_buf: Reset the scrolling region.
             void reset_scroll_region()
             {
+                parser::flush();
                 upmin = dot_00;
                 dnmin = dot_00;
                 upbox.crop(upmin);
@@ -4380,7 +4451,7 @@ namespace netxs::ui
                     do
                     {
                         auto& curln = *head;
-                        block.output(curln, cell::shaders::fuse);
+                        block.output(curln, cell::shaders::full);
                         block.nl(1);
                     }
                     while (++head != tail);
@@ -5246,6 +5317,7 @@ namespace netxs::ui
             // scroll_buf: Clear scrollback.
             void clear_all() override
             {
+                parser::flush();
                 batch.clear();
                 reset_scroll_region();
                 bufferbase::clear_all();
@@ -5298,7 +5370,7 @@ namespace netxs::ui
                     dest.output(curln, coor, [&](auto& dst, auto& src){ owner.ctrack.mix_with_bgc(dst, src); });
                     //dest.output_proxy(curln, coor, [&](auto const& coord, auto const& subblock, auto isr_to_l)
                     //{
-                    //    dest.text(coord, subblock, isr_to_l, cell::shaders::fusefull);
+                    //    dest.text(coord, subblock, isr_to_l, [&](auto& dst, auto& src){ owner.ctrack.mix_with_bgc(dst, src); });
                     //});
                     if (find)
                     {
@@ -5367,8 +5439,8 @@ namespace netxs::ui
                     auto end_coor = twod{ 0, y_end + 1     } + destcoor;
                     upbox.move(top_coor);
                     dnbox.move(end_coor);
-                    dest.plot(upbox, cell::shaders::xlucent(owner.defcfg.def_lucent));
-                    dest.plot(dnbox, cell::shaders::xlucent(owner.defcfg.def_lucent));
+                    dest.plot(upbox, [&](auto& dst, auto& src){ owner.ctrack.mix_with_bgc(dst, src); });
+                    dest.plot(dnbox, [&](auto& dst, auto& src){ owner.ctrack.mix_with_bgc(dst, src); });
                     if (find)
                     {
                         auto draw = [&](auto const& block)
@@ -6501,8 +6573,8 @@ namespace netxs::ui
                 }
                 upbox.move({ 0, y_top - sctop });
                 dnbox.move({ 0, y_end + 1     });
-                dest.fill(upbox, cell::shaders::full);
-                dest.fill(dnbox, cell::shaders::full);
+                dest.fill(upbox, [&](auto& dst, auto& src){ owner.ctrack.mix_with_bgc(dst, src); });
+                dest.fill(dnbox, [&](auto& dst, auto& src){ owner.ctrack.mix_with_bgc(dst, src); });
             }
             // scroll_buf: Materialize selection of the scrollbuffer part.
             void selection_pickup(escx& yield, si32 selmod)
@@ -9684,7 +9756,7 @@ namespace netxs::ui
                     bottom_oversize.size.y  = oversz.b;
                     bottom_oversize.size.x += oversz.l + oversz.r;
                     bottom_oversize = bottom_oversize.trim(clip);
-                    parent_canvas.fill(bottom_oversize, cell::shaders::xlight);
+                    parent_canvas.fill(bottom_oversize, cell::shaders::xlight);//todo use xlight_indexed_colors
                 }
 
                 //if (clip.coor.x) // Shade left and right margins.
@@ -9698,8 +9770,8 @@ namespace netxs::ui
                 //    east.coor.x += oversz.r - pads + console.panel.x;
                 //    west = west.trim(clip);
                 //    east = east.trim(clip);
-                //    parent_canvas.fill(west, cell::shaders::xlucent(defcfg.def_lucent));
-                //    parent_canvas.fill(east, cell::shaders::xlucent(defcfg.def_lucent));
+                //    parent_canvas.fill(west, cell::shaders::full); //todo use mix_with_bgc
+                //    parent_canvas.fill(east, cell::shaders::full); //
                 //}
 
                 // Debug: Shade active viewport.

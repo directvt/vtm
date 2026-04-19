@@ -981,7 +981,7 @@ Notes
             <wrap=true     />   <!-- Enable or disable line wrapping. -->
             <reset onkey=true onoutput=false/>  <!-- Conditions to reset the scrollback viewport position to the bottom. -->
             <altscroll=true/>   <!-- Enable alternate scroll mode (e.g., for mouse wheel support in man/vim). -->
-            <oversize=0 opacity=0xFF/>  <!-- Horizontal scrollback padding (left and right). opacity: alpha value for transparency of non-scrolling fields (top/bottom/left/right). -->
+            <oversize=0    />   <!-- Horizontal scrollback padding (left and right). -->
         </scrollback>
         <colors>  <!-- Terminal color palette. -->
             <color0  = pureblack  />
