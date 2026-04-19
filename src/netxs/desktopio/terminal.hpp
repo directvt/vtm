@@ -7730,7 +7730,7 @@ namespace netxs::ui
                         image.layers = std::move(layers);
                     }
                     image.changed_gb_attrs = {};
-                    image.bitmap.reset(); // Request to re-rasterize.
+                    image.rasters_reset(); // Request to re-rasterize.
                     image.reset_changes();
                     image.check_and_set_document(doc_str, sub_id_str);
                     image.check_and_set_attr(gb_attrs, updated_layers);
