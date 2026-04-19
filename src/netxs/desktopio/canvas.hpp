@@ -1438,6 +1438,14 @@ namespace netxs
             std::vector<layer_t> layers;
             si32          attr_digest{}; // Stamp to sync with layers.
 
+            void rasters_reset()
+            {
+                for (auto& l : layers)
+                {
+                    l.bitmap.reset();
+                }
+                bitmap.reset();
+            }
             auto empty()
             {
                 return document.empty() && layers.empty();

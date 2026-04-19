@@ -2055,6 +2055,13 @@ namespace netxs::utf
         auto tail = utf8.end();
         return _find_char_except_escaped(head, tail, [&](auto iter){ return (view{ iter, tail }.starts_with(delims) || ...); });
     }
+    // utf: Find substring position iterator.
+    auto find_raw_substring(view& utf8, auto... delims)
+    {
+        auto head = utf8.begin();
+        auto tail = utf8.end();
+        return _find_char(head, tail, [&](auto iter){ return (view{ iter, tail }.starts_with(delims) || ...); });
+    }
     // utf: Find char position iterator ignoring backslashed.
     template<class Iter>
     auto find_char(Iter head, Iter tail, char delim)
@@ -2393,6 +2400,7 @@ namespace netxs::utf
             return crop;
         }
     }
+    // utf: Trim utf8 until any of delims is found, and return trims (taking backslashed).
     template<bool Lazy = true, class ...ViewList>
     auto take_front(view& utf8, std::tuple<ViewList...> const& delims)
     {
@@ -2400,6 +2408,31 @@ namespace netxs::utf
         auto tail = utf8.end();
         auto args = std::tuple_cat(std::make_tuple(utf8), delims);
         auto stop = std::apply(find_substring<ViewList...>, args);
+        if (stop == tail)
+        {
+            if constexpr (Lazy)
+            {
+                utf8 = {};
+                return qiew{ utf8 };
+            }
+            else
+            {
+                auto crop = qiew{ utf8 };
+                utf8 = {};
+                return crop;
+            }
+        }
+        auto str = qiew{ head, stop };
+        utf8.remove_prefix(str.size());
+        return str;
+    }
+    template<bool Lazy = faux, class ...ViewList>
+    auto take_binary_front(view& utf8, std::tuple<ViewList...> const& delims)
+    {
+        auto head = utf8.begin();
+        auto tail = utf8.end();
+        auto args = std::tuple_cat(std::make_tuple(utf8), delims);
+        auto stop = std::apply(find_raw_substring<ViewList...>, args);
         if (stop == tail)
         {
             if constexpr (Lazy)

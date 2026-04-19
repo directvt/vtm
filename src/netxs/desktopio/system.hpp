@@ -4695,8 +4695,11 @@ namespace netxs::os
                     if (io_log) log(prompt::vtty, "Writing thread joining", ' ', utf::to_hex_0x(stdwrite.get_id()));
                     stdwrite.join();
                 }
-                auto guard = std::lock_guard{ writemtx };
-                writebuf = {};
+                {
+                    auto guard = std::lock_guard{ writemtx };
+                    writebuf = {};
+                }
+                // Deadlock with writemtx: Processes try to write to the terminal when closing. Deadlock when closing nvim.exe's vtm desktop window if writemtx owned here.
                 if (termlink) termlink->cleanup(io_log);
             }
             void create(auto& terminal, eccc cfg, fdrw fds)

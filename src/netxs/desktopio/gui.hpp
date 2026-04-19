@@ -1756,7 +1756,7 @@ namespace netxs::gui
             {
                 if (image_ptr)
                 {
-                    image_ptr->bitmap.reset();
+                    image_ptr->rasters_reset();
                 }
             }
         }
