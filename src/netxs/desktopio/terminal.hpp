@@ -7520,7 +7520,6 @@ namespace netxs::ui
                     {
                         return utf::get_pair<'='>(attrs_str, netxs::whitespaces_and<'='>, netxs::whitespaces_and<'(', '<'>); // "... key=val<svg...>...</svg>"
                     };
-                    //todo sub-id: id=qqq/www
                     auto take_id = [](qiew& value_str, auto& id_str, auto& sub_id_str)
                     {
                         id_str = utf::take_front<faux>(value_str, " /\\");
@@ -7814,7 +7813,6 @@ namespace netxs::ui
                 }
                 else if (iter == image_cache.end() && (id_str || doc_str)) // If there is no id and svg then just clear viewport.
                 {
-                    //todo group by id
                     auto image_ptr = ptr::shared(imagens::image{ .id       = id_str,
                                                                  .sub_id   = sub_id_str,
                                                                  .document = doc_str,
