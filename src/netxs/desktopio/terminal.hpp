@@ -622,7 +622,7 @@ namespace netxs::ui
                 {
                     default:
                     case 6: queue.report(owner.target->coord); break;
-                    case 5: queue.add("OK");                   break;
+                    case 5: queue.add("\x1b[0n");              break; // "OK"
                     case-1: queue.add("VT420");                break;
                 }
                 owner.answer(queue);
