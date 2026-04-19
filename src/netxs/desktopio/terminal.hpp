@@ -1833,14 +1833,44 @@ namespace netxs::ui
             void msg(si32 cmd, qiew& q)
             {
                 parser::flush();
-                static constexpr auto DECRQSS_str = "$q"sv;     // Request settings. (Neovim using it)
-                static constexpr auto SIXEL_str   = "q"sv;      // Sixel image.
-                static constexpr auto ST_str      = "\x1b\\"sv; // ST.
+                static constexpr auto XTGETTCAP_str = "+q"sv;     // Request terminal capabilities. (Neovim using it) \eP+q5463;524742;73657472676266;73657472676262\e\\ .
+                static constexpr auto DECRQSS_str   = "$q"sv;     // Request settings. (Neovim using it)
+                static constexpr auto SIXEL_str     = "q"sv;      // Sixel image.
+                static constexpr auto ST_str        = "\x1b\\"sv; // ST.
                 auto reply = flux{};
                 auto data = utf::take_binary_front(q, std::tuple{ "\x1b\\"sv, "\a"sv });
                      if (q.size() > 0 && q.front() == '\a'  ) q.remove_prefix(1); // Pop '\a'.
                 else if (q.size() > 1 && q.front() == '\x1b') q.remove_prefix(2); // Pop "\e\\".
-                if (data.starts_with(DECRQSS_str))
+                if (data.starts_with(XTGETTCAP_str))
+                {
+                    data.remove_prefix(XTGETTCAP_str.size());
+                    if (data)
+                    {
+                        struct cap_info
+                        {
+                            view name;
+                            view reply;
+                        };
+                        // Full reply:  \eP1+r5463=1;524742=1\e\\ .
+                        //static constexpr auto setrgbf_str = "setrgbf"sv;  // SGR state request. Reply: \eP1+r73657472676266=1b5b33383a323a25703125643a25703225643a25703325646d\e\\ (setrgbf=\e[38:2::%p1%d:%p2%d:%p3%dm)
+                        //static constexpr auto setrgbb_str = "setrgbb"sv;  // SGR state request. Reply: ... (setrgbb=\e[48:2::%p1%d:%p2%d:%p3%dm)
+                        // Unsupported: \eP0+r<HEXNAME>\e\\ .
+                        // Reply: \eP1+rHEXKEY=1\e\\  =  \eP1+r524742=1\e\\ .
+                        static constexpr auto caps = std::to_array<cap_info>({ { utf::make_hex_view<"Tc"    >(), "1" }, // Tc  cap request. Reply: \eP1+r5463=1\e\\ .
+                                                                               { utf::make_hex_view<"RGB"   >(), "1" }, // RGB cap request. Reply: \eP1+r524742=1\e\\ .
+                                                                               { utf::make_hex_view<"Smulx" >(), utf::make_hex_view<"\x1b[4:%p1%dm">() }, // Styled underlines cap request.
+                                                                               { utf::make_hex_view<"Setulc">(), utf::make_hex_view<"\x1b[58:2::%p1%d:%p2%d:%p3%dm">() } }); // Colored underlines cap request.
+                        reply << "\x1bP+r"; // DCS
+                        auto count = 0;
+                        utf::split(data, ';', [&](auto termcap)
+                        {
+                            for (auto& cap : caps) if (termcap == cap.name) reply << (count++ ? ";" : "") << cap.name << "=" << cap.reply;
+                        });
+                        reply << ST_str;
+                        owner.write(reply.str());
+                    }
+                }
+                else if (data.starts_with(DECRQSS_str))
                 {
                     data.remove_prefix(DECRQSS_str.size());
                     static constexpr auto SGR_str     = "m"sv;  // SGR state request.

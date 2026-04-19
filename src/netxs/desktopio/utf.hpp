@@ -41,6 +41,36 @@ namespace netxs::utf
     using ctrl = unidata::cntrls;
 
     template<size_t N>
+    struct _fixed_string
+    {
+        char data[N];
+        constexpr _fixed_string(const char (&s)[N]) { for (auto i = 0; i < N; ++i) data[i] = s[i]; }
+    };
+    template<_fixed_string S>
+    constexpr auto _make_hex_array()
+    {
+        constexpr auto to_hex_char = [](auto v){ return (char)(v < 10 ? '0' + v : 'a' + (v - 10)); };
+        constexpr auto len = sizeof(S.data) - 1;
+        auto b = std::array<char, len * 2>{};
+        for (auto i = 0; i < len; ++i)
+        {
+            b[i * 2]     = to_hex_char((byte)S.data[i] >> 4 & 0xF);
+            b[i * 2 + 1] = to_hex_char((byte)S.data[i] & 0xF);
+        }
+        return b;
+    }
+    template<_fixed_string S>
+    struct _hex_storage
+    {
+        static constexpr auto buffer = _make_hex_array<S>();
+    };
+    template<_fixed_string S>
+    constexpr auto make_hex_view()
+    {
+        return view{ _hex_storage<S>::buffer.data(), _hex_storage<S>::buffer.size() };
+    }
+
+    template<size_t N>
     struct _str2array
     {
         std::array<char, N - 1> array;
