@@ -8215,7 +8215,7 @@ namespace netxs::ui
             switch (n)
             {
                 case 69: // Left/Right Margins.
-                    escbuf.add("\e[?69;0$y"); // We don't support this mode.
+                    escbuf.add("\x1b[?69;0$y"); // We don't support this mode.
                     break;
                 case 1000: // Mouse reporting.
                 case 1002: //
@@ -8224,10 +8224,10 @@ namespace netxs::ui
                 case 1004: // Focus reporting.
                 case 1049: // Altbuf.
                 case 2004: // Bracketed Paste.
-                    escbuf.add("\e[?").add(n).add(";1$y");
+                    escbuf.add("\x1b[?").add(n).add(";1$y");
                     break;
                 case 2026: // Synchronized Updates.
-                    escbuf.add("\e[?2026;0$y"); // We do not support this mode (we rely on lazy rendering).
+                    escbuf.add("\x1b[?2026;0$y"); // We do not support this mode (we rely on lazy rendering).
                     break;
                 case 2027: // Unicode Core (support grapheme clusters).
                     // Reply: \e[?2027;2$y  Turned off.
@@ -8236,7 +8236,7 @@ namespace netxs::ui
                     escbuf.add("\x1b[?2027;1$y");
                     break;
                 case 2031: // Extended Keys / Kitty Keyboard Protocol.
-                    escbuf.add("\e[?2031;0$y");
+                    escbuf.add("\x1b[?2031;0$y");
                     break;
                 case 2048: // Graphics. //todo
                     escbuf.add("");
