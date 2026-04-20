@@ -1247,15 +1247,16 @@ namespace netxs::ansi
     {
         using tree = func<fifo, T>;
 
-        tree table         ;
-        tree table_quest   ;
-        tree table_excl    ;
-        tree table_gt      ;
-        tree table_lt      ;
-        tree table_equals  ;
-        tree table_hash    ;
+        tree table;
+        tree table_quest;
+        tree table_quest_dollarsn;
+        tree table_excl;
+        tree table_gt;
+        tree table_lt;
+        tree table_equals;
+        tree table_hash;
         tree table_dollarsn;
-        tree table_space   ;
+        tree table_space;
         tree table_dblqoute;
         tree table_sglqoute;
         tree table_asterisk;
@@ -1290,6 +1291,8 @@ namespace netxs::ansi
             * - void cursor0(si32 i);                // Set cursor inside the cell.
             */
 
+            table_quest_dollarsn.resize(0x100);
+                table_quest_dollarsn[csi_ccc] = nullptr;
             table_quest   .resize(0x100);
                 table_quest[dec_set] = nullptr;
                 table_quest[dec_rst] = nullptr;
@@ -1443,18 +1446,19 @@ namespace netxs::ansi
         }
 
         void proceed(si32 cmd, T*& client) { table.execute(cmd, client); }
-        void proceed           (fifo& q, T*& p) { table         .execute(q, p); }
-        void proceed_quest     (fifo& q, T*& p) { table_quest   .execute(q, p); }
-        void proceed_gt        (fifo& q, T*& p) { table_gt      .execute(q, p); }
-        void proceed_lt        (fifo& q, T*& p) { table_lt      .execute(q, p); }
-        void proceed_hash      (fifo& q, T*& p) { table_hash    .execute(q, p); }
-        void proceed_equals    (fifo& q, T*& p) { table_equals  .execute(q, p); }
-        void proceed_excl      (fifo& q, T*& p) { table_excl    .execute(q, p); }
-        void proceed_dollarsn  (fifo& q, T*& p) { table_dollarsn.execute(q, p); }
-        void proceed_space     (fifo& q, T*& p) { table_space   .execute(q, p); }
-        void proceed_dblqoute  (fifo& q, T*& p) { table_dblqoute.execute(q, p); }
-        void proceed_sglqoute  (fifo& q, T*& p) { table_sglqoute.execute(q, p); }
-        void proceed_asterisk  (fifo& q, T*& p) { table_asterisk.execute(q, p); }
+        void proceed               (fifo& q, T*& p) { table               .execute(q, p); }
+        void proceed_quest         (fifo& q, T*& p) { table_quest         .execute(q, p); }
+        void proceed_quest_dollarsn(fifo& q, T*& p) { table_quest_dollarsn.execute(q, p); }
+        void proceed_gt            (fifo& q, T*& p) { table_gt            .execute(q, p); }
+        void proceed_lt            (fifo& q, T*& p) { table_lt            .execute(q, p); }
+        void proceed_hash          (fifo& q, T*& p) { table_hash          .execute(q, p); }
+        void proceed_equals        (fifo& q, T*& p) { table_equals        .execute(q, p); }
+        void proceed_excl          (fifo& q, T*& p) { table_excl          .execute(q, p); }
+        void proceed_dollarsn      (fifo& q, T*& p) { table_dollarsn      .execute(q, p); }
+        void proceed_space         (fifo& q, T*& p) { table_space         .execute(q, p); }
+        void proceed_dblqoute      (fifo& q, T*& p) { table_dblqoute      .execute(q, p); }
+        void proceed_sglqoute      (fifo& q, T*& p) { table_sglqoute      .execute(q, p); }
+        void proceed_asterisk      (fifo& q, T*& p) { table_asterisk      .execute(q, p); }
     };
 
     template<class T>
@@ -1614,7 +1618,11 @@ namespace netxs::ansi
                     {
                         ascii.pop_front();
                         fill(queue);
-                             if (c == '?' ) csier.proceed_quest   (queue, client);
+                        if (c == '?' )
+                        {
+                            if (b == '$') csier.proceed_quest_dollarsn(queue, client);
+                            else          csier.proceed_quest         (queue, client);
+                        }
                         else if (c == '>' ) csier.proceed_gt      (queue, client);
                         else if (c == '<' ) csier.proceed_lt      (queue, client);
                         else if (c == '=' ) csier.proceed_equals  (queue, client);

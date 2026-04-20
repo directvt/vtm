@@ -1184,6 +1184,7 @@ namespace netxs::ui
 
                 vt.csier.table_quest[dec_set] = V{ p->owner.decset(q); };
                 vt.csier.table_quest[dec_rst] = V{ p->owner.decrst(q); };
+                vt.csier.table_quest_dollarsn[csi_ccc] = V{ p->owner.decrqm(q); }; // DECRQM: CSI ? mode $ p
                 vt.csier.table[dec_set] = V{ p->owner.modset(q); }; // ESC [ n h
                 vt.csier.table[dec_rst] = V{ p->owner.modrst(q); }; // ESC [ n l
 
@@ -1858,6 +1859,7 @@ namespace netxs::ui
                         // Reply: \eP1+rHEXKEY=1\e\\  =  \eP1+r524742=1\e\\ .
                         static constexpr auto caps = std::to_array<cap_info>({ { utf::make_hex_view<"Tc"    >(), "1" }, // Tc  cap request. Reply: \eP1+r5463=1\e\\ .
                                                                                { utf::make_hex_view<"RGB"   >(), "1" }, // RGB cap request. Reply: \eP1+r524742=1\e\\ .
+                                                                               { utf::make_hex_view<"Ms"    >(), utf::make_hex_view<"\x1b]52;%p1%s;%p2%s\a">() }, // OSC52.
                                                                                { utf::make_hex_view<"Smulx" >(), utf::make_hex_view<"\x1b[4:%p1%dm">() }, // Styled underlines cap request.
                                                                                { utf::make_hex_view<"Setulc">(), utf::make_hex_view<"\x1b[58:2::%p1%d:%p2%d:%p3%dm">() } }); // Colored underlines cap request.
                         reply << "\x1bP+r"; // DCS
@@ -7314,6 +7316,7 @@ namespace netxs::ui
         si32       altscr; // term: Alternate scroll mode.
         prot       kbmode; // term: Keyboard input mode.
         escx       w32key; // term: win32-input-mode forward buffer.
+        escx       escbuf; // term: Reply buffer.
         bool       ime_on; // term: IME composition is active.
         para       imebox; // term: IME composition preview render.
         text       imetxt; // term: IME composition preview source.
@@ -7949,7 +7952,7 @@ namespace netxs::ui
             normal.brush.reset();
             ipccon.reset();
         }
-        // term: Set termnail parameters. (DECSET).
+        // term: Set terminal parameters. (DECSET).
         void _decset(si32 n)
         {
             switch (n)
@@ -8039,13 +8042,13 @@ namespace netxs::ui
                     break;
             }
         }
-        // term: Set termnail parameters. (DECSET).
+        // term: Set terminal parameters. (DECSET).
         void decset(si32 n)
         {
             target->flush();
             _decset(n);
         }
-        // term: Set termnail parameters. (DECSET).
+        // term: Set terminal parameters. (DECSET).
         void decset(fifo& q)
         {
             target->flush();
@@ -8152,19 +8155,19 @@ namespace netxs::ui
                     break;
             }
         }
-        // term: Reset termnail parameters. (DECRST).
+        // term: Reset terminal parameters. (DECRST).
         void decrst(si32 n)
         {
             target->flush();
             _decrst(n);
         }
-        // term: Reset termnail parameters. (DECRST).
+        // term: Reset termnal parameters. (DECRST).
         void decrst(fifo& q)
         {
             target->flush();
             while (auto next = q(0)) _decrst(next);
         }
-        // term: Set termnail parameters.
+        // term: Set terminal parameters.
         void _modset(si32 n)
         {
             switch (n)
@@ -8179,7 +8182,7 @@ namespace netxs::ui
                     break;
             }
         }
-        // term: Reset termnail parameters.
+        // term: Reset terminal parameters.
         void _modrst(si32 n)
         {
             switch (n)
@@ -8194,17 +8197,60 @@ namespace netxs::ui
                     break;
             }
         }
-        // term: Set termnail parameters.
+        // term: Set terminal parameters.
         void modset(fifo& q)
         {
             target->flush();
             while (auto next = q(0)) _modset(next);
         }
-        // term: Reset termnail parameters.
+        // term: Reset terminal parameters.
         void modrst(fifo& q)
         {
             target->flush();
             while (auto next = q(0)) _modrst(next);
+        }
+        // term: Reset terminal parameters.
+        void _decrqm(si32 n)
+        {
+            switch (n)
+            {
+                case 69: // Left/Right Margins.
+                    escbuf.add("\e[?69;0$y"); // We don't support this mode.
+                    break;
+                case 1000: // Mouse reporting.
+                case 1002: //
+                case 1003: //
+                case 1006: //
+                case 1004: // Focus reporting.
+                case 1049: // Altbuf.
+                case 2004: // Bracketed Paste.
+                    escbuf.add("\e[?").add(n).add(";1$y");
+                    break;
+                case 2026: // Synchronized Updates.
+                    escbuf.add("\e[?2026;0$y"); // We do not support this mode (we rely on lazy rendering).
+                    break;
+                case 2027: // Unicode Core (support grapheme clusters).
+                    // Reply: \e[?2027;2$y  Turned off.
+                    // Reply: \e[?2027;1$y  Terminal supports/active.
+                    // Reply: \e[?2027;0$y  Unknown.
+                    escbuf.add("\x1b[?2027;1$y");
+                    break;
+                case 2031: // Extended Keys / Kitty Keyboard Protocol.
+                    escbuf.add("\e[?2031;0$y");
+                    break;
+                case 2048: // Graphics. //todo
+                    escbuf.add("");
+                    break;
+                default:
+                    break;
+            }
+        }
+        // term: Request terminal mode. (DECRQM).
+        void decrqm(fifo& q)
+        {
+            target->flush();
+            while (auto next = q(0)) _decrqm(next);
+            answer(escbuf);
         }
         // term: Set scrollback buffer size and grow step.
         void sbsize(fifo& q)
