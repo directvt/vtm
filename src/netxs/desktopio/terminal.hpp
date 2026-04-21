@@ -7303,17 +7303,24 @@ namespace netxs::ui
             // scroll_buf: Remove all references to the image from the scrollback.
             void wipe_image_index(std::vector<ui16>& removed_image_indexes) override
             {
-                upbox.remove_image_bits(removed_image_indexes);
-                dnbox.remove_image_bits(removed_image_indexes);
-                auto wipe_batch = [&](auto policy) // Try to parallelize.
-                {
-                    std::for_each(policy, batch.begin(), batch.end(), [&](auto& l)
+                #if defined (__ANDROID__)
+                    std::for_each(batch.begin(), batch.end(), [&](auto& l)
                     {
                         l.remove_image_bits(removed_image_indexes);
                     });
-                };
-                batch.length() > 100000 ? wipe_batch(std::execution::par)
-                                        : wipe_batch(std::execution::seq);
+                #else
+                    upbox.remove_image_bits(removed_image_indexes);
+                    dnbox.remove_image_bits(removed_image_indexes);
+                    auto wipe_batch = [&](auto policy) // Try to parallelize.
+                    {
+                        std::for_each(policy, batch.begin(), batch.end(), [&](auto& l)
+                        {
+                            l.remove_image_bits(removed_image_indexes);
+                        });
+                    };
+                    batch.length() > 100000 ? wipe_batch(std::execution::par)
+                                            : wipe_batch(std::execution::seq);
+                #endif
             }
         };
 
