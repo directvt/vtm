@@ -2910,7 +2910,7 @@ namespace netxs
         constexpr auto& stl()        { return st.token;      } // cell: Return style token.
         constexpr auto& stl() const  { return st.token;      } // cell: Return style token.
         constexpr auto link() const  { return id;            } // cell: Return object ID.
-        constexpr auto isspc() const { return gc.is_space(); } // cell: Return true if char is whitespace.
+        constexpr auto isspc() const { return gc.is_space(); } // cell: Return true if char is whitespace (null included).
         constexpr auto isnul() const { return gc.is_null();  } // cell: Return true if char is null.
         auto issame_visual(cell const& c) const // cell: Is the cell visually identical.
         {
@@ -2918,7 +2918,7 @@ namespace netxs
             {
                 if (uv.bg == c.uv.bg)
                 {
-                    if (xy() == 0 || txt().front() == ' ')
+                    if (xy() == 0 || isspc())
                     {
                         return true;
                     }
