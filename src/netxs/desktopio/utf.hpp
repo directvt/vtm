@@ -44,7 +44,7 @@ namespace netxs::utf
     struct _fixed_string
     {
         char data[N];
-        constexpr _fixed_string(const char (&s)[N]) { for (auto i = 0; i < N; ++i) data[i] = s[i]; }
+        constexpr _fixed_string(const char (&s)[N]) { for (auto i = 0u; i < N; ++i) data[i] = s[i]; }
     };
     template<_fixed_string S>
     constexpr auto _make_hex_array()
@@ -52,7 +52,7 @@ namespace netxs::utf
         constexpr auto to_hex_char = [](auto v){ return (char)(v < 10 ? '0' + v : 'a' + (v - 10)); };
         constexpr auto len = sizeof(S.data) - 1;
         auto b = std::array<char, len * 2>{};
-        for (auto i = 0; i < len; ++i)
+        for (auto i = 0u; i < len; ++i)
         {
             b[i * 2]     = to_hex_char((byte)S.data[i] >> 4 & 0xF);
             b[i * 2 + 1] = to_hex_char((byte)S.data[i] & 0xF);

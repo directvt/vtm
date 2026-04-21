@@ -441,6 +441,11 @@ namespace netxs::ansi
             return f < 8 ? add("\033[", f + 30, ";22m") // CSI22m: Linux console unexpectedly sets the high intensity bit when CSI 9x m used.
                          : add("\033[", f + 90 - 8, "m");
         }
+        auto& bgc_16(si32 f) // basevt: SGR Foreground color (16-color mode).
+        {
+            return f < 8 ? add("\033[", f + 40, "m")
+                         : add("\033[", f + 100 - 8, "m");
+        }
         auto& bgc_8(si32 b) // basevt: SGR Background color (8-color mode).
         {
             return add("\033[", b + 40, 'm');
@@ -448,25 +453,41 @@ namespace netxs::ansi
         template<svga Mode = svga::vtrgb>
         auto& fgc(argb c) // basevt: SGR Foreground color. RGB: red, green, blue (+alpha for VT2D).
         {
-                 if constexpr (Mode == svga::vt16 ) return fgc_16(c.to_vtm16(true));
-            else if constexpr (Mode == svga::vt256) return fgc256(c.to_256cube());
-            else if constexpr (Mode == svga::vt_2D) return fgx(c);
-            else if constexpr (Mode == svga::vtrgb) return c.chan.a == 0 ? add("\033[39m")
-                                                                         : add("\033[38;2;", c.chan.r, ';',
-                                                                                             c.chan.g, ';',
-                                                                                             c.chan.b, 'm');
+            auto i = c.is_indexed();
+                 if constexpr (Mode == svga::vt16 ) return fgc_16(i ? argb{ argb::vt256[i - 1] }.to_vtm16(true) : c.to_vtm16(true));
+            else if constexpr (Mode == svga::vt256)
+            {
+                     if (i == 0 ) return fgc256(c.to_256cube());
+                else if (i >= 16) return fgc256(i - 1);
+                else              return fgc_16(i - 1);
+            }
+            else if constexpr (Mode == svga::vt_2D) return fgx(i ? argb{ argb::vt256[i - 1] } : c);
+            else if constexpr (Mode == svga::vtrgb)
+            {
+                     if (i == 0 ) return c.chan.a == 0 ? add("\033[39m") : add("\033[38;2;", c.chan.r, ';', c.chan.g, ';', c.chan.b, 'm');
+                else if (i <= 16) return fgc_16(i - 1);
+                else              return fgc256(i - 1);
+            }
             else return block;
         }
         template<svga Mode = svga::vtrgb>
         auto& bgc(argb c) // basevt: SGR Background color. RGB: red, green, blue.
         {
-                 if constexpr (Mode == svga::vt16 ) return bgc_8(c.to_vtm8());
-            else if constexpr (Mode == svga::vt256) return bgc256(c.to_256cube());
-            else if constexpr (Mode == svga::vt_2D) return bgx(c);
-            else if constexpr (Mode == svga::vtrgb) return c.chan.a == 0 ? add("\033[49m")
-                                                                         : add("\033[48;2;", c.chan.r, ';',
-                                                                                             c.chan.g, ';',
-                                                                                             c.chan.b, 'm');
+            auto i = c.is_indexed();
+                 if constexpr (Mode == svga::vt16 ) return bgc_8(i ? argb{ argb::vt256[i - 1] }.to_vtm8() : c.to_vtm8());
+            else if constexpr (Mode == svga::vt256)
+            {
+                     if (i == 0 ) return bgc256(c.to_256cube());
+                else if (i <= 16) return bgc_16(i - 1);
+                else              return bgc256(i - 1);
+            }
+            else if constexpr (Mode == svga::vt_2D) return bgx(i ? argb{ argb::vt256[i - 1] } : c);
+            else if constexpr (Mode == svga::vtrgb)
+            {
+                     if (i == 0 ) return c.chan.a == 0 ? add("\033[49m") : add("\033[48;2;", c.chan.r, ';', c.chan.g, ';', c.chan.b, 'm');
+                else if (i <= 16) return bgc_16(i - 1);
+                else              return bgc256(i - 1);
+            }
             else return block;
         }
         template<class ...Args>

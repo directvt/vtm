@@ -424,7 +424,6 @@ namespace netxs::gui
             bool monospaced{ faux };
             text font_name;
 
-            font_face_t() = default;
             font_face_t(font_face_t&&) = default;
             font_face_t(fonts& fcache, font_family_t& family_rec)
                 : fcache{ fcache },

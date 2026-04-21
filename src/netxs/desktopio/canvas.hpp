@@ -223,10 +223,14 @@ namespace netxs
             auto ok = (c.token & netxs::letoh(argb::indexed_mask)) == netxs::letoh(argb::indexed_color); // Check if it is in an indexed color format.
             return ok ? c.chan.b + 1 : 0;
         }
+        auto is_indexed() const
+        {
+            return argb::is_indexed_color(*this);
+        }
         // argb: Unpack true color.
         static auto unpack_indexed_color(argb c, auto& ext_vt256)
         {
-            if (auto index = is_indexed_color(c))
+            if (auto index = argb::is_indexed_color(c))
             {
                 return argb{ ext_vt256[index - 1] };
             }
@@ -234,6 +238,26 @@ namespace netxs
             {
                 return c;
             }
+        }
+        auto& unpack_indexed_color(auto& ext_vt256)
+        {
+            if (auto index = is_indexed())
+            {
+                token = netxs::letoh(ext_vt256[index - 1]);
+            }
+            return *this;
+        }
+        auto& unpack_indexed_color(auto& ext_vt256, argb def_clr)
+        {
+            if (token == 0) // argb::transparent
+            {
+                token = def_clr.token;
+            }
+            else if (auto index = is_indexed())
+            {
+                token = netxs::letoh(ext_vt256[index - 1]);
+            }
+            return *this;
         }
         auto& swap_rb()
         {
@@ -2146,8 +2170,10 @@ namespace netxs
                     {
                         if constexpr (UseSGR)
                         {
-                            auto f = fg.to_vtm16();
-                            auto b = bg.to_vtm8();
+                            auto f = fg.is_indexed();
+                            auto b = bg.is_indexed();
+                            f = f ? argb{ argb::vt256[f - 1] }.to_vtm16() : fg.to_vtm16();
+                            b = b ? argb{ argb::vt256[b - 1] }.to_vtm8()  : bg.to_vtm8();
                             if (fg != bg && f == b) // Avoid color collizions.
                             {
                                 fix_collision_vtm8(f);
@@ -3581,6 +3607,7 @@ namespace netxs
     }
 
     using vrgb = netxs::raw_vector<irgb<si32>>;
+    using pals = std::remove_const_t<decltype(argb::vt256)>;
 
     // canvas: Core grid.
     class core
@@ -4163,6 +4190,28 @@ namespace netxs
                 }
             }
             return hit;
+        }
+        void unpack_indexed_colors(pals const& palette, cell defclr)
+        {
+            auto def_fgc = defclr.fgc();
+            auto def_bgc = defclr.bgc();
+            for (auto& c : canvas)
+            {
+                c.fgc().unpack_indexed_color(palette, def_fgc);
+                c.bgc().unpack_indexed_color(palette, def_bgc);
+            }
+        }
+        void unpack_indexed_colors(core& dest, pals const& palette, cell defclr) const
+        {
+            auto def_fgc = defclr.fgc();
+            auto def_bgc = defclr.bgc();
+            dest.size(region.size);
+            netxs::oncopy(*this, dest, [&](auto& src, auto& dst)
+            {
+                dst = src;
+                dst.fgc().unpack_indexed_color(palette, def_fgc);
+                dst.bgc().unpack_indexed_color(palette, def_bgc);
+            });
         }
     };
 }

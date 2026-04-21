@@ -227,8 +227,6 @@ namespace netxs::ui
         // term: Terminal configuration.
         struct termconfig
         {
-            using pals = std::remove_const_t<decltype(argb::vt256)>;
-
             si32 def_mxline;
             si32 def_length;
             si32 def_growdt;
@@ -721,7 +719,6 @@ namespace netxs::ui
         // term: Terminal 16/256 color palette tracking functionality.
         struct c_tracking
         {
-            using pals = std::remove_const_t<decltype(argb::vt256)>;
             using func = utf::unordered_map<text, std::function<void(view)>>;
 
             enum class type { invalid, rgbcolor, request };
@@ -2590,6 +2587,7 @@ namespace netxs::ui
             // bufferbase: Pickup selected data from canvas.
             void selection_pickup(escx& buffer, rich& canvas, twod seltop, twod selend, si32 selmod, bool selbox)
             {
+                auto use_true_color = selmod == mime::richtext || selmod == mime::htmltext;
                 auto limits = panel - dot_11;
                 auto curtop = std::clamp(seltop, dot_00, limits);
                 auto curend = std::clamp(selend, dot_00, limits);
@@ -2601,10 +2599,25 @@ namespace netxs::ui
                 square.normalize_itself();
                 if (selbox || grip_1.coor.y == grip_2.coor.y)
                 {
-                    selmod == mime::disabled ||
-                    selmod == mime::textonly ||
-                    selmod == mime::safetext ? buffer.s11n<faux>(canvas, square)
-                                             : buffer.s11n<true>(canvas, square);
+                    if (selmod == mime::disabled
+                     || selmod == mime::textonly
+                     || selmod == mime::safetext)
+                    {
+                        buffer.s11n<faux>(canvas, square);
+                    }
+                    else
+                    {
+                        if (use_true_color)
+                        {
+                            auto baked = core{};
+                            canvas.unpack_indexed_colors(baked, owner.ctrack.color, owner.defclr);
+                            buffer.s11n<true>(baked, square);
+                        }
+                        else
+                        {
+                            buffer.s11n<true>(canvas, square);
+                        }
+                    }
                 }
                 else
                 {
@@ -2622,9 +2635,20 @@ namespace netxs::ui
                     }
                     else
                     {
-                        buffer.s11n<true, true, faux>(canvas, part_1);
-                        buffer.s11n<true, faux, faux>(canvas, part_2);
-                        buffer.s11n<true, faux, true>(canvas, part_3);
+                        if (use_true_color)
+                        {
+                            auto baked = core{};
+                            canvas.unpack_indexed_colors(baked, owner.ctrack.color, owner.defclr);
+                            buffer.s11n<true, true, faux>(baked, part_1);
+                            buffer.s11n<true, faux, faux>(baked, part_2);
+                            buffer.s11n<true, faux, true>(baked, part_3);
+                        }
+                        else
+                        {
+                            buffer.s11n<true, true, faux>(canvas, part_1);
+                            buffer.s11n<true, faux, faux>(canvas, part_2);
+                            buffer.s11n<true, faux, true>(canvas, part_3);
+                        }
                     }
                 }
             }
@@ -3106,7 +3130,10 @@ namespace netxs::ui
             //    }
             //    else
             //    {
-            //        crop.s11n<true, true, faux>(stripe, brush_state);
+            //        auto use_true_color = owner.selmod == mime::richtext || selmod == mime::htmltext;
+            //        auto baked = core{};
+            //        if (use_true_color) stripe.unpack_indexed_colors(baked, owner.ctrack.color, owner.defclr);
+            //        crop.s11n<true, true, faux>(use_true_colors ? baked : stripe, brush_state);
             //    }
             //    return crop;
             //}
@@ -5823,7 +5850,10 @@ namespace netxs::ui
             //    }
             //    else
             //    {
-            //        crop.s11n<true, true, faux>(stripe, brush_state);
+            //        auto use_true_color = owner.selmod == mime::richtext || selmod == mime::htmltext;
+            //        auto baked = core{};
+            //        if (use_true_color) stripe.unpack_indexed_colors(baked, owner.ctrack.color, owner.defclr);
+            //        crop.s11n<true, true, faux>(use_true_colors ? baked : stripe, brush_state);
             //    }
             //    return crop;
             //}
@@ -6621,6 +6651,7 @@ namespace netxs::ui
 
                 if (i_top == -1) return;
 
+                auto use_true_color = selmod == mime::richtext || selmod == mime::htmltext;
                 auto data = batch.begin();
                 auto head = data + i_top;
                 auto tail = data + i_end;
@@ -6644,6 +6675,10 @@ namespace netxs::ui
                         coor.y += curln.height(panel.x);
                     }
                     while (head++ != tail);
+                    if (use_true_color)
+                    {
+                        dest.unpack_indexed_colors(owner.ctrack.color, owner.defclr);
+                    }
                     selmod == mime::disabled ||
                     selmod == mime::textonly ||
                     selmod == mime::safetext ? yield.s11n<faux, faux, true>(dest, mark)
@@ -6651,6 +6686,7 @@ namespace netxs::ui
                 }
                 else
                 {
+                    auto baked = core{};
                     auto field = rect{ dot_00, dot_01 };
                     auto accum = cell{};
                     auto build = [&](auto print)
@@ -6701,7 +6737,8 @@ namespace netxs::ui
                                 s = curln.style;
                             }
                             auto block = escx{};
-                            block.s11n<true, faux, faux>(curln, field, accum);
+                            if (use_true_color) curln.unpack_indexed_colors(baked, owner.ctrack.color, owner.defclr);
+                            block.s11n<true, faux, faux>(use_true_color ? baked : curln, field, accum);
                             if (block.size() > 0) yield.add(block);
                             else                  yield.eol();
                         });
