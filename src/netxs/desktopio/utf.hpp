@@ -397,7 +397,7 @@ namespace netxs::utf
         constexpr prop& operator = (prop const&) = default;
 
         // prop: Check if the next codepooint could be attached to the cluster. Return zero to continue attaching. Return non-zero if cluster is closed.
-        auto combine(prop const& next)
+        auto is_outsider(prop const& next)
         {
             if (next.cdpoint && next.utf8len) // The codepoint '\0' cannot be a cluster fragment.
             {
@@ -630,7 +630,7 @@ namespace netxs::utf
                     if (next.correct)
                     {
                         next = code.take();
-                        if (auto size = left.combine(next))
+                        if (auto size = left.is_outsider(next))
                         {
                             return frag{ view(head, size), left };
                         }
@@ -709,7 +709,7 @@ namespace netxs::utf
                                 next = code.take();
                                 break;
                             }
-                            if (left.combine(next))
+                            if (left.is_outsider(next))
                             {
                                 auto crop = view(head, left.utf8len);
                                 if (!yield(crop)) return;
@@ -828,12 +828,12 @@ namespace netxs::utf
                         if (code0)
                         {
                             next0 = code0.take();
-                            if (left0.combine(next0)) break; // Unexpected break inside the last_cluster_str. Abort.
+                            if (left0.is_outsider(next0)) break; // Unexpected break inside the last_cluster_str. Abort.
                         }
                         else // The end of the last_cluster_str has been reached.
                         {
                             auto cmatrix = left0.cmatrix;
-                            if (!left0.combine(next)) // Rebuild (append) cluster.
+                            if (!left0.is_outsider(next)) // Rebuild (append) cluster.
                             {
                                 auto next_utf8len = 0_sz;
                                 while (true) // Iterate over code/next.
@@ -842,7 +842,20 @@ namespace netxs::utf
                                     code.step();
                                     if (next.correct)
                                     {
-                                        if (!code || (next = code.take(), left0.combine(next)))
+                                        if (code)
+                                        {
+                                            next = code.take();
+                                            if (left0.is_outsider(next))
+                                            {
+                                                pop_cluster(cmatrix);
+                                                last_cluster_str += utf8.substr(0, next_utf8len); // Append new codepoints to the last_cluster_str.
+                                                auto crop = frag{ last_cluster_str, left0 };
+                                                yield(crop);
+                                                if (!code) return view{ last_cluster_str };
+                                                break;
+                                            }
+                                        }
+                                        else
                                         {
                                             pop_cluster(cmatrix);
                                             last_cluster_str += utf8.substr(0, next_utf8len); // Append new codepoints to the last_cluster_str.
@@ -972,7 +985,18 @@ namespace netxs::utf
                             code.step();
                             if (next.correct)
                             {
-                                if (!code || (next = code.take(), left.combine(next)))
+                                if (code)
+                                {
+                                    next = code.take();
+                                    if (left.is_outsider(next))
+                                    {
+                                        last_cluster = view(head, left.utf8len);
+                                        auto crop = frag{ last_cluster, left };
+                                        yield(crop);
+                                        break;
+                                    }
+                                }
+                                else
                                 {
                                     last_cluster = view(head, left.utf8len);
                                     auto crop = frag{ last_cluster, left };
