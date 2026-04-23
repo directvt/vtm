@@ -396,44 +396,37 @@ namespace netxs::utf
         { }
         constexpr prop& operator = (prop const&) = default;
 
-        // prop: Check if the next codepooint could be attached to the cluster. Return zero to continue attaching. Return non-zero if cluster is closed.
-        auto is_outsider(prop const& next)
+        // prop: Append any non-control codepoint if the current cluster has no width.
+        auto we_has_no_width(prop const& next)
         {
-            if (next.cdpoint && next.utf8len) // The codepoint '\0' cannot be a cluster fragment.
+            return unidata::ucwidth == 0 && cdpoint && !next.is_cmd();
+        }
+        // prop: Combine if included. Return true if the next codepoint should be part of a cluster.
+        auto combine(prop const& next)
+        {
+            if (next.cdpoint >= matrix::min_vs_code && next.cdpoint <= matrix::max_vs_code) // Set matrix size.
             {
-                if (unidata::allied(next))
-                {
-                    if (next.cdpoint >= matrix::min_vs_code && next.cdpoint <= matrix::max_vs_code) // Set matrix size.
-                    {
-                        cmatrix = (si32)(next.cdpoint - matrix::vs_block);
-                        // Drop the next.cdpoint by returning 0_sz.
-                        //todo no more codepoints should be added (matrix modifier has the gbreak::ext property).
-                    }
-                    else
-                    {
-                        if (next.ucwidth > unidata::ucwidth)
-                        {
-                            unidata::ucwidth = next.ucwidth;
-                            cmatrix = mtx[unidata::ucwidth];
-                        }
-                        utf8len += next.utf8len;
-                        cpcount += 1;
-                    }
-                    return 0_sz;
-                }
-                else if (unidata::ucwidth == 0 && cdpoint && !next.is_cmd()) // Append any non-control code point if the current cluster has no width.
-                {
-                    if (next.ucwidth > unidata::ucwidth)
-                    {
-                        unidata::ucwidth = next.ucwidth;
-                        cmatrix = mtx[unidata::ucwidth];
-                    }
-                    utf8len += next.utf8len;
-                    cpcount += 1;
-                    return 0_sz;
-                }
+                cmatrix = (si32)(next.cdpoint - matrix::vs_block); // Update cluster metrics.
+                // Drop the next.cdpoint. Break grapheme cluster despite the matrix modifier has the gbreak::ext property.
+                return faux;
             }
-            return utf8len;
+            else
+            {
+                if (next.ucwidth > unidata::ucwidth)
+                {
+                    unidata::ucwidth = next.ucwidth;
+                    cmatrix = mtx[unidata::ucwidth];
+                }
+                utf8len += next.utf8len;
+                cpcount += 1;
+                return true;
+            }
+        }
+        // prop: Check if the next codepooint could be attached to the cluster. Return zero to continue attaching. Return non-zero if cluster is closed.
+        auto do_include(prop const& next)
+        {
+            return next.cdpoint && next.utf8len // The codepoint '\0' cannot be a cluster fragment.
+                && (unidata::allied(next) || we_has_no_width(next)); // Append any non-control codepoint if the current cluster has no width.
         }
     };
 
@@ -630,7 +623,9 @@ namespace netxs::utf
                     {
                         code.step();
                         next = code.take();
-                        if (!next.correct || left.is_outsider(next)) break;
+                        if (!next.correct) break;
+                        if (!left.do_include(next)) break; // Break on non combining character.
+                        if (!left.combine(next)) break; // Break on matrix modifier.
                     }
                     return frag{ view(head, left.utf8len), left };
                 }
@@ -679,7 +674,7 @@ namespace netxs::utf
             auto next = code.take();
             do
             {
-                if (!utf::non_control(next.cdpoint))
+                if (!utf::non_control(next.cdpoint)) // Skip controls.
                 {
                     code.step();
                     next = code.take();
@@ -696,8 +691,8 @@ namespace netxs::utf
                             if (!code)
                             {
                                 auto crop = view(head, left.utf8len);
-                                if (!yield(crop)) return;
-                                break;
+                                yield(crop);
+                                return;
                             }
                             next = code.take();
                             if (!utf::non_control(next.cdpoint)) // Skip controls.
@@ -706,9 +701,21 @@ namespace netxs::utf
                                 next = code.take();
                                 break;
                             }
-                            if (auto size = left.is_outsider(next))
+                            if (left.do_include(next))
                             {
-                                auto crop = view(head, size);
+                                if (!left.combine(next))
+                                {
+                                    auto crop = view(head, left.utf8len);
+                                    if (!yield(crop)) return;
+                                    code.step(); // Skip matrix modifier.
+                                    if (!code) return;
+                                    next = code.take();
+                                    break;
+                                }
+                            }
+                            else
+                            {
+                                auto crop = view(head, left.utf8len);
                                 if (!yield(crop)) return;
                                 break;
                             }
@@ -825,50 +832,66 @@ namespace netxs::utf
                         if (code0)
                         {
                             next0 = code0.take();
-                            if (left0.is_outsider(next0)) break; // Unexpected break inside the last_cluster_str. Abort.
+                            if (!left0.do_include(next0) // Unexpected break inside the last_cluster_str. Abort.
+                             || !left0.combine(next0)) break; // Unexpected matrix modifier.
                         }
                         else // The end of the last_cluster_str has been reached.
                         {
                             auto cmatrix = left0.cmatrix;
-                            if (!left0.is_outsider(next)) // Rebuild (append) cluster.
+                            if (left0.do_include(next)) // Rebuild (append) cluster.
                             {
-                                auto next_utf8len = 0_sz;
-                                while (true) // Iterate over code/next.
+                                if (!left0.combine(next)) // Matrix modifier is found at the first place. Don't append it to the last_cluster_str.
                                 {
-                                    next_utf8len += next.utf8len;
+                                    pop_cluster(cmatrix);
+                                    auto crop = frag{ last_cluster_str, left0 };
+                                    yield(crop);
                                     code.step();
-                                    if (next.correct)
+                                    if (!code) return last_cluster;
+                                    next = code.take();
+                                }
+                                else
+                                {
+                                    auto next_utf8len = 0_sz;
+                                    while (true) // Iterate over code/next.
                                     {
-                                        if (code)
-                                        {
-                                            next = code.take();
-                                            if (left0.is_outsider(next))
-                                            {
-                                                pop_cluster(cmatrix);
-                                                last_cluster_str += utf8.substr(0, next_utf8len); // Append new codepoints to the last_cluster_str.
-                                                auto crop = frag{ last_cluster_str, left0 };
-                                                yield(crop);
-                                                if (!code) return view{ last_cluster_str };
-                                                break;
-                                            }
-                                        }
-                                        else
+                                        next_utf8len += next.utf8len;
+                                        code.step();
+                                        if (!code)
                                         {
                                             pop_cluster(cmatrix);
                                             last_cluster_str += utf8.substr(0, next_utf8len); // Append new codepoints to the last_cluster_str.
                                             auto crop = frag{ last_cluster_str, left0 };
                                             yield(crop);
+                                            code.step();
                                             if (!code) return view{ last_cluster_str };
+                                            next = code.take();
                                             break;
                                         }
-                                    }
-                                    else // Broken cluster. Don't append.
-                                    {
-                                        auto crop = frag{ replacement, next };
-                                        yield(crop);
-                                        if (!code) return last_cluster;
                                         next = code.take();
-                                        break;
+                                        if (next.correct)
+                                        {
+                                            if (!left0.do_include(next)
+                                             || !left0.combine(next)) // Matrix modifier is found.
+                                            {
+                                                pop_cluster(cmatrix);
+                                                last_cluster_str += utf8.substr(0, next_utf8len); // Append new codepoints to the last_cluster_str.
+                                                auto crop = frag{ last_cluster_str, left0 };
+                                                yield(crop);
+                                                code.step();
+                                                if (!code) return last_cluster;
+                                                next = code.take();
+                                                break;
+                                            }
+                                        }
+                                        else // Broken cluster. Don't append.
+                                        {
+                                            auto crop = frag{ replacement, next };
+                                            yield(crop);
+                                            code.step();
+                                            if (!code) return last_cluster;
+                                            next = code.take();
+                                            break;
+                                        }
                                     }
                                 }
                             }
@@ -980,24 +1003,31 @@ namespace netxs::utf
                         while (true)
                         {
                             code.step();
+                            if (!code)
+                            {
+                                last_cluster = view(head, left.utf8len);
+                                auto crop = frag{ last_cluster, left };
+                                yield(crop);
+                                break;
+                            }
+                            next = code.take();
                             if (next.correct)
                             {
-                                if (code)
-                                {
-                                    next = code.take();
-                                    if (left.is_outsider(next))
-                                    {
-                                        last_cluster = view(head, left.utf8len);
-                                        auto crop = frag{ last_cluster, left };
-                                        yield(crop);
-                                        break;
-                                    }
-                                }
-                                else
+                                if (!left.do_include(next)) // Classic cluster.
                                 {
                                     last_cluster = view(head, left.utf8len);
                                     auto crop = frag{ last_cluster, left };
                                     yield(crop);
+                                    break;
+                                }
+                                else if (!left.combine(next)) // Combine and check if VT2D.
+                                {
+                                    last_cluster = {};
+                                    auto crop = frag{ view(head, left.utf8len), left };
+                                    yield(crop);
+                                    code.step(); // Skip cmatrix.
+                                    if (!code) return last_cluster;
+                                    next = code.take();
                                     break;
                                 }
                             }

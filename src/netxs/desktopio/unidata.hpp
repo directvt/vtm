@@ -274,7 +274,7 @@ namespace netxs::unidata
         // Unicode 15.1.0 UAX #29 https://www.unicode.org/reports/tr29/#Grapheme_Cluster_Boundary_Rules
         bool allied(unidata const& next)
         {
-            static const auto lut = []
+            static constexpr auto lut = []
             {
                 auto table = std::array<byte, gbreak::count * gbreak::count>{};
                 auto check = [](auto l, auto r)
