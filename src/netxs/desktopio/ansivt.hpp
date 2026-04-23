@@ -1488,8 +1488,16 @@ namespace netxs::ansi
         static auto vt_parser = typename T::template vt_parser<T>{};
         return vt_parser;
     }
-    template<class T> void parse(view utf8, T*&  dest) { ansi::get_parser<T>().parse(utf8, dest); }
-    template<class T> void parse(view utf8, T*&& dest) { auto dptr = dest; parse(utf8, dptr); }
+    template<class T> void parse(view utf8, T*&  dest)
+    {
+        auto& vt_parser = ansi::get_parser<T>();
+        vt_parser.parse(utf8, dest);
+    }
+    template<class T> void parse(view utf8, T*&& dest)
+    {
+        auto dptr = dest;
+        parse(utf8, dptr);
+    }
 
     template<class T> using esc_t = func<qiew, T>;
     template<class T> using osc_h = std::function<void(view&, T*&)>;
@@ -1528,22 +1536,24 @@ namespace netxs::ansi
             auto decsg = client->decsg;
             auto s = [&](auto const& traits, qiew utf8)
             {
-                client->defer = faux;
+                client->last_cluster = {};
                 intro.execute(traits.control, utf8, client); // Make one iteration using firstcmd and return.
                 decsg = client->decsg; // Sync DECSG mode if buffer/client changed. //todo Should we make it shared among buffers?
                 return utf8;
             };
+            auto p = [&](si32 cmatrix)
+            {
+                client->pop_cluster(cmatrix);
+            };
             auto y = [&](auto const& cluster)
             {
                 client->post(cluster);
-                client->defer = true;
             };
             auto a = [&](view plain)
             {
                 client->ascii(plain);
-                client->defer = true;
             };
-            utf::decode(s, y, a, utf8, decsg);
+            client->last_cluster = utf::decode(client->last_cluster, utf8, decsg, s, y, a, p);
             client->flush();
         }
         // vt_parser: Static UTF-8/ANSI parser proc.
@@ -1812,8 +1822,8 @@ namespace netxs::ansi
         deco style{}; // parser: Parser style.
         deco state{}; // parser: Parser style last state.
         mark brush{}; // parser: Parser brush.
+        text last_cluster{}; // parser: The last cluster that could continue to grow.
         si32 decsg{}; // parser: DEC Special Graphics Mode.
-        bool defer{}; // parser: The last character was a cluster that could continue to grow.
 
     private:
         core::body proto_cells{}; // parser: Proto lyric.
@@ -1864,7 +1874,7 @@ namespace netxs::ansi
             }
             proto_count = 0;
             proto_cells.clear();
-            defer = faux;
+            last_cluster = {};
         }
         auto empty() const
         {
@@ -1931,7 +1941,6 @@ namespace netxs::ansi
             {
                 // Test :
                 //      echo -e '\U2069+123'; echo -e '+\U2068+123'; echo -e '\e[42m+123\U2068\e[m'; echo -e '123\U202C++';
-
                 //todo implement LRE RLE etc. Now all Cf's are stored within clusters.
                 //auto& marker = get_ansi_marker();
                 //if (auto set_prop = marker.setter[attr.control])
@@ -1983,6 +1992,7 @@ namespace netxs::ansi
         }
         virtual void meta(deco const& /*old_style*/) { };
         virtual void data(si32 /*width*/, si32 /*height*/, core::body const& /*proto*/) { };
+        virtual void pop_cluster(si32 /*cmatrix*/) { };
     };
 
     // ansi: Cursor manipulation command list.

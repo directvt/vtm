@@ -2876,7 +2876,7 @@ namespace netxs::ui
                 canvas.cutoff(coord, n, brush.spare.spc());
             }
             // alt_screen: '\x7F'  Delete letter backward.
-            void del(si32 n) override
+            void _del(si32 n)
             {
                 bufferbase::flush();
                 n = std::max(0, n);
@@ -2887,6 +2887,11 @@ namespace netxs::ui
                 }
                 canvas.backsp(coord, n, brush.spare.spc());
                 if (coord.y < 0) coord = dot_00;
+            }
+            void del(si32 n) override
+            {
+                bufferbase::flush();
+                _del(n);
             }
             // alt_screen: Move cursor by n in line.
             void move(si32 n) override
@@ -3010,6 +3015,12 @@ namespace netxs::ui
                 {
                     _data(count, proto, fuse);
                 }
+            }
+            // alt_screen: Pop back the last cluster (parser callback).
+            void pop_cluster(si32 cmatrix) override
+            {
+                auto [w, h, x, y] = utf::matrix::whxy(cmatrix);
+                _del(w);
             }
             // alt_screen: Parser callback.
             void data(si32 width, si32 height, core::body const& proto) override
@@ -4993,9 +5004,8 @@ namespace netxs::ui
                 assert(test_coord());
             }
             // scroll_buf: '\x7F'  Delete letters backward (by defclr) and move cursor back. Nobody do it (tested in WT, VTE).
-            void del(si32 n) override
+            void _del(si32 n)
             {
-                bufferbase::flush();
                 n = std::min(n, batch.caret);
                 if (batch.caret > 0 && n > 0)
                 {
@@ -5003,6 +5013,11 @@ namespace netxs::ui
                     auto& curln = batch.current();
                     curln.splice<faux>(batch.caret, n, brush.spare.spc());
                 }
+            }
+            void del(si32 n) override
+            {
+                bufferbase::flush();
+                _del(n);
             }
             // scroll_buf: Move cursor by n in line.
             void move(si32 n) override
@@ -5355,6 +5370,12 @@ namespace netxs::ui
                 {
                     _data(count, proto, fuse);
                 }
+            }
+            // scroll_buf: Pop back the last cluster (parser callback).
+            void pop_cluster(si32 cmatrix) override
+            {
+                auto [w, h, x, y] = utf::matrix::whxy(cmatrix);
+                _del(w);
             }
             // scroll_buf: Proceed new text (parser callback).
             void data(si32 width, si32 height, core::body const& proto) override
