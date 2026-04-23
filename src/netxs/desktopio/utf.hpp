@@ -626,23 +626,13 @@ namespace netxs::utf
                 auto left = next;
                 if (left.correct)
                 {
-                    while (true)
+                    while (code)
                     {
                         code.step();
                         next = code.take();
-                        if (next.correct)
-                        {
-                            if (auto size = left.is_outsider(next))
-                            {
-                                return frag{ view(head, size), left };
-                            }
-                        }
-                        else
-                        {
-                            next.utf8len = left.utf8len;
-                            return frag{ replacement, next };
-                        }
+                        if (!next.correct || left.is_outsider(next)) break;
                     }
+                    return frag{ view(head, left.utf8len), left };
                 }
                 else
                 {
