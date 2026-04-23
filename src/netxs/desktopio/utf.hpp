@@ -624,22 +624,29 @@ namespace netxs::utf
                 }
                 auto head = code.textptr;
                 auto left = next;
-                while (true)
+                if (left.correct)
                 {
-                    code.step();
-                    if (next.correct)
+                    while (true)
                     {
+                        code.step();
                         next = code.take();
-                        if (auto size = left.is_outsider(next))
+                        if (next.correct)
                         {
-                            return frag{ view(head, size), left };
+                            if (auto size = left.is_outsider(next))
+                            {
+                                return frag{ view(head, size), left };
+                            }
+                        }
+                        else
+                        {
+                            next.utf8len = left.utf8len;
+                            return frag{ replacement, next };
                         }
                     }
-                    else
-                    {
-                        next.utf8len = left.utf8len;
-                        return frag{ replacement, next };
-                    }
+                }
+                else
+                {
+                    return frag{ replacement, left };
                 }
             }
             return frag{ replacement, prop{ 0 } };
@@ -709,9 +716,9 @@ namespace netxs::utf
                                 next = code.take();
                                 break;
                             }
-                            if (left.is_outsider(next))
+                            if (auto size = left.is_outsider(next))
                             {
-                                auto crop = view(head, left.utf8len);
+                                auto crop = view(head, size);
                                 if (!yield(crop)) return;
                                 break;
                             }
