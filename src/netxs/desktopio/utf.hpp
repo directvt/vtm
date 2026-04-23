@@ -669,68 +669,60 @@ namespace netxs::utf
     // utf: Break text into grapheme clusters filtered from control codepoints.
     void decode_clusters(view utf8, auto yield)
     {
-        if (auto code = cpit{ utf8 })
+        auto code = cpit{ utf8 };
+        while (code)
         {
             auto next = code.take();
-            do
+            if (next.correct && !utf::non_control(next.cdpoint)) // Skip controls.
             {
-                if (!utf::non_control(next.cdpoint)) // Skip controls.
+                code.step();
+            }
+            else
+            {
+                auto head = code.textptr;
+                auto left = next;
+                while (true)
                 {
                     code.step();
-                    next = code.take();
-                }
-                else
-                {
-                    auto head = code.textptr;
-                    auto left = next;
-                    while (true)
+                    if (next.correct)
                     {
-                        code.step();
-                        if (next.correct)
+                        if (!code)
                         {
-                            if (!code)
-                            {
-                                auto crop = view(head, left.utf8len);
-                                yield(crop);
-                                return;
-                            }
-                            next = code.take();
-                            if (!utf::non_control(next.cdpoint)) // Skip controls.
-                            {
-                                code.step();
-                                next = code.take();
-                                break;
-                            }
-                            if (left.do_include(next))
-                            {
-                                if (!left.combine(next))
-                                {
-                                    auto crop = view(head, left.utf8len);
-                                    if (!yield(crop)) return;
-                                    code.step(); // Skip matrix modifier.
-                                    if (!code) return;
-                                    next = code.take();
-                                    break;
-                                }
-                            }
-                            else
+                            auto crop = view(head, left.utf8len);
+                            yield(crop);
+                            return;
+                        }
+                        next = code.take();
+                        if (next.correct && !utf::non_control(next.cdpoint)) // Skip controls.
+                        {
+                            code.step();
+                            break;
+                        }
+                        if (left.do_include(next))
+                        {
+                            if (!left.combine(next))
                             {
                                 auto crop = view(head, left.utf8len);
                                 if (!yield(crop)) return;
+                                code.step(); // Skip matrix modifier.
                                 break;
                             }
                         }
                         else
                         {
-                            auto crop = replacement;
+                            auto crop = view(head, left.utf8len);
                             if (!yield(crop)) return;
-                            next = code.take();
                             break;
                         }
                     }
+                    else
+                    {
+                        auto crop = replacement;
+                        if (!yield(crop)) return;
+                        break;
+                    }
                 }
             }
-            while (code);
         }
     }
     // utf: Break the text into the grapheme clusters.
