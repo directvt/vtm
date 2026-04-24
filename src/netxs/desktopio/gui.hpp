@@ -34,6 +34,13 @@ namespace netxs::gui
         static constexpr auto bold        = 2;
         static constexpr auto bold_italic = bold | italic;
         static constexpr auto count       = 4;
+        static auto str(si32 style_id)
+        {
+            return style_id == regular     ? "regular"
+                 : style_id == italic      ? "italic"
+                 : style_id == bold        ? "bold"
+                 : style_id == bold_italic ? "bold|italic" : "na";
+        }
     };
 
     struct cfg_t
@@ -347,12 +354,12 @@ namespace netxs::gui
                 if ((!file_buff && !os::io::load_file(file_path, file_buff.buffer))
                     || FT_Err_Ok != ::FT_New_Memory_Face(fcache.ft_library.get(), file_buff.buffer.data(), (FT_Long)file_buff.buffer.size(), bare_face_ptr->face_index, &raw_face)) // Read a whole font/collection file (relatively slow, e.g. with 30Mb font files).
                 {
-                    log("%%Failed to load font family file '%family_name%' (style_id=%%): %filename%", prompt::gui, family_ref.family_name, style_id, utf8_path);
+                    log("%%Failed to load font family file '%family_name%' (style_id=%%): %filename%", prompt::gui, family_ref.family_name, font_style::str(style_id), utf8_path);
                     bare_face_ptr->valid = faux;
                 }
                 else
                 {
-                    log("%%Using font family '%family_name%': %iscolor%, index %index%, style=%%", prompt::gui, family_ref.family_name, family_ref.is_color != fonts::color_type::mono ? "color" : "monochromatic", fcache.font_fallback.size(), style_id);
+                    log("%%Using font family '%family_name%': %iscolor%, index %index%, style=%%", prompt::gui, family_ref.family_name, family_ref.is_color != fonts::color_type::mono ? "color" : "monochromatic", fcache.font_fallback.size(), font_style::str(style_id));
                     // Apply axes.
                     if (bare_face_ptr->is_variable_font)
                     {
@@ -509,7 +516,7 @@ namespace netxs::gui
                 //log("Sort family '%%'", family_ref.family_name);
                 //for (auto style_id : { font_style::regular, font_style::bold, font_style::italic, font_style::bold_italic })
                 //{
-                //    log("style_id=", style_id);
+                //    log("style_id=", font_style::str(style_id));
                 //    auto& sorted_list = sorted_face_list[style_id];
                 //    for (auto& bare_face_rec : sorted_list)
                 //    {

@@ -2131,7 +2131,12 @@ namespace netxs::directvt
                 for (auto& jgc : lock.thing)
                 {
                     jumbos.set(jgc.token, jgc.cluster);
-                    if constexpr (debugmode) log(prompt::s11n, "New gc token: ", utf::to_hex_0x(jgc.token), " cluster size ", jgc.cluster.size(), " data: ", jgc.cluster);
+                    if constexpr (debugmode)
+                    {
+                        auto new_cluster = text{ utf::matrix::stx } + jgc.cluster;
+                        utf::to_utf_from_code(utf::matrix::vs_runtime(3, 1, 0, 0), new_cluster);
+                        log(prompt::s11n, "New gc token: ", utf::to_hex_0x(jgc.token), " cluster size ", jgc.cluster.size(), " data: ", new_cluster);
+                    }
                 }
             }
             // s11n: Recycle logs.
