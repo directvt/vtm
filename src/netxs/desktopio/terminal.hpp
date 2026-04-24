@@ -8226,7 +8226,7 @@ namespace netxs::ui
             target->flush();
             _decrst(n);
         }
-        // term: Reset termnal parameters. (DECRST).
+        // term: Reset terminal parameters. (DECRST).
         void decrst(fifo& q)
         {
             target->flush();
