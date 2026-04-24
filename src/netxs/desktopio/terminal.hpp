@@ -8778,10 +8778,11 @@ namespace netxs::ui
                     {
                         if (gear.whlsi)
                         {
-                            auto count = std::abs(gear.whlsi);
+                            //auto count = std::abs(gear.whlsi);
                             auto arrow = decckm ? gear.whlsi > 0 ? "\033OA"sv : "\033OB"sv
                                                 : gear.whlsi > 0 ? "\033[A"sv : "\033[B"sv;
-                            data_out(utf::repeat(arrow, count));
+                            //data_out(utf::repeat(arrow, count)); // Don't repeat arrow keys in alternate scroll mode.
+                            data_out(arrow);
                         }
                         gear.dismiss();
                     }
