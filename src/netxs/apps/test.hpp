@@ -65,6 +65,7 @@ namespace netxs::app::test
                 .add("\n")
                 .add(header(skin::globals().NsInfoSubcellSize))
                 .add("\n")
+                .add("😉", vss<11>) // Color emoji font load trigger.
                 .add("\2Cell", utf::vs10, utf::vs08, vss<11>)
                 .add("        ")
                 .add("\2Word", utf::vs10, vss<11>)

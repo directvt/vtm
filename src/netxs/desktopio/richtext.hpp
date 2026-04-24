@@ -1169,7 +1169,7 @@ namespace netxs::ui
         }
         //todo make it 2D
         // rich: Pop glyph matrix.
-        auto pop_cluster()
+        auto pop_cluster(bool peek = faux)
         {
             auto cluster = netxs::text{};
             auto size = (si32)core::canvas.size();
@@ -1201,8 +1201,11 @@ namespace netxs::ui
                     }
                     if (head == tail)
                     {
-                        cluster = back.txt();
-                        if (cluster.size())
+                        if (peek)
+                        {
+                            cluster = back.txt();
+                        }
+                        else
                         {
                             core::crop(size - w);
                         }
@@ -1248,28 +1251,21 @@ namespace netxs::ui
         auto& operator  = (auto utf8) { wipe(brush);    ansi::parse(utf8, this); return *this; }
         auto& operator += (auto utf8)
         {
-            if (parser::defer && caret && caret == length())
-            {
-                //if constexpr (debugmode) log("try to reassemble cluster=", lyric->back().txt());
-                auto last_cluster = lyric->pop_cluster();
-                if (caret != length())
-                {
-                    caret = length();
-                    auto reassembled_cluster = text{};
-                    reassembled_cluster.reserve(last_cluster.length() + utf8.length());
-                    reassembled_cluster += last_cluster;
-                    reassembled_cluster += utf8;
-                    ansi::parse(reassembled_cluster, this);
-                    //if constexpr (debugmode) log("\treassembled_cluster=", utf::buffer_to_hex(reassembled_cluster, true));
-                    return *this;
-                }
-            }
             ansi::parse(utf8, this);
             return *this;
         }
 
         operator writ const& () const { return locus; }
 
+        void pop_cluster(si32 /*cmatrix*/) override
+        {
+            //todo use cmatrix
+            if (length())
+            {
+                lyric->pop_cluster(faux);
+                caret = length();
+            }
+        }
         void decouple() { lyric = ptr::shared<rich>(*lyric); } // para: Make canvas isolated copy.
         void  content(rich& r){ *lyric = r; caret = r.length(); } // para: Set paragraph content.
         auto& content() const { return *lyric; } // para: Return paragraph content.
@@ -1474,8 +1470,8 @@ namespace netxs::ui
                 auto left = line.take_piece(0, caret);
                 auto right = line.take_piece(caret);
                 std::swap(left, line);
-                parser::defer = true;
                 auto prev_caret = caret;
+                parser::last_cluster = line.pop_cluster(true);
                 operator+=(utf8);
                 caret = line.length();
                 if (inserting)

@@ -8,7 +8,7 @@
 
 using namespace netxs;
 
-enum class type { client, server, daemon, logmon, runapp, config };
+enum class type { client, server, daemon, logmon, runapp, config, lsfont };
 enum class code { noaccess, noserver, nodaemon, nosrvlog, interfer, errormsg };
 
 int main(int argc, char* argv[])
@@ -21,6 +21,7 @@ int main(int argc, char* argv[])
     auto script = text{};
     auto rungui = true;
     auto system = faux;
+    auto detail = faux;
     auto getopt = os::process::args{ argc, argv };
     if (getopt.starts("ssh"))
     {
@@ -29,7 +30,12 @@ int main(int argc, char* argv[])
     }
     else while (getopt)
     {
-        if (getopt.match("--cwd"))
+        if (getopt.match("--fonts"))
+        {
+            whoami = type::lsfont;
+            detail = !getopt.next().empty();
+        }
+        else if (getopt.match("--cwd"))
         {
             auto path = getopt.next();
             if (path.size())
@@ -190,6 +196,7 @@ int main(int argc, char* argv[])
                 "\n    <args...>            Desktop applet arguments."
                 "\n    --env <var=val>      Set environment variable."
                 "\n    --cwd <path>         Set current working directory."
+                "\n    --fonts [v[erbose]]  Print available fonts (with horizontal scrolling)."
                 "\n"
                 "\n    Desktop applet             │ Type │ Arguments"
                 "\n    ───────────────────────────┼──────┼─────────────────────────────────────────────────"
@@ -235,7 +242,7 @@ int main(int argc, char* argv[])
     auto interactive = whoami == type::runapp || whoami == type::client;
     os::dtvt::initialize(rungui, true, interactive);
 
-    if (os::dtvt::vtmode & ui::console::redirio && (whoami == type::runapp || whoami == type::client))
+    if (whoami != type::lsfont && os::dtvt::vtmode & ui::console::redirio && (whoami == type::runapp || whoami == type::client))
     {
         whoami = type::logmon;
     }
@@ -261,6 +268,16 @@ int main(int argc, char* argv[])
     if (errmsg.size())
     {
         return failed(code::errormsg);
+    }
+    else if (whoami == type::lsfont)
+    {
+        auto config = xml::settings{};
+        app::shared::load::settings(config, cliopt, faux);
+        auto gui_config = app::shared::get_gui_config(config);
+        if (auto fcache = gui::fonts{ gui_config.font_names, gui_config.font_axes, gui_config.cell_height })
+        {
+            fcache.log_fonts(detail);
+        }
     }
     else if (whoami == type::config)
     {

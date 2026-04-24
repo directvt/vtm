@@ -625,20 +625,20 @@ namespace netxs::os
                 template<svga Mode>
                 auto attr(cell const& c)
                 {
-                    auto& fgc = c.fgc();
-                    auto& bgc = c.bgc();
-                    auto f = si32{};
-                    auto b = si32{};
+                    auto fgc = c.fgc();
+                    auto bgc = c.bgc();
+                    auto f = fgc.is_indexed();
+                    auto b = bgc.is_indexed();
                     if constexpr (Mode == svga::nt16)
                     {
-                        f = fgc.to_vga16(true);
-                        b = bgc.to_vga16(faux);
+                        if (!f) f = fgc.to_vga16(true); else if (--f >= 16) f = argb{ argb::vt256[f] }.to_vga16(true);
+                        if (!b) b = bgc.to_vga16(faux); else if (--b >= 16) b = argb{ argb::vt256[b] }.to_vga16(faux);
                         if (f == b && fgc != bgc) cell::clrs::fix_collision_vga16(f);
                     }
                     else
                     {
-                        f = fgc.to_vtm16(true);
-                        b = bgc.to_vtm16(faux);
+                        if (!f) f = fgc.to_vtm16(true); else f = argb{ argb::vt256[f - 1] }.to_vtm16(true);
+                        if (!b) b = bgc.to_vtm16(faux); else b = argb{ argb::vt256[b - 1] }.to_vtm16(faux);
                         if (f == b && fgc != bgc) cell::clrs::fix_collision_vtm16(f);
                     }
                     if (c.inv()) std::swap(f, b);

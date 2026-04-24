@@ -22,7 +22,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v2026.04.19";
+    static const auto version = "v2026.04.24";
     static const auto repository = "https://github.com/directvt/vtm";
     static const auto usr_config = "~/.config/vtm/settings.xml"s;
     static const auto sys_config = "/etc/vtm/settings.xml"s;
@@ -1162,7 +1162,10 @@ namespace netxs::app::shared
                 //todo sync settings with tui_domain (auth::config)
                 auto gui_event_domain = netxs::events::auth{};
                 auto window = gui_event_domain.create<gui::window>(gui_event_domain, gc, dot_21);
-                window->connect();
+                if (window->fcache)
+                {
+                    window->connect();
+                }
             };
             if (os::stdout_fd != os::invalid_fd)
             {

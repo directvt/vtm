@@ -38,6 +38,7 @@ Option                  | Description
 `<args...>`             | Desktop applet arguments.
 `--env <var=val>`       | Set environment variable.
 `--cwd <path>`          | Set current working directory.
+`--fonts [v[erbose]]`   | Print available fonts (with horizontal scrolling).
 
 #### Inline configuration
 

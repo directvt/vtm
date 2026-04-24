@@ -2135,7 +2135,7 @@ struct impl : consrv
                              && next.cdpoint < 65536 ? BMPtoOEM[next.cdpoint]
                                                      : defchar();
                     auto size = code < 256 ? 1u : 2u;
-                    if (rest < size) // Leave the last code point to indicate that the buffer is not empty.
+                    if (rest < size) // Leave the last codepoint to indicate that the buffer is not empty.
                     {
                         crop.push_back((byte)(code >> 8));
                         lastbyte = (byte)(code & 0xFF);

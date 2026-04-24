@@ -41,6 +41,36 @@ namespace netxs::utf
     using ctrl = unidata::cntrls;
 
     template<size_t N>
+    struct _fixed_string
+    {
+        char data[N];
+        constexpr _fixed_string(const char (&s)[N]) { for (auto i = 0u; i < N; ++i) data[i] = s[i]; }
+    };
+    template<_fixed_string S>
+    constexpr auto _make_hex_array()
+    {
+        constexpr auto to_hex_char = [](auto v){ return (char)(v < 10 ? '0' + v : 'a' + (v - 10)); };
+        constexpr auto len = sizeof(S.data) - 1;
+        auto b = std::array<char, len * 2>{};
+        for (auto i = 0u; i < len; ++i)
+        {
+            b[i * 2]     = to_hex_char((byte)S.data[i] >> 4 & 0xF);
+            b[i * 2 + 1] = to_hex_char((byte)S.data[i] & 0xF);
+        }
+        return b;
+    }
+    template<_fixed_string S>
+    struct _hex_storage
+    {
+        static constexpr auto buffer = _make_hex_array<S>();
+    };
+    template<_fixed_string S>
+    constexpr auto make_hex_view()
+    {
+        return view{ _hex_storage<S>::buffer.data(), _hex_storage<S>::buffer.size() };
+    }
+
+    template<size_t N>
     struct _str2array
     {
         std::array<char, N - 1> array;
@@ -366,44 +396,37 @@ namespace netxs::utf
         { }
         constexpr prop& operator = (prop const&) = default;
 
-        // prop: Check if the next codepooint could be attached to the cluster. Return zero to continue attaching. Return non-zero if cluster is closed.
+        // prop: Append any non-control codepoint if the current cluster has no width.
+        auto we_has_no_width(prop const& next)
+        {
+            return unidata::ucwidth == 0 && cdpoint && !next.is_cmd();
+        }
+        // prop: Combine if included. Return true if the next codepoint should be part of a cluster.
         auto combine(prop const& next)
         {
-            if (next.cdpoint && next.utf8len) // The codepoint '\0' cannot be a cluster fragment.
+            if (next.cdpoint >= matrix::min_vs_code && next.cdpoint <= matrix::max_vs_code) // Set matrix size.
             {
-                if (unidata::allied(next))
-                {
-                    if (next.cdpoint >= matrix::min_vs_code && next.cdpoint <= matrix::max_vs_code) // Set matrix size.
-                    {
-                        cmatrix = (si32)(next.cdpoint - matrix::vs_block);
-                        // Drop the next.cdpoint by returning 0_sz.
-                        //todo no more codepoints should be added (matrix modifier has the gbreak::ext property).
-                    }
-                    else
-                    {
-                        if (next.ucwidth > unidata::ucwidth)
-                        {
-                            unidata::ucwidth = next.ucwidth;
-                            cmatrix = mtx[unidata::ucwidth];
-                        }
-                        utf8len += next.utf8len;
-                        cpcount += 1;
-                    }
-                    return 0_sz;
-                }
-                else if (unidata::ucwidth == 0 && cdpoint && !next.is_cmd()) // Append any non-control code point if the current cluster has no width.
-                {
-                    if (next.ucwidth > unidata::ucwidth)
-                    {
-                        unidata::ucwidth = next.ucwidth;
-                        cmatrix = mtx[unidata::ucwidth];
-                    }
-                    utf8len += next.utf8len;
-                    cpcount += 1;
-                    return 0_sz;
-                }
+                cmatrix = (si32)(next.cdpoint - matrix::vs_block); // Update cluster metrics.
+                // Drop the next.cdpoint. Break grapheme cluster despite the matrix modifier has the gbreak::ext property.
+                return faux;
             }
-            return utf8len;
+            else
+            {
+                if (next.ucwidth > unidata::ucwidth)
+                {
+                    unidata::ucwidth = next.ucwidth;
+                    cmatrix = mtx[unidata::ucwidth];
+                }
+                utf8len += next.utf8len;
+                cpcount += 1;
+                return true;
+            }
+        }
+        // prop: Check if the next codepooint could be attached to the cluster. Return zero to continue attaching. Return non-zero if cluster is closed.
+        auto do_include(prop const& next)
+        {
+            return next.cdpoint && next.utf8len // The codepoint '\0' cannot be a cluster fragment.
+                && (unidata::allied(next) || we_has_no_width(next)); // Append any non-control codepoint if the current cluster has no width.
         }
     };
 
@@ -594,24 +617,22 @@ namespace netxs::utf
                 }
                 auto head = code.textptr;
                 auto left = next;
-                do
+                if (left.correct)
                 {
-                    code.step();
-                    if (next.correct)
+                    while (code)
                     {
+                        code.step();
                         next = code.take();
-                        if (auto size = left.combine(next))
-                        {
-                            return frag{ view(head, size), left };
-                        }
+                        if (!next.correct) break;
+                        if (!left.do_include(next)) break; // Break on non combining character.
+                        if (!left.combine(next)) break; // Break on matrix modifier.
                     }
-                    else
-                    {
-                        next.utf8len = left.utf8len;
-                        return frag{ replacement, next };
-                    }
+                    return frag{ view(head, left.utf8len), left };
                 }
-                while (true);
+                else
+                {
+                    return frag{ replacement, left };
+                }
             }
             return frag{ replacement, prop{ 0 } };
         }
@@ -645,60 +666,63 @@ namespace netxs::utf
     {
         return frag::take_cluster<AllowControls>(utf8);
     }
-    // utf: Break text into grapheme clusters filtered from codepoints.
+    // utf: Break text into grapheme clusters filtered from control codepoints.
     void decode_clusters(view utf8, auto yield)
     {
-        if (auto code = cpit{ utf8 })
+        auto code = cpit{ utf8 };
+        while (code)
         {
             auto next = code.take();
-            do
+            if (next.correct && !utf::non_control(next.cdpoint)) // Skip controls.
             {
-                if (!utf::non_control(next.cdpoint))
+                code.step();
+            }
+            else
+            {
+                auto head = code.textptr;
+                auto left = next;
+                while (true)
                 {
                     code.step();
-                    next = code.take();
-                }
-                else
-                {
-                    auto head = code.textptr;
-                    auto left = next;
-                    do
+                    if (next.correct)
                     {
-                        code.step();
-                        if (next.correct)
+                        if (!code)
                         {
-                            if (!code)
+                            auto crop = view(head, left.utf8len);
+                            yield(crop);
+                            return;
+                        }
+                        next = code.take();
+                        if (next.correct && !utf::non_control(next.cdpoint)) // Skip controls.
+                        {
+                            code.step();
+                            break;
+                        }
+                        if (left.do_include(next))
+                        {
+                            if (!left.combine(next))
                             {
                                 auto crop = view(head, left.utf8len);
                                 if (!yield(crop)) return;
-                                break;
-                            }
-                            next = code.take();
-                            if (!utf::non_control(next.cdpoint)) // Skip controls.
-                            {
-                                code.step();
-                                next = code.take();
-                                break;
-                            }
-                            if (left.combine(next))
-                            {
-                                auto crop = view(head, left.utf8len);
-                                if (!yield(crop)) return;
+                                code.step(); // Skip matrix modifier.
                                 break;
                             }
                         }
                         else
                         {
-                            auto crop = replacement;
+                            auto crop = view(head, left.utf8len);
                             if (!yield(crop)) return;
-                            next = code.take();
                             break;
                         }
                     }
-                    while (true);
+                    else
+                    {
+                        auto crop = replacement;
+                        if (!yield(crop)) return;
+                        break;
+                    }
                 }
             }
-            while (code);
         }
     }
     // utf: Break the text into the grapheme clusters.
@@ -709,22 +733,171 @@ namespace netxs::utf
     //             auto y = [&](frag const& cluster){};
     //      ascii: Processes ASCII chars (fast forward).
     //             auto a = [&](frag const& cluster){};
+    //      pop_cluster: Pop the last cluster to rebuild it.
+    //             auto p = [&](){};
     //      Clusterize: Decode cluster-by-cluster (if true) or codepoint-by-codepoint (if faux).
-    template<bool Clusterize = true>
-    void decode(auto serve, auto yield, auto ascii, view utf8, si32& decsg)
+    template<bool Clusterize = true, class P = noop>
+    view decode(text& last_cluster_str, view utf8, si32& decsg, auto serve, auto yield, auto ascii, P pop_cluster = P{})
     {
         static const auto dec_sgm_lookup = std::vector<frag> // DEC Special Graphics mode lookup table.
-        {//  _      `      a      b       c       d       e      f      g      h       i       j      k      l      m      n     o       p      q      r      s      t      u      v      w      x      y      z      {      |      }      ~                                 };
+        {//  _      `      a      b      c      d      e      f      g      h      i      j      k      l      m      n      o      p      q      r      s      t      u      v      w      x      y      z      {      |      }      ~
             "w"sv, "♦"sv, "▒"sv, "␉"sv, "␌"sv, "␍"sv, "␊"sv, "°"sv, "±"sv, "␤"sv, "␋"sv, "┘"sv, "┐"sv, "┌"sv, "└"sv, "┼"sv, "⎺"sv, "⎻"sv, "─"sv, "⎼"sv, "⎽"sv, "├"sv, "┤"sv, "┴"sv, "┬"sv, "│"sv, "≤"sv, "≥"sv, "π"sv, "≠"sv, "£"sv, "·"sv,
         };
+        auto is_plain = [](byte c){ return c >= 0x20 && c < 0x7f; };
+
+        auto last_cluster = view{};
         if (auto code = cpit{ utf8 })
         {
             auto next = code.take();
+            if constexpr (Clusterize) // Try to append new codepoints to the last_cluster_str.
+            if (last_cluster_str.length())
+            if (next.correct)
+            if (!next.is_cmd())
+            if (auto code0 = cpit{ last_cluster_str }) // Restore the last cluster state. This is a copy of the main loop for checking if last_cluster_str can grow.
+            {
+                auto next0 = code0.take();
+                auto left0 = next0;
+                if (next0.cdpoint == matrix::stx) // Continue VT2D cluster.
+                {
+                    auto rest = code.rest();
+                    auto utf8len = 0_sz; // The length of the string to append.
+                    auto cpcount = 1; // STX. Overall codepoints number.
+                    code0.step();
+                    if (code0) // Take base char from last_cluster_str.
+                    {
+                        next0 = code0.take();
+                        left0 = next0; // Base char of VT2D cluster from last_cluster_str.
+                        do
+                        {
+                            cpcount += 1;
+                            code0.step();
+                            next0 = code0.take();
+                        }
+                        while (code0); // Eat all last_cluster_str.
+                    }
+                    else // Take base char from utf8.
+                    {
+                        left0 = next; // Base char of VT2D cluster from utf8.
+                        utf8len += next.utf8len;
+                        cpcount += 1;
+                        code.step();
+                        next = code.take();
+                    }
+                    while (next.correct && (next.cdpoint < matrix::min_vs_code || next.cdpoint > matrix::max_vs_code)) // Eat all until VS.
+                    {
+                        utf8len += next.utf8len;
+                        cpcount += 1;
+                        code.step();
+                        next = code.take();
+                    }
+                    left0.utf8len = last_cluster_str.length() + utf8len; // Ignore cmatrix modifier.
+                    left0.cpcount = cpcount;
+                    last_cluster_str += rest.substr(0, utf8len);
+                    pop_cluster(matrix::vs<11,11>);
+                    if (next.correct)
+                    {
+                        left0.cmatrix = next.cdpoint - matrix::vs_block;
+                        auto crop = frag{ last_cluster_str, left0 };
+                        yield(crop); // Write final cluster.
+                    }
+                    else // Incomplete cluster. Yeld the incomplete cluster as is.
+                    {
+                        left0.cmatrix = matrix::vs<11,11>;
+                        auto crop = frag{ last_cluster_str, left0 };
+                        yield(crop); // Rewrite incomplete cluster.
+                        if (!code) // Reach the end. Or next codepoint was broken. Take next.
+                        {
+                            last_cluster = last_cluster_str; // Remember incomplete cluster.
+                            return last_cluster;
+                        }
+                        // Forget broken cluster.
+                    }
+                    code.step(); // Go to the next character.
+                    if (!code) return last_cluster;
+                    next = code.take();
+                }
+                else // Continue classic cluster.
+                {
+                    while (next0.correct)
+                    {
+                        code0.step();
+                        if (code0)
+                        {
+                            next0 = code0.take();
+                            if (!left0.do_include(next0) // Unexpected break inside the last_cluster_str. Abort.
+                             || !left0.combine(next0)) break; // Unexpected matrix modifier.
+                        }
+                        else // The end of the last_cluster_str has been reached.
+                        {
+                            auto cmatrix = left0.cmatrix;
+                            if (left0.do_include(next)) // Rebuild (append) cluster.
+                            {
+                                if (!left0.combine(next)) // Matrix modifier is found at the first place. Don't append it to the last_cluster_str.
+                                {
+                                    pop_cluster(cmatrix);
+                                    auto crop = frag{ last_cluster_str, left0 };
+                                    yield(crop);
+                                    code.step();
+                                    if (!code) return last_cluster;
+                                    next = code.take();
+                                }
+                                else
+                                {
+                                    auto next_utf8len = 0_sz;
+                                    while (true) // Iterate over code/next.
+                                    {
+                                        next_utf8len += next.utf8len;
+                                        code.step();
+                                        if (!code)
+                                        {
+                                            pop_cluster(cmatrix);
+                                            last_cluster_str += utf8.substr(0, next_utf8len); // Append new codepoints to the last_cluster_str.
+                                            auto crop = frag{ last_cluster_str, left0 };
+                                            yield(crop);
+                                            code.step();
+                                            if (!code) return view{ last_cluster_str };
+                                            next = code.take();
+                                            break;
+                                        }
+                                        next = code.take();
+                                        if (next.correct)
+                                        {
+                                            if (!left0.do_include(next)
+                                             || !left0.combine(next)) // Matrix modifier is found.
+                                            {
+                                                pop_cluster(cmatrix);
+                                                last_cluster_str += utf8.substr(0, next_utf8len); // Append new codepoints to the last_cluster_str.
+                                                auto crop = frag{ last_cluster_str, left0 };
+                                                yield(crop);
+                                                code.step();
+                                                if (!code) return last_cluster;
+                                                next = code.take();
+                                                break;
+                                            }
+                                        }
+                                        else // Broken cluster. Don't append.
+                                        {
+                                            auto crop = frag{ replacement, next };
+                                            yield(crop);
+                                            code.step();
+                                            if (!code) return last_cluster;
+                                            next = code.take();
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                            break; // Cluster can't grow. Abort.
+                        }
+                    }
+                }
+            }
+
             do
             {
                 if (next.is_cmd())
                 {
-                    auto custom_cluster_initiator = Clusterize && next.cdpoint == matrix::stx && code.balance > 1;
+                    auto custom_cluster_initiator = Clusterize && next.cdpoint == matrix::stx;
                     if (custom_cluster_initiator)
                     {
                         auto rest = code.rest();
@@ -742,34 +915,35 @@ namespace netxs::utf
                         }
                         if (next.correct)
                         {
-                            left.utf8len = utf8len;
-                            left.cpcount = cpcount;
                             left.cmatrix = next.cdpoint - matrix::vs_block;
-                            auto crop = frag{ rest.substr(0, left.utf8len), left };
-                            yield(crop);
-                            code.step();
-                            next = code.take();
+                            last_cluster = {};
                         }
-                        else // Broken cluster. Silently ignore STX.
+                        else // Incomplete cluster. Yeld the incomplete cluster as is.
                         {
-                            code.redo(rest.substr(1));
-                            next = left;
+                            left.cmatrix = matrix::vs<11,11>;
+                            last_cluster = rest.substr(0, utf8len);
                         }
+                        left.utf8len = utf8len;
+                        left.cpcount = cpcount;
+                        auto crop = frag{ rest.substr(0, utf8len), left };
+                        yield(crop);
+                        code.step();
                     }
                     else // Proceed general control.
                     {
+                        last_cluster = {};
                         code.step();
                         auto rest = code.rest();
                         auto chars = serve(next, rest);
                         code.redo(chars);
-                        next = code.take();
                     }
+                    next = code.take();
                 }
                 else
                 {
-                    auto is_plain = [](byte c){ return c >= 0x20 && c < 0x7f; };
                     if (decsg && next.cdpoint <= 0x7e && next.cdpoint >= 0x5f) // ['_' - '~']
                     {
+                        last_cluster = {};
                         yield(dec_sgm_lookup[next.cdpoint - 0x5f]);
                         code.step();
                         next = code.take();
@@ -786,6 +960,7 @@ namespace netxs::utf
                         auto plain = view{ head, iter };
                         if (iter == tail)
                         {
+                            last_cluster = view{ iter - 1, iter }; // Last character.
                             ascii(plain);
                             break;
                         }
@@ -798,6 +973,7 @@ namespace netxs::utf
                             if (head != iter)
                             {
                                 plain = view{ head, iter };
+                                last_cluster = {}; // All clusters are done.
                                 ascii(plain);
                             }
                             code.redo(view{ iter, tail });
@@ -807,6 +983,7 @@ namespace netxs::utf
                         }
                         else
                         {
+                            last_cluster = {}; // All clusters are done.
                             ascii(plain);
                             continue;
                         }
@@ -815,20 +992,40 @@ namespace netxs::utf
                     {
                         auto head = code.textptr;
                         auto left = next;
-                        do
+                        while (true)
                         {
                             code.step();
+                            if (!code)
+                            {
+                                last_cluster = view(head, left.utf8len);
+                                auto crop = frag{ last_cluster, left };
+                                yield(crop);
+                                break;
+                            }
+                            next = code.take();
                             if (next.correct)
                             {
-                                if (!code || (next = code.take(), left.combine(next)))
+                                if (!left.do_include(next)) // Classic cluster.
                                 {
+                                    last_cluster = view(head, left.utf8len);
+                                    auto crop = frag{ last_cluster, left };
+                                    yield(crop);
+                                    break;
+                                }
+                                else if (!left.combine(next)) // Combine and check if VT2D.
+                                {
+                                    last_cluster = {};
                                     auto crop = frag{ view(head, left.utf8len), left };
                                     yield(crop);
+                                    code.step(); // Skip cmatrix.
+                                    if (!code) return last_cluster;
+                                    next = code.take();
                                     break;
                                 }
                             }
                             else
                             {
+                                last_cluster = {};
                                 next.utf8len = left.utf8len;
                                 auto crop = frag{ replacement, next };
                                 yield(crop);
@@ -836,17 +1033,18 @@ namespace netxs::utf
                                 break;
                             }
                         }
-                        while (true);
                     }
                     else
                     {
                         if (next.correct)
                         {
-                            auto crop = frag{ view(code.textptr, next.utf8len), next };
+                            last_cluster = view(code.textptr, next.utf8len);
+                            auto crop = frag{ last_cluster, next };
                             yield(crop);
                         }
                         else
                         {
+                            last_cluster = {};
                             auto crop = frag{ replacement, next };
                             yield(crop);
                         }
@@ -857,6 +1055,7 @@ namespace netxs::utf
             }
             while (code);
         }
+        return last_cluster;
     }
     auto codepoint_count(auto&& cluster)
     {
@@ -1907,7 +2106,8 @@ namespace netxs::utf
             //else if (cluster.text.front() == ' ') buff += "\x20";
             else                                   buff += cluster.text;
         };
-        decode<faux>(s, y, a, utf8, mode);
+        auto empty_str = text{};
+        decode<faux>(empty_str, utf8, mode, s, y, a);
         return (si32)(buff.length() - init);
     }
     // utf: Return a string without control chars (replace all ctrls with printables).
@@ -2689,17 +2889,18 @@ namespace netxs::utf
                  << utf::adjust(std::to_string(milli), 3, '0', true)
                  << utf::adjust(std::to_string(micro), 3, '0', true);
     }
-    #if not defined(_WIN32) //todo Implementation for gcc 11 (waiting for gcc 13)
     auto& operator << (std::ostream& s, std::filesystem::file_time_type const& ftime)
     {
         auto sct = std::chrono::time_point_cast<std::chrono::system_clock::duration>(ftime - std::filesystem::file_time_type::clock::now() + std::chrono::system_clock::now());
         auto tt = std::chrono::system_clock::to_time_t(sct);
         auto tm = std::tm{};
-        //::localtime_s(&tm, &tt); // Windows
-        ::localtime_r(&tt, &tm); // POSIX
+        #if not defined(_WIN32) // Implementation for gcc 11 (waiting for gcc 13).
+            ::localtime_r(&tt, &tm); // POSIX
+        #else // Implementation for Win8. The std::chrono standard for working with file time (std::chrono::file_clock::time_point) in C++20 is not fully supported on Win8.
+            ::localtime_s(&tm, &tt); // Windows
+        #endif
         return s << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
     }
-    #endif
     void print2(auto& input, view& format)
     {
         input << format;

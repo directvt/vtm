@@ -441,6 +441,11 @@ namespace netxs::ansi
             return f < 8 ? add("\033[", f + 30, ";22m") // CSI22m: Linux console unexpectedly sets the high intensity bit when CSI 9x m used.
                          : add("\033[", f + 90 - 8, "m");
         }
+        auto& bgc_16(si32 f) // basevt: SGR Foreground color (16-color mode).
+        {
+            return f < 8 ? add("\033[", f + 40, "m")
+                         : add("\033[", f + 100 - 8, "m");
+        }
         auto& bgc_8(si32 b) // basevt: SGR Background color (8-color mode).
         {
             return add("\033[", b + 40, 'm');
@@ -448,25 +453,41 @@ namespace netxs::ansi
         template<svga Mode = svga::vtrgb>
         auto& fgc(argb c) // basevt: SGR Foreground color. RGB: red, green, blue (+alpha for VT2D).
         {
-                 if constexpr (Mode == svga::vt16 ) return fgc_16(c.to_vtm16(true));
-            else if constexpr (Mode == svga::vt256) return fgc256(c.to_256cube());
-            else if constexpr (Mode == svga::vt_2D) return fgx(c);
-            else if constexpr (Mode == svga::vtrgb) return c.chan.a == 0 ? add("\033[39m")
-                                                                         : add("\033[38;2;", c.chan.r, ';',
-                                                                                             c.chan.g, ';',
-                                                                                             c.chan.b, 'm');
+            auto i = c.is_indexed();
+                 if constexpr (Mode == svga::vt16 ) return fgc_16(i ? argb{ argb::vt256[i - 1] }.to_vtm16(true) : c.to_vtm16(true));
+            else if constexpr (Mode == svga::vt256)
+            {
+                     if (i == 0 ) return fgc256(c.to_256cube());
+                else if (i >= 16) return fgc256(i - 1);
+                else              return fgc_16(i - 1);
+            }
+            else if constexpr (Mode == svga::vt_2D) return fgx(i ? argb{ argb::vt256[i - 1] } : c);
+            else if constexpr (Mode == svga::vtrgb)
+            {
+                     if (i == 0 ) return c.chan.a == 0 ? add("\033[39m") : add("\033[38;2;", c.chan.r, ';', c.chan.g, ';', c.chan.b, 'm');
+                else if (i <= 16) return fgc_16(i - 1);
+                else              return fgc256(i - 1);
+            }
             else return block;
         }
         template<svga Mode = svga::vtrgb>
         auto& bgc(argb c) // basevt: SGR Background color. RGB: red, green, blue.
         {
-                 if constexpr (Mode == svga::vt16 ) return bgc_8(c.to_vtm8());
-            else if constexpr (Mode == svga::vt256) return bgc256(c.to_256cube());
-            else if constexpr (Mode == svga::vt_2D) return bgx(c);
-            else if constexpr (Mode == svga::vtrgb) return c.chan.a == 0 ? add("\033[49m")
-                                                                         : add("\033[48;2;", c.chan.r, ';',
-                                                                                             c.chan.g, ';',
-                                                                                             c.chan.b, 'm');
+            auto i = c.is_indexed();
+                 if constexpr (Mode == svga::vt16 ) return bgc_8(i ? argb{ argb::vt256[i - 1] }.to_vtm8() : c.to_vtm8());
+            else if constexpr (Mode == svga::vt256)
+            {
+                     if (i == 0 ) return bgc256(c.to_256cube());
+                else if (i <= 16) return bgc_16(i - 1);
+                else              return bgc256(i - 1);
+            }
+            else if constexpr (Mode == svga::vt_2D) return bgx(i ? argb{ argb::vt256[i - 1] } : c);
+            else if constexpr (Mode == svga::vtrgb)
+            {
+                     if (i == 0 ) return c.chan.a == 0 ? add("\033[49m") : add("\033[48;2;", c.chan.r, ';', c.chan.g, ';', c.chan.b, 'm');
+                else if (i <= 16) return bgc_16(i - 1);
+                else              return bgc256(i - 1);
+            }
             else return block;
         }
         template<class ...Args>
@@ -1247,15 +1268,16 @@ namespace netxs::ansi
     {
         using tree = func<fifo, T>;
 
-        tree table         ;
-        tree table_quest   ;
-        tree table_excl    ;
-        tree table_gt      ;
-        tree table_lt      ;
-        tree table_equals  ;
-        tree table_hash    ;
+        tree table;
+        tree table_quest;
+        tree table_quest_dollarsn;
+        tree table_excl;
+        tree table_gt;
+        tree table_lt;
+        tree table_equals;
+        tree table_hash;
         tree table_dollarsn;
-        tree table_space   ;
+        tree table_space;
         tree table_dblqoute;
         tree table_sglqoute;
         tree table_asterisk;
@@ -1290,6 +1312,8 @@ namespace netxs::ansi
             * - void cursor0(si32 i);                // Set cursor inside the cell.
             */
 
+            table_quest_dollarsn.resize(0x100);
+                table_quest_dollarsn[csi_ccc] = nullptr;
             table_quest   .resize(0x100);
                 table_quest[dec_set] = nullptr;
                 table_quest[dec_rst] = nullptr;
@@ -1443,18 +1467,19 @@ namespace netxs::ansi
         }
 
         void proceed(si32 cmd, T*& client) { table.execute(cmd, client); }
-        void proceed           (fifo& q, T*& p) { table         .execute(q, p); }
-        void proceed_quest     (fifo& q, T*& p) { table_quest   .execute(q, p); }
-        void proceed_gt        (fifo& q, T*& p) { table_gt      .execute(q, p); }
-        void proceed_lt        (fifo& q, T*& p) { table_lt      .execute(q, p); }
-        void proceed_hash      (fifo& q, T*& p) { table_hash    .execute(q, p); }
-        void proceed_equals    (fifo& q, T*& p) { table_equals  .execute(q, p); }
-        void proceed_excl      (fifo& q, T*& p) { table_excl    .execute(q, p); }
-        void proceed_dollarsn  (fifo& q, T*& p) { table_dollarsn.execute(q, p); }
-        void proceed_space     (fifo& q, T*& p) { table_space   .execute(q, p); }
-        void proceed_dblqoute  (fifo& q, T*& p) { table_dblqoute.execute(q, p); }
-        void proceed_sglqoute  (fifo& q, T*& p) { table_sglqoute.execute(q, p); }
-        void proceed_asterisk  (fifo& q, T*& p) { table_asterisk.execute(q, p); }
+        void proceed               (fifo& q, T*& p) { table               .execute(q, p); }
+        void proceed_quest         (fifo& q, T*& p) { table_quest         .execute(q, p); }
+        void proceed_quest_dollarsn(fifo& q, T*& p) { table_quest_dollarsn.execute(q, p); }
+        void proceed_gt            (fifo& q, T*& p) { table_gt            .execute(q, p); }
+        void proceed_lt            (fifo& q, T*& p) { table_lt            .execute(q, p); }
+        void proceed_hash          (fifo& q, T*& p) { table_hash          .execute(q, p); }
+        void proceed_equals        (fifo& q, T*& p) { table_equals        .execute(q, p); }
+        void proceed_excl          (fifo& q, T*& p) { table_excl          .execute(q, p); }
+        void proceed_dollarsn      (fifo& q, T*& p) { table_dollarsn      .execute(q, p); }
+        void proceed_space         (fifo& q, T*& p) { table_space         .execute(q, p); }
+        void proceed_dblqoute      (fifo& q, T*& p) { table_dblqoute      .execute(q, p); }
+        void proceed_sglqoute      (fifo& q, T*& p) { table_sglqoute      .execute(q, p); }
+        void proceed_asterisk      (fifo& q, T*& p) { table_asterisk      .execute(q, p); }
     };
 
     template<class T>
@@ -1463,8 +1488,16 @@ namespace netxs::ansi
         static auto vt_parser = typename T::template vt_parser<T>{};
         return vt_parser;
     }
-    template<class T> void parse(view utf8, T*&  dest) { ansi::get_parser<T>().parse(utf8, dest); }
-    template<class T> void parse(view utf8, T*&& dest) { auto dptr = dest; parse(utf8, dptr); }
+    template<class T> void parse(view utf8, T*&  dest)
+    {
+        auto& vt_parser = ansi::get_parser<T>();
+        vt_parser.parse(utf8, dest);
+    }
+    template<class T> void parse(view utf8, T*&& dest)
+    {
+        auto dptr = dest;
+        parse(utf8, dptr);
+    }
 
     template<class T> using esc_t = func<qiew, T>;
     template<class T> using osc_h = std::function<void(view&, T*&)>;
@@ -1503,22 +1536,24 @@ namespace netxs::ansi
             auto decsg = client->decsg;
             auto s = [&](auto const& traits, qiew utf8)
             {
-                client->defer = faux;
+                client->last_cluster = {};
                 intro.execute(traits.control, utf8, client); // Make one iteration using firstcmd and return.
                 decsg = client->decsg; // Sync DECSG mode if buffer/client changed. //todo Should we make it shared among buffers?
                 return utf8;
             };
+            auto p = [&](si32 cmatrix)
+            {
+                client->pop_cluster(cmatrix);
+            };
             auto y = [&](auto const& cluster)
             {
                 client->post(cluster);
-                client->defer = true;
             };
             auto a = [&](view plain)
             {
                 client->ascii(plain);
-                client->defer = true;
             };
-            utf::decode(s, y, a, utf8, decsg);
+            client->last_cluster = utf::decode(client->last_cluster, utf8, decsg, s, y, a, p);
             client->flush();
         }
         // vt_parser: Static UTF-8/ANSI parser proc.
@@ -1614,7 +1649,11 @@ namespace netxs::ansi
                     {
                         ascii.pop_front();
                         fill(queue);
-                             if (c == '?' ) csier.proceed_quest   (queue, client);
+                        if (c == '?' )
+                        {
+                            if (b == '$') csier.proceed_quest_dollarsn(queue, client);
+                            else          csier.proceed_quest         (queue, client);
+                        }
                         else if (c == '>' ) csier.proceed_gt      (queue, client);
                         else if (c == '<' ) csier.proceed_lt      (queue, client);
                         else if (c == '=' ) csier.proceed_equals  (queue, client);
@@ -1783,8 +1822,8 @@ namespace netxs::ansi
         deco style{}; // parser: Parser style.
         deco state{}; // parser: Parser style last state.
         mark brush{}; // parser: Parser brush.
+        text last_cluster{}; // parser: The last cluster that could continue to grow.
         si32 decsg{}; // parser: DEC Special Graphics Mode.
-        bool defer{}; // parser: The last character was a cluster that could continue to grow.
 
     private:
         core::body proto_cells{}; // parser: Proto lyric.
@@ -1835,7 +1874,7 @@ namespace netxs::ansi
             }
             proto_count = 0;
             proto_cells.clear();
-            defer = faux;
+            last_cluster = {};
         }
         auto empty() const
         {
@@ -1902,7 +1941,6 @@ namespace netxs::ansi
             {
                 // Test :
                 //      echo -e '\U2069+123'; echo -e '+\U2068+123'; echo -e '\e[42m+123\U2068\e[m'; echo -e '123\U202C++';
-
                 //todo implement LRE RLE etc. Now all Cf's are stored within clusters.
                 //auto& marker = get_ansi_marker();
                 //if (auto set_prop = marker.setter[attr.control])
@@ -1954,6 +1992,7 @@ namespace netxs::ansi
         }
         virtual void meta(deco const& /*old_style*/) { };
         virtual void data(si32 /*width*/, si32 /*height*/, core::body const& /*proto*/) { };
+        virtual void pop_cluster(si32 /*cmatrix*/) { };
     };
 
     // ansi: Cursor manipulation command list.
