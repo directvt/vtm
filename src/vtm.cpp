@@ -274,8 +274,10 @@ int main(int argc, char* argv[])
         auto config = xml::settings{};
         app::shared::load::settings(config, cliopt, faux);
         auto gui_config = app::shared::get_gui_config(config);
-        auto fcache = gui::fonts{ gui_config.font_names, gui_config.font_axes, gui_config.cell_height };
-        fcache.log_fonts(detail);
+        if (auto fcache = gui::fonts{ gui_config.font_names, gui_config.font_axes, gui_config.cell_height })
+        {
+            fcache.log_fonts(detail);
+        }
     }
     else if (whoami == type::config)
     {

@@ -129,6 +129,8 @@ namespace netxs::gui
         using ft_library_sptr = sptr<std::remove_pointer_t<FT_Library>>;
         using irgb = netxs::irgb<fp32>;
 
+        bool initialized{ true }; // fonts: Set faux if something is going wrong.
+
         struct color_type
         {
             static constexpr auto _counter = 1 + __COUNTER__;
@@ -918,7 +920,6 @@ namespace netxs::gui
             if (FT_Err_Ok != ::FT_Init_FreeType(&library))
             {
                 log("%%Could not initialize FreeType library", prompt::gui);
-                std::terminate();
             }
             return ft_library_sptr(library, [](auto l){ if (l) ::FT_Done_FreeType(l); });
         }
@@ -1049,7 +1050,10 @@ namespace netxs::gui
                 }
             }
             log("%%No fonts found in the system", prompt::gui);
-            std::terminate();
+            initialized = faux;
+            static auto empty_fr = font_family_t{};
+            static auto empty_ff = font_face_t{ *this, empty_fr };
+            return empty_ff;
         }
         void log_fonts(bool show_ranges = faux)
         {
@@ -1211,11 +1215,18 @@ namespace netxs::gui
         rect dashline;  // fonts: Dashed underline rectangle block within the cell.
         rect wavyline;  // fonts: Wavy underline outer rectangle block within the cell.
 
+        operator bool () const { return initialized; }
+
         fonts(std::list<text>& family_names, cfg_t::axis_vals_t& font_axes, si32 cell_height)
             : ft_library{ make_ft_library() },
                os_locale{ ::hb_language_from_string(os::env::get_locale().c_str(), -1) },
              font_shaper{ *this }
         {
+            if (!ft_library)
+            {
+                initialized = faux;
+                return;
+            }
             #if defined(_WIN32)
                 auto registered_fonts = L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Fonts"sv;
                 auto filter = [](auto& item)
@@ -1507,7 +1518,7 @@ namespace netxs::gui
                 log(prompt::gui, "No fonts provided, fallback to the first available font");
                 find_family(single_codepoint, true); // Take the first available font.
             }
-            set_cellsz(cell_height);
+            if (initialized) set_cellsz(cell_height);
         }
     };
 

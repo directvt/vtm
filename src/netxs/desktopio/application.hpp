@@ -1162,7 +1162,10 @@ namespace netxs::app::shared
                 //todo sync settings with tui_domain (auth::config)
                 auto gui_event_domain = netxs::events::auth{};
                 auto window = gui_event_domain.create<gui::window>(gui_event_domain, gc, dot_21);
-                window->connect();
+                if (window->fcache)
+                {
+                    window->connect();
+                }
             };
             if (os::stdout_fd != os::invalid_fd)
             {
