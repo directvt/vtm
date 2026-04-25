@@ -67,7 +67,7 @@ Attributes are divided into **Shared** (object-wide), **Layer** (layer specific)
 
 Attribute  | Scope  | Value/Range                      | Default                  | Description
 -----------|--------|----------------------------------|--------------------------|------------
-**id**     | -      | `<id>[/sub-id]`                  | empty string (`""`)      | Object reference ID.
+**id**     | -      | `<id>[/sub-id]`                  | empty string (`""`)      | Object reference ID. The asterisk `*` has a special meaning.
 **l**      | Shared | `<id>[/sub-id][(<layer attrs>)]` | empty string (`""`)      | Adds a layer. Can be specified multiple times.
 **u, v**   | Shared | `float`                          | `0.0`                    | Top-left of the source crop (0.0-1.0).
 **uw, vh** | Shared | `float`                          | `1.0`                    | Size of the source crop (0.0-1.0). Negative flips.
@@ -85,6 +85,7 @@ Attribute  | Scope  | Value/Range                      | Default                
 
 > Notes:
 > - If `id` is omitted , the empty string `id=""` is used for registration and output.
+> - If an asterisk `id=*` is specified as `id`, all registered objects will be unregistered.
 > - Attribute values `w` and `h` are clamped to the `(0.0-65535.0]` range and further limited by the terminal's maximum window size settings.
 > - Attribute values that depend on the cell size are multiplied by the cell size and **rounded** to get the exact pixel values on the FE side.
 > - The first part of the object reference ID (`id`) references the raw object document in the Backend cache.
@@ -92,14 +93,15 @@ Attribute  | Scope  | Value/Range                      | Default                
 
 #### Lifecycle & Cache Management
 
-Input State                | Action
----------------------------|-------
-**id** + **doc**           | Register/update.
-**id** + **doc** + **W,H** | Register/update and output to the specified area.
-**id** + **W,H**           | Output to the specified area.
-**id** + **empty-doc**     | Unregister.
-**id/sub-id**              | If a `sub-id` is specified, the FE renders only that specific element at its original coordinates (as it would appear in the full document), inheriting all parent styles (CSS, `<g>` groups).
-**Errors**                 | If a document is invalid, the `id` is unknown, the `sub-id` is missing, or the cache is full, the FE **clears the object metadata** in the target area (rendering nothing) and logs the error.
+Input State                  | Action
+-----------------------------|-------
+**id** + **doc**             | Register/update.
+**id** + **doc** + **W,H**   | Register/update and output to the specified area.
+**id** + **W,H**             | Output to the specified area.
+**id** + **empty-doc**       | Unregister the specified id.
+**asterisk** + **empty-doc** | Unregister all.
+**id/sub-id**                | If a `sub-id` is specified, the FE renders only that specific element at its original coordinates (as it would appear in the full document), inheriting all parent styles (CSS, `<g>` groups).
+**Errors**                   | If a document is invalid, the `id` is unknown, the `sub-id` is missing, or the cache is full, the FE **clears the object metadata** in the target area (rendering nothing) and logs the error.
 
 > Note:
 > When the BE deletes an `id`, or upon reset/session close, it frees the index and signals the FEs.
