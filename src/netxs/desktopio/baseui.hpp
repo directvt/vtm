@@ -1281,6 +1281,25 @@ namespace netxs::ui
             fields.emplace(property_name, value_ptr);
             return value;
         }
+        // base: Run action on dtor.
+        auto& atexit(auto action)
+        {
+            struct cleanup
+            {
+                netxs::sptr<std::function<void()>> action;
+                cleanup(std::function<void()> f) 
+                    : action(ptr::shared(f))
+                { }
+                ~cleanup() 
+                { 
+                    if (action && action.use_count() == 1)
+                    {
+                        (*action)();
+                    }
+                }
+            };
+            return base::field(cleanup{ std::move(action) });
+        }
         // base: Remove an anonymous property.
         template<class T>
         void unfield(T& value)

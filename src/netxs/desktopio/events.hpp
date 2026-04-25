@@ -469,6 +469,10 @@ namespace netxs::events
             auto& target_reactor = Tier == tier::general ? general : reactor;
             _notify(Tier, target_reactor, event, param);
         }
+        void notify_general(hint event, auto& param)
+        {
+            _notify(tier::general, general, event, param);
+        }
         // auth: Interrupt current invocation.
         void expire()
         {

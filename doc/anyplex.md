@@ -57,17 +57,17 @@ Field           | Description
 
 #### Attribute Scoping
 
-Attributes are divided into **Shared** (object-wide), **Layer** (layer specific) and **Unique** (per-instance/cell).
+Attributes are divided into **Shared** (object-wide), **Layer** (layer specific) and **Unique** (cell specific).
 
-- **Shared Attributes**: `l`, `u`, `v`, `uw`, `vh`, `x`, `y`, `w`, `h`, `fit`, `rt`, `a`, `f`, `o`. Global to all instances of the `id`.
+- **Shared Attributes**: `l`, `u`, `v`, `uw`, `vh`, `x`, `y`, `w`, `h`, `fit`, `rt`, `a`, `f`. Global to all instances of the `id`.
 - **Layer Attributes**: All Shared attributes can be overridden per layer inside `l=id(key=val)`.
-- **Unique Attributes**: `W`, `H`, `r`, `c`, `gc`. Specific to the instance and the grid slice.
+- **Unique Attributes**: `W`, `H`, `r`, `c`, `o`, `gc`. Specific to the cell.
 
 #### Attributes
 
 Attribute  | Scope  | Value/Range                      | Default                  | Description
 -----------|--------|----------------------------------|--------------------------|------------
-**id**     | -      | `<id>[/sub-id]`                  | empty string (`""`)      | Object reference ID.
+**id**     | -      | `<id>[/sub-id]`                  | empty string (`""`)      | Object reference ID. The asterisk `*` has a special meaning.
 **l**      | Shared | `<id>[/sub-id][(<layer attrs>)]` | empty string (`""`)      | Adds a layer. Can be specified multiple times.
 **u, v**   | Shared | `float`                          | `0.0`                    | Top-left of the source crop (0.0-1.0).
 **uw, vh** | Shared | `float`                          | `1.0`                    | Size of the source crop (0.0-1.0). Negative flips.
@@ -78,13 +78,14 @@ Attribute  | Scope  | Value/Range                      | Default                
 **rt**     | Shared | `0\|90\|180\|270`                | `0`                      | **R**ota**t**e: CCW rotation of the source (degrees).
 **f**      | Shared | `n\|v\|h\|vh\|hv`                | `n`                      | **F**lip: `n` = none, `v` = vertical, `h` = horizontal.
 **a**      | Shared | `[l\|c\|r][t\|m\|b]`             | `cm`                     | **A**lign: 2D alignment within the Clipping Box and the `W x H` area. (`l` = left, `c` = center, `r` = right, `t` = top, `m` = middle, `b` = bottom).
-**o**      | Shared | `0\|1`                           | `0`                      | **O**ntop: 0 = under text, 1 = over text.
 **gc**     | Unique | `string`                         | ASCII Space (0x20) `" "` | **G**rapheme **c**luster to write to cells (will be scaled to a 1x1 cell size).
 **W, H**   | Unique | `0..65535`                       | `0`                      | Grid Container: Physical footprint in cells. If `0`, nothing is rendered (registration only).
 **r, c**   | Unique | `0..65535`                       | `0`                      | **R**ow, **c**olumn 1-based slicing index for target cell slice. (0 = full height/width, 1..n = specific cell/slice).
+**o**      | Unique | `0\|1`                           | `0`                      | **O**ntop: 0 = under text, 1 = over text.
 
 > Notes:
 > - If `id` is omitted , the empty string `id=""` is used for registration and output.
+> - If an asterisk `id=*` is specified as `id`, all registered objects will be unregistered.
 > - Attribute values `w` and `h` are clamped to the `(0.0-65535.0]` range and further limited by the terminal's maximum window size settings.
 > - Attribute values that depend on the cell size are multiplied by the cell size and **rounded** to get the exact pixel values on the FE side.
 > - The first part of the object reference ID (`id`) references the raw object document in the Backend cache.
@@ -92,14 +93,15 @@ Attribute  | Scope  | Value/Range                      | Default                
 
 #### Lifecycle & Cache Management
 
-Input State                | Action
----------------------------|-------
-**id** + **doc**           | Register/update.
-**id** + **doc** + **W,H** | Register/update and output to the specified area.
-**id** + **W,H**           | Output to the specified area.
-**id** + **empty-doc**     | Unregister.
-**id/sub-id**              | If a `sub-id` is specified, the FE renders only that specific element at its original coordinates (as it would appear in the full document), inheriting all parent styles (CSS, `<g>` groups).
-**Errors**                 | If a document is invalid, the `id` is unknown, the `sub-id` is missing, or the cache is full, the FE **clears the object metadata** in the target area (rendering nothing) and logs the error.
+Input State                  | Action
+-----------------------------|-------
+**id** + **doc**             | Register/update.
+**id** + **doc** + **W,H**   | Register/update and output to the specified area.
+**id** + **W,H**             | Output to the specified area.
+**id** + **empty-doc**       | Unregister the specified id.
+**asterisk** + **empty-doc** | Unregister all.
+**id/sub-id**                | If a `sub-id` is specified, the FE renders only that specific element at its original coordinates (as it would appear in the full document), inheriting all parent styles (CSS, `<g>` groups).
+**Errors**                   | If a document is invalid, the `id` is unknown, the `sub-id` is missing, or the cache is full, the FE **clears the object metadata** in the target area (rendering nothing) and logs the error.
 
 > Note:
 > When the BE deletes an `id`, or upon reset/session close, it frees the index and signals the FEs.
