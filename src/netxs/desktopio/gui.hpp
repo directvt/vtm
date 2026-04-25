@@ -2604,6 +2604,29 @@ namespace netxs::gui
                 draw_image(canvas, bitmap, offset, fgc, inv, image_xform);
             }
         }
+        void render_layers(gui::bits& canvas, rect placeholder, argb fgc, imagens::image& image, qiew sub_id, imagens::image::bitmap_t& bitmap, imagens::image::gb_attrs_t& gb_attrs, twod image_WH, twod wh, bool inv)
+        {
+            std::erase_if(image.layers, [&](auto& l) // Iterate over layers.
+            {
+                if (!l.touched)
+                {
+                    l.touched = true;
+                    if (auto layer_ptr = l.image_wptr.lock())
+                    {
+                        auto& layer = *layer_ptr;
+                        l.sync_attrs_with_base(layer, image_WH, wh);
+                        render_layers(canvas, placeholder, fgc, layer, l.sub_id, l.bitmap, l.gb_attrs, image_WH, wh, inv);
+                    }
+                    else // Drop if the layer is expired.
+                    {
+                        return true;
+                    }
+                    l.touched = faux;
+                }
+                return faux;
+            });
+            render_layer(canvas, placeholder, fgc, image, sub_id, bitmap, gb_attrs, image_WH, inv);
+        }
         auto render_image(auto& canvas, rect placeholder, argb fgc, cell const& c)
         {
             if (auto image_cr = c.get_image_cr(); image_cr.x != 0 && image_cr.y != 0)
@@ -2611,27 +2634,13 @@ namespace netxs::gui
                 auto image_index = c.get_image_index();
                 auto wh = c.get_image_WH();
                 auto images = cell::images(); // Lock.
-                //todo make it recursive
                 if (auto image_ptr = images.exists(image_index)) // We form all image requests on dtvt recv stage.
                 {
-                    auto& image = *image_ptr;
                     auto image_WH = wh * cellsz;
                     auto inv = c.inv();
                     placeholder.coor -= (image_cr - dot_11) * cellsz;
-                    for (auto& l : image.layers) // Iterate over layers.
-                    {
-                        if (auto layer_ptr = l.image_wptr.lock())
-                        {
-                            auto& layer = *layer_ptr;
-                            l.sync_attrs_with_base(layer, image_WH, wh);
-                            render_layer(canvas, placeholder, fgc, layer, l.sub_id, l.bitmap, l.gb_attrs, image_WH, inv);
-                        }
-                        else
-                        {
-                            //todo drop from image.layers
-                        }
-                    }
-                    render_layer(canvas, placeholder, fgc, image, image.sub_id, image.bitmap, image.gb_attrs, image_WH, inv);
+                    auto& image = *image_ptr;
+                    render_layers(canvas, placeholder, fgc, image, image.sub_id, image.bitmap, image.gb_attrs, image_WH, wh, inv);
                 }
             }
         }

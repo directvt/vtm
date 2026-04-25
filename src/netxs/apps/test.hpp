@@ -83,7 +83,7 @@ namespace netxs::app::test
                     .idx(test_topic_vars::image1).add("<").fgc(reddk).add("placeholder").fgc().add(">").nop()
                     .jet(bias::right).mgr(-3 + o)
                     .idx(test_topic_vars::image2).add("<").fgc(reddk).add("placeholder").fgc().add(">").nop()
-                    .jet(bias::left).wrp(wrap::off)
+                    .jet(bias::left).wrp(wrap::off).mgl(1).mgr(2)
                     .add("\n")
                 .add(header(skin::globals().NsInfoSubcellSize))
                 .add("\n")
