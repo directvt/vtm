@@ -631,7 +631,8 @@ namespace netxs::app::shared
                 };
             };
             auto body = data();
-            auto items = scroll->attach(ui::list::ctor());
+            auto items = scroll->attach(ui::list::ctor())
+                               ->limits({ 76,-1 }, { -1,-1 }); // Set the min value to 76 to make the anyplex sample look cool.
 
             // Keybd test subsection.
             auto title_grid_state = items->attach(ui::list::ctor(axis::Y)->setpad({ 0, 0, 0, 2}));
@@ -745,6 +746,10 @@ namespace netxs::app::shared
                             for (auto& r : released) r->hidden = r->get_source().empty();
                         }
                     }
+                    else if (i == 3)
+                    {
+                        continue;
+                    }
                     else
                     {
                         auto rec_ptr = std::static_pointer_cast<ui::post>(rec);
@@ -764,6 +769,8 @@ namespace netxs::app::shared
                     //->shader(cell::shaders::color(c3), e2::form::state::focus::count);
                 if (stats) block->shader(cell::shaders::xlight, e2::form::state::hover);
             }
+            auto rec_ptr = std::static_pointer_cast<ui::post>(items->subset.back());
+            rec_ptr->invoke(app::test::register_images);
             items->invoke([&](auto& boss)
             {
                 auto& coord = boss.base::field(fp2d{});

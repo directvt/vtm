@@ -7,7 +7,7 @@ namespace netxs
 {
     template<class T> using sptr = std::shared_ptr<T>;
     template<class T> using wptr = std::  weak_ptr<T>;
-    template<class T> using uptr = std::unique_ptr<T>;
+    template<class T, class... Ts> using uptr = std::unique_ptr<T, Ts...>;
 
     // Due to the fact that alias templates are never deduced by template argument deduction (C++20).
     namespace ptr

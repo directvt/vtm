@@ -47,6 +47,9 @@ namespace netxs::app::test
             dynamix1,
             dynamix2,
             dynamix3,
+
+            image1,
+            image2,
         };
 
         template<auto ...Args>
@@ -58,11 +61,30 @@ namespace netxs::app::test
             {
                 return ansi::mgl(1).wrp(wrap::off).fgc(hdrclr).unc(whitedk).cap(caption).erl().und(unln::none).eol().fgc(txtclr).mgl(3).unc(0).wrp(wrap::on);
             };
+            auto header2 = [&](auto caption)
+            {
+                    return ansi::escx{}.cap(caption, 2, 2, faux).erl().eol();
+            };
             auto crop = ansi::mgl(1).mgr(2).jet(bias::center)
                 .add("\n")
                 .wrp(wrap::off).fgc(hdrclr).cap(skin::globals().NsInfoSF, 3, 3, faux).eol()
                 .jet(bias::left)
-                .add("\n")
+                .add("\n");
+                auto o = 11; // Offset.
+                crop.add(header("AnyPlex"))
+                    .add("\n\n\n\n")
+                    .jet(bias::left).wrp(wrap::off)
+                    .jet(bias::center)
+                    .mgr(4 + o).mgl(3 - o).fgc(txtclr).add("any                   \n")
+                    .mgl(1 - o).mgr(4 + o).cuu(1).fgc(hdrclr).add(header2("AnyPlex"))
+                    .mgl(12 - o).mgr(-3 + o).cuu(1).fgc(txtclr).add("plex\n")
+                    .nil().nop().cuu(5)
+                    .jet(bias::left).mgl(16 - o)
+                    .idx(test_topic_vars::image1).add("<").fgc(reddk).add("placeholder").fgc().add(">").nop()
+                    .jet(bias::right).mgr(-3 + o)
+                    .idx(test_topic_vars::image2).add("<").fgc(reddk).add("placeholder").fgc().add(">").nop()
+                    .jet(bias::left).wrp(wrap::off)
+                    .add("\n")
                 .add(header(skin::globals().NsInfoSubcellSize))
                 .add("\n")
                 .add("😉", vss<11>) // Color emoji font load trigger.
@@ -672,6 +694,97 @@ namespace netxs::app::test
 
             return topic;
         };
+        auto get_svg = []
+        {
+            return R"==(
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><!-- Created with Inkscape (http://www.inkscape.org/) --><svg xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns="http://www.w3.org/2000/svg" xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd" xmlns:cc="http://web.resource.org/cc/" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:svg="http://www.w3.org/2000/svg" xmlns:ns1="http://sozi.baierouge.fr" id="svg2" sodipodi:docname="Nowy dokument.svg" sodipodi:modified="true" viewBox="0 0 256 256" sodipodi:version="0.32" version="1.0" inkscape:output_extension="org.inkscape.output.svg.inkscape" inkscape:version="0.44+devel" sodipodi:docbase="/home/michal"><defs id="defs18"><linearGradient id="linearGradient5839" inkscape:collect="always"><stop id="stop5841" style="stop-color:#eeeeee" offset="0"/><stop id="stop5843" style="stop-color:#eeeeee;stop-opacity:0" offset="1"/></linearGradient><linearGradient id="linearGradient6653"><stop id="stop6655" style="stop-color:#ffffff;stop-opacity:0" offset="0"/><stop id="stop6663" style="stop-color:#ffffff;stop-opacity:.49804" offset=".77863"/><stop id="stop6657" style="stop-color:#ffffff" offset="1"/></linearGradient><linearGradient id="linearGradient5738"><stop id="stop5740" style="stop-color:#fe0505" offset="0"/><stop id="stop5742" style="stop-color:#8b0000" offset="1"/></linearGradient><filter id="filter6757" inkscape:collect="always"><feGaussianBlur id="feGaussianBlur6759" stdDeviation="1.5101933" inkscape:collect="always"/></filter><filter id="filter6909" height="2.0016" width="1.4196" y="-.50078" x="-.20981" inkscape:collect="always"><feGaussianBlur id="feGaussianBlur6911" stdDeviation="3.1879868" inkscape:collect="always"/></filter><filter id="filter6933" height="1.238" width="1.1434" y="-.11898" x="-.071719" inkscape:collect="always"><feGaussianBlur id="feGaussianBlur6935" stdDeviation="0.74906281" inkscape:collect="always"/></filter>
+)==" // MSVC2022: C2026 String too big, trailing characters truncated.
+R"==(
+<filter id="filter6020" inkscape:collect="always"><feGaussianBlur id="feGaussianBlur6022" stdDeviation="3.2891356" inkscape:collect="always"/></filter><filter id="filter5785" height="1.4503" width="1.394" y="-.22513" x="-.19698" inkscape:collect="always"><feGaussianBlur id="feGaussianBlur5787" stdDeviation="1.1143122" inkscape:collect="always"/></filter><filter id="filter5835" inkscape:collect="always"><feGaussianBlur id="feGaussianBlur5837" stdDeviation="1.7846046" inkscape:collect="always"/></filter><filter id="filter6021" height="1.2345" width="1.1447" y="-.11724" x="-.072367" inkscape:collect="always"><feGaussianBlur id="feGaussianBlur6023" stdDeviation="2.5861883" inkscape:collect="always"/></filter><filter id="filter6938" height="1.3991" width="1.2551" y="-.19955" x="-.12757" inkscape:collect="always"><feGaussianBlur id="feGaussianBlur6940" stdDeviation="3.222517" inkscape:collect="always"/></filter><filter id="filter7333" height="1.2395" width="1.2278" y="-.11973" x="-.11388" inkscape:collect="always"><feGaussianBlur id="feGaussianBlur7335" stdDeviation="1.3442502" inkscape:collect="always"/></filter><filter id="filter7450" inkscape:collect="always"><feGaussianBlur id="feGaussianBlur7452" stdDeviation="0.65095441" inkscape:collect="always"/></filter><filter id="filter7454" inkscape:collect="always"><feGaussianBlur id="feGaussianBlur7456" stdDeviation="0.42331528" inkscape:collect="always"/></filter><filter id="filter7576" height="1.5667" width="1.3339" y="-.28333" x="-.16697" inkscape:collect="always"><feGaussianBlur id="feGaussianBlur7578" stdDeviation="1.7783362" inkscape:collect="always"/></filter><filter id="filter7934" height="1.5445" width="1.6111" y="-.27223" x="-.30557" inkscape:collect="always"><feGaussianBlur id="feGaussianBlur7936" stdDeviation="26.49476" inkscape:collect="always"/></filter><filter id="filter7982" height="1.4267" width="1.479" y="-.21337" x="-.23950" inkscape:collect="always"><feGaussianBlur id="feGaussianBlur7984" stdDeviation="20.766163" inkscape:collect="always"/></filter>
+)==" // MSVC2022: C2026 String too big, trailing characters truncated.
+R"==(
+<filter id="filter8192" inkscape:collect="always"><feGaussianBlur id="feGaussianBlur8194" stdDeviation="2.312615" inkscape:collect="always"/></filter><filter id="filter9241" inkscape:collect="always"><feGaussianBlur id="feGaussianBlur9243" stdDeviation="1.4137332" inkscape:collect="always"/></filter><linearGradient id="linearGradient9430" y2="283.8" gradientUnits="userSpaceOnUse" x2="-477.66" y1="206.34" x1="-426.19" inkscape:collect="always"><stop id="stop8154" style="stop-color:#000000" offset="0"/><stop id="stop8156" style="stop-color:#000000;stop-opacity:0" offset="1"/></linearGradient><linearGradient id="linearGradient9432" y2="424.72" xlink:href="#linearGradient5839" gradientUnits="userSpaceOnUse" x2="139.36" gradientTransform="translate(1.0607 .70711)" y1="427.55" x1="164.27" inkscape:collect="always"/><linearGradient id="linearGradient9434" y2="412.7" xlink:href="#linearGradient5839" gradientUnits="userSpaceOnUse" x2="245.62" gradientTransform="translate(1.7678 .70711)" y1="390.78" x1="268.22" inkscape:collect="always"/><radialGradient id="radialGradient9436" xlink:href="#linearGradient5738" gradientUnits="userSpaceOnUse" cy="520.01" cx="-113.91" gradientTransform="matrix(.91070 .36281 -.24003 .60251 132.1 251.08)" r="96.482" inkscape:collect="always"/><radialGradient id="radialGradient9438" xlink:href="#linearGradient6653" gradientUnits="userSpaceOnUse" cy="531.5" cx="-109.74" gradientTransform="matrix(1 0 0 .95148 0 25.787)" r="96.481" inkscape:collect="always"/><radialGradient id="radialGradient9440" fx="537.55" fy="461.21" xlink:href="#linearGradient5738" gradientUnits="userSpaceOnUse" cy="496.97" cx="529.47" gradientTransform="matrix(.86412 -.59392 .46267 .67316 -167.72 488.17)" r="86.418" inkscape:collect="always"/><linearGradient id="linearGradient9442" y2="513.33" gradientUnits="userSpaceOnUse" x2="501.59" y1="545.83" x1="439.81" inkscape:collect="always"><stop id="stop5982" style="stop-color:#220000" offset="0"/><stop id="stop5984" style="stop-color:#570000;stop-opacity:0" offset="1"/>
+)==" // MSVC2022: C2026 String too big, trailing characters truncated.
+R"==(
+</linearGradient><linearGradient id="linearGradient9444" y2="486.4" xlink:href="#linearGradient5839" gradientUnits="userSpaceOnUse" x2="528" y1="513.27" x1="605.97" inkscape:collect="always"/><radialGradient id="radialGradient9446" xlink:href="#linearGradient6653" gradientUnits="userSpaceOnUse" cy="527.74" cx="342.74" gradientTransform="matrix(1 0 0 1.0314 177 -24.075)" r="86.43" inkscape:collect="always"/></defs><sodipodi:namedview id="base" bordercolor="#666666" inkscape:pageshadow="2" inkscape:window-y="25" pagecolor="#ffffff" inkscape:window-height="696" width="256px" inkscape:zoom="1" inkscape:window-x="0" height="256px" borderopacity="1.0" inkscape:current-layer="layer1" inkscape:cx="128" inkscape:cy="128" inkscape:window-width="1274" inkscape:pageopacity="0.0" inkscape:document-units="px"/><g id="layer1" inkscape:label="Warstwa 1" inkscape:groupmode="layer"><g id="g9400" transform="matrix(.52563 0 0 .52563 325.92 -65.929)"><path id="path7912" d="m-483.29 248.89c109.07-73.88 78.88-40.57 28.28 16.82-33.84 22.94-38.75 3.18-28.28-16.82z" sodipodi:nodetypes="ccc" style="opacity:.27626;color:#000000;fill-rule:evenodd;filter:url(#filter8192);fill:url(#linearGradient9430)" transform="matrix(.75926 0 0 .77032 -98.528 47.393)"/><path id="path7910" sodipodi:nodetypes="czzzz" style="opacity:.58755;color:#000000;fill-rule:evenodd;filter:url(#filter7934);fill:#000000" d="m-208 450.36c0 28.58-28.82 43.24-83 88-54.18 44.77-111.07 5.98-83-88s37.18-88 83-88 83 55.43 83 88z"/><path id="path7587" sodipodi:nodetypes="czzzz" style="opacity:.53307;color:#000000;fill-rule:evenodd;filter:url(#filter7982);fill:#000000" d="m-410 466.36c0 28.58-28.82 43.24-83 88-54.18 44.77-111.07 5.98-83-88s37.18-88 83-88 83 55.43 83 88z"/><g id="g7580" transform="translate(-602,-138)">
+)==" // MSVC2022: C2026 String too big, trailing characters truncated.
+R"==(
+<path id="path6952" sodipodi:nodetypes="cccccssccccssc" style="fill-rule:evenodd;fill:#616f3c" d="m161.22 321.22c2.15 7.87-10.9 16.81-0.34 20.5-13.33 48.99-12.24 100.06-12.07 150.66l6.38-0.04c-0.17-50.68-1.17-101.16 11.84-149 4.05 0.93 7.94 1.64 9.03 1.91 9.73 2.43-4.84 6.16 11.32 2.13 0.05-0.02 0.1-0.02 0.15-0.04 39.26 32.24 78.39 67.5 117.53 118.66l5.06-3.91c-38.36-50.14-76.76-85.2-115.03-116.81 3.32-1.22 4.37-2.73 2.91-6.37-2.28-5.7-7.87-8.89-14.84-10.63-8.28-2.07-12.93-5.56-21.94-7.06z"/><path id="path6964" style="opacity:.70039;filter:url(#filter7454);fill-rule:evenodd;fill:url(#linearGradient9432)" d="m165.19 338.11c-14.44 49.36-13.57 101.8-13.32 152.97 5.29-0.91 0.95-11.28 2.32-16.03-0.17-45.82 0.39-92.49 13.46-136.72-0.61 0.2-2.45-1.47-2.46-0.22z"/><path id="path6993" style="filter:url(#filter7333);fill-rule:evenodd;fill:#373f22" d="m165.78 329.22c-0.04 3.34-3.32 8.55 1.6 10.53 3.52 1.16 7.22 1.17 9.87 4.16 3.25 3.04 9.27 1.46 8.91-3.5 0.82-4.71-2.06-9.52-7.17-9.53-6.09-0.99-11.08-4.83-16.3-7.88 1.03 2.07 2.06 4.15 3.09 6.22z"/><path id="path7175" style="color:#000000;fill-rule:evenodd;filter:url(#filter7450);fill:url(#linearGradient9434)" d="m184.38 331.12c-3.03 0 0.92 6.1-1.22 9-3.19 4.32-4.81 8.04 5.46 6.54 0.52-0.08 1.08-0.22 1.66-0.41 42.99 34.98 83.27 73.48 116.94 117.66 4.04-2.82-4.08-7.2-5.34-10.63-31.97-40.36-69.34-75.61-109.16-108.16 1.91-1.15 3.5-2.88 3.5-5 0-3.61-8.82-9-11.84-9z"/><path id="path7306" style="opacity:.87549;color:#000000;fill-rule:evenodd;filter:url(#filter7576);fill:#633918" d="m163.22 323.42c-0.45 0.6 0.52 1.58-0.81 1.91-1.59 2.42-2.95 5.26-3.19 8.15 0.32 2.68 4.44 3.48 5.64 1.03 0.83-2.49-0.79-5.1-0.38-7.73-0.03-1.18-1-2.9 0.78-1.64 4.2 1.84 8.35 3.8 12.48 5.79 1.52 0.92 4.05-0.61 2.04-2.1-3.11-2.88-7.52-3.36-11.42-4.54-1.69-0.41-3.41-0.74-5.14-0.87z"/></g>
+)==" // MSVC2022: C2026 String too big, trailing characters truncated.
+R"==(
+<g id="g4851" transform="translate(-357.35 -110.7)"><path id="path5750" sodipodi:nodetypes="csssc" style="fill:url(#radialGradient9436)" d="m-13.277 526.51c1.01 32.14-40.155 105.31-108.08 95.96-44.22-6.08-83.85-34.53-84.86-103.03-0.68-46.28 49-114.81 111.12-58.59 10.353 9.37 71.722-3.85 81.823 65.66z"/><path id="path5752" style="opacity:.43969;fill:url(#radialGradient9438)" d="m-141.25 439.7c-38.8-0.23-65.47 45.74-64.96 79.72 1.01 68.5 40.66 96.98 84.87 103.06 67.932 9.35 109.07-63.83 108.06-95.97-10.098-69.51-71.457-56.28-81.809-65.65-16.501-14.94-32.121-21.07-46.161-21.16zm15.04 10.22c0.17 0.09-0.19 0.98-1.29 2.94 10.81 0.47 21.26 20.04 34.192 33.56 1.499-8.96-13.502-30.33-3.281-18.13 11.985-7.13 21.268 7.05 27.531 10.07 5.553 2.51 10.842 4.25 15.937 11.03-3.619 10.3 17.389 21.21 7.344 31.69 5.006 15.24 3.685-10.38 3.688-12.16l1.406 8.78c0.901 6.77 4.57 7.89-0.656 30.72-11.037 7.44-14.104 19.04-20.5 27.06-21.136 1.22-25.038 8.96-22.938 12.06-13.283-4.85-25.713 27.57-34.313 11.69-9.81 1.23-12.32-8.25-19.34-11.59-11.13-1.44-11.83-20.54-21.38-19.19-10.58 6.47-7.22-16.69-12.69-23.84 9.41-13.52-12.3-26.69-8.96-28.6-12.34-18.21 2.02-34.47 11.25-30.9 4.92-4.32 11.94-1.77 20.84-8.1 5.23-4.77 22.19-27.6 23.16-27.09zm94.808 46.94c7.492 0 14.313 13.63 14.313 27.62 2.095 40-28.372 65.37-30.844 64.28-3.061-1.34 31.532-38.65 18.031-38.65-7.491 0-7.25-12.63-7.25-26.63 0-13.99-1.741-26.62 5.75-26.62z"/><path id="path5754" style="opacity:.72374;filter:url(#filter6021);fill:#ffffff" d="m-116.06 465.04c-6.44-0.16-8.24 8.66-3.69 12.35 9.88 8.61 23.26 12.8 32.411 22.31 8.885 7.17 22.261 12.87 33.218 7.06 6.516-4.58 2.151-14-2.218-18.53-10.212-9.22-24.707-10.76-36.726-16.97-7.325-2.8-14.965-6.38-22.995-6.22z"/><path id="path5756" style="opacity:.78599;fill:#ffffff" d="m-115.84 471.06c-1.37 2.16 2.96 4.38 4.53 5.25 10.96 6.37 21.827 13 31.31 21.31 6.504 4.06 16.259 8.39 23.062 3.26 0.164-8.46-9.487-12.78-16.24-15.53-12.373-3.75-23.828-9.92-36.292-13.54-2.09-0.44-4.23-0.79-6.37-0.75z"/>
+)==" // MSVC2022: C2026 String too big, trailing characters truncated.
+R"==(
+<path id="path5758" style="opacity:.91440;filter:url(#filter6757);fill:#ffffff" d="m-118.38 445.05c-0.36 1.62-0.11 3.79 1.06 6.72 3.77 9.44 19.11 4.91 23.217 13.12 0.421 0.85 1.283 1.31 2.407 1.57 1.571-0.25 3.099-0.17 4.562 0.15h0.031c3.666-0.24 8.054-0.95 11.625-0.69-9.174-1.5-16.602-2.32-19.625-5.06-7.997-7.23-15.777-12.39-23.277-15.81zm45.434 21.31c2.448 0.71 4.125 2.29 4.125 5.6 0 4.34 2.554 7.08 5.875 9.21 0.934 0.48 1.861 1 2.781 1.6 0.033 0.02 0.06 0.04 0.094 0.06 0.039 0.03 0.086 0.04 0.125 0.06 4.51 2.31 9.421 4.1 11.312 7.25 4.386 7.31 14.946 5.39 21.344 0.1-12.747-16.56-31.056-21.33-45.656-23.88z"/><path id="path5760" sodipodi:rx="6.0609155" sodipodi:ry="7.0710678" style="filter:url(#filter6933);fill:#eeeeee" sodipodi:type="arc" d="m124.25 478.6a6.0609 7.0711 0 1 1 -12.12 0 6.0609 7.0711 0 1 1 12.12 0z" inkscape:transform-center-y="4.8498591" transform="matrix(1.2299 .56234 0 .41415 -269.27 183.64)" sodipodi:cy="478.59555" sodipodi:cx="118.18785"/><path id="path5762" sodipodi:nodetypes="ccc" style="opacity:.68872;filter:url(#filter6909);fill:#ffffff" d="m-41.214 522.61c-4.28 9.98-22.925 3.01-30.357-4.64 7.286-4.7 31.395-4.87 30.357 4.64z"/></g><g id="g9388"><g id="g6942" transform="translate(-783.65 -129.07)"><path id="path6290" sodipodi:nodetypes="csssc" style="fill:url(#radialGradient9440)" d="m604.8 509.94c9.82 54.42-35.57 88.03-70.36 97.93-34.8 9.9-95.2-30.51-100.05-75.31-8.62-79.47 36.84-61.82 70.35-89.45 43.6-35.93 100.06 15.35 100.06 66.83z"/><path id="path5967" style="opacity:.79377;filter:url(#filter6020);fill:url(#linearGradient9442)" d="m467.06 466.12c-13.4 4.9-26.03 15.47-27.91 30.39-3.29 17.5-2.72 36.43 4.13 53.05 12.34 26.64 37.8 46.1 65.66 54.06 13.7 3.76 28.24 0.95 40.55-5.71 8.98-4.22 18.75-10.35 25.39-16.75-22.59 6.67-46.03-3.14-64.72-15.5-23.53-15.97-42.85-41.52-43.66-71.03-0.41-9.62-0.18-19.36 1.5-28.85l-0.94 0.34z"/>
+)==" // MSVC2022: C2026 String too big, trailing characters truncated.
+R"==(
+<path id="path5789" sodipodi:nodetypes="csss" style="opacity:.56420;filter:url(#filter5835);fill-rule:evenodd;fill:url(#linearGradient9444)" d="m581.04 520.62c7.92-12.18-12.23-82.73-54.18-67.87-32.01 11.34-7.37 42.48 5.32 49.12 20.4 10.67 44.46 25.53 48.86 18.75z"/><path id="path5761" style="filter:url(#filter6938);fill:#eeeeee" d="m541.78 453.38c-6.53-0.35-16.08-0.94-18.5 6.81-1.88 5.21 1.22 12.26 7.44 12 6.07-1.14 13.62-4.6 18.59 0.97 6.4 3.74 10.98 12.18 18.88 12.34 7.05-2.41 6.02-12.92 1.34-17.22-6.66-8.41-16.39-16-27.75-14.9z"/><path id="path6293" style="opacity:.43969;fill:url(#radialGradient9446)" d="m536.62 431.09c-10.73-0.03-21.65 3.61-31.87 12.03-33.51 27.63-78.99 9.97-70.37 89.44 4.85 44.79 65.26 85.22 100.06 75.32 34.79-9.9 80.19-43.52 70.37-97.94 0-39.42-33.1-78.72-68.19-78.85zm-2.06 15.82c3.61 0.7 7.09 1.83 10.63 2.81 8.58 1.46 18.01 2.64 21.78 11.9 7.27 4.73 7.28 13.23 10.75 20.22 8.83 3.38 7.94 11.88 8.28 18.6 5.96 5.5 0.12 13.79 0.34 21 3.5 3.7 6.24 8.77 1.44 13.31-3.02 4.71-1.93 12.33-8.84 14.13-0.97 6.21-5.57 17.35-10.53 10.62-7.13-3.33-9.56 4.51-12.38 8.53-7.45 2.27-17.87 6.22-25.65 2.59-6.44-4-13.96 2.94-20.69-1.03-6.27-4.99-14.68-7.9-22.35-10.68-3.74-8.17-9.62-12.9-14.59-19.69-2.15-2.05-6.46-14.36-5.44-5.34 0.4 6.16 1.97 12.82-3.53 17.09 2.54 3-0.58 7.06 2.84 10.03 8.99 4.98-0.14 5.86-5.84 3.56-6.73-1.33-12.08-10.69-9.81-17.34-2.38-5.7-8.72-12.77-10.38-20.16-4.38-7.13-2.87-11.67-1.25-17.75-0.84-5.52 7.94-3.33 10.75-9.37 9.34 0.85 5.86-10.25 10.41-14.35 7.19-3.02 2.63-11.56 9.53-14.93 7.88-1.94 13.7-6.31 19.56-11.82 9-1.36 18.3-2.98 26.91-6.72 5.09-5.18 12.9-0.71 18.06-5.21z"/><path id="path5757" sodipodi:nodetypes="csssc" style="opacity:.82879;fill:#ffffff" d="m569 474.11c1 16.87-7.01 1.36-22.25-7.25-6.96-3.93-19.42 6.05-19.75-2.25-0.31-7.86 3.64-7.3 16.75-7.25 12.83 0.06 19.6 10.02 25.25 16.75z"/>
+)==" // MSVC2022: C2026 String too big, trailing characters truncated.
+R"==(
+<path id="path4866" sodipodi:rx="5.6568542" sodipodi:ry="4.9497476" style="opacity:.45136;filter:url(#filter5785);fill:#ffffff" sodipodi:type="arc" d="m317.49 477.48a5.6569 4.9497 0 1 1 -11.31 0 5.6569 4.9497 0 1 1 11.31 0z" transform="translate(179.61 -7.7782)" sodipodi:cy="477.48438" sodipodi:cx="311.83408"/><path id="path5847" sodipodi:rx="1.9445436" sodipodi:ry="1.5909903" style="opacity:.56420;fill:#ffffff" sodipodi:type="arc" d="m491.09 470.94a1.9445 1.591 0 1 1 -3.89 0 1.9445 1.591 0 1 1 3.89 0z" transform="translate(1.3679 1.3833)" sodipodi:cy="470.94363" sodipodi:cx="489.14111"/></g><path id="path8205" sodipodi:nodetypes="czcccc" style="filter:url(#filter9241);fill-rule:evenodd;fill:#ffffff" d="m-259.97 306.69c17.86 4.31 23.82 0.46 41.4 12.97 16.79 11.94 20.78 26.04 28.47 37.7 0.26 1.87 2.52 6.44 3.03 2.12 1.46-4.54 0.95-5.94-2.37-9.71 2.94 0.8-27.35-58.85-70.53-43.08z"/></g></g></g><metadata><rdf:RDF><cc:Work><dc:format>image/svg+xml</dc:format><dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/><cc:license rdf:resource="http://creativecommons.org/licenses/publicdomain/"/><dc:publisher><cc:Agent rdf:about="http://openclipart.org/"><dc:title>Openclipart</dc:title></cc:Agent></dc:publisher><dc:title>cherries</dc:title><dc:date>2006-12-03T07:23:45</dc:date><dc:description>Inkscape 0.44+devel</dc:description><dc:source>https://openclipart.org/detail/1742/cherries-by-thestructorr</dc:source><dc:creator><cc:Agent><dc:title>TheStructorr</dc:title></cc:Agent></dc:creator><dc:subject><rdf:Bag><rdf:li>cherry</rdf:li><rdf:li>food</rdf:li><rdf:li>fruit</rdf:li><rdf:li>photorealistic</rdf:li><rdf:li>plant</rdf:li><rdf:li>red</rdf:li></rdf:Bag></dc:subject></cc:Work><cc:License rdf:about="http://creativecommons.org/licenses/publicdomain/"><cc:permits rdf:resource="http://creativecommons.org/ns#Reproduction"/><cc:permits rdf:resource="http://creativecommons.org/ns#Distribution"/><cc:permits rdf:resource="http://creativecommons.org/ns#DerivativeWorks"/></cc:License></rdf:RDF></metadata></svg>
+)=="sv;
+        };
+        auto register_images = [](auto& self)
+        {
+            auto& canvas_l = *self.content(test_topic_vars::image1).lyric;
+            auto& canvas_r = *self.content(test_topic_vars::image2).lyric;
+            auto images = cell::images(); // Lock.
+            auto image_0_ptr = ptr::shared(imagens::image{});
+            auto image_l_ptr = ptr::shared(imagens::image{});
+            auto image_r_ptr = ptr::shared(imagens::image{});
+            auto image_0_index = images.set(image_0_ptr);
+            auto image_l_index = images.set(image_l_ptr);
+            auto image_r_index = images.set(image_r_ptr);
+            auto size = twod{ 20, 10 };
+            auto& image_0 = *image_0_ptr;
+            auto& image_l = *image_l_ptr;
+            auto& image_r = *image_r_ptr;
+            image_0.index = image_0_index;
+            image_l.index = image_l_index;
+            image_r.index = image_r_index;
+            image_0.document = get_svg();
+            image_0.gb_attrs[imagens::gb::w] = (fp32)size.x;
+            image_0.gb_attrs[imagens::gb::h] = (fp32)size.y;
+            image_0.gb_attrs[imagens::gb::uw] = 1.f;
+            image_0.gb_attrs[imagens::gb::vh] = 1.f;
+            image_r.gb_attrs[imagens::gb::o] = 1.f;
+            auto& r = image_r.layers.emplace_back();
+            auto& l = image_l.layers.emplace_back();
+            r.index = image_0_index;
+            l.index = image_0_index;
+            r.image_wptr = image_0_ptr;
+            l.image_wptr = image_0_ptr;
+            r.opt_attrs[imagens::gb::tr] = 0.f;
+            imagens::mirror_fx(r.opt_attrs[imagens::gb::tr].value(), imagens::flips::hz);
+            auto brush_r = cell{};
+            auto brush_l = cell{};
+            brush_r.set_image_index(image_r.index);
+            brush_l.set_image_index(image_l.index);
+            brush_r.set_image_WH(size.x, size.y);
+            brush_l.set_image_WH(size.x, size.y);
+            canvas_r.core::size<true>(size, brush_r);
+            canvas_l.core::size<true>(size, brush_l);
+            auto head_r = canvas_r.begin();
+            auto head_l = canvas_l.begin();
+            for (auto row = 1; row <= size.y; row++)
+            {
+                for (auto column = 1; column <= size.x; column++)
+                {
+                    (*head_r++).set_image_cr(column, row);
+                    (*head_l++).set_image_cr(column, row);
+                }
+            }
+            self.topic.reindex();
+            self.base::atexit([=]
+            {
+                log("Cleanup: image_0=%% image_l=%% image_r=%%", image_0_index, image_l_index, image_r_index);
+                auto images = cell::images(); // Lock.
+                images.remove(image_r_index);
+                images.remove(image_l_index);
+                images.remove(image_0_index);
+            });
+        };
+
         auto build = [](eccc /*appcfg*/, settings& config)
         {
             auto topic = get_text();
@@ -698,22 +811,23 @@ namespace netxs::app::test
                                             ->active(cyanlt, bluedk);
                             auto object = scroll->attach(ui::post::ctor())
                                                 ->upload(topic)
-                                                ->invoke([&](auto& self)
+                                                ->invoke([&](auto& boss)
                                                 {
-                                                    self.LISTEN(tier::release, e2::postrender, canvas)
+                                                    register_images(boss);
+                                                    boss.LISTEN(tier::release, e2::postrender, canvas)
                                                     {
                                                         static auto counter = 0; counter++;
                                                         static auto textclr =  ansi::bgc(reddk).fgc(whitelt);
-                                                        self.content(test_topic_vars::object1) = textclr + " inlined #1: " + std::to_string(counter) + " hits ";
-                                                        self.content(test_topic_vars::object2) = textclr + " inlined #2: " + canvas.face::area().size.str() + " ";
-                                                        self.content(test_topic_vars::object3) = textclr + " inlined #3: " + canvas.flow::full().coor.str() + " ";
+                                                        boss.content(test_topic_vars::object1) = textclr + " inlined #1: " + std::to_string(counter) + " hits ";
+                                                        boss.content(test_topic_vars::object2) = textclr + " inlined #2: " + canvas.face::area().size.str() + " ";
+                                                        boss.content(test_topic_vars::object3) = textclr + " inlined #3: " + canvas.flow::full().coor.str() + " ";
                                                     };
                                                     //todo
-                                                    //self.LISTEN(tier::general, e2::form::canvas, canvas_ptr)
+                                                    //boss.LISTEN(tier::general, e2::form::canvas, canvas_ptr)
                                                     //{
-                                                    //    self.content(test_topic_vars::dynamix1).lyric = self.content(test_topic_vars::dynamix2).lyric;
-                                                    //    self.content(test_topic_vars::dynamix2).lyric = self.content(test_topic_vars::dynamix3).lyric;
-                                                    //    self.content(test_topic_vars::dynamix3).lyric = canvas_ptr;
+                                                    //    boss.content(test_topic_vars::dynamix1).lyric = boss.content(test_topic_vars::dynamix2).lyric;
+                                                    //    boss.content(test_topic_vars::dynamix2).lyric = boss.content(test_topic_vars::dynamix3).lyric;
+                                                    //    boss.content(test_topic_vars::dynamix3).lyric = canvas_ptr;
                                                     //};
                                                 });
                         auto scroll_bars = layers->attach(ui::fork::ctor());
