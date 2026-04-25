@@ -7726,7 +7726,21 @@ namespace netxs::ui
             auto images = cell::images(); // Lock.
             if (unregister)
             {
-                if (auto iter = image_cache.find(id_str); iter != image_cache.end())
+                if (id_str == "*") // Remove all registered images.
+                {
+                    auto removed_image_indexes = e2::data::image::remove.param();
+                    removed_image_indexes.reserve(image_cache.size());
+                    for (auto [object_id, image_ptr] : image_cache)
+                    {
+                        auto& image = *image_ptr;
+                        removed_image_indexes.push_back(image.index);
+                        images.remove(image.index);
+                    }
+                    image_cache.clear();
+                    base::signal(tier::general, e2::data::image::remove, removed_image_indexes);
+                    if (io_log) log("%%All registered objects are successfully unregistered (count=%%)", prompt::term, removed_image_indexes.size());
+                }
+                else if (auto iter = image_cache.find(id_str); iter != image_cache.end())
                 {
                     auto image_ptr = iter->second;
                     auto& image = *image_ptr;
