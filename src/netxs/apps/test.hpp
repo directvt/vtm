@@ -71,7 +71,7 @@ namespace netxs::app::test
                 .jet(bias::left)
                 .add("\n");
                 auto o = 11; // Offset.
-                crop.add(header("AnyPlex"))
+                crop.add(header("AnyPlex Protocol, APP"))
                     .add("\n\n\n\n")
                     .jet(bias::left).wrp(wrap::off)
                     .jet(bias::center)
@@ -724,10 +724,10 @@ R"==(
 <path id="path4866" sodipodi:rx="5.6568542" sodipodi:ry="4.9497476" style="opacity:.45136;filter:url(#filter5785);fill:#ffffff" sodipodi:type="arc" d="m317.49 477.48a5.6569 4.9497 0 1 1 -11.31 0 5.6569 4.9497 0 1 1 11.31 0z" transform="translate(179.61 -7.7782)" sodipodi:cy="477.48438" sodipodi:cx="311.83408"/><path id="path5847" sodipodi:rx="1.9445436" sodipodi:ry="1.5909903" style="opacity:.56420;fill:#ffffff" sodipodi:type="arc" d="m491.09 470.94a1.9445 1.591 0 1 1 -3.89 0 1.9445 1.591 0 1 1 3.89 0z" transform="translate(1.3679 1.3833)" sodipodi:cy="470.94363" sodipodi:cx="489.14111"/></g><path id="path8205" sodipodi:nodetypes="czcccc" style="filter:url(#filter9241);fill-rule:evenodd;fill:#ffffff" d="m-259.97 306.69c17.86 4.31 23.82 0.46 41.4 12.97 16.79 11.94 20.78 26.04 28.47 37.7 0.26 1.87 2.52 6.44 3.03 2.12 1.46-4.54 0.95-5.94-2.37-9.71 2.94 0.8-27.35-58.85-70.53-43.08z"/></g></g></g><metadata><rdf:RDF><cc:Work><dc:format>image/svg+xml</dc:format><dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/><cc:license rdf:resource="http://creativecommons.org/licenses/publicdomain/"/><dc:publisher><cc:Agent rdf:about="http://openclipart.org/"><dc:title>Openclipart</dc:title></cc:Agent></dc:publisher><dc:title>cherries</dc:title><dc:date>2006-12-03T07:23:45</dc:date><dc:description>Inkscape 0.44+devel</dc:description><dc:source>https://openclipart.org/detail/1742/cherries-by-thestructorr</dc:source><dc:creator><cc:Agent><dc:title>TheStructorr</dc:title></cc:Agent></dc:creator><dc:subject><rdf:Bag><rdf:li>cherry</rdf:li><rdf:li>food</rdf:li><rdf:li>fruit</rdf:li><rdf:li>photorealistic</rdf:li><rdf:li>plant</rdf:li><rdf:li>red</rdf:li></rdf:Bag></dc:subject></cc:Work><cc:License rdf:about="http://creativecommons.org/licenses/publicdomain/"><cc:permits rdf:resource="http://creativecommons.org/ns#Reproduction"/><cc:permits rdf:resource="http://creativecommons.org/ns#Distribution"/><cc:permits rdf:resource="http://creativecommons.org/ns#DerivativeWorks"/></cc:License></rdf:RDF></metadata></svg>
 )=="sv;
         };
-        auto register_images = [](auto& self)
+        auto register_images = [](auto& boss)
         {
-            auto& canvas_l = *self.content(test_topic_vars::image1).lyric;
-            auto& canvas_r = *self.content(test_topic_vars::image2).lyric;
+            auto& canvas_l = *boss.content(test_topic_vars::image1).lyric;
+            auto& canvas_r = *boss.content(test_topic_vars::image2).lyric;
             auto images = cell::images(); // Lock.
             auto image_0_ptr = ptr::shared(imagens::image{});
             auto image_l_ptr = ptr::shared(imagens::image{});
@@ -773,14 +773,17 @@ R"==(
                     (*head_l++).set_image_cr(column, row);
                 }
             }
-            self.topic.reindex();
-            self.base::atexit([=]
+            boss.topic.reindex();
+            auto& indexer = boss.bell::indexer;
+            boss.base::atexit([&, image_0_index, image_l_index, image_r_index]
             {
                 log("Cleanup: image_0=%% image_l=%% image_r=%%", image_0_index, image_l_index, image_r_index);
                 auto images = cell::images(); // Lock.
                 images.remove(image_r_index);
                 images.remove(image_l_index);
                 images.remove(image_0_index);
+                auto removed_indexes = e2::data::image::remove.param({ image_r_index, image_l_index, image_0_index });
+                indexer.notify_general(e2::data::image::remove.id, removed_indexes);
             });
         };
 
