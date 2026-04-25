@@ -1228,7 +1228,6 @@ namespace netxs
             X(w  ) /* w      (reset raster if changed)              */ \
             X(h  ) /* h      (reset raster if changed)              */ \
             X(fit) /* fit    (reset raster if changed)              */ \
-            X(o  ) /* ontop                                         */ \
             X(a  ) /* align                                         */ \
             X(tr ) /* transform (reset raster if SwapXY is changed) */ \
             X(f  ) /* flip   (not stored)                           */ \
@@ -1237,7 +1236,8 @@ namespace netxs
             X(W ) /* Cell canvas width  */ \
             X(H ) /* Cell canvas height */ \
             X(c ) /* Specified column   */ \
-            X(r ) /* Specified row      */
+            X(r ) /* Specified row      */ \
+            X(o ) /* ontop              */
         namespace gb
         {
             static constexpr auto _counter = __COUNTER__ + 1;
@@ -2282,6 +2282,7 @@ namespace netxs
         //  bits | value
         // ------|------
         //  16   | Image index. ui16
+        //  1    | o ontop. 0/1
         //  16   | c fragment (column). ui16
         //  16   | r fragment (row). ui16
         //  16   | W cell canvas width. ui16
@@ -2290,7 +2291,8 @@ namespace netxs
 
         static constexpr auto p2_index16_mask = (ui32)0b00000000'00000000'11111111'11111111;
         static constexpr auto p2_stamp_8_mask = (ui32)0b00000000'11111111'00000000'00000000;
-      //static constexpr auto p2_reserv8_mask = (ui32)0b11111111'00000000'00000000'00000000;
+        static constexpr auto p2_ontop_1_mask = (ui32)0b00000001'00000000'00000000'00000000;
+      //static constexpr auto p2_reserv7_mask = (ui32)0b11111110'00000000'00000000'00000000;
 
         static constexpr auto px_imgX_16_mask = (ui64)0b00000000'00000000'00000000'00000000'00000000'00000000'11111111'11111111;
         static constexpr auto px_imgY_16_mask = (ui64)0b00000000'00000000'00000000'00000000'11111111'11111111'00000000'00000000;
@@ -2309,15 +2311,17 @@ namespace netxs
             auto r = (si32)(ui16)netxs::get_field<px_imgY_16_mask>(px);
             return twod{ c, r };
         }
-        auto set_image_cr(si32 c, si32 r)
+        auto& set_image_cr(si32 c, si32 r)
         {
             netxs::set_field<px_imgX_16_mask>(c, px);
             netxs::set_field<px_imgY_16_mask>(r, px);
+            return *this;
         }
-        auto set_image_WH(si32 imgW, si32 imgH)
+        auto& set_image_WH(si32 imgW, si32 imgH)
         {
             netxs::set_field<px_imgW_16_mask>(imgW, px);
             netxs::set_field<px_imgH_16_mask>(imgH, px);
+            return *this;
         }
         auto get_image_index() const { return (ui16)netxs::get_field<p2_index16_mask>(p2); }
         auto get_image_stamp() const { return       netxs::get_field<p2_stamp_8_mask>(p2); }
@@ -2327,25 +2331,23 @@ namespace netxs
             auto ontop = faux;
             if (index)
             {
-                auto images = cell::images(); // Lock.
-                if (auto image_ptr = images.map[index])
-                {
-                    ontop = (si32)image_ptr->gb_attrs[imagens::gb::o];
-                }
+                ontop = netxs::get_field<p2_ontop_1_mask>(p2);
             }
             return std::pair{ index, ontop };
         }
-        auto set_image_index(si32 n) { netxs::set_field<p2_index16_mask>(n, p2); }
-        auto set_image_stamp(si32 n) { netxs::set_field<p2_stamp_8_mask>(n, p2); }
-        auto inc_image_stamp(si32 n) { netxs::set_field<p2_stamp_8_mask>(get_image_stamp() + n, p2); }
-        auto set_image_attrs(imagens::image& image, imagens::image::lc_attrs_t& lc_attrs)
+        auto& set_image_index(si32 n) { netxs::set_field<p2_index16_mask>(n, p2); return *this; }
+        auto& set_image_ontop(si32 n) { netxs::set_field<p2_ontop_1_mask>(n, p2); return *this; }
+        auto& set_image_stamp(si32 n) { netxs::set_field<p2_stamp_8_mask>(n, p2); return *this; }
+        auto& inc_image_stamp(si32 n) { netxs::set_field<p2_stamp_8_mask>(get_image_stamp() + n, p2); return *this; }
+        auto& set_image_attrs(imagens::image& image, imagens::image::lc_attrs_t& lc_attrs)
         {
             set_image_index(image.index);
-            set_image_WH((si32)lc_attrs[imagens::lc::W],
-                         (si32)lc_attrs[imagens::lc::H]);
-            set_image_cr((si32)lc_attrs[imagens::lc::c],
-                         (si32)lc_attrs[imagens::lc::r]);
             set_image_stamp(image.stamp);
+            set_image_WH(   (si32)lc_attrs[imagens::lc::W],
+                            (si32)lc_attrs[imagens::lc::H]);
+            set_image_cr(   (si32)lc_attrs[imagens::lc::c],
+                            (si32)lc_attrs[imagens::lc::r]);
+            set_image_ontop((si32)lc_attrs[imagens::lc::o]);
             return *this;
         }
 
@@ -2492,6 +2494,10 @@ namespace netxs
         {
             fuse_keep_image(c);
             if (c.id) id = c.id;
+            if (px && !c.px)
+            {
+                set_image_ontop(0); // Place image under the text.
+            }
         }
         // cell: Blend two cells and set id if any (fg = bg * c.fg).
         void overlay(cell const& c)

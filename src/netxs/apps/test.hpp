@@ -747,7 +747,6 @@ R"==(
             image_0.gb_attrs[imagens::gb::h] = (fp32)size.y;
             image_0.gb_attrs[imagens::gb::uw] = 1.f;
             image_0.gb_attrs[imagens::gb::vh] = 1.f;
-            image_r.gb_attrs[imagens::gb::o] = 1.f;
             auto& r = image_r.layers.emplace_back();
             auto& l = image_l.layers.emplace_back();
             r.index = image_0_index;
@@ -760,7 +759,7 @@ R"==(
             auto brush_l = cell{};
             brush_r.set_image_index(image_r.index);
             brush_l.set_image_index(image_l.index);
-            brush_r.set_image_WH(size.x, size.y);
+            brush_r.set_image_WH(size.x, size.y).set_image_ontop(1);
             brush_l.set_image_WH(size.x, size.y);
             canvas_r.core::size<true>(size, brush_r);
             canvas_l.core::size<true>(size, brush_l);
