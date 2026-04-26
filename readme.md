@@ -26,7 +26,7 @@ vtm ssh user@host vtm
 
 ### Demos
 
-Check out VT2D power (Windows only for now):
+Check out AnyPlex and VT2D power (Windows only for now):
 
 ```bash
 vtm --run test
