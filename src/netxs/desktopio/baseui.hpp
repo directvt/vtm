@@ -1287,11 +1287,11 @@ namespace netxs::ui
             struct cleanup
             {
                 netxs::sptr<std::function<void()>> action;
-                cleanup(std::function<void()> f) 
+                cleanup(std::function<void()> f)
                     : action(ptr::shared(f))
                 { }
-                ~cleanup() 
-                { 
+                ~cleanup()
+                {
                     if (action && action.use_count() == 1)
                     {
                         (*action)();
