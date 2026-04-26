@@ -7753,6 +7753,12 @@ namespace netxs::ui
             }
             else
             {
+                if (id_str == "*")
+                {
+                    //todo
+                    if (io_log) log("%%Operation aborted: The asterisk symbol has a special meaning", prompt::term);
+                    return;
+                }
                 auto iter = image_cache.find(id_str);
                 // Merge with existing attributes.
                 if (iter != image_cache.end() && doc_str.empty())

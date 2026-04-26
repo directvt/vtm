@@ -26,7 +26,7 @@ vtm ssh user@host vtm
 
 ### Demos
 
-Check out VT2D power (Windows only for now):
+Check out AnyPlex and VT2D power (Windows only for now):
 
 ```bash
 vtm --run test
@@ -72,3 +72,10 @@ vtm --run gems
 - [Settings](doc/settings.md)
 - [VT2D](doc/character_geometry.md)
 - [AnyPlex Protocol](doc/anyplex.md)
+
+## Powered by
+
+- [The Programming Language Lua](https://www.lua.org)
+- [The FreeType Project](https://freetype.org)
+- [HarfBuzz text shaping engine](https://github.com/harfbuzz/harfbuzz)
+- [sammycage/lunasvg: SVG rendering and manipulation library in C++](https://github.com/sammycage/lunasvg)

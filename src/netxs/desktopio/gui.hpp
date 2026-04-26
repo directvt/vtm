@@ -779,6 +779,29 @@ namespace netxs::gui
                     f.em_height_letters = em_height_letters;
                 }
             }
+            auto& select_font_face(si32 style_id)
+            {
+                auto has_broken_fonts = faux;
+                auto& sorted_list = sorted_face_list[style_id];
+                auto inst_face = std::reference_wrapper{ sorted_list.front() };
+                for (auto& bare_face_rec : sorted_list)
+                {
+                    if (!bare_face_rec.fthb_pair_cache[0].fthb_pair && !bare_face_rec.load_from_file(fcache, family_ref, style_id))
+                    {
+                        has_broken_fonts = true;
+                    }
+                    else
+                    {
+                        inst_face = bare_face_rec;
+                        break;
+                    }
+                }
+                if (has_broken_fonts) // Remove broken records from the sorted list.
+                {
+                    std::erase_if(sorted_list, [](auto& bare_face_rec){ return !bare_face_rec.bare_face_ptr->valid; });
+                }
+                return inst_face.get();
+            }
             auto& select_font_face(std::span<const utfx> codepoints, si32 style_id)
             {
                 auto has_broken_fonts = faux;
@@ -1195,6 +1218,46 @@ namespace netxs::gui
             log<faux>("\x1b_lua: terminal.LineWrapMode(wrap_mode)\x1b\\");
             log<faux>("\x1b_lua: terminal.CodePage(code_page)\x1b\\\n");
         }
+        void init_svg_fonts()
+        {
+            auto svg_fonts = std::to_array<std::pair<text, text>>({
+            #if defined(_WIN32)
+                { "sans-serif", "Arial"           },
+                { "serif",      "Times New Roman" },
+            #else
+                { "sans-serif", "DejaVu Sans"     },
+                { "serif",      "DejaVu Serif"    },
+            #endif
+                { "cursive",    "Comic Sans MS"   },
+                { "fantasy",    "Impact"          },
+                { "monospace",  "Courier New"     },
+            });
+            auto register_svg_font = [](auto&& family, auto& def_face)
+            {
+                auto& f_regular     = def_face.select_font_face(font_style::regular    ).loaded_file->buffer;
+                auto& f_italic      = def_face.select_font_face(font_style::italic     ).loaded_file->buffer;
+                auto& f_bold        = def_face.select_font_face(font_style::bold       ).loaded_file->buffer;
+                auto& f_bold_italic = def_face.select_font_face(font_style::bold_italic).loaded_file->buffer;
+                ::lunasvg_add_font_face_from_data(family.c_str(), faux, faux, f_regular    .data(), f_regular    .size(), nullptr, nullptr);
+                ::lunasvg_add_font_face_from_data(family.c_str(), faux, true, f_italic     .data(), f_italic     .size(), nullptr, nullptr);
+                ::lunasvg_add_font_face_from_data(family.c_str(), true, faux, f_bold       .data(), f_bold       .size(), nullptr, nullptr);
+                ::lunasvg_add_font_face_from_data(family.c_str(), true, true, f_bold_italic.data(), f_bold_italic.size(), nullptr, nullptr);
+            };
+            auto& def_face = font_fallback.front(); // Register the fallback font (with empty family name).
+            register_svg_font(""s, def_face);
+            svg_font_list.clear();
+            for (auto& [alias, family_utf8] : svg_fonts) // Register generic font family list.
+            {
+                auto iter = font_map.find(family_utf8);
+                if (iter != font_map.end())
+                {
+                    auto& family_rec = iter->second;
+                    auto& face_inst = svg_font_list.emplace_back(*this, family_rec);
+                    register_svg_font(family_utf8, face_inst);
+                    register_svg_font(alias,       face_inst);
+                }
+            }
+        }
 
         ft_library_sptr                                    ft_library;    // fonts: FreeType library instance.
         hb_language_t                                      os_locale;     // fonts: User locale.
@@ -1202,6 +1265,7 @@ namespace netxs::gui
         std::map<text, font_family_t>                      font_map;      // fonts: Map of available font families sorted by family name.
         std::vector<std::reference_wrapper<font_family_t>> font_index;    // fonts: Index of available font families ordered by filestamp.
         std::vector<font_face_t>                           font_fallback; // fonts: Fallback font list.
+        std::vector<font_face_t>                           svg_font_list; // fonts: SVG library font list.
         utf::unordered_map<text, sptr<loaded_font_file_t>> loaded_files;  // fonts: Map of loaded font files by file paths (path <-> blob).
         cfg_t::axis_vals_t                                 primary_axes;  // fonts: Map of the primary font axes (4byte_axis_tag <-> values).
         std::list<text>                                    families;      // fonts: List of primary families.
@@ -1518,7 +1582,11 @@ namespace netxs::gui
                 log(prompt::gui, "No fonts provided, fallback to the first available font");
                 find_family(single_codepoint, true); // Take the first available font.
             }
-            if (initialized) set_cellsz(cell_height);
+            if (initialized)
+            {
+                set_cellsz(cell_height);
+                init_svg_fonts();
+            }
         }
     };
 
@@ -1549,8 +1617,11 @@ namespace netxs::gui
               cellsz{ fcache.cellsize },
               aamode{ aamode }
         {
-            generate_glyphs();
-            generate_shadow();
+            if (fcache)
+            {
+                generate_glyphs();
+                generate_shadow();
+            }
         }
 
         // Generate shadow sprites.
