@@ -630,11 +630,13 @@ namespace netxs::ui
                 {
                     case 0:
                     default:
+                        //  4: Sixel graphics
                         // 61: VT Level 1 conformance
                         // 22: Color text
                         // 28: Rectangular area operations
                         // 52: Clipboard operations
                         // 10060: VT2D
+                        //todo queue.add("\x1b[?4;61;22;28;52;10060c");
                         queue.add("\x1b[?61;22;28;52;10060c");
                         break;
                 }

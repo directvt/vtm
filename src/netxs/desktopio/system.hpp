@@ -2200,7 +2200,9 @@ namespace netxs::os
                 #if defined(__BSD__) || defined(__ANDROID__)
                 auto uname = ::getlogin(); // username associated with a session, even if it has no controlling terminal.
                 #else
-                auto uname = ::cuserid(nullptr);
+                //auto uname = ::cuserid(nullptr); //todo ::cuserid() is incompatible with static linking (causes crash).
+                auto uname = std::getenv("USER");
+                if (!uname) uname = std::getenv("LOGNAME");
                 #endif
                 auto strid = utf::concat(usrid);
                 auto login = uname && uname[0] ? text{ uname } : strid;
