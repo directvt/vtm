@@ -2635,16 +2635,13 @@ namespace netxs::utf
         auto stop = std::apply(find_raw_substring<ViewList...>, args);
         if (stop == tail)
         {
-            if constexpr (Lazy)
+            if constexpr (Lazy) // Return empty.
             {
-                utf8 = {};
-                return qiew{ utf8 };
+                return qiew{};
             }
-            else
+            else // Return whole utf8.
             {
-                auto crop = qiew{ utf8 };
-                utf8 = {};
-                return crop;
+                return std::exchange(utf8, qiew{});
             }
         }
         auto str = qiew{ head, stop };

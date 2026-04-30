@@ -636,8 +636,7 @@ namespace netxs::ui
                         // 28: Rectangular area operations
                         // 52: Clipboard operations
                         // 10060: VT2D
-                        //todo queue.add("\x1b[?4;61;22;28;52;10060c");
-                        queue.add("\x1b[?61;22;28;52;10060c");
+                        queue.add("\x1b[?4;61;22;28;52;10060c");
                         break;
                 }
                 owner.answer(queue);
@@ -1168,10 +1167,10 @@ namespace netxs::ui
                 vt.intro[ctrl::esc][esc_nel   ] = V{ p->cr(); p->dn(1); }; // ESC E  Move cursor down and CR. Same as CSI 1 E
                 vt.intro[ctrl::esc][esc_decdhl] = V{ p->dhl(q); };         // ESC # ...  ESC # 3, ESC # 4, ESC # 5, ESC # 6, ESC # 8
 
-                vt.intro[ctrl::esc][esc_apc   ] = V{ p->apc(q); };          // ESC _ ... ST  APC.
-                vt.intro[ctrl::esc][esc_dcs   ] = V{ p->msg(esc_dcs, q); }; // ESC P ... ST  DCS.
-                vt.intro[ctrl::esc][esc_sos   ] = V{ p->msg(esc_sos, q); }; // ESC X ... ST  SOS.
-                vt.intro[ctrl::esc][esc_pm    ] = V{ p->msg(esc_pm , q); }; // ESC ^ ... ST  PM.
+                vt.intro[ctrl::esc][esc_apc   ] = V{ p->apc(q); }; // ESC _ ... ST  APC.
+                vt.intro[ctrl::esc][esc_dcs   ] = V{ p->dcs(q); }; // ESC P ... ST  DCS.
+                vt.intro[ctrl::esc][esc_sos   ] = V{ p->sos(q); }; // ESC X ... ST  SOS.
+                vt.intro[ctrl::esc][esc_pm    ] = V{ p->_pm(q); }; // ESC ^ ... ST  PM.
 
                 vt.intro[ctrl::bs ] = V{ p->cub(q.pop_all(ctrl::bs )); };
                 vt.intro[ctrl::del] = V{ p->del(q.pop_all(ctrl::del)); }; // Move backward and delete character under cursor with wrapping.
@@ -1633,10 +1632,6 @@ namespace netxs::ui
                     // Unexpected
                     case ansi::esc_csi   :
                     case ansi::esc_ocs   :
-                    case ansi::esc_dcs   :
-                    case ansi::esc_sos   :
-                    case ansi::esc_pm    :
-                    case ansi::esc_apc   :
                     case ansi::esc_st    :
                         log("%%ESC %char% (%val%) is unexpected", prompt::term, (char)c, c);
                         break;
@@ -1830,128 +1825,181 @@ namespace netxs::ui
                     }
                 }
             }
-            void msg(si32 cmd, qiew& q)
+            // bufferbase: Take data until ST. Don't touch q if sequence is broken.
+            auto read_until_st_or_giveup(qiew& q)
+            {
+                auto data = utf::take_binary_front<true>(q, std::tuple{ "\x1b\\"sv, "\a"sv });
+                if (data)
+                {
+                         if (q.starts_with("\a")    ) q.remove_prefix(1); // Pop '\a'.
+                    else if (q.starts_with("\x1b\\")) q.remove_prefix(2); // Pop '\e\\'.
+                }
+                return data;
+            }
+            void dcs(qiew& q)
             {
                 parser::flush();
-                static constexpr auto XTGETTCAP_str = "+q"sv;     // Request terminal capabilities. (Neovim using it) \eP+q5463;524742;73657472676266;73657472676262\e\\ .
-                static constexpr auto DECRQSS_str   = "$q"sv;     // Request settings. (Neovim using it)
-                static constexpr auto SIXEL_str     = "q"sv;      // Sixel image.
+                static constexpr auto XTGETTCAP_str = "+q"sv;     // DCS +q HEXCAP;...;HEXCAP ST         Request terminal capabilities. (Neovim using it) \eP+q5463;524742;73657472676266;73657472676262\e\\ .
+                static constexpr auto DECRQSS_str   = "$q"sv;     // DCS $q <requested_setting_code> ST  Request settings. (Neovim using it)
+                static constexpr auto SIXEL_str     = "q"sv;      // DCS Pn1;Pn2;Pn3 q <payload> ST      Sixel image.
+                static constexpr auto DRCS_str      = "{"sv;      // DCS Pn1;Pn2;Pn3;Pn4;Pn5;Pn6 { Dscs Sps LC1/D1;...;LCn/Dn ST  Dynamically Redefinable Character Sets.
+                static constexpr auto DECUDK_str    = "|"sv;      // DCS Pc;Pl | <Key1>/<Def1>;<Key2>/<Def2>... ST                User-Defined Keys (F1–F20).
                 static constexpr auto ST_str        = "\x1b\\"sv; // ST.
-                auto reply = flux{};
-                auto data = utf::take_binary_front(q, std::tuple{ "\x1b\\"sv, "\a"sv });
-                     if (q.size() > 0 && q.front() == '\a'  ) q.remove_prefix(1); // Pop '\a'.
-                else if (q.size() > 1 && q.front() == '\x1b') q.remove_prefix(2); // Pop "\e\\".
-                if (data.starts_with(XTGETTCAP_str))
+
+                auto tmp = q;
+                auto params = std::array<si32, 8>{};
+                auto param_count = 0u;
+                while (param_count < params.size()) // Read params.
                 {
-                    data.remove_prefix(XTGETTCAP_str.size());
-                    if (data)
+                    auto c = q.front();
+                    if (c == ';')
                     {
-                        struct cap_info
+                        param_count++;
+                        q.remove_prefix(1);
+                    }
+                    else if (auto v = utf::to_int(q))
+                    {
+                        params[param_count++] = v.value();
+                    }
+                    else break;
+                }
+                if (q.starts_with(SIXEL_str))
+                {
+                    if (owner.io_log) log("%%Sixel is not supported yet", prompt::term);
+                    auto data = read_until_st_or_giveup(q);
+                    if constexpr (debugmode) log("Sixel data: params:\n%%payload:%%", [&]{ auto t = ansi::escx{}; while (param_count--) { t.add(params[param_count]).eol(); } return t; }(), data);
+                }
+                else if (auto data = read_until_st_or_giveup(q))
+                {
+                    auto reply = flux{};
+                    if (data.starts_with(XTGETTCAP_str))
+                    {
+                        data.remove_prefix(XTGETTCAP_str.size());
+                        if (data)
                         {
-                            view name;
-                            view reply;
-                        };
-                        // Full reply:  \eP1+r5463=1;524742=1\e\\ .
-                        //static constexpr auto setrgbf_str = "setrgbf"sv;  // SGR state request. Reply: \eP1+r73657472676266=1b5b33383a323a25703125643a25703225643a25703325646d\e\\ (setrgbf=\e[38:2::%p1%d:%p2%d:%p3%dm)
-                        //static constexpr auto setrgbb_str = "setrgbb"sv;  // SGR state request. Reply: ... (setrgbb=\e[48:2::%p1%d:%p2%d:%p3%dm)
-                        // Unsupported: \eP0+r<HEXNAME>\e\\ .
-                        // Reply: \eP1+rHEXKEY=1\e\\  =  \eP1+r524742=1\e\\ .
-                        static constexpr auto caps = std::to_array<cap_info>({ { utf::make_hex_view<"Tc"    >(), "1" }, // Tc  cap request. Reply: \eP1+r5463=1\e\\ .
-                                                                               { utf::make_hex_view<"RGB"   >(), "1" }, // RGB cap request. Reply: \eP1+r524742=1\e\\ .
-                                                                               { utf::make_hex_view<"Ms"    >(), utf::make_hex_view<"\x1b]52;%p1%s;%p2%s\a">() }, // OSC52.
-                                                                               { utf::make_hex_view<"Smulx" >(), utf::make_hex_view<"\x1b[4:%p1%dm">() }, // Styled underlines cap request.
-                                                                               { utf::make_hex_view<"Setulc">(), utf::make_hex_view<"\x1b[58:2::%p1%d:%p2%d:%p3%dm">() } }); // Colored underlines cap request.
-                        reply << "\x1bP+r"; // DCS
-                        auto count = 0;
-                        utf::split(data, ';', [&](auto termcap)
+                            struct cap_info
+                            {
+                                view name;
+                                view reply;
+                            };
+                            // Full reply:  \eP1+r5463=1;524742=1\e\\ .
+                            //static constexpr auto setrgbf_str = "setrgbf"sv;  // SGR state request. Reply: \eP1+r73657472676266=1b5b33383a323a25703125643a25703225643a25703325646d\e\\ (setrgbf=\e[38:2::%p1%d:%p2%d:%p3%dm)
+                            //static constexpr auto setrgbb_str = "setrgbb"sv;  // SGR state request. Reply: ... (setrgbb=\e[48:2::%p1%d:%p2%d:%p3%dm)
+                            // Unsupported: \eP0+r<HEXNAME>\e\\ .
+                            // Reply: \eP1+rHEXKEY=1\e\\  =  \eP1+r524742=1\e\\ .
+                            static constexpr auto caps = std::to_array<cap_info>({ { utf::make_hex_view<"Tc"    >(), "1" }, // Tc  cap request. Reply: \eP1+r5463=1\e\\ .
+                                                                                   { utf::make_hex_view<"RGB"   >(), "1" }, // RGB cap request. Reply: \eP1+r524742=1\e\\ .
+                                                                                   { utf::make_hex_view<"Ms"    >(), utf::make_hex_view<"\x1b]52;%p1%s;%p2%s\a">() }, // OSC52.
+                                                                                   { utf::make_hex_view<"Smulx" >(), utf::make_hex_view<"\x1b[4:%p1%dm">() }, // Styled underlines cap request.
+                                                                                   { utf::make_hex_view<"Setulc">(), utf::make_hex_view<"\x1b[58:2::%p1%d:%p2%d:%p3%dm">() } }); // Colored underlines cap request.
+                            reply << "\x1bP+r"; // DCS
+                            auto count = 0;
+                            utf::split(data, ';', [&](auto termcap)
+                            {
+                                for (auto& cap : caps) if (termcap == cap.name) reply << (count++ ? ";" : "") << cap.name << "=" << cap.reply;
+                            });
+                            reply << ST_str;
+                            owner.write(reply.str());
+                        }
+                    }
+                    else if (data.starts_with(DECRQSS_str))
+                    {
+                        data.remove_prefix(DECRQSS_str.size());
+                        static constexpr auto SGR_str     = "m"sv;  // SGR state request.
+                        static constexpr auto DECSTBM_str = "r"sv;  // Margins request. Reply "\eP1$r" + 1_based_top + ";" + 1_based_btm + "r\e\\".
+                        reply << "\x1bP"; // DCS
+                        if (data.starts_with(SGR_str))
                         {
-                            for (auto& cap : caps) if (termcap == cap.name) reply << (count++ ? ";" : "") << cap.name << "=" << cap.reply;
-                        });
+                            reply << "1$r0"; // 1: supported  r: reply  0: SGR 0.
+                            auto c = parser::brush;
+                            auto fgc = c.fgc();
+                            auto bgc = c.bgc();
+                            if (fgc != argb::transparent)
+                            {
+                                if (auto index = argb::is_indexed_color(fgc))
+                                {
+                                    index--;
+                                         if (index < 8)  reply << ";3"     << index;
+                                    else if (index < 16) reply << ";9"     << index - 8;
+                                    else                 reply << ";38:5:" << index;
+                                }
+                                else                     reply << ";38:2::" << (si32)fgc.chan.r << ":" << (si32)fgc.chan.g << ":" << (si32)fgc.chan.b;
+                            }
+                            if (bgc != argb::transparent)
+                            {
+                                if (auto index = argb::is_indexed_color(bgc))
+                                {
+                                    index--;
+                                         if (index < 8)  reply << ";4"     << index;
+                                    else if (index < 16) reply << ";10"    << index - 8;
+                                    else                 reply << ";48:5:" << index;
+                                }
+                                else                     reply << ";48:2::" << (si32)bgc.chan.r << ":" << (si32)bgc.chan.g << ":" << (si32)bgc.chan.b;
+                            }
+                            if (auto und = c.und())
+                            {
+                                     if (und == unln::line  ) reply << ";4";
+                                else if (und == unln::biline) reply << ";21";
+                                else                          reply << ";4:" << und;
+                                if (auto i = c.unc())
+                                {
+                                    auto clr = argb{ argb::vt256[i] };
+                                    reply << ";58:2::" << (si32)clr.chan.r << ':' << (si32)clr.chan.g << ':' << (si32)clr.chan.b;
+                                }
+                            }
+                            if (c.itc()) reply << ";3";
+                            if (c.bld()) reply << ";1";
+                            if (c.dim()) reply << ";2";
+                            if (c.inv()) reply << ";7";
+                            if (c.hid()) reply << ";8";
+                            if (c.ovr()) reply << ";53";
+                            if (c.stk()) reply << ";9";
+                            if (c.blk()) reply << ";5";
+                            reply << "m"; // m: SGR mark.
+                        }
+                        else if (data.starts_with(DECSTBM_str))
+                        {
+                            reply << "1$r"; // 1: supported  r: reply.
+                            auto top = n_top ? n_top : 1;
+                            auto end = n_end ? n_end : panel.y;
+                            reply << top << ';' << end;
+                            reply << "r"; // r: DECSTBM mark.
+                        }
+                        else
+                        {
+                            reply << "0$r"; // Unsupported.
+                        }
                         reply << ST_str;
                         owner.write(reply.str());
                     }
-                }
-                else if (data.starts_with(DECRQSS_str))
-                {
-                    data.remove_prefix(DECRQSS_str.size());
-                    static constexpr auto SGR_str     = "m"sv;  // SGR state request.
-                    static constexpr auto DECSTBM_str = "r"sv;  // Margins request. Reply "\eP1$r" + 1_based_top + ";" + 1_based_btm + "r\e\\".
-                    reply << "\x1bP"; // DCS
-                    if (data.starts_with(SGR_str))
-                    {
-                        reply << "1$r0"; // 1: supported  r: reply  0: SGR 0.
-                        auto c = parser::brush;
-                        auto fgc = c.fgc();
-                        auto bgc = c.bgc();
-                        if (fgc != argb::transparent)
-                        {
-                            if (auto index = argb::is_indexed_color(fgc))
-                            {
-                                index--;
-                                     if (index < 8)  reply << ";3"     << index;
-                                else if (index < 16) reply << ";9"     << index - 8;
-                                else                 reply << ";38:5:" << index;
-                            }
-                            else                     reply << ";38:2::" << (si32)fgc.chan.r << ":" << (si32)fgc.chan.g << ":" << (si32)fgc.chan.b;
-                        }
-                        if (bgc != argb::transparent)
-                        {
-                            if (auto index = argb::is_indexed_color(bgc))
-                            {
-                                index--;
-                                     if (index < 8)  reply << ";4"     << index;
-                                else if (index < 16) reply << ";10"    << index - 8;
-                                else                 reply << ";48:5:" << index;
-                            }
-                            else                     reply << ";48:2::" << (si32)bgc.chan.r << ":" << (si32)bgc.chan.g << ":" << (si32)bgc.chan.b;
-                        }
-                        if (auto und = c.und())
-                        {
-                                 if (und == unln::line  ) reply << ";4";
-                            else if (und == unln::biline) reply << ";21";
-                            else                          reply << ";4:" << und;
-                            if (auto i = c.unc())
-                            {
-                                auto clr = argb{ argb::vt256[i] };
-                                reply << ";58:2::" << (si32)clr.chan.r << ':' << (si32)clr.chan.g << ':' << (si32)clr.chan.b;
-                            }
-                        }
-                        if (c.itc()) reply << ";3";
-                        if (c.bld()) reply << ";1";
-                        if (c.dim()) reply << ";2";
-                        if (c.inv()) reply << ";7";
-                        if (c.hid()) reply << ";8";
-                        if (c.ovr()) reply << ";53";
-                        if (c.stk()) reply << ";9";
-                        if (c.blk()) reply << ";5";
-                        reply << "m"; // m: SGR mark.
-                    }
-                    else if (data.starts_with(DECSTBM_str))
-                    {
-                        reply << "1$r"; // 1: supported  r: reply.
-                        auto top = n_top ? n_top : 1;
-                        auto end = n_end ? n_end : panel.y;
-                        reply << top << ';' << end;
-                        reply << "r"; // r: DECSTBM mark.
-                    }
                     else
                     {
-                        reply << "0$r"; // Unsupported.
+                        if (owner.io_log) log("%%Unsupported message/command: '\\e%char%%data%\\e\\'", prompt::term, (char)ansi::esc_dcs, utf::debase<faux>(data));
                     }
-                    reply << ST_str;
-                    owner.write(reply.str());
-                }
-                else if (data.starts_with(SIXEL_str))
-                {
-                    if (owner.io_log) log("%%Sixel is not supported yet", prompt::term);
-                    //reply << "\x1bP"; // DCS
-                    //reply << "0$r"; // Unsupported.
-                    //reply << ST_str;
-                    //owner.write(reply.str());
                 }
                 else
                 {
-                    if (owner.io_log) log("%%Unsupported message/command: '\\e%char%%data%\\e\\'", prompt::term, (char)cmd, utf::debase<faux>(data));
+                    if (owner.io_log) log("%%Broken DCS sequence", prompt::term);
+                    if (param_count) // Restore q.
+                    {
+                        q = tmp;
+                    }
+                }
+            }
+            void sos(qiew& q)
+            {
+                if (auto data = read_until_st_or_giveup(q))
+                {
+                    //todo
+                    if (owner.io_log) log("%%SOS sequences are not supported: %%", prompt::term, ansi::hi(utf::debase<faux>(data)));
+                }
+            }
+            void _pm(qiew& q)
+            {
+                if (auto data = read_until_st_or_giveup(q))
+                {
+                    //todo
+                    if (owner.io_log) log("%%PM sequences are not supported: ", prompt::term, ansi::hi(utf::debase<faux>(data)));
                 }
             }
             // bufferbase: Clear buffer.
@@ -7370,6 +7418,7 @@ namespace netxs::ui
         bool       insmod; // term: Insert/replace mode.
         bool       decckm; // term: Cursor keys Application(true)/ANSI(faux) mode.
         bool       deccol; // term: Allow to toggle 80/132 window width (DECCOL).
+        bool       decsdm; // term: Sixel Display Mode. On sixel output: Enable scroll(+move text cursor to the beginning of next line after image)/disable scroll(default)(+don't move text cursor and trim sixel image by the scrolling region).
         bool       bpmode; // term: Bracketed paste mode.
         bool       unsync; // term: Viewport is out of sync.
         bool       invert; // term: Inverted rendering (DECSCNM).
@@ -8073,6 +8122,9 @@ namespace netxs::ui
                 case 40:   // Enable 80/132 toggle.
                     deccol = true;
                     break;
+                case 80:   // Enable Sixel Display Mode (DECSDM). Enable the text cursor to move, and the scrolling region to scroll.
+                    decsdm = true;
+                    break;
                 case 9:    // Enable X10 mouse reporting protocol.
                     log(prompt::term, "CSI ? 9 h  X10 Mouse reporting protocol is not supported");
                     break;
@@ -8189,6 +8241,9 @@ namespace netxs::ui
                     break;
                 case 40:   // Disable 80/132 toggle.
                     deccol = faux;
+                    break;
+                case 80:   // Disable Sixel Display Mode. Don't move the text cursor and trim the image by the scrolling region.
+                    decsdm = faux;
                     break;
                 case 9:    // Disable X10 mouse reporting protocol.
                     log(prompt::term, "CSI ? 9 l  X10 Mouse tracking protocol is not supported");
@@ -9236,6 +9291,7 @@ namespace netxs::ui
               insmod{ faux },
               decckm{ faux },
               deccol{ faux },
+              decsdm{ faux },
               bpmode{ faux },
               unsync{ faux },
               invert{ faux },
