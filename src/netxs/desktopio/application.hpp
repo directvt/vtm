@@ -1028,6 +1028,7 @@ namespace netxs::app::shared
     {
         using namespace std::chrono;
         os::dtvt::wheelrate = config.settings::take("/config/timings/wheelrate"              , 3);
+        g.jpeg_quality      = config.settings::take("/config/gui/quality"                    , 80);
         g.window_clr        = config.settings::take("/config/colors/window"                  , cell{ whitespace });
         g.winfocus          = config.settings::take("/config/colors/focus"                   , cell{ whitespace });
         g.brighter          = config.settings::take("/config/colors/brighter"                , cell{ whitespace });

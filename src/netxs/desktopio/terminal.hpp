@@ -271,6 +271,8 @@ namespace netxs::ui
 
             text send_input;
 
+            si32 def_jpglvl;
+
             utf::unordered_map<text, ui32> color_names;
 
             static void recalc_buffer_metrics(si32& def_length, si32& def_growdt, si32& def_growmx)
@@ -1859,14 +1861,18 @@ namespace netxs::ui
             auto rgba_to_svg(std::vector<argb>& pixels, twod size)
             {
                 for (auto& c : pixels) c.swap_rb();
-                auto png_data = std::vector<byte>{};
-                ::stbi_write_png_to_func([](void* context, void* data, si32 len)
+                auto file_data = std::vector<byte>{};
+                file_data.reserve(size.x * size.y);
+                auto append_fx = [](void* context, void* data, si32 len)
                 {
                     auto vec = (std::vector<byte>*)context;
                     vec->insert(vec->end(), (byte*)data, (byte*)data + len);
-                }, &png_data, size.x, size.y, 4, (byte*)pixels.data(), size.x * 4);
-                auto b64 = utf::base64(view{ (char*)png_data.data(), png_data.size() });
-                return utf::fprint("<svg width='%%' height='%%'><image width='%%' height='%%' href='data:image/png;base64,%%' /></svg>", size.x, size.y, size.x, size.y, b64);
+                };
+                auto jpeg_quality = skin::globals().jpeg_quality;
+                ::stbi_write_jpg_to_func(append_fx, &file_data, size.x, size.y, 4, (byte*)pixels.data(), jpeg_quality);
+                //::stbi_write_png_to_func(append_fx, &png_data, size.x, size.y, 4, (byte*)pixels.data(), size.x * 4);
+                auto b64 = utf::base64(view{ (char*)file_data.data(), file_data.size() });
+                return utf::fprint("<svg width='%%' height='%%'><image width='%%' height='%%' href='data:image/jpg;base64,%%' /></svg>", size.x, size.y, size.x, size.y, b64);
             }
             auto parse_sixel(qiew& q, auto& params)
             {
@@ -2045,6 +2051,13 @@ namespace netxs::ui
                     static auto i = 0;
                     auto print_via_osc = utf::fprint("id=_sixel%id% %doc% W=%% H=%% fit=stretch", i++, svg_doc, size.x / cellsz.x, size.y / cellsz.y);
                     log("svg:", utf::debase(print_via_osc));
+                    //todo check decsdm
+                    //todo sync original fragments
+                    //todo add a bitmap raster bit (introduce payload category: svg, raw, ...) to the imagens::image
+                    //todo store the payload in byts instead of text
+                    //todo implement own bitmap (raw category) rasterization (with interpolation)
+                    //todo hashing by sixel_string
+                    //todo implement scrollback lifetime management for sixel images (destroy it in line dtor if reference_count[id] == 0)
                     owner.osc_images(print_via_osc);
                     owner.data_in("\n\r");
                 }
