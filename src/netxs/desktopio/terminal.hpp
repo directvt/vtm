@@ -3045,7 +3045,7 @@ namespace netxs::ui
                 coord.x  = (coord.x + 1) % panel.x + panel.x - 1;
             }
             // bufferbase: Return the effective color of the current brush.
-            auto get_effective_brush()
+            cell get_effective_brush()
             {
                 auto color = owner.defclr;
                 owner.ctrack.mix_with_bgc(color, parser::brush);
