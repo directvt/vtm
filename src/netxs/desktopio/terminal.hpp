@@ -1891,7 +1891,7 @@ namespace netxs::ui
                 // 1           transparent   0's are kept intact
                 //                                        -1  0  1  2
                 static constexpr auto tr = std::to_array({ 0, 0, 1, 0 });
-                auto transparency = ar[std::clamp(params[1] + 1, 0, (si32)ar.size() - 1)];
+                auto transparency = tr[std::clamp(params[1] + 1, 0, (si32)tr.size() - 1)];
                 // hz_grid_size: We ignore it.
                 // n
                 //auto hz_grid_size = params[2];
@@ -1950,13 +1950,16 @@ namespace netxs::ui
                         auto q2 = qiew{ head, tail };
                         if (auto v = utf::to_int(q2))
                         {
-                            auto c2 = q2.front();
-                            if (c2 >= '?' && c <= '~')
+                            if (q2)
                             {
-                                q2.pop_front();
-                                c2 -= '?';
-                                auto count = std::max(0, v.value());
-                                while (count--) print_sixel(c2);
+                                auto c2 = q2.front();
+                                if (c2 >= '?' && c <= '~')
+                                {
+                                    q2.pop_front();
+                                    c2 -= '?';
+                                    auto count = std::max(0, v.value());
+                                    while (count--) print_sixel(c2);
+                                }
                             }
                         }
                         head = q2.begin();
@@ -1967,7 +1970,7 @@ namespace netxs::ui
                         auto q2 = qiew{ head, tail };
                         auto v = utf::to_int(q2);
                         cur_map = v ? std::clamp(v.value(), 0, 255) : 0;
-                        if (q2.front() == ';') // Update palette.
+                        if (q2 && q2.front() == ';') // Update palette.
                         {
                             q2.pop_front();
                             auto params2 = std::to_array({ 0, 0, 0, 0 });
@@ -2067,8 +2070,8 @@ namespace netxs::ui
                 static constexpr auto XTGETTCAP_str = "+q"sv;     // DCS +q HEXCAP;...;HEXCAP ST         Request terminal capabilities. (Neovim using it) \eP+q5463;524742;73657472676266;73657472676262\e\\ .
                 static constexpr auto DECRQSS_str   = "$q"sv;     // DCS $q <requested_setting_code> ST  Request settings. (Neovim using it)
                 static constexpr auto SIXEL_str     = "q"sv;      // DCS Pn1;Pn2;Pn3 q <payload> ST      Sixel image.
-                static constexpr auto DRCS_str      = "{"sv;      // DCS Pn1;Pn2;Pn3;Pn4;Pn5;Pn6 { Dscs Sps LC1/D1;...;LCn/Dn ST  Dynamically Redefinable Character Sets.
-                static constexpr auto DECUDK_str    = "|"sv;      // DCS Pc;Pl | <Key1>/<Def1>;<Key2>/<Def2>... ST                User-Defined Keys (F1–F20).
+                //static constexpr auto DRCS_str      = "{"sv;      // DCS Pn1;Pn2;Pn3;Pn4;Pn5;Pn6 { Dscs Sps LC1/D1;...;LCn/Dn ST  Dynamically Redefinable Character Sets.
+                //static constexpr auto DECUDK_str    = "|"sv;      // DCS Pc;Pl | <Key1>/<Def1>;<Key2>/<Def2>... ST                User-Defined Keys (F1–F20).
                 static constexpr auto ST_str        = "\x1b\\"sv; // ST.
 
                 auto tmp = q;
