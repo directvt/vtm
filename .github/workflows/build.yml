@@ -140,11 +140,12 @@ jobs:
         CXX: ${{ matrix.cxx }}
         VCPKG_CACHE: ${{ github.workspace }}/vcpkg_cache
         VCPKG_BINARY_SOURCES: "clear;files,${{ github.workspace }}/vcpkg_cache,readwrite"
+        VCPKG_BUILD_TYPE: release
         MACOSX_DEPLOYMENT_TARGET: 11.0
         WIN32_RESOURCES: ${{ matrix.os == 'windows-latest' && '.resources/images/vtm.rc' || '' }}
       run: |
         pwsh -Command "if (!(Test-Path '${{ github.workspace }}/vcpkg_cache')) { New-Item -ItemType Directory -Force -Path '${{ github.workspace }}/vcpkg_cache' }"
-        cmake -B ${{ steps.strings.outputs.bin }} -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }} ${{ matrix.flags }} ${{ matrix.os == 'windows-latest' && matrix.cpu || '' }} -DCMAKE_BUILD_TYPE=Release -S ${{ github.workspace }}
+        cmake -B ${{ steps.strings.outputs.bin }} -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }} ${{ matrix.flags }} ${{ matrix.os == 'windows-latest' && matrix.cpu || '' }} -DVCPKG_BUILD_TYPE=release -DCMAKE_BUILD_TYPE=Release -S ${{ github.workspace }}
 
     - name: Build
       run: cmake --build ${{ steps.strings.outputs.bin }} --config Release -v
