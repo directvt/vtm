@@ -636,8 +636,7 @@ namespace netxs::ui
                         // 28: Rectangular area operations
                         // 52: Clipboard operations
                         // 10060: VT2D
-                        //todo queue.add("\x1b[?4;61;22;28;52;10060c");
-                        queue.add("\x1b[?61;22;28;52;10060c");
+                        queue.add("\x1b[?4;61;22;28;52;10060c");
                         break;
                 }
                 owner.answer(queue);
@@ -1168,10 +1167,10 @@ namespace netxs::ui
                 vt.intro[ctrl::esc][esc_nel   ] = V{ p->cr(); p->dn(1); }; // ESC E  Move cursor down and CR. Same as CSI 1 E
                 vt.intro[ctrl::esc][esc_decdhl] = V{ p->dhl(q); };         // ESC # ...  ESC # 3, ESC # 4, ESC # 5, ESC # 6, ESC # 8
 
-                vt.intro[ctrl::esc][esc_apc   ] = V{ p->apc(q); };          // ESC _ ... ST  APC.
-                vt.intro[ctrl::esc][esc_dcs   ] = V{ p->msg(esc_dcs, q); }; // ESC P ... ST  DCS.
-                vt.intro[ctrl::esc][esc_sos   ] = V{ p->msg(esc_sos, q); }; // ESC X ... ST  SOS.
-                vt.intro[ctrl::esc][esc_pm    ] = V{ p->msg(esc_pm , q); }; // ESC ^ ... ST  PM.
+                vt.intro[ctrl::esc][esc_apc   ] = V{ p->apc(q); }; // ESC _ ... ST  APC.
+                vt.intro[ctrl::esc][esc_dcs   ] = V{ p->dcs(q); }; // ESC P ... ST  DCS.
+                vt.intro[ctrl::esc][esc_sos   ] = V{ p->sos(q); }; // ESC X ... ST  SOS.
+                vt.intro[ctrl::esc][esc_pm    ] = V{ p->_pm(q); }; // ESC ^ ... ST  PM.
 
                 vt.intro[ctrl::bs ] = V{ p->cub(q.pop_all(ctrl::bs )); };
                 vt.intro[ctrl::del] = V{ p->del(q.pop_all(ctrl::del)); }; // Move backward and delete character under cursor with wrapping.
@@ -1633,10 +1632,6 @@ namespace netxs::ui
                     // Unexpected
                     case ansi::esc_csi   :
                     case ansi::esc_ocs   :
-                    case ansi::esc_dcs   :
-                    case ansi::esc_sos   :
-                    case ansi::esc_pm    :
-                    case ansi::esc_apc   :
                     case ansi::esc_st    :
                         log("%%ESC %char% (%val%) is unexpected", prompt::term, (char)c, c);
                         break;
@@ -1830,128 +1825,400 @@ namespace netxs::ui
                     }
                 }
             }
-            void msg(si32 cmd, qiew& q)
+            // bufferbase: Take data until ST. Don't touch q if sequence is broken.
+            auto read_until_st_or_giveup(qiew& q)
             {
-                parser::flush();
-                static constexpr auto XTGETTCAP_str = "+q"sv;     // Request terminal capabilities. (Neovim using it) \eP+q5463;524742;73657472676266;73657472676262\e\\ .
-                static constexpr auto DECRQSS_str   = "$q"sv;     // Request settings. (Neovim using it)
-                static constexpr auto SIXEL_str     = "q"sv;      // Sixel image.
-                static constexpr auto ST_str        = "\x1b\\"sv; // ST.
-                auto reply = flux{};
-                auto data = utf::take_binary_front(q, std::tuple{ "\x1b\\"sv, "\a"sv });
-                     if (q.size() > 0 && q.front() == '\a'  ) q.remove_prefix(1); // Pop '\a'.
-                else if (q.size() > 1 && q.front() == '\x1b') q.remove_prefix(2); // Pop "\e\\".
-                if (data.starts_with(XTGETTCAP_str))
+                auto data = utf::take_binary_front<true>(q, std::tuple{ "\x1b\\"sv, "\a"sv });
+                if (data)
                 {
-                    data.remove_prefix(XTGETTCAP_str.size());
-                    if (data)
-                    {
-                        struct cap_info
-                        {
-                            view name;
-                            view reply;
-                        };
-                        // Full reply:  \eP1+r5463=1;524742=1\e\\ .
-                        //static constexpr auto setrgbf_str = "setrgbf"sv;  // SGR state request. Reply: \eP1+r73657472676266=1b5b33383a323a25703125643a25703225643a25703325646d\e\\ (setrgbf=\e[38:2::%p1%d:%p2%d:%p3%dm)
-                        //static constexpr auto setrgbb_str = "setrgbb"sv;  // SGR state request. Reply: ... (setrgbb=\e[48:2::%p1%d:%p2%d:%p3%dm)
-                        // Unsupported: \eP0+r<HEXNAME>\e\\ .
-                        // Reply: \eP1+rHEXKEY=1\e\\  =  \eP1+r524742=1\e\\ .
-                        static constexpr auto caps = std::to_array<cap_info>({ { utf::make_hex_view<"Tc"    >(), "1" }, // Tc  cap request. Reply: \eP1+r5463=1\e\\ .
-                                                                               { utf::make_hex_view<"RGB"   >(), "1" }, // RGB cap request. Reply: \eP1+r524742=1\e\\ .
-                                                                               { utf::make_hex_view<"Ms"    >(), utf::make_hex_view<"\x1b]52;%p1%s;%p2%s\a">() }, // OSC52.
-                                                                               { utf::make_hex_view<"Smulx" >(), utf::make_hex_view<"\x1b[4:%p1%dm">() }, // Styled underlines cap request.
-                                                                               { utf::make_hex_view<"Setulc">(), utf::make_hex_view<"\x1b[58:2::%p1%d:%p2%d:%p3%dm">() } }); // Colored underlines cap request.
-                        reply << "\x1bP+r"; // DCS
-                        auto count = 0;
-                        utf::split(data, ';', [&](auto termcap)
-                        {
-                            for (auto& cap : caps) if (termcap == cap.name) reply << (count++ ? ";" : "") << cap.name << "=" << cap.reply;
-                        });
-                        reply << ST_str;
-                        owner.write(reply.str());
-                    }
+                         if (q.starts_with("\a")    ) q.remove_prefix(1); // Pop '\a'.
+                    else if (q.starts_with("\x1b\\")) q.remove_prefix(2); // Pop '\e\\'.
                 }
-                else if (data.starts_with(DECRQSS_str))
+                return data;
+            }
+            auto read_params(qiew& q, auto& params)
+            {
+                auto param_count = 0u;
+                while (param_count < params.size()) // Read params.
                 {
-                    data.remove_prefix(DECRQSS_str.size());
-                    static constexpr auto SGR_str     = "m"sv;  // SGR state request.
-                    static constexpr auto DECSTBM_str = "r"sv;  // Margins request. Reply "\eP1$r" + 1_based_top + ";" + 1_based_btm + "r\e\\".
-                    reply << "\x1bP"; // DCS
-                    if (data.starts_with(SGR_str))
+                    auto c = q.front();
+                    if (c == ';')
                     {
-                        reply << "1$r0"; // 1: supported  r: reply  0: SGR 0.
-                        auto c = parser::brush;
-                        auto fgc = c.fgc();
-                        auto bgc = c.bgc();
-                        if (fgc != argb::transparent)
-                        {
-                            if (auto index = argb::is_indexed_color(fgc))
-                            {
-                                index--;
-                                     if (index < 8)  reply << ";3"     << index;
-                                else if (index < 16) reply << ";9"     << index - 8;
-                                else                 reply << ";38:5:" << index;
-                            }
-                            else                     reply << ";38:2::" << (si32)fgc.chan.r << ":" << (si32)fgc.chan.g << ":" << (si32)fgc.chan.b;
-                        }
-                        if (bgc != argb::transparent)
-                        {
-                            if (auto index = argb::is_indexed_color(bgc))
-                            {
-                                index--;
-                                     if (index < 8)  reply << ";4"     << index;
-                                else if (index < 16) reply << ";10"    << index - 8;
-                                else                 reply << ";48:5:" << index;
-                            }
-                            else                     reply << ";48:2::" << (si32)bgc.chan.r << ":" << (si32)bgc.chan.g << ":" << (si32)bgc.chan.b;
-                        }
-                        if (auto und = c.und())
-                        {
-                                 if (und == unln::line  ) reply << ";4";
-                            else if (und == unln::biline) reply << ";21";
-                            else                          reply << ";4:" << und;
-                            if (auto i = c.unc())
-                            {
-                                auto clr = argb{ argb::vt256[i] };
-                                reply << ";58:2::" << (si32)clr.chan.r << ':' << (si32)clr.chan.g << ':' << (si32)clr.chan.b;
-                            }
-                        }
-                        if (c.itc()) reply << ";3";
-                        if (c.bld()) reply << ";1";
-                        if (c.dim()) reply << ";2";
-                        if (c.inv()) reply << ";7";
-                        if (c.hid()) reply << ";8";
-                        if (c.ovr()) reply << ";53";
-                        if (c.stk()) reply << ";9";
-                        if (c.blk()) reply << ";5";
-                        reply << "m"; // m: SGR mark.
+                        param_count++;
+                        q.remove_prefix(1);
                     }
-                    else if (data.starts_with(DECSTBM_str))
+                    else if (auto v = utf::to_int(q))
                     {
-                        reply << "1$r"; // 1: supported  r: reply.
-                        auto top = n_top ? n_top : 1;
-                        auto end = n_end ? n_end : panel.y;
-                        reply << top << ';' << end;
-                        reply << "r"; // r: DECSTBM mark.
+                        params[param_count++] = v.value();
+                        if (q.front() == ';') q.remove_prefix(1);
+                    }
+                    else break;
+                }
+                return param_count;
+            }
+            auto rgba_to_svg(std::vector<argb>& pixels, twod size)
+            {
+                for (auto& c : pixels) c.swap_rb();
+                auto file_data = std::vector<byte>{};
+                file_data.reserve(size.x * size.y);
+                auto append_fx = [](void* context, void* data, si32 len)
+                {
+                    auto vec = (std::vector<byte>*)context;
+                    vec->insert(vec->end(), (byte*)data, (byte*)data + len);
+                };
+                auto jpeg_quality = skin::globals().jpeg_quality;
+                ::stbi_write_jpg_to_func(append_fx, &file_data, size.x, size.y, 4, (byte*)pixels.data(), jpeg_quality);
+                //::stbi_write_png_to_func(append_fx, &png_data, size.x, size.y, 4, (byte*)pixels.data(), size.x * 4);
+                auto b64 = utf::base64(view{ (char*)file_data.data(), file_data.size() });
+                return utf::fprint("<svg width='%%' height='%%'><image width='%%' height='%%' href='data:image/jpg;base64,%%' /></svg>", size.x, size.y, size.x, size.y, b64);
+            }
+            auto parse_sixel(qiew& q, auto& params)
+            {
+                auto ok = true;
+                // aspect_ratio:
+                // omitted     2:1
+                // 0 or 1      5:1
+                // 2           3:1
+                // 3 or 4      2:1
+                // 5 or 6      2:1
+                // 7,8, or 9   1:1
+                //                                        -1  0  1  2  3  4  5  6  7  8  9
+                static constexpr auto ar = std::to_array({ 2, 5, 5, 3, 2, 2, 2, 2, 1, 1, 1 });
+                auto aspect_ratio = ar[std::clamp(params[0] + 1, 0, (si32)ar.size() - 1)];
+                // transparency:
+                // omitted     opaque  0's are filled with current background color
+                // 0 or 2      opaque
+                // 1           transparent   0's are kept intact
+                //                                        -1  0  1  2
+                static constexpr auto tr = std::to_array({ 0, 0, 1, 0 });
+                auto transparency = tr[std::clamp(params[1] + 1, 0, (si32)tr.size() - 1)];
+                // hz_grid_size: We ignore it.
+                // n
+                //auto hz_grid_size = params[2];
+                auto cellsz = twod{ 10, 20 };
+                auto size = panel * cellsz;
+                size.y *= aspect_ratio;
+                auto stride = size.x * aspect_ratio * 6;
+                auto& bitmap = owner.sixel_bitmap;
+                auto palette = owner.ctrack.color; // Copy terminal palette.
+                auto cur_map = 0;
+                auto cur_clr = get_effective_brush();
+                auto cur_fgc = cur_clr.fgc();
+                auto cur_bgc = cur_clr.bgc();
+                transparency ? owner.sixel_bitmap.assign(size.x * size.y, argb{})
+                             : owner.sixel_bitmap.assign(size.x * size.y, cur_bgc);
+                auto coor = 0;
+                auto maxx = size.x;
+                auto maxy = size.x * size.y;
+                auto line = 0;
+                //auto hash = ui64{};
+                auto head = q.begin();
+                auto tail = q.end();
+                auto print_sixel = [&](auto c)
+                {
+                    if (coor < maxx)
+                    {
+                        auto offset = coor++;
+                        while (c)
+                        {
+                            if (c & 1)
+                            {
+                                for (auto y = 0; y < aspect_ratio; y++)
+                                {
+                                    if (offset < maxy) bitmap[offset] = cur_fgc;
+                                    offset += size.x;
+                                }
+                            }
+                            else
+                            {
+                                offset += size.x * aspect_ratio;
+                            }
+                            c >>= 1;
+                        }
+                    }
+                };
+                while (head != tail)
+                {
+                    auto c = *head++;
+                    if (c >= '?' && c <= '~') // Print sixels.
+                    {
+                        c -= '?';
+                        print_sixel(c);
+                    }
+                    else if (c == '!') // Repeat sixels.
+                    {
+                        auto q2 = qiew{ head, tail };
+                        if (auto v = utf::to_int(q2))
+                        {
+                            if (q2)
+                            {
+                                auto c2 = q2.front();
+                                if (c2 >= '?' && c <= '~')
+                                {
+                                    q2.pop_front();
+                                    c2 -= '?';
+                                    auto count = std::max(0, v.value());
+                                    while (count--) print_sixel(c2);
+                                }
+                            }
+                        }
+                        head = q2.begin();
+                        tail = q2.end();
+                    }
+                    else if (c == '#') // Select register.
+                    {
+                        auto q2 = qiew{ head, tail };
+                        auto v = utf::to_int(q2);
+                        cur_map = v ? std::clamp(v.value(), 0, 255) : 0;
+                        if (q2 && q2.front() == ';') // Update palette.
+                        {
+                            q2.pop_front();
+                            auto params2 = std::to_array({ 0, 0, 0, 0 });
+                            read_params(q2, params2);
+                            auto color_mode = params2[0];
+                            if (color_mode == 1) // HLS
+                            {
+                                palette[cur_map] = netxs::letoh(argb::from_HLS(params2[1], params2[2], params2[3]).token);
+                            }
+                            else if (color_mode == 2) // RGB
+                            {
+                                palette[cur_map] = netxs::letoh(argb{ (byte)(params2[1] * 255 / 100),
+                                                                      (byte)(params2[2] * 255 / 100),
+                                                                      (byte)(params2[3] * 255 / 100) }.token);
+                            }
+                        }
+                        head = q2.begin();
+                        tail = q2.end();
+                        cur_fgc = palette[cur_map];
+                    }
+                    else if (c == '"') // Raster Attributes (reset canvas).  "dy;dx;width;height  aspect_ratio=round(dy/dx).
+                    {
+                        auto params2 = std::to_array({ -1, -1, -1, -1 });
+                        auto q2 = qiew{ head, tail };
+                        read_params(q2, params2);
+                        head = q2.begin();
+                        tail = q2.end();
+                        auto dy = std::max(1, std::abs(params2[0]));
+                        auto dx = std::max(1, std::abs(params2[1]));
+                        size.x = std::clamp(std::abs(params2[2]), 1, std::max(4096, panel.x * cellsz.x));
+                        size.y = std::clamp(std::abs(params2[3]), 1, std::max(4096, panel.y * cellsz.y));
+                        aspect_ratio = (si32)std::round((fp32)dy / dx);
+                        size.y *= aspect_ratio;
+                        coor = 0;
+                        line = 0;
+                        maxx = size.x;
+                        maxy = size.x * size.y;
+                        stride = size.x * aspect_ratio * 6;
+                        transparency ? bitmap.assign(size.x * size.y, argb{})
+                                     : bitmap.assign(size.x * size.y, parser::brush.bgc());
+                    }
+                    else if (c == '-') // New Line.
+                    {
+                        line++;
+                        coor = line * stride;
+                        maxx = coor + size.x;
+                    }
+                    else if (c == '$') // Carriage Return.
+                    {
+                        coor = line * stride;
+                    }
+                    else if ((c == '\x1b' && head != tail && *head == '\\' && (head++, true)) || c == '\a') // ST
+                    {
+                        break;
+                    }
+                    else if (c == ansi::c0_can || c == ansi::c0_sub) // Abort.
+                    {
+                        ok = faux;
+                        auto q2 = qiew{ head, tail };
+                        if (auto data = read_until_st_or_giveup(q2)) // Eat all sixels.
+                        {
+                            q = q2;
+                        }
+                        else // Broken sequence.
+                        {
+                            // Keep q intact.
+                        }
+                        break;
                     }
                     else
                     {
-                        reply << "0$r"; // Unsupported.
+                        // Silently ignore all unknown characters.
                     }
-                    reply << ST_str;
-                    owner.write(reply.str());
                 }
-                else if (data.starts_with(SIXEL_str))
+                if (ok) // Show image.
                 {
-                    if (owner.io_log) log("%%Sixel is not supported yet", prompt::term);
-                    //reply << "\x1bP"; // DCS
-                    //reply << "0$r"; // Unsupported.
-                    //reply << ST_str;
-                    //owner.write(reply.str());
+                    q = qiew{ head, tail };
+                    auto svg_doc = rgba_to_svg(bitmap, size);
+                    static auto i = 0;
+                    auto print_via_osc = utf::fprint("id=_sixel%id% %doc% W=%% H=%% fit=stretch", i++, svg_doc, size.x / cellsz.x, size.y / cellsz.y);
+                    log("svg:", utf::debase(print_via_osc));
+                    //todo check decsdm
+                    //todo sync original fragments
+                    //todo add a bitmap raster bit (introduce payload category: svg, raw, ...) to the imagens::image
+                    //todo store the payload in byts instead of text
+                    //todo implement own bitmap (raw category) rasterization (with interpolation)
+                    //todo hashing by sixel_string
+                    //todo implement scrollback lifetime management for sixel images (destroy it in line dtor if reference_count[id] == 0)
+                    owner.osc_images(print_via_osc);
+                    owner.data_in("\n\r");
+                }
+                return ok;
+            }
+            void dcs(qiew& q)
+            {
+                parser::flush();
+                static constexpr auto XTGETTCAP_str = "+q"sv;     // DCS +q HEXCAP;...;HEXCAP ST         Request terminal capabilities. (Neovim using it) \eP+q5463;524742;73657472676266;73657472676262\e\\ .
+                static constexpr auto DECRQSS_str   = "$q"sv;     // DCS $q <requested_setting_code> ST  Request settings. (Neovim using it)
+                static constexpr auto SIXEL_str     = "q"sv;      // DCS Pn1;Pn2;Pn3 q <payload> ST      Sixel image.
+                //static constexpr auto DRCS_str      = "{"sv;      // DCS Pn1;Pn2;Pn3;Pn4;Pn5;Pn6 { Dscs Sps LC1/D1;...;LCn/Dn ST  Dynamically Redefinable Character Sets.
+                //static constexpr auto DECUDK_str    = "|"sv;      // DCS Pc;Pl | <Key1>/<Def1>;<Key2>/<Def2>... ST                User-Defined Keys (F1–F20).
+                static constexpr auto ST_str        = "\x1b\\"sv; // ST.
+
+                auto tmp = q;
+                auto params = std::to_array({ -1, -1, -1, -1, -1, -1 });
+                auto param_count = read_params(q, params);
+                if (q.starts_with(SIXEL_str))
+                {
+                    if (owner.io_log) log("%%Sixel data:\n\tparams: %%\n\tpayload:%%", prompt::term, [&]{ auto t = ansi::escx{}; while (param_count--) { t.add(params[param_count], ';'); } return t; }(), ansi::hi(tmp));
+                    q.remove_prefix(SIXEL_str.size());
+                    auto ok = parse_sixel(q, params);
+                    if (!ok)
+                    {
+                        if (owner.io_log) log("%%Broken sixel sequence", prompt::term);
+                        q = tmp;
+                    }
+                }
+                else if (auto data = read_until_st_or_giveup(q))
+                {
+                    auto reply = flux{};
+                    if (data.starts_with(XTGETTCAP_str))
+                    {
+                        data.remove_prefix(XTGETTCAP_str.size());
+                        if (data)
+                        {
+                            struct cap_info
+                            {
+                                view name;
+                                view reply;
+                            };
+                            // Full reply:  \eP1+r5463=1;524742=1\e\\ .
+                            //static constexpr auto setrgbf_str = "setrgbf"sv;  // SGR state request. Reply: \eP1+r73657472676266=1b5b33383a323a25703125643a25703225643a25703325646d\e\\ (setrgbf=\e[38:2::%p1%d:%p2%d:%p3%dm)
+                            //static constexpr auto setrgbb_str = "setrgbb"sv;  // SGR state request. Reply: ... (setrgbb=\e[48:2::%p1%d:%p2%d:%p3%dm)
+                            // Unsupported: \eP0+r<HEXNAME>\e\\ .
+                            // Reply: \eP1+rHEXKEY=1\e\\  =  \eP1+r524742=1\e\\ .
+                            static constexpr auto caps = std::to_array<cap_info>({ { utf::make_hex_view<"Tc"    >(), "1" }, // Tc  cap request. Reply: \eP1+r5463=1\e\\ .
+                                                                                   { utf::make_hex_view<"RGB"   >(), "1" }, // RGB cap request. Reply: \eP1+r524742=1\e\\ .
+                                                                                   { utf::make_hex_view<"Ms"    >(), utf::make_hex_view<"\x1b]52;%p1%s;%p2%s\a">() }, // OSC52.
+                                                                                   { utf::make_hex_view<"Smulx" >(), utf::make_hex_view<"\x1b[4:%p1%dm">() }, // Styled underlines cap request.
+                                                                                   { utf::make_hex_view<"Setulc">(), utf::make_hex_view<"\x1b[58:2::%p1%d:%p2%d:%p3%dm">() } }); // Colored underlines cap request.
+                            reply << "\x1bP+r"; // DCS
+                            auto count = 0;
+                            utf::split(data, ';', [&](auto termcap)
+                            {
+                                for (auto& cap : caps) if (termcap == cap.name) reply << (count++ ? ";" : "") << cap.name << "=" << cap.reply;
+                            });
+                            reply << ST_str;
+                            owner.write(reply.str());
+                        }
+                    }
+                    else if (data.starts_with(DECRQSS_str))
+                    {
+                        data.remove_prefix(DECRQSS_str.size());
+                        static constexpr auto SGR_str     = "m"sv;  // SGR state request.
+                        static constexpr auto DECSTBM_str = "r"sv;  // Margins request. Reply "\eP1$r" + 1_based_top + ";" + 1_based_btm + "r\e\\".
+                        reply << "\x1bP"; // DCS
+                        if (data.starts_with(SGR_str))
+                        {
+                            reply << "1$r0"; // 1: supported  r: reply  0: SGR 0.
+                            auto c = parser::brush;
+                            auto fgc = c.fgc();
+                            auto bgc = c.bgc();
+                            if (fgc != argb::transparent)
+                            {
+                                if (auto index = argb::is_indexed_color(fgc))
+                                {
+                                    index--;
+                                         if (index < 8)  reply << ";3"     << index;
+                                    else if (index < 16) reply << ";9"     << index - 8;
+                                    else                 reply << ";38:5:" << index;
+                                }
+                                else                     reply << ";38:2::" << (si32)fgc.chan.r << ":" << (si32)fgc.chan.g << ":" << (si32)fgc.chan.b;
+                            }
+                            if (bgc != argb::transparent)
+                            {
+                                if (auto index = argb::is_indexed_color(bgc))
+                                {
+                                    index--;
+                                         if (index < 8)  reply << ";4"     << index;
+                                    else if (index < 16) reply << ";10"    << index - 8;
+                                    else                 reply << ";48:5:" << index;
+                                }
+                                else                     reply << ";48:2::" << (si32)bgc.chan.r << ":" << (si32)bgc.chan.g << ":" << (si32)bgc.chan.b;
+                            }
+                            if (auto und = c.und())
+                            {
+                                     if (und == unln::line  ) reply << ";4";
+                                else if (und == unln::biline) reply << ";21";
+                                else                          reply << ";4:" << und;
+                                if (auto i = c.unc())
+                                {
+                                    auto clr = argb{ argb::vt256[i] };
+                                    reply << ";58:2::" << (si32)clr.chan.r << ':' << (si32)clr.chan.g << ':' << (si32)clr.chan.b;
+                                }
+                            }
+                            if (c.itc()) reply << ";3";
+                            if (c.bld()) reply << ";1";
+                            if (c.dim()) reply << ";2";
+                            if (c.inv()) reply << ";7";
+                            if (c.hid()) reply << ";8";
+                            if (c.ovr()) reply << ";53";
+                            if (c.stk()) reply << ";9";
+                            if (c.blk()) reply << ";5";
+                            reply << "m"; // m: SGR mark.
+                        }
+                        else if (data.starts_with(DECSTBM_str))
+                        {
+                            reply << "1$r"; // 1: supported  r: reply.
+                            auto top = n_top ? n_top : 1;
+                            auto end = n_end ? n_end : panel.y;
+                            reply << top << ';' << end;
+                            reply << "r"; // r: DECSTBM mark.
+                        }
+                        else
+                        {
+                            reply << "0$r"; // Unsupported.
+                        }
+                        reply << ST_str;
+                        owner.write(reply.str());
+                    }
+                    else
+                    {
+                        if (owner.io_log) log("%%Unsupported message/command: '\\e%char%%data%\\e\\'", prompt::term, (char)ansi::esc_dcs, utf::debase<faux>(data));
+                    }
                 }
                 else
                 {
-                    if (owner.io_log) log("%%Unsupported message/command: '\\e%char%%data%\\e\\'", prompt::term, (char)cmd, utf::debase<faux>(data));
+                    if (owner.io_log) log("%%Broken DCS sequence", prompt::term);
+                    if (param_count) // Restore q.
+                    {
+                        q = tmp;
+                    }
+                }
+            }
+            void sos(qiew& q)
+            {
+                if (auto data = read_until_st_or_giveup(q))
+                {
+                    //todo
+                    if (owner.io_log) log("%%SOS sequences are not supported: %%", prompt::term, ansi::hi(utf::debase<faux>(data)));
+                }
+            }
+            void _pm(qiew& q)
+            {
+                if (auto data = read_until_st_or_giveup(q))
+                {
+                    //todo
+                    if (owner.io_log) log("%%PM sequences are not supported: ", prompt::term, ansi::hi(utf::debase<faux>(data)));
                 }
             }
             // bufferbase: Clear buffer.
@@ -2781,7 +3048,7 @@ namespace netxs::ui
                 coord.x  = (coord.x + 1) % panel.x + panel.x - 1;
             }
             // bufferbase: Return the effective color of the current brush.
-            auto get_effective_brush()
+            cell get_effective_brush()
             {
                 auto color = owner.defclr;
                 owner.ctrack.mix_with_bgc(color, parser::brush);
@@ -7370,6 +7637,7 @@ namespace netxs::ui
         bool       insmod; // term: Insert/replace mode.
         bool       decckm; // term: Cursor keys Application(true)/ANSI(faux) mode.
         bool       deccol; // term: Allow to toggle 80/132 window width (DECCOL).
+        bool       decsdm; // term: Sixel Display Mode. On sixel output: Enable scroll(+move text cursor to the beginning of next line after image)/disable scroll(default)(+don't move text cursor and trim sixel image by the scrolling region).
         bool       bpmode; // term: Bracketed paste mode.
         bool       unsync; // term: Viewport is out of sync.
         bool       invert; // term: Inverted rendering (DECSCNM).
@@ -7397,6 +7665,7 @@ namespace netxs::ui
         utf::unordered_map<text, netxs::sptr<imagens::image>> image_cache; // term: Image cache.
         face                                                  image_buffer; // term: Image temporary buffer.
         bool                                                  image_alive{ true }; // term: Indicator for whether to clear images in the scrollback.
+        std::vector<argb> sixel_bitmap; // term: Sixel bitmap buffer.
         vtty       ipccon; // term: IPC connector. Should be destroyed first.
 
         // term: Print the block to the scrollback buffer with scroll.
@@ -8073,6 +8342,9 @@ namespace netxs::ui
                 case 40:   // Enable 80/132 toggle.
                     deccol = true;
                     break;
+                case 80:   // Enable Sixel Display Mode (DECSDM). Enable the text cursor to move, and the scrolling region to scroll.
+                    decsdm = true;
+                    break;
                 case 9:    // Enable X10 mouse reporting protocol.
                     log(prompt::term, "CSI ? 9 h  X10 Mouse reporting protocol is not supported");
                     break;
@@ -8189,6 +8461,9 @@ namespace netxs::ui
                     break;
                 case 40:   // Disable 80/132 toggle.
                     deccol = faux;
+                    break;
+                case 80:   // Disable Sixel Display Mode. Don't move the text cursor and trim the image by the scrolling region.
+                    decsdm = faux;
                     break;
                 case 9:    // Disable X10 mouse reporting protocol.
                     log(prompt::term, "CSI ? 9 l  X10 Mouse tracking protocol is not supported");
@@ -9236,6 +9511,7 @@ namespace netxs::ui
               insmod{ faux },
               decckm{ faux },
               deccol{ faux },
+              decsdm{ true }, // Mode 80 is on by default.
               bpmode{ faux },
               unsync{ faux },
               invert{ faux },

@@ -25,13 +25,15 @@ find_package(Freetype REQUIRED)
 find_package(harfbuzz REQUIRED)
 find_package(Lua 5.4  REQUIRED)
 find_package(lunasvg  REQUIRED)
+find_path(STB_INCLUDE_DIR "stb_image.h")
 
 add_library(Lua::Lua INTERFACE IMPORTED)
 set_target_properties(Lua::Lua PROPERTIES INTERFACE_LINK_LIBRARIES "${LUA_LIBRARIES}")
 
 target_include_directories(vtm PRIVATE ${FREETYPE_INCLUDE_DIRS}
                                        ${HARFBUZZ_INCLUDE_DIRS}
-                                       ${LUA_INCLUDE_DIR})
+                                       ${LUA_INCLUDE_DIR}
+                                       ${STB_INCLUDE_DIR})
 
 target_link_libraries(vtm PRIVATE Lua::Lua Freetype::Freetype harfbuzz::harfbuzz lunasvg::lunasvg)
 # target_link_libraries(term PRIVATE Lua::Lua Freetype::Freetype harfbuzz::harfbuzz lunasvg::lunasvg)

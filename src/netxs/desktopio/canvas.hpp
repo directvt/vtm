@@ -127,7 +127,7 @@ namespace netxs
                     static_cast<byte>(r),
                     static_cast<byte>(a) }
         { }
-        constexpr argb(fp32 r, fp32 g, fp32 b, fp32 a)
+        constexpr argb(fp32 r, fp32 g, fp32 b, fp32 a = 1.f)
             : chan{ netxs::saturate_cast<byte>(b * 255.0f + 0.5f),
                     netxs::saturate_cast<byte>(g * 255.0f + 0.5f),
                     netxs::saturate_cast<byte>(r * 255.0f + 0.5f),
@@ -1012,6 +1012,30 @@ namespace netxs
                 return table;
             }();
             return lookup(cache, std::span{ argb::vtm16.data(), 8 });
+        }
+        static auto from_HLS(si32 h, si32 l, si32 s)
+        {
+            auto HueToRGB = [](fp32 v1, fp32 v2, fp32 vH)
+            {
+                if (vH < 0) vH += 1;
+                if (vH > 1) vH -= 1;
+                if ((6 * vH) < 1) return (v1 + (v2 - v1) * 6 * vH);
+                if ((2 * vH) < 1) return v2;
+                if ((3 * vH) < 2) return (v1 + (v2 - v1) * ((2 / 3.f) - vH) * 6);
+                return v1;
+            };
+            auto H = h / 360.f;
+            auto L = l / 100.f;
+            auto S = s / 100.f;
+            if (S == 0)
+            {
+                return argb{ L, L, L };
+            }
+            auto v2 = (L < 0.5f) ? (L * (1 + S)) : (L + S - L * S);
+            auto v1 = 2 * L - v2;
+            return argb{ HueToRGB(v1, v2, H + (1 / 3.f)),
+                         HueToRGB(v1, v2, H),
+                         HueToRGB(v1, v2, H - (1 / 3.f)) };
         }
         // argb: Change endianness to LE.
         friend auto letoh(argb r)

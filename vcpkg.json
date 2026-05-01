@@ -4,6 +4,7 @@
     "freetype",
     "harfbuzz",
     "lua",
-    "lunasvg"
+    "lunasvg",
+    "stb"
   ]
 }

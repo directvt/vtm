@@ -22,7 +22,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v2026.04.28";
+    static const auto version = "v2026.05.01";
     static const auto repository = "https://github.com/directvt/vtm";
     static const auto usr_config = "~/.config/vtm/settings.xml"s;
     static const auto sys_config = "/etc/vtm/settings.xml"s;
@@ -1028,6 +1028,7 @@ namespace netxs::app::shared
     {
         using namespace std::chrono;
         os::dtvt::wheelrate = config.settings::take("/config/timings/wheelrate"              , 3);
+        g.jpeg_quality      = config.settings::take("/config/gui/quality"                    , 80);
         g.window_clr        = config.settings::take("/config/colors/window"                  , cell{ whitespace });
         g.winfocus          = config.settings::take("/config/colors/focus"                   , cell{ whitespace });
         g.brighter          = config.settings::take("/config/colors/brighter"                , cell{ whitespace });

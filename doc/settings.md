@@ -832,6 +832,7 @@ Notes
         <wincoor=""/>         <!-- Initial window coordinates "x,y" (top-left corner in physical pixels). If empty, the OS window manager determines the position. -->
         <winstate="normal"/>  <!-- Initial window state: "normal" | "maximized" | "minimized". -->
         <blinkrate=400ms/>    <!-- Cursor/text blink rate (SGR 5/6). Set to zero to disable blinking. -->
+        <quality=80/>         <!-- 1-100: JPEG compression quality for raster graphics preview. -->
         <fonts>  <!-- Ordered font fallback list. Other available system fonts will be loaded dynamically. -->
             <font*/>  <!-- Clear previously defined fonts to start a new list. -->
             <font="Cascadia Mono"/>  <!-- Primary font: the first in the list. Its metrics define the cell geometry and set the default axis values for all subsequent fonts in the fallback list. -->

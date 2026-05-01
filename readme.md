@@ -79,3 +79,4 @@ vtm --run gems
 - [The FreeType Project](https://freetype.org)
 - [HarfBuzz text shaping engine](https://github.com/harfbuzz/harfbuzz)
 - [sammycage/lunasvg: SVG rendering and manipulation library in C++](https://github.com/sammycage/lunasvg)
+- [nothings/stb: stb single-file public domain libraries for C/C++](https://github.com/nothings/stb)

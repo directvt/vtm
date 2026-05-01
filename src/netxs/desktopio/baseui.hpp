@@ -681,6 +681,8 @@ namespace netxs::ui
         twod min_value = dot_00;
         twod max_value = twod{ 3000, 2000 }; //todo unify
 
+        si32 jpeg_quality = 80;
+
         static auto& globals()
         {
             static skin _globals;
