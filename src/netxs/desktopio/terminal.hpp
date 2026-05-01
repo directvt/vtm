@@ -1825,245 +1825,6 @@ namespace netxs::ui
                     }
                 }
             }
-            // bufferbase: Take data until ST. Don't touch q if sequence is broken.
-            auto read_until_st_or_giveup(qiew& q)
-            {
-                auto data = utf::take_binary_front<true>(q, std::tuple{ "\x1b\\"sv, "\a"sv });
-                if (data)
-                {
-                         if (q.starts_with("\a")    ) q.remove_prefix(1); // Pop '\a'.
-                    else if (q.starts_with("\x1b\\")) q.remove_prefix(2); // Pop '\e\\'.
-                }
-                return data;
-            }
-            auto read_params(qiew& q, auto& params)
-            {
-                auto param_count = 0u;
-                while (param_count < params.size()) // Read params.
-                {
-                    auto c = q.front();
-                    if (c == ';')
-                    {
-                        param_count++;
-                        q.remove_prefix(1);
-                    }
-                    else if (auto v = utf::to_int(q))
-                    {
-                        params[param_count++] = v.value();
-                        if (q.front() == ';') q.remove_prefix(1);
-                    }
-                    else break;
-                }
-                return param_count;
-            }
-            auto rgba_to_svg(std::vector<argb>& pixels, twod size)
-            {
-                for (auto& c : pixels) c.swap_rb();
-                auto file_data = std::vector<byte>{};
-                file_data.reserve(size.x * size.y);
-                auto append_fx = [](void* context, void* data, si32 len)
-                {
-                    auto vec = (std::vector<byte>*)context;
-                    vec->insert(vec->end(), (byte*)data, (byte*)data + len);
-                };
-                auto jpeg_quality = skin::globals().jpeg_quality;
-                ::stbi_write_jpg_to_func(append_fx, &file_data, size.x, size.y, 4, (byte*)pixels.data(), jpeg_quality);
-                //::stbi_write_png_to_func(append_fx, &png_data, size.x, size.y, 4, (byte*)pixels.data(), size.x * 4);
-                auto b64 = utf::base64(view{ (char*)file_data.data(), file_data.size() });
-                return utf::fprint("<svg width='%%' height='%%'><image width='%%' height='%%' href='data:image/jpg;base64,%%' /></svg>", size.x, size.y, size.x, size.y, b64);
-            }
-            auto parse_sixel(qiew& q, auto& params)
-            {
-                auto ok = true;
-                // aspect_ratio:
-                // omitted     2:1
-                // 0 or 1      5:1
-                // 2           3:1
-                // 3 or 4      2:1
-                // 5 or 6      2:1
-                // 7,8, or 9   1:1
-                //                                        -1  0  1  2  3  4  5  6  7  8  9
-                static constexpr auto ar = std::to_array({ 2, 5, 5, 3, 2, 2, 2, 2, 1, 1, 1 });
-                auto aspect_ratio = ar[std::clamp(params[0] + 1, 0, (si32)ar.size() - 1)];
-                // transparency:
-                // omitted     opaque  0's are filled with current background color
-                // 0 or 2      opaque
-                // 1           transparent   0's are kept intact
-                //                                        -1  0  1  2
-                static constexpr auto tr = std::to_array({ 0, 0, 1, 0 });
-                auto transparency = tr[std::clamp(params[1] + 1, 0, (si32)tr.size() - 1)];
-                // hz_grid_size: We ignore it.
-                // n
-                //auto hz_grid_size = params[2];
-                auto cellsz = twod{ 10, 20 };
-                auto size = panel * cellsz;
-                size.y *= aspect_ratio;
-                auto stride = size.x * aspect_ratio * 6;
-                auto& bitmap = owner.sixel_bitmap;
-                auto palette = owner.ctrack.color; // Copy terminal palette.
-                auto cur_map = 0;
-                auto cur_clr = get_effective_brush();
-                auto cur_fgc = cur_clr.fgc();
-                auto cur_bgc = cur_clr.bgc();
-                transparency ? owner.sixel_bitmap.assign(size.x * size.y, argb{})
-                             : owner.sixel_bitmap.assign(size.x * size.y, cur_bgc);
-                auto coor = 0;
-                auto maxx = size.x;
-                auto maxy = size.x * size.y;
-                auto line = 0;
-                //auto hash = ui64{};
-                auto head = q.begin();
-                auto tail = q.end();
-                auto print_sixel = [&](auto c)
-                {
-                    if (coor < maxx)
-                    {
-                        auto offset = coor++;
-                        while (c)
-                        {
-                            if (c & 1)
-                            {
-                                for (auto y = 0; y < aspect_ratio; y++)
-                                {
-                                    if (offset < maxy) bitmap[offset] = cur_fgc;
-                                    offset += size.x;
-                                }
-                            }
-                            else
-                            {
-                                offset += size.x * aspect_ratio;
-                            }
-                            c >>= 1;
-                        }
-                    }
-                };
-                while (head != tail)
-                {
-                    auto c = *head++;
-                    if (c >= '?' && c <= '~') // Print sixels.
-                    {
-                        c -= '?';
-                        print_sixel(c);
-                    }
-                    else if (c == '!') // Repeat sixels.
-                    {
-                        auto q2 = qiew{ head, tail };
-                        if (auto v = utf::to_int(q2))
-                        {
-                            if (q2)
-                            {
-                                auto c2 = q2.front();
-                                if (c2 >= '?' && c <= '~')
-                                {
-                                    q2.pop_front();
-                                    c2 -= '?';
-                                    auto count = std::max(0, v.value());
-                                    while (count--) print_sixel(c2);
-                                }
-                            }
-                        }
-                        head = q2.begin();
-                        tail = q2.end();
-                    }
-                    else if (c == '#') // Select register.
-                    {
-                        auto q2 = qiew{ head, tail };
-                        auto v = utf::to_int(q2);
-                        cur_map = v ? std::clamp(v.value(), 0, 255) : 0;
-                        if (q2 && q2.front() == ';') // Update palette.
-                        {
-                            q2.pop_front();
-                            auto params2 = std::to_array({ 0, 0, 0, 0 });
-                            read_params(q2, params2);
-                            auto color_mode = params2[0];
-                            if (color_mode == 1) // HLS
-                            {
-                                palette[cur_map] = netxs::letoh(argb::from_HLS(params2[1], params2[2], params2[3]).token);
-                            }
-                            else if (color_mode == 2) // RGB
-                            {
-                                palette[cur_map] = netxs::letoh(argb{ (byte)(params2[1] * 255 / 100),
-                                                                      (byte)(params2[2] * 255 / 100),
-                                                                      (byte)(params2[3] * 255 / 100) }.token);
-                            }
-                        }
-                        head = q2.begin();
-                        tail = q2.end();
-                        cur_fgc = palette[cur_map];
-                    }
-                    else if (c == '"') // Raster Attributes (reset canvas).  "dy;dx;width;height  aspect_ratio=round(dy/dx).
-                    {
-                        auto params2 = std::to_array({ -1, -1, -1, -1 });
-                        auto q2 = qiew{ head, tail };
-                        read_params(q2, params2);
-                        head = q2.begin();
-                        tail = q2.end();
-                        auto dy = std::max(1, std::abs(params2[0]));
-                        auto dx = std::max(1, std::abs(params2[1]));
-                        size.x = std::clamp(std::abs(params2[2]), 1, std::max(4096, panel.x * cellsz.x));
-                        size.y = std::clamp(std::abs(params2[3]), 1, std::max(4096, panel.y * cellsz.y));
-                        aspect_ratio = (si32)std::round((fp32)dy / dx);
-                        size.y *= aspect_ratio;
-                        coor = 0;
-                        line = 0;
-                        maxx = size.x;
-                        maxy = size.x * size.y;
-                        stride = size.x * aspect_ratio * 6;
-                        transparency ? bitmap.assign(size.x * size.y, argb{})
-                                     : bitmap.assign(size.x * size.y, parser::brush.bgc());
-                    }
-                    else if (c == '-') // New Line.
-                    {
-                        line++;
-                        coor = line * stride;
-                        maxx = coor + size.x;
-                    }
-                    else if (c == '$') // Carriage Return.
-                    {
-                        coor = line * stride;
-                    }
-                    else if ((c == '\x1b' && head != tail && *head == '\\' && (head++, true)) || c == '\a') // ST
-                    {
-                        break;
-                    }
-                    else if (c == ansi::c0_can || c == ansi::c0_sub) // Abort.
-                    {
-                        ok = faux;
-                        auto q2 = qiew{ head, tail };
-                        if (auto data = read_until_st_or_giveup(q2)) // Eat all sixels.
-                        {
-                            q = q2;
-                        }
-                        else // Broken sequence.
-                        {
-                            // Keep q intact.
-                        }
-                        break;
-                    }
-                    else
-                    {
-                        // Silently ignore all unknown characters.
-                    }
-                }
-                if (ok) // Show image.
-                {
-                    q = qiew{ head, tail };
-                    auto svg_doc = rgba_to_svg(bitmap, size);
-                    static auto i = 0;
-                    auto print_via_osc = utf::fprint("id=_sixel%id% %doc% W=%% H=%% fit=stretch", i++, svg_doc, size.x / cellsz.x, size.y / cellsz.y);
-                    log("svg:", utf::debase(print_via_osc));
-                    //todo check decsdm
-                    //todo sync original fragments
-                    //todo add a bitmap raster bit (introduce payload category: svg, raw, ...) to the imagens::image
-                    //todo store the payload in byts instead of text
-                    //todo implement own bitmap (raw category) rasterization (with interpolation)
-                    //todo hashing by sixel_string
-                    //todo implement scrollback lifetime management for sixel images (destroy it in line dtor if reference_count[id] == 0)
-                    owner.osc_images(print_via_osc);
-                    owner.data_in("\n\r");
-                }
-                return ok;
-            }
             void dcs(qiew& q)
             {
                 parser::flush();
@@ -2076,19 +1837,14 @@ namespace netxs::ui
 
                 auto tmp = q;
                 auto params = std::to_array({ -1, -1, -1, -1, -1, -1 });
-                auto param_count = read_params(q, params);
+                auto param_count = term::read_params(q, params);
                 if (q.starts_with(SIXEL_str))
                 {
                     if (owner.io_log) log("%%Sixel data:\n\tparams: %%\n\tpayload:%%", prompt::term, [&]{ auto t = ansi::escx{}; while (param_count--) { t.add(params[param_count], ';'); } return t; }(), ansi::hi(tmp));
                     q.remove_prefix(SIXEL_str.size());
-                    auto ok = parse_sixel(q, params);
-                    if (!ok)
-                    {
-                        if (owner.io_log) log("%%Broken sixel sequence", prompt::term);
-                        q = tmp;
-                    }
+                    owner.sixels.start(q, params, this);
                 }
-                else if (auto data = read_until_st_or_giveup(q))
+                else if (auto data = term::read_until_st_or_giveup(q))
                 {
                     auto reply = flux{};
                     if (data.starts_with(XTGETTCAP_str))
@@ -2207,7 +1963,7 @@ namespace netxs::ui
             }
             void sos(qiew& q)
             {
-                if (auto data = read_until_st_or_giveup(q))
+                if (auto data = term::read_until_st_or_giveup(q))
                 {
                     //todo
                     if (owner.io_log) log("%%SOS sequences are not supported: %%", prompt::term, ansi::hi(utf::debase<faux>(data)));
@@ -2215,7 +1971,7 @@ namespace netxs::ui
             }
             void _pm(qiew& q)
             {
-                if (auto data = read_until_st_or_giveup(q))
+                if (auto data = term::read_until_st_or_giveup(q))
                 {
                     //todo
                     if (owner.io_log) log("%%PM sequences are not supported: ", prompt::term, ansi::hi(utf::debase<faux>(data)));
@@ -7613,6 +7369,280 @@ namespace netxs::ui
                 #endif
             }
         };
+        // term: Take data until ST. Don't touch q if sequence is broken.
+        static qiew read_until_st_or_giveup(qiew& q)
+        {
+            auto data = utf::take_binary_front<true>(q, std::tuple{ "\x1b\\"sv, "\a"sv });
+            if (data)
+            {
+                        if (q.starts_with("\a")    ) q.remove_prefix(1); // Pop '\a'.
+                else if (q.starts_with("\x1b\\")) q.remove_prefix(2); // Pop '\e\\'.
+            }
+            return data;
+        }
+        // term: Read semicolon separated integers from qiew.
+        static si32 read_params(qiew& q, auto& params)
+        {
+            auto param_count = 0u;
+            while (param_count < params.size()) // Read params.
+            {
+                auto c = q.front();
+                if (c == ';')
+                {
+                    param_count++;
+                    q.remove_prefix(1);
+                }
+                else if (auto v = utf::to_int(q))
+                {
+                    params[param_count++] = v.value();
+                    if (q.front() == ';') q.remove_prefix(1);
+                }
+                else break;
+            }
+            return param_count;
+        }
+        static text rgba_to_svg(std::vector<argb>& pixels, twod size)
+        {
+            for (auto& c : pixels) c.swap_rb();
+            auto file_data = std::vector<byte>{};
+            file_data.reserve(size.x * size.y);
+            auto append_fx = [](void* context, void* data, si32 len)
+            {
+                auto vec = (std::vector<byte>*)context;
+                vec->insert(vec->end(), (byte*)data, (byte*)data + len);
+            };
+            auto jpeg_quality = skin::globals().jpeg_quality;
+            ::stbi_write_jpg_to_func(append_fx, &file_data, size.x, size.y, 4, (byte*)pixels.data(), jpeg_quality);
+            //::stbi_write_png_to_func(append_fx, &png_data, size.x, size.y, 4, (byte*)pixels.data(), size.x * 4);
+            auto b64 = utf::base64(view{ (char*)file_data.data(), file_data.size() });
+            return utf::fprint("<svg width='%%' height='%%'><image width='%%' height='%%' href='data:image/jpg;base64,%%' /></svg>", size.x, size.y, size.x, size.y, b64);
+        }
+        struct sixel_t
+        {
+            static constexpr auto cellsz = twod{ 10, 20 };
+
+            term& owner;
+            bool sixel_mode{}; // Sixel input is not complete.
+            si32 aspect_ratio{};
+            si32 transparency{};
+            si32 stride{};
+            si32 cur_map{};
+            si32 coor{};
+            si32 maxx{};
+            si32 maxy{};
+            si32 line{};
+            twod size;
+            pals palette{};
+            cell cur_clr;
+            argb cur_fgc{};
+            argb cur_bgc{};
+            std::vector<argb> bitmap; // Sixel bitmap buffer.
+
+            operator bool () { return sixel_mode; }
+
+            void start(qiew& q, auto& params, bufferbase* target_buffer)
+            {
+                // aspect_ratio:
+                // omitted     2:1
+                // 0 or 1      5:1
+                // 2           3:1
+                // 3 or 4      2:1
+                // 5 or 6      2:1
+                // 7,8, or 9   1:1
+                //                                        -1  0  1  2  3  4  5  6  7  8  9
+                static constexpr auto ar = std::to_array({ 2, 5, 5, 3, 2, 2, 2, 2, 1, 1, 1 });
+                aspect_ratio = ar[std::clamp(params[0] + 1, 0, (si32)ar.size() - 1)];
+                // transparency:
+                // omitted     opaque  0's are filled with current background color
+                // 0 or 2      opaque
+                // 1           transparent   0's are kept intact
+                //                                        -1  0  1  2
+                static constexpr auto tr = std::to_array({ 0, 0, 1, 0 });
+                transparency = tr[std::clamp(params[1] + 1, 0, (si32)tr.size() - 1)];
+                // hz_grid_size: We ignore it.
+                // n
+                //auto hz_grid_size = params[2];
+                size = target_buffer->panel * cellsz;
+                size.y *= aspect_ratio;
+                stride = size.x * aspect_ratio * 6;
+                palette = owner.ctrack.color; // Copy terminal palette.
+                cur_map = 0;
+                cur_clr = target_buffer->get_effective_brush();
+                cur_fgc = cur_clr.fgc();
+                cur_bgc = cur_clr.bgc();
+                if (cur_clr.inv()) std::swap(cur_fgc, cur_bgc);
+                transparency ? bitmap.assign(size.x * size.y, argb{})
+                             : bitmap.assign(size.x * size.y, cur_bgc);
+                coor = 0;
+                maxx = size.x;
+                maxy = size.x * size.y;
+                line = 0;
+                parse(q, target_buffer);
+            }
+            void print_sixel(si32 c)
+            {
+                if (coor < maxx)
+                {
+                    auto offset = coor++;
+                    while (c)
+                    {
+                        if (c & 1)
+                        {
+                            for (auto y = 0; y < aspect_ratio; y++)
+                            {
+                                if (offset < maxy) bitmap[offset] = cur_fgc;
+                                offset += size.x;
+                            }
+                        }
+                        else
+                        {
+                            offset += size.x * aspect_ratio;
+                        }
+                        c >>= 1;
+                    }
+                }
+            }
+            void parse(qiew& q, bufferbase* target_buffer)
+            {
+                sixel_mode = true;
+                //auto hash = ui64{};
+                auto head = q.begin();
+                auto tail = q.end();
+                while (head != tail)
+                {
+                    auto c = *head++;
+                    if (c >= '?' && c <= '~') // Print sixels.
+                    {
+                        c -= '?';
+                        print_sixel(c);
+                    }
+                    else if (c == '!') // Repeat sixels.
+                    {
+                        auto q2 = qiew{ head, tail };
+                        if (auto v = utf::to_int(q2))
+                        {
+                            if (q2)
+                            {
+                                auto c2 = q2.front();
+                                if (c2 >= '?' && c <= '~')
+                                {
+                                    q2.pop_front();
+                                    c2 -= '?';
+                                    auto count = std::max(0, v.value());
+                                    while (count--) print_sixel(c2);
+                                }
+                            }
+                        }
+                        head = q2.begin();
+                        tail = q2.end();
+                    }
+                    else if (c == '#') // Select register.
+                    {
+                        auto q2 = qiew{ head, tail };
+                        auto v = utf::to_int(q2);
+                        cur_map = v ? std::clamp(v.value(), 0, 255) : 0;
+                        if (q2 && q2.front() == ';') // Update palette.
+                        {
+                            q2.pop_front();
+                            auto params = std::to_array({ 0, 0, 0, 0 });
+                            term::read_params(q2, params);
+                            auto color_mode = params[0];
+                            if (color_mode == 1) // HLS
+                            {
+                                palette[cur_map] = netxs::letoh(argb::from_HLS(params[1], params[2], params[3]).token);
+                            }
+                            else if (color_mode == 2) // RGB
+                            {
+                                palette[cur_map] = netxs::letoh(argb{ (byte)(params[1] * 255 / 100),
+                                                                      (byte)(params[2] * 255 / 100),
+                                                                      (byte)(params[3] * 255 / 100) }.token);
+                            }
+                        }
+                        head = q2.begin();
+                        tail = q2.end();
+                        cur_fgc = palette[cur_map];
+                    }
+                    else if (c == '"') // Raster Attributes (reset canvas).  "dy;dx;width;height  aspect_ratio=round(dy/dx).
+                    {
+                        auto params = std::to_array({ -1, -1, -1, -1 });
+                        auto q2 = qiew{ head, tail };
+                        term::read_params(q2, params);
+                        head = q2.begin();
+                        tail = q2.end();
+                        auto dy = std::max(1, std::abs(params[0]));
+                        auto dx = std::max(1, std::abs(params[1]));
+                        size.x = std::clamp(std::abs(params[2]), 1, std::max(4096, target_buffer->panel.x * cellsz.x));
+                        size.y = std::clamp(std::abs(params[3]), 1, std::max(4096, target_buffer->panel.y * cellsz.y));
+                        aspect_ratio = (si32)std::round((fp32)dy / dx);
+                        size.y *= aspect_ratio;
+                        coor = 0;
+                        line = 0;
+                        maxx = size.x;
+                        maxy = size.x * size.y;
+                        stride = size.x * aspect_ratio * 6;
+                        transparency ? bitmap.assign(size.x * size.y, argb{})
+                                     : bitmap.assign(size.x * size.y, cur_bgc);
+                    }
+                    else if (c == '-') // New Line.
+                    {
+                        line++;
+                        coor = line * stride;
+                        maxx = coor + size.x;
+                    }
+                    else if (c == '$') // Carriage Return.
+                    {
+                        coor = line * stride;
+                    }
+                    else if ((c == '\x1b' && head != tail && *head == '\\' && (head++, true)) || c == '\a') // ST
+                    {
+                        if constexpr (debugmode) log("sixel end");
+                        sixel_mode = faux;
+                        break;
+                    }
+                    else if (c == ansi::c0_can || c == ansi::c0_sub) // Abort.
+                    {
+                        if constexpr (debugmode) log("sixel aborted");
+                        sixel_mode = faux;
+                        auto q2 = qiew{ head, tail };
+                        if (auto data = term::read_until_st_or_giveup(q2)) // Eat all sixels.
+                        {
+                            q = q2;
+                        }
+                        else // Broken sequence.
+                        {
+                            // Keep q intact.
+                        }
+                        break;
+                    }
+                    else
+                    {
+                        // Silently ignore all unknown characters.
+                    }
+                }
+                if (sixel_mode == faux) // Show image.
+                {
+                    q = qiew{ head, tail };
+                    auto svg_doc = term::rgba_to_svg(bitmap, size);
+                    static auto i = 0;
+                    auto print_via_osc = utf::fprint("id=_sixel%id% %doc% W=%% H=%% fit=stretch", i++, svg_doc, size.x / cellsz.x, size.y / cellsz.y);
+                    log("svg:", utf::debase(print_via_osc));
+                    //todo check decsdm
+                    //todo sync original fragments
+                    //todo add a bitmap raster bit (introduce payload category: svg, raw, ...) to the imagens::image
+                    //todo store the payload in byts instead of text
+                    //todo implement own bitmap (raw category) rasterization (with interpolation)
+                    //todo hashing by sixel_string
+                    //todo implement scrollback lifetime management for sixel images (destroy it in line dtor if reference_count[id] == 0)
+                    //todo print to target_buffer
+                    owner.osc_images(print_via_osc);
+                    owner.data_in("\n\r");
+                }
+                else
+                {
+                    if constexpr (debugmode) log("sixel incomplete");
+                }
+            }
+        };
 
         using prot = input::keybd::prot;
         using buffer_ptr = bufferbase*;
@@ -7665,7 +7695,7 @@ namespace netxs::ui
         utf::unordered_map<text, netxs::sptr<imagens::image>> image_cache; // term: Image cache.
         face                                                  image_buffer; // term: Image temporary buffer.
         bool                                                  image_alive{ true }; // term: Indicator for whether to clear images in the scrollback.
-        std::vector<argb> sixel_bitmap; // term: Sixel bitmap buffer.
+        sixel_t    sixels; // term: Sixel mode state.
         vtty       ipccon; // term: IPC connector. Should be destroyed first.
 
         // term: Print the block to the scrollback buffer with scroll.
@@ -8687,9 +8717,13 @@ namespace netxs::ui
         }
         // term: Proceed terminal input.
         template<bool Forced = faux>
-        auto ondata_direct(view data = {}, bufferbase* target_buffer = {})
+        auto ondata_direct(qiew data = {}, bufferbase* target_buffer = {})
         {
             auto& console_ptr = target_buffer ? target_buffer : target;
+            if (sixels)
+            {
+                sixels.parse(data, console_ptr);
+            }
             if (data.size())
             {
                 if (io_log) log(prompt::cout, "\n\t", utf::replace_all(ansi::hi(utf::debase(data)), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
@@ -9528,7 +9562,8 @@ namespace netxs::ui
               rawkbd{ faux },
               bottom_anchored{ true },
               event_sources{},
-              session_token{ netxs::get_random() }
+              session_token{ netxs::get_random() },
+              sixels{ *this }
         {
             set_fg_color(defcfg.def_fcolor);
             set_bg_color(defcfg.def_bcolor);
