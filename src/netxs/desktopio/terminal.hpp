@@ -271,8 +271,6 @@ namespace netxs::ui
 
             text send_input;
 
-            si32 def_jpglvl;
-
             utf::unordered_map<text, ui32> color_names;
 
             static void recalc_buffer_metrics(si32& def_length, si32& def_growdt, si32& def_growmx)
