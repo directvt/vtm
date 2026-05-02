@@ -2052,7 +2052,7 @@ namespace netxs::ansi
                         }
                         if (next == tail)
                         {
-                            utf8 = { head, prev }; // preserve ESC at the end
+                            utf8 = { head, prev }; // exclude final ESC
                             return utf8;
                         }
                     }
@@ -2067,7 +2067,7 @@ namespace netxs::ansi
                             {
                                 if (tail - step < 8)
                                 {
-                                    utf8 = { head, prev }; // preserve ESC at the end
+                                    utf8 = { head, prev }; // exclude final ESC
                                 }
                                 else
                                 {
@@ -2088,7 +2088,7 @@ namespace netxs::ansi
                         }
                         if (next == tail)
                         {
-                            utf8 = { head, prev }; // preserve ESC at the end
+                            utf8 = { head, prev }; // exclude final ESC
                             return utf8;
                         }
                     }
@@ -2112,7 +2112,7 @@ namespace netxs::ansi
                         }
                         if (next == tail)
                         {
-                            utf8 = { head, prev }; // preserve ESC at the end
+                            utf8 = { head, prev }; // exclude final ESC
                             return utf8;
                         }
                     }
@@ -2130,7 +2130,7 @@ namespace netxs::ansi
                     {
                         if (++next == tail)
                         {
-                            utf8 = { head, prev }; // preserve ESC at the end
+                            utf8 = { head, prev }; // exclude final ESC
                         }
                     }
                     // test Esc + byte: ESC 7 8 D E H M ...
@@ -2167,7 +2167,7 @@ namespace netxs::ansi
                 }
                 else
                 {
-                    utf8 = { head, prev }; // preserve ESC at the end
+                    utf8 = { head, prev }; // exclude final ESC
                     return utf8;
                 }
             }

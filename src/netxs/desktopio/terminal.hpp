@@ -1842,7 +1842,7 @@ namespace netxs::ui
                 {
                     if (owner.io_log) log("%%Sixel data:\n\tparams: %%\n\tpayload:%%", prompt::term, [&]{ auto t = ansi::escx{}; while (param_count--) { t.add(params[param_count], ';'); } return t; }(), ansi::hi(tmp));
                     q.remove_prefix(SIXEL_str.size());
-                    owner.sixels.start(q, params, this);
+                    owner.sixels.parse(q, params);
                 }
                 else if (auto data = term::read_until_st_or_giveup(q))
                 {
@@ -7422,26 +7422,11 @@ namespace netxs::ui
             static constexpr auto cellsz = twod{ 10, 20 };
 
             term& owner;
-            bool sixel_mode{}; // Sixel input is not complete.
-            si32 aspect_ratio{};
-            si32 transparency{};
-            si32 stride{};
-            si32 cur_map{};
-            si32 coor{};
-            si32 maxx{};
-            si32 maxy{};
-            si32 line{};
-            twod size;
-            pals palette{};
-            cell cur_clr;
-            argb cur_fgc{};
-            argb cur_bgc{};
             std::vector<argb> bitmap; // Sixel bitmap buffer.
 
-            operator bool () { return sixel_mode; }
-
-            void start(qiew& q, auto& params, bufferbase* target_buffer)
+            void parse(qiew& q, auto& params)
             {
+                auto ok = faux;
                 // aspect_ratio:
                 // omitted     2:1
                 // 0 or 1      5:1
@@ -7451,60 +7436,55 @@ namespace netxs::ui
                 // 7,8, or 9   1:1
                 //                                        -1  0  1  2  3  4  5  6  7  8  9
                 static constexpr auto ar = std::to_array({ 2, 5, 5, 3, 2, 2, 2, 2, 1, 1, 1 });
-                aspect_ratio = ar[std::clamp(params[0] + 1, 0, (si32)ar.size() - 1)];
+                auto aspect_ratio = ar[std::clamp(params[0] + 1, 0, (si32)ar.size() - 1)];
                 // transparency:
                 // omitted     opaque  0's are filled with current background color
                 // 0 or 2      opaque
                 // 1           transparent   0's are kept intact
                 //                                        -1  0  1  2
                 static constexpr auto tr = std::to_array({ 0, 0, 1, 0 });
-                transparency = tr[std::clamp(params[1] + 1, 0, (si32)tr.size() - 1)];
+                auto transparency = tr[std::clamp(params[1] + 1, 0, (si32)tr.size() - 1)];
                 // hz_grid_size: We ignore it.
                 // n
                 //auto hz_grid_size = params[2];
-                size = target_buffer->panel * cellsz;
+                auto size = owner.target->panel * cellsz;
                 size.y *= aspect_ratio;
-                stride = size.x * aspect_ratio * 6;
-                palette = owner.ctrack.color; // Copy terminal palette.
-                cur_map = 0;
-                cur_clr = target_buffer->get_effective_brush();
-                cur_fgc = cur_clr.fgc();
-                cur_bgc = cur_clr.bgc();
+                auto stride = size.x * aspect_ratio * 6;
+                auto palette = owner.ctrack.color; // Copy terminal palette.
+                auto cur_map = 0;
+                auto cur_clr = owner.target->get_effective_brush();
+                auto cur_fgc = cur_clr.fgc();
+                auto cur_bgc = cur_clr.bgc();
                 if (cur_clr.inv()) std::swap(cur_fgc, cur_bgc);
                 transparency ? bitmap.assign(size.x * size.y, argb{})
                              : bitmap.assign(size.x * size.y, cur_bgc);
-                coor = 0;
-                maxx = size.x;
-                maxy = size.x * size.y;
-                line = 0;
-                parse(q, target_buffer);
-            }
-            void print_sixel(si32 c)
-            {
-                if (coor < maxx)
+                auto coor = 0;
+                auto maxx = size.x;
+                auto maxy = size.x * size.y;
+                auto line = 0;
+                auto print_sixel = [&](si32 c)
                 {
-                    auto offset = coor++;
-                    while (c)
+                    if (coor < maxx)
                     {
-                        if (c & 1)
+                        auto offset = coor++;
+                        while (c)
                         {
-                            for (auto y = 0; y < aspect_ratio; y++)
+                            if (c & 1)
                             {
-                                if (offset < maxy) bitmap[offset] = cur_fgc;
-                                offset += size.x;
+                                for (auto y = 0; y < aspect_ratio; y++)
+                                {
+                                    if (offset < maxy) bitmap[offset] = cur_fgc;
+                                    offset += size.x;
+                                }
                             }
+                            else
+                            {
+                                offset += size.x * aspect_ratio;
+                            }
+                            c >>= 1;
                         }
-                        else
-                        {
-                            offset += size.x * aspect_ratio;
-                        }
-                        c >>= 1;
                     }
-                }
-            }
-            void parse(qiew& q, bufferbase* target_buffer)
-            {
-                sixel_mode = true;
+                };
                 //auto hash = ui64{};
                 auto head = q.begin();
                 auto tail = q.end();
@@ -7544,18 +7524,18 @@ namespace netxs::ui
                         if (q2 && q2.front() == ';') // Update palette.
                         {
                             q2.pop_front();
-                            auto params = std::to_array({ 0, 0, 0, 0 });
-                            term::read_params(q2, params);
-                            auto color_mode = params[0];
+                            auto params2 = std::to_array({ 0, 0, 0, 0 });
+                            term::read_params(q2, params2);
+                            auto color_mode = params2[0];
                             if (color_mode == 1) // HLS
                             {
-                                palette[cur_map] = netxs::letoh(argb::from_HLS(params[1], params[2], params[3]).token);
+                                palette[cur_map] = netxs::letoh(argb::from_HLS(params2[1], params2[2], params2[3]).token);
                             }
                             else if (color_mode == 2) // RGB
                             {
-                                palette[cur_map] = netxs::letoh(argb{ (byte)(params[1] * 255 / 100),
-                                                                      (byte)(params[2] * 255 / 100),
-                                                                      (byte)(params[3] * 255 / 100) }.token);
+                                palette[cur_map] = netxs::letoh(argb{ (byte)(params2[1] * 255 / 100),
+                                                                      (byte)(params2[2] * 255 / 100),
+                                                                      (byte)(params2[3] * 255 / 100) }.token);
                             }
                         }
                         head = q2.begin();
@@ -7564,15 +7544,15 @@ namespace netxs::ui
                     }
                     else if (c == '"') // Raster Attributes (reset canvas).  "dy;dx;width;height  aspect_ratio=round(dy/dx).
                     {
-                        auto params = std::to_array({ -1, -1, -1, -1 });
+                        auto params2 = std::to_array({ -1, -1, -1, -1 });
                         auto q2 = qiew{ head, tail };
-                        term::read_params(q2, params);
+                        term::read_params(q2, params2);
                         head = q2.begin();
                         tail = q2.end();
-                        auto dy = std::max(1, std::abs(params[0]));
-                        auto dx = std::max(1, std::abs(params[1]));
-                        size.x = std::clamp(std::abs(params[2]), 1, std::max(4096, target_buffer->panel.x * cellsz.x));
-                        size.y = std::clamp(std::abs(params[3]), 1, std::max(4096, target_buffer->panel.y * cellsz.y));
+                        auto dy = std::max(1, std::abs(params2[0]));
+                        auto dx = std::max(1, std::abs(params2[1]));
+                        size.x = std::clamp(std::abs(params2[2]), 1, std::max(4096, owner.target->panel.x * cellsz.x));
+                        size.y = std::clamp(std::abs(params2[3]), 1, std::max(4096, owner.target->panel.y * cellsz.y));
                         aspect_ratio = (si32)std::round((fp32)dy / dx);
                         size.y *= aspect_ratio;
                         coor = 0;
@@ -7595,23 +7575,19 @@ namespace netxs::ui
                     }
                     else if ((c == '\x1b' && head != tail && *head == '\\' && (head++, true)) || c == '\a') // ST
                     {
-                        if constexpr (debugmode) log("sixel end");
-                        sixel_mode = faux;
+                        if constexpr (debugmode) log("sixel complete");
+                        ok = true;
                         break;
                     }
+                    //else if (c == '\x1b') //todo Escape sequence inside sixels. ?Should we parse it?
+                    //{
+                    //    if constexpr (debugmode) log("escape sequence inside sixels");
+                    //    auto data = qiew{ head, tail };
+                    //    ...ansi::parse(data, console_ptr);
+                    //}
                     else if (c == ansi::c0_can || c == ansi::c0_sub) // Abort.
                     {
                         if constexpr (debugmode) log("sixel aborted");
-                        sixel_mode = faux;
-                        auto q2 = qiew{ head, tail };
-                        if (auto data = term::read_until_st_or_giveup(q2)) // Eat all sixels.
-                        {
-                            q = q2;
-                        }
-                        else // Broken sequence.
-                        {
-                            // Keep q intact.
-                        }
                         break;
                     }
                     else
@@ -7619,13 +7595,13 @@ namespace netxs::ui
                         // Silently ignore all unknown characters.
                     }
                 }
-                if (sixel_mode == faux) // Show image.
+                q = qiew{ head, tail };
+                if (ok) // Show image.
                 {
-                    q = qiew{ head, tail };
                     auto svg_doc = term::rgba_to_svg(bitmap, size);
                     static auto i = 0;
                     auto print_via_osc = utf::fprint("id=_sixel%id% %doc% W=%% H=%% fit=stretch", i++, svg_doc, size.x / cellsz.x, size.y / cellsz.y);
-                    log("svg:", utf::debase(print_via_osc));
+                    if constexpr (debugmode) log("svg:", utf::debase(print_via_osc));
                     //todo check decsdm
                     //todo sync original fragments
                     //todo add a bitmap raster bit (introduce payload category: svg, raw, ...) to the imagens::image
@@ -8402,6 +8378,9 @@ namespace netxs::ui
                 case 1007: // Enable alternate scroll mode.
                     altscr = defcfg.def_alt_on;
                     break;
+                case 1070:// Enable Sixel Private Color Registers.
+                    // We always have this mode on (colors are baked in place).
+                    break;
                 case 10060:// Enable mouse reporting outside the viewport (outside+negative coordinates).
                     mtrack.enable(input::mouse::mode::negative_args);
                     break;
@@ -8522,6 +8501,9 @@ namespace netxs::ui
                     break;
                 case 1007: // Disable alternate scroll mode.
                     altscr = 0;
+                    break;
+                case 1070:// Disable Sixel Private Color Registers.
+                    // We always have this mode on (colors are baked in place).
                     break;
                 case 10060:// Disable mouse reporting outside the viewport (allow reporting inside the viewport only).
                     mtrack.disable(input::mouse::mode::negative_args);
@@ -8720,10 +8702,6 @@ namespace netxs::ui
         auto ondata_direct(qiew data = {}, bufferbase* target_buffer = {})
         {
             auto& console_ptr = target_buffer ? target_buffer : target;
-            if (sixels)
-            {
-                sixels.parse(data, console_ptr);
-            }
             if (data.size())
             {
                 if (io_log) log(prompt::cout, "\n\t", utf::replace_all(ansi::hi(utf::debase(data)), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
