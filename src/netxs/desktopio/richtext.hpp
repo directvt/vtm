@@ -1606,6 +1606,89 @@ namespace netxs::ui
         }
     };
 
+    struct line
+        : public rich
+    {
+        using rich::rich;
+        using type = deco::type;
+
+        line(line&& l)
+            : rich{ std::move(l) },
+             index{ l.index      }
+        {
+            static constexpr auto j = sizeof(core);//112
+            static constexpr auto i = sizeof(rich);//112
+            static constexpr auto i2 = sizeof(line);//144
+            static constexpr auto i3 = sizeof(deco);//
+            style = l.style;
+            _size = l._size;
+            _kind = l._kind;
+            l._size = {};
+            l._kind = {};
+        }
+        line(line const& l)
+            : rich{ l       },
+             style{ l.style },
+             index{ l.index }
+        { }
+        line(id_t line_id, deco const& line_style, span dt, twod sz)
+            : rich{ dt, sz     },
+             style{ line_style },
+             index{ line_id    }
+        { }
+        line(id_t line_id, deco const& line_style, cell const& blank)
+            : rich{ blank      },
+             style{ line_style },
+             index{ line_id    }
+        { }
+        line(id_t line_id, deco const& line_style, cell const& blank, si32 length)
+            : rich{ blank, length },
+             style{ line_style    },
+             index{ line_id       }
+        { }
+        line(core&& s)
+            : rich{ std::move(s) }
+        { }
+        line(netxs::view utf8)
+            : rich{ para{ utf8 }.content() }
+        { }
+
+        line& operator = (line&&)      = default;
+        line& operator = (line const&) = default;
+
+        deco style{};
+        id_t index{};
+        si32 _size{};
+        si32 _kind{};
+
+        friend void swap(line& lhs, line& rhs)
+        {
+            std::swap<rich>(lhs, rhs);
+            std::swap(lhs.index, rhs.index);
+            std::swap(lhs.style, rhs.style);
+            std::swap(lhs._size, rhs._size);
+            std::swap(lhs._kind, rhs._kind);
+        }
+        void wipe()
+        {
+            rich::kill();
+            _size = {};
+            _kind = {};
+        }
+        bool wrapped() const
+        {
+            assert(_kind == style.get_kind());
+            return _kind == type::autowrap;
+        }
+        si32 height(si32 panel_x) const
+        {
+            auto len = length();
+            assert(_kind == style.get_kind());
+            return len > panel_x && wrapped() ? (len + panel_x - 1) / panel_x
+                                              : 1;
+        }
+    };
+
     // richtext: Cascade of the identical paragraphs.
     class rope
     {

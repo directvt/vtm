@@ -1240,88 +1240,6 @@ namespace netxs::ui
 
             using tabs = std::vector<std::pair<si32, si32>>; // Pairs of forward and reverse tabstops index.
 
-            struct line
-                : public rich
-            {
-                using rich::rich;
-                using type = deco::type;
-
-                line(line&& l)
-                    : rich{ std::move(l) },
-                     index{ l.index      }
-                {
-                    static constexpr auto j = sizeof(core);//112
-                    static constexpr auto i = sizeof(rich);//112
-                    static constexpr auto i2 = sizeof(line);//144
-                    static constexpr auto i3 = sizeof(deco);//
-                    style = l.style;
-                    _size = l._size;
-                    _kind = l._kind;
-                    l._size = {};
-                    l._kind = {};
-                }
-                line(line const& l)
-                    : rich{ l       },
-                     style{ l.style },
-                     index{ l.index }
-                { }
-                line(id_t line_id, deco const& line_style, span dt, twod sz)
-                    : rich{ dt, sz     },
-                     style{ line_style },
-                     index{ line_id    }
-                { }
-                line(id_t line_id, deco const& line_style, cell const& blank)
-                    : rich{ blank      },
-                     style{ line_style },
-                     index{ line_id    }
-                { }
-                line(id_t line_id, deco const& line_style, cell const& blank, si32 length)
-                    : rich{ blank, length },
-                     style{ line_style    },
-                     index{ line_id       }
-                { }
-                line(core&& s)
-                    : rich{ std::move(s) }
-                { }
-                line(netxs::view utf8)
-                    : rich{ para{ utf8 }.content() }
-                { }
-
-                line& operator = (line&&)      = default;
-                line& operator = (line const&) = default;
-
-                deco style{};
-                id_t index{};
-                si32 _size{};
-                si32 _kind{};
-
-                friend void swap(line& lhs, line& rhs)
-                {
-                    std::swap<rich>(lhs, rhs);
-                    std::swap(lhs.index, rhs.index);
-                    std::swap(lhs.style, rhs.style);
-                    std::swap(lhs._size, rhs._size);
-                    std::swap(lhs._kind, rhs._kind);
-                }
-                void wipe()
-                {
-                    rich::kill();
-                    _size = {};
-                    _kind = {};
-                }
-                bool wrapped() const
-                {
-                    assert(_kind == style.get_kind());
-                    return _kind == type::autowrap;
-                }
-                si32 height(si32 panel_x) const
-                {
-                    auto len = length();
-                    assert(_kind == style.get_kind());
-                    return len > panel_x && wrapped() ? (len + panel_x - 1) / panel_x
-                                                      : 1;
-                }
-            };
             struct redo
             {
                 using mark = ansi::mark;
@@ -2736,8 +2654,8 @@ namespace netxs::ui
                     {
                         head += clip.coor.x;
                         auto next = head + clip.size.x;
-                        auto line = std::span(head, next);
-                        print_stripe(line);
+                        auto cell_run = std::span(head, next);
+                        print_stripe(cell_run);
                         head = next + rest;
                         if (head != tail)
                         {
@@ -3559,19 +3477,19 @@ namespace netxs::ui
                     undock(l._kind, l._size);
                 }
                 // buff: Return the item position in the scrollback using its id.
-                auto index_by_id(ui32 item_id) const
+                auto index_by_id(id_t item_id) const
                 {
                     //No need to disturb distant objects, it may already be in the swap.
                     auto total = length();
                     return (si32)(total - 1 - (back().index - item_id)); // ring buffer size is never larger than max_int32.
                 }
                 // buff: Return an iterator pointing to the item with the specified id.
-                auto iter_by_id(ui32 line_id) -> ring::iter<ring> //todo MSVC 17.7.0 requires return type
+                auto iter_by_id(id_t line_id) -> ring::iter<ring> //todo MSVC 17.7.0 requires return type
                 {
                     return begin() + index_by_id(line_id);
                 }
                 // buff: Return the item reference using its id.
-                auto& item_by_id(ui32 line_id)
+                auto& item_by_id(id_t line_id)
                 {
                     return ring::at(index_by_id(line_id));
                 }
@@ -3644,10 +3562,10 @@ namespace netxs::ui
 
             friend auto& operator << (std::ostream& s, scroll_buf& c) // For debug.
             {
-                return s << "{ " << c.batch.max<line::type::leftside>() << ","
-                                 << c.batch.max<line::type::rghtside>() << ","
-                                 << c.batch.max<line::type::centered>() << ","
-                                 << c.batch.max<line::type::autowrap>() << " }";
+                return s << "{ " << c.batch.max<deco::type::leftside>() << ","
+                                 << c.batch.max<deco::type::rghtside>() << ","
+                                 << c.batch.max<deco::type::centered>() << ","
+                                 << c.batch.max<deco::type::autowrap>() << " }";
             }
 
             buff batch; // scroll_buf: Scrollback container.
@@ -4176,11 +4094,11 @@ namespace netxs::ui
                 auto unknown = true;
                 while (head != tail && (index.size < arena || unknown))
                 {
-                    auto& line = *--head;
-                    auto lineid = line.index;
-                    auto length = line.length();
+                    auto& cell_run = *--head;
+                    auto lineid = cell_run.index;
+                    auto length = cell_run.length();
                     auto active = lnid == lineid;
-                    if (line.wrapped())
+                    if (cell_run.wrapped())
                     {
                         auto offset = length;
                         auto remain = length ? (length - 1) % panel.x + 1
@@ -4235,10 +4153,10 @@ namespace netxs::ui
                 {
                     assert(curit != batch.end() - 1);
 
-                    auto& line = *++curit;
-                    width = line.length();
-                    wraps = line.wrapped();
-                    curid = line.index;
+                    auto& cell_run = *++curit;
+                    width = cell_run.length();
+                    wraps = cell_run.wrapped();
+                    curid = cell_run.index;
                     start = 0;
                 }
                 else assert(mapln.width == panel.x);
@@ -4263,10 +4181,10 @@ namespace netxs::ui
                     if (avail == 0) break;
 
                     assert(curit != batch.end() - 1);
-                    auto& line = *++curit;
-                    width = line.length();
-                    wraps = line.wrapped();
-                    curid = line.index;
+                    auto& cell_run = *++curit;
+                    width = cell_run.length();
+                    wraps = cell_run.wrapped();
+                    curid = cell_run.index;
                     start = 0;
                 }
                 assert(test_index());
@@ -4333,9 +4251,9 @@ namespace netxs::ui
             bool recalc_pads(dent& oversz_ref) override
             {
                 auto coor = get_coord();
-                auto rght = std::max({0, batch.max<line::type::leftside>() - panel.x, coor.x - panel.x + 1 }); // Take into account the cursor position.
-                auto left = std::max( 0, batch.max<line::type::rghtside>() - panel.x);
-                auto cntr = std::max( 0, batch.max<line::type::centered>() - panel.x);
+                auto rght = std::max({0, batch.max<deco::type::leftside>() - panel.x, coor.x - panel.x + 1 }); // Take into account the cursor position.
+                auto left = std::max( 0, batch.max<deco::type::rghtside>() - panel.x);
+                auto cntr = std::max( 0, batch.max<deco::type::centered>() - panel.x);
                 auto bttm = std::max( 0, batch.vsize - batch.basis - arena          );
                 auto both = cntr >> 1;
                 left = shore + std::max(left, both + (cntr & 1));
@@ -5079,17 +4997,17 @@ namespace netxs::ui
                 else ctx.block.splice(coord, n, blank);
             }
             // scroll_buf: Merge curln with its neighbors.
-            void _merge(line& curln, si32 oldsz, ui32 curid, si32 count)
+            void _merge(line& curln, si32 oldsz, id_t curid, si32 count)
             {
                 auto coor = oldsz + panel.x - (oldsz - 1) % panel.x - 1;
                 auto iter = batch.iter_by_id(curid);
                 while (count-- > 0)
                 {
-                    auto& line = *++iter;
+                    auto& cell_run = *++iter;
                     //todo respect line alignment
-                    if (line.wrapped()) curln.splice(coor, line                   , cell::shaders::full, brush.spc());
-                    else                curln.splice(coor, line.substr(0, panel.x), cell::shaders::full, brush.spc());
-                    coor += line.height(panel.x) * panel.x;
+                    if (cell_run.wrapped()) curln.splice(coor, cell_run                   , cell::shaders::full, brush.spc());
+                    else                    curln.splice(coor, cell_run.substr(0, panel.x), cell::shaders::full, brush.spc());
+                    coor += cell_run.height(panel.x) * panel.x;
                 }
             }
             // scroll_buf: Proceed new text using specified cell shader.
@@ -5975,11 +5893,11 @@ namespace netxs::ui
                             assert(head != limit);
                             while (true)
                             {
-                                auto& line = *head;
-                                auto line_height = line.height(panel.x);
+                                auto& cell_run = *head;
+                                auto line_height = cell_run.height(panel.x);
                                 if (ypos < line_height || ++head == limit)
                                 {
-                                    grip.link = line.index;
+                                    grip.link = cell_run.index;
                                     grip.coor.y = ypos;
                                     break;
                                 }
@@ -6381,12 +6299,12 @@ namespace netxs::ui
                     upend.role = dnend.role = grip::idle;
                     upmid = selection_coor_to_grip(coor, grip::base);
                     dnmid = upmid;
-                    auto& line = batch.item_by_id(upmid.link);
-                    auto start = screen_to_offset(line, upmid.coor);
-                    auto offup = line.word<feed::rev>({ start, 0 });
-                    auto offdn = line.word<feed::fwd>({ start, 0 });
-                    upmid.coor = offset_to_screen(line, offup);
-                    dnmid.coor = offset_to_screen(line, offdn);
+                    auto& cell_run = batch.item_by_id(upmid.link);
+                    auto start = screen_to_offset(cell_run, upmid.coor);
+                    auto offup = cell_run.word<feed::rev>({ start, 0 });
+                    auto offdn = cell_run.word<feed::fwd>({ start, 0 });
+                    upmid.coor = offset_to_screen(cell_run, offup);
+                    dnmid.coor = offset_to_screen(cell_run, offdn);
                 }
                 else // Inside the bottom margin.
                 {
@@ -6497,9 +6415,9 @@ namespace netxs::ui
                     upmid = selection_coor_to_grip(coor, grip::base);
                     dnmid = upmid;
                     auto curit = batch.iter_by_id(upmid.link);
-                    auto& line = *curit;
-                    auto start = screen_to_offset(line, upmid.coor);
-                    auto group = 0xFF & (line.empty() ? line.link() : line.at(start).link()); // The semantic marker is placed in the low byte of the identifier.
+                    auto& cell_run = *curit;
+                    auto start = screen_to_offset(cell_run, upmid.coor);
+                    auto group = 0xFF & (cell_run.empty() ? cell_run.link() : cell_run.at(start).link()); // The semantic marker is placed in the low byte of the identifier.
                     auto check = [&](auto& c){ return (c.link() & 0xFF) != group; };
                     if (!group) // Semantic markers are not used.
                     {
@@ -6510,12 +6428,12 @@ namespace netxs::ui
                         place = part::mid;
                         auto offup = start;
                         auto offdn = start;
-                        auto up_rc = line.seek<feed::rev>(offup, check);
-                        auto dn_rc = line.seek<feed::fwd>(offdn, check);
+                        auto up_rc = cell_run.seek<feed::rev>(offup, check);
+                        auto dn_rc = cell_run.seek<feed::fwd>(offdn, check);
                         if (up_rc) // We are inside the command line.
                         {
-                            upmid.coor = offset_to_screen(line, offup);
-                            dnmid.coor = offset_to_screen(line, offdn);
+                            upmid.coor = offset_to_screen(cell_run, offup);
+                            dnmid.coor = offset_to_screen(cell_run, offdn);
                         }
                         else // We are inside the output or prompt.
                         {
@@ -6622,9 +6540,9 @@ namespace netxs::ui
                 auto vpos = -upcur.coor.y;
                 while (head != tail)
                 {
-                    auto& line = *head;
-                    vpos += line.height(panel.x);
-                    summ += line.length();
+                    auto& cell_run = *head;
+                    vpos += cell_run.height(panel.x);
+                    summ += cell_run.length();
                     ++head;
                 }
                 summ += std::min(end.length(), 1 + dncur.coor.y * panel.x + std::max(0, dncur.coor.x));
@@ -7202,15 +7120,15 @@ namespace netxs::ui
                                                : si32{0};
                             while (head != tail)
                             {
-                                auto& line = proc(head);
-                                from = ahead ? 0 : line.length();
-                                if (resx(line))
+                                auto& cell_run = proc(head);
+                                from = ahead ? 0 : cell_run.length();
+                                if (resx(cell_run))
                                 {
                                     delta.y += ahead ?-accum
-                                                     : accum + line.height(panel.x);
+                                                     : accum + cell_run.height(panel.x);
                                     return true;
                                 }
-                                accum += line.height(panel.x);
+                                accum += cell_run.height(panel.x);
                             }
                             return faux;
                         };
@@ -7699,8 +7617,8 @@ namespace netxs::ui
             while (true)
             {
                 auto next = head + step;
-                auto line = std::span(head, next);
-                scrollback.template _data<true>(step, line, fuse);
+                auto cell_run = std::span(head, next);
+                scrollback.template _data<true>(step, cell_run, fuse);
                 head = next + rest;
                 if (head != tail)
                 {
@@ -7745,9 +7663,9 @@ namespace netxs::ui
             {
                 head += clip.coor.x;
                 auto next = head + clip.size.x;
-                auto line = std::span(head, next);
+                auto cell_run = std::span(head, next);
                 scrollback.cup2(coor);
-                scrollback.template _data<true>(clip.size.x, line, fuse);
+                scrollback.template _data<true>(clip.size.x, cell_run, fuse);
                 head = next + rest;
                 coor.y++;
             }

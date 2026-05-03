@@ -197,6 +197,7 @@ struct impl : consrv
 
     struct memo
     {
+        //todo use ui::line instead of ui::rich
         size_t                           seek{};
         std::list<std::pair<si32, rich>> undo{};
         std::list<std::pair<si32, rich>> redo{};
