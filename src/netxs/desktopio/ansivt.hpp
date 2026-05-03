@@ -1125,24 +1125,28 @@ namespace netxs::ansi
     };
     struct deco
     {
-        enum type : si32
+        struct type
         {
-            leftside, // default
-            rghtside,
-            centered,
-            autowrap,
-            count,
+            static constexpr auto _counter = __COUNTER__ + 1;
+            static constexpr auto leftside = __COUNTER__ - _counter;
+            static constexpr auto rghtside = __COUNTER__ - _counter;
+            static constexpr auto centered = __COUNTER__ - _counter;
+            static constexpr auto autowrap = __COUNTER__ - _counter;
+            static constexpr auto count    = __COUNTER__ - _counter;
         };
 
         static constexpr auto defwrp = wrap::on;    // deco: Default autowrap behavior.
         static constexpr auto maxtab = si32{ 255 }; // deco: Tab length limit.
 
+        dent margin     = {}; // deco: Paragraph margins.
         wrap wrapln : 2 = {}; // deco: Autowrap.
         bias adjust : 2 = {}; // deco: Horizontal alignment.
         rtol r_to_l : 2 = {}; // deco: RTL.
         feed rlfeed : 2 = {}; // deco: Reverse line feed.
         byte tablen : 8 = {}; // deco: Tab length.
-        dent margin     = {}; // deco: Page margins.
+        //byte rekind : 2 = {}; // deco: Stored line aligning type.
+        //byte hasimg : 1 = {}; // deco: Line contains image cells.
+        //byte pad1;
 
         deco() = default;
         deco(si32 format)

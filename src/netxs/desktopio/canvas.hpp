@@ -3659,11 +3659,11 @@ namespace netxs
         using body = std::vector<cell>;
 
     protected:
-        si32 digest = 0; // core: Resize stamp.
         rect region; // core: Physical square of canvas relative to current basis (top-left corner of the current rendering object, see face::change_basis).
         rect client; // core: Active canvas area relative to current basis.
         body canvas; // core: Cell data.
         cell marker; // core: Current brush.
+        si32 digest = 0; // core: Resize stamp.
 
     public:
         core()                         = default;

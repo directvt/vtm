@@ -568,7 +568,7 @@ namespace netxs::ui
         using core::core;
 
         rich(core&& s)
-            : core{ std::forward<core>(s) }
+            : core{ std::move(s) }
         { }
 
         auto length() const                                     { return size().x;                            }

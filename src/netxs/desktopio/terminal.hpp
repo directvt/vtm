@@ -1245,12 +1245,15 @@ namespace netxs::ui
             {
                 using rich::rich;
                 using type = deco::type;
-                using id_t = ui32;
 
                 line(line&& l)
-                    : rich { std::forward<rich>(l) },
-                      index{ l.index }
+                    : rich{ std::move(l) },
+                     index{ l.index      }
                 {
+                    static constexpr auto j = sizeof(core);//112
+                    static constexpr auto i = sizeof(rich);//112
+                    static constexpr auto i2 = sizeof(line);//144
+                    static constexpr auto i3 = sizeof(deco);//
                     style = l.style;
                     _size = l._size;
                     _kind = l._kind;
@@ -1259,26 +1262,26 @@ namespace netxs::ui
                 }
                 line(line const& l)
                     : rich{ l       },
-                     index{ l.index },
-                     style{ l.style }
+                     style{ l.style },
+                     index{ l.index }
                 { }
                 line(id_t line_id, deco const& line_style, span dt, twod sz)
                     : rich{ dt, sz     },
-                     index{ line_id    },
-                     style{ line_style }
+                     style{ line_style },
+                     index{ line_id    }
                 { }
                 line(id_t line_id, deco const& line_style, cell const& blank)
                     : rich{ blank      },
-                     index{ line_id    },
-                     style{ line_style }
+                     style{ line_style },
+                     index{ line_id    }
                 { }
                 line(id_t line_id, deco const& line_style, cell const& blank, si32 length)
                     : rich{ blank, length },
-                     index{ line_id       },
-                     style{ line_style    }
+                     style{ line_style    },
+                     index{ line_id       }
                 { }
                 line(core&& s)
-                    : rich{ std::forward<core>(s) }
+                    : rich{ std::move(s) }
                 { }
                 line(netxs::view utf8)
                     : rich{ para{ utf8 }.content() }
@@ -1287,10 +1290,10 @@ namespace netxs::ui
                 line& operator = (line&&)      = default;
                 line& operator = (line const&) = default;
 
-                id_t index{};
                 deco style{};
+                id_t index{};
                 si32 _size{};
-                type _kind{};
+                si32 _kind{};
 
                 friend void swap(line& lhs, line& rhs)
                 {
@@ -3371,7 +3374,6 @@ namespace netxs::ui
         {
             struct index_item
             {
-                using id_t = line::id_t;
                 id_t index;
                 si32 start;
                 si32 width;
@@ -3413,7 +3415,7 @@ namespace netxs::ui
             struct buff : public ring
             {
                 using ring::ring;
-                using type = line::type;
+                using type = deco::type;
                 using maps = std::map<si32, si32>[type::count];
 
                 si32 caret{}; // buff: Current line cursor horizontal position.
@@ -3428,13 +3430,13 @@ namespace netxs::ui
                 bool rolls{}; // buff: The scrollback buffer ring was scrolled.
 
                 // buff: Decrease height.
-                void dec_height(si32& block_vsize, type line_kind, si32 line_size)
+                void dec_height(si32& block_vsize, si32 line_kind, si32 line_size)
                 {
                     if (line_size > width && line_kind == type::autowrap) block_vsize -= (line_size + width - 1) / width;
                     else                                                  block_vsize -= 1;
                 }
                 // buff: Increase height.
-                void add_height(si32& block_vsize, type line_kind, si32 line_size)
+                void add_height(si32& block_vsize, si32 line_kind, si32 line_size)
                 {
                     if (line_size > width && line_kind == type::autowrap) block_vsize += (line_size + width - 1) / width;
                     else                                                  block_vsize += 1;
@@ -3469,7 +3471,7 @@ namespace netxs::ui
                     }
                 }
                 // buff: Register a new line.
-                void invite(type& line_kind, si32& line_size, type new_kind, si32 new_size)
+                void invite(si32& line_kind, si32& line_size, si32 new_kind, si32 new_size)
                 {
                     ++sizes[new_kind][new_size];
                     add_height(vsize, new_kind, new_size);
@@ -3477,7 +3479,7 @@ namespace netxs::ui
                     line_kind = new_kind;
                 }
                 // buff: Refresh scrollback height.
-                void recalc(type& line_kind, si32& line_size, type new_kind, si32 new_size)
+                void recalc(si32& line_kind, si32& line_size, si32 new_kind, si32 new_size)
                 {
                     if (line_size != new_size
                      || line_kind != new_kind)
@@ -3490,7 +3492,7 @@ namespace netxs::ui
                     }
                 }
                 // buff: Discard the specified metrics.
-                void undock(type line_kind, si32 line_size)
+                void undock(si32 line_kind, si32 line_size)
                 {
                     auto& lens = sizes[line_kind];
                     auto  iter = lens.find(line_size); assert(iter != lens.end());
@@ -3552,7 +3554,10 @@ namespace netxs::ui
                     rolls = true;
                 }
                 // buff: Remove information about the specified line from accounting.
-                void undock_base_back(line& l) override { undock(l._kind, l._size); }
+                void undock_base_back(line& l) override
+                {
+                    undock(l._kind, l._size);
+                }
                 // buff: Return the item position in the scrollback using its id.
                 auto index_by_id(ui32 item_id) const
                 {
