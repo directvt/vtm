@@ -1606,12 +1606,18 @@ namespace netxs::ui
         }
     };
 
+    // richtext: 1D cell run.
     struct line
         : public rich
     {
-        using rich::rich;
         using type = deco::type;
 
+        deco style{};
+        id_t index{};
+        si32 _size{};
+        si32 _kind{};
+
+        line() = default;
         line(line&& l)
             : rich{ std::move(l) },
              index{ l.index      }
@@ -1655,11 +1661,6 @@ namespace netxs::ui
 
         line& operator = (line&&)      = default;
         line& operator = (line const&) = default;
-
-        deco style{};
-        id_t index{};
-        si32 _size{};
-        si32 _kind{};
 
         friend void swap(line& lhs, line& rhs)
         {
