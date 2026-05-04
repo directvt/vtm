@@ -1588,18 +1588,18 @@ namespace netxs::ui
         { }
         line(id_t line_id, deco const& line_style, cell const& blank)
             : brush{ blank      },
-               style{ line_style },
-               index{ line_id    }
+              style{ line_style },
+              index{ line_id    }
         { }
         line(id_t line_id, deco const& line_style, cell const& blank, si32 len)
             : cells( len, blank ),
               brush{ blank      },
-               style{ line_style },
-               index{ line_id    }
+              style{ line_style },
+              index{ line_id    }
         { }
         line(body::const_iterator head, body::const_iterator tail, cell marker)
             : cells{ head, tail },
-              brush{ marker }
+              brush{ marker     }
         { }
         line(std::span<cell const> copy)
             : cells{ copy.begin(), copy.end() }
