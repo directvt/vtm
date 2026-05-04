@@ -608,52 +608,6 @@ namespace netxs::ui
         {
             return canvas.empty();
         }
-        void shrink(cell const& blank, si32 max_size = 0, si32 min_size = 0)
-        {
-            assert(min_size <= length());
-            auto head = begin();
-            auto tail = end();
-            auto stop = head + min_size;
-            while (stop != tail)
-            {
-                auto next = tail - 1;
-                if (*next != blank) break;
-                tail = next;
-            }
-            auto new_size = (si32)(tail - head);
-            if (max_size && max_size < new_size) new_size = max_size;
-            if (new_size != length()) crop(new_size);
-        }
-        template<bool AutoGrow = faux>
-        void splice(si32 at, si32 count, cell const& blank)
-        {
-            if (count <= 0) return;
-            auto len = length();
-            if constexpr (AutoGrow)
-            {
-                rich::resize(at + count);
-            }
-            else
-            {
-                if (at >= len) return;
-                count = std::min(count, len - at);
-            }
-            auto ptr = begin();
-            auto dst = ptr + at;
-            auto end = dst + count;
-            while (dst != end) *dst++ = blank;
-        }
-        template<class Span, class Shader>
-        void splice(si32 at, Span const& fragment, Shader fuse, cell const& c = {})
-        {
-            auto len = fragment.length();
-            rich::resize(len + at, c);
-            auto ptr = begin();
-            auto dst = ptr + at;
-            auto end = dst + len;
-            auto src = fragment.begin();
-            while (dst != end) fuse(*dst++, *src++);
-        }
         template<bool Copy = faux, class SrcIt, class DstIt, class Shader>
         static void forward_fill_proc(SrcIt data, DstIt dest, DstIt tail, Shader fuse)
         {
@@ -1624,11 +1578,6 @@ namespace netxs::ui
         line(line&& l)
             : canvas{ std::move(l.canvas) }
         {
-            //static constexpr auto j = sizeof(core);//112
-            //static constexpr auto i = sizeof(rich);//112
-            //static constexpr auto i2 = sizeof(line);//144 //104
-            //static constexpr auto i3 = sizeof(deco);//20
-
             marker = l.marker;
             style = l.style;
             index = l.index;
@@ -1722,11 +1671,10 @@ namespace netxs::ui
         // line: Return sub-line view.
         auto substr(si32 at, si32 width = netxs::si32max) const
         {
-            //auto w = size();
-            //auto a = std::max(0, at);
-            //return a < w ? std::span{ canvas.begin() + a, (size_t)std::min(std::max(0, width), w - a) }
-            //             : std::span{ canvas.begin() + 0, (size_t)0 };
-            return subline(at, at + std::max(0, width));
+            auto w = size();
+            auto a = std::max(0, at);
+            return a < w ? std::span{ canvas.begin() + a, (size_t)std::min(std::max(0, width), w - a) }
+                         : std::span{ canvas.begin() + 0, (size_t)0 };
         }
         // line: Collapse line to zero size.
         void wipe()
@@ -1770,21 +1718,18 @@ namespace netxs::ui
                 crop(oversize, c);
             }
         }
-        // line: Trim all blank cells from the line end up to min_size (crop to max_size if exeeds).
-        void shrink(cell const& blank, si32 max_size = 0, si32 min_size = 0)
+        // line: Trim all blank cells from the line end.
+        void shrink(cell const& blank)
         {
-            assert(min_size <= size());
             auto head = canvas.begin();
             auto tail = canvas.end();
-            auto stop = head + min_size;
-            while (stop != tail)
+            while (head != tail)
             {
                 auto next = tail - 1;
                 if (*next != blank) break;
                 tail = next;
             }
             auto new_size = (si32)(tail - head);
-            if (max_size && max_size < new_size) new_size = max_size;
             if (new_size != size()) crop(new_size);
         }
         // line: Place a number of blank cells at specified position.
@@ -1868,25 +1813,8 @@ namespace netxs::ui
         // line: Copy the specified sub-line to the dest.
         auto copy_piece(line& dest, si32 from, si32 width) const
         {
-            auto my_size = size();
-            if (from >= my_size)
-            {
-                dest.crop(0);
-                return;
-            }
-            auto new_width = from % my_size + width;
-            if (new_width > my_size)
-            {
-                width = my_size - from;
-            }
-            dest.crop(width);
-            auto src = begin() + from;
-            auto dst = dest.begin();
-            auto end = dest.end();
-            while (dst != end)
-            {
-                *dst++ = *src++;
-            }
+            auto s = substr(from, width);
+            dest.canvas.assign(s.begin(), s.end());
         }
         // line: Find the substring and place its offset in &from.
         auto find(line const& what, auto&& from, feed dir = feed::fwd) const
@@ -1941,8 +1869,8 @@ namespace netxs::ui
 
         operator writ const& () const { return **source; }
 
-        // rope: Return a substring rope the source content.
-        //       ! No checking of boundaries !
+        // rope: Return a substring rope of the source content.
+        //       ! No boundary checking !
         rope substr(si32 start, si32 width) const
         {
             auto first = source;
