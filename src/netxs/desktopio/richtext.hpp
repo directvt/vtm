@@ -1169,12 +1169,6 @@ namespace netxs::ui
             }
             return cluster;
         }
-        //todo unify
-        auto& at(si32 p) const
-        {
-            assert(p >= 0);
-            return *(core::begin() + p);
-        }
     };
 
     // richtext: Text paragraph.
