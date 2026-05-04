@@ -1044,6 +1044,8 @@ namespace netxs
         }
     };
 
+    using pals = std::remove_const_t<decltype(argb::vt256)>;
+
     // canvas: Generic RGBA.
     template<class T>
     struct irgb
@@ -2672,6 +2674,28 @@ namespace netxs
             auto w = gc.size_w() + 1;
             return w > 1 && w == /*x*/(st.mosaic() & cell::body::x_bits);
         }
+        // cell: Get text from cell.
+        template<svga Mode = svga::vtrgb, bool Select_11_only = true>
+        void scan_text(text& dest) const
+        {
+            auto shadow = gc.get<Mode>();
+            auto [w, h, x, y] = whxy();
+            if (w == 0 || h == 0 || y != 1 || x != 1 || shadow.empty() || (byte)shadow.front() < 32) // 2D fragment is either non-standard or empty or C0.
+            {
+                if constexpr (Select_11_only)
+                {
+                    if (y > 1 || x > 2) dest += whitespace;
+                }
+                else
+                {
+                    dest += whitespace;
+                }
+            }
+            else
+            {
+                dest += shadow;
+            }
+        }
         // cell: Convert to text. Ignore right half. Convert binary clusters (eg: ^C -> 0x03).
         template<bool Select_11_only = faux>
         void scan(text& dest) const
@@ -2796,6 +2820,253 @@ namespace netxs
         auto same_fragment(cell const& c) const
         {
             return gc == c.gc && st.xy() == c.st.xy();
+        }
+        // cell: Find the text_only_cells{ what, size } inside the canvas and place the result offset to the &from.
+        static auto lookup(auto canvas_begin, auto canvas_end, auto what_begin, auto size, auto& from)
+        {
+            size--;
+            auto head = canvas_begin;
+            auto tail = canvas_end - size;
+            auto iter = head + from;
+            auto base = what_begin;
+            auto dest = base;
+            auto&test =*base;
+            while (iter != tail)
+            {
+                if (test.same_fragment(*iter++))
+                {
+                    auto init = iter;
+                    auto stop = iter + size;
+                    while (init != stop && init->same_fragment(*++dest))
+                    {
+                        ++init;
+                    }
+                    if (init == stop)
+                    {
+                        from = (si32)std::distance(head, iter) - 1;
+                        return true;
+                    }
+                    else dest = base;
+                }
+            }
+            return faux;
+        }
+        // cell: Find the text_only_cells{ what, size } inside the canvas and place the result offset to the &from.
+        static auto find(std::span<cell const> canvas, std::span<cell const> what, auto&& from, feed dir = feed::fwd)
+        {
+            auto full = (si32)canvas.size();
+            auto size = (si32)what.size();
+            auto rest = full - from;
+            if (dir == feed::fwd)
+            {
+                if (size && size <= rest)
+                if (cell::lookup(canvas.begin(), canvas.end(), what.begin(), size, from))
+                {
+                    return true;
+                }
+            }
+            else
+            {
+                if (size && size <= from)
+                if (cell::lookup(canvas.rbegin(), canvas.rend(), what.rbegin(), size, rest))
+                {
+                    from = full - rest - 1; // Restore forward representation.
+                    return true;
+                }
+            }
+            return faux;
+        }
+        // cell: Clear canvas cells from the specified image bits.
+        static bool remove_image_bits(auto& canvas, std::vector<ui16>& removed_image_indexes)
+        {
+            auto hit = faux;
+            for (auto& c : canvas)
+            {
+                if (auto image_index = c.get_image_index())
+                {
+                    //if (image_index == removed_image_index) //todo ?optimize for single index
+                    if (std::find(removed_image_indexes.begin(), removed_image_indexes.end(), image_index) != removed_image_indexes.end())
+                    {
+                        c.reset_px(); // Drop all image metadata.
+                        hit = true;
+                    }
+                }
+            }
+            return hit;
+        }
+        // cell: Unpack indexed colors in canvas using palette.
+        static void unpack_indexed_colors(auto& canvas, pals const& palette, cell defclr)
+        {
+            auto def_fgc = defclr.fgc();
+            auto def_bgc = defclr.bgc();
+            for (auto& c : canvas)
+            {
+                c.fgc().unpack_indexed_color(palette, def_fgc);
+                c.bgc().unpack_indexed_color(palette, def_bgc);
+            }
+        }
+        // cell: Unpack canvas indexed colors using palette and place it to the dest.
+        static void unpack_indexed_colors_to(auto const& canvas, auto& dest, pals const& palette, cell defclr)
+        {
+            auto def_fgc = defclr.fgc();
+            auto def_bgc = defclr.bgc();
+            dest.size(canvas.size());
+            netxs::oncopy(canvas, dest, [&](auto& src, auto& dst)
+            {
+                dst = src;
+                dst.fgc().unpack_indexed_color(palette, def_fgc);
+                dst.bgc().unpack_indexed_color(palette, def_bgc);
+            });
+        }
+        // cell: Convert to raw utf-8 text (ignoring right halves).
+        template<bool Select_11_only = true>
+        static void to_utf8(auto const& canvas, text& crop)
+        {
+            crop.reserve(crop.size() + canvas.length());
+            netxs::for_each(canvas, [&](cell const& c){ c.scan<Select_11_only>(crop); });
+        }
+        // cell: Convert to raw utf-8 text (ignoring right halves).
+        template<bool Select_11_only = true>
+        static auto to_utf8(auto const& canvas)
+        {
+            auto crop = text{};
+            cell::to_utf8(canvas, crop);
+            return crop;
+        }
+        // cell: Detect a word bound.
+        template<feed Direction>
+        static auto word(std::span<cell const> canvas, si32 start)
+        {
+            if (start < 0 || start >= canvas.size()) return 0;
+            static constexpr auto rev = Direction == feed::fwd ? faux : true;
+            auto stop_by_zwsp = 0;
+            auto is_empty = [&](auto txt)
+            {
+                auto test = txt.empty()
+                         || txt.front() == whitespace
+                         ||(txt.front() == '^' && txt.size() == 2); // C0 characters.
+                if (test) stop_by_zwsp = 5; // Don't break by zwsp.
+                return test;
+            };
+            auto empty = [&](auto txt)
+            {
+                return is_empty(txt);
+            };
+            auto alpha = [&](auto txt)
+            {
+                //todo revise (https://unicode.org/reports/tr29/#Word_Boundaries)
+                auto c = utf::cluster<true>(txt).attr.cdpoint;
+                return (c >= '0' && c <= '9')//30-39: '0'-'9'
+                     ||(c >= '@' && c <= 'Z')//40-5A: '@','A'-'Z'
+                     ||(c >= 'a' && c <= 'z')//5F,61-7A: '_','a'-'z'
+                     || c == '_'             //60:    '`'
+                     || c == 0xA0            //A0  NO-BREAK SPACE (NBSP)
+                     ||(c >= 0xC0                // C0-10FFFF: "À" - ...
+                     && c < 0x2000)||(c > 0x206F // General Punctuation
+                     && c < 0x2200)||(c > 0x23FF // Mathematical Operators
+                     && c < 0x2500)||(c > 0x25FF // Box Drawing
+                     && c < 0x2E00)||(c > 0x2E7F // Supplemental Punctuation
+                     && c < 0x3000)||(c > 0x303F // CJK Symbols and Punctuation
+                     && c != 0x30FB              // U+30FB ( ・ ) KATAKANA MIDDLE DOT
+                     && c < 0xFE50)||(c > 0xFE6F // FE50  FE6F Small Form Variants
+                     && c < 0xFF00)||(c > 0xFF0F // Halfwidth and Fullwidth Forms
+                     && c < 0xFF1A)||(c > 0xFF1F //
+                     && c < 0xFF3B)||(c > 0xFF40 //
+                     && c < 0xFF5B)|| c > 0xFF65 //
+            ;};
+            auto is_email = [&](auto txt)
+            {
+                return !txt.empty() && txt.front() == '@';
+            };
+            auto email = [&](auto txt)
+            {
+                return !txt.empty() && (alpha(txt) || txt.front() == '.');
+            };
+            auto is_digit = [&](auto txt)
+            {
+                auto c = utf::cluster(txt).attr.cdpoint;
+                return (c >= '0'    && c <= '9')
+                     ||(c >= 0xFF10 && c <= 0xFF19) // U+FF10 (０) FULLWIDTH DIGIT ZERO - U+FF19 (９) FULLWIDTH DIGIT NINE
+                     || c == '.';
+            };
+            auto digit = [&](auto txt)
+            {
+                auto c = utf::cluster(txt).attr.cdpoint;
+                return c == '.'
+                    ||(c >= 'a' && c <= 'f')
+                    ||(c >= 'A' && c <= 'F')
+                    ||(c >= '0' && c <= '9')
+                    ||(c >= 0xFF10 && c <= 0xFF19); // U+FF10 (０) FULLWIDTH DIGIT ZERO - U+FF19 (９) FULLWIDTH DIGIT NINE
+            };
+            auto func = [&](auto check)
+            {
+                static constexpr auto right_half = rev ? 1 : 2;
+                auto count = 0;
+                auto allfx = [&](auto& c)
+                {
+                    auto txt = c.txt();
+                    auto has_zwsp = stop_by_zwsp <= 0 && txt.ends_with("\u200b");
+                    if (has_zwsp || (stop_by_zwsp && stop_by_zwsp < 2))
+                    {
+                        if constexpr (rev) stop_by_zwsp += 2; // Break here.
+                        else               stop_by_zwsp++;    // Include current cluster.
+                    }
+                    auto [w, h, x, y] = c.whxy();
+                    auto not_right_half = w != 2 || x != right_half;
+                    if (stop_by_zwsp == 2 || (not_right_half && !check(txt))) return true;
+                    count++;
+                    return faux;
+                };
+                start += rev ? 1 : 0;
+                auto head = start;
+                auto tail = rev ? 0 : (si32)canvas.size();
+                if constexpr (rev) std::swap(head, tail);
+                auto cell_run = canvas.subspan(head, tail - head);
+                netxs::for_each<rev>(cell_run, allfx);
+                if (count) count--;
+                start -= rev ? count + 1 : -count;
+            };
+
+            auto test = canvas[start].txt();
+            if constexpr (rev)
+            {
+                if (test.ends_with("\u200b")) stop_by_zwsp -= 2; // Skip zwsp in the first cell.
+            }
+            is_digit(test) ? func(digit) :
+            is_email(test) ? func(email) :
+            is_empty(test) ? func(empty) :
+                             func(alpha);
+            return start;
+        }
+        // cell: Find proc(c) == true.
+        template<feed Direction>
+        static auto seek(std::span<cell const> canvas, si32& start, auto proc)
+        {
+            if (canvas.empty()) return faux;
+            static constexpr auto rev = Direction == feed::fwd ? faux : true;
+            auto count = 0;
+            auto found = faux;
+            auto allfx = [&](auto& c)
+            {
+                if (proc(c))
+                {
+                    found = true;
+                    return true;
+                }
+                count++;
+                return faux;
+            };
+
+            start += rev ? 1 : 0;
+            auto head = start;
+            auto tail = rev ? 0 : (si32)canvas.size();
+            if constexpr (rev) std::swap(head, tail);
+            auto cell_run = canvas.subspan(head, tail - head);
+            netxs::for_each<rev>(cell_run, allfx);
+
+            if (count) count--;
+            start -= rev ? count + 1 : -count;
+            return found;
         }
         // cell: Reset grapheme cluster.
         void set_gc()
@@ -3637,7 +3908,6 @@ namespace netxs
     }
 
     using vrgb = netxs::raw_vector<irgb<si32>>;
-    using pals = std::remove_const_t<decltype(argb::vt256)>;
 
     // canvas: Core grid.
     class core
@@ -3655,7 +3925,6 @@ namespace netxs
         { }
 
     public:
-        using span = std::span<cell const>;
         using body = std::vector<cell>;
 
     protected:
@@ -3671,7 +3940,7 @@ namespace netxs
         core(core const&)              = default;
         core& operator = (core&&)      = default;
         core& operator = (core const&) = default;
-        core(span cells, twod size)
+        core(std::span<cell const> cells, twod size)
             : region{ dot_00, size },
               client{ dot_00, size },
               canvas( cells.begin(), cells.end() )
@@ -3768,7 +4037,7 @@ namespace netxs
         }
         auto crop(si32 at, si32 length) const // core: Return 1D fragment.
         {
-            auto fragment = core{ span{ canvas.begin() + at, canvas.begin() + at + length }, twod{ length, 1 } };
+            auto fragment = core{ std::span{ canvas.begin() + at, canvas.begin() + at + length }, twod{ length, 1 } };
             fragment.marker = marker;
             return fragment;
         }
@@ -3807,32 +4076,13 @@ namespace netxs
             wipe(marker);
             marker.link(my_id);
         }
-        template<class P, bool Plain = std::is_same_v<void, std::invoke_result_t<P, cell&>>>
-        auto each(P proc) // core: Exec a proc for each cell.
+        auto each(auto proc) // core: Exec a proc for each cell.
         {
-            for (auto& c : canvas)
-            {
-                if constexpr (Plain) proc(c);
-                else             if (proc(c)) return faux;
-            }
-            if constexpr (!Plain) return true;
+            return netxs::for_each(canvas, proc);
         }
         void each(rect region, auto fx) // core: Exec a proc for each cell of the specified region.
         {
             netxs::onrect(*this, region, fx);
-        }
-        template<bool Select_11_only = true>
-        void utf8(netxs::text& crop) // core: Convert to raw utf-8 text. Ignore right halves.
-        {
-            each([&](cell& c){ c.scan<Select_11_only>(crop); });
-        }
-        template<bool Select_11_only = true>
-        auto utf8() // core: Convert to raw utf-8 text. Ignore right halves.
-        {
-            auto crop = netxs::text{};
-            crop.reserve(canvas.size());
-            each([&](cell& c){ c.scan<Select_11_only>(crop); });
-            return crop;
         }
         auto copy(body& target) const // core: Copy only body of the canvas to the specified body bitmap.
         {
@@ -3936,137 +4186,26 @@ namespace netxs
             return region.size;
         }
         template<feed Direction>
-        auto seek(si32& x, auto proc) // core: Find proc(c) == true.
-        {
-            if (!region) return faux;
-            static constexpr auto rev = Direction == feed::fwd ? faux : true;
-            x += rev ? 1 : 0;
-            auto count = 0;
-            auto found = faux;
-            auto width = (rev ? 0 : region.size.x) - x;
-            auto field = rect{ twod{ x, 0 } + region.coor, { width, 1 }}.normalize();
-            auto allfx = [&](auto& c)
-            {
-                if (proc(c))
-                {
-                    found = true;
-                    return true;
-                }
-                count++;
-                return faux;
-            };
-            netxs::onrect<rev>(*this, field, allfx);
-            if (count) count--;
-            x -= rev ? count + 1 : -count;
-            return found;
-        }
-        template<feed Direction>
         auto word(twod coord) // core: Detect a word bound.
         {
-            if (!region) return 0;
-            static constexpr auto rev = Direction == feed::fwd ? faux : true;
-            auto stop_by_zwsp = 0;
-            auto is_empty = [&](auto txt)
+            if (region)
             {
-                auto test = txt.empty()
-                         || txt.front() == whitespace
-                         ||(txt.front() == '^' && txt.size() == 2); // C0 characters.
-                if (test) stop_by_zwsp = 5; // Don't break by zwsp.
-                return test;
-            };
-            auto empty = [&](auto txt)
-            {
-                return is_empty(txt);
-            };
-            auto alpha = [&](auto txt)
-            {
-                //todo revise (https://unicode.org/reports/tr29/#Word_Boundaries)
-                auto c = utf::cluster<true>(txt).attr.cdpoint;
-                return (c >= '0' && c <= '9')//30-39: '0'-'9'
-                     ||(c >= '@' && c <= 'Z')//40-5A: '@','A'-'Z'
-                     ||(c >= 'a' && c <= 'z')//5F,61-7A: '_','a'-'z'
-                     || c == '_'             //60:    '`'
-                     || c == 0xA0            //A0  NO-BREAK SPACE (NBSP)
-                     ||(c >= 0xC0                // C0-10FFFF: "À" - ...
-                     && c < 0x2000)||(c > 0x206F // General Punctuation
-                     && c < 0x2200)||(c > 0x23FF // Mathematical Operators
-                     && c < 0x2500)||(c > 0x25FF // Box Drawing
-                     && c < 0x2E00)||(c > 0x2E7F // Supplemental Punctuation
-                     && c < 0x3000)||(c > 0x303F // CJK Symbols and Punctuation
-                     && c != 0x30FB              // U+30FB ( ・ ) KATAKANA MIDDLE DOT
-                     && c < 0xFE50)||(c > 0xFE6F // FE50  FE6F Small Form Variants
-                     && c < 0xFF00)||(c > 0xFF0F // Halfwidth and Fullwidth Forms
-                     && c < 0xFF1A)||(c > 0xFF1F //
-                     && c < 0xFF3B)||(c > 0xFF40 //
-                     && c < 0xFF5B)|| c > 0xFF65 //
-            ;};
-            auto is_email = [&](auto txt)
-            {
-                return !txt.empty() && txt.front() == '@';
-            };
-            auto email = [&](auto txt)
-            {
-                return !txt.empty() && (alpha(txt) || txt.front() == '.');
-            };
-            auto is_digit = [&](auto txt)
-            {
-                auto c = utf::cluster(txt).attr.cdpoint;
-                return (c >= '0'    && c <= '9')
-                     ||(c >= 0xFF10 && c <= 0xFF19) // U+FF10 (０) FULLWIDTH DIGIT ZERO - U+FF19 (９) FULLWIDTH DIGIT NINE
-                     || c == '.';
-            };
-            auto digit = [&](auto txt)
-            {
-                auto c = utf::cluster(txt).attr.cdpoint;
-                return c == '.'
-                    ||(c >= 'a' && c <= 'f')
-                    ||(c >= 'A' && c <= 'F')
-                    ||(c >= '0' && c <= '9')
-                    ||(c >= 0xFF10 && c <= 0xFF19); // U+FF10 (０) FULLWIDTH DIGIT ZERO - U+FF19 (９) FULLWIDTH DIGIT NINE
-            };
-            auto func = [&](auto check)
-            {
-                static constexpr auto right_half = rev ? 1 : 2;
-                coord.x += rev ? 1 : 0;
-                auto count = decltype(coord.x){};
-                auto width = (rev ? 0 : region.size.x) - coord.x;
-                auto field = rect{ coord + region.coor, { width, 1 }}.normalize();
-                auto allfx = [&](auto& c)
-                {
-                    auto txt = c.txt();
-                    auto has_zwsp = stop_by_zwsp <= 0 && txt.ends_with("\u200b");
-                    if (has_zwsp || (stop_by_zwsp && stop_by_zwsp < 2))
-                    {
-                        if constexpr (rev) stop_by_zwsp += 2; // Break here.
-                        else               stop_by_zwsp++;    // Include current cluster.
-                    }
-                    auto [w, h, x, y] = c.whxy();
-                    auto not_right_half = w != 2 || x != right_half;
-                    if (stop_by_zwsp == 2 || (not_right_half && !check(txt))) return true;
-                    count++;
-                    return faux;
-                };
-                netxs::onrect<rev>(*this, field, allfx);
-                if (count) count--;
-                coord.x -= rev ? count + 1 : -count;
-            };
-
-            coord = std::clamp(coord, dot_00, region.size - dot_11);
-            auto test = begin(coord)->txt();
-            if constexpr (rev)
-            {
-                if (test.ends_with("\u200b")) stop_by_zwsp -= 2; // Skip zwsp in the first cell.
+                coord = std::clamp(coord, dot_00, region.size - dot_11);
+                auto start = coord.x + coord.y * region.size.x;
+                auto offset = cell::word<Direction>(canvas, start);
+                coord.x = (offset - 1) % region.size.x + 1;
+                coord.y = std::max(0, (offset - 1) / region.size.x);
             }
-            is_digit(test) ? func(digit) :
-            is_email(test) ? func(email) :
-            is_empty(test) ? func(empty) :
-                             func(alpha);
-            return coord.x;
+            else
+            {
+                coord = {};
+            }
+            return coord;
         }
         template<feed Direction>
         auto word(si32 offset) // core: Detect a word bound.
         {
-            return word<Direction>(twod{ offset, 0 });
+            return cell::word<Direction>(canvas, offset);
         }
         void cage(rect area, dent border, auto fx) // core: Draw the cage around specified area.
         {
@@ -4076,70 +4215,42 @@ namespace netxs
         {
             cage(area, dent{ border_width.x, border_width.x, border_width.y, border_width.y }, fx);
         }
-        template<class Text, class P = noop>
-        void text(twod pos, Text const& txt, bool rtl = faux, P print = {}) // core: Put the specified text substring to the specified coordinates on the canvas.
+        template<bool RtoL = faux, class Text, class P = noop>
+        void text(twod coord, Text const& block, P print = {}) // core: Put the specified text substring to the specified coordinates on the canvas.
         {
-            rtl ? txt.template output<true>(*this, pos, print)
-                : txt.template output<faux>(*this, pos, print);
+            block.template output<RtoL>(*this, coord, print);
+        }
+        template<bool RtoL = faux, class P = noop>
+        void text(twod coord, std::span<cell const> subline, P print = {}) // core: Put the specified text substring to the specified coordinates on the canvas.
+        {
+            auto place = rect{ coord, { (si32)subline.size(), 1 }};
+            auto joint = clip().trim(place);
+            if (joint)
+            {
+                if constexpr (RtoL)
+                {
+                    place.coor.x -= joint.coor.x - place.size.x + joint.size.x;
+                    place.coor.y  = joint.coor.y - place.coor.y;
+                }
+                else
+                {
+                    place.coor = joint.coor - place.coor;
+                }
+                auto skip_in_subline = place.coor.x;
+                auto size_of_subline = joint.size.x;
+                auto src_crop = subline.subspan(skip_in_subline, (size_t)size_of_subline);
+                joint.coor -= coor();
+                auto skip_in_canvas = joint.coor.x + joint.coor.y * size().x;
+                auto size_of_canvas = joint.size.x;
+                auto dst_crop = std::span{ canvas.begin() + skip_in_canvas, (size_t)size_of_canvas };
+                if constexpr (std::is_same_v<P, noop>) netxs::oncopy<RtoL>(dst_crop, src_crop, cell::shaders::fusefull);
+                else                                   netxs::oncopy<RtoL>(dst_crop, src_crop, print);
+            }
         }
         template<class Si32>
-        auto find(core const& what, Si32&& from, feed dir = feed::fwd) const // core: Find the substring and place its offset in &from.
+        auto find(auto const& what, Si32&& from, feed dir = feed::fwd) const // core: Find the substring and place its offset in &from.
         {
-            assert(     canvas.size() <= si32max);
-            assert(what.canvas.size() <= si32max);
-            auto full = (si32)     canvas.size();
-            auto size = (si32)what.canvas.size();
-            auto rest = full - from;
-            auto look = [&](auto canvas_begin, auto canvas_end, auto what_begin)
-            {
-                if (!size || size > rest) return faux;
-
-                size--;
-                auto head = canvas_begin;
-                auto tail = canvas_end - size;
-                auto iter = head + from;
-                auto base = what_begin;
-                auto dest = base;
-                auto&test =*base;
-                while (iter != tail)
-                {
-                    if (test.same_fragment(*iter++))
-                    {
-                        auto init = iter;
-                        auto stop = iter + size;
-                        while (init != stop && init->same_fragment(*++dest))
-                        {
-                            ++init;
-                        }
-
-                        if (init == stop)
-                        {
-                            from = (si32)std::distance(head, iter) - 1;
-                            return true;
-                        }
-                        else dest = base;
-                    }
-                }
-                return faux;
-            };
-
-            if (dir == feed::fwd)
-            {
-                if (look(canvas.begin(), canvas.end(), what.canvas.begin()))
-                {
-                    return true;
-                }
-            }
-            else
-            {
-                std::swap(rest, from); // Reverse.
-                if (look(canvas.rbegin(), canvas.rend(), what.canvas.rbegin()))
-                {
-                    from = full - from - 1; // Restore forward representation.
-                    return true;
-                }
-            }
-            return faux;
+            return cell::find(canvas, what.canvas, from, dir);
         }
         auto toxy(si32 offset) const // core: Convert offset to coor.
         {
@@ -4150,7 +4261,7 @@ namespace netxs
             auto sx = std::max(1, region.size.x);
             return twod{ offset % sx, offset / sx };
         }
-        auto line(si32 from, si32 upto) const // core: Get stripe.
+        auto subline(si32 from, si32 upto) const // core: Get stripe.
         {
             if (from > upto) std::swap(from, upto);
             assert(canvas.size() <= si32max);
@@ -4158,14 +4269,14 @@ namespace netxs
             from = std::clamp(from, 0, maxs ? maxs - 1 : 0);
             upto = std::clamp(upto, 0, maxs);
             auto size = upto - from;
-            return core{ span{ canvas.begin() + from, (size_t)size }, { size, 1 }};
+            return std::span{ canvas.begin() + from, (size_t)size };
         }
-        auto line(twod p1, twod p2) const // core: Get stripe.
+        auto subline(twod p1, twod p2) const // core: Get stripe.
         {
             if (p1.y > p2.y || (p1.y == p2.y && p1.x > p2.x)) std::swap(p1, p2);
             auto from = p1.x + p1.y * region.size.x;
             auto upto = p2.x + p2.y * region.size.x + 1;
-            return line(from, upto);
+            return subline(from, upto);
         }
         auto tile(core& image, auto fx) // core: Tile with a specified bitmap.
         {
@@ -4203,45 +4314,6 @@ namespace netxs
 
             swap(block);
             digest++;
-        }
-        bool remove_image_bits(std::vector<ui16>& removed_image_indexes)
-        {
-            auto hit = faux;
-            for (auto& c : canvas)
-            {
-                if (auto image_index = c.get_image_index())
-                {
-                    //if (image_index == removed_image_index) //todo optimize
-                    if (std::find(removed_image_indexes.begin(), removed_image_indexes.end(), image_index) != removed_image_indexes.end())
-                    {
-                        c.reset_px(); // Drop all image metadata.
-                        hit = true;
-                    }
-                }
-            }
-            return hit;
-        }
-        void unpack_indexed_colors(pals const& palette, cell defclr)
-        {
-            auto def_fgc = defclr.fgc();
-            auto def_bgc = defclr.bgc();
-            for (auto& c : canvas)
-            {
-                c.fgc().unpack_indexed_color(palette, def_fgc);
-                c.bgc().unpack_indexed_color(palette, def_bgc);
-            }
-        }
-        void unpack_indexed_colors(core& dest, pals const& palette, cell defclr) const
-        {
-            auto def_fgc = defclr.fgc();
-            auto def_bgc = defclr.bgc();
-            dest.size(region.size);
-            netxs::oncopy(*this, dest, [&](auto& src, auto& dst)
-            {
-                dst = src;
-                dst.fgc().unpack_indexed_color(palette, def_fgc);
-                dst.bgc().unpack_indexed_color(palette, def_bgc);
-            });
         }
     };
 }

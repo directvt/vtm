@@ -2165,7 +2165,7 @@ namespace netxs::app::vtm
             };
             usergate.LISTEN(tier::request, e2::form::prop::name, user_name_utf8)
             {
-                user_name_utf8 = uname.lyric->utf8();
+                user_name_utf8 = cell::to_utf8(uname.content());
             };
             usergate.LISTEN(tier::release, e2::form::layout::shift, newpos)
             {

@@ -497,30 +497,40 @@ namespace netxs::ansi
         auto& err() { return fgc(redlt); } // basevt: Add error color.
         template<class ...Args>
         auto& err(Args&&... data) { return pushsgr().fgc(redlt).add(std::forward<Args>(data)...).popsgr(); } // basevt: Add error message.
+        // basevt: Ansify/textify a single cell run region.
+        template<bool UseSGR = true, bool Initial = true, bool Finalize = true, bool Select_11_only = true>
+        auto& s11n(std::span<cell const> cell_run, rect region, cell& state)
+        {
+            auto allfx = [&](cell const& c)
+            {
+                c.scan_attr<svga::vtrgb, UseSGR>(state, block);
+                c.scan_text<svga::vtrgb, Select_11_only>(block);
+            };
+            region.trimby(rect{ dot_00, { (si32)cell_run.size(), 1 }});
+            if (region)
+            {
+                if constexpr (UseSGR && Initial) basevt::nil();
+                auto subrun = cell_run.subspan(region.coor.x, region.size.x);
+                netxs::for_each(subrun, allfx);
+                if constexpr (Finalize)
+                {
+                    if constexpr (UseSGR) basevt::nil();
+                }
+                else
+                {
+                    if (block.size()) basevt::eol();
+                }
+            }
+            return block;
+        }
         // basevt: Ansify/textify content of specified region.
         template<bool UseSGR = true, bool Initial = true, bool Finalize = true, bool Select_11_only = true>
         auto& s11n(core const& canvas, rect region, cell& state)
         {
             auto allfx = [&](cell const& c)
             {
-                auto utf8 = c.txt<svga::vtrgb>();
-                auto [w, h, x, y] = c.whxy();
                 c.scan_attr<svga::vtrgb, UseSGR>(state, block);
-                if (w == 0 || h == 0 || y != 1 || x != 1 || utf8.empty() || (byte)utf8.front() < 32) // 2D fragment is either non-standard or empty or C0.
-                {
-                    if constexpr (Select_11_only)
-                    {
-                        if (y > 1 || x > 2) add(' ');
-                    }
-                    else
-                    {
-                        add(' ');
-                    }
-                }
-                else
-                {
-                    add(utf8);
-                }
+                c.scan_text<svga::vtrgb, Select_11_only>(block);
             };
             auto eolfx = [&]
             {

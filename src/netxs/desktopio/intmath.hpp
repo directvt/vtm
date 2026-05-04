@@ -984,22 +984,49 @@ namespace netxs
         }
     }
 
-    // intmath: Copy the bitmap to the bitmap by invoking
-    //          handle(sprite1_element, sprite2_element) for each elem.
-    void oncopy(auto&& bitmap1, auto&& bitmap2, auto handle)
+    // intmath: Inovke a handle(container1_element, container2_element) for each element in equal conainers.
+    template<bool RtoL = faux>
+    void oncopy(auto&& items1, auto&& items2, auto handle)
     {
-        auto& size1 = bitmap1.size();
-        auto& size2 = bitmap2.size();
-        if (size1 == size2)
+        if (items1.size() == items2.size())
         {
-            auto data1 = bitmap1.begin();
-            auto data2 = bitmap2.begin();
-            auto limit = data1 + size1.y * size2.x;
-            while (limit != data1)
+            if constexpr (RtoL)
             {
-                handle(*data1++, *data2++);
+                auto iter1 = items1.begin();
+                auto iter2 = items2.rbegin();
+                auto limit = items2.rend();
+                while (limit != iter2)
+                {
+                    handle(*iter1++, *iter2++);
+                }
+            }
+            else
+            {
+                auto iter1 = items1.begin();
+                auto iter2 = items2.begin();
+                auto limit = items2.end();
+                while (limit != iter2)
+                {
+                    handle(*iter1++, *iter2++);
+                }
             }
         }
+    }
+    // intmath: Exec a handle for each item in container.
+    template<bool RtoL = faux, class T, class P, bool Plain = std::is_same_v<void, std::invoke_result_t<P, decltype(*(std::declval<T&>().begin()))>>>
+    auto for_each(T& container, P handle)
+    {
+        auto run = [&](auto&& items)
+        {
+            for (auto& c : items)
+            {
+                if constexpr (Plain) handle(c);
+                else             if (handle(c)) return faux;
+            }
+            if constexpr (!Plain) return true;
+        };
+        return RtoL ? run(container | std::views::reverse)
+                    : run(container);
     }
 
     // intmath: Intersect two sprites and

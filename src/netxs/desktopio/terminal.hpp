@@ -1275,7 +1275,7 @@ namespace netxs::ui
             ui64  alive; // bufferbase: Selection is active (digest).
             line  match; // bufferbase: Search pattern for highlighting.
 
-            rich  tail_frag; // bufferbase: IRM cached fragment.
+            line  tail_frag; // bufferbase: IRM cached fragment.
             rich  char_2d; // bufferbase: 2D char image.
 
             hook image_update_token;
@@ -2556,7 +2556,7 @@ namespace netxs::ui
                         if (use_true_color)
                         {
                             auto baked = core{};
-                            canvas.unpack_indexed_colors(baked, owner.ctrack.color, owner.defclr);
+                            cell::unpack_indexed_colors_to(canvas, baked, owner.ctrack.color, owner.defclr);
                             buffer.s11n<true>(baked, square);
                         }
                         else
@@ -2584,7 +2584,7 @@ namespace netxs::ui
                         if (use_true_color)
                         {
                             auto baked = core{};
-                            canvas.unpack_indexed_colors(baked, owner.ctrack.color, owner.defclr);
+                            cell::unpack_indexed_colors_to(canvas, baked, owner.ctrack.color, owner.defclr);
                             buffer.s11n<true, true, faux>(baked, part_1);
                             buffer.s11n<true, faux, faux>(baked, part_2);
                             buffer.s11n<true, faux, true>(baked, part_3);
@@ -2922,10 +2922,9 @@ namespace netxs::ui
                 }
             }
             // alt_screen: .
-            auto& _fragment_from_current_coord(si32 left_cells)
+            void _fragment_from_current_coord(si32 left_cells)
             {
                 canvas.copy_piece(tail_frag, coord.x + coord.y * panel.x, left_cells);
-                return tail_frag;
             }
             // alt_screen: .
             template<bool Copy, class Span, class Shader>
@@ -2949,7 +2948,7 @@ namespace netxs::ui
                 if (next_x < panel.x)
                 {
                     auto left_cells = panel.x - next_x;
-                    tail_frag = _fragment_from_current_coord(left_cells);
+                    _fragment_from_current_coord(left_cells); // Update tail_frag.
                     _data_direct_fill<faux>(count, proto, fuse);
                     coord.x = next_x;
                     if (tail_frag.size())
@@ -3089,7 +3088,7 @@ namespace netxs::ui
             //    {
             //        auto use_true_color = owner.selmod == mime::richtext || selmod == mime::htmltext;
             //        auto baked = core{};
-            //        if (use_true_color) stripe.unpack_indexed_colors(baked, owner.ctrack.color, owner.defclr);
+            //        if (use_true_color) cell::unpack_indexed_colors_to(stripe, baked, owner.ctrack.color, owner.defclr);
             //        crop.s11n<true, true, faux>(use_true_colors ? baked : stripe, brush_state);
             //    }
             //    return crop;
@@ -3161,8 +3160,8 @@ namespace netxs::ui
             void selection_byword(twod coor) override
             {
                 seltop = selend = coor;
-                seltop.x = canvas.word<feed::rev>(coor);
-                selend.x = canvas.word<feed::fwd>(coor);
+                seltop = canvas.word<feed::rev>(coor);
+                selend = canvas.word<feed::fwd>(coor);
                 selection_locked(faux);
                 selection_selbox(faux);
                 selection_update(faux);
@@ -3232,7 +3231,7 @@ namespace netxs::ui
                 }
                 else
                 {
-                    match = { canvas.core::line(seltop, selend) };
+                    match = canvas.core::subline(seltop, selend);
                     auto p1 = seltop;
                     auto p2 = selend;
                     if (p1.y > p2.y || (p1.y == p2.y && p1.x > p2.x)) std::swap(p1, p2);
@@ -3282,7 +3281,7 @@ namespace netxs::ui
             // alt_screen: Remove all references to the image from the scrollback.
             void wipe_image_index(std::vector<ui16>& removed_image_indexes) override
             {
-                canvas.remove_image_bits(removed_image_indexes);
+                cell::remove_image_bits(canvas, removed_image_indexes);
             }
         };
 
@@ -4505,7 +4504,6 @@ namespace netxs::ui
                     }
 
                     auto curit = block.begin();
-                    auto width = twod{ size.x, 1 };
                     auto curid = start == 0 ? batch.front().index
                                             : batch[start - 1].index + 1;
                     auto style = ansi::def_style;
@@ -4513,8 +4511,8 @@ namespace netxs::ui
                     while (size.y-- > 0)
                     {
                         auto oldsz = batch.size;
-                        auto proto = core::span{ curit, (size_t)size.x };
-                        auto curln = line{ curid++, style, proto, width };
+                        auto proto = std::span{ curit, (size_t)size.x };
+                        auto curln = line{ curid++, style, proto };
                         curln.shrink(block.mark());
                         batch.insert(start, std::move(curln));
                         start += batch.size - oldsz; // Due to circulation in the ring.
@@ -5159,7 +5157,7 @@ namespace netxs::ui
                                 auto  shadow = destln.wrapped() ? destln.substr(mapln.start + coord.x)
                                                                 : destln.substr(mapln.start + coord.x, std::min(panel.x, mapln.width) - coord.x);
 
-                                if constexpr (mixer) curln.resize(batch.caret +shadow.length(), brush.spare.spc());
+                                if constexpr (mixer) curln.resize(batch.caret + (si32)shadow.size(), brush.spare.spc());
                                 else                 curln.splice(batch.caret, shadow, cell::shaders::full, brush.spare.spc());
 
                                 batch.recalc(curln);
@@ -5279,7 +5277,7 @@ namespace netxs::ui
                 }
             }
             // scroll_buf: .
-            auto& _fragment_from_current_coord(si32 left_cells)
+            void _fragment_from_current_coord(si32 left_cells)
             {
                 if (coord.y < y_top)
                 {
@@ -5295,7 +5293,6 @@ namespace netxs::ui
                 {
                     dnbox.copy_piece(tail_frag, coord.x + (coord.y - (y_end + 1)) * panel.x, left_cells);
                 }
-                return tail_frag;
             }
             // scroll_buf: Insert text using the specified cell shader.
             template<class Span, class Shader>
@@ -5305,7 +5302,7 @@ namespace netxs::ui
                 if (next_x < panel.x)
                 {
                     auto left_cells = panel.x - next_x;
-                    tail_frag = _fragment_from_current_coord(left_cells);
+                    _fragment_from_current_coord(left_cells); // Update tail_frag.
                     _data_direct_fill<faux>(count, proto, fuse);
                     coord.x = next_x;
                     sync_coord();
@@ -5538,7 +5535,7 @@ namespace netxs::ui
                     auto& curln = batch[i];
                     if (fresh)
                     {
-                        curln.trimto(start, brush.spc());
+                        curln.trimto(start);
                     }
                     else
                     {
@@ -5548,12 +5545,12 @@ namespace netxs::ui
                             mapln.width = panel.x;
                             auto x = std::min(coor.x, panel.x); // Trim unwrapped lines by viewport.
                             curln.splice<true>(start + x, panel.x - x, blank);
-                            curln.trimto(start + panel.x, brush.spc());
+                            curln.trimto(start + panel.x);
                         }
                         else
                         {
                             mapln.width = coor.x;
-                            curln.trimto(start + coor.x, brush.spc());
+                            curln.trimto(start + coor.x);
                         }
                         assert(mapln.start == 0 || curln.wrapped());
                     }
@@ -5655,7 +5652,7 @@ namespace netxs::ui
                     {
                         auto& curln = *(curit - 1);
                         curln = std::move(tmpln);
-                        curln.trimto(start, brush.spc());
+                        curln.trimto(start);
                         batch.invite(curln);
                     }
 
@@ -5821,7 +5818,7 @@ namespace netxs::ui
             //    {
             //        auto use_true_color = owner.selmod == mime::richtext || selmod == mime::htmltext;
             //        auto baked = core{};
-            //        if (use_true_color) stripe.unpack_indexed_colors(baked, owner.ctrack.color, owner.defclr);
+            //        if (use_true_color) cell::unpack_indexed_colors_to(stripe, baked, owner.ctrack.color, owner.defclr);
             //        crop.s11n<true, true, faux>(use_true_colors ? baked : stripe, brush_state);
             //    }
             //    return crop;
@@ -6289,8 +6286,8 @@ namespace netxs::ui
                     uptop.role = grip::base;
                     uptop.coor = coor;
                     dntop = uptop;
-                    uptop.coor.x = upbox.word<feed::rev>(coor);
-                    dntop.coor.x = upbox.word<feed::fwd>(coor);
+                    uptop.coor = upbox.word<feed::rev>(coor);
+                    dntop.coor = upbox.word<feed::fwd>(coor);
                 }
                 else if (coor.y < scrolling_margin + arena) // Inside the scrolling region.
                 {
@@ -6301,8 +6298,8 @@ namespace netxs::ui
                     dnmid = upmid;
                     auto& cell_run = batch.item_by_id(upmid.link);
                     auto start = screen_to_offset(cell_run, upmid.coor);
-                    auto offup = cell_run.word<feed::rev>({ start, 0 });
-                    auto offdn = cell_run.word<feed::fwd>({ start, 0 });
+                    auto offup = cell_run.word<feed::rev>(start);
+                    auto offdn = cell_run.word<feed::fwd>(start);
                     upmid.coor = offset_to_screen(cell_run, offup);
                     dnmid.coor = offset_to_screen(cell_run, offdn);
                 }
@@ -6315,8 +6312,8 @@ namespace netxs::ui
                     upend.role = grip::base;
                     upend.coor = coor;
                     dnend = upend;
-                    upend.coor.x = dnbox.word<feed::rev>(coor);
-                    dnend.coor.x = dnbox.word<feed::fwd>(coor);
+                    upend.coor = dnbox.word<feed::rev>(coor);
+                    dnend.coor = dnbox.word<feed::fwd>(coor);
                 }
                 selection_locked(faux);
                 selection_selbox(faux);
@@ -6646,7 +6643,7 @@ namespace netxs::ui
                     while (head++ != tail);
                     if (use_true_color)
                     {
-                        dest.unpack_indexed_colors(owner.ctrack.color, owner.defclr);
+                        cell::unpack_indexed_colors(dest, owner.ctrack.color, owner.defclr);
                     }
                     selmod == mime::disabled ||
                     selmod == mime::textonly ||
@@ -6655,7 +6652,7 @@ namespace netxs::ui
                 }
                 else
                 {
-                    auto baked = core{};
+                    auto baked = line{};
                     auto field = rect{ dot_00, dot_01 };
                     auto accum = cell{};
                     auto build = [&](auto print)
@@ -6689,7 +6686,7 @@ namespace netxs::ui
                         build([&](auto& curln)
                         {
                             auto block = escx{};
-                            block.s11n<faux, faux, faux>(curln, field, accum);
+                            block.s11n<faux, faux, faux>(curln.canvas, field, accum);
                             if (block.size() > 0) yield.add(block);
                             else                  yield.eol();
                         });
@@ -6706,8 +6703,8 @@ namespace netxs::ui
                                 s = curln.style;
                             }
                             auto block = escx{};
-                            if (use_true_color) curln.unpack_indexed_colors(baked, owner.ctrack.color, owner.defclr);
-                            block.s11n<true, faux, faux>(use_true_color ? baked : curln, field, accum);
+                            if (use_true_color) cell::unpack_indexed_colors_to(curln, baked, owner.ctrack.color, owner.defclr);
+                            block.s11n<true, faux, faux>((use_true_color ? baked : curln).canvas, field, accum);
                             if (block.size() > 0) yield.add(block);
                             else                  yield.eol();
                         });
@@ -6806,7 +6803,7 @@ namespace netxs::ui
                                 else if (coord.y > curend.y) coor.y = stop;
                                 else
                                 {
-                                    auto block = rect{ coord, { subblock.length(), 1 }};
+                                    auto block = rect{ coord, { (si32)subblock.size(), 1 }};
                                     if (coord.y == curtop.y)
                                     {
                                         auto width = curtop.y == curend.y ? curend.x - curtop.x + 1
@@ -6844,7 +6841,7 @@ namespace netxs::ui
                                         case bias::right:  coord.x += panel.x - 1; break;
                                         case bias::center: coord.x += panel.x / 2; break;
                                     }
-                                    struct { auto length() const { return 1; }} empty;
+                                    struct { auto size() const { return 1; }} empty;
                                     draw(coord, empty, faux);
                                 }
                                 coor.y += height;
@@ -6994,19 +6991,19 @@ namespace netxs::ui
                     if (p1.y > p2.y || (p1.y == p2.y && p1.x > p2.x)) std::swap(p1, p2);
                     auto head = selection_offset(curln, p1, 0);
                     auto tail = selection_offset(curln, p2, 1);
-                    match = { curln.core::line(head, tail) };
+                    match = line{ curln.subline(head, tail) };
                 }
                 else if (uptop.role == grip::base
                       && dntop.role == grip::base
                       && (!selection_selbox() || uptop.coor.y == dntop.coor.y))
                 {
-                    match = { upbox.core::line(uptop.coor, dntop.coor) };
+                    match = line{ upbox.core::subline(uptop.coor, dntop.coor) };
                 }
                 else if (upend.role == grip::base
                       && dnend.role == grip::base
                       && (!selection_selbox() || upend.coor.y == dnend.coor.y))
                 {
-                    match = { dnbox.core::line(upend.coor, dnend.coor) };
+                    match = line{ dnbox.core::subline(upend.coor, dnend.coor) };
                 }
                 else match = {};
 
@@ -7272,19 +7269,19 @@ namespace netxs::ui
             // scroll_buf: Remove all references to the image from the scrollback.
             void wipe_image_index(std::vector<ui16>& removed_image_indexes) override
             {
-                upbox.remove_image_bits(removed_image_indexes);
-                dnbox.remove_image_bits(removed_image_indexes);
+                cell::remove_image_bits(upbox, removed_image_indexes);
+                cell::remove_image_bits(dnbox, removed_image_indexes);
                 #if defined (__ANDROID__)
                     std::for_each(batch.begin(), batch.end(), [&](auto& l)
                     {
-                        l.remove_image_bits(removed_image_indexes);
+                        cell::remove_image_bits(l, removed_image_indexes);
                     });
                 #else
                     auto wipe_batch = [&](auto policy) // Try to parallelize.
                     {
                         std::for_each(policy, batch.begin(), batch.end(), [&](auto& l)
                         {
-                            l.remove_image_bits(removed_image_indexes);
+                            cell::remove_image_bits(l, removed_image_indexes);
                         });
                     };
                     batch.length() > 100000 ? wipe_batch(std::execution::par)
@@ -8861,7 +8858,7 @@ namespace netxs::ui
             auto utf8 = text{};
             if (console.selection_active()) // Paste from selection.
             {
-                utf8 = console.match.utf8();
+                utf8 = cell::to_utf8(console.match);
             }
             else if (selection_passed()) // Paste from clipboard.
             {
@@ -10590,7 +10587,7 @@ namespace netxs::ui
         {
             auto bitmap_lock = stream.bitmap_dtvt.freeze();
             auto& grid = bitmap_lock.thing.image;
-            grid.remove_image_bits(removed_image_indexes);
+            cell::remove_image_bits(grid, removed_image_indexes);
         }
         // dtvt: Drop removed image metadata from canvas.
         void update_image_bits(ui16 updated_image_index)

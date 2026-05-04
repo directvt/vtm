@@ -4993,7 +4993,7 @@ namespace netxs::os
                     auto& item = lock.thing;
                     if (item.utf8.length())
                     {
-                        auto filtered = para{ item.utf8 }.lyric->utf8();
+                        auto filtered = cell::to_utf8(para{ item.utf8 }.content());
                         #if defined(_WIN32)
                             ::SetConsoleTitleW(utf::to_utf(filtered).c_str());
                         #else
