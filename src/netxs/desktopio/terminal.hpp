@@ -2605,7 +2605,7 @@ namespace netxs::ui
                 {
                     auto length = std::max(1, canvas.size().x);
                     auto offset = from + a;
-                    if (canvas.find(match, offset, direction))
+                    if (canvas.find(match.cells, offset, direction))
                     {
                         seltop = { offset % length,
                                    offset / length };
@@ -2613,7 +2613,7 @@ namespace netxs::ui
                         selend = { offset % length,
                                    offset / length };
                         offset += a;
-                        uinext = canvas.find(match, offset, direction); // Try to find next next.
+                        uinext = canvas.find(match.cells, offset, direction); // Try to find next next.
                         uiprev = true;
                         return true;
                     }
@@ -6686,7 +6686,7 @@ namespace netxs::ui
                         build([&](auto& curln)
                         {
                             auto block = escx{};
-                            block.s11n<faux, faux, faux>(curln.canvas, field, accum);
+                            block.s11n<faux, faux, faux>(curln.cells, field, accum);
                             if (block.size() > 0) yield.add(block);
                             else                  yield.eol();
                         });
@@ -6704,7 +6704,7 @@ namespace netxs::ui
                             }
                             auto block = escx{};
                             if (use_true_color) cell::unpack_indexed_colors_to(curln, baked, owner.ctrack.color, owner.defclr);
-                            block.s11n<true, faux, faux>((use_true_color ? baked : curln).canvas, field, accum);
+                            block.s11n<true, faux, faux>((use_true_color ? baked : curln).cells, field, accum);
                             if (block.size() > 0) yield.add(block);
                             else                  yield.eol();
                         });

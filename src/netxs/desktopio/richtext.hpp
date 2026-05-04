@@ -1561,18 +1561,18 @@ namespace netxs::ui
         using type = deco::type;
         using body = std::vector<cell>;
 
-        body canvas; // line: Cell data.
-        cell marker; // line: Current brush.
-        deco style{};
-        id_t index{};
-        si32 _size{};
-        si32 _kind{};
+        body cells{}; // line: Cell data.
+        cell brush{}; // line: Current brush.
+        deco style{}; // line: Line style.
+        id_t index{}; // line: Line index.
+        si32 _size{}; // line: Registered line size.
+        si32 _kind{}; // line: Registered line kind (alignment).
 
         line() = default;
         line(line&& l)
-            : canvas{ std::move(l.canvas) }
+            : cells{ std::move(l.cells) }
         {
-            marker = l.marker;
+            brush = l.brush;
             style = l.style;
             index = l.index;
             _size = l._size;
@@ -1582,27 +1582,27 @@ namespace netxs::ui
         }
         line(line const& l) = default;
         line(id_t line_id, deco const& line_style, std::span<cell const> proto)
-            : canvas{ proto.begin(), proto.end() },
+            : cells{ proto.begin(), proto.end() },
                style{ line_style },
                index{ line_id    }
         { }
         line(id_t line_id, deco const& line_style, cell const& blank)
-            : marker{ blank      },
+            : brush{ blank      },
                style{ line_style },
                index{ line_id    }
         { }
         line(id_t line_id, deco const& line_style, cell const& blank, si32 len)
-            : canvas( len, blank ),
-              marker{ blank      },
+            : cells( len, blank ),
+              brush{ blank      },
                style{ line_style },
                index{ line_id    }
         { }
         line(body::const_iterator head, body::const_iterator tail, cell marker)
-            : canvas{ head, tail },
-              marker{ marker }
+            : cells{ head, tail },
+              brush{ marker }
         { }
         line(std::span<cell const> copy)
-            : canvas{ copy.begin(), copy.end() }
+            : cells{ copy.begin(), copy.end() }
         { }
         line(view utf8)
             : line{ para{ utf8 }.content() }
@@ -1611,25 +1611,25 @@ namespace netxs::ui
         line& operator = (line&&)      = default;
         line& operator = (line const&) = default;
 
-        auto  begin()       { return canvas.begin(); }
-        auto  end()         { return canvas.end();   }
-        auto  begin() const { return canvas.begin(); }
-        auto  end() const   { return canvas.end();   }
+        auto  begin()       { return cells.begin(); }
+        auto  end()         { return cells.end();   }
+        auto  begin() const { return cells.begin(); }
+        auto  end() const   { return cells.end();   }
 
         // line: Return default object ID for the line owner.
         auto link() const
         {
-            return marker.link();
+            return brush.link();
         }
         // line: Return true if line is empty.
         auto empty() const
         {
-            return canvas.empty();
+            return cells.empty();
         }
         // line: Return line length.
         auto size() const
         {
-            return (si32)canvas.size();
+            return (si32)cells.size();
         }
         // line: Return line length.
         auto length() const
@@ -1639,18 +1639,18 @@ namespace netxs::ui
         // line: Set line length.
         void size(si32 new_size)
         {
-            canvas.assign(new_size, marker);
+            cells.assign(new_size, brush);
         }
         // line: Exec a proc for each cell.
         auto each(auto proc)
         {
-            return netxs::for_each(canvas, proc);
+            return netxs::for_each(cells, proc);
         }
         // line: Return cell at p.
         auto& at(si32 p) const
         {
             assert(p >= 0 && p < size());
-            return *(canvas.begin() + p);
+            return *(cells.begin() + p);
         }
         // line: Get stripe.
         auto subline(si32 from, si32 upto) const
@@ -1660,20 +1660,20 @@ namespace netxs::ui
             from = std::clamp(from, 0, w ? w - 1 : 0);
             upto = std::clamp(upto, 0, w);
             auto size = upto - from;
-            return std::span{ canvas.begin() + from, (size_t)size };
+            return std::span{ cells.begin() + from, (size_t)size };
         }
         // line: Return sub-line view.
         auto substr(si32 at, si32 width = netxs::si32max) const
         {
             auto w = size();
             auto a = std::max(0, at);
-            return a < w ? std::span{ canvas.begin() + a, (size_t)std::min(std::max(0, width), w - a) }
-                         : std::span{ canvas.begin() + 0, (size_t)0 };
+            return a < w ? std::span{ cells.begin() + a, (size_t)std::min(std::max(0, width), w - a) }
+                         : std::span{ cells.begin() + 0, (size_t)0 };
         }
         // line: Collapse line to zero size.
         void wipe()
         {
-            canvas.resize(0);
+            cells.resize(0);
             _size = {};
             _kind = {};
         }
@@ -1694,14 +1694,14 @@ namespace netxs::ui
         // line: Resize preserving content.
         void crop(si32 new_length, cell const& c = {})
         {
-            canvas.resize(new_length, c);
+            cells.resize(new_length, c);
         }
         // line: Trim line if it exeeds max_size.
         void trimto(si32 max_size)
         {
             if (length() > max_size)
             {
-                canvas.resize(max_size);
+                cells.resize(max_size);
             }
         }
         // line: Resize if needed (preserving content).
@@ -1715,8 +1715,8 @@ namespace netxs::ui
         // line: Trim all blank cells from the line end.
         void shrink(cell const& blank)
         {
-            auto head = canvas.begin();
-            auto tail = canvas.end();
+            auto head = cells.begin();
+            auto tail = cells.end();
             while (head != tail)
             {
                 auto next = tail - 1;
@@ -1741,7 +1741,7 @@ namespace netxs::ui
                 if (at >= len) return;
                 count = std::min(count, len - at);
             }
-            auto ptr = canvas.begin();
+            auto ptr = cells.begin();
             auto dst = ptr + at;
             auto end = dst + count;
             while (dst != end) *dst++ = blank;
@@ -1751,7 +1751,7 @@ namespace netxs::ui
         {
             auto len = (si32)fragment.size();
             resize(len + at, c);
-            auto ptr = canvas.begin();
+            auto ptr = cells.begin();
             auto dst = ptr + at;
             auto end = dst + len;
             auto src = fragment.begin();
@@ -1766,7 +1766,7 @@ namespace netxs::ui
         {
             if (count <= 0) return;
             resize(at + count, c);
-            auto end = canvas.begin() + at;
+            auto end = cells.begin() + at;
             auto dst = end + count;
             auto src = proto.end();
             rich::reverse_fill_proc<Copy>(src, dst, end, fuse);
@@ -1780,7 +1780,7 @@ namespace netxs::ui
             auto vol = std::min(count, margin - pos);
             auto max = std::min(len + vol, at + margin - pos);
             resize(max);
-            auto ptr = canvas.begin();
+            auto ptr = cells.begin();
             auto dst = ptr + max;
             auto src = dst - vol;
             auto end = ptr + at;
@@ -1797,7 +1797,7 @@ namespace netxs::ui
                 auto pos = at % margin;
                 auto rem = std::min(margin - pos, len - at);
                 auto vol = std::min(count, rem);
-                auto dst = canvas.begin() + at;
+                auto dst = cells.begin() + at;
                 auto end = dst + rem;
                 auto src = dst + vol;
                 while (src != end) *dst++ = *src++;
@@ -1808,24 +1808,24 @@ namespace netxs::ui
         auto copy_piece(line& dest, si32 from, si32 width) const
         {
             auto s = substr(from, width);
-            dest.canvas.assign(s.begin(), s.end());
+            dest.cells.assign(s.begin(), s.end());
         }
         // line: Find the substring and place its offset in &from.
         auto find(line const& what, auto&& from, feed dir = feed::fwd) const
         {
-            return cell::find(canvas, what.canvas, from, dir);
+            return cell::find(cells, what.cells, from, dir);
         }
         // line: Detect a word bound.
         template<feed Direction>
         auto word(si32 offset)
         {
-            return cell::word<Direction>(canvas, offset);
+            return cell::word<Direction>(cells, offset);
         }
         // line: Find proc(c) == true.
         template<feed Direction>
         auto seek(si32& start, auto proc)
         {
-            return cell::seek<Direction>(canvas, start, proc);
+            return cell::seek<Direction>(cells, start, proc);
         }
     };
 

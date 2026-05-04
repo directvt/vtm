@@ -4248,9 +4248,9 @@ namespace netxs
             }
         }
         template<class Si32>
-        auto find(auto const& what, Si32&& from, feed dir = feed::fwd) const // core: Find the substring and place its offset in &from.
+        auto find(auto const& what, Si32&& from, feed dir = feed::fwd) const // core: Find the subspan and place its offset in &from.
         {
-            return cell::find(canvas, what.canvas, from, dir);
+            return cell::find(canvas, what, from, dir);
         }
         auto toxy(si32 offset) const // core: Convert offset to coor.
         {
