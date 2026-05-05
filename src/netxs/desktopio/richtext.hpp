@@ -1564,31 +1564,13 @@ namespace netxs::ui
         body cells{}; // line: Cell data.
         cell brush{}; // line: Current brush.
         id_t index{}; // line: Line index.
-        si32 _size{}; // line: Registered line size.
-        byte _kind : 2 = {}; // line: Registered line kind (alignment).
         wrap wraps : 2 = {}; // line: Autowrap.
         bias align : 2 = {}; // line: Horizontal alignment.
         rtol r_2_l : 2 = {}; // line: RTL.
         byte image : 1 = {}; // line: Line contains image cells.
 
-        line() = default;
-        line(line&& l)
-            : cells{ std::move(l.cells) }
-        {
-            static constexpr auto iii2 = sizeof(cell);//40
-            static constexpr auto iii1 = sizeof(body);//32
-            static constexpr auto iii4 = sizeof(deco);//20 //6
-            static constexpr auto iii3 = sizeof(line);//104 //88
-            brush = l.brush;
-            wraps = l.wraps;
-            align = l.align;
-            r_2_l = l.r_2_l;
-            index = l.index;
-            _size = l._size;
-            _kind = l._kind;
-            l._size = {};
-            l._kind = {};
-        }
+        line()              = default;
+        line(line&& l)      = default;
         line(line const& l) = default;
         line(id_t line_id, deco const& line_style, std::span<cell const> proto)
             : cells{ proto.begin(), proto.end() },
@@ -1678,14 +1660,6 @@ namespace netxs::ui
             return a < w ? std::span{ cells.begin() + a, (size_t)std::min(std::max(0, width), w - a) }
                          : std::span{ cells.begin() + 0, (size_t)0 };
         }
-        // line: Return line alignment kind.
-        auto get_kind() const
-        {
-            return wraps == wrap::on    ? type::autowrap :
-                   align == bias::left  ? type::leftside :
-                   align == bias::right ? type::rghtside :
-                                          type::centered ;
-        }
         auto  jet() const { return align;                                    } // line: Return line alignment.
         auto  wrp() const { return wraps;                                    } // line: Return line auto wrapping.
         auto  rtl() const { return r_2_l;                                    } // line: Return RTL.
@@ -1712,24 +1686,28 @@ namespace netxs::ui
         {
             return deco{}.wrp(wraps).jet(align).rtl(r_2_l);
         }
-        // line: Collapse line to zero size.
-        void wipe()
+        // line: Return line alignment kind.
+        auto get_kind() const
         {
-            cells.resize(0);
-            _size = {};
-            _kind = {};
+            return wraps == wrap::on    ? type::autowrap :
+                   align == bias::left  ? type::leftside :
+                   align == bias::right ? type::rghtside :
+                                          type::centered ;
+        }
+        // line: Return current line state.
+        auto get_state() const
+        {
+            return std::tuple{ get_kind(), length() };
         }
         // line: Return true if line is wrapped.
-        bool wrapped() const
+        auto wrapped() const
         {
-            assert(_kind == get_kind());
-            return _kind == type::autowrap;
+            return wraps == wrap::on;
         }
         // line: Return wrapped line height.
-        si32 height(si32 panel_x) const
+        auto height(si32 panel_x) const
         {
             auto len = size();
-            assert(_kind == get_kind());
             return len > panel_x && wrapped() ? (len + panel_x - 1) / panel_x
                                               : 1;
         }

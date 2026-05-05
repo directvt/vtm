@@ -3407,29 +3407,30 @@ namespace netxs::ui
                     }
                 }
                 // buff: Register a new line.
-                void invite(line& l, si32 new_kind, si32 new_size)
+                void invite(line& l)
                 {
+                    auto new_kind = l.get_kind();
+                    auto new_size = l.length();
                     if (new_kind != type::autowrap) simpl++;
                     if (new_size < sizea_size) sizea[new_kind][new_size]++;
                     else                       sizes[new_kind][new_size]++;
                     if (new_size > maxes[new_kind]) maxes[new_kind] = new_size; // Update max length.
                     add_height(vsize, new_kind, new_size);
-                    l._size = new_size;
-                    l._kind = new_kind;
                 }
-                // buff: Refresh scrollback height.
-                void recalc(line& l, si32 new_kind, si32 new_size)
+                // buff: Update buffer line statistics.
+                void recalc(auto& l, auto old_state)
                 {
-                    if (l._size != new_size || l._kind != new_kind)
+                    auto old_kind = std::get<0>(old_state);
+                    auto old_size = std::get<1>(old_state);
+                    auto [new_kind, new_size] = l.get_state();
+                    if (old_size != new_size || old_kind != new_kind)
                     {
-                        undock(l._kind, l._size);
+                        undock(old_kind, old_size);
                         if (new_kind != type::autowrap) simpl++;
                         if (new_size > maxes[new_kind]) maxes[new_kind] = new_size;
                         if (new_size < sizea_size) sizea[new_kind][new_size]++;
                         else                       sizes[new_kind][new_size]++;
                         add_height(vsize, new_kind, new_size);
-                        l._size = new_size;
-                        l._kind = new_kind;
                     }
                 }
                 // buff: Discard the specified metrics.
@@ -3472,32 +3473,27 @@ namespace netxs::ui
                     }
                     return old_value != vsize;
                 }
-                // buff: Push the specified line back.
-                void invite(line& l)
-                {
-                    invite(l, l.get_kind(), l.length());
-                }
-                // buff: Push a new line back.
+                // buff: Push a new line to the buffer back.
                 template<class ...Args>
                 auto& invite(Args&&... args)
                 {
                     auto& l = ring::push_back(std::forward<Args>(args)...);
-                    invite(l, l.get_kind(), l.length());
+                    invite(l);
                     return l;
                 }
-                // buff: Insert a new line at the specified position.
+                // buff: Insert a new line to the specified position.
                 template<class ...Args>
                 auto& insert(si32 at, Args&&... args)
                 {
                     auto& l = *ring::insert(at, std::forward<Args>(args)...);
-                    invite(l, l.get_kind(), l.length());
+                    invite(l);
                     return l;
                 }
                 // buff: Remove specified line info from accounting and update metrics based on scroll height.
                 void undock_base_front(line& l) override
                 {
-                    auto line_kind = l._kind;
-                    auto line_size = l._size;
+                    auto line_kind = l.get_kind();
+                    auto line_size = l.length();
                     undock(line_kind, line_size);
                     dec_height(basis, line_kind, line_size);
                     dec_height(slide, line_kind, line_size);
@@ -3516,7 +3512,22 @@ namespace netxs::ui
                 // buff: Remove information about the specified line from accounting.
                 void undock_base_back(line& l) override
                 {
-                    undock(l._kind, l._size);
+                    undock(l.get_kind(), l.length());
+                    if (l.image) 
+                    {
+                        l.image = {};
+                        for (auto& c : l.cells) 
+                        {
+                            if (auto index = c.get_image_index())
+                            {
+                                //todo
+                                //if (--image_ref_counts[index] == 0) 
+                                //{
+                                //    release id
+                                //}
+                            }
+                        }
+                    }
                 }
                 // buff: Return the item position in the scrollback using its id.
                 auto index_by_id(id_t item_id) const
@@ -3534,11 +3545,6 @@ namespace netxs::ui
                 auto& item_by_id(id_t line_id)
                 {
                     return ring::at(index_by_id(line_id));
-                }
-                // buff: Refresh metrics due to modified line.
-                void recalc(line& l)
-                {
-                    recalc(l, l.get_kind(), l.length());
                 }
                 // buff: Rewrite the indices from the specified position to the end or to the top (negative from).
                 void reindex(si32 from)
@@ -3597,6 +3603,8 @@ namespace netxs::ui
                     auto& curln = ring::push_back(backup); // Keep current line.
                     basis = 0;
                     slide = 0;
+                    simpl = 0;
+                    maxes.fill(0);
                     invite(curln); // Sync current line state (length, wrap mode).
                     ancid = curln.index;
                     ancdy = 0;
@@ -4107,8 +4115,9 @@ namespace netxs::ui
                 auto& curln = batch.current();
                 if (curln.wrapped() && batch.caret > curln.length()) // Dangling cursor.
                 {
+                    auto old_state = curln.get_state();
                     curln.crop(batch.caret, brush.spare.dry());
-                    batch.recalc(curln);
+                    batch.recalc(curln, old_state);
                 }
 
                 if (!owner.bottom_anchored || in_top > 0 || in_end > 0) // The cursor is outside the scrolling region.
@@ -4679,6 +4688,7 @@ namespace netxs::ui
             // scroll_buf: Update current SGR attributes. (! Check coord.y context)
             void _set_style(line& curln, deco const& new_style)
             {
+                auto old_state = curln.get_state();
                 auto wraps = curln.wrapped();
                 auto width = curln.length();
                 curln.set_style(new_style);
@@ -4700,7 +4710,7 @@ namespace netxs::ui
                     }
                 }
 
-                batch.recalc(curln);
+                batch.recalc(curln, old_state);
 
                 if (wraps != curln.wrapped())
                 {
@@ -4804,6 +4814,7 @@ namespace netxs::ui
                     auto  count = si32{};
                     auto cursor = std::max(0, batch.caret);
                     auto& curln = batch.current();
+                    auto old_state = curln.get_state();
                     auto  width = curln.length();
                     auto  wraps = curln.wrapped();
                     switch (n)
@@ -4834,14 +4845,15 @@ namespace netxs::ui
                     {
                         curln.splice<true>(start, count, blank);
 
-                        batch.recalc(curln);
+                        batch.recalc(curln, old_state);
                         width = curln.length();
                         auto& mapln = index[coord.y];
                         mapln.width = wraps ? std::min(panel.x, width - mapln.start)
                                             : width;
 
+                        //auto old_state2 = curln.get_state();
                         //curln.shrink(blank); //todo revise: It kills wrapped lines and as a result requires the viewport to be rebuilt.
-                        //batch.recalc(curln); //             The cursor may be misplaced when resizing because curln.length is less than batch.caret.
+                        //batch.recalc(curln, old_state2); //  The cursor may be misplaced when resizing because curln.length is less than batch.caret.
                         //index_rebuild();
                         //print_batch(" el");
                     }
@@ -4857,8 +4869,9 @@ namespace netxs::ui
                 {
                     n = std::min(n, panel.x - coord.x);
                     auto& curln = batch.current();
+                    auto old_state = curln.get_state();
                     curln.insert(batch.caret, n, blank, panel.x);
-                    batch.recalc(curln); // Line front is filled by blanks. No wrapping.
+                    batch.recalc(curln, old_state); // Line front is filled by blanks. No wrapping.
                     auto  width = curln.length();
                     auto  wraps = curln.wrapped();
                     auto& mapln = index[coord.y];
@@ -4875,8 +4888,9 @@ namespace netxs::ui
                 if (auto ctx = get_context(coord))
                 {
                     auto& curln = batch.current();
+                    auto old_state = curln.get_state();
                     curln.cutoff(batch.caret, n, blank, panel.x);
-                    batch.recalc(curln);
+                    batch.recalc(curln, old_state);
                 }
                 else ctx.block.cutoff(coord, n, blank);
             }
@@ -5025,11 +5039,12 @@ namespace netxs::ui
                 {
                     n = std::min(n, panel.x - coord.x);
                     auto& curln = batch.current();
+                    auto old_state = curln.get_state();
                     //todo revise (brush != default ? see windows console)
                     //if (c == whitespace) curln.splice<faux>(batch.caret, n, blank);
                     //else                 curln.splice<true>(batch.caret, n, blank);
                     curln.splice<true>(batch.caret, n, blank);
-                    batch.recalc(curln);
+                    batch.recalc(curln, old_state);
                     auto& mapln = index[coord.y];
                     auto  width = curln.length();
                     auto  wraps = curln.wrapped();
@@ -5099,15 +5114,15 @@ namespace netxs::ui
                     coord.x     += count;
                     if (batch.caret <= panel.x || !curln.wrapped()) // case 0.
                     {
+                        auto old_state = curln.get_state();
                         curln.splice<Copy>(start, count, proto, fuse, brush.spare.spc());
                         auto& mapln = index[coord.y];
                         assert(coord.x % panel.x == batch.caret % panel.x && mapln.index == curln.index);
                         if (coord.x > mapln.width)
                         {
                             mapln.width = coord.x;
-                            batch.recalc(curln);
+                            batch.recalc(curln, old_state);
                         }
-                        else assert(curln._size == curln.length());
                     } // case 0 - done.
                     else
                     {
@@ -5127,8 +5142,9 @@ namespace netxs::ui
                         auto curid = curln.index;
                         if (query > 0) // case 3 - complex: Cursor is outside the viewport.
                         {              // cursor overlaps some lines below and placed below the viewport.
+                            auto old_state = curln.get_state();
                             curln.resize(batch.caret, brush.spare.spc());
-                            batch.recalc(curln);
+                            batch.recalc(curln, old_state);
                             if (auto n = (si32)(batch.back().index - curid))
                             {
                                 if constexpr (mixer) _merge(curln, oldsz, curid, n);
@@ -5172,6 +5188,7 @@ namespace netxs::ui
                         } // case 3 done
                         else
                         {
+                            auto old_state = curln.get_state();
                             auto& mapln = index[coord.y];
                             if (curid == mapln.index) // case 1 - plain: cursor is inside the current paragraph.
                             {
@@ -5181,16 +5198,15 @@ namespace netxs::ui
                                     if (coord.x > mapln.width)
                                     {
                                         mapln.width = coord.x;
-                                        batch.recalc(curln);
+                                        batch.recalc(curln, old_state);
                                     }
-                                    else assert(curln._size == curln.length());
                                 }
                                 else // The case when the current line completely fills the viewport (arena == 1).
                                 {
                                     assert(arena == 1);
                                     mapln.start = batch.caret - coord.x;
                                     mapln.width = coord.x;
-                                    batch.recalc(curln);
+                                    batch.recalc(curln, old_state);
                                 }
                                 assert(test_futures());
                             } // case 1 done.
@@ -5204,7 +5220,7 @@ namespace netxs::ui
                                 if constexpr (mixer) curln.resize(batch.caret + (si32)shadow.size(), brush.spare.spc());
                                 else                 curln.splice(batch.caret, shadow, cell::shaders::full, brush.spare.spc());
 
-                                batch.recalc(curln);
+                                batch.recalc(curln, old_state);
                                 auto w = curln.length();
                                 auto spoil = (si32)(mapln.index - curid);
                                 assert(spoil > 0);
@@ -5308,10 +5324,11 @@ namespace netxs::ui
                     auto newlen = batch.caret + count;
                     if (newlen > curln.length())
                     {
+                        auto old_state = curln.get_state();
                         curln.crop(newlen, brush.spare.spc());
                         auto& mapln = index[coord.y - y_top];
                         mapln.width = newlen % panel.x;
-                        batch.recalc(curln);
+                        batch.recalc(curln, old_state);
                     }
                     fill(curln.begin(), start);
                 }
@@ -5577,6 +5594,7 @@ namespace netxs::ui
 
                     i = batch.index_by_id(topid); // The index may be outdated due to the ring.
                     auto& curln = batch[i];
+                    auto old_state = curln.get_state();
                     if (fresh)
                     {
                         curln.trimto(start);
@@ -5598,7 +5616,7 @@ namespace netxs::ui
                         }
                         assert(mapln.start == 0 || curln.wrapped());
                     }
-                    batch.recalc(curln);
+                    batch.recalc(curln, old_state);
 
                     sync_coord();
 
@@ -5639,17 +5657,19 @@ namespace netxs::ui
                     {
                         auto& mapln = *head++;
                         auto& curln = batch.item_by_id(mapln.index);
+                        auto old_state = curln.get_state();
                         mapln.width = panel.x;
                         curln.splice<true>(mapln.start, panel.x, blank);
-                        batch.recalc(curln);
+                        batch.recalc(curln, old_state);
                     }
                     if (from.x > 0)
                     {
                         auto& mapln = *head;
                         auto& curln = batch.item_by_id(mapln.index);
+                        auto old_state = curln.get_state();
                         mapln.width = std::max(mapln.width, from.x);
                         curln.splice<true>(mapln.start, from.x, blank);
-                        batch.recalc(curln);
+                        batch.recalc(curln, old_state);
                     }
                     upbox.wipe(blank);
                 };
@@ -6982,8 +7002,9 @@ namespace netxs::ui
                                                                      : bias::left;
                     selection_foreach([&](auto& curln)
                     {
+                        auto old_state = curln.get_state();
                         curln.jet(align);
-                        batch.recalc(curln);
+                        batch.recalc(curln, old_state);
                     });
                     if (a != bias::none) parser::style.jet(a);
                     resize_viewport(panel, true); // Recalc batch.basis.
@@ -7009,8 +7030,9 @@ namespace netxs::ui
                     upmid.coor.y = dnmid.coor.y = 0;
                     selection_foreach([&](auto& curln)
                     {
+                        auto old_state = curln.get_state();
                         curln.wrp(wraps);
-                        batch.recalc(curln);
+                        batch.recalc(curln, old_state);
                     });
                     if (w != wrap::none) parser::style.wrp(w);
                     resize_viewport(panel, true); // Recalc batch.basis.
