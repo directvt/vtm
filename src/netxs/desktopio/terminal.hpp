@@ -3331,16 +3331,22 @@ namespace netxs::ui
 
             struct buff : public ring
             {
+                static constexpr auto sizea_size = 65536;
                 using ring::ring;
                 using type = deco::type;
-                using maps = std::map<si32, si32>[type::count]; //todo ?use std::array<si32, 65536>[type::count]
+                using mapa = std::array<si32, sizea_size>[type::count];
+                using maps = std::map<si32, si32>[type::count];
+                using maxl = std::array<si32, type::count>;
 
                 si32 caret{}; // buff: Current line cursor horizontal position.
                 si32 vsize{}; // buff: Scrollback vertical size (height).
                 si32 width{}; // buff: Viewport width.
                 si32 basis{}; // buff: Working area basis. Vertical position of O(0, 0) in the scrollback.
                 si32 slide{}; // buff: Viewport vertical position in the scrollback.
-                maps sizes{}; // buff: Line length accounting database.
+                si32 simpl{}; // buff: Non-wrapped lines count (1-cell height: leftside, rghtside, centered).
+                mapa sizea{}; // buff: Fast line length accounting.
+                maps sizes{}; // buff: Huge line length accounting.
+                maxl maxes{}; // buff: Max line length cache.
                 id_t ancid{}; // buff: The nearest line id to the slide.
                 si32 ancdy{}; // buff: Slide's top line offset.
                 bool round{}; // buff: Is the slide position approximate.
@@ -3362,35 +3368,51 @@ namespace netxs::ui
                 template<auto N>
                 auto max()
                 {
-                    return sizes[N].empty() ? 0
-                                            : sizes[N].rbegin()->first;
+                    return maxes[N];
+                }
+                auto _recalc_max(si32 kind)
+                {
+                    if (!sizes[kind].empty())
+                    {
+                        return sizes[kind].rbegin()->first;
+                    }
+                    else
+                    {
+                        auto& arr = sizea[kind];
+                        auto it = std::find_if(arr.rbegin(), arr.rend(), [](si32 count){ return count > 0; });
+                        return it != arr.rend() ? (si32)(std::distance(it, arr.rend()) - 1) : 0;
+                    }
                 }
                 // buff: Recalculate unlimited scrollback height without reflow.
                 void set_width(si32 new_width)
                 {
-                    vsize = 0;
+                    vsize = simpl;
                     width = std::max(1, new_width);
-                    for (auto kind : { type::leftside,
-                                       type::rghtside,
-                                       type::centered })
+                    auto sum_height = [&](auto count, auto line_size)
                     {
-                        for (auto [line_size, pool] : sizes[kind])
+                        if (line_size > width) vsize += count * ((line_size + width - 1) / width);
+                        else                   vsize += count;
+                    };
+                    auto limit = std::min(sizea_size, maxes[type::autowrap] + 1);
+                    for (auto line_size = 0; line_size < limit; line_size++)
+                    {
+                        if (auto count = sizea[type::autowrap][line_size])
                         {
-                            assert(pool > 0);
-                            vsize += pool;
+                            sum_height(count, line_size);
                         }
                     }
-                    auto kind = type::autowrap;
-                    for (auto [line_size, pool] : sizes[kind])
+                    for (auto [line_size, count] : sizes[type::autowrap])
                     {
-                        if (line_size > width) vsize += pool * ((line_size + width - 1) / width);
-                        else                   vsize += pool;
+                        sum_height(count, line_size);
                     }
                 }
                 // buff: Register a new line.
                 void invite(line& l, si32 new_kind, si32 new_size)
                 {
-                    ++sizes[new_kind][new_size];
+                    if (new_kind != type::autowrap) simpl++;
+                    if (new_size < sizea_size) sizea[new_kind][new_size]++;
+                    else                       sizes[new_kind][new_size]++;
+                    if (new_size > maxes[new_kind]) maxes[new_kind] = new_size; // Update max length.
                     add_height(vsize, new_kind, new_size);
                     l._size = new_size;
                     l._kind = new_kind;
@@ -3401,7 +3423,10 @@ namespace netxs::ui
                     if (l._size != new_size || l._kind != new_kind)
                     {
                         undock(l._kind, l._size);
-                        ++sizes[new_kind][new_size];
+                        if (new_kind != type::autowrap) simpl++;
+                        if (new_size > maxes[new_kind]) maxes[new_kind] = new_size;
+                        if (new_size < sizea_size) sizea[new_kind][new_size]++;
+                        else                       sizes[new_kind][new_size]++;
                         add_height(vsize, new_kind, new_size);
                         l._size = new_size;
                         l._kind = new_kind;
@@ -3410,10 +3435,29 @@ namespace netxs::ui
                 // buff: Discard the specified metrics.
                 void undock(si32 line_kind, si32 line_size)
                 {
-                    auto& lens = sizes[line_kind];
-                    auto  iter = lens.find(line_size); assert(iter != lens.end());
-                    auto  pool = --(*iter).second;
-                    if (pool == 0) lens.erase(iter);
+                    if (line_kind != type::autowrap) simpl--;
+                    auto was_max = line_size == maxes[line_kind]; // Check if it was max length line.
+                    if (line_size < sizea_size)
+                    {
+                        sizea[line_kind][line_size]--;
+                        assert(sizea[line_kind][line_size] >= 0);
+                    }
+                    else
+                    {
+                        auto& lens = sizes[line_kind];
+                        auto  iter = lens.find(line_size); assert(iter != lens.end());
+                        auto  pool = --(*iter).second;
+                        if (pool == 0) lens.erase(iter);
+                    }
+                    if (was_max) // Lazy max length recalc.
+                    {
+                        auto still_exists = line_size < sizea_size ? sizea[line_kind][line_size] > 0
+                                                                   : sizes[line_kind].contains(line_size);
+                        if (!still_exists)
+                        {
+                            maxes[line_kind] = _recalc_max(line_kind);
+                        }
+                    }
                     dec_height(vsize, line_kind, line_size);
                 }
                 // buff: Check buffer size.
@@ -3537,6 +3581,8 @@ namespace netxs::ui
                     caret = 0;
                     basis = 0;
                     slide = 0;
+                    simpl = 0;
+                    maxes.fill(0);
                     invite(0, deco{}.wrp(auto_wrap), cell{}); // At least one line must exist.
                     ancid = back().index;
                     ancdy = 0;
@@ -3560,10 +3606,10 @@ namespace netxs::ui
 
             friend auto& operator << (std::ostream& s, scroll_buf& c) // For debug.
             {
-                return s << "{ " << c.batch.max<deco::type::leftside>() << ","
-                                 << c.batch.max<deco::type::rghtside>() << ","
-                                 << c.batch.max<deco::type::centered>() << ","
-                                 << c.batch.max<deco::type::autowrap>() << " }";
+                return s << "{ " << c.batch.maxes[deco::type::leftside] << ","
+                                 << c.batch.maxes[deco::type::rghtside] << ","
+                                 << c.batch.maxes[deco::type::centered] << ","
+                                 << c.batch.maxes[deco::type::autowrap] << " }";
             }
 
             buff batch; // scroll_buf: Scrollback container.
@@ -4249,9 +4295,9 @@ namespace netxs::ui
             bool recalc_pads(dent& oversz_ref) override
             {
                 auto coor = get_coord();
-                auto rght = std::max({0, batch.max<deco::type::leftside>() - panel.x, coor.x - panel.x + 1 }); // Take into account the cursor position.
-                auto left = std::max( 0, batch.max<deco::type::rghtside>() - panel.x);
-                auto cntr = std::max( 0, batch.max<deco::type::centered>() - panel.x);
+                auto rght = std::max({0, batch.maxes[deco::type::leftside] - panel.x, coor.x - panel.x + 1 }); // Take into account the cursor position.
+                auto left = std::max( 0, batch.maxes[deco::type::rghtside] - panel.x);
+                auto cntr = std::max( 0, batch.maxes[deco::type::centered] - panel.x);
                 auto bttm = std::max( 0, batch.vsize - batch.basis - arena          );
                 auto both = cntr >> 1;
                 left = shore + std::max(left, both + (cntr & 1));
