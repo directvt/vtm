@@ -4254,7 +4254,7 @@ namespace netxs
         }
         auto toxy(si32 offset) const // core: Convert offset to coor.
         {
-            assert(canvas.size() <= si32max);
+            assert(canvas.size() <= netxs::si32max);
             auto maxs = (si32)canvas.size();
             if (!maxs) return dot_00;
             offset = std::clamp(offset, 0, maxs - 1);
@@ -4264,7 +4264,7 @@ namespace netxs
         auto subline(si32 from, si32 upto) const // core: Get stripe.
         {
             if (from > upto) std::swap(from, upto);
-            assert(canvas.size() <= si32max);
+            assert(canvas.size() <= netxs::si32max);
             auto maxs = (si32)canvas.size();
             from = std::clamp(from, 0, maxs ? maxs - 1 : 0);
             upto = std::clamp(upto, 0, maxs);

@@ -831,9 +831,9 @@ namespace netxs::ansi
                 if (utf8)
                 {
                     add("\033[M");
-                    utf::to_utf_from_code(std::clamp(ctrl,         0, si16max - 32) + 32, *this);
-                    utf::to_utf_from_code(std::clamp((si32)coor.x, 1, si16max - 32) + 32, *this);
-                    utf::to_utf_from_code(std::clamp((si32)coor.y, 1, si16max - 32) + 32, *this);
+                    utf::to_utf_from_code(std::clamp(ctrl,         0, netxs::si16max - 32) + 32, *this);
+                    utf::to_utf_from_code(std::clamp((si32)coor.x, 1, netxs::si16max - 32) + 32, *this);
+                    utf::to_utf_from_code(std::clamp((si32)coor.y, 1, netxs::si16max - 32) + 32, *this);
                 }
                 else
                 {

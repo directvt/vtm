@@ -5217,7 +5217,7 @@ namespace netxs::os
             auto c = input::sysclose{};
             auto w = input::syswinsz{};
             m.enabled = input::hids::stat::ok;
-            m.coordxy = { si16min, si16min };
+            m.coordxy = { netxs::si16min, netxs::si16min };
             c.fast = true;
             w.winsize = os::dtvt::gridsz;
             k.gear_id = gear_id;
@@ -6134,7 +6134,7 @@ namespace netxs::os
                                 if (!pos_y) continue;
 
                                 auto timecode = datetime::now();
-                                auto clamp = [](auto a){ return std::clamp(a, si32min / 2, si32max / 2); };
+                                auto clamp = [](auto a){ return std::clamp(a, netxs::si32min / 2, netxs::si32max / 2); };
                                 auto x = clamp(pos_x.value() - 1);
                                 auto y = clamp(pos_y.value() - 1);
                                 auto ctl = ctrl.value();

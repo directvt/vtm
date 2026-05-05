@@ -2083,7 +2083,7 @@ namespace netxs::ui
             {
                 return node_type;
             }
-            void focus_next(input::hids& gear, si32 n, si32 min_w, si32 max_w = si32max)
+            void focus_next(input::hids& gear, si32 n, si32 min_w, si32 max_w = netxs::si32max)
             {
                 if (!n) return;
                 auto set_focus = [&](auto get_next)

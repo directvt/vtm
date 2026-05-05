@@ -1018,12 +1018,12 @@ namespace netxs::app::desk
                 input::bindings::keybind(boss, bindings);
                 boss.base::add_methods(basename::taskbar,
                 {
-                    { "FocusNextItem",      [&] // (si32 n, si32 min_w, si32 max_w = si32max)
+                    { "FocusNextItem",      [&] // (si32 n, si32 min_w, si32 max_w = netxs::si32max)
                                             {
                                                 auto& gear = luafx.get_gear();
                                                 auto count = luafx.get_args_or(1, si32{ 1 });
                                                 auto min_w = luafx.get_args_or(2, si32{ 0 });
-                                                auto max_w = luafx.get_args_or(3, si32max);
+                                                auto max_w = luafx.get_args_or(3, netxs::si32max);
                                                 focus.for_first_focused_leaf(gear, [&](auto& focused_item)
                                                 {
                                                     auto& item_focus = focused_item.base::template plugin<pro::focus>(); //todo Apple clang requires template

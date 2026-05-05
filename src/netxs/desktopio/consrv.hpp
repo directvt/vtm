@@ -1030,8 +1030,8 @@ struct impl : consrv
                     {
                         .dwMousePosition =
                         {
-                            .X = (si16)std::clamp<si32>((si32)coord.x, si16min, si16max),
-                            .Y = (si16)std::clamp<si32>((si32)coord.y, si16min, si16max),
+                            .X = (si16)std::clamp<si32>((si32)coord.x, netxs::si16min, netxs::si16max),
+                            .Y = (si16)std::clamp<si32>((si32)coord.y, netxs::si16min, netxs::si16max),
                         },
                         .dwButtonState     = (DWORD)bttns,
                         .dwControlKeyState = state,
@@ -1054,8 +1054,8 @@ struct impl : consrv
                     {
                         .dwSize =
                         {
-                            .X = (si16)std::min<si32>(winsize.x, si16max),
-                            .Y = (si16)std::min<si32>(winsize.y, si16max),
+                            .X = (si16)std::min<si32>(winsize.x, netxs::si16max),
+                            .Y = (si16)std::min<si32>(winsize.y, netxs::si16max),
                         }
                     }
                 }

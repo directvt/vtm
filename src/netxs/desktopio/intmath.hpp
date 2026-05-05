@@ -182,8 +182,8 @@ namespace netxs
     constexpr auto operator & (axes l, axes r) { return static_cast<si32>(l) & static_cast<si32>(r); }
 
     template<class T>
-    using to_signed_t = std::conditional_t<(si64)std::numeric_limits<std::remove_reference_t<T>>::max() <= si16max, si16,
-                        std::conditional_t<(si64)std::numeric_limits<std::remove_reference_t<T>>::max() <= si32max, si32, si64>>;
+    using to_signed_t = std::conditional_t<(si64)std::numeric_limits<std::remove_reference_t<T>>::max() <= netxs::si16max, si16,
+                        std::conditional_t<(si64)std::numeric_limits<std::remove_reference_t<T>>::max() <= netxs::si32max, si32, si64>>;
 
     template<class T>
     auto& any_get_or(std::any const& value, T& fallback)

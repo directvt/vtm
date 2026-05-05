@@ -2117,7 +2117,7 @@ namespace netxs::ui
             void rep(si32 n)
             {
                 if constexpr (Flush) parser::flush();
-                n = std::clamp<si32>(n, 0, si16max);
+                n = std::clamp<si32>(n, 0, netxs::si16max);
                 if (n)
                 {
                     auto c = cell{ parser::brush };
@@ -3333,7 +3333,7 @@ namespace netxs::ui
             {
                 using ring::ring;
                 using type = deco::type;
-                using maps = std::map<si32, si32>[type::count];
+                using maps = std::map<si32, si32>[type::count]; //todo ?use std::array<si32, 65536>[type::count]
 
                 si32 caret{}; // buff: Current line cursor horizontal position.
                 si32 vsize{}; // buff: Scrollback vertical size (height).
@@ -3388,24 +3388,23 @@ namespace netxs::ui
                     }
                 }
                 // buff: Register a new line.
-                void invite(si32& line_kind, si32& line_size, si32 new_kind, si32 new_size)
+                void invite(line& l, si32 new_kind, si32 new_size)
                 {
                     ++sizes[new_kind][new_size];
                     add_height(vsize, new_kind, new_size);
-                    line_size = new_size;
-                    line_kind = new_kind;
+                    l._size = new_size;
+                    l._kind = new_kind;
                 }
                 // buff: Refresh scrollback height.
-                void recalc(si32& line_kind, si32& line_size, si32 new_kind, si32 new_size)
+                void recalc(line& l, si32 new_kind, si32 new_size)
                 {
-                    if (line_size != new_size
-                     || line_kind != new_kind)
+                    if (l._size != new_size || l._kind != new_kind)
                     {
-                        undock(line_kind, line_size);
+                        undock(l._kind, l._size);
                         ++sizes[new_kind][new_size];
                         add_height(vsize, new_kind, new_size);
-                        line_size = new_size;
-                        line_kind = new_kind;
+                        l._size = new_size;
+                        l._kind = new_kind;
                     }
                 }
                 // buff: Discard the specified metrics.
@@ -3432,14 +3431,14 @@ namespace netxs::ui
                 // buff: Push the specified line back.
                 void invite(line& l)
                 {
-                    invite(l._kind, l._size, l.get_kind(), l.length());
+                    invite(l, l.get_kind(), l.length());
                 }
                 // buff: Push a new line back.
                 template<class ...Args>
                 auto& invite(Args&&... args)
                 {
                     auto& l = ring::push_back(std::forward<Args>(args)...);
-                    invite(l._kind, l._size, l.get_kind(), l.length());
+                    invite(l, l.get_kind(), l.length());
                     return l;
                 }
                 // buff: Insert a new line at the specified position.
@@ -3447,7 +3446,7 @@ namespace netxs::ui
                 auto& insert(si32 at, Args&&... args)
                 {
                     auto& l = *ring::insert(at, std::forward<Args>(args)...);
-                    invite(l._kind, l._size, l.get_kind(), l.length());
+                    invite(l, l.get_kind(), l.length());
                     return l;
                 }
                 // buff: Remove specified line info from accounting and update metrics based on scroll height.
@@ -3495,7 +3494,7 @@ namespace netxs::ui
                 // buff: Refresh metrics due to modified line.
                 void recalc(line& l)
                 {
-                    recalc(l._kind, l._size, l.get_kind(), l.length());
+                    recalc(l, l.get_kind(), l.length());
                 }
                 // buff: Rewrite the indices from the specified position to the end or to the top (negative from).
                 void reindex(si32 from)

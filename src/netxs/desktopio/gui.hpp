@@ -3421,7 +3421,7 @@ namespace netxs::gui
                 m.gear_id = gear.id;
                 w.gear_id = gear.id;
                 m.enabled = input::hids::stat::ok;
-                m.coordxy = { si16min, si16min };
+                m.coordxy = { netxs::si16min, netxs::si16min };
                 c.fast = true;
             }
         };

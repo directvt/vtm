@@ -1565,13 +1565,11 @@ namespace netxs::ui
         cell brush{}; // line: Current brush.
         id_t index{}; // line: Line index.
         si32 _size{}; // line: Registered line size.
-        si32 _kind{}; // line: Registered line kind (alignment).
-        //ui16 _size  : 16 = {}; // line: Registered line size.
-        //byte _kind  : 2 = {}; // line: Registered line kind (alignment).
-        wrap wrapln : 2 = {}; // line: Autowrap.
-        bias adjust : 2 = {}; // line: Horizontal alignment.
-        rtol r_to_l : 2 = {}; // line: RTL.
-        byte hasimg : 1 = {}; // line: Line contains image cells.
+        byte _kind : 2 = {}; // line: Registered line kind (alignment).
+        wrap wraps : 2 = {}; // line: Autowrap.
+        bias align : 2 = {}; // line: Horizontal alignment.
+        rtol r_2_l : 2 = {}; // line: RTL.
+        byte image : 1 = {}; // line: Line contains image cells.
 
         line() = default;
         line(line&& l)
@@ -1582,9 +1580,9 @@ namespace netxs::ui
             static constexpr auto iii4 = sizeof(deco);//20 //6
             static constexpr auto iii3 = sizeof(line);//104 //88
             brush = l.brush;
-            wrapln = l.wrapln;
-            adjust = l.adjust;
-            r_to_l = l.r_to_l;
+            wraps = l.wraps;
+            align = l.align;
+            r_2_l = l.r_2_l;
             index = l.index;
             _size = l._size;
             _kind = l._kind;
@@ -1594,25 +1592,18 @@ namespace netxs::ui
         line(line const& l) = default;
         line(id_t line_id, deco const& line_style, std::span<cell const> proto)
             : cells{ proto.begin(), proto.end() },
-              index{ line_id    },
-             wrapln{ line_style.wrp() },
-             adjust{ line_style.jet() },
-             r_to_l{ line_style.rtl() }
+              index{ line_id          },
+              wraps{ line_style.wrp() },
+              align{ line_style.jet() },
+              r_2_l{ line_style.rtl() }
         { }
-        line(id_t line_id, deco const& line_style, cell const& blank)
-            : brush{ blank      },
-              index{ line_id    },
-             wrapln{ line_style.wrp() },
-             adjust{ line_style.jet() },
-             r_to_l{ line_style.rtl() }
-        { }
-        line(id_t line_id, deco const& line_style, cell const& blank, si32 len)
-            : cells( len, blank ),
-              brush{ blank      },
-              index{ line_id    },
-             wrapln{ line_style.wrp() },
-             adjust{ line_style.jet() },
-             r_to_l{ line_style.rtl() }
+        line(id_t line_id, deco const& line_style, cell const& blank, si32 len = 0)
+            : cells( len, blank       ),
+              brush{ blank            },
+              index{ line_id          },
+              wraps{ line_style.wrp() },
+              align{ line_style.jet() },
+              r_2_l{ line_style.rtl() }
         { }
         line(body::const_iterator head, body::const_iterator tail, cell brush)
             : cells{ head, tail },
@@ -1687,39 +1678,39 @@ namespace netxs::ui
             return a < w ? std::span{ cells.begin() + a, (size_t)std::min(std::max(0, width), w - a) }
                          : std::span{ cells.begin() + 0, (size_t)0 };
         }
-        // line: Return line adjustment kind.
+        // line: Return line alignment kind.
         auto get_kind() const
         {
-            return wrapln == wrap::on    ? type::autowrap :
-                   adjust == bias::left  ? type::leftside :
-                   adjust == bias::right ? type::rghtside :
-                                           type::centered ;
+            return wraps == wrap::on    ? type::autowrap :
+                   align == bias::left  ? type::leftside :
+                   align == bias::right ? type::rghtside :
+                                          type::centered ;
         }
-        auto  jet() const { return adjust;                                    } // line: Return line adjustment.
-        auto  wrp() const { return wrapln;                                    } // line: Return line auto wrapping.
-        auto  rtl() const { return r_to_l;                                    } // line: Return RTL.
-        auto& wrp(wrap w) { wrapln = w;                         return *this; } // line: Set line auto wrapping.
-        auto& wrp(bool b) { wrapln = b ? wrap::on  : wrap::off; return *this; } // line: Set line auto wrapping.
-        auto& rtl(bool r) { r_to_l = r ? rtol::rtl : rtol::ltr; return *this; } // line: Set RTL.
-        auto& jet(bias j) { adjust = j;                         return *this; } // line: Set alignment.
+        auto  jet() const { return align;                                    } // line: Return line alignment.
+        auto  wrp() const { return wraps;                                    } // line: Return line auto wrapping.
+        auto  rtl() const { return r_2_l;                                    } // line: Return RTL.
+        auto& wrp(wrap w) { wraps = w;                         return *this; } // line: Set line auto wrapping.
+        auto& wrp(bool b) { wraps = b ? wrap::on  : wrap::off; return *this; } // line: Set line auto wrapping.
+        auto& rtl(bool r) { r_2_l = r ? rtol::rtl : rtol::ltr; return *this; } // line: Set RTL.
+        auto& jet(bias j) { align = j;                         return *this; } // line: Set alignment.
         // line: Check current line style.
         auto changed_style(deco const& new_style) const
         {
-            return wrapln != new_style.wrp()
-                || adjust != new_style.jet()
-                || r_to_l != new_style.rtl();
+            return wraps != new_style.wrp()
+                || align != new_style.jet()
+                || r_2_l != new_style.rtl();
         }
         // line: Set current line style.
         void set_style(deco const& new_style)
         {
-            wrapln = new_style.wrp();
-            adjust = new_style.jet();
-            r_to_l = new_style.rtl();
+            wraps = new_style.wrp();
+            align = new_style.jet();
+            r_2_l = new_style.rtl();
         }
         // line: Get current line style.
         auto get_style() const
         {
-            return deco{}.wrp(wrapln).jet(adjust).rtl(r_to_l);
+            return deco{}.wrp(wraps).jet(align).rtl(r_2_l);
         }
         // line: Collapse line to zero size.
         void wipe()
@@ -2291,7 +2282,7 @@ namespace netxs::ui
             auto bound = [](auto& r){ return r.coord.y; };
             auto found = std::ranges::lower_bound(ropes, anker.y, {}, bound);
             if (found != ropes.end()) return entry{ found->id(), found->coord };
-            else                      return entry{ 0,     twod{ 0, si32max } };
+            else                      return entry{ 0, twod{ 0, netxs::si32max }};
         }
 
         struct rtf_dest_t
@@ -2745,7 +2736,7 @@ namespace netxs::ui
 
             if (reset)
             {
-                anker.y = si32max;
+                anker.y = netxs::si32max;
                 textpage.stream(gain);
                 decoy = caret && inside(flow::cp());
             }
