@@ -273,7 +273,7 @@ namespace netxs::ui
         template<class T>
         auto sync(T const& block)
         {
-            combine(runstyle, block.style);
+            combine(runstyle, block.get_style());
         }
         // flow: Split specified textblock on the substrings
         //       and place it to the form by the specified proc.
@@ -1563,17 +1563,28 @@ namespace netxs::ui
 
         body cells{}; // line: Cell data.
         cell brush{}; // line: Current brush.
-        deco style{}; // line: Line style.
         id_t index{}; // line: Line index.
         si32 _size{}; // line: Registered line size.
         si32 _kind{}; // line: Registered line kind (alignment).
+        //ui16 _size  : 16 = {}; // line: Registered line size.
+        //byte _kind  : 2 = {}; // line: Registered line kind (alignment).
+        wrap wrapln : 2 = {}; // line: Autowrap.
+        bias adjust : 2 = {}; // line: Horizontal alignment.
+        rtol r_to_l : 2 = {}; // line: RTL.
+        byte hasimg : 1 = {}; // line: Line contains image cells.
 
         line() = default;
         line(line&& l)
             : cells{ std::move(l.cells) }
         {
+            static constexpr auto iii2 = sizeof(cell);//40
+            static constexpr auto iii1 = sizeof(body);//32
+            static constexpr auto iii4 = sizeof(deco);//20 //6
+            static constexpr auto iii3 = sizeof(line);//104 //88
             brush = l.brush;
-            style = l.style;
+            wrapln = l.wrapln;
+            adjust = l.adjust;
+            r_to_l = l.r_to_l;
             index = l.index;
             _size = l._size;
             _kind = l._kind;
@@ -1583,23 +1594,29 @@ namespace netxs::ui
         line(line const& l) = default;
         line(id_t line_id, deco const& line_style, std::span<cell const> proto)
             : cells{ proto.begin(), proto.end() },
-               style{ line_style },
-               index{ line_id    }
+              index{ line_id    },
+             wrapln{ line_style.wrp() },
+             adjust{ line_style.jet() },
+             r_to_l{ line_style.rtl() }
         { }
         line(id_t line_id, deco const& line_style, cell const& blank)
             : brush{ blank      },
-              style{ line_style },
-              index{ line_id    }
+              index{ line_id    },
+             wrapln{ line_style.wrp() },
+             adjust{ line_style.jet() },
+             r_to_l{ line_style.rtl() }
         { }
         line(id_t line_id, deco const& line_style, cell const& blank, si32 len)
             : cells( len, blank ),
               brush{ blank      },
-              style{ line_style },
-              index{ line_id    }
+              index{ line_id    },
+             wrapln{ line_style.wrp() },
+             adjust{ line_style.jet() },
+             r_to_l{ line_style.rtl() }
         { }
-        line(body::const_iterator head, body::const_iterator tail, cell marker)
+        line(body::const_iterator head, body::const_iterator tail, cell brush)
             : cells{ head, tail },
-              brush{ marker     }
+              brush{ brush      }
         { }
         line(std::span<cell const> copy)
             : cells{ copy.begin(), copy.end() }
@@ -1670,6 +1687,40 @@ namespace netxs::ui
             return a < w ? std::span{ cells.begin() + a, (size_t)std::min(std::max(0, width), w - a) }
                          : std::span{ cells.begin() + 0, (size_t)0 };
         }
+        // line: Return line adjustment kind.
+        auto get_kind() const
+        {
+            return wrapln == wrap::on    ? type::autowrap :
+                   adjust == bias::left  ? type::leftside :
+                   adjust == bias::right ? type::rghtside :
+                                           type::centered ;
+        }
+        auto  jet() const { return adjust;                                    } // line: Return line adjustment.
+        auto  wrp() const { return wrapln;                                    } // line: Return line auto wrapping.
+        auto  rtl() const { return r_to_l;                                    } // line: Return RTL.
+        auto& wrp(wrap w) { wrapln = w;                         return *this; } // line: Set line auto wrapping.
+        auto& wrp(bool b) { wrapln = b ? wrap::on  : wrap::off; return *this; } // line: Set line auto wrapping.
+        auto& rtl(bool r) { r_to_l = r ? rtol::rtl : rtol::ltr; return *this; } // line: Set RTL.
+        auto& jet(bias j) { adjust = j;                         return *this; } // line: Set alignment.
+        // line: Check current line style.
+        auto changed_style(deco const& new_style) const
+        {
+            return wrapln != new_style.wrp()
+                || adjust != new_style.jet()
+                || r_to_l != new_style.rtl();
+        }
+        // line: Set current line style.
+        void set_style(deco const& new_style)
+        {
+            wrapln = new_style.wrp();
+            adjust = new_style.jet();
+            r_to_l = new_style.rtl();
+        }
+        // line: Get current line style.
+        auto get_style() const
+        {
+            return deco{}.wrp(wrapln).jet(adjust).rtl(r_to_l);
+        }
         // line: Collapse line to zero size.
         void wipe()
         {
@@ -1680,14 +1731,14 @@ namespace netxs::ui
         // line: Return true if line is wrapped.
         bool wrapped() const
         {
-            assert(_kind == style.get_kind());
+            assert(_kind == get_kind());
             return _kind == type::autowrap;
         }
         // line: Return wrapped line height.
         si32 height(si32 panel_x) const
         {
             auto len = size();
-            assert(_kind == style.get_kind());
+            assert(_kind == get_kind());
             return len > panel_x && wrapped() ? (len + panel_x - 1) / panel_x
                                               : 1;
         }
@@ -1863,6 +1914,11 @@ namespace netxs::ui
 
         operator writ const& () const { return **source; }
 
+        // rope: Return style reference.
+        auto& get_style() const
+        {
+            return style;
+        }
         // rope: Return a substring rope of the source content.
         //       ! No boundary checking !
         rope substr(si32 start, si32 width) const

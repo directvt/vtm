@@ -1148,15 +1148,15 @@ namespace netxs::ansi
         static constexpr auto defwrp = wrap::on;    // deco: Default autowrap behavior.
         static constexpr auto maxtab = si32{ 255 }; // deco: Tab length limit.
 
-        dent margin     = {}; // deco: Paragraph margins.
+        int8 marg_l     = {}; // deco: Paragraph margins.
+        int8 marg_r     = {}; // deco: Paragraph margins.
+        int8 marg_t     = {}; // deco: Paragraph margins.
+        int8 marg_b     = {}; // deco: Paragraph margins.
         wrap wrapln : 2 = {}; // deco: Autowrap.
         bias adjust : 2 = {}; // deco: Horizontal alignment.
         rtol r_to_l : 2 = {}; // deco: RTL.
         feed rlfeed : 2 = {}; // deco: Reverse line feed.
         byte tablen : 8 = {}; // deco: Tab length.
-        //byte rekind : 2 = {}; // deco: Stored line aligning type.
-        //byte hasimg : 1 = {}; // deco: Line contains image cells.
-        //byte pad1;
 
         deco() = default;
         deco(si32 format)
@@ -1176,30 +1176,37 @@ namespace netxs::ansi
                    (si32)rlfeed << 6 |
                    (si32)tablen << 8;
         }
-        auto  wrp   () const  { return wrapln;                                      } // deco: Return Auto wrapping.
-        auto  jet   () const  { return adjust;                                      } // deco: Return Paragraph adjustment.
-        auto  rtl   () const  { return r_to_l;                                      } // deco: Return RTL.
-        auto  rlf   () const  { return rlfeed;                                      } // deco: Return Reverse line feed.
-        auto  tbs   () const  { return tablen;                                      } // deco: Return Reverse line feed.
-        auto& mgn   () const  { return margin;                                      } // deco: Return margins.
-        auto& wrp   (bool  b) { wrapln = b ? wrap::on  : wrap::off;   return *this; } // deco: Set auto wrapping.
-        auto& rtl   (bool  b) { r_to_l = b ? rtol::rtl : rtol::ltr;   return *this; } // deco: Set RTL.
-        auto& rlf   (bool  b) { rlfeed = b ? feed::rev : feed::fwd;   return *this; } // deco: Set revverse line feed.
-        auto& wrp   (wrap  n) { wrapln = n;                           return *this; } // deco: Auto wrapping.
-        auto& jet   (bias  n) { adjust = n;                           return *this; } // deco: Paragraph adjustment.
-        auto& rtl   (rtol  n) { r_to_l = n;                           return *this; } // deco: RTL.
-        auto& rlf   (feed  n) { rlfeed = n;                           return *this; } // deco: Reverse line feed.
-        auto& wrp_or(wrap  n) { if (wrapln == wrap::none) wrapln = n; return *this; } // deco: Auto wrapping.
-        auto& jet_or(bias  n) { if (adjust == bias::none) adjust = n; return *this; } // deco: Paragraph adjustment.
-        auto& rtl_or(rtol  n) { if (r_to_l == rtol::none) r_to_l = n; return *this; } // deco: RTL.
-        auto& rlf_or(feed  n) { if (rlfeed == feed::none) rlfeed = n; return *this; } // deco: Reverse line feed.
-        auto& tbs   (si32  n) { tablen = std::min(n, maxtab);         return *this; } // deco: fx_ccc_tbs.
-        auto& mgl   (si32  n) { margin.l = n;                         return *this; } // deco: fx_ccc_mgl.
-        auto& mgr   (si32  n) { margin.r = n;                         return *this; } // deco: fx_ccc_mgr.
-        auto& mgt   (si32  n) { margin.t = n;                         return *this; } // deco: fx_ccc_mgt.
-        auto& mgb   (si32  n) { margin.b = n;                         return *this; } // deco: fx_ccc_mgb.
-        auto& mgn   (fifo& q) { margin.set(q);                        return *this; } // deco: fx_ccc_mgn.
-        auto& rst   ()        { *this = {};                           return *this; } // deco: Reset.
+        auto  wrp   () const  { return wrapln;                                        } // deco: Return Auto wrapping.
+        auto  jet   () const  { return adjust;                                        } // deco: Return Paragraph adjustment.
+        auto  rtl   () const  { return r_to_l;                                        } // deco: Return RTL.
+        auto  rlf   () const  { return rlfeed;                                        } // deco: Return Reverse line feed.
+        auto  tbs   () const  { return tablen;                                        } // deco: Return Reverse line feed.
+        auto  mgn   () const  { return dent{ marg_l, marg_r, marg_t, marg_b };        } // deco: Return margins.
+        auto& rst   ()        { *this = {};                             return *this; } // deco: Reset.
+        auto& wrp   (bool  b) { wrapln = b ? wrap::on  : wrap::off;     return *this; } // deco: Set auto wrapping.
+        auto& rtl   (bool  b) { r_to_l = b ? rtol::rtl : rtol::ltr;     return *this; } // deco: Set RTL.
+        auto& rlf   (bool  b) { rlfeed = b ? feed::rev : feed::fwd;     return *this; } // deco: Set revverse line feed.
+        auto& wrp   (wrap  n) { wrapln = n;                             return *this; } // deco: Auto wrapping.
+        auto& jet   (bias  n) { adjust = n;                             return *this; } // deco: Paragraph adjustment.
+        auto& rtl   (rtol  n) { r_to_l = n;                             return *this; } // deco: RTL.
+        auto& rlf   (feed  n) { rlfeed = n;                             return *this; } // deco: Reverse line feed.
+        auto& wrp_or(wrap  n) { if (wrapln == wrap::none) wrapln = n;   return *this; } // deco: Auto wrapping.
+        auto& jet_or(bias  n) { if (adjust == bias::none) adjust = n;   return *this; } // deco: Paragraph adjustment.
+        auto& rtl_or(rtol  n) { if (r_to_l == rtol::none) r_to_l = n;   return *this; } // deco: RTL.
+        auto& rlf_or(feed  n) { if (rlfeed == feed::none) rlfeed = n;   return *this; } // deco: Reverse line feed.
+        auto& tbs   (si32  n) { tablen = std::min(n, maxtab);           return *this; } // deco: fx_ccc_tbs.
+        auto& mgl   (si32  n) { marg_l = netxs::saturate_cast<int8>(n); return *this; } // deco: fx_ccc_mgl.
+        auto& mgr   (si32  n) { marg_r = netxs::saturate_cast<int8>(n); return *this; } // deco: fx_ccc_mgr.
+        auto& mgt   (si32  n) { marg_t = netxs::saturate_cast<int8>(n); return *this; } // deco: fx_ccc_mgt.
+        auto& mgb   (si32  n) { marg_b = netxs::saturate_cast<int8>(n); return *this; } // deco: fx_ccc_mgb.
+        auto& mgn   (fifo& q) // deco: fx_ccc_mgn.
+        {
+            marg_l = netxs::saturate_cast<int8>(q.subarg(0));
+            marg_r = netxs::saturate_cast<int8>(q.subarg(0));
+            marg_t = netxs::saturate_cast<int8>(q.subarg(0));
+            marg_b = netxs::saturate_cast<int8>(q.subarg(0));
+            return *this;
+        }
         // deco: Reset to global default.
         constexpr auto& reset()
         {
@@ -1208,7 +1215,10 @@ namespace netxs::ansi
             r_to_l = rtol::ltr;
             rlfeed = feed::fwd;
             tablen = 8;
-            margin = {};
+            marg_l = 0;
+            marg_r = 0;
+            marg_t = 0;
+            marg_b = 0;
             return *this;
         }
         auto get_kind() const
@@ -1907,6 +1917,10 @@ namespace netxs::ansi
         {
             static auto marker = ansi::marker{};
             return marker;
+        }
+        auto& get_style() const
+        {
+            return style;
         }
         void check_height(si32 height)
         {

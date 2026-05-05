@@ -595,7 +595,7 @@ namespace netxs::ui
             void set(text const& property, qiew txt = {})
             {
                 if (txt.empty()) txt = owner.appcfg.cmd; // Deny empty titles.
-                owner.target->flush();
+                owner.target->parser::flush();
                 if (property == ansi::osc_label_title)
                 {
                                   props[ansi::osc_label] = txt;
@@ -644,7 +644,7 @@ namespace netxs::ui
             // w_tracking: Manage terminal window props (XTWINOPS).
             void manage(fifo& q)
             {
-                owner.target->flush();
+                owner.target->parser::flush();
                 static constexpr auto all_title = si32{ 0  }; // Sub commands.
                 static constexpr auto label     = si32{ 1  }; // Sub commands.
                 static constexpr auto title     = si32{ 2  }; // Sub commands.
@@ -1038,10 +1038,10 @@ namespace netxs::ui
                 dest.px = c.px;
                 dest.p2 = c.p2;
             }
-            void fgc(tint c)  { argb::set_indexed_color(owner.target->brush.fgc(), c); }
-            void bgc(tint c)  { argb::set_indexed_color(owner.target->brush.bgc(), c); }
-            void fgc(fifo& q) { owner.target->brush.fgc().parse_input(q, [](si32 i){ return argb::get_indexed_color_token(i); }); }
-            void bgc(fifo& q) { owner.target->brush.bgc().parse_input(q, [](si32 i){ return argb::get_indexed_color_token(i); }); }
+            void fgc(tint c)  { argb::set_indexed_color(owner.target->parser::brush.fgc(), c); }
+            void bgc(tint c)  { argb::set_indexed_color(owner.target->parser::brush.bgc(), c); }
+            void fgc(fifo& q) { owner.target->parser::brush.fgc().parse_input(q, [](si32 i){ return argb::get_indexed_color_token(i); }); }
+            void bgc(fifo& q) { owner.target->parser::brush.bgc().parse_input(q, [](si32 i){ return argb::get_indexed_color_token(i); }); }
         };
 
         // term: Generic terminal buffer.
@@ -1247,7 +1247,7 @@ namespace netxs::ui
 
                 deco style{}; // Parser style state.
                 mark brush{}; // Parser brush state.
-                si32 decsg{}; // Parser DEC Special Graphcs Mode.
+                si32 decsg{}; // Parser DEC Special Graphics Mode.
                 twod coord{}; // Screen coord state.
                 bool decom{}; // Origin mode  state.
                 sgrs stack{}; // Stach for saved sgr attributes.
@@ -3432,14 +3432,14 @@ namespace netxs::ui
                 // buff: Push the specified line back.
                 void invite(line& l)
                 {
-                    invite(l._kind, l._size, l.style.get_kind(), l.length());
+                    invite(l._kind, l._size, l.get_kind(), l.length());
                 }
                 // buff: Push a new line back.
                 template<class ...Args>
                 auto& invite(Args&&... args)
                 {
                     auto& l = ring::push_back(std::forward<Args>(args)...);
-                    invite(l._kind, l._size, l.style.get_kind(), l.length());
+                    invite(l._kind, l._size, l.get_kind(), l.length());
                     return l;
                 }
                 // buff: Insert a new line at the specified position.
@@ -3447,7 +3447,7 @@ namespace netxs::ui
                 auto& insert(si32 at, Args&&... args)
                 {
                     auto& l = *ring::insert(at, std::forward<Args>(args)...);
-                    invite(l._kind, l._size, l.style.get_kind(), l.length());
+                    invite(l._kind, l._size, l.get_kind(), l.length());
                     return l;
                 }
                 // buff: Remove specified line info from accounting and update metrics based on scroll height.
@@ -3495,7 +3495,7 @@ namespace netxs::ui
                 // buff: Refresh metrics due to modified line.
                 void recalc(line& l)
                 {
-                    recalc(l._kind, l._size, l.style.get_kind(), l.length());
+                    recalc(l._kind, l._size, l.get_kind(), l.length());
                 }
                 // buff: Rewrite the indices from the specified position to the end or to the top (negative from).
                 void reindex(si32 from)
@@ -4308,7 +4308,7 @@ namespace netxs::ui
                     }
 
                     auto& curln = batch.current();
-                    auto  align = curln.style.jet();
+                    auto  align = curln.jet();
 
                     if (align == bias::left
                      || align == bias::none) return coor;
@@ -4368,10 +4368,10 @@ namespace netxs::ui
                     {
                         auto newix = batch.index_by_id(mapln.index);
                         batch.index(newix);
-
-                        if (batch->style != parser::style)
+                        auto& curln2 = batch.current();
+                        if (curln2.changed_style(parser::style))
                         {
-                            _set_style(parser::style);
+                            _set_style(curln2, parser::style);
                             assert(newix == batch.index_by_id(index[coord.y].index));
                         }
                     }
@@ -4506,13 +4506,13 @@ namespace netxs::ui
                     auto curit = block.begin();
                     auto curid = start == 0 ? batch.front().index
                                             : batch[start - 1].index + 1;
-                    auto style = ansi::def_style;
-                    style.wrp(wrap::off);
+                    auto new_style = ansi::def_style;
+                    new_style.wrp(wrap::off);
                     while (size.y-- > 0)
                     {
                         auto oldsz = batch.size;
                         auto proto = std::span{ curit, (size_t)size.x };
-                        auto curln = line{ curid++, style, proto };
+                        auto curln = line{ curid++, new_style, proto };
                         curln.shrink(block.mark());
                         batch.insert(start, std::move(curln));
                         start += batch.size - oldsz; // Due to circulation in the ring.
@@ -4599,7 +4599,7 @@ namespace netxs::ui
             auto screen_to_offset(line& curln, twod coor)
             {
                 auto length = curln.length();
-                auto adjust = curln.style.jet();
+                auto adjust = curln.jet();
                 if (curln.wrapped() && length > panel.x)
                 {
                     auto endpos = length - 1;
@@ -4628,16 +4628,15 @@ namespace netxs::ui
                     if (coor.y < last / panel.x) return coor;
                     size = last % panel.x + 1;
                 }
-                coor.x = xconv<feed::rev>(coor.x, curln.style.jet(), size);
+                coor.x = xconv<feed::rev>(coor.x, curln.jet(), size);
                 return coor;
             }
             // scroll_buf: Update current SGR attributes. (! Check coord.y context)
-            void _set_style(deco const& new_style)
+            void _set_style(line& curln, deco const& new_style)
             {
-                auto& curln = batch.current();
-                auto  wraps = curln.wrapped();
-                auto  width = curln.length();
-                curln.style = new_style;
+                auto wraps = curln.wrapped();
+                auto width = curln.length();
+                curln.set_style(new_style);
 
                 if (batch.caret > width) // Dangling cursor.
                 {
@@ -4712,13 +4711,13 @@ namespace netxs::ui
             // scroll_buf: Proceed style update (parser callback).
             void meta(deco const& old_style) override
             {
-                if (batch->style != parser::style)
+                auto& curln = batch.current();
+                if (curln.changed_style(parser::style))
                 {
-                    if (coord.y >= y_top
-                     && coord.y <= y_end)
+                    if (coord.y >= y_top && coord.y <= y_end)
                     {
                         coord.y -= y_top;
-                        _set_style(parser::style);
+                        _set_style(curln, parser::style);
                         coord.y += y_top;
                     }
                 }
@@ -5391,7 +5390,7 @@ namespace netxs::ui
                     auto& curln = *head;
                     auto height = curln.height(panel.x);
                     auto length = curln.length();
-                    auto adjust = curln.style.jet();
+                    auto adjust = curln.jet();
                     dest.output(curln, coor, [&](auto& dst, auto& src){ owner.ctrack.mix_with_bgc(dst, src); });
                     //dest.output_proxy(curln, coor, [&](auto const& coord, auto const& subblock, auto isr_to_l)
                     //{
@@ -5399,7 +5398,7 @@ namespace netxs::ui
                     //});
                     if (find)
                     {
-                        match.style.wrp(curln.style.wrp());
+                        match.wrp(curln.wrp());
                         auto offset = si32{ 0 };
                         auto work = [&](auto shader)
                         {
@@ -5640,7 +5639,7 @@ namespace netxs::ui
                 {
                     auto after = batch.index_by_id(curid);
                     auto tmpln = std::move(batch[after]);
-                    auto curit = batch.ring::insert(after + 1, tmpln.index, tmpln.style, parser::brush);
+                    auto curit = batch.ring::insert(after + 1, tmpln.index, tmpln.get_style(), parser::brush);
                     auto endit = batch.end();
 
                     auto& newln = *curit;
@@ -6549,8 +6548,8 @@ namespace netxs::ui
             // scroll_buf: Calc selection offset in cells.
             auto selection_offset(auto& curln, auto coor, auto close)
             {
-                auto align = curln.style.jet();
-                auto wraps = curln.style.wrp();
+                auto align = curln.jet();
+                auto wraps = curln.wrp();
                 auto width = curln.length();
                 if (wraps == wrap::on)
                 {
@@ -6696,11 +6695,12 @@ namespace netxs::ui
                         auto s = deco{};
                         build([&](auto& curln)
                         {
-                            if (s != curln.style)
+                            auto d = curln.get_style();
+                            if (s != d)
                             {
-                                if (auto wrp = curln.style.wrp(); s.wrp() != wrp) yield.wrp(wrp);
-                                if (auto jet = curln.style.jet(); s.jet() != jet) yield.jet(jet);
-                                s = curln.style;
+                                if (auto wrp = curln.wrp(); s.wrp() != wrp) yield.wrp(wrp);
+                                if (auto jet = curln.jet(); s.jet() != jet) yield.jet(jet);
+                                s = d;
                             }
                             auto block = escx{};
                             if (use_true_color) cell::unpack_indexed_colors_to(curln, baked, owner.ctrack.color, owner.defclr);
@@ -6832,7 +6832,7 @@ namespace netxs::ui
                                 }
                                 else
                                 {
-                                    auto align = curln.style.jet();
+                                    auto align = curln.jet();
                                     auto coord = coor;
                                     switch (align)
                                     {
@@ -6930,26 +6930,26 @@ namespace netxs::ui
                 {
                     if (upmid.role == grip::idle) return;
                     auto i_top = std::clamp(batch.index_by_id(upmid.link), 0, batch.size);
-                    auto j = batch[i_top].style.jet();
+                    auto j = batch[i_top].jet();
                     auto align = a != bias::none ? a
                                                  : j == bias::left   ? bias::right
                                                  : j == bias::right  ? bias::center
                                                                      : bias::left;
                     selection_foreach([&](auto& curln)
                     {
-                        curln.style.jet(align);
+                        curln.jet(align);
                         batch.recalc(curln);
                     });
-                    if (a != bias::none) style.jet(a);
+                    if (a != bias::none) parser::style.jet(a);
                     resize_viewport(panel, true); // Recalc batch.basis.
                 }
                 else
                 {
-                    auto j = style.jet();
-                    style.jet(a != bias::none ? a
-                                              : j == bias::left   ? bias::right
-                                              : j == bias::right  ? bias::center
-                                                                  : bias::left);
+                    auto j = parser::style.jet();
+                    parser::style.jet(a != bias::none ? a
+                                                      : j == bias::left   ? bias::right
+                                                      : j == bias::right  ? bias::center
+                                                                          : bias::left);
                 }
             }
             // scroll_buf: Sel wrapping mode for selected lines.
@@ -6959,21 +6959,21 @@ namespace netxs::ui
                 {
                     if (upmid.role == grip::idle) return;
                     auto i_top = std::clamp(batch.index_by_id(upmid.link), 0, batch.size);
-                    auto wraps = w == wrap::none ? batch[i_top].style.wrp() == wrap::on ? wrap::off : wrap::on
+                    auto wraps = w == wrap::none ? batch[i_top].wrp() == wrap::on ? wrap::off : wrap::on
                                                  : w;
                     upmid.coor.y = dnmid.coor.y = 0;
                     selection_foreach([&](auto& curln)
                     {
-                        curln.style.wrp(wraps);
+                        curln.wrp(wraps);
                         batch.recalc(curln);
                     });
-                    if (w != wrap::none) style.wrp(w);
+                    if (w != wrap::none) parser::style.wrp(w);
                     resize_viewport(panel, true); // Recalc batch.basis.
                 }
                 else
                 {
-                    style.wrp(w == wrap::none ? style.wrp() == wrap::on ? wrap::off : wrap::on
-                                              : w);
+                    parser::style.wrp(w == wrap::none ? parser::style.wrp() == wrap::on ? wrap::off : wrap::on
+                                                      : w);
                 }
             }
             // scroll_buf: Update selection internals.
@@ -8055,7 +8055,7 @@ namespace netxs::ui
                 }
 
                 auto gc_str = gc_opt ? gc_opt.value() : " ";
-                auto brush = cell{ target->brush }.txt(gc_str, 1, 1, 1, 1); //todo make the character geometry configurable
+                auto brush = cell{ target->parser::brush }.txt(gc_str, 1, 1, 1, 1); //todo make the character geometry configurable
                 auto print_image_buffer = [&]
                 {
                     gc_str ? draw_block(image_buffer, cell::shaders::full)
@@ -8223,7 +8223,7 @@ namespace netxs::ui
         // term: Soft terminal reset (DECSTR).
         void decstr()
         {
-            target->flush();
+            target->parser::flush();
             normal.clear_all();
             altbuf.clear_all();
             target = &normal;
@@ -8257,7 +8257,7 @@ namespace netxs::ui
                     target->cup0(dot_00);
                     break;
                 case 7:    // Enable auto-wrap.
-                    target->style.wrp(wrap::on);
+                    target->parser::style.wrp(wrap::on);
                     break;
                 case 12:   // Enable cursor blinking.
                     caret.blink_period();
@@ -8316,8 +8316,8 @@ namespace netxs::ui
                 case 1047: // Use alternate screen buffer.
                 case 1049: // Save cursor pos and use alternate screen buffer, clearing it first.  This control combines the effects of the 1047 and 1048  modes.
                     if (target != &normal && target != &altbuf) break; // Suppress mode change for additional screen buffers (windows console).
-                    altbuf.style = target->style; // Inherit the normal buffer brush.
-                    altbuf.brush = target->brush; //
+                    altbuf.parser::style = target->parser::style; // Inherit the normal buffer brush.
+                    altbuf.parser::brush = target->parser::brush; //
                     altbuf.clear_all();
                     altbuf.resize_viewport(target->panel); // Reset viewport to the basis.
                     target = &altbuf;
@@ -8333,13 +8333,13 @@ namespace netxs::ui
         // term: Set terminal parameters. (DECSET).
         void decset(si32 n)
         {
-            target->flush();
+            target->parser::flush();
             _decset(n);
         }
         // term: Set terminal parameters. (DECSET).
         void decset(fifo& q)
         {
-            target->flush();
+            target->parser::flush();
             while (auto next = q(0)) _decset(next);
         }
         // term: Switch buffer to normal and reset viewport to the basis.
@@ -8380,7 +8380,7 @@ namespace netxs::ui
                     target->cup0(dot_00);
                     break;
                 case 7:    // Disable auto-wrap.
-                    target->style.wrp(wrap::off);
+                    target->parser::style.wrp(wrap::off);
                     break;
                 case 12:   // Disable cursor blinking.
                     caret.blink_period(span::zero());
@@ -8452,13 +8452,13 @@ namespace netxs::ui
         // term: Reset terminal parameters. (DECRST).
         void decrst(si32 n)
         {
-            target->flush();
+            target->parser::flush();
             _decrst(n);
         }
         // term: Reset terminal parameters. (DECRST).
         void decrst(fifo& q)
         {
-            target->flush();
+            target->parser::flush();
             while (auto next = q(0)) _decrst(next);
         }
         // term: Set terminal parameters.
@@ -8494,13 +8494,13 @@ namespace netxs::ui
         // term: Set terminal parameters.
         void modset(fifo& q)
         {
-            target->flush();
+            target->parser::flush();
             while (auto next = q(0)) _modset(next);
         }
         // term: Reset terminal parameters.
         void modrst(fifo& q)
         {
-            target->flush();
+            target->parser::flush();
             while (auto next = q(0)) _modrst(next);
         }
         // term: Reset terminal parameters.
@@ -8542,14 +8542,14 @@ namespace netxs::ui
         // term: Request terminal mode. (DECRQM).
         void decrqm(fifo& q)
         {
-            target->flush();
+            target->parser::flush();
             while (auto next = q(0)) _decrqm(next);
             answer(escbuf);
         }
         // term: Set scrollback buffer size and grow step.
         void sbsize(fifo& q)
         {
-            target->flush();
+            target->parser::flush();
             auto ring_size = q.subarg(defcfg.def_length);
             auto grow_step = q.subarg(defcfg.def_growdt);
             auto grow_mxsz = q.subarg(defcfg.def_growmx);
@@ -8558,7 +8558,7 @@ namespace netxs::ui
         // term: Check and update scrollback buffer limits.
         void sb_min(si32 min_length)
         {
-            target->flush();
+            target->parser::flush();
             if (normal.batch.step == 0 && normal.batch.peak < min_length)
             {
                 normal.resize_history(min_length);
@@ -8648,9 +8648,9 @@ namespace netxs::ui
         {
             auto& console = *target;
             defclr.txt('\0').fgc(defcfg.def_fcolor).bgc(defcfg.def_bcolor).link(base::id);
-            console.brush.reset();
-            console.style.reset();
-            console.style.wrp(defcfg.def_wrpmod);
+            console.parser::brush.reset();
+            console.parser::style.reset();
+            console.parser::style.wrp(defcfg.def_wrpmod);
             console.setpad(defcfg.def_margin);
             selection_selmod(defcfg.def_selmod);
             caret.style(defcfg.def_cursor);
@@ -9750,7 +9750,7 @@ namespace netxs::ui
                                                         auto args_count = luafx.args_count();
                                                         if (!args_count)
                                                         {
-                                                            auto state = target->style.wrp() == wrap::off ? 0 : 1;
+                                                            auto state = target->parser::style.wrp() == wrap::off ? 0 : 1;
                                                             luafx.set_return(state);
                                                         }
                                                         else
@@ -9766,7 +9766,7 @@ namespace netxs::ui
                                                         auto args_count = luafx.args_count();
                                                         if (!args_count)
                                                         {
-                                                            auto align = target->style.jet();
+                                                            auto align = target->parser::style.jet();
                                                             auto state = align == bias::left || align == bias::none  ? 0 :
                                                                                                 align == bias::right ? 1 : 2;
                                                             luafx.set_return(state);
@@ -9829,7 +9829,7 @@ namespace netxs::ui
                 { methods::ScrollbackSize,          [&]
                                                     {
                                                         luafx.run_with_gear_wo_return([&](auto& gear){ gear.set_handled(); });
-                                                        target->flush();
+                                                        target->parser::flush();
                                                         auto args_count = luafx.args_count();
                                                         if (!args_count)
                                                         {
@@ -9846,14 +9846,14 @@ namespace netxs::ui
                                                     }},
                 { methods::SetBackground,           [&]
                                                     {
-                                                        target->flush();
-                                                        auto brush = target->brush;
+                                                        target->parser::flush();
+                                                        auto brush = target->parser::brush;
                                                         set_color(brush.txt('\0'));
                                                         luafx.set_return();
                                                     }},
                 { methods::ScrollbackPadding,       [&]
                                                     {
-                                                        target->flush();
+                                                        target->parser::flush();
                                                         auto args_count = luafx.args_count();
                                                         if (!args_count)
                                                         {
@@ -9868,7 +9868,7 @@ namespace netxs::ui
                                                     }},
                 { methods::TabLength,               [&]
                                                     {
-                                                        target->flush();
+                                                        target->parser::flush();
                                                         auto args_count = luafx.args_count();
                                                         if (!args_count)
                                                         {
@@ -9884,23 +9884,23 @@ namespace netxs::ui
                                                     }},
                 { methods::RightToLeft,             [&]
                                                     {
-                                                        target->flush();
+                                                        target->parser::flush();
                                                         auto args_count = luafx.args_count();
                                                         if (!args_count)
                                                         {
-                                                            luafx.set_return(!!target->brush.rtl());
+                                                            luafx.set_return(!!target->parser::brush.rtl());
                                                         }
                                                         else
                                                         {
                                                             auto rtl = luafx.get_args_or(1, 0);
-                                                            target->style.rtl(rtl ? rtol::rtl : rtol::ltr);
-                                                            target->brush.rtl(rtl);
+                                                            target->parser::style.rtl(rtl ? rtol::rtl : rtol::ltr);
+                                                            target->parser::brush.rtl(rtl);
                                                             luafx.set_return();
                                                         }
                                                     }},
                 { methods::ResetAttributes,         [&]
                                                     {
-                                                        target->flush();
+                                                        target->parser::flush();
                                                         setdef();
                                                         luafx.set_return();
                                                     }},
@@ -9966,7 +9966,7 @@ namespace netxs::ui
                                                     }},
                 { methods::CodePage,                [&]
                                                     {
-                                                        target->flush();
+                                                        target->parser::flush();
                                                         if (!ipccon.termlink)
                                                         {
                                                             luafx.set_return();
@@ -10537,7 +10537,7 @@ namespace netxs::ui
             auto data = para{ utf8 };
             auto kant = text(2, ' ');
             auto pads = text(data.length() + kant.size() * 2, ' ');
-            return page{ ansi::bgc(reddk).fgc(whitelt).jet(bias::center).wrp(wrap::off).cup(dot_00).cpp({50,50}).cuu(1)
+            return page{ ansi::bgc(reddk).fgc(whitelt).jet(bias::center).wrp(wrap::off).cup(dot_00).cpp({ 50, 50 }).cuu(1)
                               .add(pads,       '\n',
                              kant, utf8, kant, '\n',
                                    pads,       '\n') };
