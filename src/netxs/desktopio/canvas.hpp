@@ -2354,11 +2354,7 @@ namespace netxs
         auto get_image_ontop() const
         {
             auto index = get_image_index();
-            auto ontop = faux;
-            if (index)
-            {
-                ontop = netxs::get_field<p2_ontop_1_mask>(p2);
-            }
+            auto ontop = netxs::get_field<p2_ontop_1_mask>(p2);
             return std::pair{ index, ontop };
         }
         auto& set_image_index(si32 n) { netxs::set_field<p2_index16_mask>(n, p2); return *this; }
