@@ -1572,25 +1572,6 @@ namespace netxs::ui
         line()              = default;
         line(line&& l)      = default;
         line(line const& l) = default;
-        line(id_t line_id, deco const& line_style, std::span<cell const> proto)
-            : cells{ proto.begin(), proto.end() },
-              index{ line_id          },
-              wraps{ line_style.wrp() },
-              align{ line_style.jet() },
-              r_2_l{ line_style.rtl() }
-        { }
-        line(id_t line_id, deco const& line_style, cell const& blank, si32 len = 0)
-            : cells( len, blank       ),
-              brush{ blank            },
-              index{ line_id          },
-              wraps{ line_style.wrp() },
-              align{ line_style.jet() },
-              r_2_l{ line_style.rtl() }
-        { }
-        line(body::const_iterator head, body::const_iterator tail, cell brush)
-            : cells{ head, tail },
-              brush{ brush      }
-        { }
         line(std::span<cell const> copy)
             : cells{ copy.begin(), copy.end() }
         { }
@@ -1606,6 +1587,30 @@ namespace netxs::ui
         auto  begin() const { return cells.begin(); }
         auto  end() const   { return cells.end();   }
 
+        void reinitialize(id_t line_id, deco const& line_style, cell const& blank, si32 len = 0)
+        {
+            cells.assign(len, blank);
+            brush = blank;
+            index = line_id;
+            wraps = line_style.wrp();
+            align = line_style.jet();
+            r_2_l = line_style.rtl();
+            image = {};
+        }
+        void reinitialize(id_t line_id, deco const& line_style, std::span<cell const> proto)
+        {
+            cells.assign(proto.begin(), proto.end());
+            brush = {};
+            index = line_id;
+            wraps = line_style.wrp();
+            align = line_style.jet();
+            r_2_l = line_style.rtl();
+            image = {};
+        }
+        void deallocate()
+        {
+            body().swap(cells);
+        }
         // line: Return default object ID for the line owner.
         auto link() const
         {
@@ -1825,7 +1830,7 @@ namespace netxs::ui
             }
         }
         // line: Copy the specified sub-line to the dest.
-        auto copy_piece(line& dest, si32 from, si32 width) const
+        auto copy_piece(line& dest, si32 from, si32 width = netxs::si32max) const
         {
             auto s = substr(from, width);
             dest.cells.assign(s.begin(), s.end());

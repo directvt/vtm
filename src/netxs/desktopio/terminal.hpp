@@ -3477,7 +3477,8 @@ namespace netxs::ui
                 template<class ...Args>
                 auto& invite(Args&&... args)
                 {
-                    auto& l = ring::push_back(std::forward<Args>(args)...);
+                    auto& l = ring::push_back();
+                    l.reinitialize(std::forward<Args>(args)...);
                     invite(l);
                     return l;
                 }
@@ -3485,12 +3486,37 @@ namespace netxs::ui
                 template<class ...Args>
                 auto& insert(si32 at, Args&&... args)
                 {
-                    auto& l = *ring::insert(at, std::forward<Args>(args)...);
+                    auto& l = *ring::insert(at);
+                    l.reinitialize(std::forward<Args>(args)...);
                     invite(l);
                     return l;
                 }
                 // buff: Remove specified line info from accounting and update metrics based on scroll height.
-                void undock_base_front(line& l) override
+                void _clear_line(line& l, bool deallocate)
+                {
+                    if (l.image) 
+                    {
+                        l.image = {};
+                        for (auto& c : l.cells) 
+                        {
+                            if (auto index = c.get_image_index())
+                            {
+                                //todo
+                                //if (--image_ref_counts[index] == 0) 
+                                //{
+                                //    release index
+                                //}
+                            }
+                        }
+                    }
+                    l.cells.clear();
+                    if (deallocate || l.cells.capacity() > 256) // Deallocate long lines (256*sizeof(cell)=10240bytes).
+                    {
+                        l.deallocate();
+                    }
+                }
+                // buff: Remove specified line from accounting and update metrics based on scroll height.
+                void undock_base_front(line& l, bool deallocate = faux) override
                 {
                     auto line_kind = l.get_kind();
                     auto line_size = l.length();
@@ -3508,26 +3534,13 @@ namespace netxs::ui
                         slide = 0;
                     }
                     rolls = true;
+                    _clear_line(l, deallocate);
                 }
                 // buff: Remove information about the specified line from accounting.
-                void undock_base_back(line& l) override
+                void undock_base_back(line& l, bool deallocate = faux) override
                 {
                     undock(l.get_kind(), l.length());
-                    if (l.image) 
-                    {
-                        l.image = {};
-                        for (auto& c : l.cells) 
-                        {
-                            if (auto index = c.get_image_index())
-                            {
-                                //todo
-                                //if (--image_ref_counts[index] == 0) 
-                                //{
-                                //    release id
-                                //}
-                            }
-                        }
-                    }
+                    _clear_line(l, deallocate);
                 }
                 // buff: Return the item position in the scrollback using its id.
                 auto index_by_id(id_t item_id) const
@@ -3597,16 +3610,25 @@ namespace netxs::ui
                 // buff: Clear scrollback keeping current line.
                 void clear_but_current()
                 {
-                    auto backup = current();
+                    auto& curln = current();
+                    auto backup = std::move(curln);
+                    auto old_state = backup.get_state();
+                    recalc(curln, old_state); // Detach current line.
                     backup.index = 0;
                     ring::clear();
-                    auto& curln = ring::push_back(backup); // Keep current line.
+                    auto& newln = ring::push_back();
+                    newln = std::move(backup); // Attach current line.
                     basis = 0;
                     slide = 0;
                     simpl = 0;
+                    if constexpr (debugmode)
+                    {
+                        for (auto& s : sizea) assert(s == std::decay_t<decltype(s)>{});
+                        for (auto& s : sizes) assert(s.empty());
+                    }
                     maxes.fill(0);
-                    invite(curln); // Sync current line state (length, wrap mode).
-                    ancid = curln.index;
+                    invite(newln); // Sync current line state (length, wrap mode).
+                    ancid = newln.index;
                     ancdy = 0;
                     set_width(width);
                 }
@@ -4566,9 +4588,10 @@ namespace netxs::ui
                     {
                         auto oldsz = batch.size;
                         auto proto = std::span{ curit, (size_t)size.x };
-                        auto curln = line{ curid++, new_style, proto };
+                        auto& curln = *batch.ring::insert(start);
+                        curln.reinitialize(curid++, new_style, proto);
                         curln.shrink(block.mark());
-                        batch.insert(start, std::move(curln));
+                        batch.invite(curln);
                         start += batch.size - oldsz; // Due to circulation in the ring.
                         assert(start <= batch.size);
                         curit += size.x;
@@ -5703,22 +5726,24 @@ namespace netxs::ui
                 auto split = [&](id_t curid, si32 start)
                 {
                     auto after = batch.index_by_id(curid);
-                    auto tmpln = std::move(batch[after]);
-                    auto curit = batch.ring::insert(after + 1, tmpln.index, tmpln.get_style(), parser::brush);
-                    auto endit = batch.end();
-
-                    auto& newln = *curit;
-                    newln.splice(0, tmpln.substr(start), cell::shaders::full, brush.spc());
-                    batch.undock_base_back(tmpln);
-                    batch.invite(newln);
-
-                    if (curit != batch.begin())
+                    if (batch.ring_size() == 1)
                     {
-                        auto& curln = *(curit - 1);
-                        curln = std::move(tmpln);
-                        curln.trimto(start);
-                        batch.invite(curln);
+                        auto& tmpln = batch[after];
+                        auto old_state = tmpln.get_state();
+                        tmpln.copy_piece(tmpln, start);
+                        batch.recalc(tmpln, old_state);
+                        return;
                     }
+                    auto curit = batch.ring::insert(after + 1);
+                    auto endit = batch.end();
+                    auto& newln = *curit;
+                    auto& tmpln = *(curit - 1);
+                    newln.reinitialize(tmpln.index, tmpln.get_style(), parser::brush);
+                    newln.splice(0, tmpln.substr(start), cell::shaders::full, brush.spc());
+                    auto old_state = tmpln.get_state();
+                    tmpln.trimto(start);
+                    batch.recalc(tmpln, old_state);
+                    batch.invite(newln);
 
                     do  ++(curit++->index);
                     while (curit != endit);
@@ -7356,6 +7381,7 @@ namespace netxs::ui
                 #endif
             }
         };
+
         // term: Take data until ST. Don't touch q if sequence is broken.
         static qiew read_until_st_or_giveup(qiew& q)
         {
@@ -7586,6 +7612,8 @@ namespace netxs::ui
                 if (ok) // Show image.
                 {
                     auto svg_doc = term::rgba_to_svg(bitmap, size);
+                    //
+                    //
                     static auto i = 0;
                     auto print_via_osc = utf::fprint("id=_sixel%id% %doc% W=%% H=%% fit=stretch", i++, svg_doc, size.x / cellsz.x, size.y / cellsz.y);
                     if constexpr (debugmode) log("svg:", utf::debase(print_via_osc));
