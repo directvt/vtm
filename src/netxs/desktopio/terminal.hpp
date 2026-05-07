@@ -3623,8 +3623,8 @@ namespace netxs::ui
                     simpl = 0;
                     if constexpr (debugmode)
                     {
-                        for (auto& s : sizea) assert(s == std::decay_t<decltype(s)>{});
-                        for (auto& s : sizes) assert(s.empty());
+                        for ([[maybe_unused]] auto& s : sizea) assert(s == std::decay_t<decltype(s)>{});
+                        for ([[maybe_unused]] auto& s : sizes) assert(s.empty());
                     }
                     maxes.fill(0);
                     invite(newln); // Sync current line state (length, wrap mode).

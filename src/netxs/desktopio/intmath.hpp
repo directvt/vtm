@@ -117,10 +117,10 @@ namespace netxs
     static constexpr auto fp32nan = std::numeric_limits<fp32>::quiet_NaN();
     static constexpr auto fp64nan = std::numeric_limits<fp64>::quiet_NaN();
     static constexpr auto debugmode
-        #if defined(NDEBUG)
-        = faux;
-        #else
+        #if defined(DEBUG)
         = true;
+        #else
+        = faux;
         #endif
 
     [[maybe_unused]] static auto _k0 = 0; // LCtrl+Wheel.
