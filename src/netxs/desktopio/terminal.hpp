@@ -7363,12 +7363,7 @@ namespace netxs::ui
             {
                 cell::remove_image_bits(upbox, removed_image_indexes);
                 cell::remove_image_bits(dnbox, removed_image_indexes);
-                #if defined (__ANDROID__)
-                    std::for_each(batch.begin(), batch.end(), [&](auto& l)
-                    {
-                        cell::remove_image_bits(l, removed_image_indexes);
-                    });
-                #else
+                #if defined(_WIN32)
                     auto wipe_batch = [&](auto policy) // Try to parallelize.
                     {
                         std::for_each(policy, batch.begin(), batch.end(), [&](auto& l)
@@ -7376,8 +7371,13 @@ namespace netxs::ui
                             cell::remove_image_bits(l, removed_image_indexes);
                         });
                     };
-                    batch.length() > 100000 ? wipe_batch(std::execution::par)
+                    batch.length() > 500000 ? wipe_batch(std::execution::par)
                                             : wipe_batch(std::execution::seq);
+                #else
+                    std::for_each(batch.begin(), batch.end(), [&](auto& l)
+                    {
+                        cell::remove_image_bits(l, removed_image_indexes);
+                    });
                 #endif
             }
         };
