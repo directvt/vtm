@@ -97,6 +97,10 @@ namespace netxs
         constexpr auto& operator %= (T i)          { x %= i;   y %= i;   return *this; }
         constexpr auto  operator <  (T i)    const { return x < i && y < i;            }
         constexpr auto  operator >  (T i)    const { return x > i && y > i;            }
+        constexpr auto  operator <= (T i)    const { return x <= i && y <= i;          }
+        constexpr auto  operator >= (T i)    const { return x >= i && y >= i;          }
+        constexpr auto  operator <= (xy2d p) const { return x <= p.x && y <= p.y;      }
+        constexpr auto  operator >= (xy2d p) const { return x >= p.x && y >= p.y;      }
         constexpr auto  operator +  (xy2d p) const { return xy2d{ x + p.x, y + p.y };  }
         constexpr auto  operator -  (xy2d p) const { return xy2d{ x - p.x, y - p.y };  }
         constexpr auto  operator *  (xy2d p) const { return xy2d{ x * p.x, y * p.y };  }

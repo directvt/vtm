@@ -3502,7 +3502,7 @@ namespace netxs::ui
                             if (auto index = c.get_image_index())
                             {
                                 //todo
-                                //if (--image_ref_counts[index] == 0) 
+                                //if (--owner.image_ref_count[index] == 0) 
                                 //{
                                 //    release index
                                 //}
@@ -7611,22 +7611,60 @@ namespace netxs::ui
                 q = qiew{ head, tail };
                 if (ok) // Show image.
                 {
-                    auto svg_doc = term::rgba_to_svg(bitmap, size);
-                    //
-                    //
-                    static auto i = 0;
-                    auto print_via_osc = utf::fprint("id=_sixel%id% %doc% W=%% H=%% fit=stretch", i++, svg_doc, size.x / cellsz.x, size.y / cellsz.y);
-                    if constexpr (debugmode) log("svg:", utf::debase(print_via_osc));
-                    //todo check decsdm
+                    auto doc_str = term::rgba_to_svg(bitmap, size);
+                    auto fp_wh = fp2d{ size } / fp2d{ cellsz };
+                    auto wh = twod{ std::ceil(fp_wh) };
+                    auto c = owner.target->cell_under_cursor();
+                    auto images = cell::images(); // Lock.
+                    if (auto index = c.get_image_index()) // Check the image id at the current cursor position.
+                    {
+                        auto xy = c.get_image_cr();
+                        auto WH = c.get_image_WH();
+                        if (xy == dot_11 && wh == WH) // Update existing image.
+                        {
+                            if (auto image_ptr = images.map[index])
+                            {
+                                auto& image = *image_ptr;
+                                image.reset_changes();
+                                image.check_and_set_document(doc_str);
+                                if (image.document_changed)
+                                {
+                                    image.stamp += 2;
+                                    owner.base::signal(tier::general, e2::data::image::update, index);
+                                    owner.print_sixel_image(image, wh);
+                                }
+                                return;
+                            }
+                            else
+                            {
+                                if (owner.io_log) log("%%Broken image index: %%", prompt::term, index);
+                            }
+                        }
+                    }
+                    // Post a new image.
+                    //todo cache  auto iter = image_cache.find(doc_str); iter != image_cache.end();
+                    auto image_ptr = ptr::shared(imagens::image{ .document = doc_str });
+                    if (auto image_index = images.set(image_ptr))
+                    {
+                        auto& image = *image_ptr;
+                        image.id = "Sixel_"; // Set id="Sixel_FFFF".
+                        utf::to_hex(image_index, image.id);
+                        image.index = image_index;
+                        image.gb_attrs[imagens::gb::w  ] = (fp32)wh.x;
+                        image.gb_attrs[imagens::gb::h  ] = (fp32)wh.y;
+                        image.gb_attrs[imagens::gb::uw ] = (fp32)wh.x / fp_wh.x; // Keep paddings.
+                        image.gb_attrs[imagens::gb::vh ] = (fp32)wh.y / fp_wh.y; //
+                        image.gb_attrs[imagens::gb::fit] = scale_mode::stretch;
+                        owner.print_sixel_image(image, wh);
+                        // All sixel images will be removed on undock.
+                        //owner.sixel_cache[image.id] = image_ptr;
+                    }
                     //todo sync original fragments
                     //todo add a bitmap raster bit (introduce payload category: svg, raw, ...) to the imagens::image
                     //todo store the payload in byts instead of text
                     //todo implement own bitmap (raw category) rasterization (with interpolation)
                     //todo hashing by sixel_string
                     //todo implement scrollback lifetime management for sixel images (destroy it in line dtor if reference_count[id] == 0)
-                    //todo print to target_buffer
-                    owner.osc_images(print_via_osc);
-                    owner.data_in("\n\r");
                 }
                 else
                 {
@@ -7684,8 +7722,10 @@ namespace netxs::ui
         ui32       event_sources; // term: vt-input-mode event reporting bit-field.
         ui64       session_token; // term: Interactive session token.
         utf::unordered_map<text, netxs::sptr<imagens::image>> image_cache; // term: Image cache.
+        //utf::unordered_map<text, netxs::sptr<imagens::image>> sixel_cache; // term: Sixel cache.
         face                                                  image_buffer; // term: Image temporary buffer.
         bool                                                  image_alive{ true }; // term: Indicator for whether to clear images in the scrollback.
+        std::array<ui64, 65536>                               image_ref_count{}; // term: Each slot contains a count of the number of cells containing an id corresponding to the slot index.
         sixel_t    sixels; // term: Sixel mode state.
         vtty       ipccon; // term: IPC connector. Should be destroyed first.
 
@@ -7762,6 +7802,29 @@ namespace netxs::ui
                 coor.y++;
             }
             scrollback.cup2(save);
+        }
+        // term: Print sixel image to the scrollback.
+        void print_sixel_image(imagens::image& image, twod wh)
+        {
+            auto brush = cell{ target->parser::brush }
+                .txt(" ", 1, 1, 1, 1)
+                .set_image_index(image.index)
+                .set_image_stamp(image.stamp)
+                .set_image_WH(wh.x, wh.y)
+                .set_image_ontop(faux);
+            image_buffer.core::size<true>(wh, brush);
+            auto head = image_buffer.begin();
+            for (auto row = 1; row <= wh.y; row++)
+            {
+                for (auto col = 1; col <= wh.x; col++)
+                {
+                    (*head++).set_image_cr(col, row);
+                }
+            }
+            //todo image cell accounting
+            //todo respect decsdm (trim image + don't move cursor)
+            draw_block(image_buffer, cell::shaders::full);
+            data_in("\n\r");
         }
         // term: CSI srcTop ; srcLeft ; srcBottom ; srcRight ; srcBuffIndex ; dstTop ; dstLeft ; dstBuffIndex $ v  — Copy rectangular area (DECCRA). BuffIndex: 1..6, 1 is default index. All coords are 1-based (inclusive).
         void deccra(fifo& q)
@@ -8210,7 +8273,6 @@ namespace netxs::ui
                     {
                         image.layers = std::move(layers);
                     }
-                    image.changed_gb_attrs = {};
                     image.rasters_reset(); // Request to re-rasterize.
                     image.reset_changes();
                     image.check_and_set_document(doc_str, sub_id_str);
@@ -9505,11 +9567,15 @@ namespace netxs::ui
         ~term()
         {
             image_alive = faux;
+            //if (image_cache.size() || sixel_cache.size()) // Signal to wipe all image references.
             if (image_cache.size()) // Signal to wipe all image references.
             {
                 auto images = cell::images(); // Lock.
                 auto removed_image_indexes = e2::data::image::remove.param();
                 removed_image_indexes.reserve(image_cache.size());
+                //removed_image_indexes.reserve(image_cache.size() + sixel_cache.size());
+                //for (auto cache : { &image_cache, &sixel_cache }) //todo C++23: std::views::concat(image_cache, sixel_cache)
+                //for (auto& [image_id, image_ptr] : *cache) if (image_ptr)
                 for (auto& [image_id, image_ptr] : image_cache) if (image_ptr)
                 {
                     auto removed_index = image_ptr->index;

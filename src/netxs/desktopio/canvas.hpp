@@ -1665,7 +1665,7 @@ namespace netxs
                 changed_gb_attrs = {};
                 document_changed = {};
             }
-            void check_and_set_document(qiew doc_str, qiew sub_id_str)
+            void check_and_set_document(qiew doc_str, qiew sub_id_str = {})
             {
                 if (doc_str && document != doc_str)
                 {
