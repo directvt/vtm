@@ -35,6 +35,10 @@
 #include <sys/stat.h>    // ::fstat()
 #include <linux/input.h> // EV_*
 #include <fnmatch.h>     // ::fnmatch()
+#include <libgen.h>      // ::basename()
+#ifdef basename
+    #undef basename
+#endif
 #include <dirent.h>      // ::dirent
 #include <fcntl.h>       // O_RDWR | O_NONBLOCK | O_CLOEXEC
 #include <sys/inotify.h> // ::inotify
