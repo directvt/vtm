@@ -2933,7 +2933,7 @@ namespace netxs
         template<feed Direction>
         static auto word(std::span<cell const> canvas, si32 start)
         {
-            if (start < 0 || start >= canvas.size()) return 0;
+            if (start < 0 || (size_t)start >= canvas.size()) return 0;
             static constexpr auto rev = Direction == feed::fwd ? faux : true;
             auto stop_by_zwsp = 0;
             auto is_empty = [&](auto txt)
