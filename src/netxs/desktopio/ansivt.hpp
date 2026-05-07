@@ -497,30 +497,40 @@ namespace netxs::ansi
         auto& err() { return fgc(redlt); } // basevt: Add error color.
         template<class ...Args>
         auto& err(Args&&... data) { return pushsgr().fgc(redlt).add(std::forward<Args>(data)...).popsgr(); } // basevt: Add error message.
+        // basevt: Ansify/textify a single cell run region.
+        template<bool UseSGR = true, bool Initial = true, bool Finalize = true, bool Select_11_only = true>
+        auto& s11n(std::span<cell const> cell_run, rect region, cell& state)
+        {
+            auto allfx = [&](cell const& c)
+            {
+                c.scan_attr<svga::vtrgb, UseSGR>(state, block);
+                c.scan_text<svga::vtrgb, Select_11_only>(block);
+            };
+            region.trimby(rect{ dot_00, { (si32)cell_run.size(), 1 }});
+            if (region)
+            {
+                if constexpr (UseSGR && Initial) basevt::nil();
+                auto subrun = cell_run.subspan(region.coor.x, region.size.x);
+                netxs::for_each(subrun, allfx);
+                if constexpr (Finalize)
+                {
+                    if constexpr (UseSGR) basevt::nil();
+                }
+                else
+                {
+                    if (block.size()) basevt::eol();
+                }
+            }
+            return block;
+        }
         // basevt: Ansify/textify content of specified region.
         template<bool UseSGR = true, bool Initial = true, bool Finalize = true, bool Select_11_only = true>
         auto& s11n(core const& canvas, rect region, cell& state)
         {
             auto allfx = [&](cell const& c)
             {
-                auto utf8 = c.txt<svga::vtrgb>();
-                auto [w, h, x, y] = c.whxy();
                 c.scan_attr<svga::vtrgb, UseSGR>(state, block);
-                if (w == 0 || h == 0 || y != 1 || x != 1 || utf8.empty() || (byte)utf8.front() < 32) // 2D fragment is either non-standard or empty or C0.
-                {
-                    if constexpr (Select_11_only)
-                    {
-                        if (y > 1 || x > 2) add(' ');
-                    }
-                    else
-                    {
-                        add(' ');
-                    }
-                }
-                else
-                {
-                    add(utf8);
-                }
+                c.scan_text<svga::vtrgb, Select_11_only>(block);
             };
             auto eolfx = [&]
             {
@@ -821,9 +831,9 @@ namespace netxs::ansi
                 if (utf8)
                 {
                     add("\033[M");
-                    utf::to_utf_from_code(std::clamp(ctrl,         0, si16max - 32) + 32, *this);
-                    utf::to_utf_from_code(std::clamp((si32)coor.x, 1, si16max - 32) + 32, *this);
-                    utf::to_utf_from_code(std::clamp((si32)coor.y, 1, si16max - 32) + 32, *this);
+                    utf::to_utf_from_code(std::clamp(ctrl,         0, netxs::si16max - 32) + 32, *this);
+                    utf::to_utf_from_code(std::clamp((si32)coor.x, 1, netxs::si16max - 32) + 32, *this);
+                    utf::to_utf_from_code(std::clamp((si32)coor.y, 1, netxs::si16max - 32) + 32, *this);
                 }
                 else
                 {
@@ -1125,24 +1135,28 @@ namespace netxs::ansi
     };
     struct deco
     {
-        enum type : si32
+        struct type
         {
-            leftside, // default
-            rghtside,
-            centered,
-            autowrap,
-            count,
+            static constexpr auto _counter = __COUNTER__ + 1;
+            static constexpr auto leftside = __COUNTER__ - _counter;
+            static constexpr auto rghtside = __COUNTER__ - _counter;
+            static constexpr auto centered = __COUNTER__ - _counter;
+            static constexpr auto autowrap = __COUNTER__ - _counter;
+            static constexpr auto count    = __COUNTER__ - _counter;
         };
 
         static constexpr auto defwrp = wrap::on;    // deco: Default autowrap behavior.
         static constexpr auto maxtab = si32{ 255 }; // deco: Tab length limit.
 
+        int8 marg_l     = {}; // deco: Paragraph margins.
+        int8 marg_r     = {}; // deco: Paragraph margins.
+        int8 marg_t     = {}; // deco: Paragraph margins.
+        int8 marg_b     = {}; // deco: Paragraph margins.
         wrap wrapln : 2 = {}; // deco: Autowrap.
         bias adjust : 2 = {}; // deco: Horizontal alignment.
         rtol r_to_l : 2 = {}; // deco: RTL.
         feed rlfeed : 2 = {}; // deco: Reverse line feed.
         byte tablen : 8 = {}; // deco: Tab length.
-        dent margin     = {}; // deco: Page margins.
 
         deco() = default;
         deco(si32 format)
@@ -1162,30 +1176,37 @@ namespace netxs::ansi
                    (si32)rlfeed << 6 |
                    (si32)tablen << 8;
         }
-        auto  wrp   () const  { return wrapln;                                      } // deco: Return Auto wrapping.
-        auto  jet   () const  { return adjust;                                      } // deco: Return Paragraph adjustment.
-        auto  rtl   () const  { return r_to_l;                                      } // deco: Return RTL.
-        auto  rlf   () const  { return rlfeed;                                      } // deco: Return Reverse line feed.
-        auto  tbs   () const  { return tablen;                                      } // deco: Return Reverse line feed.
-        auto& mgn   () const  { return margin;                                      } // deco: Return margins.
-        auto& wrp   (bool  b) { wrapln = b ? wrap::on  : wrap::off;   return *this; } // deco: Set auto wrapping.
-        auto& rtl   (bool  b) { r_to_l = b ? rtol::rtl : rtol::ltr;   return *this; } // deco: Set RTL.
-        auto& rlf   (bool  b) { rlfeed = b ? feed::rev : feed::fwd;   return *this; } // deco: Set revverse line feed.
-        auto& wrp   (wrap  n) { wrapln = n;                           return *this; } // deco: Auto wrapping.
-        auto& jet   (bias  n) { adjust = n;                           return *this; } // deco: Paragraph adjustment.
-        auto& rtl   (rtol  n) { r_to_l = n;                           return *this; } // deco: RTL.
-        auto& rlf   (feed  n) { rlfeed = n;                           return *this; } // deco: Reverse line feed.
-        auto& wrp_or(wrap  n) { if (wrapln == wrap::none) wrapln = n; return *this; } // deco: Auto wrapping.
-        auto& jet_or(bias  n) { if (adjust == bias::none) adjust = n; return *this; } // deco: Paragraph adjustment.
-        auto& rtl_or(rtol  n) { if (r_to_l == rtol::none) r_to_l = n; return *this; } // deco: RTL.
-        auto& rlf_or(feed  n) { if (rlfeed == feed::none) rlfeed = n; return *this; } // deco: Reverse line feed.
-        auto& tbs   (si32  n) { tablen = std::min(n, maxtab);         return *this; } // deco: fx_ccc_tbs.
-        auto& mgl   (si32  n) { margin.l = n;                         return *this; } // deco: fx_ccc_mgl.
-        auto& mgr   (si32  n) { margin.r = n;                         return *this; } // deco: fx_ccc_mgr.
-        auto& mgt   (si32  n) { margin.t = n;                         return *this; } // deco: fx_ccc_mgt.
-        auto& mgb   (si32  n) { margin.b = n;                         return *this; } // deco: fx_ccc_mgb.
-        auto& mgn   (fifo& q) { margin.set(q);                        return *this; } // deco: fx_ccc_mgn.
-        auto& rst   ()        { *this = {};                           return *this; } // deco: Reset.
+        auto  wrp   () const  { return wrapln;                                        } // deco: Return Auto wrapping.
+        auto  jet   () const  { return adjust;                                        } // deco: Return Paragraph adjustment.
+        auto  rtl   () const  { return r_to_l;                                        } // deco: Return RTL.
+        auto  rlf   () const  { return rlfeed;                                        } // deco: Return Reverse line feed.
+        auto  tbs   () const  { return tablen;                                        } // deco: Return Reverse line feed.
+        auto  mgn   () const  { return dent{ marg_l, marg_r, marg_t, marg_b };        } // deco: Return margins.
+        auto& rst   ()        { *this = {};                             return *this; } // deco: Reset.
+        auto& wrp   (bool  b) { wrapln = b ? wrap::on  : wrap::off;     return *this; } // deco: Set auto wrapping.
+        auto& rtl   (bool  b) { r_to_l = b ? rtol::rtl : rtol::ltr;     return *this; } // deco: Set RTL.
+        auto& rlf   (bool  b) { rlfeed = b ? feed::rev : feed::fwd;     return *this; } // deco: Set revverse line feed.
+        auto& wrp   (wrap  n) { wrapln = n;                             return *this; } // deco: Auto wrapping.
+        auto& jet   (bias  n) { adjust = n;                             return *this; } // deco: Paragraph adjustment.
+        auto& rtl   (rtol  n) { r_to_l = n;                             return *this; } // deco: RTL.
+        auto& rlf   (feed  n) { rlfeed = n;                             return *this; } // deco: Reverse line feed.
+        auto& wrp_or(wrap  n) { if (wrapln == wrap::none) wrapln = n;   return *this; } // deco: Auto wrapping.
+        auto& jet_or(bias  n) { if (adjust == bias::none) adjust = n;   return *this; } // deco: Paragraph adjustment.
+        auto& rtl_or(rtol  n) { if (r_to_l == rtol::none) r_to_l = n;   return *this; } // deco: RTL.
+        auto& rlf_or(feed  n) { if (rlfeed == feed::none) rlfeed = n;   return *this; } // deco: Reverse line feed.
+        auto& tbs   (si32  n) { tablen = std::min(n, maxtab);           return *this; } // deco: fx_ccc_tbs.
+        auto& mgl   (si32  n) { marg_l = netxs::saturate_cast<int8>(n); return *this; } // deco: fx_ccc_mgl.
+        auto& mgr   (si32  n) { marg_r = netxs::saturate_cast<int8>(n); return *this; } // deco: fx_ccc_mgr.
+        auto& mgt   (si32  n) { marg_t = netxs::saturate_cast<int8>(n); return *this; } // deco: fx_ccc_mgt.
+        auto& mgb   (si32  n) { marg_b = netxs::saturate_cast<int8>(n); return *this; } // deco: fx_ccc_mgb.
+        auto& mgn   (fifo& q) // deco: fx_ccc_mgn.
+        {
+            marg_l = netxs::saturate_cast<int8>(q.subarg(0));
+            marg_r = netxs::saturate_cast<int8>(q.subarg(0));
+            marg_t = netxs::saturate_cast<int8>(q.subarg(0));
+            marg_b = netxs::saturate_cast<int8>(q.subarg(0));
+            return *this;
+        }
         // deco: Reset to global default.
         constexpr auto& reset()
         {
@@ -1194,7 +1215,10 @@ namespace netxs::ansi
             r_to_l = rtol::ltr;
             rlfeed = feed::fwd;
             tablen = 8;
-            margin = {};
+            marg_l = 0;
+            marg_r = 0;
+            marg_t = 0;
+            marg_b = 0;
             return *this;
         }
         auto get_kind() const
@@ -1894,6 +1918,10 @@ namespace netxs::ansi
             static auto marker = ansi::marker{};
             return marker;
         }
+        auto& get_style() const
+        {
+            return style;
+        }
         void check_height(si32 height)
         {
             if (proto_depth != height)
@@ -2052,7 +2080,7 @@ namespace netxs::ansi
                         }
                         if (next == tail)
                         {
-                            utf8 = { head, prev }; // preserve ESC at the end
+                            utf8 = { head, prev }; // exclude final ESC
                             return utf8;
                         }
                     }
@@ -2067,7 +2095,7 @@ namespace netxs::ansi
                             {
                                 if (tail - step < 8)
                                 {
-                                    utf8 = { head, prev }; // preserve ESC at the end
+                                    utf8 = { head, prev }; // exclude final ESC
                                 }
                                 else
                                 {
@@ -2088,7 +2116,7 @@ namespace netxs::ansi
                         }
                         if (next == tail)
                         {
-                            utf8 = { head, prev }; // preserve ESC at the end
+                            utf8 = { head, prev }; // exclude final ESC
                             return utf8;
                         }
                     }
@@ -2112,7 +2140,7 @@ namespace netxs::ansi
                         }
                         if (next == tail)
                         {
-                            utf8 = { head, prev }; // preserve ESC at the end
+                            utf8 = { head, prev }; // exclude final ESC
                             return utf8;
                         }
                     }
@@ -2130,7 +2158,7 @@ namespace netxs::ansi
                     {
                         if (++next == tail)
                         {
-                            utf8 = { head, prev }; // preserve ESC at the end
+                            utf8 = { head, prev }; // exclude final ESC
                         }
                     }
                     // test Esc + byte: ESC 7 8 D E H M ...
@@ -2167,7 +2195,7 @@ namespace netxs::ansi
                 }
                 else
                 {
-                    utf8 = { head, prev }; // preserve ESC at the end
+                    utf8 = { head, prev }; // exclude final ESC
                     return utf8;
                 }
             }

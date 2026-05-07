@@ -197,6 +197,7 @@ struct impl : consrv
 
     struct memo
     {
+        //todo use ui::line instead of ui::rich
         size_t                           seek{};
         std::list<std::pair<si32, rich>> undo{};
         std::list<std::pair<si32, rich>> redo{};
@@ -565,7 +566,7 @@ struct impl : consrv
                 auto& recs = iter->second;
                 for (auto& rec : recs.data)
                 {
-                    crop += rec.utf8();
+                    cell::to_utf8(rec, crop);
                     crop += '\0';
                 }
             }
@@ -1029,8 +1030,8 @@ struct impl : consrv
                     {
                         .dwMousePosition =
                         {
-                            .X = (si16)std::clamp<si32>((si32)coord.x, si16min, si16max),
-                            .Y = (si16)std::clamp<si32>((si32)coord.y, si16min, si16max),
+                            .X = (si16)std::clamp<si32>((si32)coord.x, netxs::si16min, netxs::si16max),
+                            .Y = (si16)std::clamp<si32>((si32)coord.y, netxs::si16min, netxs::si16max),
                         },
                         .dwButtonState     = (DWORD)bttns,
                         .dwControlKeyState = state,
@@ -1053,8 +1054,8 @@ struct impl : consrv
                     {
                         .dwSize =
                         {
-                            .X = (si16)std::min<si32>(winsize.x, si16max),
-                            .Y = (si16)std::min<si32>(winsize.y, si16max),
+                            .X = (si16)std::min<si32>(winsize.x, netxs::si16max),
+                            .Y = (si16)std::min<si32>(winsize.y, netxs::si16max),
                         }
                     }
                 }
@@ -1242,7 +1243,7 @@ struct impl : consrv
                             case VK_CONTROL:
                                 //todo unify
                                 cooked.ustr.clear();
-                                line.lyric->utf8(cooked.ustr); // Prepare data to copy to clipboard.
+                                cell::to_utf8(line.content(), cooked.ustr); // Prepare data to copy to clipboard.
                                 break;
                             case VK_PAUSE:   break;
                             case VK_APPS:    break;
@@ -1338,7 +1339,7 @@ struct impl : consrv
                                         cooked.ustr.clear();
                                         if (crlf_value)
                                         {
-                                            line.lyric->utf8(cooked.ustr);
+                                            cell::to_utf8(line.content(), cooked.ustr);
                                             cooked.ustr.push_back('\r');
                                             if (server.inpmod & nt::console::inmode::preprocess)
                                             {
@@ -1349,7 +1350,7 @@ struct impl : consrv
                                         {
                                             hist.save(line);
                                             line.move_to_end(true);
-                                            line.lyric->utf8(cooked.ustr);
+                                            cell::to_utf8(line.content(), cooked.ustr);
                                             cooked.ustr.push_back((char)c);
                                         }
                                         if (n == 0) pops++;

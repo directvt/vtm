@@ -265,7 +265,7 @@ R"==(
         </gate>
         <desktop script*>  <!-- Desktop-level bindings. -->
 )=="
-#if defined (WIN32)
+#if defined(_WIN32)
 R"==(
             <script=FocusTaskbar    on="Esc+F1"       />
 )=="
@@ -347,7 +347,7 @@ R"==(
         </tile>
         <terminal script*>  <!-- Terminal-specific bindings. -->
 )=="
-#if defined (WIN32)
+#if defined(_WIN32)
 R"==(
             <script=ExclusiveKeyboardMode on="preview: Ctrl-Alt | Alt-Ctrl"/>
 )=="

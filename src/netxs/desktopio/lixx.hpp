@@ -12779,7 +12779,7 @@ namespace netxs::lixx // li++, libinput++.
                                     auto edges = tp.evdev_device_mm_to_units(mm);
                                     tp.buttons.bottom_area.top_edge = edges.y;
                                     tp.buttons.bottom_area.rightbutton_left_edge = edges.x;
-                                    tp.buttons.bottom_area.middlebutton_left_edge = si32max;
+                                    tp.buttons.bottom_area.middlebutton_left_edge = netxs::si32max;
                                     // If middlebutton emulation is enabled, don't init a software area.
                                     if (tp.middlebutton.want_enabled) return;
                                     // The middle button is 25% of the touchpad and centered. Many touchpads don't have markings for the middle button at all so we need to make it big enough to reliably hit it but not too big so it takes away all the space.
@@ -13172,7 +13172,7 @@ namespace netxs::lixx // li++, libinput++.
                                         }
                                         else
                                         {
-                                            tp.buttons.top_area.bottom_edge = si32min;
+                                            tp.buttons.top_area.bottom_edge = netxs::si32min;
                                         }
                                     }
                                         void tp_sync_touch(tp_touch& t, si32 slot)
@@ -13824,7 +13824,7 @@ namespace netxs::lixx // li++, libinput++.
                             {
                                 case LIBINPUT_CONFIG_CLICK_METHOD_BUTTON_AREAS: tp_init_softbuttons(); break;
                                 case LIBINPUT_CONFIG_CLICK_METHOD_CLICKFINGER:
-                                case LIBINPUT_CONFIG_CLICK_METHOD_NONE: tp.buttons.bottom_area.top_edge = si32max; break;
+                                case LIBINPUT_CONFIG_CLICK_METHOD_NONE: tp.buttons.bottom_area.top_edge = netxs::si32max; break;
                             }
                         }
                     libinput_config_click_method tp_click_get_default_method()
@@ -14106,9 +14106,9 @@ namespace netxs::lixx // li++, libinput++.
                     }
                 void tp_init_palmdetect()
                 {
-                    tp.palm.right_edge = si32max;
-                    tp.palm.left_edge = si32min;
-                    tp.palm.upper_edge = si32min;
+                    tp.palm.right_edge = netxs::si32max;
+                    tp.palm.left_edge = netxs::si32min;
+                    tp.palm.upper_edge = netxs::si32min;
                     tp_init_palmdetect_arbitration();
                     if (tp.device_tags & EVDEV_TAG_EXTERNAL_TOUCHPAD
                      && !tp_is_tpkb_combo_below()
@@ -14167,7 +14167,7 @@ namespace netxs::lixx // li++, libinput++.
                         auto edges = tp.evdev_device_mm_to_units(mm);
                         tp.tp_scroll.right_edge = edges.x;
                         if (want_horiz_scroll) tp.tp_scroll.bottom_edge = edges.y;
-                        else                   tp.tp_scroll.bottom_edge = si32max;
+                        else                   tp.tp_scroll.bottom_edge = netxs::si32max;
                         auto i = 0;
                         for (auto& t : tp.touches)
                         {
@@ -14488,8 +14488,8 @@ namespace netxs::lixx // li++, libinput++.
                 if (h < 50) return;
                 tp.thumb.detect_thumbs      = true;
                 tp.thumb.use_pressure       = faux;
-                tp.thumb.pressure_threshold = si32max;
-                tp.thumb.size_threshold     = si32max;
+                tp.thumb.pressure_threshold = netxs::si32max;
+                tp.thumb.size_threshold     = netxs::si32max;
                 auto mm = fp64_coor{};
                 mm.y = h * 0.85; // Detect thumbs by pressure in the bottom 15mm, detect thumbs by lingering in the bottom 8mm.
                 auto edges = tp.evdev_device_mm_to_units(mm);

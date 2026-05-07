@@ -182,8 +182,8 @@ namespace netxs
     constexpr auto operator & (axes l, axes r) { return static_cast<si32>(l) & static_cast<si32>(r); }
 
     template<class T>
-    using to_signed_t = std::conditional_t<(si64)std::numeric_limits<std::remove_reference_t<T>>::max() <= si16max, si16,
-                        std::conditional_t<(si64)std::numeric_limits<std::remove_reference_t<T>>::max() <= si32max, si32, si64>>;
+    using to_signed_t = std::conditional_t<(si64)std::numeric_limits<std::remove_reference_t<T>>::max() <= netxs::si16max, si16,
+                        std::conditional_t<(si64)std::numeric_limits<std::remove_reference_t<T>>::max() <= netxs::si32max, si32, si64>>;
 
     template<class T>
     auto& any_get_or(std::any const& value, T& fallback)
@@ -200,27 +200,23 @@ namespace netxs
     template<ui64 FieldMask>
     static constexpr si32 field_offset()
     {
-        auto mask = FieldMask;
-        if (mask == 0) return 0;
-        auto n = 0;
-        while ((mask & 1) == 0)
-        {
-            mask >>= 1;
-            ++n;
-        }
-        return n;
+        if constexpr (FieldMask == 0) return 0;
+        return (si32)std::countr_zero(FieldMask);
     }
     template<ui64 FieldMask>
     void set_field(si32 v, auto& token)
     {
         using TType = std::decay_t<decltype(token)>;
+        constexpr auto value_mask = FieldMask >> netxs::field_offset<FieldMask>();
         token &= static_cast<TType>(~FieldMask);
-        token |= ((TType)(std::make_unsigned_t<decltype(v)>)v << netxs::field_offset<FieldMask>());
+        token |= (((TType)(std::make_unsigned_t<decltype(v)>)v & value_mask) << netxs::field_offset<FieldMask>());
     }
     template<ui64 FieldMask>
     auto get_field(auto token)
     {
-        return (si32)((token & FieldMask) >> netxs::field_offset<FieldMask>());
+        using TType = std::decay_t<decltype(token)>;
+        auto val = ((std::make_unsigned_t<TType>)token & FieldMask) >> netxs::field_offset<FieldMask>();
+        return (si32)val;
     }
     // intmath: Set a single p-bit to v.
     template<sz_t P, class T>
@@ -984,22 +980,49 @@ namespace netxs
         }
     }
 
-    // intmath: Copy the bitmap to the bitmap by invoking
-    //          handle(sprite1_element, sprite2_element) for each elem.
-    void oncopy(auto&& bitmap1, auto&& bitmap2, auto handle)
+    // intmath: Inovke a handle(container1_element, container2_element) for each element in equal conainers.
+    template<bool RtoL = faux>
+    void oncopy(auto&& items1, auto&& items2, auto handle)
     {
-        auto& size1 = bitmap1.size();
-        auto& size2 = bitmap2.size();
-        if (size1 == size2)
+        if (items1.size() == items2.size())
         {
-            auto data1 = bitmap1.begin();
-            auto data2 = bitmap2.begin();
-            auto limit = data1 + size1.y * size2.x;
-            while (limit != data1)
+            if constexpr (RtoL)
             {
-                handle(*data1++, *data2++);
+                auto iter1 = items1.begin();
+                auto iter2 = items2.rbegin();
+                auto limit = items2.rend();
+                while (limit != iter2)
+                {
+                    handle(*iter1++, *iter2++);
+                }
+            }
+            else
+            {
+                auto iter1 = items1.begin();
+                auto iter2 = items2.begin();
+                auto limit = items2.end();
+                while (limit != iter2)
+                {
+                    handle(*iter1++, *iter2++);
+                }
             }
         }
+    }
+    // intmath: Exec a handle for each item in container.
+    template<bool RtoL = faux, class T, class P, bool Plain = std::is_same_v<void, std::invoke_result_t<P, decltype(*(std::declval<T&>().begin()))>>>
+    auto for_each(T& container, P handle)
+    {
+        auto run = [&](auto&& items)
+        {
+            for (auto& c : items)
+            {
+                if constexpr (Plain) handle(c);
+                else             if (handle(c)) return faux;
+            }
+            if constexpr (!Plain) return true;
+        };
+        return RtoL ? run(container | std::views::reverse)
+                    : run(container);
     }
 
     // intmath: Intersect two sprites and

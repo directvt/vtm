@@ -171,7 +171,7 @@ namespace netxs::app::tile
             {
                 if (window_state == winstate::normal)
                 {
-                    auto context2D = parent_canvas.bump({ 0, si32max / 2, 0, si32max / 2 });
+                    auto context2D = parent_canvas.bump({ 0, netxs::si32max / 2, 0, netxs::si32max / 2 });
                     client->render(parent_canvas);
                     parent_canvas.bump(context2D);
                 }

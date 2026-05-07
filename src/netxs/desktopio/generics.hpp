@@ -461,8 +461,8 @@ namespace netxs::generics
               mxsz{ std::clamp(grow_mx, 0, netxs::si32max - 2) }
         { }
 
-        virtual void undock_base_front(type&) { };
-        virtual void undock_base_back (type&) { };
+        virtual void undock_base_front(type& /*item*/, bool /*deallocate*/) { };
+        virtual void undock_base_back (type& /*item*/, bool /*deallocate*/) { };
 
         auto  current_it()         { return iter<      ring>{ *this, cart };          }
         auto  begin()              { return iter<      ring>{ *this, head };          }
@@ -483,6 +483,7 @@ namespace netxs::generics
         void  index(si32 i)        { assert((i > 0 && i < size) || i == 0); cart = mod(head + i); }
         void  prev()               { dec(cart); test();          }
         void  next()               { inc(cart); test();          }
+        auto  ring_size()          { return buff.size() - 1;     }
 
     private:
         void  test()
@@ -506,23 +507,23 @@ namespace netxs::generics
             return faux;
         }
         template<bool UseBack = faux>
-        inline void undock_front()
+        inline void undock_front(bool deallocate = faux)
         {
             auto& item = front();
             if constexpr (UseUndock)
             {
-                if constexpr (UseBack) undock_base_back (item);
-                else                   undock_base_front(item);
+                if constexpr (UseBack) undock_base_back (item, deallocate);
+                else                   undock_base_front(item, deallocate);
             }
             item = type{};
             if (cart == head) inc(head), cart = head;
             else              inc(head);
         }
-        inline void undock_back()
+        inline void undock_back(bool deallocate = faux)
         {
             auto& item = back();
-            if constexpr (UseUndock) undock_base_back(item);
-            item = type{};
+            if constexpr (UseUndock) undock_base_back(item, deallocate);
+            else                     item = type{};
             if (cart == tail) dec(tail), cart = tail;
             else              dec(tail);
         }
@@ -550,8 +551,15 @@ namespace netxs::generics
                 if (full())
                 {
                     auto& item = front();
-                    if constexpr (UseUndock) undock_base_front(item);
-                    item = type(std::forward<Args>(args)...);
+                    if constexpr (UseUndock)
+                    {
+                        static_assert(sizeof...(args) == 0);
+                        undock_base_front(item, faux);
+                    }
+                    else
+                    {
+                        item = type(std::forward<Args>(args)...);
+                    }
                     ++it_1;
                 }
                 else
@@ -559,7 +567,14 @@ namespace netxs::generics
                     ++size;
                     dec(head);
                     auto& item = front();
-                    item = type(std::forward<Args>(args)...);
+                    if constexpr (UseUndock)
+                    {
+                        static_assert(sizeof...(args) == 0);
+                    }
+                    else
+                    {
+                        item = type(std::forward<Args>(args)...);
+                    }
                 }
                 swap_block<true>(it_1, it_2, begin());
                 --it_2;
@@ -574,8 +589,15 @@ namespace netxs::generics
                 if (full())
                 {
                     auto& item = front();
-                    if constexpr (UseUndock) undock_base_front(item);
-                    item = type{};
+                    if constexpr (UseUndock)
+                    {
+                        static_assert(sizeof...(args) == 0);
+                        undock_base_front(item, faux);
+                    }
+                    else
+                    {
+                        item = type{};
+                    }
                     if (cart == head) inc(head), cart = head;
                     else              inc(head);
                 }
@@ -596,7 +618,14 @@ namespace netxs::generics
             else        ++size;
             inc(tail);
             auto& item = back();
-            item = type(std::forward<Args>(args)...);
+            if constexpr (UseUndock)
+            {
+                static_assert(sizeof...(args) == 0);
+            }
+            else
+            {
+                item = type(std::forward<Args>(args)...);
+            }
             return item;
         }
         template<class ...Args>
@@ -606,7 +635,14 @@ namespace netxs::generics
             else        ++size;
             dec(head);
             auto& item = front();
-            item = type(std::forward<Args>(args)...);
+            if constexpr (UseUndock)
+            {
+                static_assert(sizeof...(args) == 0);
+            }
+            else
+            {
+                item = type(std::forward<Args>(args)...);
+            }
             return item;
         }
         template<bool UseBack = faux>
@@ -664,8 +700,15 @@ namespace netxs::generics
         }
         void clear()
         {
-            if constexpr (UseUndock) while (size) pop_back(); //todo undock?
-            else                     size = 0;
+            if constexpr (UseUndock)
+            {
+                while (size)
+                {
+                    undock_back(true);
+                    --size;
+                }
+            }
+            else size = 0;
             cart = 0;
             head = 0;
             tail = peak - 1;
@@ -683,7 +726,7 @@ namespace netxs::generics
                         //todo optimize for !UseUndock
                         do
                         {
-                            if constexpr (UseUndock) undock_base_front(front());
+                            if constexpr (UseUndock) undock_base_front(front(), true);
                             inc(head);
                         }
                         while (--size != new_size);
@@ -697,7 +740,7 @@ namespace netxs::generics
                         //todo optimize for !UseUndock
                         do
                         {
-                            if constexpr (UseUndock) undock_base_back(back());
+                            if constexpr (UseUndock) undock_base_back(back(), true);
                             dec(tail);
                         }
                         while (--size != new_size);

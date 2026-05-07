@@ -97,6 +97,10 @@ namespace netxs
         constexpr auto& operator %= (T i)          { x %= i;   y %= i;   return *this; }
         constexpr auto  operator <  (T i)    const { return x < i && y < i;            }
         constexpr auto  operator >  (T i)    const { return x > i && y > i;            }
+        constexpr auto  operator <= (T i)    const { return x <= i && y <= i;          }
+        constexpr auto  operator >= (T i)    const { return x >= i && y >= i;          }
+        constexpr auto  operator <= (xy2d p) const { return x <= p.x && y <= p.y;      }
+        constexpr auto  operator >= (xy2d p) const { return x >= p.x && y >= p.y;      }
         constexpr auto  operator +  (xy2d p) const { return xy2d{ x + p.x, y + p.y };  }
         constexpr auto  operator -  (xy2d p) const { return xy2d{ x - p.x, y - p.y };  }
         constexpr auto  operator *  (xy2d p) const { return xy2d{ x * p.x, y * p.y };  }
@@ -216,7 +220,7 @@ namespace netxs
     static constexpr auto dot_22 = twod{ 2,2 };
     static constexpr auto dot_21 = twod{ 2,1 };
     static constexpr auto dot_33 = twod{ 3,3 };
-    static constexpr auto dot_mx = twod{ (si32)(fp32)(si32max / 2), (si32)(fp32)(si32max / 2) }; // Be sure that fp2d{ dot_mx } == twod{ dot_mx }.
+    static constexpr auto dot_mx = twod{ (si32)(fp32)(netxs::si32max / 2), (si32)(fp32)(netxs::si32max / 2) }; // Be sure that fp2d{ dot_mx } == twod{ dot_mx }.
 
     twod divround(twod p, si32 n) { return { divround(p.x, n  ), divround(p.y, n  ) }; }
     twod divround(si32 n, twod p) { return { divround(n  , p.x), divround(n  , p.y) }; }

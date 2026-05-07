@@ -273,7 +273,7 @@ namespace netxs::ui
         template<class T>
         auto sync(T const& block)
         {
-            combine(runstyle, block.style);
+            combine(runstyle, block.get_style());
         }
         // flow: Split specified textblock on the substrings
         //       and place it to the form by the specified proc.
@@ -352,7 +352,8 @@ namespace netxs::ui
         {
             compose<Split>(block, [&](auto const& coord, auto const& subblock, auto isr_to_l)
                                   {
-                                      canvas.text(coord, subblock, isr_to_l, printfx);
+                                      isr_to_l ? canvas.text<true>(coord, subblock, printfx)
+                                               : canvas.text<faux>(coord, subblock, printfx);
                                   });
         }
         template<bool UseLocus = true, bool Split = faux, class T, class P = noop>
@@ -505,7 +506,7 @@ namespace netxs::ui
         { }
 
         constexpr
-        auto substr(si32 start, si32 length = si32max) const
+        auto substr(si32 start, si32 length = netxs::si32max) const
         {
             auto w = body.size().x;
             auto a = skip + std::max(0, start);
@@ -568,20 +569,20 @@ namespace netxs::ui
         using core::core;
 
         rich(core&& s)
-            : core{ std::forward<core>(s) }
+            : core{ std::move(s) }
         { }
 
         auto length() const                                     { return size().x;                            }
         auto shadow() const                                     { return shot{ *this };                       }
         auto substr(si32 at, si32 width = netxs::si32max) const { return shadow().substr(at, width);          }
-        void trimto(si32 max_size, cell const& c = {})          { if (length() > max_size) crop(max_size, c); }
+        void trimto(si32 max_size)                              { if (length() > max_size) crop(max_size);    }
         void resize(si32 oversize, cell const& c = {})          { if (oversize > length()) crop(oversize, c); }
         auto take_piece(si32 at, si32 width = netxs::si32max) const
         {
             if (width == netxs::si32max) width = length() - at;
             return rich{ core::crop(at, width) };
         }
-        auto copy_piece(rich& dest, si32 from, si32 width) const
+        auto copy_piece(auto& dest, si32 from, si32 width) const
         {
             auto my_size = size();
             if (from >= my_size.x * my_size.y)
@@ -606,52 +607,6 @@ namespace netxs::ui
         auto empty()
         {
             return canvas.empty();
-        }
-        void shrink(cell const& blank, si32 max_size = 0, si32 min_size = 0)
-        {
-            assert(min_size <= length());
-            auto head = begin();
-            auto tail = end();
-            auto stop = head + min_size;
-            while (stop != tail)
-            {
-                auto next = tail - 1;
-                if (*next != blank) break;
-                tail = next;
-            }
-            auto new_size = (si32)(tail - head);
-            if (max_size && max_size < new_size) new_size = max_size;
-            if (new_size != length()) crop(new_size);
-        }
-        template<bool AutoGrow = faux>
-        void splice(si32 at, si32 count, cell const& blank)
-        {
-            if (count <= 0) return;
-            auto len = length();
-            if constexpr (AutoGrow)
-            {
-                rich::resize(at + count);
-            }
-            else
-            {
-                if (at >= len) return;
-                count = std::min(count, len - at);
-            }
-            auto ptr = begin();
-            auto dst = ptr + at;
-            auto end = dst + count;
-            while (dst != end) *dst++ = blank;
-        }
-        template<class Span, class Shader>
-        void splice(si32 at, Span const& fragment, Shader fuse, cell const& c = {})
-        {
-            auto len = fragment.length();
-            rich::resize(len + at, c);
-            auto ptr = begin();
-            auto dst = ptr + at;
-            auto end = dst + len;
-            auto src = fragment.begin();
-            while (dst != end) fuse(*dst++, *src++);
         }
         template<bool Copy = faux, class SrcIt, class DstIt, class Shader>
         static void forward_fill_proc(SrcIt data, DstIt dest, DstIt tail, Shader fuse)
@@ -1214,12 +1169,6 @@ namespace netxs::ui
             }
             return cluster;
         }
-        //todo unify
-        auto& at(si32 p) const
-        {
-            assert(p >= 0);
-            return *(core::begin() + p);
-        }
     };
 
     // richtext: Text paragraph.
@@ -1280,7 +1229,7 @@ namespace netxs::ui
         auto   size() const { return lyric->size();   } // para: Return 2D volume size.
         auto&  back() const { return brush;           } // para: Return current brush.
         bool   busy() const { return length() || !parser::empty() || brush.busy(); } // para: Is it filled.
-        void   link(id_t id) { lyric->each([&](auto& c){ c.link(id); });  } // para: Set object ID for each cell.
+        void   link(id_t id) { netxs::for_each(content(), [&](auto& c){ c.link(id); });  } // para: Set object ID for each cell.
         template<bool ResetStyle = faux>
         void wipe(cell c = cell{}) // para: Clear the text and locus, and reset SGR attributes.
         {
@@ -1606,6 +1555,305 @@ namespace netxs::ui
         }
     };
 
+    // richtext: 1D cell run.
+    struct line
+    {
+        using type = deco::type;
+        using body = std::vector<cell>;
+
+        body cells{}; // line: Cell data.
+        cell brush{}; // line: Current brush.
+        id_t index{}; // line: Line index.
+        wrap wraps : 2 = {}; // line: Autowrap.
+        bias align : 2 = {}; // line: Horizontal alignment.
+        rtol r_2_l : 2 = {}; // line: RTL.
+        byte image : 1 = {}; // line: Line contains image cells.
+
+        line()              = default;
+        line(line&& l)      = default;
+        line(line const& l) = default;
+        line(std::span<cell const> copy)
+            : cells{ copy.begin(), copy.end() }
+        { }
+        line(view utf8)
+            : line{ para{ utf8 }.content() }
+        { }
+
+        line& operator = (line&&)      = default;
+        line& operator = (line const&) = default;
+
+        auto  begin()       { return cells.begin(); }
+        auto  end()         { return cells.end();   }
+        auto  begin() const { return cells.begin(); }
+        auto  end() const   { return cells.end();   }
+
+        void reinitialize(id_t line_id, deco const& line_style, cell const& blank, si32 len = 0)
+        {
+            cells.assign(len, blank);
+            brush = blank;
+            index = line_id;
+            wraps = line_style.wrp();
+            align = line_style.jet();
+            r_2_l = line_style.rtl();
+            image = {};
+        }
+        void reinitialize(id_t line_id, deco const& line_style, std::span<cell const> proto)
+        {
+            cells.assign(proto.begin(), proto.end());
+            brush = {};
+            index = line_id;
+            wraps = line_style.wrp();
+            align = line_style.jet();
+            r_2_l = line_style.rtl();
+            image = {};
+        }
+        void deallocate()
+        {
+            body().swap(cells);
+        }
+        // line: Return default object ID for the line owner.
+        auto link() const
+        {
+            return brush.link();
+        }
+        // line: Return true if line is empty.
+        auto empty() const
+        {
+            return cells.empty();
+        }
+        // line: Return line length.
+        auto size() const
+        {
+            return (si32)cells.size();
+        }
+        // line: Return line length.
+        auto length() const
+        {
+            return size();
+        }
+        // line: Set line length.
+        void size(si32 new_size)
+        {
+            cells.assign(new_size, brush);
+        }
+        // line: Exec a proc for each cell.
+        auto each(auto proc)
+        {
+            return netxs::for_each(cells, proc);
+        }
+        // line: Return cell at p.
+        auto& at(si32 p) const
+        {
+            assert(p >= 0 && p < size());
+            return *(cells.begin() + p);
+        }
+        // line: Get stripe.
+        auto subline(si32 from, si32 upto) const
+        {
+            if (from > upto) std::swap(from, upto);
+            auto w = size();
+            from = std::clamp(from, 0, w ? w - 1 : 0);
+            upto = std::clamp(upto, 0, w);
+            auto size = upto - from;
+            return std::span{ cells.begin() + from, (size_t)size };
+        }
+        // line: Return sub-line view.
+        auto substr(si32 at, si32 width = netxs::si32max) const
+        {
+            auto w = size();
+            auto a = std::max(0, at);
+            return a < w ? std::span{ cells.begin() + a, (size_t)std::min(std::max(0, width), w - a) }
+                         : std::span{ cells.begin() + 0, (size_t)0 };
+        }
+        auto  jet() const { return align;                                    } // line: Return line alignment.
+        auto  wrp() const { return wraps;                                    } // line: Return line auto wrapping.
+        auto  rtl() const { return r_2_l;                                    } // line: Return RTL.
+        auto& wrp(wrap w) { wraps = w;                         return *this; } // line: Set line auto wrapping.
+        auto& wrp(bool b) { wraps = b ? wrap::on  : wrap::off; return *this; } // line: Set line auto wrapping.
+        auto& rtl(bool r) { r_2_l = r ? rtol::rtl : rtol::ltr; return *this; } // line: Set RTL.
+        auto& jet(bias j) { align = j;                         return *this; } // line: Set alignment.
+        // line: Check current line style.
+        auto changed_style(deco const& new_style) const
+        {
+            return wraps != new_style.wrp()
+                || align != new_style.jet()
+                || r_2_l != new_style.rtl();
+        }
+        // line: Set current line style.
+        void set_style(deco const& new_style)
+        {
+            wraps = new_style.wrp();
+            align = new_style.jet();
+            r_2_l = new_style.rtl();
+        }
+        // line: Get current line style.
+        auto get_style() const
+        {
+            return deco{}.wrp(wraps).jet(align).rtl(r_2_l);
+        }
+        // line: Return line alignment kind.
+        auto get_kind() const
+        {
+            return wraps == wrap::on    ? type::autowrap :
+                   align == bias::left  ? type::leftside :
+                   align == bias::right ? type::rghtside :
+                                          type::centered ;
+        }
+        // line: Return current line state.
+        auto get_state() const
+        {
+            return std::tuple{ get_kind(), length() };
+        }
+        // line: Return true if line is wrapped.
+        auto wrapped() const
+        {
+            return wraps == wrap::on;
+        }
+        // line: Return wrapped line height.
+        auto height(si32 panel_x) const
+        {
+            auto len = size();
+            return len > panel_x && wrapped() ? (len + panel_x - 1) / panel_x
+                                              : 1;
+        }
+        // line: Resize preserving content.
+        void crop(si32 new_length, cell const& c = {})
+        {
+            cells.resize(new_length, c);
+        }
+        // line: Trim line if it exeeds max_size.
+        void trimto(si32 max_size)
+        {
+            if (length() > max_size)
+            {
+                cells.resize(max_size);
+            }
+        }
+        // line: Resize if needed (preserving content).
+        void resize(si32 oversize, cell const& c = {})
+        {
+            if (oversize > size())
+            {
+                crop(oversize, c);
+            }
+        }
+        // line: Trim all blank cells from the line end.
+        void shrink(cell const& blank)
+        {
+            auto head = cells.begin();
+            auto tail = cells.end();
+            while (head != tail)
+            {
+                auto next = tail - 1;
+                if (*next != blank) break;
+                tail = next;
+            }
+            auto new_size = (si32)(tail - head);
+            if (new_size != size()) crop(new_size);
+        }
+        // line: Place a number of blank cells at specified position.
+        template<bool AutoGrow = faux>
+        void splice(si32 at, si32 count, cell const& blank)
+        {
+            if (count <= 0) return;
+            auto len = size();
+            if constexpr (AutoGrow)
+            {
+                resize(at + count);
+            }
+            else
+            {
+                if (at >= len) return;
+                count = std::min(count, len - at);
+            }
+            auto ptr = cells.begin();
+            auto dst = ptr + at;
+            auto end = dst + count;
+            while (dst != end) *dst++ = blank;
+        }
+        // line: Place the specified fragment to the specified position.
+        void splice(si32 at, std::span<cell const> fragment, auto fuse, cell const& c = {})
+        {
+            auto len = (si32)fragment.size();
+            resize(len + at, c);
+            auto ptr = cells.begin();
+            auto dst = ptr + at;
+            auto end = dst + len;
+            auto src = fragment.begin();
+            while (dst != end)
+            {
+                fuse(*dst++, *src++);
+            }
+        }
+        // line: Splice proto with auto grow.
+        template<bool Copy = faux>
+        void splice(si32 at, si32 count, std::span<cell const> proto, auto fuse, cell const& c = {})
+        {
+            if (count <= 0) return;
+            resize(at + count, c);
+            auto end = cells.begin() + at;
+            auto dst = end + count;
+            auto src = proto.end();
+            rich::reverse_fill_proc<Copy>(src, dst, end, fuse);
+        }
+        // line: Insert n blanks at the specified position. Autogrow within segment only.
+        void insert(si32 at, si32 count, cell const& blank, si32 margin)
+        {
+            if (count <= 0 || margin == 0) return;
+            auto len = size();
+            auto pos = at % margin;
+            auto vol = std::min(count, margin - pos);
+            auto max = std::min(len + vol, at + margin - pos);
+            resize(max);
+            auto ptr = cells.begin();
+            auto dst = ptr + max;
+            auto src = dst - vol;
+            auto end = ptr + at;
+            while (src != end) *--dst = *--src;
+            while (dst != end) *--dst = blank;
+        }
+        // line: Delete n chars and add blanks at the right margin.
+        void cutoff(si32 at, si32 count, cell const& blank, si32 margin)
+        {
+            if (count <= 0 || margin == 0) return;
+            auto len = size();
+            if (at < len)
+            {
+                auto pos = at % margin;
+                auto rem = std::min(margin - pos, len - at);
+                auto vol = std::min(count, rem);
+                auto dst = cells.begin() + at;
+                auto end = dst + rem;
+                auto src = dst + vol;
+                while (src != end) *dst++ = *src++;
+                while (dst != end) *dst++ = blank;
+            }
+        }
+        // line: Copy the specified sub-line to the dest.
+        auto copy_piece(line& dest, si32 from, si32 width = netxs::si32max) const
+        {
+            auto s = substr(from, width);
+            dest.cells.assign(s.begin(), s.end());
+        }
+        // line: Find the substring and place its offset in &from.
+        auto find(line const& what, auto&& from, feed dir = feed::fwd) const
+        {
+            return cell::find(cells, what.cells, from, dir);
+        }
+        // line: Detect a word bound.
+        template<feed Direction>
+        auto word(si32 offset)
+        {
+            return cell::word<Direction>(cells, offset);
+        }
+        // line: Find proc(c) == true.
+        template<feed Direction>
+        auto seek(si32& start, auto proc)
+        {
+            return cell::seek<Direction>(cells, start, proc);
+        }
+    };
+
     // richtext: Cascade of the identical paragraphs.
     class rope
     {
@@ -1640,8 +1888,13 @@ namespace netxs::ui
 
         operator writ const& () const { return **source; }
 
-        // rope: Return a substring rope the source content.
-        //       ! No checking of boundaries !
+        // rope: Return style reference.
+        auto& get_style() const
+        {
+            return style;
+        }
+        // rope: Return a substring rope of the source content.
+        //       ! No boundary checking !
         rope substr(si32 start, si32 width) const
         {
             auto first = source;
@@ -1957,7 +2210,7 @@ namespace netxs::ui
         void data(si32 width, si32 /*height*/, core::body const& proto) override
         {
             auto& item = **layer;
-            item.lyric->splice(item.caret, width, proto, cell::shaders::full);
+            item.content().splice(item.caret, width, proto, cell::shaders::full);
             item.caret += width;
         }
         auto& current()       { return **layer; } // page: Access to the current paragraph.
@@ -2012,7 +2265,7 @@ namespace netxs::ui
             auto bound = [](auto& r){ return r.coord.y; };
             auto found = std::ranges::lower_bound(ropes, anker.y, {}, bound);
             if (found != ropes.end()) return entry{ found->id(), found->coord };
-            else                      return entry{ 0,     twod{ 0, si32max } };
+            else                      return entry{ 0, twod{ 0, netxs::si32max }};
         }
 
         struct rtf_dest_t
@@ -2147,7 +2400,7 @@ namespace netxs::ui
                         while (c.arg--) dest.data += nline;
                     }
                 }
-                curln.lyric->each([&](cell& c)
+                netxs::for_each(curln.content(), [&](cell& c)
                 {
                     if (c.isspc()) c.txt(whitespace);
                     auto [w, h, x, y] = c.whxy();
@@ -2275,7 +2528,7 @@ namespace netxs::ui
                         while (c.arg--) dest.data += "\n";
                     }
                 }
-                curln.lyric->each([&](cell c)
+                netxs::for_each(curln.content(), [&](cell c)
                 {
                     if (c.isspc()) c.txt(whitespace);
                     auto [w, h, x, y] = c.whxy();
@@ -2352,7 +2605,7 @@ namespace netxs::ui
                         while (c.arg--) dest.data += "\n";
                     }
                 }
-                curln.lyric->each([&](cell c)
+                netxs::for_each(curln.content(), [&](cell c)
                 {
                     if (c.isspc()) c.txt(whitespace);
                     auto [w, h, x, y] = c.whxy();
@@ -2466,7 +2719,7 @@ namespace netxs::ui
 
             if (reset)
             {
-                anker.y = si32max;
+                anker.y = netxs::si32max;
                 textpage.stream(gain);
                 decoy = caret && inside(flow::cp());
             }
