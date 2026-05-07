@@ -3499,7 +3499,7 @@ namespace netxs::ui
                         l.image = {};
                         for (auto& c : l.cells) 
                         {
-                            if (auto index = c.get_image_index())
+                            //if (auto index = c.get_image_index())
                             {
                                 //todo
                                 //if (--owner.image_ref_count[index] == 0) 
