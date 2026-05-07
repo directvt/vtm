@@ -3497,17 +3497,17 @@ namespace netxs::ui
                     if (l.image) 
                     {
                         l.image = {};
-                        for (auto& c : l.cells) 
-                        {
-                            //if (auto index = c.get_image_index())
-                            {
-                                //todo
-                                //if (--owner.image_ref_count[index] == 0) 
-                                //{
-                                //    release index
-                                //}
-                            }
-                        }
+                        //for (auto& c : l.cells) 
+                        //{
+                        //    if (auto index = c.get_image_index())
+                        //    {
+                        //        //todo
+                        //        //if (--owner.image_ref_count[index] == 0) 
+                        //        //{
+                        //        //    release index
+                        //        //}
+                        //    }
+                        //}
                     }
                     l.cells.clear();
                     if (deallocate || l.cells.capacity() > 256) // Deallocate long lines (256*sizeof(cell)=10240bytes).
