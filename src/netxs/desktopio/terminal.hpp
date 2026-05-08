@@ -7801,6 +7801,7 @@ namespace netxs::ui
                 .txt(" ", 1, 1, 1, 1)
                 .set_image_index(image.index)
                 .set_image_stamp(image.stamp)
+                .set_image_sixel(true)
                 .set_image_WH(wh.x, wh.y)
                 .set_image_ontop(faux);
             image_buffer.core::size<true>(wh, brush);

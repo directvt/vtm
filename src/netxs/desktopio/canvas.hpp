@@ -2309,6 +2309,7 @@ namespace netxs
         // ------|------
         //  16   | Image index. ui16
         //  1    | o ontop. 0/1
+        //  1    | is sixel (destructible). 0/1
         //  16   | c fragment (column). ui16
         //  16   | r fragment (row). ui16
         //  16   | W cell canvas width. ui16
@@ -2318,7 +2319,8 @@ namespace netxs
         static constexpr auto p2_index16_mask = (ui32)0b00000000'00000000'11111111'11111111;
         static constexpr auto p2_stamp_8_mask = (ui32)0b00000000'11111111'00000000'00000000;
         static constexpr auto p2_ontop_1_mask = (ui32)0b00000001'00000000'00000000'00000000;
-      //static constexpr auto p2_reserv7_mask = (ui32)0b11111110'00000000'00000000'00000000;
+        static constexpr auto p2_sixel_1_mask = (ui32)0b00000010'00000000'00000000'00000000;
+      //static constexpr auto p2_reserv7_mask = (ui32)0b11111100'00000000'00000000'00000000;
 
         static constexpr auto px_imgX_16_mask = (ui64)0b00000000'00000000'00000000'00000000'00000000'00000000'11111111'11111111;
         static constexpr auto px_imgY_16_mask = (ui64)0b00000000'00000000'00000000'00000000'11111111'11111111'00000000'00000000;
@@ -2350,6 +2352,7 @@ namespace netxs
             return *this;
         }
         auto get_image_index() const { return (ui16)netxs::get_field<p2_index16_mask>(p2); }
+        auto get_image_sixel() const { return       netxs::get_field<p2_sixel_1_mask>(p2); }
         auto get_image_stamp() const { return       netxs::get_field<p2_stamp_8_mask>(p2); }
         auto get_image_ontop() const
         {
@@ -2358,6 +2361,7 @@ namespace netxs
             return std::pair{ index, ontop };
         }
         auto& set_image_index(si32 n) { netxs::set_field<p2_index16_mask>(n, p2); return *this; }
+        auto& set_image_sixel(si32 n) { netxs::set_field<p2_sixel_1_mask>(n, p2); return *this; }
         auto& set_image_ontop(si32 n) { netxs::set_field<p2_ontop_1_mask>(n, p2); return *this; }
         auto& set_image_stamp(si32 n) { netxs::set_field<p2_stamp_8_mask>(n, p2); return *this; }
         auto& inc_image_stamp(si32 n) { netxs::set_field<p2_stamp_8_mask>(get_image_stamp() + n, p2); return *this; }
@@ -2578,7 +2582,7 @@ namespace netxs
                 {
                     st.xy(c.st.xy());
                 }
-                if (c.raw()) // Terminal output is non-destructive for images.
+                if (get_image_sixel() || c.raw()) // Terminal output is non-destructive for images but sixels.
                 {
                     px = c.px;
                     p2 = c.p2;
